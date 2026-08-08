@@ -1,0 +1,2 @@
+v2.0.0-beta3 ne dodaje novu migraciju baze u odnosu na v2.0.0-beta2.
+Obavezno je `php artisan optimize:clear` zbog izmene ruta i Blade view-a.

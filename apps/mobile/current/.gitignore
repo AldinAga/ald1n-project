@@ -1,0 +1,20 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+coverage/
+
+# Firebase/FCM private service-account credentials (never bundle/commit)
+firebase-service-account*.json
+fcm-service-account*.json
+google-service-account*.json

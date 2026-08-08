@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use App\Services\LegacyUserRecoveryService;
+use App\Services\UserLoginResolver;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Throwable;
+
+final class AuthDoctorCommand extends Command
+{
+    protected $signature = 'app:auth-doctor {login? : Korisničko ime ili e-mail za proveru}';
+    protected $description = 'Proveri korisnike i uslove za prijavu bez prikazivanja lozinki ili hash vrednosti';
+
+    public function handle(UserLoginResolver $users, LegacyUserRecoveryService $recovery): int
+    {
+        $failed = false;
+
+        try {
+            $targetCount = DB::table('users')->count();
+            $this->pass('Laravel baza dostupna; korisnika: '.$targetCount);
+        } catch (Throwable $exception) {
+            $this->fail('Laravel baza nije dostupna: '.$exception->getMessage());
+            return self::FAILURE;
+        }
+
+        try {
+            $legacyCount = DB::connection('legacy')->table('users')->count();
+            $this->pass('Legacy baza dostupna; korisnika: '.$legacyCount);
+        } catch (Throwable $exception) {
+            $this->fail('Legacy baza nije dostupna: '.$exception->getMessage());
+            $failed = true;
+        }
+
+        $login = trim((string) ($this->argument('login') ?? ''));
+        if ($login === '') {
+            $this->newLine();
+            $this->line('Aktivni Laravel korisnici:');
+            $rows = DB::table('users')
+                ->select(['id', 'username', 'email', 'status', 'role_id'])
+                ->orderBy('id')
+                ->limit(50)
+                ->get()
+                ->map(static fn ($row): array => [
+                    (string) $row->id,
+                    (string) $row->username,
+                    (string) $row->email,
+                    (string) $row->status,
+                    (string) $row->role_id,
+                ])->all();
+
+            $this->table(['ID', 'Korisničko ime', 'E-mail', 'Status', 'Role ID'], $rows);
+            return $failed ? self::FAILURE : self::SUCCESS;
+        }
+
+        $this->newLine();
+        $target = $users->find($login, ['role']);
+        if ($target === null) {
+            $this->fail('Nalog nije pronađen u Laravel bazi.');
+            $failed = true;
+        } else {
+            $this->pass(sprintf(
+                'Laravel nalog #%d: %s <%s>, status=%s, uloga=%s',
+                $target->id,
+                $target->username,
+                $target->email,
+                $target->status,
+                $target->role?->slug ?? 'nije povezana',
+            ));
+
+            $hashInfo = password_get_info((string) $target->password_hash);
+            $hashName = (string) ($hashInfo['algoName'] ?? 'unknown');
+            if ($hashName === 'unknown') {
+                $this->fail('Password hash nije prepoznat kao podržan PHP hash.');
+                $failed = true;
+            } else {
+                $this->pass('Password hash format: '.$hashName);
+            }
+
+            if ($target->status !== 'active') {
+                $this->fail('Nalog nije aktivan; trenutni status je '.$target->status.'.');
+                $failed = true;
+            }
+        }
+
+        try {
+            $legacy = $recovery->findLegacy($login);
+            if ($legacy === null) {
+                $this->warn('Nalog nije pronađen u legacy bazi.');
+            } else {
+                $this->pass(sprintf(
+                    'Legacy nalog #%d: %s <%s>, status=%s',
+                    (int) ($legacy['id'] ?? 0),
+                    (string) ($legacy['username'] ?? ''),
+                    (string) ($legacy['email'] ?? ''),
+                    (string) ($legacy['status'] ?? ''),
+                ));
+            }
+        } catch (Throwable $exception) {
+            $this->fail('Legacy provera naloga nije uspela: '.$exception->getMessage());
+            $failed = true;
+        }
+
+        $this->newLine();
+        if ($target === null) {
+            $this->line('Sledeći korak: php artisan app:reset-user-password '.escapeshellarg($login));
+        } elseif ($target->status !== 'active') {
+            $this->line('Aktiviraj nalog u Laravel bazi pre pokušaja prijave.');
+        } else {
+            $this->line('Sledeći korak: resetuj lozinku i zatim testiraj prijavu sa istim korisničkim imenom ili e-mailom.');
+        }
+
+        return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function pass(string $message): void
+    {
+        $this->line('<fg=green>PASS</> '.$message);
+    }
+
+    private function fail(string $message): void
+    {
+        $this->line('<fg=red>FAIL</> '.$message);
+    }
+}

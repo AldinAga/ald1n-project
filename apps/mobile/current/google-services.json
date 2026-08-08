@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "270925336895",
+    "project_id": "ald1nmobileapk",
+    "storage_bucket": "ald1nmobileapk.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270925336895:android:8368bb99971ed6da0ec38a",
+        "android_client_info": {
+          "package_name": "com.ald1n.mobile.preview"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270925336895-u5sagsbu1p0c8bi2hs1b5dbms54o7ptj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ald1n.mobile.preview",
+            "certificate_hash": "e04866612ecdd3354c6fc4c1de71df4ba1d556d7"
+          }
+        },
+        {
+          "client_id": "270925336895-dpmgc8e7cek9uq814ffsqjmdfd4i8diq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDa6byhK3HzyTlNFtSiqxhX9XKgU3qieDs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270925336895-dpmgc8e7cek9uq814ffsqjmdfd4i8diq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

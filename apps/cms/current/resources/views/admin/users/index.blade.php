@@ -1,0 +1,22 @@
+@extends('layouts.app')
+@section('title', 'Korisnici')
+@section('content')
+<div class="page-heading"><div><span class="eyebrow">Administracija</span><h1>Korisnici</h1><p>Pregled, dodavanje, aktivacija, blokiranje i promena pristupa korisnika.</p></div><div class="count-pill">{{ $users->total() }} korisnika</div></div>
+<form class="filter-panel admin-filter" method="get"><label class="search-field"><span>Pretraga</span><input name="q" value="{{ request('q') }}" placeholder="Korisničko ime, e-mail ili ime"></label><label><span>Status</span><select name="status"><option value="">Svi statusi</option>@foreach(['pending'=>'Na čekanju','active'=>'Aktivan','blocked'=>'Blokiran'] as $value=>$label)<option value="{{ $value }}" @selected(request('status')===$value)>{{ $label }}</option>@endforeach</select></label><div class="filter-actions"><button class="button button-primary" type="submit">Filtriraj</button><a class="button button-ghost" href="{{ route('admin.users.index') }}">Reset</a></div></form>
+<div class="settings-grid user-admin-grid">
+<section class="panel form-section">
+<h2>Dodaj korisnika</h2>
+<form method="post" action="{{ route('admin.users.store') }}" class="stack-form compact-form">@csrf
+<div class="field-grid"><label><span>Korisničko ime</span><input name="username" required></label><label><span>E-mail</span><input type="email" name="email" required></label><label><span>Ime</span><input name="first_name"></label><label><span>Prezime</span><input name="last_name"></label><label><span>Telefon</span><input name="phone"></label><label><span>Lozinka</span><input type="password" name="password" minlength="12" required></label><label><span>Uloga</span><select name="role_id" required>@foreach($roles as $role)<option value="{{ $role->id }}">{{ $role->name }}</option>@endforeach</select></label><label><span>Grupa</span><select name="user_group_id"><option value="">Bez grupe</option>@foreach($groups as $group)<option value="{{ $group->id }}">{{ $group->name }}</option>@endforeach</select></label><label><span>Status</span><select name="status"><option value="active">Aktivan</option><option value="pending">Na čekanju</option><option value="blocked">Blokiran</option></select></label></div>
+<button class="button button-primary" type="submit">Dodaj korisnika</button>
+</form>
+</section>
+<section class="panel form-section"><h2>Postojeći korisnici</h2><div class="account-list">
+@forelse($users as $user)
+<article class="dictionary-card user-card"><form method="post" action="{{ route('admin.users.update', $user) }}">@csrf @method('put')
+<div class="card-header-row"><div><strong>{{ $user->displayName() }}</strong><small>{{ $user->username }} · {{ $user->email }}</small></div><span class="status-badge status-{{ $user->status === 'active' ? 'active' : ($user->status === 'blocked' ? 'archived' : 'draft') }}">{{ $user->status }}</span></div>
+<div class="field-grid"><label><span>Korisničko ime</span><input name="username" value="{{ $user->username }}" required></label><label><span>E-mail</span><input type="email" name="email" value="{{ $user->email }}" required></label><label><span>Ime</span><input name="first_name" value="{{ $user->first_name }}"></label><label><span>Prezime</span><input name="last_name" value="{{ $user->last_name }}"></label><label><span>Telefon</span><input name="phone" value="{{ $user->phone }}"></label><label><span>Nova lozinka</span><input type="password" name="password" minlength="12" placeholder="Ostavi prazno bez promene"></label><label><span>Uloga</span><select name="role_id">@foreach($roles as $role)<option value="{{ $role->id }}" @selected($user->role_id===$role->id)>{{ $role->name }}</option>@endforeach</select></label><label><span>Grupa</span><select name="user_group_id"><option value="">Bez grupe</option>@foreach($groups as $group)<option value="{{ $group->id }}" @selected($user->user_group_id===$group->id)>{{ $group->name }}</option>@endforeach</select></label><label><span>Status</span><select name="status">@foreach(['pending'=>'Na čekanju','active'=>'Aktivan','blocked'=>'Blokiran'] as $value=>$label)<option value="{{ $value }}" @selected($user->status===$value)>{{ $label }}</option>@endforeach</select></label></div><button class="button button-primary button-small" type="submit">Sačuvaj</button></form></article>
+@empty<div class="empty-inline">Nema korisnika.</div>@endforelse
+</div><div class="pagination-wrap">{{ $users->links() }}</div></section>
+</div>
+@endsection

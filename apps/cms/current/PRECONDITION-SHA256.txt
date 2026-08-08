@@ -1,0 +1,7 @@
+# Expected SHA-256 of EXISTING Phase 3B production files before applying Phase 3C Google auth candidate.
+# If ANY line fails, DO NOT overwrite production; retrieve current file and merge first.
+640e3fed66969bf4016c08879b292e3072aa9cdba177e7fd9abb228f7d100d65  .env.example
+5463a547cc70805907f9c0bc19fda7270d2e05d21c3edabfaa4564aee626bdc6  app/Providers/AppServiceProvider.php
+662da237d402721b8e96ab6cc80c3cba6b90e8b6689f67e8c156bbc41609f63b  config/mobile.php
+c8977a27d4a984c44224d671f1dd01c55a0017e80e56e02162f520e4a95ccc8a  routes/api.php
+e590a0d98bf51aa3a71bbd31b74addb555bce3592eee300c4da435fe49cb7ee8  docs/openapi.yaml

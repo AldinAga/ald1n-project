@@ -1,0 +1,4 @@
+IMPORTANT: package.json adds expo-symbols, react-native-nitro-google-signin and react-native-nitro-modules.
+The candidate intentionally does NOT replace package-lock.json because the artifact environment cannot access all npm tarballs.
+Regenerate the canonical lock in the isolated server workspace with the real npm CLI and a clean HOME/cache, then run npm ci/typecheck/validate/doctor before EAS build.
+Do NOT run cPanel Run NPM Install and do NOT generate the lock inside the CloudLinux application root.

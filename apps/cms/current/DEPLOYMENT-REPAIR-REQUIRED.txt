@@ -1,0 +1,12 @@
+v2.0.0-beta6 zahteva runtime repair i novu nedestruktivnu migraciju.
+
+Obavezno pokrenuti:
+php artisan optimize:clear
+php artisan app:deployment-check --repair
+php artisan app:auth-doctor Ald1n --render-dashboard
+
+Repair kreira/proverava file session, cache, compiled-view i log direktorijume,
+primenjuje migraciju 2026_07_23_000008_repair_authenticated_runtime_beta6.php,
+pokrece CoreAccessSeeder i kompajlira Blade view-e.
+
+Legacy baza icaffeco_cms se ne migrira i ostaje read-only.

@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title','Serverska greška')
+@section('code','500')
+@section('heading','Došlo je do serverske greške')
+@section('message','Radnja nije završena. Pokušaj ponovo, a ako se problem ponavlja prosledi administratoru vreme greške i stranicu na kojoj se pojavila.')

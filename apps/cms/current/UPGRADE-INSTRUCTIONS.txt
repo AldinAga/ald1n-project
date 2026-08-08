@@ -1,0 +1,11 @@
+ALD1N CMS v2.1.0-beta7.22 - UPGRADE PAKET
+
+Polazna verzija: v2.1.0-beta7.21
+Ciljna verzija: v2.1.0-beta7.22
+
+1. Napravi backup baze, .env, storage/app i kompletne aplikacije.
+2. Raspakuj sadržaj ovog ZIP-a preko postojeće beta7.21 instalacije.
+3. Pokreni komande iz DEPLOY-COMMANDS.txt.
+4. Obavezno pokreni migraciju, app:management-reports-doctor --repair --render i app:customer-portal-doctor --repair --render.
+
+Za drugu ili nepoznatu polaznu verziju koristi FULL paket.

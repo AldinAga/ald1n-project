@@ -1,0 +1,2 @@
+# Fajlovi koje treba ukloniti iz postojećeg Alpha3.1 root-a
+NO-DATABASE-MIGRATION.txt

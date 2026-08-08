@@ -1,0 +1,11 @@
+DA — v2.2.0 zahteva tri aditivne migracije baze.
+
+Pokreni:
+/usr/local/bin/php artisan migrate --force
+
+Nove migracije:
+2026_08_06_000039_create_mobile_devices_v2_2_0.php
+2026_08_06_000040_add_push_notification_preference_v2_2_0.php
+2026_08_06_000041_create_database_queue_tables_v2_2_0.php
+
+Migracije dodaju registraciju Android/iOS uređaja, push preference i Laravel database queue tabele. Ne menjaju postojeće poslovne podatke.

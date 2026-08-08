@@ -1,0 +1,37 @@
+@extends('layouts.app')
+@section('title', 'Automatizacija')
+@section('content')
+@php
+    $typeLabels = [
+        'order_unaccepted' => 'Čeka preuzimanje',
+        'processing_overdue' => 'Istekao rok obrade',
+        'shipping_overdue' => 'Istekao rok slanja',
+        'payment_overdue' => 'Dospelo plaćanje',
+        'low_stock' => 'Nizak lager',
+        'warranty_expiring' => 'Garancija uskoro ističe',
+        'warranty_maintenance_due' => 'Preventivno održavanje',
+    ];
+@endphp
+<div class="page-heading"><div><span class="eyebrow">Podešavanja</span><h1>Automatizacija i upozorenja</h1><p>Operativne provere rade preko Laravel scheduler-a, file lock-a i sync notifikacija — bez Redis-a.</p></div><div class="header-button-row"><form method="post" action="{{ route('admin.settings.automation.run') }}">@csrf<button class="button button-primary" type="submit">Pokreni scan sada</button></form><form method="post" action="{{ route('admin.settings.automation.run') }}">@csrf<input type="hidden" name="digest" value="1"><button class="button button-ghost" type="submit">Pošalji dnevni pregled</button></form></div></div>
+@if(!$ready)<div class="alert error"><strong>Automation šema nije spremna.</strong><p>{{ implode(', ', $missing) }}</p><code>php artisan app:automation-doctor --repair --run</code></div>@endif
+<div class="mini-metric-grid automation-metrics"><div><small>Otvorena upozorenja</small><strong>{{ $stats['open'] }}</strong></div><div><small>Kritična</small><strong class="text-danger">{{ $stats['danger'] }}</strong></div><div><small>Upozorenja</small><strong>{{ $stats['warning'] }}</strong></div><div><small>Neuspela pokretanja / 7 dana</small><strong>{{ $stats['failed_runs'] }}</strong></div></div>
+<form method="post" action="{{ route('admin.settings.automation.update') }}" class="admin-form-grid">@csrf @method('put')
+<div class="form-main"><section class="panel form-section"><h2>Operativni scan</h2><div class="field-grid">
+<label><span>Porudžbina bez preuzimanja nakon (sati)</span><input type="number" min="1" max="168" name="automation_unaccepted_order_hours" value="{{ old('automation_unaccepted_order_hours',$settings['automation_unaccepted_order_hours']) }}" required></label>
+<label><span>Ponovi upozorenje nakon (sati)</span><input type="number" min="1" max="720" name="automation_alert_reminder_hours" value="{{ old('automation_alert_reminder_hours',$settings['automation_alert_reminder_hours']) }}" required></label>
+<label><span>Upozori pre isteka garancije (dana)</span><input type="number" min="1" max="365" name="warranty_expiry_notice_days" value="{{ old('warranty_expiry_notice_days',$settings['warranty_expiry_notice_days']) }}" required></label>
+<label><span>Upozori pre održavanja (dana)</span><input type="number" min="1" max="90" name="warranty_maintenance_notice_days" value="{{ old('warranty_maintenance_notice_days',$settings['warranty_maintenance_notice_days']) }}" required></label>
+<label class="field-span-2 check-card"><input type="checkbox" name="automation_enabled" value="1" @checked(old('automation_enabled',$settings['automation_enabled'])==='1')><span><strong>Automatizacija je aktivna</strong><small>Scheduler može pokretati scan i dnevni pregled.</small></span></label>
+<label class="check-card"><input type="checkbox" name="automation_low_stock_enabled" value="1" @checked(old('automation_low_stock_enabled',$settings['automation_low_stock_enabled'])==='1')><span><strong>Nizak lager</strong><small>Prag se čita iz svakog artikla.</small></span></label>
+<label class="check-card"><input type="checkbox" name="automation_overdue_payment_enabled" value="1" @checked(old('automation_overdue_payment_enabled',$settings['automation_overdue_payment_enabled'])==='1')><span><strong>Dospela plaćanja</strong><small>Upozori za neplaćene dospele porudžbine.</small></span></label>
+<label class="check-card"><input type="checkbox" name="automation_deadline_alerts_enabled" value="1" @checked(old('automation_deadline_alerts_enabled',$settings['automation_deadline_alerts_enabled'])==='1')><span><strong>Rok obrade i slanja</strong><small>Prati očekivane datume porudžbine.</small></span></label>
+<label class="check-card"><input type="checkbox" name="automation_daily_digest_enabled" value="1" @checked(old('automation_daily_digest_enabled',$settings['automation_daily_digest_enabled'])==='1')><span><strong>Dnevni pregled</strong><small>Zakazan u 08:05 po Europe/Belgrade vremenu.</small></span></label>
+<label class="check-card"><input type="checkbox" name="automation_warranty_alerts_enabled" value="1" @checked(old('automation_warranty_alerts_enabled',$settings['automation_warranty_alerts_enabled'])==='1')><span><strong>Garancije i održavanje</strong><small>Upozorenja pre isteka i dospelog preventivnog servisa.</small></span></label>
+</div></section></div>
+<aside class="form-side"><section class="panel form-section sticky-card"><h2>Scheduler</h2><p class="muted">Na hostingu treba da postoji jedan cron koji svakog minuta poziva:</p><code>* * * * * php /home/icaffeco/cms.ald1n.com/artisan schedule:run</code><dl class="detail-list"><dt>Poslednji uspeh</dt><dd>{{ $settings['automation_last_success_at'] ?: 'Nije pokretano' }}</dd><dt>Poslednja greška</dt><dd class="{{ $settings['automation_last_error'] ? 'text-danger' : '' }}">{{ $settings['automation_last_error'] ?: 'Nema' }}</dd></dl><button class="button button-primary button-large" type="submit">Sačuvaj automatizaciju</button></section></aside>
+</form>
+<div class="settings-grid automation-grid">
+<section class="panel form-section"><div class="card-header-row"><div><h2>Otvorena upozorenja</h2><p class="muted">Ručno zatvaranje ne skriva problem zauvek — sledeći scan ga vraća ako i dalje postoji.</p></div></div><div class="automation-alert-list">@forelse($alerts as $alert)<article class="automation-alert severity-{{ $alert->severity }}"><div><span class="status-badge status-{{ $alert->severity==='danger'?'archived':'draft' }}">{{ $typeLabels[$alert->type] ?? $alert->type }}</span><h3>{{ $alert->title }}</h3><p>{{ $alert->message }}</p><small>Poslednje detektovano: {{ $alert->last_detected_at?->format('d.m.Y H:i') }} · Poslednje obaveštenje: {{ $alert->last_notified_at?->format('d.m.Y H:i') ?? 'nije poslato' }}</small></div><div class="row-actions">@if($alert->action_url)<a class="button button-ghost button-small" href="{{ $alert->action_url }}">Otvori</a>@endif<form method="post" action="{{ route('admin.settings.automation.alerts.resolve',$alert) }}">@csrf<button class="button button-ghost button-small" type="submit">Zatvori</button></form></div></article>@empty<div class="empty-state"><x-icon name="check-circle" size="34" /><h3>Nema otvorenih upozorenja</h3><p>Operativni scan nije pronašao problem.</p></div>@endforelse</div></section>
+<section class="panel form-section"><h2>Poslednja pokretanja</h2><div class="automation-run-list">@forelse($runs as $run)<article><div><strong>{{ $run->task }}</strong><small>{{ $run->started_at?->format('d.m.Y H:i:s') }} · {{ $run->trigger?->displayName() ?? 'Scheduler' }}</small></div><div><span class="status-badge status-{{ $run->status==='success'?'active':($run->status==='failed'?'archived':'draft') }}">{{ $run->status }}</span><small>{{ $run->examined_count }} provereno · {{ $run->action_count }} upozorenja · {{ $run->notification_count }} poruka</small></div></article>@empty<div class="empty-state"><p>Automatizacija još nije pokretana.</p></div>@endforelse</div></section>
+</div>
+@endsection

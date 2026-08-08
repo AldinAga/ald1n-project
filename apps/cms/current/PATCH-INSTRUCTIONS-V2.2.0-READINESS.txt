@@ -1,0 +1,28 @@
+v2.2.0 Production Readiness Hotfix 1
+
+Ovaj PATCH se raspakuje preko već instalirane v2.2.0 aplikacije.
+Ne briši .env niti storage.
+
+1. Napravi kopiju .env i postojeći rollback backup.
+2. Raspakuj PATCH u /home/icaffeco/cms.ald1n.com.
+3. U .env postavi QUEUE_CONNECTION=database.
+4. Pokreni:
+
+cd /home/icaffeco/cms.ald1n.com
+/usr/local/bin/php artisan optimize:clear
+/usr/local/bin/php bin/v2.2.0-production-readiness-hotfix-smoke.php
+/usr/local/bin/php artisan app:cms-v2-2-0-doctor --strict
+/usr/local/bin/php artisan app:backup-create --type=manual
+/usr/local/bin/php artisan app:backup-verify
+/usr/local/bin/php artisan app:release-check --profile=stable --strict
+/usr/local/bin/php artisan optimize
+
+Napomena: `php artisan test` nije dostupan posle `composer install --no-dev`.
+To nije kvar aplikacije. PHPUnit se pokreće na staging/local okruženju sa require-dev paketima.
+
+Automatizovana komanda posle raspakivanja PATCH-a:
+
+chmod 700 fix-v2.2.0-production-readiness.sh
+./fix-v2.2.0-production-readiness.sh
+
+Skripta pravi kopiju .env, postavlja database queue, pravi svež v2.2.0 backup i ponavlja Stable strict proveru.

@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title','Sesija je istekla')
+@section('code','419')
+@section('heading','Sesija je istekla')
+@section('message','Stranica je bila otvorena duže vreme. Osveži je, ponovo se prijavi ako je potrebno i ponovi radnju.')

@@ -1,0 +1,613 @@
+openapi: 3.1.0
+info:
+  title: Ald1n CMS Mobile API
+  version: 2.2.0
+  description: |
+    Stabilni JSON ugovor za React Native / Expo klijente. Sve zaštićene rute
+    koriste Laravel Sanctum Bearer token. Greške koriste jedinstveni envelope
+    sa code i request_id poljima.
+servers:
+  - url: https://cms.ald1n.com
+    description: Production
+  - url: http://localhost:8000
+    description: Local development
+tags:
+  - name: Auth
+  - name: Bootstrap
+  - name: Account
+  - name: Devices
+  - name: Catalog
+  - name: Orders
+  - name: Notifications
+paths:
+  /api/v1/auth/google:
+    post:
+      summary: Google login ili registracija mobilnog korisnika
+      description: Backend verifikuje Google ID token, povezuje postojeći korisnik po stabilnom Google subject-u ili verifikovanom e-mailu i po konfiguraciji kreira novu pending registraciju.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token, device_name]
+              properties:
+                id_token: { type: string, maxLength: 8192 }
+                device_name: { type: string, maxLength: 120 }
+      responses:
+        '201': { description: Prijava uspela i Sanctum token je izdat }
+        '202': { description: Registracija postoji, ali nalog čeka odobrenje }
+        '422': { description: Google identitet ili CMS status nije prihvaćen }
+        '503': { description: Google auth nije konfigurisan }
+
+  /api/v1/auth/token:
+    post:
+      tags: [Auth]
+      summary: Prijava i izdavanje Sanctum tokena
+      security: []
+      operationId: createAuthToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login, password, device_name]
+              properties:
+                login: { type: string, maxLength: 190 }
+                password: { type: string, maxLength: 4096 }
+                device_name: { type: string, maxLength: 120 }
+      responses:
+        '201':
+          description: Token je izdat
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, token_type, user, permissions, api_version]
+                properties:
+                  token: { type: string }
+                  token_type: { type: string, const: Bearer }
+                  expires_at: { type: [string, 'null'], format: date-time }
+                  user: { $ref: '#/components/schemas/UserSummary' }
+                  permissions:
+                    type: array
+                    items: { type: string }
+                  api_version: { type: string, const: v1 }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      tags: [Auth]
+      summary: Opoziv trenutnog tokena i vezanog uređaja
+      operationId: revokeCurrentAuthToken
+      responses:
+        '204': { description: Token je opozvan }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/bootstrap:
+    get:
+      tags: [Bootstrap]
+      summary: Početni mobilni payload
+      operationId: getMobileBootstrap
+      responses:
+        '200':
+          description: Korisnik, dozvole, feature flagovi i verzije aplikacije
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [user, permissions, features, notification_counts, notification_preferences, app]
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+                      permissions:
+                        type: array
+                        items: { type: string }
+                      features:
+                        type: object
+                        additionalProperties: { type: boolean }
+                      notification_counts:
+                        type: object
+                        required: [unread]
+                        properties:
+                          unread: { type: integer, minimum: 0 }
+                      notification_preferences: { $ref: '#/components/schemas/NotificationPreferences' }
+                      app: { $ref: '#/components/schemas/AppContract' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/me:
+    get:
+      tags: [Account]
+      summary: Trenutni korisnik
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Korisnički podaci i dozvole
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    patch:
+      tags: [Account]
+      summary: Ažuriranje profila
+      operationId: updateCurrentUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name: { type: string, maxLength: 100 }
+                last_name: { type: [string, 'null'], maxLength: 100 }
+                phone: { type: [string, 'null'], maxLength: 40 }
+                address: { type: [string, 'null'], maxLength: 255 }
+                city: { type: [string, 'null'], maxLength: 120 }
+                postal_code: { type: [string, 'null'], maxLength: 20 }
+      responses:
+        '200':
+          description: Profil je sačuvan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/me/password:
+    put:
+      tags: [Account]
+      summary: Promena lozinke i opoziv svih API tokena
+      operationId: updateCurrentUserPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string }
+                password: { type: string, minLength: 12 }
+                password_confirmation: { type: string }
+      responses:
+        '200':
+          description: Lozinka je promenjena; klijent mora ponovo da se prijavi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, reauthenticate]
+                properties:
+                  message: { type: string }
+                  reauthenticate: { type: boolean, const: true }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/me/notification-preferences:
+    put:
+      tags: [Account]
+      summary: Ažuriranje kanala i kategorija obaveštenja
+      operationId: updateNotificationPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationPreferences' }
+      responses:
+        '200':
+          description: Preference su sačuvane
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/NotificationPreferences' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/devices:
+    get:
+      tags: [Devices]
+      summary: Lista mobilnih uređaja korisnika
+      operationId: listMobileDevices
+      parameters:
+        - in: query
+          name: include_revoked
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Uređaji
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MobileDevice' }
+    post:
+      tags: [Devices]
+      summary: Registracija ili osvežavanje instalacije
+      operationId: registerMobileDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobileDeviceInput' }
+      responses:
+        '201':
+          description: Uređaj je kreiran
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MobileDevice' }
+        '200':
+          description: Postojeća instalacija je osvežena
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/devices/{device}:
+    parameters:
+      - in: path
+        name: device
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Devices]
+      summary: Ažuriranje uređaja ili push tokena
+      operationId: updateMobileDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobileDeviceUpdateInput' }
+      responses:
+        '200':
+          description: Uređaj je ažuriran
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MobileDevice' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      tags: [Devices]
+      summary: Opoziv mobilne instalacije i njenog Sanctum tokena
+      operationId: revokeMobileDevice
+      responses:
+        '204': { description: Uređaj je opozvan }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/catalog/filters:
+    get:
+      tags: [Catalog]
+      summary: Dostupni kataloški filteri i šifarnici
+      operationId: getCatalogFilters
+      responses:
+        '200':
+          description: Brendovi, tipovi, linije, kategorije, specifikacije i sortiranja
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/products:
+    get:
+      tags: [Catalog]
+      summary: Straničena lista proizvoda
+      operationId: listProducts
+      parameters:
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: brand_id, schema: { type: integer } }
+        - { in: query, name: product_type_id, schema: { type: integer } }
+        - { in: query, name: product_line_id, schema: { type: integer } }
+        - { in: query, name: category_id, schema: { type: integer } }
+        - { in: query, name: stock, schema: { type: string, enum: [available, low, out] } }
+        - { in: query, name: sort, schema: { type: string, enum: [newest, updated, name, price_asc, price_desc] } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 6, maximum: 60, default: 20 } }
+      responses:
+        '200': { description: Lista proizvoda }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/products/{slug}:
+    get:
+      tags: [Catalog]
+      summary: Detalj vidljivog proizvoda
+      operationId: getProduct
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Proizvod }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/orders/options:
+    get:
+      tags: [Orders]
+      summary: Opcije potrebne za kreiranje porudžbine
+      operationId: getOrderOptions
+      responses:
+        '200':
+          description: Načini plaćanja, bankovni računi, primaoci i podrazumevana adresa
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/orders:
+    get:
+      tags: [Orders]
+      summary: Sopstvene porudžbine
+      operationId: listOrders
+      responses:
+        '200': { description: Straničena lista porudžbina }
+    post:
+      tags: [Orders]
+      summary: Kreiranje porudžbine
+      operationId: createOrder
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shipping_full_name, shipping_address, shipping_city, shipping_postal_code, shipping_phone, payment_method, items]
+              properties:
+                supplier_user_id: { type: [integer, 'null'] }
+                shipping_full_name: { type: string, maxLength: 190 }
+                shipping_address: { type: string, maxLength: 255 }
+                shipping_city: { type: string, maxLength: 120 }
+                shipping_postal_code: { type: string, maxLength: 20 }
+                shipping_phone: { type: string, maxLength: 40 }
+                customer_note: { type: [string, 'null'], maxLength: 5000 }
+                payment_method: { type: string, enum: [cash_on_delivery, bank_transfer] }
+                bank_account_id: { type: [integer, 'null'] }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [product_id, quantity]
+                    properties:
+                      product_id: { type: integer }
+                      product_variant_id: { type: [integer, 'null'] }
+                      quantity: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '201': { description: Porudžbina je kreirana }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/orders/{order}:
+    get:
+      tags: [Orders]
+      summary: Detalj sopstvene porudžbine
+      operationId: getOrder
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Porudžbina }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/orders/{order}/cancel:
+    post:
+      tags: [Orders]
+      summary: Otkazivanje sopstvene porudžbine
+      operationId: cancelOrder
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '200': { description: Porudžbina je otkazana }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Lista poslovnih obaveštenja
+      operationId: listNotifications
+      parameters:
+        - { in: query, name: unread, schema: { type: boolean, default: false } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 10, maximum: 100, default: 40 } }
+      responses:
+        '200': { description: Straničena lista obaveštenja }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Označavanje svih obaveštenja kao pročitanih
+      operationId: markAllNotificationsRead
+      responses:
+        '200':
+          description: Broj promenjenih obaveštenja
+  /api/v1/notifications/{notification}/read:
+    post:
+      tags: [Notifications]
+      summary: Označavanje jednog obaveštenja kao pročitanog
+      operationId: markNotificationRead
+      parameters:
+        - in: path
+          name: notification
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Obaveštenje }
+        '404': { $ref: '#/components/responses/NotFound' }
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  schemas:
+    UserSummary:
+      type: object
+      required: [id, username, name, status]
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: [string, 'null'], format: email }
+        name: { type: string }
+        role: { type: [string, 'null'] }
+        group: { type: [string, 'null'] }
+        status: { type: string }
+    User:
+      type: object
+      required: [id, username, name, status]
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: [string, 'null'], format: email }
+        name: { type: string }
+        first_name: { type: [string, 'null'] }
+        last_name: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        address: { type: [string, 'null'] }
+        city: { type: [string, 'null'] }
+        postal_code: { type: [string, 'null'] }
+        status: { type: string }
+        role:
+          anyOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: integer }
+                name: { type: string }
+                slug: { type: string }
+        group:
+          anyOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: integer }
+                name: { type: string }
+                slug: { type: string }
+    NotificationPreferences:
+      type: object
+      properties:
+        in_app_enabled: { type: boolean }
+        email_enabled: { type: boolean }
+        push_enabled: { type: boolean }
+        order_updates: { type: boolean }
+        payment_alerts: { type: boolean }
+        document_updates: { type: boolean }
+        after_sales_updates: { type: boolean }
+        warranty_updates: { type: boolean }
+        service_updates: { type: boolean }
+        receivable_updates: { type: boolean }
+        commission_updates: { type: boolean }
+        stock_alerts: { type: boolean }
+        daily_digest: { type: boolean }
+    PlatformVersion:
+      type: object
+      properties:
+        minimum_supported_version: { type: string }
+        latest_version: { type: string }
+        store_url: { type: [string, 'null'], format: uri }
+    AppContract:
+      type: object
+      properties:
+        name: { type: string }
+        backend_version: { type: string }
+        api_version: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        android: { $ref: '#/components/schemas/PlatformVersion' }
+        ios: { $ref: '#/components/schemas/PlatformVersion' }
+    MobileDeviceInput:
+      type: object
+      required: [installation_id, platform]
+      properties:
+        installation_id: { type: string, format: uuid }
+        platform: { type: string, enum: [android, ios] }
+        device_name: { type: [string, 'null'], maxLength: 120 }
+        push_provider: { type: [string, 'null'], enum: [expo, fcm, apns, null] }
+        push_token: { type: [string, 'null'], maxLength: 4096 }
+        app_version: { type: [string, 'null'], maxLength: 40 }
+        build_number: { type: [string, 'null'], maxLength: 40 }
+        locale: { type: [string, 'null'], maxLength: 20 }
+        timezone: { type: [string, 'null'], maxLength: 64 }
+        notifications_enabled: { type: boolean, default: true }
+    MobileDevice:
+      type: object
+      properties:
+        id: { type: integer }
+        installation_id: { type: string, format: uuid }
+        platform: { type: string, enum: [android, ios] }
+        device_name: { type: [string, 'null'] }
+        push_provider: { type: [string, 'null'] }
+        push_registered: { type: boolean }
+        app_version: { type: [string, 'null'] }
+        build_number: { type: [string, 'null'] }
+        locale: { type: [string, 'null'] }
+        timezone: { type: [string, 'null'] }
+        notifications_enabled: { type: boolean }
+        is_current: { type: boolean }
+        active: { type: boolean }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    MobileDeviceUpdateInput:
+      type: object
+      properties:
+        device_name: { type: [string, 'null'], maxLength: 120 }
+        push_provider: { type: [string, 'null'], enum: [expo, fcm, apns, null] }
+        push_token: { type: [string, 'null'], maxLength: 4096 }
+        app_version: { type: [string, 'null'], maxLength: 40 }
+        build_number: { type: [string, 'null'], maxLength: 40 }
+        locale: { type: [string, 'null'], maxLength: 20 }
+        timezone: { type: [string, 'null'], maxLength: 64 }
+        notifications_enabled: { type: boolean }
+    ApiError:
+      type: object
+      required: [message, code, request_id]
+      properties:
+        message: { type: string }
+        code: { type: string }
+        request_id: { type: [string, 'null'] }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+  responses:
+    ValidationError:
+      description: Validacija nije prošla
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthenticated:
+      description: Token nedostaje, istekao je ili je opozvan
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Korisnik ili token nema potrebnu dozvolu
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Resurs nije pronađen ili ne pripada korisniku
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Poslovni konflikt
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Prekoračeno ograničenje zahteva
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }

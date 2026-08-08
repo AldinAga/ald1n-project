@@ -1,0 +1,2 @@
+v2.1.0-beta7.3 ne uvodi novu migraciju baze.
+Pokrenuti app:orders-doctor --repair --render --order-id=1 i app:detail-pages-doctor --order-id=1.

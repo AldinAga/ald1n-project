@@ -1,0 +1,126 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "ald1n/cms-laravel",
+    "type": "project",
+    "description": "Ald1n CMS Laravel v2",
+    "keywords": [
+        "laravel",
+        "cms",
+        "catalog",
+        "orders"
+    ],
+    "license": "proprietary",
+    "require": {
+        "php": "^8.4",
+        "laravel/framework": "^13.8",
+        "laravel/sanctum": "^4.3",
+        "laravel/tinker": "^3.0"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "laravel/pail": "^1.2.5",
+        "laravel/pint": "^1.27",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^12.5.12"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "setup": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php artisan key:generate",
+            "@php artisan migrate --force"
+        ],
+        "test": [
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php artisan test"
+        ],
+        "test:unit": "@php artisan test --testsuite=Unit",
+        "test:feature": "@php artisan test --testsuite=Feature",
+        "check": [
+            "@php artisan about",
+            "@php artisan route:list",
+            "@test"
+        ],
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "lint": "@php bin/php-lint.php",
+        "autoload:check": "@php bin/autoload-check.php",
+        "test:production": [
+            "@lint",
+            "@autoload:check",
+            "@php artisan test --testsuite=Feature"
+        ],
+        "test:mysql": "@php artisan --env=testing test -c phpunit.mysql.xml --testsuite=Feature",
+        "test:mysql:doctor": "@php artisan --env=testing app:test-database-doctor",
+        "test:mysql:fresh": "@php artisan --env=testing app:test-database-doctor --migrate-fresh",
+        "release:check": "@php artisan app:release-check --profile=standard",
+        "release:check:full": "@php artisan app:release-check --profile=full --render",
+        "smoke:release": "@php bin/release-check-smoke.php",
+        "smoke:catalog-detail": "@php bin/catalog-detail-smoke.php",
+        "smoke:detail-pages": "@php bin/detail-pages-doctor-smoke.php",
+        "smoke:customer-portal-2": "@php bin/customer-portal-2-smoke.php",
+        "smoke:order-cost": "@php bin/order-cost-snapshot-smoke.php",
+        "release:check:rc": "@php artisan app:release-check --profile=rc --render --strict --snapshot",
+        "smoke:rc": "@php bin/rc-hardening-smoke.php",
+        "release:check:stable": "@php artisan app:release-check --profile=stable --render --strict --snapshot",
+        "smoke:stable": "@php bin/stable-hardening-smoke.php",
+        "smoke:maintenance": "@php bin/stable-maintenance-smoke.php",
+        "release:check:maintenance": "@php artisan app:release-check --profile=stable --render --strict --snapshot",
+        "doctor:catalog-ownership": "@php artisan app:catalog-ownership-doctor --render",
+        "smoke:product-media": "@php bin/product-media-ux-smoke.php",
+        "smoke:product-announcements": "@php bin/product-announcement-smoke.php",
+        "smoke:catalog-settings": "@php bin/catalog-settings-product-data-smoke.php",
+        "smoke:catalog-settings-hotfix": "@php bin/catalog-settings-integrity-hotfix-smoke.php",
+        "smoke:product-save": "@php bin/product-save-regex-hotfix-smoke.php",
+        "smoke:storage-capacity": "@php bin/storage-capacity-total-smoke.php",
+        "smoke:v2.1.4": "@php bin/cms-v2.1.4-smoke.php",
+        "smoke:v2.1.4.1": "@php bin/product-type-page-render-hotfix-smoke.php",
+        "smoke:v2.1.5": "@php bin/cms-v2.1.5-smoke.php",
+        "doctor:v2.1.5": "@php artisan app:cms-v2-1-5-doctor --render --repair",
+        "smoke:v2.1.6": "@php bin/cms-v2.1.6-smoke.php",
+        "doctor:v2.1.6": "@php artisan app:cms-v2-1-6-doctor --render --repair --strict",
+        "smoke:v2.2.0": "@php bin/cms-v2.2.0-smoke.php",
+        "doctor:v2.2.0": "@php artisan app:cms-v2-2-0-doctor --strict",
+        "smoke:v2.2.0-readiness": "@php bin/v2.2.0-production-readiness-hotfix-smoke.php"
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

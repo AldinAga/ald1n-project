@@ -1,0 +1,38 @@
+# v2.2.0 Mobile API Foundation — corrected production order
+
+cd /home/icaffeco/cms.ald1n.com
+
+# 1. Pre-upgrade rollback backup (zadrži ga čak i posle uspešnog deploy-a)
+/usr/local/bin/php artisan app:backup-create --type=manual
+/usr/local/bin/php artisan app:backup-verify
+
+# 2. U .env obavezno postavi:
+# QUEUE_CONNECTION=database
+# DB_QUEUE_TABLE=jobs
+# DB_QUEUE=default
+# DB_QUEUE_RETRY_AFTER=90
+# QUEUE_FAILED_DRIVER=database-uuids
+
+# 3. Produkcioni install nema require-dev, zato ovde NE pokretati `php artisan test`.
+# PHPUnit pokrenuti ranije na staging/local okruženju sa `composer install` bez --no-dev.
+composer install --no-dev --optimize-autoloader
+composer dump-autoload --optimize --strict-psr
+
+/usr/local/bin/php artisan optimize:clear
+/usr/local/bin/php artisan migrate --force
+
+# 4. Dependency-free i runtime provere
+/usr/local/bin/php bin/cms-v2.2.0-smoke.php
+/usr/local/bin/php bin/v2.2.0-production-readiness-hotfix-smoke.php
+/usr/local/bin/php artisan app:cms-v2-2-0-doctor --strict
+/usr/local/bin/php artisan route:list --path=api/v1
+/usr/local/bin/php artisan queue:restart
+
+# 5. Post-upgrade backup trenutne v2.2.0 verzije.
+# Stari v2.1.6 backup ostaje rollback kopija; ovaj uklanja strict warning.
+/usr/local/bin/php artisan app:backup-create --type=manual
+/usr/local/bin/php artisan app:backup-verify
+
+# 6. Ponovi istu Stable komandu
+/usr/local/bin/php artisan app:release-check --profile=stable --strict
+/usr/local/bin/php artisan optimize

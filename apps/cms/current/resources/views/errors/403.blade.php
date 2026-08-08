@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title','Pristup nije dozvoljen')
+@section('code','403')
+@section('heading','Nemaš dozvolu za ovu radnju')
+@section('message','Tvoj nalog nema potrebnu dozvolu. Obrati se administratoru ako smatraš da treba da imaš pristup.')

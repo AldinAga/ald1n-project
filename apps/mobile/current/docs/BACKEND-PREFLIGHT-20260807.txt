@@ -1,0 +1,191 @@
+=== DATE ===
+Fri Aug  7 12:25:43 CEST 2026
+
+=== API ROUTES: ORDERS ===
+  GET|HEAD  api/v1/bootstrap ............................................................................................ api.v1.bootstrap › Api\V1\BootstrapController@show
+  GET|HEAD  api/v1/devices ...................................................................................... api.v1.devices.index › Api\V1\MobileDeviceController@index
+  POST      api/v1/devices ...................................................................................... api.v1.devices.store › Api\V1\MobileDeviceController@store
+  PATCH     api/v1/devices/{mobileDevice} ..................................................................... api.v1.devices.update › Api\V1\MobileDeviceController@update
+  DELETE    api/v1/devices/{mobileDevice} ................................................................... api.v1.devices.destroy › Api\V1\MobileDeviceController@destroy
+  PUT       api/v1/me/notification-preferences ................................................. api.v1.me.notification-preferences › Api\V1\AccountController@notifications
+  GET|HEAD  api/v1/notifications .......................................................................... api.v1.notifications.index › Api\V1\NotificationController@index
+  POST      api/v1/notifications/read-all ............................................................ api.v1.notifications.read-all › Api\V1\NotificationController@readAll
+  POST      api/v1/notifications/{notification}/read ........................................................ api.v1.notifications.read › Api\V1\NotificationController@read
+  GET|HEAD  api/v1/orders ............................................................................................... api.v1.orders.index › Api\V1\OrderController@index
+  POST      api/v1/orders ............................................................................................... api.v1.orders.store › Api\V1\OrderController@store
+  GET|HEAD  api/v1/orders/options ............................................................................... api.v1.orders.options › Api\V1\OrderOptionsController@show
+  GET|HEAD  api/v1/orders/{order} ......................................................................................... api.v1.orders.show › Api\V1\OrderController@show
+  POST      api/v1/orders/{order}/cancel .............................................................................. api.v1.orders.cancel › Api\V1\OrderController@cancel
+  GET|HEAD  api/v1/products ......................................................................................... api.v1.products.index › Api\V1\CatalogController@index
+  GET|HEAD  api/v1/products/{slug} .................................................................................... api.v1.products.show › Api\V1\CatalogController@show
+
+=== ROUTES/API.PHP ===
+9:use App\Http\Controllers\Api\V1\CatalogOptionsController;
+12:use App\Http\Controllers\Api\V1\OrderController;
+13:use App\Http\Controllers\Api\V1\OrderOptionsController;
+37:            Route::get('/catalog/filters', [CatalogOptionsController::class, 'show'])->name('catalog.filters');
+38:            Route::get('/products', [CatalogController::class, 'index'])->name('products.index');
+39:            Route::get('/products/{slug}', [CatalogController::class, 'show'])->name('products.show');
+42:        Route::get('/orders/options', [OrderOptionsController::class, 'show'])
+43:            ->middleware('permission:orders.create')
+44:            ->name('orders.options');
+45:        Route::middleware('permission:orders.view_own')->group(function (): void {
+46:            Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+47:            Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+49:        Route::post('/orders', [OrderController::class, 'store'])
+50:            ->middleware(['permission:orders.create', 'throttle:orders'])
+51:            ->name('orders.store');
+52:        Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])
+53:            ->whereNumber('order')
+54:            ->middleware('permission:orders.cancel_own')
+55:            ->name('orders.cancel');
+
+=== ORDER/IDEMPOTENCY SOURCE REFERENCES ===
+app/Services/AfterSalesCaseService.php:305:    private function storeAttachments(AfterSalesCase $case, ?AfterSalesMessage $message, User $actor, array $files, array &$storedPaths): void
+app/Services/AdvancedInventoryService.php:20:        private readonly IdempotencyService $idempotency,
+app/Services/AdvancedInventoryService.php:26:    public function receive(array $data, string $idempotencyKey, User $actor): StockReceipt
+app/Services/AdvancedInventoryService.php:37:        $receipt = $this->idempotency->run(
+app/Services/AdvancedInventoryService.php:40:            $idempotencyKey,
+app/Services/AdvancedInventoryService.php:101:    public function finalizeCount(array $data, string $idempotencyKey, User $actor): InventoryCount
+app/Services/AdvancedInventoryService.php:107:        $count = $this->idempotency->run(
+app/Services/AdvancedInventoryService.php:110:            $idempotencyKey,
+app/Services/FieldOperationsService.php:201:    private function storeUploads(FieldWorkOrder $workOrder, array $uploads, string $visibility): array
+app/Services/DataQualityService.php:115:    public function storeSnapshot(array $report, string $source = 'command', ?int $actorId = null): ?DataQualitySnapshot
+app/Services/TurnstileService.php:101:    private function storedSetting(string $key): ?string
+app/Services/InventoryService.php:15:        private readonly IdempotencyService $idempotency,
+app/Services/InventoryService.php:19:    public function adjust(Product $product, int $quantityChange, string $note, string $idempotencyKey, User $actor): StockMovement
+app/Services/InventoryService.php:31:        $movement = $this->idempotency->run(
+app/Services/InventoryService.php:34:            $idempotencyKey,
+app/Services/InventoryService.php:37:            function () use ($product, $quantityChange, $note, $idempotencyKey, $actor): StockMovement {
+app/Services/InventoryService.php:48:                    'event_key' => 'stock-adjust:'.hash('sha256', $actor->id.'|'.$idempotencyKey),
+app/Services/OrderWorkflowService.php:514:    private function storeDeliveryProof(UploadedFile $proof, Order $order): array
+app/Services/SpecificationDependencyService.php:106:                ->orderBy('specification_options.sort_order')
+app/Services/SpecificationDependencyService.php:107:                ->orderBy('specification_options.label')
+app/Services/OrderService.php:24:        private readonly IdempotencyService $idempotency,
+app/Services/OrderService.php:35:    public function create(User $user, array $data, string $idempotencyKey): Order
+app/Services/OrderService.php:40:        $order = $this->idempotency->run(
+app/Services/OrderService.php:43:            $idempotencyKey,
+app/Services/OrderService.php:46:            fn (): Order => $this->createInTransaction($user, $data, $idempotencyKey),
+app/Services/OrderService.php:54:    private function createInTransaction(User $user, array $data, string $idempotencyKey): Order
+app/Services/OrderService.php:94:            'order_number' => 'TMP-'.strtoupper(substr(hash('sha256', $idempotencyKey.microtime(true)), 0, 24)),
+app/Services/OrderService.php:95:            'idempotency_key_hash' => hash('sha256', trim($idempotencyKey)),
+app/Services/ServicePartsInventoryService.php:259:    public function adjust(ServicePart $part, User $actor, float $quantityChange, string $note, string $idempotencyKey): ServicePartMovement
+app/Services/ServicePartsInventoryService.php:261:        return DB::transaction(function () use ($part, $actor, $quantityChange, $note, $idempotencyKey): ServicePartMovement {
+app/Services/ServicePartsInventoryService.php:262:            $eventKey = 'service-part-adjust:'.hash('sha256', $actor->id.'|'.$part->id.'|'.$idempotencyKey);
+app/Services/CatalogReferenceCache.php:20:    public function options(): array
+app/Services/IdempotencyService.php:14:final class IdempotencyService
+app/Services/IdempotencyService.php:27:            throw ValidationException::withMessages(['idempotency_key' => 'Idempotency ključ je obavezan i može imati najviše 200 karaktera.']);
+app/Services/IdempotencyService.php:35:            $inserted = DB::table('idempotency_keys')->insertOrIgnore([
+app/Services/IdempotencyService.php:47:            $record = DB::table('idempotency_keys')
+app/Services/IdempotencyService.php:55:                throw new RuntimeException('Idempotency zapis nije moguće zaključati.');
+app/Services/IdempotencyService.php:60:                    'idempotency_key' => 'Isti idempotency ključ je već upotrebljen sa drugačijim podacima.',
+app/Services/IdempotencyService.php:68:            DB::table('idempotency_keys')->where('id', $record->id)->update([
+app/Services/IdempotencyService.php:79:            DB::table('idempotency_keys')->where('id', $record->id)->update([
+app/Services/NbsIpsQrService.php:78:    public function store(OrderDocument $document, array $generated): string
+app/Services/NbsIpsQrService.php:151:    private function storedPath(OrderDocument $document): ?string
+app/Models/SpecificationField.php:99:    public function options(): HasMany
+app/Models/IdempotencyKey.php:9:final class IdempotencyKey extends Model
+app/Models/Order.php:15:        'source_system', 'order_number', 'idempotency_key_hash', 'request_fingerprint', 'user_id', 'supplier_user_id', 'supplier_name_snapshot', 'supplier_email_snapshot', 'supplier_phone_snapshot', 'supplier_role_snapshot', 'assigned_at', 'status',
+app/Http/Requests/AdjustServicePartStockRequest.php:17:            'idempotency_key' => ['required', 'string', 'min:16', 'max:190'],
+app/Http/Requests/AdjustStockRequest.php:19:            'idempotency_key' => ['required', 'string', 'max:200'],
+app/Http/Requests/AdjustStockRequest.php:28:            'idempotency_key' => trim((string) ($this->header('Idempotency-Key') ?: $this->input('idempotency_key'))),
+app/Http/Requests/StoreOrderRequest.php:22:            'idempotency_key' => ['required', 'string', 'max:200'],
+app/Http/Requests/StoreOrderRequest.php:79:            'idempotency_key' => trim((string) ($this->header('Idempotency-Key') ?: $this->input('idempotency_key'))),
+app/Http/Controllers/Admin/ServicePartController.php:54:    public function store(StoreServicePartRequest $request, ServicePartsInventoryService $service): RedirectResponse
+app/Http/Controllers/Admin/ServicePartController.php:74:        $service->adjust($part, $request->user(), (float) $data['quantity_change'], (string) $data['note'], (string) $data['idempotency_key']);
+app/Http/Controllers/Admin/OrderDocumentController.php:22:    public function store(Request $request, Order $order, OrderAccessService $access, OrderDocumentService $documents): RedirectResponse
+app/Http/Controllers/Admin/ReportScheduleController.php:19:    public function store(StoreReportScheduleRequest $request, ReportScheduleService $service, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/FieldServiceTeamController.php:38:    public function store(StoreFieldServiceTeamRequest $request, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/StockMovementController.php:41:            'idempotencyKeys' => $products->mapWithKeys(fn (Product $product) => [$product->id => (string) Str::uuid()]),
+app/Http/Controllers/Admin/InventoryController.php:59:                'receiptIdempotencyKey' => (string) Str::uuid(),
+app/Http/Controllers/Admin/InventoryController.php:60:                'countIdempotencyKey' => (string) Str::uuid(),
+app/Http/Controllers/Admin/InventoryController.php:80:            'idempotency_key' => ['required', 'string', 'max:200'],
+app/Http/Controllers/Admin/InventoryController.php:93:        $receipt = $inventory->receive($data, (string) $data['idempotency_key'], $request->user());
+app/Http/Controllers/Admin/InventoryController.php:103:            'idempotency_key' => ['required', 'string', 'max:200'],
+app/Http/Controllers/Admin/InventoryController.php:114:        $count = $inventory->finalizeCount($data, (string) $data['idempotency_key'], $request->user());
+app/Http/Controllers/Admin/InventoryController.php:190:            'receiptIdempotencyKey' => (string) Str::uuid(),
+app/Http/Controllers/Admin/InventoryController.php:191:            'countIdempotencyKey' => (string) Str::uuid(),
+app/Http/Controllers/Admin/ProductController.php:42:    public function store(ProductRequest $request, ProductAdminService $service, ProductAnnouncementService $announcements): RedirectResponse|JsonResponse
+app/Http/Controllers/Admin/ProductImageController.php:30:    public function store(Request $request, Product $product, ProductImageService $service): RedirectResponse|JsonResponse
+app/Http/Controllers/Admin/CatalogDictionaryController.php:101:    public function store(
+app/Http/Controllers/Admin/ServicePartSupplierController.php:30:    public function store(StoreServicePartSupplierRequest $request, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/StockAdjustmentController.php:22:            (string) $data['idempotency_key'],
+app/Http/Controllers/Admin/PaymentController.php:18:    public function store(Request $request, Order $order, OrderAccessService $access, OrderPaymentService $payments): RedirectResponse
+app/Http/Controllers/Admin/FieldWorkOrderPartController.php:17:    public function store(StoreFieldWorkOrderPartRequest $request, FieldWorkOrder $workOrder, ServicePartsInventoryService $service): RedirectResponse
+app/Http/Controllers/Admin/DocumentSettingsController.php:106:    private function storePdfLogo(UploadedFile $file): string
+app/Http/Controllers/Admin/AfterSalesActionController.php:19:    public function store(StoreAfterSalesActionRequest $request, AfterSalesCase $case, AfterSalesActionService $service): RedirectResponse
+app/Http/Controllers/Admin/UserController.php:42:    public function store(Request $request, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/ProductVariantController.php:41:            'stockIdempotencyKey' => (string) Str::uuid(),
+app/Http/Controllers/Admin/ProductVariantController.php:45:    public function store(ProductVariantRequest $request, Product $product, ProductVariantService $service): RedirectResponse
+app/Http/Controllers/Admin/ProductVariantController.php:67:            'idempotency_key' => ['required', 'string', 'max:200'],
+app/Http/Controllers/Admin/ProductVariantController.php:69:        $service->adjustStock($product, $variant, (int) $data['quantity_change'], (string) $data['note'], (string) $data['idempotency_key'], $request->user());
+app/Http/Controllers/Admin/WarrantyController.php:72:    public function storeRule(StoreWarrantyRuleRequest $request, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/CustomerPortalController.php:76:    public function store(
+app/Http/Controllers/Admin/UserGroupController.php:30:    public function store(Request $request, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/BankAccountController.php:25:    public function store(Request $request, AuditLogger $audit): RedirectResponse
+app/Http/Controllers/Admin/ServicePartPurchaseRequestController.php:45:    public function store(StoreServicePartPurchaseRequest $request, ServicePartsInventoryService $service): RedirectResponse
+app/Http/Controllers/Api/V1/AuthTokenController.php:26:    public function store(ApiTokenRequest $request, UserLoginResolver $users, ApiAccessService $access): JsonResponse
+app/Http/Controllers/Api/V1/OrderController.php:26:    public function store(StoreOrderRequest $request, OrderService $orders): JsonResponse
+app/Http/Controllers/Api/V1/OrderController.php:28:        $order = $orders->create($request->user(), $request->validated(), (string) $request->validated('idempotency_key'));
+app/Http/Controllers/Api/V1/OrderOptionsController.php:14:final class OrderOptionsController extends Controller
+app/Http/Controllers/Api/V1/OrderOptionsController.php:35:            'idempotency_key' => (string) Str::uuid(),
+app/Http/Controllers/Api/V1/MobileDeviceController.php:34:    public function store(StoreMobileDeviceRequest $request): JsonResponse
+app/Http/Controllers/PortalConversationController.php:42:    public function store(Request $request, PortalConversationService $service): RedirectResponse
+app/Http/Controllers/OrderController.php:84:            'idempotencyKey' => (string) Str::uuid(),
+app/Http/Controllers/OrderController.php:95:    public function store(StoreOrderRequest $request, OrderService $orders): RedirectResponse
+app/Http/Controllers/OrderController.php:97:        $order = $orders->create($request->user(), $request->validated(), (string) $request->validated('idempotency_key'));
+app/Http/Controllers/OrderPaymentController.php:17:    public function storeProof(Request $request, Order $order, OrderPaymentService $payments): RedirectResponse
+app/Http/Controllers/AfterSalesController.php:42:    public function store(StoreAfterSalesCaseRequest $request, Order $order, AfterSalesCaseService $service): RedirectResponse
+app/Http/Controllers/Auth/PasswordResetController.php:24:    public function storeLinkRequest(
+app/Http/Controllers/Auth/PasswordResetController.php:61:    public function store(ResetPasswordRequest $request, PasswordResetService $passwords): RedirectResponse
+app/Http/Controllers/Auth/AuthenticatedSessionController.php:33:    public function store(LoginRequest $request, TurnstileService $turnstile, UserLoginResolver $users, SecurityEventLogger $securityEvents, PortalSessionService $portalSessions): RedirectResponse|Response
+app/Http/Controllers/Auth/CustomerActivationController.php:28:    public function store(
+app/Console/Commands/DeploymentCheckCommand.php:29:        'idempotency_keys',
+app/Console/Commands/DeploymentCheckCommand.php:99:        'idempotency_keys' => ['id', 'scope', 'actor_key', 'key_hash', 'request_hash', 'status'],
+app/Console/Commands/OrderCreateDoctorCommand.php:99:            foreach (['data-order-create-ready="1"', 'name="idempotency_key"', 'data-order-product', 'data-order-variant'] as $marker) {
+app/Console/Commands/CmsV220DoctorCommand.php:50:            'api.v1.orders.options',
+routes/api.php:13:use App\Http\Controllers\Api\V1\OrderOptionsController;
+routes/api.php:42:        Route::get('/orders/options', [OrderOptionsController::class, 'show'])
+routes/api.php:44:            ->name('orders.options');
+tests/Unit/MobileApiFoundationContractTest.php:22:        self::assertStringContainsString("Route::get('/orders/options'", $routes);
+tests/Feature/PaymentsAdvancedInventoryTest.php:51:            'idempotency_key' => 'payment-order-key',
+tests/Feature/PaymentsAdvancedInventoryTest.php:88:            'idempotency_key' => 'manual-payment-order-key',
+tests/Feature/PaymentsAdvancedInventoryTest.php:123:            'idempotency_key' => 'legacy-payment-order-key',
+tests/Feature/PaymentsAdvancedInventoryTest.php:160:            'idempotency_key' => 'complete-cod-order-key',
+tests/Feature/PaymentsAdvancedInventoryTest.php:202:            'idempotency_key' => 'receipt-key-1',
+tests/Feature/PaymentsAdvancedInventoryTest.php:217:            'idempotency_key' => 'count-key-1',
+tests/Feature/AfterSalesWorkflowTest.php:196:            'idempotency_key' => $key, 'supplier_user_id' => $supplier->id,
+tests/Feature/InventoryAdjustmentTest.php:30:        $payload = ['idempotency_key' => 'adjust-1', 'quantity_change' => 5, 'note' => 'Prijem robe'];
+tests/Feature/InventoryAdjustmentTest.php:46:            'idempotency_key' => 'adjust-negative',
+tests/Feature/ProductionOrderInventoryTest.php:64:    public function test_same_idempotency_key_is_scoped_per_user(): void
+tests/Feature/ProductionOrderInventoryTest.php:78:    public function test_same_idempotency_key_with_different_payload_is_rejected(): void
+tests/Feature/ProductionOrderInventoryTest.php:86:            ->assertSessionHasErrors('idempotency_key');
+tests/Feature/ProductionOrderInventoryTest.php:171:            'idempotency_key' => $key,
+tests/Feature/OrderEmailsIpsWarrantyTest.php:208:            'idempotency_key' => $key,
+tests/Feature/OperationalOrdersCommissionsTest.php:169:            'idempotency_key' => $key,
+tests/Feature/OrderDeliveryWorkflowTest.php:179:            'idempotency_key' => $key,
+tests/Feature/AfterSalesActionExecutionTest.php:161:            'idempotency_key' => 'action-'.$suffix, 'supplier_user_id' => $admin->id,
+tests/Feature/ProductionPermissionsTest.php:51:            'idempotency_key' => 'forbidden-adjustment',
+tests/Feature/ServicePartsWorkflowTest.php:120:        $payload = ['quantity_change' => 2, 'note' => 'Kontrolisani prijem dva komada.', 'idempotency_key' => $key];
+tests/Feature/ServicePartsWorkflowTest.php:139:            'idempotency_key' => 'parts-order-001', 'supplier_user_id' => $admin->id,
+tests/Feature/ReportsDocumentsSupplierTest.php:313:            'idempotency_key' => $key,
+tests/Feature/LoginDashboardFallbackTest.php:31:            'idempotency_keys', 'exchange_rate_history', 'legacy_audit_logs', 'stock_movements',
+tests/Feature/FieldOperationsWorkflowTest.php:99:            'idempotency_key' => 'field-order-001', 'supplier_user_id' => $admin->id,
+tests/Feature/WarrantiesPreventiveMaintenanceTest.php:112:            'idempotency_key' => $key, 'supplier_user_id' => $admin->id,
+docs/openapi.yaml:300:  /api/v1/orders/options:
+docs/openapi.yaml:304:      operationId: getOrderOptions
+docs/openapi.yaml:322:          name: Idempotency-Key
+docs/UPGRADE-V2.1-BETA3.1.md:52:PASS Uplate, lager i idempotency upiti su uspešni.
+docs/MIGRATION-PLAN.md:23:- idempotency zaštita za porudžbine i ručne korekcije;
+docs/UPGRADE-V2.2.0.md:99:5. `GET /api/v1/orders/options`;
+docs/UPGRADE-V2.1-BETA5.md:43:Beta5 ne uvodi novu migraciju i ne menja poslovnu logiku lagera. Transakcije, idempotency, audit i stock movement zapisi ostaju nepromenjeni.
+docs/ARCHITECTURE.md:11:`OrderService` izvršava jednu MySQL transakciju: zaključava idempotency zapis i proizvode stabilnim redosledom, proverava pristup/lager/kurs, kreira snapshotove, umanjuje lager, upisuje jedinstvena stock movements kretanja, proviziju, istoriju i audit. Greška vraća celu transakciju.
+docs/ARCHITECTURE.md:86:- `AdvancedInventoryService` koristi idempotency, sortirani `lockForUpdate`, stock movements i audit za ulaz robe i popis.
+docs/UPGRADE-V2.1-BETA3.md:52:PASS Uplate, lager i idempotency upiti su uspešni.
+docs/UPGRADE-V2.1-BETA3.md:62:- proknjižiti test ulaz robe i potvrditi da ponovljen isti idempotency ključ ne duplira stanje;
+docs/MOBILE-CLIENT-FOUNDATION.md:86:Pre forme pozvati `GET /orders/options`. Svaki pokušaj kreiranja dobija novi UUID kao `Idempotency-Key` header. Kod timeouta ponoviti isti zahtev sa istim ključem, ne generisati novi.
+docs/MOBILE-CLIENT-FOUNDATION.md:89:Idempotency-Key: 70df6484-df87-4db8-aacf-6dca2409539b
+docs/MOBILE-CLIENT-FOUNDATION.md:110:['order-options']
+docs/API.md:79:- `GET /api/v1/orders/options`
+docs/API.md:85:Pre otvaranja forme pozvati `GET /orders/options` radi načina plaćanja, aktivnih računa, odgovornih lica, podrazumevane adrese i limita.
+docs/API.md:92:Idempotency-Key: 70df6484-df87-4db8-aacf-6dca2409539b

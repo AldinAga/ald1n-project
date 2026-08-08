@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title','Stranica nije pronađena')
+@section('code','404')
+@section('heading','Stranica nije pronađena')
+@section('message','Adresa možda više ne postoji ili nemaš pristup ovoj stranici. Vrati se na prethodni ekran ili otvori početnu stranu.')

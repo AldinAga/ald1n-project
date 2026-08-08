@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title','Previše zahteva')
+@section('code','429')
+@section('heading','Sačekaj trenutak')
+@section('message','Poslato je previše zahteva u kratkom periodu. Sačekaj nekoliko sekundi, pa pokušaj ponovo.')

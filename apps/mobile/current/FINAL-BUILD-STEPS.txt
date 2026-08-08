@@ -1,0 +1,17 @@
+Ald1n Mobile v0.3.0 Phase 3C final source candidate
+
+1. Extract into a NEW isolated workspace, never over the CloudLinux cPanel app root.
+2. The included package-lock.json is the Phase 3B lock and MUST be updated once after package.json changed:
+   npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+3. Then run:
+   npm ci --no-audit --no-fund
+   npm run typecheck
+   npm run validate
+   npm run doctor
+4. Verify preview Expo config resolves:
+   EXPO_PUBLIC_APP_ENV=preview npx expo config --type public
+   Android package must be com.ald1n.mobile.preview and android.googleServicesFile must be ./google-services.json.
+5. EAS preview build.
+
+Do not use EAS_NO_FROZEN_LOCKFILE. Do not manually edit package-lock.json.
+Do not put the Firebase Admin/FCM V1 private service-account JSON in this source tree.

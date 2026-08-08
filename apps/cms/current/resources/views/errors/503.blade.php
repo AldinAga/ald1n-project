@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title','Sistem je privremeno nedostupan')
+@section('code','503')
+@section('heading','Sistem je privremeno nedostupan')
+@section('message','U toku je održavanje ili kratkotrajni prekid. Pokušaj ponovo za nekoliko minuta.')
