@@ -14,7 +14,7 @@ export default function AppLayout() {
   if (status !== 'authenticated') return <Redirect href="/login" />;
 
   const platformConfig = Platform.OS === 'ios' ? bootstrap?.app.ios : bootstrap?.app.android;
-  const version = Application.nativeApplicationVersion ?? '0.3.1';
+  const version = Application.nativeApplicationVersion ?? '0.4.0';
   const blocked = platformConfig ? compareVersions(version, platformConfig.minimum_supported_version) < 0 : false;
 
   if (blocked) {

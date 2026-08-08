@@ -56,7 +56,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const token = options.auth === false ? null : await tokenStore.get();
     const headers = new Headers(options.headers);
     headers.set('Accept', 'application/json');
-    headers.set('X-Mobile-Client', 'ald1n-mobile/0.3.1');
+    headers.set('X-Mobile-Client', 'ald1n-mobile/0.4.0');
     if (token) headers.set('Authorization', `Bearer ${token}`);
     if (options.body !== undefined) headers.set('Content-Type', 'application/json');
 

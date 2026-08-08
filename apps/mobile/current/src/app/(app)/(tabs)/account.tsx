@@ -52,7 +52,7 @@ export default function AccountScreen() {
         </Card>
       </Pressable>
 
-      <Card muted><Text style={styles.version}>Ald1n Mobile {Application.nativeApplicationVersion ?? '0.3.1'} · build {Application.nativeBuildVersion ?? 'dev'}</Text><Text style={styles.versionSub}>API {bootstrap?.app.api_version ?? 'v1'} · Bezbedna mobilna sesija</Text></Card>
+      <Card muted><Text style={styles.version}>Ald1n Mobile {Application.nativeApplicationVersion ?? '0.4.0'} · build {Application.nativeBuildVersion ?? 'dev'}</Text><Text style={styles.versionSub}>API {bootstrap?.app.api_version ?? 'v1'} · Bezbedna mobilna sesija</Text></Card>
       <Button variant="danger" onPress={logout}>Odjavi ovaj uređaj</Button>
     </Screen>
   );

@@ -47,7 +47,7 @@ assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.7', 'Expo develo
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 57 zahtevu.');
-assert(packageJson.version === '0.3.1', 'Aplikaciona package verzija je 0.3.1.');
+assert(packageJson.version === '0.4.0', 'Aplikaciona package verzija je 0.4.0.');
 assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.6', 'expo-notifications prati SDK 57 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.2', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
@@ -167,7 +167,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '0.3.1'"), 'Expo app verzija je 0.3.1.');
+assert(appConfig.includes("version: '0.4.0'"), 'Expo app verzija je 0.4.0.');
 assert(appConfig.includes('google-services.json') && appConfig.includes('googleServicesFile'), 'Android config podržava Firebase google-services.json kada postoji.');
 assert(appConfig.includes('react-native-nitro-google-signin'), 'App config uključuje Google Sign-In plugin kada je Firebase config prisutan.');
 

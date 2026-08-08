@@ -51,7 +51,7 @@ async function deviceMetadata(): Promise<MobileDeviceUpdateInput> {
 
   return {
     device_name: Device.modelName ?? Device.deviceName ?? `${Platform.OS} uređaj`,
-    app_version: Application.nativeApplicationVersion ?? '0.3.1',
+    app_version: Application.nativeApplicationVersion ?? '0.4.0',
     build_number: Application.nativeBuildVersion ?? '1',
     locale,
     timezone
