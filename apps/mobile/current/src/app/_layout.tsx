@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TamaguiProvider } from 'tamagui';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +12,7 @@ import { DeviceRegistrar } from '@/features/device/device-registrar';
 import { PushNotificationBridge } from '@/features/notifications/push-notification-bridge';
 import { CartProvider } from '@/features/cart/cart-provider';
 import { colors } from '@/constants/theme';
+import { tamaguiConfig } from '../../tamagui.config';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -39,7 +41,8 @@ function AppReady() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
+      <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
+        <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <CartProvider>
@@ -55,6 +58,7 @@ export default function RootLayout() {
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
+      </TamaguiProvider>
     </GestureHandlerRootView>
   );
 }

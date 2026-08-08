@@ -26,7 +26,9 @@ const required = [
   'src/features/cart/cart-provider.tsx',
   'src/features/notifications/push-service.ts',
   'src/features/notifications/push-notification-bridge.tsx',
-  'docs/openapi.yaml'
+  'docs/openapi.yaml',
+  'tamagui.config.ts',
+  'src/design/ald1n-tokens.generated.ts'
 ];
 for (const file of required) assert(fs.existsSync(path.join(root, file)), `${file} postoji.`);
 
@@ -52,6 +54,9 @@ assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.6', 'expo-not
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.2', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
 assert(packageJson.dependencies?.['react-native-nitro-modules'] === '0.36.1', 'Nitro Modules runtime je pinovan.');
+assert(packageJson.dependencies?.tamagui === '2.6.0', 'Tamagui 2 runtime je pinovan.');
+assert(packageJson.dependencies?.['@tamagui/config'] === '2.6.0', 'Tamagui Config v5 paket je pinovan.');
+assert(packageJson.dependencies?.['@tamagui/animations-reanimated'] === '2.6.0', 'Tamagui Reanimated driver je pinovan.');
 
 const sourceFiles = [];
 function walk(directory) {
@@ -170,6 +175,27 @@ assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 
 assert(appConfig.includes("version: '0.4.0'"), 'Expo app verzija je 0.4.0.');
 assert(appConfig.includes('google-services.json') && appConfig.includes('googleServicesFile'), 'Android config podržava Firebase google-services.json kada postoji.');
 assert(appConfig.includes('react-native-nitro-google-signin'), 'App config uključuje Google Sign-In plugin kada je Firebase config prisutan.');
+
+const rootLayoutSource = fs.readFileSync(path.join(root, 'src/app/_layout.tsx'), 'utf8');
+assert(
+  rootLayoutSource.includes('TamaguiProvider') &&
+  rootLayoutSource.includes('tamaguiConfig'),
+  'TamaguiProvider je povezan na root aplikacije.'
+);
+
+const tamaguiSource = fs.readFileSync(path.join(root, 'tamagui.config.ts'), 'utf8');
+
+assert(
+  tamaguiSource.includes('@tamagui/config/v5') &&
+  tamaguiSource.includes('@tamagui/config/v5-reanimated'),
+  'Tamagui Config v5 i Reanimated driver su aktivni.'
+);
+
+assert(
+  tamaguiSource.includes('ald1nLightPalette') &&
+  tamaguiSource.includes('ald1nDarkPalette'),
+  'Ald1n Light/Dark Tamagui palette su povezane.'
+);
 
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
