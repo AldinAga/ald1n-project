@@ -25,3 +25,6 @@ releases/**/*.zip
 # OS/editor
 .DS_Store
 *.swp
+
+# Disposable Ald1n build/upload workspace
+/tmp/
