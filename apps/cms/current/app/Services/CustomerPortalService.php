@@ -34,7 +34,7 @@ final class CustomerPortalService
             'orders_completed' => $this->safeCount(fn () => Order::query()->operational()->where('user_id', $user->id)->where('status', '!=', 'cancelled')->where(static function ($orders): void { $orders->whereNotNull('completed_at')->orWhere('status', 'completed'); })->count()),
             'outstanding_rsd' => $this->safeFloat(fn () => Order::query()->operational()->where('user_id', $user->id)->where('status', '!=', 'cancelled')
                 ->selectRaw('COALESCE(SUM(CASE WHEN subtotal_rsd > paid_total_rsd THEN subtotal_rsd-paid_total_rsd ELSE 0 END),0) total')->value('total')),
-            'active_warranties' => $this->safeCount(fn () => ProductWarranty::query()->where('user_id', $user->id)->where('status', 'active')->whereDate('expires_at', '>=', today())->count(), 'product_warranties'),
+            'active_warranties' => $this->safeCount(fn () => ProductWarranty::query()->ownedByOrderCustomer((int) $user->id)->where('status', 'active')->whereDate('expires_at', '>=', today())->count(), 'product_warranties'),
             'open_cases' => $this->safeCount(fn () => AfterSalesCase::query()->whereIn('order_id', clone $orderIds)->whereNotIn('status', ['closed', 'rejected'])->count(), 'after_sales_cases'),
             'upcoming_service' => $this->safeCount(fn () => FieldWorkOrder::query()->operational()->whereHas('action.case.order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->whereIn('status', ['planned', 'en_route', 'on_site'])->whereNotNull('planned_start_at')->where('planned_start_at', '>=', now())->count(), 'field_work_orders'),
@@ -183,7 +183,7 @@ final class CustomerPortalService
     {
         if (!Schema::hasTable('product_warranties')) return collect();
         try {
-            return ProductWarranty::query()->where('user_id', $user->id)->latest('id')->limit(10)->get()
+            return ProductWarranty::query()->ownedByOrderCustomer((int) $user->id)->latest('id')->limit(10)->get()
                 ->map(fn (ProductWarranty $warranty): array => [
                     'number' => $warranty->warranty_number,
                     'product' => $warranty->product_name_snapshot,

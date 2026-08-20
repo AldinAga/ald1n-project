@@ -504,26 +504,28 @@ final class OperationalAutomationService
             $expiryDays = $this->intSetting('warranty_expiry_notice_days', 30, 1, 365);
             $maintenanceDays = $this->intSetting('warranty_maintenance_notice_days', 7, 1, 90);
 
-            $expiring = ProductWarranty::query()->with(['user', 'order'])
+            $expiring = ProductWarranty::query()->with(['orderItem.order.user', 'order'])
                 ->where('status', 'active')
                 ->whereBetween('expires_at', [today(), today()->addDays($expiryDays)])
                 ->limit(1000)->get();
             $examined += $expiring->count();
             foreach ($expiring as $warranty) {
+                $customerOwner = $warranty->strictCustomerOwner();
                 $key = 'warranty_expiring:'.$warranty->id;
                 $seen[] = $key;
                 $message = sprintf('%s za %s ističe %s.', $warranty->warranty_number, $warranty->product_name_snapshot, $warranty->expires_at?->format('d.m.Y'));
                 $alert = $this->upsertAlert($key, [
                     'type' => 'warranty_expiring', 'severity' => 'warning', 'order_id' => $warranty->order_id,
-                    'user_id' => $warranty->user_id, 'title' => 'Garancija uskoro ističe', 'message' => $message,
+                    'user_id' => $customerOwner?->id, 'title' => 'Garancija uskoro ističe', 'message' => $message,
                     'action_url' => route('admin.warranties.show', $warranty),
                     'metadata_json' => ['warranty_id' => $warranty->id, 'warranty_number' => $warranty->warranty_number],
                 ]);
                 $alerts++;
                 if ($this->shouldNotify($alert, $force, $reminderHours)) {
-                    if ($warranty->user instanceof User) {
-                        $this->notifications->send($warranty->user, [
-                            'event' => 'warranty.expiring', 'title' => $alert->title, 'message' => $message,
+                    if ($customerOwner instanceof User) {
+                        $this->notifications->send($customerOwner, [
+                            'event' => 'warranty.expiring', 'warranty_id' => $warranty->id,
+                            'title' => $alert->title, 'message' => $message,
                             'url' => route('warranties.show', $warranty), 'action_label' => 'Otvori garanciju',
                             'icon' => 'shield', 'severity' => 'warning', 'alert_id' => $alert->id,
                         ]);
@@ -542,28 +544,30 @@ final class OperationalAutomationService
                 $types['warranty_expiring'] = ($types['warranty_expiring'] ?? 0) + 1;
             }
 
-            $maintenance = ProductWarranty::query()->with(['user', 'order'])
+            $maintenance = ProductWarranty::query()->with(['orderItem.order.user', 'order'])
                 ->where('status', 'active')->whereNotNull('next_maintenance_at')
                 ->whereDate('next_maintenance_at', '<=', today()->addDays($maintenanceDays))
                 ->limit(1000)->get();
             $examined += $maintenance->count();
             foreach ($maintenance as $warranty) {
+                $customerOwner = $warranty->strictCustomerOwner();
                 $overdue = $warranty->next_maintenance_at?->isBefore(today()) === true;
                 $key = 'warranty_maintenance_due:'.$warranty->id;
                 $seen[] = $key;
                 $message = sprintf('Preventivno održavanje za %s (%s) je %s.', $warranty->product_name_snapshot, $warranty->warranty_number, $overdue ? 'prekoračeno' : 'planirano '.$warranty->next_maintenance_at?->format('d.m.Y'));
                 $alert = $this->upsertAlert($key, [
                     'type' => 'warranty_maintenance_due', 'severity' => $overdue ? 'danger' : 'warning',
-                    'order_id' => $warranty->order_id, 'user_id' => $warranty->user_id,
+                    'order_id' => $warranty->order_id, 'user_id' => $customerOwner?->id,
                     'title' => $overdue ? 'Preventivno održavanje kasni' : 'Približava se preventivno održavanje',
                     'message' => $message, 'action_url' => route('admin.warranties.show', $warranty),
                     'metadata_json' => ['warranty_id' => $warranty->id, 'next_maintenance_at' => $warranty->next_maintenance_at?->toDateString()],
                 ]);
                 $alerts++;
                 if ($this->shouldNotify($alert, $force, $reminderHours)) {
-                    if ($warranty->user instanceof User) {
-                        $this->notifications->send($warranty->user, [
-                            'event' => 'warranty.maintenance_due', 'title' => $alert->title, 'message' => $message,
+                    if ($customerOwner instanceof User) {
+                        $this->notifications->send($customerOwner, [
+                            'event' => 'warranty.maintenance_due', 'warranty_id' => $warranty->id,
+                            'title' => $alert->title, 'message' => $message,
                             'url' => route('warranties.show', $warranty), 'action_label' => 'Otvori garanciju',
                             'icon' => 'cog', 'severity' => $alert->severity, 'alert_id' => $alert->id,
                         ]);

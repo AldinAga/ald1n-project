@@ -14,11 +14,12 @@ Updated: 2026-08-20
 ## Release and development state
 
 - Mobile v0.7.0: 100% complete, Google Play closed-test device accepted and release-frozen except critical defects.
-- v0.8.0 implementation progress: 70%.
+- v0.8.0 implementation progress: 90%.
 - Batch 1 foundation audit: PASS.
 - Batch 2 product status + disk-storage cleanup: PASS.
 - Batch 3 purchase-cost entry + SuperAdmin inventory valuation KPI: PASS.
 - Batch 4 deferred payment through existing Receivables: PASS.
+- Batch 5 strict warranty customer ownership + notification scope: PASS.
 - No EAS build was used for routine v0.8 source work.
 
 ## Current v0.8 certified state
@@ -37,11 +38,9 @@ Updated: 2026-08-20
 
 ## Next implementation step
 
-v0.8.0 Batch 5: warranty-expiry notification ownership scope.
+v0.8.0 final Web/Mobile parity audit, source/runtime certification and release checkpoint.
 
-Customer warranty expiry/maintenance notifications must only target warranties belonging to that customer through `warranty -> order item -> order -> user`. Admin operational notifications remain separate. Audit portal/mail/push/mobile inbox paths before mutation, then implement and certify Web/Mobile parity.
-
-After Batch 5: final Web/Mobile parity audit, v0.8 certification and release checkpoint.
+Batch 5 warranty notification ownership is complete: customer warranty access and expiry/maintenance notifications use the strict `warranty -> order item -> order -> user` authority. Broken owner chains skip customer delivery and customer warranty visibility, while administrator operational notifications remain separate.
 
 ## Permanent engineering guards
 

@@ -20,8 +20,8 @@ final class WarrantyController extends Controller
     public function index(Request $request): JsonResponse
     {
         $warranties = ProductWarranty::query()
-            ->with('order')
-            ->where('user_id', $request->user()->id)
+            ->with(['order', 'orderItem.order'])
+            ->ownedByOrderCustomer((int) $request->user()->id)
             ->latest('id')
             ->paginate(30);
 
@@ -137,8 +137,13 @@ final class WarrantyController extends Controller
 
     private function authorizeOwn(Request $request, ProductWarranty $warranty): void
     {
-        abort_unless((int) $warranty->user_id === (int) $request->user()->id, 404);
-    }
+        abort_unless(
+            ProductWarranty::query()
+                ->ownedByOrderCustomer((int) $request->user()->id)
+                ->whereKey($warranty->id)
+                ->exists(),
+            404,
+        );    }
 
     private function statusLabel(string $status): string
     {

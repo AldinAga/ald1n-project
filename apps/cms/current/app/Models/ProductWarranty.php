@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -43,8 +44,36 @@ final class ProductWarranty extends Model
     public function voidedBy(): BelongsTo { return $this->belongsTo(User::class, 'voided_by'); }
     public function maintenanceRecords(): HasMany { return $this->hasMany(WarrantyMaintenanceRecord::class)->orderByDesc('due_at')->orderByDesc('id'); }
 
-    public function isExpired(): bool
+    // MOBILE_V0_8_WARRANTY_STRICT_CUSTOMER_OWNER_BATCH5
+    public function scopeOwnedByOrderCustomer(Builder $query, int $userId): Builder
     {
+        return $query->whereHas('orderItem', static function (Builder $items) use ($userId): void {
+            $items->whereColumn('order_items.order_id', 'product_warranties.order_id')
+                ->whereHas(
+                    'order',
+                    static fn (Builder $orders): Builder => $orders->where('user_id', $userId),
+                );
+        });
+    }
+
+    public function strictCustomerOwner(): ?User
+    {
+        $this->loadMissing('orderItem.order.user');
+
+        $item = $this->orderItem;
+        if (!$item instanceof OrderItem || (int) $item->order_id !== (int) $this->order_id) {
+            return null;
+        }
+
+        $order = $item->order;
+        if (!$order instanceof Order || !$order->user instanceof User) {
+            return null;
+        }
+
+        return $order->user;
+    }
+
+    public function isExpired(): bool    {
         return $this->status === 'active' && $this->expires_at?->isBefore(today());
     }
 

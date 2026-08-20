@@ -395,7 +395,7 @@ final class DashboardController extends Controller
             if (($access['warranties_manage'] ?? false) && $user->hasRole('admin')) {
                 $query->whereHas('order', static fn ($orders) => $orders->where('supplier_user_id', $user->id));
             } elseif (!($access['warranties_manage'] ?? false)) {
-                $query->where('user_id', $user->id);
+                $query->ownedByOrderCustomer((int) $user->id);
             }
             return [
                 'active' => (clone $query)->where('status', 'active')->whereDate('expires_at', '>=', today())->count(),
