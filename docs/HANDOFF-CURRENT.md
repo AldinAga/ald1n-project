@@ -21,6 +21,8 @@ Updated: 2026-08-20
 - Batch 4 deferred payment through existing Receivables: PASS.
 - Batch 5 strict warranty customer ownership + notification scope: PASS.
 - Batch 6 final Web/Mobile parity + source/runtime certification: PASS.
+- v0.8.0 release metadata: LOCKED to app version 0.8.0.
+- Expo SDK 57 compatibility refresh for the v0.8 release candidate: PASS.
 - No EAS build was used for routine v0.8 source work.
 
 ## Current v0.8 certified state
@@ -41,7 +43,7 @@ Updated: 2026-08-20
 
 v0.8.0 implementation is complete and source/runtime certified at 100%.
 
-The native release/device gate was intentionally not run, so the final EAS slot remains preserved. The next action is either an explicit v0.8 release/device gate when requested, or planning the next development version/workstream. Routine source changes must not consume an EAS build automatically.
+The v0.8.0 release candidate metadata is locked to app version 0.8.0 and the Expo SDK 57 dependency matrix is compatibility-clean. The native release/device gate was intentionally not run, so the final EAS slot remains preserved. The next action is the explicit final Android production EAS build/device gate when requested. Routine source changes must not consume an EAS build automatically.
 
 ## Permanent engineering guards
 

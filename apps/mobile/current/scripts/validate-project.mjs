@@ -102,17 +102,18 @@ for (const jsonFile of ['package.json', 'eas.json']) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const packageLockJson = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-assert(packageJson.dependencies?.expo === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.14' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.14', 'Expo SDK 57 verzija prati zvanični template.');
+assert(packageJson.dependencies?.expo === '~57.0.15' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.15' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.15', 'Expo SDK 57 verzija prati zvanični template.');
 assert(packageJson.dependencies?.['react-native'] === '0.86.2', 'React Native verzija prati Expo SDK 57 template.');
-assert(packageJson.dependencies?.['expo-router'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.14', 'Expo Router verzija je zaključana.');
-assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.13' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.13' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.13', 'Expo development client je uključen.');
+assert(packageJson.dependencies?.['expo-router'] === '~57.0.15' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.15' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.15', 'Expo Router verzija je zaključana.');
+assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.14', 'Expo development client je uključen.');
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 57 zahtevu.');
 // MOBILE_RELEASE_VERSION_V07
-assert(packageJson.version === '0.7.0', 'Aplikaciona package verzija je 0.7.0.');
-assert(packageLockJson.version === '0.7.0' && packageLockJson.packages?.['']?.version === '0.7.0', 'package-lock release verzija je 0.7.0.');
-assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.12' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.12' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.12', 'expo-notifications prati SDK 57 preporučenu verziju.');
+// MOBILE_RELEASE_VERSION_V08
+assert(packageJson.version === '0.8.0', 'Aplikaciona package verzija je 0.8.0.');
+assert(packageLockJson.version === '0.8.0' && packageLockJson.packages?.['']?.version === '0.8.0', 'package-lock release verzija je 0.8.0.');
+assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.13' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.13' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.13', 'expo-notifications prati SDK 57 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.2', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
 assert(packageJson.dependencies?.['react-native-nitro-modules'] === '0.36.1', 'Nitro Modules runtime je pinovan.');
@@ -121,8 +122,29 @@ assert(packageJson.dependencies?.['@tamagui/config'] === '2.6.0', 'Tamagui Confi
 assert(packageJson.dependencies?.['@tamagui/animations-reanimated'] === '2.6.0', 'Tamagui Reanimated driver je pinovan.');
 assert(packageJson.dependencies?.['expo-system-ui'] === '~57.0.2', 'Expo System UI prati SDK 57 preporucenu verziju.');
 assert(packageJson.dependencies?.['expo-status-bar'] === '~57.0.1', 'Expo Status Bar prati SDK 57 preporucenu verziju.');
-assert(packageJson.dependencies?.['expo-file-system'] === '~57.0.4' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~57.0.4' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '57.0.4', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
-assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.13' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~57.0.13' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '57.0.13', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
+assert(packageJson.dependencies?.['expo-file-system'] === '~57.0.5' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~57.0.5' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '57.0.5', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
+assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '57.0.14', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
+
+// MOBILE_V0_8_EXPO_SDK57_COMPATIBILITY_MATRIX
+const expoCompatibilityMatrixV08 = {
+  expo: { spec: '~57.0.15', version: '57.0.15' },
+  'expo-constants': { spec: '~57.0.13', version: '57.0.13' },
+  'expo-dev-client': { spec: '~57.0.14', version: '57.0.14' },
+  'expo-file-system': { spec: '~57.0.5', version: '57.0.5' },
+  'expo-linking': { spec: '~57.0.7', version: '57.0.7' },
+  'expo-notifications': { spec: '~57.0.13', version: '57.0.13' },
+  'expo-router': { spec: '~57.0.15', version: '57.0.15' },
+  'expo-sharing': { spec: '~57.0.14', version: '57.0.14' },
+  'expo-updates': { spec: '~57.0.16', version: '57.0.16' },
+};
+for (const [packageName, expected] of Object.entries(expoCompatibilityMatrixV08)) {
+  assert(
+    packageJson.dependencies?.[packageName] === expected.spec
+      && packageLockJson.packages?.['']?.dependencies?.[packageName] === expected.spec
+      && packageLockJson.packages?.[`node_modules/${packageName}`]?.version === expected.version,
+    `v0.8 Expo compatibility matrix zaključava ${packageName} na ${expected.spec}.`,
+  );
+}
 
 const sourceFiles = [];
 function walk(directory) {
@@ -461,7 +483,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '0.7.0'"), 'Expo app verzija je 0.7.0.');
+assert(appConfig.includes("version: '0.8.0'"), 'Expo app verzija je 0.8.0.');
 
 // MOBILE_BRANDING_ALD1N_CMS_V06
 const ald1nBrandSource = fs.readFileSync(path.join(root, 'assets/brand/ald1n-v2-logo.png'));
@@ -481,8 +503,8 @@ assert(
 );
 const appLayoutVersionSource = fs.readFileSync(path.join(root, 'src/app/(app)/_layout.tsx'), 'utf8');
 const accountVersionSource = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
-assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.7\.0['"]/.test(appLayoutVersionSource), 'App runtime version fallback je 0.7.0.');
-assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.7\.0['"]/.test(accountVersionSource), 'Account version fallback je 0.7.0.');
+assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.8\.0['"]/.test(appLayoutVersionSource), 'App runtime version fallback je 0.8.0.');
+assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.8\.0['"]/.test(accountVersionSource), 'Account version fallback je 0.8.0.');
 assert(appConfig.includes('google-services.json') && appConfig.includes('googleServicesFile'), 'Android config podržava Firebase google-services.json kada postoji.');
 assert(appConfig.includes('react-native-nitro-google-signin'), 'App config uključuje Google Sign-In plugin kada je Firebase config prisutan.');
 assert(
