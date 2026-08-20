@@ -14,12 +14,13 @@ Updated: 2026-08-20
 ## Release and development state
 
 - Mobile v0.7.0: 100% complete, Google Play closed-test device accepted and release-frozen except critical defects.
-- v0.8.0 implementation progress: 90%.
+- v0.8.0 implementation progress: 100% (source/runtime certified; native release/device gate not consumed).
 - Batch 1 foundation audit: PASS.
 - Batch 2 product status + disk-storage cleanup: PASS.
 - Batch 3 purchase-cost entry + SuperAdmin inventory valuation KPI: PASS.
 - Batch 4 deferred payment through existing Receivables: PASS.
 - Batch 5 strict warranty customer ownership + notification scope: PASS.
+- Batch 6 final Web/Mobile parity + source/runtime certification: PASS.
 - No EAS build was used for routine v0.8 source work.
 
 ## Current v0.8 certified state
@@ -38,9 +39,9 @@ Updated: 2026-08-20
 
 ## Next implementation step
 
-v0.8.0 final Web/Mobile parity audit, source/runtime certification and release checkpoint.
+v0.8.0 implementation is complete and source/runtime certified at 100%.
 
-Batch 5 warranty notification ownership is complete: customer warranty access and expiry/maintenance notifications use the strict `warranty -> order item -> order -> user` authority. Broken owner chains skip customer delivery and customer warranty visibility, while administrator operational notifications remain separate.
+The native release/device gate was intentionally not run, so the final EAS slot remains preserved. The next action is either an explicit v0.8 release/device gate when requested, or planning the next development version/workstream. Routine source changes must not consume an EAS build automatically.
 
 ## Permanent engineering guards
 
