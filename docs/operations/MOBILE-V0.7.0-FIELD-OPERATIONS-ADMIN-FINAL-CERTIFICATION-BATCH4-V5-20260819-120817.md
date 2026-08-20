@@ -158,9 +158,9 @@ ROUTE=api.v1.admin.field-work.parts.destroy|DELETE|api/v1/admin/field-work/{work
 ROUTE=api.v1.admin.field-service-teams.index|GET|api/v1/admin/field-service-teams|api|auth:sanctum|active|permission:field_operations.manage
 
 In field-operations-final-route-probe.php line 91:
-                                                        
-  shared field-work attachment auth middleware missing  
-                                                        
+
+  shared field-work attachment auth middleware missing
+
 
 ROUTE_PROBE_RUNTIME=PASS_COMPLETED_WITHIN_90_SECONDS
 BATCH4_V5_ROUTE_BOOTSTRAP_FIX=PASS_COMPOSER_AUTOLOAD_LOADED_BEFORE_LARAVEL_ROUTE_BOOTSTRAP

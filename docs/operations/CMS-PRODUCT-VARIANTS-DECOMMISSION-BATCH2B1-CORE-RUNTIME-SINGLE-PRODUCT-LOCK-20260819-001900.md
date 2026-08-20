@@ -86,12 +86,12 @@ No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/S
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Services/ProductAdminService.php
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/tests/Unit/ProductVariantsDecommissionRuntimeContractTest.php
 
-   ERROR  Command "test" is not defined. Did you mean one of these?  
+   ERROR  Command "test" is not defined. Did you mean one of these?
 
-  ⇂ app:send-test-mail  
-  ⇂ app:test-database-doctor  
-  ⇂ make:test  
-  ⇂ schedule:test  
+  ⇂ app:send-test-mail
+  ⇂ app:test-database-doctor
+  ⇂ make:test
+  ⇂ schedule:test
 
 
 ============================================================
@@ -104,7 +104,7 @@ PASS restored app/Services/DirectSaleService.php
 PASS restored app/Services/ProductAdminService.php
 PASS removed newly created tests/Unit/ProductVariantsDecommissionRuntimeContractTest.php
 
-   INFO  Clearing cached bootstrap files.  
+   INFO  Clearing cached bootstrap files.
 
   config ............................................................................................................................... 1.73ms DONE
   cache ................................................................................................................................ 9.38ms DONE

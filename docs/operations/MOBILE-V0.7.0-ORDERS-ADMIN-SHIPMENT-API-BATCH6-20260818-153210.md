@@ -178,7 +178,7 @@ TEMP_OPENAPI_SHIPMENT_SURFACE=PASS
 ============================================================
 MANAGED_SOURCE_INSTALLED=PASS
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_REBUILT=NOT_REQUIRED_PREVIOUSLY_UNCACHED
 
@@ -1623,12 +1623,12 @@ PASS  v2.2.0 OpenAPI i Stable doctor su povezani
 Ukupno: 983, neuspešno: 0
 CMS_STATIC_CHECK=PASS
 
-   ERROR  Command "test" is not defined. Did you mean one of these?  
+   ERROR  Command "test" is not defined. Did you mean one of these?
 
-  ⇂ app:send-test-mail  
-  ⇂ app:test-database-doctor  
-  ⇂ make:test  
-  ⇂ schedule:test  
+  ⇂ app:send-test-mail
+  ⇂ app:test-database-doctor
+  ⇂ make:test
+  ⇂ schedule:test
 
 
 ============================================================

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ManagementReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -112,7 +113,7 @@ final class FoundationController extends Controller
         ],
     ];
 
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, ManagementReportService $reports): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -145,10 +146,31 @@ final class FoundationController extends Controller
 
         abort_unless($enabledCount > 0, 403);
 
+        // MOBILE_V0_8_SUPERADMIN_INVENTORY_VALUATION_BATCH3
+        $inventoryValuation = null;
+        if ($user->hasRole('superadmin')) {
+            try {
+                $inventory = $reports->inventory();
+                $inventoryValuation = [
+                    'purchase_value_rsd' => (float) ($inventory['purchase_value_rsd'] ?? 0),
+                    'sale_value_rsd' => (float) ($inventory['sale_value_rsd'] ?? 0),
+                    'expected_profit_rsd' => (float) ($inventory['expected_profit_rsd'] ?? 0),
+                    'missing_cost_items' => (int) ($inventory['missing_cost_items'] ?? 0),
+                    'missing_cost_total_items' => (int) ($inventory['missing_cost_total_items'] ?? 0),
+                    'missing_sale_value_items' => (int) ($inventory['missing_sale_value_items'] ?? 0),
+                    'valuation_complete' => (bool) ($inventory['valuation_complete'] ?? false),
+                    'eur_rsd_rate' => isset($inventory['eur_rsd_rate']) ? (float) $inventory['eur_rsd_rate'] : null,
+                ];
+            } catch (\Throwable) {
+                $inventoryValuation = null;
+            }
+        }
+
         return response()->json([
             'data' => [
                 'api_namespace' => '/api/v1/admin',
                 'enabled_module_count' => $enabledCount,
+                'inventory_valuation' => $inventoryValuation,
                 'modules' => $modules,
             ],
         ]);

@@ -182,7 +182,7 @@ TEMP_OPENAPI_SHIPMENT_SURFACE=PASS
 ============================================================
 MANAGED_SOURCE_INSTALLED=PASS
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_REBUILT=NOT_REQUIRED_PREVIOUSLY_UNCACHED
 

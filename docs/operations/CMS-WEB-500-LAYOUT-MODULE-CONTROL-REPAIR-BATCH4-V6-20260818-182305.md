@@ -71,11 +71,11 @@ LAYOUT_SHA_AFTER_INSTALL=783d9d9d830bf62bfd20f656f6bf765d61c9671f3b4c2d8dc1d9d26
 5. REBUILD VIEWS + LINT ACTUAL COMPILED LAYOUT
 ============================================================
 
-   INFO  Compiled views cleared successfully.  
+   INFO  Compiled views cleared successfully.
 
 
 
-   INFO  Blade templates cached successfully.  
+   INFO  Blade templates cached successfully.
 
 VIEW_CACHE_REBUILT=PASS
 COMPILED_LAYOUT_PATH=/home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php

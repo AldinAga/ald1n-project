@@ -105,7 +105,7 @@ OPENAPI_POST_INSTALL_PARITY=PASS_3_COPIES
 8. ROUTE CACHE MODE PRESERVATION + RUNTIME 14-OPERATION CONTRACT
 ============================================================
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_MODE_AFTER=PRESERVED_UNCACHED
   POST      api/v1/admin/field-work/{workOrder}/parts ................................ api.v1.admin.field-work.parts.store › Api\V1\Admin\FieldWorkOrderPartController@store

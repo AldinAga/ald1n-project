@@ -84,7 +84,7 @@ MANAGED_FILE=app/Services/Pdf/BusinessDocumentPdfService.php
 4. CACHE CLEAR + PDF-SPECIFIC SMOKE
 ============================================================
 
-   INFO  Clearing cached bootstrap files.  
+   INFO  Clearing cached bootstrap files.
 
   config ............................................................................................................................... 2.73ms DONE
   cache ................................................................................................................................ 9.73ms DONE

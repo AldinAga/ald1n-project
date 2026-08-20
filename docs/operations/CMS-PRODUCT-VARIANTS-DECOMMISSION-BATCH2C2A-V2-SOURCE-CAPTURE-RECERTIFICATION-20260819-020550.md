@@ -103,4 +103,4 @@ ZERO_MATCH_GREP_PIPEFAIL_FIX=PASS_RESULTS_CAPTURED_TO_REGULAR_FILES_WITH_EXPLICI
 No syntax errors detected in /tmp/ald1n-variants-2c2a-v2.T2q64E/route-probe.php
 VARIANT_RUNTIME_ROUTE_SIGNAL_COUNT=0
 VARIANT_RUNTIME_ROUTES=PASS_ZERO
-FAIL: missing required file: 
+FAIL: missing required file:

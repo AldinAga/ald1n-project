@@ -3745,7 +3745,7 @@ components:
             type: string
     AdminFoundation:
       type: object
-      required: [api_namespace, enabled_module_count, modules]
+      required: [api_namespace, enabled_module_count, inventory_valuation, modules]
       properties:
         api_namespace:
           type: string
@@ -3753,10 +3753,27 @@ components:
         enabled_module_count:
           type: integer
           minimum: 1
+        inventory_valuation:
+          anyOf:
+            - $ref: '#/components/schemas/AdminInventoryValuation'
+            - type: 'null'
+          description: SuperAdministrator-only current inventory valuation. Other admin roles receive null.
         modules:
           type: array
           items:
             $ref: '#/components/schemas/AdminFoundationModule'
+    AdminInventoryValuation:
+      type: object
+      required: [purchase_value_rsd, sale_value_rsd, expected_profit_rsd, missing_cost_items, missing_cost_total_items, missing_sale_value_items, valuation_complete, eur_rsd_rate]
+      properties:
+        purchase_value_rsd: { type: number, minimum: 0 }
+        sale_value_rsd: { type: number, minimum: 0 }
+        expected_profit_rsd: { type: number }
+        missing_cost_items: { type: integer, minimum: 0, description: Positive-stock products without purchase cost. }
+        missing_cost_total_items: { type: integer, minimum: 0, description: All non-archived products without purchase cost. }
+        missing_sale_value_items: { type: integer, minimum: 0, description: Positive-stock products whose sale value cannot currently be converted to RSD. }
+        valuation_complete: { type: boolean }
+        eur_rsd_rate: { type: [number, 'null'], exclusiveMinimum: 0 }
     AdminCatalogSpecificationOption:
       type: object
       required: [id, label, value, parent_option_ids]

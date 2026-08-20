@@ -47,11 +47,11 @@ CACHE_BACKUP_READY=YES
 2. REBUILD ONLY LARAVEL COMPILED VIEWS
 ============================================================
 
-   INFO  Compiled views cleared successfully.  
+   INFO  Compiled views cleared successfully.
 
 
 
-   INFO  Blade templates cached successfully.  
+   INFO  Blade templates cached successfully.
 
 LARAVEL_VIEW_CACHE_REBUILD=PASS
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/d9c1fae579fd48a8c10d879a5e4e4ea9.php

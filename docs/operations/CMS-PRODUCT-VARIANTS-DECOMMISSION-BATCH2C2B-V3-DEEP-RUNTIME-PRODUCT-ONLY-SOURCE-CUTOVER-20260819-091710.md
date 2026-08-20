@@ -172,9 +172,9 @@ INSTALLED_PHP_SYNTAX=PASS_49_FILES
 No syntax errors detected in /tmp/ald1n-variants-2c2b-v3.7Yz7kQ/runtime-probe.php
 
 In ClassLoader.php line 576:
-                                                                                                                                                                
-  include(/home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/../../app/Models/ProductVariant.php): Failed to open stream: No such file or directory  
-                                                                                                                                                                
+
+  include(/home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/../../app/Models/ProductVariant.php): Failed to open stream: No such file or directory
+
 
 ARTISAN_BOOTSTRAP=PASS_LIST
 No syntax errors detected in /tmp/ald1n-variants-2c2b-v3.7Yz7kQ/route-probe.php

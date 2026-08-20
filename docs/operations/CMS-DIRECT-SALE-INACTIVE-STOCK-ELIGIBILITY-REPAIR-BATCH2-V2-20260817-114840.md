@@ -99,7 +99,7 @@ MANAGED_FILES=3
 4. CACHE + BLADE REBUILD
 ============================================================
 
-   INFO  Clearing cached bootstrap files.  
+   INFO  Clearing cached bootstrap files.
 
   config ............................................................................................................................... 2.50ms DONE
   cache ................................................................................................................................ 9.84ms DONE
@@ -110,7 +110,7 @@ MANAGED_FILES=3
 
 
 
-   INFO  Blade templates cached successfully.  
+   INFO  Blade templates cached successfully.
 
 CACHE_AND_BLADE_REBUILD=PASS
 

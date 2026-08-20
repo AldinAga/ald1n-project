@@ -80,7 +80,9 @@
             @endif
             @can('catalog.manage_products')
                 <a class="button button-ghost" href="{{ route('admin.products.create') }}"><x-icon name="cube" /> Dodaj artikal</a>
-            @endcan
+            @endcan            @if($user->hasRole('superadmin') && (int) ($inventoryValuation['missing_cost_total_items'] ?? 0) > 0)
+                <a class="button button-ghost" href="{{ route('admin.products.purchase-costs') }}"><x-icon name="money" /> Nabavne cene ({{ (int) $inventoryValuation['missing_cost_total_items'] }})</a>
+            @endif
             @can('reports.view')
                 <a class="button button-ghost" href="{{ route('admin.reports.index') }}"><x-icon name="chart" /> Izveštaji</a>
             @endcan
@@ -118,6 +120,22 @@
     @endif
 </section>
 
+@if($user->hasRole('superadmin') && is_array($inventoryValuation))
+<section class="dashboard-kpi-grid" data-superadmin-inventory-valuation-v0-8="1">
+    <a class="dashboard-kpi-card" href="{{ route('admin.products.purchase-costs') }}">
+        <span class="dashboard-kpi-icon tone-violet"><x-icon name="boxes" /></span>
+        <div><small>Vrednost po nabavnoj ceni</small><strong>{{ number_format((float) ($inventoryValuation['purchase_value_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ (int) ($inventoryValuation['missing_cost_total_items'] ?? 0) }} artikala bez nabavne cene</span></div>
+    </a>
+    <a class="dashboard-kpi-card" href="{{ route('admin.inventory.index') }}">
+        <span class="dashboard-kpi-icon tone-blue"><x-icon name="money" /></span>
+        <div><small>Vrednost po prodajnoj ceni</small><strong>{{ number_format((float) ($inventoryValuation['sale_value_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>Trenutna prodajna vrednost lagera</span></div>
+    </a>
+    <a class="dashboard-kpi-card" href="{{ route('admin.inventory.index') }}">
+        <span class="dashboard-kpi-icon tone-green"><x-icon name="chart" /></span>
+        <div><small>Ukupna očekivana zarada</small><strong>{{ number_format((float) ($inventoryValuation['expected_profit_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ ($inventoryValuation['valuation_complete'] ?? false) ? 'Kompletna valuacija trenutnog lagera' : 'Privremena procena — dopunite nedostajuće nabavne cene ili kurs' }}</span></div>
+    </a>
+</section>
+@endif
 <section class="dashboard-kpi-grid">
     @if($customerFocused)
         <a class="dashboard-kpi-card" href="{{ route('orders.index') }}">

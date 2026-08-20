@@ -115,7 +115,7 @@ FINAL_SOURCE_INSTALL=PASS
 4. APPLY TARGETED MIGRATION
 ============================================================
 
-   INFO  Running migrations.  
+   INFO  Running migrations.
 
   2026_08_17_000042_create_product_sku_sequences ...................................................................................... 12.02ms DONE
 
@@ -129,7 +129,7 @@ TARGETED_MIGRATION=PASS
 5. CACHE CLEAR + TRANSACTIONAL RUNTIME PROBE
 ============================================================
 
-   INFO  Clearing cached bootstrap files.  
+   INFO  Clearing cached bootstrap files.
 
   config ............................................................................................................................... 2.51ms DONE
   cache ................................................................................................................................ 6.81ms DONE

@@ -37,6 +37,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderShipmentController as AdminOrderShipmentController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductBulkController;
+use App\Http\Controllers\Admin\ProductPurchaseCostController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\PortalConversationController as AdminPortalConversationController;
 use App\Http\Controllers\Admin\SiteAppearanceController;
@@ -201,6 +202,9 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/catalog', [AdminProductController::class, 'store'])->name('products.store');
             Route::get('/catalog/bulk', [ProductBulkController::class, 'index'])->name('products.bulk');
             Route::post('/catalog/bulk', [ProductBulkController::class, 'process'])->name('products.bulk.process');
+            // MOBILE_V0_8_SUPERADMIN_PURCHASE_COST_ENTRY_BATCH3
+            Route::get('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'index'])->name('products.purchase-costs');
+            Route::post('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'update'])->middleware('throttle:admin-write')->name('products.purchase-costs.update');
             Route::post('/catalog/name-preview', [AdminProductController::class, 'namePreview'])->name('products.name-preview');
             Route::post('/catalog/{product}/direct-sale', DirectSaleController::class)
                 ->whereNumber('product')

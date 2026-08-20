@@ -124,7 +124,7 @@ TEMP_STATIC_VALIDATION=PASS
 MANAGED_SOURCE_INSTALLED=PASS_15_EXISTING_PLUS_2_POLICY_FILES_PLUS_1_MIGRATION
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/database/migrations/2026_08_19_222500_remove_fixed_commission_snapshot_defaults_v0_7.php
 
-   INFO  Running migrations.  
+   INFO  Running migrations.
 
   2026_08_19_222500_remove_fixed_commission_snapshot_defaults_v0_7 .................................................................... 13.86ms DONE
 

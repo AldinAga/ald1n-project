@@ -97,7 +97,7 @@ FINAL_SOURCE_INSTALL=PASS
 4. CACHE CLEAR + REAL TRANSACTIONAL CLONE ACCEPTANCE
 ============================================================
 
-   INFO  Clearing cached bootstrap files.  
+   INFO  Clearing cached bootstrap files.
 
   config ............................................................................................................................... 1.87ms DONE
   cache ................................................................................................................................ 5.68ms DONE

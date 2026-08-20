@@ -117,7 +117,7 @@ MIGRATION_FILE=database/migrations/2026_08_20_090039_remove_duplicate_disk_inter
 6. APPLY DUPLICATE DISK INTERFACE MIGRATION
 ============================================================
 
-   INFO  Running migrations.  
+   INFO  Running migrations.
 
   2026_08_20_090039_remove_duplicate_disk_interface_v0_8_batch2 ....................................................................... 97.56ms DONE
 
@@ -127,7 +127,7 @@ FORWARD_MIGRATION=PASS
 7. ROUTE CACHE + PRODUCT STATUS ROUTE RUNTIME
 ============================================================
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_POST_MODE=UNCACHED_PRESERVED
 No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-product-status-disk-storage-cleanup-batch2-v3.20260820-090039.2411744/route-probe.php

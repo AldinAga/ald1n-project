@@ -67,6 +67,15 @@ final class DashboardController extends Controller
         $warrantyStats = $this->warrantyStats($user, $access);
         $receivableStats = $this->receivableStats($user, $access);
         $reportStats = $this->reportStats($user, $access, $reports);
+        // MOBILE_V0_8_SUPERADMIN_INVENTORY_VALUATION_BATCH3
+        $inventoryValuation = null;
+        if ($user->hasRole('superadmin')) {
+            try {
+                $inventoryValuation = $reports->inventory();
+            } catch (Throwable $exception) {
+                $this->reportDashboardWarning('inventory_valuation', $exception);
+            }
+        }
         $recentOrders = $this->recentOrders($user, $access);
         $priorityActions = $this->priorityActions($access, $orderStats, $productStats, $afterSalesStats, $fieldOperationsStats, $servicePartsStats, $warrantyStats, $receivableStats);
         $portal = $this->portalData($user, $access, $portalService);
@@ -93,6 +102,7 @@ final class DashboardController extends Controller
             'warrantyStats' => $warrantyStats,
             'receivableStats' => $receivableStats,
             'reportStats' => $reportStats,
+            'inventoryValuation' => $inventoryValuation,
             'recentOrders' => $recentOrders,
             'priorityActions' => $priorityActions,
             'eurRsdRate' => $eurRsdRate,

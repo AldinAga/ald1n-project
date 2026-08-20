@@ -14,36 +14,37 @@ Updated: 2026-08-20
 ## Release and development state
 
 - Mobile v0.7.0: 100% complete and device accepted through Google Play closed testing.
-- v0.8.0 implementation progress: 25%.
-- Latest certified work: Product Status + Disk Storage Cleanup Batch 2 V3 PASS.
-- Latest report: `docs/operations/MOBILE-V0.8.0-PRODUCT-STATUS-DISK-STORAGE-CLEANUP-BATCH2-V3-20260820-090039.md`.
+- v0.8.0 implementation progress: 50% after Batch 3 PASS.
+- Latest certified work: Purchase Costs + SuperAdmin Inventory KPI Batch 3 PASS.
+- Latest report: `docs/operations/MOBILE-V0.8.0-PURCHASE-COSTS-SUPERADMIN-INVENTORY-KPI-BATCH3-20260820-100509.md`.
 
 ## Latest v0.8 certified state
 
-- Manual product status control exists.
-- Stock quantity does not automatically activate/deactivate products.
-- Completeness gate returns the activation blocking reason.
-- Duplicate `Interfejs diska` contract is removed.
-- `Tip diska` is the single canonical multi-disk repeater source.
-- `Ukupan kapacitet diskova` remains derived from the disk list.
-- Product Variants remain decommissioned.
-- Mobile storage remains server-driven.
-- Mobile typecheck, validator, design-token check and CMS static 983/983 are PASS.
+- Batch 2 remains certified: manual product status control, no stock-driven activation, duplicate disk interface removed, canonical multi-disk repeater preserved.
+- One-time SuperAdministrator purchase-cost helper uses only canonical `products.purchase_price_rsd`.
+- Missing/zero purchase cost is the default helper view; all products remain optionally reviewable.
+- Save All supports normal Tab navigation and Enter advances to the next cost input.
+- Purchase-cost helper never changes stock quantity, sale price or product status.
+- `ManagementReportService::inventory()` is the shared backend authority for inventory valuation.
+- SuperAdministrator Web and Mobile show exactly three inventory valuation KPIs:
+  - Vrednost po nabavnoj ceni;
+  - Vrednost po prodajnoj ceni;
+  - Ukupna očekivana zarada.
+- The previously incomplete fourth KPI was not guessed and is not implemented.
+- Mobile receives the same valuation through the Admin Foundation API; no parallel mobile calculation exists.
+- OpenAPI canonical/CMS/Mobile copies are synchronized.
+- GitHub checkpoint secret scan uses explicit `-e` so patterns beginning with hyphens cannot be parsed as options.
 
 ## Next implementation step
 
-v0.8.0 Batch 3:
+v0.8.0 Batch 4:
 
-1. SuperAdministrator-only one-time fast purchase-cost entry for existing products using canonical `products.purchase_price_rsd`.
-2. Default view prioritizes products with missing/zero purchase cost.
-3. Spreadsheet-like fast entry and Save All; no parallel costing model.
-4. Shared backend authority for SuperAdministrator inventory KPIs on Web and Mobile:
-   - inventory value at purchase cost;
-   - inventory value at sale price;
-   - expected gross profit = sale-stock value minus purchase-stock value.
-5. Do not guess the previously incomplete fourth KPI label; clarify only when implementing that KPI.
-
-Then continue: Deferred Payment through existing Receivables, warranty notification ownership scope, Web/Mobile parity and final certification.
+1. Add `Odloženo plaćanje` to Web and Mobile order creation.
+2. Reuse the existing Receivables domain; do not create a second debt system.
+3. Create/reconcile the receivable for the unpaid balance and due date through the existing canonical services.
+4. Preserve normal payments, installments and close-on-zero behavior.
+5. Then scope warranty-expiry notifications to warranties belonging to products actually ordered by that customer.
+6. Finish Web/Mobile parity and v0.8 certification without unnecessary EAS builds.
 
 ## Permanent engineering guards
 
@@ -59,10 +60,10 @@ Then continue: Deferred Payment through existing Receivables, warranty notificat
 
 ## GitHub checkpoint workflow
 
-After a stable PASS and an updated handoff:
+After this Batch 3 report is confirmed PASS:
 
 ```bash
-bash /home/icaffeco/ald1n-project/scripts/github-checkpoint.sh "descriptive PASS checkpoint message"
+bash /home/icaffeco/ald1n-project/scripts/github-checkpoint.sh "v0.8 Batch 3 PASS - purchase costs and SuperAdmin inventory valuation"
 ```
 
 The helper refuses remote divergence, blocks high-risk paths and secret signatures, never force-pushes, commits, pushes and verifies the remote SHA.

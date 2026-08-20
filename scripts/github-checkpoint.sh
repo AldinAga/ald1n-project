@@ -76,7 +76,7 @@ fi
 
 secret_regex='-----BEGIN ([A-Z0-9]+ )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{30,}|sk-proj-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|APP_KEY=base64:[A-Za-z0-9+/=]{20,}|EAS_ACCESS_TOKEN[[:space:]]*=[[:space:]]*[A-Za-z0-9._-]{16,}|EXPO_TOKEN[[:space:]]*=[[:space:]]*[A-Za-z0-9._-]{16,}'
 : > "$TMP_DIR/secret-files.txt"
-git grep --cached -I -l -E "$secret_regex" -- 2>/dev/null | sort -u > "$TMP_DIR/secret-files.txt" || true
+git grep --cached -I -l -E -e "$secret_regex" -- 2>/dev/null | sort -u > "$TMP_DIR/secret-files.txt" || true
 if [ -s "$TMP_DIR/secret-files.txt" ]; then
   say "CHECKPOINT_HIGH_RISK_SECRET_FILES=FOUND"
   cat "$TMP_DIR/secret-files.txt"

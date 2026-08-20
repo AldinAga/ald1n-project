@@ -15,9 +15,13 @@ import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useThemedStyles } from '@/theme/app-theme';
 
+function moneyRsd(value: number): string {
+  return `${Number(value).toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD`;
+}
+
 // MOBILE_V0_7_ADMIN_HUB_COMMISSION_PRIORITY
-export default function AdminIndexScreen() {
-  const styles = useThemedStyles(createStyles);
+// MOBILE_V0_8_SUPERADMIN_INVENTORY_VALUATION_BATCH3
+export default function AdminIndexScreen() {  const styles = useThemedStyles(createStyles);
   const { bootstrap, can } = useAuth();
 
   const allowed = hasAdminAccess({
@@ -51,6 +55,8 @@ export default function AdminIndexScreen() {
   }
 
   const modules = foundation.modules.filter((module) => module.enabled);
+  const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
+  const inventoryValuation = isSuperAdmin ? foundation.inventory_valuation : null;
 
   return (
     <Screen>
@@ -72,6 +78,26 @@ export default function AdminIndexScreen() {
           {foundation.enabled_module_count} dostupnih domena
         </Text>
       </Card>
+
+      {inventoryValuation ? (
+        <View style={styles.valuationGrid}>
+          <Card style={styles.valuationCard}>
+            <Text style={styles.valuationLabel}>Vrednost po nabavnoj ceni</Text>
+            <Text style={styles.valuationValue}>{moneyRsd(inventoryValuation.purchase_value_rsd)}</Text>
+            <Text style={styles.valuationNote}>{inventoryValuation.missing_cost_total_items} artikala bez nabavne cene</Text>
+          </Card>
+          <Card style={styles.valuationCard}>
+            <Text style={styles.valuationLabel}>Vrednost po prodajnoj ceni</Text>
+            <Text style={styles.valuationValue}>{moneyRsd(inventoryValuation.sale_value_rsd)}</Text>
+            <Text style={styles.valuationNote}>Trenutna prodajna vrednost lagera</Text>
+          </Card>
+          <Card style={styles.valuationCard}>
+            <Text style={styles.valuationLabel}>Ukupna očekivana zarada</Text>
+            <Text style={styles.valuationValue}>{moneyRsd(inventoryValuation.expected_profit_rsd)}</Text>
+            <Text style={styles.valuationNote}>{inventoryValuation.valuation_complete ? 'Kompletna valuacija trenutnog lagera' : 'Privremena procena — dopunite nabavne cene ili kurs'}</Text>
+          </Card>
+        </View>
+      ) : null}
 
       <View style={styles.quickActions}>
         {can('catalog.manage_products') ? (
@@ -219,6 +245,25 @@ function createStyles(theme: AppColors) {
     metric: {
       ...typography.label,
       color: theme.primary,
+    },
+    valuationGrid: {
+      gap: spacing.sm,
+    },
+    valuationCard: {
+      gap: spacing.xs,
+    },
+    valuationLabel: {
+      ...typography.small,
+      color: theme.muted,
+      fontWeight: '700',
+    },
+    valuationValue: {
+      ...typography.h2,
+      color: theme.ink,
+    },
+    valuationNote: {
+      ...typography.small,
+      color: theme.muted,
     },
     quickActions: {
       gap: spacing.sm,

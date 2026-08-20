@@ -21,7 +21,7 @@ final class ManagementReportService
     private const REQUIRED = [
         'orders' => ['id', 'source_system', 'sales_channel', 'supplier_user_id', 'status', 'subtotal_rsd', 'paid_total_rsd', 'eur_rsd_rate', 'created_at', 'completed_at'],
         'order_items' => ['order_id', 'quantity', 'line_total_rsd', 'purchase_total_rsd_snapshot', 'commission_total_eur_snapshot', 'brand_name_snapshot', 'product_line_name_snapshot', 'product_type_name_snapshot'],
-        'products' => ['id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd'],
+        'products' => ['id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd', 'price_amount', 'price_currency'],
     ];
 
     public function __construct(
@@ -226,19 +226,52 @@ final class ManagementReportService
     public function inventory(): array
     {
         if (!Schema::hasTable('products')) return $this->emptyInventory();
+        try {
+            $eurRsdRate = $this->settings->eurRsdRate();
+            $eurRsdRate = $eurRsdRate !== null && (float) $eurRsdRate > 0 ? (float) $eurRsdRate : null;
+        } catch (Throwable) {
+            $eurRsdRate = null;
+        }
+
         $rows = collect();
         $products = DB::table('products')->whereNull('deleted_at')
-            ->select('id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd', 'created_at')->get();
+            ->select('id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd', 'price_amount', 'price_currency', 'created_at')->get();
         foreach ($products as $product) {
-            $rows->push($this->inventoryRow($product->id, $product->sku, $product->name, (int) $product->stock_quantity, $product->purchase_price_rsd, $product->created_at));
+            $rows->push($this->inventoryRow(
+                (int) $product->id,
+                (string) $product->sku,
+                (string) $product->name,
+                (int) $product->stock_quantity,
+                $product->purchase_price_rsd,
+                $product->price_amount,
+                $product->price_currency,
+                $eurRsdRate,
+                $product->created_at,
+            ));
         }
         $positive = $rows->where('quantity', '>', 0);
         $aging = ['0_30' => 0.0, '31_60' => 0.0, '61_90' => 0.0, '91_180' => 0.0, 'over_180' => 0.0];
         foreach ($positive as $row) $aging[$this->agingBucket((int) $row['age_days'])] += (float) $row['value_rsd'];
+
+        $purchaseValue = round((float) $rows->sum('value_rsd'), 2);
+        $saleValue = round((float) $rows->sum('sale_value_rsd'), 2);
+        $expectedProfit = round((float) $rows->sum('expected_profit_rsd'), 2);
+        $missingCostPositive = $positive->where('has_cost', false)->count();
+        $missingCostTotal = $rows->where('has_cost', false)->count();
+        $missingSalePositive = $positive->where('has_sale_value', false)->count();
+
         return [
-            'items_count' => $rows->count(), 'units_count' => (int) $rows->sum('quantity'),
-            'value_rsd' => round((float) $rows->sum('value_rsd'), 2),
-            'missing_cost_items' => $rows->where('quantity', '>', 0)->where('has_cost', false)->count(),
+            'items_count' => $rows->count(),
+            'units_count' => (int) $rows->sum('quantity'),
+            'value_rsd' => $purchaseValue,
+            'purchase_value_rsd' => $purchaseValue,
+            'sale_value_rsd' => $saleValue,
+            'expected_profit_rsd' => $expectedProfit,
+            'missing_cost_items' => $missingCostPositive,
+            'missing_cost_total_items' => $missingCostTotal,
+            'missing_sale_value_items' => $missingSalePositive,
+            'valuation_complete' => $missingCostPositive === 0 && $missingSalePositive === 0,
+            'eur_rsd_rate' => $eurRsdRate,
             'slow_items' => $positive->where('days_since_sale', '>=', 90)->count(),
             'aging' => array_map(static fn ($value): float => round((float) $value, 2), $aging),
             'top_value' => $rows->sortByDesc('value_rsd')->take(20)->values()->all(),
@@ -381,9 +414,22 @@ final class ManagementReportService
     }
 
     /** @return array<string,mixed> */
-    private function inventoryRow(int $id, string $sku, string $name, int $quantity, mixed $cost, mixed $createdAt): array
+    private function inventoryRow(int $id, string $sku, string $name, int $quantity, mixed $cost, mixed $salePrice, mixed $saleCurrency, ?float $eurRsdRate, mixed $createdAt): array
     {
         $hasCost = $cost !== null && (float) $cost > 0;
+        $saleCurrency = strtoupper(trim((string) $saleCurrency));
+        $unitSaleRsd = null;
+        if ($salePrice !== null && is_numeric($salePrice) && (float) $salePrice >= 0) {
+            if ($saleCurrency === 'RSD') {
+                $unitSaleRsd = (float) $salePrice;
+            } elseif ($saleCurrency === 'EUR' && $eurRsdRate !== null && $eurRsdRate > 0) {
+                $unitSaleRsd = (float) $salePrice * $eurRsdRate;
+            }
+        }
+        $hasSaleValue = $unitSaleRsd !== null;
+        $purchaseValue = $hasCost ? round($quantity * (float) $cost, 2) : 0.0;
+        $saleValue = $hasSaleValue ? round($quantity * (float) $unitSaleRsd, 2) : 0.0;
+        $expectedProfit = $quantity > 0 && $hasCost && $hasSaleValue ? round($saleValue - $purchaseValue, 2) : 0.0;
         $movement = Schema::hasTable('stock_movements')
             ? DB::table('stock_movements')->where('product_id', $id)
                 ->where('quantity_change', '>', 0)->latest('created_at')->value('created_at')
@@ -397,8 +443,14 @@ final class ManagementReportService
         return [
             'kind' => 'product', 'id' => $id, 'sku' => $sku, 'name' => $name, 'quantity' => $quantity,
             'unit_cost_rsd' => $hasCost ? round((float) $cost, 2) : 0.0,
-            'value_rsd' => $hasCost ? round($quantity * (float) $cost, 2) : 0.0,
-            'has_cost' => $hasCost, 'age_days' => $ageStart->diffInDays(CarbonImmutable::now()),
+            'unit_sale_rsd' => $hasSaleValue ? round((float) $unitSaleRsd, 2) : null,
+            'value_rsd' => $purchaseValue,
+            'sale_value_rsd' => $saleValue,
+            'expected_profit_rsd' => $expectedProfit,
+            'has_cost' => $hasCost,
+            'has_sale_value' => $hasSaleValue,
+            'has_expected_profit' => $quantity <= 0 || ($hasCost && $hasSaleValue),
+            'age_days' => $ageStart->diffInDays(CarbonImmutable::now()),
             'days_since_sale' => $daysSinceSale,
         ];
     }
@@ -411,7 +463,23 @@ final class ManagementReportService
     /** @return array<string,mixed> */
     private function emptyInventory(): array
     {
-        return ['items_count' => 0, 'units_count' => 0, 'value_rsd' => 0.0, 'missing_cost_items' => 0, 'slow_items' => 0, 'aging' => [], 'top_value' => [], 'slow_stock' => []];
+        return [
+            'items_count' => 0,
+            'units_count' => 0,
+            'value_rsd' => 0.0,
+            'purchase_value_rsd' => 0.0,
+            'sale_value_rsd' => 0.0,
+            'expected_profit_rsd' => 0.0,
+            'missing_cost_items' => 0,
+            'missing_cost_total_items' => 0,
+            'missing_sale_value_items' => 0,
+            'valuation_complete' => true,
+            'eur_rsd_rate' => null,
+            'slow_items' => 0,
+            'aging' => [],
+            'top_value' => [],
+            'slow_stock' => [],
+        ];
     }
 
     /** @param array<string,mixed> $filters */

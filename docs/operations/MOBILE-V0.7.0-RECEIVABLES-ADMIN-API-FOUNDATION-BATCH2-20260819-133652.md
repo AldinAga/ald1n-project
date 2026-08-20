@@ -39,7 +39,7 @@ CURRENT_APP_VERSION=0.7.0
 CURRENT_PACKAGE_LOCK_VERSION=0.7.0
 OPENAPI_PRE_PARITY=PASS_3_COPIES
 
-   ERROR  Your application doesn't have any routes matching the given criteria.  
+   ERROR  Your application doesn't have any routes matching the given criteria.
 
 ADMIN_RECEIVABLES_RUNTIME_ROUTE_COUNT_BEFORE=0
 OPENAPI_ADMIN_RECEIVABLES_PATH_COUNT_BEFORE=0
@@ -96,7 +96,7 @@ OPENAPI_POST_INSTALL_PARITY=PASS_3_COPIES
 7. ROUTE CACHE MODE PRESERVATION + RUNTIME 9-OPERATION CONTRACT
 ============================================================
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_MODE_AFTER=PRESERVED_UNCACHED
 

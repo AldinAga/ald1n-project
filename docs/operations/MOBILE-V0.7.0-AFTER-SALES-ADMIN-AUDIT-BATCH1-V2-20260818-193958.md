@@ -284,7 +284,7 @@ AFTER_SALES_DATABASE_READ_ONLY_PROBE=PASS
 6. CURRENT ADMIN API / OPENAPI GAP
 ============================================================
 
-   ERROR  Your application doesn't have any routes matching the given criteria.  
+   ERROR  Your application doesn't have any routes matching the given criteria.
 
 ADMIN_AFTER_SALES_RUNTIME_ROUTE_COUNT=0
 OPENAPI_PRE_PARITY=PASS

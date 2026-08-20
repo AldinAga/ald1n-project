@@ -96,7 +96,7 @@ OPENAPI_POST_INSTALL_PARITY=PASS_3_COPIES
 7. ROUTE CACHE MODE PRESERVATION + RUNTIME ROUTE CONTRACT
 ============================================================
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_MODE_AFTER=PRESERVED_UNCACHED
   GET|HEAD  api/v1/admin/inventory ................................................................... api.v1.admin.inventory.index › Api\V1\Admin\InventoryController@index

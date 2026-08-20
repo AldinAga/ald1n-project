@@ -41,15 +41,15 @@ PRODUCT_VARIANTS_SOURCE=REMAINS_DECOMMISSIONED
 No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-product-status-disk-storage-cleanup-batch2.20260820-085153.2375769/db-snapshot.php
 
 In Connection.php line 857:
-                                                                                                                                                                             
-  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id' in 'ORDER BY' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select * from `s  
-  pecification_option_dependencies` where `parent_option_id` in (23, 24, 25, 26, 27, 28) or `child_option_id` in (23, 24, 25, 26, 27, 28) order by `id` asc)                 
-                                                                                                                                                                             
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id' in 'ORDER BY' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select * from `s
+  pecification_option_dependencies` where `parent_option_id` in (23, 24, 25, 26, 27, 28) or `child_option_id` in (23, 24, 25, 26, 27, 28) order by `id` asc)
+
 
 In Connection.php line 435:
-                                                                             
-  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id' in 'ORDER BY'  
-                                                                             
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id' in 'ORDER BY'
+
 
 FAIL: DB snapshot sentinel missing
 

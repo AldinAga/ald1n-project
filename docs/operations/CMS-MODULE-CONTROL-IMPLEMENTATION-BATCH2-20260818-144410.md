@@ -91,11 +91,11 @@ TEMP_MODULE_CONTROL_CONTRACT=PASS
 MANAGED_EXISTING_FILES_INSTALLED=4
 MANAGED_NEW_FILES_INSTALLED=3
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_REBUILT=NOT_REQUIRED_PREVIOUSLY_UNCACHED
 
-   INFO  Compiled views cleared successfully.  
+   INFO  Compiled views cleared successfully.
 
 VIEW_CACHE_CLEARED=YES
 
@@ -138,11 +138,11 @@ MODULE_DEFAULT_RUNTIME=PASS
 ============================================================
 
 
-   INFO  Blade templates cached successfully.  
+   INFO  Blade templates cached successfully.
 
 BLADE_VIEW_CACHE_COMPILE=PASS
 
-   INFO  Compiled views cleared successfully.  
+   INFO  Compiled views cleared successfully.
 
 BLADE_VIEW_CACHE_CLEARED_AFTER_COMPILE=YES
 BACKEND_NAVIGATION_MODULE_GUARDS=PASS_ALL_13

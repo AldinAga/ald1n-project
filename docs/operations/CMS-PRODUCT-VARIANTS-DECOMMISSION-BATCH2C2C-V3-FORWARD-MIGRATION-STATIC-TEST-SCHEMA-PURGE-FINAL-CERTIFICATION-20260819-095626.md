@@ -148,7 +148,7 @@ INSTALLED_HASHES=PASS_16_OF_16
 5. EXECUTE ONLY THE FORWARD DECOMMISSION MIGRATION
 ============================================================
 
-   INFO  Running migrations.  
+   INFO  Running migrations.
 
   2026_08_19_091800_decommission_product_variants .................................................................................... 424.74ms DONE
 

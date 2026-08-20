@@ -1,196 +1,150 @@
+CONCURRENCY_LOCK=ACQUIRED
 
 ============================================================
-MOBILE v0.7.0 - AFTER-SALES ADMIN API FOUNDATION - BATCH 2
+MOBILE v0.8.0 - PURCHASE COSTS + SUPERADMIN INVENTORY KPI - BATCH 3
 ============================================================
-DATE=Tue Aug 18 19:50:38 CEST 2026
+DATE=Thu Aug 20 10:05:09 CEST 2026
 PROJECT=/home/icaffeco/ald1n-project
 CMS=/home/icaffeco/ald1n-project/apps/cms/current
 MOBILE=/home/icaffeco/ald1n-project/apps/mobile/current
-REPORT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.7.0-AFTER-SALES-ADMIN-API-FOUNDATION-BATCH2-20260818-195038.md
-BACKUP=/home/icaffeco/backups/releases/mobile-v0.7.0-after-sales-admin-api-foundation-batch2-20260818-195038
-MODE=MUTATING_CMS_API_OPENAPI_WITH_BACKUP_AND_ROLLBACK
-TARGET_WORKSTREAM=AFTER_SALES_ADMIN
-MANAGED_EXISTING_FILES=4
-MANAGED_NEW_FILES=3
-DATABASE_WRITES_EXPECTED_DURING_BATCH=0
+REPORT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.8.0-PURCHASE-COSTS-SUPERADMIN-INVENTORY-KPI-BATCH3-20260820-100509.md
+BACKUP=/home/icaffeco/backups/releases/mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3-20260820-100509
+TARGET_1=SUPERADMIN_ONLY_ONE_TIME_FAST_PURCHASE_COST_ENTRY
+TARGET_2=SHARED_INVENTORY_VALUATION_AUTHORITY
+TARGET_3=SUPERADMIN_WEB_AND_MOBILE_3_KPI_CARDS
+PURCHASE_COST_CANONICAL_FIELD=products.purchase_price_rsd
+FOURTH_KPI=NOT_IMPLEMENTED_NOT_GUESSED
+DATABASE_WRITES_DURING_BATCH_EXPECTED=0
 MIGRATIONS_RUN=NO
 DEPENDENCY_CHANGES=NO
 NEW_NATIVE_DEPENDENCY=NO
-APP_VERSION_CHANGE=NO
 EAS_COMMANDS_RUN=NO
 EAS_BUILD=NO
-TARGET_API_UNIQUE_PATHS=8
-TARGET_API_OPERATIONS=9
-BACKEND_AUTHORITY=REUSE_AFTER_SALES_ACCESS_CASE_ACTION_SERVICES
-DIRECT_MODEL_MUTATION_IN_API_CONTROLLERS=FORBIDDEN
-PRIVATE_ATTACHMENT_POLICY=BEARER_AUTH_MANAGED_SCOPE_PRIVATE_NO_STORE
 
 ============================================================
-0. PREFLIGHT + BATCH 1 V2 PREREQUISITE
+0. PREREQUISITE + GITHUB GUARD + TOOLCHAIN
 ============================================================
+BATCH2_V3_PREREQUISITE=PASS
+BATCH2_V3_REPORT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.8.0-PRODUCT-STATUS-DISK-STORAGE-CLEANUP-BATCH2-V3-20260820-090039.md
+From github.com:AldinAga/ald1n-project
+ * branch            main       -> FETCH_HEAD
+GITHUB_BACKUP_REMOTE_SYNC_PRE=PASS
+GITHUB_HEAD=8aeb80b7d233bdf26e69673b1b9b166fabb0f628
 NODE_VERSION=v22.23.2
 NPM_VERSION=10.9.8
-BATCH1_V2_PASS_REPORT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.7.0-AFTER-SALES-ADMIN-AUDIT-BATCH1-V2-20260818-193958.md
-BATCH1_V2_PREREQUISITE=PASS
 CURRENT_APP_VERSION=0.7.0
-CURRENT_PACKAGE_LOCK_VERSION=0.7.0
 OPENAPI_PRE_PARITY=PASS
 
-   ERROR  Your application doesn't have any routes matching the given criteria.
-
-ADMIN_AFTER_SALES_RUNTIME_ROUTE_COUNT_BEFORE=0
-OPENAPI_ADMIN_AFTER_SALES_PATH_COUNT_BEFORE=0
-CURRENT_SOURCE_BASELINE=PASS_CLEAN_GAP_AND_AUTHORITY_CONTRACT
-
 ============================================================
-1. IMMUTABLE BASELINE + BACKUP + ROUTE CACHE STATE
+0B. CORRECTED LEGACY ZIP CONTENT-SIGNATURE AUDIT
 ============================================================
-ROUTE_CACHE_BEFORE_COUNT=0
-IMMUTABLE_BASELINE_FILE_COUNT=15
-GIT_BASELINE_CAPTURED=YES
-BACKUP_READY=YES
+LEGACY_ZIP_CORRECTED_SECRET_SIGNATURE_AUDIT=PASS_ZERO
+LEGACY_ZIP_CORRECTED_GREP_END_OF_OPTIONS=PASS
+LEGACY_ZIP_SAFETY_BUNDLE=/home/icaffeco/ald1n-project/.git/ald1n-safety/pre-github-zip-purge-20260820-092030.bundle
 
 ============================================================
-2. BUILD ADMIN AFTER-SALES JSON CONTROLLER IN TEMP
+1. LIVE PRODUCT FINANCIAL/INVENTORY BASELINE - READ ONLY
 ============================================================
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/AfterSalesController.php
-TEMP_MAIN_CONTROLLER=PASS_SERVICE_DELEGATED_SANITIZED
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/product-state.php
+PRODUCT_COUNT=30
+MISSING_PURCHASE_COST_TOTAL=9
+MISSING_PURCHASE_COST_POSITIVE_STOCK=5
+PRODUCT_FINANCIAL_STOCK_HASH=a13fd672675320d7141b0e2a4608972c58af2356204d09a7763aee039f55a7bd
+PRODUCT_DB_BASELINE=PASS_READ_ONLY
 
 ============================================================
-3. BUILD ADMIN AFTER-SALES ACTION CONTROLLER IN TEMP
+2. BACKUP MANAGED SOURCE + ROUTE CACHE PRESTATE
 ============================================================
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/AfterSalesActionController.php
-TEMP_ACTION_CONTROLLER=PASS_SERVICE_DELEGATED
+BACKUP=PASS
+BACKUP_PATH=/home/icaffeco/backups/releases/mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3-20260820-100509
+MANAGED_SOURCE_FILES=15
+ROUTE_CACHE_PRE_COUNT=0
 
 ============================================================
-4. BUILD PRIVATE ADMIN ATTACHMENT CONTROLLER IN TEMP
+3. BUILD PATCHED SOURCE IN TEMP
 ============================================================
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/AfterSalesAttachmentController.php
-TEMP_ATTACHMENT_CONTROLLER=PASS_PRIVATE_MANAGED_NO_STORE
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/patch-source.php
+SOURCE_PATCHER=PASS
+TEMP_SOURCE_PATCH_BUILD=PASS
 
 ============================================================
-5. PATCH API ROUTES IN TEMP
+4. TEMP STATIC VALIDATION + PATCH CONTRACT
 ============================================================
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/patch-routes.php
-AFTER_SALES_ADMIN_ROUTE_PATCH=PASS
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/api.php
-TEMP_API_ROUTES=PASS_9_OPERATIONS
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/replacements/apps/cms/current/app/Http/Controllers/Admin/ProductPurchaseCostController.php
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/replacements/apps/cms/current/bin/v0.8-batch3-purchase-cost-kpi-smoke.php
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/replacements/apps/cms/current/app/Http/Controllers/DashboardController.php
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/replacements/apps/cms/current/app/Services/ManagementReportService.php
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/replacements/apps/cms/current/app/Http/Controllers/Api/V1/Admin/FoundationController.php
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/replacements/apps/cms/current/routes/web.php
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/fixture.php
+PATCHER_FIXTURE=PASS
+TEMP_STATIC_VALIDATION=PASS
 
 ============================================================
-6. PATCH CANONICAL OPENAPI IN TEMP
+5. INSTALL MANAGED SOURCE FILES
 ============================================================
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/patch-openapi.php
-AFTER_SALES_ADMIN_OPENAPI_PATCH=PASS
-TEMP_OPENAPI_ADMIN_AFTER_SALES_PATH_COUNT=8
-TEMP_OPENAPI_ADMIN_AFTER_SALES_OPERATION_COUNT=9
-TEMP_OPENAPI=PASS_8_PATHS_9_OPERATIONS
+MANAGED_SOURCE_FILES_INSTALLED=15
+DATABASE_MUTATIONS=NONE
+MIGRATIONS_RUN=NO
 
 ============================================================
-7. TEMP CONTRACT / SECURITY / NO-DUPLICATED-BUSINESS-LOGIC GATE
-============================================================
-TEMP_AUTHORITY_CONTRACT=PASS_NO_DIRECT_BUSINESS_MUTATION
-
-============================================================
-8. INSTALL MANAGED CMS + OPENAPI SOURCE
-============================================================
-MANAGED_SOURCE_INSTALLED=PASS_7_FILES
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Controllers/Api/V1/Admin/AfterSalesController.php
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Controllers/Api/V1/Admin/AfterSalesActionController.php
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Controllers/Api/V1/Admin/AfterSalesAttachmentController.php
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/routes/api.php
-
-============================================================
-9. ROUTE CACHE REFRESH + RUNTIME 9-OPERATION CONTRACT
+6. ROUTE CACHE + PURCHASE COST ROUTE CONTRACT
 ============================================================
 
    INFO  Route cache cleared successfully.
 
-ROUTE_CACHE_MODE_AFTER=PRESERVED_UNCACHED
 
-  GET|HEAD   api/v1/admin/after-sales ............................................................. api.v1.admin.after-sales.index › Api\V1\Admin\AfterSalesController@index
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-  GET|HEAD   api/v1/admin/after-sales/attachments/{attachment} ..................... api.v1.admin.after-sales.attachments.show › Api\V1\Admin\AfterSalesAttachmentController
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-  GET|HEAD   api/v1/admin/after-sales/{case} ........................................................ api.v1.admin.after-sales.show › Api\V1\Admin\AfterSalesController@show
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-  PATCH      api/v1/admin/after-sales/{case} .................................................... api.v1.admin.after-sales.update › Api\V1\Admin\AfterSalesController@update
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:admin-write
-  POST       api/v1/admin/after-sales/{case}/actions ................................ api.v1.admin.after-sales.actions.store › Api\V1\Admin\AfterSalesActionController@store
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.execute
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:admin-write
-  POST       api/v1/admin/after-sales/{case}/actions/{action}/cancel .............. api.v1.admin.after-sales.actions.cancel › Api\V1\Admin\AfterSalesActionController@cancel
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.execute
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:admin-write
-  POST       api/v1/admin/after-sales/{case}/actions/{action}/complete ........ api.v1.admin.after-sales.actions.complete › Api\V1\Admin\AfterSalesActionController@complete
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.execute
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:admin-write
-  POST       api/v1/admin/after-sales/{case}/actions/{action}/start ................. api.v1.admin.after-sales.actions.start › Api\V1\Admin\AfterSalesActionController@start
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.execute
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:admin-write
-  POST       api/v1/admin/after-sales/{case}/messages .................................. api.v1.admin.after-sales.messages.store › Api\V1\Admin\AfterSalesController@message
-             ⇂ api
-             ⇂ Illuminate\Auth\Middleware\Authenticate:sanctum
-             ⇂ App\Http\Middleware\EnsureActiveUser
-             ⇂ App\Http\Middleware\RequirePermission:after_sales.manage
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:uploads
-             ⇂ Illuminate\Routing\Middleware\ThrottleRequests:admin-write
+  GET|HEAD   admin/catalog/purchase-costs ........................................................ admin.products.purchase-costs › Admin\ProductPurchaseCostController@index
+  POST       admin/catalog/purchase-costs ................................................ admin.products.purchase-costs.update › Admin\ProductPurchaseCostController@update
 
-                                                                                                                                                          Showing [9] routes
+                                                                                                                                                          Showing [2] routes
 
-ADMIN_AFTER_SALES_RUNTIME_ROUTE_COUNT=9
-No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.7.0-after-sales-admin-api-foundation-batch2.BAYfK3/after-sales-admin-route-probe.php
-ROUTE_PROBE_ADMIN_AFTER_SALES_OPERATION_COUNT=9
-ROUTE_PROBE_MANAGE_PERMISSION=PASS
-ROUTE_PROBE_EXECUTE_PERMISSION=PASS_ACTIONS_ONLY
-ROUTE_PROBE_MUTATION_THROTTLES=PASS
-DATABASE_WRITES_DURING_ROUTE_PROBE=0
-ROUTE_PROBE_FINAL_SENTINEL=PASS
-ADMIN_AFTER_SALES_RUNTIME_CONTRACT=PASS_9_PERMISSION_GATED_OPERATIONS
+ROUTE_CACHE_POST_MODE=UNCACHED_PRESERVED
+PURCHASE_COST_WEB_ROUTES=PASS
 
 ============================================================
-10. OPENAPI PARITY + 8-PATH / 9-OPERATION CONTRACT
+7. SHARED INVENTORY VALUATION RUNTIME - READ ONLY
 ============================================================
-OPENAPI_ADMIN_AFTER_SALES_PATH_COUNT=8
-OPENAPI_ADMIN_AFTER_SALES_OPERATION_COUNT=9
-OPENAPI_PARITY=PASS_CANONICAL_CMS_MOBILE_8_PATHS_9_OPERATIONS
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/valuation-runtime.php
+PURCHASE_VALUE_RSD=824260.00
+SALE_VALUE_RSD=1566349.94
+EXPECTED_PROFIT_RSD=482889.69
+MISSING_COST_POSITIVE_STOCK=5
+MISSING_COST_TOTAL=9
+MISSING_SALE_VALUE_POSITIVE_STOCK=0
+VALUATION_COMPLETE=NO
+EUR_RSD_RATE=117.37
+INVENTORY_VALUATION_RUNTIME_SENTINEL=PASS
+INVENTORY_VALUATION_AUTHORITY=PASS_MANAGEMENT_REPORT_SERVICE
 
 ============================================================
-11. EARLY MOBILE TYPECHECK + VALIDATOR + DESIGN TOKENS + CMS STATIC
+8. BATCH 3 TARGETED SOURCE SMOKE
+============================================================
+PASS Batch3 purchase-cost routes exist before dynamic product route
+PASS Purchase-cost controller is SuperAdmin-only and writes canonical field
+PASS Purchase-cost UI is missing-first, Save All and Enter/Tab friendly
+PASS ManagementReportService owns three inventory valuation metrics
+PASS Web dashboard exposes exactly the requested three SuperAdmin valuation labels
+PASS Mobile foundation and Admin Hub expose SuperAdmin inventory valuation
+PASS Fourth KPI is intentionally absent
+PASS OpenAPI documents nullable SuperAdmin inventory valuation
+PASS GitHub checkpoint helper uses explicit -e for leading-hyphen secret regex
+BATCH3_SMOKE_TOTAL=9
+BATCH3_SMOKE_FAIL=0
+BATCH3_TARGETED_SMOKE=PASS
+
+============================================================
+9. FULL QUALITY GATES
 ============================================================
 
 > ald1n-mobile@0.7.0 typecheck
 > tsc --noEmit
 
 MOBILE_TYPECHECK=PASS
+
+> ald1n-mobile@0.7.0 validate
+> node scripts/validate-project.mjs
+
 PASS package.json postoji.
 PASS app.config.js postoji.
 PASS eas.json postoji.
@@ -262,9 +216,9 @@ PASS Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales prilo
 PASS Static colors consumeri su uklonjeni iz aplikacionog source-a.
 PASS Legacy colors.* usage ne postoji van RN theme adaptera.
 PASS Unsafe as never / as unknown as castovi ne postoje u source-u.
-PASS 97 TypeScript/TSX fajlova prolazi sintaksnu proveru.
+PASS 114 TypeScript/TSX fajlova prolazi sintaksnu proveru.
 PASS app.config.ts prolazi TypeScript sintaksnu proveru.
-PASS 571 lokalnih @/ importa je razrešeno.
+PASS 758 lokalnih @/ importa je razrešeno.
 PASS Bearer token header je implementiran.
 PASS Globalni 401 logout je implementiran.
 PASS Request ID je sačuvan u API grešci.
@@ -337,8 +291,12 @@ PASS Commission lista koristi customer permission, q/status/date filtere, server
 PASS Commission detalj prikazuje customer-safe obračun, status, napomenu, isplatu i link ka porudžbini.
 PASS Orders ekran otvara Commission listu samo korisniku sa commissions.view_own dozvolom.
 PASS Commission customer UI ne izlaže admin/interne workflow identifikatore ili akcije.
-PASS Lokalna korpa čuva proizvod, varijantu i količinu.
+PASS Lokalna korpa koristi samo proizvod i količinu; variant identitet je dekomisioniran.
 PASS Korpa se čisti pri odjavi/promeni korisnika.
+PASS Mobile API tipovi više ne izlažu Product Variants.
+PASS Mobile Product detalj više nema variant izbor.
+PASS Mobile checkout šalje samo product_id i quantity.
+PASS Admin After-sales Mobile contract više ne izlaže product_variant_id.
 PASS Checkout čuva stabilan idempotency ključ za retry istog payload-a.
 PASS Checkout podržava uslovni izbor računa za bank transfer.
 PASS Device heartbeat više ne gasi push registraciju pri svakom startu.
@@ -499,6 +457,14 @@ PASS Product image picker prihvata Android image provider fajl bez ekstenzije ka
 PASS iOS Google Sign-In koristi canonical GoogleService-Info.plist kroz Expo i Nitro config plugin.
 PASS iOS GoogleService-Info.plist sadrži preview bundle, iOS OAuth, reversed scheme i web client ID za autoDetect.
 PASS iOS koristi zaseban 1024x1024 opaque RGB app icon bez alpha/tRNS transparentnosti.
+PASS v0.7 Home izlaže release-critical Provizije odmah kroz manage/view-own permission model.
+PASS v0.7 Home prioritet zadržava Dodaj artikal pre Provizija.
+PASS v0.7 Admin Hub drži Provizije kao drugu prioritetnu akciju odmah posle Dodaj artikal.
+PASS v0.7 korisničke Moje provizije ostaju dostupne kroz view-own list/detail tok.
+PASS v0.7 Admin Provizije zadržavaju list/detail/bulk-pay/export/status workflow.
+PASS v0.7 Provizije koriste postojeći Admin API i secure export bez paralelne logike.
+PASS v0.7 release-critical Provizije ostaju vezane za kompletan canonical Admin OpenAPI surface.
+PASS v0.7 Commission contract uklanja fiksni minimum 20 EUR i dokumentuje podrazumevanih 10 procenata u Product Create toku.
 
 Ukupno FAIL: 0
 MOBILE_PROJECT_VALIDATOR=PASS
@@ -506,7 +472,7 @@ PASS light primary/onPrimary contrast 5.78:1
 PASS dark primary/onPrimary contrast 7.88:1
 PASS up-to-date apps/mobile/current/src/design/ald1n-tokens.generated.ts
 PASS up-to-date packages/web-theme/ald1n-violet.css
-DESIGN_TOKEN_CHECK=PASS
+DESIGN_TOKEN_CHECK=PASS_CANONICAL_GENERATOR_CHECK
 PASS  postoji artisan
 PASS  postoji composer.json
 PASS  postoji composer.lock
@@ -1059,7 +1025,7 @@ PASS  beta2 dozvola orders.internal_notes
 PASS  beta2 dozvola notifications.view
 PASS  provizije imaju odobravanje isplatu storniranje i istoriju
 PASS  masovna isplata koristi transakciju row lock i batch
-PASS  korisnik vidi samo svoje provizije i minimum 20 EUR
+PASS  korisnik vidi samo svoje provizije i podrazumevanih 10 procenata
 PASS  interne napomene nisu u javnom timeline-u
 PASS  ponovna dodela je ograničena na SuperAdministratora
 PASS  preuzimanje i rokovi porudžbine imaju audit i obaveštenja
@@ -1354,20 +1320,20 @@ PASS  beta7.19 bulk promena brenda čisti neusklađenu liniju
 PASS  beta7.19 preview naziva uklanja method spoof
 PASS  beta7.19 doctor proverava šemu rute i kompletnost
 PASS  beta7.19 feature test pokriva naziv klon i bulk
-PASS  beta7.20 migracija uvodi varijante specifikacije slike i snapshot
-PASS  beta7.20 migracija je recovery-safe za MariaDB i proširuje istorijske module
-PASS  beta7.20 varijanta ima SKU cenu lager status default i garanciju
-PASS  beta7.20 default preferira aktivnu varijantu i roditelj sabira aktivan lager
-PASS  beta7.20 serverska validacija štiti SKU i korelisane specifikacije
-PASS  beta7.20 admin ima CRUD lager slike i default varijantu
-PASS  beta7.20 UI filtrira zavisne specifikacije varijante
-PASS  beta7.20 porudžbina čuva variant snapshot i vraća isti lager
-PASS  beta7.20 postprodaja garancija i stock movement nose variant id
-PASS  beta7.20 clone kopira varijante bez lagera i sa novim SKU
-PASS  beta7.20 parent inventory korekcija je blokirana
-PASS  beta7.20 filter i pretraga vide aktivne varijante
-PASS  beta7.20 doctor proverava SKU default snapshot i aggregate
-PASS  beta7.20 feature i smoke testovi postoje
+PASS  beta7.20 istorijska migracija ostaje sačuvana kao migration history
+PASS  Product Variants forward decommission migracija postoji jednom
+PASS  Product Variants decommission migracija ima recovery-safe rollback rekonstrukciju
+PASS  Product Variants runtime klase su fizički uklonjene
+PASS  Product Variants admin UI fajlovi su fizički uklonjeni
+PASS  Porudžbine su product-only bez variant identiteta i snapshotova
+PASS  Postprodaja garancija i stock movement su product-only
+PASS  Inventory je product-only bez variants_enabled grane
+PASS  Kataloški query filter i detalj su product-only
+PASS  Product slike i model su product-only
+PASS  Clone vise ne nudi niti obrađuje kopiranje varijanti
+PASS  Product Variants Feature test sada proverava retired route i uklonjenu šemu
+PASS  Product Variants UI contract sada zahteva potpuno uklonjen variant UI
+PASS  Product Variants decommission smoke postoji kao završni regresioni guard
 PASS  beta7.17 feature test pokriva dedupe rate zatvaranje i UI regresiju
 PASS  beta7.21 migracija uvodi nabavne snapshotove i rasporede
 PASS  beta7.21 migracija je recovery-safe i permission schema-aware
@@ -1393,9 +1359,9 @@ PASS  beta7.23 release plan ne dispatchuje poslovne akcije
 PASS  beta7.23 release metadata i atomski JSON report postoje
 PASS  beta7.23 release rezultat ima READY i NOT READY ugovor
 PASS  beta7.23 smoke i dokumentacija postoje
-PASS  beta7.23.1 catalog detail nema problematične inline Blade lance
+PASS  beta7.23.1 catalog detail je product-only i nema retired variant Blade markere
 PASS  beta7.23.1 catalog detail Blade direktive su izbalansirane
-PASS  beta7.23.1 variant detail Feature i smoke regresija postoje
+PASS  beta7.23.1 product-only detail Feature i smoke regresija postoje
 PASS  beta7.23.1 health daje čitljive runtime remediation komande
 PASS  beta7.23.2 detail doctor rešava controller zavisnosti kroz container
 PASS  beta7.23.2 detail doctor nema direktan edit poziv sa jednim argumentom
@@ -1412,7 +1378,7 @@ PASS  beta7.24 reinvite ne deaktivira aktivnog kupca i aktivacija nije cache-ova
 PASS  beta7.24.1 management repair obrađuje missing snapshotove
 PASS  beta7.24.1 repair ne prepisuje kompletne snapshotove
 PASS  beta7.24.1 repair je transakcioni i koristi row lock
-PASS  beta7.24.1 kandidati imaju transparentan izvor
+PASS  beta7.24.1 kandidati imaju transparentan product-only izvor
 PASS  beta7.24.1 ručna finansijska promena zahteva razlog i audit
 PASS  beta7.24.1 audit/repair komanda i regresije postoje
 PASS  rc1 profil sadrzi final hardening provere
@@ -1446,13 +1412,13 @@ PASS  v2.1.3 diskovi imaju pojedinačne celobrojne GB kapacitete
 PASS  v2.1.3 catalog settings doctor postoji
 PASS  v2.1.3 grana ima tri kontrolisane migration datoteke
 PASS  v2.1.3.3 ProductRequest zadržava validan SKU regex delimiter
-PASS  v2.1.3.3 ProductVariantRequest zadržava validan SKU regex delimiter
+PASS  v2.1.3.3 ProductVariantRequest je retired a ProductRequest zadržava validan SKU regex
 PASS  v2.1.3.3 migracija povezuje listu diskova i izvedeni ukupni kapacitet
 PASS  v2.1.3.3 stari kapacitet se bezbedno prenosi na prvi disk
 PASS  v2.1.3.3 backend ne veruje ručnom ukupnom zbiru
 PASS  v2.1.3.3 ukupni kapacitet je ispod diskova i readonly
 PASS  v2.1.3.3 frontend sabira diskove i čuva početni legacy zbir
-PASS  v2.1.3.3 proizvod i varijante dele isti storage model
+PASS  v2.1.3.3 product-only storage model zadržava izvedeni zbir bez variant servisa
 PASS  v2.1.3.3 storage smoke i contract test postoje
 PASS  v2.1.4 migracija dodaje model proizvoda i usklađuje šablone
 PASS  v2.1.4 model se validira čuva i koristi u nazivu
@@ -1477,7 +1443,7 @@ PASS  v2.1.5 doctor proverava Blade, route akcije i napajanje
 PASS  v2.1.5 stable release koristi render i repair
 PASS  v2.1.5 smoke i contract test postoje
 PASS  v2.1.6 migracija kreira snapshot istoriju i ciljane indekse
-PASS  v2.1.6 Data Quality audit pokriva katalog slike varijante i specifikacije
+PASS  v2.1.6 Data Quality audit pokriva product-only katalog slike i specifikacije
 PASS  v2.1.6 repair je nedestruktivan i preračunava izvedene vrednosti
 PASS  v2.1.6 performance doctor proverava indekse cache i SQL pragove
 PASS  v2.1.6 dashboard kešira schema metadata po requestu
@@ -1493,39 +1459,56 @@ PASS  v2.2.0 API greške imaju stabilan envelope
 PASS  v2.2.0 OpenAPI i Stable doctor su povezani
 
 Ukupno: 983, neuspešno: 0
-CMS_STATIC_CHECK=PASS
+CMS_STATIC_CHECK=PASS_983_OF_983
 
 ============================================================
-12. IMMUTABILITY + TARGETED GIT SAFETY RECERTIFICATION
+10. OPENAPI + DB IMMUTABILITY + GIT SCOPE
 ============================================================
-IMMUTABLE_AUTHORITY_REQUEST_MODEL_SOURCES=UNCHANGED
+OPENAPI_PARITY=PASS_3_COPIES
+PRODUCT_COUNT=30
+MISSING_PURCHASE_COST_TOTAL=9
+MISSING_PURCHASE_COST_POSITIVE_STOCK=5
+PRODUCT_FINANCIAL_STOCK_HASH=a13fd672675320d7141b0e2a4608972c58af2356204d09a7763aee039f55a7bd
+PRODUCT_DATABASE_WRITES_DURING_BATCH=0_HASH_UNCHANGED
 TARGETED_GIT_DIFF_CHECK=PASS
 OUTSIDE_ALLOWLIST_GIT_STATE=UNCHANGED
+No syntax errors detected in /home/icaffeco/ald1n-project/incoming/.ald1n-mobile-v0.8.0-purchase-costs-superadmin-inventory-kpi-batch3.20260820-100509.2670825/product-variant-state.php
+PRODUCT_VARIANT_TABLES=ABSENT
+PRODUCT_VARIANTS=REMAINS_DECOMMISSIONED
 
 ============================================================
-13. FINAL AFTER-SALES ADMIN API FOUNDATION CONTRACT
+11. FINAL
 ============================================================
-ADMIN_AFTER_SALES_API=PASS_8_UNIQUE_PATHS_9_HTTP_OPERATIONS
-ADMIN_AFTER_SALES_LIST_FILTERS=PASS_Q_STATUS_PRIORITY_CASE_TYPE_OVERDUE_EXECUTION_PENDING_PAGINATION
-ADMIN_AFTER_SALES_DETAIL=PASS_MESSAGES_INTERNAL_NOTES_HISTORY_ACTIONS_SAFE_ATTACHMENTS_SERVER_OPTIONS
-ADMIN_AFTER_SALES_CASE_MUTATIONS=PASS_UPDATE_AND_PUBLIC_OR_INTERNAL_MESSAGE_VIA_CASE_SERVICE
-ADMIN_AFTER_SALES_ACTION_MUTATIONS=PASS_CREATE_START_COMPLETE_CANCEL_VIA_ACTION_SERVICE
-ADMIN_AFTER_SALES_ATTACHMENT=PASS_BEARER_MANAGED_SCOPE_PRIVATE_NO_STORE
-FIELD_WORK_SIDE_EFFECT_AUTHORITY=PRESERVED_AFTER_SALES_ACTION_SERVICE
-REFUND_PAYMENT_SIDE_EFFECT_AUTHORITY=PRESERVED_ORDER_PAYMENT_SERVICE_VIA_AFTER_SALES_ACTION_SERVICE
-DIRECT_MODEL_MUTATION_IN_NEW_API_CONTROLLERS=ABSENT
-PRIVATE_STORAGE_FIELDS_IN_JSON=ABSENT
-SOURCE_WRITES_DURING_BATCH=7_MANAGED_FILES
-DATABASE_WRITES_DURING_BATCH=0
+GITHUB_BACKUP_GUARD_BOOTSTRAP_V2=PASS_PREREQUISITE
+GITHUB_CHECKPOINT_HELPER_SECRET_SCAN=PASS_EXPLICIT_PATTERN_E_OPTION
+LEGACY_ZIP_CORRECTED_SECRET_SIGNATURE_AUDIT=PASS_ZERO
+PURCHASE_COST_CANONICAL_FIELD=products.purchase_price_rsd
+PURCHASE_COST_ENTRY=PASS_SUPERADMIN_ONLY_MISSING_FIRST_SAVE_ALL
+PURCHASE_COST_ENTRY_KEYBOARD=PASS_TAB_AND_ENTER
+PURCHASE_COST_HELPER_PRIMARY_VISIBILITY=HIDES_WHEN_ALL_COSTS_COMPLETE
+PURCHASE_COST_BATCH_DB_WRITES=0
+INVENTORY_VALUATION_AUTHORITY=PASS_MANAGEMENT_REPORT_SERVICE
+SUPERADMIN_WEB_INVENTORY_KPI=PASS_3_CARDS
+SUPERADMIN_MOBILE_INVENTORY_KPI=PASS_3_CARDS_FOUNDATION
+INVENTORY_KPI_PURCHASE_VALUE=PASS
+INVENTORY_KPI_SALE_VALUE=PASS
+INVENTORY_KPI_EXPECTED_PROFIT=PASS
+FOURTH_KPI=NOT_IMPLEMENTED_NOT_GUESSED
+NON_SUPERADMIN_DASHBOARD_KPI=UNCHANGED_EXISTING_FLOW
+OPENAPI=PASS_3_COPY_PARITY
+MOBILE_TYPECHECK=PASS
+MOBILE_PROJECT_VALIDATOR=PASS
+DESIGN_TOKEN_CHECK=PASS
+CMS_STATIC_CHECK=PASS_983_OF_983
 MIGRATIONS_RUN=NO
 DEPENDENCY_CHANGES=NO
 NEW_NATIVE_DEPENDENCY=NO
-APP_VERSION=0.7.0
+EAS_COMMANDS_RUN=NO
 EAS_BUILD=NO
-AFTER_SALES_ADMIN_V0_7_PROGRESS=50_PERCENT_BY_4_GATE_PLAN
-MOBILE_V0_7_AFTER_SALES_ADMIN_API_FOUNDATION_BATCH2=PASS
-NEXT_ACTION=PREPARE_V0_7_AFTER_SALES_ADMIN_MOBILE_CLIENT_UI_BATCH3
-REPORT_READY_TO_UPLOAD=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.7.0-AFTER-SALES-ADMIN-API-FOUNDATION-BATCH2-20260818-195038.md
-UPLOAD_THIS_REPORT_TO_CHAT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.7.0-AFTER-SALES-ADMIN-API-FOUNDATION-BATCH2-20260818-195038.md
+V0_8_IMPLEMENTATION_PROGRESS=50_PERCENT_BATCH3_COMPLETE
+MOBILE_V0_8_PURCHASE_COSTS_SUPERADMIN_INVENTORY_KPI_BATCH3=PASS
+NEXT_ACTION=RUN_GITHUB_CHECKPOINT_THEN_BATCH4_DEFERRED_PAYMENT_RECEIVABLES
+GITHUB_CHECKPOINT_COMMAND=bash /home/icaffeco/ald1n-project/scripts/github-checkpoint.sh "v0.8 Batch 3 PASS - purchase costs and SuperAdmin inventory valuation"
+UPLOAD_THIS_REPORT_TO_CHAT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.8.0-PURCHASE-COSTS-SUPERADMIN-INVENTORY-KPI-BATCH3-20260820-100509.md
 
-PASS: MOBILE v0.7.0 AFTER-SALES ADMIN API FOUNDATION BATCH 2 COMPLETE
+PASS: MOBILE v0.8.0 PURCHASE COSTS + SUPERADMIN INVENTORY KPI BATCH 3 COMPLETE

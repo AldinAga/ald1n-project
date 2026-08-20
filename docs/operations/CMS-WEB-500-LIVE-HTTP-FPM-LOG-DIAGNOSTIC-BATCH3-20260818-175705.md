@@ -46,19 +46,19 @@ AUTH_GUARD=web
 
 --- route:list login/dashboard/root signals ---
 
-                                          
-  The "--columns" option does not exist.  
-                                          
+
+  The "--columns" option does not exist.
 
 
-                                          
-  The "--columns" option does not exist.  
-                                          
 
 
-                                          
-  The "--columns" option does not exist.  
-                                          
+  The "--columns" option does not exist.
+
+
+
+
+  The "--columns" option does not exist.
+
 
 
 --- authentication redirect/dashboard source signals ---
@@ -904,7 +904,7 @@ NO_NEW_BYTES=YES
 ===== LIVE DELTA /home/icaffeco/ald1n-project/apps/cms/current/storage/logs/laravel-2026-08-18.log =====
 mtime=2026-08-18 17:57:38.579702849 +0200 size=954838 inode=213782290
 BASELINE_INODE=213782290 BASELINE_SIZE=825961 BASELINE_MTIME=1787068627
-[2026-08-18 17:57:27] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"9adaae32-01d6-4fbd-b43e-2ac0b39133b3","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-18 17:57:27] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"9adaae32-01d6-4fbd-b43e-2ac0b39133b3","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 [2026-08-18 17:57:27] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"9adaae32-01d6-4fbd-b43e-2ac0b39133b3","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 [stacktrace]
 #0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
@@ -1131,8 +1131,8 @@ BASELINE_INODE=213782290 BASELINE_SIZE=825961 BASELINE_MTIME=1787068627
 #73 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1220): Illuminate\\Foundation\\Http\\Kernel->handle()
 #74 /home/icaffeco/ald1n-project/apps/cms/current/public/index.php(19): Illuminate\\Foundation\\Application->handleRequest()
 #75 {main}
-"} 
-[2026-08-18 17:57:37] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"76f6acc4-6c2a-47ca-9f14-46fc926d822b","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+"}
+[2026-08-18 17:57:37] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"76f6acc4-6c2a-47ca-9f14-46fc926d822b","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 [2026-08-18 17:57:37] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"76f6acc4-6c2a-47ca-9f14-46fc926d822b","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 [stacktrace]
 #0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
@@ -1359,8 +1359,8 @@ BASELINE_INODE=213782290 BASELINE_SIZE=825961 BASELINE_MTIME=1787068627
 #73 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1220): Illuminate\\Foundation\\Http\\Kernel->handle()
 #74 /home/icaffeco/ald1n-project/apps/cms/current/public/index.php(19): Illuminate\\Foundation\\Application->handleRequest()
 #75 {main}
-"} 
-[2026-08-18 17:57:38] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+"}
+[2026-08-18 17:57:38] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 [2026-08-18 17:57:38] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 [stacktrace]
 #0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
@@ -1587,7 +1587,7 @@ BASELINE_INODE=213782290 BASELINE_SIZE=825961 BASELINE_MTIME=1787068627
 #73 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1220): Illuminate\\Foundation\\Http\\Kernel->handle()
 #74 /home/icaffeco/ald1n-project/apps/cms/current/public/index.php(19): Illuminate\\Foundation\\Application->handleRequest()
 #75 {main}
-"} 
+"}
 
 ===== LIVE DELTA /home/icaffeco/ald1n-project/apps/cms/current/storage/logs/scheduler.log =====
 mtime=2026-08-18 17:57:03.523366874 +0200 size=6125560 inode=213782279
@@ -2320,7 +2320,7 @@ BASELINE_INODE=213451252 BASELINE_SIZE=15248 BASELINE_MTIME=1782973933
 NO_NEW_BYTES=YES
 
 --- HIGH-SIGNAL NEW ERRORS ONLY ---
-120:[2026-08-18 17:57:27] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"9adaae32-01d6-4fbd-b43e-2ac0b39133b3","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+120:[2026-08-18 17:57:27] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"9adaae32-01d6-4fbd-b43e-2ac0b39133b3","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 121:[2026-08-18 17:57:27] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"9adaae32-01d6-4fbd-b43e-2ac0b39133b3","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 123:#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
 134:#11 /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Middleware/EnsureTrackedPortalSession.php(32): Illuminate\\Pipeline\\Pipeline->{closure:Illuminate\\Pipeline\\Pipeline::prepareDestination():178}()
@@ -2347,7 +2347,7 @@ NO_NEW_BYTES=YES
 303:#32 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(120): Illuminate\\Pipeline\\Pipeline->{closure:{closure:Illuminate\\Pipeline\\Pipeline::carry():194}:195}()
 304:#33 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(63): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest()
 305:#34 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(219): Illuminate\\Session\\Middleware\\StartSession->handle()
-348:[2026-08-18 17:57:37] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"76f6acc4-6c2a-47ca-9f14-46fc926d822b","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+348:[2026-08-18 17:57:37] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"76f6acc4-6c2a-47ca-9f14-46fc926d822b","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 349:[2026-08-18 17:57:37] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"76f6acc4-6c2a-47ca-9f14-46fc926d822b","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 351:#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
 362:#11 /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Middleware/EnsureTrackedPortalSession.php(32): Illuminate\\Pipeline\\Pipeline->{closure:Illuminate\\Pipeline\\Pipeline::prepareDestination():178}()
@@ -2374,7 +2374,7 @@ NO_NEW_BYTES=YES
 531:#32 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(120): Illuminate\\Pipeline\\Pipeline->{closure:{closure:Illuminate\\Pipeline\\Pipeline::carry():194}:195}()
 532:#33 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(63): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest()
 533:#34 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(219): Illuminate\\Session\\Middleware\\StartSession->handle()
-576:[2026-08-18 17:57:38] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+576:[2026-08-18 17:57:38] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 577:[2026-08-18 17:57:38] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 579:#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
 590:#11 /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Middleware/EnsureTrackedPortalSession.php(32): Illuminate\\Pipeline\\Pipeline->{closure:Illuminate\\Pipeline\\Pipeline::prepareDestination():178}()
@@ -2442,8 +2442,8 @@ DASHBOARD_COMPILED_MTIME_AFTER=1787068074
 #73 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1220): Illuminate\\Foundation\\Http\\Kernel->handle()
 #74 /home/icaffeco/ald1n-project/apps/cms/current/public/index.php(19): Illuminate\\Foundation\\Application->handleRequest()
 #75 {main}
-"} 
-[2026-08-18 17:57:38] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+"}
+[2026-08-18 17:57:38] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"}
 [2026-08-18 17:57:38] production.ERROR: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) {"request_id":"a485002f-5da7-49ea-9ba0-cf88f6cce8ab","userId":1,"exception":"[object] (Illuminate\\View\\ViewException(code: 0): syntax error, unexpected end of file, expecting \"elseif\" or \"else\" or \"endif\" (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) (View: /home/icaffeco/ald1n-project/apps/cms/current/resources/views/layouts/app.blade.php) at /home/icaffeco/ald1n-project/apps/cms/current/storage/framework/views/27fcc058188ef6b3d5c92ea9cd3dbb7d.php:1885)
 [stacktrace]
 #0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php(59): Illuminate\\View\\Engines\\CompilerEngine->handleViewException()
@@ -2670,7 +2670,7 @@ DASHBOARD_COMPILED_MTIME_AFTER=1787068074
 #73 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1220): Illuminate\\Foundation\\Http\\Kernel->handle()
 #74 /home/icaffeco/ald1n-project/apps/cms/current/public/index.php(19): Illuminate\\Foundation\\Application->handleRequest()
 #75 {main}
-"} 
+"}
 
 ============================================================
 7. DIAGNOSTIC SUMMARY

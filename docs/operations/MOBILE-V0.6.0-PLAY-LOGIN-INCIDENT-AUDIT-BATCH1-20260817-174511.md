@@ -77,25 +77,25 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     13	import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
     14	import { useAuth } from '@/features/auth/auth-provider';
     15	import { API_URL, ApiError } from '@/lib/api/client';
-    16	
+    16
     17	const schema = z.object({
     18	  login: z.string().trim().min(1, 'Unesi korisničko ime ili e-mail.'),
     19	  password: z.string().min(1, 'Unesi lozinku.')
     20	});
-    21	
+    21
     22	type FormValues = z.infer<typeof schema>;
-    23	
+    23
     24	export default function LoginScreen() {
     25	  const { scheme, colors: themeColors } = useAppTheme();
     26	  const styles = useThemedStyles(createStyles);
-    27	
+    27
     28	  const { signIn, signInWithGoogle } = useAuth();
     29	  const [googleLoading, setGoogleLoading] = useState(false);
     30	  const { control, handleSubmit, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<FormValues>({
     31	    resolver: zodResolver(schema),
     32	    defaultValues: { login: '', password: '' }
     33	  });
-    34	
+    34
     35	  const submit = handleSubmit(async (values) => {
     36	    try {
     37	      await signIn(values.login, values.password);
@@ -105,7 +105,7 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     41	      setError('root', { message });
     42	    }
     43	  });
-    44	
+    44
     45	  const google = async () => {
     46	    if (googleLoading) return;
     47	    setGoogleLoading(true);
@@ -124,7 +124,7 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     60	      setGoogleLoading(false);
     61	    }
     62	  };
-    63	
+    63
     64	  return (
     65	    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     66	      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -135,13 +135,13 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     71	          <Text style={styles.heroTitle}>Sve što ti treba, odmah pri ruci.</Text>
     72	          <Text style={styles.heroCopy}>Katalog, porudžbine i obaveštenja u brzom mobilnom interfejsu.</Text>
     73	        </View>
-    74	
+    74
     75	        <View style={styles.formCard}>
     76	          <View style={styles.formHeading}>
     77	            <View style={styles.headingCopy}><Text style={styles.title}>Dobro došli</Text><Text style={styles.subtitle}>Prijavi se CMS nalogom ili nastavi sa Google nalogom.</Text></View>
     78	            <View style={styles.secure}><Glyph name="lock" size={18} color={themeColors.success} /></View>
     79	          </View>
-    80	
+    80
     81	          <View style={styles.googleButtonWrap}>
     82	            <GoogleSignInButton
     83	              size="wide"
@@ -154,9 +154,9 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     90	              accessibilityLabel="Nastavi sa Google nalogom"
     91	            />
     92	          </View>
-    93	
+    93
     94	          <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText}>ILI</Text><View style={styles.dividerLine} /></View>
-    95	
+    95
     96	          <Controller control={control} name="login" render={({ field: { value, onBlur, onChange } }) => (
     97	            <TextField label="Korisničko ime ili e-mail" autoCapitalize="none" autoCorrect={false} value={value} onBlur={onBlur} onChangeText={onChange} error={errors.login?.message} returnKeyType="next" />
     98	          )} />
@@ -172,7 +172,7 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
    108	    </KeyboardAvoidingView>
    109	  );
    110	}
-   111	
+   111
    112	function createStyles(theme: AppColors) {
    113	  return StyleSheet.create({
    114	  page: { flex: 1, backgroundColor: theme.background },
@@ -208,18 +208,18 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
      4	  type ComponentRef,
      5	} from 'react';
      6	import { Input, Text, YStack } from 'tamagui';
-     7	
+     7
      8	import { radii, spacing, typography } from '@/constants/theme';
-     9	
+     9
     10	type TamaguiInputProps = ComponentProps<typeof Input>;
-    11	
+    11
     12	export type TextFieldProps = Omit<TamaguiInputProps, 'ref'> & {
     13	  label: string;
     14	  error?: string;
     15	};
-    16	
+    16
     17	type TextFieldRef = ComponentRef<typeof Input>;
-    18	
+    18
     19	export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
     20	  function TextField(
     21	    {
@@ -243,7 +243,7 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     39	        >
     40	          {label}
     41	        </Text>
-    42	
+    42
     43	        <Input
     44	          unstyled
     45	          ref={ref}
@@ -265,7 +265,7 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     61	          placeholderTextColor={placeholderTextColor}
     62	          selectionColor={selectionColor}
     63	        />
-    64	
+    64
     65	        {error ? (
     66	          <Text
     67	            paddingHorizontal={spacing.xs}
@@ -281,7 +281,7 @@ GOOGLE_SERVICES_SHA256=46331f0d3ec34838e32d773dde77a73fc23a478ab8352bbd2a5b0e136
     77	    );
     78	  },
     79	);
-    80	
+    80
     81	TextField.displayName = 'TextField';
 LOGIN_HAS_KEYBOARD_AVOIDING_VIEW=YES
 LOGIN_HAS_SCROLL_VIEW=YES
@@ -320,19 +320,19 @@ NATIVE_ANDROID_MANIFEST_PRESENT=NO_MANAGED_PROJECT_OR_NOT_COMMITTED
      3	  isNoSavedCredentialFoundResponse,
      4	  isSuccessResponse,
      5	} from 'react-native-nitro-google-signin';
-     6	
+     6
      7	let configured = false;
-     8	
+     8
      9	function configureGoogle(): void {
     10	  if (configured) return;
     11	  GoogleOneTapSignIn.configure({ webClientId: 'autoDetect' });
     12	  configured = true;
     13	}
-    14	
+    14
     15	export async function getGoogleIdToken(): Promise<string> {
     16	  configureGoogle();
     17	  await GoogleOneTapSignIn.checkPlayServices();
-    18	
+    18
     19	  let response = await GoogleOneTapSignIn.signIn();
     20	  if (isNoSavedCredentialFoundResponse(response)) {
     21	    response = await GoogleOneTapSignIn.createAccount();
@@ -340,14 +340,14 @@ NATIVE_ANDROID_MANIFEST_PRESENT=NO_MANAGED_PROJECT_OR_NOT_COMMITTED
     23	  if (isNoSavedCredentialFoundResponse(response)) {
     24	    response = await GoogleOneTapSignIn.presentExplicitSignIn();
     25	  }
-    26	
+    26
     27	  if (!isSuccessResponse(response) || !response.data.idToken) {
     28	    throw new Error('Google prijava je otkazana ili nije vratila validan identitet.');
     29	  }
-    30	
+    30
     31	  return response.data.idToken;
     32	}
-    33	
+    33
     34	export async function clearGoogleCredentialState(): Promise<void> {
     35	  try {
     36	    configureGoogle();

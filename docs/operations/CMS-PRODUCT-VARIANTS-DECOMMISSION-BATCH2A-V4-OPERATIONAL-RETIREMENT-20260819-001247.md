@@ -90,10 +90,10 @@ SINGLE_PRODUCT_MODE_NORMALIZATION=PASS
 6. CACHE REFRESH + RUNTIME ROUTE RECERTIFICATION
 ============================================================
 
-   INFO  Compiled views cleared successfully.  
+   INFO  Compiled views cleared successfully.
 
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_MODE_AFTER=PRESERVED_UNCACHED
 VARIANT_WEB_ROUTE_COUNT_AFTER=0
@@ -105,10 +105,10 @@ No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/route
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Controllers/Admin/ProductController.php
 
 
-   INFO  Blade templates cached successfully.  
+   INFO  Blade templates cached successfully.
 
 
-   INFO  Compiled views cleared successfully.  
+   INFO  Compiled views cleared successfully.
 
 PASS  postoji artisan
 PASS  postoji composer.json

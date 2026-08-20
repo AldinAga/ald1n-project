@@ -42,10 +42,10 @@ CURRENT_APP_VERSION=0.7.0
 CURRENT_PACKAGE_LOCK_VERSION=0.7.0
 OPENAPI_PRE_PARITY=PASS
 
-   ERROR  Your application doesn't have any routes matching the given criteria.  
+   ERROR  Your application doesn't have any routes matching the given criteria.
 
 
-   ERROR  Your application doesn't have any routes matching the given criteria.  
+   ERROR  Your application doesn't have any routes matching the given criteria.
 
 ADMIN_FIELD_OPERATIONS_RUNTIME_ROUTE_COUNT_BEFORE=0
 OPENAPI_ADMIN_FIELD_OPERATIONS_PATH_COUNT_BEFORE=0
@@ -125,7 +125,7 @@ No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/route
 9. ROUTE CACHE REFRESH + RUNTIME 11-OPERATION CONTRACT
 ============================================================
 
-   INFO  Route cache cleared successfully.  
+   INFO  Route cache cleared successfully.
 
 ROUTE_CACHE_MODE_AFTER=PRESERVED_UNCACHED
 

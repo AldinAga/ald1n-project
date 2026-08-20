@@ -108,7 +108,7 @@ SEED_HELPERS=PASS
 ============================================================
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/database/migrations/2026_08_19_211500_add_type_scoped_brand_line_taxonomy_v0_7.php
 
-   INFO  Running migrations.  
+   INFO  Running migrations.
 
   2026_08_19_211500_add_type_scoped_brand_line_taxonomy_v0_7 .......................................................................... 44.41ms DONE
 

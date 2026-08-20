@@ -121,7 +121,7 @@ TEMP_STATIC_VALIDATION=PASS
 MANAGED_SOURCE_INSTALLED=PASS_15_EXISTING_PLUS_2_POLICY_FILES_PLUS_1_MIGRATION
 No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/database/migrations/2026_08_19_222500_remove_fixed_commission_snapshot_defaults_v0_7.php
 
-   INFO  Running migrations.  
+   INFO  Running migrations.
 
   2026_08_19_222500_remove_fixed_commission_snapshot_defaults_v0_7 .................................................................... 10.46ms DONE
 
@@ -170,19 +170,19 @@ PASS Direct Sale ostaje nulta provizija
 Commission Percentage Policy smoke: 16/16 uspešno.
 COMMISSION_POLICY_SMOKE=PASS
 
-   ERROR  Command "test" is not defined. Did you mean one of these?  
+   ERROR  Command "test" is not defined. Did you mean one of these?
 
-  ⇂ app:send-test-mail  
-  ⇂ app:test-database-doctor  
-  ⇂ make:test  
-  ⇂ schedule:test  
+  ⇂ app:send-test-mail
+  ⇂ app:test-database-doctor
+  ⇂ make:test
+  ⇂ schedule:test
 
 
 ============================================================
 ROLLBACK
 ============================================================
 
-   INFO  Rolling back migrations.  
+   INFO  Rolling back migrations.
 
   2026_08_19_222500_remove_fixed_commission_snapshot_defaults_v0_7 ..................................................................... 2.64ms DONE
 
