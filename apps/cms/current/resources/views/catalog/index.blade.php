@@ -330,6 +330,18 @@
                 <div class="catalog-management-actions">
                     <a class="button button-small button-primary" href="{{ route('admin.products.edit', $product) }}">Izmeni</a>
 
+                                            @if($product->deleted_at === null)
+                                                {{-- V0_8_PRODUCT_STATUS_LIGHTWEIGHT_CONTROL_BATCH2 --}}
+                                                <form method="post" action="{{ route('admin.products.status', $product) }}" class="inline-form" data-product-status-toggle>
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="status" value="{{ $displayStatus === 'active' ? 'inactive' : 'active' }}">
+                                                    <button class="button button-small {{ $displayStatus === 'active' ? 'button-ghost' : 'button-primary' }}" type="submit">
+                                                        {{ $displayStatus === 'active' ? 'Deaktiviraj' : 'Aktiviraj' }}
+                                                    </button>
+                                                </form>
+                                            @endif
+
                     @if($canManageThisImages)<a class="button button-small button-ghost" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
                     <a class="button button-small button-ghost" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
                 </div>

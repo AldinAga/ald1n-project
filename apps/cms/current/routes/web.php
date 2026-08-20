@@ -214,6 +214,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/catalog/{product}/clone', [AdminProductController::class, 'cloneStore'])->name('products.clone.store');
             Route::post('/catalog/{product}/regenerate-name', [AdminProductController::class, 'regenerateName'])->name('products.regenerate-name');
             Route::put('/catalog/{product}', [AdminProductController::class, 'update'])->name('products.update');
+            // V0_8_PRODUCT_STATUS_LIGHTWEIGHT_CONTROL_BATCH2
+            Route::patch('/catalog/{product}/status', \App\Http\Controllers\Admin\ProductStatusController::class)->whereNumber('product')->middleware('throttle:admin-write')->name('products.status');
             Route::delete('/catalog/{product}', [AdminProductController::class, 'archive'])->name('products.archive');
             Route::post('/catalog/{product}/restore', [AdminProductController::class, 'restore'])->name('products.restore');
             Route::delete('/catalog/{product}/purge', [AdminProductController::class, 'purge'])->name('products.purge');

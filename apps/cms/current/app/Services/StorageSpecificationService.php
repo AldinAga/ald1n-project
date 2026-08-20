@@ -241,9 +241,11 @@ final class StorageSpecificationService
 
     private function isComponentCandidate(object $field): bool
     {
+        $needle = $this->needle($field);
+        // V0_8_STORAGE_INTERFACE_REDISCOVERY_GUARD_BATCH2
+        if (str_contains($needle, 'interfejs') || str_contains($needle, 'interface')) return false;
         if ((string) $field->storage_role === self::ROLE_COMPONENTS) return true;
         if (!in_array((string) $field->data_type, ['text', 'select'], true)) return false;
-        $needle = $this->needle($field);
         $mentionsStorage = str_contains($needle, 'disk') || str_contains($needle, 'storage') || str_contains($needle, 'skladist') || str_contains($needle, 'ssd') || str_contains($needle, 'hdd');
         return $mentionsStorage && (str_contains($needle, 'tip') || str_contains($needle, 'vrsta') || str_contains($needle, 'disk'));
     }
