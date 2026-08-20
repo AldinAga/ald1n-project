@@ -24,6 +24,7 @@ Updated: 2026-08-20
 - v0.8.0 release metadata: LOCKED to app version 0.8.0.
 - Expo SDK 57 compatibility refresh for the v0.8 release candidate: PASS.
 - No EAS build was used for routine v0.8 source work.
+- Prior 008 accidental home-directory npm install contamination has been quarantined reversibly outside the project; no home npm artifacts remain active.
 
 ## Current v0.8 certified state
 
