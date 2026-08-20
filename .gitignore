@@ -32,3 +32,29 @@ releases/**/*.zip
 /backups/
 
 /incoming/
+
+# ALD1N_GITHUB_BACKUP_GUARD_V2
+# GitHub is source/history backup only. Never commit production secrets or runtime archives.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.sql
+*.sql.gz
+*.dump
+*.bak
+*.sqlite
+*.sqlite3
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+/incoming/
+/backups/
+/tmp/
