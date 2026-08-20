@@ -120,6 +120,7 @@
                     <select name="payment_method" data-payment-method>
                         <option value="cash_on_delivery" @selected(old('payment_method', 'cash_on_delivery') === 'cash_on_delivery')>Pouzećem</option>
                         <option value="bank_transfer" @selected(old('payment_method') === 'bank_transfer')>Uplata na račun</option>
+                        <option value="deferred_payment" @selected(old('payment_method') === 'deferred_payment')>Odloženo plaćanje</option>
                     </select>
                 </label>
                 <label data-bank-account>
@@ -132,6 +133,11 @@
                             </option>
                         @endforeach
                     </select>
+                </label>
+                <label data-payment-due>
+                    <span>Datum dospeća</span>
+                    <input type="date" name="payment_due_at" min="{{ today()->format('Y-m-d') }}" value="{{ old('payment_due_at') }}">
+                    <small class="muted">Obavezno samo za odloženo plaćanje.</small>
                 </label>
                 <div class="alpha-note">Korisnik kreira porudžbinu, izabrani Administrator je obrađuje, a SuperAdministrator ima pregled kompletnog sistema.</div>
                 <button class="button button-primary button-large" type="submit" @disabled($suppliers->isEmpty())>Pošalji porudžbinu</button>
@@ -146,12 +152,23 @@
 (() => {
     const method = document.querySelector('[data-payment-method]');
     const account = document.querySelector('[data-bank-account]');
+    const due = document.querySelector('[data-payment-due]');
     const refreshPayment = () => {
-        const show = method?.value === 'bank_transfer';
-        if (!account) return;
-        account.hidden = !show;
-        const select = account.querySelector('select');
-        if (select) select.disabled = !show;
+        const showBank = method?.value === 'bank_transfer';
+        const showDue = method?.value === 'deferred_payment';
+        if (account) {
+            account.hidden = !showBank;
+            const select = account.querySelector('select');
+            if (select) select.disabled = !showBank;
+        }
+        if (due) {
+            due.hidden = !showDue;
+            const input = due.querySelector('input');
+            if (input) {
+                input.disabled = !showDue;
+                input.required = showDue;
+            }
+        }
     };
     method?.addEventListener('change', refreshPayment);
     refreshPayment();

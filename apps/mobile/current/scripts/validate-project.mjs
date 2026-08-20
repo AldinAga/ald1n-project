@@ -354,6 +354,9 @@ assert(!checkout.includes('product_variant_id') && !checkout.includes('variantId
 assert(!productVariantsDecommissionAdminAfterSales.includes('product_variant_id'), 'Admin After-sales Mobile contract više ne izlaže product_variant_id.');
 assert(checkout.includes('lastSubmission') && checkout.includes('Crypto.randomUUID'), 'Checkout čuva stabilan idempotency ključ za retry istog payload-a.');
 assert(checkout.includes("paymentMethod === 'bank_transfer'") && checkout.includes('bankAccountId'), 'Checkout podržava uslovni izbor računa za bank transfer.');
+// MOBILE_V0_8_DEFERRED_PAYMENT_RECEIVABLES_VALIDATOR_BATCH4
+assert(apiTypes.includes("'deferred_payment'") && apiTypes.includes('requires_due_date: boolean') && apiTypes.includes('payment_due_at: Nullable<string>'), 'v0.8 Mobile API tipovi pokrivaju Odloženo plaćanje i datum dospeća.');
+assert(checkout.includes("paymentMethod !== 'deferred_payment'") && checkout.includes('selectedPayment?.requires_due_date') && checkout.includes('payment_due_at:'), 'v0.8 Checkout prikazuje i šalje datum dospeća samo za Odloženo plaćanje.');
 
 const deviceRegistrar = fs.readFileSync(path.join(root, 'src/features/device/device-registrar.tsx'), 'utf8');
 assert(!deviceRegistrar.includes('notifications_enabled: false'), 'Device heartbeat više ne gasi push registraciju pri svakom startu.');

@@ -625,12 +625,14 @@ export type MobileDeviceUpdateInput = {
   notifications_enabled?: boolean;
 };
 
-export type PaymentMethod = 'cash_on_delivery' | 'bank_transfer';
+// MOBILE_V0_8_DEFERRED_PAYMENT_RECEIVABLES_BATCH4
+export type PaymentMethod = 'cash_on_delivery' | 'bank_transfer' | 'deferred_payment';
 
 export type OrderPaymentMethodOption = {
   value: PaymentMethod;
   label: string;
   requires_bank_account: boolean;
+  requires_due_date: boolean;
 };
 
 export type OrderBankAccountOption = {
@@ -684,6 +686,7 @@ export type CreateOrderInput = {
   customer_note: Nullable<string>;
   payment_method: PaymentMethod;
   bank_account_id: Nullable<number>;
+  payment_due_at: Nullable<string>;
   items: CreateOrderItemInput[];
 };
 

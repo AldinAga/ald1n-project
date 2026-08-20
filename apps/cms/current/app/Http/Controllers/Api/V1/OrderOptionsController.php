@@ -34,8 +34,10 @@ final class OrderOptionsController extends Controller
         return response()->json(['data' => [
             'idempotency_key' => (string) Str::uuid(),
             'payment_methods' => [
-                ['value' => 'cash_on_delivery', 'label' => 'Plaćanje pouzećem', 'requires_bank_account' => false],
-                ['value' => 'bank_transfer', 'label' => 'Uplata na račun', 'requires_bank_account' => true],
+                // MOBILE_V0_8_DEFERRED_PAYMENT_RECEIVABLES_BATCH4
+                ['value' => 'cash_on_delivery', 'label' => 'Plaćanje pouzećem', 'requires_bank_account' => false, 'requires_due_date' => false],
+                ['value' => 'bank_transfer', 'label' => 'Uplata na račun', 'requires_bank_account' => true, 'requires_due_date' => false],
+                ['value' => 'deferred_payment', 'label' => 'Odloženo plaćanje', 'requires_bank_account' => false, 'requires_due_date' => true],
             ],
             'bank_accounts' => BankAccount::query()
                 ->where('is_active', true)

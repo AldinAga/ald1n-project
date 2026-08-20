@@ -409,7 +409,7 @@ paths:
       operationId: getOrderOptions
       responses:
         '200':
-          description: Načini plaćanja, bankovni računi, primaoci i podrazumevana adresa
+          description: Načini plaćanja, uključujući Odloženo plaćanje sa server-driven requires_due_date, bankovni računi, primaoci i podrazumevana adresa
         '403': { $ref: '#/components/responses/Forbidden' }
   /api/v1/orders:
     get:
@@ -442,8 +442,9 @@ paths:
                 shipping_postal_code: { type: string, maxLength: 20 }
                 shipping_phone: { type: string, maxLength: 40 }
                 customer_note: { type: [string, 'null'], maxLength: 5000 }
-                payment_method: { type: string, enum: [cash_on_delivery, bank_transfer] }
-                bank_account_id: { type: [integer, 'null'] }
+                payment_method: { type: string, enum: [cash_on_delivery, bank_transfer, deferred_payment] }
+                bank_account_id: { type: [integer, 'null'], description: Obavezno samo za bank_transfer. }
+                payment_due_at: { type: [string, 'null'], format: date, description: Obavezno za deferred_payment; mora biti današnji ili budući datum. }
                 items:
                   type: array
                   minItems: 1

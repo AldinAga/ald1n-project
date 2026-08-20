@@ -31,6 +31,7 @@ export default function CheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('');
   const [bankAccountId, setBankAccountId] = useState<number | null>(null);
   const [supplierUserId, setSupplierUserId] = useState<number | null>(null);
+  const [paymentDueAt, setPaymentDueAt] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [lastSubmission, setLastSubmission] = useState<{ key: string; payloadJson: string } | null>(null);
@@ -57,6 +58,7 @@ export default function CheckoutScreen() {
       setBankAccountId(options.data.bank_accounts[0].id);
     }
     if (paymentMethod !== 'bank_transfer') setBankAccountId(null);
+    if (paymentMethod !== 'deferred_payment') setPaymentDueAt('');
   }, [bankAccountId, options.data?.bank_accounts, paymentMethod]);
 
   const mutation = useMutation({
@@ -112,6 +114,10 @@ export default function CheckoutScreen() {
       setFormError('Izaberi račun za uplatu.');
       return;
     }
+    if (selectedPayment?.requires_due_date && !/^\d{4}-\d{2}-\d{2}$/.test(paymentDueAt.trim())) {
+      setFormError('Unesi datum dospeća u formatu YYYY-MM-DD.');
+      return;
+    }
     if (items.length > options.data.limits.max_items) {
       setFormError(`Porudžbina može imati najviše ${options.data.limits.max_items} različitih stavki.`);
       return;
@@ -135,6 +141,7 @@ export default function CheckoutScreen() {
       customer_note: customerNote.trim() || null,
       payment_method: paymentMethod,
       bank_account_id: selectedPayment?.requires_bank_account ? bankAccountId : null,
+      payment_due_at: selectedPayment?.requires_due_date ? paymentDueAt.trim() : null,
       items: items.map((item) => ({
         product_id: item.productId,
         quantity: item.quantity
@@ -165,9 +172,23 @@ export default function CheckoutScreen() {
         {options.data.payment_methods.map((method) => (
           <Pressable key={method.value} onPress={() => setPaymentMethod(method.value)} style={[styles.option, paymentMethod === method.value && styles.optionSelected]}>
             <View style={[styles.radio, paymentMethod === method.value && styles.radioSelected]} />
-            <View style={{ flex: 1 }}><Text style={styles.optionTitle}>{method.label}</Text><Text style={styles.optionCopy}>{method.requires_bank_account ? 'Izaberi račun na koji će uplata biti izvršena.' : 'Plaćanje prilikom preuzimanja.'}</Text></View>
+            <View style={{ flex: 1 }}><Text style={styles.optionTitle}>{method.label}</Text><Text style={styles.optionCopy}>{method.requires_bank_account ? 'Izaberi račun na koji će uplata biti izvršena.' : method.requires_due_date ? 'Plaćanje se prati kroz postojeća potraživanja do izabranog datuma dospeća.' : 'Plaćanje prilikom preuzimanja.'}</Text></View>
           </Pressable>
         ))}
+
+        {selectedPayment?.requires_due_date ? (
+          <View style={styles.nested}>
+            <Text style={styles.nestedTitle}>Datum dospeća</Text>
+            <TextField
+              label="Datum dospeća (YYYY-MM-DD) *"
+              value={paymentDueAt}
+              onChangeText={setPaymentDueAt}
+              placeholder="2026-09-20"
+              autoCapitalize="none"
+            />
+            <Text style={styles.help}>Dug se vodi kroz postojeći Receivables sistem i zatvara kada preostali saldo postane nula.</Text>
+          </View>
+        ) : null}
 
         {selectedPayment?.requires_bank_account ? (
           <View style={styles.nested}>

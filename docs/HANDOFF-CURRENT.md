@@ -13,57 +13,45 @@ Updated: 2026-08-20
 
 ## Release and development state
 
-- Mobile v0.7.0: 100% complete and device accepted through Google Play closed testing.
-- v0.8.0 implementation progress: 50% after Batch 3 PASS.
-- Latest certified work: Purchase Costs + SuperAdmin Inventory KPI Batch 3 PASS.
-- Latest report: `docs/operations/MOBILE-V0.8.0-PURCHASE-COSTS-SUPERADMIN-INVENTORY-KPI-BATCH3-20260820-100509.md`.
+- Mobile v0.7.0: 100% complete, Google Play closed-test device accepted and release-frozen except critical defects.
+- v0.8.0 implementation progress: 70%.
+- Batch 1 foundation audit: PASS.
+- Batch 2 product status + disk-storage cleanup: PASS.
+- Batch 3 purchase-cost entry + SuperAdmin inventory valuation KPI: PASS.
+- Batch 4 deferred payment through existing Receivables: PASS.
+- No EAS build was used for routine v0.8 source work.
 
-## Latest v0.8 certified state
+## Current v0.8 certified state
 
-- Batch 2 remains certified: manual product status control, no stock-driven activation, duplicate disk interface removed, canonical multi-disk repeater preserved.
-- One-time SuperAdministrator purchase-cost helper uses only canonical `products.purchase_price_rsd`.
-- Missing/zero purchase cost is the default helper view; all products remain optionally reviewable.
-- Save All supports normal Tab navigation and Enter advances to the next cost input.
-- Purchase-cost helper never changes stock quantity, sale price or product status.
-- `ManagementReportService::inventory()` is the shared backend authority for inventory valuation.
-- SuperAdministrator Web and Mobile show exactly three inventory valuation KPIs:
-  - Vrednost po nabavnoj ceni;
-  - Vrednost po prodajnoj ceni;
-  - Ukupna očekivana zarada.
-- The previously incomplete fourth KPI was not guessed and is not implemented.
-- Mobile receives the same valuation through the Admin Foundation API; no parallel mobile calculation exists.
-- OpenAPI canonical/CMS/Mobile copies are synchronized.
-- GitHub checkpoint secret scan uses explicit `-e` so patterns beginning with hyphens cannot be parsed as options.
+- Manual active/inactive product status control exists without stock-driven auto-activation.
+- Duplicate `Interfejs diska` field is removed; `Tip diska` remains the canonical server-driven multi-disk source.
+- SuperAdministrator has one-time fast entry for canonical `products.purchase_price_rsd`.
+- SuperAdministrator Web/Mobile inventory valuation uses one Laravel `ManagementReportService` authority.
+- Three KPI cards exist: purchase value, sale value and expected profit. No fourth KPI was guessed.
+- `deferred_payment` / `Odloženo plaćanje` is available on Web and Mobile order creation.
+- Deferred payment requires an explicit non-past `payment_due_at` and does not require a bank account.
+- Existing `ReceivablesService` is the only debt authority for bank transfer + deferred payment.
+- Existing installment plans, payment ledger reconciliation and zero-balance auto-close are reused; no parallel debt tables exist.
+- Payment-proof upload remains bank-transfer-only.
+- Product Variants remain permanently decommissioned.
 
 ## Next implementation step
 
-v0.8.0 Batch 4:
+v0.8.0 Batch 5: warranty-expiry notification ownership scope.
 
-1. Add `Odloženo plaćanje` to Web and Mobile order creation.
-2. Reuse the existing Receivables domain; do not create a second debt system.
-3. Create/reconcile the receivable for the unpaid balance and due date through the existing canonical services.
-4. Preserve normal payments, installments and close-on-zero behavior.
-5. Then scope warranty-expiry notifications to warranties belonging to products actually ordered by that customer.
-6. Finish Web/Mobile parity and v0.8 certification without unnecessary EAS builds.
+Customer warranty expiry/maintenance notifications must only target warranties belonging to that customer through `warranty -> order item -> order -> user`. Admin operational notifications remain separate. Audit portal/mail/push/mobile inbox paths before mutation, then implement and certify Web/Mobile parity.
+
+After Batch 5: final Web/Mobile parity audit, v0.8 certification and release checkpoint.
 
 ## Permanent engineering guards
 
-- Never use shell process substitution or descriptor-backed pseudo-file paths in delivered hosting scripts.
-- Avoid unavailable Python CLI dependencies in hosting scripts.
+- Shell scripts: never use process substitution or descriptor-backed pseudo-file paths; avoid unavailable Python CLI dependencies.
 - Use audited Node 22 + npm 10 CLI on CloudLinux.
-- Every mutating batch requires backup, rollback and validation.
+- Every mutating batch requires backup, rollback and quality gates.
 - Preserve unrelated Git state.
+- All Git commands for delivered batches run only through the universal full-safe backup helper after functional PASS gates.
+- The helper backs up the complete safe project state, blocks secrets/runtime payloads and never force-pushes.
 - Product Variants are permanently decommissioned.
-- Do not reintroduce one-shot busy/pending tap guards globally.
-- GitHub is source/history backup, not database/private-storage disaster recovery.
-- Never commit `.env`, private keys, credentials, SQL dumps, runtime backups or archives.
-
-## GitHub checkpoint workflow
-
-After this Batch 3 report is confirmed PASS:
-
-```bash
-bash /home/icaffeco/ald1n-project/scripts/github-checkpoint.sh "v0.8 Batch 3 PASS - purchase costs and SuperAdmin inventory valuation"
-```
-
-The helper refuses remote divergence, blocks high-risk paths and secret signatures, never force-pushes, commits, pushes and verifies the remote SHA.
+- Do not reintroduce global one-shot busy/pending tap guards.
+- GitHub stores the complete safe source/history/handoff project, not production DB, `.env`, private payloads or runtime backups.
+- Never commit secrets, SQL dumps, archives, keystores or credentials.

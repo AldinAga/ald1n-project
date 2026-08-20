@@ -98,6 +98,7 @@ final class OrderService
             'customer_note' => $data['customer_note'] ?? null,
             'payment_method' => (string) $data['payment_method'],
             'payment_status' => 'pending',
+            'payment_due_at' => ($data['payment_method'] ?? null) === 'deferred_payment' ? (string) $data['payment_due_at'] : null,
             'bank_account_id' => $bankAccount?->id,
             'bank_account_label_snapshot' => $bankAccount?->label,
             'bank_account_number_snapshot' => $bankAccount?->account_number,

@@ -19,6 +19,9 @@ final class ReceivablesService
     /** @var list<string> */
     public const STATUSES = ['monitoring', 'contacted', 'promised', 'installment_plan', 'escalated', 'disputed', 'closed'];
 
+    /** @var list<string> */
+    public const RECEIVABLE_PAYMENT_METHODS = ['bank_transfer', 'deferred_payment'];
+
     public function __construct(
         private readonly DocumentNumberService $numbers,
         private readonly AuditLogger $audit,
@@ -35,7 +38,7 @@ final class ReceivablesService
 
     public function ensureForOrder(Order $order, ?User $actor = null): ?ReceivableCase
     {
-        if (!$this->ready() || $order->payment_method !== 'bank_transfer' || $order->status === 'cancelled') return null;
+        if (!$this->ready() || !in_array((string) $order->payment_method, self::RECEIVABLE_PAYMENT_METHODS, true) || $order->status === 'cancelled') return null;
 
         $existing = ReceivableCase::query()->where('order_id', $order->id)->first();
         if ($existing instanceof ReceivableCase) {
@@ -248,7 +251,7 @@ final class ReceivablesService
 
         $orders = Order::query()
             ->with(['user.role', 'supplier.role'])
-            ->where('payment_method', 'bank_transfer')
+            ->whereIn('payment_method', self::RECEIVABLE_PAYMENT_METHODS)
             ->where('status', '!=', 'cancelled')
             ->whereNotNull('payment_due_at')
             ->whereNotIn('payment_state', ['cancelled', 'refunded'])
