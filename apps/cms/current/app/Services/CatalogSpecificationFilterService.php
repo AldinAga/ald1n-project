@@ -44,17 +44,17 @@ final class CatalogSpecificationFilterService
             if ($field->filter_type === 'select' && $value !== '') {
                 $option = $field->options->first(fn (SpecificationOption $candidate): bool => (string) $candidate->value === $value);
                 if ($option !== null && $this->selectionAllowed($field, $option, $selected, $fields)) {
-                    $this->whereProductOrVariantSpec($query, fn (Builder $specQuery) => $specQuery
+                    $this->whereProductSpec($query, fn (Builder $specQuery) => $specQuery
                         ->where('field_id', $fieldId)
                         ->where('value_text', $value));
                 }
             } elseif ($field->filter_type === 'boolean' && in_array($value, ['0', '1'], true)) {
-                $this->whereProductOrVariantSpec($query, fn (Builder $specQuery) => $specQuery
+                $this->whereProductSpec($query, fn (Builder $specQuery) => $specQuery
                     ->where('field_id', $fieldId)
                     ->where('value_boolean', $value === '1'));
             } elseif ($field->filter_type === 'text' && $value !== '') {
                 $like = '%'.$value.'%';
-                $this->whereProductOrVariantSpec($query, fn (Builder $specQuery) => $specQuery
+                $this->whereProductSpec($query, fn (Builder $specQuery) => $specQuery
                     ->where('field_id', $fieldId)
                     ->where(fn (Builder $valueQuery) => $valueQuery
                         ->where('value_text', 'like', $like)
@@ -65,7 +65,7 @@ final class CatalogSpecificationFilterService
                 $min = $this->numericValue($minimums[$fieldId] ?? null);
                 $max = $this->numericValue($maximums[$fieldId] ?? null);
                 if ($min !== null || $max !== null) {
-                    $this->whereProductOrVariantSpec($query, function (Builder $specQuery) use ($fieldId, $min, $max): void {
+                    $this->whereProductSpec($query, function (Builder $specQuery) use ($fieldId, $min, $max): void {
                         $specQuery->where('field_id', $fieldId);
                         if ($min !== null) $specQuery->where('value_number', '>=', $min);
                         if ($max !== null) $specQuery->where('value_number', '<=', $max);
@@ -74,7 +74,7 @@ final class CatalogSpecificationFilterService
             }
 
             if ($field->detail_input_enabled && $detail !== '') {
-                $this->whereProductOrVariantSpec($query, fn (Builder $specQuery) => $specQuery
+                $this->whereProductSpec($query, fn (Builder $specQuery) => $specQuery
                     ->where('field_id', $fieldId)
                     ->where('value_detail', 'like', '%'.$detail.'%'));
             }
@@ -82,11 +82,10 @@ final class CatalogSpecificationFilterService
     }
 
     /** @param callable(Builder):void $constraint */
-    private function whereProductOrVariantSpec(Builder $query, callable $constraint): void
+    private function whereProductSpec(Builder $query, callable $constraint): void
     {
         $query->where(function (Builder $scope) use ($constraint): void {
-            $scope->whereHas('specificationValues', $constraint)
-                ->orWhereHas('activeVariants.specificationValues', $constraint);
+            $scope->whereHas('specificationValues', $constraint);
         });
     }
 

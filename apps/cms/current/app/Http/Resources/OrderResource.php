@@ -42,11 +42,8 @@ final class OrderResource extends JsonResource
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
-                'product_variant_id' => $item->product_variant_id,
-                'sku' => $item->variant_sku_snapshot ?: $item->product_sku,
-                'name' => $item->product_name.($item->variant_name_snapshot ? ' — '.$item->variant_name_snapshot : ''),
-                'variant_name' => $item->variant_name_snapshot,
-                'variant_attributes' => $item->variant_attributes_json ?? [],
+                'sku' => $item->product_sku,
+                'name' => $item->product_name,
                 'quantity' => $item->quantity,
                 'unit_price_rsd' => (float) $item->unit_price_rsd,
                 'line_total_rsd' => (float) $item->line_total_rsd,

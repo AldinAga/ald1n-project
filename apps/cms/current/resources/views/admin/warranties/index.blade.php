@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Garancije')
 @section('content')
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovna pravila'])
 <div class="page-heading"><div><span class="eyebrow">Postprodaja</span><h1>Garancije i preventivno održavanje</h1><p>Pravila, garantni listovi, serijski brojevi i planirani servisni intervali.</p></div><div class="header-button-row"><form method="post" action="{{ route('admin.warranties.backfill') }}">@csrf<button class="button button-ghost" type="submit">Generiši nedostajuće garancije</button></form></div></div>
 <div class="stats-grid four-cards"><article class="stat-card"><span>Aktivne garancije</span><strong>{{ $stats['active'] }}</strong></article><article class="stat-card warning"><span>Ističu za 30 dana</span><strong>{{ $stats['expiring'] }}</strong></article><article class="stat-card info"><span>Održavanje uskoro</span><strong>{{ $stats['maintenance_due'] }}</strong></article><article class="stat-card"><span>Poništene</span><strong>{{ $stats['void'] }}</strong></article></div>
 <div class="settings-grid">

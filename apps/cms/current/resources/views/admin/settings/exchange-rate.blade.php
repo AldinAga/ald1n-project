@@ -1,9 +1,16 @@
 @extends('layouts.app')
 @section('title', 'EUR/RSD kurs')
 @section('content')
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovanje'])
 <div class="page-heading">
     <div><span class="eyebrow">Podešavanja</span><h1>EUR/RSD kurs</h1><p>Upravljaj ručnim ili automatskim kursom i pregledaj istoriju promena.</p></div>
-    <div class="count-pill">{{ $configuration['rate'] ? number_format($configuration['rate'], 4, ',', '.') : 'Nije podešen' }} RSD</div>
+    <button
+        class="count-pill exchange-rate-settings-sync"
+        type="button"
+        data-exchange-rate-sync
+        data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
+        title="Klikni za sinhronizaciju EUR/RSD kursa"
+    ><span data-exchange-rate-value>{{ $configuration['rate'] ? number_format($configuration['rate'], 4, ',', '.') : 'Nije podešen' }}</span>&nbsp;RSD</button>
 </div>
 <div class="settings-grid">
     <section class="panel form-section">
@@ -24,16 +31,16 @@
             <label><span>Kurs se smatra zastarelim nakon (sati)</span><input type="number" name="stale_after_hours" min="1" max="720" value="{{ $configuration['stale_after_hours'] }}" required></label>
             <button class="button button-primary" type="submit">Sačuvaj režim</button>
         </form>
-        <form method="post" action="{{ route('admin.settings.exchange.refresh') }}">@csrf<button class="button button-ghost" type="submit">Preuzmi kurs sada</button></form>
+        <form method="post" action="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-sync-form>@csrf<button class="button button-ghost" type="submit" data-exchange-rate-sync-submit>Preuzmi kurs sada</button></form>
     </section>
 </div>
 <section class="panel form-section settings-status">
     <h2>Trenutno stanje</h2>
     <div class="stats-grid compact-stats">
         <article class="stat-card"><div><strong>{{ strtoupper($configuration['mode']) }}</strong><small>Režim</small></div></article>
-        <article class="stat-card"><div><strong>{{ $configuration['source'] }}</strong><small>Izvor</small></div></article>
-        <article class="stat-card"><div><strong>{{ $configuration['provider_date'] ?? '—' }}</strong><small>Datum izvora</small></div></article>
-        <article class="stat-card"><div><strong>{{ $configuration['updated_at'] ?? '—' }}</strong><small>Poslednje ažuriranje</small></div></article>
+        <article class="stat-card"><div><strong data-exchange-rate-source>{{ $configuration['source'] }}</strong><small>Izvor</small></div></article>
+        <article class="stat-card"><div><strong data-exchange-rate-provider-date>{{ $configuration['provider_date'] ?? '—' }}</strong><small>Datum izvora</small></div></article>
+        <article class="stat-card"><div><strong data-exchange-rate-updated-at>{{ $configuration['updated_at'] ?? '—' }}</strong><small>Poslednje ažuriranje</small></div></article>
     </div>
     @if($configuration['last_error'])<div class="alert error">{{ $configuration['last_error'] }}</div>@endif
 </section>

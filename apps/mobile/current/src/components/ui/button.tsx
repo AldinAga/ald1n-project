@@ -1,41 +1,100 @@
-import type { PropsWithChildren } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import type {
+  ComponentProps,
+  PropsWithChildren,
+} from 'react';
+import { Button as TamaguiButton, Spinner, Text } from 'tamagui';
+import {
+  radii,
+  spacing,
+  typography,
+} from '@/constants/theme';
+
+type TamaguiButtonProps =
+  ComponentProps<typeof TamaguiButton>;
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
-export function Button({ children, onPress, loading = false, disabled = false, variant = 'primary', style }:
-  PropsWithChildren<{ onPress?: () => void; loading?: boolean; disabled?: boolean; variant?: Variant; style?: StyleProp<ViewStyle> }>) {
-  const palette = variantStyles[variant];
+const palettes = {
+  primary: {
+    background: '$brand',
+    border: '$brand',
+    text: '$onBrand',
+  },
+  secondary: {
+    background: '$brandContainer',
+    border: '$brandContainer',
+    text: '$onBrandContainer',
+  },
+  ghost: {
+    background: '$surfaceContainer',
+    border: '$surfaceContainer',
+    text: '$text',
+  },
+  danger: {
+    background: '$dangerContainer',
+    border: '$dangerContainer',
+    text: '$danger',
+  },
+} as const;
+
+export function Button({
+  children,
+  onPress,
+  loading = false,
+  disabled = false,
+  variant = 'primary',
+  style,
+}: PropsWithChildren<{
+  onPress?: TamaguiButtonProps['onPress'];
+  loading?: boolean;
+  disabled?: TamaguiButtonProps['disabled'];
+  variant?: Variant;
+  style?: TamaguiButtonProps['style'];
+}>) {
+  const palette = palettes[variant];
+  // MOBILE_GLOBAL_REPEATABLE_ACTIONS_V07
+  // Loading is a transient busy indicator. Native disabled state is reserved for true structural unavailability.
+  const isDisabled = Boolean(disabled);
+  // MOBILE_GLOBAL_UNRESTRICTED_TAPS_V07
+  // Busy/loading remains visual state only. Every tap is forwarded to the caller; business idempotency belongs in the action layer.
+  const pressHandler = onPress;
+
   return (
-    <Pressable
+    <TamaguiButton
+      unstyled
       accessibilityRole="button"
-      disabled={disabled || loading}
-      onPress={onPress}
-      style={({ pressed }) => [styles.base, palette.container, pressed && styles.pressed, (disabled || loading) && styles.disabled, style]}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      disabled={isDisabled}
+      onPress={pressHandler}
+      minHeight={56}
+      paddingHorizontal={spacing.xl}
+      borderRadius={radii.pill}
+      borderWidth={1}
+      borderColor={palette.border}
+      backgroundColor={palette.background}
+      alignItems="center"
+      justifyContent="center"
+      opacity={isDisabled ? 0.48 : 1}
+      transition="quickLessBouncy"
+      pressStyle={{
+        scale: 0.98,
+        opacity: 0.9,
+      }}
+      style={style}
     >
-      {loading ? <ActivityIndicator color={palette.text.color} /> : <Text style={[styles.label, palette.text]}>{children}</Text>}
-    </Pressable>
+      {loading ? (
+        <Spinner color={palette.text} />
+      ) : (
+        <Text
+          fontSize={typography.label.fontSize}
+          lineHeight={typography.label.lineHeight}
+          fontWeight="800"
+          color={palette.text}
+          textAlign="center"
+        >
+          {children}
+        </Text>
+      )}
+    </TamaguiButton>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.pill,
-    borderWidth: 1
-  },
-  label: typography.label,
-  pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  disabled: { opacity: 0.48 }
-});
-
-const variantStyles = {
-  primary: StyleSheet.create({ container: { backgroundColor: colors.primary, borderColor: colors.primary }, text: { color: colors.white } }),
-  secondary: StyleSheet.create({ container: { backgroundColor: colors.primaryContainer, borderColor: colors.primaryContainer }, text: { color: colors.onPrimaryContainer } }),
-  ghost: StyleSheet.create({ container: { backgroundColor: colors.surfaceContainer, borderColor: colors.surfaceContainer }, text: { color: colors.ink } }),
-  danger: StyleSheet.create({ container: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerSoft }, text: { color: colors.danger } })
-};

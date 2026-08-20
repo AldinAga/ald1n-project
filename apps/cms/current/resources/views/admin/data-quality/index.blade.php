@@ -10,7 +10,7 @@
     <div>
         <span class="eyebrow">Performance & Data Quality</span>
         <h1>Data Quality Center</h1>
-        <p>Centralni pregled integriteta artikala, galerija, varijanti, kategorija, specifikacija i korisničkih uloga.</p>
+        <p>Centralni pregled integriteta artikala, galerija, kategorija, specifikacija i korisničkih uloga.</p>
     </div>
     <div class="header-button-row">
         <a class="button button-ghost" href="{{ route('admin.data-quality.export') }}"><x-icon name="download" />Preuzmi JSON</a>
@@ -22,7 +22,6 @@
     <div class="data-quality-score"><small>Data quality score</small><strong>{{ (int)$report['score'] }}<span>/100</span></strong><em>{{ $statusLabels[$report['status']] ?? $report['status'] }}</em></div>
     <div class="data-quality-metrics">
         <article><small>Aktivni artikli</small><strong>{{ (int)($report['metrics']['products_active'] ?? 0) }}</strong></article>
-        <article><small>Varijante</small><strong>{{ (int)($report['metrics']['variants_total'] ?? 0) }}</strong></article>
         <article><small>Fotografije</small><strong>{{ (int)($report['metrics']['images_total'] ?? 0) }}</strong></article>
         <article><small>Aktivni korisnici</small><strong>{{ (int)($report['metrics']['users_active'] ?? 0) }}</strong></article>
     </div>
@@ -64,7 +63,7 @@
 </section>
 
 <section class="panel form-section data-quality-repair-panel">
-    <div><h2>Bezbedna automatska popravka</h2><p class="muted">Usklađuje kategorije tipova, čisti zastarele specifikacione veze, preračunava diskove i kompletnost, normalizuje glavne slike i podrazumevane varijante. Ne briše artikle, slike ni poslovnu istoriju.</p></div>
+    <div><h2>Bezbedna automatska popravka</h2><p class="muted">Usklađuje kategorije tipova, čisti zastarele specifikacione veze, preračunava diskove i kompletnost, normalizuje glavne slike. Ne briše artikle, slike ni poslovnu istoriju.</p></div>
     <form method="post" action="{{ route('admin.data-quality.repair') }}" data-confirm="Pokrenuti bezbednu popravku kvaliteta podataka?">
         @csrf
         <label class="checkbox-row"><input type="checkbox" name="confirm_repair" value="1" required><span>Razumem da će sistem izmeniti samo automatski popravljive veze i izvedene vrednosti.</span></label>

@@ -3,7 +3,6 @@
     "name": "Ald1n Violet",
     "version": "1.0.0"
   },
-
   "palette": {
     "light": [
       "#FFFFFF",
@@ -34,89 +33,70 @@
       "#F8F3FF"
     ]
   },
-
   "light": {
     "background": "#F8F6FC",
     "surface": "#FFFFFF",
     "surfaceMuted": "#F0ECF7",
     "surfaceContainer": "#F1ECF8",
     "surfaceContainerHigh": "#EAE4F3",
-
     "text": "#1C1724",
     "muted": "#746C7D",
     "border": "#E0D9E9",
     "outline": "#7B7284",
-
     "primary": "#6D45E5",
+    "onPrimary": "#FFFFFF",
     "primaryStrong": "#4B2BAA",
     "primaryContainer": "#E9E1FF",
     "onPrimaryContainer": "#251052",
-
     "secondaryContainer": "#EEE5F4",
-
     "accent": "#FFAA00",
     "accentSoft": "#FFF0D1",
-
     "success": "#168C63",
     "successSoft": "#E0F5EC",
-
     "warning": "#B87312",
     "warningSoft": "#FFF0D8",
-
     "danger": "#C43D52",
+    "onDanger": "#FFFFFF",
     "dangerSoft": "#FCE6EA",
-
     "info": "#2872C8",
     "infoSoft": "#E4F0FF",
-
     "hero": "#02141E",
     "heroMuted": "#C4CFD4",
-
     "white": "#FFFFFF",
     "black": "#000000"
   },
-
   "dark": {
     "background": "#15111B",
     "surface": "#201927",
     "surfaceMuted": "#2A2133",
     "surfaceContainer": "#2A2133",
     "surfaceContainerHigh": "#382B45",
-
     "text": "#F8F3FF",
     "muted": "#BDB2C8",
     "border": "#45384F",
     "outline": "#877691",
-
     "primary": "#A98CFF",
+    "onPrimary": "#000000",
     "primaryStrong": "#C4B2FF",
     "primaryContainer": "#38275A",
     "onPrimaryContainer": "#F1E9FF",
-
     "secondaryContainer": "#30283A",
-
     "accent": "#FFC14D",
     "accentSoft": "#4A3610",
-
     "success": "#45C995",
     "successSoft": "#123A2D",
-
     "warning": "#E2A84A",
     "warningSoft": "#4A3210",
-
     "danger": "#FF7585",
+    "onDanger": "#000000",
     "dangerSoft": "#4A1F28",
-
     "info": "#75B7FF",
     "infoSoft": "#17314F",
-
     "hero": "#0B141A",
     "heroMuted": "#B9C7CE",
-
     "white": "#FFFFFF",
     "black": "#000000"
   },
-
   "spacing": {
     "xs": 4,
     "sm": 8,
@@ -126,7 +106,6 @@
     "xxl": 24,
     "xxxl": 32
   },
-
   "radii": {
     "sm": 12,
     "md": 16,
@@ -135,7 +114,6 @@
     "xxl": 34,
     "pill": 999
   },
-
   "motion": {
     "instant": "50ms",
     "fast": "100ms",

@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\ProductImage;
-use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
@@ -136,34 +135,18 @@ final class CatalogDetailPageTest extends TestCase
             ->assertDontSee('data-gallery-next', false);
     }
 
-    public function test_product_detail_with_active_variant_renders_without_blade_syntax_error(): void
+    public function test_product_detail_is_product_only_after_variant_decommission(): void
     {
         $user = $this->superadmin();
-        $product = $this->product($user, 'variant-detail-product');
-        $product->update(['variants_enabled' => true]);
-
-        ProductVariant::query()->create([
-            'product_id' => $product->id,
-            'sku' => 'DETAIL-1-BLACK',
-            'name' => 'Crna konfiguracija',
-            'price_amount' => 125,
-            'price_currency' => 'EUR',
-            'stock_quantity' => 3,
-            'low_stock_threshold' => 1,
-            'status' => 'active',
-            'is_default' => true,
-            'sort_order' => 1,
-            'created_by' => $user->id,
-            'updated_by' => $user->id,
-        ]);
+        $product = $this->product($user, 'product-only-detail-product');
 
         $response = $this->actingAs($user)->get('/catalog/'.$product->slug);
 
         $response->assertOk()
-            ->assertSee('data-product-variant-picker', false)
-            ->assertSee('Crna konfiguracija')
-            ->assertSee('SKU: DETAIL-1-BLACK')
-            ->assertSee('Poruči ovu varijantu');
+            ->assertSee('SKU: DETAIL-1')
+            ->assertDontSee('data-product-variant-picker', false)
+            ->assertDontSee('product_variant_id', false)
+            ->assertDontSee('variantMap', false);
     }
 
     public function test_unknown_slug_returns_not_found_instead_of_server_error(): void

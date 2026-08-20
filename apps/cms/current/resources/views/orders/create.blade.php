@@ -43,11 +43,11 @@
 
             <section class="panel form-section">
                 <h2>Stavke</h2>
-                <p class="muted">Izaberi do pet konfiguracija. Kod proizvoda sa varijantama obavezno izaberi tačan SKU konfiguracije.</p>
+                <p class="muted">Izaberi do pet artikala i unesi potrebnu količinu.</p>
                 <div class="admin-table-wrap flat-table">
                     <table class="admin-table">
                         <thead>
-                            <tr><th>Artikal</th><th>Konfiguracija</th><th>Količina</th></tr>
+                            <tr><th>Artikal</th><th>Količina</th></tr>
                         </thead>
                         <tbody>
                             @for($index = 0; $index < 5; $index++)
@@ -60,17 +60,10 @@
                                                     value="{{ $product->id }}"
                                                     @selected((int) old('items.'.$index.'.product_id', $index === 0 ? $selectedProductId : 0) === (int) $product->id)
                                                 >
-                                                    {{ $product->sku }} · {{ $product->name }} · ukupno {{ $product->stock_quantity }}
-                                                    @if($product->variants_enabled) · {{ $product->activeVariants->count() }} varijanti @endif
+                                                    {{ $product->sku }} · {{ $product->name }} · lager {{ $product->stock_quantity }}
                                                 </option>
                                             @endforeach
                                         </select>
-                                    </td>
-                                    <td>
-                                        <select name="items[{{ $index }}][product_variant_id]" data-order-variant>
-                                            <option value="">Bez varijante</option>
-                                        </select>
-                                        <small class="muted" data-variant-help></small>
                                     </td>
                                     <td>
                                         <input
@@ -163,42 +156,6 @@
     method?.addEventListener('change', refreshPayment);
     refreshPayment();
 
-    const variantMap = @json($variantMap);
-    const initialItems = @json(old('items', []));
-    const selectedVariantId = Number(@json($selectedVariantId));
-
-    document.querySelectorAll('[data-order-item-row]').forEach((row, index) => {
-        const product = row.querySelector('[data-order-product]');
-        const variant = row.querySelector('[data-order-variant]');
-        const help = row.querySelector('[data-variant-help]');
-        if (!product || !variant || !help) return;
-
-        const preselected = Number(initialItems?.[index]?.product_variant_id || (index === 0 ? selectedVariantId : 0));
-        const refreshVariants = () => {
-            const variants = variantMap[String(product.value)] || [];
-            variant.replaceChildren();
-
-            if (!variants.length) {
-                variant.append(new Option('Bez varijante', ''));
-                variant.disabled = true;
-                help.textContent = product.value ? 'Proizvod nema varijante.' : '';
-                return;
-            }
-
-            variant.disabled = false;
-            variant.append(new Option('Izaberi konfiguraciju', ''));
-            variants.forEach((item) => {
-                const price = Number(item.price || 0).toLocaleString('sr-RS', { minimumFractionDigits: 2 });
-                const option = new Option(`${item.sku} · ${item.name} · lager ${item.stock} · ${price} ${item.currency}`, String(item.id));
-                if (Number(item.id) === preselected || (!preselected && item.default)) option.selected = true;
-                variant.append(option);
-            });
-            help.textContent = 'Obavezno izaberi konkretnu konfiguraciju.';
-        };
-
-        product.addEventListener('change', refreshVariants);
-        refreshVariants();
-    });
 })();
 </script>
 @endpush

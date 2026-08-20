@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\ProductImage;
-use App\Models\ProductVariant;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -20,33 +19,25 @@ final class ProductImageService
     /** @param list<UploadedFile> $files */
     public function upload(Product $product, array $files): int
     {
-        return $this->uploadInternal($product, null, $files);
+        return $this->uploadInternal($product, $files);
     }
 
-    /** @param list<UploadedFile> $files */
-    public function uploadVariant(Product $product, ProductVariant $variant, array $files): int
-    {
-        abort_unless((int) $variant->product_id === (int) $product->id, 404);
-        return $this->uploadInternal($product, $variant, $files);
-    }
 
     /** @param list<UploadedFile> $files */
-    private function uploadInternal(Product $product, ?ProductVariant $variant, array $files): int
+    private function uploadInternal(Product $product, array $files): int
     {
         $created = 0;
         foreach ($files as $file) {
             if (!$file instanceof UploadedFile || !$file->isValid()) continue;
             $sourcePath = $file->getRealPath();
             $fileHash = is_string($sourcePath) && is_file($sourcePath) ? (hash_file('sha256', $sourcePath) ?: null) : null;
-            $directory = 'products/'.$product->id.($variant ? '/variants/'.$variant->id : '');
+            $directory = 'products/'.$product->id;
             $path = $file->store($directory, 'public');
             if (!is_string($path)) throw new RuntimeException('Slika nije mogla biti sačuvana.');
             $scope = ProductImage::query()->where('product_id', $product->id);
-            $variant ? $scope->where('product_variant_id', $variant->id) : $scope->whereNull('product_variant_id');
             $isFirst = !$scope->exists();
             ProductImage::query()->create([
                 'product_id' => $product->id,
-                'product_variant_id' => $variant?->id,
                 'file_path' => $path,
                 'storage_disk' => 'public',
                 'original_filename' => mb_substr((string) $file->getClientOriginalName(), 0, 255),
@@ -61,7 +52,7 @@ final class ProductImageService
             $created++;
         }
         if ($created > 0) {
-            $this->audit->log($variant ? 'product.variant.images.uploaded' : 'product.images.uploaded', $variant ? 'Dodate slike varijante '.$variant->sku : 'Dodate slike artikla '.$product->sku, $variant ?? $product, metadata: ['count' => $created, 'product_id' => $product->id]);
+            $this->audit->log('product.images.uploaded', 'Dodate slike artikla '.$product->sku, $product, metadata: ['count' => $created, 'product_id' => $product->id]);
         }
         return $created;
     }
@@ -103,44 +94,13 @@ final class ProductImageService
         return $created;
     }
 
-    public function cloneVariantImages(ProductVariant $source, ProductVariant $target): int
-    {
-        $source->loadMissing('images');
-        $created = 0;
-        foreach ($source->images as $image) {
-            if ($image->storage_disk !== 'public' || !Storage::disk('public')->exists((string) $image->file_path)) continue;
-            $extension = pathinfo((string) $image->file_path, PATHINFO_EXTENSION) ?: 'jpg';
-            $newPath = 'products/'.$target->product_id.'/variants/'.$target->id.'/'.Str::uuid().'.'.$extension;
-            Storage::disk('public')->makeDirectory('products/'.$target->product_id.'/variants/'.$target->id);
-            if (!Storage::disk('public')->copy((string) $image->file_path, $newPath)) continue;
-            ProductImage::query()->create([
-                'product_id' => $target->product_id,
-                'product_variant_id' => $target->id,
-                'file_path' => $newPath,
-                'storage_disk' => 'public',
-                'original_filename' => $image->original_filename,
-                'mime_type' => $image->mime_type,
-                'file_size' => $image->file_size,
-                'file_hash' => $image->file_hash,
-                'rotation_degrees' => $image->rotation_degrees,
-                'sort_order' => $image->sort_order,
-                'is_primary' => $image->is_primary,
-                'created_at' => now(),
-            ]);
-            $created++;
-        }
-        return $created;
-    }
 
     public function setPrimary(Product $product, ProductImage $image): void
     {
         $this->assertOwner($product, $image);
-        abort_if($image->product_variant_id !== null, 422, 'Glavna slika artikla ne može biti slika varijante.');
-
         DB::transaction(function () use ($product, $image): void {
             $orderedIds = ProductImage::query()
                 ->where('product_id', $product->id)
-                ->whereNull('product_variant_id')
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->pluck('id')
@@ -148,7 +108,7 @@ final class ProductImageService
                 ->all();
             $orderedIds = array_values(array_unique(array_merge([(int) $image->id], $orderedIds)));
 
-            ProductImage::query()->where('product_id', $product->id)->whereNull('product_variant_id')->update(['is_primary' => false]);
+            ProductImage::query()->where('product_id', $product->id)->update(['is_primary' => false]);
             $image->update(['is_primary' => true]);
             $this->applyOrder($product, $orderedIds);
         });
@@ -232,7 +192,7 @@ final class ProductImageService
     {
         $existingIds = ProductImage::query()
             ->where('product_id', $product->id)
-            ->whereNull('product_variant_id')
+
             ->orderByDesc('is_primary')
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -255,7 +215,7 @@ final class ProductImageService
 
         $primaryId = ProductImage::query()
             ->where('product_id', $product->id)
-            ->whereNull('product_variant_id')
+
             ->where('is_primary', true)
             ->value('id');
         if ($primaryId !== null) {
@@ -272,7 +232,7 @@ final class ProductImageService
     {
         $valid = ProductImage::query()
             ->where('product_id', $product->id)
-            ->whereNull('product_variant_id')
+
             ->whereIn('id', $orderedIds)
             ->pluck('id')
             ->map(static fn ($id): int => (int) $id)
@@ -289,14 +249,11 @@ final class ProductImageService
         $this->assertOwner($product, $image);
         abort_if($image->storage_disk !== 'public', 422, 'Legacy fajl je read-only. Rotiraj ga prvo ako želiš lokalnu kopiju.');
         $wasPrimary = (bool) $image->is_primary;
-        $variantId = $image->product_variant_id !== null ? (int) $image->product_variant_id : null;
         Storage::disk('public')->delete($image->file_path);
         $imageId = $image->id;
         $image->delete();
         if ($wasPrimary) {
-            $nextQuery = ProductImage::query()->where('product_id', $product->id);
-            $variantId !== null ? $nextQuery->where('product_variant_id', $variantId) : $nextQuery->whereNull('product_variant_id');
-            $next = $nextQuery->orderBy('sort_order')->orderBy('id')->first();
+            $next = ProductImage::query()->where('product_id', $product->id)->orderBy('sort_order')->orderBy('id')->first();
             $next?->update(['is_primary' => true]);
         }
         $this->audit->log('product.image.deleted', 'Uklonjena slika artikla '.$product->sku, $product, metadata: ['image_id' => $imageId]);

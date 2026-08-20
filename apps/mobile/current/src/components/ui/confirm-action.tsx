@@ -1,0 +1,3 @@
+import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
+type Props={visible:boolean;title:string;message:string;confirmLabel?:string;cancelLabel?:string;destructive?:boolean;busy?:boolean;onConfirm:()=>void;onCancel:()=>void};
+export function ConfirmAction({visible,title,message,confirmLabel='Potvrdi',cancelLabel='Odustani',destructive=false,busy=false,onConfirm,onCancel}:Props){const actions:SheetAction[]=[{key:'cancel',label:cancelLabel,disabled:busy},{key:'confirm',label:busy?'Obrada…':confirmLabel,tone:destructive?'danger':'default',disabled:busy}];return <ActionSheet actions={actions} message={message} onClose={onCancel} onSelect={(key)=>{if(key==='confirm'){onConfirm();return;}onCancel();}} title={title} visible={visible}/>;}

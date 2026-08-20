@@ -31,7 +31,7 @@ final class CatalogSettingsIntegrityHotfixContractTest extends TestCase
         $controller = (string) file_get_contents($root.'/app/Http/Controllers/Admin/CatalogDictionaryController.php');
 
         self::assertStringContainsString("product_spec_values')->where('field_id'", $service);
-        self::assertStringContainsString("product_variant_spec_values')->where('field_id'", $service);
+        self::assertStringNotContainsString('product_variant_spec_values', $service);
         self::assertStringContainsString("product_type_fields')->where('field_id'", $service);
         self::assertStringContainsString('removeTemplateTokens', $service);
         self::assertStringContainsString('$cleanup = $lifecycle->purge($model)', $controller);

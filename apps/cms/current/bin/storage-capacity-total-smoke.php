@@ -36,11 +36,8 @@ $check('Nula iz starog polja se ne nameće kao kapacitet prvog diska', ($cleared
 $migration = (string) file_get_contents($root.'/database/migrations/2026_08_04_000035_link_storage_components_and_total_capacity_v2_1_3_3.php');
 $model = (string) file_get_contents($root.'/app/Models/SpecificationField.php');
 $request = (string) file_get_contents($root.'/app/Http/Requests/ProductRequest.php');
-$variantRequest = (string) file_get_contents($root.'/app/Http/Requests/ProductVariantRequest.php');
 $adminService = (string) file_get_contents($root.'/app/Services/ProductAdminService.php');
-$variantService = (string) file_get_contents($root.'/app/Services/ProductVariantService.php');
 $form = (string) file_get_contents($root.'/resources/views/admin/products/form.blade.php');
-$variantForm = (string) file_get_contents($root.'/resources/views/admin/products/partials/variant-fields.blade.php');
 $js = (string) file_get_contents($root.'/public/assets/js/product-media-manager.js');
 $doctor = (string) file_get_contents($root.'/app/Console/Commands/CatalogSettingsDoctorCommand.php');
 $lifecycle = (string) file_get_contents($root.'/app/Services/SpecificationFieldLifecycleService.php');
@@ -56,8 +53,8 @@ $check('Ukupan kapacitet je readonly i ne unosi se ručno', str_contains($form, 
 $check('Frontend automatski sabira pojedinačne diskove', str_contains($js, 'totalCapacity +=') && str_contains($js, 'data-storage-total-value'));
 $check('Frontend čuva početni legacy zbir dok korisnik ne izmeni diskove', str_contains($js, 'storageInitialTotal') && str_contains($js, 'userTouchedStorage'));
 $check('Backend čuva stari zbir i kada istorijski disk tip nedostaje', str_contains($serviceSource, 'Preserve an old total') && str_contains($serviceSource, 'if ($fallbackTotal !== null) $specs[$field->id] = $fallbackTotal'));
-$check('Varijante podržavaju strukturisane diskove', str_contains($variantRequest, 'spec_structured') && str_contains($variantForm, 'data-repeatable-storage'));
-$check('Varijante čuvaju JSON diskova i izvedeni zbir', str_contains($variantService, 'value_json') && str_contains($variantService, 'applyComputedTotals'));
+$check('Strukturisani diskovi ostaju podržani na product-only formi', str_contains($request, 'spec_structured') && str_contains($form, 'data-repeatable-storage'));
+$check('Storage servis koristi samo product specifikacije nakon decommissiona', str_contains($serviceSource, 'product_spec_values') && !str_contains($serviceSource, 'product_variant_spec_values') && !is_file($root.'/app/Services/ProductVariantService.php'));
 $check('Doctor proverava i popravlja disk kapacitete', str_contains($doctor, 'StorageSpecificationService') && str_contains($doctor, 'integrityCounts') && str_contains($serviceSource, 'unshared_type_pairs'));
 $check('Brisanje izvornog polja čisti storage dependency', str_contains($lifecycle, "where('storage_source_field_id', \$fieldId)"));
 $check('Bulk izmena ne može ručno da pokvari izvedeni zbir', str_contains($bulk, 'Diskovi i ukupan kapacitet menjaju se na formi konkretnog artikla'));

@@ -30,7 +30,6 @@ final class PerformanceDoctorCommand extends Command
                 'products_type_status_v216_idx',
             ],
             'product_images' => ['product_images_primary_sort_v216_idx'],
-            'product_variants' => ['product_variants_runtime_v216_idx'],
             'users' => ['users_status_role_v216_idx'],
             'audit_logs' => ['audit_logs_level_created_v216_idx'],
         ];

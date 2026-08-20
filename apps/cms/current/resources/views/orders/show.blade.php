@@ -15,6 +15,7 @@
     $permissions = $detail['permissions'] ?? [];
     $actions = $detail['actions'] ?? [];
     $delivery = $detail['delivery'] ?? null;
+    $shipment = $detail['shipment'] ?? null;
     $commissionLabels = [
         'pending' => 'Na čekanju',
         'approved' => 'Odobrena',
@@ -160,7 +161,7 @@
                         <div>
                             <span class="eyebrow">Tvoja provizija</span>
                             <h2>{{ $commission['total_eur_display'] ?? '0,00 EUR' }}</h2>
-                            <p>Provizija po komadu nije manja od 20 EUR.</p>
+                            <p>Podrazumevana provizija po komadu iznosi 10% vrednosti artikla.</p>
                         </div>
                         <span class="status-badge commission-status-{{ $commission['status'] ?? 'pending' }}">
                             {{ $commissionLabels[$commission['status'] ?? 'pending'] ?? ($commission['status'] ?? 'pending') }}
@@ -229,6 +230,26 @@
                     <dt>Očekivano slanje</dt><dd>{{ $order['expected_shipping_display'] ?? '—' }}</dd>
                 </dl>
             </section>
+
+
+            @if(is_array($shipment))
+                <section class="panel form-section shipment-record-card">
+                    <h2>Evidencija slanja pošiljke</h2>
+                    <dl class="detail-list">
+                        <dt>Način isporuke</dt><dd>{{ $shipment['shipment_method_label'] ?? '—' }}</dd>
+                        <dt>Kurirska služba</dt><dd>{{ $shipment['courier_name'] ?? '—' }}</dd>
+                        <dt>Poslato</dt><dd>{{ $shipment['shipped_at'] ?? '—' }}</dd>
+                        <dt>Broj za praćenje pošiljke</dt><dd>{{ $shipment['tracking_number'] ?? '—' }}</dd>
+                        <dt>Primalac</dt><dd>{{ $shipment['recipient_name'] ?? '—' }}</dd>
+                        <dt>Telefon</dt><dd>{{ $shipment['recipient_phone'] ?? '—' }}</dd>
+                        <dt>Napomena o slanju</dt><dd>{{ $shipment['note'] ?? '—' }}</dd>
+                    </dl>
+                    <div class="header-button-row">
+                        @if(!empty($shipment['tracking_url']) && ($shipment['tracking_number'] ?? '—') !== '—')<a class="button button-ghost" target="_blank" rel="noopener" href="{{ $shipment['tracking_url'] }}">Prati pošiljku</a>@endif
+                        @if(($shipment['has_proof'] ?? false) && !empty($urls['shipment_proof']))<a class="button button-ghost" target="_blank" rel="noopener" href="{{ $urls['shipment_proof'] }}">Otvori dokaz slanja</a>@endif
+                    </div>
+                </section>
+            @endif
 
             @if(is_array($delivery))
                 <section class="panel form-section delivery-record-card">

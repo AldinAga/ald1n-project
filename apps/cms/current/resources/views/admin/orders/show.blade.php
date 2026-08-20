@@ -14,6 +14,8 @@
     $permissions = $detail['permissions'] ?? [];
     $actions = $detail['actions'] ?? [];
     $delivery = $detail['delivery'] ?? null;
+    $shipment = $detail['shipment'] ?? null;
+    $couriers = $detail['couriers'] ?? [];
     $formDefaults = $detail['form_defaults'] ?? [];
     $suppliers = $detail['suppliers'] ?? [];
     $activeDocumentsByType = collect($documents)->where('status', 'issued')->unique('type')->keyBy('type');
@@ -42,9 +44,9 @@
 
     <a class="back-link" href="{{ $urls['back'] ?? '/admin/orders' }}">← Nazad na porudžbine</a>
 
-    <div class="page-heading">
+    <div class="page-heading order-workspace-heading" data-order-detail-workspace="1">
         <div>
-            <span class="eyebrow">Odgovorno lice: {{ $order['supplier_name'] ?? 'Nije dodeljeno' }}</span>
+            <span class="eyebrow">{{ ($order['is_direct_sale'] ?? false) ? 'Prodajni kanal: Direktna prodaja' : 'Odgovorno lice: '.($order['supplier_name'] ?? 'Nije dodeljeno') }}</span>
             <h1>{{ $order['order_number'] ?? 'Porudžbina' }}</h1>
             <p>
                 {{ $order['shipping_full_name'] ?? '—' }} ·
@@ -54,13 +56,21 @@
         </div>
 
         <div class="header-button-row">
+            @if(!empty($urls['invoice_pdf']))
+                @can('invoices.manage')
+                    <form method="post" action="{{ $urls['invoice_pdf'] }}" target="_blank" data-issue-invoice-pdf>
+                        @csrf
+                        <button class="button button-primary" type="submit">Izdaj / otvori ra&#269;un (PDF)</button>
+                    </form>
+                @endcan
+            @endif
             @if(($permissions['after_sales_manage'] ?? false) && !empty($urls['after_sales']))
                 <a class="button button-ghost" href="{{ $urls['after_sales'] }}">
                     <x-icon name="alert" /> Reklamacije / servisi
                 </a>
             @endif
             @if(($actions['accept'] ?? false) && !empty($urls['accept']))
-                <form method="post" action="{{ $urls['accept'] }}">
+                <form id="order-workspace-accept" method="post" action="{{ $urls['accept'] }}">
                     @csrf
                     <button class="button button-primary" type="submit">
                         <x-icon name="user-check" /> Preuzmi porudžbinu
@@ -84,14 +94,160 @@
         </div>
     </div>
 
+
+
+    {{-- ux-maximal-phase4-order-detail-workspace-batch2 --}}
+    @php
+        $workspaceStatus = (string) ($order['status'] ?? 'new');
+        $workspaceCompleted = (bool) ($order['is_completed'] ?? false);
+        $workspaceShipmentTarget = is_array($shipment)
+            ? '#order-workspace-shipment-record'
+            : (($actions['shipment'] ?? false) ? '#order-workspace-shipment-entry' : null);
+        $workspaceDeliveryTarget = $workspaceCompleted
+            ? (is_array($delivery) ? '#order-workspace-delivery-record' : '#order-workspace-completed')
+            : (($actions['complete'] ?? false) ? '#delivery-completion' : null);
+
+        if (($actions['accept'] ?? false) && !empty($urls['accept'])) {
+            $workspaceNextTarget = '#order-workspace-accept';
+            $workspaceNextLabel = 'Preuzmi porudžbinu';
+            $workspaceNextTitle = 'Porudžbina čeka preuzimanje';
+            $workspaceNextText = 'Preuzmi je za obradu. Nakon toga nastavi kroz status, slanje i stvarnu isporuku.';
+        } elseif (($actions['shipment'] ?? false) && !empty($urls['shipment_store'])) {
+            $workspaceNextTarget = '#order-workspace-shipment-entry';
+            $workspaceNextLabel = 'Evidentiraj slanje';
+            $workspaceNextTitle = 'Sledeći korak je slanje pošiljke';
+            $workspaceNextText = 'Evidentiraj da je roba poslata. Ova akcija ne potvrđuje stvarnu isporuku niti naplatu pouzećem.';
+        } elseif (($actions['complete'] ?? false) && !empty($urls['complete'])) {
+            $workspaceNextTarget = '#delivery-completion';
+            $workspaceNextLabel = 'Potvrdi isporuku';
+            $workspaceNextTitle = 'Slanje je evidentirano — potvrdi stvarnu isporuku';
+            $workspaceNextText = 'Kompletiranje zaključuje stvarnu isporuku i, kada je primenljivo, konačno evidentiranje plaćanja.';
+        } elseif ($workspaceCompleted) {
+            $workspaceNextTarget = '#order-workspace-timeline';
+            $workspaceNextLabel = 'Pregledaj istoriju';
+            $workspaceNextTitle = 'Porudžbina je završena';
+            $workspaceNextText = 'Operativni tok je zaključen. Timeline, dokumenti, uplate i dokazi ostaju dostupni za proveru.';
+        } elseif ($workspaceStatus === 'cancelled') {
+            $workspaceNextTarget = '#order-workspace-timeline';
+            $workspaceNextLabel = 'Pregledaj istoriju';
+            $workspaceNextTitle = 'Porudžbina je otkazana';
+            $workspaceNextText = 'Nema aktivne operativne akcije. Proveri timeline i istoriju poslovnih događaja.';
+        } elseif (!empty($urls['status'])) {
+            $workspaceNextTarget = '#order-workspace-status';
+            $workspaceNextLabel = 'Pregledaj status';
+            $workspaceNextTitle = 'Nastavi obradu porudžbine';
+            $workspaceNextText = 'Koristi poslovnu akciju koja odgovara stvarnom stanju porudžbine; ručna promena statusa je sekundarna.';
+        } else {
+            $workspaceNextTarget = '#order-workspace-items';
+            $workspaceNextLabel = 'Pregledaj stavke';
+            $workspaceNextTitle = 'Pregled porudžbine';
+            $workspaceNextText = 'Proveri stavke, plaćanje, dokumente i istoriju pre sledeće dozvoljene akcije.';
+        }
+    @endphp
+
+    <section class="panel order-workspace-command" aria-labelledby="order-workspace-next-title">
+        <div class="order-workspace-command-main">
+            <div class="order-workspace-command-heading">
+                <div>
+                    <span class="eyebrow">Operativni pregled</span>
+                    <h2>Šta je sada najvažnije</h2>
+                </div>
+                <span class="status-badge status-{{ $order['status_class'] ?? 'archived' }}">
+                    {{ $order['status_label'] ?? $workspaceStatus }}
+                </span>
+            </div>
+
+            <div class="order-workspace-snapshot">
+                <div>
+                    <span>Status</span>
+                    <strong>{{ $order['status_label'] ?? $workspaceStatus }}</strong>
+                </div>
+                <div>
+                    <span>Plaćanje</span>
+                    <strong>{{ $order['payment_state_label'] ?? ($order['payment_status'] ?? '—') }}</strong>
+                </div>
+                <div>
+                    <span>Kupac</span>
+                    <strong>{{ $order['shipping_full_name'] ?? '—' }}</strong>
+                </div>
+                <div>
+                    <span>Ukupno</span>
+                    <strong>{{ $order['subtotal_rsd_display'] ?? '—' }}</strong>
+                    <small>Preostalo {{ $order['remaining_rsd_display'] ?? '—' }}</small>
+                </div>
+            </div>
+
+            <nav class="order-workspace-nav" aria-label="Brza navigacija kroz porudžbinu">
+                <a href="#order-workspace-items">Stavke</a>
+                @if($workspaceShipmentTarget)<a href="{{ $workspaceShipmentTarget }}">Slanje</a>@endif
+                @if($workspaceDeliveryTarget)<a href="{{ $workspaceDeliveryTarget }}">Isporuka</a>@endif
+                <a href="#order-workspace-payments">Uplate</a>
+                <a href="#order-workspace-documents">Dokumenti</a>
+                <a href="#order-workspace-timeline">Timeline</a>
+                <a href="#order-workspace-customer">Kupac i dostava</a>
+            </nav>
+        </div>
+
+        <aside class="order-workspace-next" aria-live="polite">
+            <span class="eyebrow">Sledeći korak</span>
+            <h2 id="order-workspace-next-title">{{ $workspaceNextTitle }}</h2>
+            <p>{{ $workspaceNextText }}</p>
+            <a class="button button-primary order-workspace-primary" href="{{ $workspaceNextTarget }}">
+                {{ $workspaceNextLabel }}
+            </a>
+        </aside>
+    </section>
+
+    @if(is_array($shipment))
+        <section class="panel shipment-record-card order-workspace-anchor" data-shipment-card id="order-workspace-shipment-record">
+            <div class="section-heading-row">
+                <div><span class="eyebrow">Logistika</span><h2>Evidencija slanja pošiljke</h2><p class="muted">Pošiljka je evidentirana kao poslata. Ovo nije potvrda stvarne isporuke niti naplate pouzećem.</p></div>
+            </div>
+            <dl class="detail-list shipment-detail-list">
+                <dt>Način isporuke</dt><dd>{{ $shipment['shipment_method_label'] ?? '—' }}</dd>
+                <dt>Kurirska služba</dt><dd>{{ $shipment['courier_name'] ?? '—' }}</dd>
+                <dt>Datum i vreme slanja</dt><dd>{{ $shipment['shipped_at'] ?? '—' }}</dd>
+                <dt>Primalac</dt><dd>{{ $shipment['recipient_name'] ?? '—' }}</dd>
+                <dt>Telefon primaoca</dt><dd>{{ $shipment['recipient_phone'] ?? '—' }}</dd>
+                <dt>Broj za praćenje pošiljke</dt><dd>{{ $shipment['tracking_number'] ?? '—' }}</dd>
+                <dt>Evidentirao</dt><dd>{{ $shipment['recorded_by'] ?? 'Administrator' }}</dd>
+                <dt>Napomena o slanju</dt><dd>{{ $shipment['note'] ?? '—' }}</dd>
+            </dl>
+            <div class="header-button-row shipment-links">
+                @if(!empty($shipment['tracking_url']) && ($shipment['tracking_number'] ?? '—') !== '—')<a class="button button-ghost" target="_blank" rel="noopener" href="{{ $shipment['tracking_url'] }}">Prati pošiljku</a>@endif
+                @if(($shipment['has_proof'] ?? false) && !empty($urls['shipment_proof']))<a class="button button-ghost" target="_blank" rel="noopener" href="{{ $urls['shipment_proof'] }}">Otvori privatni dokaz slanja</a>@endif
+            </div>
+        </section>
+    @elseif(($actions['shipment'] ?? false) && !empty($urls['shipment_store']))
+        <section class="panel shipment-entry-card order-workspace-anchor" data-shipment-card id="order-workspace-shipment-entry">
+            <div class="section-heading-row">
+                <div><span class="eyebrow">Logistika</span><h2>Evidencija slanja pošiljke</h2><p class="muted">Evidentira samo da je pošiljka poslata. Ne označava porudžbinu kao dostavljenu/completed i ne evidentira naplatu pouzećem.</p></div>
+            </div>
+            <form method="post" action="{{ $urls['shipment_store'] }}" enctype="multipart/form-data" class="shipment-form" data-shipment-form>
+                @csrf
+                <div class="shipment-grid">
+                    <label><span>Način isporuke</span><select name="shipment_method" data-shipment-method required><option value="courier" selected>Kurirska služba</option><option value="own_transport">Sopstveni prevoz</option><option value="other">Drugo</option></select></label>
+                    <label data-courier-field><span>Kurirska služba</span><select name="courier_service_id" data-courier-select required>@foreach($couriers as $courier)<option value="{{ $courier['id'] }}" data-tracking-url="{{ $courier['tracking_url'] }}" @selected($courier['is_default'] ?? false)>{{ $courier['name'] }}</option>@endforeach</select><a class="shipment-tracking-link" data-courier-tracking-link href="#" target="_blank" rel="noopener">Zvanična stranica za praćenje</a></label>
+                    <label data-tracking-field><span>Broj za praćenje pošiljke</span><input name="tracking_number" maxlength="120" value="{{ $order['tracking_number'] ?? '' }}" data-tracking-input required></label>
+                    <label><span>Datum i vreme slanja</span><input type="datetime-local" name="shipped_at" value="{{ $formDefaults['shipped_at'] ?? '' }}" required></label>
+                    <label><span>Ime primaoca</span><input name="recipient_name" maxlength="190" value="{{ $formDefaults['recipient_name'] ?? ($order['shipping_full_name'] ?? '') }}" required></label>
+                    <label><span>Telefon primaoca</span><input name="recipient_phone" maxlength="60" value="{{ $formDefaults['recipient_phone'] ?? ($order['shipping_phone'] ?? '') }}"><small>Automatski preuzeto iz porudžbine; menjaj samo ako je potrebno.</small></label>
+                    <label><span>Dokaz slanja (opciono, do 10 MB)</span><input type="file" name="shipment_proof" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label>
+                    <label class="shipment-wide"><span>Napomena o slanju</span><textarea name="note" rows="3" maxlength="3000"></textarea></label>
+                </div>
+                <button class="button button-success button-large" type="submit" data-confirm="Potvrditi da je poručeni artikal poslat kupcu? Ova akcija ne potvrđuje isporuku niti naplatu."><x-icon name="truck" /> Evidentiraj da je poručeni artikal poslat kupcu</button>
+            </form>
+        </section>
+    @endif
+
     @if($order['is_completed'] ?? false)
-        <section class="panel order-completion-card is-completed">
+        <section id="order-workspace-completed" class="panel order-completion-card is-completed order-workspace-anchor">
             <div class="completion-icon"><x-icon name="check-circle" /></div>
             <div>
                 <span class="eyebrow">Konačno stanje</span>
-                <h2>Porudžbina i isporuka su kompletirane</h2>
+                <h2>{{ ($order['is_direct_sale'] ?? false) ? 'Direktna prodaja je evidentirana' : 'Porudžbina i isporuka su kompletirane' }}</h2>
                 <p>
-                    Završeno {{ $order['completed_at'] ?? '—' }} ·
+                    {{ ($order['is_direct_sale'] ?? false) ? 'Evidentirano' : 'Završeno' }} {{ $order['completed_at'] ?? '—' }} ·
                     {{ $order['completed_by'] ?? 'Administrator' }} ·
                     {{ $order['payment_state_label'] ?? 'Plaćeno' }}
                 </p>
@@ -169,8 +325,8 @@
                         <input name="recipient_phone" maxlength="60" value="{{ ($delivery['recipient_phone'] ?? '') !== '—' ? ($delivery['recipient_phone'] ?? '') : ($formDefaults['recipient_phone'] ?? '') }}">
                     </label>
                     <label>
-                        <span>Referenca / vozilo / tracking</span>
-                        <input name="delivery_reference" maxlength="190" value="{{ ($delivery['reference'] ?? '') !== '—' ? ($delivery['reference'] ?? '') : ($order['tracking_number'] ?? '') }}">
+                        <span>Interna referenca / vozilo (opciono; nije tracking)</span>
+                        <input name="delivery_reference" maxlength="190" value="{{ ($delivery['reference'] ?? '') !== '—' ? ($delivery['reference'] ?? '') : '' }}">
                     </label>
                     <label>
                         <span>Dokaz isporuke (opciono, do 10 MB)</span>
@@ -197,7 +353,7 @@
 
     <div class="settings-grid order-detail-grid operational-order-grid">
         <section class="order-main-column">
-            <section class="panel form-section">
+            <section class="panel form-section order-workspace-anchor" id="order-workspace-items">
                 <div class="section-heading-row">
                     <div>
                         <h2>Stavke porudžbine</h2>
@@ -225,7 +381,7 @@
                                     <td>{{ $item['quantity'] ?? 0 }}</td>
                                     <td>{{ $item['unit_price'] ?? '0,00 RSD' }}</td>
                                     <td>{{ $item['line_total'] ?? '0,00 RSD' }}</td>
-                                    <td>{{ $item['commission'] ?? '0,00 EUR' }}</td>
+                                    <td>{{ ($order['is_direct_sale'] ?? false) ? 'Nema provizije' : ($item['commission'] ?? '0,00 EUR') }}</td>
                                 </tr>
                             @empty
                                 <tr><td colspan="6">Stavke porudžbine trenutno nisu dostupne.</td></tr>
@@ -255,9 +411,11 @@
                 @endif
             </section>
 
-            @include('admin.orders.partials.payments', ['detail' => $detail])
+            <div id="order-workspace-payments" class="order-workspace-anchor">
+                @include('admin.orders.partials.payments', ['detail' => $detail])
+            </div>
 
-            <section class="panel form-section document-workbench">
+            <section class="panel form-section document-workbench order-workspace-anchor" id="order-workspace-documents">
                 <div class="section-heading-row">
                     <div>
                         <h2>Poslovni dokumenti</h2>
@@ -356,7 +514,7 @@
                 </div>
             </section>
 
-            <section class="panel form-section">
+            <section class="panel form-section order-workspace-anchor" id="order-workspace-timeline">
                 <div class="section-heading-row">
                     <div>
                         <h2>Timeline porudžbine</h2>
@@ -393,7 +551,7 @@
 
         <aside class="form-side">
             <section class="panel form-section">
-                <h2>Kupac i odgovorno lice</h2>
+                <h2>{{ ($order['is_direct_sale'] ?? false) ? 'Kupac i direktna prodaja' : 'Kupac i odgovorno lice' }}</h2>
                 <dl class="detail-list">
                     <dt>Korisnik</dt>
                     <dd>{{ $order['user_name'] ?? 'Nepoznat korisnik' }}
@@ -401,16 +559,25 @@
                             ({{ $order['user_username'] }})
                         @endif
                     </dd>
-                    <dt>Odgovorno lice</dt><dd>{{ $order['supplier_name'] ?? '—' }}</dd>
-                    <dt>Uloga</dt><dd>{{ $order['supplier_role'] ?? '—' }}</dd>
-                    <dt>E-mail</dt><dd>{{ $order['supplier_email'] ?? '—' }}</dd>
-                    <dt>Telefon</dt><dd>{{ $order['supplier_phone'] ?? '—' }}</dd>
-                    <dt>Preuzeto</dt><dd>{{ $order['accepted_at'] ?? '—' }}</dd>
+                    @if($order['is_direct_sale'] ?? false)
+                        <dt>Prodajni kanal</dt><dd>Direktna prodaja</dd>
+                        <dt>Evidentirao</dt><dd>{{ $order['completed_by'] ?? 'SuperAdministrator' }}</dd>
+                        <dt>Vreme prodaje</dt><dd>{{ $order['completed_at'] ?? '—' }}</dd>
+                    @else
+                        <dt>Odgovorno lice</dt><dd>{{ $order['supplier_name'] ?? '—' }}</dd>
+                        <dt>Uloga</dt><dd>{{ $order['supplier_role'] ?? '—' }}</dd>
+                        <dt>E-mail</dt><dd>{{ $order['supplier_email'] ?? '—' }}</dd>
+                        <dt>Telefon</dt><dd>{{ $order['supplier_phone'] ?? '—' }}</dd>
+                        <dt>Preuzeto</dt><dd>{{ $order['accepted_at'] ?? '—' }}</dd>
+                    @endif
                 </dl>
             </section>
 
             @if(($actions['reassign'] ?? false) && !empty($urls['reassign']))
-                <section class="panel form-section">
+                <details class="order-workspace-advanced" data-order-workspace-secondary>
+    <summary><span>Promeni odgovorno lice</span><small>Napredna administrativna akcija</small></summary>
+    <div class="order-workspace-advanced-body">
+<section class="panel form-section order-workspace-secondary-panel" id="order-workspace-reassign">
                     <h2>Ponovna dodela</h2>
                     <form method="post" action="{{ $urls['reassign'] }}">
                         @csrf
@@ -432,10 +599,12 @@
                         <button class="button button-primary" type="submit" data-confirm="Dodeliti porudžbinu drugom Administratoru?">Promeni odgovorno lice</button>
                     </form>
                 </section>
+    </div>
+</details>
             @endif
 
             @if(!($order['is_completed'] ?? false) && ($permissions['internal_notes'] ?? false) && !empty($urls['internal_note']))
-                <section class="panel form-section">
+                <section class="panel form-section order-workspace-anchor" id="order-workspace-note">
                     <h2>Interna napomena</h2>
                     <form method="post" action="{{ $urls['internal_note'] }}">
                         @csrf
@@ -449,7 +618,10 @@
             @endif
 
             @if(!($order['is_completed'] ?? false) && !empty($urls['deadlines']))
-                <section class="panel form-section">
+                <details class="order-workspace-advanced" data-order-workspace-secondary>
+    <summary><span>Uredi operativne rokove</span><small>Otvori samo kada rok obrade ili slanja treba korigovati</small></summary>
+    <div class="order-workspace-advanced-body">
+<section class="panel form-section order-workspace-secondary-panel" id="order-workspace-deadlines">
                     <h2>Operativni rokovi</h2>
                     <form method="post" action="{{ $urls['deadlines'] }}">
                         @csrf
@@ -465,9 +637,11 @@
                         <button class="button button-ghost" type="submit">Sačuvaj rokove</button>
                     </form>
                 </section>
+    </div>
+</details>
             @endif
 
-            <section class="panel form-section">
+            <section class="panel form-section order-workspace-anchor" id="order-workspace-customer">
                 <h2>Dostava</h2>
                 <dl class="detail-list">
                     <dt>Kupac</dt><dd>{{ $order['shipping_full_name'] ?? '—' }}</dd>
@@ -482,7 +656,7 @@
             </section>
 
             @if(is_array($delivery))
-                <section class="panel form-section delivery-record-card">
+                <section class="panel form-section delivery-record-card order-workspace-anchor" id="order-workspace-delivery-record">
                     <h2>Evidencija isporuke</h2>
                     <dl class="detail-list">
                         <dt>Način</dt><dd>{{ $delivery['delivery_method_label'] ?? '—' }}</dd>
@@ -499,23 +673,12 @@
                 </section>
             @endif
 
-            @if(!($order['is_completed'] ?? false) && !empty($urls['tracking']))
-                <section class="panel form-section">
-                    <h2>Tracking</h2>
-                    <form method="post" action="{{ $urls['tracking'] }}">
-                        @csrf
-                        @method('PATCH')
-                        <label>
-                            <span>Tracking broj</span>
-                            <input name="tracking_number" maxlength="120" value="{{ $order['tracking_number'] ?? '' }}">
-                        </label>
-                        <button class="button button-ghost" type="submit">Sačuvaj tracking</button>
-                    </form>
-                </section>
-            @endif
 
             @if(!($order['is_completed'] ?? false) && !empty($urls['status']))
-                <section class="panel form-section">
+                <details class="order-workspace-advanced" data-order-workspace-secondary>
+    <summary><span>Ručna promena statusa</span><small>Koristi samo kada primarna poslovna akcija ne rešava sledeći korak</small></summary>
+    <div class="order-workspace-advanced-body">
+<section class="panel form-section order-workspace-secondary-panel" id="order-workspace-status">
                     <h2>Status porudžbine</h2>
                     <form method="post" action="{{ $urls['status'] }}">
                         @csrf
@@ -523,11 +686,11 @@
                         <label>
                             <span>Novi status</span>
                             <select name="status">
+                                @if(($order['status'] ?? '') === 'shipped')<option value="shipped" selected disabled>Poslata (evidentirano slanje)</option>@endif
                                 @foreach([
                                     'new' => 'Nova',
                                     'processing' => 'U obradi',
                                     'confirmed' => 'Potvrđena',
-                                    'shipped' => 'Poslata',
                                     'cancelled' => 'Otkazana',
                                 ] as $value => $label)
                                     <option value="{{ $value }}" @if(($order['status'] ?? '') === $value) selected @endif>{{ $label }}</option>
@@ -541,8 +704,66 @@
                         <button class="button button-primary" type="submit" data-confirm="Potvrditi promenu statusa?">Promeni status</button>
                     </form>
                 </section>
+    </div>
+</details>
             @endif
         </aside>
     </div>
 </div>
-@endsection
+@if(($permissions['archive'] ?? false) && !empty($urls['archive']) && (($order['is_completed'] ?? false) || ($order['status'] ?? '') === 'cancelled'))
+<details class="order-workspace-advanced" data-order-archive-workspace>
+    <summary>
+        <span>Arhiviraj porudžbinu</span>
+        <small>Skloni završenu ili otkazanu porudžbinu iz operativnih prikaza bez brisanja poslovne istorije</small>
+    </summary>
+    <section class="panel form-section order-workspace-secondary-panel">
+        <div class="section-heading-row">
+            <div>
+                <h2>Arhiviranje porudžbine</h2>
+                <p class="muted">Arhiviranje je reverzibilno. Status, uplate, dokumenti, garancije, provizije i audit istorija ostaju nepromenjeni.</p>
+            </div>
+        </div>
+        <form method="post" action="{{ $urls['archive'] }}" class="form-grid">
+            @csrf
+            <label class="full-span">
+                <span>Razlog arhiviranja</span>
+                <textarea name="archive_reason" rows="3" maxlength="1000" required placeholder="Npr. završena porudžbina preneta u arhivu.">{{ old('archive_reason') }}</textarea>
+            </label>
+            <div class="full-span">
+                <button class="button button-warning" type="submit" data-confirm="Arhivirati porudžbinu {{ $order['order_number'] ?? '' }}? Možeš je kasnije vratiti iz odeljka Arhivirane porudžbine.">
+                    <x-icon name="archive" /> Arhiviraj porudžbinu
+                </button>
+            </div>
+        </form>
+    </section>
+</details>
+@endif
+
+<script>
+(() => {
+    document.querySelectorAll('[data-shipment-form]').forEach((form) => {
+        const method = form.querySelector('[data-shipment-method]');
+        const courierField = form.querySelector('[data-courier-field]');
+        const courierSelect = form.querySelector('[data-courier-select]');
+        const trackingField = form.querySelector('[data-tracking-field]');
+        const trackingInput = form.querySelector('[data-tracking-input]');
+        const trackingLink = form.querySelector('[data-courier-tracking-link]');
+        const sync = () => {
+            const isCourier = method?.value === 'courier';
+            if (courierField) courierField.hidden = !isCourier;
+            if (trackingField) trackingField.hidden = !isCourier;
+            if (courierSelect) courierSelect.required = isCourier;
+            if (trackingInput) trackingInput.required = isCourier;
+            const selected = courierSelect?.selectedOptions?.[0];
+            const url = selected?.dataset?.trackingUrl || '';
+            if (trackingLink) {
+                trackingLink.hidden = !isCourier || !url;
+                if (url) trackingLink.href = url;
+            }
+        };
+        method?.addEventListener('change', sync);
+        courierSelect?.addEventListener('change', sync);
+        sync();
+    });
+})();
+</script>@endsection

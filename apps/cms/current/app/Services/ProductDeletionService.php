@@ -120,9 +120,6 @@ final class ProductDeletionService
                     }
                     $deletedInitialMovements = $initialMovements->delete();
                 }
-                if (Schema::hasColumn('products', 'default_variant_id')) {
-                    $locked->forceFill(['default_variant_id' => null])->saveQuietly();
-                }
 
                 $this->audit->log(
                     'product.purged',

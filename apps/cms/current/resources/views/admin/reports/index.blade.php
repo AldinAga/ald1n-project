@@ -138,7 +138,7 @@
                 <tr>
                     <th>Broj</th>
                     <th>Korisnik</th>
-                    <th>Dobavljač</th>
+                    <th>Odgovorno lice / kanal</th>
                     <th>Status</th>
                     <th>Plaćanje</th>
                     <th>Iznos</th>
@@ -152,11 +152,11 @@
                     <tr>
                         <td><strong>{{ $order->order_number }}</strong></td>
                         <td>{{ $order->user?->displayName() ?: '—' }}</td>
-                        <td>{{ $order->supplier_name_snapshot ?: ($order->supplier?->displayName() ?: '—') }}</td>
+                        <td>{{ $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: ($order->supplier?->displayName() ?: '—')) }}</td>
                         <td>{{ $order->completed_at !== null ? 'Kompletirana' : $order->status }}</td>
                         <td>{{ $order->payment_status }}</td>
                         <td>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</td>
-                        <td>{{ number_format((float) ($order->commission?->total_eur ?? 0), 2, ',', '.') }} EUR</td>
+                        <td>{{ $order->sales_channel === 'direct_sale' ? '—' : number_format((float) ($order->commission?->total_eur ?? 0), 2, ',', '.').' EUR' }}</td>
                         <td>{{ $order->created_at?->format('d.m.Y H:i') ?: '—' }}</td>
                         <td><a class="button button-ghost button-small" href="{{ url('/admin/orders/'.$order->id) }}">Detalji</a></td>
                     </tr>

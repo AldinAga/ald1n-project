@@ -10,7 +10,6 @@ use App\Models\AfterSalesCaseItem;
 use App\Models\AfterSalesStatusHistory;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\FieldWorkOrder;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -27,7 +26,6 @@ final class AfterSalesActionService
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
         private readonly FieldWorkOrderPlanner $fieldWorkOrders,
-        private readonly ProductVariantService $variants,
     ) {}
 
     /** @param array<string,mixed> $data */
@@ -103,7 +101,6 @@ final class AfterSalesActionService
                 $action->items()->create([
                     'after_sales_case_item_id' => $caseItem->id,
                     'product_id' => $caseItem->product_id,
-                    'product_variant_id' => $caseItem->product_variant_id,
                     'sku_snapshot' => $caseItem->sku_snapshot,
                     'product_name_snapshot' => $caseItem->product_name_snapshot,
                     'quantity' => $quantity,
@@ -288,44 +285,18 @@ final class AfterSalesActionService
             throw ValidationException::withMessages(['items' => 'Jedan od lokalnih proizvoda više nije dostupan za promenu lagera.']);
         }
 
-        $variantIds = $effectItems->pluck('product_variant_id')->filter()->map(static fn (mixed $id): int => (int) $id)->unique()->sort()->values();
-        $variants = ProductVariant::query()->whereIn('id', $variantIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-        if ($variants->count() !== $variantIds->count()) {
-            throw ValidationException::withMessages(['items' => 'Jedna od varijanti više nije dostupna za promenu lagera.']);
-        }
-        foreach ($effectItems as $item) {
+        $required = $effectItems->where('stock_effect', 'decrease')
+            ->groupBy(static fn ($item): string => (string) $item->product_id)
+            ->map(static fn ($rows): int => (int) $rows->sum('quantity'));
+        foreach ($required as $productId => $quantity) {
             /** @var Product $product */
-            $product = $products->get((int) $item->product_id);
-            if ((bool) $product->variants_enabled && $item->product_variant_id === null) {
-                throw ValidationException::withMessages(['items' => 'Za artikal '.$product->sku.' mora biti poznata konkretna varijanta. Izaberite eksternu obradu lagera.']);
-            }
-            if ($item->product_variant_id !== null) {
-                $variant = $variants->get((int) $item->product_variant_id);
-                if (!$variant || (int) $variant->product_id !== (int) $product->id) {
-                    throw ValidationException::withMessages(['items' => 'Varijanta ne pripada izabranom proizvodu.']);
-                }
+            $product = $products->get((int) $productId);
+            if ((int) $product->stock_quantity < $quantity) {
+                throw ValidationException::withMessages(['items' => 'Nema dovoljno lagera za zamenski artikal '.$product->sku.'. Dostupno: '.$product->stock_quantity.', potrebno: '.$quantity.'.']);
             }
         }
 
-        $required = $effectItems->where('stock_effect', 'decrease')->groupBy(static fn ($item): string => $item->product_variant_id ? 'v:'.$item->product_variant_id : 'p:'.$item->product_id)->map(static fn ($rows): int => (int) $rows->sum('quantity'));
-        foreach ($required as $key => $quantity) {
-            if (str_starts_with((string) $key, 'v:')) {
-                /** @var ProductVariant $variant */
-                $variant = $variants->get((int) substr((string) $key, 2));
-                if ((int) $variant->stock_quantity < $quantity) {
-                    throw ValidationException::withMessages(['items' => 'Nema dovoljno lagera za varijantu '.$variant->sku.'. Dostupno: '.$variant->stock_quantity.', potrebno: '.$quantity.'.']);
-                }
-            } else {
-                /** @var Product $product */
-                $product = $products->get((int) substr((string) $key, 2));
-                if ((int) $product->stock_quantity < $quantity) {
-                    throw ValidationException::withMessages(['items' => 'Nema dovoljno lagera za zamenski artikal '.$product->sku.'. Dostupno: '.$product->stock_quantity.', potrebno: '.$quantity.'.']);
-                }
-            }
-        }
-
-        $affectedParents = [];
-        foreach ($effectItems->sortBy(static fn ($item): string => str_pad((string) $item->product_id, 20, '0', STR_PAD_LEFT).'-'.str_pad((string) ($item->product_variant_id ?? 0), 20, '0', STR_PAD_LEFT).'-'.str_pad((string) $item->id, 20, '0', STR_PAD_LEFT)) as $item) {
+        foreach ($effectItems->sortBy(static fn ($item): string => str_pad((string) $item->product_id, 20, '0', STR_PAD_LEFT).'-'.str_pad((string) $item->id, 20, '0', STR_PAD_LEFT)) as $item) {
             $eventKey = 'after-sales-action:'.$action->id.':item:'.$item->id;
             $existing = StockMovement::query()->where('event_key', $eventKey)->first();
             if ($existing instanceof StockMovement) {
@@ -335,21 +306,17 @@ final class AfterSalesActionService
 
             /** @var Product $product */
             $product = $products->get((int) $item->product_id);
-            /** @var ProductVariant|null $variant */
-            $variant = $item->product_variant_id !== null ? $variants->get((int) $item->product_variant_id) : null;
-            $stockOwner = $variant ?? $product;
-            $before = (int) $stockOwner->stock_quantity;
+            $before = (int) $product->stock_quantity;
             $change = $item->stock_effect === 'decrease' ? -(int) $item->quantity : (int) $item->quantity;
             $after = $before + $change;
             if ($after < 0) {
                 throw ValidationException::withMessages(['items' => 'Promena lagera bi spustila stanje '.$item->sku_snapshot.' ispod nule.']);
             }
 
-            $stockOwner->forceFill(['stock_quantity' => $after, 'updated_by' => $actor->id])->save();
+            $product->forceFill(['stock_quantity' => $after, 'updated_by' => $actor->id])->save();
             $movement = StockMovement::query()->create([
                 'event_key' => $eventKey,
                 'product_id' => $product->id,
-                'product_variant_id' => $variant?->id,
                 'order_id' => $order->id,
                 'user_id' => $actor->id,
                 'movement_type' => $change < 0 ? 'after_sales_replacement' : 'after_sales_return',
@@ -361,14 +328,11 @@ final class AfterSalesActionService
                 'metadata_json' => [
                     'after_sales_case_id' => $action->after_sales_case_id,
                     'after_sales_action_id' => $action->id,
-                    'product_variant_id' => $variant?->id,
                     'disposition' => $item->disposition,
                 ],
             ]);
             $item->forceFill(['stock_movement_id' => $movement->id])->save();
-            if ($variant) $affectedParents[$product->id] = $product;
         }
-        foreach ($affectedParents as $parent) $this->variants->syncParent($parent);
     }
 
     private function assertExecutor(User $actor): void

@@ -41,10 +41,10 @@ $check('Migracija kreira indekse galerija i varijanti', str_contains($migration,
 $check('Migracija je idempotentna prema imenima indeksa', str_contains($migration, 'Schema::getIndexes') && str_contains($migration, 'hasIndex'));
 $check('Data Quality model postoji', is_file($root.'/app/Models/DataQualitySnapshot.php'));
 $check('Data Quality servis proverava identitet i kompletnost', str_contains($service, 'appendCatalogIdentityIssues') && str_contains($service, 'appendCatalogCompletenessIssues'));
-$check('Data Quality servis proverava slike i varijante', str_contains($service, 'appendImageIssues') && str_contains($service, 'appendVariantIssues'));
+$check('Data Quality servis proverava slike u product-only katalogu', str_contains($service, 'appendImageIssues') && !str_contains($service, 'appendVariantIssues'));
 $check('Data Quality servis proverava specifikacije i korisnike', str_contains($service, 'appendSpecificationIssues') && str_contains($service, 'appendUserIssues'));
 $check('Bezbedna popravka ne briše artikle', str_contains($service, 'repairSafe') && !str_contains($service, "DB::table('products')->delete"));
-$check('Bezbedna popravka normalizuje slike i varijante', str_contains($service, 'normalizeImagePrimaries') && str_contains($service, 'normalizeDefaultVariants'));
+$check('Bezbedna popravka normalizuje slike bez retired variant grane', str_contains($service, 'normalizeImagePrimaries') && !str_contains($service, 'normalizeDefaultVariants'));
 $check('Kompletnost se može preračunati bez deaktiviranja', str_contains($source('app/Services/ProductCompletenessService.php'), 'recalculateAll(bool $enforceMinimum = true)') && str_contains($service, 'recalculateAll(false)'));
 $check('Katalog šifarnici koriste cache', str_contains($cache, 'Cache::remember') && str_contains($source('app/Http/Controllers/CatalogController.php'), 'CatalogReferenceCache'));
 $check('Promene šifarnika brišu katalog cache', str_contains($dictionary, 'forgetCatalogReferenceCache') && str_contains($dictionary, 'CatalogReferenceCache::class'));

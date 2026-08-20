@@ -11,7 +11,6 @@ use App\Models\FieldWorkOrder;
 use App\Models\OperationalAlert;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\ProductWarranty;
 use App\Models\ServicePart;
 use App\Models\ServicePartPurchaseRequest;
@@ -199,7 +198,6 @@ final class OperationalAutomationService
             $lowStock = Product::query()
                 ->where('status', 'active')
                 ->whereNull('deleted_at')
-                ->where('variants_enabled', false)
                 ->where('low_stock_threshold', '>', 0)
                 ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
                 ->limit(1000)
@@ -238,48 +236,6 @@ final class OperationalAutomationService
                 $types['low_stock'] = ($types['low_stock'] ?? 0) + 1;
             }
 
-            if (Schema::hasTable('product_variants')) {
-                $lowVariants = ProductVariant::query()
-                    ->with('product:id,sku,name')
-                    ->where('status', 'active')
-                    ->whereNull('deleted_at')
-                    ->where('low_stock_threshold', '>', 0)
-                    ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-                    ->limit(1000)
-                    ->get();
-                $examined += $lowVariants->count();
-                foreach ($lowVariants as $variant) {
-                    $key = 'low_stock_variant:'.$variant->id;
-                    $seen[] = $key;
-                    $alert = $this->upsertAlert($key, [
-                        'type' => 'low_stock_variant',
-                        'severity' => (int) $variant->stock_quantity <= 0 ? 'danger' : 'warning',
-                        'product_id' => $variant->product_id,
-                        'title' => (int) $variant->stock_quantity <= 0 ? 'Varijanta je bez lagera' : 'Nizak lager varijante',
-                        'message' => sprintf('%s — %s (%s): stanje %d, prag %d.', $variant->product?->name ?? 'Artikal', $variant->name, $variant->sku, $variant->stock_quantity, $variant->low_stock_threshold),
-                        'action_url' => route('admin.products.variants.index', $variant->product_id).'#variant-'.$variant->id,
-                        'metadata_json' => ['product_variant_id' => $variant->id, 'stock' => $variant->stock_quantity, 'threshold' => $variant->low_stock_threshold],
-                    ]);
-                    $alerts++;
-                    if ($this->shouldNotify($alert, $force, $reminderHours)) {
-                        foreach ($this->administrators() as $recipient) {
-                            $this->notifications->send($recipient, [
-                                'event' => 'automation.low_stock_variant',
-                                'title' => $alert->title,
-                                'message' => $alert->message,
-                                'url' => $alert->action_url,
-                                'action_label' => 'Otvori varijantu',
-                                'icon' => 'boxes',
-                                'severity' => $alert->severity,
-                                'alert_id' => $alert->id,
-                            ]);
-                            $notifications++;
-                        }
-                        $alert->update(['last_notified_at' => now()]);
-                    }
-                    $types['low_stock_variant'] = ($types['low_stock_variant'] ?? 0) + 1;
-                }
-            }
         }
 
         if (Schema::hasTable('after_sales_cases')) {

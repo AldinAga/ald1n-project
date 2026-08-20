@@ -28,11 +28,13 @@ const themes = createV5Theme({
       brandStrong: tokens.primaryStrong,
       brandContainer: tokens.primaryContainer,
       onBrandContainer: tokens.onPrimaryContainer,
+      onBrand: tokens.onPrimary,
 
       surface: tokens.surface,
       surfaceMuted: tokens.surfaceMuted,
       surfaceContainer: tokens.surfaceContainer,
       surfaceContainerHigh: tokens.surfaceContainerHigh,
+      text: tokens.text,
 
       textMuted: tokens.muted,
       line: tokens.border,
@@ -40,15 +42,26 @@ const themes = createV5Theme({
 
       accent: tokens.accent,
       success: tokens.success,
+      successContainer: tokens.successSoft,
       warning: tokens.warning,
+      warningContainer: tokens.warningSoft,
       danger: tokens.danger,
+      onDanger: tokens.onDanger,
+      dangerContainer: tokens.dangerSoft,
       info: tokens.info,
+      infoContainer: tokens.infoSoft,
     };
   },
 });
 
 export const tamaguiConfig = createTamagui({
   ...defaultConfig,
+
+  settings: {
+    ...defaultConfig.settings,
+    onlyAllowShorthands: false,
+  },
+
   animations,
   themes,
 });

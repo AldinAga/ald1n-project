@@ -1,60 +1,96 @@
 import { Platform } from 'react-native';
 
-import { ald1nDesignTokens } from '@/design/ald1n-tokens.generated';
+import {
+  ald1nDesignTokens,
+  type Ald1nColorScheme,
+} from '@/design/ald1n-tokens.generated';
 
-const light = ald1nDesignTokens.light;
+type DesignColorTokens =
+  (typeof ald1nDesignTokens)[Ald1nColorScheme];
 
-export const colors = {
-  background: light.background,
-  surface: light.surface,
-  surfaceMuted: light.surfaceMuted,
-  surfaceContainer: light.surfaceContainer,
-  surfaceContainerHigh: light.surfaceContainerHigh,
+function createColors(tokens: DesignColorTokens) {
+  return {
+    background: tokens.background,
 
-  ink: light.text,
-  muted: light.muted,
-  line: light.border,
-  outline: light.outline,
+    surface: tokens.surface,
+    surfaceMuted: tokens.surfaceMuted,
+    surfaceContainer: tokens.surfaceContainer,
+    surfaceContainerHigh: tokens.surfaceContainerHigh,
 
-  primary: light.primary,
-  primaryDark: light.primaryStrong,
-  primarySoft: light.primaryContainer,
-  primaryContainer: light.primaryContainer,
-  onPrimaryContainer: light.onPrimaryContainer,
+    ink: tokens.text,
+    muted: tokens.muted,
+    line: tokens.border,
+    outline: tokens.outline,
 
-  secondaryContainer: light.secondaryContainer,
+    primary: tokens.primary,
+    onPrimary: tokens.onPrimary,
+    primaryDark: tokens.primaryStrong,
+    primarySoft: tokens.primaryContainer,
+    primaryContainer: tokens.primaryContainer,
+    onPrimaryContainer: tokens.onPrimaryContainer,
 
-  accent: light.accent,
-  accentSoft: light.accentSoft,
+    secondaryContainer: tokens.secondaryContainer,
 
-  success: light.success,
-  successSoft: light.successSoft,
+    accent: tokens.accent,
+    accentSoft: tokens.accentSoft,
 
-  warning: light.warning,
-  warningSoft: light.warningSoft,
+    success: tokens.success,
+    successSoft: tokens.successSoft,
 
-  danger: light.danger,
-  dangerSoft: light.dangerSoft,
+    warning: tokens.warning,
+    warningSoft: tokens.warningSoft,
 
-  info: light.info,
-  infoSoft: light.infoSoft,
+    danger: tokens.danger,
+    onDanger: tokens.onDanger,
+    dangerSoft: tokens.dangerSoft,
 
-  white: light.white,
-  black: light.black,
+    info: tokens.info,
+    infoSoft: tokens.infoSoft,
 
-  hero: light.hero,
-  heroMuted: light.heroMuted,
+    white: tokens.white,
+    black: tokens.black,
+
+    hero: tokens.hero,
+    heroMuted: tokens.heroMuted,
+  } as const;
+}
+
+export const colorThemes = {
+  light: createColors(ald1nDesignTokens.light),
+  dark: createColors(ald1nDesignTokens.dark),
 } as const;
+
+export type AppColorScheme = keyof typeof colorThemes;
+export type AppColors = ReturnType<typeof createColors>;
+
+/*
+ * Transitional compatibility alias.
+ *
+ * Postojeci RN ekran(i) jos uvek koriste staticki colors.*
+ * i zato ostaju light dok ih kontrolisano ne migriramo.
+ *
+ * Kada poslednji staticki consumer nestane, ovaj alias se brise.
+ */
+export const colors: AppColors = colorThemes.light;
 
 export const spacing = ald1nDesignTokens.spacing;
 export const radii = ald1nDesignTokens.radii;
 
+/*
+ * RN-specific shadow.
+ *
+ * Ovo je namerno RN adapter. Trenutno ga koristi login.tsx,
+ * koji renderuje React Native View/StyleSheet komponente.
+ */
 export const shadow = Platform.select({
   ios: {
     shadowColor: colors.black,
     shadowOpacity: 0.07,
     shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
   },
 
   android: {

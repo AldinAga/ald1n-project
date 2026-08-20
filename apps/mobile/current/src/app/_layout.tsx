@@ -11,7 +11,8 @@ import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
 import { DeviceRegistrar } from '@/features/device/device-registrar';
 import { PushNotificationBridge } from '@/features/notifications/push-notification-bridge';
 import { CartProvider } from '@/features/cart/cart-provider';
-import { colors } from '@/constants/theme';
+import { AppFeedbackProvider } from '@/components/ui/app-feedback';
+import { useAppTheme } from '@/theme/app-theme';
 import { tamaguiConfig } from '../../tamagui.config';
 
 void SplashScreen.preventAutoHideAsync();
@@ -39,16 +40,23 @@ function AppReady() {
 }
 
 export default function RootLayout() {
+  const {
+    scheme,
+    colors: themeColors,
+    isDark,
+  } = useAppTheme();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
+      <TamaguiProvider config={tamaguiConfig} defaultTheme={scheme}>
         <SafeAreaProvider>
+          <AppFeedbackProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <CartProvider>
-            <StatusBar style="dark" />
+            <StatusBar style={isDark ? 'light' : 'dark'} />
             <AppReady />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: themeColors.background } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(app)" />
@@ -57,6 +65,7 @@ export default function RootLayout() {
             </CartProvider>
           </AuthProvider>
         </QueryClientProvider>
+        </AppFeedbackProvider>
       </SafeAreaProvider>
       </TamaguiProvider>
     </GestureHandlerRootView>

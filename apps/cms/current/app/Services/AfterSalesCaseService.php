@@ -62,14 +62,7 @@ final class AfterSalesCaseService
                     throw ValidationException::withMessages(['items' => 'Jedna ili više izabranih stavki ne pripadaju ovoj porudžbini.']);
                 }
 
-                $assignedTo = null;
-                if ($lockedOrder->supplier_user_id !== null) {
-                    $assignedTo = User::query()
-                        ->whereKey($lockedOrder->supplier_user_id)
-                        ->where('status', 'active')
-                        ->whereHas('role', static fn ($query) => $query->whereIn('slug', ['admin', 'superadmin']))
-                        ->value('id');
-                }
+                $assignedTo = $this->resolveInitialAssignee($lockedOrder);
 
                 $case = AfterSalesCase::query()->create([
                     'case_number' => 'PENDING-'.Str::uuid(),
@@ -101,9 +94,8 @@ final class AfterSalesCaseService
                     $case->items()->create([
                         'order_item_id' => $item->id,
                         'product_id' => $item->product_id,
-                        'product_variant_id' => $item->product_variant_id,
-                        'sku_snapshot' => $item->variant_sku_snapshot ?: $item->product_sku,
-                        'product_name_snapshot' => $item->product_name.($item->variant_name_snapshot ? ' — '.$item->variant_name_snapshot : ''),
+                        'sku_snapshot' => $item->product_sku,
+                        'product_name_snapshot' => $item->product_name,
                         'quantity' => $quantity,
                         'issue_description' => filled($row['issue_description'] ?? null) ? trim((string) $row['issue_description']) : null,
                     ]);
@@ -332,6 +324,35 @@ final class AfterSalesCaseService
         }
     }
 
+    private function resolveInitialAssignee(Order $order): ?int
+    {
+        if ((string) ($order->sales_channel ?? 'order') === 'direct_sale') {
+            if ($order->direct_sale_recorded_by === null) {
+                return null;
+            }
+
+            $recorderId = User::query()
+                ->whereKey((int) $order->direct_sale_recorded_by)
+                ->where('status', 'active')
+                ->whereHas('role', static fn ($query) => $query->where('slug', 'superadmin'))
+                ->value('id');
+
+            return $recorderId !== null ? (int) $recorderId : null;
+        }
+
+        if ($order->supplier_user_id === null) {
+            return null;
+        }
+
+        $supplierId = User::query()
+            ->whereKey((int) $order->supplier_user_id)
+            ->where('status', 'active')
+            ->whereHas('role', static fn ($query) => $query->whereIn('slug', ['admin', 'superadmin']))
+            ->value('id');
+
+        return $supplierId !== null ? (int) $supplierId : null;
+    }
+
     private function notifyCreated(AfterSalesCase $case, User $actor): void
     {
         $recipients = collect();
@@ -348,6 +369,7 @@ final class AfterSalesCaseService
             if ((int) $recipient->id === (int) $actor->id) continue;
             $this->notifications->send($recipient, [
                 'event' => 'after_sales_created', 'title' => 'Novi postprodajni slučaj',
+                'after_sales_case_id' => $case->id,
                 'message' => $case->case_number.' · '.$case->subject,
                 'url' => route('admin.after-sales.show', $case), 'action_label' => 'Otvori slučaj', 'icon' => 'alert', 'severity' => 'warning',
             ]);
@@ -361,6 +383,7 @@ final class AfterSalesCaseService
         if ($recipient instanceof User && (int) $recipient->id !== (int) $actor->id) {
             $this->notifications->send($recipient, [
                 'event' => 'after_sales_message', 'title' => 'Nova poruka u slučaju '.$case->case_number,
+                'after_sales_case_id' => $case->id,
                 'message' => $case->subject,
                 'url' => $recipient->hasRole('admin', 'superadmin') ? route('admin.after-sales.show', $case) : route('after-sales.show', $case),
                 'action_label' => 'Otvori komunikaciju', 'icon' => 'alert', 'severity' => 'info',
@@ -373,6 +396,7 @@ final class AfterSalesCaseService
         if ($case->opener instanceof User && (int) $case->opener->id !== (int) $actor->id) {
             $this->notifications->send($case->opener, [
                 'event' => 'after_sales_status', 'title' => 'Ažuriran slučaj '.$case->case_number,
+                'after_sales_case_id' => $case->id,
                 'message' => 'Novi status: '.$case->status,
                 'url' => route('after-sales.show', $case), 'action_label' => 'Otvori slučaj', 'icon' => 'alert', 'severity' => 'info',
             ]);

@@ -18,9 +18,6 @@ final class InventoryService
 
     public function adjust(Product $product, int $quantityChange, string $note, string $idempotencyKey, User $actor): StockMovement
     {
-        if ((bool) $product->variants_enabled) {
-            throw ValidationException::withMessages(['product' => 'Artikal koristi varijante. Lager korigujte na ekranu Varijante proizvoda.']);
-        }
         $payload = [
             'product_id' => (int) $product->id,
             'quantity_change' => $quantityChange,

@@ -31,8 +31,10 @@ final class BusinessDocumentPdfService
         $top = $this->itemsTableHeader($pdf, $top);
 
         foreach ($items as $index => $item) {
-            $nameLines = $pdf->wrap((string) ($item['name'] ?? ''), 210, 8.5, false);
-            $rowHeight = max(28, 14 + min(3, count($nameLines)) * 10);
+            // ALD1N PDF LONG SKU WRAP V1
+            $skuLines = $this->wrapSkuIdentifier((string) ($item['sku'] ?? ''));
+            $nameLines = $pdf->wrap((string) ($item['name'] ?? ''), 174, 8.5, false);
+            $rowHeight = max(30.0, 16.0 + (10.0 * max(count($skuLines), count($nameLines))));
             if ($top + $rowHeight > 730) {
                 $this->pageFooter($pdf, $document, $pdf->pageCount());
                 $page = $pdf->addPage();
@@ -177,7 +179,7 @@ final class BusinessDocumentPdfService
         $pdf->rect(36, $top, 523, 26, self::NAVY);
         $pdf->text(48, $top + 8, '#', 8, true, '#ffffff');
         $pdf->text(72, $top + 8, 'SKU', 8, true, '#ffffff');
-        $pdf->text(136, $top + 8, 'Artikal', 8, true, '#ffffff');
+        $pdf->text(188, $top + 8, 'Artikal', 8, true, '#ffffff');
         $pdf->text(388, $top + 8, 'Kol.', 8, true, '#ffffff', 'center');
         $pdf->text(473, $top + 8, 'Cena', 8, true, '#ffffff', 'right');
         $pdf->text(547, $top + 8, 'Ukupno', 8, true, '#ffffff', 'right');
@@ -185,13 +187,62 @@ final class BusinessDocumentPdfService
     }
 
     /** @param array<string,mixed> $item */
+    /** @return list<string> */
+    private function wrapSkuIdentifier(string $sku, int $maxCharacters = 18): array
+    {
+        $sku = trim($sku);
+        if ($sku === '') {
+            return ['—'];
+        }
+
+        $lines = [];
+        $remaining = $sku;
+        $minimumPreferredBreak = max(6, intdiv($maxCharacters, 2));
+
+        while (mb_strlen($remaining, 'UTF-8') > $maxCharacters) {
+            $window = mb_substr($remaining, 0, $maxCharacters, 'UTF-8');
+            $breakAt = 0;
+
+            foreach (['-', '_', '/', ' '] as $delimiter) {
+                $position = mb_strrpos($window, $delimiter, 0, 'UTF-8');
+                if ($position !== false) {
+                    $breakAt = max($breakAt, $position + 1);
+                }
+            }
+
+            if ($breakAt < $minimumPreferredBreak) {
+                $breakAt = $maxCharacters;
+            }
+
+            $line = rtrim(mb_substr($remaining, 0, $breakAt, 'UTF-8'));
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+
+            $remaining = ltrim(mb_substr($remaining, $breakAt, null, 'UTF-8'));
+        }
+
+        if ($remaining !== '') {
+            $lines[] = $remaining;
+        }
+
+        return $lines !== [] ? $lines : ['—'];
+    }
     private function itemRow(SimplePdfWriter $pdf, float $top, float $height, int $index, array $item): void
     {
         $fill = $index % 2 === 0 ? '#f8fafc' : '#ffffff';
         $pdf->rect(36, $top, 523, $height, $fill, self::LINE, 0.5);
         $pdf->text(48, $top + 9, (string) $index, 8.3, false, self::MUTED);
-        $pdf->wrappedText(72, $top + 8, (string) ($item['sku'] ?? ''), 58, 8.2, 10, true, self::TEXT, 2);
-        $pdf->wrappedText(136, $top + 8, (string) ($item['name'] ?? ''), 225, 8.5, 10, false, self::TEXT, 3);
+        $skuLines = $this->wrapSkuIdentifier((string) ($item['sku'] ?? ''));
+        foreach ($skuLines as $lineIndex => $line) {
+            $pdf->text(72, $top + 8 + ($lineIndex * 10), $line, 6.8, false, self::TEXT);
+        }
+
+        $nameLines = $pdf->wrap((string) ($item['name'] ?? ''), 174, 8.5, false);
+        foreach ($nameLines as $lineIndex => $line) {
+            // ALD1N PDF VISUAL HIERARCHY B2 V2
+            $pdf->text(188, $top + 8 + ($lineIndex * 10), $line, 8.5, true, self::TEXT);
+        }
         $pdf->text(388, $top + 9, (string) ($item['quantity'] ?? 0), 8.5, true, self::TEXT, 'center');
         $pdf->text(473, $top + 9, $this->money((float) ($item['unit_price_rsd'] ?? 0)), 8.2, false, self::TEXT, 'right');
         $pdf->text(547, $top + 9, $this->money((float) ($item['line_total_rsd'] ?? 0)), 8.2, true, self::TEXT, 'right');
@@ -365,19 +416,197 @@ final class BusinessDocumentPdfService
 
     private function drawContainedJpeg(SimplePdfWriter $pdf, string $path, float $x, float $top, float $boxWidth, float $boxHeight): bool
     {
+        // ALD1N PDF HEADER LOGO MODERNIZATION B3
         $path = trim($path);
         if ($path === '' || !is_file($path)) return false;
-        $info = @getimagesize($path);
-        if (!is_array($info) || ($info['mime'] ?? '') !== 'image/jpeg') return false;
-        $sourceWidth = max(1, (int) ($info[0] ?? 1));
-        $sourceHeight = max(1, (int) ($info[1] ?? 1));
-        $scale = min($boxWidth / $sourceWidth, $boxHeight / $sourceHeight);
-        $width = max(1.0, $sourceWidth * $scale);
-        $height = max(1.0, $sourceHeight * $scale);
-        $drawX = $x + ($boxWidth - $width) / 2;
-        $drawTop = $top + ($boxHeight - $height) / 2;
 
-        return $pdf->imageJpeg($drawX, $drawTop, $width, $height, $path);
+        $preparedPath = $this->prepareModernHeaderLogo($path);
+        $renderPath = $preparedPath ?? $path;
+
+        try {
+            $info = @getimagesize($renderPath);
+            if (!is_array($info) || (int) ($info[0] ?? 0) <= 0 || (int) ($info[1] ?? 0) <= 0) return false;
+
+            $ratio = min($boxWidth / (float) $info[0], $boxHeight / (float) $info[1]);
+            $width = (float) $info[0] * $ratio;
+            $height = (float) $info[1] * $ratio;
+            $drawX = $x + (($boxWidth - $width) / 2);
+            $drawTop = $top + (($boxHeight - $height) / 2);
+
+            return $pdf->imageJpeg($drawX, $drawTop, $width, $height, $renderPath)
+                || $pdf->imagePng($drawX, $drawTop, $width, $height, $renderPath);
+        } finally {
+            if ($preparedPath !== null && is_file($preparedPath)) {
+                @unlink($preparedPath);
+            }
+        }
+    }
+
+    private function prepareModernHeaderLogo(string $path): ?string
+    {
+        if (
+            function_exists('imagecreatetruecolor')
+            && function_exists('imagecreatefromjpeg')
+            && function_exists('imagecreatefrompng')
+            && function_exists('imagejpeg')
+        ) {
+            $prepared = $this->prepareModernHeaderLogoWithGd($path);
+            if ($prepared !== null) return $prepared;
+        }
+
+        if (class_exists('Imagick')) {
+            return $this->prepareModernHeaderLogoWithImagick($path);
+        }
+
+        return null;
+    }
+
+    private function prepareModernHeaderLogoWithGd(string $path): ?string
+    {
+        $info = @getimagesize($path);
+        if (!is_array($info)) return null;
+
+        $type = (int) ($info[2] ?? 0);
+        $source = match ($type) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
+            IMAGETYPE_PNG => @imagecreatefrompng($path),
+            default => false,
+        };
+        if ($source === false) return null;
+
+        try {
+            $sourceWidth = imagesx($source);
+            $sourceHeight = imagesy($source);
+            if ($sourceWidth <= 0 || $sourceHeight <= 0) return null;
+
+            $scale = min(1.0, 360.0 / $sourceWidth, 240.0 / $sourceHeight);
+            $width = max(1, (int) round($sourceWidth * $scale));
+            $height = max(1, (int) round($sourceHeight * $scale));
+            $image = imagecreatetruecolor($width, $height);
+            if ($image === false) return null;
+
+            try {
+                imagecopyresampled($image, $source, 0, 0, 0, 0, $width, $height, $sourceWidth, $sourceHeight);
+                $header = imagecolorallocate($image, 23, 32, 51);
+
+                for ($y = 0; $y < $height; $y++) {
+                    for ($x = 0; $x < $width; $x++) {
+                        if ($this->outsideRoundedLogoTile($x, $y, $width, $height)) {
+                            imagesetpixel($image, $x, $y, $header);
+                            continue;
+                        }
+
+                        $rgb = imagecolorat($image, $x, $y);
+                        $r = ($rgb >> 16) & 0xff;
+                        $g = ($rgb >> 8) & 0xff;
+                        $b = $rgb & 0xff;
+                        [$r, $g, $b] = $this->modernHeaderLogoPixel($r, $g, $b);
+                        imagesetpixel($image, $x, $y, imagecolorallocate($image, $r, $g, $b));
+                    }
+                }
+
+                $tmp = tempnam(sys_get_temp_dir(), 'ald1n-pdf-logo-');
+                if (!is_string($tmp) || $tmp === '') return null;
+                if (!imagejpeg($image, $tmp, 94)) {
+                    @unlink($tmp);
+                    return null;
+                }
+
+                return $tmp;
+            } finally {
+                imagedestroy($image);
+            }
+        } finally {
+            imagedestroy($source);
+        }
+    }
+
+    private function prepareModernHeaderLogoWithImagick(string $path): ?string
+    {
+        try {
+            $image = new \Imagick($path);
+            $image->setImageColorspace(\Imagick::COLORSPACE_RGB);
+            $image->thumbnailImage(360, 240, true, true);
+            $width = $image->getImageWidth();
+            $height = $image->getImageHeight();
+            if ($width <= 0 || $height <= 0) return null;
+
+            $headerPixel = new \ImagickPixel('rgb(23,32,51)');
+
+            for ($y = 0; $y < $height; $y++) {
+                for ($x = 0; $x < $width; $x++) {
+                    if ($this->outsideRoundedLogoTile($x, $y, $width, $height)) {
+                        $image->setImagePixelColor($x, $y, $headerPixel);
+                        continue;
+                    }
+
+                    $color = $image->getImagePixelColor($x, $y)->getColor();
+                    [$r, $g, $b] = $this->modernHeaderLogoPixel(
+                        (int) ($color['r'] ?? 0),
+                        (int) ($color['g'] ?? 0),
+                        (int) ($color['b'] ?? 0),
+                    );
+                    $image->setImagePixelColor($x, $y, new \ImagickPixel(sprintf('rgb(%d,%d,%d)', $r, $g, $b)));
+                }
+            }
+
+            $image->setImageFormat('jpeg');
+            $image->setImageCompressionQuality(94);
+            $tmp = tempnam(sys_get_temp_dir(), 'ald1n-pdf-logo-');
+            if (!is_string($tmp) || $tmp === '') return null;
+            if (!$image->writeImage($tmp)) {
+                @unlink($tmp);
+                return null;
+            }
+
+            $image->clear();
+            $image->destroy();
+            return $tmp;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** @return array{0:int,1:int,2:int} */
+    private function modernHeaderLogoPixel(int $r, int $g, int $b): array
+    {
+        $max = max($r, $g, $b);
+        $min = min($r, $g, $b);
+        $spread = $max - $min;
+
+        // White / light-neutral placeholder background -> premium dark tile.
+        if ($min >= 225 && $spread <= 45) {
+            return [32, 42, 66];
+        }
+
+        // Dark neutral wordmark -> light wordmark for contrast on the dark tile.
+        if ($max <= 80 && $spread <= 35) {
+            return [248, 250, 252];
+        }
+
+        // Preserve orange and all other real brand colors.
+        return [$r, $g, $b];
+    }
+
+    private function outsideRoundedLogoTile(int $x, int $y, int $width, int $height): bool
+    {
+        $radius = max(5, min(22, (int) round(min($width, $height) * 0.14)));
+
+        $corners = [
+            [$radius, $radius, $x < $radius && $y < $radius],
+            [$width - 1 - $radius, $radius, $x >= $width - $radius && $y < $radius],
+            [$radius, $height - 1 - $radius, $x < $radius && $y >= $height - $radius],
+            [$width - 1 - $radius, $height - 1 - $radius, $x >= $width - $radius && $y >= $height - $radius],
+        ];
+
+        foreach ($corners as [$cx, $cy, $insideCornerBox]) {
+            if (!$insideCornerBox) continue;
+            $dx = $x - $cx;
+            $dy = $y - $cy;
+            return (($dx * $dx) + ($dy * $dy)) > ($radius * $radius);
+        }
+
+        return false;
     }
 
     private function documentTypeLabel(string $type): string

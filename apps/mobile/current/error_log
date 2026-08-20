@@ -1,0 +1,28 @@
+[16-Aug-2026 23:13:15 Europe/Belgrade] PHP Fatal error:  Uncaught RuntimeException: global search initial status expected one anchor, found 2 in /tmp/ald1n-uxm-p3-global-search.9xVIxs/patch.php:28
+Stack trace:
+#0 /tmp/ald1n-uxm-p3-global-search.9xVIxs/patch.php(80): {closure:/tmp/ald1n-uxm-p3-global-search.9xVIxs/patch.php:20}()
+#1 {main}
+  thrown in /tmp/ald1n-uxm-p3-global-search.9xVIxs/patch.php on line 28
+[16-Aug-2026 23:32:46 Europe/Belgrade] PHP Fatal error:  Uncaught ReflectionException: Class "files" does not exist in /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php:1125
+Stack trace:
+#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(1125): ReflectionClass->__construct()
+#1 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(936): Illuminate\Container\Container->build()
+#2 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1078): Illuminate\Container\Container->resolve()
+#3 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(864): Illuminate\Foundation\Application->resolve()
+#4 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1058): Illuminate\Container\Container->make()
+#5 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(1810): Illuminate\Foundation\Application->make()
+#6 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1333): Illuminate\Container\Container->offsetGet()
+#7 /tmp/ald1n-uxm-p3-global-search.IHeY4V/route-cache-state.php(19): Illuminate\Foundation\Application->routesAreCached()
+#8 {main}
+
+Next Illuminate\Contracts\Container\BindingResolutionException: Target class [files] does not exist. in /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php:1127
+Stack trace:
+#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(936): Illuminate\Container\Container->build()
+#1 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1078): Illuminate\Container\Container->resolve()
+#2 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(864): Illuminate\Foundation\Application->resolve()
+#3 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1058): Illuminate\Container\Container->make()
+#4 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php(1810): Illuminate\Foundation\Application->make()
+#5 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1333): Illuminate\Container\Container->offsetGet()
+#6 /tmp/ald1n-uxm-p3-global-search.IHeY4V/route-cache-state.php(19): Illuminate\Foundation\Application->routesAreCached()
+#7 {main}
+  thrown in /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Container/Container.php on line 1127

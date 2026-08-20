@@ -32,7 +32,7 @@ final class PaymentsInventoryDoctorCommand extends Command
         'stock_receipt_items' => ['stock_receipt_id', 'product_id', 'quantity', 'unit_cost_rsd'],
         'inventory_counts' => ['count_number', 'status', 'counted_on', 'total_variance', 'finalized_at'],
         'inventory_count_items' => ['inventory_count_id', 'product_id', 'system_quantity', 'counted_quantity', 'variance'],
-        'stock_movements' => ['stock_receipt_id', 'inventory_count_id', 'product_variant_id', 'event_key', 'metadata_json'],
+        'stock_movements' => ['stock_receipt_id', 'inventory_count_id', 'event_key', 'metadata_json'],
         'order_ips_qr' => ['order_id', 'status', 'payload_text'],
     ];
 
@@ -100,9 +100,8 @@ final class PaymentsInventoryDoctorCommand extends Command
             $paymentCount = DB::table('order_payments')->count();
             $receiptCount = DB::table('stock_receipts')->count();
             $countCount = DB::table('inventory_counts')->count();
-            $lowStock = DB::table('products')->whereNull('deleted_at')->where('variants_enabled', false)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->count();
-            $lowVariantStock = Schema::hasTable('product_variants') ? DB::table('product_variants')->whereNull('deleted_at')->where('status', 'active')->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->count() : 0;
-            $this->info(sprintf('PASS SQL upiti su uspešni. Uplate=%d, ulazi=%d, popisi=%d, nizak lager=%d, niske varijante=%d.', $paymentCount, $receiptCount, $countCount, $lowStock, $lowVariantStock));
+            $lowStock = DB::table('products')->whereNull('deleted_at')->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->count();
+            $this->info(sprintf('PASS SQL upiti su uspešni. Uplate=%d, ulazi=%d, popisi=%d, nizak lager=%d.', $paymentCount, $receiptCount, $countCount, $lowStock));
         } catch (Throwable $exception) {
             $this->error('FAIL SQL upiti nisu uspešni: '.$exception->getMessage());
             return self::FAILURE;

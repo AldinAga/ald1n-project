@@ -88,7 +88,7 @@ final class ManagementReportsDoctorCommand extends Command
                     '  Stavka #%d | porudžbina %s | SKU %s | %s',
                     (int) $row->id,
                     (string) ($row->order_number ?: '#'.(int) $row->order_id),
-                    (string) ($row->variant_sku_snapshot ?: $row->product_sku ?: '—'),
+                    (string) ($row->product_sku ?: '—'),
                     $candidate,
                 ));
             }

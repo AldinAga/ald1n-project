@@ -25,6 +25,18 @@ final class OrderDetailService
         $this->loadOne($order, 'completedBy', 'users', ['id'], $warnings, 'completed_by');
         $this->loadOne($order, 'reopenedBy', 'users', ['id'], $warnings, 'reopened_by');
         $this->loadOne($order, 'delivery', 'order_deliveries', ['id', 'order_id'], $warnings);
+        $this->loadOne($order, 'shipment', 'order_shipments', ['id', 'order_id'], $warnings);
+        if ($order->relationLoaded('shipment') && $order->shipment !== null) {
+            try {
+                $shipmentRelations = [];
+                if ($this->hasColumns('courier_services', ['id'])) $shipmentRelations[] = 'courier';
+                if ($this->hasColumns('users', ['id'])) $shipmentRelations[] = 'recorder';
+                if ($shipmentRelations !== []) $order->shipment->load($shipmentRelations);
+            } catch (Throwable $exception) {
+                $warnings[] = 'Detalji slanja pošiljke trenutno nisu potpuno dostupni.';
+                $this->safeLog($order, 'shipment', $exception);
+            }
+        }
         $this->loadOne($order, 'receivableCase', 'receivable_cases', ['id', 'order_id'], $warnings);
         if ($order->relationLoaded('receivableCase') && $order->receivableCase !== null) {
             try {
@@ -46,7 +58,7 @@ final class OrderDetailService
             }
         }
 
-        $this->loadMany($order, 'items', 'order_items', ['id', 'order_id'], $warnings, ['product' => ['products', ['id']], 'variant' => ['product_variants', ['id']]]);
+        $this->loadMany($order, 'items', 'order_items', ['id', 'order_id'], $warnings, ['product' => ['products', ['id']]]);
         $this->loadMany($order, 'documents', 'order_documents', ['id', 'order_id'], $warnings, [
             'issuer' => ['users', ['id']],
             'supersedes' => ['order_documents', ['id']],

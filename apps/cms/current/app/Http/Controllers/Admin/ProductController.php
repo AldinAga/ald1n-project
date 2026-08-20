@@ -14,6 +14,7 @@ use App\Services\CatalogAccessService;
 use App\Services\CatalogSpecificationFilterService;
 use App\Services\ProductAdminService;
 use App\Services\ProductDeletionService;
+use App\Services\TotalProductPurgeService;
 use App\Services\ProductAnnouncementService;
 use App\Services\ProductTemplateService;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +33,25 @@ final class ProductController extends Controller
     public function index(Request $request): RedirectResponse
     {
         return redirect()->route('catalog.index', $request->query());
+    }
+
+    public function archived(Request $request): View
+    {
+        $query = Product::query()->whereNotNull('deleted_at');
+        $this->catalogAccess->applyManageable($query, $request->user());
+
+        $search = trim((string) $request->query('q', ''));
+        if ($search !== '') {
+            $query->where(function ($nested) use ($search): void {
+                $like = '%'.$search.'%';
+                $nested->where('name', 'like', $like)->orWhere('sku', 'like', $like);
+            });
+        }
+
+        return view('admin.products.archived', [
+            'products' => $query->orderByDesc('deleted_at')->orderByDesc('id')->paginate(30)->withQueryString(),
+            'query' => $search,
+        ]);
     }
 
     public function create(ProductTemplateService $templates): View
@@ -90,7 +110,7 @@ final class ProductController extends Controller
     public function cloneForm(Product $product): View
     {
         $this->authorizeProduct($product);
-        $product->load(['brand', 'line', 'type', 'categories', 'specificationValues', 'images', 'warrantyRules', 'variants.specificationValues', 'variants.images']);
+        $product->load(['brand', 'line', 'type', 'categories', 'specificationValues', 'images', 'warrantyRules']);
         return view('admin.products.clone', ['product' => $product]);
     }
 
@@ -106,8 +126,7 @@ final class ProductController extends Controller
             'copy_notes' => ['nullable', 'boolean'],
             'copy_images' => ['nullable', 'boolean'],
             'copy_warranty_rules' => ['nullable', 'boolean'],
-            'copy_variants' => ['nullable', 'boolean'],
-            'regenerate_name' => ['nullable', 'boolean'],
+                        'regenerate_name' => ['nullable', 'boolean'],
         ]);
         $clone = $service->clone($product, $data, $request->user());
         return redirect()->route('admin.products.edit', $clone)->with('status', 'Artikal je kloniran. Novi SKU je '.$clone->sku.'.');
@@ -179,6 +198,33 @@ final class ProductController extends Controller
         return redirect()->route('catalog.index')->with('status', $message);
     }
 
+    public function totalPurge(Product $product, Request $request, TotalProductPurgeService $purge): RedirectResponse
+    {
+        $this->authorizeProduct($product, $request);
+
+        $data = $request->validate([
+            'total_confirmation' => ['required', 'string', 'max:100'],
+            'total_reason' => ['required', 'string', 'min:10', 'max:1000'],
+            'total_irreversible_confirmation' => ['required', 'string', 'max:100'],
+            'total_retention_acknowledged' => ['accepted'],
+        ]);
+
+        $result = $purge->purge($product, $request->user(), [
+            'confirmation' => (string) $data['total_confirmation'],
+            'reason' => (string) $data['total_reason'],
+            'irreversible_confirmation' => (string) $data['total_irreversible_confirmation'],
+            'retention_acknowledged' => true,
+        ]);
+
+        return redirect()
+            ->route('admin.products.archived')
+            ->with(
+                'status',
+                'Total Product Purge je završen. Artikal je trajno uklonjen iz live CMS-a, '
+                .'poslovna istorija je redigovana bez identiteta artikla, a normalan restore više ne postoji. '
+                .'Disaster-recovery backupi i off-host kopije ostaju zasebna retention granica.'
+            );
+    }
     private function authorizeProduct(Product $product, ?Request $request = null): void
     {
         $user = ($request ?? request())->user();
@@ -198,10 +244,24 @@ final class ProductController extends Controller
             ->orderBy('name')
             ->get();
 
+        // PRODUCT_FORM_TYPE_SCOPED_TAXONOMY_V07
+        $brandTypeIds = \Illuminate\Support\Facades\DB::table('brand_product_type')
+            ->get(['brand_id', 'product_type_id'])
+            ->groupBy('brand_id')
+            ->map(static fn ($rows): array => $rows->pluck('product_type_id')->map(static fn ($id): int => (int) $id)->values()->all())
+            ->all();
+        $lineTypeIds = \Illuminate\Support\Facades\DB::table('product_line_product_type')
+            ->get(['product_line_id', 'product_type_id'])
+            ->groupBy('product_line_id')
+            ->map(static fn ($rows): array => $rows->pluck('product_type_id')->map(static fn ($id): int => (int) $id)->values()->all())
+            ->all();
+
         return view('admin.products.form', [
             'product' => $product,
             'brands' => Brand::query()->where('status', 'active')->orderBy('name')->get(),
             'lines' => ProductLine::query()->where('status', 'active')->orderBy('name')->get(),
+            'brandTypeIds' => $brandTypeIds,
+            'lineTypeIds' => $lineTypeIds,
             'types' => $types,
             'specValues' => $product->exists
                 ? $product->specificationValues->mapWithKeys(fn ($value) => [$value->field_id => $value->value_text ?? $value->value_number ?? ($value->value_boolean === null ? null : (int) $value->value_boolean)])->all()

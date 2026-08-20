@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductLine;
-use App\Models\ProductVariant;
 use App\Models\ProductType;
 use App\Models\SpecificationField;
 use App\Models\StockMovement;
@@ -23,10 +22,10 @@ final class ProductAdminService
 {
     public function __construct(
         private readonly ProductSkuGenerator $skuGenerator,
+        private readonly ProductShortSkuSequenceService $shortSkuSequence,
         private readonly ProductImageService $images,
         private readonly ProductTemplateService $templates,
         private readonly StorageSpecificationService $storageSpecifications,
-        private readonly ProductVariantService $variants,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -102,14 +101,6 @@ final class ProductAdminService
             $categories = array_map('intval', $data['category_ids'] ?? []);
             unset($data['category_ids'], $data['specs'], $data['spec_details'], $data['spec_lists'], $data['spec_capacities'], $data['spec_structured'], $data['images'], $data['regenerate_sku'], $data['regenerate_name']);
 
-            if ((bool) $locked->variants_enabled) {
-                $data['stock_quantity'] = $locked->stock_quantity;
-                $data['low_stock_threshold'] = $locked->low_stock_threshold;
-                $data['price_amount'] = $locked->price_amount;
-                $data['purchase_price_rsd'] = $locked->purchase_price_rsd;
-                $data['price_currency'] = $locked->price_currency;
-                $data['manual_commission_eur'] = $locked->manual_commission_eur;
-            }
             $locked->update($data);
             $stockAfter = (int) $locked->stock_quantity;
             if ($stockAfter !== $stockBefore) {
@@ -139,7 +130,7 @@ final class ProductAdminService
     public function clone(Product $source, array $options, User $user): Product
     {
         return DB::transaction(function () use ($source, $options, $user): Product {
-            $source->loadMissing(['categories', 'specificationValues.field', 'images', 'warrantyRules', 'variants.specificationValues', 'variants.images']);
+            $source->loadMissing(['categories', 'specificationValues.field', 'images', 'warrantyRules']);
             $copyBasic = (bool) ($options['copy_basic'] ?? true);
             $copySpecs = (bool) ($options['copy_specifications'] ?? true);
             $copyPrice = (bool) ($options['copy_price'] ?? true);
@@ -197,12 +188,8 @@ final class ProductAdminService
             $clone->categories()->sync($categoryIds);
             if ($copySpecs) $this->syncSpecifications($clone, $specs, $details, $structured);
             if (!empty($options['copy_images'])) $this->images->cloneImages($source, $clone);
-            $warrantyRuleMap = !empty($options['copy_warranty_rules']) && Schema::hasTable('warranty_rules')
-                ? $this->cloneWarrantyRules($source, $clone, $user)
-                : [];
-            if (!empty($options['copy_variants']) && Schema::hasTable('product_variants')) {
-                $this->cloneVariants($source, $clone, $user, $warrantyRuleMap, !empty($options['copy_images']));
-                $this->variants->syncParent($clone);
+            if (!empty($options['copy_warranty_rules']) && Schema::hasTable('warranty_rules')) {
+                $this->cloneWarrantyRules($source, $clone, $user);
             }
 
             $this->audit->log('product.cloned', 'Kloniran artikal '.$source->sku.' kao '.$clone->sku, $clone, after: $this->snapshot($clone), metadata: ['source_product_id' => $source->id, 'options' => $options]);
@@ -295,30 +282,55 @@ final class ProductAdminService
     /** @param array<string,mixed> $data */
     private function generateSku(array $data, ?int $ignoreId = null): string
     {
-        $parts = [];
-        if (!empty($data['brand_id'])) $parts[] = (string) Brand::query()->whereKey($data['brand_id'])->value('name');
-        if (!empty($data['product_line_id'])) $parts[] = (string) ProductLine::query()->whereKey($data['product_line_id'])->value('name');
-        if (trim((string) ($data['model_name'] ?? '')) !== '') $parts[] = trim((string) $data['model_name']);
-        $parts[] = (string) ($data['name'] ?? 'Artikal');
-        if (!empty($data['product_type_id'])) {
-            $type = ProductType::query()->with(['fields' => fn ($q) => $q->where('status', 'active')->orderByDesc('product_type_fields.show_in_summary')->orderBy('product_type_fields.sort_order')])->find($data['product_type_id']);
-            $added = 0;
-            foreach ($type?->fields ?? [] as $field) {
-                if ($field->isDerivedStorageTotalField()) continue;
-                $value = ((array) ($data['specs'] ?? []))[$field->id] ?? null;
-                if ($value === null || $value === '') continue;
-                if ($field->data_type === 'boolean') $parts[] = (string) $value === '1' ? $field->name : '';
-                else {
-                    $detail = trim((string) (((array) ($data['spec_details'] ?? []))[$field->id] ?? ''));
-                    $parts[] = trim((string) $value.' '.$detail).((string) ($field->unit ?? ''));
-                }
-                if (++$added >= 4) break;
-            }
-            if ($type) $parts[] = $type->name;
-        }
-        return $this->skuGenerator->generate($parts, static fn (string $candidate): bool => Product::query()->whereRaw('LOWER(sku) = ?', [mb_strtolower($candidate)])->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists());
-    }
+        $prefix = '';
 
+        if (!empty($data['brand_id'])) {
+            $prefix = trim((string) Brand::query()->whereKey((int) $data['brand_id'])->value('name'));
+        }
+
+        if ($prefix === '') {
+            $categoryId = null;
+            $categoryIds = array_values(array_filter(
+                array_map('intval', (array) ($data['category_ids'] ?? [])),
+                static fn (int $id): bool => $id > 0,
+            ));
+
+            if ($categoryIds !== []) {
+                $categoryId = $categoryIds[0];
+            } elseif (!empty($data['product_type_id'])) {
+                $resolvedCategoryId = ProductType::query()
+                    ->whereKey((int) $data['product_type_id'])
+                    ->value('category_id');
+                if ($resolvedCategoryId !== null) {
+                    $categoryId = (int) $resolvedCategoryId;
+                }
+            }
+
+            if ($categoryId !== null) {
+                $prefix = trim((string) \App\Models\Category::query()->whereKey($categoryId)->value('name'));
+            }
+        }
+
+        if ($prefix === '') {
+            $prefix = 'ARTIKAL';
+        }
+
+        return $this->shortSkuSequence->generate(
+            $prefix,
+            static function (string $candidate) use ($ignoreId): bool {
+                $productExists = Product::query()
+                    ->whereRaw('LOWER(sku) = ?', [mb_strtolower($candidate)])
+                    ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                    ->exists();
+
+                if ($productExists) {
+                    return true;
+                }
+
+                return false;
+            },
+        );
+    }
     private function uniqueSlug(string $name, ?int $ignoreId = null): string
     {
         $base = Str::slug($name) ?: 'artikal';
@@ -402,54 +414,6 @@ final class ProductAdminService
         return $map;
     }
 
-    /** @param array<int,int> $warrantyRuleMap */
-    private function cloneVariants(Product $source, Product $clone, User $user, array $warrantyRuleMap, bool $copyImages): void
-    {
-        foreach ($source->variants as $sourceVariant) {
-            $sku = $this->skuGenerator->generate(
-                [$clone->sku, $sourceVariant->name],
-                static fn (string $candidate): bool => Product::query()->whereRaw('LOWER(sku) = ?', [mb_strtolower($candidate)])->exists()
-                    || ProductVariant::query()->whereRaw('LOWER(sku) = ?', [mb_strtolower($candidate)])->exists(),
-            );
-            $ruleId = null;
-            if ($sourceVariant->warranty_rule_id !== null) {
-                $sourceRuleId = (int) $sourceVariant->warranty_rule_id;
-                $ruleId = $warrantyRuleMap[$sourceRuleId] ?? null;
-                if ($ruleId === null && WarrantyRule::query()->whereKey($sourceRuleId)->where('scope_type', 'global')->exists()) $ruleId = $sourceRuleId;
-            }
-            $variant = ProductVariant::query()->create([
-                'product_id' => $clone->id,
-                'sku' => $sku,
-                'name' => $sourceVariant->name,
-                'price_amount' => $sourceVariant->price_amount,
-                'price_currency' => $sourceVariant->price_currency,
-                'purchase_price_rsd' => $sourceVariant->purchase_price_rsd,
-                'manual_commission_eur' => $sourceVariant->manual_commission_eur,
-                'stock_quantity' => 0,
-                'low_stock_threshold' => $sourceVariant->low_stock_threshold,
-                'status' => 'draft',
-                'is_default' => (bool) $sourceVariant->is_default,
-                'warranty_rule_id' => $ruleId,
-                'sort_order' => $sourceVariant->sort_order,
-                'created_by' => $user->id,
-                'updated_by' => $user->id,
-            ]);
-            foreach ($sourceVariant->specificationValues as $value) {
-                DB::table('product_variant_spec_values')->insert([
-                    'product_variant_id' => $variant->id,
-                    'field_id' => $value->field_id,
-                    'value_text' => $value->value_text,
-                    'value_detail' => $value->value_detail,
-                    'value_json' => is_array($value->value_json) ? json_encode($value->value_json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $value->getRawOriginal('value_json'),
-                    'value_number' => $value->value_number,
-                    'value_boolean' => $value->value_boolean,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-            if ($copyImages) $this->images->cloneVariantImages($sourceVariant, $variant);
-        }
-    }
 
     /** @return array<string,mixed> */
     private function snapshot(Product $product): array
@@ -459,7 +423,7 @@ final class ProductAdminService
         return $fresh->only([
             'id','sku','name','slug','product_type_id','brand_id','product_line_id','model_name','price_amount','price_currency','purchase_price_rsd',
             'manual_commission_eur','description','notes','stock_quantity','low_stock_threshold','status','deleted_at',
-            'completeness_percent','name_is_manual','source_product_id','variants_enabled','default_variant_id',
+            'completeness_percent','name_is_manual','source_product_id',
         ]) + ['category_ids' => $fresh->categories->pluck('id')->map(fn ($id) => (int) $id)->all()];
     }
 }

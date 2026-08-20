@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useAuth } from '@/features/auth/auth-provider';
+import { resolvePushNotificationNavigation } from '@/features/notifications/notification-routing';
 import { getPushPermissionState, registerCurrentDeviceForPush } from '@/features/notifications/push-service';
 
 const handledResponses = new Set<string>();
@@ -17,27 +18,27 @@ Notifications.setNotificationHandler({
   })
 });
 
-function numberFromUnknown(value: unknown): number | null {
-  const number = typeof value === 'number' ? value : Number(value);
-  return Number.isInteger(number) && number > 0 ? number : null;
-}
-
 function openNotificationResponse(response: Notifications.NotificationResponse): void {
   const requestId = response.notification.request.identifier;
   if (handledResponses.has(requestId)) return;
   handledResponses.add(requestId);
 
   const data = response.notification.request.content.data ?? {};
-  const orderId = numberFromUnknown(data.order_id);
-  if (orderId) {
-    router.push({ pathname: '/order/[id]', params: { id: String(orderId) } });
+  const destination = resolvePushNotificationNavigation(data);
+
+  if (destination.kind === 'order') {
+    router.push({
+      pathname: '/order/[id]',
+      params: { id: String(destination.id) }
+    });
     return;
   }
 
-  const route = typeof data.route === 'string' ? data.route : '';
-  const orderMatch = route.match(/^\/(?:orders?|order)\/(\d+)$/i);
-  if (orderMatch?.[1]) {
-    router.push({ pathname: '/order/[id]', params: { id: orderMatch[1] } });
+  if (destination.kind === 'after_sales_case') {
+    router.push({
+      pathname: '/after-sales/[id]',
+      params: { id: String(destination.id) }
+    });
     return;
   }
 

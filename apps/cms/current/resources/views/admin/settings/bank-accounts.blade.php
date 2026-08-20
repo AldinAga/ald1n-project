@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Žiro računi')
 @section('content')
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovanje'])
 <div class="page-heading"><div><span class="eyebrow">Podešavanja</span><h1>Žiro računi</h1><p>Računi za uplate putem bank transfera i buduće IPS QR porudžbine.</p></div></div>
 <div class="settings-grid bank-grid">
     <section class="panel form-section">

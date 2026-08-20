@@ -19,9 +19,9 @@ final class ManagementReportService
 {
     /** @var array<string,list<string>> */
     private const REQUIRED = [
-        'orders' => ['id', 'source_system', 'supplier_user_id', 'status', 'subtotal_rsd', 'paid_total_rsd', 'eur_rsd_rate', 'created_at', 'completed_at'],
+        'orders' => ['id', 'source_system', 'sales_channel', 'supplier_user_id', 'status', 'subtotal_rsd', 'paid_total_rsd', 'eur_rsd_rate', 'created_at', 'completed_at'],
         'order_items' => ['order_id', 'quantity', 'line_total_rsd', 'purchase_total_rsd_snapshot', 'commission_total_eur_snapshot', 'brand_name_snapshot', 'product_line_name_snapshot', 'product_type_name_snapshot'],
-        'products' => ['id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd', 'variants_enabled'],
+        'products' => ['id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd'],
     ];
 
     public function __construct(
@@ -154,7 +154,7 @@ final class ManagementReportService
             'line' => 'ri.product_line_name_snapshot',
             'type' => 'ri.product_type_name_snapshot',
             'product' => 'ri.product_name',
-            'admin' => "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))),''), u.username, o.supplier_name_snapshot)",
+            'admin' => "CASE WHEN o.sales_channel = 'direct_sale' THEN 'Direktna prodaja' ELSE COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))),''), u.username, o.supplier_name_snapshot) END",
             default => 'ri.brand_name_snapshot',
         };
         $label = "COALESCE(NULLIF(TRIM($column),''),'Bez podatka')";
@@ -227,14 +227,10 @@ final class ManagementReportService
     {
         if (!Schema::hasTable('products')) return $this->emptyInventory();
         $rows = collect();
-        $products = DB::table('products')->whereNull('deleted_at')->where('variants_enabled', false)
+        $products = DB::table('products')->whereNull('deleted_at')
             ->select('id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd', 'created_at')->get();
-        foreach ($products as $product) $rows->push($this->inventoryRow('product', $product->id, $product->sku, $product->name, (int) $product->stock_quantity, $product->purchase_price_rsd, $product->created_at));
-        if (Schema::hasTable('product_variants')) {
-            $variants = DB::table('product_variants as v')->join('products as p', 'p.id', '=', 'v.product_id')
-                ->whereNull('v.deleted_at')->whereNull('p.deleted_at')->where('v.status', '!=', 'archived')
-                ->select('v.id', 'v.sku', DB::raw("CONCAT(p.name, ' · ', v.name) as name"), 'v.stock_quantity', 'v.purchase_price_rsd', 'v.created_at')->get();
-            foreach ($variants as $variant) $rows->push($this->inventoryRow('variant', $variant->id, $variant->sku, $variant->name, (int) $variant->stock_quantity, $variant->purchase_price_rsd, $variant->created_at));
+        foreach ($products as $product) {
+            $rows->push($this->inventoryRow($product->id, $product->sku, $product->name, (int) $product->stock_quantity, $product->purchase_price_rsd, $product->created_at));
         }
         $positive = $rows->where('quantity', '>', 0);
         $aging = ['0_30' => 0.0, '31_60' => 0.0, '61_90' => 0.0, '91_180' => 0.0, 'over_180' => 0.0];
@@ -363,9 +359,7 @@ final class ManagementReportService
             $search = '%'.(string) $filters['q'].'%';
             $query->where(static function ($nested) use ($alias, $search): void {
                 $nested->where($alias.'.product_name', 'like', $search)
-                    ->orWhere($alias.'.product_sku', 'like', $search)
-                    ->orWhere($alias.'.variant_name_snapshot', 'like', $search)
-                    ->orWhere($alias.'.variant_sku_snapshot', 'like', $search);
+                    ->orWhere($alias.'.product_sku', 'like', $search);
             });
         }
     }
@@ -387,23 +381,21 @@ final class ManagementReportService
     }
 
     /** @return array<string,mixed> */
-    private function inventoryRow(string $kind, int $id, string $sku, string $name, int $quantity, mixed $cost, mixed $createdAt): array
+    private function inventoryRow(int $id, string $sku, string $name, int $quantity, mixed $cost, mixed $createdAt): array
     {
         $hasCost = $cost !== null && (float) $cost > 0;
         $movement = Schema::hasTable('stock_movements')
-            ? DB::table('stock_movements')->where($kind === 'variant' ? 'product_variant_id' : 'product_id', $id)
-                ->when($kind === 'product', static fn ($q) => $q->whereNull('product_variant_id'))
+            ? DB::table('stock_movements')->where('product_id', $id)
                 ->where('quantity_change', '>', 0)->latest('created_at')->value('created_at')
             : null;
         $lastSale = Schema::hasTable('stock_movements')
-            ? DB::table('stock_movements')->where($kind === 'variant' ? 'product_variant_id' : 'product_id', $id)
-                ->when($kind === 'product', static fn ($q) => $q->whereNull('product_variant_id'))
+            ? DB::table('stock_movements')->where('product_id', $id)
                 ->where('movement_type', 'sale')->latest('created_at')->value('created_at')
             : null;
         $ageStart = CarbonImmutable::parse($movement ?: $createdAt ?: now());
         $daysSinceSale = $lastSale ? CarbonImmutable::parse($lastSale)->diffInDays(CarbonImmutable::now()) : 9999;
         return [
-            'kind' => $kind, 'id' => $id, 'sku' => $sku, 'name' => $name, 'quantity' => $quantity,
+            'kind' => 'product', 'id' => $id, 'sku' => $sku, 'name' => $name, 'quantity' => $quantity,
             'unit_cost_rsd' => $hasCost ? round((float) $cost, 2) : 0.0,
             'value_rsd' => $hasCost ? round($quantity * (float) $cost, 2) : 0.0,
             'has_cost' => $hasCost, 'age_days' => $ageStart->diffInDays(CarbonImmutable::now()),

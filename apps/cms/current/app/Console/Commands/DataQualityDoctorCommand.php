@@ -14,7 +14,7 @@ final class DataQualityDoctorCommand extends Command
         {--limit=20 : Broj primera po grupi problema}
         {--json= : Sačuvaj JSON izveštaj u storage/app/data-quality}';
 
-    protected $description = 'Proveri duplikate, vlasništvo, fotografije, varijante, kategorije, specifikacije i kompletnost podataka.';
+    protected $description = 'Proveri duplikate, vlasništvo, fotografije, kategorije, specifikacije i kompletnost podataka.';
 
     public function handle(DataQualityService $quality): int
     {

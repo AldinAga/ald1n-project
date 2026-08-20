@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\LegacyAuditLog;
 use App\Models\SecurityEvent;
+use App\Services\SecurityEventReadService;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -17,6 +18,9 @@ use Illuminate\View\View;
 
 final class AuditLogController extends Controller
 {
+    public function __construct(private readonly SecurityEventReadService $securityEvents)
+    {
+    }
     public function __invoke(Request $request): View
     {
         $source = in_array($request->query('source'), ['legacy', 'security'], true) ? (string) $request->query('source') : 'current';
@@ -57,9 +61,7 @@ final class AuditLogController extends Controller
     private function query(Request $request, string $source): Builder
     {
         if ($source === 'security') {
-            $query = SecurityEvent::query()->with('user:id,username,first_name,last_name')->orderByDesc('id');
-            if ($request->filled('action')) $query->where('event_type', 'like', '%'.$request->string('action').'%');
-            if ($request->filled('level')) $query->where('severity', $request->string('level'));
+            return $this->securityEvents->query($request);
         } elseif ($source === 'legacy') {
             $query = LegacyAuditLog::query()->with('user:id,username,first_name,last_name')->orderByDesc('id');
             if ($request->filled('action')) $query->where('action', 'like', '%'.$request->string('action').'%');

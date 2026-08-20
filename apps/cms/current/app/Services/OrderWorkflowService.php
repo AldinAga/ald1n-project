@@ -9,7 +9,6 @@ use App\Models\OrderCommission;
 use App\Models\OrderDelivery;
 use App\Models\OrderPayment;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -44,6 +43,7 @@ final class OrderWorkflowService
     public function cancelOwn(Order $order, User $user, ?string $note = null): Order
     {
         abort_unless((int) $order->user_id === (int) $user->id, 404);
+        $this->assertNotDirectSale($order);
         if (!in_array($order->status, ['new', 'processing', 'cancelled'], true)) {
             throw ValidationException::withMessages(['status' => 'Sopstvena porudžbina može biti otkazana samo dok je nova ili u obradi.']);
         }
@@ -56,9 +56,14 @@ final class OrderWorkflowService
         $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note): Order {
             /** @var Order $locked */
             $locked = Order::query()->with(['items', 'commission'])->lockForUpdate()->findOrFail($order->id);
+            $this->assertNotDirectSale($locked);
             $this->assertNotCompleted($locked);
             $this->assertLaravelOrder($locked);
             $oldStatus = (string) $locked->status;
+
+            if ($newStatus === 'shipped') {
+                throw ValidationException::withMessages(['status' => 'Status Poslata se evidentira isključivo kroz Evidenciju slanja pošiljke.']);
+            }
 
             if ($oldStatus === $newStatus) {
                 if ($newStatus === 'cancelled') $this->returnInventoryOnce($locked, $actor);
@@ -171,6 +176,7 @@ final class OrderWorkflowService
         $updated = DB::transaction(function () use ($order, $paymentStatus, $actor): Order {
             /** @var Order $locked */
             $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $this->assertNotDirectSale($locked);
             $this->assertNotCompleted($locked);
             $this->assertLaravelOrder($locked);
             $before = $locked->payment_status;
@@ -188,9 +194,12 @@ final class OrderWorkflowService
 
     public function updateTracking(Order $order, ?string $trackingNumber, User $actor): Order
     {
+        throw ValidationException::withMessages(['tracking_number' => 'Broj za praćenje se unosi isključivo kroz Evidenciju slanja pošiljke.']);
+
         $updated = DB::transaction(function () use ($order, $trackingNumber, $actor): Order {
             /** @var Order $locked */
             $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $this->assertNotDirectSale($locked);
             $this->assertNotCompleted($locked);
             $this->assertLaravelOrder($locked);
             $before = $locked->tracking_number;
@@ -246,6 +255,7 @@ final class OrderWorkflowService
                     ->lockForUpdate()
                     ->findOrFail($order->id);
 
+                $this->assertNotDirectSale($locked);
                 if ($locked->completed_at !== null) {
                     return $locked->fresh(['user', 'supplier', 'completedBy', 'delivery.confirmer']) ?? $locked;
                 }
@@ -272,7 +282,8 @@ final class OrderWorkflowService
                     $recipientName = trim((string) $locked->shipping_full_name) ?: 'Kupac';
                 }
                 $recipientPhone = trim((string) ($deliveryData['recipient_phone'] ?? $locked->shipping_phone));
-                $reference = trim((string) ($deliveryData['delivery_reference'] ?? $locked->tracking_number));
+                $referenceInput = trim((string) ($deliveryData['delivery_reference'] ?? ''));
+                $reference = $referenceInput !== '' ? $referenceInput : trim((string) $locked->tracking_number);
                 $deliveryNote = trim((string) ($deliveryData['delivery_note'] ?? ''));
                 $completionNote = trim((string) ($deliveryData['completion_note'] ?? $deliveryData['note'] ?? ''));
 
@@ -455,6 +466,7 @@ final class OrderWorkflowService
         $updated = DB::transaction(function () use ($order, $actor, $reason): Order {
             /** @var Order $locked */
             $locked = Order::query()->with(['user', 'supplier'])->lockForUpdate()->findOrFail($order->id);
+            $this->assertNotDirectSale($locked);
             if ($locked->completed_at === null) {
                 throw ValidationException::withMessages(['reason' => 'Porudžbina nije kompletirana i nema potrebe za ponovnim otvaranjem.']);
             }
@@ -569,28 +581,19 @@ final class OrderWorkflowService
             throw ValidationException::withMessages(['status' => 'Porudžbina nema Laravel rezervaciju lagera koja može biti vraćena.']);
         }
 
-        $variantProductIds = [];
-        foreach ($order->items->sortBy(fn ($item) => sprintf('%010d:%010d', (int) $item->product_id, (int) ($item->product_variant_id ?? 0))) as $item) {
+        foreach ($order->items->sortBy(fn ($item) => sprintf('%010d:%010d', (int) $item->product_id, (int) $item->id)) as $item) {
             /** @var Product $product */
             $product = Product::query()->lockForUpdate()->findOrFail($item->product_id);
             $eventKey = sprintf('order:%d:item:%d:cancel-return', $order->id, $item->id);
             if (StockMovement::query()->where('event_key', $eventKey)->exists()) continue;
-            $variant = null;
-            if ((int) ($item->product_variant_id ?? 0) > 0) {
-                $variant = ProductVariant::query()->where('product_id', $product->id)->lockForUpdate()->findOrFail((int) $item->product_variant_id);
-                $before = (int) $variant->stock_quantity;
-                $after = $before + (int) $item->quantity;
-                $variant->forceFill(['stock_quantity' => $after, 'updated_by' => $actor->id])->save();
-                $variantProductIds[$product->id] = true;
-            } else {
-                $before = (int) $product->stock_quantity;
-                $after = $before + (int) $item->quantity;
-                $product->update(['stock_quantity' => $after, 'updated_by' => $actor->id]);
-            }
+
+            $before = (int) $product->stock_quantity;
+            $after = $before + (int) $item->quantity;
+            $product->update(['stock_quantity' => $after, 'updated_by' => $actor->id]);
+
             StockMovement::query()->create([
                 'event_key' => $eventKey,
                 'product_id' => $product->id,
-                'product_variant_id' => $variant?->id,
                 'order_id' => $order->id,
                 'user_id' => $actor->id,
                 'movement_type' => 'cancelled_order',
@@ -599,14 +602,17 @@ final class OrderWorkflowService
                 'quantity_before' => $before,
                 'quantity_after' => $after,
                 'note' => 'Jednokratni povrat lagera za otkazanu porudžbinu '.$order->order_number,
-                'metadata_json' => ['order_item_id' => $item->id, 'variant_sku' => $item->variant_sku_snapshot, 'one_time_return' => true],
+                'metadata_json' => ['order_item_id' => $item->id, 'one_time_return' => true],
             ]);
         }
-        foreach (array_keys($variantProductIds) as $productId) {
-            $aggregate = (int) ProductVariant::query()->where('product_id', $productId)->where('status', 'active')->whereNull('deleted_at')->sum('stock_quantity');
-            Product::query()->whereKey($productId)->update(['stock_quantity' => $aggregate, 'updated_by' => $actor->id]);
-        }
         $order->update(['inventory_state' => 'returned', 'inventory_returned_at' => now(), 'updated_by' => $actor->id]);
+    }
+
+    private function assertNotDirectSale(Order $order): void
+    {
+        if ((string) ($order->sales_channel ?? 'order') === 'direct_sale') {
+            throw ValidationException::withMessages(['order' => 'Direktna prodaja je završena poslovna evidencija. Korekcije se vode isključivo kroz postprodajni tok.']);
+        }
     }
 
     private function assertNotCompleted(Order $order): void

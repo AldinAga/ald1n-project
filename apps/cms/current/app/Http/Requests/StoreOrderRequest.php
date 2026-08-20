@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\Product;
-use App\Models\ProductVariant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,7 +29,6 @@ final class StoreOrderRequest extends FormRequest
             'bank_account_id' => [Rule::requiredIf($this->input('payment_method') === 'bank_transfer'), 'nullable', 'integer', 'exists:bank_accounts,id'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.product_variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:1000'],
         ];
     }
@@ -42,23 +39,11 @@ final class StoreOrderRequest extends FormRequest
             $seen = [];
             foreach ((array) $this->input('items', []) as $index => $item) {
                 $productId = (int) ($item['product_id'] ?? 0);
-                $variantId = (int) ($item['product_variant_id'] ?? 0);
-                $key = $productId.':'.$variantId;
-                if (isset($seen[$key])) $validator->errors()->add('items.'.$index.'.product_id', 'Ista konfiguracija je uneta više puta. Povećaj količinu u postojećem redu.');
-                $seen[$key] = true;
-
-                $product = Product::query()->find($productId);
-                if (!$product) continue;
-                if ((bool) $product->variants_enabled) {
-                    if ($variantId <= 0) {
-                        $validator->errors()->add('items.'.$index.'.product_variant_id', 'Izaberi konfiguraciju proizvoda.');
-                        continue;
-                    }
-                    $valid = ProductVariant::query()->whereKey($variantId)->where('product_id', $productId)->where('status', 'active')->whereNull('deleted_at')->exists();
-                    if (!$valid) $validator->errors()->add('items.'.$index.'.product_variant_id', 'Izabrana konfiguracija nije dostupna za ovaj proizvod.');
-                } elseif ($variantId > 0) {
-                    $validator->errors()->add('items.'.$index.'.product_variant_id', 'Ovaj proizvod nema aktivne varijante.');
+                if ($productId <= 0) continue;
+                if (isset($seen[$productId])) {
+                    $validator->errors()->add('items.'.$index.'.product_id', 'Isti artikal je unet više puta. Povećaj količinu u postojećem redu.');
                 }
+                $seen[$productId] = true;
             }
         });
     }
@@ -68,9 +53,10 @@ final class StoreOrderRequest extends FormRequest
         $items = [];
         foreach ((array) $this->input('items', []) as $item) {
             $productId = (int) ($item['product_id'] ?? 0);
-            $variantId = (int) ($item['product_variant_id'] ?? 0);
             $quantity = (int) ($item['quantity'] ?? 0);
-            if ($productId > 0 && $quantity > 0) $items[] = ['product_id' => $productId, 'product_variant_id' => $variantId > 0 ? $variantId : null, 'quantity' => $quantity];
+            if ($productId > 0 && $quantity > 0) {
+                $items[] = ['product_id' => $productId, 'quantity' => $quantity];
+            }
         }
         $this->merge([
             'items' => $items,

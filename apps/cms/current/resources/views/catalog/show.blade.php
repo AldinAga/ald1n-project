@@ -11,7 +11,7 @@
     $galleryCount = $displayImages->count();
 @endphp
 <a class="back-link" href="{{ route('catalog.index') }}">← Nazad na artikle</a>
-<div class="product-detail">
+<div class="product-detail {{ filled($product->description) ? 'has-desktop-description' : '' }}">
     <section class="gallery-panel product-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
         @if($mainImage)
             <div class="product-gallery-stage" data-gallery-stage>
@@ -103,6 +103,22 @@
         @endif
     </section>
 
+    @if(filled($product->description))
+        <section class="panel product-description-desktop" aria-labelledby="product-description-title">
+            <div class="product-description-heading">
+                <h2 id="product-description-title">Opis artikla</h2>
+                <button
+                    type="button"
+                    class="button button-small button-ghost product-description-copy"
+                    data-product-description-copy
+                >Kopiraj opis</button>
+            </div>
+            <div class="description">{!! nl2br(e((string) $product->description)) !!}</div>
+            <textarea data-product-description-copy-source hidden>{{ (string) $product->description }}</textarea>
+            <span class="product-description-copy-status" data-product-description-copy-status aria-live="polite"></span>
+        </section>
+    @endif
+
     <section class="detail-panel">
         <div class="tags">
             @if($product->type)<span>{{ $product->type->name }}</span>@endif
@@ -115,7 +131,7 @@
         @if($canManageProduct)
             <div class="catalog-detail-management">
                 <a class="button button-primary button-small" href="{{ route('admin.products.edit', $product) }}">Izmeni artikal</a>
-                <a class="button button-ghost button-small" href="{{ route('admin.products.variants.index', $product) }}">Varijante</a>
+
                 @if($canManageImages)<a class="button button-ghost button-small" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
                 <a class="button button-ghost button-small" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
             </div>
@@ -132,78 +148,6 @@
                 <span>{{ $category->name }}</span>
             @endforeach
         </div>
-        @if($product->variants_enabled && $product->activeVariants->isNotEmpty())
-            <section class="product-variant-picker" data-product-variant-picker>
-                <div class="section-heading-row"><div><h2>Izaberi konfiguraciju</h2><p class="muted">Cena, lager i SKU pripadaju konkretnoj varijanti.</p></div></div>
-                <div class="product-variant-grid">
-                    @foreach($product->activeVariants as $variant)
-                        @php
-                            $variantImage = $variant->images->first()?->url;
-                        @endphp
-                        <article class="product-variant-card {{ $variant->is_default ? 'is-default' : '' }}">
-                            @if($variantImage)
-                                <img src="{{ $variantImage }}" alt="{{ $variant->name }}" loading="lazy">
-                            @endif
-
-                            <div>
-                                <div class="tags">
-                                    @if($variant->is_default)
-                                        <span class="success">Podrazumevana</span>
-                                    @endif
-                                    <span>{{ $variant->stock_quantity }} kom.</span>
-                                </div>
-
-                                <h3>{{ $variant->name }}</h3>
-                                <div class="sku">SKU: {{ $variant->sku }}</div>
-
-                                @if($variant->specificationValues->isNotEmpty())
-                                    <ul class="variant-spec-list">
-                                        @foreach($variant->specificationValues as $value)
-                                            @continue(!$value->field || $value->field->status !== 'active')
-                                            @php
-                                                $display = $value->value_text
-                                                    ?? ($value->value_number !== null && $value->field?->requiresWholeGigabytes()
-                                                        ? (string) (int) $value->value_number
-                                                        : $value->value_number)
-                                                    ?? ($value->value_boolean === null ? null : ($value->value_boolean ? 'Da' : 'Ne'));
-                                            @endphp
-                                            @if($display !== null)
-                                                <li>
-                                                    <strong>{{ $value->field?->name }}:</strong>
-                                                    {{ $display }}
-                                                    @if($value->value_detail)
-                                                        {{ $value->value_detail }}
-                                                    @endif
-                                                    @if($value->field?->unit)
-                                                        {{ $value->field->unit }}
-                                                    @endif
-                                                </li>
-                                            @endif
-                                        @endforeach
-                                    </ul>
-                                @endif
-
-                                <div class="variant-card-footer">
-                                    @if($canViewPrices)
-                                        <strong>{{ number_format((float) $variant->price_amount, 2, ',', '.') }} {{ $variant->price_currency }}</strong>
-                                    @endif
-                                    <span>Provizija {{ number_format((float) $variant->commission_eur, 2, ',', '.') }} €</span>
-                                </div>
-
-                                @can('orders.create')
-                                    @if($variant->stock_quantity > 0)
-                                        <a class="button button-primary" href="{{ route('orders.create', ['product' => $product->id, 'variant' => $variant->id]) }}">Poruči ovu varijantu</a>
-                                    @else
-                                        <div class="muted">Trenutno nema na lageru.</div>
-                                    @endif
-                                @endcan
-                            </div>
-                        </article>
-                    @endforeach
-                </div>
-            </section>
-        @endif
-
         @if($product->specificationValues->isNotEmpty())
             <dl class="product-specification-list">
                 @foreach($product->specificationValues->sortBy(fn ($value) => $value->field?->sort_order ?? 0) as $specification)
@@ -230,27 +174,120 @@
                 @endforeach
             </dl>
         @endif
-        <div class="description">{!! nl2br(e((string) $product->description)) !!}</div>
+        @if(filled($product->description))
+            <div class="description product-description-mobile">{!! nl2br(e((string) $product->description)) !!}</div>
+        @endif
         @can('orders.create')
-            @if(!$product->variants_enabled)
-                @if($product->stock_quantity > 0)
-                    <a class="button button-primary button-large" href="{{ route('orders.create', ['product' => $product->id]) }}">Poruči artikal</a>
-                    <div class="alpha-note">Porudžbina transakcijski rezerviše lager.</div>
-                @else
-                    <div class="alpha-note">Artikal trenutno nije na lageru.</div>
-                @endif
+            @if($product->stock_quantity > 0)
+                <a class="button button-primary button-large" href="{{ route('orders.create', ['product' => $product->id]) }}">Poruči artikal</a>
+                <div class="alpha-note">Porudžbina transakcijski rezerviše lager.</div>
             @else
-                <div class="alpha-note">Izaberi konkretnu konfiguraciju iznad. Porudžbina čuva njen SKU, cenu i specifikacije kao snapshot.</div>
+                <div class="alpha-note">Artikal trenutno nije na lageru.</div>
             @endif
         @endcan
     </section>
 </div>
 </div>
-@endsection
+@if($canRecordDirectSale)
+<section class="panel direct-sale-card" aria-labelledby="direct-sale-title">
+    <div class="direct-sale-heading">
+        <div>
+            <span class="eyebrow">SUPER ADMINISTRATOR</span>
+            <h2 id="direct-sale-title">Direktna prodaja</h2>
+            <p>Evidentira prodaju koju je Super Administrator direktno realizovao sa krajnjim kupcem, bez SubAgenta i bez provizije. Lager se umanjuje, uplata se evidentira kao verifikovana i artikal kao lično dostavljen od strane Super Administratora.</p>
+        </div>
+        <span class="direct-sale-badge">Direktno · bez provizije</span>
+    </div>
 
-@push('styles')
-<style>.product-variant-picker{margin:22px 0}.product-variant-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.product-variant-card{display:grid;grid-template-columns:84px 1fr;gap:12px;border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--panel-2)}.product-variant-card.is-default{outline:2px solid rgba(82,170,255,.35)}.product-variant-card>img{width:84px;height:84px;object-fit:contain;background:var(--panel-2);padding:3px;border-radius:12px}.product-variant-card h3{margin:.35rem 0}.variant-spec-list{padding-left:18px;margin:8px 0;font-size:.9rem}.variant-card-footer{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap}@media(max-width:640px){.product-variant-card{grid-template-columns:1fr}.product-variant-card>img{width:100%;height:160px}}</style>
-@endpush
+    <form
+        method="post"
+        action="{{ route('admin.products.direct-sale', $product) }}"
+        class="direct-sale-form"
+        data-direct-sale-confirm="Evidentirati direktnu prodaju? Lager će biti umanjen, uplata evidentirana kao verifikovana, a artikal označen kao lično dostavljen krajnjem kupcu od strane Super Administratora."
+    >
+        @csrf
+        <input type="hidden" name="idempotency_key" value="{{ $directSaleIdempotencyKey }}">
+
+        <div class="direct-sale-grid">
+            <label class="direct-sale-field">
+                <span>Ime krajnjeg kupca · opciono</span>
+                <input
+                    type="text"
+                    name="buyer_name"
+                    maxlength="190"
+                    value="{{ old('buyer_name') }}"
+                    placeholder="Ako ne uneseš: Krajnji kupac"
+                    autocomplete="name"
+                >
+            </label>
+
+            <label class="direct-sale-field">
+                <span>Telefon kupca · opciono</span>
+                <input
+                    type="tel"
+                    name="buyer_phone"
+                    maxlength="80"
+                    value="{{ old('buyer_phone') }}"
+                    placeholder="Opciono"
+                    autocomplete="tel"
+                >
+            </label>
+
+            <label class="direct-sale-field">
+                <span>Količina</span>
+                <input type="number" name="quantity" min="1" max="1000" step="1" value="{{ old('quantity', 1) }}" required>
+            </label>
+
+            <label class="direct-sale-field">
+                <span>Stvarna prodajna cena · RSD / kom</span>
+                <input
+                    type="number"
+                    name="sale_price_rsd"
+                    min="0.01"
+                    max="9999999999.99"
+                    step="0.01"
+                    inputmode="decimal"
+                    value="{{ old('sale_price_rsd') }}"
+                    placeholder="Obavezno unesi ostvarenu cenu"
+                    required
+                >
+            </label>
+
+            <label class="direct-sale-field">
+                <span>Način plaćanja</span>
+                <select name="payment_method" required>
+                    <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>Gotovina</option>
+                    <option value="card" @selected(old('payment_method') === 'card')>Kartica</option>
+                    <option value="bank_transfer" @selected(old('payment_method') === 'bank_transfer')>Prenos na račun</option>
+                    <option value="other" @selected(old('payment_method') === 'other')>Drugo</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="direct-sale-actions">
+            <div class="direct-sale-note">
+                <strong>Direktna prodaja Super Administratora</strong>
+                <span>Nalog kupca nije potreban. Ime i telefon su opcioni podaci za evidenciju, isporuku i garanciju. SubAgent i provizija se ne kreiraju.</span>
+            </div>
+            <button class="button button-primary" type="submit">Evidentiraj prodaju</button>
+        </div>
+    </form>
+
+    <script>
+    (() => {
+        const form = document.querySelector('.direct-sale-form[data-direct-sale-confirm]');
+        if (!form) return;
+        form.addEventListener('submit', (event) => {
+            const message = form.dataset.directSaleConfirm || 'Evidentirati direktnu prodaju?';
+            if (!window.confirm(message)) event.preventDefault();
+        });
+    })();
+    </script>
+</section>
+
+
+@endif
+@endsection
 
 @push('scripts')
 <script>
@@ -484,6 +521,73 @@
         });
 
         updateImage(index, false);
+    });
+})();
+</script>
+@endpush
+
+@push('scripts')
+<script>
+(() => {
+    const button = document.querySelector('[data-product-description-copy]');
+    const source = document.querySelector('[data-product-description-copy-source]');
+    const status = document.querySelector('[data-product-description-copy-status]');
+
+    if (!button || !(source instanceof HTMLTextAreaElement)) return;
+
+    const fallbackCopy = (text) => {
+        const input = document.createElement('textarea');
+        input.value = text;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+
+        let copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch {
+            copied = false;
+        }
+
+        input.remove();
+        return copied;
+    };
+
+    let resetTimer = null;
+    const setState = (label, message) => {
+        button.textContent = label;
+        if (status) status.textContent = message;
+
+        if (resetTimer) window.clearTimeout(resetTimer);
+        resetTimer = window.setTimeout(() => {
+            button.textContent = 'Kopiraj opis';
+            if (status) status.textContent = '';
+        }, 1400);
+    };
+
+    button.addEventListener('click', async () => {
+        const text = source.value;
+        if (!text) return;
+
+        let copied = false;
+
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+            } else {
+                copied = fallbackCopy(text);
+            }
+        } catch {
+            copied = fallbackCopy(text);
+        }
+
+        setState(
+            copied ? 'Kopirano' : 'Pokušaj ponovo',
+            copied ? 'Opis artikla je kopiran.' : 'Kopiranje opisa nije uspelo.',
+        );
     });
 })();
 </script>

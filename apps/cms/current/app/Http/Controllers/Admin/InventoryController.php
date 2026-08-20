@@ -38,8 +38,7 @@ final class InventoryController extends Controller
         try {
             $baseQuery = Product::query()
                 ->whereNull('deleted_at')
-                ->where('variants_enabled', false)
-                ->when($q !== '', static fn ($query) => $query->where(static fn ($inner) => $inner
+                                ->when($q !== '', static fn ($query) => $query->where(static fn ($inner) => $inner
                     ->where('sku', 'like', '%'.$q.'%')
                     ->orWhere('name', 'like', '%'.$q.'%')));
 
@@ -52,7 +51,7 @@ final class InventoryController extends Controller
             return view('admin.inventory.index', [
                 'products' => $products,
                 'matchingProductCount' => $matchingProductCount,
-                'lowStock' => Product::query()->whereNull('deleted_at')->where('variants_enabled', false)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->orderBy('stock_quantity')->limit(50)->get(),
+                'lowStock' => Product::query()->whereNull('deleted_at')->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->orderBy('stock_quantity')->limit(50)->get(),
                 'receipts' => StockReceipt::query()->with('poster')->latest('id')->limit(15)->get(),
                 'counts' => InventoryCount::query()->with('finalizer')->latest('id')->limit(15)->get(),
                 'movements' => StockMovement::query()->with(['product', 'user', 'stockReceipt', 'inventoryCount'])->latest('id')->limit(30)->get(),
@@ -124,7 +123,7 @@ final class InventoryController extends Controller
         }
 
         try {
-            $rows = Product::query()->whereNull('deleted_at')->where('variants_enabled', false)->orderBy('sku')->get(['sku', 'name', 'stock_quantity', 'low_stock_threshold', 'status']);
+            $rows = Product::query()->whereNull('deleted_at')->orderBy('sku')->get(['sku', 'name', 'stock_quantity', 'low_stock_threshold', 'status']);
             $stream = fopen('php://temp', 'w+');
             if ($stream === false) {
                 throw new \RuntimeException('Privremeni CSV stream nije dostupan.');

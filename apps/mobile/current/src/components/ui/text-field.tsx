@@ -1,38 +1,81 @@
-import { forwardRef } from 'react';
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import {
+  forwardRef,
+  type ComponentProps,
+  type ComponentRef,
+} from 'react';
+import { Input, Text, YStack } from 'tamagui';
 
-export const TextField = forwardRef<TextInput, TextInputProps & { label: string; error?: string }>(
-  function TextField({ label, error, style, ...props }, ref) {
+import { radii, spacing, typography } from '@/constants/theme';
+
+type TamaguiInputProps = ComponentProps<typeof Input>;
+
+export type TextFieldProps = Omit<TamaguiInputProps, 'ref'> & {
+  label: string;
+  error?: string;
+};
+
+type TextFieldRef = ComponentRef<typeof Input>;
+
+export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
+  function TextField(
+    {
+      label,
+      error,
+      style,
+      placeholderTextColor = '$placeholderColor',
+      selectionColor = '$brand',
+      ...inputProps
+    },
+    ref,
+  ) {
     return (
-      <View style={styles.wrapper}>
-        <Text style={styles.label}>{label}</Text>
-        <TextInput
+      <YStack gap={spacing.sm}>
+        <Text
+          paddingHorizontal={spacing.xs}
+          fontSize={typography.label.fontSize}
+          lineHeight={typography.label.lineHeight}
+          fontWeight="800"
+          color="$color"
+        >
+          {label}
+        </Text>
+
+        <Input
+          unstyled
           ref={ref}
-          placeholderTextColor={colors.muted}
-          selectionColor={colors.primary}
-          style={[styles.input, error && styles.inputError, style]}
-          {...props}
+          minHeight={56}
+          borderWidth={1}
+          borderColor={error ? '$danger' : '$line'}
+          borderRadius={radii.xl}
+          backgroundColor="$surfaceContainer"
+          color="$color"
+          paddingHorizontal={spacing.lg}
+          fontSize={16}
+          transition="100ms"
+          focusStyle={{
+            borderColor: error ? '$danger' : '$brand',
+            backgroundColor: '$surface',
+          }}
+          style={style}
+          {...inputProps}
+          placeholderTextColor={placeholderTextColor}
+          selectionColor={selectionColor}
         />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-      </View>
+
+        {error ? (
+          <Text
+            paddingHorizontal={spacing.xs}
+            fontSize={typography.small.fontSize}
+            lineHeight={typography.small.lineHeight}
+            fontWeight="600"
+            color="$danger"
+          >
+            {error}
+          </Text>
+        ) : null}
+      </YStack>
     );
-  }
+  },
 );
 
-const styles = StyleSheet.create({
-  wrapper: { gap: spacing.sm },
-  label: { ...typography.label, color: colors.ink, paddingHorizontal: spacing.xs },
-  input: {
-    minHeight: 56,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surfaceContainer,
-    color: colors.ink,
-    paddingHorizontal: spacing.lg,
-    fontSize: 16
-  },
-  inputError: { borderColor: colors.danger },
-  error: { ...typography.small, color: colors.danger, paddingHorizontal: spacing.xs }
-});
+TextField.displayName = 'TextField';

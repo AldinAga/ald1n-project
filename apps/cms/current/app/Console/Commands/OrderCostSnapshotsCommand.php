@@ -113,7 +113,7 @@ final class OrderCostSnapshotsCommand extends Command
                 return [
                     '#'.(int) $row->id,
                     (string) ($row->order_number ?: '#'.(int) $row->order_id),
-                    (string) ($row->variant_sku_snapshot ?: $row->product_sku ?: '—'),
+                    (string) ($row->product_sku ?: '—'),
                     (int) $row->quantity,
                     (string) ($row->cost_source_snapshot ?: 'NULL'),
                     $candidate,

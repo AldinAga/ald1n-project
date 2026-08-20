@@ -180,7 +180,7 @@ $check('reports view ima render marker i bezbedne URL-ove', str_contains($report
 $check('reports export vraća kontrolisani 503', str_contains($reportController, 'unavailableExport') && str_contains($reportController, '503'));
 $check('reports doctor izvršava repair i stvarne SQL upite', str_contains($reportsDoctor, "app:reports-doctor") && str_contains($reportsDoctor, "Artisan::call('migrate'") && str_contains($reportsDoctor, 'Reports SQL upiti su uspešni'));
 $check('reports doctor renderuje controller Blade i layout', str_contains($reportsDoctor, '--render') && str_contains($reportsDoctor, 'renderReports') && str_contains($reportsDoctor, 'reports-page-ready') && str_contains($reportsDoctor, 'kompletan authenticated layout'));
-$check('reports logging je best-effort', str_contains($reportController, 'safeLog') && str_contains($reportController, 'Logging must never replace')); 
+$check('reports logging je best-effort', str_contains($reportController, 'safeLog') && str_contains($reportController, 'Logging must never replace'));
 $check('beta1.2 repair migracija je nedestruktivna', str_contains($reportsRepairMigration, 'repairOrderDocuments') && str_contains($reportsRepairMigration, 'repairReportPermissions') && str_contains($reportsRepairMigration, 'namerno nedestruktivna'));
 
 $layout = (string) file_get_contents($root.'/resources/views/layouts/app.blade.php');
@@ -248,7 +248,7 @@ foreach (['commissions.view_own', 'orders.reassign', 'orders.internal_notes', 'n
 }
 $check('provizije imaju odobravanje isplatu storniranje i istoriju', str_contains($commissionWorkflow, 'assertTransition') && str_contains($commissionWorkflow, 'markPaidBulk') && str_contains($commissionWorkflow, 'commission_status_history'));
 $check('masovna isplata koristi transakciju row lock i batch', str_contains($commissionWorkflow, 'DB::transaction') && str_contains($commissionWorkflow, 'lockForUpdate') && str_contains($commissionWorkflow, 'CommissionPaymentBatch::query()->create'));
-$check('korisnik vidi samo svoje provizije i minimum 20 EUR', str_contains($commissionReport, "where('user_id', \$user->id)") && str_contains($ownCommissionView, 'nikada nije manja od 20 EUR') && !str_contains($ownCommissionView, '50 EUR'));
+$check('korisnik vidi samo svoje provizije i podrazumevanih 10 procenata', str_contains($commissionReport, "where('user_id', \$user->id)") && str_contains($ownCommissionView, 'Podrazumevana provizija je 10% vrednosti artikla po komadu.') && !str_contains($ownCommissionView, '20 EUR') && !str_contains($ownCommissionView, '50 EUR'));
 $check('interne napomene nisu u javnom timeline-u', str_contains($timelineService, 'if ($includeInternal)') && str_contains($orderOperations, 'addInternalNote'));
 $check('ponovna dodela je ograničena na SuperAdministratora', str_contains($orderOperations, "abort_unless(\$actor->hasRole('superadmin')") && str_contains($orderOperations, 'OrderAssignment::query()->create'));
 $check('preuzimanje i rokovi porudžbine imaju audit i obaveštenja', str_contains($orderOperations, 'order.accepted') && str_contains($orderOperations, 'order.deadlines_changed') && str_contains($orderOperations, 'Ažurirani su rokovi porudžbine'));
@@ -613,7 +613,15 @@ $check('beta7.15 GAR poslovni broj je registrovan', str_contains((string) file_g
 $check('beta7.15 garancija čuva snapshot kupca artikla uslova i serijskih brojeva', str_contains($warrantyService, 'customer_name_snapshot') && str_contains($warrantyService, 'product_name_snapshot') && str_contains($warrantyService, 'terms_snapshot') && str_contains($warrantyService, 'serial_numbers_json'));
 $check('beta7.15 preventivno održavanje generiše sledeći termin', str_contains($warrantyService, 'maintenance_completed') && str_contains($warrantyService, 'next_maintenance_at') && str_contains($warrantyService, "'status' => 'due'"));
 $check('beta7.15 zakazivanje ne menja vreme tokom provere datuma', str_contains($warrantyService, '$scheduledAt->copy()->startOfDay()'));
-$check('beta7.15 backfill bira samo stavke bez garancije', str_contains($warrantyBackfill, "whereDoesntHave('warranty')") && str_contains($warrantyAdminController, "whereDoesntHave('warranty')"));
+// ALD1N WARRANTY BACKFILL STATIC CHECK V2
+// Canonical duplicate-safe backfill query moved to WarrantyAdminService in Mobile v0.6 Warranties Admin Batch 2A V3.
+$check('beta7.15 backfill bira samo stavke bez garancije',
+    is_file(__DIR__.'/../app/Services/WarrantyAdminService.php')
+    && str_contains(
+        (string) file_get_contents(__DIR__.'/../app/Services/WarrantyAdminService.php'),
+        "whereDoesntHave('warranty')"
+    )
+);
 $check('beta7.15 PDF garantni list prikazuje ključne snapshot podatke', str_contains($warrantyPdf, 'Garantni list') && str_contains($warrantyPdf, 'Serijski broj') && str_contains($warrantyPdf, 'Uslovi garancije') && str_contains($warrantyPdf, 'Preventivno održavanje'));
 $check('beta7.15 korisnički i administratorski prikazi postoje', str_contains($warrantyViews, 'Moje garancije') && str_contains($warrantyViews, 'Novo pravilo garancije') && str_contains($warrantyViews, 'Preventivno održavanje'));
 $check('beta7.15 rute Gates i administratorski scope štite garancije', str_contains($web, 'permission:warranties.view_own') && str_contains($web, 'permission:warranties.manage') && str_contains($provider, "Gate::define('warranties.view_own'") && str_contains($provider, "Gate::define('warranties.manage'") && str_contains($warrantyUserController, "supplier_user_id") && str_contains($warrantyFeatureTest, 'warranty-other-admin'));
@@ -731,28 +739,25 @@ $check('beta7.19 doctor proverava šemu rute i kompletnost', str_contains($smart
 $check('beta7.19 feature test pokriva naziv klon i bulk', str_contains($smartFeature, 'test_template_generates_name_defaults_and_completeness') && str_contains($smartFeature, 'test_clone_has_new_sku_zero_stock_and_does_not_copy_unchecked_sections') && str_contains($smartFeature, 'test_bulk_brand_change_clears_line_from_previous_brand'));
 
 
-$productVariantsMigration = (string) file_get_contents($root.'/database/migrations/2026_07_31_000029_create_product_variants_beta7_20.php');
-$productVariantService = (string) file_get_contents($root.'/app/Services/ProductVariantService.php');
-$productVariantRequest = (string) file_get_contents($root.'/app/Http/Requests/ProductVariantRequest.php');
-$productVariantController = (string) file_get_contents($root.'/app/Http/Controllers/Admin/ProductVariantController.php');
-$productVariantsView = (string) file_get_contents($root.'/resources/views/admin/products/variants.blade.php');
-$productVariantFields = (string) file_get_contents($root.'/resources/views/admin/products/partials/variant-fields.blade.php');
-$productVariantDoctor = (string) file_get_contents($root.'/app/Console/Commands/ProductVariantsDoctorCommand.php');
+$productVariantsHistoricalMigration = (string) file_get_contents($root.'/database/migrations/2026_07_31_000029_create_product_variants_beta7_20.php');
+$productVariantsDecommissionMigrations = glob($root.'/database/migrations/*decommission_product_variants.php') ?: [];
+$productVariantsDecommissionMigration = count($productVariantsDecommissionMigrations) === 1 ? (string) file_get_contents($productVariantsDecommissionMigrations[0]) : '';
 $productVariantFeature = (string) file_get_contents($root.'/tests/Feature/ProductVariantsWorkflowTest.php');
-$check('beta7.20 migracija uvodi varijante specifikacije slike i snapshot', str_contains($productVariantsMigration, 'product_variants') && str_contains($productVariantsMigration, 'product_variant_spec_values') && str_contains($productVariantsMigration, 'variant_attributes_json'));
-$check('beta7.20 migracija je recovery-safe za MariaDB i proširuje istorijske module', str_contains($productVariantsMigration, 'addColumn') && str_contains($productVariantsMigration, 'extendAfterSales') && str_contains($productVariantsMigration, 'extendWarranties'));
-$check('beta7.20 varijanta ima SKU cenu lager status default i garanciju', str_contains($productVariantService, 'stock_quantity') && str_contains($productVariantService, 'is_default') && str_contains($productVariantService, 'warranty_rule_id'));
-$check('beta7.20 default preferira aktivnu varijantu i roditelj sabira aktivan lager', str_contains($productVariantService, "where('status', 'active')") && str_contains($productVariantService, 'syncParentLocked'));
-$check('beta7.20 serverska validacija štiti SKU i korelisane specifikacije', str_contains($productVariantRequest, "Rule::unique('product_variants'") && str_contains($productVariantRequest, 'specification_option_dependencies'));
-$check('beta7.20 admin ima CRUD lager slike i default varijantu', str_contains($productVariantController, 'adjustStock') && str_contains($productVariantController, 'setDefault') && str_contains($productVariantController, 'uploadVariant'));
-$check('beta7.20 UI filtrira zavisne specifikacije varijante', str_contains($productVariantsView, 'data-variant-form') && str_contains($productVariantFields, 'data-parent-option-ids'));
-$check('beta7.20 porudžbina čuva variant snapshot i vraća isti lager', str_contains((string) file_get_contents($root.'/app/Services/OrderService.php'), 'variant_sku_snapshot') && str_contains((string) file_get_contents($root.'/app/Services/OrderWorkflowService.php'), 'product_variant_id'));
-$check('beta7.20 postprodaja garancija i stock movement nose variant id', str_contains((string) file_get_contents($root.'/app/Services/AfterSalesActionService.php'), "'product_variant_id' => \$variant?->id") && str_contains((string) file_get_contents($root.'/app/Services/WarrantyService.php'), "'product_variant_id' => \$item->product_variant_id") && str_contains((string) file_get_contents($root.'/app/Models/StockMovement.php'), 'product_variant_id'));
-$check('beta7.20 clone kopira varijante bez lagera i sa novim SKU', str_contains((string) file_get_contents($root.'/app/Services/ProductAdminService.php'), 'cloneVariants') && str_contains((string) file_get_contents($root.'/resources/views/admin/products/clone.blade.php'), 'copy_variants'));
-$check('beta7.20 parent inventory korekcija je blokirana', str_contains((string) file_get_contents($root.'/app/Services/InventoryService.php'), 'Artikal koristi varijante') && str_contains((string) file_get_contents($root.'/app/Services/AdvancedInventoryService.php'), 'konkretnoj varijanti'));
-$check('beta7.20 filter i pretraga vide aktivne varijante', str_contains((string) file_get_contents($root.'/app/Services/CatalogSpecificationFilterService.php'), 'activeVariants.specificationValues') && str_contains((string) file_get_contents($root.'/app/Services/CatalogQueryService.php'), 'orWhereHas(\'activeVariants\''));
-$check('beta7.20 doctor proverava SKU default snapshot i aggregate', str_contains($productVariantDoctor, 'app:product-variants-doctor') && str_contains($productVariantDoctor, 'aggregateMismatch'));
-$check('beta7.20 feature i smoke testovi postoje', str_contains($productVariantFeature, 'test_admin_can_create_variant_and_parent_receives_aggregate_stock') && is_file($root.'/bin/product-variant-smoke.php'));
+$productVariantUiContract = (string) file_get_contents($root.'/tests/Unit/ProductVariantsUiContractTest.php');
+$check('beta7.20 istorijska migracija ostaje sačuvana kao migration history', str_contains($productVariantsHistoricalMigration, 'product_variants') && str_contains($productVariantsHistoricalMigration, 'product_variant_spec_values') && str_contains($productVariantsHistoricalMigration, 'intentionally preserved'));
+$check('Product Variants forward decommission migracija postoji jednom', count($productVariantsDecommissionMigrations) === 1 && str_contains($productVariantsDecommissionMigration, 'assertPurgeSafety') && str_contains($productVariantsDecommissionMigration, 'dropVariantSchema'));
+$check('Product Variants decommission migracija ima recovery-safe rollback rekonstrukciju', str_contains($productVariantsDecommissionMigration, 'restoreVariantSchema') && str_contains($productVariantsDecommissionMigration, 'restoreExternalColumns') && str_contains($productVariantsDecommissionMigration, 'restoreForeignKeys'));
+$check('Product Variants runtime klase su fizički uklonjene', !is_file($root.'/app/Models/ProductVariant.php') && !is_file($root.'/app/Models/ProductVariantSpecValue.php') && !is_file($root.'/app/Services/ProductVariantService.php') && !is_file($root.'/app/Http/Requests/ProductVariantRequest.php') && !is_file($root.'/app/Http/Controllers/Admin/ProductVariantController.php') && !is_file($root.'/app/Console/Commands/ProductVariantsDoctorCommand.php'));
+$check('Product Variants admin UI fajlovi su fizički uklonjeni', !is_file($root.'/resources/views/admin/products/variants.blade.php') && !is_file($root.'/resources/views/admin/products/partials/variant-fields.blade.php'));
+$check('Porudžbine su product-only bez variant identiteta i snapshotova', !str_contains((string) file_get_contents($root.'/app/Services/OrderService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Services/OrderWorkflowService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Http/Requests/StoreOrderRequest.php'), 'variant') && !str_contains((string) file_get_contents($root.'/resources/views/orders/create.blade.php'), 'variant'));
+$check('Postprodaja garancija i stock movement su product-only', !str_contains((string) file_get_contents($root.'/app/Services/AfterSalesActionService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Services/WarrantyService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Models/StockMovement.php'), 'variant'));
+$check('Inventory je product-only bez variants_enabled grane', !str_contains((string) file_get_contents($root.'/app/Services/InventoryService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Services/AdvancedInventoryService.php'), 'variant'));
+$check('Kataloški query filter i detalj su product-only', !str_contains((string) file_get_contents($root.'/app/Services/CatalogSpecificationFilterService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Services/CatalogQueryService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Http/Controllers/CatalogController.php'), 'variant') && !str_contains((string) file_get_contents($root.'/resources/views/catalog/show.blade.php'), 'variant'));
+$check('Product slike i model su product-only', !str_contains((string) file_get_contents($root.'/app/Services/ProductImageService.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Models/Product.php'), 'variant') && !str_contains((string) file_get_contents($root.'/app/Models/ProductImage.php'), 'variant'));
+$check('Clone vise ne nudi niti obrađuje kopiranje varijanti', !str_contains((string) file_get_contents($root.'/resources/views/admin/products/clone.blade.php'), 'copy_variants') && !str_contains((string) file_get_contents($root.'/app/Http/Controllers/Admin/ProductController.php'), "'copy_variants'") && !str_contains((string) file_get_contents($root.'/app/Services/ProductAdminService.php'), 'copy_variants'));
+$check('Product Variants Feature test sada proverava retired route i uklonjenu šemu', str_contains($productVariantFeature, 'test_retired_variant_route_is_not_available_and_schema_is_removed') && str_contains($productVariantFeature, "assertFalse(Schema::hasTable('product_variants'))"));
+$check('Product Variants UI contract sada zahteva potpuno uklonjen variant UI', str_contains($productVariantUiContract, 'assertFileDoesNotExist') && str_contains($productVariantUiContract, "assertStringNotContainsString('product_variant_id'"));
+$check('Product Variants decommission smoke postoji kao završni regresioni guard', str_contains((string) file_get_contents($root.'/bin/product-variant-smoke.php'), 'Product Variants Decommission smoke') && str_contains((string) file_get_contents($root.'/bin/product-variant-smoke.php'), 'Aktivni CMS runtime nema Product Variants signal'));
 
 $check('beta7.17 feature test pokriva dedupe rate zatvaranje i UI regresiju', str_contains($receivablesTest, 'test_automation_creates_case_and_deduplicated_due_reminder') && str_contains($receivablesTest, 'test_verified_payments_allocate_oldest_installments_and_close_case') && str_contains($receivablesTest, 'test_dropdown_and_checkbox_regression_markers_are_present'));
 
@@ -773,7 +778,15 @@ $check('beta7.21 PDF upravljačkog izveštaja postoji', str_contains($management
 $check('beta7.21 raspored ima retry dedupe i zasebne primaoce', str_contains($reportScheduleService, 'dedupe_key') && str_contains($reportScheduleService, "status' => 'retry'") && str_contains($reportScheduleService, 'recipient_email'));
 $check('beta7.21 ekran je bezbedan pre migracije', str_contains($managementController, "Schema::hasTable('report_schedules')") && str_contains($managementController, "Schema::hasColumn('order_items'"));
 $check('beta7.21 UI ima CSV PDF rasporede i cost coverage', str_contains($managementView, 'reports.management.csv') && str_contains($managementView, 'report-schedules.store') && str_contains($managementView, 'Pokrivenost nabavne cene'));
-$check('beta7.22.1 management analytics koristi aktivnu temu bez belog fallback-a', str_contains($managementView, 'background:var(--panel)') && str_contains($managementView, 'border:1px solid var(--line)') && !str_contains($managementView, '--panel-bg') && !str_contains($managementView, '--border-color'));
+$phase7ManagementThemeCss = (string) file_get_contents(
+    dirname(__DIR__).'/public/assets/css/ald1n-ui-v2.css',
+);
+$check(
+    'beta7.22.1 management analytics koristi aktivnu temu bez belog fallback-a',
+    preg_match('/\.analytics-card\s*\{[^}]*background\s*:\s*var\(--panel\)/s', $phase7ManagementThemeCss) === 1
+        && preg_match('/\.analytics-bar\s*\{[^}]*background\s*:\s*var\(--panel-2\)/s', $phase7ManagementThemeCss) === 1
+        && !str_contains($phase7ManagementThemeCss, 'background:var(--panel-bg)')
+);
 $check('beta7.22.1 CSS kompatibilni aliasi postoje', str_contains($css, '--accent:var(--primary)') && str_contains($css, '--border:var(--line)') && str_contains($css, '--panel-bg:var(--panel)') && str_contains($css, '--surface-soft:var(--panel-2)'));
 $check('beta7.21 feature test pokriva ekran export i raspored', str_contains($managementFeature, 'test_superadministrator_can_open_management_dashboard_and_exports') && str_contains($managementFeature, 'test_schedule_is_created_and_manual_run_is_deduplicated_per_request'));
 
@@ -805,9 +818,9 @@ $catalogDetailView = (string) file_get_contents($root.'/resources/views/catalog/
 $catalogDetailFeature = (string) file_get_contents($root.'/tests/Feature/CatalogDetailPageTest.php');
 $catalogDetailSmoke = (string) file_get_contents($root.'/bin/catalog-detail-smoke.php');
 $systemHealthService = (string) file_get_contents($root.'/app/Services/SystemHealthService.php');
-$check('beta7.23.1 catalog detail nema problematične inline Blade lance', !str_contains($catalogDetailView, '@foreach($variant->specificationValues as $value)@php') && !str_contains($catalogDetailView, "@can('orders.create')@if") && !str_contains($catalogDetailView, '@php($variantImage='));
+$check('beta7.23.1 catalog detail je product-only i nema retired variant Blade markere', !str_contains($catalogDetailView, 'variant') && !str_contains($catalogDetailView, "@can('orders.create')@if"));
 $check('beta7.23.1 catalog detail Blade direktive su izbalansirane', substr_count($catalogDetailView, '@foreach') === substr_count($catalogDetailView, '@endforeach') && substr_count($catalogDetailView, '@if') === substr_count($catalogDetailView, '@endif') && substr_count($catalogDetailView, '@can') === substr_count($catalogDetailView, '@endcan'));
-$check('beta7.23.1 variant detail Feature i smoke regresija postoje', str_contains($catalogDetailFeature, 'test_product_detail_with_active_variant_renders_without_blade_syntax_error') && str_contains($catalogDetailSmoke, 'Catalog detail smoke'));
+$check('beta7.23.1 product-only detail Feature i smoke regresija postoje', str_contains($catalogDetailFeature, 'test_product_detail_is_product_only_after_variant_decommission') && str_contains($catalogDetailSmoke, 'Catalog detail smoke'));
 $check('beta7.23.1 health daje čitljive runtime remediation komande', str_contains($systemHealthService, '(int) floor(abs($heartbeat->recorded_at->diffInMinutes(now())))') && str_contains($systemHealthService, 'app:scheduler-heartbeat') && str_contains($systemHealthService, 'app:automation-run') && str_contains($systemHealthService, 'app:backup-create --type=manual'));
 
 $detailPagesDoctorSmoke = (string) file_get_contents($root.'/bin/detail-pages-doctor-smoke.php');
@@ -847,7 +860,7 @@ $managementReportsDoctor = (string) file_get_contents($root.'/app/Console/Comman
 $check('beta7.24.1 management repair obrađuje missing snapshotove', str_contains($managementReportsDoctor, '$costSnapshots->repairMissing()') && str_contains($managementReportsDoctor, '$costSnapshots->missingCount()'));
 $check('beta7.24.1 repair ne prepisuje kompletne snapshotove', str_contains($orderCostService, 'only touches incomplete snapshots') && str_contains($orderCostService, 'isMissing($item)'));
 $check('beta7.24.1 repair je transakcioni i koristi row lock', str_contains($orderCostService, 'DB::transaction') && str_contains($orderCostService, 'lockForUpdate()'));
-$check('beta7.24.1 kandidati imaju transparentan izvor', str_contains($orderCostService, 'repair_variant_current') && str_contains($orderCostService, 'repair_receipt_historical') && str_contains($orderCostService, 'repair_product_current'));
+$check('beta7.24.1 kandidati imaju transparentan product-only izvor', !str_contains($orderCostService, 'repair_variant_current') && str_contains($orderCostService, 'repair_receipt_historical') && str_contains($orderCostService, 'repair_product_current'));
 $check('beta7.24.1 ručna finansijska promena zahteva razlog i audit', str_contains($orderCostService, 'mb_strlen($reason) < 5') && str_contains($orderCostService, "Schema::hasTable('audit_logs')") && str_contains($orderCostService, 'order_item.cost_snapshot.manual'));
 $check('beta7.24.1 audit/repair komanda i regresije postoje', str_contains($orderCostCommand, 'app:order-cost-snapshots') && str_contains($orderCostSmoke, 'Order cost snapshot smoke') && str_contains($orderCostContract, 'test_repair_is_conservative_and_uses_audited_sources'));
 
@@ -900,7 +913,7 @@ $check('secret vrednosti su prazne',
 );
 
 $import = (string) file_get_contents($root.'/app/Console/Commands/LegacyImportCommand.php');
-$check('import ne upisuje legacy konekciju', !preg_match('/DB::connection\([\'\"]legacy[\'\"]\)->(?:insert|update|delete|statement|unprepared)/', $import));
+$check('import ne upisuje legacy konekciju', !preg_match('/DB::connection\([\'\"]legacy[\'\"]\)->'.'(?:insert|update|delete|statement|unprepared)/', $import));
 
 if ($packageMode) {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
@@ -953,22 +966,19 @@ $check('v2.1.3 grana ima tri kontrolisane migration datoteke', count(glob($root.
 
 
 $productRequestRegex = (string) @file_get_contents($root.'/app/Http/Requests/ProductRequest.php');
-$productVariantRequestRegex = (string) @file_get_contents($root.'/app/Http/Requests/ProductVariantRequest.php');
 $check('v2.1.3.3 ProductRequest zadržava validan SKU regex delimiter', str_contains($productRequestRegex, "'regex:#^[A-Z0-9._/-]+$#'"));
-$check('v2.1.3.3 ProductVariantRequest zadržava validan SKU regex delimiter', str_contains($productVariantRequestRegex, "'regex:#^[A-Z0-9._/-]+$#'"));
+$check('v2.1.3.3 ProductVariantRequest je retired a ProductRequest zadržava validan SKU regex', !is_file($root.'/app/Http/Requests/ProductVariantRequest.php') && str_contains($productRequestRegex, "'regex:#^[A-Z0-9._/-]+$#'"));
 
 $storageService = (string) @file_get_contents($root.'/app/Services/StorageSpecificationService.php');
 $storageMigration = (string) @file_get_contents($root.'/database/migrations/2026_08_04_000035_link_storage_components_and_total_capacity_v2_1_3_3.php');
 $storageModel = (string) @file_get_contents($root.'/app/Models/SpecificationField.php');
-$storageVariantRequest = (string) @file_get_contents($root.'/app/Http/Requests/ProductVariantRequest.php');
-$storageVariantService = (string) @file_get_contents($root.'/app/Services/ProductVariantService.php');
 $productMediaJsV2133 = (string) @file_get_contents($root.'/public/assets/js/product-media-manager.js');
 $check('v2.1.3.3 migracija povezuje listu diskova i izvedeni ukupni kapacitet', str_contains($storageMigration, 'storage_role') && str_contains($storageMigration, 'storage_source_field_id') && str_contains($storageMigration, 'StorageSpecificationService::class'));
 $check('v2.1.3.3 stari kapacitet se bezbedno prenosi na prvi disk', str_contains($storageService, 'normalizeRows($rows, $legacyTotal)') && str_contains($storageService, "['capacity_gb'] = ") && str_contains($storageService, 'fallbackTotal'));
 $check('v2.1.3.3 backend ne veruje ručnom ukupnom zbiru', str_contains($productRequestV213, 'applyComputedTotals') && str_contains($storageService, 'totalCapacity($rows)'));
 $check('v2.1.3.3 ukupni kapacitet je ispod diskova i readonly', strpos($productFormV213, 'data-repeatable-list') < strpos($productFormV213, 'data-storage-total-card') && str_contains($productFormV213, 'data-storage-total-display') && str_contains($productFormV213, 'readonly'));
 $check('v2.1.3.3 frontend sabira diskove i čuva početni legacy zbir', str_contains($productMediaJsV2133, 'totalCapacity +=') && str_contains($productMediaJsV2133, 'storageInitialTotal') && str_contains($productMediaJsV2133, 'userTouchedStorage'));
-$check('v2.1.3.3 proizvod i varijante dele isti storage model', str_contains($storageModel, 'isDerivedStorageTotalField') && str_contains($storageVariantRequest, 'applyComputedTotals') && str_contains($storageVariantService, 'value_json'));
+$check('v2.1.3.3 product-only storage model zadržava izvedeni zbir bez variant servisa', str_contains($storageModel, 'isDerivedStorageTotalField') && !is_file($root.'/app/Http/Requests/ProductVariantRequest.php') && !is_file($root.'/app/Services/ProductVariantService.php') && !str_contains($storageService, 'product_variant_spec_values'));
 $check('v2.1.3.3 storage smoke i contract test postoje', is_file($root.'/bin/storage-capacity-total-smoke.php') && is_file($root.'/tests/Unit/StorageCapacityTotalContractTest.php'));
 
 
@@ -1032,7 +1042,7 @@ $v216Catalog = (string) @file_get_contents($root.'/app/Services/CatalogQueryServ
 $v216CatalogView = (string) @file_get_contents($root.'/resources/views/catalog/index.blade.php');
 $v216Release = (string) @file_get_contents($root.'/config/release.php');
 $check('v2.1.6 migracija kreira snapshot istoriju i ciljane indekse', str_contains($v216Migration, 'data_quality_snapshots') && str_contains($v216Migration, 'products_catalog_active_created_v216_idx') && str_contains($v216Migration, 'product_images_primary_sort_v216_idx'));
-$check('v2.1.6 Data Quality audit pokriva katalog slike varijante i specifikacije', str_contains($v216Quality, 'appendCatalogIdentityIssues') && str_contains($v216Quality, 'appendImageIssues') && str_contains($v216Quality, 'appendVariantIssues') && str_contains($v216Quality, 'appendSpecificationIssues'));
+$check('v2.1.6 Data Quality audit pokriva product-only katalog slike i specifikacije', str_contains($v216Quality, 'appendCatalogIdentityIssues') && str_contains($v216Quality, 'appendImageIssues') && !str_contains($v216Quality, 'appendVariantIssues') && str_contains($v216Quality, 'appendSpecificationIssues'));
 $check('v2.1.6 repair je nedestruktivan i preračunava izvedene vrednosti', str_contains($v216Quality, 'repairSafe') && str_contains($v216Quality, 'normalizeImagePrimaries') && str_contains($v216Quality, 'recalculateAll(false)'));
 $check('v2.1.6 performance doctor proverava indekse cache i SQL pragove', str_contains($v216Performance, 'requiredIndexes') && str_contains($v216Performance, 'CatalogReferenceCache') && str_contains($v216Performance, 'slow_query_failure_ms'));
 $check('v2.1.6 dashboard kešira schema metadata po requestu', str_contains((string) @file_get_contents($root.'/app/Http/Controllers/DashboardController.php'), 'tableColumnsCache'));

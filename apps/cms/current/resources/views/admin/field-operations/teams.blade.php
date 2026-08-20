@@ -2,6 +2,7 @@
 @section('title', 'Terenske ekipe')
 @section('content')
 <a class="back-link" href="{{ route('admin.field-operations.index') }}">← Terenske operacije</a>
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovna pravila', 'settingsContextLabel' => 'Terenske operacije', 'settingsContextUrl' => route('admin.field-operations.index')])
 <div class="page-heading"><div><span class="eyebrow">Resursi</span><h1>Terenske ekipe i servisni partneri</h1><p>Kontakti, vozila, teritorije i raspoloživost izvođača.</p></div></div>
 <div class="settings-grid">
 <section class="panel form-section"><h2>Dodaj ekipu ili partnera</h2><form method="post" action="{{ route('admin.field-service-teams.store') }}" class="form-grid">@csrf

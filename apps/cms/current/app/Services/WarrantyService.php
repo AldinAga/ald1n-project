@@ -31,7 +31,7 @@ final class WarrantyService
 
         $created = DB::transaction(function () use ($order, $actor): Collection {
             /** @var Order $locked */
-            $locked = Order::query()->with(['items.product.categories', 'items.variant', 'user', 'delivery'])->lockForUpdate()->findOrFail($order->id);
+            $locked = Order::query()->with(['items.product.categories', 'user', 'delivery'])->lockForUpdate()->findOrFail($order->id);
             if ($locked->completed_at === null && $locked->delivery === null) return collect();
 
             $start = ($locked->delivery?->delivered_at ?? $locked->completed_at ?? now())->copy()->startOfDay();
@@ -56,7 +56,6 @@ final class WarrantyService
                     'order_id' => $locked->id,
                     'order_item_id' => $item->id,
                     'product_id' => $item->product_id,
-                    'product_variant_id' => $item->product_variant_id,
                     'user_id' => $locked->user_id,
                     'warranty_rule_id' => $rule->id,
                     'status' => 'active',
@@ -71,8 +70,8 @@ final class WarrantyService
                     'customer_city_snapshot' => $locked->shipping_city,
                     'customer_postal_code_snapshot' => $locked->shipping_postal_code,
                     'customer_phone_snapshot' => $locked->shipping_phone,
-                    'product_sku_snapshot' => $item->variant_sku_snapshot ?: $item->product_sku,
-                    'product_name_snapshot' => $item->product_name.($item->variant_name_snapshot ? ' — '.$item->variant_name_snapshot : ''),
+                    'product_sku_snapshot' => $item->product_sku,
+                    'product_name_snapshot' => $item->product_name,
                     'quantity' => max(1, (int) $item->quantity),
                     'serial_numbers_json' => [],
                     'terms_snapshot' => $rule->terms,
@@ -236,10 +235,6 @@ final class WarrantyService
 
     private function resolveRule(OrderItem $item): ?WarrantyRule
     {
-        if ($item->variant?->warranty_rule_id) {
-            $variantRule = WarrantyRule::query()->whereKey($item->variant->warranty_rule_id)->where('is_active', true)->first();
-            if ($variantRule !== null) return $variantRule;
-        }
         $product = $item->product;
         if ($product !== null) {
             $productRule = WarrantyRule::query()->where('is_active', true)->where('scope_type', 'product')->where('product_id', $product->id)->orderByDesc('priority')->orderByDesc('id')->first();

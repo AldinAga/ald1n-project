@@ -27,7 +27,7 @@ final class OrderCreateDoctorCommand extends Command
     {
         $failed = false;
 
-        foreach (['users', 'roles', 'products', 'product_variants', 'bank_accounts'] as $table) {
+        foreach (['users', 'roles', 'products', 'bank_accounts'] as $table) {
             if (Schema::hasTable($table)) {
                 $this->line('<fg=green>PASS</> '.$table.' je spremna.');
             } else {
@@ -96,7 +96,7 @@ final class OrderCreateDoctorCommand extends Command
             }
 
             $html = $view->with('errors', new ViewErrorBag())->render();
-            foreach (['data-order-create-ready="1"', 'name="idempotency_key"', 'data-order-product', 'data-order-variant'] as $marker) {
+            foreach (['data-order-create-ready="1"', 'name="idempotency_key"', 'data-order-product'] as $marker) {
                 if (!str_contains($html, $marker)) {
                     $this->line('<fg=red>FAIL</> /order/new nema očekivani marker: '.$marker);
                     return self::FAILURE;

@@ -70,7 +70,7 @@ final class CatalogOptionsController extends Controller
                 ['value' => 'price_desc', 'label' => 'Cena opadajuće'],
             ],
             'management_filters' => $canManage ? [
-                'statuses' => ['active', 'draft', 'inactive', 'archived'],
+                'statuses' => ['active', 'draft', 'inactive'],
                 'quality' => ['missing_image', 'missing_price', 'missing_model', 'incomplete', 'unassigned'],
             ] : null,
         ]]);

@@ -49,11 +49,8 @@ final class OrderItemCostSnapshotService
                 'oi.order_id',
                 'o.order_number',
                 'oi.product_id',
-                'oi.product_variant_id',
                 'oi.product_sku',
                 'oi.product_name',
-                'oi.variant_sku_snapshot',
-                'oi.variant_name_snapshot',
                 'oi.quantity',
                 'oi.purchase_unit_rsd_snapshot',
                 'oi.purchase_total_rsd_snapshot',
@@ -234,13 +231,6 @@ final class OrderItemCostSnapshotService
             return null;
         }
 
-        $variantId = (int) ($item->product_variant_id ?? 0);
-        if ($variantId > 0 && Schema::hasTable('product_variants')) {
-            $variantCost = $this->positive(DB::table('product_variants')->where('id', $variantId)->value('purchase_price_rsd'));
-            if ($variantCost !== null) {
-                return ['unit_cost_rsd' => $variantCost, 'source' => 'repair_variant_current'];
-            }
-        }
 
         $historicalReceipt = $this->historicalReceiptCost($productId, $item->created_at ?? null);
         if ($historicalReceipt !== null) {

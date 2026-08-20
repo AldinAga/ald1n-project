@@ -7,6 +7,74 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:270925336895:android:b0c6b28ac38328a00ec38a",
+        "android_client_info": {
+          "package_name": "com.ald1n.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270925336895-1h1uf5bqh7aq3aoe64rbcur4tfac9uqu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ald1n.mobile",
+            "certificate_hash": "4faa0b430ddf189354aa2f672b280bc5bc13563b"
+          }
+        },
+        {
+          "client_id": "270925336895-2guv5ghkb07veqpqkts4rcafc5h8nmre.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ald1n.mobile",
+            "certificate_hash": "987f56927185c215b8e0450277b5936b52e7d71e"
+          }
+        },
+        {
+          "client_id": "270925336895-jbthpv7ainq9tatogc5vbio0ttud3rvf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ald1n.mobile",
+            "certificate_hash": "0376e16cc38ba438a956fa0edae837d2bec5bde2"
+          }
+        },
+        {
+          "client_id": "270925336895-qev924rl4rmoiudeo59rg8cels623gl4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ald1n.mobile",
+            "certificate_hash": "dae44641bf0953747e659445fd08b9e7d5af2529"
+          }
+        },
+        {
+          "client_id": "270925336895-dpmgc8e7cek9uq814ffsqjmdfd4i8diq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDa6byhK3HzyTlNFtSiqxhX9XKgU3qieDs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270925336895-dpmgc8e7cek9uq814ffsqjmdfd4i8diq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "270925336895-mo9jls0ba8ph4mpt4p9r6aqdg8cro6s2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ald1n.mobile.preview"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:270925336895:android:8368bb99971ed6da0ec38a",
         "android_client_info": {
           "package_name": "com.ald1n.mobile.preview"
@@ -37,6 +105,13 @@
             {
               "client_id": "270925336895-dpmgc8e7cek9uq814ffsqjmdfd4i8diq.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "270925336895-mo9jls0ba8ph4mpt4p9r6aqdg8cro6s2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ald1n.mobile.preview"
+              }
             }
           ]
         }

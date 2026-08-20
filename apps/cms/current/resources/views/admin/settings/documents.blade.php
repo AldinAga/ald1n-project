@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'PDF dokumenti')
 @section('content')
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Komunikacija i dokumenti'])
 <div class="page-heading">
     <div>
         <span class="eyebrow">Podešavanja</span>
@@ -9,7 +10,7 @@
     </div>
 </div>
 
-<form method="post" action="{{ route('admin.settings.documents.update') }}" enctype="multipart/form-data" class="admin-form-grid">
+<form method="post" action="{{ route('admin.settings.documents.update') }}" enctype="multipart/form-data" class="admin-form-grid settings-primary-form">
     @csrf
     @method('put')
     <div class="form-main">

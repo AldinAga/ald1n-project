@@ -34,7 +34,7 @@ final class OrderController extends Controller
     public function index(Request $request): View
     {
         return view('orders.index', [
-            'orders' => Order::query()
+            'orders' => Order::query()->operational()
                 ->where('user_id', $request->user()->id)
                 ->with(['commission', 'supplier'])
                 ->latest('id')
@@ -47,7 +47,6 @@ final class OrderController extends Controller
         $query = Product::query()
             ->publiclyVisible()
             ->where('stock_quantity', '>', 0)
-            ->with(['activeVariants:id,product_id,sku,name,stock_quantity,price_amount,price_currency,is_default,status,deleted_at'])
             ->orderBy('name');
         $access->apply($query, $request->user());
 
@@ -58,29 +57,12 @@ final class OrderController extends Controller
             'price_amount',
             'price_currency',
             'stock_quantity',
-            'variants_enabled',
-            'default_variant_id',
         ]);
-
-        $variantMap = [];
-        foreach ($products as $product) {
-            $variantMap[(string) $product->id] = $product->activeVariants->map(static fn ($variant): array => [
-                'id' => (int) $variant->id,
-                'sku' => (string) $variant->sku,
-                'name' => (string) $variant->name,
-                'stock' => (int) $variant->stock_quantity,
-                'price' => (float) $variant->price_amount,
-                'currency' => (string) $variant->price_currency,
-                'default' => (bool) $variant->is_default,
-            ])->values()->all();
-        }
 
         return view('orders.create', [
             'products' => $products,
-            'variantMap' => $variantMap,
             'bankAccounts' => BankAccount::query()->where('is_active', true)->orderBy('label')->get(),
             'selectedProductId' => (int) $request->integer('product'),
-            'selectedVariantId' => (int) $request->integer('variant'),
             'idempotencyKey' => (string) Str::uuid(),
             'suppliers' => User::query()
                 ->where('status', 'active')

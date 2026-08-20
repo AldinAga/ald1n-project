@@ -2,13 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
+import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Card } from '@/components/ui/card';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
+import { useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
 import { api } from '@/lib/api/endpoints';
@@ -16,6 +18,9 @@ import { ApiError } from '@/lib/api/client';
 import type { CreateOrderInput, PaymentMethod } from '@/types/api';
 
 export default function CheckoutScreen() {
+  const styles = useThemedStyles(createStyles);
+  const feedback = useAppFeedback();
+
   const client = useQueryClient();
   const { bootstrap, hasFeature } = useAuth();
   const { items, clearCart } = useCart();
@@ -74,7 +79,11 @@ export default function CheckoutScreen() {
       await client.invalidateQueries({ queryKey: ['orders'] });
       await client.invalidateQueries({ queryKey: ['order-options'] });
       router.replace({ pathname: '/order/[id]', params: { id: String(order.id) } });
-      Alert.alert('Porudžbina je kreirana', `${order.order_number} je uspešno poslata.`);
+      feedback.notify({
+        tone: 'success',
+        title: 'Porudžbina je kreirana',
+        message: `${order.order_number} je uspešno poslata.`
+      });
     },
     onError: (error) => {
       const message = error instanceof ApiError ? error.firstFieldError() ?? error.message : 'Porudžbina nije kreirana.';
@@ -128,7 +137,6 @@ export default function CheckoutScreen() {
       bank_account_id: selectedPayment?.requires_bank_account ? bankAccountId : null,
       items: items.map((item) => ({
         product_id: item.productId,
-        product_variant_id: item.variantId,
         quantity: item.quantity
       }))
     });
@@ -213,26 +221,28 @@ export default function CheckoutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  back: { ...typography.label, color: colors.primary, paddingVertical: spacing.sm },
-  eyebrow: { ...typography.small, color: colors.primary, letterSpacing: 1.2, fontWeight: '800' },
-  title: { ...typography.h1, color: colors.ink, marginTop: spacing.xs },
-  subtitle: { ...typography.body, color: colors.muted, marginTop: spacing.xs },
+function createStyles(theme: AppColors) {
+  return StyleSheet.create({
+  back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
+  eyebrow: { ...typography.small, color: theme.primary, letterSpacing: 1.2, fontWeight: '800' },
+  title: { ...typography.h1, color: theme.ink, marginTop: spacing.xs },
+  subtitle: { ...typography.body, color: theme.muted, marginTop: spacing.xs },
   section: { gap: spacing.md },
-  sectionTitle: { ...typography.h3, color: colors.ink },
-  option: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.line, borderRadius: radii.lg, padding: spacing.md, backgroundColor: colors.surface },
-  optionSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.muted, backgroundColor: colors.surface },
-  radioSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
-  optionTitle: { ...typography.label, color: colors.ink },
-  optionCopy: { ...typography.small, color: colors.muted, marginTop: 3 },
+  sectionTitle: { ...typography.h3, color: theme.ink },
+  option: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: theme.line, borderRadius: radii.lg, padding: spacing.md, backgroundColor: theme.surface },
+  optionSelected: { borderColor: theme.primary, backgroundColor: theme.primarySoft },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: theme.muted, backgroundColor: theme.surface },
+  radioSelected: { borderColor: theme.primary, backgroundColor: theme.primary },
+  optionTitle: { ...typography.label, color: theme.ink },
+  optionCopy: { ...typography.small, color: theme.muted, marginTop: 3 },
   nested: { gap: spacing.sm, paddingTop: spacing.sm },
-  nestedTitle: { ...typography.label, color: colors.ink },
-  warning: { ...typography.body, color: colors.danger },
-  help: { ...typography.small, color: colors.muted, marginTop: -spacing.xs },
+  nestedTitle: { ...typography.label, color: theme.ink },
+  warning: { ...typography.body, color: theme.danger },
+  help: { ...typography.small, color: theme.muted, marginTop: -spacing.xs },
   noteInput: { minHeight: 116, paddingTop: spacing.md },
-  counter: { ...typography.small, color: colors.muted, textAlign: 'right' },
-  reviewTitle: { ...typography.label, color: colors.ink },
-  reviewCopy: { ...typography.small, color: colors.muted, marginTop: spacing.xs },
-  error: { ...typography.body, color: colors.danger, textAlign: 'center', paddingHorizontal: spacing.md }
+  counter: { ...typography.small, color: theme.muted, textAlign: 'right' },
+  reviewTitle: { ...typography.label, color: theme.ink },
+  reviewCopy: { ...typography.small, color: theme.muted, marginTop: spacing.xs },
+  error: { ...typography.body, color: theme.danger, textAlign: 'center', paddingHorizontal: spacing.md }
 });
+}

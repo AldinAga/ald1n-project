@@ -8,8 +8,6 @@ export type CartItem = {
   productSlug: string;
   productName: string;
   productSku: string;
-  variantId: Nullable<number>;
-  variantName: Nullable<string>;
   sku: string;
   price: Nullable<Price>;
   quantity: number;
@@ -30,8 +28,8 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-function cartKey(productId: number, variantId: number | null): string {
-  return `${productId}:${variantId ?? 0}`;
+function cartKey(productId: number): string {
+  return String(productId);
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
@@ -56,7 +54,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [currentUserId, status]);
 
   const addItem = useCallback((input: AddCartItem) => {
-    const key = cartKey(input.productId, input.variantId);
+    const key = String(input.productId);
     const addQuantity = Math.max(1, input.quantity ?? 1);
     const maxQuantity = Math.max(0, input.maxQuantity);
     if (maxQuantity < 1) return;

@@ -140,7 +140,7 @@ final class OrderDeliveryWorkflowTest extends TestCase
 
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/tracking', [
             'tracking_number' => 'KURIR-556',
-        ])->assertRedirect()->assertSessionHas('status');
+        ])->assertRedirect()->assertSessionHasErrors('tracking_number');
     }
 
     private function user(string $username, string $role): User

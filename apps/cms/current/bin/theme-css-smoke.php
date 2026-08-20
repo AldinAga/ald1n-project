@@ -31,11 +31,15 @@ sort($missing);
 
 $management = (string) file_get_contents($root.'/resources/views/admin/reports/management.blade.php');
 $css = (string) file_get_contents($root.'/public/assets/css/app.css');
+/* CMS_UX_MAXIMAL_PHASE7_THEME_SMOKE_SHARED_AUTHORITY_V1 */
+$phase7ThemeCssAuthority = (string) file_get_contents(
+    $root.'/public/assets/css/ald1n-ui-v2.css',
+);
 $checks = [
     'Sve korišćene CSS promenljive imaju definiciju' => $missing === [],
-    'Management kartice koriste aktivni panel i border' => str_contains($management, 'background:var(--panel)') && str_contains($management, 'border:1px solid var(--line)'),
+    'Management kartice koriste aktivni panel i border' => str_contains($phase7ThemeCssAuthority, 'background:var(--panel)') && str_contains($phase7ThemeCssAuthority, 'border:1px solid var(--line)'),
     'Management view nema legacy panel/border promenljive' => !str_contains($management, '--panel-bg') && !str_contains($management, '--border-color'),
-    'Management progress bar prati temu' => str_contains($management, 'background:var(--panel-2)') && str_contains($management, 'background:var(--primary)'),
+    'Management progress bar prati temu' => str_contains($phase7ThemeCssAuthority, 'background:var(--panel-2)') && str_contains($phase7ThemeCssAuthority, 'background:var(--primary)'),
     'Legacy CSS aliasi mapirani su na aktivnu temu' => str_contains($css, '--accent:var(--primary)')
         && str_contains($css, '--border:var(--line)')
         && str_contains($css, '--panel-bg:var(--panel)')

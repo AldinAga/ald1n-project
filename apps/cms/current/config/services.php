@@ -23,4 +23,14 @@ return [
         'timeout' => (int) env('NBS_IPS_QR_TIMEOUT', 20),
     ],
 
+    'google_web' => [
+        'enabled' => (bool) env('GOOGLE_WEB_AUTH_ENABLED', false),
+        'client_id' => env('GOOGLE_OAUTH_WEB_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_OAUTH_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_OAUTH_REDIRECT_URI', 'https://cms.ald1n.com/auth/google/callback'),
+        'authorization_url' => env('GOOGLE_OAUTH_AUTHORIZATION_URL', 'https://accounts.google.com/o/oauth2/v2/auth'),
+        'token_url' => env('GOOGLE_OAUTH_TOKEN_URL', 'https://oauth2.googleapis.com/token'),
+        'timeout_seconds' => (int) env('GOOGLE_OAUTH_TIMEOUT_SECONDS', 8),
+        'state_ttl_seconds' => (int) env('GOOGLE_OAUTH_STATE_TTL_SECONDS', 600),
+    ],
 ];

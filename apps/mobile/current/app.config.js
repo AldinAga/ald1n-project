@@ -11,6 +11,9 @@ const EAS_PROJECT_ID =
 
 const GOOGLE_SERVICES_FILE = './google-services.json';
 const hasGoogleServicesFile = fs.existsSync(path.join(__dirname, 'google-services.json'));
+const IOS_GOOGLE_SERVICES_FILE = './GoogleService-Info.plist';
+const hasIosGoogleServicesFile = fs.existsSync(path.join(__dirname, 'GoogleService-Info.plist'));
+// MOBILE_IOS_GOOGLE_NATIVE_CONFIG_V06
 
 const isProduction = APP_ENV === 'production';
 const suffix = isProduction ? '' : `.${APP_ENV}`;
@@ -26,18 +29,16 @@ module.exports = ({ config }) => {
   return {
     ...config,
 
-    name: isProduction
-      ? 'Ald1n Mobile'
-      : `Ald1n Mobile (${APP_ENV})`,
+    name: 'Ald1n CMS',
 
     slug: 'ald1n-mobile',
     owner: 'ald1n',
 
-    version: '0.4.0',
+    version: '0.7.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'ald1n',
-    userInterfaceStyle: 'light',
+    userInterfaceStyle: 'automatic',
     backgroundColor: '#F8F6FC',
 
     updates: {
@@ -52,17 +53,21 @@ module.exports = ({ config }) => {
       ...(config.ios || {}),
       supportsTablet: true,
       bundleIdentifier: `com.ald1n.mobile${suffix}`,
+      icon: './assets/icon-ios.png',
+      // MOBILE_V0_6_IOS_OPAQUE_ICON_V1
+      ...(hasIosGoogleServicesFile ? { googleServicesFile: IOS_GOOGLE_SERVICES_FILE } : {}),
       buildNumber: '1',
       infoPlist: {
         ...((config.ios && config.ios.infoPlist) || {}),
         NSFaceIDUsageDescription:
-          'Ald1n Mobile koristi Face ID samo za zaštitu lokalne prijave.',
+          'Ald1n CMS koristi Face ID samo za zaštitu lokalne prijave.',
       },
     },
 
     android: {
       ...(config.android || {}),
       package: `com.ald1n.mobile${suffix}`,
+      softwareKeyboardLayoutMode: 'resize',
       ...(hasGoogleServicesFile ? { googleServicesFile: GOOGLE_SERVICES_FILE } : {}),
 
       adaptiveIcon: {
@@ -98,7 +103,7 @@ module.exports = ({ config }) => {
         {
           configureAndroidBackup: true,
           faceIDPermission:
-            'Dozvoli aplikaciji Ald1n Mobile korišćenje Face ID zaštite.',
+            'Dozvoli aplikaciji Ald1n CMS korišćenje Face ID zaštite.',
         },
       ],
 
@@ -115,7 +120,10 @@ module.exports = ({ config }) => {
       ...(hasGoogleServicesFile
         ? [[
             'react-native-nitro-google-signin',
-            { androidGoogleServicesFile: GOOGLE_SERVICES_FILE },
+            {
+              androidGoogleServicesFile: GOOGLE_SERVICES_FILE,
+              ...(hasIosGoogleServicesFile ? { iosGoogleServicesFile: IOS_GOOGLE_SERVICES_FILE } : {}),
+            },
           ]]
         : []),
     ],

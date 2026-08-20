@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 final class Order extends Model
 {
     protected $fillable = [
-        'source_system', 'order_number', 'idempotency_key_hash', 'request_fingerprint', 'user_id', 'supplier_user_id', 'supplier_name_snapshot', 'supplier_email_snapshot', 'supplier_phone_snapshot', 'supplier_role_snapshot', 'assigned_at', 'status',
+        'source_system', 'sales_channel', 'direct_sale_recorded_by', 'order_number', 'idempotency_key_hash', 'request_fingerprint', 'user_id', 'supplier_user_id', 'supplier_name_snapshot', 'supplier_email_snapshot', 'supplier_phone_snapshot', 'supplier_role_snapshot', 'assigned_at', 'status',
         'inventory_state', 'inventory_reserved_at', 'inventory_returned_at', 'cancelled_at', 'cancelled_by', 'shipping_full_name', 'shipping_address', 'shipping_city',
         'shipping_postal_code', 'shipping_phone', 'subtotal_rsd', 'eur_rsd_rate', 'customer_note',
         'payment_method', 'payment_status', 'payment_state', 'paid_total_rsd', 'payment_due_at', 'payment_verified_at', 'bank_account_id', 'bank_account_label_snapshot',
@@ -20,7 +20,7 @@ final class Order extends Model
         'payment_recipient_name_snapshot', 'payment_recipient_address_snapshot', 'payment_code_snapshot',
         'payment_purpose_snapshot', 'payment_reference_snapshot', 'tracking_number',
         'tracking_updated_at', 'tracking_updated_by', 'assigned_by', 'reassigned_at', 'accepted_by', 'accepted_at',
-        'expected_processing_at', 'expected_shipping_at', 'last_internal_note_at', 'completed_at', 'completed_by', 'completion_note', 'reopened_at', 'reopened_by', 'reopen_reason', 'updated_by',
+        'expected_processing_at', 'expected_shipping_at', 'last_internal_note_at', 'completed_at', 'completed_by', 'completion_note', 'reopened_at', 'reopened_by', 'reopen_reason', 'archived_at', 'archived_by', 'archive_reason', 'purged_at', 'purged_by', 'purge_reason', 'updated_by',
     ];
 
     protected function casts(): array
@@ -39,6 +39,8 @@ final class Order extends Model
             'expected_shipping_at' => 'datetime',
             'last_internal_note_at' => 'datetime',
             'completed_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'purged_at' => 'datetime',
             'reopened_at' => 'datetime',
             'paid_total_rsd' => 'decimal:2',
             'payment_due_at' => 'datetime',
@@ -49,6 +51,11 @@ final class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function directSaleRecorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'direct_sale_recorded_by');
     }
 
     public function supplier(): BelongsTo
@@ -121,6 +128,11 @@ final class Order extends Model
         return $this->hasOne(OrderDelivery::class);
     }
 
+    public function shipment(): HasOne
+    {
+        return $this->hasOne(OrderShipment::class);
+    }
+
     public function afterSalesCases(): HasMany
     {
         return $this->hasMany(AfterSalesCase::class);
@@ -139,5 +151,28 @@ final class Order extends Model
     public function portalConversations(): HasMany
     {
         return $this->hasMany(PortalConversation::class);
+    }
+
+    public function scopeOperational(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereNull($this->qualifyColumn('archived_at'));
+    }
+
+    public function scopeArchived(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query
+            ->whereNotNull($this->qualifyColumn('archived_at'))
+            ->whereNull($this->qualifyColumn('purged_at'));
+    }
+
+    public function scopePurged(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereNotNull($this->qualifyColumn('purged_at'));
+    }
+
+    public function resolveRouteBindingQuery($query, $value, $field = null)
+    {
+        return parent::resolveRouteBindingQuery($query, $value, $field)
+            ->whereNull($this->qualifyColumn('archived_at'));
     }
 }

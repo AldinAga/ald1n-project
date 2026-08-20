@@ -5,27 +5,51 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Services\CommissionCalculator;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class CommissionCalculatorTest extends TestCase
 {
-    #[DataProvider('cases')]
-    public function test_commission_rules(float $amount, string $currency, ?float $manual, ?float $rate, float $expected): void
+    public function test_automatic_commission_is_ten_percent_without_fixed_twenty_euro_floor(): void
     {
-        self::assertSame($expected, (new CommissionCalculator())->unitEur($amount, $currency, $manual, $rate));
+        $calculator = new CommissionCalculator();
+
+        self::assertSame(2.0, $calculator->unitEur(20.0, 'EUR', null, null));
+        self::assertSame(5.0, $calculator->unitEur(50.0, 'EUR', null, null));
+        self::assertSame(10.0, $calculator->unitEur(100.0, 'EUR', null, null));
+        self::assertSame(2.0, $calculator->unitEur(2000.0, 'RSD', null, 100.0));
+        self::assertSame(0.0, $calculator->unitEur(2000.0, 'RSD', null, null));
     }
 
-    public static function cases(): array
+    public function test_existing_automatic_fifty_euro_maximum_is_preserved(): void
     {
-        return [
-            'minimum' => [100.0, 'EUR', null, null, 20.0],
-            'percentage' => [300.0, 'EUR', null, null, 30.0],
-            'maximum' => [900.0, 'EUR', null, null, 50.0],
-            'manual wins' => [100.0, 'EUR', 125.50, null, 125.50],
-            'manual below minimum ignored' => [300.0, 'EUR', 19.99, null, 30.0],
-            'rsd conversion' => [35_241.0, 'RSD', null, 117.47, 30.0],
-            'missing rsd rate uses minimum' => [35_241.0, 'RSD', null, null, 20.0],
-        ];
+        $calculator = new CommissionCalculator();
+
+        self::assertSame(50.0, $calculator->unitEur(500.0, 'EUR', null, null));
+        self::assertSame(50.0, $calculator->unitEur(1000.0, 'EUR', null, null));
+    }
+
+    public function test_manual_commission_requires_uncapped_ten_percent_floor(): void
+    {
+        $calculator = new CommissionCalculator();
+
+        self::assertTrue($calculator->usesManual(20.0, 'EUR', 2.0, null));
+        self::assertFalse($calculator->usesManual(20.0, 'EUR', 1.99, null));
+        self::assertSame(2.0, $calculator->unitEur(20.0, 'EUR', 1.99, null));
+        self::assertSame(60.0, $calculator->unitEur(100.0, 'EUR', 60.0, null));
+
+        self::assertSame(100.0, $calculator->manualMinimumEur(1000.0, 'EUR', null));
+        self::assertFalse($calculator->usesManual(1000.0, 'EUR', 99.99, null));
+        self::assertSame(50.0, $calculator->unitEur(1000.0, 'EUR', 99.99, null));
+        self::assertTrue($calculator->usesManual(1000.0, 'EUR', 100.0, null));
+        self::assertSame(120.0, $calculator->unitEur(1000.0, 'EUR', 120.0, null));
+    }
+
+    public function test_invalid_currency_or_missing_rsd_rate_never_reintroduces_nominal_floor(): void
+    {
+        $calculator = new CommissionCalculator();
+
+        self::assertSame(0.0, $calculator->unitEur(100.0, 'USD', null, null));
+        self::assertFalse($calculator->usesManual(1000.0, 'RSD', 20.0, null));
+        self::assertSame(0.0, $calculator->unitEur(1000.0, 'RSD', 20.0, null));
     }
 }

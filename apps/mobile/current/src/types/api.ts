@@ -49,6 +49,26 @@ export type User = {
   group: Nullable<{ id: number; name: string; slug: string }>;
 };
 
+export type AccountProfileInput = {
+  first_name?: string;
+  last_name?: Nullable<string>;
+  phone?: Nullable<string>;
+  address?: Nullable<string>;
+  city?: Nullable<string>;
+  postal_code?: Nullable<string>;
+};
+
+export type AccountPasswordInput = {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+};
+
+export type AccountPasswordResponse = {
+  message: string;
+  reauthenticate: true;
+};
+
 export type NotificationPreferences = {
   in_app_enabled: boolean;
   email_enabled: boolean;
@@ -117,17 +137,6 @@ export type ProductSpecification = {
   detail: Nullable<string>;
   unit: Nullable<string>;
 };
-export type ProductVariant = {
-  id: number;
-  sku: string;
-  name: string;
-  default: boolean;
-  stock_quantity: number;
-  price: Nullable<Price>;
-  commission_eur: number;
-  images: ProductImage[];
-  specifications: ProductSpecification[];
-};
 export type Product = {
   id: number;
   sku: string;
@@ -144,8 +153,6 @@ export type Product = {
   stock_quantity: number;
   primary_image_url: Nullable<string>;
   images?: ProductImage[];
-  variants_enabled: boolean;
-  variants?: ProductVariant[];
   specifications?: ProductSpecification[];
   updated_at: Nullable<string>;
 };
@@ -178,11 +185,8 @@ export type CatalogFilters = {
 export type OrderItem = {
   id: number;
   product_id: number;
-  product_variant_id: Nullable<number>;
   sku: string;
   name: string;
-  variant_name: Nullable<string>;
-  variant_attributes: Record<string, unknown> | unknown[];
   quantity: number;
   unit_price_rsd: number;
   line_total_rsd: number;
@@ -210,6 +214,357 @@ export type Order = {
   updated_at: Nullable<string>;
 };
 
+export type OrderPrivateFile = {
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+};
+
+export type OrderPaymentLedgerEntry = {
+  id: number;
+  number: string;
+  entry_type: 'payment' | 'refund' | string;
+  entry_label: string;
+  status: string;
+  amount_rsd: number;
+  payment_method: string;
+  paid_at: Nullable<string>;
+  rejection_reason: Nullable<string>;
+  has_proof: boolean;
+  proof: Nullable<OrderPrivateFile>;
+};
+
+export type OrderDocumentSummary = {
+  id: number;
+  number: string;
+  type: string;
+  revision_number: number;
+  status: 'issued';
+  issued_at: Nullable<string>;
+  due_at: Nullable<string>;
+  currency: string;
+  total_rsd: number;
+};
+
+export type OrderDeliverySummary = {
+  id: number;
+  delivery_method: string;
+  delivery_method_label: string;
+  delivered_at: Nullable<string>;
+  recipient_name: Nullable<string>;
+  recipient_phone: Nullable<string>;
+  reference: Nullable<string>;
+  note: Nullable<string>;
+  has_proof: boolean;
+  proof: Nullable<OrderPrivateFile>;
+};
+
+export type OrderBankTransferSnapshot = {
+  account_label: Nullable<string>;
+  account_number: Nullable<string>;
+  recipient_name: Nullable<string>;
+  recipient_address: Nullable<string>;
+  payment_code: Nullable<string>;
+  purpose: Nullable<string>;
+  reference: Nullable<string>;
+};
+
+export type OrderPostCreateCapabilities = {
+  can_view_payments: boolean;
+  can_upload_payment_proof: boolean;
+  can_view_documents: boolean;
+  can_issue_order_confirmation: boolean;
+  can_view_delivery_proof: boolean;
+};
+
+export type OrderPaymentProofLimits = {
+  max_bytes: number;
+  extensions: string[];
+  mime_types: string[];
+};
+
+export type OrderPostCreate = {
+  order: {
+    id: number;
+    order_number: string;
+    status: string;
+    payment_method: string;
+    payment_status: string;
+    payment_state: string;
+    subtotal_rsd: number;
+    paid_total_rsd: number;
+    remaining_rsd: number;
+    payment_due_at: Nullable<string>;
+    tracking_number: Nullable<string>;
+    completed_at: Nullable<string>;
+    completion_note: Nullable<string>;
+  };
+  bank_transfer: Nullable<OrderBankTransferSnapshot>;
+  payments: OrderPaymentLedgerEntry[];
+  documents: OrderDocumentSummary[];
+  delivery: Nullable<OrderDeliverySummary>;
+  capabilities: OrderPostCreateCapabilities;
+  payment_proof_limits: OrderPaymentProofLimits;
+};
+
+export type OrderPaymentProofUploadFile = {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number;
+};
+
+export type SubmitOrderPaymentProofInput = {
+  amount_rsd: number;
+  paid_at: string;
+  reference?: Nullable<string>;
+  note?: Nullable<string>;
+  proof: OrderPaymentProofUploadFile;
+};
+export type AfterSalesCaseType = 'complaint' | 'return' | 'service';
+export type AfterSalesPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type AfterSalesStatus = 'open' | 'under_review' | 'awaiting_customer' | 'approved' | 'in_service' | 'resolved' | 'rejected' | 'closed';
+export type AfterSalesResolution = 'repair' | 'replacement' | 'partial_refund' | 'full_refund' | 'return' | 'inspection' | 'rejected' | 'other';
+export type AfterSalesRequestedResolution = Exclude<AfterSalesResolution, 'rejected'>;
+
+export type AfterSalesCaseSummary = {
+  id: number;
+  case_number: string;
+  order: { id: number; order_number: string };
+  case_type: AfterSalesCaseType;
+  case_type_label: string;
+  priority: AfterSalesPriority;
+  priority_label: string;
+  status: AfterSalesStatus;
+  status_label: string;
+  subject: string;
+  assignee: Nullable<{ id: number; name: string }>;
+  due_at: Nullable<string>;
+  can_message: boolean;
+  created_at: Nullable<string>;
+  updated_at: Nullable<string>;
+};
+
+export type AfterSalesAttachment = {
+  id: number;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  download_path: string;
+  created_at: Nullable<string>;
+};
+
+export type AfterSalesMessage = {
+  id: number;
+  body: string;
+  author: Nullable<{ id: number; name: string; kind: 'staff' | 'customer' }>;
+  attachments: AfterSalesAttachment[];
+  created_at: Nullable<string>;
+};
+
+export type AfterSalesAction = {
+  id: number;
+  action_number: string;
+  action_type: string;
+  action_type_label: string;
+  status: string;
+  status_label: string;
+  scheduled_at: Nullable<string>;
+  due_at: Nullable<string>;
+  amount_rsd: Nullable<number>;
+  reference: Nullable<string>;
+  public_note: Nullable<string>;
+  completion_note: Nullable<string>;
+  items: Array<{ id: number; name: string; quantity: number }>;
+  work_order: Nullable<{
+    id: number;
+    work_order_number: string;
+    status: string;
+    status_label: string;
+    planned_start_at: Nullable<string>;
+    planned_end_at: Nullable<string>;
+    completion_result: Nullable<string>;
+    team: Nullable<{ id: number; name: string; phone: Nullable<string> }>;
+    attachments: AfterSalesAttachment[];
+  }>;
+};
+
+export type AfterSalesCase = AfterSalesCaseSummary & {
+  description: string;
+  requested_resolution: Nullable<AfterSalesRequestedResolution>;
+  requested_resolution_label: Nullable<string>;
+  resolution_type: Nullable<AfterSalesResolution>;
+  resolution_type_label: Nullable<string>;
+  resolution_summary: Nullable<string>;
+  first_response_at: Nullable<string>;
+  resolved_at: Nullable<string>;
+  closed_at: Nullable<string>;
+  limits: AfterSalesOptions['limits'];
+  items: Array<{
+    id: number;
+    order_item_id: Nullable<number>;
+    product_id: Nullable<number>;
+    sku: string;
+    name: string;
+    quantity: number;
+    issue_description: Nullable<string>;
+  }>;
+  actions: AfterSalesAction[];
+  messages: AfterSalesMessage[];
+  attachments: AfterSalesAttachment[];
+};
+
+export type AfterSalesOrderItemOption = {
+  id: number;
+  product_id: Nullable<number>;
+  sku: string;
+  name: string;
+  quantity: number;
+};
+
+export type AfterSalesOptions = {
+  order: {
+    id: number;
+    order_number: string;
+    shipping: {
+      full_name: string;
+      address: string;
+      city: string;
+      postal_code: string;
+      phone: string;
+    };
+    items: AfterSalesOrderItemOption[];
+  };
+  case_types: Record<AfterSalesCaseType, string>;
+  priorities: Record<AfterSalesPriority, string>;
+  requested_resolutions: Record<AfterSalesRequestedResolution, string>;
+  defaults: { priority: AfterSalesPriority };
+  limits: {
+    subject_max_length: number;
+    description_min_length: number;
+    description_max_length: number;
+    issue_description_max_length: number;
+    message_max_length: number;
+    max_attachments: number;
+    max_attachment_bytes: number;
+    attachment_mime_types: string[];
+  };
+};
+
+export type AfterSalesUploadFile = {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number;
+};
+
+declare global {
+  interface FormData {
+    append(name: string, value: Pick<AfterSalesUploadFile, 'uri' | 'name' | 'type'>): void;
+  }
+}
+
+export type CreateAfterSalesCaseItemInput = {
+  order_item_id: number;
+  quantity: number;
+  issue_description?: Nullable<string>;
+};
+
+export type CreateAfterSalesCaseInput = {
+  case_type: AfterSalesCaseType;
+  priority: AfterSalesPriority;
+  subject: string;
+  description: string;
+  requested_resolution?: Nullable<AfterSalesRequestedResolution>;
+  items: CreateAfterSalesCaseItemInput[];
+  attachments?: AfterSalesUploadFile[];
+};
+
+export type CreateAfterSalesMessageInput = {
+  body: string;
+  attachments?: AfterSalesUploadFile[];
+};
+export type WarrantyStatus = 'active' | 'expired' | 'void';
+export type WarrantyMaintenanceStatus = 'due' | 'scheduled' | 'completed' | 'cancelled';
+
+export type WarrantySummary = {
+  id: number;
+  warranty_number: string;
+  order: { id: number; order_number: string };
+  status: WarrantyStatus;
+  status_label: string;
+  product_name: string;
+  product_sku: Nullable<string>;
+  starts_at: Nullable<string>;
+  expires_at: Nullable<string>;
+  next_maintenance_at: Nullable<string>;
+  created_at: Nullable<string>;
+  updated_at: Nullable<string>;
+};
+
+export type WarrantyMaintenanceRecord = {
+  id: number;
+  status: WarrantyMaintenanceStatus;
+  status_label: string;
+  due_at: Nullable<string>;
+  scheduled_at: Nullable<string>;
+  completed_at: Nullable<string>;
+  result: Nullable<string>;
+};
+
+export type Warranty = WarrantySummary & {
+  quantity: number;
+  serial_numbers: string[];
+  duration_months: Nullable<number>;
+  duration_days: Nullable<number>;
+  maintenance_interval_months: Nullable<number>;
+  last_maintenance_at: Nullable<string>;
+  terms: Nullable<string>;
+  void_reason: Nullable<string>;
+  maintenance_records: WarrantyMaintenanceRecord[];
+};
+export type CommissionStatus = 'pending' | 'approved' | 'paid' | 'cancelled';
+export type CommissionPaymentMethod = 'bank_transfer' | 'cash' | 'other';
+
+export type CommissionPayment = {
+  method: Nullable<CommissionPaymentMethod>;
+  method_label: Nullable<string>;
+  reference: Nullable<string>;
+  paid_at: Nullable<string>;
+};
+
+export type Commission = {
+  id: number;
+  order: { id: number; order_number: string };
+  total_eur: number;
+  status: CommissionStatus;
+  status_label: string;
+  status_note: Nullable<string>;
+  responsible_name: string;
+  payment: Nullable<CommissionPayment>;
+  status_updated_at: Nullable<string>;
+  created_at: Nullable<string>;
+  updated_at: Nullable<string>;
+};
+
+export type CommissionTotals = {
+  pending_eur: number;
+  approved_eur: number;
+  paid_eur: number;
+  count: number;
+};
+
+export type CommissionListParams = {
+  q?: string;
+  status?: CommissionStatus;
+  date_from?: string;
+  date_to?: string;
+  page?: number;
+};
+
+export type CommissionListResponse = PaginatedResponse<Commission> & {
+  summary: CommissionTotals;
+};
 export type BusinessNotification = {
   id: string;
   event: Nullable<string>;
@@ -316,7 +671,6 @@ export type OrderOptions = {
 
 export type CreateOrderItemInput = {
   product_id: number;
-  product_variant_id: Nullable<number>;
   quantity: number;
 };
 
@@ -331,4 +685,140 @@ export type CreateOrderInput = {
   payment_method: PaymentMethod;
   bank_account_id: Nullable<number>;
   items: CreateOrderItemInput[];
+};
+
+// MOBILE_ADMIN_PRODUCT_CREATE_TYPES_V06
+// MOBILE_ADMIN_PRODUCT_CREATE_BATCH2_TYPES_V06
+// MOBILE_ADMIN_PRODUCT_CREATE_BATCH2B_TYPES_V06
+export type AdminCatalogSpecificationOption = {
+  id: number;
+  label: string;
+  value: string;
+  parent_option_ids: number[];
+};
+
+export type AdminCatalogSpecificationField = {
+  id: number;
+  name: string;
+  slug: string;
+  data_type: string;
+  filter_type: string | null;
+  unit: string | null;
+  min_value: number | null;
+  max_value: number | null;
+  parent_field_id: number | null;
+  detail_input_enabled: boolean;
+  detail_label: string | null;
+  required: boolean;
+  default_value: string | number | boolean | null;
+  read_only_derived: boolean;
+  storage_repeater: {
+    enabled: true;
+    total_field_id: number;
+    total_field_name: string;
+    total_unit: string | null;
+    max_items: number;
+    capacity_unit: 'GB';
+  } | null;
+  options: AdminCatalogSpecificationOption[];
+};
+
+export type AdminCatalogTypeOption = {
+  id: number;
+  name: string;
+  category_id: number | null;
+  category_name: string | null;
+  auto_name_enabled: boolean;
+  fields: AdminCatalogSpecificationField[];
+};
+
+export type AdminCatalogBrandOption = {
+  id: number;
+  name: string;
+  product_type_ids: number[];
+};
+
+export type AdminCatalogLineOption = {
+  id: number;
+  name: string;
+  brand_id: number | null;
+  product_type_ids: number[];
+};
+
+export type AdminProductImageLimits = {
+  max_files: number;
+  max_bytes: number;
+  mime_types: string[];
+  extensions: string[];
+};
+
+export type AdminCatalogCreateOptions = {
+  types: AdminCatalogTypeOption[];
+  brands: AdminCatalogBrandOption[];
+  lines: AdminCatalogLineOption[];
+  defaults: {
+    status: 'draft';
+    price_currency: 'EUR';
+    stock_quantity: 0;
+    low_stock_threshold: 1;
+  };
+  currencies: Array<{ value: 'EUR' | 'RSD'; label: string }>;
+  statuses: Array<{ value: 'draft' | 'active' | 'inactive'; label: string }>;
+  capabilities: {
+    advanced_specifications: boolean;
+    image_upload: boolean;
+    specialized_storage_repeater: boolean;
+  };
+  image_limits: AdminProductImageLimits;
+};
+
+export type AdminProductCreateInput = {
+  product_type_id?: number;
+  brand_id?: number;
+  product_line_id?: number;
+  model_name?: string;
+  name?: string;
+  regenerate_sku?: boolean;
+  regenerate_name?: boolean;
+  price_amount: number;
+  price_currency: 'EUR' | 'RSD';
+  purchase_price_rsd?: number;
+  manual_commission_eur?: number;
+  description: string;
+  notes?: string;
+  stock_quantity: number;
+  low_stock_threshold: number;
+  status: 'draft' | 'active' | 'inactive';
+  category_ids?: number[];
+  specs?: Record<string, string | number | boolean>;
+  spec_details?: Record<string, string>;
+  spec_lists?: Record<string, string[]>;
+  spec_capacities?: Record<string, number[]>;
+  spec_structured?: Record<string, Array<{ type: string; capacity_gb?: number }>>;
+};
+
+export type AdminProductCreated = {
+  id: number;
+  slug: string;
+  sku: string;
+  name: string;
+  status: 'draft' | 'active' | 'inactive';
+};
+
+export type AdminProductCreateResponse = {
+  message: string;
+  data: AdminProductCreated;
+  announcement_count: number;
+};
+
+export type AdminProductImageUploadFile = {
+  uri: string;
+  name: string;
+  type: string;
+  size: number;
+};
+
+export type AdminProductImageUploadResponse = {
+  message: string;
+  uploaded_count: number;
 };

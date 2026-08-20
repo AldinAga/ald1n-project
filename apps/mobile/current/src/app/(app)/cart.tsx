@@ -1,16 +1,22 @@
 import { router } from 'expo-router';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
+import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Card } from '@/components/ui/card';
 import { Glyph } from '@/components/ui/glyph';
 import { UnavailableState } from '@/components/ui/states';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
+import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
 import { formatMoney } from '@/lib/formatters';
 
 export default function CartScreen() {
+  const { colors: themeColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const feedback = useAppFeedback();
+
   const { hasFeature } = useAuth();
   const { items, itemCount, setQuantity, removeItem, clearCart } = useCart();
   const allowed = hasFeature('order_create');
@@ -22,11 +28,21 @@ export default function CartScreen() {
     result[item.price.currency] = (result[item.price.currency] ?? 0) + item.price.amount * item.quantity;
     return result;
   }, {});
+  const confirmClear = () => {
+    void (async () => {
+      const confirmed = await feedback.confirm({
+        tone: 'danger',
+        title: 'Isprazni korpu',
+        message: 'Ukloniti sve stavke iz korpe?',
+        confirmLabel: 'Isprazni',
+        cancelLabel: 'Ne'
+      });
 
-  const confirmClear = () => Alert.alert('Isprazni korpu', 'Ukloniti sve stavke iz korpe?', [
-    { text: 'Ne', style: 'cancel' },
-    { text: 'Isprazni', style: 'destructive', onPress: clearCart }
-  ]);
+      if (confirmed) {
+        clearCart();
+      }
+    })();
+  };
 
   return (
     <Screen>
@@ -43,7 +59,7 @@ export default function CartScreen() {
 
       {!items.length ? (
         <Card muted style={styles.empty}>
-          <View style={styles.emptyIcon}><Glyph name="cart" size={30} color={colors.primary} /></View>
+          <View style={styles.emptyIcon}><Glyph name="cart" size={30} color={themeColors.primary} /></View>
           <Text style={styles.emptyTitle}>Korpa je prazna</Text>
           <Text style={styles.emptyCopy}>Otvori katalog, izaberi proizvod i dodaj željenu količinu.</Text>
           <Button variant="secondary" onPress={() => router.replace('/catalog')}>Otvori katalog</Button>
@@ -55,11 +71,11 @@ export default function CartScreen() {
               <Card key={item.key} style={styles.itemCard}>
                 <View style={styles.itemTop}>
                   <View style={styles.imageWrap}>
-                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="contain" /> : <Glyph name="box" size={28} color={colors.primary} />}
+                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="contain" /> : <Glyph name="box" size={28} color={themeColors.primary} />}
                   </View>
                   <View style={styles.itemCopy}>
                     <Text style={styles.itemName}>{item.productName}</Text>
-                    <Text style={styles.itemMeta}>{item.variantName ? `${item.variantName} · ` : ''}{item.sku}</Text>
+                    <Text style={styles.itemMeta}>{item.sku}</Text>
                     <Text style={styles.itemPrice}>{item.price ? formatMoney(item.price.amount, item.price.currency) : 'Cena nije prikazana'}</Text>
                   </View>
                 </View>
@@ -108,37 +124,39 @@ export default function CartScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: AppColors) {
+  return StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { ...typography.label, color: colors.primary, paddingVertical: spacing.sm },
-  clear: { ...typography.label, color: colors.danger, paddingVertical: spacing.sm },
-  eyebrow: { ...typography.small, color: colors.primary, letterSpacing: 1.2, fontWeight: '800' },
-  title: { ...typography.h1, color: colors.ink, marginTop: spacing.xs },
-  subtitle: { ...typography.body, color: colors.muted, marginTop: spacing.xs },
+  back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
+  clear: { ...typography.label, color: theme.danger, paddingVertical: spacing.sm },
+  eyebrow: { ...typography.small, color: theme.primary, letterSpacing: 1.2, fontWeight: '800' },
+  title: { ...typography.h1, color: theme.ink, marginTop: spacing.xs },
+  subtitle: { ...typography.body, color: theme.muted, marginTop: spacing.xs },
   empty: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxxl },
-  emptyIcon: { width: 62, height: 62, borderRadius: 22, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { ...typography.h2, color: colors.ink, textAlign: 'center' },
-  emptyCopy: { ...typography.body, color: colors.muted, textAlign: 'center', maxWidth: 320 },
+  emptyIcon: { width: 62, height: 62, borderRadius: 22, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { ...typography.h2, color: theme.ink, textAlign: 'center' },
+  emptyCopy: { ...typography.body, color: theme.muted, textAlign: 'center', maxWidth: 320 },
   items: { gap: spacing.md },
   itemCard: { gap: spacing.md },
   itemTop: { flexDirection: 'row', gap: spacing.md },
-  imageWrap: { width: 82, height: 82, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  imageWrap: { width: 82, height: 82, borderRadius: radii.lg, backgroundColor: theme.surfaceMuted, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   itemCopy: { flex: 1, justifyContent: 'center' },
-  itemName: { ...typography.h3, color: colors.ink },
-  itemMeta: { ...typography.small, color: colors.muted, marginTop: 3 },
-  itemPrice: { ...typography.label, color: colors.primaryDark, marginTop: spacing.sm },
-  quantityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: spacing.md },
-  stock: { ...typography.small, color: colors.muted, flex: 1 },
-  stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, overflow: 'hidden' },
-  stepButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
-  stepText: { fontSize: 20, lineHeight: 23, color: colors.primaryDark, fontWeight: '800' },
-  quantity: { minWidth: 36, textAlign: 'center', ...typography.label, color: colors.ink },
+  itemName: { ...typography.h3, color: theme.ink },
+  itemMeta: { ...typography.small, color: theme.muted, marginTop: 3 },
+  itemPrice: { ...typography.label, color: theme.primaryDark, marginTop: spacing.sm },
+  quantityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderTopWidth: 1, borderTopColor: theme.line, paddingTop: spacing.md },
+  stock: { ...typography.small, color: theme.muted, flex: 1 },
+  stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.line, borderRadius: radii.md, overflow: 'hidden' },
+  stepButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceMuted },
+  stepText: { fontSize: 20, lineHeight: 23, color: theme.primaryDark, fontWeight: '800' },
+  quantity: { minWidth: 36, textAlign: 'center', ...typography.label, color: theme.ink },
   disabled: { opacity: 0.35 },
-  remove: { ...typography.small, color: colors.danger, fontWeight: '700' },
-  summaryTitle: { ...typography.h3, color: colors.ink, marginBottom: spacing.sm },
+  remove: { ...typography.small, color: theme.danger, fontWeight: '700' },
+  summaryTitle: { ...typography.h3, color: theme.ink, marginBottom: spacing.sm },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.lg, paddingVertical: spacing.sm },
-  summaryLabel: { ...typography.small, color: colors.muted },
-  summaryValue: { ...typography.label, color: colors.ink },
-  note: { ...typography.small, color: colors.muted, marginTop: spacing.sm }
+  summaryLabel: { ...typography.small, color: theme.muted },
+  summaryValue: { ...typography.label, color: theme.ink },
+  note: { ...typography.small, color: theme.muted, marginTop: spacing.sm }
 });
+}

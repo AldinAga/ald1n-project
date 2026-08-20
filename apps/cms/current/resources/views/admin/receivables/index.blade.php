@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Potraživanja i naplata')
 @section('content')
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovna pravila'])
 <div class="page-heading">
     <div><span class="eyebrow">Finansije</span><h1>Potraživanja i naplata</h1><p>Aging pregled, automatske opomene, obećane uplate, planovi rata i evidencija kontakata.</p></div>
     <div class="header-button-row">

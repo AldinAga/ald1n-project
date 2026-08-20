@@ -8,12 +8,16 @@ import { ProductCard } from '@/components/catalog/product-card';
 import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
+import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
 import { api } from '@/lib/api/endpoints';
 
 export default function CatalogScreen() {
+  const { colors: themeColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+
   const { bootstrap, hasFeature } = useAuth();
   const { itemCount } = useCart();
   const allowed = hasFeature('catalog');
@@ -44,20 +48,20 @@ export default function CatalogScreen() {
       keyExtractor={(item) => String(item.id)}
       renderItem={({ item }) => <ProductCard product={item} onPress={() => router.push({ pathname: '/product/[slug]', params: { slug: item.slug } })} />}
       ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={themeColors.primary} />}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerWrap}>
           <View style={styles.headerLine}><View style={{ flex: 1 }}><PageHeader title="Katalog" eyebrow="Proizvodi" name={bootstrap?.user.name} /></View>{hasFeature('order_create') ? <Text onPress={() => router.push('/cart')} style={styles.cartLink}>Korpa{itemCount ? ` (${itemCount})` : ''}</Text> : null}</View>
           <View style={styles.searchWrap}>
-            <Glyph name="search" size={22} color={colors.muted} />
+            <Glyph name="search" size={22} color={themeColors.muted} />
             <TextInput
               value={draft}
               onChangeText={setDraft}
               onSubmitEditing={() => setSearch(draft.trim())}
               placeholder="Naziv, SKU ili model…"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={themeColors.muted}
               returnKeyType="search"
               style={styles.search}
             />
@@ -76,17 +80,19 @@ export default function CatalogScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: 120, backgroundColor: colors.background },
+function createStyles(theme: AppColors) {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.background },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: 120, backgroundColor: theme.background },
   headerWrap: { gap: spacing.lg, marginBottom: spacing.lg },
   headerLine: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  cartLink: { ...typography.label, color: colors.primary, paddingVertical: spacing.sm },
-  searchWrap: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, borderWidth: 1, borderColor: colors.line, borderRadius: radii.lg, backgroundColor: colors.surface },
-  search: { flex: 1, color: colors.ink, fontSize: 16 },
+  cartLink: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
+  searchWrap: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, borderWidth: 1, borderColor: theme.line, borderRadius: radii.lg, backgroundColor: theme.surface },
+  search: { flex: 1, color: theme.ink, fontSize: 16 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  filter: { ...typography.small, color: colors.muted, paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  filterActive: { color: colors.white, backgroundColor: colors.primary, borderColor: colors.primary },
+  filter: { ...typography.small, color: theme.muted, paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.line, overflow: 'hidden' },
+  filterActive: { color: theme.onPrimary, backgroundColor: theme.primary, borderColor: theme.primary },
   resultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
-  resultTitle: { ...typography.h2, color: colors.ink }
+  resultTitle: { ...typography.h2, color: theme.ink }
 });
+}

@@ -12,7 +12,7 @@ final class StockMovement extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'event_key', 'product_id', 'product_variant_id', 'order_id', 'user_id', 'movement_type', 'source', 'quantity_change',
+        'event_key', 'product_id', 'order_id', 'user_id', 'movement_type', 'source', 'quantity_change',
         'quantity_before', 'quantity_after', 'note', 'metadata_json', 'stock_receipt_id', 'inventory_count_id',
     ];
 
@@ -32,10 +32,6 @@ final class StockMovement extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function variant(): BelongsTo
-    {
-        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
-    }
 
     public function order(): BelongsTo
     {

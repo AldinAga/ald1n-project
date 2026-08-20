@@ -30,7 +30,7 @@ $check('Rotacija podržava Imagick i GD', str_contains($service, 'rotateWithImag
 $check('Rotacija koristi privremeni fajl i legacy copy-on-write', str_contains($service, 'temporaryCopy') && str_contains($service, 'legacy_copy_on_write') && str_contains($service, "storage_disk = 'public'"));
 $check('Rotacija osvežava hash i veličinu fajla', str_contains($service, "hash_file('sha256', \$finalPath)") && str_contains($service, 'clearstatcache'));
 $check('Glavna slika je uvek prva', str_contains($service, 'setPrimary') && str_contains($service, 'array_unshift($orderedIds') && str_contains($service, "where('is_primary', true)"));
-$check('Reorder čuva sve slike i odbacuje tuđe ID-jeve', str_contains($service, '$existingLookup') && str_contains($service, 'Neposlati ID-jevi se dodaju na kraj') && str_contains($service, "whereNull('product_variant_id')"));
+$check('Reorder čuva sve product-only slike i odbacuje tuđe ID-jeve', str_contains($service, '$existingLookup') && str_contains($service, 'Neposlati ID-jevi se dodaju na kraj') && !str_contains($service, 'product_variant_id'));
 $check('Image akcije imaju JSON odgovore', substr_count($controller, '$request->expectsJson()') >= 5 && str_contains($controller, "'reload' => \$wasLegacy"));
 
 $form = $source('resources/views/admin/products/form.blade.php');

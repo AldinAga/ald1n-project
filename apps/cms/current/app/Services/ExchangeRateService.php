@@ -91,6 +91,8 @@ final class ExchangeRateService
             throw new RuntimeException('Automatsko ažuriranje nije uključeno.');
         }
 
+        // A forced one-off refresh must not silently enable automatic mode.
+        $effectiveMode = $force && $before['mode'] === 'manual' ? 'manual' : 'auto';
         $attemptAt = now()->format('Y-m-d H:i:s');
         $this->settings->putMany(['eur_rsd_last_attempt_at' => $attemptAt], $userId);
 
@@ -110,7 +112,7 @@ final class ExchangeRateService
 
             $this->settings->putMany([
                 'eur_rsd_rate' => number_format($rate, 6, '.', ''),
-                'eur_rsd_mode' => 'auto',
+                'eur_rsd_mode' => $effectiveMode,
                 'eur_rsd_provider' => 'frankfurter',
                 'eur_rsd_source' => 'Frankfurter API — referentni kurs centralnih banaka',
                 'eur_rsd_provider_date' => $date,
@@ -122,7 +124,7 @@ final class ExchangeRateService
             ExchangeRateHistory::query()->create([
                 'old_rate' => $before['rate'],
                 'new_rate' => $rate,
-                'mode' => 'auto',
+                'mode' => $effectiveMode,
                 'provider' => 'frankfurter',
                 'source' => 'Frankfurter API — referentni kurs centralnih banaka',
                 'provider_date' => $date,
@@ -139,7 +141,7 @@ final class ExchangeRateService
             ExchangeRateHistory::query()->create([
                 'old_rate' => $before['rate'],
                 'new_rate' => null,
-                'mode' => 'auto',
+                'mode' => $effectiveMode,
                 'provider' => 'frankfurter',
                 'source' => 'Frankfurter API',
                 'provider_date' => null,

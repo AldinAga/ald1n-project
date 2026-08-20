@@ -16,6 +16,7 @@ use App\Models\ProductWarranty;
 use App\Models\WarrantyMaintenanceRecord;
 use App\Models\WarrantyRule;
 use App\Services\AuditLogger;
+use App\Services\WarrantyAdminService;
 use App\Services\WarrantyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -69,30 +70,33 @@ final class WarrantyController extends Controller
         ]);
     }
 
-    public function storeRule(StoreWarrantyRuleRequest $request, AuditLogger $audit): RedirectResponse
-    {
-        $data = $request->validated();
-        $data['category_id'] = $data['scope_type'] === 'category' ? $data['category_id'] : null;
-        $data['product_id'] = $data['scope_type'] === 'product' ? $data['product_id'] : null;
-        $data['is_active'] = $request->boolean('is_active', true);
-        $data['created_by'] = $request->user()->id;
-        $data['updated_by'] = $request->user()->id;
-        $rule = WarrantyRule::query()->create($data);
-        $audit->log('warranty_rule.created', 'Kreirano pravilo garancije '.$rule->name, $rule, after: $rule->toArray(), user: $request->user());
+    public function storeRule(
+        StoreWarrantyRuleRequest $request,
+        WarrantyAdminService $service,
+    ): RedirectResponse {
+        $service->createRule(
+            $request->user(),
+            $request->validated(),
+        );
+
         return back()->with('status', 'Pravilo garancije je kreirano.');
     }
 
-    public function updateRule(StoreWarrantyRuleRequest $request, WarrantyRule $rule, AuditLogger $audit): RedirectResponse
-    {
-        $before = $rule->toArray();
-        $data = $request->validated();
-        $data['category_id'] = $data['scope_type'] === 'category' ? $data['category_id'] : null;
-        $data['product_id'] = $data['scope_type'] === 'product' ? $data['product_id'] : null;
-        $data['is_active'] = $request->boolean('is_active');
-        $data['updated_by'] = $request->user()->id;
-        $rule->update($data);
-        $audit->log('warranty_rule.updated', 'Izmenjeno pravilo garancije '.$rule->name, $rule, $before, $rule->toArray(), user: $request->user());
-        return back()->with('status', 'Pravilo garancije je izmenjeno. Postojeći garantni listovi zadržavaju stare uslove.');
+    public function updateRule(
+        StoreWarrantyRuleRequest $request,
+        WarrantyRule $rule,
+        WarrantyAdminService $service,
+    ): RedirectResponse {
+        $service->updateRule(
+            $rule,
+            $request->user(),
+            $request->validated(),
+        );
+
+        return back()->with(
+            'status',
+            'Pravilo garancije je izmenjeno. Postojeći garantni listovi zadržavaju stare uslove.',
+        );
     }
 
     public function show(Request $request, ProductWarranty $warranty): View
@@ -133,14 +137,16 @@ final class WarrantyController extends Controller
         return back()->with('status', 'Preventivno održavanje je evidentirano.');
     }
 
-    public function backfill(Request $request, WarrantyService $service): RedirectResponse
-    {
-        $query = Order::query()->whereNotNull('completed_at')->whereHas('items', static fn ($items) => $items->whereDoesntHave('warranty'))->orderBy('id');
-        if (!$request->user()->hasRole('superadmin')) $query->where('supplier_user_id', $request->user()->id);
-        $orders = $query->limit(500)->get();
-        $created = 0;
-        foreach ($orders as $order) $created += $service->ensureForOrder($order->load('user'), $request->user())->count();
-        return back()->with('status', 'Generisano je '.$created.' nedostajućih garantnih listova.');
+    public function backfill(
+        Request $request,
+        WarrantyAdminService $service,
+    ): RedirectResponse {
+        $created = $service->backfill($request->user(), 500);
+
+        return back()->with(
+            'status',
+            'Generisano je '.$created.' nedostajućih garantnih listova.',
+        );
     }
 
     private function authorizeWarranty(Request $request, ProductWarranty $warranty): void

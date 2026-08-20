@@ -20,7 +20,7 @@ final class OrderReportService
     /** @var array<string,list<string>> */
     private const REQUIRED_SCHEMA = [
         'orders' => [
-            'id', 'order_number', 'user_id', 'supplier_user_id', 'supplier_name_snapshot',
+            'id', 'order_number', 'user_id', 'supplier_user_id', 'supplier_name_snapshot', 'sales_channel',
             'status', 'payment_status', 'subtotal_rsd', 'source_system', 'shipping_full_name',
             'shipping_city', 'completed_at', 'created_at',
         ],
@@ -150,7 +150,7 @@ final class OrderReportService
         }
 
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, ['Broj porudžbine', 'Datum', 'Korisnik', 'E-mail', 'Dobavljač', 'Status', 'Plaćanje', 'Iznos RSD', 'Provizija EUR', 'Grad'], ';');
+        fputcsv($handle, ['Broj porudžbine', 'Datum', 'Korisnik', 'E-mail', 'Odgovorno lice / kanal', 'Status', 'Plaćanje', 'Iznos RSD', 'Provizija EUR', 'Grad'], ';');
 
         $this->query($user, $filters)
             ->reorder('orders.id')
@@ -161,7 +161,7 @@ final class OrderReportService
                         $order->created_at?->format('d.m.Y H:i'),
                         $order->user?->displayName(),
                         $order->user?->email,
-                        $order->supplier_name_snapshot ?: $order->supplier?->displayName(),
+                        $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName()),
                         $order->completed_at !== null ? 'completed' : $order->status,
                         $order->payment_status,
                         number_format((float) $order->subtotal_rsd, 2, '.', ''),
@@ -204,7 +204,7 @@ final class OrderReportService
             'orders' => $orders->map(static fn (Order $order): array => [
                 'order_number' => $order->order_number,
                 'customer' => $order->user?->displayName() ?: $order->shipping_full_name,
-                'supplier' => $order->supplier_name_snapshot ?: $order->supplier?->displayName(),
+                'supplier' => $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName()),
                 'status' => $order->completed_at !== null ? 'completed' : $order->status,
                 'date' => $order->created_at?->format('d.m.Y'),
                 'total_rsd' => (float) $order->subtotal_rsd,

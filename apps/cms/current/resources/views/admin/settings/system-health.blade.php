@@ -4,6 +4,7 @@
 @php
     $statusLabels = ['healthy' => 'Zdravo', 'warning' => 'Upozorenje', 'critical' => 'Kritično'];
 @endphp
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Sistem i bezbednost'])
 <div class="page-heading"><div><span class="eyebrow">Produkcija i bezbednost</span><h1>System Health & Backup</h1><p>Centralni pregled baze, migracija, scheduler-a, backupa, storage-a, legacy read-only zaštite i poslednjih grešaka.</p></div><div class="header-button-row"><form method="post" action="{{ route('admin.settings.system-health.run') }}">@csrf<button class="button button-primary" type="submit">Pokreni proveru</button></form></div></div>
 <div class="health-overview status-{{ $report['status'] }}"><div><small>Ukupni status</small><strong>{{ $statusLabels[$report['status']] ?? $report['status'] }}</strong><span>Provereno {{ \Carbon\Carbon::parse($report['checked_at'])->format('d.m.Y H:i:s') }}</span></div><div class="health-version"><small>Aplikacija</small><strong>v{{ $report['metrics']['app_version'] }}</strong><span>PHP {{ $report['metrics']['php_version'] }} · Laravel {{ $report['metrics']['laravel_version'] }}</span></div></div>
 <div class="health-check-grid">@foreach($report['checks'] as $check)<article class="health-check status-{{ $check['status'] }}"><span class="health-dot"></span><div><strong>{{ $check['label'] }}</strong><p>{{ $check['message'] }}</p></div></article>@endforeach</div>

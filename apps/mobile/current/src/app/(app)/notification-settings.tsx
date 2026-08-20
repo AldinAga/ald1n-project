@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
+import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Card } from '@/components/ui/card';
 import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
+import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import {
   disableCurrentDevicePush,
@@ -33,6 +35,10 @@ const preferenceRows: Array<{ key: keyof NotificationPreferences; title: string;
 ];
 
 export default function NotificationSettingsScreen() {
+  const { colors: themeColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const feedback = useAppFeedback();
+
   const queryClient = useQueryClient();
   const { bootstrap, refreshBootstrap, hasFeature } = useAuth();
   const [permission, setPermission] = useState<PushPermissionState | null>(null);
@@ -76,35 +82,45 @@ export default function NotificationSettingsScreen() {
         refreshPermission()
       ]);
     } catch (error) {
-      Alert.alert('Push registracija nije završena', error instanceof Error ? error.message : 'Pokušaj ponovo.');
+      feedback.notify({
+        tone: 'danger',
+        title: 'Push registracija nije završena',
+        message: error instanceof Error ? error.message : 'Pokušaj ponovo.'
+      });
     } finally {
       setPushAction(false);
     }
   };
 
-  const disableDevicePush = () => Alert.alert(
-    'Isključi push na ovom uređaju',
-    'Ovo uklanja push token samo sa ovog uređaja. Inbox obaveštenja u aplikaciji ostaju dostupna.',
-    [
-      { text: 'Odustani', style: 'cancel' },
-      {
-        text: 'Isključi',
-        style: 'destructive',
-        onPress: () => void (async () => {
-          setPushAction(true);
-          try {
-            await disableCurrentDevicePush();
-            await queryClient.invalidateQueries({ queryKey: ['devices'] });
-            await refreshPermission();
-          } catch (error) {
-            Alert.alert('Push nije isključen', error instanceof Error ? error.message : 'Pokušaj ponovo.');
-          } finally {
-            setPushAction(false);
-          }
-        })()
+  const disableDevicePush = () => {
+    void (async () => {
+      const confirmed = await feedback.confirm({
+        tone: 'danger',
+        title: 'Isključi push na ovom uređaju',
+        message: 'Ovo uklanja push token samo sa ovog uređaja. Inbox obaveštenja u aplikaciji ostaju dostupna.',
+        confirmLabel: 'Isključi',
+        cancelLabel: 'Odustani'
+      });
+
+      if (!confirmed) return;
+
+      setPushAction(true);
+
+      try {
+        await disableCurrentDevicePush();
+        await queryClient.invalidateQueries({ queryKey: ['devices'] });
+        await refreshPermission();
+      } catch (error) {
+        feedback.notify({
+          tone: 'danger',
+          title: 'Push nije isključen',
+          message: error instanceof Error ? error.message : 'Pokušaj ponovo.'
+        });
+      } finally {
+        setPushAction(false);
       }
-    ]
-  );
+    })();
+  };
 
   const setPreference = (key: keyof NotificationPreferences, value: boolean) => {
     if (key === 'push_enabled' && value && !currentDevice?.push_registered) {
@@ -129,7 +145,7 @@ export default function NotificationSettingsScreen() {
       <Text style={styles.copy}>Upravljaj push registracijom ovog uređaja i kategorijama poslovnih obaveštenja.</Text>
 
       <Card style={styles.statusCard}>
-        <View style={styles.statusIcon}><Glyph name="bell" size={24} color={colors.primary} /></View>
+        <View style={styles.statusIcon}><Glyph name="bell" size={24} color={themeColors.primary} /></View>
         <View style={styles.statusCopy}>
           <View style={styles.statusHead}><Text style={styles.statusTitle}>Push na ovom uređaju</Text><Pill tone={deviceReady ? 'success' : 'warning'}>{deviceReady ? 'Registrovan' : 'Nije aktivan'}</Pill></View>
           <Text style={styles.statusText}>Sistemska dozvola: {permissionLabel}</Text>
@@ -192,6 +208,9 @@ function PreferenceRow({ title, copy, value, onChange, disabled }: {
   onChange: (value: boolean) => void;
   disabled?: boolean;
 }) {
+  const { colors: themeColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Card style={styles.preferenceCard}>
       <View style={{ flex: 1 }}>
@@ -202,27 +221,29 @@ function PreferenceRow({ title, copy, value, onChange, disabled }: {
         value={value}
         onValueChange={onChange}
         disabled={disabled}
-        trackColor={{ true: colors.primarySoft }}
-        thumbColor={value ? colors.primary : undefined}
+        trackColor={{ true: themeColors.primarySoft }}
+        thumbColor={value ? themeColors.primary : undefined}
       />
     </Card>
   );
 }
 
-const styles = StyleSheet.create({
-  back: { ...typography.label, color: colors.primary, paddingVertical: spacing.sm },
-  title: { ...typography.h1, color: colors.ink },
-  copy: { ...typography.body, color: colors.muted },
+function createStyles(theme: AppColors) {
+  return StyleSheet.create({
+  back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
+  title: { ...typography.h1, color: theme.ink },
+  copy: { ...typography.body, color: theme.muted },
   statusCard: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  statusIcon: { width: 50, height: 50, borderRadius: radii.lg, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  statusIcon: { width: 50, height: 50, borderRadius: radii.lg, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
   statusCopy: { flex: 1, gap: spacing.sm },
   statusHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-  statusTitle: { ...typography.h3, color: colors.ink, flex: 1 },
-  statusText: { ...typography.small, color: colors.muted },
-  noticeTitle: { ...typography.label, color: colors.ink },
-  noticeCopy: { ...typography.small, color: colors.muted, marginTop: spacing.xs },
-  sectionTitle: { ...typography.h2, color: colors.ink, marginTop: spacing.md },
+  statusTitle: { ...typography.h3, color: theme.ink, flex: 1 },
+  statusText: { ...typography.small, color: theme.muted },
+  noticeTitle: { ...typography.label, color: theme.ink },
+  noticeCopy: { ...typography.small, color: theme.muted, marginTop: spacing.xs },
+  sectionTitle: { ...typography.h2, color: theme.ink, marginTop: spacing.md },
   preferenceCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  preferenceTitle: { ...typography.label, color: colors.ink },
-  preferenceCopy: { ...typography.small, color: colors.muted, marginTop: spacing.xs }
+  preferenceTitle: { ...typography.label, color: theme.ink },
+  preferenceCopy: { ...typography.small, color: theme.muted, marginTop: spacing.xs }
 });
+}

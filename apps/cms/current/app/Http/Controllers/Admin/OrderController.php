@@ -157,6 +157,56 @@ final class OrderController extends Controller
         return $this->lastDetailRenderException;
     }
 
+    public function archived(Request $request, \App\Services\OrderArchiveService $archives): \Illuminate\View\View
+    {
+        $query = trim((string) $request->query('q', ''));
+
+        return view('admin.orders.archived', [
+            'orders' => $archives->paginateArchived($request->user(), $query),
+            'query' => $query,
+            'canPurge' => $request->user()->hasRole('superadmin'),
+        ]);
+    }
+
+    public function archive(Request $request, Order $order, \App\Services\OrderArchiveService $archives): RedirectResponse
+    {
+        $data = $request->validate([
+            'archive_reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        $archives->archive($order, $request->user(), (string) $data['archive_reason']);
+
+        return redirect()
+            ->route('admin.orders.archived')
+            ->with('status', 'Porudžbina '.$order->order_number.' je arhivirana.');
+    }
+
+    public function restore(Request $request, int $orderId, \App\Services\OrderArchiveService $archives): RedirectResponse
+    {
+        $order = $archives->restoreById($orderId, $request->user());
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('status', 'Arhiviranje porudžbine '.$order->order_number.' je opozvano.');
+    }
+    public function purge(Request $request, int $orderId, \App\Services\OrderArchiveService $archives): RedirectResponse
+    {
+        $data = $request->validate([
+            'confirmation' => ['required', 'string', 'max:100'],
+            'purge_reason' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+
+        $archives->purgeById(
+            $orderId,
+            $request->user(),
+            (string) $data['confirmation'],
+            (string) $data['purge_reason'],
+        );
+
+        return redirect()
+            ->route('admin.orders.archived')
+            ->with('status', 'Porudžbina je trajno uklonjena iz operativnih i arhivskih prikaza. Poslovna istorija potrebna za integritet ostaje sačuvana.');
+    }
     public function status(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
     {
         $access->authorizeManage($order, $request->user());

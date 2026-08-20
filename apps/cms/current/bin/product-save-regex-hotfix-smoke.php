@@ -19,13 +19,12 @@ $check(
 );
 
 $productRequest = $source('app/Http/Requests/ProductRequest.php');
-$variantRequest = $source('app/Http/Requests/ProductVariantRequest.php');
 $safeRule = "'regex:#^[A-Z0-9._/-]+$#'";
 $brokenNeedle = "regex:/^[A-Z0-9._\\\\\\/-]+$/";
 
 $check('ProductRequest koristi bezbedan SKU regex delimiter', str_contains($productRequest, $safeRule));
-$check('ProductVariantRequest koristi bezbedan SKU regex delimiter', str_contains($variantRequest, $safeRule));
-$check('Stari neispravan SKU regex je uklonjen', !str_contains($productRequest.$variantRequest, $brokenNeedle));
+$check('Retired ProductVariantRequest vise ne postoji', !is_file($root.'/app/Http/Requests/ProductVariantRequest.php'));
+$check('Stari neispravan SKU regex je uklonjen', !str_contains($productRequest, $brokenNeedle));
 
 $pattern = '#^[A-Z0-9._/-]+$#';
 $warning = null;

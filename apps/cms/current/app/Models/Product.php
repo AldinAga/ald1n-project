@@ -17,7 +17,7 @@ final class Product extends Model
         'product_type_id', 'brand_id', 'product_line_id', 'model_name', 'sku', 'name', 'slug', 'price_amount',
         'price_currency', 'purchase_price_rsd', 'manual_commission_eur', 'description', 'notes', 'stock_quantity',
         'low_stock_threshold', 'status', 'created_by', 'updated_by', 'deleted_at', 'legacy_checksum',
-        'legacy_synced_at', 'locally_modified_at', 'completeness_percent', 'name_is_manual', 'source_product_id', 'variants_enabled', 'default_variant_id',
+        'legacy_synced_at', 'locally_modified_at', 'completeness_percent', 'name_is_manual', 'source_product_id',
     ];
 
     protected function casts(): array
@@ -33,7 +33,6 @@ final class Product extends Model
             'locally_modified_at' => 'datetime',
             'completeness_percent' => 'integer',
             'name_is_manual' => 'boolean',
-            'variants_enabled' => 'boolean',
         ];
     }
 
@@ -49,12 +48,9 @@ final class Product extends Model
     public function type(): BelongsTo { return $this->belongsTo(ProductType::class, 'product_type_id'); }
     public function sourceProduct(): BelongsTo { return $this->belongsTo(self::class, 'source_product_id'); }
     public function categories(): BelongsToMany { return $this->belongsToMany(Category::class, 'product_categories'); }
-    public function images(): HasMany { return $this->hasMany(ProductImage::class)->whereNull('product_variant_id')->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id'); }
+    public function images(): HasMany { return $this->hasMany(ProductImage::class)->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id'); }
     public function allImages(): HasMany { return $this->hasMany(ProductImage::class)->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id'); }
-    public function primaryImage(): HasOne { return $this->hasOne(ProductImage::class)->whereNull('product_variant_id')->where('is_primary', true)->orderBy('sort_order'); }
-    public function variants(): HasMany { return $this->hasMany(ProductVariant::class)->whereNull('deleted_at')->orderByDesc('is_default')->orderBy('sort_order')->orderBy('id'); }
-    public function activeVariants(): HasMany { return $this->hasMany(ProductVariant::class)->whereNull('deleted_at')->where('status', 'active')->orderByDesc('is_default')->orderBy('sort_order')->orderBy('id'); }
-    public function defaultVariant(): BelongsTo { return $this->belongsTo(ProductVariant::class, 'default_variant_id'); }
+    public function primaryImage(): HasOne { return $this->hasOne(ProductImage::class)->where('is_primary', true)->orderBy('sort_order'); }
     public function specificationValues(): HasMany { return $this->hasMany(ProductSpecValue::class); }
     public function stockMovements(): HasMany { return $this->hasMany(StockMovement::class); }
     public function stockReceiptItems(): HasMany { return $this->hasMany(StockReceiptItem::class); }

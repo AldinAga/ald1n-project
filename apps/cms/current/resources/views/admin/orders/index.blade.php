@@ -28,6 +28,7 @@
             <p>Korisnik poručuje robu od Administratora ili SuperAdministratora, a odgovorno lice preuzima i obrađuje dodeljenu porudžbinu.</p>
         </div>
         <div class="header-button-row">
+            <a class="button button-ghost" href="{{ route('admin.orders.archived') }}"><x-icon name="archive" /> Arhivirane porudžbine</a>
             @can('reports.view')
                 <a class="button button-ghost" href="{{ route('admin.reports.index') }}"><x-icon name="chart" /> Izveštaji</a>
             @endcan
@@ -141,15 +142,16 @@
                                 && $order->expected_shipping_at->isPast()
                                 && !in_array($order->status, ['shipped', 'cancelled'], true);
                             $isOverdue = $processingOverdue || $shippingOverdue;
-                            $supplierName = $order->supplier_name_snapshot;
-                            if (!$supplierName && $order->relationLoaded('supplier')) {
+                            $isDirectSale = (string) ($order->sales_channel ?? 'order') === 'direct_sale';
+                            $supplierName = $isDirectSale ? 'Direktna prodaja' : $order->supplier_name_snapshot;
+                            if (!$isDirectSale && !$supplierName && $order->relationLoaded('supplier')) {
                                 $supplierName = $order->supplier?->displayName();
                             }
                         @endphp
                         <tr class="{{ $isOverdue ? 'row-overdue' : '' }}">
                             <td>
                                 <a href="{{ route('admin.orders.show', $order) }}"><strong>{{ $order->order_number }}</strong></a>
-                                <small class="muted">{{ $order->source_system }}</small>
+                                <small class="muted">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</small>
                             </td>
                             <td>
                                 {{ $order->user?->displayName() ?? '—' }}
@@ -157,7 +159,7 @@
                             </td>
                             <td>
                                 {{ $supplierName ?: '—' }}
-                                <small class="muted">{{ $order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje' }}</small>
+                                <small class="muted">{{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}</small>
                             </td>
                             <td>
                                 <span class="status-badge status-{{ $order->completed_at ? 'completed' : ($order->status === 'cancelled' ? 'archived' : ($order->status === 'shipped' ? 'active' : 'draft')) }}">

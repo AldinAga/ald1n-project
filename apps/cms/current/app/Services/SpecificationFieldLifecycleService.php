@@ -15,7 +15,7 @@ final class SpecificationFieldLifecycleService
     public function __construct(private readonly ProductCompletenessService $completeness) {}
 
     /**
-     * @return array{types:int,products:int,variants:int,children:int,options:int,templates:int,recalculated:int,downgraded:int}
+     * @return array{types:int,products:int,children:int,options:int,templates:int,recalculated:int,downgraded:int}
      */
     public function purge(SpecificationField $field): array
     {
@@ -27,9 +27,6 @@ final class SpecificationFieldLifecycleService
         $productIds = Schema::hasTable('product_spec_values')
             ? DB::table('product_spec_values')->where('field_id', $fieldId)->pluck('product_id')->map(static fn ($id): int => (int) $id)->all()
             : [];
-        $variantCount = Schema::hasTable('product_variant_spec_values')
-            ? (int) DB::table('product_variant_spec_values')->where('field_id', $fieldId)->count()
-            : 0;
         $childCount = Schema::hasColumn('specification_fields', 'parent_field_id')
             ? (int) SpecificationField::query()->where('parent_field_id', $fieldId)->count()
             : 0;
@@ -52,9 +49,6 @@ final class SpecificationFieldLifecycleService
                     'storage_source_field_id' => null,
                     'storage_role' => null,
                 ]);
-            }
-            if (Schema::hasTable('product_variant_spec_values')) {
-                DB::table('product_variant_spec_values')->where('field_id', $fieldId)->delete();
             }
             if (Schema::hasTable('product_spec_values')) {
                 DB::table('product_spec_values')->where('field_id', $fieldId)->delete();
@@ -100,7 +94,6 @@ final class SpecificationFieldLifecycleService
         return [
             'types' => count(array_unique($typeIds)),
             'products' => count(array_unique($productIds)),
-            'variants' => $variantCount,
             'children' => $childCount,
             'options' => count($optionIds),
             'templates' => $templatesChanged,
@@ -115,8 +108,6 @@ final class SpecificationFieldLifecycleService
         return [
             'orphan_product_values' => $this->countOrphans('product_spec_values', 'field_id', 'specification_fields', 'id')
                 + $this->countOrphans('product_spec_values', 'product_id', 'products', 'id'),
-            'orphan_variant_values' => $this->countOrphans('product_variant_spec_values', 'field_id', 'specification_fields', 'id')
-                + $this->countOrphans('product_variant_spec_values', 'product_variant_id', 'product_variants', 'id'),
             'orphan_type_fields' => $this->countOrphans('product_type_fields', 'field_id', 'specification_fields', 'id')
                 + $this->countOrphans('product_type_fields', 'product_type_id', 'product_types', 'id'),
             'orphan_options' => $this->countOrphans('specification_options', 'field_id', 'specification_fields', 'id'),
@@ -124,7 +115,6 @@ final class SpecificationFieldLifecycleService
             'orphan_parents' => $this->parentOrphanCount(),
             'orphan_storage_sources' => $this->storageSourceOrphanCount(),
             'unassigned_product_values' => $this->unassignedProductValueCount(),
-            'unassigned_variant_values' => $this->unassignedVariantValueCount(),
         ];
     }
 
@@ -134,8 +124,6 @@ final class SpecificationFieldLifecycleService
         DB::transaction(function (): void {
             $this->deleteOrphans('product_spec_values', 'field_id', 'specification_fields', 'id');
             $this->deleteOrphans('product_spec_values', 'product_id', 'products', 'id');
-            $this->deleteOrphans('product_variant_spec_values', 'field_id', 'specification_fields', 'id');
-            $this->deleteOrphans('product_variant_spec_values', 'product_variant_id', 'product_variants', 'id');
             $this->deleteOrphans('product_type_fields', 'field_id', 'specification_fields', 'id');
             $this->deleteOrphans('product_type_fields', 'product_type_id', 'product_types', 'id');
             $this->deleteOrphans('specification_options', 'field_id', 'specification_fields', 'id');
@@ -143,7 +131,6 @@ final class SpecificationFieldLifecycleService
             $this->clearParentOrphans();
             $this->clearStorageSourceOrphans();
             $this->deleteUnassignedProductValues();
-            $this->deleteUnassignedVariantValues();
         }, 3);
 
         return $this->integrityCounts();
@@ -318,41 +305,4 @@ final class SpecificationFieldLifecycleService
             ->delete();
     }
 
-    private function unassignedVariantValueCount(): int
-    {
-        if (!Schema::hasTable('product_variant_spec_values') || !Schema::hasTable('product_variants') || !Schema::hasTable('products') || !Schema::hasTable('product_type_fields')) {
-            return 0;
-        }
-
-        return (int) DB::table('product_variant_spec_values as values')
-            ->join('product_variants as variants', 'variants.id', '=', 'values.product_variant_id')
-            ->join('products', 'products.id', '=', 'variants.product_id')
-            ->leftJoin('product_type_fields as allowed', function ($join): void {
-                $join->on('allowed.product_type_id', '=', 'products.product_type_id')
-                    ->on('allowed.field_id', '=', 'values.field_id');
-            })
-            ->whereNotNull('products.product_type_id')
-            ->whereNull('allowed.field_id')
-            ->count();
-    }
-
-    private function deleteUnassignedVariantValues(): void
-    {
-        if ($this->unassignedVariantValueCount() === 0) {
-            return;
-        }
-
-        DB::table('product_variant_spec_values')
-            ->whereNotExists(function ($query): void {
-                $query->selectRaw('1')
-                    ->from('product_variants as variants')
-                    ->join('products', 'products.id', '=', 'variants.product_id')
-                    ->join('product_type_fields', function ($join): void {
-                        $join->on('product_type_fields.product_type_id', '=', 'products.product_type_id')
-                            ->on('product_type_fields.field_id', '=', 'product_variant_spec_values.field_id');
-                    })
-                    ->whereColumn('variants.id', 'product_variant_spec_values.product_variant_id');
-            })
-            ->delete();
-    }
 }

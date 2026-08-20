@@ -33,25 +33,7 @@ final class ProductResource extends JsonResource
             'stock_quantity' => $this->stock_quantity,
             'primary_image_url' => $this->absoluteUrl($this->primaryImage?->url),
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => ['id' => $image->id, 'url' => $this->absoluteUrl($image->url), 'primary' => $image->is_primary])->values()),
-            'variants_enabled' => (bool) $this->variants_enabled,
-            'variants' => $this->whenLoaded('activeVariants', fn () => $this->activeVariants->map(function ($variant) use ($canViewPrices, $rate): array {
-                $commission = app(CommissionCalculator::class)->unitEur((float) $variant->price_amount, (string) $variant->price_currency, $variant->manual_commission_eur !== null ? (float) $variant->manual_commission_eur : null, $rate);
-                return [
-                    'id' => $variant->id,
-                    'sku' => $variant->sku,
-                    'name' => $variant->name,
-                    'default' => (bool) $variant->is_default,
-                    'stock_quantity' => (int) $variant->stock_quantity,
-                    'price' => $canViewPrices ? ['amount' => (float) $variant->price_amount, 'currency' => $variant->price_currency] : null,
-                    'commission_eur' => $commission,
-                    'images' => $variant->relationLoaded('images') ? $variant->images->map(fn ($image) => ['id' => $image->id, 'url' => $this->absoluteUrl($image->url), 'primary' => $image->is_primary])->values() : [],
-                    'specifications' => $variant->relationLoaded('specificationValues') ? $variant->specificationValues->filter(fn ($value) => $value->field !== null && $value->field->status === 'active')->map(fn ($value) => [
-                        'field' => $value->field?->name, 'slug' => $value->field?->slug,
-                        'value' => $value->value_text ?? $value->value_number ?? $value->value_boolean,
-                        'detail' => $value->value_detail, 'unit' => $value->field?->unit,
-                    ])->values() : [],
-                ];
-            })->values()),
+
             'specifications' => $this->whenLoaded('specificationValues', fn () => $this->specificationValues->filter(fn ($value) => $value->field !== null && $value->field->status === 'active')->map(fn ($value) => [
                 'field' => $value->field?->name,
                 'slug' => $value->field?->slug,

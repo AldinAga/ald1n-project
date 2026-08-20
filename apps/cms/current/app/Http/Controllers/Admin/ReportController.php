@@ -143,7 +143,7 @@ final class ReportController extends Controller
             foreach ($query->cursor() as $order) {
                 $total = (float) $order->subtotal_rsd;
                 $paid = (float) ($order->paid_total_rsd ?? 0);
-                fputcsv($stream, [$order->order_number, $order->user?->displayName(), $order->supplier_name_snapshot ?: $order->supplier?->displayName(), number_format($total, 2, '.', ''), number_format($paid, 2, '.', ''), number_format(max(0, $total - $paid), 2, '.', ''), $order->payment_state ?? $order->payment_status, $order->payment_due_at?->format('Y-m-d H:i')], ';');
+                fputcsv($stream, [$order->order_number, $order->user?->displayName(), $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName()), number_format($total, 2, '.', ''), number_format($paid, 2, '.', ''), number_format(max(0, $total - $paid), 2, '.', ''), $order->payment_state ?? $order->payment_status, $order->payment_due_at?->format('Y-m-d H:i')], ';');
             }
             rewind($stream);
             $content = stream_get_contents($stream) ?: '';

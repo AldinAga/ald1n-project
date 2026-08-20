@@ -193,7 +193,7 @@ final class DashboardController extends Controller
         if (!$access['orders_manage'] && !$access['orders_view_own']) return [];
         try {
             if (!$this->tableHasColumns('orders', ['id', 'order_number', 'user_id', 'supplier_user_id', 'status', 'subtotal_rsd', 'paid_total_rsd', 'created_at', 'updated_at'])) return [];
-            $query = Order::query();
+            $query = Order::query()->operational();
             if ($access['orders_manage'] && $user->hasRole('admin')) {
                 $query->where('supplier_user_id', $user->id);
             } elseif (!$access['orders_manage']) {
@@ -258,7 +258,7 @@ final class DashboardController extends Controller
                 return $fallback;
             }
 
-            $orders = Order::query();
+            $orders = Order::query()->operational();
             if ($access['orders_manage'] && $user->hasRole('admin')) {
                 $orders->where('supplier_user_id', $user->getAuthIdentifier());
             } elseif (!$access['orders_manage']) {
@@ -329,7 +329,7 @@ final class DashboardController extends Controller
 
         try {
             if (!$this->tableHasColumns('field_work_orders', ['id', 'after_sales_action_id', 'status', 'planned_start_at', 'planned_end_at'])) return $fallback;
-            $query = FieldWorkOrder::query();
+            $query = FieldWorkOrder::query()->operational();
             if ($user->hasRole('admin')) {
                 $query->whereHas('action.case', function ($cases) use ($user): void {
                     $cases->where(function ($scope) use ($user): void {
@@ -411,7 +411,7 @@ final class DashboardController extends Controller
                     $query->where('assigned_to', $user->id)->orWhereHas('order', static fn ($orders) => $orders->where('supplier_user_id', $user->id));
                 });
             }
-            $orders = Order::query()->whereIn('id', (clone $cases)->select('order_id'))->whereRaw('subtotal_rsd > paid_total_rsd');
+            $orders = Order::query()->operational()->whereIn('id', (clone $cases)->select('order_id'))->whereRaw('subtotal_rsd > paid_total_rsd');
             return [
                 'active' => (clone $cases)->where('status','!=','closed')->count(),
                 'overdue_amount' => (float) (clone $orders)->where('payment_due_at','<',today())->selectRaw('COALESCE(SUM(CASE WHEN subtotal_rsd > paid_total_rsd THEN subtotal_rsd-paid_total_rsd ELSE 0 END),0) total')->value('total'),

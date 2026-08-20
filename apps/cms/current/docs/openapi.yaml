@@ -18,12 +18,98 @@ tags:
   - name: Devices
   - name: Catalog
   - name: Orders
+  - name: AfterSales
+  - name: Warranties
+  - name: Commissions
   - name: Notifications
+  - name: Admin Catalog
+    description: Administratorsko kreiranje i metadata za katalog artikala.
+  - name: Admin
+    description: Centralni Mobile Admin foundation i administratorski moduli.
 paths:
+  /api/v1/admin/catalog/products/{product}/images:
+    post:
+      tags: [Admin Catalog]
+      summary: Dodavanje fotografija novom ili postojećem artiklu
+      operationId: uploadAdminCatalogProductImages
+      parameters:
+        - name: product
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [images]
+              properties:
+                images:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '201':
+          description: Fotografije su obrađene kroz postojeći ProductImageService.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductImageUploadResponse'
+        '401':
+          description: Neautorizovan zahtev.
+        '403':
+          description: Nedostaje catalog.manage_products ili catalog.manage_images dozvola.
+        '404':
+          description: Artikal nije vidljiv u administratorskom catalog scope-u.
+        '422':
+          description: Maksimalno 20 JPG/JPEG/PNG/WebP fajlova do 10 MiB po fajlu.
+  /api/v1/admin/catalog/options:
+    get:
+      tags: [Admin Catalog]
+      summary: Opcije za kreiranje artikla
+      operationId: getAdminCatalogCreateOptions
+      responses:
+        '200':
+          description: Aktivni tipovi, brendovi, linije i podrazumevane vrednosti.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogCreateOptionsEnvelope'
+        '401':
+          description: Neautorizovan zahtev.
+        '403':
+          description: Nedostaje catalog.manage_products dozvola.
+  /api/v1/admin/catalog/products:
+    post:
+      tags: [Admin Catalog]
+      summary: Kreiranje novog artikla
+      operationId: createAdminCatalogProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminProductCreateInput'
+      responses:
+        '201':
+          description: Artikal je kreiran kroz postojeći ProductAdminService.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductCreateResponse'
+        '401':
+          description: Neautorizovan zahtev.
+        '403':
+          description: Nedostaje catalog.manage_products dozvola.
+        '422':
+          description: ProductRequest validacija nije prošla.
   /api/v1/auth/google:
     post:
       summary: Google login ili registracija mobilnog korisnika
-      description: Backend verifikuje Google ID token, povezuje postojeći korisnik po stabilnom Google subject-u ili verifikovanom e-mailu i po konfiguraciji kreira novu pending registraciju.
+      description: Verifikovani Google ID token se proverava na Laravel backendu. Aktivni postojeći korisnik dobija Sanctum token; novi korisnik može biti kreiran kao pending prema CMS pravilima registracije.
       requestBody:
         required: true
         content:
@@ -32,13 +118,12 @@ paths:
               type: object
               required: [id_token, device_name]
               properties:
-                id_token: { type: string, maxLength: 8192 }
-                device_name: { type: string, maxLength: 120 }
+                id_token: { type: string }
+                device_name: { type: string }
       responses:
         '201': { description: Prijava uspela i Sanctum token je izdat }
-        '202': { description: Registracija postoji, ali nalog čeka odobrenje }
-        '422': { description: Google identitet ili CMS status nije prihvaćen }
-        '503': { description: Google auth nije konfigurisan }
+        '202': { description: Registracija je kreirana i čeka aktivaciju }
+        '422': { description: Google identitet ili nalog nije prihvaćen }
 
   /api/v1/auth/token:
     post:
@@ -368,12 +453,37 @@ paths:
                     required: [product_id, quantity]
                     properties:
                       product_id: { type: integer }
-                      product_variant_id: { type: [integer, 'null'] }
                       quantity: { type: integer, minimum: 1, maximum: 1000 }
       responses:
         '201': { description: Porudžbina je kreirana }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/orders/assigned:
+    get:
+      tags: [Orders]
+      summary: Porudžbine dodeljene prijavljenom odgovornom licu
+      operationId: listAssignedOrders
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+      responses:
+        '200': { description: Straničena lista porudžbina dodeljenih trenutnom odgovornom licu }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/orders/assigned/{order}:
+    get:
+      tags: [Orders]
+      summary: Detalj porudžbine dodeljene prijavljenom odgovornom licu
+      operationId: getAssignedOrder
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Dodeljena porudžbina }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/orders/{order}:
     get:
       tags: [Orders]
@@ -408,6 +518,467 @@ paths:
         '200': { description: Porudžbina je otkazana }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/orders/{order}/post-create:
+    get:
+      tags: [Orders]
+      summary: Customer post-create payment, document and delivery summary
+      operationId: getOrderPostCreate
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Customer-safe post-create order state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/OrderPostCreate' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/orders/{order}/payments/proof:
+    post:
+      tags: [Orders]
+      summary: Submit bank-transfer payment proof
+      operationId: submitOrderPaymentProof
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [amount_rsd, paid_at, proof]
+              properties:
+                amount_rsd: { type: number, minimum: 0.01, maximum: 9999999999.99 }
+                paid_at: { type: string, format: date-time }
+                reference: { type: [string, 'null'], maxLength: 190 }
+                note: { type: [string, 'null'], maxLength: 2000 }
+                proof: { type: string, format: binary }
+      responses:
+        '201':
+          description: Payment proof submitted for verification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, data]
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/OrderPaymentLedgerEntry' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orders/{order}/payments/{payment}/proof:
+    get:
+      tags: [Orders]
+      summary: Bearer download of customer payment proof
+      operationId: downloadOrderPaymentProof
+      parameters:
+        - { in: path, name: order, required: true, schema: { type: integer } }
+        - { in: path, name: payment, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Private payment proof
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/orders/{order}/documents/confirmation.pdf:
+    get:
+      tags: [Orders]
+      summary: Issue or return customer order-confirmation PDF
+      operationId: downloadOrderConfirmationPdf
+      parameters:
+        - { in: path, name: order, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Private order-confirmation PDF
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: PDF rendering unavailable }
+
+  /api/v1/orders/{order}/documents/{document}.pdf:
+    get:
+      tags: [Orders]
+      summary: Bearer download of an issued customer order document
+      operationId: downloadOrderDocumentPdf
+      parameters:
+        - { in: path, name: order, required: true, schema: { type: integer } }
+        - { in: path, name: document, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Private issued order PDF
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: PDF rendering unavailable }
+
+  /api/v1/orders/{order}/delivery-proof:
+    get:
+      tags: [Orders]
+      summary: Bearer download of customer delivery proof
+      operationId: downloadOrderDeliveryProof
+      parameters:
+        - { in: path, name: order, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Private delivery proof
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/after-sales:
+    get:
+      tags: [AfterSales]
+      summary: Lista vidljivih postprodajnih slučajeva
+      operationId: listAfterSalesCases
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200':
+          description: Straničena lista slučajeva
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AfterSalesCaseSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/after-sales/{case}:
+    get:
+      tags: [AfterSales]
+      summary: Detalj vidljivog postprodajnog slučaja
+      operationId: getAfterSalesCase
+      parameters:
+        - in: path
+          name: case
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Detalj slučaja sa stavkama, radnjama, javnim porukama i prilozima
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AfterSalesCase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/orders/{order}/after-sales/options:
+    get:
+      tags: [AfterSales]
+      summary: Opcije za otvaranje postprodajnog slučaja za porudžbinu
+      operationId: getAfterSalesOptions
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Porudžbina, stavke, šifarnici i upload limiti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AfterSalesOptions' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/orders/{order}/after-sales:
+    post:
+      tags: [AfterSales]
+      summary: Otvaranje postprodajnog slučaja
+      operationId: createAfterSalesCase
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [case_type, priority, subject, description, items]
+              properties:
+                case_type: { type: string, enum: [complaint, return, service] }
+                priority: { type: string, enum: [low, normal, high, urgent] }
+                subject: { type: string, maxLength: 190 }
+                description: { type: string, minLength: 20, maxLength: 10000 }
+                requested_resolution: { type: [string, 'null'], enum: [repair, replacement, partial_refund, full_refund, return, inspection, other, null] }
+                items:
+                  type: object
+                  minProperties: 1
+                  description: Ključevi objekta su ID-jevi stavki porudžbine.
+                  additionalProperties:
+                    type: object
+                    required: [selected, quantity]
+                    properties:
+                      selected: { type: boolean }
+                      quantity: { type: integer, minimum: 1, maximum: 999 }
+                      issue_description: { type: [string, 'null'], maxLength: 2000 }
+                attachments:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
+      responses:
+        '201':
+          description: Postprodajni slučaj je kreiran
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AfterSalesCase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/after-sales/{case}/messages:
+    post:
+      tags: [AfterSales]
+      summary: Slanje javne poruke u postprodajnom slučaju
+      operationId: createAfterSalesMessage
+      parameters:
+        - in: path
+          name: case
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 10000 }
+                attachments:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
+      responses:
+        '201':
+          description: Poruka je poslata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AfterSalesMessage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/after-sales/attachments/{attachment}:
+    get:
+      tags: [AfterSales]
+      summary: Preuzimanje vidljivog privatnog priloga
+      operationId: downloadAfterSalesAttachment
+      parameters:
+        - in: path
+          name: attachment
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Privatni fajl
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/field-work-order-attachments/{attachment}:
+    get:
+      tags: [AfterSales]
+      summary: Preuzimanje javnog priloga terenskog naloga
+      operationId: downloadFieldWorkOrderAttachment
+      parameters:
+        - in: path
+          name: attachment
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Autorizovani javni prilog terenskog naloga
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/warranties:
+    get:
+      tags: [Warranties]
+      summary: Lista sopstvenih garancija
+      operationId: listWarranties
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200':
+          description: Straničena lista garancija autentifikovanog korisnika
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/WarrantySummary' }
+                  links:
+                    type: object
+                    properties:
+                      first: { type: [string, 'null'] }
+                      last: { type: [string, 'null'] }
+                      prev: { type: [string, 'null'] }
+                      next: { type: [string, 'null'] }
+                  meta:
+                    type: object
+                    properties:
+                      current_page: { type: integer }
+                      from: { type: [integer, 'null'] }
+                      last_page: { type: integer }
+                      path: { type: string }
+                      per_page: { type: integer }
+                      to: { type: [integer, 'null'] }
+                      total: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/warranties/{warranty}.pdf:
+    get:
+      tags: [Warranties]
+      summary: Privatni PDF garantnog lista
+      operationId: downloadWarrantyPdf
+      parameters:
+        - in: path
+          name: warranty
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: PDF garantnog lista za autentifikovanog vlasnika
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/warranties/{warranty}:
+    get:
+      tags: [Warranties]
+      summary: Detalj sopstvene garancije
+      operationId: getWarranty
+      parameters:
+        - in: path
+          name: warranty
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Detalj garancije sa preventivnim održavanjem
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Warranty' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/commissions:
+    get:
+      tags: [Commissions]
+      summary: Lista sopstvenih provizija
+      operationId: listCommissions
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 190 } }
+        - { in: query, name: status, schema: { type: string, enum: [pending, approved, paid, cancelled] } }
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, schema: { type: string, format: date } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200':
+          description: Straničena lista sopstvenih provizija sa zbirnim iznosima
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CommissionListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: Provizije trenutno nisu dostupne }
+
+  /api/v1/commissions/{commission}:
+    get:
+      tags: [Commissions]
+      summary: Detalj sopstvene provizije
+      operationId: getCommission
+      parameters:
+        - in: path
+          name: commission
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Customer-safe detalj provizije
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Commission' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { description: Provizije trenutno nisu dostupne }
   /api/v1/notifications:
     get:
       tags: [Notifications]
@@ -440,8 +1011,1880 @@ paths:
       responses:
         '200': { description: Obaveštenje }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/foundation:
+    get:
+      tags: [Admin]
+      summary: Mobile Admin foundation capabilities
+      operationId: getAdminFoundation
+      responses:
+        '200':
+          description: Administratorski moduli dostupni prijavljenom korisniku.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminFoundation'
+        '401':
+          description: Neautorizovan zahtev.
+        '403':
+          description: Korisnik nema nijedan administratorski modul.
+
+  /api/v1/admin/commissions:
+    get:
+      tags: [Admin Commissions]
+      summary: Administratorska lista provizija
+      operationId: listAdminCommissions
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 190 } }
+        - { in: query, name: status, schema: { type: string, enum: [pending, approved, paid, cancelled] } }
+        - { in: query, name: user_id, schema: { type: integer } }
+        - { in: query, name: supplier_user_id, schema: { type: integer } }
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, schema: { type: string, format: date } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 1, maximum: 100, default: 40 } }
+      responses:
+        '200':
+          description: Lista, rezime, filter opcije i capability mapa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCommissionListResponse' }
+        '403': { description: Nedovoljna dozvola commissions.manage }
+        '422': { description: Neispravni filteri }
+        '503': { description: Operativna commission šema nije spremna }
+  /api/v1/admin/commissions/{commission}:
+    get:
+      tags: [Admin Commissions]
+      summary: Administratorski detalj provizije
+      operationId: showAdminCommission
+      parameters:
+        - { in: path, name: commission, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Detalj sa istorijom statusa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCommissionDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Provizija nije dostupna u actor scope-u }
+        '503': { description: Operativna commission šema nije spremna }
+  /api/v1/admin/commissions/{commission}/status:
+    patch:
+      tags: [Admin Commissions]
+      summary: Promena statusa kroz postojeći CommissionWorkflowService
+      operationId: transitionAdminCommission
+      parameters:
+        - { in: path, name: commission, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCommissionTransitionInput' }
+      responses:
+        '200':
+          description: Ažurirana provizija
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCommissionDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Provizija nije dostupna u actor scope-u }
+        '422': { description: Nedozvoljen prelaz ili neispravan input }
+  /api/v1/admin/commissions/bulk-pay:
+    post:
+      tags: [Admin Commissions]
+      summary: Masovna isplata odobrenih provizija kroz CommissionWorkflowService
+      operationId: bulkPayAdminCommissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCommissionBulkPayInput' }
+      responses:
+        '200':
+          description: Kreirani payment batch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCommissionBulkPayResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '422': { description: Izbor sadrži nedostupnu ili neodobrenu proviziju }
+  /api/v1/admin/commissions.csv:
+    get:
+      tags: [Admin Commissions]
+      summary: CSV izvoz provizija za isti administratorski scope i filtere
+      operationId: exportAdminCommissionsCsv
+      responses:
+        '200':
+          description: CSV izvoz
+          headers:
+            Cache-Control: { schema: { type: string, example: 'private, no-store, max-age=0' } }
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '403': { description: Nedovoljna dozvola }
+        '503': { description: Operativna commission šema nije spremna }
+  /api/v1/admin/commissions.pdf:
+    get:
+      tags: [Admin Commissions]
+      summary: PDF izvoz provizija za isti administratorski scope i filtere
+      operationId: exportAdminCommissionsPdf
+      responses:
+        '200':
+          description: PDF izvoz
+          headers:
+            Cache-Control: { schema: { type: string, example: 'private, no-store, max-age=0' } }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '403': { description: Nedovoljna dozvola }
+        '503': { description: Operativna commission šema nije spremna }
+  /api/v1/admin/warranties:
+    get:
+      tags: [Admin Warranties]
+      summary: Administratorska lista garantnih listova
+      operationId: listAdminWarranties
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 190 } }
+        - { in: query, name: status, schema: { type: string, enum: [active, expired, void] } }
+        - { in: query, name: maintenance, schema: { type: string, enum: [due, scheduled, overdue] } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 1, maximum: 100, default: 40 } }
+      responses:
+        '200':
+          description: Lista, statistika i filter opcije za actor scope
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyListResponse' }
+        '403': { description: Nedovoljna dozvola warranties.manage }
+        '422': { description: Neispravni filteri }
+  /api/v1/admin/warranties/rules:
+    get:
+      tags: [Admin Warranties]
+      summary: Pravila garancije i lookup metadata
+      operationId: listAdminWarrantyRules
+      responses:
+        '200':
+          description: Pravila, kategorije i proizvodi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyRulesResponse' }
+        '403': { description: Nedovoljna dozvola warranties.manage }
+    post:
+      tags: [Admin Warranties]
+      summary: Kreiranje pravila garancije
+      operationId: createAdminWarrantyRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWarrantyRuleInput' }
+      responses:
+        '201':
+          description: Kreirano pravilo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminWarrantyRule' }
+        '403': { description: Nedovoljna dozvola }
+        '422': { description: Validation error }
+  /api/v1/admin/warranties/rules/{rule}:
+    put:
+      tags: [Admin Warranties]
+      summary: Izmena pravila garancije
+      operationId: updateAdminWarrantyRule
+      parameters:
+        - { in: path, name: rule, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWarrantyRuleInput' }
+      responses:
+        '200':
+          description: Izmenjeno pravilo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminWarrantyRule' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Pravilo nije pronađeno }
+        '422': { description: Validation error }
+  /api/v1/admin/warranties/backfill:
+    post:
+      tags: [Admin Warranties]
+      summary: Generisanje nedostajućih garancija iz kompletiranih porudžbina
+      operationId: backfillAdminWarranties
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 500, default: 500 }
+      responses:
+        '200':
+          description: Backfill rezultat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyBackfillResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '422': { description: Validation error }
+  /api/v1/admin/warranties/{warranty}.pdf:
+    get:
+      tags: [Admin Warranties]
+      summary: Privatni PDF garantnog lista u admin supplier scope-u
+      operationId: downloadAdminWarrantyPdf
+      parameters:
+        - { in: path, name: warranty, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: PDF garantnog lista
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Garancija nije dostupna u actor scope-u }
+  /api/v1/admin/warranties/{warranty}:
+    get:
+      tags: [Admin Warranties]
+      summary: Administratorski detalj garantnog lista
+      operationId: showAdminWarranty
+      parameters:
+        - { in: path, name: warranty, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Detalj garantnog lista sa maintenance evidencijom
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Garancija nije dostupna u actor scope-u }
+    put:
+      tags: [Admin Warranties]
+      summary: Izmena roka, serijskih brojeva i uslova kroz WarrantyService
+      operationId: updateAdminWarranty
+      parameters:
+        - { in: path, name: warranty, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWarrantyUpdateInput' }
+      responses:
+        '200':
+          description: Ažuriran garantni list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Garancija nije dostupna u actor scope-u }
+        '422': { description: Validation ili business rule greška }
+  /api/v1/admin/warranties/{warranty}/void:
+    post:
+      tags: [Admin Warranties]
+      summary: Poništavanje garancije kroz WarrantyService
+      operationId: voidAdminWarranty
+      parameters:
+        - { in: path, name: warranty, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWarrantyVoidInput' }
+      responses:
+        '200':
+          description: Poništen garantni list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Garancija nije dostupna u actor scope-u }
+        '422': { description: Razlog ili poslovno pravilo nije validno }
+  /api/v1/admin/warranties/{warranty}/maintenance/{record}/schedule:
+    post:
+      tags: [Admin Warranties]
+      summary: Zakazivanje preventivnog održavanja kroz WarrantyService
+      operationId: scheduleAdminWarrantyMaintenance
+      parameters:
+        - { in: path, name: warranty, required: true, schema: { type: integer } }
+        - { in: path, name: record, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWarrantyScheduleInput' }
+      responses:
+        '200':
+          description: Ažuriran garantni list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Garancija ili maintenance zapis nije dostupan }
+        '422': { description: Termin nije validan }
+  /api/v1/admin/warranties/{warranty}/maintenance/{record}/complete:
+    post:
+      tags: [Admin Warranties]
+      summary: Evidentiranje završenog preventivnog održavanja kroz WarrantyService
+      operationId: completeAdminWarrantyMaintenance
+      parameters:
+        - { in: path, name: warranty, required: true, schema: { type: integer } }
+        - { in: path, name: record, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWarrantyCompleteInput' }
+      responses:
+        '200':
+          description: Ažuriran garantni list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWarrantyDetailResponse' }
+        '403': { description: Nedovoljna dozvola }
+        '404': { description: Garancija ili maintenance zapis nije dostupan }
+        '422': { description: Završetak nije validan }
 security:
   - bearerAuth: []
+  /api/v1/admin/reports/management:
+    get:
+      tags: [Admin Reports]
+      summary: Upravljački izveštaj za mobilni Admin panel
+      operationId: getAdminManagementReport
+      parameters:
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, schema: { type: string, format: date } }
+        - { in: query, name: scope, schema: { type: string, enum: [completed, active, all] } }
+        - { in: query, name: group_by, schema: { type: string, enum: [brand, line, type, product, admin] } }
+        - { in: query, name: supplier_user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: brand, schema: { type: string } }
+        - { in: query, name: line, schema: { type: string } }
+        - { in: query, name: type, schema: { type: string } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: report_type, schema: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales], default: management_summary } }
+      responses:
+        '200':
+          description: Upravljački izveštaj
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminManagementReportResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.view }
+        '422': { description: Neispravni filteri ili tip izveštaja }
+        '503': { description: Izveštaj trenutno nije dostupan }
+  /api/v1/admin/reports/management.csv:
+    get:
+      tags: [Admin Reports]
+      summary: Privatni CSV upravljačkog izveštaja
+      operationId: downloadAdminManagementReportCsv
+      parameters:
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, schema: { type: string, format: date } }
+        - { in: query, name: scope, schema: { type: string, enum: [completed, active, all] } }
+        - { in: query, name: group_by, schema: { type: string, enum: [brand, line, type, product, admin] } }
+        - { in: query, name: supplier_user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: brand, schema: { type: string } }
+        - { in: query, name: line, schema: { type: string } }
+        - { in: query, name: type, schema: { type: string } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: report_type, schema: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales], default: management_summary } }
+      responses:
+        '200':
+          description: CSV upravljačkog izveštaja
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.export }
+        '422': { description: Neispravni filteri ili tip izveštaja }
+        '429': { description: Export rate limit }
+        '503': { description: Izveštaj trenutno nije dostupan }
+  /api/v1/admin/reports/management.pdf:
+    get:
+      tags: [Admin Reports]
+      summary: Privatni PDF upravljačkog izveštaja
+      operationId: downloadAdminManagementReportPdf
+      parameters:
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, schema: { type: string, format: date } }
+        - { in: query, name: scope, schema: { type: string, enum: [completed, active, all] } }
+        - { in: query, name: group_by, schema: { type: string, enum: [brand, line, type, product, admin] } }
+        - { in: query, name: supplier_user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: brand, schema: { type: string } }
+        - { in: query, name: line, schema: { type: string } }
+        - { in: query, name: type, schema: { type: string } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: report_type, schema: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales], default: management_summary } }
+      responses:
+        '200':
+          description: PDF upravljačkog izveštaja
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "private, no-store, max-age=0" }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.export }
+        '422': { description: Neispravni filteri ili tip izveštaja }
+        '429': { description: Export rate limit }
+        '503': { description: Izveštaj trenutno nije dostupan }
+  /api/v1/admin/report-schedules:
+    get:
+      tags: [Admin Reports]
+      summary: Rasporedi i poslednje isporuke izveštaja
+      operationId: listAdminReportSchedules
+      responses:
+        '200':
+          description: Rasporedi i poslednje isporuke
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportSchedulesResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '503': { description: Rasporedi trenutno nisu dostupni }
+    post:
+      tags: [Admin Reports]
+      summary: Kreiranje rasporeda izveštaja
+      operationId: createAdminReportSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReportScheduleInput' }
+      responses:
+        '201':
+          description: Raspored je kreiran
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportScheduleMutationResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '422': { description: Validation error }
+        '429': { description: Admin write rate limit }
+  /api/v1/admin/report-schedules/{schedule}:
+    patch:
+      tags: [Admin Reports]
+      summary: Izmena rasporeda izveštaja
+      operationId: updateAdminReportSchedule
+      parameters:
+        - { in: path, name: schedule, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReportScheduleInput' }
+      responses:
+        '200':
+          description: Raspored je izmenjen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportScheduleMutationResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '404': { description: Raspored nije pronađen }
+        '422': { description: Validation error }
+        '429': { description: Admin write rate limit }
+    delete:
+      tags: [Admin Reports]
+      summary: Brisanje rasporeda izveštaja
+      operationId: deleteAdminReportSchedule
+      parameters:
+        - { in: path, name: schedule, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Raspored je obrisan
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportScheduleDeleteResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '404': { description: Raspored nije pronađen }
+        '429': { description: Admin write rate limit }
+  /api/v1/admin/report-schedules/{schedule}/toggle:
+    patch:
+      tags: [Admin Reports]
+      summary: Aktiviranje ili pauziranje rasporeda
+      operationId: toggleAdminReportSchedule
+      parameters:
+        - { in: path, name: schedule, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Novo stanje rasporeda
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportScheduleMutationResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '404': { description: Raspored nije pronađen }
+        '429': { description: Admin write rate limit }
+  /api/v1/admin/report-schedules/{schedule}/run:
+    post:
+      tags: [Admin Reports]
+      summary: Ručno stavljanje isporuka rasporeda u red
+      operationId: runAdminReportSchedule
+      parameters:
+        - { in: path, name: schedule, required: true, schema: { type: integer } }
+      responses:
+        '202':
+          description: Isporuke su stavljene u red
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportScheduleRunResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '404': { description: Raspored nije pronađen }
+        '429': { description: Admin write rate limit }
+  /api/v1/admin/report-deliveries/{delivery}/retry:
+    post:
+      tags: [Admin Reports]
+      summary: Ponovno zakazivanje neuspele isporuke izveštaja
+      operationId: retryAdminReportDelivery
+      parameters:
+        - { in: path, name: delivery, required: true, schema: { type: integer } }
+      responses:
+        '202':
+          description: Ponovno slanje je zakazano
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportDeliveryMutationResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola reports.manage }
+        '404': { description: Isporuka nije pronađena }
+        '422': { description: Isporuka nije podobna za retry }
+        '429': { description: Admin write rate limit }
+  /api/v1/admin/system-health:
+    get:
+      tags: [Admin System Health]
+      summary: Read-only pregled trenutnog zdravlja sistema i istorije snapshot-a
+      operationId: getAdminSystemHealth
+      responses:
+        '200':
+          description: Trenutno stanje sistema, read-only istorija i capability ugovor
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSystemHealthResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola system.health }
+        '503': { description: System Health trenutno nije dostupan }
+  /api/v1/admin/audit-events:
+    get:
+      tags: [Admin Audit]
+      summary: Read-only lista sanitizovanih security audit dogadjaja
+      operationId: listAdminAuditEvents
+      parameters:
+        - { in: query, name: action, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: level, schema: { type: string, maxLength: 40 } }
+        - { in: query, name: user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, description: Mora biti isti ili kasniji datum od date_from kada je date_from zadat., schema: { type: string, format: date } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: per_page, schema: { type: integer, enum: [20, 50, 100], default: 20 } }
+      responses:
+        '200':
+          description: Sanitizovana read-only lista audit dogadjaja sa filter opcijama i paginacijom
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditEventsResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola security.view }
+        '422': { description: Filteri audit dogadjaja nisu validni }
+        '503': { description: Audit dogadjaji trenutno nisu dostupni }
+  /api/v1/admin/audit-events/{event}:
+    get:
+      tags: [Admin Audit]
+      summary: Read-only bezbedni detalj jednog security audit dogadjaja
+      operationId: getAdminAuditEvent
+      parameters:
+        - { in: path, name: event, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Sanitizovani detalj audit dogadjaja bez raw user-agent/context payload-a
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditEventDetailResponse' }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Nedovoljna dozvola security.view }
+        '404': { description: Audit dogadjaj nije pronadjen }
+  /api/v1/admin/orders:
+    get:
+      summary: List administrable orders
+      operationId: adminOrdersIndex
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Admin order list and server-driven filters. }
+        '401': { description: Authentication required. }
+        '403': { description: orders.manage permission required. }
+  /api/v1/admin/orders/{order}:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Read administrable order detail
+      operationId: adminOrdersShow
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Admin order detail with capabilities. }
+        '401': { description: Authentication required. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '404': { description: Order not found. }
+  /api/v1/admin/orders/{order}/status:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Change order status without bypassing shipment workflow
+      operationId: adminOrdersStatus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [new, processing, confirmed, cancelled] }
+                note: { type: string, nullable: true, maxLength: 1000 }
+      responses:
+        '200': { description: Status changed through OrderWorkflowService. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '422': { description: Invalid or disallowed transition. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/accept:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Accept order for processing
+      operationId: adminOrdersAccept
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Order accepted through OrderOperationalService. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '422': { description: Order cannot be accepted in its current state. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/internal-notes:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Add internal order note
+      operationId: adminOrdersInternalNote
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note: { type: string, maxLength: 5000 }
+      responses:
+        '200': { description: Internal note added through OrderOperationalService. }
+        '403': { description: orders.manage and orders.internal_notes permissions required. }
+        '422': { description: Validation failed. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/reassign:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Reassign order to another active admin supplier
+      operationId: adminOrdersReassign
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supplier_user_id, reason]
+              properties:
+                supplier_user_id: { type: integer, minimum: 1 }
+                reason: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: Order reassigned through OrderOperationalService. }
+        '403': { description: SuperAdmin plus orders.reassign permission required. }
+        '422': { description: Invalid supplier or reassignment request. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/deadlines:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Update expected processing and shipping deadlines
+      operationId: adminOrdersDeadlines
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expected_processing_at: { type: string, format: date-time, nullable: true }
+                expected_shipping_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200': { description: Deadlines updated through OrderOperationalService. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '422': { description: Validation failed. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/payment-status:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Update legacy order payment status
+      operationId: adminOrdersPaymentStatus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_status]
+              properties:
+                payment_status: { type: string, enum: [pending, paid, cancelled] }
+      responses:
+        '200': { description: Payment status updated through OrderWorkflowService. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '422': { description: Validation failed or completed order is locked. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/complete:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Confirm actual delivery and complete the order
+      operationId: adminOrdersComplete
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                delivery_method: { type: string, enum: [own_transport, courier, customer_pickup, other] }
+                delivered_at: { type: string, format: date-time }
+                recipient_name: { type: string, maxLength: 190 }
+                recipient_phone: { type: string, nullable: true, maxLength: 190 }
+                delivery_note: { type: string, nullable: true, maxLength: 3000 }
+                completion_note: { type: string, nullable: true, maxLength: 1000 }
+                delivery_proof: { type: string, format: binary, nullable: true }
+      responses:
+        '200': { description: Delivery confirmed and order completed through OrderWorkflowService. }
+        '403': { description: orders.confirm_delivery permission and managed scope required. }
+        '422': { description: Order cannot be completed or delivery data is invalid. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/reopen:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Reopen a completed order for controlled correction
+      operationId: adminOrdersReopen
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: Order reopened through OrderWorkflowService. }
+        '403': { description: orders.reopen permission and managed scope required. }
+        '422': { description: Order is not eligible for reopen. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/payments:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Record an admin payment or refund ledger entry
+      operationId: adminOrdersPaymentStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_type, amount_rsd, payment_method, paid_at]
+              properties:
+                entry_type: { type: string, enum: [payment, refund] }
+                amount_rsd: { type: number, format: double, minimum: 0.01 }
+                payment_method: { type: string, enum: [bank_transfer, cash, cash_on_delivery, card, other] }
+                paid_at: { type: string, format: date-time }
+                reference: { type: string, nullable: true, maxLength: 190 }
+                note: { type: string, nullable: true, maxLength: 2000 }
+      responses:
+        '200': { description: Ledger entry recorded through OrderPaymentService. }
+        '403': { description: orders.manage and payments.manage permissions required. }
+        '422': { description: Payment data is invalid for the order. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/payments/{payment}/verify:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+      - { name: payment, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Verify submitted payment proof
+      operationId: adminOrdersPaymentVerify
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Payment verified through OrderPaymentService. }
+        '403': { description: orders.manage and payments.manage permissions required. }
+        '404': { description: Payment does not belong to the order. }
+        '422': { description: Payment is not verifiable in its current state. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/payments/{payment}/reject:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+      - { name: payment, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Reject submitted payment proof
+      operationId: adminOrdersPaymentReject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: Payment rejected through OrderPaymentService. }
+        '403': { description: orders.manage and payments.manage permissions required. }
+        '404': { description: Payment does not belong to the order. }
+        '422': { description: Payment is not rejectable in its current state. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/payments/{payment}/void:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+      - { name: payment, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Void a verified payment ledger entry
+      operationId: adminOrdersPaymentVoid
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Payment voided through OrderPaymentService. }
+        '403': { description: orders.manage and payments.manage permissions required. }
+        '404': { description: Payment does not belong to the order. }
+        '422': { description: Payment is not voidable in its current state. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/shipment:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Record order shipment without completing delivery
+      operationId: adminOrdersShipmentStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [shipment_method, shipped_at, recipient_name]
+              properties:
+                shipment_method: { type: string, enum: [courier, own_transport, other], default: courier }
+                courier_service_id: { type: [integer, 'null'] }
+                shipped_at: { type: string, format: date-time }
+                recipient_name: { type: string, maxLength: 190 }
+                recipient_phone: { type: [string, 'null'], maxLength: 60 }
+                tracking_number: { type: [string, 'null'], maxLength: 120, description: Single canonical tracking input; required by the domain service for courier shipments. }
+                note: { type: [string, 'null'], maxLength: 3000 }
+                shipment_proof: { type: string, format: binary, description: Optional PDF/JPG/PNG/WebP up to 10 MB. }
+      responses:
+        '201': { description: Shipment recorded through OrderShipmentService; order becomes shipped but is not completed. }
+        '401': { description: Authentication required. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '404': { description: Order or managed resource not found. }
+        '422': { description: Shipment validation or domain invariant failed. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/shipment-proof:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Download private shipment proof
+      operationId: adminOrdersShipmentProof
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Private shipment proof using no-store response policy.
+          headers:
+            Cache-Control: { schema: { type: string }, description: private, no-store, max-age=0 }
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '401': { description: Authentication required. }
+        '403': { description: orders.manage permission and managed scope required. }
+        '404': { description: Shipment proof not found. }
+  /api/v1/admin/receivables:
+    get:
+      tags: [Admin Receivables]
+      summary: Administratorska lista predmeta naplate sa server-driven filterima i statistikama
+      operationId: listAdminReceivables
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 190 } }
+        - { in: query, name: status, schema: { type: string, enum: [monitoring, contacted, promised, installment_plan, escalated, disputed, closed] } }
+        - { in: query, name: assigned_to, schema: { type: integer } }
+        - { in: query, name: action, schema: { type: string, enum: [overdue, today, promised] } }
+        - { in: query, name: aging, schema: { type: string, enum: [current, 1_7, 8_15, 16_30, 31_60, 61_90, 90_plus] } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 10, maximum: 100, default: 35 } }
+      responses:
+        '200': { description: Straničena lista predmeta naplate unutar autorizovanog administratorskog scope-a. }
+        '403': { description: Nedostaje receivables.manage dozvola. }
+  /api/v1/admin/receivables/export.csv:
+    get:
+      tags: [Admin Receivables]
+      summary: CSV izvoz potraživanja kroz postojeći web Receivables autoritet i isti scope
+      operationId: exportAdminReceivablesCsv
+      responses:
+        '200':
+          description: UTF-8 CSV izvoz potraživanja.
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '403': { description: Nedostaje receivables.manage dozvola. }
+        '429': { description: Export throttle. }
+  /api/v1/admin/receivables/settings:
+    put:
+      tags: [Admin Receivables]
+      summary: Ažurira postojeća podešavanja automatske naplate i opomena
+      operationId: updateAdminReceivablesSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                receivables_enabled: { type: boolean }
+                receivables_auto_create_cases: { type: boolean }
+                receivables_auto_reminders_enabled: { type: boolean }
+                receivables_due_soon_days: { type: integer, minimum: 0 }
+                receivables_reminder_stages: { type: string, example: '0,3,7,15,30' }
+                receivables_pause_on_promise: { type: boolean }
+                receivables_attach_document: { type: string, maxLength: 40 }
+                receivables_send_creator: { type: boolean }
+                receivables_send_supplier: { type: boolean }
+                receivables_custom_recipients: { type: string }
+      responses:
+        '200': { description: Podešavanja sačuvana kroz postojeći SettingsService. }
+        '403': { description: Nedostaje receivables.manage dozvola. }
+        '422': { description: Podešavanja nisu validna prema postojećem FormRequest ugovoru. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/receivables/scan:
+    post:
+      tags: [Admin Receivables]
+      summary: Ručno pokreće postojeću kontrolisanu Receivables automatizaciju
+      operationId: scanAdminReceivables
+      responses:
+        '200': { description: Rezultat postojećeg ReceivablesService runAutomation toka. }
+        '403': { description: Nedostaje receivables.manage dozvola. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/receivables/{receivable}:
+    get:
+      tags: [Admin Receivables]
+      summary: Bezbedan administratorski detalj predmeta naplate
+      operationId: getAdminReceivable
+      parameters:
+        - { in: path, name: receivable, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Predmet, porudžbina, rate i bezbedno serializovana komunikacija. }
+        '403': { description: Predmet nije unutar administratorskog scope-a. }
+        '404': { description: Predmet ne postoji. }
+    patch:
+      tags: [Admin Receivables]
+      summary: Ažurira status, odgovorno lice, rokove i internu napomenu kroz ReceivablesService
+      operationId: updateAdminReceivable
+      parameters:
+        - { in: path, name: receivable, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [monitoring, contacted, promised, installment_plan, escalated, disputed, closed] }
+                assigned_to: { type: integer, nullable: true }
+                next_action_at: { type: string, format: date-time, nullable: true }
+                promised_payment_at: { type: string, format: date-time, nullable: true }
+                internal_note: { type: string, nullable: true }
+      responses:
+        '200': { description: Ažurirani predmet vraćen iz postojećeg ReceivablesService toka. }
+        '403': { description: Predmet nije unutar administratorskog scope-a. }
+        '422': { description: Poslovno stanje ili ulaz nije validan. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/receivables/{receivable}/plan:
+    put:
+      tags: [Admin Receivables]
+      summary: Menja plan otplate kroz ReceivablesService i zadržava vezu sa stvarnim uplatama
+      operationId: replaceAdminReceivablePlan
+      parameters:
+        - { in: path, name: receivable, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [installments]
+              properties:
+                installments:
+                  type: array
+                  minItems: 1
+                  maxItems: 24
+                  items:
+                    type: object
+                    required: [due_at, amount_rsd]
+                    properties:
+                      due_at: { type: string, format: date }
+                      amount_rsd: { type: number, exclusiveMinimum: 0 }
+                      note: { type: string, nullable: true, maxLength: 1000 }
+      responses:
+        '200': { description: Plan otplate sačuvan; postojeći ReceivablesService proverava zbir, redosled i već alocirane uplate. }
+        '403': { description: Predmet nije unutar administratorskog scope-a. }
+        '422': { description: Plan nije poslovno ili sintaksno validan. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/receivables/{receivable}/contacts:
+    post:
+      tags: [Admin Receivables]
+      summary: Evidentira komunikaciju i opciono koristi postojeći e-mail outbox
+      operationId: addAdminReceivableContact
+      parameters:
+        - { in: path, name: receivable, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel: { type: string }
+                direction: { type: string }
+                subject: { type: string, nullable: true }
+                note: { type: string }
+                visible_to_customer: { type: boolean, description: Samo eksplicitno označena komunikacija sme u customer surface. }
+      responses:
+        '201': { description: Komunikacija evidentirana kroz ReceivablesService; interni outbox/event ključevi se ne izlažu. }
+        '403': { description: Predmet nije unutar administratorskog scope-a. }
+        '422': { description: Komunikacija nije validna. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/receivables/{receivable}/reminder:
+    post:
+      tags: [Admin Receivables]
+      summary: Šalje ručni podsetnik kroz postojeći pouzdani Receivables outbox tok
+      operationId: remindAdminReceivable
+      parameters:
+        - { in: path, name: receivable, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string, nullable: true }
+      responses:
+        '200': { description: Podsetnik prosleđen postojećem ReceivablesService i outbox autoritetu. }
+        '403': { description: Predmet nije unutar administratorskog scope-a. }
+        '422': { description: Podsetnik nije validan. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work:
+    get:
+      tags: [Admin Field Operations]
+      summary: Administratorska lista terenskih radnih naloga
+      operationId: listAdminFieldWorkOrders
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 190 } }
+        - { in: query, name: status, schema: { type: string, enum: [planned, en_route, on_site, completed, cancelled] } }
+        - { in: query, name: team_id, schema: { type: integer } }
+        - { in: query, name: date_from, schema: { type: string, format: date-time } }
+        - { in: query, name: date_to, schema: { type: string, format: date-time } }
+        - { in: query, name: unassigned, schema: { type: string, enum: ['1'] } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 10, maximum: 100, default: 40 } }
+      responses:
+        '200': { description: Visible-scope lista naloga sa filterima, paginacijom i capabilities. }
+        '403': { description: Nedostaje field_operations.view dozvola. }
+  /api/v1/admin/field-work/{workOrder}:
+    get:
+      tags: [Admin Field Operations]
+      summary: Administratorski detalj terenskog radnog naloga
+      operationId: getAdminFieldWorkOrder
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Detalj naloga sa ekipom, After-sales vezom, delovima, privatnim attachment descriptorima i server-driven capabilities. }
+        '403': { description: Nedostaje field_operations.view ili visible-scope pristup. }
+        '404': { description: Radni nalog nije dostupan korisniku. }
+  /api/v1/admin/field-work/{workOrder}/schedule:
+    patch:
+      tags: [Admin Field Operations]
+      summary: Zakazuje ili menja termin i terensku ekipu
+      operationId: scheduleAdminFieldWorkOrder
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                field_service_team_id: { type: integer, nullable: true }
+                planned_start_at: { type: string, format: date-time, nullable: true }
+                planned_end_at: { type: string, format: date-time, nullable: true }
+                route_reference: { type: string, nullable: true, maxLength: 190 }
+                public_note: { type: string, nullable: true, maxLength: 5000 }
+                internal_note: { type: string, nullable: true, maxLength: 5000 }
+      responses:
+        '200': { description: Radni nalog ažuriran kroz FieldOperationsService i FieldWorkOrderPlanner. }
+        '403': { description: Nedostaje field_operations.manage dozvola. }
+        '422': { description: Termin, ekipa ili poslovni prelaz nisu validni. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/en-route:
+    post:
+      tags: [Admin Field Operations]
+      summary: Označava radni nalog kao na putu
+      operationId: markAdminFieldWorkOrderEnRoute
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Status promenjen kroz FieldOperationsService. }
+        '403': { description: Nedostaje field_operations.manage dozvola. }
+        '422': { description: Prelaz statusa nije dozvoljen. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/on-site:
+    post:
+      tags: [Admin Field Operations]
+      summary: Označava dolazak ekipe na lokaciju
+      operationId: markAdminFieldWorkOrderOnSite
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Status promenjen kroz FieldOperationsService. }
+        '403': { description: Nedostaje field_operations.manage dozvola. }
+        '422': { description: Prelaz statusa nije dozvoljen. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/complete:
+    post:
+      tags: [Admin Field Operations]
+      summary: Završava terensku intervenciju, evidentira troškove, utrošak delova i priloge
+      operationId: completeAdminFieldWorkOrder
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [completion_result]
+              properties:
+                route_reference: { type: string, nullable: true, maxLength: 190 }
+                completion_result: { type: string, minLength: 5, maxLength: 10000 }
+                travel_km: { type: number, minimum: 0, nullable: true }
+                travel_cost_rsd: { type: number, minimum: 0, nullable: true }
+                labor_cost_rsd: { type: number, minimum: 0, nullable: true }
+                parts_cost_rsd: { type: number, minimum: 0, nullable: true }
+                part_consumption:
+                  type: object
+                  description: Ključevi objekta su ID-jevi FieldWorkOrderPart redova; vrednost je stvarno utrošena količina.
+                  additionalProperties:
+                    type: number
+                    minimum: 0
+                    maximum: 999999999.999
+                attachment_visibility: { type: string, enum: [internal, public], default: internal }
+                attachments:
+                  type: array
+                  maxItems: 8
+                  items: { type: string, format: binary }
+      responses:
+        '200': { description: Intervencija završena kroz FieldOperationsService; lager utrošak ostaje u ServicePartsInventoryService. }
+        '403': { description: Nedostaje field_operations.manage dozvola ili visible-scope pristup. }
+        '422': { description: Dolazak na lokaciju, utrošak delova, troškovi ili prilozi nisu validni. }
+        '429': { description: Upload ili Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/cancel:
+    post:
+      tags: [Admin Field Operations]
+      summary: Otkazuje terenski radni nalog i povezanu izvršnu After-sales radnju
+      operationId: cancelAdminFieldWorkOrder
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cancellation_reason]
+              properties:
+                cancellation_reason: { type: string, minLength: 5, maxLength: 3000 }
+      responses:
+        '200': { description: Radni nalog otkazan kroz FieldOperationsService, uz release rezervacija i After-sales side effects. }
+        '403': { description: Nedostaje field_operations.manage dozvola. }
+        '422': { description: Otkazivanje nije dozvoljeno. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/parts:
+    post:
+      tags: [Admin Field Operations]
+      summary: Dodaje servisni deo na radni nalog
+      operationId: addAdminFieldWorkOrderPart
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_part_id, requested_quantity, supply_mode]
+              properties:
+                service_part_id: { type: integer }
+                requested_quantity: { type: number, minimum: 0, maximum: 999999999.999 }
+                supply_mode: { type: string, enum: [local_stock, external] }
+                notes: { type: string, nullable: true, maxLength: 3000 }
+      responses:
+        '201': { description: Deo dodat kroz ServicePartsInventoryService. }
+        '403': { description: Nedostaje service_parts.manage dozvola. }
+        '422': { description: Deo, količina ili supply mode nisu validni. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/parts/reserve:
+    post:
+      tags: [Admin Field Operations]
+      summary: Rezerviše lokalni servisni lager za sve odgovarajuće stavke radnog naloga
+      operationId: reserveAdminFieldWorkOrderParts
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Rezervacije izvršene kroz ServicePartsInventoryService i movement ledger. }
+        '403': { description: Nedostaje service_parts.manage dozvola. }
+        '422': { description: Rezervacija nije moguća zbog lagera ili poslovnog stanja. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-work/{workOrder}/parts/{line}:
+    delete:
+      tags: [Admin Field Operations]
+      summary: Uklanja nepotrošenu stavku servisnog dela iz radnog naloga
+      operationId: removeAdminFieldWorkOrderPart
+      parameters:
+        - { in: path, name: workOrder, required: true, schema: { type: integer } }
+        - { in: path, name: line, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Stavka uklonjena i eventualna rezervacija oslobođena kroz ServicePartsInventoryService. }
+        '403': { description: Nedostaje service_parts.manage dozvola. }
+        '404': { description: Stavka ne pripada radnom nalogu. }
+        '422': { description: Utrošena stavka se ne može ukloniti. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/field-service-teams:
+    get:
+      tags: [Admin Field Operations]
+      summary: Read-only lista terenskih ekipa za planiranje Mobile Field Operations toka
+      operationId: listAdminFieldServiceTeams
+      responses:
+        '200': { description: Lista aktivnih i neaktivnih ekipa; Mobile API u ovom gate-u ne uvodi team CRUD mutacije. }
+        '403': { description: Nedostaje field_operations.manage dozvola. }
+  /api/v1/admin/after-sales:
+    get:
+      tags: [Admin After-sales]
+      summary: Administratorska lista postprodajnih slucajeva
+      operationId: listAdminAfterSalesCases
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 190 } }
+        - { in: query, name: status, schema: { type: string, enum: [open, under_review, awaiting_customer, approved, in_service, resolved, rejected, closed] } }
+        - { in: query, name: priority, schema: { type: string, enum: [low, normal, high, urgent] } }
+        - { in: query, name: case_type, schema: { type: string, enum: [complaint, return, service] } }
+        - { in: query, name: overdue, schema: { type: string, enum: ['1'] } }
+        - { in: query, name: execution_pending, schema: { type: string, enum: ['1'] } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 10, maximum: 100, default: 40 } }
+      responses:
+        '200': { description: Managed-scope lista slucajeva sa filterima, paginacijom i capabilities. }
+        '403': { description: Nedostaje after_sales.manage dozvola. }
+  /api/v1/admin/after-sales/{case}:
+    get:
+      tags: [Admin After-sales]
+      summary: Administratorski detalj postprodajnog slucaja
+      operationId: getAdminAfterSalesCase
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Sanitizovan managed-scope detalj sa internim porukama, radnjama, istorijom i server-driven capabilities. }
+        '403': { description: Nedostaje after_sales.manage dozvola. }
+        '404': { description: Slucaj nije u managed scope-u. }
+    patch:
+      tags: [Admin After-sales]
+      summary: Azurira status, prioritet, odgovorno lice i resenje slucaja
+      operationId: updateAdminAfterSalesCase
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, priority]
+              properties:
+                status: { type: string, enum: [open, under_review, awaiting_customer, approved, in_service, resolved, rejected, closed] }
+                priority: { type: string, enum: [low, normal, high, urgent] }
+                assigned_to: { type: integer, nullable: true }
+                due_at: { type: string, format: date-time, nullable: true }
+                resolution_type: { type: string, nullable: true, enum: [repair, replacement, partial_refund, full_refund, return, inspection, rejected, other] }
+                resolution_summary: { type: string, nullable: true, maxLength: 10000 }
+                note: { type: string, nullable: true, maxLength: 3000 }
+      responses:
+        '200': { description: Azuriran slucaj; poslovna logika ostaje u AfterSalesCaseService. }
+        '403': { description: Nedostaje after_sales.manage dozvola. }
+        '404': { description: Slucaj nije u managed scope-u. }
+        '422': { description: Poslovna ili validaciona zabrana prelaza. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/after-sales/{case}/messages:
+    post:
+      tags: [Admin After-sales]
+      summary: Dodaje javnu poruku ili internu napomenu sa opcionim prilozima
+      operationId: createAdminAfterSalesMessage
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+                visibility: { type: string, enum: [public, internal], default: public }
+                attachments:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
+      responses:
+        '201': { description: Poruka je dodata kroz AfterSalesCaseService. }
+        '403': { description: Nedostaje after_sales.manage dozvola. }
+        '404': { description: Slucaj nije u managed scope-u. }
+        '422': { description: Validacija poruke ili priloga nije prosla. }
+        '429': { description: Upload ili Admin write throttle. }
+  /api/v1/admin/after-sales/{case}/actions:
+    post:
+      tags: [Admin After-sales]
+      summary: Planira novu postprodajnu izvrsnu radnju
+      operationId: createAdminAfterSalesAction
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action_type, items]
+              properties:
+                action_type: { type: string }
+                inventory_handling: { type: string, enum: [none, automatic, external] }
+                assigned_to: { type: integer, nullable: true }
+                scheduled_at: { type: string, format: date-time, nullable: true }
+                scheduled_end_at: { type: string, format: date-time, nullable: true }
+                field_service_team_id: { type: integer, nullable: true }
+                due_at: { type: string, format: date-time, nullable: true }
+                amount_rsd: { type: number, format: double, nullable: true }
+                reference: { type: string, nullable: true, maxLength: 190 }
+                public_note: { type: string, nullable: true, maxLength: 5000 }
+                internal_note: { type: string, nullable: true, maxLength: 5000 }
+                items:
+                  type: object
+                  description: Kljucevi objekta su ID-jevi stavki postprodajnog slucaja.
+                  minProperties: 1
+                  additionalProperties:
+                    type: object
+                    required: [selected, quantity]
+                    properties:
+                      selected: { type: boolean }
+                      quantity: { type: integer, minimum: 1, maximum: 100000 }
+                      disposition: { type: string, enum: [none, repair, replace, restock, quarantine, scrap] }
+      responses:
+        '201': { description: Radnja je kreirana kroz AfterSalesActionService. }
+        '403': { description: Nedostaje after_sales.execute ili dodatna poslovna dozvola. }
+        '404': { description: Slucaj nije u managed scope-u. }
+        '422': { description: Poslovna ili validaciona zabrana radnje. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/after-sales/{case}/actions/{action}/start:
+    post:
+      tags: [Admin After-sales]
+      summary: Pokrece planiranu postprodajnu radnju
+      operationId: startAdminAfterSalesAction
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+        - { in: path, name: action, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Radnja je pokrenuta kroz AfterSalesActionService. }
+        '403': { description: Nedostaje after_sales.execute dozvola. }
+        '404': { description: Slucaj ili radnja nisu u managed scope-u. }
+        '422': { description: Poslovna zabrana pokretanja. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/after-sales/{case}/actions/{action}/complete:
+    post:
+      tags: [Admin After-sales]
+      summary: Zavrsava postprodajnu radnju i delegira lager/refund/field-work side effects servisima
+      operationId: completeAdminAfterSalesAction
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+        - { in: path, name: action, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reference: { type: string, nullable: true, maxLength: 190 }
+                completion_note: { type: string, nullable: true, maxLength: 5000 }
+      responses:
+        '200': { description: Radnja je zavrsena kroz AfterSalesActionService. }
+        '403': { description: Nedostaje after_sales.execute ili payments.manage za refundaciju. }
+        '404': { description: Slucaj ili radnja nisu u managed scope-u. }
+        '422': { description: Poslovna zabrana zavrsetka. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/after-sales/{case}/actions/{action}/cancel:
+    post:
+      tags: [Admin After-sales]
+      summary: Otkazuje postprodajnu radnju uz obavezan razlog
+      operationId: cancelAdminAfterSalesAction
+      parameters:
+        - { in: path, name: case, required: true, schema: { type: integer } }
+        - { in: path, name: action, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cancellation_reason]
+              properties:
+                cancellation_reason: { type: string, minLength: 5, maxLength: 3000 }
+      responses:
+        '200': { description: Radnja je otkazana kroz AfterSalesActionService. }
+        '403': { description: Nedostaje after_sales.execute dozvola. }
+        '404': { description: Slucaj ili radnja nisu u managed scope-u. }
+        '422': { description: Poslovna ili validaciona zabrana otkazivanja. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/after-sales/attachments/{attachment}:
+    get:
+      tags: [Admin After-sales]
+      summary: Preuzima privatni postprodajni prilog kroz Bearer autorizaciju
+      operationId: downloadAdminAfterSalesAttachment
+      parameters:
+        - { in: path, name: attachment, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Privatni fajl; odgovor koristi private no-store cache politiku.
+          headers:
+            Cache-Control: { schema: { type: string }, description: private, no-store, max-age=0 }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403': { description: Nedostaje after_sales.manage dozvola. }
+        '404': { description: Prilog ili njegov slucaj nisu u managed scope-u. }
+
+  /api/v1/admin/service-parts:
+    get:
+      tags: [Admin Service Parts]
+      summary: Lista servisnih delova
+      operationId: listAdminServiceParts
+      parameters:
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: active, schema: { type: boolean } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 10, maximum: 100, default: 40 } }
+      responses:
+        '200': { description: Servisni delovi sa stanjem, rezervacijom, raspolozivom kolicinom i capabilities. }
+        '403': { description: Nedostaje service_parts.view. }
+    post:
+      tags: [Admin Service Parts]
+      summary: Kreira servisni deo
+      operationId: createAdminServicePart
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminServicePartWrite' } } } }
+      responses:
+        '201': { description: Deo kreiran kroz ServicePartsInventoryService. }
+        '403': { description: Nedostaje service_parts.manage. }
+        '422': { description: Validacija nije prosla. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-parts/{part}:
+    put:
+      tags: [Admin Service Parts]
+      summary: Azurira metadata servisnog dela
+      operationId: updateAdminServicePart
+      parameters: [ { in: path, name: part, required: true, schema: { type: integer } } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminServicePartWrite' } } } }
+      responses:
+        '200': { description: Deo azuriran kroz ServicePartsInventoryService. }
+        '403': { description: Nedostaje service_parts.manage. }
+        '422': { description: Validacija nije prosla. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-parts/{part}/adjust:
+    post:
+      tags: [Admin Service Parts]
+      summary: Korekcija servisnog lagera sa idempotency kljucem
+      operationId: adjustAdminServicePartStock
+      parameters: [ { in: path, name: part, required: true, schema: { type: integer } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity_change, note, idempotency_key]
+              properties:
+                quantity_change: { type: number, format: double }
+                note: { type: string, minLength: 5, maxLength: 3000 }
+                idempotency_key: { type: string, minLength: 16, maxLength: 190 }
+      responses:
+        '200': { description: Korekcija evidentirana u movement ledgeru. }
+        '403': { description: Nedostaje service_parts.manage. }
+        '422': { description: Kolicina ili idempotency ugovor nisu validni. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-suppliers:
+    get:
+      tags: [Admin Service Parts]
+      summary: Lista dobavljaca servisnih delova
+      operationId: listAdminServicePartSuppliers
+      responses:
+        '200': { description: Dobavljaci servisnih delova. }
+        '403': { description: Nedostaje service_parts.procurement. }
+    post:
+      tags: [Admin Service Parts]
+      summary: Kreira dobavljaca servisnih delova
+      operationId: createAdminServicePartSupplier
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminServicePartSupplierWrite' } } } }
+      responses:
+        '201': { description: Dobavljac kreiran. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Validacija nije prosla. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-suppliers/{supplier}:
+    put:
+      tags: [Admin Service Parts]
+      summary: Azurira dobavljaca servisnih delova
+      operationId: updateAdminServicePartSupplier
+      parameters: [ { in: path, name: supplier, required: true, schema: { type: integer } } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminServicePartSupplierWrite' } } } }
+      responses:
+        '200': { description: Dobavljac azuriran. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Validacija nije prosla. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-purchases:
+    get:
+      tags: [Admin Service Parts]
+      summary: Lista zahteva za nabavku servisnih delova
+      operationId: listAdminServicePartPurchases
+      parameters:
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: status, schema: { type: string, enum: [draft, submitted, ordered, received, cancelled] } }
+        - { in: query, name: supplier_id, schema: { type: integer } }
+        - { in: query, name: per_page, schema: { type: integer, minimum: 10, maximum: 100, default: 40 } }
+      responses:
+        '200': { description: Nabavke sa supplier i capabilities podacima. }
+        '403': { description: Nedostaje service_parts.procurement. }
+    post:
+      tags: [Admin Service Parts]
+      summary: Kreira nacrt nabavke servisnih delova
+      operationId: createAdminServicePartPurchase
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminServicePartPurchaseWrite' } } } }
+      responses:
+        '201': { description: Nabavka kreirana kroz ServicePartsInventoryService. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Validacija nije prosla. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-purchases/{purchaseRequest}:
+    get:
+      tags: [Admin Service Parts]
+      summary: Detalj nabavke servisnih delova
+      operationId: getAdminServicePartPurchase
+      parameters: [ { in: path, name: purchaseRequest, required: true, schema: { type: integer } } ]
+      responses:
+        '200': { description: Detalj sa stavkama i server-driven capabilities. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '404': { description: Nabavka ne postoji. }
+  /api/v1/admin/service-part-purchases/{purchaseRequest}/submit:
+    post:
+      tags: [Admin Service Parts]
+      summary: Salje draft nabavku
+      operationId: submitAdminServicePartPurchase
+      parameters: [ { in: path, name: purchaseRequest, required: true, schema: { type: integer } } ]
+      responses:
+        '200': { description: Status promenjen kroz postojeci state machine. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Prelaz statusa nije dozvoljen. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-purchases/{purchaseRequest}/order:
+    post:
+      tags: [Admin Service Parts]
+      summary: Oznacava nabavku kao narucenu
+      operationId: orderAdminServicePartPurchase
+      parameters: [ { in: path, name: purchaseRequest, required: true, schema: { type: integer } } ]
+      responses:
+        '200': { description: Status promenjen kroz postojeci state machine. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Prelaz statusa nije dozvoljen. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-purchases/{purchaseRequest}/receive:
+    post:
+      tags: [Admin Service Parts]
+      summary: Prima nabavku i knjizi movement ledger
+      operationId: receiveAdminServicePartPurchase
+      parameters: [ { in: path, name: purchaseRequest, required: true, schema: { type: integer } } ]
+      responses:
+        '200': { description: Prijem koristi idempotentni purchase_receipt movement i ponderisanu prosecnu cenu. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Prelaz statusa nije dozvoljen. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/service-part-purchases/{purchaseRequest}/cancel:
+    post:
+      tags: [Admin Service Parts]
+      summary: Otkazuje nabavku uz postojeci poslovni state machine
+      operationId: cancelAdminServicePartPurchase
+      parameters: [ { in: path, name: purchaseRequest, required: true, schema: { type: integer } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 3000 }
+      responses:
+        '200': { description: Nabavka otkazana kroz ServicePartsInventoryService. }
+        '403': { description: Nedostaje service_parts.procurement. }
+        '422': { description: Prelaz statusa ili razlog nisu validni. }
+        '429': { description: Admin write throttle. }
+  /api/v1/admin/inventory:
+    get:
+      operationId: adminInventoryIndex
+      summary: Admin inventory workspace data
+      security:
+        - bearerAuth: []
+      x-permission: stock.view
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 190 }
+        - in: query
+          name: stock
+          schema: { type: string, enum: [all, low] }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 10, maximum: 100 }
+      responses:
+        '200': { description: Inventory rows, summary and permission capabilities }
+        '401': { description: Unauthenticated }
+        '403': { description: Missing stock.view permission }
+        '422': { description: Invalid filters }
+  /api/v1/admin/stock-movements:
+    get:
+      operationId: adminStockMovementsIndex
+      summary: Admin stock movement ledger
+      security:
+        - bearerAuth: []
+      x-permission: stock.view
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 190 }
+        - in: query
+          name: product_id
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: movement_type
+          schema: { type: string }
+        - in: query
+          name: source
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 10, maximum: 100 }
+      responses:
+        '200': { description: Paginated stock movement ledger }
+        '401': { description: Unauthenticated }
+        '403': { description: Missing stock.view permission }
+        '422': { description: Invalid filters }
+  /api/v1/admin/stock/{product}/adjust:
+    post:
+      operationId: adminStockAdjust
+      summary: Adjust product stock through the canonical inventory service
+      security:
+        - bearerAuth: []
+      x-permission: stock.adjust
+      parameters:
+        - in: path
+          name: product
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity_change, note]
+              properties:
+                quantity_change: { type: integer }
+                note: { type: string }
+                idempotency_key: { type: string, maxLength: 200, description: Body fallback when the Idempotency-Key header is unavailable }
+      responses:
+        '200': { description: Stock movement and refreshed product stock }
+        '401': { description: Unauthenticated }
+        '403': { description: Missing stock.adjust permission }
+        '404': { description: Product not found }
+        '422': { description: Validation or stock invariant failure }
+  /api/v1/admin/inventory/receipts:
+    post:
+      operationId: adminInventoryReceiptStore
+      summary: Post an inventory receipt through AdvancedInventoryService
+      security:
+        - bearerAuth: []
+      x-permission: inventory.receive
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [received_on, items]
+              properties:
+                received_on: { type: string, format: date }
+                supplier_name: { type: string, nullable: true, maxLength: 190 }
+                supplier_document_number: { type: string, nullable: true, maxLength: 100 }
+                note: { type: string, nullable: true }
+                idempotency_key: { type: string, maxLength: 200, description: Body fallback when the Idempotency-Key header is unavailable }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 250
+                  items:
+                    type: object
+                    properties:
+                      product_id: { type: integer, minimum: 1, nullable: true }
+                      quantity: { type: integer, minimum: 1, maximum: 1000000, nullable: true }
+                      unit_cost_rsd: { type: number, minimum: 0, maximum: 9999999999.99, nullable: true }
+                      note: { type: string, nullable: true, maxLength: 500 }
+      responses:
+        '201': { description: Posted stock receipt }
+        '401': { description: Unauthenticated }
+        '403': { description: Missing inventory.receive permission }
+        '422': { description: Validation or inventory invariant failure }
+  /api/v1/admin/inventory/counts:
+    post:
+      operationId: adminInventoryCountStore
+      summary: Finalize an inventory count through AdvancedInventoryService
+      security:
+        - bearerAuth: []
+      x-permission: inventory.count
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [counted_on, items]
+              properties:
+                counted_on: { type: string, format: date }
+                scope_label: { type: string, nullable: true, maxLength: 190 }
+                note: { type: string, nullable: true }
+                idempotency_key: { type: string, maxLength: 200, description: Body fallback when the Idempotency-Key header is unavailable }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 250
+                  items:
+                    type: object
+                    properties:
+                      product_id: { type: integer, minimum: 1, nullable: true }
+                      counted_quantity: { type: integer, minimum: 0, maximum: 1000000, nullable: true }
+                      note: { type: string, nullable: true, maxLength: 500 }
+      responses:
+        '201': { description: Finalized inventory count }
+        '401': { description: Unauthenticated }
+        '403': { description: Missing inventory.count permission }
+        '422': { description: Validation or inventory invariant failure }
+  /api/v1/admin/inventory.csv:
+    get:
+      operationId: adminInventoryCsv
+      summary: Export current product stock as CSV
+      security:
+        - bearerAuth: []
+      x-permission: inventory.export
+      responses:
+        '200':
+          description: UTF-8 CSV inventory export
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { description: Unauthenticated }
+        '403': { description: Missing inventory.export permission }
 components:
   securitySchemes:
     bearerAuth:
@@ -449,6 +2892,1080 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    AdminServicePartWrite:
+      type: object
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        unit: { type: string }
+        stock_quantity: { type: number, format: double }
+        minimum_quantity: { type: number, format: double }
+        average_cost_rsd: { type: number, format: double }
+        is_active: { type: boolean }
+        notes: { type: string, nullable: true }
+    AdminServicePartSupplierWrite:
+      type: object
+      properties:
+        code: { type: string, maxLength: 50 }
+        name: { type: string, maxLength: 190 }
+        contact_person: { type: string, nullable: true, maxLength: 190 }
+        phone: { type: string, nullable: true, maxLength: 80 }
+        email: { type: string, nullable: true, format: email, maxLength: 190 }
+        address: { type: string, nullable: true, maxLength: 3000 }
+        lead_time_days: { type: integer, nullable: true, minimum: 0, maximum: 3650 }
+        notes: { type: string, nullable: true, maxLength: 5000 }
+        is_active: { type: boolean }
+    AdminServicePartPurchaseWrite:
+      type: object
+      properties:
+        supplier_id: { type: integer, nullable: true }
+        expected_at: { type: string, format: date, nullable: true }
+        notes: { type: string, nullable: true }
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              service_part_id: { type: integer }
+              ordered_quantity: { type: number, format: double }
+              unit_cost_rsd: { type: number, format: double, nullable: true }
+    AdminWarrantySummary:
+      type: object
+      required: [id, warranty_number, order, customer_name, product_name, product_sku, status, status_label, starts_at, expires_at, next_maintenance_at, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        warranty_number: { type: string }
+        order:
+          type: object
+          required: [id, order_number]
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+        customer_name: { type: string }
+        product_name: { type: string }
+        product_sku: { type: [string, 'null'] }
+        status: { type: string, enum: [active, expired, void] }
+        status_label: { type: string }
+        starts_at: { type: [string, 'null'], format: date }
+        expires_at: { type: [string, 'null'], format: date }
+        next_maintenance_at: { type: [string, 'null'], format: date }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    AdminWarrantyMaintenanceRecord:
+      type: object
+      required: [id, status, status_label, due_at, scheduled_at, completed_at, service_reference, result, notes, completer_name, can_schedule, can_complete]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [due, scheduled, completed, cancelled] }
+        status_label: { type: string }
+        due_at: { type: [string, 'null'], format: date }
+        scheduled_at: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        service_reference: { type: [string, 'null'] }
+        result: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        completer_name: { type: [string, 'null'] }
+        can_schedule: { type: boolean }
+        can_complete: { type: boolean }
+    AdminWarranty:
+      allOf:
+        - { $ref: '#/components/schemas/AdminWarrantySummary' }
+        - type: object
+          required: [raw_status, customer, quantity, serial_numbers, duration_months, duration_days, maintenance_interval_months, last_maintenance_at, terms, rule, void, maintenance_records, capabilities]
+          properties:
+            raw_status: { type: string, enum: [active, void] }
+            customer:
+              type: object
+              required: [name, address, postal_code, city, phone]
+              properties:
+                name: { type: string }
+                address: { type: string }
+                postal_code: { type: string }
+                city: { type: string }
+                phone: { type: [string, 'null'] }
+            quantity: { type: integer }
+            serial_numbers:
+              type: array
+              items: { type: string }
+            duration_months: { type: [integer, 'null'] }
+            duration_days: { type: [integer, 'null'] }
+            maintenance_interval_months: { type: [integer, 'null'] }
+            last_maintenance_at: { type: [string, 'null'], format: date }
+            terms: { type: [string, 'null'] }
+            rule:
+              anyOf:
+                - type: object
+                  required: [id, name]
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                - { type: 'null' }
+            void:
+              anyOf:
+                - type: object
+                  required: [reason, voided_at, voided_by_name]
+                  properties:
+                    reason: { type: [string, 'null'] }
+                    voided_at: { type: [string, 'null'], format: date-time }
+                    voided_by_name: { type: [string, 'null'] }
+                - { type: 'null' }
+            maintenance_records:
+              type: array
+              items: { $ref: '#/components/schemas/AdminWarrantyMaintenanceRecord' }
+            capabilities:
+              type: object
+              required: [can_update, can_void, can_manage_maintenance]
+              properties:
+                can_update: { type: boolean }
+                can_void: { type: boolean }
+                can_manage_maintenance: { type: boolean }
+    AdminWarrantyListResponse:
+      type: object
+      required: [data, stats, meta, filters, capabilities]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminWarrantySummary' }
+        stats:
+          type: object
+          required: [active, expiring, maintenance_due, void]
+          properties:
+            active: { type: integer }
+            expiring: { type: integer }
+            maintenance_due: { type: integer }
+            void: { type: integer }
+        meta:
+          type: object
+          required: [current_page, last_page, per_page, total]
+          properties:
+            current_page: { type: integer }
+            last_page: { type: integer }
+            per_page: { type: integer }
+            total: { type: integer }
+        filters:
+          type: object
+        capabilities:
+          type: object
+          required: [update, void, maintenance, rules, backfill, pdf]
+          properties:
+            update: { type: boolean }
+            void: { type: boolean }
+            maintenance: { type: boolean }
+            rules: { type: boolean }
+            backfill: { type: boolean }
+            pdf: { type: boolean }
+    AdminWarrantyDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/AdminWarranty' }
+    AdminSystemHealthCurrent:
+      type: object
+      required: [status, checks, metrics, checked_at]
+      properties:
+        status: { type: string }
+        checks:
+          type: array
+          items: {}
+        metrics:
+          type: object
+          additionalProperties: true
+        checked_at: { type: [string, 'null'], format: date-time }
+    AdminSystemHealthHistoryItem:
+      type: object
+      required: [id, status, checks, metrics, checked_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        status: { type: string }
+        checks:
+          type: array
+          items: {}
+        metrics:
+          type: object
+          additionalProperties: true
+        checked_at: { type: [string, 'null'], format: date-time }
+    AdminSystemHealthCapabilities:
+      type: object
+      required: [refresh, snapshot, backup, prune]
+      properties:
+        refresh: { type: boolean, const: true }
+        snapshot: { type: boolean, const: false }
+        backup: { type: boolean, const: false }
+        prune: { type: boolean, const: false }
+    AdminSystemHealthResponse:
+      type: object
+      required: [data, history, capabilities]
+      properties:
+        data: { $ref: '#/components/schemas/AdminSystemHealthCurrent' }
+        history:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/AdminSystemHealthHistoryItem' }
+        capabilities: { $ref: '#/components/schemas/AdminSystemHealthCapabilities' }
+    AdminAuditUser:
+      type: object
+      required: [id, name, username]
+      properties:
+        id: { type: integer, minimum: 1 }
+        name: { type: string }
+        username: { type: string }
+    AdminAuditEventSummary:
+      type: object
+      required: [id, event_type, severity, request_id, route_name, method, user, created_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        event_type: { type: string }
+        severity: { type: string }
+        request_id: { type: [string, 'null'] }
+        route_name: { type: [string, 'null'] }
+        method: { type: [string, 'null'] }
+        user:
+          anyOf:
+            - { $ref: '#/components/schemas/AdminAuditUser' }
+            - { type: 'null' }
+        created_at: { type: [string, 'null'], format: date-time }
+    AdminAuditSafeContext:
+      description: Rekurzivno sanitizovan context bez raw header/cookie/payload kontejnera.
+      oneOf:
+        - type: object
+          additionalProperties: true
+        - type: array
+          items: {}
+    AdminAuditEventDetail:
+      allOf:
+        - { $ref: '#/components/schemas/AdminAuditEventSummary' }
+        - type: object
+          required: [ip_address, context]
+          properties:
+            ip_address: { type: [string, 'null'] }
+            context: { $ref: '#/components/schemas/AdminAuditSafeContext' }
+    AdminAuditPagination:
+      type: object
+      required: [current_page, last_page, per_page, total, from, to]
+      properties:
+        current_page: { type: integer, minimum: 1 }
+        last_page: { type: integer, minimum: 1 }
+        per_page: { type: integer, enum: [20, 50, 100] }
+        total: { type: integer, minimum: 0 }
+        from: { type: [integer, 'null'], minimum: 1 }
+        to: { type: [integer, 'null'], minimum: 1 }
+    AdminAuditNormalizedFilters:
+      type: object
+      required: [action, level, user_id, date_from, date_to]
+      properties:
+        action: { type: [string, 'null'], maxLength: 160 }
+        level: { type: [string, 'null'], maxLength: 40 }
+        user_id: { type: [integer, 'null'], minimum: 1 }
+        date_from: { type: [string, 'null'], format: date }
+        date_to: { type: [string, 'null'], format: date }
+    AdminAuditFilterOptions:
+      type: object
+      required: [levels, users, per_page]
+      properties:
+        levels:
+          type: array
+          items: { type: string }
+        users:
+          type: array
+          items: { $ref: '#/components/schemas/AdminAuditUser' }
+        per_page:
+          type: array
+          items: { type: integer, enum: [20, 50, 100] }
+    AdminAuditListCapabilities:
+      type: object
+      required: [detail, export, mutate]
+      properties:
+        detail: { type: boolean, const: true }
+        export: { type: boolean, const: false }
+        mutate: { type: boolean, const: false }
+    AdminAuditDetailCapabilities:
+      type: object
+      required: [export, mutate]
+      properties:
+        export: { type: boolean, const: false }
+        mutate: { type: boolean, const: false }
+    AdminAuditEventsResponse:
+      type: object
+      required: [data, pagination, filters, filter_options, capabilities]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminAuditEventSummary' }
+        pagination: { $ref: '#/components/schemas/AdminAuditPagination' }
+        filters: { $ref: '#/components/schemas/AdminAuditNormalizedFilters' }
+        filter_options: { $ref: '#/components/schemas/AdminAuditFilterOptions' }
+        capabilities: { $ref: '#/components/schemas/AdminAuditListCapabilities' }
+    AdminAuditEventDetailResponse:
+      type: object
+      required: [data, capabilities]
+      properties:
+        data: { $ref: '#/components/schemas/AdminAuditEventDetail' }
+        capabilities: { $ref: '#/components/schemas/AdminAuditDetailCapabilities' }
+    AdminReportRequestFilters:
+      type: object
+      properties:
+        date_from: { type: string, format: date }
+        date_to: { type: string, format: date }
+        scope: { type: string, enum: [completed, active, all] }
+        group_by: { type: string, enum: [brand, line, type, product, admin] }
+        supplier_user_id: { type: integer, minimum: 1 }
+        brand: { type: string }
+        line: { type: string }
+        type: { type: string }
+        q: { type: string }
+        report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
+    AdminReportNormalizedFilters:
+      type: object
+      required: [date_from, date_to, scope, group_by, supplier_user_id, brand, line, type, q]
+      properties:
+        date_from: { type: string, format: date }
+        date_to: { type: string, format: date }
+        scope: { type: string, enum: [completed, active, all] }
+        group_by: { type: string, enum: [brand, line, type, product, admin] }
+        supplier_user_id: { type: integer }
+        brand: { type: string }
+        line: { type: string }
+        type: { type: string }
+        q: { type: string }
+    AdminReportSummary:
+      type: object
+      required: [orders_count, units_count, revenue_rsd, known_revenue_rsd, cogs_rsd, gross_profit_rsd, gross_margin_percent, commissions_rsd, refunds_rsd, service_cost_rsd, net_contribution_rsd, net_margin_percent, average_order_rsd, outstanding_rsd, missing_cost_lines, revenue_missing_cost_rsd, cost_coverage_percent]
+      properties:
+        orders_count: { type: integer, minimum: 0 }
+        units_count: { type: integer, minimum: 0 }
+        revenue_rsd: { type: number }
+        known_revenue_rsd: { type: number }
+        cogs_rsd: { type: number }
+        gross_profit_rsd: { type: number }
+        gross_margin_percent: { type: number }
+        commissions_rsd: { type: number }
+        refunds_rsd: { type: number }
+        service_cost_rsd: { type: number }
+        net_contribution_rsd: { type: number }
+        net_margin_percent: { type: number }
+        average_order_rsd: { type: number }
+        outstanding_rsd: { type: number }
+        missing_cost_lines: { type: integer, minimum: 0 }
+        revenue_missing_cost_rsd: { type: number }
+        cost_coverage_percent: { type: number }
+    AdminReportSegment:
+      type: object
+      required: [label, orders_count, units_count, revenue_rsd, cogs_rsd, gross_profit_rsd, gross_margin_percent, cost_coverage_percent]
+      properties:
+        label: { type: string }
+        orders_count: { type: integer, minimum: 0 }
+        units_count: { type: integer, minimum: 0 }
+        revenue_rsd: { type: number }
+        cogs_rsd: { type: number }
+        gross_profit_rsd: { type: number }
+        gross_margin_percent: { type: number }
+        cost_coverage_percent: { type: number }
+    AdminReportTrendPoint:
+      type: object
+      required: [period, revenue_rsd, gross_profit_rsd]
+      properties:
+        period: { type: string }
+        revenue_rsd: { type: number }
+        gross_profit_rsd: { type: number }
+    AdminReportInventoryRow:
+      type: object
+      required: [kind, id, sku, name, quantity, unit_cost_rsd, value_rsd, has_cost, age_days, days_since_sale]
+      properties:
+        kind: { type: string }
+        id: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        quantity: { type: number }
+        unit_cost_rsd: { type: number }
+        value_rsd: { type: number }
+        has_cost: { type: boolean }
+        age_days: { type: integer }
+        days_since_sale: { type: integer }
+    AdminReportInventory:
+      type: object
+      required: [items_count, units_count, value_rsd, missing_cost_items, slow_items, aging, top_value, slow_stock]
+      properties:
+        items_count: { type: integer, minimum: 0 }
+        units_count: { type: number, minimum: 0 }
+        value_rsd: { type: number }
+        missing_cost_items: { type: integer, minimum: 0 }
+        slow_items: { type: integer, minimum: 0 }
+        aging:
+          oneOf:
+            - type: object
+              additionalProperties: { type: number }
+            - type: array
+              maxItems: 0
+        top_value:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportInventoryRow' }
+        slow_stock:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportInventoryRow' }
+    AdminReportReceivables:
+      type: object
+      required: [open_orders, outstanding_rsd, aging]
+      properties:
+        open_orders: { type: integer, minimum: 0 }
+        outstanding_rsd: { type: number }
+        aging:
+          type: object
+          required: [not_due, '1_7', '8_15', '16_30', '31_60', '61_90', over_90]
+          properties:
+            not_due: { type: number }
+            '1_7': { type: number }
+            '8_15': { type: number }
+            '16_30': { type: number }
+            '31_60': { type: number }
+            '61_90': { type: number }
+            over_90: { type: number }
+    AdminReportAfterSales:
+      type: object
+      required: [cases, open, closed, overdue, complaint_rate_percent, service_cost_rsd]
+      properties:
+        cases: { type: integer, minimum: 0 }
+        open: { type: integer, minimum: 0 }
+        closed: { type: integer, minimum: 0 }
+        overdue: { type: integer, minimum: 0 }
+        complaint_rate_percent: { type: number }
+        service_cost_rsd: { type: number }
+    AdminManagementReport:
+      type: object
+      required: [report_type, filters, period_label, generated_at, summary, segments, trend, inventory, receivables, after_sales, teams]
+      properties:
+        report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
+        filters: { $ref: '#/components/schemas/AdminReportNormalizedFilters' }
+        period_label: { type: string }
+        generated_at: { type: string, format: date-time }
+        summary: { $ref: '#/components/schemas/AdminReportSummary' }
+        segments:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportSegment' }
+        trend:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportTrendPoint' }
+        inventory: { $ref: '#/components/schemas/AdminReportInventory' }
+        receivables: { $ref: '#/components/schemas/AdminReportReceivables' }
+        after_sales: { $ref: '#/components/schemas/AdminReportAfterSales' }
+        teams:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportSegment' }
+    AdminManagementReportResponse:
+      type: object
+      required: [data, filters, report_type, capabilities]
+      properties:
+        data: { $ref: '#/components/schemas/AdminManagementReport' }
+        filters: { $ref: '#/components/schemas/AdminReportNormalizedFilters' }
+        report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
+        capabilities:
+          type: object
+          required: [export, manage_schedules]
+          properties:
+            export: { type: boolean }
+            manage_schedules: { type: boolean }
+    AdminReportSchedule:
+      type: object
+      required: [id, name, report_type, frequency, send_time, weekday, month_day, timezone, recipients, filters, formats, is_active, next_run_at, last_run_at, last_success_at, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        send_time: { type: string, example: '08:00' }
+        weekday: { type: [integer, 'null'], minimum: 1, maximum: 7 }
+        month_day: { type: [integer, 'null'], minimum: 1, maximum: 31 }
+        timezone: { type: string, example: Europe/Belgrade }
+        recipients:
+          type: array
+          items: { type: string, format: email }
+        filters: { $ref: '#/components/schemas/AdminReportRequestFilters' }
+        formats:
+          type: array
+          items: { type: string, enum: [pdf, csv] }
+        is_active: { type: boolean }
+        next_run_at: { type: [string, 'null'], format: date-time }
+        last_run_at: { type: [string, 'null'], format: date-time }
+        last_success_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    AdminReportDelivery:
+      type: object
+      required: [id, report_schedule_id, report_type, recipient_email, recipient_name, period_from, period_to, status, attempt_count, scheduled_for, last_attempt_at, sent_at, can_retry, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        report_schedule_id: { type: [integer, 'null'] }
+        report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
+        recipient_email: { type: string, format: email }
+        recipient_name: { type: [string, 'null'] }
+        period_from: { type: [string, 'null'], format: date-time }
+        period_to: { type: [string, 'null'], format: date-time }
+        status: { type: string }
+        attempt_count: { type: integer, minimum: 0 }
+        scheduled_for: { type: [string, 'null'], format: date-time }
+        last_attempt_at: { type: [string, 'null'], format: date-time }
+        sent_at: { type: [string, 'null'], format: date-time }
+        can_retry: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    AdminReportScheduleInput:
+      type: object
+      required: [name, report_type, frequency, send_time, weekday, month_day, timezone, recipients, filters, formats, is_active]
+      properties:
+        name: { type: string }
+        report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        send_time: { type: string, example: '08:00' }
+        weekday: { type: [integer, 'null'], minimum: 1, maximum: 7 }
+        month_day: { type: [integer, 'null'], minimum: 1, maximum: 31 }
+        timezone: { type: string, example: Europe/Belgrade }
+        recipients: { type: string, description: Primaoci u server-supported tekstualnom formatu }
+        filters: { $ref: '#/components/schemas/AdminReportRequestFilters' }
+        formats:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [pdf, csv] }
+        is_active: { type: boolean }
+    AdminReportSchedulesResponse:
+      type: object
+      required: [data, deliveries, capabilities]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportSchedule' }
+        deliveries:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportDelivery' }
+        capabilities:
+          type: object
+          required: [create, update, toggle, run, delete, retry_delivery]
+          properties:
+            create: { type: boolean }
+            update: { type: boolean }
+            toggle: { type: boolean }
+            run: { type: boolean }
+            delete: { type: boolean }
+            retry_delivery: { type: boolean }
+    AdminReportScheduleMutationResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminReportSchedule' }
+    AdminReportScheduleDeleteResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [id]
+          properties:
+            id: { type: integer }
+    AdminReportScheduleRunResult:
+      type: object
+      required: [schedule_id, queued]
+      properties:
+        schedule_id: { type: integer }
+        queued: { type: integer, minimum: 0 }
+    AdminReportScheduleRunResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminReportScheduleRunResult' }
+    AdminReportDeliveryMutationResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminReportDelivery' }
+    AdminWarrantyRule:
+      type: object
+      required: [id, name, scope_type, category_id, category_name, product_id, product_name, product_sku, duration_months, duration_days, maintenance_interval_months, priority, terms, is_active, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        scope_type: { type: string, enum: [global, category, product] }
+        category_id: { type: [integer, 'null'] }
+        category_name: { type: [string, 'null'] }
+        product_id: { type: [integer, 'null'] }
+        product_name: { type: [string, 'null'] }
+        product_sku: { type: [string, 'null'] }
+        duration_months: { type: integer, minimum: 0, maximum: 240 }
+        duration_days: { type: integer, minimum: 0, maximum: 3650 }
+        maintenance_interval_months: { type: [integer, 'null'], minimum: 1, maximum: 120 }
+        priority: { type: integer, minimum: -1000, maximum: 1000 }
+        terms: { type: [string, 'null'] }
+        is_active: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    AdminWarrantyRuleInput:
+      type: object
+      required: [name, scope_type, duration_months, duration_days, priority, is_active]
+      properties:
+        name: { type: string }
+        scope_type: { type: string, enum: [global, category, product] }
+        category_id: { type: [integer, 'null'] }
+        product_id: { type: [integer, 'null'] }
+        duration_months: { type: integer, minimum: 0, maximum: 240 }
+        duration_days: { type: integer, minimum: 0, maximum: 3650 }
+        maintenance_interval_months: { type: [integer, 'null'], minimum: 1, maximum: 120 }
+        priority: { type: integer, minimum: -1000, maximum: 1000 }
+        terms: { type: [string, 'null'] }
+        is_active: { type: boolean }
+    AdminWarrantyRulesResponse:
+      type: object
+      required: [data, categories, products, capabilities]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminWarrantyRule' }
+        categories:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+        products:
+          type: array
+          items:
+            type: object
+            required: [id, sku, name]
+            properties:
+              id: { type: integer }
+              sku: { type: string }
+              name: { type: string }
+        capabilities:
+          type: object
+          required: [create, update, backfill]
+          properties:
+            create: { type: boolean }
+            update: { type: boolean }
+            backfill: { type: boolean }
+    AdminWarrantyBackfillResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [created, limit]
+          properties:
+            created: { type: integer, minimum: 0 }
+            limit: { type: integer, minimum: 1, maximum: 500 }
+    AdminWarrantyUpdateInput:
+      type: object
+      required: [starts_at, expires_at]
+      properties:
+        starts_at: { type: string, format: date }
+        expires_at: { type: string, format: date }
+        serial_numbers: { type: string }
+        terms_snapshot: { type: string }
+    AdminWarrantyVoidInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 10000 }
+    AdminWarrantyScheduleInput:
+      type: object
+      required: [scheduled_at]
+      properties:
+        scheduled_at: { type: string }
+        service_reference: { type: string }
+        notes: { type: string }
+    AdminWarrantyCompleteInput:
+      type: object
+      required: [completed_at, result]
+      properties:
+        completed_at: { type: string }
+        service_reference: { type: string }
+        result: { type: string }
+        notes: { type: string }
+    AdminCommissionPerson:
+      type: object
+      required: [id, label, email]
+      properties:
+        id: { type: integer }
+        label: { type: string }
+        email: { type: [string, 'null'], format: email }
+    AdminCommissionPayment:
+      type: object
+      required: [method, method_label, reference, batch_number, paid_at]
+      properties:
+        method: { type: [string, 'null'], enum: [bank_transfer, cash, other, null] }
+        method_label: { type: [string, 'null'] }
+        reference: { type: [string, 'null'] }
+        batch_number: { type: [string, 'null'] }
+        paid_at: { type: [string, 'null'], format: date-time }
+    AdminCommissionHistoryItem:
+      type: object
+      required: [id, old_status, new_status, new_status_label, note, actor_name, created_at]
+      properties:
+        id: { type: integer }
+        old_status: { type: [string, 'null'] }
+        new_status: { type: string, enum: [pending, approved, paid, cancelled] }
+        new_status_label: { type: string }
+        note: { type: [string, 'null'] }
+        actor_name: { type: string }
+        created_at: { type: [string, 'null'], format: date-time }
+    AdminCommission:
+      type: object
+      required: [id, order, user, responsible_name, total_eur, status, status_label, status_note, payment, allowed_transitions, bulk_pay_eligible, status_updated_at, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        order:
+          type: object
+          required: [id, order_number]
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+        user:
+          type: object
+          required: [id, name, email]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            email: { type: [string, 'null'], format: email }
+        responsible_name: { type: string }
+        total_eur: { type: number, format: float }
+        status: { type: string, enum: [pending, approved, paid, cancelled] }
+        status_label: { type: string }
+        status_note: { type: [string, 'null'] }
+        payment:
+          anyOf:
+            - { $ref: '#/components/schemas/AdminCommissionPayment' }
+            - { type: 'null' }
+        allowed_transitions:
+          type: array
+          items: { type: string, enum: [approved, paid, cancelled] }
+        bulk_pay_eligible: { type: boolean }
+        status_updated_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+        history:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCommissionHistoryItem' }
+    AdminCommissionSummary:
+      type: object
+      required: [count, pending_count, pending_eur, approved_count, approved_eur, paid_count, paid_eur, cancelled_count, cancelled_eur]
+      properties:
+        count: { type: integer }
+        pending_count: { type: integer }
+        pending_eur: { type: number }
+        approved_count: { type: integer }
+        approved_eur: { type: number }
+        paid_count: { type: integer }
+        paid_eur: { type: number }
+        cancelled_count: { type: integer }
+        cancelled_eur: { type: number }
+    AdminCommissionListResponse:
+      type: object
+      required: [data, summary, meta, filters, capabilities]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCommission' }
+        summary: { $ref: '#/components/schemas/AdminCommissionSummary' }
+        meta:
+          type: object
+          required: [current_page, last_page, per_page, total]
+          properties:
+            current_page: { type: integer }
+            last_page: { type: integer }
+            per_page: { type: integer }
+            total: { type: integer }
+        filters: { type: object }
+        capabilities: { type: object }
+    AdminCommissionDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/AdminCommission' }
+    AdminCommissionTransitionInput:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [approved, paid, cancelled] }
+        note: { type: string, maxLength: 1000 }
+        payment_method: { type: string, enum: [bank_transfer, cash, other] }
+        payment_reference: { type: string, maxLength: 190 }
+    AdminCommissionBulkPayInput:
+      type: object
+      required: [commission_ids, payment_method]
+      properties:
+        commission_ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: integer }
+        payment_method: { type: string, enum: [bank_transfer, cash, other] }
+        payment_reference: { type: string, maxLength: 190 }
+        note: { type: string, maxLength: 1000 }
+    AdminCommissionBulkPayResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { type: object }
+    AdminFoundationModule:
+      type: object
+      required: [key, label, description, enabled, permissions]
+      properties:
+        key:
+          type: string
+          enum:
+            - orders
+            - commissions
+            - warranties
+            - reports
+            - system_health
+            - audit
+            - inventory
+            - service_parts
+            - after_sales
+            - field_operations
+            - catalog
+            - receivables
+            - users
+            - settings
+        label:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
+    AdminFoundation:
+      type: object
+      required: [api_namespace, enabled_module_count, modules]
+      properties:
+        api_namespace:
+          type: string
+          enum: [/api/v1/admin]
+        enabled_module_count:
+          type: integer
+          minimum: 1
+        modules:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminFoundationModule'
+    AdminCatalogSpecificationOption:
+      type: object
+      required: [id, label, value, parent_option_ids]
+      properties:
+        id: { type: integer }
+        label: { type: string }
+        value: { type: string }
+        parent_option_ids:
+          type: array
+          items: { type: integer }
+    AdminCatalogSpecificationField:
+      type: object
+      required: [id, name, slug, data_type, detail_input_enabled, required, read_only_derived, storage_repeater, options]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        data_type: { type: string }
+        filter_type: { type: [string, 'null'] }
+        unit: { type: [string, 'null'] }
+        min_value: { type: [number, 'null'] }
+        max_value: { type: [number, 'null'] }
+        parent_field_id: { type: [integer, 'null'] }
+        detail_input_enabled: { type: boolean }
+        detail_label: { type: [string, 'null'] }
+        required: { type: boolean }
+        default_value: {}
+        read_only_derived: { type: boolean }
+        storage_repeater:
+          type: [object, 'null']
+          required: [enabled, total_field_id, total_field_name, total_unit, max_items, capacity_unit]
+          properties:
+            enabled: { type: boolean, enum: [true] }
+            total_field_id: { type: integer, minimum: 1 }
+            total_field_name: { type: string }
+            total_unit: { type: [string, 'null'] }
+            max_items: { type: integer, enum: [8] }
+            capacity_unit: { type: string, enum: [GB] }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCatalogSpecificationOption' }
+    AdminProductImageLimits:
+      type: object
+      required: [max_files, max_bytes, mime_types, extensions]
+      properties:
+        max_files: { type: integer, enum: [20] }
+        max_bytes: { type: integer, enum: [10485760] }
+        mime_types:
+          type: array
+          items: { type: string }
+        extensions:
+          type: array
+          items: { type: string }
+    AdminProductImageUploadResponse:
+      type: object
+      required: [message, uploaded_count]
+      properties:
+        message: { type: string }
+        uploaded_count: { type: integer, minimum: 0 }
+    AdminCatalogTypeOption:
+      type: object
+      required: [id, name, auto_name_enabled, fields]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category_id: { type: [integer, 'null'] }
+        category_name: { type: [string, 'null'] }
+        auto_name_enabled: { type: boolean }
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCatalogSpecificationField' }
+    AdminCatalogBrandOption:
+      type: object
+      required: [id, name, product_type_ids]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        product_type_ids:
+          type: array
+          items: { type: integer }
+    AdminCatalogLineOption:
+      type: object
+      required: [id, name, brand_id, product_type_ids]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        brand_id: { type: [integer, 'null'] }
+        product_type_ids:
+          type: array
+          items: { type: integer }
+    AdminCatalogCreateOptions:
+      type: object
+      required: [types, brands, lines, defaults, currencies, statuses, capabilities, image_limits]
+      properties:
+        types:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCatalogTypeOption' }
+        brands:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCatalogBrandOption' }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCatalogLineOption' }
+        defaults:
+          type: object
+          required: [status, price_currency, stock_quantity, low_stock_threshold]
+          properties:
+            status: { type: string, enum: [draft] }
+            price_currency: { type: string, enum: [EUR] }
+            stock_quantity: { type: integer, enum: [0] }
+            low_stock_threshold: { type: integer, enum: [1] }
+        currencies:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string, enum: [EUR, RSD] }
+              label: { type: string }
+        statuses:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string, enum: [draft, active, inactive] }
+              label: { type: string }
+        capabilities:
+          type: object
+          required: [advanced_specifications, image_upload, specialized_storage_repeater]
+          properties:
+            advanced_specifications: { type: boolean }
+            image_upload: { type: boolean }
+            specialized_storage_repeater: { type: boolean }
+        image_limits: { $ref: '#/components/schemas/AdminProductImageLimits' }
+    AdminCatalogCreateOptionsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/AdminCatalogCreateOptions' }
+    AdminProductCreateInput:
+      type: object
+      required: [price_amount, price_currency, description, stock_quantity, low_stock_threshold, status]
+      properties:
+        product_type_id: { type: integer }
+        brand_id: { type: integer }
+        product_line_id: { type: integer }
+        model_name: { type: string, maxLength: 190 }
+        name: { type: string, maxLength: 190 }
+        regenerate_sku: { type: boolean }
+        regenerate_name: { type: boolean }
+        price_amount: { type: number, minimum: 0 }
+        price_currency: { type: string, enum: [RSD, EUR] }
+        purchase_price_rsd: { type: number, minimum: 0 }
+        manual_commission_eur: { type: number, minimum: 0, description: "Optional manual commission in EUR. When present, it must be at least 10% of the product value converted to EUR. When omitted, the automatic commission is 10% and remains capped at 50 EUR." }
+        description: { type: string, maxLength: 65000 }
+        notes: { type: string, maxLength: 65000 }
+        stock_quantity: { type: integer, minimum: 0 }
+        low_stock_threshold: { type: integer, minimum: 0 }
+        status: { type: string, enum: [draft, active, inactive] }
+        category_ids:
+          type: array
+          maxItems: 1
+          items: { type: integer }
+        specs:
+          type: object
+          additionalProperties: {}
+        spec_details:
+          type: object
+          additionalProperties: { type: string, maxLength: 500 }
+        spec_lists:
+          type: object
+          additionalProperties:
+            type: array
+            maxItems: 8
+            items: { type: string, maxLength: 255 }
+        spec_capacities:
+          type: object
+          additionalProperties:
+            type: array
+            maxItems: 8
+            items: { type: integer, minimum: 0, maximum: 10000000 }
+        spec_structured:
+          type: object
+          additionalProperties:
+            type: array
+            maxItems: 8
+            items:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string, maxLength: 255 }
+                capacity_gb: { type: integer, minimum: 0, maximum: 10000000 }
+    AdminProductCreated:
+      type: object
+      required: [id, slug, sku, name, status]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        sku: { type: string }
+        name: { type: string }
+        status: { type: string, enum: [draft, active, inactive] }
+    AdminProductCreateResponse:
+      type: object
+      required: [message, data, announcement_count]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminProductCreated' }
+        announcement_count: { type: integer }
     UserSummary:
       type: object
       required: [id, username, name, status]
@@ -568,6 +4085,443 @@ components:
         locale: { type: [string, 'null'], maxLength: 20 }
         timezone: { type: [string, 'null'], maxLength: 64 }
         notifications_enabled: { type: boolean }
+    OrderPrivateFile:
+      type: object
+      required: [original_name, mime_type, size_bytes]
+      properties:
+        original_name: { type: string }
+        mime_type: { type: string }
+        size_bytes: { type: integer, minimum: 0 }
+
+    OrderPaymentLedgerEntry:
+      type: object
+      required: [id, number, entry_type, entry_label, status, amount_rsd, payment_method, has_proof]
+      properties:
+        id: { type: integer }
+        number: { type: string }
+        entry_type: { type: string }
+        entry_label: { type: string }
+        status: { type: string }
+        amount_rsd: { type: number }
+        payment_method: { type: string }
+        paid_at: { type: [string, 'null'], format: date-time }
+        rejection_reason: { type: [string, 'null'] }
+        has_proof: { type: boolean }
+        proof: { anyOf: [{ $ref: '#/components/schemas/OrderPrivateFile' }, { type: 'null' }] }
+
+    OrderDocumentSummary:
+      type: object
+      required: [id, number, type, revision_number, status, currency, total_rsd]
+      properties:
+        id: { type: integer }
+        number: { type: string }
+        type: { type: string }
+        revision_number: { type: integer, minimum: 1 }
+        status: { type: string, const: issued }
+        issued_at: { type: [string, 'null'], format: date-time }
+        due_at: { type: [string, 'null'], format: date }
+        currency: { type: string }
+        total_rsd: { type: number }
+
+    OrderDeliverySummary:
+      type: object
+      required: [id, delivery_method, delivery_method_label, has_proof]
+      properties:
+        id: { type: integer }
+        delivery_method: { type: string }
+        delivery_method_label: { type: string }
+        delivered_at: { type: [string, 'null'], format: date-time }
+        recipient_name: { type: [string, 'null'] }
+        recipient_phone: { type: [string, 'null'] }
+        reference: { type: [string, 'null'] }
+        note: { type: [string, 'null'] }
+        has_proof: { type: boolean }
+        proof: { anyOf: [{ $ref: '#/components/schemas/OrderPrivateFile' }, { type: 'null' }] }
+
+    OrderBankTransferSnapshot:
+      type: object
+      properties:
+        account_label: { type: [string, 'null'] }
+        account_number: { type: [string, 'null'] }
+        recipient_name: { type: [string, 'null'] }
+        recipient_address: { type: [string, 'null'] }
+        payment_code: { type: [string, 'null'] }
+        purpose: { type: [string, 'null'] }
+        reference: { type: [string, 'null'] }
+
+    OrderPostCreateCapabilities:
+      type: object
+      required: [can_view_payments, can_upload_payment_proof, can_view_documents, can_issue_order_confirmation, can_view_delivery_proof]
+      properties:
+        can_view_payments: { type: boolean }
+        can_upload_payment_proof: { type: boolean }
+        can_view_documents: { type: boolean }
+        can_issue_order_confirmation: { type: boolean }
+        can_view_delivery_proof: { type: boolean }
+
+    OrderPaymentProofLimits:
+      type: object
+      required: [max_bytes, extensions, mime_types]
+      properties:
+        max_bytes: { type: integer, minimum: 1 }
+        extensions:
+          type: array
+          items: { type: string }
+        mime_types:
+          type: array
+          items: { type: string }
+
+    OrderPostCreate:
+      type: object
+      required: [order, payments, documents, capabilities, payment_proof_limits]
+      properties:
+        order:
+          type: object
+          required: [id, order_number, status, payment_method, payment_status, payment_state, subtotal_rsd, paid_total_rsd, remaining_rsd]
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+            status: { type: string }
+            payment_method: { type: string }
+            payment_status: { type: string }
+            payment_state: { type: string }
+            subtotal_rsd: { type: number }
+            paid_total_rsd: { type: number }
+            remaining_rsd: { type: number, minimum: 0 }
+            payment_due_at: { type: [string, 'null'], format: date-time }
+            tracking_number: { type: [string, 'null'] }
+            completed_at: { type: [string, 'null'], format: date-time }
+            completion_note: { type: [string, 'null'] }
+        bank_transfer: { anyOf: [{ $ref: '#/components/schemas/OrderBankTransferSnapshot' }, { type: 'null' }] }
+        payments:
+          type: array
+          items: { $ref: '#/components/schemas/OrderPaymentLedgerEntry' }
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/OrderDocumentSummary' }
+        delivery: { anyOf: [{ $ref: '#/components/schemas/OrderDeliverySummary' }, { type: 'null' }] }
+        capabilities: { $ref: '#/components/schemas/OrderPostCreateCapabilities' }
+        payment_proof_limits: { $ref: '#/components/schemas/OrderPaymentProofLimits' }
+    AfterSalesCaseSummary:
+      type: object
+      required: [id, case_number, order, case_type, case_type_label, priority, priority_label, status, status_label, subject, can_message]
+      properties:
+        id: { type: integer }
+        case_number: { type: string }
+        order:
+          type: object
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+        case_type: { type: string, enum: [complaint, return, service] }
+        case_type_label: { type: string }
+        priority: { type: string, enum: [low, normal, high, urgent] }
+        priority_label: { type: string }
+        status: { type: string, enum: [open, under_review, awaiting_customer, approved, in_service, resolved, rejected, closed] }
+        status_label: { type: string }
+        subject: { type: string }
+        assignee:
+          anyOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: integer }
+                name: { type: string }
+        due_at: { type: [string, 'null'], format: date-time }
+        can_message: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+
+    AfterSalesAttachment:
+      type: object
+      required: [id, original_name, mime_type, size_bytes, download_path]
+      properties:
+        id: { type: integer }
+        original_name: { type: string }
+        mime_type: { type: string }
+        size_bytes: { type: integer, minimum: 0 }
+        download_path: { type: string }
+        created_at: { type: [string, 'null'], format: date-time }
+
+    AfterSalesMessage:
+      type: object
+      required: [id, body, attachments]
+      properties:
+        id: { type: integer }
+        body: { type: string }
+        author:
+          anyOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: integer }
+                name: { type: string }
+                kind: { type: string, enum: [staff, customer] }
+        attachments:
+          type: array
+          items: { $ref: '#/components/schemas/AfterSalesAttachment' }
+        created_at: { type: [string, 'null'], format: date-time }
+
+    AfterSalesAction:
+      type: object
+      properties:
+        id: { type: integer }
+        action_number: { type: string }
+        action_type: { type: string }
+        action_type_label: { type: string }
+        status: { type: string }
+        status_label: { type: string }
+        scheduled_at: { type: [string, 'null'], format: date-time }
+        due_at: { type: [string, 'null'], format: date-time }
+        amount_rsd: { type: [number, 'null'] }
+        reference: { type: [string, 'null'] }
+        public_note: { type: [string, 'null'] }
+        completion_note: { type: [string, 'null'] }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              quantity: { type: integer }
+        work_order:
+          anyOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: integer }
+                work_order_number: { type: string }
+                status: { type: string }
+                status_label: { type: string }
+                planned_start_at: { type: [string, 'null'], format: date-time }
+                planned_end_at: { type: [string, 'null'], format: date-time }
+                completion_result: { type: [string, 'null'] }
+                team:
+                  anyOf:
+                    - type: 'null'
+                    - type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        phone: { type: [string, 'null'] }
+                attachments:
+                  type: array
+                  items: { $ref: '#/components/schemas/AfterSalesAttachment' }
+
+    AfterSalesCase:
+      allOf:
+        - $ref: '#/components/schemas/AfterSalesCaseSummary'
+        - type: object
+          properties:
+            description: { type: string }
+            requested_resolution: { type: [string, 'null'] }
+            requested_resolution_label: { type: [string, 'null'] }
+            resolution_type: { type: [string, 'null'] }
+            resolution_type_label: { type: [string, 'null'] }
+            resolution_summary: { type: [string, 'null'] }
+            first_response_at: { type: [string, 'null'], format: date-time }
+            resolved_at: { type: [string, 'null'], format: date-time }
+            closed_at: { type: [string, 'null'], format: date-time }
+            limits:
+              type: object
+              properties:
+                subject_max_length: { type: integer }
+                description_min_length: { type: integer }
+                description_max_length: { type: integer }
+                issue_description_max_length: { type: integer }
+                message_max_length: { type: integer }
+                max_attachments: { type: integer }
+                max_attachment_bytes: { type: integer }
+                attachment_mime_types:
+                  type: array
+                  items: { type: string }
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  order_item_id: { type: [integer, 'null'] }
+                  product_id: { type: [integer, 'null'] }
+                  sku: { type: string }
+                  name: { type: string }
+                  quantity: { type: integer }
+                  issue_description: { type: [string, 'null'] }
+            actions:
+              type: array
+              items: { $ref: '#/components/schemas/AfterSalesAction' }
+            messages:
+              type: array
+              items: { $ref: '#/components/schemas/AfterSalesMessage' }
+            attachments:
+              type: array
+              items: { $ref: '#/components/schemas/AfterSalesAttachment' }
+
+    AfterSalesOptions:
+      type: object
+      properties:
+        order:
+          type: object
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+            shipping:
+              type: object
+              properties:
+                full_name: { type: string }
+                address: { type: string }
+                city: { type: string }
+                postal_code: { type: string }
+                phone: { type: string }
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  product_id: { type: [integer, 'null'] }
+                  sku: { type: string }
+                  name: { type: string }
+                  quantity: { type: integer }
+        case_types: { type: object, additionalProperties: { type: string } }
+        priorities: { type: object, additionalProperties: { type: string } }
+        requested_resolutions: { type: object, additionalProperties: { type: string } }
+        defaults:
+          type: object
+          properties:
+            priority: { type: string, enum: [low, normal, high, urgent] }
+        limits:
+          type: object
+          properties:
+            subject_max_length: { type: integer }
+            description_min_length: { type: integer }
+            description_max_length: { type: integer }
+            issue_description_max_length: { type: integer }
+            message_max_length: { type: integer }
+            max_attachments: { type: integer }
+            max_attachment_bytes: { type: integer }
+            attachment_mime_types:
+              type: array
+              items: { type: string }
+    WarrantySummary:
+      type: object
+      required: [id, warranty_number, order, status, status_label, product_name]
+      properties:
+        id: { type: integer }
+        warranty_number: { type: string }
+        order:
+          type: object
+          required: [id, order_number]
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+        status: { type: string, enum: [active, expired, void] }
+        status_label: { type: string }
+        product_name: { type: string }
+        product_sku: { type: [string, 'null'] }
+        starts_at: { type: [string, 'null'], format: date }
+        expires_at: { type: [string, 'null'], format: date }
+        next_maintenance_at: { type: [string, 'null'], format: date }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+
+    WarrantyMaintenanceRecord:
+      type: object
+      required: [id, status, status_label]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [due, scheduled, completed, cancelled] }
+        status_label: { type: string }
+        due_at: { type: [string, 'null'], format: date }
+        scheduled_at: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        result: { type: [string, 'null'] }
+
+    Warranty:
+      allOf:
+        - { $ref: '#/components/schemas/WarrantySummary' }
+        - type: object
+          required: [quantity, serial_numbers, maintenance_records]
+          properties:
+            quantity: { type: integer, minimum: 0 }
+            serial_numbers:
+              type: array
+              items: { type: string }
+            duration_months: { type: [integer, 'null'] }
+            duration_days: { type: [integer, 'null'] }
+            maintenance_interval_months: { type: [integer, 'null'] }
+            last_maintenance_at: { type: [string, 'null'], format: date }
+            terms: { type: [string, 'null'] }
+            void_reason: { type: [string, 'null'] }
+            maintenance_records:
+              type: array
+              items: { $ref: '#/components/schemas/WarrantyMaintenanceRecord' }
+    CommissionPayment:
+      type: object
+      properties:
+        method: { type: [string, 'null'], enum: [bank_transfer, cash, other, null] }
+        method_label: { type: [string, 'null'] }
+        reference: { type: [string, 'null'] }
+        paid_at: { type: [string, 'null'], format: date-time }
+
+    Commission:
+      type: object
+      required: [id, order, total_eur, status, status_label, responsible_name]
+      properties:
+        id: { type: integer }
+        order:
+          type: object
+          required: [id, order_number]
+          properties:
+            id: { type: integer }
+            order_number: { type: string }
+        total_eur: { type: number, format: double, minimum: 0 }
+        status: { type: string, enum: [pending, approved, paid, cancelled] }
+        status_label: { type: string }
+        status_note: { type: [string, 'null'] }
+        responsible_name: { type: string }
+        payment: { anyOf: [{ $ref: '#/components/schemas/CommissionPayment' }, { type: 'null' }] }
+        status_updated_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+
+    CommissionTotals:
+      type: object
+      required: [pending_eur, approved_eur, paid_eur, count]
+      properties:
+        pending_eur: { type: number, format: double, minimum: 0 }
+        approved_eur: { type: number, format: double, minimum: 0 }
+        paid_eur: { type: number, format: double, minimum: 0 }
+        count: { type: integer, minimum: 0 }
+
+    CommissionListResponse:
+      type: object
+      required: [data, summary, links, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Commission' }
+        summary: { $ref: '#/components/schemas/CommissionTotals' }
+        links:
+          type: object
+          required: [first, last, prev, next]
+          properties:
+            first: { type: [string, 'null'] }
+            last: { type: [string, 'null'] }
+            prev: { type: [string, 'null'] }
+            next: { type: [string, 'null'] }
+        meta:
+          type: object
+          required: [current_page, from, last_page, path, per_page, to, total]
+          properties:
+            current_page: { type: integer }
+            from: { type: [integer, 'null'] }
+            last_page: { type: integer }
+            path: { type: string }
+            per_page: { type: integer }
+            to: { type: [integer, 'null'] }
+            total: { type: integer }
     ApiError:
       type: object
       required: [message, code, request_id]

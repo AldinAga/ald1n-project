@@ -17,5 +17,5 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
     'version' => '2.2.0',
-    'deploy_path' => env('DEPLOY_PATH', '/home/icaffeco/cms.ald1n.com'),
+    'deploy_path' => env('DEPLOY_PATH', '/home/icaffeco/ald1n-project/apps/cms/current'),
 ];

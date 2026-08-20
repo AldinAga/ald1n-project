@@ -352,8 +352,8 @@ final class OrderDocumentService
             'order_number' => $order?->order_number,
             'supplier_name' => $document->supplier_name,
         ], $order?->items->map(static fn ($item): array => [
-            'sku' => $item->variant_sku_snapshot ?: $item->product_sku,
-            'name' => $item->product_name.($item->variant_name_snapshot ? ' — '.$item->variant_name_snapshot : ''),
+            'sku' => $item->product_sku,
+            'name' => $item->product_name,
             'quantity' => (int) $item->quantity,
             'unit_price_rsd' => (float) $item->unit_price_rsd,
             'line_total_rsd' => (float) $item->line_total_rsd,

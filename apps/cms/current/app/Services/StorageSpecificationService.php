@@ -112,13 +112,13 @@ final class StorageSpecificationService
 
     /**
      * Detect storage fields, link the old capacity field to the repeatable disk field,
-     * move the total below the disk list and normalize existing product/variant data.
+     * move the total below the disk list and normalize existing product data.
      *
-     * @return array{components:int,totals:int,pairs:int,products:int,variants:int}
+     * @return array{components:int,totals:int,pairs:int,products:int}
      */
     public function repair(): array
     {
-        $summary = ['components' => 0, 'totals' => 0, 'pairs' => 0, 'products' => 0, 'variants' => 0];
+        $summary = ['components' => 0, 'totals' => 0, 'pairs' => 0, 'products' => 0];
         if (!Schema::hasTable('specification_fields') || !Schema::hasColumn('specification_fields', 'storage_role') || !Schema::hasColumn('specification_fields', 'storage_source_field_id')) return $summary;
 
         $fields = DB::table('specification_fields')->orderBy('id')->get([
@@ -153,9 +153,6 @@ final class StorageSpecificationService
 
         foreach ($this->configuredPairs() as $pair) {
             $summary['products'] += $this->normalizeEntityTable('products', 'product_spec_values', 'product_id', $pair['source_id'], $pair['total_id'], $pair['type_ids']);
-            if (Schema::hasTable('product_variants') && Schema::hasTable('product_variant_spec_values')) {
-                $summary['variants'] += $this->normalizeVariantTable($pair['source_id'], $pair['total_id'], $pair['type_ids']);
-            }
         }
 
         return $summary;
@@ -199,11 +196,6 @@ final class StorageSpecificationService
             $mismatches += $pairMismatch;
             $legacy += $pairLegacy;
 
-            if (Schema::hasTable('product_variants') && Schema::hasTable('product_variant_spec_values')) {
-                [$variantMismatch, $variantLegacy] = $this->variantPairIntegrity($pair);
-                $mismatches += $variantMismatch;
-                $legacy += $variantLegacy;
-            }
         }
 
         return [
@@ -343,23 +335,6 @@ final class StorageSpecificationService
         return $changed;
     }
 
-    /** @param array<int,int> $typeIds */
-    private function normalizeVariantTable(int $sourceId, int $totalId, array $typeIds): int
-    {
-        if ($typeIds === []) return 0;
-        $changed = 0;
-        DB::table('product_variants as variants')
-            ->join('products', 'products.id', '=', 'variants.product_id')
-            ->whereIn('products.product_type_id', $typeIds)
-            ->orderBy('variants.id')
-            ->select('variants.id')
-            ->chunkById(200, function ($entities) use ($sourceId, $totalId, &$changed): void {
-                foreach ($entities as $entity) {
-                    if ($this->normalizeOne('product_variant_spec_values', 'product_variant_id', (int) $entity->id, $sourceId, $totalId)) $changed++;
-                }
-            }, 'variants.id', 'id');
-        return $changed;
-    }
 
     private function normalizeOne(string $table, string $foreignKey, int $entityId, int $sourceId, int $totalId): bool
     {
@@ -441,34 +416,6 @@ final class StorageSpecificationService
         return [$mismatch, $legacy];
     }
 
-    /** @param array{source_id:int,total_id:int,type_ids:array<int,int>} $pair @return array{0:int,1:int} */
-    private function variantPairIntegrity(array $pair): array
-    {
-        if ($pair['type_ids'] === []) return [0, 0];
-        $mismatch = 0;
-        $legacy = 0;
-
-        DB::table('product_variants as variants')
-            ->join('products', 'products.id', '=', 'variants.product_id')
-            ->whereIn('products.product_type_id', $pair['type_ids'])
-            ->orderBy('variants.id')
-            ->select('variants.id')
-            ->chunkById(200, function ($entities) use ($pair, &$mismatch, &$legacy): void {
-                foreach ($entities as $entity) {
-                    [$entityMismatch, $entityLegacy] = $this->entityIntegrity(
-                        'product_variant_spec_values',
-                        'product_variant_id',
-                        (int) $entity->id,
-                        $pair['source_id'],
-                        $pair['total_id'],
-                    );
-                    $mismatch += $entityMismatch;
-                    $legacy += $entityLegacy;
-                }
-            }, 'variants.id', 'id');
-
-        return [$mismatch, $legacy];
-    }
 
     /** @return array{0:int,1:int} */
     private function entityIntegrity(string $valueTable, string $foreignKey, int $entityId, int $sourceId, int $totalId): array

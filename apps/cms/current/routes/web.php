@@ -22,6 +22,8 @@ use App\Http\Controllers\Admin\FieldWorkOrderPartController;
 use App\Http\Controllers\Admin\ServicePartController;
 use App\Http\Controllers\Admin\ServicePartSupplierController;
 use App\Http\Controllers\Admin\ServicePartPurchaseRequestController;
+use App\Http\Controllers\Admin\CourierServiceController;
+use App\Http\Controllers\Admin\DirectSaleController;
 use App\Http\Controllers\Admin\DocumentSettingsController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderDocumentController as AdminOrderDocumentController;
@@ -32,20 +34,23 @@ use App\Http\Controllers\Admin\ManagementReportController;
 use App\Http\Controllers\Admin\ReportScheduleController;
 use App\Http\Controllers\Admin\ReceivablesController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\OrderShipmentController as AdminOrderShipmentController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductBulkController;
 use App\Http\Controllers\Admin\ProductImageController;
-use App\Http\Controllers\Admin\ProductVariantController;
 use App\Http\Controllers\Admin\PortalConversationController as AdminPortalConversationController;
 use App\Http\Controllers\Admin\SiteAppearanceController;
 use App\Http\Controllers\Admin\StockAdjustmentController;
 use App\Http\Controllers\Admin\StockMovementController;
 use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\TurnstileSettingsController;
+use App\Http\Controllers\Admin\SettingsHubController;
+use App\Http\Controllers\Admin\ModuleSettingsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\UserGroupController;
 use App\Http\Controllers\Admin\WarrantyController as AdminWarrantyController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\GoogleWebAuthController;
 use App\Http\Controllers\Auth\CustomerActivationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CatalogController;
@@ -56,6 +61,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderDeliveryController;
 use App\Http\Controllers\OrderDocumentController;
 use App\Http\Controllers\OrderPaymentController;
+use App\Http\Controllers\OrderShipmentProofController;
 use App\Http\Controllers\PortalConversationController;
 use App\Http\Controllers\ProductMediaController;
 use App\Http\Controllers\ProductMediaDownloadController;
@@ -66,6 +72,12 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
+    Route::get('/auth/google', [GoogleWebAuthController::class, 'redirect'])
+        ->middleware('throttle:20,1')
+        ->name('auth.google.redirect');
+    Route::get('/auth/google/callback', [GoogleWebAuthController::class, 'callback'])
+        ->middleware('throttle:20,1')
+        ->name('auth.google.callback');
 
     Route::get('/forgot-password', [PasswordResetController::class, 'createLinkRequest'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'storeLinkRequest'])
@@ -108,8 +120,15 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
 
     Route::middleware('permission:catalog.view')->group(function (): void {
         Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
+        Route::get('/catalog/quick-search', [CatalogController::class, 'quickSearch'])
+            ->middleware('throttle:120,1')
+            ->name('catalog.quick-search');
         Route::get('/catalog/{slug}', [CatalogController::class, 'show'])->name('catalog.show');
     });
+
+    Route::get('/global-search', [\App\Http\Controllers\GlobalCommandSearchController::class, 'search'])
+        ->middleware('throttle:120,1')
+        ->name('global-search.quick');
 
     Route::middleware('permission:orders.view_own')->group(function (): void {
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
@@ -137,6 +156,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         ->whereNumber('order')->middleware(['permission:payments.upload_proof', 'throttle:uploads'])->name('orders.payments.proof.store');
     Route::get('/orders/{order}/delivery-proof', [OrderDeliveryController::class, 'proof'])
         ->whereNumber('order')->name('orders.delivery.proof');
+    Route::get('/orders/{order}/shipment-proof', OrderShipmentProofController::class)
+        ->whereNumber('order')->name('orders.shipment.proof');
 
     Route::middleware('permission:after_sales.view_own')->group(function (): void {
         Route::get('/after-sales', [AfterSalesController::class, 'index'])->name('after-sales.index');
@@ -175,27 +196,28 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
     Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::middleware('permission:catalog.manage_products')->group(function (): void {
             Route::get('/catalog', [AdminProductController::class, 'index'])->name('products.index');
+            Route::get('/catalog/archived', [AdminProductController::class, 'archived'])->name('products.archived');
             Route::get('/catalog/create', [AdminProductController::class, 'create'])->name('products.create');
             Route::post('/catalog', [AdminProductController::class, 'store'])->name('products.store');
             Route::get('/catalog/bulk', [ProductBulkController::class, 'index'])->name('products.bulk');
             Route::post('/catalog/bulk', [ProductBulkController::class, 'process'])->name('products.bulk.process');
             Route::post('/catalog/name-preview', [AdminProductController::class, 'namePreview'])->name('products.name-preview');
+            Route::post('/catalog/{product}/direct-sale', DirectSaleController::class)
+                ->whereNumber('product')
+                ->middleware('throttle:admin-write')
+                ->name('products.direct-sale');
+            Route::get('/catalog/{product}', [AdminProductController::class, 'edit'])
+                ->whereNumber('product')
+                ->name('products.manage');
             Route::get('/catalog/{product}/edit', [AdminProductController::class, 'edit'])->name('products.edit');
             Route::get('/catalog/{product}/clone', [AdminProductController::class, 'cloneForm'])->name('products.clone');
             Route::post('/catalog/{product}/clone', [AdminProductController::class, 'cloneStore'])->name('products.clone.store');
             Route::post('/catalog/{product}/regenerate-name', [AdminProductController::class, 'regenerateName'])->name('products.regenerate-name');
-            Route::get('/catalog/{product}/variants', [ProductVariantController::class, 'index'])->name('products.variants.index');
-            Route::post('/catalog/{product}/variants', [ProductVariantController::class, 'store'])->name('products.variants.store');
-            Route::put('/catalog/{product}/variants/{variant}', [ProductVariantController::class, 'update'])->whereNumber('variant')->name('products.variants.update');
-            Route::post('/catalog/{product}/variants/{variant}/stock', [ProductVariantController::class, 'adjust'])->whereNumber('variant')->name('products.variants.stock');
-            Route::post('/catalog/{product}/variants/{variant}/default', [ProductVariantController::class, 'setDefault'])->whereNumber('variant')->name('products.variants.default');
-            Route::delete('/catalog/{product}/variants/{variant}', [ProductVariantController::class, 'archive'])->whereNumber('variant')->name('products.variants.archive');
-            Route::post('/catalog/{product}/variants/{variant}/images', [ProductVariantController::class, 'images'])->whereNumber('variant')->middleware('throttle:uploads')->name('products.variants.images');
-            Route::delete('/catalog/{product}/variants/{variant}/images/{image}', [ProductVariantController::class, 'deleteImage'])->whereNumber('variant')->whereNumber('image')->name('products.variants.images.delete');
             Route::put('/catalog/{product}', [AdminProductController::class, 'update'])->name('products.update');
             Route::delete('/catalog/{product}', [AdminProductController::class, 'archive'])->name('products.archive');
             Route::post('/catalog/{product}/restore', [AdminProductController::class, 'restore'])->name('products.restore');
             Route::delete('/catalog/{product}/purge', [AdminProductController::class, 'purge'])->name('products.purge');
+            Route::delete('/catalog/{product}/total-purge', [AdminProductController::class, 'totalPurge'])->name('products.total-purge');
         });
         Route::middleware('permission:catalog.manage_images')->group(function (): void {
             Route::get('/catalog/{product}/images', [ProductImageController::class, 'index'])->name('products.images.index');
@@ -223,6 +245,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         Route::middleware('permission:orders.manage')->group(function (): void {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+            Route::get('/orders/archived', [AdminOrderController::class, 'archived'])->name('orders.archived');
+            Route::post('/orders/{order}/archive', [AdminOrderController::class, 'archive'])->whereNumber('order')->name('orders.archive');
+            Route::post('/orders/archived/{orderId}/restore', [AdminOrderController::class, 'restore'])->whereNumber('orderId')->name('orders.restore');
+            Route::delete('/orders/archived/{orderId}/purge', [AdminOrderController::class, 'purge'])->whereNumber('orderId')->name('orders.purge');
             Route::patch('/orders/{order}/status', [AdminOrderController::class, 'status'])->whereNumber('order')->name('orders.status');
             Route::post('/orders/{order}/complete', [AdminOrderController::class, 'complete'])
                 ->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
@@ -230,6 +256,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
             Route::patch('/orders/{order}/payment', [AdminOrderController::class, 'payment'])->whereNumber('order')->name('orders.payment');
             Route::patch('/orders/{order}/tracking', [AdminOrderController::class, 'tracking'])->whereNumber('order')->name('orders.tracking');
+            Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])
+                ->whereNumber('order')->middleware('throttle:admin-write')->name('orders.shipment.store');
             Route::post('/orders/{order}/accept', [AdminOrderController::class, 'accept'])->whereNumber('order')->name('orders.accept');
             Route::patch('/orders/{order}/deadlines', [AdminOrderController::class, 'deadlines'])->whereNumber('order')->name('orders.deadlines');
         });
@@ -342,6 +370,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         });
         Route::middleware('permission:invoices.manage')->group(function (): void {
             Route::post('/orders/{order}/documents', [AdminOrderDocumentController::class, 'store'])->whereNumber('order')->name('orders.documents.store');
+            Route::post('/orders/{order}/invoice.pdf', [AdminOrderDocumentController::class, 'invoicePdf'])
+                ->whereNumber('order')
+                ->middleware('throttle:admin-write')
+                ->name('orders.invoice.pdf');
             Route::post('/orders/{order}/documents/{document}/cancel', [AdminOrderDocumentController::class, 'cancel'])->whereNumber('order')->whereNumber('document')->name('orders.documents.cancel');
         });
 
@@ -378,7 +410,11 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::delete('/user-groups/{userGroup}', [UserGroupController::class, 'destroy'])->name('user-groups.destroy');
         });
 
+        Route::get('/settings', [SettingsHubController::class, 'index'])->name('settings.index');
+
         Route::prefix('settings')->name('settings.')->middleware('permission:system.manage_settings')->group(function (): void {
+            Route::get('/modules', [ModuleSettingsController::class, 'index'])->name('modules.index');
+            Route::put('/modules', [ModuleSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('modules.update');
             Route::get('/automation', [AutomationController::class, 'index'])->middleware('permission:automation.manage')->name('automation.index');
             Route::put('/automation', [AutomationController::class, 'update'])->middleware('permission:automation.manage')->name('automation.update');
             Route::post('/automation/run', [AutomationController::class, 'run'])->middleware('permission:automation.manage')->name('automation.run');
@@ -396,6 +432,9 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/exchange-rate/manual', [ExchangeRateController::class, 'manual'])->name('exchange.manual');
             Route::post('/exchange-rate/automatic', [ExchangeRateController::class, 'automatic'])->name('exchange.automatic');
             Route::post('/exchange-rate/refresh', [ExchangeRateController::class, 'refresh'])->name('exchange.refresh');
+            Route::get('/couriers', [CourierServiceController::class, 'index'])->name('couriers.index');
+            Route::post('/couriers', [CourierServiceController::class, 'store'])->middleware('throttle:admin-write')->name('couriers.store');
+            Route::put('/couriers/{courier}', [CourierServiceController::class, 'update'])->whereNumber('courier')->middleware('throttle:admin-write')->name('couriers.update');
             Route::get('/order-emails', [OrderEmailSettingsController::class, 'index'])->name('order-emails.index');
             Route::put('/order-emails', [OrderEmailSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('order-emails.update');
             Route::post('/order-emails/dispatch', [OrderEmailSettingsController::class, 'dispatch'])->middleware('throttle:admin-write')->name('order-emails.dispatch');

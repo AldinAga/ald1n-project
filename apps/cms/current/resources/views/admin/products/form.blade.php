@@ -11,7 +11,7 @@
         </div>
         @if($product->exists)
             <div class="page-heading-actions">
-                <a class="button button-ghost" href="{{ route('admin.products.variants.index',$product) }}">Varijante @if($product->variants_enabled)({{ $product->variants()->count() }})@endif</a>
+
                 <a class="button button-ghost" href="{{ route('admin.products.clone',$product) }}">Kloniraj artikal</a>
                 @if($product->type?->auto_name_enabled || $product->type?->name_template)<button class="button button-ghost" type="submit" form="regenerate-name-form">Regeneriši naziv</button>@endif
                 @can('catalog.manage_images')<a class="button button-ghost" href="{{ route('admin.products.images.index',$product) }}">Uredi slike</a>@endcan
@@ -19,7 +19,116 @@
         @endif
     </div>
 
-    <form
+    {{-- ux-maximal-product-editor-phase1-v2 --}}
+<section class="panel ux-product-workspace" data-ux-product-workspace>
+    <div class="ux-product-workspace-head">
+        <div>
+            <span class="eyebrow">Product Workspace</span>
+            <h2>{{ $product->exists ? 'Uredi artikal kroz jasne radne celine' : 'Kreiraj artikal bez lutanja kroz formu' }}</h2>
+            <p class="muted">Ovo nije obavezni wizard. Otvori bilo koju celinu, pronađi polje ili idi direktno na sledeće obavezno polje koje još nije popunjeno.</p>
+        </div>
+        <div class="ux-product-workspace-status">
+            <span>Kompletnost artikla</span>
+            <strong data-ux-product-completeness-mirror>—</strong>
+            <small data-ux-product-completeness-copy>Postojeći backend indikator</small>
+        </div>
+    </div>
+
+    <nav class="ux-product-task-map" aria-label="Radne celine Product Editor-a">
+        <button type="button" data-ux-product-task="identity">
+            <span class="ux-product-task-index">1</span>
+            <span class="ux-product-task-copy"><strong>Osnovno</strong><small>brend, linija, model, naziv</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+        <button type="button" data-ux-product-task="media">
+            <span class="ux-product-task-index">2</span>
+            <span class="ux-product-task-copy"><strong>Fotografije</strong><small>slike i raspored</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+        <button type="button" data-ux-product-task="specifications">
+            <span class="ux-product-task-index">3</span>
+            <span class="ux-product-task-copy"><strong>Specifikacije</strong><small>tip i njegova polja</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+        <button type="button" data-ux-product-task="description">
+            <span class="ux-product-task-index">4</span>
+            <span class="ux-product-task-copy"><strong>Opis</strong><small>opis i interne napomene</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+        <button type="button" data-ux-product-task="commercial">
+            <span class="ux-product-task-index">5</span>
+            <span class="ux-product-task-copy"><strong>Cena i lager</strong><small>cena, provizija i stanje</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+        <button type="button" data-ux-product-task="publishing">
+            <span class="ux-product-task-index">6</span>
+            <span class="ux-product-task-copy"><strong>Objava</strong><small>status i završna provera</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+    </nav>
+
+    <div class="ux-product-command-row">
+        <div class="ux-product-search-shell">
+            <label>
+                <span>Pronađi polje u ovoj formi</span>
+                <input type="search" data-ux-product-field-search placeholder="Npr. RAM, cena, SKU, lager..." autocomplete="off">
+            </label>
+            <div class="ux-product-search-results" data-ux-product-search-results hidden aria-live="polite"></div>
+        </div>
+
+        <button class="button button-ghost" type="button" data-ux-product-next-missing>
+            Idi na sledeće obavezno polje
+        </button>
+    </div>
+
+    <div class="ux-product-workspace-meta">
+        <div>
+            <span>Obavezna polja</span>
+            <strong data-ux-product-required-state>Provera...</strong>
+        </div>
+        <div>
+            <span>Trenutna celina</span>
+            <strong data-ux-product-current-task>Osnovno</strong>
+        </div>
+        <div>
+            <span>Sledeće</span>
+            <strong data-ux-product-next-label>Završna provera</strong>
+        </div>
+    </div>
+
+    <details class="ux-product-review" data-ux-product-review>
+        <summary>Pregled pre čuvanja</summary>
+        <div class="ux-product-review-grid">
+            <div><span>Tip</span><strong data-ux-product-review-value="product_type_id">—</strong></div>
+            <div><span>Brend</span><strong data-ux-product-review-value="brand_id">—</strong></div>
+            <div><span>Model</span><strong data-ux-product-review-value="model_name">—</strong></div>
+            <div><span>Naziv</span><strong data-ux-product-review-value="name">—</strong></div>
+            <div><span>Cena</span><strong data-ux-product-review-value="price_amount">—</strong></div>
+            <div><span>Lager</span><strong data-ux-product-review-value="stock_quantity">—</strong></div>
+            <div><span>Status</span><strong data-ux-product-review-value="status">—</strong></div>
+            <div><span>Kompletnost</span><strong data-ux-product-review-value="completeness">—</strong></div>
+        </div>
+    </details>
+</section>
+
+@if($errors->any())
+    <section class="alert alert-error ux-product-error-summary" role="alert" tabindex="-1" data-ux-product-error-summary>
+        <div>
+            <strong>Proveri podatke pre čuvanja</strong>
+            <p>Sačuvan je tvoj unos. Izaberi grešku da odmah pređeš na odgovarajuće polje.</p>
+        </div>
+        <ul>
+            @foreach($errors->getMessages() as $field => $messages)
+                @foreach($messages as $message)
+                    <li>
+                        <button type="button" data-ux-product-error-target="{{ $field }}">{{ $message }}</button>
+                    </li>
+                @endforeach
+            @endforeach
+        </ul>
+    </section>
+@endif
+<form
         id="product-editor-form"
         method="post"
         enctype="multipart/form-data" data-ux-sticky-actions
@@ -209,8 +318,8 @@
                 <section class="panel form-section">
                     <h2>Klasifikacija artikla</h2>
                     <div class="field-grid">
-                        <label><span>Brend</span><select name="brand_id" data-brand-select><option value="">Bez brenda</option>@foreach($brands as $brand)<option value="{{ $brand->id }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
-                        <label><span>Linija proizvoda</span><select name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="muted" data-line-help>Prvo izaberi brend.</small></label>
+                        <label><span>Brend</span><select name="brand_id" data-brand-select><option value="">Bez brenda</option>{{-- CATALOG_TYPE_SCOPED_TAXONOMY_V07 --}}@foreach($brands as $brand)<option value="{{ $brand->id }}" data-product-type-ids="{{ implode(',', $brandTypeIds[$brand->id] ?? []) }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
+                        <label><span>Linija proizvoda</span><select name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" data-product-type-ids="{{ implode(',', $lineTypeIds[$line->id] ?? []) }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="muted" data-line-help>Prvo izaberi brend.</small></label>
                         <label class="field-span-2 product-model-field"><span>Model proizvoda</span><input name="model_name" maxlength="190" value="{{ old('model_name',$product->model_name) }}" placeholder="npr. 830 G8" data-product-model><small class="muted">Tačna oznaka modela ulazi u automatski naziv artikla, npr. HP EliteBook 830 G8.</small></label>
                         <div class="field-span-2 auto-category-card"><span>Automatska kategorija</span><strong data-auto-category-name>Biće određena prema izabranom tipu artikla</strong><small class="muted">Kategorija se više ne bira ručno. Menja se u podešavanjima konkretnog tipa artikla.</small></div>
                     </div>
@@ -234,12 +343,8 @@
                     <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}"></label>
                     <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
                     <label><span>Nabavna cena RSD</span><input name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small>Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
-                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"></label>
-                    @if($product->exists && $product->variants_enabled)
-                        <input type="hidden" name="stock_quantity" value="{{ $product->stock_quantity }}"><input type="hidden" name="low_stock_threshold" value="{{ $product->low_stock_threshold }}">
-                        <label><span>Ukupan lager varijanti</span><input type="number" value="{{ $product->stock_quantity }}" disabled><small class="muted">Zbir aktivnih varijanti. Menja se na ekranu Varijante.</small></label>
-                        <label><span>Ukupan prag</span><input type="number" value="{{ $product->low_stock_threshold }}" disabled><small class="muted">Zbir pragova aktivnih varijanti.</small></label>
-                    @elseif(!$product->exists || auth()->user()->can('stock.adjust'))
+                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"><small>Opciono. Minimalna ručna provizija je 10% vrednosti artikla preračunate u EUR. Prazno polje koristi automatskih 10% uz postojeći maksimum od 50 EUR.</small></label>
+                    @if(!$product->exists || auth()->user()->can('stock.adjust'))
                         <label><span>Količina</span><input name="stock_quantity" type="number" min="0" required value="{{ old('stock_quantity',$product->stock_quantity??0) }}"></label>
                         <label><span>Prag niskog lagera</span><input name="low_stock_threshold" type="number" min="0" required value="{{ old('low_stock_threshold',$product->low_stock_threshold??1) }}"></label>
                     @else
@@ -255,7 +360,7 @@
                         <h2>Arhiva i trajno brisanje</h2>
                         <p class="muted">Arhiviranje skriva artikal, ali čuva sve podatke i poslovnu istoriju.</p>
                         @if($product->deleted_at)
-                            <button form="restore-product" class="button button-secondary" type="submit"><x-icon name="refresh" size="18" /> Vrati artikal</button>
+                            <button form="restore-product" class="button button-secondary" type="submit"><x-icon name="refresh" size="18" /> Opozovi Arhiviranje</button>
                         @else
                             <button form="archive-product" class="button button-warning" type="submit" data-confirm="Arhivirati artikal {{ $product->sku }}?"><x-icon name="archive" size="18" /> Arhiviraj artikal</button>
                         @endif
@@ -263,7 +368,7 @@
                         <details class="product-purge-details">
                             <summary>Trajno obriši artikal</summary>
                             <div class="product-purge-content">
-                                <p>Trajno brisanje uklanja artikal, specifikacije, varijante i zapise galerije. Ovu radnju nije moguće poništiti.</p>
+                                <p>Trajno brisanje uklanja artikal, specifikacije i zapise galerije. Ovu radnju nije moguće poništiti.</p>
                                 @if($deletionBlockers !== [])
                                     <div class="product-delete-blockers">
                                         <strong>Trajno brisanje trenutno nije dozvoljeno zbog poslovne istorije:</strong>
@@ -279,15 +384,84 @@
                                 @endif
                             </div>
                         </details>
+                        @if($product->deleted_at && auth()->user()?->hasRole('superadmin'))
+                            <details class="product-purge-details product-total-purge-details" data-total-product-purge-workspace>
+                                <summary>Trajno obriši SVE tragove artikla</summary>
+                                <div class="product-purge-content">
+                                    <p><strong>Izuzetno destruktivna SuperAdmin akcija.</strong> Ovaj tok je odvojen od običnog trajnog brisanja i namenjen je arhiviranim artiklima sa poslovnom istorijom.</p>
+                                    <p class="muted">Live CMS će ukloniti sam artikal, slike i specifikacije; istorijske porudžbine, lager i garancije ostaju kao poslovni događaji, ali bez veze ka obrisanom artiklu, SKU-a i naziva izabranog artikla.</p>
+                                    <p class="muted">Audit/notification/async/data-quality tragovi biće obrisani ili redigovani. Live PDF i filesystem ZERO TRACE verifier se izvršava nakon commita.</p>
+                                    <div class="product-delete-blockers">
+                                        <strong>Retention granica:</strong>
+                                        <small>Disaster-recovery backupi i eventualne off-host kopije se NE brišu ovom akcijom. Za njih važi zasebna retention odluka.</small>
+                                    </div>
+
+                                    <label>
+                                        <span>Razlog Total Product Purge operacije</span>
+                                        <textarea form="total-purge-product" name="total_reason" rows="4" maxlength="1000" required placeholder="Zašto identitet ovog artikla mora biti uklonjen iz live sistema?">{{ old('total_reason') }}</textarea>
+                                    </label>
+                                    @error('total_reason')<div class="field-error">{{ $message }}</div>@enderror
+
+                                    <label>
+                                        <span>1. potvrda — upiši tačan SKU: {{ $product->sku }}</span>
+                                        <input form="total-purge-product" name="total_confirmation" maxlength="100" autocomplete="off" required placeholder="{{ $product->sku }}" value="{{ old('total_confirmation') }}">
+                                    </label>
+                                    @error('total_confirmation')<div class="field-error">{{ $message }}</div>@enderror
+
+                                    <label>
+                                        <span>2. nepovratna potvrda — upiši tačno: TRAJNO OBRIŠI SVE TRAGOVE</span>
+                                        <input form="total-purge-product" name="total_irreversible_confirmation" maxlength="100" autocomplete="off" required placeholder="TRAJNO OBRIŠI SVE TRAGOVE" value="{{ old('total_irreversible_confirmation') }}">
+                                    </label>
+                                    @error('total_irreversible_confirmation')<div class="field-error">{{ $message }}</div>@enderror
+
+                                    <label class="check-card">
+                                        <input form="total-purge-product" type="checkbox" name="total_retention_acknowledged" value="1" required @checked(old('total_retention_acknowledged'))>
+                                        <span>Razumem da se live CMS čisti do ZERO TRACE nivoa, ali disaster-recovery backupi i off-host kopije ostaju zasebna retention granica.</span>
+                                    </label>
+                                    @error('total_retention_acknowledged')<div class="field-error">{{ $message }}</div>@enderror
+
+                                    <button
+                                        form="total-purge-product"
+                                        class="button button-danger button-large"
+                                        type="submit"
+                                        data-confirm="POZOR: Total Product Purge za {{ $product->sku }} nema normalan restore. Nastaviti samo ako želiš uklanjanje svih live tragova artikla."
+                                    >
+                                        <x-icon name="trash" size="18" /> Trajno obriši SVE live tragove artikla
+                                    </button>
+                                </div>
+                            </details>
+                        @endif
                     </section>
                 @endif
             </aside>
+        </div>
+
+        <div class="product-editor-action-bar" data-product-editor-action-bar>
+            <div class="product-editor-action-copy">
+                <strong>{{ $product->exists ? 'Sacuvaj izmene artikla' : 'Kreiraj artikal' }}</strong>
+                <span>{{ $product->exists ? 'Sve izmene na ovoj stranici cuvaju se jednim klikom.' : 'Sacuvaj novi artikal kada zavrsis unos.' }}</span>
+            </div>
+            <div class="product-editor-action-buttons">
+                @if($product->exists && auth()->user()?->hasRole('superadmin'))
+                    @if($product->deleted_at === null && in_array((string) $product->status, ['active', 'inactive'], true))
+                        <a class="button button-secondary" href="{{ route('catalog.show', ['slug' => $product->slug]) }}#direct-sale-title">Direktna prodaja</a>
+                    @else
+                        <span class="product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
+                    @endif
+                @endif
+                <button class="button button-primary button-large" type="submit" data-product-save-primary>
+                    {{ $product->exists ? 'Sacuvaj izmene' : 'Kreiraj artikal' }}
+                </button>
+            </div>
         </div>
     </form>
 
     @if($product->exists)
         @if($product->deleted_at)<form id="restore-product" method="post" action="{{ route('admin.products.restore',$product) }}">@csrf</form>@else<form id="archive-product" method="post" action="{{ route('admin.products.archive',$product) }}">@csrf @method('DELETE')</form>@endif
         <form id="purge-product" method="post" action="{{ route('admin.products.purge',$product) }}">@csrf @method('DELETE')</form>
+        @if($product->deleted_at && auth()->user()?->hasRole('superadmin'))
+            <form id="total-purge-product" method="post" action="{{ route('admin.products.total-purge',$product) }}">@csrf @method('DELETE')</form>
+        @endif
         @can('catalog.manage_images')
             @foreach($product->images as $image)
                 <form id="primary-{{ $image->id }}" method="post" action="{{ route('admin.products.images.primary', [$product, $image]) }}" data-image-ajax-form data-image-action="primary">@csrf @method('PATCH')</form>
@@ -299,6 +473,486 @@
     @if($product->exists)<form id="regenerate-name-form" method="post" action="{{ route('admin.products.regenerate-name',$product) }}">@csrf</form>@endif
 </div>
 @endsection
+
+
+
+@push('scripts')
+<script>
+(() => {
+    const boot = () => {
+        const workspace = document.querySelector('[data-ux-product-workspace]');
+        const saveButton = document.querySelector('[data-product-save-primary]');
+        const form = saveButton?.closest('form');
+
+        if (!workspace || !form) return;
+
+        const search = workspace.querySelector('[data-ux-product-field-search]');
+        const searchResults = workspace.querySelector('[data-ux-product-search-results]');
+        const nextButton = workspace.querySelector('[data-ux-product-next-missing]');
+        const requiredState = workspace.querySelector('[data-ux-product-required-state]');
+        const currentTaskNode = workspace.querySelector('[data-ux-product-current-task]');
+        const nextLabel = workspace.querySelector('[data-ux-product-next-label]');
+        const completenessMirror = workspace.querySelector('[data-ux-product-completeness-mirror]');
+        const completenessCopy = workspace.querySelector('[data-ux-product-completeness-copy]');
+        const errorSummary = document.querySelector('[data-ux-product-error-summary]');
+        const taskButtons = Array.from(workspace.querySelectorAll('[data-ux-product-task]'));
+
+        const named = (name) => {
+            const item = form.elements.namedItem(name);
+            if (!item) return null;
+            if (item instanceof RadioNodeList) return item[0] || null;
+            return item;
+        };
+
+        const fieldNameFromErrorKey = (key) => {
+            const parts = String(key || '').split('.');
+            if (parts.length === 0) return '';
+            return parts[0] + parts.slice(1).map((part) => `[${part}]`).join('');
+        };
+
+        const isVisibleControl = (control) => {
+            if (!(control instanceof HTMLElement)) return false;
+            if (control instanceof HTMLInputElement && control.type === 'hidden') return false;
+            if (control.closest('[hidden]')) return false;
+            return !control.hasAttribute('disabled');
+        };
+
+        const sectionFor = (control) => control?.closest('.form-section') || null;
+
+        const firstNamed = (names) => {
+            for (const name of names) {
+                const control = named(name);
+                if (control) return control;
+            }
+            return null;
+        };
+
+        const firstByPrefix = (prefixes) =>
+            Array.from(form.querySelectorAll('[name]'))
+                .find((control) => prefixes.some((prefix) => String(control.name || '').startsWith(prefix))) || null;
+
+        const definitions = [
+            {
+                key: 'identity',
+                label: 'Osnovno',
+                control: () => firstNamed(['brand_id','product_line_id','model_name','sku','name']),
+            },
+            {
+                key: 'media',
+                label: 'Fotografije',
+                control: () => form.querySelector('input[type="file"],[data-product-image-upload],.inline-upload'),
+            },
+            {
+                key: 'specifications',
+                label: 'Specifikacije',
+                control: () => firstNamed(['product_type_id']) || firstByPrefix(['specs[','spec_lists[','spec_structured[','spec_capacities[']),
+            },
+            {
+                key: 'description',
+                label: 'Opis',
+                control: () => firstNamed(['description','notes']),
+            },
+            {
+                key: 'commercial',
+                label: 'Cena i lager',
+                control: () => firstNamed(['price_amount','stock_quantity','low_stock_threshold']),
+            },
+            {
+                key: 'publishing',
+                label: 'Objava',
+                control: () => firstNamed(['status']),
+            },
+        ];
+
+        const resolved = new Map();
+
+        definitions.forEach((definition) => {
+            const control = definition.control();
+            const section = sectionFor(control);
+            const button = taskButtons.find((candidate) => candidate.dataset.uxProductTask === definition.key);
+
+            if (!control || !section || !button) {
+                if (button) button.hidden = true;
+                return;
+            }
+
+            section.dataset.uxProductSection = section.dataset.uxProductSection || definition.key;
+            if (!section.id) section.id = `ux-product-${definition.key}`;
+
+            resolved.set(definition.key, {
+                ...definition,
+                control,
+                section,
+                button,
+                stateNode: button.querySelector('[data-ux-product-task-state]'),
+            });
+        });
+
+        const labelForControl = (control) => {
+            const label = control?.closest('label');
+            const explicit = label?.querySelector(':scope > span');
+            if (explicit?.textContent?.trim()) return explicit.textContent.trim();
+
+            if (control?.id) {
+                const linked = form.querySelector(`label[for="${control.id}"]`);
+                if (linked?.textContent?.trim()) return linked.textContent.trim();
+            }
+
+            return control?.getAttribute('placeholder')
+                || control?.getAttribute('aria-label')
+                || control?.name
+                || 'Polje';
+        };
+
+        const hasValue = (control) => {
+            if (!control) return false;
+
+            if (control instanceof HTMLInputElement && ['checkbox','radio'].includes(control.type)) {
+                return control.checked;
+            }
+
+            if (control instanceof HTMLSelectElement && control.multiple) {
+                return control.selectedOptions.length > 0;
+            }
+
+            return String(control.value || '').trim() !== '';
+        };
+
+        const visibleRequiredControls = () =>
+            Array.from(form.querySelectorAll('[required]'))
+                .filter(isVisibleControl);
+
+        const missingRequiredControls = () =>
+            visibleRequiredControls().filter((control) => !hasValue(control));
+
+        const serverErrorTargets = () =>
+            Array.from(document.querySelectorAll('[data-ux-product-error-target]'))
+                .map((button) => named(fieldNameFromErrorKey(button.dataset.uxProductErrorTarget || '')))
+                .filter(Boolean);
+
+        const taskForControl = (control) => {
+            if (!control) return null;
+            const section = sectionFor(control);
+            if (!section) return null;
+
+            let match = null;
+            resolved.forEach((definition) => {
+                if (definition.section === section) match = definition;
+            });
+            return match;
+        };
+
+        const scrollToControl = (control) => {
+            if (!control) return;
+            const target = sectionFor(control) || control;
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.setTimeout(() => {
+                try {
+                    control.focus({ preventScroll: true });
+                } catch (_) {
+                    control.focus();
+                }
+                control.classList.add('ux-product-focus-ring');
+                window.setTimeout(() => control.classList.remove('ux-product-focus-ring'), 1500);
+            }, 180);
+        };
+
+        const jumpToTask = (definition) => {
+            const target = definition.control || definition.section;
+            if (!target) return;
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('ux-product-focus-ring');
+            window.setTimeout(() => target.classList.remove('ux-product-focus-ring'), 1400);
+        };
+
+        taskButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const definition = resolved.get(button.dataset.uxProductTask || '');
+                if (definition) jumpToTask(definition);
+            });
+        });
+
+        const updateCompleteness = () => {
+            const authoritativePercent = document.querySelector('[data-completeness-percent]');
+            const authoritativeMessage = document.querySelector('[data-completeness-message]');
+            const percent = authoritativePercent?.textContent?.trim() || '—';
+
+            if (completenessMirror) completenessMirror.textContent = percent;
+            if (completenessCopy) {
+                completenessCopy.textContent = authoritativeMessage?.textContent?.trim()
+                    || 'Postojeći backend indikator';
+            }
+
+            const review = workspace.querySelector('[data-ux-product-review-value="completeness"]');
+            if (review) review.textContent = percent;
+        };
+
+        const updateTaskStates = () => {
+            const errors = serverErrorTargets();
+
+            resolved.forEach((definition) => {
+                const required = Array.from(definition.section.querySelectorAll('[required]'))
+                    .filter(isVisibleControl);
+                const missing = required.filter((control) => !hasValue(control));
+                const hasServerError = errors.some((control) => sectionFor(control) === definition.section);
+
+                let text = 'Dostupno';
+                let state = 'available';
+
+                if (hasServerError) {
+                    text = 'Proveri';
+                    state = 'error';
+                } else if (missing.length > 0) {
+                    text = `Nedostaje ${missing.length}`;
+                    state = 'missing';
+                } else if (required.length > 0) {
+                    text = 'Spremno';
+                    state = 'ready';
+                } else if (definition.key === 'media') {
+                    text = 'Opcionalno';
+                    state = 'optional';
+                }
+
+                if (definition.stateNode) {
+                    definition.stateNode.textContent = text;
+                    definition.stateNode.dataset.state = state;
+                }
+            });
+        };
+
+        const updateRequiredSummary = () => {
+            const required = visibleRequiredControls();
+            const missing = missingRequiredControls();
+
+            if (requiredState) {
+                requiredState.textContent = missing.length === 0
+                    ? `Spremno · ${required.length}/${required.length}`
+                    : `Popunjeno ${required.length - missing.length}/${required.length}`;
+            }
+
+            if (nextLabel) {
+                nextLabel.textContent = missing[0]
+                    ? labelForControl(missing[0])
+                    : 'Završna provera i čuvanje';
+            }
+        };
+
+        const controlDisplayValue = (name) => {
+            const control = named(name);
+            if (!control) return '—';
+
+            if (control instanceof HTMLSelectElement) {
+                return control.selectedOptions[0]?.textContent?.trim() || '—';
+            }
+
+            return String(control.value || '').trim() || '—';
+        };
+
+        const updateReview = () => {
+            workspace.querySelectorAll('[data-ux-product-review-value]').forEach((node) => {
+                const key = node.dataset.uxProductReviewValue || '';
+                if (key === 'completeness') return;
+
+                let value = controlDisplayValue(key);
+
+                if (key === 'price_amount' && value !== '—') {
+                    const currency = controlDisplayValue('price_currency');
+                    value = `${value} ${currency === '—' ? '' : currency}`.trim();
+                }
+
+                node.textContent = value;
+            });
+
+            updateCompleteness();
+        };
+
+        const setCurrentTask = (key) => {
+            const definition = resolved.get(key);
+            if (!definition) return;
+
+            if (currentTaskNode) currentTaskNode.textContent = definition.label;
+
+            taskButtons.forEach((button) => {
+                button.classList.toggle('is-current', button.dataset.uxProductTask === key);
+            });
+        };
+
+        const updateCurrentTask = () => {
+            let best = null;
+            let bestDistance = Number.POSITIVE_INFINITY;
+
+            resolved.forEach((definition, key) => {
+                const rect = definition.section.getBoundingClientRect();
+                if (rect.bottom < 80) return;
+
+                const distance = Math.abs(rect.top - 150);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = key;
+                }
+            });
+
+            if (best) setCurrentTask(best);
+        };
+
+        const searchableFields = () => {
+            const entries = [];
+            const seen = new Set();
+
+            Array.from(form.querySelectorAll('label')).forEach((label) => {
+                const control = label.querySelector('input:not([type="hidden"]),select,textarea');
+                if (!control || !isVisibleControl(control) || seen.has(control)) return;
+
+                const text = String(label.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!text) return;
+
+                seen.add(control);
+                entries.push({ control, text });
+            });
+
+            return entries;
+        };
+
+        const closeSearchResults = () => {
+            if (!searchResults) return;
+            searchResults.replaceChildren();
+            searchResults.hidden = true;
+        };
+
+        const renderSearchResults = () => {
+            if (!search || !searchResults) return;
+
+            const query = String(search.value || '').trim().toLocaleLowerCase('sr-Latn');
+            searchResults.replaceChildren();
+
+            if (query.length < 2) {
+                searchResults.hidden = true;
+                return;
+            }
+
+            const matches = searchableFields()
+                .filter((entry) => entry.text.toLocaleLowerCase('sr-Latn').includes(query))
+                .slice(0, 7);
+
+            if (matches.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'ux-product-search-empty';
+                empty.textContent = 'Nema polja koje odgovara pretrazi.';
+                searchResults.append(empty);
+                searchResults.hidden = false;
+                return;
+            }
+
+            matches.forEach((entry) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = labelForControl(entry.control);
+                button.addEventListener('click', () => {
+                    closeSearchResults();
+                    search.value = '';
+                    scrollToControl(entry.control);
+                });
+                searchResults.append(button);
+            });
+
+            searchResults.hidden = false;
+        };
+
+        search?.addEventListener('input', renderSearchResults);
+        search?.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                search.value = '';
+                closeSearchResults();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!workspace.contains(event.target)) closeSearchResults();
+        });
+
+        nextButton?.addEventListener('click', () => {
+            const next = missingRequiredControls()[0];
+            if (next) {
+                scrollToControl(next);
+                return;
+            }
+
+            const review = workspace.querySelector('[data-ux-product-review]');
+            if (review instanceof HTMLDetailsElement) review.open = true;
+            saveButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.setTimeout(() => saveButton.focus({ preventScroll: true }), 180);
+        });
+
+        document.querySelectorAll('[data-ux-product-error-target]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const name = fieldNameFromErrorKey(button.dataset.uxProductErrorTarget || '');
+                const control = named(name);
+
+                if (control) {
+                    scrollToControl(control);
+                    return;
+                }
+
+                const rootName = String(button.dataset.uxProductErrorTarget || '').split('.')[0];
+                const fallback = Array.from(form.querySelectorAll('[name]'))
+                    .find((candidate) => String(candidate.name || '').startsWith(`${rootName}[`));
+
+                if (fallback) scrollToControl(fallback);
+            });
+        });
+
+        const refresh = () => {
+            updateRequiredSummary();
+            updateTaskStates();
+            updateReview();
+        };
+
+        form.addEventListener('input', refresh);
+        form.addEventListener('change', () => {
+            window.setTimeout(refresh, 0);
+        });
+
+        const completenessObserverTarget = document.querySelector('[data-completeness-card]');
+        if (completenessObserverTarget && 'MutationObserver' in window) {
+            const observer = new MutationObserver(updateCompleteness);
+            observer.observe(completenessObserverTarget, {
+                subtree: true,
+                childList: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: ['style'],
+            });
+        }
+
+        let scrollScheduled = false;
+        window.addEventListener('scroll', () => {
+            if (scrollScheduled) return;
+            scrollScheduled = true;
+            window.requestAnimationFrame(() => {
+                updateCurrentTask();
+                scrollScheduled = false;
+            });
+        }, { passive: true });
+
+        refresh();
+        updateCurrentTask();
+
+        if (errorSummary) {
+            window.requestAnimationFrame(() => {
+                errorSummary.focus({ preventScroll: true });
+                errorSummary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot, { once: true });
+    } else {
+        boot();
+    }
+})();
+</script>
+@endpush
 @push('scripts')
 <script>
 (() => {
@@ -321,21 +975,46 @@
     const activeTypeOption = () => typeSelect?.selectedOptions?.[0] || null;
     const activePanel = () => root?.querySelector(`[data-spec-panel="${typeSelect?.value || ''}"]`) || null;
 
+    const supportsProductType = (option, typeId) => {
+        if (!option || !typeId) return false;
+        return (option.dataset.productTypeIds || '').split(',').filter(Boolean).includes(typeId);
+    };
+
+    const updateBrands = () => {
+        if (!brandSelect) return;
+        const typeId = typeSelect?.value || '';
+        let visibleCount = 0;
+        Array.from(brandSelect.options).forEach((option, index) => {
+            if (index === 0) return;
+            const visible = supportsProductType(option, typeId);
+            option.hidden = !visible;
+            option.disabled = !visible;
+            if (visible) visibleCount += 1;
+        });
+        const selected = brandSelect.selectedOptions[0];
+        if (selected && selected.value !== '' && selected.disabled) {
+            brandSelect.value = '';
+            if (lineSelect) lineSelect.value = '';
+        }
+        brandSelect.disabled = typeId === '' || visibleCount === 0;
+    };
+
     const updateProductLines = () => {
         if (!lineSelect) return;
+        const typeId = typeSelect?.value || '';
         const brandId = brandSelect?.value || '';
         let visibleCount = 0;
         Array.from(lineSelect.options).forEach((option, index) => {
             if (index === 0) return;
-            const visible = brandId !== '' && option.dataset.brandId === brandId;
+            const visible = typeId !== '' && brandId !== '' && option.dataset.brandId === brandId && supportsProductType(option, typeId);
             option.hidden = !visible;
             option.disabled = !visible;
             if (visible) visibleCount += 1;
         });
         const selected = lineSelect.selectedOptions[0];
         if (selected && selected.value !== '' && selected.disabled) lineSelect.value = '';
-        lineSelect.disabled = brandId === '' || visibleCount === 0;
-        if (lineHelp) lineHelp.textContent = brandId === '' ? 'Prvo izaberi brend.' : (visibleCount ? 'Prikazane su samo linije izabranog brenda.' : 'Za ovaj brend nema aktivnih linija.');
+        lineSelect.disabled = typeId === '' || brandId === '' || visibleCount === 0;
+        if (lineHelp) lineHelp.textContent = typeId === '' ? 'Prvo izaberi tip artikla.' : (brandId === '' ? 'Prvo izaberi brend.' : (visibleCount ? 'Prikazane su samo linije izabranog brenda i tipa artikla.' : 'Za ovaj brend i tip nema aktivnih linija.'));
         refreshCompleteness();
     };
 
@@ -475,11 +1154,12 @@
 
     brandSelect?.addEventListener('change', updateProductLines);
     lineSelect?.addEventListener('change', refreshCompleteness);
-    typeSelect?.addEventListener('change', () => updateSpecificationPanel(true));
+    typeSelect?.addEventListener('change', () => { updateBrands(); updateProductLines(); updateSpecificationPanel(true); });
     root?.querySelector('[data-name-preview]')?.addEventListener('click', previewName);
     form?.querySelectorAll('input,select,textarea').forEach((input) => input.addEventListener(input.matches('input[type="text"],input[type="number"],textarea') ? 'input' : 'change', refreshCompleteness));
     root?.querySelectorAll('[data-spec-field-id]').forEach((input) => input.addEventListener('change', () => { refreshDependencies(input.closest('[data-spec-panel]')); refreshCompleteness(); }));
 
+    updateBrands();
     updateProductLines();
     updateSpecificationPanel(false);
     refreshCompleteness();

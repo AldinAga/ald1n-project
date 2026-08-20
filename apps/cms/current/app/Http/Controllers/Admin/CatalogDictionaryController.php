@@ -486,13 +486,12 @@ final class CatalogDictionaryController extends Controller
 
         $counts = [];
         foreach ($ids as $id) {
-            $counts[$id] = ['types' => 0, 'products' => 0, 'variants' => 0, 'children' => 0];
+            $counts[$id] = ['types' => 0, 'products' => 0, 'children' => 0];
         }
 
         $sources = [
             'types' => ['product_type_fields', 'field_id'],
             'products' => ['product_spec_values', 'field_id'],
-            'variants' => ['product_variant_spec_values', 'field_id'],
             'children' => ['specification_fields', 'parent_field_id'],
         ];
         foreach ($sources as $key => [$table, $column]) {

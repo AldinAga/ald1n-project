@@ -28,3 +28,7 @@ releases/**/*.zip
 
 # Disposable Ald1n build/upload workspace
 /tmp/
+
+/backups/
+
+/incoming/

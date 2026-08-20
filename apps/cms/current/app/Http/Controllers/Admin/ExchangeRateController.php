@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ExchangeRateHistory;
 use App\Services\ExchangeRateService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -53,12 +54,34 @@ final class ExchangeRateController extends Controller
         return back()->with('status', $enabled ? 'Automatsko ažuriranje kursa je uključeno.' : 'Ručni režim kursa je uključen.');
     }
 
-    public function refresh(Request $request, ExchangeRateService $service): RedirectResponse
+    public function refresh(Request $request, ExchangeRateService $service): RedirectResponse|JsonResponse
     {
         try {
             $result = $service->updateAutomatically('panel', (int) $request->user()->getAuthIdentifier(), true);
-            return back()->with('status', 'Kurs je ažuriran na '.number_format($result['rate'], 4, ',', '.').' RSD.');
+            $configuration = $service->configuration();
+            $message = 'Kurs je ažuriran na '.number_format((float) $result['rate'], 4, ',', '.').' RSD.';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'rate' => (float) $result['rate'],
+                    'source' => (string) $result['source'],
+                    'provider_date' => (string) $result['date'],
+                    'updated_at' => $configuration['updated_at'],
+                    'mode' => (string) $configuration['mode'],
+                    'is_stale' => (bool) $configuration['is_stale'],
+                ]);
+            }
+
+            return back()->with('status', $message);
         } catch (RuntimeException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'code' => 'exchange_rate_sync_failed',
+                ], 502);
+            }
+
             return back()->withErrors(['refresh' => $exception->getMessage()]);
         }
     }

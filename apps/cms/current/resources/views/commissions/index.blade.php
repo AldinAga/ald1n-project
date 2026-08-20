@@ -2,7 +2,7 @@
 @section('title', 'Moje provizije')
 @section('content')
 @php $labels=['pending'=>'Na čekanju','approved'=>'Odobrena','paid'=>'Isplaćena','cancelled'=>'Stornirana']; @endphp
-<div class="page-heading"><div><span class="eyebrow">Lični pregled</span><h1>Moje provizije</h1><p>Provizija po komadu nikada nije manja od 20 EUR. Ovde pratiš obračun, odobrenje i isplatu.</p></div><div class="count-pill">{{ $commissions->total() }} zapisa</div></div>
+<div class="page-heading"><div><span class="eyebrow">Lični pregled</span><h1>Moje provizije</h1><p>Podrazumevana provizija je 10% vrednosti artikla po komadu. Ovde pratiš obračun, odobrenje i isplatu.</p></div><div class="count-pill">{{ $commissions->total() }} zapisa</div></div>
 <div class="stats-grid compact-stats commission-stats">
     <article class="stat-card"><div><strong>{{ number_format((float)$summary['pending_eur'],2,',','.') }} EUR</strong><small>Na čekanju</small></div></article>
     <article class="stat-card"><div><strong>{{ number_format((float)$summary['approved_eur'],2,',','.') }} EUR</strong><small>Odobreno</small></div></article>

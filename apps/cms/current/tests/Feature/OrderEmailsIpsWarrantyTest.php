@@ -8,6 +8,7 @@ use App\Models\BankAccount;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Models\OrderEmailOutbox;
+use App\Models\OrderShipment;
 use App\Models\Product;
 use App\Models\ProductWarranty;
 use App\Models\Role;
@@ -87,11 +88,28 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
         $order = Order::query()->sole();
 
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/status', ['status' => 'processing', 'note' => 'Obrada je počela.'])->assertRedirect();
-        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/tracking', ['tracking_number' => 'TRACK-716'])->assertRedirect();
+        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/status', ['status' => 'confirmed', 'note' => 'Porudžbina je potvrđena.'])->assertRedirect();
+        $courierId = (int) \App\Models\CourierService::query()->where('slug', 'post-express')->value('id');
+        self::assertGreaterThan(0, $courierId);
+        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/shipment', [
+            'shipment_method' => 'courier',
+            'courier_service_id' => $courierId,
+            'shipped_at' => now()->format('Y-m-d H:i:s'),
+            'recipient_name' => $order->shipping_full_name,
+            'recipient_phone' => $order->shipping_phone,
+            'tracking_number' => 'TRACK-716',
+        ])->assertRedirect();
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', ['document_type' => 'invoice'])->assertRedirect();
 
         self::assertTrue(OrderEmailOutbox::query()->where('event_type', 'order_status_changed')->exists());
-        self::assertTrue(OrderEmailOutbox::query()->where('event_type', 'order_tracking_changed')->exists());
+        self::assertTrue(OrderShipment::query()->where('order_id', $order->id)->where('tracking_number_snapshot', 'TRACK-716')->exists());
+        $order->refresh();
+        self::assertSame('shipped', (string) $order->status);
+        self::assertSame('TRACK-716', (string) $order->tracking_number);
+        self::assertNull($order->completed_at);
+        self::assertSame('pending', (string) $order->payment_status);
+        self::assertSame(0.0, (float) $order->paid_total_rsd);
+        self::assertFalse($order->delivery()->exists());
         $documentRow = OrderEmailOutbox::query()->where('event_type', 'document_issued_invoice')->firstOrFail();
         self::assertTrue($documentRow->attach_document);
         self::assertNotNull($documentRow->document_id);

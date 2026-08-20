@@ -43,9 +43,6 @@ final class AdvancedInventoryService
             function () use ($data, $items, $actor): StockReceipt {
                 $products = Product::query()->whereIn('id', array_column($items, 'product_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 if ($products->count() !== count($items)) throw ValidationException::withMessages(['items' => 'Jedan ili više artikala ne postoje.']);
-                if ($products->contains(static fn (Product $product): bool => (bool) $product->variants_enabled)) {
-                    throw ValidationException::withMessages(['items' => 'Ulaz robe za artikal sa varijantama evidentirajte na konkretnoj varijanti proizvoda.']);
-                }
 
                 $receipt = StockReceipt::query()->create([
                     'receipt_number' => $this->numbers->next('stock_receipt', (int) date('Y')),
@@ -113,9 +110,6 @@ final class AdvancedInventoryService
             function () use ($data, $items, $actor): InventoryCount {
                 $products = Product::query()->whereIn('id', array_column($items, 'product_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 if ($products->count() !== count($items)) throw ValidationException::withMessages(['items' => 'Jedan ili više artikala ne postoje.']);
-                if ($products->contains(static fn (Product $product): bool => (bool) $product->variants_enabled)) {
-                    throw ValidationException::withMessages(['items' => 'Popis za artikal sa varijantama izvršite po pojedinačnim varijantama.']);
-                }
 
                 $count = InventoryCount::query()->create([
                     'count_number' => $this->numbers->next('inventory_count', (int) date('Y')),

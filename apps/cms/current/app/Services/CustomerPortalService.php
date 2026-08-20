@@ -26,17 +26,17 @@ final class CustomerPortalService
     /** @return array<string,mixed> */
     public function build(User $user): array
     {
-        $orderIds = Order::query()->where('user_id', $user->id)->select('id');
+        $orderIds = Order::query()->operational()->where('user_id', $user->id)->select('id');
 
         $summary = [
-            'orders_total' => $this->safeCount(fn () => Order::query()->where('user_id', $user->id)->count()),
-            'orders_open' => $this->safeCount(fn () => Order::query()->where('user_id', $user->id)->whereNotIn('status', ['completed', 'cancelled'])->count()),
-            'orders_completed' => $this->safeCount(fn () => Order::query()->where('user_id', $user->id)->where('status', 'completed')->count()),
-            'outstanding_rsd' => $this->safeFloat(fn () => Order::query()->where('user_id', $user->id)->where('status', '!=', 'cancelled')
+            'orders_total' => $this->safeCount(fn () => Order::query()->operational()->where('user_id', $user->id)->count()),
+            'orders_open' => $this->safeCount(fn () => Order::query()->operational()->where('user_id', $user->id)->whereNull('completed_at')->whereNotIn('status', ['completed', 'cancelled'])->count()),
+            'orders_completed' => $this->safeCount(fn () => Order::query()->operational()->where('user_id', $user->id)->where('status', '!=', 'cancelled')->where(static function ($orders): void { $orders->whereNotNull('completed_at')->orWhere('status', 'completed'); })->count()),
+            'outstanding_rsd' => $this->safeFloat(fn () => Order::query()->operational()->where('user_id', $user->id)->where('status', '!=', 'cancelled')
                 ->selectRaw('COALESCE(SUM(CASE WHEN subtotal_rsd > paid_total_rsd THEN subtotal_rsd-paid_total_rsd ELSE 0 END),0) total')->value('total')),
             'active_warranties' => $this->safeCount(fn () => ProductWarranty::query()->where('user_id', $user->id)->where('status', 'active')->whereDate('expires_at', '>=', today())->count(), 'product_warranties'),
             'open_cases' => $this->safeCount(fn () => AfterSalesCase::query()->whereIn('order_id', clone $orderIds)->whereNotIn('status', ['closed', 'rejected'])->count(), 'after_sales_cases'),
-            'upcoming_service' => $this->safeCount(fn () => FieldWorkOrder::query()->whereHas('action.case.order', static fn ($orders) => $orders->where('user_id', $user->id))
+            'upcoming_service' => $this->safeCount(fn () => FieldWorkOrder::query()->operational()->whereHas('action.case.order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->whereIn('status', ['planned', 'en_route', 'on_site'])->whereNotNull('planned_start_at')->where('planned_start_at', '>=', now())->count(), 'field_work_orders'),
             'open_conversations' => $this->safeCount(fn () => PortalConversation::query()->where('user_id', $user->id)->where('status', '!=', 'closed')->count(), 'portal_conversations'),
             'unread_messages' => $this->safeCount(fn () => PortalMessage::query()
@@ -111,14 +111,14 @@ final class CustomerPortalService
     private function recentOrders(User $user): Collection
     {
         try {
-            return Order::query()->where('user_id', $user->id)
+            return Order::query()->operational()->where('user_id', $user->id)
                 ->withCount(['documents' => static fn ($query) => $query->where('status', 'issued')])
                 ->latest('updated_at')->limit(10)->get()
                 ->map(fn (Order $order): array => [
                     'id' => $order->id,
                     'number' => $order->order_number,
                     'status' => $order->status,
-                    'status_label' => $this->orderStatus($order->status),
+                    'status_label' => ($order->completed_at !== null || $order->status === 'completed') ? 'Završena' : $this->orderStatus($order->status),
                     'payment_label' => $this->paymentStatus((string) ($order->payment_state ?: $order->payment_status)),
                     'total_rsd' => (float) $order->subtotal_rsd,
                     'paid_rsd' => (float) $order->paid_total_rsd,
@@ -140,7 +140,7 @@ final class CustomerPortalService
         if (!Schema::hasTable('order_documents')) return collect();
         try {
             return OrderDocument::query()->where('status', 'issued')
-                ->whereHas('order', static fn ($orders) => $orders->where('user_id', $user->id))
+                ->whereHas('order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->with('order:id,order_number')->latest('issued_at')->latest('id')->limit(10)->get()
                 ->map(fn (OrderDocument $document): array => [
                     'number' => $document->document_number,
@@ -161,7 +161,7 @@ final class CustomerPortalService
     {
         if (!Schema::hasTable('order_payments')) return collect();
         try {
-            return OrderPayment::query()->whereHas('order', static fn ($orders) => $orders->where('user_id', $user->id))
+            return OrderPayment::query()->whereHas('order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->with('order:id,order_number')->latest('paid_at')->latest('id')->limit(10)->get()
                 ->map(fn (OrderPayment $payment): array => [
                     'number' => $payment->payment_number,
@@ -206,7 +206,7 @@ final class CustomerPortalService
     {
         if (!Schema::hasTable('after_sales_cases')) return collect();
         try {
-            return AfterSalesCase::query()->whereHas('order', static fn ($orders) => $orders->where('user_id', $user->id))
+            return AfterSalesCase::query()->whereHas('order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->with('order:id,order_number')->latest('updated_at')->limit(10)->get()
                 ->map(fn (AfterSalesCase $case): array => [
                     'number' => $case->case_number,
@@ -229,7 +229,7 @@ final class CustomerPortalService
     {
         if (!Schema::hasTable('field_work_orders')) return collect();
         try {
-            return FieldWorkOrder::query()->whereHas('action.case.order', static fn ($orders) => $orders->where('user_id', $user->id))
+            return FieldWorkOrder::query()->operational()->whereHas('action.case.order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->with(['action.case:id,case_number,order_id', 'action.case.order:id,order_number'])
                 ->whereNotIn('status', ['cancelled'])->orderByRaw('planned_start_at IS NULL')->orderBy('planned_start_at')->limit(10)->get()
                 ->map(fn (FieldWorkOrder $workOrder): array => [
@@ -254,7 +254,7 @@ final class CustomerPortalService
     {
         if (!Schema::hasTable('receivable_installments')) return collect();
         try {
-            return ReceivableInstallment::query()->whereHas('case.order', static fn ($orders) => $orders->where('user_id', $user->id))
+            return ReceivableInstallment::query()->whereHas('case.order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                 ->with(['case:id,order_id,case_number', 'case.order:id,order_number'])
                 ->whereIn('status', ['pending', 'overdue'])->orderBy('due_at')->limit(12)->get()
                 ->map(fn (ReceivableInstallment $installment): array => [
@@ -279,14 +279,14 @@ final class CustomerPortalService
         $events = collect();
 
         try {
-            Order::query()->where('user_id', $user->id)->latest('created_at')->limit(12)->get()->each(function (Order $order) use ($events): void {
+            Order::query()->operational()->where('user_id', $user->id)->latest('created_at')->limit(12)->get()->each(function (Order $order) use ($events): void {
                 $events->push($this->event('order', 'Porudžbina '.$order->order_number.' je kreirana', $this->orderStatus($order->status), $order->created_at, route('orders.show', $order), 'orders'));
             });
         } catch (Throwable) {}
 
         if (Schema::hasTable('order_status_history')) {
             try {
-                OrderStatusHistory::query()->whereHas('order', static fn ($orders) => $orders->where('user_id', $user->id))
+                OrderStatusHistory::query()->whereHas('order', static fn ($orders) => $orders->operational()->where('user_id', $user->id))
                     ->with('order:id,order_number')->latest('created_at')->limit(18)->get()->each(function (OrderStatusHistory $history) use ($events): void {
                         $events->push($this->event('status', 'Status porudžbine '.$history->order?->order_number, $this->orderStatus($history->new_status).($history->note ? ' · '.$history->note : ''), $history->created_at, $history->order ? route('orders.show', $history->order) : null, 'refresh'));
                     });

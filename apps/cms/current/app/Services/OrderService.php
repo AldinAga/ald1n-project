@@ -8,7 +8,6 @@ use App\Models\BankAccount;
 use App\Models\Order;
 use App\Models\OrderCommission;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,7 +46,7 @@ final class OrderService
             static fn (int $id): Order => Order::query()->findOrFail($id),
         );
 
-        return $order->load(['items.product', 'items.variant', 'commission', 'bankAccount', 'supplier']);
+        return $order->load(['items.product', 'commission', 'bankAccount', 'supplier']);
     }
 
     /** @param array<string,mixed> $data */
@@ -55,8 +54,6 @@ final class OrderService
     {
         $items = (array) $data['items'];
         $productIds = array_values(array_unique(array_map('intval', array_column($items, 'product_id'))));
-        $variantIds = array_values(array_unique(array_filter(array_map(static fn (array $item): int => (int) ($item['product_variant_id'] ?? 0), $items))));
-
         $productQuery = Product::query()
             ->publiclyVisible()
             ->whereIn('id', $productIds)
@@ -69,19 +66,6 @@ final class OrderService
         $products = $productQuery->get()->keyBy('id');
         if ($products->count() !== count($productIds)) {
             throw ValidationException::withMessages(['items' => 'Jedan ili više artikala nisu dostupni za poručivanje.']);
-        }
-
-        $variants = ProductVariant::query()
-            ->whereIn('id', $variantIds)
-            ->where('status', 'active')
-            ->whereNull('deleted_at')
-            ->with('specificationValues.field')
-            ->orderBy('id')
-            ->lockForUpdate()
-            ->get()
-            ->keyBy('id');
-        if ($variants->count() !== count($variantIds)) {
-            throw ValidationException::withMessages(['items' => 'Jedna ili više izabranih konfiguracija više nisu dostupne.']);
         }
 
         $rate = $this->settings->eurRsdRate();
@@ -133,82 +117,60 @@ final class OrderService
 
         $subtotalRsd = 0.0;
         $commissionTotalEur = 0.0;
-        $variantProductIds = [];
         foreach ($items as $itemData) {
             /** @var Product $product */
             $product = $products->get((int) $itemData['product_id']);
             $quantity = (int) $itemData['quantity'];
-            $variantId = (int) ($itemData['product_variant_id'] ?? 0);
-            /** @var ProductVariant|null $variant */
-            $variant = $variantId > 0 ? $variants->get($variantId) : null;
 
-            if ((bool) $product->variants_enabled) {
-                if (!$variant || (int) $variant->product_id !== (int) $product->id) {
-                    throw ValidationException::withMessages(['items' => 'Za proizvod '.$product->name.' mora biti izabrana aktivna konfiguracija.']);
-                }
-                if ((int) $variant->stock_quantity < $quantity) {
-                    throw ValidationException::withMessages(['items' => sprintf('Nedovoljan lager za %s (%s). Dostupno: %d.', $variant->name, $variant->sku, $variant->stock_quantity)]);
-                }
-                $sellable = $variant;
-            } else {
-                if ($variant !== null) throw ValidationException::withMessages(['items' => 'Proizvod '.$product->name.' nema aktivne varijante.']);
-                if ((int) $product->stock_quantity < $quantity) {
-                    throw ValidationException::withMessages(['items' => sprintf('Nedovoljan lager za %s (%s). Dostupno: %d.', $product->name, $product->sku, $product->stock_quantity)]);
-                }
-                $sellable = $product;
+            if ((int) $product->stock_quantity < $quantity) {
+                throw ValidationException::withMessages(['items' => sprintf('Nedovoljan lager za %s (%s). Dostupno: %d.', $product->name, $product->sku, $product->stock_quantity)]);
             }
 
-            $unitPriceRsd = $this->priceRsd($sellable, $rate);
+            $unitPriceRsd = $this->priceRsd($product, $rate);
             $lineTotalRsd = round($unitPriceRsd * $quantity, 2);
-            $manualCommission = $sellable->manual_commission_eur !== null ? (float) $sellable->manual_commission_eur : null;
-            $commissionUnit = $this->commissionCalculator->unitEur((float) $sellable->price_amount, (string) $sellable->price_currency, $manualCommission, $rate);
+            $manualCommission = $product->manual_commission_eur !== null ? (float) $product->manual_commission_eur : null;
+            $commissionUnit = $this->commissionCalculator->unitEur((float) $product->price_amount, (string) $product->price_currency, $manualCommission, $rate);
+            // COMMISSION_PERCENTAGE_POLICY_V0_7
+            $usesManualCommission = $this->commissionCalculator->usesManual(
+                (float) $product->price_amount,
+                (string) $product->price_currency,
+                $manualCommission,
+                $rate,
+            );
             $commissionTotal = round($commissionUnit * $quantity, 2);
-            $variantAttributes = $variant ? $this->variantAttributes($variant) : null;
-            $purchaseUnitRsd = $sellable->purchase_price_rsd !== null && (float) $sellable->purchase_price_rsd > 0
-                ? round((float) $sellable->purchase_price_rsd, 2)
+            $purchaseUnitRsd = $product->purchase_price_rsd !== null && (float) $product->purchase_price_rsd > 0
+                ? round((float) $product->purchase_price_rsd, 2)
                 : null;
             $purchaseTotalRsd = $purchaseUnitRsd === null ? null : round($purchaseUnitRsd * $quantity, 2);
 
             $orderItem = $order->items()->create([
                 'product_id' => $product->id,
-                'product_variant_id' => $variant?->id,
                 'product_sku' => $product->sku,
                 'product_name' => $product->name,
-                'variant_sku_snapshot' => $variant?->sku,
-                'variant_name_snapshot' => $variant?->name,
-                'variant_attributes_json' => $variantAttributes,
                 'quantity' => $quantity,
-                'unit_price_original' => $sellable->price_amount,
-                'original_currency' => $sellable->price_currency,
+                'unit_price_original' => $product->price_amount,
+                'original_currency' => $product->price_currency,
                 'unit_price_rsd' => $unitPriceRsd,
                 'line_total_rsd' => $lineTotalRsd,
                 'purchase_unit_rsd_snapshot' => $purchaseUnitRsd,
                 'purchase_total_rsd_snapshot' => $purchaseTotalRsd,
-                'cost_source_snapshot' => $purchaseUnitRsd === null ? 'missing' : ($variant ? 'variant' : 'product'),
+                'cost_source_snapshot' => $purchaseUnitRsd === null ? 'missing' : 'product',
                 'brand_name_snapshot' => $product->brand?->name,
                 'product_line_name_snapshot' => $product->line?->name,
                 'product_type_name_snapshot' => $product->type?->name,
-                'commission_source_snapshot' => $manualCommission !== null && $manualCommission >= 20.0 ? 'manual' : 'automatic',
-                'commission_rate_percent_snapshot' => $manualCommission !== null && $manualCommission >= 20.0 ? null : 10,
+                'commission_source_snapshot' => $usesManualCommission ? 'manual' : 'automatic',
+                'commission_rate_percent_snapshot' => $usesManualCommission ? null : CommissionCalculator::DEFAULT_RATE_PERCENT,
                 'commission_unit_eur_snapshot' => $commissionUnit,
                 'commission_total_eur_snapshot' => $commissionTotal,
             ]);
 
-            if ($variant) {
-                $before = (int) $variant->stock_quantity;
-                $after = $before - $quantity;
-                $variant->forceFill(['stock_quantity' => $after, 'updated_by' => $user->id])->save();
-                $variantProductIds[$product->id] = true;
-            } else {
-                $before = (int) $product->stock_quantity;
-                $after = $before - $quantity;
-                $product->update(['stock_quantity' => $after, 'updated_by' => $user->id]);
-            }
+            $before = (int) $product->stock_quantity;
+            $after = $before - $quantity;
+            $product->update(['stock_quantity' => $after, 'updated_by' => $user->id]);
 
             StockMovement::query()->create([
                 'event_key' => sprintf('order:%d:item:%d:sale', $order->id, $orderItem->id),
                 'product_id' => $product->id,
-                'product_variant_id' => $variant?->id,
                 'order_id' => $order->id,
                 'user_id' => $user->id,
                 'movement_type' => 'sale',
@@ -217,15 +179,11 @@ final class OrderService
                 'quantity_before' => $before,
                 'quantity_after' => $after,
                 'note' => 'Rezervacija lagera za porudžbinu '.$orderNumber,
-                'metadata_json' => ['order_item_id' => $orderItem->id, 'source_system' => 'laravel', 'variant_sku' => $variant?->sku],
+                'metadata_json' => ['order_item_id' => $orderItem->id, 'source_system' => 'laravel'],
             ]);
 
             $subtotalRsd += $lineTotalRsd;
             $commissionTotalEur += $commissionTotal;
-        }
-        foreach (array_keys($variantProductIds) as $variantProductId) {
-            $aggregate = (int) ProductVariant::query()->where('product_id', $variantProductId)->where('status', 'active')->whereNull('deleted_at')->sum('stock_quantity');
-            Product::query()->whereKey($variantProductId)->update(['stock_quantity' => $aggregate, 'updated_by' => $user->id]);
         }
 
         $order->update(['subtotal_rsd' => round($subtotalRsd, 2)]);
@@ -317,7 +275,7 @@ final class OrderService
         return $account;
     }
 
-    private function priceRsd(Product|ProductVariant $product, ?float $rate): float
+    private function priceRsd(Product $product, ?float $rate): float
     {
         if ($product->price_currency === 'RSD') {
             return round((float) $product->price_amount, 2);
@@ -330,35 +288,19 @@ final class OrderService
         return round((float) $product->price_amount * $rate, 2);
     }
 
-    /** @param array<int,array<string,mixed>> $items @return array<int,array{product_id:int,product_variant_id:?int,quantity:int}> */
+    /** @param array<int,array<string,mixed>> $items @return array<int,array{product_id:int,quantity:int}> */
     private function normalizeItems(array $items): array
     {
         $normalized = [];
         foreach ($items as $item) {
             $productId = (int) ($item['product_id'] ?? 0);
-            $variantId = (int) ($item['product_variant_id'] ?? 0);
             $quantity = (int) ($item['quantity'] ?? 0);
             if ($productId <= 0 || $quantity <= 0) continue;
-            $key = $productId.':'.$variantId;
-            if (!isset($normalized[$key])) $normalized[$key] = ['product_id' => $productId, 'product_variant_id' => $variantId > 0 ? $variantId : null, 'quantity' => 0];
-            $normalized[$key]['quantity'] += $quantity;
+            if (!isset($normalized[$productId])) $normalized[$productId] = ['product_id' => $productId, 'quantity' => 0];
+            $normalized[$productId]['quantity'] += $quantity;
         }
         ksort($normalized);
         return array_values($normalized);
-    }
-
-    /** @return array<int,array{field:string,value:string}> */
-    private function variantAttributes(ProductVariant $variant): array
-    {
-        $attributes = [];
-        foreach ($variant->specificationValues as $value) {
-            $display = $value->value_text ?? $value->value_number ?? ($value->value_boolean === null ? null : ($value->value_boolean ? 'Da' : 'Ne'));
-            if ($display === null || $display === '') continue;
-            $text = trim((string) $display.' '.(string) ($value->value_detail ?? ''));
-            if ($value->field?->unit) $text .= ' '.$value->field->unit;
-            $attributes[] = ['field' => (string) ($value->field?->name ?? 'Specifikacija'), 'value' => trim($text)];
-        }
-        return $attributes;
     }
 
 }

@@ -32,7 +32,7 @@
             <strong data-image-upload-status>Spremno za slanje</strong>
             <span data-image-upload-percent>0%</span>
         </div>
-        <div class="image-upload-progress-track"><span data-image-upload-bar style="width:0%"></span></div>
+        <div class="image-upload-progress-track"><span data-image-upload-bar class="ux-product-image-upload-width-zero"></span></div>
         <div class="image-upload-errors" data-image-upload-errors hidden></div>
     </div>
 </div>

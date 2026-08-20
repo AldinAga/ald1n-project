@@ -2,14 +2,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { GoogleSignInButton } from 'react-native-nitro-google-signin';
 import { Controller, useForm } from 'react-hook-form';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { Button } from '@/components/ui/button';
 import { Glyph } from '@/components/ui/glyph';
 import { TextField } from '@/components/ui/text-field';
-import { colors, radii, shadow, spacing, typography } from '@/constants/theme';
+import { radii, shadow, spacing, typography, type AppColors } from '@/constants/theme';
+import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { API_URL, ApiError } from '@/lib/api/client';
 
@@ -21,12 +22,33 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
+  const { scheme, colors: themeColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const scrollRef = useRef<ScrollView> (null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
   const { signIn, signInWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { control, handleSubmit, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { control, handleSubmit, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<FormValues> ({
     resolver: zodResolver(schema),
     defaultValues: { login: '', password: '' }
   });
+
+  const keepFormVisible = () => {
+    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+  };
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+      keepFormVisible();
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -58,8 +80,13 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[styles.scroll, keyboardVisible && styles.scrollKeyboard]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
         <View style={styles.hero}>
           <View style={styles.orbOne} /><View style={styles.orbTwo} />
           <BrandMark size={58} inverse />
@@ -71,13 +98,13 @@ export default function LoginScreen() {
         <View style={styles.formCard}>
           <View style={styles.formHeading}>
             <View style={styles.headingCopy}><Text style={styles.title}>Dobro došli</Text><Text style={styles.subtitle}>Prijavi se CMS nalogom ili nastavi sa Google nalogom.</Text></View>
-            <View style={styles.secure}><Glyph name="lock" size={18} color={colors.success} /></View>
+            <View style={styles.secure}><Glyph name="lock" size={18} color={themeColors.success} /></View>
           </View>
 
           <View style={styles.googleButtonWrap}>
             <GoogleSignInButton
               size="wide"
-              colorScheme="light"
+              colorScheme={scheme}
               signInBehavior="none"
               loading={googleLoading}
               disabled={googleLoading || isSubmitting}
@@ -90,10 +117,10 @@ export default function LoginScreen() {
           <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText}>ILI</Text><View style={styles.dividerLine} /></View>
 
           <Controller control={control} name="login" render={({ field: { value, onBlur, onChange } }) => (
-            <TextField label="Korisničko ime ili e-mail" autoCapitalize="none" autoCorrect={false} value={value} onBlur={onBlur} onChangeText={onChange} error={errors.login?.message} returnKeyType="next" />
+            <TextField label="Korisničko ime ili e-mail" autoCapitalize="none" autoCorrect={false} value={value} onBlur={onBlur} onFocus={keepFormVisible} onChangeText={onChange} error={errors.login?.message} returnKeyType="next" />
           )} />
           <Controller control={control} name="password" render={({ field: { value, onBlur, onChange } }) => (
-            <TextField label="Lozinka" secureTextEntry value={value} onBlur={onBlur} onChangeText={onChange} error={errors.password?.message} returnKeyType="done" onSubmitEditing={() => void submit()} />
+            <TextField label="Lozinka" secureTextEntry value={value} onBlur={onBlur} onFocus={keepFormVisible} onChangeText={onChange} error={errors.password?.message} returnKeyType="done" onSubmitEditing={() => void submit()} />
           )} />
           {errors.root?.message ? <Text style={styles.rootError}>{errors.root.message}</Text> : null}
           <Button onPress={submit} loading={isSubmitting}>Prijavi se</Button>
@@ -105,29 +132,32 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background },
+function createStyles(theme: AppColors) {
+  return StyleSheet.create({
+  page: { flex: 1, backgroundColor: theme.background },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
-  hero: { minHeight: 292, overflow: 'hidden', borderRadius: radii.xxl, backgroundColor: colors.hero, padding: spacing.xxl, justifyContent: 'flex-end', ...shadow },
-  orbOne: { position: 'absolute', width: 230, height: 230, borderRadius: 115, right: -85, top: -75, backgroundColor: colors.primary, opacity: 0.62 },
-  orbTwo: { position: 'absolute', width: 138, height: 138, borderRadius: 69, right: 52, top: 72, backgroundColor: colors.accent, opacity: 0.24 },
-  kicker: { ...typography.small, color: colors.accent, letterSpacing: 1.8, fontWeight: '900', marginTop: spacing.xl },
-  heroTitle: { ...typography.hero, color: colors.white, marginTop: spacing.sm, maxWidth: 340 },
-  heroCopy: { ...typography.body, color: colors.heroMuted, marginTop: spacing.md, maxWidth: 350 },
-  formCard: { backgroundColor: colors.surface, borderRadius: radii.xxl, padding: spacing.xl, gap: spacing.lg, ...shadow },
+  scrollKeyboard: { justifyContent: 'flex-start', paddingBottom: spacing.xxxl },
+  hero: { minHeight: 292, overflow: 'hidden', borderRadius: radii.xxl, backgroundColor: theme.hero, padding: spacing.xxl, justifyContent: 'flex-end', ...shadow },
+  orbOne: { position: 'absolute', width: 230, height: 230, borderRadius: 115, right: -85, top: -75, backgroundColor: theme.primary, opacity: 0.62 },
+  orbTwo: { position: 'absolute', width: 138, height: 138, borderRadius: 69, right: 52, top: 72, backgroundColor: theme.accent, opacity: 0.24 },
+  kicker: { ...typography.small, color: theme.accent, letterSpacing: 1.8, fontWeight: '900', marginTop: spacing.xl },
+  heroTitle: { ...typography.hero, color: theme.white, marginTop: spacing.sm, maxWidth: 340 },
+  heroCopy: { ...typography.body, color: theme.heroMuted, marginTop: spacing.md, maxWidth: 350 },
+  formCard: { backgroundColor: theme.surface, borderRadius: radii.xxl, padding: spacing.xl, gap: spacing.lg, ...shadow },
   formHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md },
   headingCopy: { flex: 1 },
-  title: { ...typography.h1, color: colors.ink },
-  subtitle: { ...typography.body, color: colors.muted, marginTop: spacing.xs },
-  secure: { width: 44, height: 44, borderRadius: radii.pill, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center' },
+  title: { ...typography.h1, color: theme.ink },
+  subtitle: { ...typography.body, color: theme.muted, marginTop: spacing.xs },
+  secure: { width: 44, height: 44, borderRadius: radii.pill, backgroundColor: theme.successSoft, alignItems: 'center', justifyContent: 'center' },
   googleButtonWrap: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   googleButton: { width: '100%', height: 48 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.line },
-  dividerText: { ...typography.small, color: colors.muted, letterSpacing: 1.2 },
-  rootError: { ...typography.small, color: colors.danger, backgroundColor: colors.dangerSoft, padding: spacing.md, borderRadius: radii.lg },
-  registrationNote: { ...typography.small, color: colors.muted, textAlign: 'center', paddingHorizontal: spacing.md },
+  dividerLine: { flex: 1, height: 1, backgroundColor: theme.line },
+  dividerText: { ...typography.small, color: theme.muted, letterSpacing: 1.2 },
+  rootError: { ...typography.small, color: theme.danger, backgroundColor: theme.dangerSoft, padding: spacing.md, borderRadius: radii.lg },
+  registrationNote: { ...typography.small, color: theme.muted, textAlign: 'center', paddingHorizontal: spacing.md },
   apiLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
-  apiText: { ...typography.small, color: colors.muted, maxWidth: '85%' }
+  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.success },
+  apiText: { ...typography.small, color: theme.muted, maxWidth: '85%' }
 });
+}

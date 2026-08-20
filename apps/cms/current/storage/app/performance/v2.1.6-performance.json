@@ -1,0 +1,79 @@
+{
+    "version": "2.1.6",
+    "generated_at": "2026-08-06T08:14:45+02:00",
+    "strict": true,
+    "status": "passed",
+    "warnings": [],
+    "timings_ms": {
+        "Aktivni katalog (18 artikala)": 6,
+        "Dashboard agregat kataloga": 1,
+        "Poslednji audit zapisi": 1
+    },
+    "checks": [
+        {
+            "key": "products_catalog_active_created_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "products_owner_updated_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "products_type_status_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "product_images_primary_sort_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "product_variants_runtime_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "users_status_role_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "audit_logs_level_created_v216_idx",
+            "status": "passed",
+            "message": "Indeks postoji."
+        },
+        {
+            "key": "access_request_cache",
+            "status": "passed",
+            "message": "Request-scoped access cache je uključen."
+        },
+        {
+            "key": "catalog_reference_cache",
+            "status": "passed",
+            "message": "Catalog reference cache je uključen."
+        },
+        {
+            "key": "dashboard_schema_cache",
+            "status": "passed",
+            "message": "Dashboard schema cache je uključen."
+        },
+        {
+            "key": "Aktivni katalog (18 artikala)",
+            "status": "passed",
+            "duration_ms": 6
+        },
+        {
+            "key": "Dashboard agregat kataloga",
+            "status": "passed",
+            "duration_ms": 1
+        },
+        {
+            "key": "Poslednji audit zapisi",
+            "status": "passed",
+            "duration_ms": 1
+        }
+    ]
+}

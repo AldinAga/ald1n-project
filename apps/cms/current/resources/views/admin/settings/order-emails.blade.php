@@ -22,6 +22,7 @@
     </div>
 @endif
 
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Komunikacija i dokumenti'])
 <div class="page-heading">
     <div>
         <span class="eyebrow">Podešavanja</span>
@@ -40,7 +41,7 @@
     <article class="kpi-card"><small>Poslato danas</small><strong>{{ $stats['sent_today'] }}</strong></article>
 </div>
 
-<form method="post" action="{{ route('admin.settings.order-emails.update') }}" class="settings-grid">
+<form method="post" action="{{ route('admin.settings.order-emails.update') }}" class="settings-grid settings-primary-form">
     @csrf
     @method('PUT')
 

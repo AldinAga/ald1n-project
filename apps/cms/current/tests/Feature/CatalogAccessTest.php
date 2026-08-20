@@ -67,7 +67,7 @@ final class CatalogAccessTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/v1/products/'.$product->slug);
 
         $response->assertOk()->assertJsonPath('data.name', 'API proizvod')->assertJsonMissingPath('data.price');
-        $response->assertJsonPath('data.commission_eur', 20);
+        $response->assertJsonPath('data.commission_eur', 10);
     }
 
     private function user(UserGroup $group): User

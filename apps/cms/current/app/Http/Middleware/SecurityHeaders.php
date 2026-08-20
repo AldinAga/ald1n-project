@@ -20,7 +20,7 @@ final class SecurityHeaders
         $headers->set('Referrer-Policy', 'same-origin');
         $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $headers->set('Content-Security-Policy', "base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'");
+        $headers->set('Content-Security-Policy', "base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com");
 
         if ($request->isSecure() && app()->environment('production')) {
             $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

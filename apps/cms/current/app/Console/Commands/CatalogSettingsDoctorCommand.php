@@ -30,7 +30,6 @@ final class CatalogSettingsDoctorCommand extends Command
             'product_type_fields' => ['product_type_id', 'field_id', 'sort_order'],
             'specification_fields' => ['id', 'slug', 'status', 'sort_order', 'storage_role', 'storage_source_field_id'],
             'product_spec_values' => ['product_id', 'field_id', 'value_json'],
-            'product_variant_spec_values' => ['product_variant_id', 'field_id', 'value_json'],
         ] as $table => $columns) {
             if (!Schema::hasTable($table)) {
                 $this->error('FAIL Nedostaje tabela '.$table.'.');
@@ -100,12 +99,11 @@ final class CatalogSettingsDoctorCommand extends Command
                 $fieldLifecycle->repairIntegrity();
                 $storageSummary = $storage->repair();
                 $this->line(sprintf(
-                    'Repair diskova: komponente %d, ukupna polja %d, parovi %d, proizvodi %d, varijante %d.',
+                    'Repair diskova: komponente %d, ukupna polja %d, parovi %d, proizvodi %d.',
                     $storageSummary['components'],
                     $storageSummary['totals'],
                     $storageSummary['pairs'],
                     $storageSummary['products'],
-                    $storageSummary['variants'],
                 ));
             }
 

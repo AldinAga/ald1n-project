@@ -6,8 +6,9 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 final class CatalogQueryService
 {
@@ -28,8 +29,6 @@ final class CatalogQueryService
                 'images',
                 'creator:id,first_name,last_name,email',
                 'specificationValues.field',
-                'activeVariants.specificationValues.field',
-                'activeVariants.images',
             ]);
 
         $this->access->applyVisibleCatalog($query, $user);
@@ -37,8 +36,42 @@ final class CatalogQueryService
         return $query->firstOrFail();
     }
 
+    /** @return Collection<int,Product> */
+    public function quickSearch(User $user, string $term, int $limit = 8): Collection
+    {
+        $search = trim($term);
+        if (mb_strlen($search) < 2) {
+            return collect();
+        }
+
+        $safeLimit = max(1, min(12, $limit));
+        $escaped = addcslashes($search, '\\%_');
+        $contains = '%'.$escaped.'%';
+        $prefix = $escaped.'%';
+
+        $query = Product::query()
+            ->select(['id', 'brand_id', 'sku', 'name', 'model_name', 'slug', 'stock_quantity', 'status', 'deleted_at'])
+            ->with('brand:id,name')
+            ->where(static function (Builder $nested) use ($contains): void {
+                $nested->where('name', 'like', $contains)
+                    ->orWhere('sku', 'like', $contains)
+                    ->orWhere('model_name', 'like', $contains);
+            });
+
+        $this->access->applyVisibleCatalog($query, $user);
+
+        return $query
+            ->orderByRaw(
+                'CASE WHEN name = ? THEN 0 WHEN sku = ? THEN 1 WHEN name LIKE ? THEN 2 WHEN sku LIKE ? THEN 3 ELSE 4 END',
+                [$search, $search, $prefix, $prefix],
+            )
+            ->orderBy('name')
+            ->limit($safeLimit)
+            ->get();
+    }
+
     /** @param array<string,mixed> $filters */
-    public function paginate(User $user, array $filters, int $perPage = 18): LengthAwarePaginator
+    public function paginate(User $user, array $filters, int $perPage = 18, bool $all = false, int $maximumPerPage = 60): LengthAwarePaginator
     {
         $query = Product::query()
             ->with([
@@ -48,9 +81,8 @@ final class CatalogQueryService
                 'categories:id,name,slug',
                 'creator:id,first_name,last_name,email',
                 'primaryImage',
-                'activeVariants:id,product_id,sku,name,price_amount,price_currency,stock_quantity,is_default',
             ])
-            ->withCount(['images', 'variants', 'activeVariants']);
+            ->withCount('images');
 
         $this->access->applyVisibleCatalog($query, $user);
         $canManage = $this->access->canCreateProducts($user);
@@ -62,10 +94,7 @@ final class CatalogQueryService
                 $nested->where('name', 'like', $like)
                     ->orWhere('model_name', 'like', $like)
                     ->orWhere('sku', 'like', $like)
-                    ->orWhere('description', 'like', $like)
-                    ->orWhereHas('activeVariants', static fn (Builder $variantQuery) => $variantQuery
-                        ->where('sku', 'like', $like)
-                        ->orWhere('name', 'like', $like));
+                    ->orWhere('description', 'like', $like);
             });
         }
 
@@ -88,7 +117,7 @@ final class CatalogQueryService
             match ($status) {
                 'draft', 'inactive' => $query->where('status', $status)->whereNull('deleted_at'),
                 'active' => $query->where('status', 'active')->whereNull('deleted_at'),
-                'archived' => $query->whereNotNull('deleted_at'),
+                'archived' => $query->whereRaw('1 = 0'),
                 default => null,
             };
 
@@ -136,6 +165,21 @@ final class CatalogQueryService
             default => $query->orderByDesc('created_at'),
         };
 
-        return $query->paginate(max(6, min(60, $perPage)))->withQueryString();
+        if ($all) {
+            $items = $query->get();
+            $count = $items->count();
+
+            return (new LengthAwarePaginator(
+                $items,
+                $count,
+                max(1, $count),
+                1,
+                ['path' => LengthAwarePaginator::resolveCurrentPath(), 'pageName' => 'page'],
+            ))->withQueryString();
+        }
+
+        $safeMaximum = max(6, $maximumPerPage);
+
+        return $query->paginate(max(6, min($safeMaximum, $perPage)))->withQueryString();
     }
 }

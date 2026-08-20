@@ -78,15 +78,48 @@ final class ProductRequest extends FormRequest
     public function withValidator(\Illuminate\Validation\Validator $validator): void
     {
         $validator->after(function (\Illuminate\Validation\Validator $validator): void {
-            $product = $this->route('product');
-            if ($product && (bool) $product->variants_enabled) {
-                if ((int) $this->input('stock_quantity') !== (int) $product->stock_quantity) {
-                    $validator->errors()->add('stock_quantity', 'Lager proizvoda sa varijantama menja se isključivo na ekranu Varijante.');
-                }
-                if ((int) $this->input('low_stock_threshold') !== (int) $product->low_stock_threshold) {
-                    $validator->errors()->add('low_stock_threshold', 'Prag proizvoda sa varijantama računa se iz aktivnih varijanti.');
+            // COMMISSION_PERCENTAGE_POLICY_V0_7
+            if (
+                $this->filled('manual_commission_eur')
+                && is_numeric($this->input('manual_commission_eur'))
+                && is_numeric($this->input('price_amount'))
+            ) {
+                $priceAmount = (float) $this->input('price_amount');
+                $currency = mb_strtoupper(trim((string) $this->input('price_currency')));
+                $manualEur = (float) $this->input('manual_commission_eur');
+
+                if (in_array($currency, ['EUR', 'RSD'], true)) {
+                    $rate = null;
+                    if ($currency === 'RSD') {
+                        try {
+                            $rate = app(\App\Services\SettingsService::class)->eurRsdRate();
+                        } catch (\Throwable) {
+                            $rate = null;
+                        }
+                    }
+
+                    if ($currency === 'RSD' && ($rate === null || $rate <= 0.0)) {
+                        $validator->errors()->add(
+                            'manual_commission_eur',
+                            'EUR/RSD kurs mora biti dostupan da bi se proverilo 10% vrednosti artikla.',
+                        );
+                    } else {
+                        $calculator = app(\App\Services\CommissionCalculator::class);
+                        $minimum = $calculator->manualMinimumEur($priceAmount, $currency, $rate);
+                        if (!$calculator->usesManual($priceAmount, $currency, $manualEur, $rate)) {
+                            $validator->errors()->add(
+                                'manual_commission_eur',
+                                sprintf(
+                                    'Ručna provizija mora biti najmanje %s EUR (10%% vrednosti artikla).',
+                                    number_format($minimum, 2, ',', '.'),
+                                ),
+                            );
+                        }
+                    }
                 }
             }
+
+            $product = $this->route('product');
 
             $brandId = $this->input('brand_id');
             $lineId = $this->input('product_line_id');
@@ -97,7 +130,26 @@ final class ProductRequest extends FormRequest
                 }
             }
 
+            // PRODUCT_REQUEST_TYPE_SCOPED_TAXONOMY_V07
             $typeId = $this->input('product_type_id');
+            if ($typeId !== null && $brandId !== null) {
+                $brandAllowed = \Illuminate\Support\Facades\DB::table('brand_product_type')
+                    ->where('brand_id', (int) $brandId)
+                    ->where('product_type_id', (int) $typeId)
+                    ->exists();
+                if (!$brandAllowed) {
+                    $validator->errors()->add('brand_id', 'Izabrani brend nije dostupan za izabrani tip artikla.');
+                }
+            }
+            if ($typeId !== null && $lineId !== null) {
+                $lineAllowed = \Illuminate\Support\Facades\DB::table('product_line_product_type')
+                    ->where('product_line_id', (int) $lineId)
+                    ->where('product_type_id', (int) $typeId)
+                    ->exists();
+                if (!$lineAllowed) {
+                    $validator->errors()->add('product_line_id', 'Izabrana linija nije dostupna za izabrani tip artikla.');
+                }
+            }
             if ($typeId === null) {
                 if (trim((string) $this->input('name')) === '') $validator->errors()->add('name', 'Naziv je obavezan kada tip artikla nije izabran.');
                 return;

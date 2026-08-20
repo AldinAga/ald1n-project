@@ -1,6 +1,28 @@
+@inject('moduleVisibility', 'App\Services\ModuleVisibilityService')
 @extends('layouts.app')
 @section('title', 'Početna')
 @section('content')
+    {{-- Safe module visibility: CSS-only dashboard hiding; no wrappers around existing Blade markup. --}}
+    <style>
+        /* MODULE_VISIBILITY_CONTROL_V2_SAFE_DASHBOARD_STYLE */
+        @if(!$moduleVisibility->enabled('reports'))
+        a[href="{{ route('admin.reports.index') }}"] { display: none !important; }
+        @endif
+        @if(!$moduleVisibility->enabled('receivables'))
+        a[href="{{ route('admin.receivables.index') }}"] { display: none !important; }
+        @endif
+        @if(!$moduleVisibility->enabled('after_sales'))
+        a[href="{{ route('admin.after-sales.index') }}"] { display: none !important; }
+        @endif
+        @if(!$moduleVisibility->enabled('field_operations'))
+        a[href="{{ route('admin.field-operations.index') }}"],
+        a[href="{{ route('admin.field-service-teams.index') }}"] { display: none !important; }
+        @endif
+        @if(!$moduleVisibility->enabled('service_parts'))
+        a[href="{{ route('admin.service-parts.index') }}"],
+        a[href="{{ route('admin.service-part-purchases.index') }}"] { display: none !important; }
+        @endif
+    </style>
 @php
     $orderIndex = $access['orders_manage'] ? route('admin.orders.index') : route('orders.index');
     $productIndex = route('catalog.index');
@@ -76,12 +98,21 @@
             </div>
         </div>
     @else
+        @can('system.manage_settings')
+        <div
+            class="dashboard-rate-widget"
+            data-exchange-rate-sync
+            data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
+            title="Klikni za sinhronizaciju EUR/RSD kursa"
+        >
+        @else
         <div class="dashboard-rate-widget">
+        @endcan
             <span class="dashboard-rate-icon"><x-icon name="coins" size="24" /></span>
             <div>
-                <small>Aktuelni EUR/RSD kurs</small>
-                <strong>{{ $eurRsdRate ? number_format((float) $eurRsdRate, 4, ',', '.') : 'Nije podešen' }}</strong>
-                <span>{{ $eurRsdSource }}</span>
+                <small data-exchange-rate-dashboard-label>Aktuelni EUR/RSD kurs</small>
+                <strong data-exchange-rate-value>{{ $eurRsdRate ? number_format((float) $eurRsdRate, 4, ',', '.') : 'Nije podešen' }}</strong>
+                <span data-exchange-rate-source>{{ $eurRsdSource }}</span>
             </div>
         </div>
     @endif

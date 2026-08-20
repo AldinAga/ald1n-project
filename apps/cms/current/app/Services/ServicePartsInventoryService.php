@@ -354,6 +354,66 @@ final class ServicePartsInventoryService
         }, 5);
     }
 
+    /** @param array<string,mixed> $data */
+    public function updatePart(ServicePart $part, User $actor, array $data): ServicePart
+    {
+        return DB::transaction(function () use ($part, $actor, $data): ServicePart {
+            $locked = ServicePart::query()->lockForUpdate()->findOrFail($part->id);
+            $before = $locked->toArray();
+            $locked->fill($data);
+            if (array_key_exists('is_active', $data)) {
+                $locked->setAttribute('is_active', (bool) $data['is_active']);
+            }
+            if ($locked->isFillable('updated_by')) {
+                $locked->setAttribute('updated_by', $actor->id);
+            }
+            $locked->save();
+            $this->audit->log('service_part.updated', 'Izmenjen servisni deo '.$locked->sku, $locked, $before, $locked->toArray(), null, $actor);
+            return $locked->fresh() ?? $locked;
+        }, 5);
+    }
+
+    /** @param array<string,mixed> $data */
+    public function createSupplier(User $actor, array $data): \App\Models\ServicePartSupplier
+    {
+        return DB::transaction(function () use ($actor, $data): \App\Models\ServicePartSupplier {
+            $supplier = new \App\Models\ServicePartSupplier();
+            $supplier->fill($data);
+            if (array_key_exists('is_active', $data)) {
+                $supplier->setAttribute('is_active', (bool) $data['is_active']);
+            } elseif ($supplier->getAttribute('is_active') === null) {
+                $supplier->setAttribute('is_active', true);
+            }
+            if ($supplier->isFillable('created_by')) {
+                $supplier->setAttribute('created_by', $actor->id);
+            }
+            if ($supplier->isFillable('updated_by')) {
+                $supplier->setAttribute('updated_by', $actor->id);
+            }
+            $supplier->save();
+            $this->audit->log('service_part_supplier.created', 'Kreiran dobavljac '.$supplier->name, $supplier, null, $supplier->toArray(), null, $actor);
+            return $supplier->fresh() ?? $supplier;
+        }, 5);
+    }
+
+    /** @param array<string,mixed> $data */
+    public function updateSupplier(\App\Models\ServicePartSupplier $supplier, User $actor, array $data): \App\Models\ServicePartSupplier
+    {
+        return DB::transaction(function () use ($supplier, $actor, $data): \App\Models\ServicePartSupplier {
+            $locked = \App\Models\ServicePartSupplier::query()->lockForUpdate()->findOrFail($supplier->id);
+            $before = $locked->toArray();
+            $locked->fill($data);
+            if (array_key_exists('is_active', $data)) {
+                $locked->setAttribute('is_active', (bool) $data['is_active']);
+            }
+            if ($locked->isFillable('updated_by')) {
+                $locked->setAttribute('updated_by', $actor->id);
+            }
+            $locked->save();
+            $this->audit->log('service_part_supplier.updated', 'Izmenjen dobavljac '.$locked->name, $locked, $before, $locked->toArray(), null, $actor);
+            return $locked->fresh() ?? $locked;
+        }, 5);
+    }
     private function receivePurchaseRequest(ServicePartPurchaseRequest $purchaseRequest, User $actor): void
     {
         foreach ($purchaseRequest->items->sortBy('service_part_id') as $item) {

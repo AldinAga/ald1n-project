@@ -17,7 +17,7 @@ final class OrderIndexService
     /** @var array<string,list<string>> */
     private const REQUIRED_SCHEMA = [
         'orders' => [
-            'id', 'order_number', 'user_id', 'source_system', 'status', 'payment_status',
+            'id', 'order_number', 'user_id', 'source_system', 'sales_channel', 'status', 'payment_status',
             'subtotal_rsd', 'shipping_full_name', 'created_at', 'supplier_user_id', 'supplier_name_snapshot',
             'accepted_at', 'expected_processing_at', 'expected_shipping_at', 'completed_at', 'completed_by',
             'reopened_at', 'reopened_by', 'reopen_reason',
@@ -65,7 +65,7 @@ final class OrderIndexService
             $relations[] = 'commission';
         }
 
-        $query = Order::query()->with($relations)->latest('id');
+        $query = Order::query()->operational()->with($relations)->latest('id');
         $access->applyManagedScope($query, $actor);
 
         $search = trim((string) ($filters['q'] ?? ''));
@@ -118,7 +118,7 @@ final class OrderIndexService
     /** @return array{unaccepted:int,overdue:int} */
     public function attentionCounts(User $actor, OrderAccessService $access): array
     {
-        $base = Order::query()->where('source_system', 'laravel');
+        $base = Order::query()->operational()->where('source_system', 'laravel');
         $access->applyManagedScope($base, $actor);
 
         return [

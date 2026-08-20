@@ -1,0 +1,509 @@
+============================================================
+MOBILE v0.7.0 - PRODUCT CREATE TYPE-SCOPED BRANDS + LINES
+BATCH 1 FAIL DIAGNOSTIC V1
+============================================================
+DATE=Wed Aug 19 21:17:23 CEST 2026
+MODE=READ_ONLY_DIAGNOSTIC
+CMS_ROOT=/home/icaffeco/ald1n-project/apps/cms/current
+DATABASE_WRITES=NONE_INTENDED
+EAS_COMMANDS_RUN=NO
+DEPENDENCY_CHANGES=NO
+
+============================================================
+1. SOURCE SCRIPT DISCOVERY + FAILING LINE CONTEXT
+============================================================
+BATCH_SCRIPT=/home/icaffeco/ald1n-project/incoming/MOBILE-V0.7.0-PRODUCT-CREATE-TYPE-SCOPED-BRANDS-LINES-BATCH1-FAIL-DIAG-V1.sh
+BATCH_SCRIPT_SHA256=c9a1d9817be86a9107a1b02ff9a3a2ee62034b7961631742678c73f5d8030c12
+--- lines 100-135 ---
+   100	  echo "4. LARAVEL BOOT + READ-ONLY DATABASE SENTINELS"
+   101	  echo "============================================================"
+   102	
+   103	  if [ ! -f "$CMS_ROOT/artisan" ] || [ ! -f "$CMS_ROOT/vendor/autoload.php" ] || [ ! -f "$CMS_ROOT/bootstrap/app.php" ]; then
+   104	    echo "LARAVEL_BOOT_PREREQUISITES=FAIL"
+   105	  else
+   106	    cat > "$TMP_PHP" <<'PHP'
+   107	<?php
+   108	$root = getenv('ALD1N_CMS_ROOT');
+   109	if (!$root) {
+   110	    fwrite(STDERR, "ALD1N_CMS_ROOT is missing\n");
+   111	    exit(2);
+   112	}
+   113	require $root . '/vendor/autoload.php';
+   114	$app = require $root . '/bootstrap/app.php';
+   115	$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+   116	$kernel->bootstrap();
+   117	
+   118	use Illuminate\Support\Facades\DB;
+   119	use Illuminate\Support\Facades\Schema;
+   120	
+   121	function out($key, $value): void {
+   122	    if (is_bool($value)) {
+   123	        $value = $value ? 'YES' : 'NO';
+   124	    } elseif ($value === null) {
+   125	        $value = 'NULL';
+   126	    } elseif (is_array($value)) {
+   127	        $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+   128	    }
+   129	    echo $key . '=' . $value . PHP_EOL;
+   130	}
+   131	
+   132	out('LARAVEL_BOOT', 'PASS');
+   133	out('DB_CONNECTION', config('database.default'));
+   134	
+   135	$tables = [
+--- exact line 118 ---
+   118	use Illuminate\Support\Facades\DB;
+
+============================================================
+2. ORIGINAL REPORT MARKERS
+============================================================
+ORIGINAL_REPORT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.7.0-PRODUCT-CREATE-TYPE-SCOPED-BRANDS-LINES-BATCH1-20260819-211315.md
+DATE=Wed Aug 19 21:13:15 CEST 2026
+MODE=MUTATING_CATALOG_TAXONOMY_WITH_BACKUP_AND_ROLLBACK
+TARGET=ONE_GLOBAL_BRAND_MANY_PRODUCT_TYPES_WITH_TYPE_SCOPED_BRANDS_AND_LINES
+OPENAPI_PRE_PARITY=PASS
+GLOBAL_UNRESTRICTED_TAPS_PREREQUISITE=PASS_DEVICE_CONFIRMED_BY_USER
+CURATED_PRODUCT_TYPE_COUNT=11
+ACTIVE_PRODUCT_COMBINATION_REVIEW=PASS
+GLOBAL_CURATED_BRAND_DUPLICATES=0
+PRODUCT_VARIANTS_SCHEMA=ABSENT_PASS
+DATABASE_WRITES_DURING_PREFLIGHT=0
+DATABASE_PREFLIGHT=PASS
+FAIL_UNEXPECTED_LINE=118
+FAIL_EXIT_CODE=255
+BATCH_STATUS=FAIL_ROLLBACK_ATTEMPTED
+
+============================================================
+3. LARAVEL LOG EVIDENCE AROUND FAILURE
+============================================================
+LOG_FILE=/home/icaffeco/ald1n-project/apps/cms/current/storage/logs/laravel-2026-08-19.log
+--- matches around 2026-08-19 21:12-21:14 ---
+--- recent ERROR/Exception/SQLSTATE context ---
+1:[2026-08-19 00:03:23] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"c5ef50ac-8e0f-4eb0-9e8b-57bdeb3a45ad","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+2:[2026-08-19 00:03:25] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"1fb2cb0a-df18-4a86-b9a5-6ee136f03aad","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+3:[2026-08-19 00:04:53] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a33efb20-2cf6-4308-91f7-6c57ffe20ac1","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+4:[2026-08-19 00:19:02] production.ERROR: Command "test" is not defined.
+10:    schedule:test {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
+25:[2026-08-19 00:42:31] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"7da937e1-056e-4c8c-933f-d7cc1667cc86","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+26:[2026-08-19 09:17:26] production.ERROR: include(/home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/../../app/Models/ProductVariant.php): Failed to open stream: No such file or directory {"exception":"[object] (ErrorException(code: 0): include(/home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/../../app/Models/ProductVariant.php): Failed to open stream: No such file or directory at /home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/ClassLoader.php:576)
+28:#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(263): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleError()
+29:#1 /home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/ClassLoader.php(576): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->{closure:Illuminate\\Foundation\\Bootstrap\\HandleExceptions::forwardsTo():262}()
+36:[2026-08-19 12:08:21] production.ERROR: shared field-work attachment auth middleware missing {"exception":"[object] (RuntimeException(code: 0): shared field-work attachment auth middleware missing at /tmp/ald1n-mobile-v0.7.0-field-operations-admin-final-certification-batch4-v5.wwOwiE/field-operations-final-route-probe.php:91)
+40:[2026-08-19 15:06:53] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"0d76dce5-8bc5-4ff7-bdf7-934a52f57fc4","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+41:[2026-08-19 15:11:32] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"7b7b8571-91ee-4b7b-a563-73def41e9474","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+42:[2026-08-19 19:58:50] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"0d35aaec-9833-4603-b303-38c45326e1ed","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+--- final 120 log lines ---
+[2026-08-19 00:03:23] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"c5ef50ac-8e0f-4eb0-9e8b-57bdeb3a45ad","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-19 00:03:25] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"1fb2cb0a-df18-4a86-b9a5-6ee136f03aad","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-19 00:04:53] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"a33efb20-2cf6-4308-91f7-6c57ffe20ac1","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-19 00:19:02] production.ERROR: Command "test" is not defined.
+
+Did you mean one of these?
+    app:send-test-mail
+    app:test-database-doctor
+    make:test
+    schedule:test {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
+
+Did you mean one of these?
+    app:send-test-mail
+    app:test-database-doctor
+    make:test
+    schedule:test at /home/icaffeco/ald1n-project/apps/cms/current/vendor/symfony/console/Application.php:785)
+[stacktrace]
+#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/symfony/console/Application.php(321): Symfony\\Component\\Console\\Application->find()
+#1 /home/icaffeco/ald1n-project/apps/cms/current/vendor/symfony/console/Application.php(218): Symfony\\Component\\Console\\Application->doRun()
+#2 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run()
+#3 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle()
+#4 /home/icaffeco/ald1n-project/apps/cms/current/artisan(16): Illuminate\\Foundation\\Application->handleCommand()
+#5 {main}
+"} 
+[2026-08-19 00:42:31] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"7da937e1-056e-4c8c-933f-d7cc1667cc86","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-19 09:17:26] production.ERROR: include(/home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/../../app/Models/ProductVariant.php): Failed to open stream: No such file or directory {"exception":"[object] (ErrorException(code: 0): include(/home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/../../app/Models/ProductVariant.php): Failed to open stream: No such file or directory at /home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/ClassLoader.php:576)
+[stacktrace]
+#0 /home/icaffeco/ald1n-project/apps/cms/current/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(263): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleError()
+#1 /home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/ClassLoader.php(576): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->{closure:Illuminate\\Foundation\\Bootstrap\\HandleExceptions::forwardsTo():262}()
+#2 /home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/ClassLoader.php(576): include('/home/icaffeco/...')
+#3 /home/icaffeco/ald1n-project/apps/cms/current/vendor/composer/ClassLoader.php(427): {closure:Composer\\Autoload\\ClassLoader::initializeIncludeClosure():575}()
+#4 [internal function]: Composer\\Autoload\\ClassLoader->loadClass()
+#5 /tmp/ald1n-variants-2c2b-v3.7Yz7kQ/runtime-probe.php(20): class_exists()
+#6 {main}
+"} 
+[2026-08-19 12:08:21] production.ERROR: shared field-work attachment auth middleware missing {"exception":"[object] (RuntimeException(code: 0): shared field-work attachment auth middleware missing at /tmp/ald1n-mobile-v0.7.0-field-operations-admin-final-certification-batch4-v5.wwOwiE/field-operations-final-route-probe.php:91)
+[stacktrace]
+#0 {main}
+"} 
+[2026-08-19 15:06:53] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"0d76dce5-8bc5-4ff7-bdf7-934a52f57fc4","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-19 15:11:32] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"7b7b8571-91ee-4b7b-a563-73def41e9474","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+[2026-08-19 19:58:50] production.WARNING: Dashboard section unavailable; fallback values were used. {"request_id":"0d35aaec-9833-4603-b303-38c45326e1ed","section":"field_operations_stats","exception":"BadMethodCallException","message":"Call to undefined method Illuminate\\Database\\Eloquent\\Builder::operational()"} 
+
+============================================================
+4. LARAVEL BOOT + READ-ONLY DATABASE SENTINELS
+============================================================
+PHP_BIN=/usr/local/bin/php
+PHP_VERSION=8.4.23
+LARAVEL_BOOT=PASS
+DB_CONNECTION=mysql
+TABLE_PRODUCT_TYPES_EXISTS=YES
+TABLE_PRODUCT_TYPES_COUNT=11
+TABLE_PRODUCT_TYPES_COLUMNS=["id","category_id","name","slug","description","status","sort_order","created_by","updated_by","created_at","updated_at","name_template","auto_name_enabled","minimum_completeness_percent","default_product_status","required_core_fields_json"]
+TABLE_BRANDS_EXISTS=YES
+TABLE_BRANDS_COUNT=10
+TABLE_BRANDS_COLUMNS=["id","name","slug","description","website_url","status","sort_order","created_by","updated_by","created_at","updated_at"]
+TABLE_PRODUCT_LINES_EXISTS=YES
+TABLE_PRODUCT_LINES_COUNT=70
+TABLE_PRODUCT_LINES_COLUMNS=["id","brand_id","name","slug","status","sort_order","created_by","updated_by","created_at","updated_at"]
+TABLE_BRAND_PRODUCT_TYPE_EXISTS=NO
+TABLE_PRODUCT_LINE_PRODUCT_TYPE_EXISTS=NO
+TABLE_PRODUCT_VARIANTS_EXISTS=NO
+GLOBAL_BRAND_DUPLICATE_GROUPS=0
+READ_ONLY_DB_SENTINELS=COMPLETE
+
+============================================================
+5. BACKUP / ROLLBACK ARTIFACT DISCOVERY
+============================================================
+BACKUP_DIR=/home/icaffeco/ald1n-project/backups
+BACKUP_DIR=/home/icaffeco/ald1n-project/apps/cms/current/storage/app/backups
+BACKUP_DIR=/home/icaffeco/backups
+
+============================================================
+6. GIT / APPLICATION SENTINELS
+============================================================
+ M .gitignore
+ M apps/cms/current/.env.example
+ M apps/cms/current/app/Console/Commands/CatalogSettingsDoctorCommand.php
+ M apps/cms/current/app/Console/Commands/DataQualityDoctorCommand.php
+ M apps/cms/current/app/Console/Commands/DeploymentCheckCommand.php
+ M apps/cms/current/app/Console/Commands/ManagementReportsDoctorCommand.php
+ M apps/cms/current/app/Console/Commands/OrderCostSnapshotsCommand.php
+ M apps/cms/current/app/Console/Commands/OrderCreateDoctorCommand.php
+ M apps/cms/current/app/Console/Commands/PaymentsInventoryDoctorCommand.php
+ M apps/cms/current/app/Console/Commands/PerformanceDoctorCommand.php
+ D apps/cms/current/app/Console/Commands/ProductVariantsDoctorCommand.php
+ M apps/cms/current/app/Http/Controllers/Admin/AuditLogController.php
+ M apps/cms/current/app/Http/Controllers/Admin/CatalogDictionaryController.php
+ M apps/cms/current/app/Http/Controllers/Admin/ExchangeRateController.php
+ M apps/cms/current/app/Http/Controllers/Admin/InventoryController.php
+ M apps/cms/current/app/Http/Controllers/Admin/OrderController.php
+ M apps/cms/current/app/Http/Controllers/Admin/OrderDocumentController.php
+ M apps/cms/current/app/Http/Controllers/Admin/ProductController.php
+ D apps/cms/current/app/Http/Controllers/Admin/ProductVariantController.php
+ M apps/cms/current/app/Http/Controllers/Admin/ReportController.php
+ M apps/cms/current/app/Http/Controllers/Admin/SiteAppearanceController.php
+ M apps/cms/current/app/Http/Controllers/Admin/StockMovementController.php
+ M apps/cms/current/app/Http/Controllers/Admin/WarrantyController.php
+ M apps/cms/current/app/Http/Controllers/Api/V1/CatalogOptionsController.php
+ M apps/cms/current/app/Http/Controllers/Api/V1/OrderController.php
+ M apps/cms/current/app/Http/Controllers/CatalogController.php
+ M apps/cms/current/app/Http/Controllers/DashboardController.php
+ M apps/cms/current/app/Http/Controllers/OrderController.php
+ M apps/cms/current/app/Http/Controllers/WarrantyController.php
+ M apps/cms/current/app/Http/Middleware/SecurityHeaders.php
+ M apps/cms/current/app/Http/Requests/ProductRequest.php
+ D apps/cms/current/app/Http/Requests/ProductVariantRequest.php
+ M apps/cms/current/app/Http/Requests/StoreOrderRequest.php
+ M apps/cms/current/app/Http/Resources/OrderResource.php
+ M apps/cms/current/app/Http/Resources/ProductResource.php
+ M apps/cms/current/app/Models/AfterSalesActionItem.php
+ M apps/cms/current/app/Models/AfterSalesCaseItem.php
+ M apps/cms/current/app/Models/Order.php
+ M apps/cms/current/app/Models/OrderItem.php
+ M apps/cms/current/app/Models/Product.php
+ M apps/cms/current/app/Models/ProductImage.php
+ D apps/cms/current/app/Models/ProductVariant.php
+ D apps/cms/current/app/Models/ProductVariantSpecValue.php
+ M apps/cms/current/app/Models/ProductWarranty.php
+ M apps/cms/current/app/Models/StockMovement.php
+ M apps/cms/current/app/Services/AdvancedInventoryService.php
+ M apps/cms/current/app/Services/AfterSalesActionService.php
+ M apps/cms/current/app/Services/AfterSalesCaseService.php
+ M apps/cms/current/app/Services/ApiAccessService.php
+ M apps/cms/current/app/Services/CatalogAccessService.php
+ M apps/cms/current/app/Services/CatalogQueryService.php
+ M apps/cms/current/app/Services/CatalogSpecificationFilterService.php
+ M apps/cms/current/app/Services/CustomerPortalService.php
+ M apps/cms/current/app/Services/DataQualityService.php
+ M apps/cms/current/app/Services/ExchangeRateService.php
+ M apps/cms/current/app/Services/InventoryService.php
+ M apps/cms/current/app/Services/ManagementReportService.php
+ M apps/cms/current/app/Services/OperationalAutomationService.php
+ M apps/cms/current/app/Services/OrderDetailPresenter.php
+ M apps/cms/current/app/Services/OrderDetailService.php
+ M apps/cms/current/app/Services/OrderDocumentService.php
+ M apps/cms/current/app/Services/OrderIndexService.php
+ M apps/cms/current/app/Services/OrderItemCostSnapshotService.php
+ M apps/cms/current/app/Services/OrderPaymentService.php
+ M apps/cms/current/app/Services/OrderReportService.php
+ M apps/cms/current/app/Services/OrderService.php
+ M apps/cms/current/app/Services/OrderWorkflowService.php
+ M apps/cms/current/app/Services/Pdf/BusinessDocumentPdfService.php
+ M apps/cms/current/app/Services/ProductAdminService.php
+ M apps/cms/current/app/Services/ProductDeletionService.php
+ M apps/cms/current/app/Services/ProductImageService.php
+ D apps/cms/current/app/Services/ProductVariantService.php
+ M apps/cms/current/app/Services/ServicePartsInventoryService.php
+ M apps/cms/current/app/Services/SettingsService.php
+ M apps/cms/current/app/Services/SpecificationFieldLifecycleService.php
+ M apps/cms/current/app/Services/StorageSpecificationService.php
+ M apps/cms/current/app/Services/WarrantyService.php
+ M apps/cms/current/bin/catalog-settings-integrity-hotfix-smoke.php
+ M apps/cms/current/bin/cms-v2.1.6-smoke.php
+ M apps/cms/current/bin/product-media-ux-smoke.php
+ M apps/cms/current/bin/product-save-regex-hotfix-smoke.php
+ M apps/cms/current/bin/product-variant-smoke.php
+ M apps/cms/current/bin/stable-maintenance-smoke.php
+ M apps/cms/current/bin/static-check.php
+ M apps/cms/current/bin/storage-capacity-total-smoke.php
+ M apps/cms/current/bin/theme-css-smoke.php
+ M apps/cms/current/config/app.php
+ M apps/cms/current/config/release.php
+ M apps/cms/current/config/services.php
+ M apps/cms/current/docs/openapi.yaml
+ M apps/cms/current/error_log
+ M apps/cms/current/public/assets/css/app.css
+ M apps/cms/current/resources/views/admin/data-quality/index.blade.php
+ M apps/cms/current/resources/views/admin/dictionary/index.blade.php
+ M apps/cms/current/resources/views/admin/dictionary/product-type.blade.php
+ M apps/cms/current/resources/views/admin/field-operations/teams.blade.php
+ M apps/cms/current/resources/views/admin/orders/index.blade.php
+ M apps/cms/current/resources/views/admin/orders/show.blade.php
+ M apps/cms/current/resources/views/admin/products/clone.blade.php
+ M apps/cms/current/resources/views/admin/products/form.blade.php
+ M apps/cms/current/resources/views/admin/products/index.blade.php
+ M apps/cms/current/resources/views/admin/products/partials/image-upload.blade.php
+ D apps/cms/current/resources/views/admin/products/partials/variant-fields.blade.php
+ D apps/cms/current/resources/views/admin/products/variants.blade.php
+ M apps/cms/current/resources/views/admin/receivables/index.blade.php
+ M apps/cms/current/resources/views/admin/reports/index.blade.php
+ M apps/cms/current/resources/views/admin/reports/management.blade.php
+ M apps/cms/current/resources/views/admin/service-parts/suppliers.blade.php
+ M apps/cms/current/resources/views/admin/settings/appearance.blade.php
+ M apps/cms/current/resources/views/admin/settings/automation.blade.php
+ M apps/cms/current/resources/views/admin/settings/bank-accounts.blade.php
+ M apps/cms/current/resources/views/admin/settings/documents.blade.php
+ M apps/cms/current/resources/views/admin/settings/exchange-rate.blade.php
+ M apps/cms/current/resources/views/admin/settings/order-emails.blade.php
+ M apps/cms/current/resources/views/admin/settings/system-health.blade.php
+ M apps/cms/current/resources/views/admin/settings/turnstile.blade.php
+ M apps/cms/current/resources/views/admin/stock/index.blade.php
+ M apps/cms/current/resources/views/admin/user-groups/index.blade.php
+ M apps/cms/current/resources/views/admin/users/index.blade.php
+ M apps/cms/current/resources/views/admin/warranties/index.blade.php
+ M apps/cms/current/resources/views/auth/login.blade.php
+ M apps/cms/current/resources/views/catalog/index.blade.php
+ M apps/cms/current/resources/views/catalog/show.blade.php
+ M apps/cms/current/resources/views/dashboard/index.blade.php
+ M apps/cms/current/resources/views/layouts/app.blade.php
+ M apps/cms/current/resources/views/layouts/guest.blade.php
+ M apps/cms/current/resources/views/orders/create.blade.php
+ M apps/cms/current/resources/views/orders/index.blade.php
+ M apps/cms/current/resources/views/orders/show.blade.php
+ M apps/cms/current/routes/api.php
+ M apps/cms/current/routes/web.php
+ M apps/cms/current/tests/Feature/CatalogDetailPageTest.php
+ M apps/cms/current/tests/Feature/OrderDeliveryWorkflowTest.php
+ M apps/cms/current/tests/Feature/OrderEmailsIpsWarrantyTest.php
+ M apps/cms/current/tests/Feature/ProductVariantsWorkflowTest.php
+ M apps/cms/current/tests/Unit/CatalogSettingsIntegrityHotfixContractTest.php
+ M apps/cms/current/tests/Unit/ProductSaveRegexHotfixContractTest.php
+ M apps/cms/current/tests/Unit/ProductVariantsMigrationContractTest.php
+ M apps/cms/current/tests/Unit/ProductVariantsUiContractTest.php
+ M apps/mobile/current/app.config.js
+ M apps/mobile/current/assets/adaptive-icon.png
+ M apps/mobile/current/assets/favicon.png
+ M apps/mobile/current/assets/icon.png
+ M apps/mobile/current/assets/splash-icon.png
+ M apps/mobile/current/docs/openapi.yaml
+ M apps/mobile/current/google-services.json
+ M apps/mobile/current/package-lock.json
+ M apps/mobile/current/package.json
+ M apps/mobile/current/scripts/validate-project.mjs
+ M apps/mobile/current/src/app/(app)/(tabs)/_layout.tsx
+ M apps/mobile/current/src/app/(app)/(tabs)/account.tsx
+ M apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx
+ M apps/mobile/current/src/app/(app)/(tabs)/home.tsx
+ M apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx
+ M apps/mobile/current/src/app/(app)/(tabs)/orders.tsx
+ M apps/mobile/current/src/app/(app)/_layout.tsx
+ M apps/mobile/current/src/app/(app)/cart.tsx
+ M apps/mobile/current/src/app/(app)/checkout.tsx
+ M apps/mobile/current/src/app/(app)/devices.tsx
+ M apps/mobile/current/src/app/(app)/notification-settings.tsx
+ M apps/mobile/current/src/app/(app)/order/[id].tsx
+ M apps/mobile/current/src/app/(app)/product/[slug].tsx
+ M apps/mobile/current/src/app/(auth)/login.tsx
+ M apps/mobile/current/src/app/_layout.tsx
+ M apps/mobile/current/src/components/catalog/product-card.tsx
+ M apps/mobile/current/src/components/layout/page-header.tsx
+ M apps/mobile/current/src/components/layout/screen.tsx
+ M apps/mobile/current/src/components/orders/order-card.tsx
+ M apps/mobile/current/src/components/ui/brand-mark.tsx
+ M apps/mobile/current/src/components/ui/button.tsx
+ M apps/mobile/current/src/components/ui/card.tsx
+ M apps/mobile/current/src/components/ui/pill.tsx
+ M apps/mobile/current/src/components/ui/states.tsx
+ M apps/mobile/current/src/components/ui/text-field.tsx
+ M apps/mobile/current/src/constants/theme.ts
+ M apps/mobile/current/src/design/ald1n-tokens.generated.ts
+ M apps/mobile/current/src/features/auth/auth-provider.tsx
+ M apps/mobile/current/src/features/auth/google-auth.ts
+ M apps/mobile/current/src/features/cart/cart-provider.tsx
+ M apps/mobile/current/src/features/notifications/push-notification-bridge.tsx
+ M apps/mobile/current/src/lib/api/client.ts
+ M apps/mobile/current/src/lib/api/endpoints.ts
+ M apps/mobile/current/src/types/api.ts
+ M apps/mobile/current/tamagui.config.ts
+ M packages/api-contract/openapi.yaml
+ M packages/design-tokens/ald1n-violet.json
+ M packages/web-theme/ald1n-violet.css
+ M scripts/generate-design-tokens.mjs
+?? .easignore
+?? .locks/
+?? apps/cms/current/app/Http/Controllers/Admin/CourierServiceController.php
+?? apps/cms/current/app/Http/Controllers/Admin/DirectSaleController.php
+?? apps/cms/current/app/Http/Controllers/Admin/ModuleSettingsController.php
+?? apps/cms/current/app/Http/Controllers/Admin/OrderShipmentController.php
+?? apps/cms/current/app/Http/Controllers/Admin/SettingsHubController.php
+?? apps/cms/current/app/Http/Controllers/Api/V1/Admin/
+?? apps/cms/current/app/Http/Controllers/Api/V1/AfterSalesController.php
+?? apps/cms/current/app/Http/Controllers/Api/V1/CommissionController.php
+?? apps/cms/current/app/Http/Controllers/Api/V1/WarrantyController.php
+?? apps/cms/current/app/Http/Controllers/Auth/GoogleWebAuthController.php
+?? apps/cms/current/app/Http/Controllers/GlobalCommandSearchController.php
+?? apps/cms/current/app/Http/Controllers/OrderShipmentProofController.php
+?? apps/cms/current/app/Models/CourierService.php
+?? apps/cms/current/app/Models/OrderShipment.php
+?? apps/cms/current/app/Services/CourierDirectoryService.php
+?? apps/cms/current/app/Services/DirectSaleService.php
+?? apps/cms/current/app/Services/GlobalCommandSearchService.php
+?? apps/cms/current/app/Services/ModuleVisibilityService.php
+?? apps/cms/current/app/Services/OrderArchiveService.php
+?? apps/cms/current/app/Services/OrderShipmentService.php
+?? apps/cms/current/app/Services/Pdf/WarrantyCertificatePayloadService.php
+?? apps/cms/current/app/Services/ProductShortSkuSequenceService.php
+?? apps/cms/current/app/Services/SecurityEventReadService.php
+?? apps/cms/current/app/Services/TotalProductPurgeService.php
+?? apps/cms/current/app/Services/TotalProductPurgeVerifier.php
+?? apps/cms/current/app/Services/WarrantyAdminService.php
+?? apps/cms/current/bin/global-command-search-smoke.php
+?? apps/cms/current/bin/order-archive-visibility-smoke.php
+?? apps/cms/current/bin/order-operational-purge-smoke.php
+?? apps/cms/current/bin/total-product-purge-contract-smoke.php
+?? apps/cms/current/database/migrations/2026_08_10_000100_add_direct_sale_channel_vnext.php
+?? apps/cms/current/database/migrations/2026_08_10_000101_create_shipment_courier_foundation_vnext.php
+?? apps/cms/current/database/migrations/2026_08_10_000102_expand_order_payment_method_for_direct_sale_vnext.php
+?? apps/cms/current/database/migrations/2026_08_10_000103_enable_anonymous_direct_sale_buyer_vnext.php
+?? apps/cms/current/database/migrations/2026_08_10_000104_expand_order_item_commission_source_for_direct_sale_vnext.php
+?? apps/cms/current/database/migrations/2026_08_17_000042_create_product_sku_sequences.php
+?? apps/cms/current/database/migrations/2026_08_17_000100_add_archive_fields_to_orders_table.php
+?? apps/cms/current/database/migrations/2026_08_17_000101_add_operational_purge_fields_to_orders_table.php
+?? apps/cms/current/database/migrations/2026_08_17_000102_prepare_total_product_purge_nullable_product_refs.php
+?? apps/cms/current/database/migrations/2026_08_19_091800_decommission_product_variants.php
+?? apps/cms/current/public/assets/css/ald1n-ui-v2.css
+?? apps/cms/current/resources/views/admin/access-control/
+?? apps/cms/current/resources/views/admin/orders/archived.blade.php
+?? apps/cms/current/resources/views/admin/products/archived.blade.php
+?? apps/cms/current/resources/views/admin/settings/couriers.blade.php
+?? apps/cms/current/resources/views/admin/settings/index.blade.php
+?? apps/cms/current/resources/views/admin/settings/modules.blade.php
+?? apps/cms/current/resources/views/admin/settings/partials/
+?? apps/cms/current/storage/
+?? apps/cms/current/tests/Unit/DirectSaleContractTest.php
+?? apps/cms/current/tests/Unit/DirectSaleMaxUnitPriceContractTest.php
+?? apps/cms/current/tests/Unit/SettingsHubNavigationContractTest.php
+?? apps/cms/current/tests/Unit/ShipmentCourierContractTest.php
+?? apps/mobile/current/GoogleService-Info.plist
+?? apps/mobile/current/assets/brand/
+?? apps/mobile/current/assets/icon-ios.png
+?? apps/mobile/current/error_log
+?? apps/mobile/current/src/app/(app)/admin/
+?? apps/mobile/current/src/app/(app)/after-sales/
+?? apps/mobile/current/src/app/(app)/assigned-orders/
+?? apps/mobile/current/src/app/(app)/commissions/
+?? apps/mobile/current/src/app/(app)/warranties/
+?? apps/mobile/current/src/components/layout/app-bottom-nav.tsx
+?? apps/mobile/current/src/components/ui/action-sheet.tsx
+?? apps/mobile/current/src/components/ui/app-feedback.tsx
+?? apps/mobile/current/src/components/ui/async-lookup.tsx
+?? apps/mobile/current/src/components/ui/badge.tsx
+?? apps/mobile/current/src/components/ui/confirm-action.tsx
+?? apps/mobile/current/src/components/ui/data-list.tsx
+?? apps/mobile/current/src/components/ui/date-time-field.tsx
+?? apps/mobile/current/src/components/ui/filter-bar.tsx
+?? apps/mobile/current/src/components/ui/icon-button.tsx
+?? apps/mobile/current/src/components/ui/money-field.tsx
+?? apps/mobile/current/src/components/ui/select-sheet.tsx
+?? apps/mobile/current/src/components/ui/status-timeline.tsx
+?? apps/mobile/current/src/features/admin/
+?? apps/mobile/current/src/features/after-sales/
+?? apps/mobile/current/src/features/catalog/
+?? apps/mobile/current/src/features/notifications/notification-routing.ts
+?? apps/mobile/current/src/features/orders/
+?? apps/mobile/current/src/features/warranties/
+?? apps/mobile/current/src/theme/
+?? docs/
+?? scripts/maintenance/
+GIT_HEAD=32c6039
+--- migrate status ---
+
+  Migration name .................................................................................................................... Batch / Status  
+  2026_07_21_000001_create_access_tables ................................................................................................... [1] Ran  
+  2026_07_21_000002_create_catalog_tables .................................................................................................. [1] Ran  
+  2026_07_21_000003_create_system_tables ................................................................................................... [1] Ran  
+  2026_07_22_000004_create_catalog_admin_tables ............................................................................................ [2] Ran  
+  2026_07_22_000005_create_legacy_operations_tables ........................................................................................ [3] Ran  
+  2026_07_22_000006_enable_production_orders_inventory ..................................................................................... [4] Ran  
+  2026_07_23_000007_repair_production_schema_beta5 ......................................................................................... [5] Ran  
+  2026_07_23_000008_repair_authenticated_runtime_beta6 ..................................................................................... [6] Ran  
+  2026_07_23_000009_create_reports_documents_and_supplier_assignment ....................................................................... [7] Ran  
+  2026_07_23_000010_repair_reports_schema_beta1_2 .......................................................................................... [7] Ran  
+  2026_07_23_000011_create_operational_orders_commissions_beta2 ............................................................................ [8] Ran  
+  2026_07_23_000012_create_payments_advanced_inventory_beta3 ............................................................................... [9] Ran  
+  2026_07_23_000013_create_automation_alerts_beta4 ........................................................................................ [10] Ran  
+  2026_07_23_000014_create_security_backup_health_beta6 ................................................................................... [11] Ran  
+  2026_07_29_000015_repair_order_documents_and_payments_beta7_5 ........................................................................... [12] Ran  
+  2026_07_30_000016_add_order_completion_beta7_7 .......................................................................................... [13] Ran  
+  2026_07_30_000017_add_delivery_workflow_beta7_8 ......................................................................................... [14] Ran  
+  2026_07_30_000018_fix_delivery_note_document_type_beta7_9 ............................................................................... [15] Ran  
+  2026_07_30_000019_create_after_sales_cases_beta7_10 ..................................................................................... [16] Ran  
+  2026_07_30_000020_create_after_sales_actions_beta7_11 ................................................................................... [17] Ran  
+  2026_07_30_000021_create_field_operations_beta7_12 ...................................................................................... [18] Ran  
+  2026_07_30_000022_create_service_parts_procurement_beta7_13 ............................................................................. [19] Ran  
+  2026_07_30_000023_enable_document_revisions_beta7_14 .................................................................................... [20] Ran  
+  2026_07_30_000024_create_warranties_preventive_maintenance_beta7_15 ..................................................................... [21] Ran  
+  2026_07_30_000025_create_order_email_outbox_beta7_16 .................................................................................... [22] Ran  
+  2026_07_31_000026_create_receivables_collection_beta7_17 ................................................................................ [23] Ran  
+  2026_07_31_000027_create_correlated_specifications_beta7_18 ............................................................................. [24] Ran  
+  2026_07_31_000028_create_smart_product_management_beta7_19 .............................................................................. [25] Ran  
+  2026_07_31_000029_create_product_variants_beta7_20 ...................................................................................... [26] Ran  
+  2026_07_31_000030_create_management_reports_beta7_21 .................................................................................... [27] Ran  
+  2026_07_31_000031_create_customer_portal_beta7_22 ....................................................................................... [28] Ran  
+  2026_08_01_000032_create_customer_portal_2_beta7_24 ..................................................................................... [29] Ran  
+  2026_08_04_000033_create_catalog_type_layout_v2_1_3 ..................................................................................... [30] Ran  
+  2026_08_04_000034_repair_catalog_category_and_spec_integrity_v2_1_3_1 ................................................................... [31] Ran  
+  2026_08_04_000035_link_storage_components_and_total_capacity_v2_1_3_3 ................................................................... [32] Ran  
+  2026_08_04_000036_add_product_model_and_name_templates_v2_1_4 ........................................................................... [33] Ran  
+  2026_08_05_000037_place_desktop_power_supply_field_v2_1_5 ............................................................................... [34] Ran  
+  2026_08_05_000038_create_performance_data_quality_v2_1_6 ................................................................................ [35] Ran  
+  2026_08_06_000039_create_mobile_devices_v2_2_0 .......................................................................................... [36] Ran  
+  2026_08_06_000040_add_push_notification_preference_v2_2_0 ............................................................................... [36] Ran  
+  2026_08_06_000041_create_database_queue_tables_v2_2_0 ................................................................................... [36] Ran  
+  2026_08_07_000042_create_mobile_push_outbox_phase3b ..................................................................................... [37] Ran  
+  2026_08_08_000043_create_user_external_identities_phase3c ............................................................................... [38] Ran  
+  2026_08_10_000100_add_direct_sale_channel_vnext ......................................................................................... [39] Ran  
+  2026_08_10_000101_create_shipment_courier_foundation_vnext .............................................................................. [40] Ran  
+  2026_08_10_000102_expand_order_payment_method_for_direct_sale_vnext ..................................................................... [41] Ran  
+  2026_08_10_000103_enable_anonymous_direct_sale_buyer_vnext .............................................................................. [42] Ran  
+  2026_08_10_000104_expand_order_item_commission_source_for_direct_sale_vnext ............................................................. [43] Ran  
+  2026_08_17_000042_create_product_sku_sequences .......................................................................................... [47] Ran  
+  2026_08_17_000100_add_archive_fields_to_orders_table .................................................................................... [44] Ran  
+  2026_08_17_000101_add_operational_purge_fields_to_orders_table .......................................................................... [45] Ran  
+  2026_08_17_000102_prepare_total_product_purge_nullable_product_refs ..................................................................... [46] Ran  
+  2026_08_19_091800_decommission_product_variants ......................................................................................... [48] Ran  
+
+
+============================================================
+FINAL
+============================================================
+DIAGNOSTIC_STATUS=COMPLETE
+MUTATIONS_PERFORMED_BY_DIAGNOSTIC=NONE
+UPLOAD_THIS_REPORT_TO_CHAT=/home/icaffeco/ald1n-project/docs/operations/MOBILE-V0.7.0-BATCH1-FAIL-DIAG-V1-20260819-211723.txt

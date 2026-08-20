@@ -32,7 +32,6 @@ final class DataQualityService
             $this->appendCatalogCompletenessIssues($issues, $limit);
             $this->appendCategoryIssues($issues, $limit);
             $this->appendImageIssues($issues, $limit);
-            $this->appendVariantIssues($issues, $limit);
             $this->appendSpecificationIssues($issues, $limit);
             $this->appendUserIssues($issues, $limit);
         } catch (Throwable $exception) {
@@ -78,7 +77,6 @@ final class DataQualityService
             'specifications' => [],
             'storage' => [],
             'image_groups_fixed' => 0,
-            'variant_groups_fixed' => 0,
             'blank_models_normalized' => 0,
             'completeness_recalculated' => 0,
             'products_downgraded' => 0,
@@ -90,7 +88,6 @@ final class DataQualityService
         $summary['specifications'] = $this->fieldLifecycle->repairIntegrity();
         $summary['storage'] = $this->storage->repair();
         $summary['image_groups_fixed'] = $this->normalizeImagePrimaries();
-        $summary['variant_groups_fixed'] = $this->normalizeDefaultVariants();
 
         if (Schema::hasTable('products') && Schema::hasColumn('products', 'model_name')) {
             $summary['blank_models_normalized'] = DB::table('products')
@@ -200,8 +197,7 @@ final class DataQualityService
             $query = (clone $active)->whereNotExists(static function ($nested): void {
                 $nested->selectRaw('1')
                     ->from('product_images')
-                    ->whereColumn('product_images.product_id', 'products.id')
-                    ->whereNull('product_images.product_variant_id');
+                    ->whereColumn('product_images.product_id', 'products.id');
             });
             $noImage = (int) (clone $query)->count();
             $noImageSamples = (clone $query)->select(['id', 'sku', 'name'])->orderBy('id')->limit($limit)->get();
@@ -282,50 +278,16 @@ final class DataQualityService
         }
 
         $groups = DB::table('product_images')
-            ->select(['product_id', 'product_variant_id'])
+            ->select(['product_id'])
             ->selectRaw('COUNT(*) AS image_count')
             ->selectRaw('SUM(CASE WHEN is_primary = 1 THEN 1 ELSE 0 END) AS primary_count')
-            ->groupBy('product_id', 'product_variant_id')
+            ->groupBy('product_id')
             ->havingRaw('SUM(CASE WHEN is_primary = 1 THEN 1 ELSE 0 END) <> 1');
         $count = (int) DB::query()->fromSub($groups, 'invalid_image_groups')->count();
         $samples = $groups->orderBy('product_id')->limit($limit)->get();
         $issues[] = $this->issue('invalid_primary_image_groups', 'Galerije bez tačno jedne glavne slike', 'warning', $count, 'Bezbedna popravka bira prvu postojeću glavnu sliku ili prvu po redosledu.', true, $this->rows($samples));
     }
 
-    /** @param list<array<string,mixed>> $issues */
-    private function appendVariantIssues(array &$issues, int $limit): void
-    {
-        if (!Schema::hasTable('products') || !Schema::hasTable('product_variants')) {
-            return;
-        }
-
-        $invalidDefault = DB::table('products')
-            ->where('variants_enabled', true)
-            ->whereNull('deleted_at')
-            ->where(static function ($query): void {
-                $query->whereNull('default_variant_id')
-                    ->orWhereNotExists(static function ($variant): void {
-                        $variant->selectRaw('1')->from('product_variants')
-                            ->whereColumn('product_variants.id', 'products.default_variant_id')
-                            ->whereColumn('product_variants.product_id', 'products.id')
-                            ->whereNull('product_variants.deleted_at');
-                    });
-            });
-        $invalidCount = (int) (clone $invalidDefault)->count();
-        $samples = (clone $invalidDefault)->select(['id', 'sku', 'name', 'default_variant_id'])->orderBy('id')->limit($limit)->get();
-        $issues[] = $this->issue('invalid_default_variants', 'Proizvodi sa nevažećom podrazumevanom varijantom', 'warning', $invalidCount, 'Bezbedna popravka bira aktivnu ili prvu raspoloživu varijantu.', true, $this->rows($samples));
-
-        $multipleDefaults = DB::table('product_variants')
-            ->select('product_id')
-            ->selectRaw('COUNT(*) AS aggregate_count')
-            ->whereNull('deleted_at')
-            ->where('is_default', true)
-            ->groupBy('product_id')
-            ->havingRaw('COUNT(*) > 1');
-        $multipleCount = (int) DB::query()->fromSub($multipleDefaults, 'multiple_defaults')->count();
-        $multipleSamples = $multipleDefaults->orderBy('product_id')->limit($limit)->get();
-        $issues[] = $this->issue('multiple_default_variants', 'Proizvodi sa više podrazumevanih varijanti', 'warning', $multipleCount, 'Samo jedna varijanta može biti podrazumevana.', true, $this->rows($multipleSamples));
-    }
 
     /** @param list<array<string,mixed>> $issues */
     private function appendSpecificationIssues(array &$issues, int $limit): void
@@ -352,26 +314,6 @@ final class DataQualityService
         ])->orderBy('products.id')->limit($limit)->get();
         $issues[] = $this->issue('orphan_product_specifications', 'Zastarele ili nepovezane specifikacije artikala', 'critical', $count, 'Vrednost specifikacije mora pripadati aktivnom polju izabranog tipa proizvoda.', true, $this->rows($samples));
 
-        if (Schema::hasTable('product_variant_spec_values') && Schema::hasTable('product_variants')) {
-            $variantQuery = DB::table('product_variant_spec_values')
-                ->join('product_variants', 'product_variants.id', '=', 'product_variant_spec_values.product_variant_id')
-                ->join('products', 'products.id', '=', 'product_variants.product_id')
-                ->leftJoin('specification_fields', 'specification_fields.id', '=', 'product_variant_spec_values.field_id')
-                ->leftJoin('product_type_fields', static function ($join): void {
-                    $join->on('product_type_fields.product_type_id', '=', 'products.product_type_id')
-                        ->on('product_type_fields.field_id', '=', 'product_variant_spec_values.field_id');
-                })
-                ->where(static function ($nested): void {
-                    $nested->whereNull('specification_fields.id')
-                        ->orWhere('specification_fields.status', '!=', 'active')
-                        ->orWhereNull('product_type_fields.field_id');
-                });
-            $variantCount = (int) (clone $variantQuery)->count();
-            $variantSamples = (clone $variantQuery)->select([
-                'product_variants.id', 'product_variants.sku', 'product_variants.name', 'product_variant_spec_values.field_id',
-            ])->orderBy('product_variants.id')->limit($limit)->get();
-            $issues[] = $this->issue('orphan_variant_specifications', 'Zastarele ili nepovezane specifikacije varijanti', 'critical', $variantCount, 'Vrednost varijante mora pripadati aktivnom polju tipa proizvoda.', true, $this->rows($variantSamples));
-        }
 
         $storageCounts = $this->storage->integrityCounts();
         $storageProblems = array_sum($storageCounts);
@@ -398,7 +340,6 @@ final class DataQualityService
             'products_total' => 0,
             'products_active' => 0,
             'products_archived' => 0,
-            'variants_total' => 0,
             'images_total' => 0,
             'users_active' => 0,
         ];
@@ -407,9 +348,6 @@ final class DataQualityService
             $metrics['products_total'] = (int) DB::table('products')->count();
             $metrics['products_active'] = (int) DB::table('products')->whereNull('deleted_at')->where('status', 'active')->count();
             $metrics['products_archived'] = (int) DB::table('products')->whereNotNull('deleted_at')->count();
-        }
-        if (Schema::hasTable('product_variants')) {
-            $metrics['variants_total'] = (int) DB::table('product_variants')->whereNull('deleted_at')->count();
         }
         if (Schema::hasTable('product_images')) {
             $metrics['images_total'] = (int) DB::table('product_images')->count();
@@ -428,9 +366,9 @@ final class DataQualityService
         }
 
         $groups = DB::table('product_images')
-            ->select(['product_id', 'product_variant_id'])
+            ->select(['product_id'])
             ->selectRaw('SUM(CASE WHEN is_primary = 1 THEN 1 ELSE 0 END) AS primary_count')
-            ->groupBy('product_id', 'product_variant_id')
+            ->groupBy('product_id')
             ->havingRaw('SUM(CASE WHEN is_primary = 1 THEN 1 ELSE 0 END) <> 1')
             ->get();
         $fixed = 0;
@@ -438,12 +376,7 @@ final class DataQualityService
         foreach ($groups as $group) {
             DB::transaction(function () use ($group, &$fixed): void {
                 $base = DB::table('product_images')
-                    ->where('product_id', (int) $group->product_id)
-                    ->where(function ($query) use ($group): void {
-                        $group->product_variant_id === null
-                            ? $query->whereNull('product_variant_id')
-                            : $query->where('product_variant_id', (int) $group->product_variant_id);
-                    });
+                    ->where('product_id', (int) $group->product_id);
                 $chosenId = (clone $base)->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id')->value('id');
                 if ($chosenId === null) {
                     return;
@@ -457,50 +390,6 @@ final class DataQualityService
         return $fixed;
     }
 
-    private function normalizeDefaultVariants(): int
-    {
-        if (!Schema::hasTable('products') || !Schema::hasTable('product_variants') || !Schema::hasColumn('products', 'default_variant_id')) {
-            return 0;
-        }
-
-        $fixed = 0;
-        Product::query()
-            ->where('variants_enabled', true)
-            ->whereNull('deleted_at')
-            ->orderBy('id')
-            ->chunkById(100, function ($products) use (&$fixed): void {
-                foreach ($products as $product) {
-                    DB::transaction(function () use ($product, &$fixed): void {
-                        $variants = DB::table('product_variants')
-                            ->where('product_id', (int) $product->id)
-                            ->whereNull('deleted_at')
-                            ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
-                            ->orderByDesc('is_default')
-                            ->orderBy('sort_order')
-                            ->orderBy('id')
-                            ->get(['id', 'is_default']);
-                        if ($variants->isEmpty()) {
-                            if ($product->default_variant_id !== null) {
-                                DB::table('products')->where('id', (int) $product->id)->update(['default_variant_id' => null]);
-                                $fixed++;
-                            }
-                            return;
-                        }
-                        $chosen = $variants->firstWhere('id', (int) $product->default_variant_id) ?? $variants->first();
-                        $defaultCount = $variants->where('is_default', true)->count();
-                        if ((int) $product->default_variant_id === (int) $chosen->id && $defaultCount === 1 && (bool) $chosen->is_default) {
-                            return;
-                        }
-                        DB::table('product_variants')->where('product_id', (int) $product->id)->update(['is_default' => false]);
-                        DB::table('product_variants')->where('id', (int) $chosen->id)->update(['is_default' => true]);
-                        DB::table('products')->where('id', (int) $product->id)->update(['default_variant_id' => (int) $chosen->id]);
-                        $fixed++;
-                    }, 3);
-                }
-            });
-
-        return $fixed;
-    }
 
     /** @param array<int,object|array<string,mixed>>|Collection<int,object> $rows @return list<array<string,mixed>> */
     private function rows(array|Collection $rows): array

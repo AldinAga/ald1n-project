@@ -289,6 +289,12 @@ final class OrderPaymentService
 
     private function assertOrderOpen(Order $order, string $field): void
     {
+        if ((string) ($order->sales_channel ?? 'order') === 'direct_sale') {
+            throw ValidationException::withMessages([
+                $field => 'Direktna prodaja ima zaključan finansijski ledger. Refundacija se evidentira isključivo kroz odobrenu postprodajnu radnju.',
+            ]);
+        }
+
         if ($order->completed_at !== null) {
             throw ValidationException::withMessages([
                 $field => 'Porudžbina je kompletirana i finansijske stavke su zaključane.',

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 final class ProductWarranty extends Model
 {
     protected $fillable = [
-        'warranty_number', 'order_id', 'order_item_id', 'product_id', 'product_variant_id', 'user_id', 'warranty_rule_id',
+        'warranty_number', 'order_id', 'order_item_id', 'product_id', 'user_id', 'warranty_rule_id',
         'status', 'starts_at', 'expires_at', 'duration_months', 'duration_days', 'maintenance_interval_months',
         'last_maintenance_at', 'next_maintenance_at', 'customer_name_snapshot',
         'customer_address_snapshot', 'customer_city_snapshot', 'customer_postal_code_snapshot',
@@ -38,7 +38,6 @@ final class ProductWarranty extends Model
     public function order(): BelongsTo { return $this->belongsTo(Order::class); }
     public function orderItem(): BelongsTo { return $this->belongsTo(OrderItem::class); }
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
-    public function variant(): BelongsTo { return $this->belongsTo(ProductVariant::class, 'product_variant_id'); }
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function rule(): BelongsTo { return $this->belongsTo(WarrantyRule::class, 'warranty_rule_id'); }
     public function voidedBy(): BelongsTo { return $this->belongsTo(User::class, 'voided_by'); }

@@ -13,12 +13,11 @@ final class ProductImage extends Model
 {
     public $timestamps = false;
     protected $fillable = [
-        'product_id', 'product_variant_id', 'file_path', 'storage_disk', 'original_filename', 'mime_type', 'file_size',
+        'product_id', 'file_path', 'storage_disk', 'original_filename', 'mime_type', 'file_size',
         'file_hash', 'rotation_degrees', 'sort_order', 'is_primary', 'created_at',
     ];
     protected $casts = ['is_primary' => 'boolean', 'rotation_degrees' => 'integer', 'sort_order' => 'integer', 'created_at' => 'datetime'];
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
-    public function variant(): BelongsTo { return $this->belongsTo(ProductVariant::class, 'product_variant_id'); }
 
     public function getUrlAttribute(): ?string
     {

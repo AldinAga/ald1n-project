@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Cloudflare Turnstile')
 @section('content')
+@include('admin.settings.partials.context-nav', ['settingsSection' => 'Bezbednost'])
 <div class="page-heading">
     <div>
         <span class="eyebrow">Podešavanja bezbednosti</span>
@@ -9,7 +10,7 @@
     </div>
 </div>
 
-<form method="post" action="{{ route('admin.settings.turnstile.update') }}" class="admin-form-grid">
+<form method="post" action="{{ route('admin.settings.turnstile.update') }}" class="admin-form-grid settings-primary-form">
     @csrf
     @method('put')
     <div class="form-main">

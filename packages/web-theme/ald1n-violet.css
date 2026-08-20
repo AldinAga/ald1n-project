@@ -17,6 +17,7 @@ body[data-theme="light"] {
   --ald-border: #E0D9E9;
   --ald-outline: #7B7284;
   --ald-primary: #6D45E5;
+  --ald-on-primary: #FFFFFF;
   --ald-primary-strong: #4B2BAA;
   --ald-primary-container: #E9E1FF;
   --ald-on-primary-container: #251052;
@@ -25,6 +26,7 @@ body[data-theme="light"] {
   --ald-success: #168C63;
   --ald-warning: #B87312;
   --ald-danger: #C43D52;
+  --ald-on-danger: #FFFFFF;
   --ald-info: #2872C8;
 
   /* Laravel compatibility aliases */
@@ -62,6 +64,7 @@ body[data-theme="dark"] {
   --ald-border: #45384F;
   --ald-outline: #877691;
   --ald-primary: #A98CFF;
+  --ald-on-primary: #000000;
   --ald-primary-strong: #C4B2FF;
   --ald-primary-container: #38275A;
   --ald-on-primary-container: #F1E9FF;
@@ -70,6 +73,7 @@ body[data-theme="dark"] {
   --ald-success: #45C995;
   --ald-warning: #E2A84A;
   --ald-danger: #FF7585;
+  --ald-on-danger: #000000;
   --ald-info: #75B7FF;
 
   /* Laravel compatibility aliases */

@@ -37,6 +37,38 @@ final class SettingsService
         'site_logo_alt' => 'Ald1n CMS',
         'site_favicon_path' => '',
         'site_header_logo_height' => '38',
+        'login_background_mode' => 'default',
+        'login_background_image_path' => '',
+        'login_background_fallback_path' => '',
+        'login_background_youtube_id' => '',
+        'login_background_overlay_opacity' => '45',
+        'login_background_blur_px' => '0',
+        'login_background_slide_interval' => '6',
+        'login_background_mobile_static' => '1',
+        'login_background_slide_1_path' => '',
+        'login_background_slide_1_active' => '0',
+        'login_background_slide_1_order' => '10',
+        'login_background_slide_2_path' => '',
+        'login_background_slide_2_active' => '0',
+        'login_background_slide_2_order' => '20',
+        'login_background_slide_3_path' => '',
+        'login_background_slide_3_active' => '0',
+        'login_background_slide_3_order' => '30',
+        'login_background_slide_4_path' => '',
+        'login_background_slide_4_active' => '0',
+        'login_background_slide_4_order' => '40',
+        'login_background_slide_5_path' => '',
+        'login_background_slide_5_active' => '0',
+        'login_background_slide_5_order' => '50',
+        'login_background_slide_6_path' => '',
+        'login_background_slide_6_active' => '0',
+        'login_background_slide_6_order' => '60',
+        'login_background_slide_7_path' => '',
+        'login_background_slide_7_active' => '0',
+        'login_background_slide_7_order' => '70',
+        'login_background_slide_8_path' => '',
+        'login_background_slide_8_active' => '0',
+        'login_background_slide_8_order' => '80',
         'site_footer_show_logo' => '0',
         'site_footer_copyright_text' => '© {year} {site_name}',
         'site_footer_secondary_text' => '',
@@ -121,6 +153,24 @@ final class SettingsService
         $merged['site_footer_show_logo'] = $merged['site_footer_show_logo'] === '1' ? '1' : '0';
         $merged['site_footer_links_new_tab'] = $merged['site_footer_links_new_tab'] === '1' ? '1' : '0';
         $merged['site_footer_layout'] = in_array($merged['site_footer_layout'], ['split', 'centered'], true) ? $merged['site_footer_layout'] : 'split';
+        $merged['login_background_mode'] = in_array($merged['login_background_mode'], ['default', 'image', 'slideshow', 'youtube'], true) ? $merged['login_background_mode'] : 'default';
+        $merged['login_background_overlay_opacity'] = (string) max(0, min(90, (int) $merged['login_background_overlay_opacity']));
+        $merged['login_background_blur_px'] = (string) max(0, min(10, (int) $merged['login_background_blur_px']));
+        $merged['login_background_slide_interval'] = (string) max(3, min(30, (int) $merged['login_background_slide_interval']));
+        $merged['login_background_mobile_static'] = $merged['login_background_mobile_static'] === '1' ? '1' : '0';
+        $merged['login_background_youtube_id'] = preg_match('/^[A-Za-z0-9_-]{11}$/', trim((string) $merged['login_background_youtube_id'])) === 1 ? trim((string) $merged['login_background_youtube_id']) : '';
+        $activeLoginSlides = 0;
+        for ($slot = 1; $slot <= 8; $slot++) {
+            $pathKey = 'login_background_slide_'.$slot.'_path';
+            $activeKey = 'login_background_slide_'.$slot.'_active';
+            $orderKey = 'login_background_slide_'.$slot.'_order';
+            $merged[$activeKey] = $merged[$activeKey] === '1' && trim((string) $merged[$pathKey]) !== '' ? '1' : '0';
+            $merged[$orderKey] = (string) max(1, min(99, (int) $merged[$orderKey]));
+            if ($merged[$activeKey] === '1') $activeLoginSlides++;
+        }
+        if ($merged['login_background_mode'] === 'image' && trim((string) $merged['login_background_image_path']) === '') $merged['login_background_mode'] = 'default';
+        if ($merged['login_background_mode'] === 'slideshow' && $activeLoginSlides === 0) $merged['login_background_mode'] = 'default';
+        if ($merged['login_background_mode'] === 'youtube' && $merged['login_background_youtube_id'] === '') $merged['login_background_mode'] = 'default';
 
         return $merged;
     }

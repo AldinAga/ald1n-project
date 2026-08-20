@@ -16,6 +16,7 @@ use Throwable;
 
 final class OrderDetailPresenter
 {
+    public function __construct(private readonly CourierDirectoryService $courierDirectory) {}
     /**
      * @param Collection<int,array<string,mixed>> $timeline
      * @param Collection<int,User> $suppliers
@@ -35,6 +36,7 @@ final class OrderDetailPresenter
         $sourceSystem = $detail['order']['source_system'];
         $status = $detail['order']['status'];
         $isCompleted = (bool) ($detail['order']['is_completed'] ?? false);
+        $isDirectSale = (bool) ($detail['order']['is_direct_sale'] ?? false);
         $currentSupplierId = $this->integer($order, 'supplier_user_id');
 
         $detail['mode'] = 'admin';
@@ -46,41 +48,58 @@ final class OrderDetailPresenter
             'confirm_delivery' => $this->allows($actor, 'orders.confirm_delivery'),
             'reopen' => $actor->hasRole('superadmin') && $this->allows($actor, 'orders.reopen'),
             'after_sales_manage' => $this->allows($actor, 'after_sales.manage'),
+            'archive' => $this->allows($actor, 'orders.manage'),
+            'courier_settings' => $actor->hasRole('superadmin') && $this->allows($actor, 'system.manage_settings'),
         ];
         $detail['urls'] = array_replace($detail['urls'], [
             'back' => $this->route('admin.orders.index'),
             'accept' => $this->route('admin.orders.accept', ['order' => $id]),
             'confirmation' => $this->route('orders.documents.confirmation', ['order' => $id]),
             'document_store' => $this->route('admin.orders.documents.store', ['order' => $id]),
-            'commission' => $this->route('admin.commissions.index', ['q' => $detail['order']['order_number']]),
+            'commission' => $isDirectSale ? null : $this->route('admin.commissions.index', ['q' => $detail['order']['order_number']]),
             'reassign' => $this->route('admin.orders.reassign', ['order' => $id]),
             'internal_note' => $this->route('admin.orders.notes.store', ['order' => $id]),
             'deadlines' => $this->route('admin.orders.deadlines', ['order' => $id]),
             'tracking' => $this->route('admin.orders.tracking', ['order' => $id]),
+            'shipment_store' => $this->route('admin.orders.shipment.store', ['order' => $id]),
+            'shipment_proof' => $this->route('orders.shipment.proof', ['order' => $id]),
+            'courier_settings' => $this->route('admin.settings.couriers.index'),
+            'invoice_pdf' => $this->route('admin.orders.invoice.pdf', ['order' => $id]),
             'status' => $this->route('admin.orders.status', ['order' => $id]),
             'complete' => $this->route('admin.orders.complete', ['order' => $id]),
             'reopen' => $this->route('admin.orders.reopen', ['order' => $id]),
+            'archive' => $this->route('admin.orders.archive', ['order' => $id]),
             'delivery_proof' => $this->route('orders.delivery.proof', ['order' => $id]),
             'payment_store' => $this->route('admin.orders.payments.store', ['order' => $id]),
             'after_sales' => $this->route('admin.after-sales.index', ['q' => $detail['order']['order_number']]),
         ]);
         $detail['actions'] = [
             'accept' => !$isCompleted
+                && !$isDirectSale
                 && $sourceSystem === 'laravel'
                 && $detail['order']['accepted_at'] === null
                 && !in_array($status, ['shipped', 'cancelled'], true)
                 && $detail['urls']['accept'] !== null,
             'reassign' => !$isCompleted
+                && !$isDirectSale
                 && $detail['permissions']['reassign']
                 && $sourceSystem === 'laravel'
                 && $detail['urls']['reassign'] !== null,
             'complete' => !$isCompleted
+                && !$isDirectSale
                 && $detail['permissions']['confirm_delivery']
                 && in_array($status, ['confirmed', 'shipped'], true)
                 && $detail['urls']['complete'] !== null,
             'reopen' => $isCompleted
+                && !$isDirectSale
                 && $detail['permissions']['reopen']
                 && $detail['urls']['reopen'] !== null,
+            'shipment' => !$isCompleted
+                && !$isDirectSale
+                && $sourceSystem === 'laravel'
+                && in_array($status, ['confirmed', 'shipped'], true)
+                && $detail['shipment'] === null
+                && $detail['urls']['shipment_store'] !== null,
         ];
 
         $detail['suppliers'] = $suppliers
@@ -95,6 +114,13 @@ final class OrderDetailPresenter
             })
             ->values()
             ->all();
+
+        $detail['couriers'] = $this->courierDirectory->active()->map(static fn ($courier): array => [
+            'id' => (int) $courier->id,
+            'name' => (string) $courier->name,
+            'tracking_url' => (string) $courier->tracking_url,
+            'is_default' => (bool) $courier->is_default,
+        ])->values()->all();
 
         $detail['documents'] = array_map(function (array $document) use ($id, $detail): array {
             $documentId = (int) $document['id'];
@@ -144,6 +170,7 @@ final class OrderDetailPresenter
         $id = $detail['order']['id'];
         $status = $detail['order']['status'];
         $paymentState = $detail['order']['payment_state'];
+        $isDirectSale = (bool) ($detail['order']['is_direct_sale'] ?? false);
 
         $detail['mode'] = 'user';
         $detail['permissions'] = [
@@ -155,10 +182,11 @@ final class OrderDetailPresenter
         $detail['urls'] = array_replace($detail['urls'], [
             'back' => $this->route('orders.index'),
             'confirmation' => $this->route('orders.documents.confirmation', ['order' => $id]),
-            'commission' => $this->route('commissions.index'),
+            'commission' => $isDirectSale ? null : $this->route('commissions.index'),
             'payment_proof_store' => $this->route('orders.payments.proof.store', ['order' => $id]),
             'cancel' => $this->route('orders.cancel', ['order' => $id]),
             'delivery_proof' => $this->route('orders.delivery.proof', ['order' => $id]),
+            'shipment_proof' => $this->route('orders.shipment.proof', ['order' => $id]),
             'after_sales_create' => $this->route('after-sales.create', ['order' => $id]),
         ]);
         $detail['actions'] = [
@@ -168,6 +196,7 @@ final class OrderDetailPresenter
                 && !in_array($paymentState, ['paid', 'overpaid'], true)
                 && $detail['urls']['payment_proof_store'] !== null,
             'cancel' => $detail['permissions']['cancel_order']
+                && !$isDirectSale
                 && $detail['order']['source_system'] === 'laravel'
                 && in_array($status, ['new', 'processing'], true)
                 && $detail['urls']['cancel'] !== null,
@@ -205,6 +234,8 @@ final class OrderDetailPresenter
     {
         $id = (int) $order->getKey();
         $status = $this->text($order, 'status', 'new');
+        $salesChannel = $this->text($order, 'sales_channel', 'order');
+        $isDirectSale = $salesChannel === 'direct_sale';
         $paymentState = $this->text($order, 'payment_state', $this->text($order, 'payment_status', 'unpaid'));
         $subtotal = $this->number($order, 'subtotal_rsd');
         $paid = $this->number($order, 'paid_total_rsd');
@@ -216,11 +247,14 @@ final class OrderDetailPresenter
         $completedBy = $this->relation($order, 'completedBy');
         $reopenedBy = $this->relation($order, 'reopenedBy');
         $delivery = $this->relation($order, 'delivery');
+        $shipment = $this->relation($order, 'shipment');
         $commission = $this->relation($order, 'commission');
         $receivable = $this->relation($order, 'receivableCase');
 
         $supplierName = $this->text($order, 'supplier_name_snapshot');
-        if ($supplierName === '') {
+        if ($isDirectSale) {
+            $supplierName = 'Direktna prodaja';
+        } elseif ($supplierName === '') {
             $supplierName = $this->userName($supplier instanceof User ? $supplier : null, 'Nije dodeljeno');
         }
 
@@ -247,6 +281,8 @@ final class OrderDetailPresenter
                 'id' => $id,
                 'order_number' => $this->text($order, 'order_number', 'Porudžbina #'.$id),
                 'source_system' => $this->text($order, 'source_system', 'laravel'),
+                'sales_channel' => $salesChannel,
+                'is_direct_sale' => $isDirectSale,
                 'status' => $status,
                 'status_label' => $isCompleted ? 'Kompletirana' : $this->statusLabel($status),
                 'status_class' => $isCompleted ? 'completed' : $this->statusClass($status),
@@ -292,6 +328,7 @@ final class OrderDetailPresenter
             ],
             'items' => $this->items($order),
             'delivery' => $this->delivery($delivery),
+            'shipment' => $this->shipment($shipment),
             'documents' => $this->documents($order),
             'payments' => $this->payments($order),
             'commission' => $this->commission($commission),
@@ -306,8 +343,10 @@ final class OrderDetailPresenter
             'permissions' => [],
             'actions' => [],
             'suppliers' => [],
+            'couriers' => [],
             'form_defaults' => [
                 'paid_at' => now()->format('Y-m-d\TH:i'),
+                'shipped_at' => now()->format('Y-m-d\TH:i'),
                 'delivered_at' => now()->format('Y-m-d\TH:i'),
                 'recipient_name' => $this->text($order, 'shipping_full_name', 'Kupac'),
                 'recipient_phone' => $this->text($order, 'shipping_phone'),
@@ -341,6 +380,33 @@ final class OrderDetailPresenter
         ];
     }
 
+    /** @return array<string,mixed>|null */
+    private function shipment(mixed $shipment): ?array
+    {
+        if (!$shipment instanceof Model) return null;
+        $courier = $this->relation($shipment, 'courier');
+        $recorder = $this->relation($shipment, 'recorder');
+        $method = $this->text($shipment, 'shipment_method', 'other');
+        $courierName = $this->text($shipment, 'courier_name_snapshot');
+        if ($courierName === '' && $courier instanceof Model) $courierName = $this->text($courier, 'name');
+        $trackingUrl = $this->text($shipment, 'courier_tracking_url_snapshot');
+        if ($trackingUrl === '' && $courier instanceof Model) $trackingUrl = $this->text($courier, 'tracking_url');
+        return [
+            'id' => (int) $shipment->getKey(),
+            'shipment_method' => $method,
+            'shipment_method_label' => $this->shipmentMethodLabel($method),
+            'courier_name' => $courierName !== '' ? $courierName : '—',
+            'tracking_url' => $trackingUrl !== '' ? $trackingUrl : null,
+            'shipped_at' => $this->date($shipment, 'shipped_at'),
+            'recipient_name' => $this->text($shipment, 'recipient_name', 'Kupac'),
+            'recipient_phone' => $this->text($shipment, 'recipient_phone', '—'),
+            'tracking_number' => $this->text($shipment, 'tracking_number_snapshot', '—'),
+            'note' => $this->text($shipment, 'note', '—'),
+            'recorded_by' => $this->userName($recorder instanceof User ? $recorder : null, 'Administrator'),
+            'has_proof' => $this->text($shipment, 'proof_path') !== '',
+            'proof_original_name' => $this->text($shipment, 'proof_original_name', 'Dokaz slanja'),
+        ];
+    }
     /** @return array<string,mixed>|null */
     private function delivery(mixed $delivery): ?array
     {
@@ -378,14 +444,9 @@ final class OrderDetailPresenter
                 $line = $this->number($item, 'line_total_rsd', $unit * $quantity);
                 $commission = $this->number($item, 'commission_total_eur_snapshot');
 
-                $variantName = $this->text($item, 'variant_name_snapshot');
-                $variantSku = $this->text($item, 'variant_sku_snapshot');
-                $attributes = $item->getAttribute('variant_attributes_json');
                 return [
-                    'name' => $this->text($item, 'product_name', 'Nepoznat artikal').($variantName !== '' ? ' — '.$variantName : ''),
-                    'sku' => $variantSku !== '' ? $variantSku : $this->text($item, 'product_sku', '—'),
-                    'variant_name' => $variantName,
-                    'variant_attributes' => is_array($attributes) ? $attributes : [],
+                    'name' => $this->text($item, 'product_name', 'Nepoznat artikal'),
+                    'sku' => $this->text($item, 'product_sku', '—'),
                     'quantity' => $quantity,
                     'unit_price' => $this->money($unit, 'RSD'),
                     'line_total' => $this->money($line, 'RSD'),
@@ -687,6 +748,15 @@ final class OrderDetailPresenter
             'shipped' => 'active',
             default => 'draft',
         };
+    }
+
+    private function shipmentMethodLabel(string $method): string
+    {
+        return [
+            'courier' => 'Kurirska služba',
+            'own_transport' => 'Sopstveni prevoz',
+            'other' => 'Drugo',
+        ][$method] ?? $method;
     }
 
     private function deliveryMethodLabel(string $method): string

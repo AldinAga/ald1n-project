@@ -1,22 +1,43 @@
-import type { PropsWithChildren } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radii, shadow, spacing } from '@/constants/theme';
+import type {
+  ComponentProps,
+  PropsWithChildren,
+} from 'react';
+import { YStack } from 'tamagui';
 
-export function Card({ children, style, muted = false }: PropsWithChildren<{ style?: StyleProp<ViewStyle>; muted?: boolean }>) {
-  return <View style={[styles.card, muted && styles.muted, style]}>{children}</View>;
+import {
+  radii,
+  spacing,
+} from '@/constants/theme';
+
+type TamaguiCardProps =
+  ComponentProps<typeof YStack>;
+
+export type CardProps = PropsWithChildren<{
+  style?: TamaguiCardProps['style'];
+  muted?: boolean;
+}>;
+
+export function Card({
+  children,
+  style,
+  muted = false,
+}: CardProps) {
+  return (
+    <YStack
+      backgroundColor={
+        muted ? '$surfaceContainer' : '$surface'
+      }
+      borderRadius={radii.xl}
+      padding={spacing.lg}
+      transition="200ms"
+      boxShadow={
+        muted
+          ? undefined
+          : '0px 10px 22px $shadow1'
+      }
+      style={style}
+    >
+      {children}
+    </YStack>
+  );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 0,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    ...shadow
-  },
-  muted: {
-    backgroundColor: colors.surfaceContainer,
-    shadowOpacity: 0,
-    elevation: 0
-  }
-});
