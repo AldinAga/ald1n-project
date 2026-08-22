@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AutomationController;
 use App\Http\Controllers\Admin\BankAccountController;
 use App\Http\Controllers\Admin\CatalogDictionaryController;
+use App\Http\Controllers\Admin\BrandManagerController;
 use App\Http\Controllers\Admin\CommissionController;
 use App\Http\Controllers\Admin\CustomerPortalController as AdminCustomerPortalController;
 use App\Http\Controllers\Admin\DataQualityController;
@@ -239,6 +240,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/data-quality/export', [DataQualityController::class, 'export'])->name('data-quality.export');
         });
         Route::middleware('permission:catalog.manage_taxonomy')->group(function (): void {
+            // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+            Route::get('/catalog-settings/brands', [BrandManagerController::class, 'index'])->name('brand-manager.index');
+            Route::post('/catalog-settings/brands', [BrandManagerController::class, 'store'])->middleware('throttle:admin-write')->name('brand-manager.store');
+            Route::put('/catalog-settings/brands/{brand}', [BrandManagerController::class, 'update'])->whereNumber('brand')->middleware('throttle:admin-write')->name('brand-manager.update');
             Route::get('/catalog-settings/product-type/{productType:slug}', [CatalogDictionaryController::class, 'productType'])->name('dictionary.product-type');
             Route::patch('/catalog-settings/product-type/{productType:slug}/fields/reorder', [CatalogDictionaryController::class, 'reorderTypeFields'])->name('dictionary.product-type.fields.reorder');
             Route::patch('/catalog-settings/{resource}/reorder', [CatalogDictionaryController::class, 'reorder'])->where('resource', 'categories|brands|product-lines|product-types|specification-fields')->name('dictionary.reorder');

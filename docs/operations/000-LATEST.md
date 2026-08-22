@@ -1,22 +1,42 @@
-# 000 - LATEST ALD1N PROJECT STATE
+# 000-LATEST
 
-Updated: 2026-08-20T15:54:57+02:00
+- Current version: `0.8.0`
+- Mandatory extension parity: `50%` (`7/14`)
+- Latest PASS: `Shared Product Image Manager - Batch 9 V2`
+- Latest report: `029-MOBILE-V0.8.0-SHARED-PRODUCT-IMAGE-MANAGER-BATCH9-V2-20260821-100727.md`
+- Product List/Edit/Archive/Restore: `PASS`
+- Shared Product Image Manager: `PASS`
+- GitHub checkpoint: `DEFERRED - milestone-only policy`
+- EAS build: `NOT RUN`
+- Next action: `SuperAdmin Evidentiraj prodaju / Direct Sale`
+- Next numbered artifact: `030`
 
-- Current development version: v0.8.0
-- Implementation progress: 100% source/runtime certified
-- Release metadata: LOCKED to 0.8.0
-- Expo SDK 57 compatibility matrix: PASS
-- Prior 008 accidental home npm contamination: QUARANTINED REVERSIBLY
-- Home cleanup deletion: NO; artifacts moved outside project/webroot
-- Quarantine path: /home/icaffeco/backups/releases/prior-008-home-npm-quarantine-20260820-155427
-- Latest cleanup report: /home/icaffeco/ald1n-project/docs/operations/012-ALD1N-HOME-NPM-CONTAMINATION-REVERSIBLE-QUARANTINE-20260820-155427.md
-- Latest release-readiness PASS: 010 Expo compatibility refresh + metadata lock V3
-- EAS build used by cleanup: NO
-- Final EAS slot: PRESERVED
-- Next action: explicit final v0.8 Android production EAS build/device gate
+## v0.8 mandatory extension - Batch 10 V3 Direct Sale PASS (20260821-110022)
+- SuperAdmin Evidentiraj prodaju direktno sa artikla: PASS
+- DirectSaleService reuse + stable idempotency: PASS
+- Mandatory extension parity: 9/14 = 64%
+- Next artifact: 038
+- Next action: Shipment UI + central Courier Directory
 
-## File numbering rule
+## v0.8 mandatory extension - Batch 11 V2 Shipment + Courier Directory PASS (20260821-122208)
+- Shipment UI + central Courier Directory: PASS
+- Central Laravel OrderShipmentService/CourierDirectoryService authority preserved: PASS
+- Mandatory extension parity: 10/14 = 71%
+- Next artifact: 042
+- Next action: Complete User Management
 
-New generated Ald1n files use a global three-digit prefix.
-000-LATEST.md is the stable pointer to the current state.
-The next generated numbered file starts from 013-....
+## v0.8 mandatory extension - Batch 12 Complete User Management PASS (20260821-135325)
+- Complete User Management: PASS
+- Shared Laravel AdminUserRequest/AdminUserService authority: PASS
+- Password token revoke and last active SuperAdmin guard: PASS
+- Mandatory extension parity: 12/14 = 86%
+- Next artifact: 044
+- Next action: EUR/RSD Exchange Rate settings, manual/automatic mode and Refresh/Sync
+
+## v0.8 mandatory extension - Batch 13 EUR/RSD Exchange Rate PASS (20260821-144459)
+- EUR/RSD Exchange Rate: PASS
+- Manual / Automatic / stale_after_hours / Refresh-Sync / History: PASS
+- Central ExchangeRateService authority: PASS
+- Mandatory extension parity: 14/14 = 100%
+- Next artifact: 048
+- Next action: final v0.8 release certification and single Android production EAS build gate

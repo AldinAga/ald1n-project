@@ -96,6 +96,27 @@ final class OrderPaymentService
                 throw ValidationException::withMessages(['amount_rsd' => 'Uplata se ne može evidentirati za otkazanu porudžbinu.']);
             }
             $type = (string) ($data['entry_type'] ?? 'payment');
+            // MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
+            if ($this->isDeferredDirectSale($locked)) {
+                if ($type !== 'payment') {
+                    throw ValidationException::withMessages([
+                        'entry_type' => 'Refundacija direktne prodaje vodi se isključivo kroz odobrenu postprodajnu radnju.',
+                    ]);
+                }
+                $remaining = round(max(0, (float) $locked->subtotal_rsd - (float) $locked->paid_total_rsd), 2);
+                $amount = round((float) ($data['amount_rsd'] ?? 0), 2);
+                if ($amount <= 0) {
+                    throw ValidationException::withMessages(['amount_rsd' => 'Iznos uplate mora biti veći od nule.']);
+                }
+                if ($remaining <= 0.004) {
+                    throw ValidationException::withMessages(['amount_rsd' => 'Odloženo plaćanje je već u celosti izmireno.']);
+                }
+                if ($amount > $remaining + 0.004) {
+                    throw ValidationException::withMessages([
+                        'amount_rsd' => 'Uplata ne može biti veća od preostalog duga '.number_format($remaining, 2, ',', '.').' RSD.',
+                    ]);
+                }
+            }
             $payment = OrderPayment::query()->create([
                 'order_id' => $locked->id,
                 'payment_number' => $this->numbers->next($type === 'refund' ? 'refund' : 'payment', (int) now()->format('Y')),
@@ -287,15 +308,24 @@ final class OrderPaymentService
         $this->ips->persist($order->fresh());
     }
 
+    private function isDeferredDirectSale(Order $order): bool
+    {
+        return (string) ($order->sales_channel ?? 'order') === 'direct_sale'
+            && (string) $order->payment_method === 'deferred_payment';
+    }
+
     private function assertOrderOpen(Order $order, string $field): void
     {
-        if ((string) ($order->sales_channel ?? 'order') === 'direct_sale') {
+        $deferredDirectSale = $this->isDeferredDirectSale($order);
+        if ((string) ($order->sales_channel ?? 'order') === 'direct_sale' && !$deferredDirectSale) {
             throw ValidationException::withMessages([
                 $field => 'Direktna prodaja ima zaključan finansijski ledger. Refundacija se evidentira isključivo kroz odobrenu postprodajnu radnju.',
             ]);
         }
 
-        if ($order->completed_at !== null) {
+        // Deferred Direct Sale is physically completed/delivered while its receivable stays open.
+        // Payment record/verify/void lifecycle is therefore allowed; generic refunds remain blocked above.
+        if ($order->completed_at !== null && !$deferredDirectSale) {
             throw ValidationException::withMessages([
                 $field => 'Porudžbina je kompletirana i finansijske stavke su zaključane.',
             ]);

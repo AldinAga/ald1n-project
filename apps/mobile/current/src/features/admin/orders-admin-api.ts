@@ -168,6 +168,7 @@ export type AdminOrderPaymentEntryInput = {
   note?: string | null;
 };
 
+// MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
 export type AdminOrderShipmentInput = {
   shipment_method: AdminOrderShipmentMethod;
   courier_service_id?: number | null;

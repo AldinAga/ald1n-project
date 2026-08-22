@@ -111,7 +111,9 @@ export function ProductCard({
                 : 'Cena po dozvoli'}
             </Text>
 
-            <Text style={styles.sku}>
+                        {/* MOBILE_V0_9_CATALOG_COMMISSION_BATCH5A */}
+            <Text style={styles.sku}>Provizija: {product.commission_eur.toFixed(2)} EUR</Text>
+<Text style={styles.sku}>
               {product.sku}
             </Text>
           </View>

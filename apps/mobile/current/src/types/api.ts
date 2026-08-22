@@ -821,7 +821,42 @@ export type AdminProductImageUploadFile = {
   size: number;
 };
 
-export type AdminProductImageUploadResponse = {
+// MOBILE_V0_8_SHARED_PRODUCT_IMAGE_MANAGER_BATCH9
+export type AdminProductManagedImage = {
+  id: number;
+  url: string | null;
+  download_url: string | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  storage_disk: string;
+  rotation_degrees: number;
+  sort_order: number;
+  is_primary: boolean;
+  can_delete: boolean;
+};
+
+export type AdminProductImageCollectionResponse = {
+  message?: string;
+  data: AdminProductManagedImage[];
+  capabilities: {
+    primary: boolean;
+    rotate: boolean;
+    reorder: boolean;
+    delete_public: boolean;
+    legacy_copy_on_write: boolean;
+  };
+  image_limits: AdminProductImageLimits;
+};
+
+export type AdminProductImageMutationResponse = AdminProductImageCollectionResponse & {
+  message: string;
+};
+
+export type AdminProductImageUploadResponse = AdminProductImageCollectionResponse & {
   message: string;
   uploaded_count: number;
+  skipped_duplicate_count: number;
+  skipped_input_indexes: number[];
+  uploaded_images: AdminProductManagedImage[];
 };

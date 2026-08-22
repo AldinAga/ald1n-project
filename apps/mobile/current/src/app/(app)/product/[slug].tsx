@@ -18,6 +18,9 @@ import { api } from '@/lib/api/endpoints';
 import { formatMoney } from '@/lib/formatters';
 
 export default function ProductDetailScreen() {
+  const productAdminAuth = useAuth();
+  const isSuperAdminProductView = productAdminAuth.bootstrap?.user.role?.slug === 'superadmin';
+  const canManageProductFromDetail = productAdminAuth.can('catalog.manage_products');
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
@@ -128,7 +131,33 @@ export default function ProductDetailScreen() {
           <Button onPress={addToCart} disabled={!canAdd}>Dodaj u korpu{canAdd ? ` · ${quantity} kom.` : ''}</Button>
         </Card>
       ) : <Button disabled>Kreiranje porudžbine nije dostupno za ovaj nalog</Button>}
-    </Screen>
+          {/* MOBILE_V0_9_PRODUCT_DETAIL_COMMISSION_DIRECT_SALE_BATCH5A */}
+      <Card style={styles.commissionCardV09}>
+        <Text style={styles.label}>Provizija</Text>
+        <Text style={styles.commissionValueV09}>{product.commission_eur.toFixed(2)} EUR</Text>
+        <Text style={styles.description}>Server obračun provizije za jedan komad artikla.</Text>
+      </Card>
+
+      <View style={styles.productAdminActionsV09}>
+        {isSuperAdminProductView ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/admin/catalog/[id]/direct-sale', params: { id: String(product.id) } })}
+            style={({ pressed }) => [styles.productAdminActionV09, styles.productAdminActionPrimaryV09, pressed && styles.copyDescriptionButtonPressed]}
+          >
+            <Text style={styles.productAdminActionPrimaryTextV09}>Direktna prodaja</Text>
+          </Pressable>
+        ) : null}
+
+        {canManageProductFromDetail ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/admin/catalog/[id]', params: { id: String(product.id) } })}
+            style={({ pressed }) => [styles.productAdminActionV09, pressed && styles.copyDescriptionButtonPressed]}
+          >
+            <Text style={styles.productAdminActionTextV09}>Uredi artikal</Text>
+          </Pressable>
+        ) : null}
+      </View>
+</Screen>
   );
 }
 
@@ -166,5 +195,13 @@ function createStyles(theme: AppColors) {
   stepText: { fontSize: 20, lineHeight: 23, color: theme.primaryDark, fontWeight: '800' },
   quantity: { minWidth: 42, textAlign: 'center', ...typography.label, color: theme.ink },
   disabled: { opacity: 0.35 }
+,
+  commissionCardV09: { gap: spacing.xs },
+  commissionValueV09: { ...typography.h2, color: theme.primaryDark },
+  productAdminActionsV09: { gap: spacing.sm, marginTop: spacing.sm },
+  productAdminActionV09: { minHeight: 52, borderRadius: radii.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  productAdminActionPrimaryV09: { backgroundColor: theme.primary, borderColor: theme.primary },
+  productAdminActionTextV09: { ...typography.label, color: theme.primary },
+  productAdminActionPrimaryTextV09: { ...typography.label, color: theme.onPrimary },
 });
 }

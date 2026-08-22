@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\Admin\CatalogProductController as AdminCatalogProductController;
+use App\Http\Controllers\Api\V1\Admin\CatalogBrandController as AdminCatalogBrandController;
 use App\Http\Controllers\Api\V1\Admin\FoundationController as AdminFoundationController;
 use App\Http\Controllers\Api\V1\Admin\CommissionController as AdminCommissionController;
 use App\Http\Controllers\Api\V1\Admin\WarrantyController as AdminWarrantyController;
@@ -17,9 +18,12 @@ use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Api\V1\Admin\ReportScheduleController as AdminReportScheduleController;
 use App\Http\Controllers\Api\V1\Admin\SystemHealthController as AdminSystemHealthController;
 use App\Http\Controllers\Api\V1\Admin\AuditEventController as AdminAuditEventController;
+use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\V1\Admin\ExchangeRateController as AdminExchangeRateController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\OrderMutationController as AdminOrderMutationController;
 use App\Http\Controllers\Api\V1\Admin\OrderShipmentController as AdminOrderShipmentController;
+use App\Http\Controllers\Api\V1\Admin\CourierServiceController as AdminCourierServiceController;
 use App\Http\Controllers\Api\V1\Admin\AfterSalesActionController as AdminAfterSalesActionController;
 use App\Http\Controllers\Api\V1\Admin\AfterSalesAttachmentController as AdminAfterSalesAttachmentController;
 use App\Http\Controllers\Api\V1\Admin\AfterSalesController as AdminAfterSalesController;
@@ -94,6 +98,26 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::middleware('permission:security.view')->group(function (): void {
                     Route::get('/audit-events', [AdminAuditEventController::class, 'index'])->name('audit-events.index');
                     Route::get('/audit-events/{event}', [AdminAuditEventController::class, 'show'])->whereNumber('event')->name('audit-events.show');
+                });
+                // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
+                Route::get('/couriers', [AdminCourierServiceController::class, 'index'])->name('couriers.index');
+                Route::post('/couriers', [AdminCourierServiceController::class, 'store'])->middleware('throttle:admin-write')->name('couriers.store');
+                Route::put('/couriers/{courier}', [AdminCourierServiceController::class, 'update'])->whereNumber('courier')->middleware('throttle:admin-write')->name('couriers.update');
+
+                // MOBILE_V0_8_COMPLETE_USER_MANAGEMENT_BATCH12
+                // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
+                Route::middleware('permission:system.manage_settings')->group(function (): void {
+                    Route::get('/exchange-rate', [AdminExchangeRateController::class, 'index'])->name('exchange-rate.index');
+                    Route::put('/exchange-rate/manual', [AdminExchangeRateController::class, 'manual'])->middleware('throttle:admin-write')->name('exchange-rate.manual');
+                    Route::put('/exchange-rate/automatic', [AdminExchangeRateController::class, 'automatic'])->middleware('throttle:admin-write')->name('exchange-rate.automatic');
+                    Route::post('/exchange-rate/refresh', [AdminExchangeRateController::class, 'refresh'])->middleware('throttle:admin-write')->name('exchange-rate.refresh');
+                });
+                Route::middleware('permission:system.manage_users')->group(function (): void {
+                    Route::get('/users/options', [AdminUserController::class, 'options'])->name('users.options');
+                    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+                    Route::post('/users', [AdminUserController::class, 'store'])->middleware('throttle:admin-write')->name('users.store');
+                    Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->name('users.show');
+                    Route::put('/users/{user}', [AdminUserController::class, 'update'])->whereNumber('user')->middleware('throttle:admin-write')->name('users.update');
                 });
                 Route::middleware('permission:orders.manage')->group(function (): void {
                     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
@@ -219,16 +243,67 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                         ->whereNumber('case')->whereNumber('action')->name('actions.cancel');
                 });
             });
+        // MOBILE_V0_8_PRODUCT_EDIT_ARCHIVE_RESTORE_BATCH8
+        // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+        Route::prefix('admin/catalog/brands')
+            ->middleware('permission:catalog.manage_taxonomy')
+            ->name('admin.catalog.brands.')
+            ->group(function (): void {
+                Route::get('/', [AdminCatalogBrandController::class, 'index'])->name('index');
+                Route::get('/options', [AdminCatalogBrandController::class, 'options'])->name('options');
+                Route::post('/', [AdminCatalogBrandController::class, 'store'])->middleware('throttle:admin-write')->name('store');
+                Route::put('/{brand}', [AdminCatalogBrandController::class, 'update'])->whereNumber('brand')->middleware('throttle:admin-write')->name('update');
+            });
+
         Route::prefix('admin/catalog')
             ->middleware('permission:catalog.manage_products')
             ->name('admin.catalog.')
             ->group(function (): void {
                 Route::get('/options', [AdminCatalogProductController::class, 'options'])->name('options');
+                Route::get('/products', [AdminCatalogProductController::class, 'index'])->name('products.index');
+                Route::get('/products/archived', [AdminCatalogProductController::class, 'archived'])->name('products.archived');
                 Route::post('/products', [AdminCatalogProductController::class, 'store'])->name('products.store');
-        Route::post('/products/{product}/images', [AdminCatalogProductController::class, 'images'])
-            ->whereNumber('product')
-            ->middleware(['permission:catalog.manage_images', 'throttle:uploads'])
-            ->name('products.images.store');
+                Route::get('/products/{product}', [AdminCatalogProductController::class, 'show'])
+                    ->whereNumber('product')->name('products.show');
+                Route::put('/products/{product}', [AdminCatalogProductController::class, 'update'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.update');
+                Route::post('/products/{product}/archive', [AdminCatalogProductController::class, 'archive'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.archive');
+                Route::post('/products/{product}/restore', [AdminCatalogProductController::class, 'restore'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.restore');
+                // MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
+                Route::get('/products/{product}/direct-sale/options', [AdminCatalogProductController::class, 'directSaleOptions'])
+                    ->whereNumber('product')
+                    ->name('products.direct-sale.options');
+                Route::post('/products/{product}/direct-sale', [AdminCatalogProductController::class, 'directSale'])
+                    ->whereNumber('product')
+                    ->middleware('throttle:admin-write')
+                    ->name('products.direct-sale.store');
+                // MOBILE_V0_8_SHARED_PRODUCT_IMAGE_MANAGER_BATCH9
+                Route::get('/products/{product}/images', [AdminCatalogProductController::class, 'imageIndex'])
+                    ->whereNumber('product')
+                    ->middleware('permission:catalog.manage_images')
+                    ->name('products.images.index');
+                Route::post('/products/{product}/images', [AdminCatalogProductController::class, 'images'])
+                    ->whereNumber('product')
+                    ->middleware(['permission:catalog.manage_images', 'throttle:uploads'])
+                    ->name('products.images.store');
+                Route::post('/products/{product}/images/reorder', [AdminCatalogProductController::class, 'imageReorder'])
+                    ->whereNumber('product')
+                    ->middleware(['permission:catalog.manage_images', 'throttle:admin-write'])
+                    ->name('products.images.reorder');
+                Route::post('/products/{product}/images/{image}/primary', [AdminCatalogProductController::class, 'imagePrimary'])
+                    ->whereNumber('product')->whereNumber('image')
+                    ->middleware(['permission:catalog.manage_images', 'throttle:admin-write'])
+                    ->name('products.images.primary');
+                Route::post('/products/{product}/images/{image}/rotate', [AdminCatalogProductController::class, 'imageRotate'])
+                    ->whereNumber('product')->whereNumber('image')
+                    ->middleware(['permission:catalog.manage_images', 'throttle:admin-write'])
+                    ->name('products.images.rotate');
+                Route::delete('/products/{product}/images/{image}', [AdminCatalogProductController::class, 'imageDestroy'])
+                    ->whereNumber('product')->whereNumber('image')
+                    ->middleware(['permission:catalog.manage_images', 'throttle:admin-write'])
+                    ->name('products.images.destroy');
             });
         Route::get('/me', [AuthTokenController::class, 'me'])->name('me');
         Route::patch('/me', [AccountController::class, 'profile'])->name('me.update');

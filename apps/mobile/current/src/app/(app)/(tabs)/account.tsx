@@ -329,6 +329,7 @@ export default function AccountScreen() {
 
   return (
     <Screen>
+      {/* MOBILE_V0_9_ACCOUNT_SECTION_ORDER_BATCH5C */}
       <PageHeader
         title="Nalog"
         eyebrow="Podešavanja"
@@ -388,7 +389,7 @@ export default function AccountScreen() {
       <Card style={styles.formCard}>
         <SectionHeading
           icon="account"
-          title="Lični podaci"
+          title="Profil"
           copy="Podaci koji se koriste za nalog, isporuku i kontakt."
           iconColor={
             themeColors.primary
@@ -562,7 +563,7 @@ export default function AccountScreen() {
       <Card style={styles.formCard}>
         <SectionHeading
           icon="lock"
-          title="Promena lozinke"
+          title="Bezbednost"
           copy="Nova lozinka mora imati najmanje 12 znakova."
           iconColor={
             themeColors.danger
@@ -705,7 +706,7 @@ export default function AccountScreen() {
 
           <View style={styles.rowCopyWrap}>
             <Text style={styles.rowTitle}>
-              Obaveštenja i push
+              Obaveštenja
             </Text>
 
             <Text style={styles.rowCopy}>
@@ -763,7 +764,7 @@ export default function AccountScreen() {
           Ald1n Mobile{' '}
           {Application
             .nativeApplicationVersion
-            ?? '0.8.0'}
+            ?? '0.9.0'}
           {' · build '}
           {Application
             .nativeBuildVersion
@@ -784,7 +785,7 @@ export default function AccountScreen() {
         variant="danger"
         onPress={logout}
       >
-        Odjavi ovaj uređaj
+        Odjava
       </Button>
     </Screen>
   );

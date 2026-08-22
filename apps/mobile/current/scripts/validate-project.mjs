@@ -110,9 +110,9 @@ assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore za
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 57 zahtevu.');
 // MOBILE_RELEASE_VERSION_V07
-// MOBILE_RELEASE_VERSION_V08
-assert(packageJson.version === '0.8.0', 'Aplikaciona package verzija je 0.8.0.');
-assert(packageLockJson.version === '0.8.0' && packageLockJson.packages?.['']?.version === '0.8.0', 'package-lock release verzija je 0.8.0.');
+// MOBILE_RELEASE_VERSION_V09
+assert(packageJson.version === '0.9.0', 'Aplikaciona package verzija je 0.9.0.');
+assert(packageLockJson.version === '0.9.0' && packageLockJson.packages?.['']?.version === '0.9.0', 'package-lock release verzija je 0.9.0.');
 assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.13' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.13' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.13', 'expo-notifications prati SDK 57 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.2', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
@@ -300,7 +300,12 @@ const ordersScreen = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/order
 // MOBILE_ASSIGNED_ORDERS_UI_V05
 const assignedOrdersListScreen = fs.readFileSync(path.join(root, 'src/app/(app)/assigned-orders/index.tsx'), 'utf8');
 const assignedOrdersDetailScreen = fs.readFileSync(path.join(root, 'src/app/(app)/assigned-orders/[id].tsx'), 'utf8');
-assert(ordersScreen.includes("can('orders.manage')") && ordersScreen.includes("router.push('/assigned-orders')") && ordersScreen.includes('Dodeljene meni'), 'Orders ekran otvara Assigned-to-me inbox samo korisniku sa orders.manage dozvolom.');
+{
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const ordersV09 = fs.readFileSync(path.join(process.cwd(), 'src/app/(app)/(tabs)/orders.tsx'), 'utf8');
+  assert(ordersV09.includes("const assignedOrdersAllowed = can('orders.manage');") && ordersV09.includes("router.push('/assigned-orders')") && ordersV09.includes('Dodeljene porudžbine'), 'v0.9 Orders ekran otvara Dodeljene porudžbine samo korisniku sa orders.manage dozvolom.');
+}
 assert(assignedOrdersListScreen.includes('api.orders.assignedList') && assignedOrdersListScreen.includes("can('orders.manage')") && assignedOrdersListScreen.includes("pathname: '/assigned-orders/[id]'") && assignedOrdersListScreen.includes('useInfiniteQuery') && assignedOrdersListScreen.includes('fetchNextPage'), 'Assigned Orders lista koristi dedicated API, permission gate, detail rutu i server pagination.');
 assert(assignedOrdersDetailScreen.includes('api.orders.assignedDetail') && assignedOrdersDetailScreen.includes("can('orders.manage')") && assignedOrdersDetailScreen.includes('order.items') && assignedOrdersDetailScreen.includes('order.shipping') && assignedOrdersDetailScreen.includes('order.supplier'), 'Assigned Order detalj koristi dedicated detail API i prikazuje canonical Order customer/assignment podatke.');
 assert(!/api\.orders\.(?:cancel|postCreate|submitPaymentProof)|completeOrder|reopenOrder|verifyPayment|rejectPayment|voidPayment|reassign|internal_note|proof_path|proof_disk/.test(`${assignedOrdersListScreen}\n${assignedOrdersDetailScreen}`), 'Assigned Orders UI ostaje read-only i ne izlaže owner post-create ili admin workflow mutacije/interne storage podatke.');
@@ -332,7 +337,7 @@ assert(afterSalesCreateScreen.includes('pickAfterSalesAttachments') && afterSale
 assert(apiTypes.includes("limits: AfterSalesOptions['limits'];"), 'After-sales detail tip izlaže server-driven limite.');
 assert(afterSalesDetailScreen.includes('pickAfterSalesAttachments') && afterSalesDetailScreen.includes('messageAttachments') && afterSalesDetailScreen.includes('attachments: messageAttachments.length ? messageAttachments : undefined') && afterSalesDetailScreen.includes('caseData.limits.max_attachments') && afterSalesDetailScreen.includes('caseData.limits.max_attachment_bytes'), 'After-sales message composer bira, prikazuje i šalje priloge prema server limitima.');
 assert(orderDetailScreen.includes("can('after_sales.create')") && orderDetailScreen.includes("pathname: '/after-sales/create/[orderId]'"), 'Order detalj otvara create-from-order ekran samo korisniku sa after_sales.create dozvolom.');
-assert(ordersScreen.includes("can('after_sales.view_own')") && ordersScreen.includes("router.push('/after-sales')"), 'Orders ekran otvara after-sales listu samo korisniku sa view_own dozvolom.');
+assert(!ordersScreen.includes("router.push('/after-sales')"), 'v0.9 After-sales prečica je uklonjena iz Porudžbina i premeštena u Moje aktivnosti.');
 
 // MOBILE_WARRANTIES_CONTRACT_V05
 assert(apiTypes.includes('export type WarrantySummary =') && apiTypes.includes('export type Warranty = WarrantySummary &') && apiTypes.includes('WarrantyMaintenanceRecord'), 'Warranty API tipovi pokrivaju listu, detalj i maintenance timeline.');
@@ -347,7 +352,7 @@ assert(warrantiesDetailScreen.includes('api.warranties.detail') && warrantiesDet
 assert(warrantyPdfHelper.includes('apiDownload') && warrantyPdfHelper.includes('`/api/v1/warranties/${warrantyId}.pdf`') && warrantyPdfHelper.includes('Paths.cache') && warrantyPdfHelper.includes("contentType !== 'application/pdf'") && warrantyPdfHelper.includes('file.write(response.bytes)') && warrantyPdfHelper.includes('file.size !== response.bytes.byteLength'), 'Warranty PDF se preuzima Bearer transportom, validira kao PDF i čuva u provereni privatni cache.');
 assert(warrantyPdfHelper.includes("import('expo-sharing')") && warrantyPdfHelper.includes('Sharing.isAvailableAsync()') && warrantyPdfHelper.includes('Sharing.shareAsync(downloaded.uri') && warrantyPdfHelper.includes("Platform.OS === 'web'"), 'Warranty PDF koristi postojeći Expo Sharing tek nakon platform/device provere.');
 assert(warrantiesDetailScreen.includes('openWarrantyPdf') && warrantiesDetailScreen.includes('openingPdf') && warrantiesDetailScreen.includes('Otvori / podeli PDF') && warrantiesDetailScreen.includes('feedback.notify') && !warrantiesDetailScreen.includes('Linking.openURL'), 'Warranty detalj otvara privatni PDF kroz bezbedan Bearer/cache/share flow bez direktnog URL-a.');
-assert(ordersScreen.includes("can('warranties.view_own')") && ordersScreen.includes("router.push('/warranties')"), 'Orders ekran otvara Warranty listu samo korisniku sa warranties.view_own dozvolom.');
+assert(!ordersScreen.includes("router.push('/warranties')"), 'v0.9 Warranty prečica je uklonjena iz Porudžbina i premeštena u Moje aktivnosti.');
 // MOBILE_COMMISSIONS_CONTRACT_V05
 assert(apiTypes.includes('export type CommissionStatus =') && apiTypes.includes('export type Commission = {') && apiTypes.includes('export type CommissionListResponse = PaginatedResponse<Commission> &'), 'Commission API tipovi pokrivaju customer list/detail, statuse, summary i pagination ugovor.');
 assert(endpoints.includes('commissions:') && endpoints.includes('CommissionListParams') && endpoints.includes('apiRequest<CommissionListResponse>') && endpoints.includes('apiRequest<{ data: Commission }>'), 'API klijent sadrži Commission list/filter/detail ugovor.');
@@ -359,7 +364,7 @@ const commissionsListScreen = fs.readFileSync(path.join(root, 'src/app/(app)/com
 const commissionsDetailScreen = fs.readFileSync(path.join(root, 'src/app/(app)/commissions/[id].tsx'), 'utf8');
 assert(commissionsListScreen.includes('api.commissions.list') && commissionsListScreen.includes("can('commissions.view_own')") && commissionsListScreen.includes("pathname: '/commissions/[id]'") && commissionsListScreen.includes('CommissionListParams') && commissionsListScreen.includes('date_from') && commissionsListScreen.includes('date_to') && commissionsListScreen.includes('summary?.pending_eur') && commissionsListScreen.includes('meta?.last_page'), 'Commission lista koristi customer permission, q/status/date filtere, server summary, pagination i detail rutu.');
 assert(commissionsDetailScreen.includes('api.commissions.detail') && commissionsDetailScreen.includes("can('commissions.view_own')") && commissionsDetailScreen.includes('commission.responsible_name') && commissionsDetailScreen.includes('commission.status_note') && commissionsDetailScreen.includes('commission.payment') && commissionsDetailScreen.includes("pathname: '/order/[id]'"), 'Commission detalj prikazuje customer-safe obračun, status, napomenu, isplatu i link ka porudžbini.');
-assert(ordersScreen.includes("can('commissions.view_own')") && ordersScreen.includes("router.push('/commissions')"), 'Orders ekran otvara Commission listu samo korisniku sa commissions.view_own dozvolom.');
+assert(!ordersScreen.includes("router.push('/commissions')"), 'v0.9 Commission prečica je uklonjena iz Porudžbina i premeštena u Moje aktivnosti.');
 assert(!/\b(?:user_id|approved_by|paid_by|cancelled_by|payment_batch_id|commission_status_history|bulkPay|transition)\b/.test(`${commissionsListScreen}\n${commissionsDetailScreen}`), 'Commission customer UI ne izlaže admin/interne workflow identifikatore ili akcije.');
 const cart = fs.readFileSync(path.join(root, 'src/features/cart/cart-provider.tsx'), 'utf8');
 assert(cart.includes('productId') && cart.includes('quantity') && !cart.includes('variantId') && !cart.includes('variantName'), 'Lokalna korpa koristi samo proizvod i količinu; variant identitet je dekomisioniran.');
@@ -483,7 +488,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '0.8.0'"), 'Expo app verzija je 0.8.0.');
+assert(appConfig.includes("version: '0.9.0'"), 'Expo app verzija je 0.9.0.');
 
 // MOBILE_BRANDING_ALD1N_CMS_V06
 const ald1nBrandSource = fs.readFileSync(path.join(root, 'assets/brand/ald1n-v2-logo.png'));
@@ -503,8 +508,8 @@ assert(
 );
 const appLayoutVersionSource = fs.readFileSync(path.join(root, 'src/app/(app)/_layout.tsx'), 'utf8');
 const accountVersionSource = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
-assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.8\.0['"]/.test(appLayoutVersionSource), 'App runtime version fallback je 0.8.0.');
-assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.8\.0['"]/.test(accountVersionSource), 'Account version fallback je 0.8.0.');
+assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.9\.0['"]/.test(appLayoutVersionSource), 'App runtime version fallback je 0.9.0.');
+assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.9\.0['"]/.test(accountVersionSource), 'Account version fallback je 0.9.0.');
 assert(appConfig.includes('google-services.json') && appConfig.includes('googleServicesFile'), 'Android config podržava Firebase google-services.json kada postoji.');
 assert(appConfig.includes('react-native-nitro-google-signin'), 'App config uključuje Google Sign-In plugin kada je Firebase config prisutan.');
 assert(
@@ -643,10 +648,18 @@ assert(
     && adminProductCreateBatch2ScreenV06.includes('spec_details'),
   'Admin Product Create renderuje dinamičke specifikacije, zavisne select opcije i detaljna polja.',
 );
+// MOBILE_V0_8_SHARED_PRODUCT_IMAGE_MANAGER_VALIDATOR_V2
+const adminProductCreateImageManagerV08 = fs.readFileSync(
+  path.join(root, 'src/features/catalog/product-image-manager.tsx'),
+  'utf8',
+);
 assert(
   adminProductCreateBatch2ScreenV06.includes("can('catalog.manage_images')")
-    && adminProductCreateBatch2ScreenV06.includes('pickProductImages')
-    && adminProductCreateBatch2ScreenV06.includes('uploadProductImages'),
+    && adminProductCreateBatch2ScreenV06.includes('uploadProductImages')
+    && adminProductCreateBatch2ScreenV06.includes('DraftProductImageManager')
+    && adminProductCreateImageManagerV08.includes('pickProductImages')
+    && adminProductCreateImageManagerV08.includes('limits.max_files')
+    && adminProductCreateImageManagerV08.includes('limits.max_bytes'),
   'Admin Product Create fotografije su permission-gated i šalju se kroz canonical image API.',
 );
 assert(
@@ -709,6 +722,39 @@ assert(
     && adminProductCreateBatch2BOpenApiV06.includes('max_items: { type: integer, enum: [8] }')
     && adminProductCreateBatch2BOpenApiV06.includes('capacity_unit: { type: string, enum: [GB] }'),
   'OpenAPI dokumentuje server-driven storage repeater metadata i derived total polje.',
+);
+// MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
+const directSaleScreenV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id]/direct-sale.tsx'), 'utf8');
+const directSaleEditV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id].tsx'), 'utf8');
+const directSaleCatalogApiV08 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-admin-api.ts'), 'utf8');
+const directSaleOpenApiV08 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(
+  directSaleEditV08.includes('Evidentiraj prodaju')
+    && directSaleEditV08.includes("bootstrap?.user.role?.slug === 'superadmin'")
+    && directSaleEditV08.includes("pathname: '/admin/catalog/[id]/direct-sale'"),
+  'v0.8 Product Edit izlaže SuperAdmin Evidentiraj prodaju direktno sa artikla.',
+);
+assert(
+  directSaleScreenV08.includes('apiAdminCatalog.directSaleOptions')
+    && directSaleScreenV08.includes('apiAdminCatalog.recordDirectSale')
+    && directSaleScreenV08.includes('idempotency_key: idempotencyKey')
+    && directSaleScreenV08.includes('MOBILE_GLOBAL_UNRESTRICTED_TAPS_V07')
+    && !directSaleScreenV08.includes('disabled={saleMutation.isPending}'),
+  'v0.8 Direct Sale ekran koristi server options, stable idempotency i unrestricted tap contract.',
+);
+assert(
+  directSaleCatalogApiV08.includes('directSaleOptions: async (productId: number)')
+    && directSaleCatalogApiV08.includes('recordDirectSale: (productId: number, input: AdminDirectSaleInput)')
+    && directSaleCatalogApiV08.includes('/direct-sale/options')
+    && directSaleCatalogApiV08.includes('/direct-sale'),
+  'v0.8 Admin Catalog API klijent pokriva Direct Sale options i record ugovor.',
+);
+assert(
+  directSaleOpenApiV08.includes('  /api/v1/admin/catalog/products/{product}/direct-sale/options:')
+    && directSaleOpenApiV08.includes('  /api/v1/admin/catalog/products/{product}/direct-sale:')
+    && directSaleOpenApiV08.includes('AdminDirectSaleOptionsEnvelope')
+    && directSaleOpenApiV08.includes('AdminDirectSaleResponse'),
+  'OpenAPI dokumentuje SuperAdmin Direct Sale options/record i idempotency ugovor.',
 );
 // MOBILE_P2_ADMIN_FOUNDATION_GAP_CLOSE_V06
 const p2AdminFoundationIndexV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
@@ -1042,13 +1088,12 @@ assert(
     && !p3SystemHealthScreenBatch2CV06.includes('prune('),
   'P3 Admin System Health 2C zaključava permission-gated read-only UI, refresh, checks, metrics i history tok.',
 );
-
-assert(
-  p3SystemHealthHubBatch2CV06.includes("can('system.health')")
-    && p3SystemHealthHubBatch2CV06.includes("router.push('/admin/system-health')")
-    && p3SystemHealthHubBatch2CV06.includes('Zdravlje sistema'),
-  'P3 Admin System Health 2C zaključava Admin hub ulaz samo za system.health.',
-);
+{
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const adminV09 = fs.readFileSync(path.join(process.cwd(), 'src/app/(app)/admin/index.tsx'), 'utf8');
+  assert(adminV09.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C') && adminV09.includes("can('system.health')") && adminV09.includes("router.push('/admin/system-health')") && adminV09.includes('System Health'), 'v0.9 Admin Hub drži System Health u grupi Sistem samo kroz system.health dozvolu.');
+}
 
 assert(
   p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health:')
@@ -1254,35 +1299,10 @@ const releaseCommissionAdminDetailV07 = fs.readFileSync(path.join(root, 'src/app
 const releaseCommissionAdminApiV07 = fs.readFileSync(path.join(root, 'src/features/admin/commissions-admin-api.ts'), 'utf8');
 const releaseCommissionAdminExportV07 = fs.readFileSync(path.join(root, 'src/features/admin/commissions-admin-export.ts'), 'utf8');
 const releaseCommissionOpenApiV07 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
-assert(
-  releaseCommissionHomeV07.includes('// MOBILE_V0_7_COMMISSION_RELEASE_CRITICAL_VISIBILITY')
-    && releaseCommissionHomeV07.includes("can('commissions.manage')")
-    && releaseCommissionHomeV07.includes("can('commissions.view_own')")
-    && releaseCommissionHomeV07.includes("route: '/admin/commissions'")
-    && releaseCommissionHomeV07.includes("route: '/commissions'"),
-  'v0.7 Home izlaže release-critical Provizije odmah kroz manage/view-own permission model.',
-);
-assert(
-  releaseCommissionHomeV07.indexOf("route: '/admin/catalog/create'") < releaseCommissionHomeV07.indexOf("route: '/admin/commissions'"),
-  'v0.7 Home prioritet zadržava Dodaj artikal pre Provizija.',
-);
-assert(
-  releaseCommissionAdminHubV07.includes('// MOBILE_V0_7_ADMIN_HUB_COMMISSION_PRIORITY')
-    && releaseCommissionAdminHubV07.indexOf("{can('catalog.manage_products') ? (") < releaseCommissionAdminHubV07.indexOf("{can('commissions.manage') ? (")
-    && releaseCommissionAdminHubV07.indexOf("{can('commissions.manage') ? (") < releaseCommissionAdminHubV07.indexOf("{can('orders.manage') ? (")
-    && releaseCommissionAdminHubV07.includes("router.push('/admin/catalog/create')")
-    && releaseCommissionAdminHubV07.includes("router.push('/admin/commissions')")
-    && releaseCommissionAdminHubV07.includes("router.push('/admin/orders')")
-    && releaseCommissionAdminHubV07.includes('Provizije'),
-  'v0.7 Admin Hub drži Provizije kao drugu prioritetnu akciju odmah posle Dodaj artikal.',
-);
-assert(
-  releaseCommissionOrdersV07.includes("can('commissions.view_own')")
-    && releaseCommissionOrdersV07.includes("router.push('/commissions')")
-    && releaseCommissionCustomerListV07.includes("can('commissions.view_own')")
-    && releaseCommissionCustomerDetailV07.includes("can('commissions.view_own')"),
-  'v0.7 korisničke Moje provizije ostaju dostupne kroz view-own list/detail tok.',
-);
+assert(releaseCommissionHomeV07.includes('MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C') && releaseCommissionHomeV07.includes("can('commissions.view_own')") && releaseCommissionHomeV07.includes("route: '/commissions'"), 'v0.9 Home izlaže Moje provizije kroz Moje aktivnosti i view-own permission model.');
+assert(releaseCommissionHomeV07.indexOf("route: '/admin/catalog/create'") < releaseCommissionHomeV07.indexOf('MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C'), 'v0.9 Home zadržava Brze akcije pre sekcije Moje aktivnosti.');
+assert(releaseCommissionAdminHubV07.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C') && releaseCommissionAdminHubV07.includes("router.push('/admin/commissions')") && releaseCommissionAdminHubV07.includes('Prodaja'), 'v0.9 Admin Hub drži Provizije u grupisanoj sekciji Prodaja.');
+assert(releaseCommissionHomeV07.includes("route: '/commissions'") && releaseCommissionCustomerListV07.includes("can('commissions.view_own')") && releaseCommissionCustomerDetailV07.includes("can('commissions.view_own')"), 'v0.9 korisničke Moje provizije ostaju dostupne kroz Home Moje aktivnosti i view-own list/detail tok.');
 assert(
   releaseCommissionAdminListV07.includes("can('commissions.manage')")
     && releaseCommissionAdminListV07.includes('bulkPay')
@@ -1320,6 +1340,257 @@ assert(
     && commissionPercentagePolicyProductCreateV07.includes('Prazno polje koristi automatskih 10% vrednosti artikla'),
   'v0.7 Commission contract uklanja fiksni minimum 20 EUR i dokumentuje podrazumevanih 10 procenata u Product Create toku.',
 );
+// MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
+const shipmentCourierActionsV08 = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-actions.tsx'), 'utf8');
+const shipmentCourierApiV08 = fs.readFileSync(path.join(root, 'src/features/admin/couriers-admin-api.ts'), 'utf8');
+const shipmentCourierScreenV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/couriers/index.tsx'), 'utf8');
+const shipmentCourierHubV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const shipmentCourierOpenApiV08 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(shipmentCourierActionsV08.includes('courier_service_id: shipmentMethod') && shipmentCourierActionsV08.includes('data.couriers') && shipmentCourierActionsV08.includes('Otvori tracking stranicu'), 'v0.8 Shipment UI koristi centralni courier izbor, tracking URL i canonical courier_service_id.');
+assert(shipmentCourierApiV08.includes("apiRequest<CourierListResponse> ('admin/couriers')") && shipmentCourierApiV08.includes("method: 'POST'") && shipmentCourierApiV08.includes("method: 'PUT'"), 'v0.8 Courier Directory Mobile API pokriva list/create/update bez delete workflow-a.');
+assert(shipmentCourierScreenV08.includes("role?.slug === 'superadmin'") && shipmentCourierScreenV08.includes('Tracking URL (HTTPS)') && shipmentCourierScreenV08.includes('Podrazumevana'), 'v0.8 Courier Directory UI je SuperAdmin-only i uređuje HTTPS tracking, status, default i redosled.');
+assert(shipmentCourierHubV08.includes("router.push('/admin/couriers' as Href)") && shipmentCourierHubV08.includes('Kurirske službe'), 'v0.8 Admin Hub izlaže centralni Courier Directory SuperAdministratoru.');
+assert(shipmentCourierOpenApiV08.includes('/api/v1/admin/couriers:') && shipmentCourierOpenApiV08.includes('/api/v1/admin/couriers/{courier}:') && shipmentCourierOpenApiV08.includes('AdminCourierService:'), 'OpenAPI dokumentuje centralni Courier Directory list/create/update ugovor.');
+
+// MOBILE_V0_8_COMPLETE_USER_MANAGEMENT_BATCH12
+const completeUsersRequestV08 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Requests/AdminUserRequest.php'), 'utf8');
+const completeUsersServiceV08 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/AdminUserService.php'), 'utf8');
+const completeUsersApiControllerV08 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Controllers/Api/V1/Admin/UserController.php'), 'utf8');
+const completeUsersApiV08 = fs.readFileSync(path.join(root, 'src/features/admin/users-admin-api.ts'), 'utf8');
+const completeUsersFormV08 = fs.readFileSync(path.join(root, 'src/features/admin/users-admin-form.tsx'), 'utf8');
+const completeUsersListV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/users/index.tsx'), 'utf8');
+const completeUsersCreateV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/users/create.tsx'), 'utf8');
+const completeUsersDetailV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/users/[id].tsx'), 'utf8');
+const completeUsersQueryKeysV08 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const completeUsersHubV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const completeUsersOpenApiV08 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(completeUsersRequestV08.includes("can('system.manage_users')") && completeUsersRequestV08.includes("Rule::unique('users', 'username')") && completeUsersRequestV08.includes("'min:12'"), 'v0.8 Admin User request deli Laravel permission, unique identitet i 12-char password contract.');
+assert(completeUsersServiceV08.includes('tokens()->delete()') && completeUsersServiceV08.includes('lockForUpdate()') && completeUsersServiceV08.includes('Poslednji aktivni SuperAdmin ne može biti degradiran ili blokiran.') && completeUsersServiceV08.includes("'user.updated'"), 'v0.8 centralni AdminUserService opoziva tokene, auditira izmene i štiti poslednjeg aktivnog SuperAdmina.');
+assert(completeUsersApiControllerV08.includes('public function index(') && completeUsersApiControllerV08.includes('public function options(') && completeUsersApiControllerV08.includes('public function store(') && completeUsersApiControllerV08.includes('public function update(') && !completeUsersApiControllerV08.includes('function destroy('), 'v0.8 User Management API pokriva list/options/detail/create/update bez delete workflow-a.');
+assert(completeUsersApiV08.includes("apiRequest<AdminUserListResponse> (") && completeUsersApiV08.includes("admin/users") && completeUsersApiV08.includes("'admin/users/options'") && completeUsersApiV08.includes("method: 'POST'") && completeUsersApiV08.includes("method: 'PUT'") && !completeUsersApiV08.includes("method: 'DELETE'"), 'v0.8 Mobile User API pokriva kompletan Laravel User Manager bez hard delete-a.');
+assert(completeUsersFormV08.includes('Korisničko ime') && completeUsersFormV08.includes('Grupa pristupa') && completeUsersFormV08.includes('Status naloga') && completeUsersFormV08.includes('Nova lozinka') && completeUsersFormV08.includes('opoziva sve postojeće API tokene'), 'v0.8 shared User form pokriva identitet, ulogu, grupu, status i password management.');
+assert(completeUsersListV08.includes("can('system.manage_users')") && completeUsersListV08.includes("pathname: '/admin/users/[id]'") && completeUsersCreateV08.includes('apiAdminUsers.create') && completeUsersDetailV08.includes('apiAdminUsers.update') && completeUsersDetailV08.includes('requireReauthentication'), 'v0.8 User Management UI ima permission-gated list/create/edit i self-password reauthentication.');
+assert(completeUsersQueryKeysV08.includes('usersList:') && completeUsersQueryKeysV08.includes('userOptions:') && completeUsersHubV08.includes("router.push('/admin/users' as Href)"), 'v0.8 User Management query keys i Admin Hub entry su centralizovani.');
+assert(completeUsersOpenApiV08.includes('/api/v1/admin/users/options:') && completeUsersOpenApiV08.includes('/api/v1/admin/users:') && completeUsersOpenApiV08.includes('/api/v1/admin/users/{user}:') && completeUsersOpenApiV08.includes('AdminUserMutationResponse:'), 'OpenAPI dokumentuje kompletan Admin User list/options/detail/create/update ugovor.');
+
+// MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
+const exchangeApiControllerV08 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Controllers/Api/V1/Admin/ExchangeRateController.php'), 'utf8');
+const exchangeApiV08 = fs.readFileSync(path.join(root, 'src/features/admin/exchange-rate-admin-api.ts'), 'utf8');
+const exchangeScreenV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/exchange-rate/index.tsx'), 'utf8');
+const exchangeQueryKeysV08 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const exchangeHubV08 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const exchangeOpenApiV08 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(exchangeApiControllerV08.includes("can('system.manage_settings')") && exchangeApiControllerV08.includes('saveManual') && exchangeApiControllerV08.includes('setAutomatic') && exchangeApiControllerV08.includes("updateAutomatically('mobile'") && exchangeApiControllerV08.includes('limit(50)'), 'v0.8 Exchange Rate API koristi centralni ExchangeRateService i 50 zapisa istorije.');
+assert(exchangeApiV08.includes("'admin/exchange-rate'") && exchangeApiV08.includes("'admin/exchange-rate/manual'") && exchangeApiV08.includes("'admin/exchange-rate/automatic'") && exchangeApiV08.includes("'admin/exchange-rate/refresh'"), 'v0.8 Mobile Exchange Rate API pokriva state, manual, automatic i refresh ugovor.');
+assert(exchangeScreenV08.includes("can('system.manage_settings')") && exchangeScreenV08.includes('Sačuvaj ručni kurs') && exchangeScreenV08.includes('Automatsko ažuriranje') && exchangeScreenV08.includes('Sinhronizuj sada') && exchangeScreenV08.includes('Istorija kursa'), 'v0.8 Exchange Rate ekran ima permission-gated manual/automatic/refresh/history UX.');
+const exchangeParallelFetchV08 = /(^|[^A-Za-z0-9_.$])fetch\s*\(/m.test(exchangeScreenV08) || /globalThis\.fetch\s*\(/.test(exchangeScreenV08) || /(^|[^A-Za-z0-9_.$])expoFetch\s*\(/m.test(exchangeScreenV08);
+assert(exchangeScreenV08.includes('apiAdminExchangeRate.manual') && exchangeScreenV08.includes('apiAdminExchangeRate.automatic') && exchangeScreenV08.includes('apiAdminExchangeRate.refresh') && !exchangeParallelFetchV08, 'v0.8 Exchange Rate UI koristi canonical API client bez paralelnog fetch toka.');
+assert(exchangeQueryKeysV08.includes('exchangeRate:') && exchangeHubV08.includes("router.push('/admin/exchange-rate' as Href)"), 'v0.8 Exchange Rate query key i Admin Hub entry su centralizovani.');
+assert(exchangeOpenApiV08.includes('/api/v1/admin/exchange-rate:') && exchangeOpenApiV08.includes('/api/v1/admin/exchange-rate/manual:') && exchangeOpenApiV08.includes('/api/v1/admin/exchange-rate/automatic:') && exchangeOpenApiV08.includes('/api/v1/admin/exchange-rate/refresh:') && exchangeOpenApiV08.includes('AdminExchangeRateStateResponse:'), 'OpenAPI dokumentuje kompletan EUR/RSD Admin contract.');
+
+// MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+const brandManagerApiV09 = fs.readFileSync(path.join(root, 'src/features/admin/brand-manager-api.ts'), 'utf8');
+const brandManagerScreenV09 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/brands/index.tsx'), 'utf8');
+const brandManagerHubV09 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const brandManagerKeysV09 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const brandManagerOpenApiV09 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(
+  brandManagerApiV09.includes("'admin/catalog/brands/options'")
+    && brandManagerApiV09.includes("'admin/catalog/brands'")
+    && brandManagerApiV09.includes('product_type_ids')
+    && brandManagerApiV09.includes('line_names_by_type')
+    && !brandManagerApiV09.includes('/api/v1/admin/catalog/brands'),
+  'v0.9 Brand Manager koristi relativni centralizovani API ugovor sa type-scoped brand/line podacima.',
+);
+assert(
+  brandManagerScreenV09.includes("can('catalog.manage_taxonomy')")
+    && brandManagerScreenV09.includes('Pretraga brenda')
+    && brandManagerScreenV09.includes('Tip / kategorija')
+    && brandManagerScreenV09.includes('+ Dodaj brend')
+    && brandManagerScreenV09.includes('Povezani tipovi i linije')
+    && !brandManagerScreenV09.includes('ProductVariant'),
+  'v0.9 Mobile Brand Manager je permission-gated i pokriva globalni filter/search/add/edit/type/line UX bez Product Variants.',
+);
+assert(
+  brandManagerHubV09.includes("router.push('/admin/catalog/brands' as Href)")
+    && brandManagerHubV09.includes("can('catalog.manage_taxonomy')"),
+  'v0.9 Admin Hub izlaže Brand Manager samo taxonomy administratorima.',
+);
+assert(
+  brandManagerKeysV09.includes("brandsList: (params: unknown) => ['admin', 'brands', 'list', params] as const")
+    && brandManagerKeysV09.includes("brandOptions: () => ['admin', 'brands', 'options'] as const"),
+  'v0.9 Brand Manager koristi centralizovane TanStack query keys.',
+);
+assert(
+  brandManagerOpenApiV09.includes('/api/v1/admin/catalog/brands:')
+    && brandManagerOpenApiV09.includes('/api/v1/admin/catalog/brands/options:')
+    && brandManagerOpenApiV09.includes('/api/v1/admin/catalog/brands/{brand}:')
+    && brandManagerOpenApiV09.includes('catalog.manage_taxonomy'),
+  'v0.9 OpenAPI dokumentuje globalni Brand Manager read/create/update/options ugovor i taxonomy permission.',
+);
+
+// MOBILE_V0_9_SUPERADMIN_HOME_INVENTORY_VALUE_KPIS
+const superAdminHomeKpiV09 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
+const adminApiHomeKpiV09 = fs.readFileSync(path.join(root, 'src/features/admin/admin-api.ts'), 'utf8');
+assert(
+  superAdminHomeKpiV09.includes('{/* MOBILE_V0_9_SUPERADMIN_HOME_INVENTORY_VALUE_KPIS */}')
+    && superAdminHomeKpiV09.includes('Vrednost lagera po nabavnoj ceni')
+    && superAdminHomeKpiV09.includes('Vrednost robe po prodajnoj ceni')
+    && superAdminHomeKpiV09.includes("bootstrap?.user.role?.slug === 'superadmin'")
+    && superAdminHomeKpiV09.includes('adminQueryKeys.foundation()')
+    && superAdminHomeKpiV09.includes('apiAdmin.foundation')
+    && superAdminHomeKpiV09.indexOf('Vrednost lagera po nabavnoj ceni') < superAdminHomeKpiV09.indexOf('<SalesPulse')
+    && superAdminHomeKpiV09.indexOf('Vrednost robe po prodajnoj ceni') < superAdminHomeKpiV09.indexOf('<SalesPulse'),
+  'v0.9 Home prikazuje dve SuperAdmin inventory valuation pločice ispod postojeća četiri KPI-ja i pre Finansijskog pulsa.',
+);
+assert(
+  adminApiHomeKpiV09.includes('AdminInventoryValuation')
+    && adminApiHomeKpiV09.includes('inventory_valuation: AdminInventoryValuation | null'),
+  'v0.9 Home inventory KPI koristi postojeći centralizovani Admin Foundation valuation contract.',
+);
+
+// MOBILE_V0_9_PRODUCT_DETAIL_BATCH5A_VALIDATOR
+const v09ProductDetailBatch5A = fs.readFileSync(path.join(root, 'src/app/(app)/product/[slug].tsx'), 'utf8');
+const v09ProductCardBatch5A = fs.readFileSync(path.join(root, 'src/components/catalog/product-card.tsx'), 'utf8');
+const v09ProductDetailMarker = v09ProductDetailBatch5A.indexOf('MOBILE_V0_9_PRODUCT_DETAIL_COMMISSION_DIRECT_SALE_BATCH5A');
+const v09DirectSale = v09ProductDetailBatch5A.indexOf('Direktna prodaja', v09ProductDetailMarker);
+const v09Edit = v09ProductDetailBatch5A.indexOf('Uredi artikal', v09ProductDetailMarker);
+const v09ProductDetailPass = v09ProductDetailMarker >= 0
+  && v09DirectSale > v09ProductDetailMarker
+  && v09Edit > v09DirectSale
+  && v09ProductDetailBatch5A.includes("pathname: '/admin/catalog/[id]/direct-sale'")
+  && v09ProductDetailBatch5A.includes("pathname: '/admin/catalog/[id]'")
+  && v09ProductDetailBatch5A.includes('product.commission_eur.toFixed(2)');
+if (v09ProductDetailPass) console.log('PASS v0.9 Product detalj prikazuje server proviziju, SuperAdmin Direct Sale i Uredi artikal kao poslednju admin akciju.');
+else { failures += 1; console.log('FAIL v0.9 Product detail commission/direct-sale/edit contract nije kompletan.'); }
+const v09ProductCardPass = v09ProductCardBatch5A.includes('MOBILE_V0_9_CATALOG_COMMISSION_BATCH5A')
+  && v09ProductCardBatch5A.includes('Provizija: {product.commission_eur.toFixed(2)} EUR');
+if (v09ProductCardPass) console.log('PASS v0.9 Catalog kartica prikazuje server obračunatu proviziju.');
+else { failures += 1; console.log('FAIL v0.9 Catalog commission card contract nije kompletan.'); }
+if (!/product_variant_id|ProductVariant|variants_enabled/.test(v09ProductDetailBatch5A + '\n' + v09ProductCardBatch5A)) console.log('PASS v0.9 Product detail/catalog commission tok ostaje product-only bez Product Variants.');
+else { failures += 1; console.log('FAIL v0.9 Product Variants signal je vraćen u Product detail/catalog source.'); }
+
+// MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
+const directSaleDeferredServiceV09 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/DirectSaleService.php'), 'utf8');
+const directSaleDeferredPaymentV09 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/OrderPaymentService.php'), 'utf8');
+const directSaleDeferredControllerV09 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Controllers/Api/V1/Admin/CatalogProductController.php'), 'utf8');
+const directSaleDeferredApiV09 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-admin-api.ts'), 'utf8');
+const directSaleDeferredScreenV09 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id]/direct-sale.tsx'), 'utf8');
+const directSaleDeferredOpenApiV09 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(
+  directSaleDeferredServiceV09.includes("'deferred_payment'")
+    && directSaleDeferredServiceV09.includes('ensureDeferredReceivablePlan')
+    && directSaleDeferredServiceV09.includes('buildDeferredInstallments')
+    && directSaleDeferredServiceV09.includes("'payment_state' => $deferred ? 'unpaid' : 'paid'")
+    && directSaleDeferredServiceV09.includes('if (!$deferred) {'),
+  'v0.9 Direct Sale deferred tok ostavlja finansijski saldo otvoren i koristi postojeći Receivables plan.',
+);
+assert(
+  directSaleDeferredPaymentV09.includes('isDeferredDirectSale')
+    && directSaleDeferredPaymentV09.includes("$type !== 'payment'")
+    && directSaleDeferredPaymentV09.includes('Uplata ne može biti veća od preostalog duga')
+    && directSaleDeferredPaymentV09.includes('recordAfterSalesRefundLocked'),
+  'v0.9 deferred Direct Sale dozvoljava payment lifecycle, blokira ad-hoc refund i čuva canonical after-sales refund.',
+);
+assert(
+  directSaleDeferredControllerV09.includes("'deferred_payment', 'label' => 'Odloženo plaćanje'")
+    && directSaleDeferredControllerV09.includes("'installment_count'")
+    && directSaleDeferredControllerV09.includes("'payment_due_at'"),
+  'v0.9 Direct Sale API validira odloženo plaćanje, 1–24 rate i konačni datum.',
+);
+assert(
+  directSaleDeferredApiV09.includes("| 'deferred_payment'")
+    && directSaleDeferredApiV09.includes('installment_count?: number')
+    && directSaleDeferredApiV09.includes('payment_due_at?: string'),
+  'v0.9 Mobile Direct Sale API ugovor sadrži deferred payment polja.',
+);
+assert(
+  directSaleDeferredScreenV09.includes('Plan odloženog plaćanja')
+    && directSaleDeferredScreenV09.includes('installmentCount')
+    && directSaleDeferredScreenV09.includes('paymentDueAt')
+    && directSaleDeferredScreenV09.includes('validIsoDateOnOrAfterToday'),
+  'v0.9 Direct Sale ekran prikazuje uslovni plan rata i konačni datum pune isplate.',
+);
+assert(
+  directSaleDeferredOpenApiV09.includes('enum: [cash, card, bank_transfer, other, deferred_payment]')
+    && directSaleDeferredOpenApiV09.includes('installment_count:')
+    && directSaleDeferredOpenApiV09.includes('payment_due_at:'),
+  'OpenAPI dokumentuje deferred Direct Sale payment metodu, rate i konačni datum.',
+);
+assert(
+  !/ProductVariant|product_variant_id|variants_enabled/.test(directSaleDeferredServiceV09 + directSaleDeferredControllerV09 + directSaleDeferredApiV09 + directSaleDeferredScreenV09),
+  'v0.9 Direct Sale deferred tok ne vraća Product Variants.',
+);
+
+// MOBILE_V0_9_NAVIGATION_ADMIN_HUB_MY_ACTIVITIES_BATCH5C_VALIDATOR
+{
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const mobileRoot = process.cwd();
+  const readText = (rel) => fs.readFileSync(path.join(mobileRoot, rel), 'utf8');
+  const tabs = readText('src/app/(app)/(tabs)/_layout.tsx');
+  const home = readText('src/app/(app)/(tabs)/home.tsx');
+  const orders = readText('src/app/(app)/(tabs)/orders.tsx');
+  const account = readText('src/app/(app)/(tabs)/account.tsx');
+  const admin = readText('src/app/(app)/admin/index.tsx');
+
+  assert(
+    tabs.indexOf('name="home"') < tabs.indexOf('name="catalog"') &&
+    tabs.indexOf('name="catalog"') < tabs.indexOf('name="orders"') &&
+    tabs.indexOf('name="orders"') < tabs.indexOf('name="notifications"') &&
+    tabs.indexOf('name="notifications"') < tabs.indexOf('name="account"'),
+    'v0.9 Bottom navigation ostaje Početna, Katalog, Porudžbine, Obaveštenja, Nalog.'
+  );
+
+  assert(
+    home.includes('MOBILE_V0_9_HOME_FOCUS_SECTION_BATCH5C') &&
+    home.includes('MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C') &&
+    home.includes('MOBILE_V0_9_HOME_ADMINISTRATION_BATCH5C') &&
+    home.indexOf('MOBILE_V0_9_HOME_FOCUS_SECTION_BATCH5C') < home.indexOf('Brze akcije') &&
+    home.indexOf('Brze akcije') < home.indexOf('MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C') &&
+    home.indexOf('MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C') < home.indexOf('MOBILE_V0_9_HOME_ADMINISTRATION_BATCH5C'),
+    'v0.9 Home prati Fokus danas > Brze akcije > Moje aktivnosti > Administracija hijerarhiju.'
+  );
+
+  assert(
+    home.includes("route: '/orders'") &&
+    home.includes("route: '/commissions'") &&
+    home.includes("route: '/warranties'") &&
+    home.includes("route: '/after-sales'"),
+    'v0.9 Moje aktivnosti centralizuju porudžbine, provizije, garancije i postprodaju.'
+  );
+
+  assert(
+    orders.includes('MOBILE_V0_9_ORDERS_MY_AND_ASSIGNED_ONLY_BATCH5C') &&
+    orders.includes('Dodeljene porudžbine') &&
+    !orders.includes('Reklamacije i servis') &&
+    !orders.includes('Moje garancije') &&
+    !orders.includes('Moje provizije'),
+    'v0.9 Porudžbine prikazuju Moje i Dodeljene bez cross-feature prečica.'
+  );
+
+  assert(
+    admin.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C') &&
+    admin.includes('Pretraži administraciju') &&
+    ['Prodaja', 'Katalog i lager', 'Postprodaja', 'Poslovanje', 'Korisnici', 'Sistem'].every((label) => admin.includes(label)),
+    'v0.9 Admin Hub je permission-filtered, pretraživ i grupisan u šest poslovnih sekcija.'
+  );
+
+  assert(
+    account.includes('MOBILE_V0_9_ACCOUNT_SECTION_ORDER_BATCH5C') &&
+    account.indexOf('title="Profil"') < account.indexOf('title="Bezbednost"') &&
+    account.indexOf('title="Bezbednost"') < account.indexOf('Obaveštenja') &&
+    account.indexOf('Obaveštenja') < account.indexOf("router.push('/devices')") &&
+    account.indexOf("router.push('/devices')") < account.lastIndexOf('Odjava'),
+    'v0.9 Nalog prati Profil > Bezbednost > Obaveštenja > Uređaji > Odjava redosled.'
+  );
+
+  assert(
+    !home.includes('ProductVariant') && !orders.includes('ProductVariant') && !admin.includes('ProductVariant'),
+    'v0.9 Navigation reorganizacija ne vraća Product Variants.'
+  );
+}
+
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 

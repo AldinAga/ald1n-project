@@ -27,7 +27,95 @@ tags:
   - name: Admin
     description: Centralni Mobile Admin foundation i administratorski moduli.
 paths:
+  /api/v1/admin/catalog/products/archived:
+    get:
+      tags: [Admin Catalog]
+      summary: Administratorska lista arhiviranih artikala
+      operationId: listArchivedAdminCatalogProducts
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, enum: [20, 50, 100] } }
+      responses:
+        '200':
+          description: Paginated arhivirani artikli.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /api/v1/admin/catalog/products/{product}:
+    get:
+      tags: [Admin Catalog]
+      summary: Administratorski detalj artikla za edit
+      operationId: getAdminCatalogProduct
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Pun edit payload artikla uključujući specifikacije.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '404': { description: Artikal nije u manage scope-u. }
+    put:
+      tags: [Admin Catalog]
+      summary: Izmena postojećeg artikla
+      operationId: updateAdminCatalogProduct
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Artikal je izmenjen kroz postojeći ProductAdminService.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '409': { description: Arhivirani artikal prvo mora biti vraćen. }
+        '422': { description: Validacija ProductRequest pravila nije prošla. }
+  /api/v1/admin/catalog/products/{product}/archive:
+    post:
+      tags: [Admin Catalog]
+      summary: Arhiviranje artikla
+      operationId: archiveAdminCatalogProduct
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Artikal je arhiviran; ponovljen poziv je bezbedan.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /api/v1/admin/catalog/products/{product}/restore:
+    post:
+      tags: [Admin Catalog]
+      summary: Vraćanje artikla iz arhive
+      operationId: restoreAdminCatalogProduct
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Artikal je vraćen iz arhive; ponovljen poziv je bezbedan.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
   /api/v1/admin/catalog/products/{product}/images:
+    get:
+      tags: [Admin Catalog]
+      summary: Administratorski pregled svih fotografija artikla
+      operationId: listAdminCatalogProductImages
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Fotografije u canonical primary/sort redosledu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductImageCollectionResponse'
+        '404': { description: Artikal nije u image-manage scope-u. }
     post:
       tags: [Admin Catalog]
       summary: Dodavanje fotografija novom ili postojećem artiklu
@@ -66,6 +154,239 @@ paths:
           description: Artikal nije vidljiv u administratorskom catalog scope-u.
         '422':
           description: Maksimalno 20 JPG/JPEG/PNG/WebP fajlova do 10 MiB po fajlu.
+  /api/v1/admin/catalog/products/{product}/images/reorder:
+    post:
+      tags: [Admin Catalog]
+      summary: Promena redosleda fotografija
+      operationId: reorderAdminCatalogProductImages
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [image_ids]
+              properties:
+                image_ids:
+                  type: array
+                  items: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Novi redosled je sačuvan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProductImageCollectionResponse' }
+  /api/v1/admin/catalog/products/{product}/images/{image}/primary:
+    post:
+      tags: [Admin Catalog]
+      summary: Postavljanje glavne fotografije
+      operationId: setPrimaryAdminCatalogProductImage
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: image, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Glavna fotografija je promenjena i pomerena na prvo mesto.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProductImageCollectionResponse' }
+  /api/v1/admin/catalog/products/{product}/images/{image}/rotate:
+    post:
+      tags: [Admin Catalog]
+      summary: Fizička rotacija fotografije
+      operationId: rotateAdminCatalogProductImage
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: image, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [degrees]
+              properties:
+                degrees: { type: integer, enum: [90, 180, 270] }
+      responses:
+        '200':
+          description: Fotografija je rotirana; legacy slika koristi copy-on-write.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProductImageCollectionResponse' }
+        '422': { description: Rotacija nije tehnički moguća ili format nije podržan. }
+  /api/v1/admin/catalog/products/{product}/images/{image}:
+    delete:
+      tags: [Admin Catalog]
+      summary: Brisanje lokalne fotografije artikla
+      operationId: deleteAdminCatalogProductImage
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: image, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Fotografija je uklonjena; ako je bila glavna, sledeća postaje glavna.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProductImageCollectionResponse' }
+        '422': { description: Legacy fotografija mora prvo biti rotirana u lokalnu copy-on-write kopiju. }
+  # MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
+  /api/v1/admin/catalog/products/{product}/direct-sale/options:
+    get:
+      tags: [Admin Catalog]
+      summary: SuperAdmin opcije za direktnu prodaju artikla
+      operationId: getAdminCatalogProductDirectSaleOptions
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Artikalski lager, maksimalna RSD cena, payment metode i stabilni idempotency ključ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDirectSaleOptionsEnvelope' }
+        '403': { description: Samo SuperAdministrator može evidentirati direktnu prodaju. }
+        '404': { description: Artikal nije u administratorskom manage scope-u. }
+  /api/v1/admin/catalog/products/{product}/direct-sale:
+    post:
+      tags: [Admin Catalog]
+      summary: Evidentiranje direktne prodaje artikla
+      description: Koristi postojeći DirectSaleService. Identičan retry sa istim idempotency ključem ne kreira duplu prodaju.
+      operationId: recordAdminCatalogProductDirectSale
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDirectSaleInput'
+      responses:
+        '201':
+          description: Standardna direktna prodaja se odmah evidentira kao plaćena i dostavljena; deferred_payment odmah evidentira dostavu i lager, a naplatu vodi kroz postojeći Receivables plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDirectSaleResponse' }
+        '403': { description: Samo SuperAdministrator može evidentirati direktnu prodaju. }
+        '404': { description: Artikal nije u administratorskom manage scope-u. }
+        '422': { description: Validacija, lager, maksimalna prodajna cena, EUR/RSD kurs ili idempotency ugovor nisu prošli. }
+        '429': { description: Previše administratorskih write zahteva. }
+  # MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+  /api/v1/admin/catalog/brands:
+    get:
+      tags: [Admin Catalog]
+      summary: Globalni Brand Manager - lista brendova sa type-scoped vezama i linijama
+      operationId: listAdminCatalogBrands
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 190 } }
+        - { name: product_type_id, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Globalni brendovi, dinamički tipovi, linije i capabilities.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { description: Neautorizovan zahtev. }
+        '403': { description: Nedostaje catalog.manage_taxonomy dozvola. }
+    post:
+      tags: [Admin Catalog]
+      summary: Kreira jedan globalni brend i povezuje ga sa izabranim tipovima
+      operationId: createAdminCatalogBrand
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, status, sort_order, product_type_ids]
+              properties:
+                name: { type: string, maxLength: 120 }
+                description: { type: [string, 'null'], maxLength: 65000 }
+                website_url: { type: [string, 'null'], format: uri, maxLength: 255 }
+                status: { type: string, enum: [active, inactive] }
+                sort_order: { type: integer, minimum: 0, maximum: 1000000 }
+                product_type_ids:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: integer, minimum: 1 }
+                line_names_by_type:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    maxItems: 3
+                    items: { type: string, maxLength: 120 }
+      responses:
+        '201':
+          description: Brend je kreiran.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { description: Neautorizovan zahtev. }
+        '403': { description: Nedostaje catalog.manage_taxonomy dozvola. }
+        '422': { description: Validacija nije prošla ili je globalni naziv duplikat. }
+  /api/v1/admin/catalog/brands/options:
+    get:
+      tags: [Admin Catalog]
+      summary: Dinamički tipovi, statusi i ograničenja za Brand Manager
+      operationId: getAdminCatalogBrandOptions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Brand Manager opcije.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { description: Neautorizovan zahtev. }
+        '403': { description: Nedostaje catalog.manage_taxonomy dozvola. }
+  /api/v1/admin/catalog/brands/{brand}:
+    put:
+      tags: [Admin Catalog]
+      summary: Menja globalni brend, type-scoped veze i do tri kurirane linije po tipu
+      operationId: updateAdminCatalogBrand
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: brand, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, status, sort_order, product_type_ids]
+              properties:
+                name: { type: string, maxLength: 120 }
+                description: { type: [string, 'null'], maxLength: 65000 }
+                website_url: { type: [string, 'null'], format: uri, maxLength: 255 }
+                status: { type: string, enum: [active, inactive] }
+                sort_order: { type: integer, minimum: 0, maximum: 1000000 }
+                product_type_ids:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: integer, minimum: 1 }
+                line_names_by_type:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    maxItems: 3
+                    items: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Brend je sačuvan.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { description: Neautorizovan zahtev. }
+        '403': { description: Nedostaje catalog.manage_taxonomy dozvola. }
+        '404': { description: Brend nije pronađen. }
+        '422': { description: Validacija nije prošla ili odnos ne može bezbedno biti uklonjen. }
   /api/v1/admin/catalog/options:
     get:
       tags: [Admin Catalog]
@@ -83,6 +404,23 @@ paths:
         '403':
           description: Nedostaje catalog.manage_products dozvola.
   /api/v1/admin/catalog/products:
+    get:
+      tags: [Admin Catalog]
+      summary: Administratorska lista aktivnih/ne-arhiviranih artikala
+      operationId: listAdminCatalogProducts
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, active, inactive] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, enum: [20, 50, 100] } }
+      responses:
+        '200':
+          description: Paginated administratorski katalog.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { description: Neautorizovan zahtev. }
+        '403': { description: Nedostaje catalog.manage_products dozvola. }
     post:
       tags: [Admin Catalog]
       summary: Kreiranje novog artikla
@@ -2886,6 +3224,200 @@ security:
               schema: { type: string, format: binary }
         '401': { description: Unauthenticated }
         '403': { description: Missing inventory.export permission }
+  /api/v1/admin/couriers:
+    get:
+      tags: [Admin]
+      summary: SuperAdmin lista centralnog šifarnika kurirskih službi
+      operationId: listAdminCouriers
+      responses:
+        '200': { description: Kurirske službe }
+        '403': { description: Samo SuperAdministrator }
+    post:
+      tags: [Admin]
+      summary: Dodavanje kurirske službe
+      operationId: createAdminCourier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCourierInput' }
+      responses:
+        '201': { description: Kurirska služba je dodata }
+        '403': { description: Samo SuperAdministrator }
+        '422': { description: Validacija nije prošla }
+  /api/v1/admin/couriers/{courier}:
+    put:
+      tags: [Admin]
+      summary: Izmena kurirske službe
+      operationId: updateAdminCourier
+      parameters:
+        - { name: courier, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCourierInput' }
+      responses:
+        '200': { description: Kurirska služba je sačuvana }
+        '403': { description: Samo SuperAdministrator }
+        '404': { description: Kurirska služba nije pronađena }
+        '422': { description: Validacija nije prošla }
+
+  /api/v1/admin/users/options:
+    get:
+      tags: [Admin]
+      summary: Uloge, grupe i statusi za Admin User forme
+      operationId: getAdminUserOptions
+      responses:
+        '200':
+          description: Opcije User Managera
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserOptionsResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola }
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: Lista i pretraga korisnika
+      operationId: listAdminUsers
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 190 } }
+        - { name: status, in: query, schema: { type: string, enum: [pending, active, blocked] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, enum: [20, 50, 100] } }
+      responses:
+        '200':
+          description: Straničena lista korisnika
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserListResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola }
+    post:
+      tags: [Admin]
+      summary: Kreiranje korisnika
+      operationId: createAdminUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserCreateInput' }
+      responses:
+        '201':
+          description: Korisnik je dodat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserMutationResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola }
+        '422': { description: Validacija nije prošla }
+  /api/v1/admin/users/{user}:
+    parameters:
+      - { name: user, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      tags: [Admin]
+      summary: Detalj korisnika
+      operationId: getAdminUser
+      responses:
+        '200':
+          description: Korisnik i capabilities
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserDetailResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola }
+        '404': { description: Korisnik nije pronađen }
+    put:
+      tags: [Admin]
+      summary: Izmena profila, uloge, grupe, statusa ili lozinke korisnika
+      description: Promena lozinke opoziva sve postojeće Sanctum tokene korisnika. Poslednji aktivni SuperAdmin ne može biti degradiran ili blokiran.
+      operationId: updateAdminUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserUpdateInput' }
+      responses:
+        '200':
+          description: Korisnik je izmenjen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserMutationResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola }
+        '404': { description: Korisnik nije pronađen }
+        '422': { description: Validacija ili last-SuperAdmin guard nije prošao }
+
+  # MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
+  /api/v1/admin/exchange-rate:
+    get:
+      tags: [Admin]
+      summary: Trenutni EUR/RSD kurs, konfiguracija i istorija
+      operationId: getAdminExchangeRate
+      responses:
+        '200':
+          description: Centralna konfiguracija kursa i poslednjih 50 zapisa istorije
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExchangeRateStateResponse' }
+        '403': { description: Nedostaje system.manage_settings dozvola }
+  /api/v1/admin/exchange-rate/manual:
+    put:
+      tags: [Admin]
+      summary: Sačuvaj ručni EUR/RSD kurs
+      operationId: saveAdminExchangeRateManual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rate]
+              properties:
+                rate: { type: number, minimum: 50, maximum: 250 }
+      responses:
+        '200':
+          description: Ručni kurs je sačuvan kroz centralni ExchangeRateService
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExchangeRateStateResponse' }
+        '403': { description: Nedostaje system.manage_settings dozvola }
+        '422': { description: Kurs nije validan }
+  /api/v1/admin/exchange-rate/automatic:
+    put:
+      tags: [Admin]
+      summary: Uključi ili isključi automatski EUR/RSD režim
+      operationId: updateAdminExchangeRateAutomatic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, stale_after_hours]
+              properties:
+                enabled: { type: boolean }
+                stale_after_hours: { type: integer, minimum: 1, maximum: 720 }
+      responses:
+        '200':
+          description: Režim je sačuvan
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExchangeRateStateResponse' }
+        '403': { description: Nedostaje system.manage_settings dozvola }
+        '422': { description: Podešavanje nije validno }
+        '502': { description: Automatski režim je sačuvan, ali trenutni provider sync nije uspeo }
+  /api/v1/admin/exchange-rate/refresh:
+    post:
+      tags: [Admin]
+      summary: Odmah sinhronizuj EUR/RSD kurs
+      description: Forced one-off refresh ne uključuje automatski režim ako je trenutno aktivan ručni režim.
+      operationId: refreshAdminExchangeRate
+      responses:
+        '200':
+          description: Kurs je uspešno osvežen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExchangeRateStateResponse' }
+        '403': { description: Nedostaje system.manage_settings dozvola }
+        '502': { description: Provider sinhronizacija nije uspela }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2893,6 +3425,199 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    AdminExchangeRateConfiguration:
+      type: object
+      required: [rate, mode, provider, source, provider_date, updated_at, last_attempt_at, last_error, stale_after_hours, is_stale]
+      properties:
+        rate: { type: [number, 'null'] }
+        mode: { type: string, enum: [manual, auto] }
+        provider: { type: string }
+        source: { type: string }
+        provider_date: { type: [string, 'null'], format: date }
+        updated_at: { type: [string, 'null'] }
+        last_attempt_at: { type: [string, 'null'] }
+        last_error: { type: [string, 'null'] }
+        stale_after_hours: { type: integer, minimum: 1, maximum: 720 }
+        is_stale: { type: boolean }
+    AdminExchangeRateHistoryItem:
+      type: object
+      required: [id, old_rate, new_rate, mode, provider, source, provider_date, triggered_by, status, message, created_at, updated_by, updater]
+      properties:
+        id: { type: integer, minimum: 1 }
+        old_rate: { type: [number, 'null'] }
+        new_rate: { type: [number, 'null'] }
+        mode: { type: string, enum: [manual, auto] }
+        provider: { type: string }
+        source: { type: string }
+        provider_date: { type: [string, 'null'], format: date }
+        triggered_by: { type: string }
+        status: { type: string, enum: [success, failed] }
+        message: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        updated_by: { type: [integer, 'null'] }
+        updater:
+          anyOf:
+            - type: object
+              required: [id, name]
+              properties:
+                id: { type: integer, minimum: 1 }
+                name: { type: string }
+            - type: 'null'
+    AdminExchangeRateCapabilities:
+      type: object
+      required: [manage, manual, automatic, refresh]
+      properties:
+        manage: { type: boolean, const: true }
+        manual: { type: boolean, const: true }
+        automatic: { type: boolean, const: true }
+        refresh: { type: boolean, const: true }
+    AdminExchangeRateData:
+      type: object
+      required: [configuration, history, capabilities]
+      properties:
+        configuration: { $ref: '#/components/schemas/AdminExchangeRateConfiguration' }
+        history:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AdminExchangeRateHistoryItem' }
+        capabilities: { $ref: '#/components/schemas/AdminExchangeRateCapabilities' }
+    AdminExchangeRateStateResponse:
+      type: object
+      required: [data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminExchangeRateData' }
+        sync:
+          type: object
+          properties:
+            rate: { type: number }
+            source: { type: string }
+            provider_date: { type: string, format: date }
+    AdminUserRole:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer, minimum: 1 }
+        name: { type: string }
+        slug: { type: string }
+    AdminUserGroup:
+      type: object
+      required: [id, name, slug, status]
+      properties:
+        id: { type: integer, minimum: 1 }
+        name: { type: string }
+        slug: { type: string }
+        status: { type: string }
+    AdminUser:
+      type: object
+      required: [id, username, email, name, status, effective_access, last_active_superadmin_protected]
+      properties:
+        id: { type: integer, minimum: 1 }
+        username: { type: string, minLength: 3, maxLength: 50 }
+        email: { type: string, format: email, maxLength: 190 }
+        first_name: { type: [string, 'null'], maxLength: 100 }
+        last_name: { type: [string, 'null'], maxLength: 100 }
+        name: { type: string }
+        phone: { type: [string, 'null'], maxLength: 40 }
+        status: { type: string, enum: [pending, active, blocked] }
+        role: { anyOf: [{ $ref: '#/components/schemas/AdminUserRole' }, { type: 'null' }] }
+        group: { anyOf: [{ $ref: '#/components/schemas/AdminUserGroup' }, { type: 'null' }] }
+        effective_access: { type: string, enum: [full, group, restricted] }
+        last_login_at: { type: [string, 'null'], format: date-time }
+        password_changed_at: { type: [string, 'null'], format: date-time }
+        approved_at: { type: [string, 'null'], format: date-time }
+        last_active_superadmin_protected: { type: boolean }
+    AdminUserStatusOption:
+      type: object
+      required: [value, label]
+      properties:
+        value: { type: string, enum: [pending, active, blocked] }
+        label: { type: string }
+    AdminUserOptionsData:
+      type: object
+      required: [roles, groups, statuses, per_page]
+      properties:
+        roles: { type: array, items: { $ref: '#/components/schemas/AdminUserRole' } }
+        groups: { type: array, items: { $ref: '#/components/schemas/AdminUserGroup' } }
+        statuses: { type: array, items: { $ref: '#/components/schemas/AdminUserStatusOption' } }
+        per_page: { type: array, items: { type: integer, enum: [20, 50, 100] } }
+    AdminUserCapabilities:
+      type: object
+      required: [create, update, password_management, delete]
+      properties:
+        create: { type: boolean }
+        update: { type: boolean }
+        password_management: { type: boolean }
+        delete: { type: boolean, const: false }
+    AdminUserInputBase:
+      type: object
+      required: [role_id, username, email, status]
+      properties:
+        role_id: { type: integer, minimum: 1 }
+        user_group_id: { type: [integer, 'null'], minimum: 1 }
+        username: { type: string, minLength: 3, maxLength: 50 }
+        email: { type: string, format: email, maxLength: 190 }
+        first_name: { type: [string, 'null'], maxLength: 100 }
+        last_name: { type: [string, 'null'], maxLength: 100 }
+        phone: { type: [string, 'null'], maxLength: 40 }
+        status: { type: string, enum: [pending, active, blocked] }
+        password: { type: string, minLength: 12, maxLength: 200, writeOnly: true }
+    AdminUserCreateInput:
+      allOf:
+        - { $ref: '#/components/schemas/AdminUserInputBase' }
+        - type: object
+          required: [password]
+    AdminUserUpdateInput:
+      allOf:
+        - { $ref: '#/components/schemas/AdminUserInputBase' }
+    AdminUserListResponse:
+      type: object
+      required: [data, pagination, filters, filter_options, capabilities]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+        pagination: { type: object, additionalProperties: true }
+        filters: { type: object, additionalProperties: true }
+        filter_options: { $ref: '#/components/schemas/AdminUserOptionsData' }
+        capabilities: { $ref: '#/components/schemas/AdminUserCapabilities' }
+    AdminUserOptionsResponse:
+      type: object
+      required: [data, capabilities]
+      properties:
+        data: { $ref: '#/components/schemas/AdminUserOptionsData' }
+        capabilities: { $ref: '#/components/schemas/AdminUserCapabilities' }
+    AdminUserDetailResponse:
+      type: object
+      required: [data, capabilities]
+      properties:
+        data: { $ref: '#/components/schemas/AdminUser' }
+        capabilities: { $ref: '#/components/schemas/AdminUserCapabilities' }
+    AdminUserMutationResponse:
+      type: object
+      required: [message, data, password_changed, reauthenticate]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminUser' }
+        password_changed: { type: boolean }
+        reauthenticate: { type: boolean }
+    AdminCourierService:
+      type: object
+      required: [id, name, tracking_url, sort_order, is_active, is_default]
+      properties:
+        id: { type: integer, minimum: 1 }
+        name: { type: string, maxLength: 120 }
+        tracking_url: { type: string, format: uri, pattern: '^https://' }
+        sort_order: { type: integer, minimum: 0, maximum: 100000 }
+        is_active: { type: boolean }
+        is_default: { type: boolean }
+    AdminCourierInput:
+      type: object
+      required: [name, tracking_url, sort_order, is_active, is_default]
+      properties:
+        name: { type: string, maxLength: 120 }
+        tracking_url: { type: string, format: uri, pattern: '^https://' }
+        sort_order: { type: integer, minimum: 0, maximum: 100000 }
+        is_active: { type: boolean }
+        is_default: { type: boolean }
     AdminServicePartWrite:
       type: object
       properties:
@@ -3828,12 +4553,116 @@ components:
         extensions:
           type: array
           items: { type: string }
-    AdminProductImageUploadResponse:
+    # MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
+    AdminDirectSalePaymentMethod:
+      type: string
+      enum: [cash, card, bank_transfer, other, deferred_payment]
+    AdminDirectSaleOptions:
       type: object
-      required: [message, uploaded_count]
+      required: [product, payment_methods, idempotency_key, can_submit]
+      properties:
+        product:
+          type: object
+          required: [id, sku, name, status, stock_quantity, catalog_price_amount, catalog_price_currency]
+          properties:
+            id: { type: integer, minimum: 1 }
+            sku: { type: string }
+            name: { type: string }
+            status: { type: string }
+            stock_quantity: { type: integer, minimum: 0 }
+            catalog_price_amount: { type: number, minimum: 0 }
+            catalog_price_currency: { type: string, enum: [EUR, RSD] }
+            catalog_unit_price_rsd: { type: [number, 'null'], minimum: 0 }
+        eur_rsd_rate: { type: [number, 'null'], exclusiveMinimum: 0 }
+        payment_methods:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { $ref: '#/components/schemas/AdminDirectSalePaymentMethod' }
+              label: { type: string }
+        idempotency_key: { type: string, maxLength: 200 }
+        can_submit: { type: boolean }
+        blocking_reason: { type: [string, 'null'] }
+    AdminDirectSaleOptionsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/AdminDirectSaleOptions' }
+    AdminDirectSaleInput:
+      type: object
+      required: [quantity, sale_price_rsd, payment_method, idempotency_key]
+      properties:
+        buyer_name: { type: string, maxLength: 190 }
+        buyer_phone: { type: string, maxLength: 80 }
+        quantity: { type: integer, minimum: 1, maximum: 1000 }
+        sale_price_rsd: { type: number, exclusiveMinimum: 0 }
+        payment_method: { $ref: '#/components/schemas/AdminDirectSalePaymentMethod' }
+        installment_count: { type: integer, minimum: 1, maximum: 24, description: Obavezno kada je payment_method=deferred_payment. }
+        payment_due_at: { type: string, format: date, description: Konačni datum pune isplate; obavezno za deferred_payment i ne sme biti u prošlosti. }
+        idempotency_key: { type: string, maxLength: 200 }
+    AdminDirectSaleResult:
+      type: object
+      required: [order_id, order_number, status, payment_state, subtotal_rsd, quantity, sale_price_rsd, stock_quantity_after]
+      properties:
+        order_id: { type: integer, minimum: 1 }
+        order_number: { type: string }
+        status: { type: string }
+        payment_state: { type: string }
+        subtotal_rsd: { type: number, minimum: 0 }
+        quantity: { type: integer, minimum: 1 }
+        sale_price_rsd: { type: number, exclusiveMinimum: 0 }
+        stock_quantity_after: { type: integer, minimum: 0 }
+    AdminDirectSaleResponse:
+      type: object
+      required: [message, data]
       properties:
         message: { type: string }
-        uploaded_count: { type: integer, minimum: 0 }
+        data: { $ref: '#/components/schemas/AdminDirectSaleResult' }
+    AdminProductManagedImage:
+      type: object
+      required: [id, storage_disk, rotation_degrees, sort_order, is_primary, can_delete]
+      properties:
+        id: { type: integer, minimum: 1 }
+        url: { type: [string, 'null'] }
+        download_url: { type: [string, 'null'] }
+        original_filename: { type: [string, 'null'] }
+        mime_type: { type: [string, 'null'] }
+        file_size: { type: [integer, 'null'], minimum: 0 }
+        storage_disk: { type: string }
+        rotation_degrees: { type: integer }
+        sort_order: { type: integer }
+        is_primary: { type: boolean }
+        can_delete: { type: boolean }
+    AdminProductImageCollectionResponse:
+      type: object
+      required: [data, capabilities, image_limits]
+      properties:
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminProductManagedImage' }
+        capabilities:
+          type: object
+          additionalProperties: { type: boolean }
+        image_limits:
+          $ref: '#/components/schemas/AdminProductImageLimits'
+    AdminProductImageUploadResponse:
+      allOf:
+        - $ref: '#/components/schemas/AdminProductImageCollectionResponse'
+        - type: object
+          required: [message, uploaded_count, skipped_duplicate_count, skipped_input_indexes, uploaded_images]
+          properties:
+            message: { type: string }
+            uploaded_count: { type: integer, minimum: 0 }
+            skipped_duplicate_count: { type: integer, minimum: 0 }
+            skipped_input_indexes:
+              type: array
+              items: { type: integer, minimum: 0 }
+            uploaded_images:
+              type: array
+              items: { $ref: '#/components/schemas/AdminProductManagedImage' }
     AdminCatalogTypeOption:
       type: object
       required: [id, name, auto_name_enabled, fields]

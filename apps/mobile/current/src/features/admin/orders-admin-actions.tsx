@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -148,12 +148,16 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const shipment = asRecord(data.shipment);
   const actions = asRecord(data.actions);
   const payments = asRecords(data.payments);
+  // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
+  const couriers = asRecords(data.couriers);
 
   const orderStatus = recordText(order, 'status');
   const completed = recordBool(order, 'is_completed') || recordText(order, 'completed_at') !== '';
   const accepted = recordText(order, 'accepted_at') !== '';
   const workflowEnabled = capabilities.workflow_mutations && capabilities.orders_manage;
   const hasShipment = shipment !== null;
+  const defaultCourier = couriers.find((courier) => recordBool(courier, 'is_default')) ?? couriers[0] ?? null;
+  const defaultCourierId = defaultCourier ? String(recordId(defaultCourier) ?? '') : '';
 
   const customerName = recordText(customer, 'name', recordText(order, 'shipping_full_name', 'Kupac'));
   const recipientPhone = recordText(shipping, 'phone', recordText(order, 'shipping_phone'));
@@ -183,6 +187,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const [paymentLedgerAction, setPaymentLedgerAction] = useState<'verify' | 'reject' | 'void'> ('verify');
   const [paymentRejectReason, setPaymentRejectReason] = useState('');
   const [shipmentMethod, setShipmentMethod] = useState<AdminOrderShipmentMethod> ('courier');
+  const [courierServiceId, setCourierServiceId] = useState(defaultCourierId);
   const [shippedAt, setShippedAt] = useState(localDateTimeNow);
   const [shipmentRecipient, setShipmentRecipient] = useState(customerName);
   const [shipmentPhone, setShipmentPhone] = useState(recipientPhone);
@@ -198,6 +203,10 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const [deliveryProof, setDeliveryProof] = useState<AdminOrderProofFile | null> (null);
   const [reopenReason, setReopenReason] = useState('');
   const [openingProof, setOpeningProof] = useState(false);
+  const courierOptions = couriers.flatMap((courier) => { const id = recordId(courier); return id ? [{ value: String(id), label: recordText(courier, 'name', 'Kurirska služba') }] : []; });
+  const selectedCourier = couriers.find((courier) => recordId(courier) === Number(courierServiceId)) ?? null;
+  const selectedCourierTrackingUrl = recordText(selectedCourier, 'tracking_url');
+  const shipmentTrackingUrl = recordText(shipment, 'tracking_url');
 
   const supplierQuery = useQuery({
     queryKey: ['admin', 'orders', 'supplier-options'],
@@ -288,11 +297,20 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
     execute('payment-ledger', 'Uplata je verifikovana', () => apiAdminOrders.paymentVerify(orderId, paymentId));
   }
 
+  async function openTrackingUrl(url: string): Promise<void> {
+    const safeUrl = url.trim();
+    if (!safeUrl.toLowerCase().startsWith('https://')) return notifyInputError(feedback, 'Tracking URL nije bezbedan HTTPS link.');
+    try { await Linking.openURL(safeUrl); } catch { feedback.notify({ tone: 'danger', title: 'Tracking stranica nije otvorena', message: 'Proveri URL kurirske službe.' }); }
+  }
+
   function submitShipment(): void {
     if (!shipmentRecipient.trim()) return notifyInputError(feedback, 'Ime primaoca je obavezno.');
+    const selectedCourierId = Number(courierServiceId);
+    if (shipmentMethod === 'courier' && (!Number.isInteger(selectedCourierId) || selectedCourierId <= 0)) return notifyInputError(feedback, 'Izaberi kurirsku službu.');
     if (shipmentMethod === 'courier' && !trackingNumber.trim()) return notifyInputError(feedback, 'Za kurirsku službu unesi tracking broj.');
     execute('shipment', 'Slanje pošiljke je evidentirano', () => apiAdminOrders.shipment(orderId, {
       shipment_method: shipmentMethod,
+      courier_service_id: shipmentMethod === 'courier' ? selectedCourierId : null,
       shipped_at: shippedAt.trim(),
       recipient_name: shipmentRecipient.trim(),
       recipient_phone: shipmentPhone.trim() || null,
@@ -358,6 +376,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
           {capabilities.payments ? <Button variant="secondary" onPress={() => setPanel('payment-entry')}>Evidentiraj uplatu/refundaciju</Button> : null}
           {capabilities.payments && paymentOptions.length > 0 ? <Button variant="secondary" onPress={() => setPanel('payment-ledger')}>Obradi postojeću uplatu</Button> : null}
           {recordBool(shipment, 'has_proof') ? <Button variant="secondary" loading={openingProof} onPress={() => void openShipmentProof()}>Otvori dokaz slanja</Button> : null}
+          {shipmentTrackingUrl ? <Button variant="secondary" onPress={() => void openTrackingUrl(shipmentTrackingUrl)}>Otvori tracking stranicu</Button> : null}
         </View>
       </Card>
 
@@ -455,7 +474,12 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
             { value: 'own_transport', label: 'Sopstveni transport' },
             { value: 'other', label: 'Drugo' },
           ]} onChange={(value) => { if (isShipmentMethod(value)) setShipmentMethod(value); }} />
-          {shipmentMethod === 'courier' ? <Text style={styles.muted}>Ako se courier ID ne šalje, backend koristi trenutno podešenu podrazumevanu kurirsku službu.</Text> : null}
+          {shipmentMethod === 'courier' ? (
+            <>
+              <SelectSheet label="Kurirska služba" value={courierServiceId} placeholder="Izaberi kurirsku službu" options={courierOptions} onChange={setCourierServiceId} />
+              {selectedCourierTrackingUrl ? <Button variant="ghost" onPress={() => void openTrackingUrl(selectedCourierTrackingUrl)}>Otvori tracking stranicu kurira</Button> : null}
+            </>
+          ) : null}
           <DateTimeField label="Datum i vreme slanja" value={shippedAt} onChangeText={setShippedAt} />
           <TextField label="Primalac" value={shipmentRecipient} onChangeText={setShipmentRecipient} />
           <TextField label="Telefon primaoca" value={shipmentPhone} onChangeText={setShipmentPhone} keyboardType="phone-pad" />

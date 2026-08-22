@@ -20,9 +20,6 @@ export default function OrdersScreen() {
   );
   const { bootstrap, hasFeature, can } = useAuth();
   const allowed = hasFeature('orders');
-  const afterSalesAllowed = can('after_sales.view_own');
-  const warrantiesAllowed = can('warranties.view_own');
-  const commissionsAllowed = can('commissions.view_own');
   const assignedOrdersAllowed = can('orders.manage');
   const query = useQuery({ queryKey: ['orders'], queryFn: () => api.orders.list(), enabled: allowed });
   if (!allowed) return <UnavailableState title="Porudžbine nisu dostupne" />;
@@ -40,26 +37,15 @@ export default function OrdersScreen() {
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.header}>
-          <PageHeader title="Porudžbine" eyebrow="Moje aktivnosti" name={bootstrap?.user.name} />
-          <Text style={styles.copy}>Pregled statusa, plaćanja i stavki porudžbine.</Text>
-          {afterSalesAllowed ? (
-            <Button variant="secondary" onPress={() => router.push('/after-sales')}>
-              Reklamacije i servis
-            </Button>
-          ) : null}
-          {warrantiesAllowed ? (
-            <Button variant="secondary" onPress={() => router.push('/warranties')}>
-              Moje garancije
-            </Button>
-          ) : null}
-          {commissionsAllowed ? (
-            <Button variant="secondary" onPress={() => router.push('/commissions')}>
-              Moje provizije
-            </Button>
-          ) : null}
+          {/* MOBILE_V0_9_ORDERS_MY_AND_ASSIGNED_ONLY_BATCH5C */}
+          <PageHeader title="Porudžbine" eyebrow="Moje porudžbine" name={bootstrap?.user.name} />
+          <Text style={styles.copy}>Moje porudžbine: pregled statusa, plaćanja i stavki.</Text>
+
+
+
           {assignedOrdersAllowed ? (
             <Button variant="secondary" onPress={() => router.push('/assigned-orders')}>
-              Dodeljene meni
+              Dodeljene porudžbine
             </Button>
           ) : null}
         </View>

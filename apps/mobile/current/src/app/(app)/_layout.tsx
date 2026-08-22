@@ -23,7 +23,7 @@ export default function AppLayout() {
   const platformConfig = Platform.OS === 'ios'
     ? bootstrap?.app.ios
     : bootstrap?.app.android;
-  const version = Application.nativeApplicationVersion ?? '0.8.0';
+  const version = Application.nativeApplicationVersion ?? '0.9.0';
   const blocked = platformConfig
     ? compareVersions(version, platformConfig.minimum_supported_version) < 0
     : false;

@@ -39,4 +39,15 @@ export const adminQueryKeys = {
   inventoryList: (params: unknown) => ['admin', 'inventory', 'list', params] as const,
   inventoryLookup: (q: string) => ['admin', 'inventory', 'lookup', q] as const,
   inventoryMovements: (params: unknown) => ['admin', 'inventory', 'movements', params] as const,
+  // MOBILE_V0_8_COMPLETE_USER_MANAGEMENT_BATCH12
+  users: () => ['admin', 'users'] as const,
+  usersList: (params: unknown) => ['admin', 'users', 'list', params] as const,
+  user: (userId: number) => ['admin', 'users', 'detail', userId] as const,
+  userOptions: () => ['admin', 'users', 'options'] as const,
+  // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
+  exchangeRate: () => ['admin', 'exchange-rate'] as const,
+  // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+  brands: () => ['admin', 'brands'] as const,
+  brandsList: (params: unknown) => ['admin', 'brands', 'list', params] as const,
+  brandOptions: () => ['admin', 'brands', 'options'] as const,
 };

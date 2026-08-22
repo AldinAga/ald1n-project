@@ -12,17 +12,17 @@ import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/stat
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { apiAdminCatalog } from '@/features/admin/catalog-admin-api';
 import {
-  formatProductImageSize,
-  pickProductImages,
-} from '@/features/catalog/product-image-picker';
+  DraftProductImageManager,
+  type DraftProductImage,
+} from '@/features/catalog/product-image-manager';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
 import { useAppTheme } from '@/theme/app-theme';
 import type {
   AdminCatalogSpecificationField,
   AdminProductCreateInput,
-  AdminProductImageUploadFile,
 } from '@/types/api';
 
 function apiMessage(error: unknown, fallback: string): string {
@@ -124,8 +124,8 @@ export default function AdminCatalogCreateScreen() {
   const [specs, setSpecs] = useState<Record<string, string>> ({});
   const [specDetails, setSpecDetails] = useState<Record<string, string>> ({});
   const [storageRows, setStorageRows] = useState<Record<string, StorageRow[]>> ({});
-  const [images, setImages] = useState<AdminProductImageUploadFile[]> ([]);
-  const [pickingImages, setPickingImages] = useState(false);
+  // MOBILE_V0_8_SHARED_PRODUCT_IMAGE_MANAGER_BATCH9
+  const [images, setImages] = useState<DraftProductImage[]> ([]);
   const [errors, setErrors] = useState<Record<string, string>> ({});
   const [submitError, setSubmitError] = useState<string | null> (null);
 
@@ -141,18 +141,31 @@ export default function AdminCatalogCreateScreen() {
       imageFiles,
     }: {
       input: AdminProductCreateInput;
-      imageFiles: AdminProductImageUploadFile[];
+      imageFiles: DraftProductImage[];
     }) => {
       const response = await api.admin.catalog.createProduct(input);
       let imageWarning: string | null = null;
 
       if (imageFiles.length > 0) {
         try {
-          await api.admin.catalog.uploadProductImages(response.data.id, imageFiles);
+          const uploaded = await api.admin.catalog.uploadProductImages(response.data.id, imageFiles);
+          const skipped = new Set(uploaded.skipped_input_indexes);
+          if (uploaded.uploaded_images.length !== imageFiles.length - skipped.size) {
+            throw new Error('Server nije vratio očekivani plan novih fotografija.');
+          }
+          let managedIndex = 0;
+          for (let index = 0; index < imageFiles.length; index += 1) {
+            if (skipped.has(index)) continue;
+            const draft = imageFiles[index];
+            const managed = uploaded.uploaded_images[managedIndex];
+            managedIndex += 1;
+            if (!draft || !managed || draft.rotation_degrees === 0) continue;
+            await apiAdminCatalog.rotateImage(response.data.id, managed.id, draft.rotation_degrees);
+          }
         } catch (error) {
           imageWarning = apiMessage(
             error,
-            'Artikal je kreiran, ali fotografije trenutno nisu mogle biti poslate.',
+            'Artikal je kreiran, ali plan fotografija nije u potpunosti primenjen.',
           );
         }
       }
@@ -320,33 +333,8 @@ export default function AdminCatalogCreateScreen() {
 
   // MOBILE_PRODUCT_CREATE_REPEATABLE_ACTIONS_DRAFT_PRESERVATION_V07
   // MOBILE_PRODUCT_CREATE_PERSISTENT_DRAFT_RETRY_V07
-  // The picker is intentionally reusable: every completed picker session may append another folder/batch.
-  // Validation failures never reset field/spec/image state and never navigate away from this screen.
-  const chooseImages = async () => {
-    setPickingImages(true);
-    try {
-      const result = await pickProductImages(images, options.image_limits);
-      if (result.files.length > 0) {
-        setImages((current) => [...current, ...result.files]);
-      }
-      if (result.rejected.length > 0) {
-        feedback.notify({
-          tone: 'warning',
-          title: 'Neke fotografije nisu dodate',
-          message: result.rejected.join(' '),
-          durationMs: 5200,
-        });
-      }
-    } catch (error) {
-      feedback.notify({
-        tone: 'danger',
-        title: 'Fotografije nije moguće izabrati',
-        message: apiMessage(error, 'Pokušaj ponovo.'),
-      });
-    } finally {
-      setPickingImages(false);
-    }
-  };
+  // MOBILE_V0_8_SHARED_PRODUCT_IMAGE_MANAGER_BATCH9
+  // Draft image order and rotation are preserved until successful product creation.
 
   const submit = () => {
     const nextErrors: Record<string, string> = {};
@@ -777,45 +765,13 @@ export default function AdminCatalogCreateScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fotografije</Text>
-        {imageUploadEnabled ? (
-          <>
-            <Text style={styles.help}>
-              JPG/JPEG/PNG/WebP · do {options.image_limits.max_files} fajlova · maksimalno {formatProductImageSize(options.image_limits.max_bytes)} po fotografiji.
-            </Text>
-            <Button
-              variant="secondary"
-              onPress={() => void chooseImages()}
-              loading={pickingImages}
-              disabled={images.length >= options.image_limits.max_files}
-            >
-              Dodaj fotografije ({images.length}/{options.image_limits.max_files})
-            </Button>
-            {images.map((image, index) => (
-              <View key={`${image.uri}:${index}`} style={styles.imageRow}>
-                <View style={styles.imageCopy}>
-                  <Text style={styles.imageName}>{image.name}</Text>
-                  <Text style={styles.imageMeta}>
-                    {image.type} · {formatProductImageSize(image.size)}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ukloni fotografiju ${image.name}`}
-                  onPress={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                  disabled={mutation.isPending}
-                >
-                  <Text style={styles.remove}>Ukloni</Text>
-                </Pressable>
-              </View>
-            ))}
-          </>
-        ) : (
-          <Card muted>
-            <Text style={styles.help}>
-              Fotografije može dodati korisnik sa catalog.manage_images dozvolom. Artikal možeš kreirati i bez fotografija.
-            </Text>
-          </Card>
-        )}
+        <DraftProductImageManager
+          images={images}
+          onChange={setImages}
+          limits={options.image_limits}
+          enabled={imageUploadEnabled}
+          helper="Prva fotografija je glavna. Pre čuvanja možeš menjati redosled, rotirati za 90° i ukloniti svaku fotografiju. Rotacija se fizički primenjuje na serveru odmah nakon kreiranja artikla."
+        />
       </View>
 
       <Button onPress={submit} loading={mutation.isPending}>

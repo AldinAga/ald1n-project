@@ -256,14 +256,17 @@ final class OrderController extends Controller
         return null;
     }
 
+    // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
+    // HTTPS courier tracking_url is public operational metadata; private/internal URLs remain stripped.
     private function sanitizeDetail(mixed $value, ?string $key = null): mixed
     {
         if ($key !== null) {
             $normalized = strtolower($key);
-            if ($normalized === 'urls'
+            if ($normalized !== 'tracking_url' && (
+                $normalized === 'urls'
                 || str_ends_with($normalized, '_url')
                 || str_ends_with($normalized, '_path')
-                || str_ends_with($normalized, '_disk')) {
+                || str_ends_with($normalized, '_disk'))) {
                 return null;
             }
         }
@@ -277,10 +280,11 @@ final class OrderController extends Controller
             $name = is_string($childKey) ? $childKey : null;
             if ($name !== null) {
                 $normalized = strtolower($name);
-                if ($normalized === 'urls'
+                if ($normalized !== 'tracking_url' && (
+                    $normalized === 'urls'
                     || str_ends_with($normalized, '_url')
                     || str_ends_with($normalized, '_path')
-                    || str_ends_with($normalized, '_disk')) {
+                    || str_ends_with($normalized, '_disk'))) {
                     continue;
                 }
             }

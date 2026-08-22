@@ -8,6 +8,7 @@ import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
+import { apiAdmin } from '@/features/admin/admin-api';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import {
   apiAdminReports,
@@ -37,6 +38,13 @@ export default function HomeScreen() {
     roleSlug: bootstrap?.user.role?.slug,
   });
   const reportsAllowed = can('reports.view');
+  const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
+  const foundationQuery = useQuery({
+    queryKey: adminQueryKeys.foundation(),
+    queryFn: apiAdmin.foundation,
+    enabled: isSuperAdmin,
+    staleTime: 60_000,
+  });
   const reportQuery = useQuery({
     queryKey: adminQueryKeys.managementReport(HOME_REPORT_PARAMS),
     queryFn: () => apiAdminReports.management(HOME_REPORT_PARAMS),
@@ -44,32 +52,44 @@ export default function HomeScreen() {
     staleTime: 60_000,
   });
   const report = reportQuery.data?.data;
+  const inventoryValuation = isSuperAdmin ? foundationQuery.data?.inventory_valuation ?? null : null;
 
-  const quickActions = [
-    hasFeature('catalog') ? { title: 'Otvori katalog', copy: 'Pretraži aktivne proizvode', glyph: 'catalog' as const, route: '/catalog' as const } : null,
-    can('catalog.manage_products') ? { title: 'Dodaj artikal', copy: 'Kreiraj novi artikal', glyph: 'catalog' as const, route: '/admin/catalog/create' as const } : null,
-    can('commissions.manage') ? { title: 'Provizije', copy: 'Pregledaj i obradi provizije', glyph: 'orders' as const, route: '/admin/commissions' as const } : can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Pregledaj obračun i status isplate', glyph: 'orders' as const, route: '/commissions' as const } : null,
-    hasFeature('order_create') ? { title: 'Korpa', copy: itemCount ? `${itemCount} komada spremno` : 'Pripremi novu porudžbinu', glyph: 'cart' as const, route: '/cart' as const } : null,
-    hasFeature('orders') ? { title: 'Moje porudžbine', copy: 'Proveri status i detalje', glyph: 'orders' as const, route: '/orders' as const } : null,
-    adminAllowed ? { title: 'Administracija', copy: 'Otvori administratorski radni prostor', glyph: 'check' as const, route: '/admin' as const } : null,
-    hasFeature('notifications') ? { title: 'Obaveštenja', copy: `${bootstrap?.notification_counts.unread ?? 0} nepročitanih`, glyph: 'bell' as const, route: '/notifications' as const } : null,
-  ].filter(Boolean) as Array<{
+  type HomeAction = {
     title: string;
     copy: string;
     glyph: 'catalog' | 'cart' | 'orders' | 'check' | 'bell';
-    route: '/catalog' | '/admin/catalog/create' | '/admin/commissions' | '/commissions' | '/cart' | '/orders' | '/admin' | '/notifications';
-  }>;
+    route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/admin';
+  };
+
+  // MOBILE_V0_9_HOME_INFORMATION_ARCHITECTURE_BATCH5C
+  const quickActions = [
+    hasFeature('catalog') ? { title: 'Otvori katalog', copy: 'Pretraži aktivne proizvode', glyph: 'catalog' as const, route: '/catalog' as const } : null,
+    can('catalog.manage_products') ? { title: 'Dodaj artikal', copy: 'Kreiraj novi artikal', glyph: 'catalog' as const, route: '/admin/catalog/create' as const } : null,
+    hasFeature('order_create') ? { title: 'Korpa', copy: itemCount ? `${itemCount} komada spremno` : 'Pripremi novu porudžbinu', glyph: 'cart' as const, route: '/cart' as const } : null,
+  ].filter(Boolean) as HomeAction[];
+
+  const myActivities = [
+    hasFeature('orders') ? { title: 'Moje porudžbine', copy: 'Status, plaćanja i detalji porudžbina', glyph: 'orders' as const, route: '/orders' as const } : null,
+    can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Obračun i status isplate', glyph: 'orders' as const, route: '/commissions' as const } : null,
+    can('warranties.view_own') ? { title: 'Moje garancije', copy: 'Garantni listovi i održavanje', glyph: 'check' as const, route: '/warranties' as const } : null,
+    can('after_sales.view_own') ? { title: 'Reklamacije i servis', copy: 'Postprodajni slučajevi i komunikacija', glyph: 'check' as const, route: '/after-sales' as const } : null,
+  ].filter(Boolean) as HomeAction[];
+
+  const adminActions = [
+    adminAllowed ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'check' as const, route: '/admin' as const } : null,
+  ].filter(Boolean) as HomeAction[];
 
   const refreshHome = () => {
     void refreshBootstrap();
     if (reportsAllowed) void reportQuery.refetch();
+    if (isSuperAdmin) void foundationQuery.refetch();
   };
 
   return (
     <Screen
       refreshControl={(
         <RefreshControl
-          refreshing={reportsAllowed ? reportQuery.isFetching : false}
+          refreshing={(reportsAllowed && reportQuery.isFetching) || (isSuperAdmin && foundationQuery.isFetching)}
           onRefresh={refreshHome}
           tintColor={themeColors.primary}
         />
@@ -91,6 +111,28 @@ export default function HomeScreen() {
           <Text style={styles.heroMetaValue}>{user?.role?.name ?? 'Korisnik'}</Text>
         </View>
       </View>
+
+      {/* MOBILE_V0_9_HOME_FOCUS_SECTION_BATCH5C */}
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Fokus danas</Text>
+        <Text style={styles.sectionMeta}>
+          {(bootstrap?.notification_counts.unread ?? 0) > 0
+            ? `${bootstrap?.notification_counts.unread ?? 0} novih`
+            : 'Sve pod kontrolom'}
+        </Text>
+      </View>
+      <Card muted style={styles.stateCard}>
+        <Text style={styles.stateTitle}>
+          {(bootstrap?.notification_counts.unread ?? 0) > 0
+            ? 'Proveri nova obaveštenja'
+            : 'Nema novih obaveštenja'}
+        </Text>
+        <Text style={styles.stateCopy}>
+          {itemCount > 0
+            ? `${itemCount} stavki čeka u korpi.`
+            : 'Katalog, porudžbine i aktivnosti su spremni za rad.'}
+        </Text>
+      </Card>
 
       {reportsAllowed ? (
         <View style={styles.dashboardSection}>
@@ -148,6 +190,25 @@ export default function HomeScreen() {
                   meta={`${report.receivables.open_orders} otvorenih porudžbina`}
                   tone="danger"
                 />
+              {/* MOBILE_V0_9_SUPERADMIN_HOME_INVENTORY_VALUE_KPIS */}
+              {inventoryValuation ? (
+                <>
+                  <DashboardMetric
+                    label="Vrednost lagera po nabavnoj ceni"
+                    value={formatMoney(inventoryValuation.purchase_value_rsd, 'RSD')}
+                    meta={inventoryValuation.missing_cost_items === 0 ? 'Sve stavke sa lagerom imaju nabavnu cenu' : String(inventoryValuation.missing_cost_items) + ' artikala sa lagerom bez nabavne cene'}
+                    tone="accent"
+                    route="/admin/inventory"
+                  />
+                  <DashboardMetric
+                    label="Vrednost robe po prodajnoj ceni"
+                    value={formatMoney(inventoryValuation.sale_value_rsd, 'RSD')}
+                    meta={inventoryValuation.missing_sale_value_items === 0 ? 'Prodajna vrednost kompletnog pozitivnog lagera' : String(inventoryValuation.missing_sale_value_items) + ' artikala bez obračunate prodajne vrednosti'}
+                    tone="primary"
+                    route="/admin/inventory"
+                  />
+                </>
+              ) : null}
               </View>
 
               <SalesPulse points={report.trend} periodLabel={report.period_label} />
@@ -155,7 +216,7 @@ export default function HomeScreen() {
               <Card style={styles.focusCard}>
                 <View style={styles.focusHeading}>
                   <View>
-                    <Text style={styles.sectionEyebrow}>FOKUS DANA</Text>
+                    <Text style={styles.sectionEyebrow}>OPERATIVNI SIGNAL</Text>
                     <Text style={styles.focusTitle}>Operativni signal</Text>
                   </View>
                   <Glyph name="info" size={22} color={themeColors.primary} />
@@ -212,6 +273,68 @@ export default function HomeScreen() {
         ))}
       </View>
 
+      {/* MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C */}
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Moje aktivnosti</Text>
+        <Text style={styles.sectionMeta}>{myActivities.length} dostupno</Text>
+      </View>
+      {myActivities.length > 0 ? (
+        <View style={styles.actions}>
+          {myActivities.map((action) => (
+            <Pressable
+              key={action.title}
+              onPress={() => router.push(action.route)}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <Card style={styles.actionCard}>
+                <View style={styles.actionIcon}>
+                  <Glyph name={action.glyph} size={24} color={themeColors.primary} />
+                </View>
+                <View style={styles.actionCopy}>
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                  <Text style={styles.actionText}>{action.copy}</Text>
+                </View>
+                <Glyph name="arrow" size={27} color={themeColors.muted} />
+              </Card>
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <Card muted style={styles.stateCard}>
+          <Text style={styles.stateCopy}>Nema dodatnih korisničkih aktivnosti za ovaj nalog.</Text>
+        </Card>
+      )}
+
+      {/* MOBILE_V0_9_HOME_ADMINISTRATION_BATCH5C */}
+      {adminActions.length > 0 ? (
+        <>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Administracija</Text>
+            <Text style={styles.sectionMeta}>Radni prostor</Text>
+          </View>
+          <View style={styles.actions}>
+            {adminActions.map((action) => (
+              <Pressable
+                key={action.title}
+                onPress={() => router.push(action.route)}
+                style={({ pressed }) => pressed && styles.pressed}
+              >
+                <Card style={styles.actionCard}>
+                  <View style={styles.actionIcon}>
+                    <Glyph name={action.glyph} size={24} color={themeColors.primary} />
+                  </View>
+                  <View style={styles.actionCopy}>
+                    <Text style={styles.actionTitle}>{action.title}</Text>
+                    <Text style={styles.actionText}>{action.copy}</Text>
+                  </View>
+                  <Glyph name="arrow" size={27} color={themeColors.muted} />
+                </Card>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : null}
+
       <Card muted style={styles.foundation}>
         <View style={styles.foundationIcon}>
           <Glyph name="check" color={themeColors.success} size={22} />
@@ -232,11 +355,13 @@ function DashboardMetric({
   label,
   meta,
   tone,
+  route = '/admin/reports',
 }: {
   value: string;
   label: string;
   meta: string;
   tone: 'primary' | 'accent' | 'success' | 'danger';
+  route?: '/admin/reports' | '/admin/inventory';
 }) {
   const toneStyles = useThemedStyles(createToneStyles);
   const styles = useThemedStyles(createStyles);
@@ -244,7 +369,7 @@ function DashboardMetric({
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => router.push('/admin/reports')}
+      onPress={() => router.push(route)}
       style={({ pressed }) => [styles.kpiPressable, pressed && styles.pressed]}
     >
       <Card style={styles.dashboardMetricCard}>
