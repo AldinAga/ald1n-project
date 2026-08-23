@@ -10,6 +10,10 @@ export type NotificationDestination =
       id: number;
     }
   | {
+      kind: 'product';
+      slug: string;
+    }
+  | {
       kind: 'notifications';
       reason: 'stale_assignment' | 'unsupported';
     };
@@ -118,6 +122,25 @@ function afterSalesCaseIdFromRoute(
     : null;
 }
 
+function productSlugFromRoute(
+  value: unknown
+): string | null {
+  if (typeof value !== 'string') return null;
+
+  const match = value.trim().match(
+    /^\/product\/([^/?#]+)\/?(?:[?#].*)?$/i
+  );
+
+  const encoded = match?.[1];
+  if (!encoded) return null;
+
+  try {
+    const slug = decodeURIComponent(encoded).trim();
+    return slug === '' || /[/?#]/.test(slug) ? null : slug;
+  } catch {
+    return null;
+  }
+}
 function resolveNotificationNavigation(
   input: NotificationRoutingInput
 ): NotificationDestination {
@@ -216,6 +239,17 @@ function resolveNotificationNavigation(
     };
   }
 
+  const routeProductSlug =
+    productSlugFromRoute(
+      input.route
+    );
+
+  if (routeProductSlug) {
+    return {
+      kind: 'product',
+      slug: routeProductSlug
+    };
+  }
   return {
     kind: 'notifications',
     reason: 'unsupported'

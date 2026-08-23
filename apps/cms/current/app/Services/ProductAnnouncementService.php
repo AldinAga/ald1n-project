@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\OrderEmailOutbox;
+use App\Models\MobilePushOutbox;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,7 @@ final class ProductAnnouncementService
     public function __construct(
         private readonly SettingsService $settings,
         private readonly AuditLogger $audit,
+        private readonly MobilePushOutboxService $push,
     ) {}
 
     /**
@@ -28,6 +30,10 @@ final class ProductAnnouncementService
      */
     public function queueForNewlyPublished(Product $product, ?User $actor = null): int
     {
+        // MOBILE_V0_9_PRODUCT_PUSH_ANNOUNCEMENT_BATCH9
+        if ((string) $product->status === 'active' && $product->deleted_at === null) {
+            $this->queueProductPush($product);
+        }
         if ($this->settings->get('product_email_new_items_enabled', '0') !== '1') {
             return 0;
         }
@@ -156,6 +162,55 @@ final class ProductAnnouncementService
         return number_format((float) $product->price_amount, 2, ',', '.').' '.trim((string) $product->price_currency);
     }
 
+    /**
+     * Push je namerno odvojen od postojećeg e-mail announcement toka:
+     * samo postojeća push_enabled preferenca + aktivan Expo uređaj mogu dobiti red u outbox-u.
+     */
+    private function queueProductPush(Product $product): void
+    {
+        $slug = trim((string) $product->slug);
+        if ($slug === '') return;
+
+        $event = 'product.published.'.(int) $product->id;
+        $route = '/product/'.rawurlencode($slug);
+
+        User::query()
+            ->where('status', 'active')
+            ->whereHas('notificationPreference', static fn ($query) => $query->where('push_enabled', true))
+            ->orderBy('id')
+            ->chunkById(200, function ($recipients) use ($event, $route, $product): void {
+                foreach ($recipients as $recipient) {
+                    try {
+                        $alreadyQueued = MobilePushOutbox::query()
+                            ->where('user_id', (int) $recipient->id)
+                            ->where('event', $event)
+                            ->exists();
+
+                        if ($alreadyQueued) continue;
+
+                        $this->push->enqueue($recipient, [
+                            'event' => $event,
+                            'title' => 'Novi artikal u katalogu',
+                            'message' => (string) $product->name,
+                            'route' => $route,
+                            'icon' => 'catalog',
+                            'severity' => 'info',
+                        ]);
+                    } catch (\Throwable $exception) {
+                        try {
+                            \Illuminate\Support\Facades\Log::warning('Product publication push queue failed.', [
+                                'product_id' => (int) $product->id,
+                                'recipient_id' => (int) $recipient->id,
+                                'exception' => $exception::class,
+                                'message' => $exception->getMessage(),
+                            ]);
+                        } catch (\Throwable) {
+                            // Push je non-blocking: log kvar ne sme prekinuti objavu artikla.
+                        }
+                    }
+                }
+            });
+    }
     private function absoluteImageUrl(Product $product): ?string
     {
         $imageUrl = trim((string) ($product->primaryImage?->url ?? ''));

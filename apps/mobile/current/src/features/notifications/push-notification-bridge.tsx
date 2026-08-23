@@ -42,6 +42,13 @@ function openNotificationResponse(response: Notifications.NotificationResponse):
     return;
   }
 
+  if (destination.kind === 'product') {
+    router.push({
+      pathname: '/product/[slug]',
+      params: { slug: destination.slug }
+    });
+    return;
+  }
   router.push('/notifications');
 }
 

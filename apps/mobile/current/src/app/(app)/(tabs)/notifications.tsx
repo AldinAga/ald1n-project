@@ -82,6 +82,13 @@ export default function NotificationsScreen() {
       return;
     }
 
+    if (destination.kind === 'product') {
+      router.push({
+        pathname: '/product/[slug]',
+        params: { slug: destination.slug }
+      });
+      return;
+    }
     if (destination.reason === 'stale_assignment') {
       feedback.notify({
         tone: 'warning',
