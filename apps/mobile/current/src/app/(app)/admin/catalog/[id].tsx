@@ -16,6 +16,7 @@ import {
   type AdminCatalogProductDetail,
   type AdminCatalogProductUpdateInput,
 } from '@/features/admin/catalog-admin-api';
+import { ProductDeletionAdmin } from '@/features/admin/product-deletion-admin';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RemoteProductImageManager } from '@/features/catalog/product-image-manager';
 import { ApiError } from '@/lib/api/client';
@@ -617,6 +618,14 @@ export default function AdminCatalogEditScreen() {
           ) : null}
         </View>
       ) : null}
+      <ProductDeletionAdmin
+        productId={product.id}
+        onDeleted={async () => {
+          await refreshAll();
+          router.replace('/admin/catalog' as Href);
+        }}
+      />
+
     </Screen>
   );
 }

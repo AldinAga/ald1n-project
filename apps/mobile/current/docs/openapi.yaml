@@ -144,6 +144,76 @@ paths:
           content:
             application/json:
               schema: { type: object, additionalProperties: true }
+  # MOBILE_V1_0_ADMIN_CATALOG_PURGE_TOTAL_PURGE_BATCH24
+  /api/v1/admin/catalog/products/{product}/deletion:
+    get:
+      tags: [Admin Catalog]
+      summary: Provera uslova za trajno brisanje artikla
+      description: Read-only server-driven pregled ProductDeletionService blocker-a i SuperAdmin Total Product Purge policy-ja.
+      operationId: getAdminCatalogProductDeletionState
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: SKU, archive stanje, poslovni blocker-i, purge dostupnost i Total Product Purge potvrde.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '403': { description: Nedostaje catalog.manage_products dozvola. }
+        '404': { description: Artikal nije u administratorskom manage scope-u. }
+  /api/v1/admin/catalog/products/{product}/purge:
+    delete:
+      tags: [Admin Catalog]
+      summary: Trajno obriši artikal bez poslovne istorije
+      description: Koristi postojeći ProductDeletionService. Poslovna istorija blokira purge; SKU mora biti tačno potvrđen. Lokalne slike mogu opciono biti fizički uklonjene, dok legacy read-only izvor ostaje van write granice.
+      operationId: purgeAdminCatalogProduct
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmation]
+              properties:
+                confirmation: { type: string, maxLength: 100, description: Tačan SKU artikla. }
+                delete_images: { type: boolean, default: true }
+      responses:
+        '200': { description: Artikal je trajno obrisan kroz ProductDeletionService. }
+        '403': { description: Nedostaje catalog.manage_products dozvola. }
+        '404': { description: Artikal nije u administratorskom manage scope-u. }
+        '422': { description: SKU nije tačan ili poslovna istorija blokira trajno brisanje. }
+        '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/catalog/products/{product}/total-purge:
+    delete:
+      tags: [Admin Catalog]
+      summary: SuperAdmin Total Product Purge do ZERO TRACE live nivoa
+      description: Koristi postojeći TotalProductPurgeService i verifier. Dozvoljeno je samo za već arhiviran artikal; briše/rediguje live tragove, nema normalan restore, a disaster-recovery backupi i off-host kopije ostaju zasebna retention granica.
+      operationId: totalPurgeAdminCatalogProduct
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [total_confirmation, total_reason, total_irreversible_confirmation, total_retention_acknowledged]
+              properties:
+                total_confirmation: { type: string, maxLength: 100, description: Tačan SKU artikla. }
+                total_reason: { type: string, minLength: 10, maxLength: 1000 }
+                total_irreversible_confirmation: { type: string, enum: [TRAJNO OBRIŠI SVE TRAGOVE] }
+                total_retention_acknowledged: { type: boolean, enum: [true] }
+      responses:
+        '200': { description: Live ZERO TRACE provere su završene i normalan restore više ne postoji. }
+        '403': { description: Samo SuperAdministrator sa catalog.manage_products može izvršiti Total Product Purge. }
+        '404': { description: Artikal nije u administratorskom manage scope-u. }
+        '422': { description: Artikal nije arhiviran, potvrde nisu tačne ili verifier nalazi bezbednosni/retention blocker. }
+        '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/catalog/products/{product}/images:
     get:
       tags: [Admin Catalog]

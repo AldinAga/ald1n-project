@@ -47,6 +47,7 @@ const required = [
   'src/app/(app)/admin/catalog/dictionaries/product-types/[id].tsx',
   'src/features/admin/order-documents-admin.tsx',
   'src/features/admin/order-document-files.ts',
+  'src/features/admin/product-deletion-admin.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
 ];
@@ -1770,6 +1771,60 @@ const adminOrderDocumentsVariantGuardV10 = adminOrderDocumentsUiV10 + adminOrder
 assert(
   !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(adminOrderDocumentsVariantGuardV10),
   'v1.0 Admin dokumenti ostaju product-only bez Product Variants contracta.',
+);
+
+// MOBILE_V1_0_ADMIN_CATALOG_PURGE_TOTAL_PURGE_BATCH24
+const adminCatalogDeletionApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-admin-api.ts'), 'utf8');
+const adminCatalogDeletionUiV10 = fs.readFileSync(path.join(root, 'src/features/admin/product-deletion-admin.tsx'), 'utf8');
+const adminCatalogDeletionDetailV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id].tsx'), 'utf8');
+const adminCatalogDeletionControllerV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Controllers/Api/V1/Admin/ProductDeletionController.php'), 'utf8');
+const adminCatalogDeletionServiceV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/ProductDeletionService.php'), 'utf8');
+const adminCatalogTotalPurgeServiceV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/TotalProductPurgeService.php'), 'utf8');
+const adminCatalogDeletionOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(
+  adminCatalogDeletionApiV10.includes('AdminCatalogProductDeletionState')
+    && adminCatalogDeletionApiV10.includes('deletion: async (productId: number)')
+    && adminCatalogDeletionApiV10.includes('purge: (productId: number')
+    && adminCatalogDeletionApiV10.includes('totalPurge: (productId: number'),
+  'v1.0 Admin Catalog API pokriva server-driven deletion readiness, purge i Total Product Purge.',
+);
+assert(
+  adminCatalogDeletionDetailV10.includes('<ProductDeletionAdmin')
+    && adminCatalogDeletionDetailV10.includes('productId={product.id}')
+    && adminCatalogDeletionUiV10.includes('Trajno obriši artikal')
+    && adminCatalogDeletionUiV10.includes('Total Product Purge — SuperAdmin')
+    && adminCatalogDeletionUiV10.includes('total_purge_irreversible_confirmation')
+    && adminCatalogDeletionUiV10.includes('total_retention_acknowledged: true')
+    && adminCatalogDeletionUiV10.includes('ConfirmAction')
+    && adminCatalogDeletionUiV10.includes('Potvrdi trajno brisanje')
+    && adminCatalogDeletionUiV10.includes('Potvrdi Total Product Purge')
+    && adminCatalogDeletionUiV10.includes('loading={purgeMutation.isPending}')
+    && adminCatalogDeletionUiV10.includes('loading={totalPurgeMutation.isPending}'),
+  'v1.0 Mobile Product detalj ima postojeći archive/restore plus kontrolisani purge i SuperAdmin Total Product Purge danger-zone workflow.',
+);
+assert(
+  adminCatalogDeletionControllerV10.includes('ProductDeletionService $deletions')
+    && adminCatalogDeletionControllerV10.includes('TotalProductPurgeService $purge')
+    && adminCatalogDeletionControllerV10.includes('hash_equals((string) $product->sku')
+    && adminCatalogDeletionControllerV10.includes("abort_unless($actor->hasRole('superadmin'), 403)")
+    && adminCatalogDeletionServiceV10.includes('Artikal ima poslovnu istoriju i ne može trajno da se obriše')
+    && adminCatalogTotalPurgeServiceV10.includes("IRREVERSIBLE_CONFIRMATION = 'TRAJNO OBRIŠI SVE TRAGOVE'")
+    && adminCatalogTotalPurgeServiceV10.includes('assertDatabaseZero')
+    && adminCatalogTotalPurgeServiceV10.includes('assertLiveFilesystemZero'),
+  'v1.0 Admin Catalog deletion API reuse-uje postojeće Laravel ProductDeletionService i TotalProductPurgeService ZERO TRACE guardove.',
+);
+assert(
+  adminCatalogDeletionOpenApiV10.includes('/api/v1/admin/catalog/products/{product}/deletion:')
+    && adminCatalogDeletionOpenApiV10.includes('/api/v1/admin/catalog/products/{product}/purge:')
+    && adminCatalogDeletionOpenApiV10.includes('/api/v1/admin/catalog/products/{product}/total-purge:')
+    && adminCatalogDeletionOpenApiV10.includes('total_retention_acknowledged')
+    && adminCatalogDeletionOpenApiV10.includes('TRAJNO OBRIŠI SVE TRAGOVE'),
+  'OpenAPI dokumentuje ADMIN-CAT-03 deletion readiness, purge i Total Product Purge ugovor.',
+);
+const adminCatalogDeletionVariantGuardV10 = adminCatalogDeletionApiV10 + adminCatalogDeletionUiV10 + adminCatalogDeletionControllerV10;
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(adminCatalogDeletionVariantGuardV10),
+  'v1.0 Admin Catalog purge tok ostaje product-only bez Product Variants contracta.',
 );
 
 console.log(`\nUkupno FAIL: ${failures}`);

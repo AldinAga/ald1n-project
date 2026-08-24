@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\Admin\CatalogProductController as AdminCatalogProductController;
+use App\Http\Controllers\Api\V1\Admin\ProductDeletionController as AdminProductDeletionController;
 use App\Http\Controllers\Api\V1\Admin\ProductPurchaseCostController as AdminProductPurchaseCostController;
 use App\Http\Controllers\Api\V1\Admin\CatalogBrandController as AdminCatalogBrandController;
 use App\Http\Controllers\Api\V1\Admin\CatalogDictionaryController as AdminCatalogDictionaryController;
@@ -319,6 +320,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->whereNumber('product')->middleware('throttle:admin-write')->name('products.archive');
                 Route::post('/products/{product}/restore', [AdminCatalogProductController::class, 'restore'])
                     ->whereNumber('product')->middleware('throttle:admin-write')->name('products.restore');
+                // MOBILE_V1_0_ADMIN_CATALOG_PURGE_TOTAL_PURGE_BATCH24
+                Route::get('/products/{product}/deletion', [AdminProductDeletionController::class, 'show'])
+                    ->whereNumber('product')->name('products.deletion');
+                Route::delete('/products/{product}/purge', [AdminProductDeletionController::class, 'purge'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.purge');
+                Route::delete('/products/{product}/total-purge', [AdminProductDeletionController::class, 'totalPurge'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.total-purge');
                 // MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
                 Route::get('/products/{product}/direct-sale/options', [AdminCatalogProductController::class, 'directSaleOptions'])
                     ->whereNumber('product')

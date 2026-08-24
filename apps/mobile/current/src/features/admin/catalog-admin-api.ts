@@ -111,6 +111,63 @@ export type AdminCatalogProductMutationResponse = {
   announcement_count?: number;
 };
 
+// MOBILE_V1_0_ADMIN_CATALOG_PURGE_TOTAL_PURGE_BATCH24
+export type AdminCatalogProductDeletionState = {
+  product_id: number;
+  sku: string;
+  name: string;
+  is_archived: boolean;
+  blockers: Record<string, number>;
+  purge_available: boolean;
+  delete_images_default: boolean;
+  total_purge_available: boolean;
+  total_purge_irreversible_confirmation: string | null;
+  total_purge_reason_min_length: number;
+  total_purge_reason_max_length: number;
+  retention_notice: string;
+};
+
+export type AdminCatalogProductPurgeInput = {
+  confirmation: string;
+  delete_images: boolean;
+};
+
+export type AdminCatalogProductPurgeResponse = {
+  message: string;
+  data: {
+    deleted_images: number;
+    public_images: number;
+    legacy_images: number;
+    files_deleted: boolean;
+    files_requested: boolean;
+  };
+};
+
+export type AdminCatalogProductTotalPurgeInput = {
+  total_confirmation: string;
+  total_reason: string;
+  total_irreversible_confirmation: string;
+  total_retention_acknowledged: boolean;
+};
+
+export type AdminCatalogProductTotalPurgeResponse = {
+  message: string;
+  data: {
+    product_id_deleted: boolean;
+    business_rows_unlinked: number;
+    business_rows_redacted: number;
+    owned_rows_deleted: number;
+    async_rows_deleted: number;
+    derived_rows_deleted: number;
+    audit_rows_deleted: number;
+    audit_rows_redacted: number;
+    filesystem_zero_trace: boolean;
+    database_zero_trace: boolean;
+    normal_restore_available: boolean;
+    backup_retention_boundary_separate: boolean;
+  };
+};
+
 // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4
 export type AdminPurchaseCostProduct = {
   id: number;
@@ -214,6 +271,23 @@ export const apiAdminCatalog = {
   restore: (productId: number) =>
     apiRequest<AdminCatalogProductMutationResponse> (`admin/catalog/products/${productId}/restore`, {
       method: 'POST',
+    }),
+  // MOBILE_V1_0_ADMIN_CATALOG_PURGE_TOTAL_PURGE_BATCH24
+  deletion: async (productId: number) => {
+    const response = await apiRequest<{ data: AdminCatalogProductDeletionState }> (
+      `admin/catalog/products/${productId}/deletion`,
+    );
+    return response.data;
+  },
+  purge: (productId: number, input: AdminCatalogProductPurgeInput) =>
+    apiRequest<AdminCatalogProductPurgeResponse> (`admin/catalog/products/${productId}/purge`, {
+      method: 'DELETE',
+      body: input,
+    }),
+  totalPurge: (productId: number, input: AdminCatalogProductTotalPurgeInput) =>
+    apiRequest<AdminCatalogProductTotalPurgeResponse> (`admin/catalog/products/${productId}/total-purge`, {
+      method: 'DELETE',
+      body: input,
     }),
   // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4
   purchaseCosts: async (showAll = false) => {
