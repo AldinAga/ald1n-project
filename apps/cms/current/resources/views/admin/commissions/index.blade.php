@@ -79,6 +79,9 @@
                 @if($row->status==='approved')
                 <form method="post" action="{{ route('admin.commissions.transition',$row) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="paid"><label><span>Način isplate</span><select name="payment_method" required>@foreach($paymentLabels as $value=>$label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select></label><label><span>Referenca</span><input name="payment_reference" maxlength="190"></label><label><span>Napomena</span><input name="note" maxlength="1000"></label><button class="button button-primary button-small" type="submit">Isplati</button></form>
                 @endif
+                @if($row->status==='cancelled' && auth()->user()->hasRole('superadmin'))
+                <form method="post" action="{{ route('admin.commissions.transition',$row) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="pending"><label><span>Napomena</span><input name="note" maxlength="1000"></label><button class="button button-primary button-small" type="submit">Vrati na čekanje</button></form>
+                @endif
                 @if(in_array($row->status,['pending','approved'],true) || ($row->status==='paid' && auth()->user()->hasRole('superadmin')))
                 <form method="post" action="{{ route('admin.commissions.transition',$row) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="cancelled"><label><span>Razlog storniranja</span><textarea name="note" rows="2" maxlength="1000" required></textarea></label><button class="button button-danger button-small" type="submit" data-confirm="Stornirati proviziju?">Storniraj</button></form>
                 @endif

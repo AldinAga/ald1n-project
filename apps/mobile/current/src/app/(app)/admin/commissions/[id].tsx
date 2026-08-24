@@ -89,7 +89,7 @@ export default function AdminCommissionDetailScreen() {
   const actions: SheetAction[] = commission.allowed_transitions.map((status) => {
     const action: SheetAction = {
       key: status,
-      label: status === 'approved' ? 'Odobri' : status === 'paid' ? 'Isplati' : 'Storniraj',
+      label: status === 'pending' ? 'Vrati na čekanje' : status === 'approved' ? 'Odobri' : status === 'paid' ? 'Isplati' : 'Storniraj',
       tone: status === 'cancelled' ? 'danger' : 'default',
     };
     if (status === 'cancelled') action.description = 'Storniranje zahteva razlog.';
@@ -159,7 +159,7 @@ export default function AdminCommissionDetailScreen() {
 
       {formAction ? (
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>{formAction === 'approved' ? 'Odobravanje' : formAction === 'paid' ? 'Isplata provizije' : 'Storniranje'}</Text>
+          <Text style={styles.sectionTitle}>{formAction === 'pending' ? 'Vraćanje na čekanje' : formAction === 'approved' ? 'Odobravanje' : formAction === 'paid' ? 'Isplata provizije' : 'Storniranje'}</Text>
           {formAction === 'paid' ? (
             <>
               <SelectSheet label="Način isplate" value={paymentMethod} options={paymentOptions} onChange={(value) => { if (value === 'bank_transfer' || value === 'cash' || value === 'other') setPaymentMethod(value); }} />
@@ -176,8 +176,8 @@ export default function AdminCommissionDetailScreen() {
         <StatusTimeline items={timeline} />
       </Card>
 
-      <ActionSheet visible={actionSheet} title="Akcija nad provizijom" message="Server će ponovo proveriti dozvoljeni prelaz statusa." actions={actions} onClose={() => setActionSheet(false)} onSelect={(key) => { setActionSheet(false); if (key === 'approved' || key === 'paid' || key === 'cancelled') { setFormAction(key); setNote(''); setPaymentMethod(''); setPaymentReference(''); } }} />
-      <ConfirmAction visible={confirmAction} title="Potvrdi promenu statusa" message={formAction === 'cancelled' ? 'Stornirati ovu proviziju?' : formAction === 'paid' ? 'Označiti ovu proviziju kao isplaćenu?' : 'Odobriti ovu proviziju?'} confirmLabel="Potvrdi" destructive={formAction === 'cancelled'} busy={mutation.isPending} onCancel={() => setConfirmAction(false)} onConfirm={() => { setConfirmAction(false); performTransition(); }} />
+      <ActionSheet visible={actionSheet} title="Akcija nad provizijom" message="Server će ponovo proveriti dozvoljeni prelaz statusa." actions={actions} onClose={() => setActionSheet(false)} onSelect={(key) => { setActionSheet(false); if (key === 'pending' || key === 'approved' || key === 'paid' || key === 'cancelled') { setFormAction(key); setNote(''); setPaymentMethod(''); setPaymentReference(''); } }} />
+      <ConfirmAction visible={confirmAction} title="Potvrdi promenu statusa" message={formAction === 'pending' ? 'Vratiti ovu proviziju na čekanje?' : formAction === 'cancelled' ? 'Stornirati ovu proviziju?' : formAction === 'paid' ? 'Označiti ovu proviziju kao isplaćenu?' : 'Odobriti ovu proviziju?'} confirmLabel="Potvrdi" destructive={formAction === 'cancelled'} busy={mutation.isPending} onCancel={() => setConfirmAction(false)} onConfirm={() => { setConfirmAction(false); performTransition(); }} />
     </Screen>
   );
 }

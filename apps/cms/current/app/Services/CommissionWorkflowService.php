@@ -45,7 +45,19 @@ final class CommissionWorkflowService
             ];
             $metadata = [];
 
-            if ($newStatus === 'approved') {
+            if ($newStatus === 'pending') {
+                $changes += [
+                    'approved_by' => null,
+                    'approved_at' => null,
+                    'paid_by' => null,
+                    'paid_at' => null,
+                    'payment_batch_id' => null,
+                    'payment_method' => null,
+                    'payment_reference' => null,
+                    'cancelled_by' => null,
+                    'cancelled_at' => null,
+                ];
+            } elseif ($newStatus === 'approved') {
                 $changes += ['approved_by' => $actor->id, 'approved_at' => now()];
             } elseif ($newStatus === 'paid') {
                 $method = $this->paymentMethod((string) ($data['payment_method'] ?? ''));
@@ -175,7 +187,7 @@ final class CommissionWorkflowService
             'pending' => ['approved', 'cancelled'],
             'approved' => ['paid', 'cancelled'],
             'paid' => $actor->hasRole('superadmin') ? ['cancelled'] : [],
-            'cancelled' => [],
+            'cancelled' => $actor->hasRole('superadmin') ? ['pending'] : [],
         ];
         if (!in_array($new, $allowed[$old] ?? [], true)) {
             throw ValidationException::withMessages(['status' => sprintf('Prelaz provizije %s -> %s nije dozvoljen.', $old, $new)]);

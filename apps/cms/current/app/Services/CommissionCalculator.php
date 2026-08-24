@@ -8,7 +8,6 @@ namespace App\Services;
 final class CommissionCalculator
 {
     public const DEFAULT_RATE_PERCENT = 10.0;
-    public const AUTOMATIC_MAX_EUR = 50.0;
 
     public function unitEur(
         float $priceAmount,
@@ -25,10 +24,7 @@ final class CommissionCalculator
 
     public function automaticUnitEur(float $priceAmount, string $currency, ?float $eurRsdRate): float
     {
-        return round(min(
-            self::AUTOMATIC_MAX_EUR,
-            $this->manualMinimumEur($priceAmount, $currency, $eurRsdRate),
-        ), 2);
+        return $this->manualMinimumEur($priceAmount, $currency, $eurRsdRate);
     }
 
     public function manualMinimumEur(float $priceAmount, string $currency, ?float $eurRsdRate): float
@@ -58,8 +54,7 @@ final class CommissionCalculator
             return false;
         }
 
-        return round($manualEur, 2) + 0.00001
-            >= $this->manualMinimumEur($priceAmount, $normalizedCurrency, $eurRsdRate);
+        return true;
     }
 
     private function priceEur(float $priceAmount, string $currency, ?float $eurRsdRate): float

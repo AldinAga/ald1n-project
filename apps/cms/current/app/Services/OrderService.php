@@ -109,7 +109,7 @@ final class OrderService
             'updated_by' => $user->id,
         ]);
 
-        $orderNumber = sprintf('ALD-%s-%08d', now()->format('Ymd'), $order->id);
+        $orderNumber = sprintf('APC-%s-%08d', now()->format('Ymd'), $order->id);
         $order->update([
             'order_number' => $orderNumber,
             'payment_purpose_snapshot' => $bankAccount ? 'Plaćanje porudžbine' : null,

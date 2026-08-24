@@ -1327,18 +1327,23 @@ assert(
   'v0.7 release-critical Provizije ostaju vezane za kompletan canonical Admin OpenAPI surface.',
 );
 
-// MOBILE_V0_7_COMMISSION_PERCENTAGE_POLICY
-const commissionPercentagePolicyOpenApiV07 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
-const commissionPercentagePolicyProductCreateV07 = fs.readFileSync(
+// MOBILE_V1_0_COMMISSION_POLICY
+const commissionPolicyOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+const commissionPolicyProductCreateV10 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/catalog/create.tsx'),
   'utf8',
 );
 assert(
-  commissionPercentagePolicyOpenApiV07.includes('at least 10% of the product value converted to EUR')
-    && commissionPercentagePolicyOpenApiV07.includes('automatic commission is 10% and remains capped at 50 EUR')
-    && commissionPercentagePolicyProductCreateV07.includes('MOBILE_V0_7_COMMISSION_PERCENTAGE_POLICY')
-    && commissionPercentagePolicyProductCreateV07.includes('Prazno polje koristi automatskih 10% vrednosti artikla'),
-  'v0.7 Commission contract uklanja fiksni minimum 20 EUR i dokumentuje podrazumevanih 10 procenata u Product Create toku.',
+  commissionPolicyOpenApiV10.includes('Authorization and acceptance are enforced by the server')
+    && commissionPolicyOpenApiV10.includes('automatic commission is 10% of the product value converted to EUR')
+    && !commissionPolicyOpenApiV10.includes('at least 10% of the product value converted to EUR')
+    && !commissionPolicyOpenApiV10.includes('remains capped at 50 EUR')
+    && commissionPolicyProductCreateV10.includes('MOBILE_V1_0_COMMISSION_POLICY_SUPERADMIN_SILENT_OVERRIDE')
+    && commissionPolicyProductCreateV10.includes('{isSuperAdmin ? (')
+    && !commissionPolicyProductCreateV10.includes('Prazno polje koristi automatskih 10% vrednosti artikla')
+    && !commissionPolicyProductCreateV10.includes('Ručna provizija mora biti najmanje')
+    && !commissionPolicyProductCreateV10.includes('maksimalno 50 EUR'),
+  'v1.0 Commission policy koristi automatskih 10 procenata bez plafona i SuperAdmin-gated ručni unos bez policy disclosure-a.',
 );
 // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
 const shipmentCourierActionsV08 = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-actions.tsx'), 'utf8');

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\Admin\CatalogProductController as AdminCatalogProductController;
+use App\Http\Controllers\Api\V1\Admin\ProductPurchaseCostController as AdminProductPurchaseCostController;
 use App\Http\Controllers\Api\V1\Admin\CatalogBrandController as AdminCatalogBrandController;
 use App\Http\Controllers\Api\V1\Admin\FoundationController as AdminFoundationController;
 use App\Http\Controllers\Api\V1\Admin\CommissionController as AdminCommissionController;
@@ -59,6 +60,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->name('admin.')
             ->group(function (): void {
                 Route::get('/foundation', [AdminFoundationController::class, 'show'])->name('foundation');
+                // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4
+                Route::prefix('catalog/purchase-costs')
+                    ->middleware('permission:catalog.manage_products')
+                    ->name('catalog.purchase-costs.')
+                    ->group(function (): void {
+                        Route::get('/', [AdminProductPurchaseCostController::class, 'index'])->name('index');
+                        Route::put('/', [AdminProductPurchaseCostController::class, 'update'])
+                            ->middleware('throttle:admin-write')->name('update');
+                    });
                 Route::middleware('permission:commissions.manage')->group(function (): void {
                     Route::get('/commissions', [AdminCommissionController::class, 'index'])->name('commissions.index');
                     Route::post('/commissions/bulk-pay', [AdminCommissionController::class, 'bulkPay'])->name('commissions.bulk-pay');

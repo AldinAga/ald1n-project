@@ -47,7 +47,7 @@ final class CommissionController extends Controller
     public function transition(Request $request, OrderCommission $commission, CommissionWorkflowService $workflow): RedirectResponse
     {
         $data = $request->validate([
-            'status' => ['required', Rule::in(['approved', 'paid', 'cancelled'])],
+            'status' => ['required', Rule::in(['pending', 'approved', 'paid', 'cancelled'])],
             'note' => ['nullable', 'string', 'max:1000'],
             'payment_method' => ['nullable', Rule::in(['bank_transfer', 'cash', 'other'])],
             'payment_reference' => ['nullable', 'string', 'max:190'],

@@ -111,6 +111,30 @@ export type AdminCatalogProductMutationResponse = {
   announcement_count?: number;
 };
 
+// MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4
+export type AdminPurchaseCostProduct = {
+  id: number;
+  name: string;
+  sku: string;
+  stock_quantity: number;
+  price_amount: number;
+  price_currency: 'EUR' | 'RSD';
+  purchase_price_rsd: number | null;
+};
+
+export type AdminPurchaseCostData = {
+  products: AdminPurchaseCostProduct[];
+  show_all: boolean;
+  missing_total: number;
+  missing_positive_stock: number;
+  capabilities: { update: boolean; max_batch: number; superadmin_only: boolean };
+};
+
+export type AdminPurchaseCostMutationResponse = {
+  message: string;
+  data: { changed: number };
+};
+
 // MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
 // MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
 export type AdminDirectSalePaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'other' | 'deferred_payment';
@@ -190,6 +214,18 @@ export const apiAdminCatalog = {
   restore: (productId: number) =>
     apiRequest<AdminCatalogProductMutationResponse> (`admin/catalog/products/${productId}/restore`, {
       method: 'POST',
+    }),
+  // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4
+  purchaseCosts: async (showAll = false) => {
+    const response = await apiRequest<{ data: AdminPurchaseCostData }> (
+      `admin/catalog/purchase-costs${queryString({ show: showAll ? 'all' : undefined })}`,
+    );
+    return response.data;
+  },
+  updatePurchaseCosts: (costs: Record<string, number>) =>
+    apiRequest<AdminPurchaseCostMutationResponse> ('admin/catalog/purchase-costs', {
+      method: 'PUT',
+      body: { costs },
     }),
   // MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
   directSaleOptions: async (productId: number) => {

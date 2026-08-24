@@ -202,7 +202,7 @@ final class DirectSaleService
             'updated_by' => (int) $actor->id,
         ]);
 
-        $orderNumber = sprintf('ALD-%s-%08d', $soldAt->format('Ymd'), (int) $order->id);
+        $orderNumber = sprintf('APC-%s-%08d', $soldAt->format('Ymd'), (int) $order->id);
         $order->forceFill(['order_number' => $orderNumber])->save();
 
         $purchaseUnit = null;

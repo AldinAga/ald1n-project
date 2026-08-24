@@ -78,47 +78,6 @@ final class ProductRequest extends FormRequest
     public function withValidator(\Illuminate\Validation\Validator $validator): void
     {
         $validator->after(function (\Illuminate\Validation\Validator $validator): void {
-            // COMMISSION_PERCENTAGE_POLICY_V0_7
-            if (
-                $this->filled('manual_commission_eur')
-                && is_numeric($this->input('manual_commission_eur'))
-                && is_numeric($this->input('price_amount'))
-            ) {
-                $priceAmount = (float) $this->input('price_amount');
-                $currency = mb_strtoupper(trim((string) $this->input('price_currency')));
-                $manualEur = (float) $this->input('manual_commission_eur');
-
-                if (in_array($currency, ['EUR', 'RSD'], true)) {
-                    $rate = null;
-                    if ($currency === 'RSD') {
-                        try {
-                            $rate = app(\App\Services\SettingsService::class)->eurRsdRate();
-                        } catch (\Throwable) {
-                            $rate = null;
-                        }
-                    }
-
-                    if ($currency === 'RSD' && ($rate === null || $rate <= 0.0)) {
-                        $validator->errors()->add(
-                            'manual_commission_eur',
-                            'EUR/RSD kurs mora biti dostupan da bi se proverilo 10% vrednosti artikla.',
-                        );
-                    } else {
-                        $calculator = app(\App\Services\CommissionCalculator::class);
-                        $minimum = $calculator->manualMinimumEur($priceAmount, $currency, $rate);
-                        if (!$calculator->usesManual($priceAmount, $currency, $manualEur, $rate)) {
-                            $validator->errors()->add(
-                                'manual_commission_eur',
-                                sprintf(
-                                    'Ručna provizija mora biti najmanje %s EUR (10%% vrednosti artikla).',
-                                    number_format($minimum, 2, ',', '.'),
-                                ),
-                            );
-                        }
-                    }
-                }
-            }
-
             $product = $this->route('product');
 
             $brandId = $this->input('brand_id');
@@ -289,10 +248,9 @@ final class ProductRequest extends FormRequest
 
         $categoryId = $this->resolveCategoryId($type);
 
-        $this->merge([
+        $normalized = [
             'sku' => mb_strtoupper(trim((string) $this->input('sku'))),
             'purchase_price_rsd' => $this->filled('purchase_price_rsd') ? str_replace(',', '.', (string) $this->input('purchase_price_rsd')) : null,
-            'manual_commission_eur' => $this->filled('manual_commission_eur') ? str_replace(',', '.', (string) $this->input('manual_commission_eur')) : null,
             'brand_id' => $this->filled('brand_id') ? $this->integer('brand_id') : null,
             'product_line_id' => $this->filled('product_line_id') ? $this->integer('product_line_id') : null,
             'model_name' => preg_replace('/\s+/u', ' ', trim((string) $this->input('model_name'))) ?: null,
@@ -301,7 +259,17 @@ final class ProductRequest extends FormRequest
             'specs' => $specs,
             'spec_details' => $details,
             'spec_structured' => $structured,
-        ]);
+        ];
+
+        if ($this->user()?->hasRole('superadmin') === true) {
+            $normalized['manual_commission_eur'] = $this->filled('manual_commission_eur')
+                ? str_replace(',', '.', (string) $this->input('manual_commission_eur'))
+                : null;
+        } else {
+            $this->request->remove('manual_commission_eur');
+        }
+
+        $this->merge($normalized);
     }
 
     private function resolveCategoryId(?ProductType $type): ?int

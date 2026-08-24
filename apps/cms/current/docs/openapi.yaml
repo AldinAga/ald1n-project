@@ -27,6 +27,49 @@ tags:
   - name: Admin
     description: Centralni Mobile Admin foundation i administratorski moduli.
 paths:
+  /api/v1/admin/catalog/purchase-costs:
+    get:
+      tags: [Admin Catalog]
+      summary: SuperAdmin masovni pregled nabavnih cena
+      operationId: listAdminPurchaseCosts
+      parameters:
+        - { name: show, in: query, schema: { type: string, enum: [all] } }
+      responses:
+        '200':
+          description: Artikli i stanje pokrivenosti nabavnim cenama.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '403': { description: Dostupno samo Super Administratoru sa catalog.manage_products. }
+    put:
+      tags: [Admin Catalog]
+      summary: SuperAdmin masovni upis nabavnih cena u RSD
+      operationId: updateAdminPurchaseCosts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [costs]
+              properties:
+                costs:
+                  type: object
+                  maxProperties: 500
+                  additionalProperties:
+                    type: number
+                    minimum: 0.01
+                    maximum: 9999999999.99
+      responses:
+        '200':
+          description: Nabavne cene su transakciono sačuvane i auditovane.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '403': { description: Dostupno samo Super Administratoru sa catalog.manage_products. }
+        '422': { description: Nevalidna cena, prazan batch ili artikal više nije dostupan. }
   /api/v1/admin/catalog/products/archived:
     get:
       tags: [Admin Catalog]
@@ -4367,7 +4410,7 @@ components:
             - { type: 'null' }
         allowed_transitions:
           type: array
-          items: { type: string, enum: [approved, paid, cancelled] }
+          items: { type: string, enum: [pending, approved, paid, cancelled] }
         bulk_pay_eligible: { type: boolean }
         status_updated_at: { type: [string, 'null'], format: date-time }
         created_at: { type: [string, 'null'], format: date-time }
@@ -4415,7 +4458,7 @@ components:
       type: object
       required: [status]
       properties:
-        status: { type: string, enum: [approved, paid, cancelled] }
+        status: { type: string, enum: [pending, approved, paid, cancelled] }
         note: { type: string, maxLength: 1000 }
         payment_method: { type: string, enum: [bank_transfer, cash, other] }
         payment_reference: { type: string, maxLength: 190 }
@@ -4758,7 +4801,7 @@ components:
         price_amount: { type: number, minimum: 0 }
         price_currency: { type: string, enum: [RSD, EUR] }
         purchase_price_rsd: { type: number, minimum: 0 }
-        manual_commission_eur: { type: number, minimum: 0, description: "Optional manual commission in EUR. When present, it must be at least 10% of the product value converted to EUR. When omitted, the automatic commission is 10% and remains capped at 50 EUR." }
+        manual_commission_eur: { type: number, minimum: 0, description: "Optional manual commission in EUR. Authorization and acceptance are enforced by the server. When no accepted manual value is supplied, automatic commission is 10% of the product value converted to EUR." }
         description: { type: string, maxLength: 65000 }
         notes: { type: string, maxLength: 65000 }
         stock_quantity: { type: integer, minimum: 0 }

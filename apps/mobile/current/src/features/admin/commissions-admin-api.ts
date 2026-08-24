@@ -2,7 +2,7 @@ import { apiRequest, queryString } from '@/lib/api/client';
 
 export type AdminCommissionStatus = 'pending' | 'approved' | 'paid' | 'cancelled';
 export type AdminCommissionPaymentMethod = 'bank_transfer' | 'cash' | 'other';
-export type AdminCommissionTransition = 'approved' | 'paid' | 'cancelled';
+export type AdminCommissionTransition = 'pending' | 'approved' | 'paid' | 'cancelled';
 
 export type AdminCommissionPerson = {
   id: number;

@@ -343,7 +343,9 @@
                     <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}"></label>
                     <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
                     <label><span>Nabavna cena RSD</span><input name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small>Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
-                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"><small>Opciono. Minimalna ručna provizija je 10% vrednosti artikla preračunate u EUR. Prazno polje koristi automatskih 10% uz postojeći maksimum od 50 EUR.</small></label>
+                    @if(auth()->user()?->hasRole('superadmin'))
+                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"></label>
+                    @endif
                     @if(!$product->exists || auth()->user()->can('stock.adjust'))
                         <label><span>Količina</span><input name="stock_quantity" type="number" min="0" required value="{{ old('stock_quantity',$product->stock_quantity??0) }}"></label>
                         <label><span>Prag niskog lagera</span><input name="low_stock_threshold" type="number" min="0" required value="{{ old('low_stock_threshold',$product->low_stock_threshold??1) }}"></label>

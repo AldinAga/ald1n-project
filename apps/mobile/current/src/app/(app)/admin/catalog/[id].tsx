@@ -310,7 +310,7 @@ export default function AdminCatalogEditScreen() {
     const nextErrors: Record<string, string> = {};
     const price = nonNegativeDecimal(priceAmount);
     const purchase = purchasePriceRsd.trim() ? nonNegativeDecimal(purchasePriceRsd) : undefined;
-    const commission = manualCommissionEur.trim() ? nonNegativeDecimal(manualCommissionEur) : undefined;
+    const commission = isSuperAdmin && manualCommissionEur.trim() ? nonNegativeDecimal(manualCommissionEur) : undefined;
     const stock = nonNegativeInteger(stockQuantity);
     const threshold = nonNegativeInteger(lowStockThreshold);
 
@@ -318,7 +318,7 @@ export default function AdminCatalogEditScreen() {
     if (!name.trim() && (!selectedType || !selectedType.auto_name_enabled)) nextErrors.name = 'Unesi naziv ili koristi automatsko formiranje naziva.';
     if (price === null) nextErrors.price_amount = 'Unesi ispravnu prodajnu cenu.';
     if (purchasePriceRsd.trim() && purchase === null) nextErrors.purchase_price_rsd = 'Unesi ispravnu nabavnu cenu.';
-    if (manualCommissionEur.trim() && commission === null) nextErrors.manual_commission_eur = 'Unesi ispravnu proviziju.';
+    if (isSuperAdmin && manualCommissionEur.trim() && commission === null) nextErrors.manual_commission_eur = 'Unesi ispravnu proviziju.';
     if (!description.trim()) nextErrors.description = 'Opis je obavezan.';
     if (stock === null) nextErrors.stock_quantity = 'Lager mora biti ceo broj 0 ili veći.';
     if (threshold === null) nextErrors.low_stock_threshold = 'Prag lagera mora biti ceo broj 0 ili veći.';
@@ -384,7 +384,7 @@ export default function AdminCatalogEditScreen() {
       price_amount: price,
       price_currency: currency,
       purchase_price_rsd: purchase ?? undefined,
-      manual_commission_eur: commission ?? undefined,
+      ...(isSuperAdmin ? { manual_commission_eur: commission ?? undefined } : {}),
       description: description.trim(),
       notes: notes.trim() || undefined,
       stock_quantity: stock,
@@ -560,7 +560,7 @@ export default function AdminCatalogEditScreen() {
         <TextField label="Prodajna cena" value={priceAmount} onChangeText={setPriceAmount} keyboardType="decimal-pad" disabled={product.is_archived} error={errors.price_amount} />
         <SelectSheet label="Valuta" value={currency} disabled={product.is_archived} options={[{ value: 'EUR', label: 'EUR' }, { value: 'RSD', label: 'RSD' }]} onChange={(value) => setCurrency(value === 'RSD' ? 'RSD' : 'EUR')} />
         <TextField label="Nabavna cena (RSD)" value={purchasePriceRsd} onChangeText={setPurchasePriceRsd} keyboardType="decimal-pad" disabled={product.is_archived} error={errors.purchase_price_rsd} />
-        <TextField label="Ručna provizija (EUR)" value={manualCommissionEur} onChangeText={setManualCommissionEur} keyboardType="decimal-pad" disabled={product.is_archived} error={errors.manual_commission_eur} />
+        {isSuperAdmin ? <TextField label="Ručna provizija (EUR)" value={manualCommissionEur} onChangeText={setManualCommissionEur} keyboardType="decimal-pad" disabled={product.is_archived} error={errors.manual_commission_eur} /> : null}
         <TextField label="Lager" value={stockQuantity} onChangeText={setStockQuantity} keyboardType="number-pad" disabled={product.is_archived || !product.capabilities.stock_adjust} error={errors.stock_quantity} />
         <TextField label="Prag niskog lagera" value={lowStockThreshold} onChangeText={setLowStockThreshold} keyboardType="number-pad" disabled={product.is_archived} error={errors.low_stock_threshold} />
         <SelectSheet label="Status" value={status} disabled={product.is_archived} options={[{ value: 'draft', label: 'Nacrt' }, { value: 'active', label: 'Aktivan' }, { value: 'inactive', label: 'Neaktivan' }]} onChange={(value) => setStatus(value === 'active' || value === 'draft' ? value : 'inactive')} />

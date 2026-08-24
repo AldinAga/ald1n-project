@@ -132,7 +132,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         </Card>
       ) : null}
 
-      {((can('catalog.manage_products') && (adminMatch('Artikli') || adminMatch('Dodaj artikal'))) ||
+      {((can('catalog.manage_products') && (adminMatch('Artikli') || adminMatch('Dodaj artikal') || (isSuperAdmin && adminMatch('Nabavne cene')))) ||
         ((can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager')) ||
         (can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi')))) ? (
         <Card style={styles.adminGroupCard}>
@@ -140,6 +140,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
           <View style={styles.quickActions}>
             {can('catalog.manage_products') && adminMatch('Artikli') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog' as Href)}>Artikli</Button> : null}
             {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/create')}>Dodaj artikal</Button> : null}
+            {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)}>Nabavne cene</Button> : null}
             {(can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <Button variant="secondary" onPress={() => router.push('/admin/inventory')}>Lager</Button> : null}
             {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi')) ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/brands' as Href)}>Šifarnici · Brendovi</Button> : null}
           </View>

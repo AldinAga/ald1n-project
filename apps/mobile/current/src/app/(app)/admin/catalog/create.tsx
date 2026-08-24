@@ -103,7 +103,8 @@ export default function AdminCatalogCreateScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const feedback = useAppFeedback();
   const client = useQueryClient();
-  const { can } = useAuth();
+  const { can, bootstrap } = useAuth();
+  const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
   const allowed = can('catalog.manage_products');
   const canManageImages = can('catalog.manage_images');
 
@@ -340,7 +341,7 @@ export default function AdminCatalogCreateScreen() {
     const nextErrors: Record<string, string> = {};
     const price = nonNegativeDecimal(priceAmount);
     const purchase = purchasePriceRsd.trim() ? nonNegativeDecimal(purchasePriceRsd) : undefined;
-    const commission = manualCommissionEur.trim() ? nonNegativeDecimal(manualCommissionEur) : undefined;
+    const commission = isSuperAdmin && manualCommissionEur.trim() ? nonNegativeDecimal(manualCommissionEur) : undefined;
     const stock = nonNegativeInteger(stockQuantity);
     const threshold = nonNegativeInteger(lowStockThreshold);
 
@@ -349,7 +350,7 @@ export default function AdminCatalogCreateScreen() {
     }
     if (price === null) nextErrors.price_amount = 'Unesi ispravnu prodajnu cenu.';
     if (purchasePriceRsd.trim() && purchase === null) nextErrors.purchase_price_rsd = 'Unesi ispravnu nabavnu cenu.';
-    if (manualCommissionEur.trim() && commission === null) nextErrors.manual_commission_eur = 'Unesi ispravnu proviziju.';
+    if (isSuperAdmin && manualCommissionEur.trim() && commission === null) nextErrors.manual_commission_eur = 'Unesi ispravnu proviziju.';
     if (!description.trim()) nextErrors.description = 'Opis je obavezan.';
     if (stock === null) nextErrors.stock_quantity = 'Lager mora biti ceo broj 0 ili veći.';
     if (threshold === null) nextErrors.low_stock_threshold = 'Prag lagera mora biti ceo broj 0 ili veći.';
@@ -429,7 +430,7 @@ export default function AdminCatalogCreateScreen() {
       price_amount: price,
       price_currency: currency,
       purchase_price_rsd: purchase ?? undefined,
-      manual_commission_eur: commission ?? undefined,
+      ...(isSuperAdmin ? { manual_commission_eur: commission ?? undefined } : {}),
       description: description.trim(),
       notes: notes.trim() || undefined,
       stock_quantity: stock,
@@ -700,18 +701,17 @@ export default function AdminCatalogCreateScreen() {
           error={errors.purchase_price_rsd}
           placeholder="Opcionalno"
         />
-        <TextField
-          label="Ručna provizija (EUR)"
-          value={manualCommissionEur}
-          onChangeText={setManualCommissionEur}
-          keyboardType="decimal-pad"
-          error={errors.manual_commission_eur}
-          placeholder="Opcionalno"
-        />
-        {/* MOBILE_V0_7_COMMISSION_PERCENTAGE_POLICY */}
-        <Text style={styles.help}>
-          Prazno polje koristi automatskih 10% vrednosti artikla (maksimalno 50 EUR). Ručna provizija mora biti najmanje 10% vrednosti artikla preračunate u EUR.
-        </Text>
+        {/* MOBILE_V1_0_COMMISSION_POLICY_SUPERADMIN_SILENT_OVERRIDE */}
+        {isSuperAdmin ? (
+          <TextField
+            label="Ručna provizija (EUR)"
+            value={manualCommissionEur}
+            onChangeText={setManualCommissionEur}
+            keyboardType="decimal-pad"
+            error={errors.manual_commission_eur}
+            placeholder="Opcionalno"
+          />
+        ) : null}
         <SelectSheet
           label="Status"
           value={status}
