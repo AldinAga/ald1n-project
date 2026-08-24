@@ -148,10 +148,15 @@ final class DirectSaleService
             ]);
         }
 
-        // DIRECT_SALE_MAX_UNIT_PRICE_GUARD
+        // MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21
+        // The catalog price is a reference/default, not a ceiling. The entered sale price
+        // remains SuperAdmin-only and must still be a positive RSD amount.
         $rate = $this->settings->eurRsdRate();
-        $catalogUnitPriceRsd = $this->catalogUnitPriceRsd($lockedProduct, $rate);
-        $this->assertSalePriceWithinCatalogUnitPrice($salePrice, $catalogUnitPriceRsd);
+        if ((string) $lockedProduct->price_currency === 'EUR' && ($rate === null || $rate <= 0)) {
+            throw ValidationException::withMessages([
+                'sale_price_rsd' => 'EUR/RSD kurs mora biti podešen pre direktne prodaje EUR artikla.',
+            ]);
+        }
         $quantityBefore = (int) $lockedProduct->stock_quantity;
 
         if ($quantityBefore < $quantity) {
@@ -418,30 +423,4 @@ final class DirectSaleService
         return $rows;
     }
 
-    private function assertSalePriceWithinCatalogUnitPrice(float $salePrice, float $catalogUnitPriceRsd): void
-    {
-        if ($salePrice > $catalogUnitPriceRsd) {
-            throw ValidationException::withMessages([
-                'sale_price_rsd' => sprintf(
-                    'Prodajna cena po komadu ne sme biti veća od zadate cene artikla (%.2f RSD).',
-                    $catalogUnitPriceRsd,
-                ),
-            ]);
-        }
-    }
-
-    private function catalogUnitPriceRsd(Product $sellable, ?float $rate): float
-    {
-        if ($sellable->price_currency === 'RSD') {
-            return round((float) $sellable->price_amount, 2);
-        }
-
-        if ($rate === null || $rate <= 0) {
-            throw ValidationException::withMessages([
-                'sale_price_rsd' => 'EUR/RSD kurs mora biti podešen pre direktne prodaje EUR artikla.',
-            ]);
-        }
-
-        return round((float) $sellable->price_amount * $rate, 2);
-    }
 }

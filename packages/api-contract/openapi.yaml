@@ -284,7 +284,7 @@ paths:
         - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
       responses:
         '200':
-          description: Artikalski lager, maksimalna RSD cena, payment metode i stabilni idempotency ključ.
+          description: Artikalski lager, referentna kataloška RSD cena, payment metode i stabilni idempotency ključ.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdminDirectSaleOptionsEnvelope' }
@@ -312,7 +312,7 @@ paths:
               schema: { $ref: '#/components/schemas/AdminDirectSaleResponse' }
         '403': { description: Samo SuperAdministrator može evidentirati direktnu prodaju. }
         '404': { description: Artikal nije u administratorskom manage scope-u. }
-        '422': { description: Validacija, lager, maksimalna prodajna cena, EUR/RSD kurs ili idempotency ugovor nisu prošli. }
+        '422': { description: Validacija, lager, EUR/RSD kurs ili idempotency ugovor nisu prošli. }
         '429': { description: Previše administratorskih write zahteva. }
   # MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
   /api/v1/admin/catalog/brands:

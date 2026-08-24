@@ -102,10 +102,10 @@ for (const jsonFile of ['package.json', 'eas.json']) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const packageLockJson = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-assert(packageJson.dependencies?.expo === '~57.0.15' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.15' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.15', 'Expo SDK 57 verzija prati zvanični template.');
+assert(packageJson.dependencies?.expo === '~57.0.16' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.16' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.16', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.86.2', 'React Native verzija prati Expo SDK 57 template.');
-assert(packageJson.dependencies?.['expo-router'] === '~57.0.15' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.15' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.15', 'Expo Router verzija je zaključana.');
-assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.14', 'Expo development client je uključen.');
+assert(packageJson.dependencies?.['expo-router'] === '~57.0.16' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.16' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.16', 'Expo Router verzija je zaključana.');
+assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.15' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.15' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.15', 'Expo development client je uključen.');
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 57 zahtevu.');
@@ -113,7 +113,7 @@ assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odg
 // MOBILE_RELEASE_VERSION_V09
 assert(packageJson.version === '0.9.0', 'Aplikaciona package verzija je 0.9.0.');
 assert(packageLockJson.version === '0.9.0' && packageLockJson.packages?.['']?.version === '0.9.0', 'package-lock release verzija je 0.9.0.');
-assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.13' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.13' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.13', 'expo-notifications prati SDK 57 preporučenu verziju.');
+assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.14', 'expo-notifications prati SDK 57 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.2', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
 assert(packageJson.dependencies?.['react-native-nitro-modules'] === '0.36.1', 'Nitro Modules runtime je pinovan.');
@@ -123,19 +123,22 @@ assert(packageJson.dependencies?.['@tamagui/animations-reanimated'] === '2.6.0',
 assert(packageJson.dependencies?.['expo-system-ui'] === '~57.0.2', 'Expo System UI prati SDK 57 preporucenu verziju.');
 assert(packageJson.dependencies?.['expo-status-bar'] === '~57.0.1', 'Expo Status Bar prati SDK 57 preporucenu verziju.');
 assert(packageJson.dependencies?.['expo-file-system'] === '~57.0.5' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~57.0.5' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '57.0.5', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
-assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '57.0.14', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
+assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.15' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~57.0.15' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '57.0.15', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
 
 // MOBILE_V0_8_EXPO_SDK57_COMPATIBILITY_MATRIX
+// MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH21A_V3
 const expoCompatibilityMatrixV08 = {
-  expo: { spec: '~57.0.15', version: '57.0.15' },
-  'expo-constants': { spec: '~57.0.13', version: '57.0.13' },
-  'expo-dev-client': { spec: '~57.0.14', version: '57.0.14' },
+  expo: { spec: '~57.0.16', version: '57.0.16' },
+  'expo-constants': { spec: '~57.0.14', version: '57.0.14' },
+  'expo-crypto': { spec: '~57.0.2', version: '57.0.2' },
+  'expo-dev-client': { spec: '~57.0.15', version: '57.0.15' },
   'expo-file-system': { spec: '~57.0.5', version: '57.0.5' },
   'expo-linking': { spec: '~57.0.7', version: '57.0.7' },
-  'expo-notifications': { spec: '~57.0.13', version: '57.0.13' },
-  'expo-router': { spec: '~57.0.15', version: '57.0.15' },
-  'expo-sharing': { spec: '~57.0.14', version: '57.0.14' },
-  'expo-updates': { spec: '~57.0.16', version: '57.0.16' },
+  'expo-notifications': { spec: '~57.0.14', version: '57.0.14' },
+  'expo-router': { spec: '~57.0.16', version: '57.0.16' },
+  'expo-sharing': { spec: '~57.0.15', version: '57.0.15' },
+  'expo-splash-screen': { spec: '~57.0.8', version: '57.0.8' },
+  'expo-updates': { spec: '~57.0.17', version: '57.0.17' },
 };
 for (const [packageName, expected] of Object.entries(expoCompatibilityMatrixV08)) {
   assert(
@@ -755,6 +758,26 @@ assert(
     && directSaleOpenApiV08.includes('AdminDirectSaleOptionsEnvelope')
     && directSaleOpenApiV08.includes('AdminDirectSaleResponse'),
   'OpenAPI dokumentuje SuperAdmin Direct Sale options/record i idempotency ugovor.',
+);
+// MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21
+const directSaleServiceV10 = fs.readFileSync(
+  path.resolve(root, '../../cms/current/app/Services/DirectSaleService.php'),
+  'utf8',
+);
+assert(
+  directSaleServiceV10.includes('MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21')
+    && directSaleServiceV10.includes("if ($salePrice <= 0)")
+    && !directSaleServiceV10.includes('DIRECT_SALE_MAX_UNIT_PRICE_GUARD')
+    && !directSaleServiceV10.includes('assertSalePriceWithinCatalogUnitPrice')
+    && !directSaleServiceV10.includes('Prodajna cena po komadu ne sme biti veća od zadate cene artikla')
+    && directSaleScreenV08.includes('MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21')
+    && !directSaleScreenV08.includes('price > options.product.catalog_unit_price_rsd')
+    && !directSaleScreenV08.includes('Cena može biti niža, ali ne može biti viša')
+    && directSaleScreenV08.includes('zadata kataloška cena služi samo kao referenca')
+    && directSaleOpenApiV08.includes('referentna kataloška RSD cena')
+    && !directSaleOpenApiV08.includes('maksimalna RSD cena')
+    && !directSaleOpenApiV08.includes('maksimalna prodajna cena'),
+  'v1.0 Direct Sale dozvoljava cenu iznad kataloške uz pozitivnu cenu i SuperAdmin workflow.',
 );
 // MOBILE_P2_ADMIN_FOUNDATION_GAP_CLOSE_V06
 const p2AdminFoundationIndexV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');

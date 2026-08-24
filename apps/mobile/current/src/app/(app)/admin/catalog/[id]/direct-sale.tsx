@@ -67,6 +67,7 @@ function validIsoDateOnOrAfterToday(value: string): boolean {
   return value.trim() >= today;
 }
 
+// MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21
 // MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
 // MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
 export default function AdminProductDirectSaleScreen() {
@@ -161,9 +162,6 @@ export default function AdminProductDirectSaleScreen() {
     if (qty === null || qty > 1000) nextErrors.quantity = 'Količina mora biti ceo broj između 1 i 1000.';
     else if (qty > options.product.stock_quantity) nextErrors.quantity = 'Količina je veća od raspoloživog lagera.';
     if (price === null) nextErrors.sale_price_rsd = 'Prodajna cena mora biti veća od nule.';
-    else if (options.product.catalog_unit_price_rsd !== null && price > options.product.catalog_unit_price_rsd) {
-      nextErrors.sale_price_rsd = `Cena po komadu ne sme biti veća od ${moneyRsd(options.product.catalog_unit_price_rsd)}.`;
-    }
     const deferred = paymentMethod === 'deferred_payment';
     const installments = deferred ? positiveInteger(installmentCount) : null;
     if (deferred && (installments === null || installments > 24)) nextErrors.installment_count = 'Broj rata mora biti ceo broj između 1 i 24.';
@@ -220,7 +218,7 @@ export default function AdminProductDirectSaleScreen() {
           Zadata cena: {options.product.catalog_price_amount} {options.product.catalog_price_currency}
         </Text>
         <Text style={styles.price}>
-          Maksimalna prodajna cena po komadu: {options.product.catalog_unit_price_rsd !== null ? moneyRsd(options.product.catalog_unit_price_rsd) : 'nije dostupna'}
+          Zadata cena preračunata u RSD: {options.product.catalog_unit_price_rsd !== null ? moneyRsd(options.product.catalog_unit_price_rsd) : 'nije dostupna'}
         </Text>
         {options.eur_rsd_rate !== null ? (
           <Text style={styles.meta}>EUR/RSD kurs: {options.eur_rsd_rate}</Text>
@@ -272,7 +270,7 @@ export default function AdminProductDirectSaleScreen() {
           error={errors.sale_price_rsd}
         />
         <Text style={styles.help}>
-          Cena može biti niža, ali ne može biti viša od zadate cene artikla preračunate u RSD.
+          Unesi pozitivnu prodajnu cenu po komadu; zadata kataloška cena služi samo kao referenca.
         </Text>
         <SelectSheet
           label="Način plaćanja"
