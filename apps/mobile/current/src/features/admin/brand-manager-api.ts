@@ -1,6 +1,7 @@
 import { apiRequest, queryString } from '@/lib/api/client';
 
 // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+// MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3
 export type AdminBrandProductType = {
   id: number;
   name: string;
@@ -37,13 +38,13 @@ export type AdminBrandManagerData = {
   brands: AdminManagedBrand[];
   product_types: AdminBrandProductType[];
   filters: { q: string; product_type_id: number | null };
-  capabilities: { create: boolean; update: boolean; delete: false; max_lines_per_type: 3 };
+  capabilities: { create: boolean; update: boolean; delete: false; max_lines_per_type: 10 };
 };
 
 export type AdminBrandOptionsData = {
   product_types: AdminBrandProductType[];
   statuses: Array<{ value: 'active' | 'inactive'; label: string }>;
-  max_lines_per_type: 3;
+  max_lines_per_type: 10;
 };
 
 export type AdminBrandInput = {

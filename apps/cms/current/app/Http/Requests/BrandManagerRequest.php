@@ -8,6 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+// MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3
 final class BrandManagerRequest extends FormRequest
 {
     public function authorize(): bool
@@ -28,7 +29,7 @@ final class BrandManagerRequest extends FormRequest
             'product_type_ids' => ['required', 'array', 'min:1'],
             'product_type_ids.*' => ['required', 'integer', 'distinct', 'exists:product_types,id'],
             'line_names_by_type' => ['nullable', 'array'],
-            'line_names_by_type.*' => ['nullable', 'array', 'max:3'],
+            'line_names_by_type.*' => ['nullable', 'array', 'max:10'],
             'line_names_by_type.*.*' => ['nullable', 'string', 'max:120'],
         ];
     }

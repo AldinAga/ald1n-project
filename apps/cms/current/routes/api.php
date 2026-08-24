@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\Admin\CatalogProductController as AdminCatalogProductController;
 use App\Http\Controllers\Api\V1\Admin\ProductPurchaseCostController as AdminProductPurchaseCostController;
 use App\Http\Controllers\Api\V1\Admin\CatalogBrandController as AdminCatalogBrandController;
+use App\Http\Controllers\Api\V1\Admin\CatalogDictionaryController as AdminCatalogDictionaryController;
 use App\Http\Controllers\Api\V1\Admin\FoundationController as AdminFoundationController;
 use App\Http\Controllers\Api\V1\Admin\CommissionController as AdminCommissionController;
 use App\Http\Controllers\Api\V1\Admin\WarrantyController as AdminWarrantyController;
@@ -254,6 +255,35 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 });
             });
         // MOBILE_V0_8_PRODUCT_EDIT_ARCHIVE_RESTORE_BATCH8
+        // MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22
+        Route::prefix('admin/catalog/dictionaries')
+            ->middleware('permission:catalog.manage_taxonomy')
+            ->name('admin.catalog.dictionaries.')
+            ->group(function (): void {
+                Route::patch('/brands/reorder', [AdminCatalogDictionaryController::class, 'reorderBrands'])
+                    ->middleware('throttle:admin-write')->name('brands.reorder');
+                Route::get('/product-types/{productType}', [AdminCatalogDictionaryController::class, 'productType'])
+                    ->whereNumber('productType')->name('product-types.show');
+                Route::patch('/product-types/{productType}/fields/reorder', [AdminCatalogDictionaryController::class, 'reorderTypeFields'])
+                    ->whereNumber('productType')->middleware('throttle:admin-write')->name('product-types.fields.reorder');
+                Route::delete('/specification-fields/{item}/purge', [AdminCatalogDictionaryController::class, 'purgeSpecificationField'])
+                    ->whereNumber('item')->middleware('throttle:admin-write')->name('specification-fields.purge');
+                Route::patch('/{resource}/reorder', [AdminCatalogDictionaryController::class, 'reorder'])
+                    ->where('resource', 'categories|product-lines|product-types|specification-fields')
+                    ->middleware('throttle:admin-write')->name('reorder');
+                Route::get('/{resource}', [AdminCatalogDictionaryController::class, 'index'])
+                    ->where('resource', 'categories|product-lines|product-types|specification-fields')->name('index');
+                Route::post('/{resource}', [AdminCatalogDictionaryController::class, 'store'])
+                    ->where('resource', 'categories|product-lines|product-types|specification-fields')
+                    ->middleware('throttle:admin-write')->name('store');
+                Route::put('/{resource}/{item}', [AdminCatalogDictionaryController::class, 'update'])
+                    ->where('resource', 'categories|product-lines|product-types|specification-fields')->whereNumber('item')
+                    ->middleware('throttle:admin-write')->name('update');
+                Route::delete('/{resource}/{item}', [AdminCatalogDictionaryController::class, 'destroy'])
+                    ->where('resource', 'categories|product-lines|product-types|specification-fields')->whereNumber('item')
+                    ->middleware('throttle:admin-write')->name('destroy');
+            });
+
         // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
         Route::prefix('admin/catalog/brands')
             ->middleware('permission:catalog.manage_taxonomy')

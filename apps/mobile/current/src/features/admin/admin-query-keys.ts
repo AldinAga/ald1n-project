@@ -52,4 +52,8 @@ export const adminQueryKeys = {
   brands: () => ['admin', 'brands'] as const,
   brandsList: (params: unknown) => ['admin', 'brands', 'list', params] as const,
   brandOptions: () => ['admin', 'brands', 'options'] as const,
+  // MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22
+  dictionaries: () => ['admin', 'catalog', 'dictionaries'] as const,
+  dictionary: (resource: string) => ['admin', 'catalog', 'dictionaries', resource] as const,
+  dictionaryProductType: (id: number) => ['admin', 'catalog', 'dictionaries', 'product-types', id] as const,
 };

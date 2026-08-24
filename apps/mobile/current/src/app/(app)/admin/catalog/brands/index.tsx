@@ -14,6 +14,7 @@ import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/stat
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
+import { apiAdminDictionaries } from '@/features/admin/dictionary-admin-api';
 import {
   apiAdminBrands,
   type AdminBrandInput,
@@ -24,6 +25,9 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
 // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+// MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3
+const MAX_BRAND_LINES_PER_TYPE = 10;
+
 export default function AdminBrandsScreen() {
   const { colors: theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -74,6 +78,19 @@ export default function AdminBrandsScreen() {
     }),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (ids: number[]) => apiAdminDictionaries.reorderBrands(ids),
+    onSuccess: async () => {
+      feedback.notify({ tone: 'success', title: 'Raspored brendova je sačuvan' });
+      await client.invalidateQueries({ queryKey: ['admin', 'brands'] });
+    },
+    onError: (error) => feedback.notify({
+      tone: 'danger',
+      title: 'Raspored nije sačuvan',
+      message: error instanceof Error ? error.message : 'Server je odbio raspored.',
+    }),
+  });
+
   if (!allowed) return <UnavailableState title="Upravljanje brendovima nije dostupno" />;
   if (listQuery.isLoading || optionsQuery.isLoading) return <LoadingState label="Učitavanje brendova…" />;
   if (listQuery.isError || !listQuery.data) return <ErrorState error={listQuery.error} onRetry={() => void listQuery.refetch()} />;
@@ -104,6 +121,20 @@ export default function AdminBrandsScreen() {
     setFilters({});
   }
 
+  function moveBrand(brandId: number, direction: -1 | 1): void {
+    const ids = data.brands.map((brand) => brand.id);
+    const index = ids.indexOf(brandId);
+    const next = index + direction;
+    if (index < 0 || next < 0 || next >= ids.length) return;
+    // MOBILE_V1_0_BATCH22_V4_TYPESCRIPT_STRICT_REORDER
+    const currentId = ids[index];
+    const adjacentId = ids[next];
+    if (currentId === undefined || adjacentId === undefined) return;
+    ids[index] = adjacentId;
+    ids[next] = currentId;
+    reorderMutation.mutate(ids);
+  }
+
   function resetForm(): void {
     setEditingId(null);
     setName('');
@@ -128,7 +159,7 @@ export default function AdminBrandsScreen() {
   function editBrand(brand: AdminManagedBrand): void {
     const nextLines: Record<string, string[]> = {};
     for (const typeId of brand.product_type_ids) {
-      nextLines[String(typeId)] = (brand.line_groups[String(typeId)] ?? []).slice(0, 3).map((line) => line.name);
+      nextLines[String(typeId)] = (brand.line_groups[String(typeId)] ?? []).slice(0, MAX_BRAND_LINES_PER_TYPE).map((line) => line.name);
     }
     setEditingId(brand.id);
     setName(brand.name);
@@ -149,10 +180,30 @@ export default function AdminBrandsScreen() {
 
   function setLine(typeId: number, slot: number, value: string): void {
     setLineNames((current) => {
-      const next = [...(current[String(typeId)] ?? ['', '', ''])];
-      while (next.length < 3) next.push('');
+      const key = String(typeId);
+      const next = [...(current[key] ?? [''])];
+      while (next.length <= slot) next.push('');
       next[slot] = value;
-      return { ...current, [String(typeId)]: next.slice(0, 3) };
+      return { ...current, [key]: next.slice(0, MAX_BRAND_LINES_PER_TYPE) };
+    });
+  }
+
+  function addLine(typeId: number): void {
+    setLineNames((current) => {
+      const key = String(typeId);
+      const existing = current[key];
+      const next = existing && existing.length ? [...existing] : [''];
+      if (next.length >= MAX_BRAND_LINES_PER_TYPE) return current;
+      return { ...current, [key]: [...next, ''] };
+    });
+  }
+
+  function removeLine(typeId: number, slot: number): void {
+    setLineNames((current) => {
+      const key = String(typeId);
+      const next = [...(current[key] ?? [''])];
+      next.splice(slot, 1);
+      return { ...current, [key]: next.length ? next : [''] };
     });
   }
 
@@ -180,7 +231,7 @@ export default function AdminBrandsScreen() {
       line_names_by_type[String(typeId)] = (lineNames[String(typeId)] ?? [])
         .map((value) => value.trim())
         .filter(Boolean)
-        .slice(0, 3);
+        .slice(0, MAX_BRAND_LINES_PER_TYPE);
     }
 
     mutation.mutate({
@@ -229,7 +280,7 @@ export default function AdminBrandsScreen() {
           <View style={styles.rowBetween}>
             <View style={styles.flex}>
               <Text style={styles.sectionTitle}>{editingId === null ? 'Novi brend' : 'Uredi brend'}</Text>
-              <Text style={styles.muted}>Slug je automatski. Do tri kurirane linije po tipu.</Text>
+              <Text style={styles.muted}>Slug je automatski. Do deset kuriranih linija po tipu, bez zatrpavanja nepovezanih tipova.</Text>
             </View>
             <Button variant="secondary" onPress={closeForm}>Zatvori</Button>
           </View>
@@ -253,6 +304,9 @@ export default function AdminBrandsScreen() {
               lines={lineNames[String(type.id)] ?? []}
               onToggle={() => toggleType(type.id)}
               onLine={(slot, value) => setLine(type.id, slot, value)}
+              onAdd={() => addLine(type.id)}
+              onRemove={(slot) => removeLine(type.id, slot)}
+              maxLines={MAX_BRAND_LINES_PER_TYPE}
               styles={styles}
             />
           ))}
@@ -267,7 +321,7 @@ export default function AdminBrandsScreen() {
 
       {data.brands.length === 0 ? (
         <Card><Text style={styles.muted}>Nema brendova za izabrane filtere.</Text></Card>
-      ) : data.brands.map((brand) => (
+      ) : data.brands.map((brand, index) => (
         <Card key={brand.id} style={styles.brandCard}>
           <View style={styles.rowBetween}>
             <View style={styles.flex}>
@@ -281,6 +335,8 @@ export default function AdminBrandsScreen() {
           <Text style={styles.meta}>Linije: {brand.lines.length ? brand.lines.slice(0, 6).map((line) => line.name).join(', ') : '—'}{brand.lines.length > 6 ? '…' : ''}</Text>
           {brand.website_url ? <Text style={styles.meta}>{brand.website_url}</Text> : null}
           <View style={styles.actions}>
+            <Button variant="secondary" disabled={index === 0} loading={reorderMutation.isPending} onPress={() => moveBrand(brand.id, -1)}>Pomeri gore</Button>
+            <Button variant="secondary" disabled={index === data.brands.length - 1} loading={reorderMutation.isPending} onPress={() => moveBrand(brand.id, 1)}>Pomeri dole</Button>
             <Button variant="secondary" onPress={() => editBrand(brand)}>Uredi</Button>
           </View>
         </Card>
@@ -295,6 +351,9 @@ function TypeEditor({
   lines,
   onToggle,
   onLine,
+  onAdd,
+  onRemove,
+  maxLines,
   styles,
 }: {
   type: AdminBrandProductType;
@@ -302,6 +361,9 @@ function TypeEditor({
   lines: string[];
   onToggle: () => void;
   onLine: (slot: number, value: string) => void;
+  onAdd: () => void;
+  onRemove: (slot: number) => void;
+  maxLines: number;
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
@@ -313,15 +375,25 @@ function TypeEditor({
         </View>
         <Button variant="secondary" onPress={onToggle}>{selected ? 'Uključeno ✓' : 'Uključi'}</Button>
       </View>
-      {selected ? [0, 1, 2].map((slot) => (
-        <TextField
-          key={slot}
-          label={`Linija ${slot + 1}`}
-          value={lines[slot] ?? ''}
-          onChangeText={(value) => onLine(slot, value)}
-          placeholder="Opcionalno"
-        />
-      )) : null}
+      {selected ? (
+        <>
+          {(lines.length ? lines : ['']).map((value, slot) => (
+            <View key={slot} style={styles.lineEditorRow}>
+              <View style={styles.flex}>
+                <TextField
+                  label={`Linija ${slot + 1}`}
+                  value={value}
+                  onChangeText={(nextValue) => onLine(slot, nextValue)}
+                  placeholder="Opcionalno"
+                />
+              </View>
+              {!value.trim() && lines.length > 1 ? <Button variant="ghost" onPress={() => onRemove(slot)}>Ukloni polje</Button> : null}
+            </View>
+          ))}
+          {lines.length < maxLines ? <Button variant="secondary" onPress={onAdd}>+ Dodaj liniju</Button> : null}
+          <Text style={styles.muted}>{Math.min(lines.length, maxLines)}/{maxLines} linija za ovaj tip</Text>
+        </>
+      ) : null}
     </Card>
   );
 }
@@ -338,6 +410,7 @@ function createStyles(theme: AppColors) {
     rowBetween: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
     flex: { flex: 1, minWidth: 0 },
     actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    lineEditorRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
     sectionTitle: { ...typography.h3, color: theme.ink },
     subhead: { ...typography.label, color: theme.ink, marginTop: spacing.sm },
     brandName: { ...typography.h3, color: theme.ink },

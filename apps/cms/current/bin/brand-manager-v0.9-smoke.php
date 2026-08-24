@@ -6,6 +6,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $project = dirname($root, 3);
 $marker = 'MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3';
+$lineExpansionMarker = 'MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3';
 $failures = 0;
 
 $check = static function (string $label, bool $ok) use (&$failures): void {
@@ -27,6 +28,7 @@ $view = $source($root.'/resources/views/admin/brands/index.blade.php');
 $mobileApi = $source($project.'/apps/mobile/current/src/features/admin/brand-manager-api.ts');
 $mobileScreen = $source($project.'/apps/mobile/current/src/app/(app)/admin/catalog/brands/index.tsx');
 $mobileHub = $source($project.'/apps/mobile/current/src/app/(app)/admin/index.tsx');
+$mobileDictionariesHub = $source($project.'/apps/mobile/current/src/app/(app)/admin/catalog/dictionaries/index.tsx');
 $mobileKeys = $source($project.'/apps/mobile/current/src/features/admin/admin-query-keys.ts');
 $openApi = $source($project.'/packages/api-contract/openapi.yaml');
 
@@ -39,10 +41,10 @@ $check('API Brand Manager routes use taxonomy permission', str_contains($apiRout
 $check('Laravel Brand Manager view has filter/add/compact table', str_contains($view, 'Pretraga brenda') && str_contains($view, '+ Dodaj brend') && str_contains($view, 'admin-table'));
 $check('Service uses existing type-scoped pivots', str_contains($service, 'brand_product_type') && str_contains($service, 'product_line_product_type'));
 $check('Service protects historical product relations', str_contains($service, "DB::table('products')") && str_contains($service, 'ne može biti uklonjena'));
-$check('Service caps curated line input to three per type', str_contains($service, 'count($names) > 3') && str_contains($request, "'max:3'"));
+$check('Service caps curated line input to ten per type', str_contains($service, $lineExpansionMarker) && str_contains($service, 'count($names) > 10') && str_contains($request, "'max:10'"));
 $check('Mobile Brand Manager API is relative and centralized', str_contains($mobileApi, $marker) && str_contains($mobileApi, "'admin/catalog/brands'") && !str_contains($mobileApi, '/api/v1/admin/catalog/brands'));
 $check('Mobile Brand Manager screen is taxonomy permission gated', str_contains($mobileScreen, $marker) && str_contains($mobileScreen, "can('catalog.manage_taxonomy')"));
-$check('Mobile Admin Hub exposes Brand Manager', str_contains($mobileHub, $marker) && str_contains($mobileHub, "/admin/catalog/brands"));
+$check('Mobile dictionaries hierarchy exposes canonical Brand Manager', str_contains($mobileHub, "/admin/catalog/dictionaries") && str_contains($mobileDictionariesHub, 'MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22') && str_contains($mobileDictionariesHub, "can('catalog.manage_taxonomy')") && str_contains($mobileDictionariesHub, "/admin/catalog/brands"));
 $check('Mobile Brand Manager query keys exist', str_contains($mobileKeys, $marker) && str_contains($mobileKeys, 'brandsList:') && str_contains($mobileKeys, 'brandOptions:'));
 $check('Canonical OpenAPI documents Brand Manager', str_contains($openApi, $marker) && str_contains($openApi, '/api/v1/admin/catalog/brands/options:'));
 

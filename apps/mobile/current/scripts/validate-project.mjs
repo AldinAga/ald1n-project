@@ -41,6 +41,10 @@ const required = [
   'src/features/notifications/push-service.ts',
   'src/features/notifications/push-notification-bridge.tsx',
   'docs/openapi.yaml',
+  'src/features/admin/dictionary-admin-api.ts',
+  'src/app/(app)/admin/catalog/dictionaries/index.tsx',
+  'src/app/(app)/admin/catalog/dictionaries/[resource].tsx',
+  'src/app/(app)/admin/catalog/dictionaries/product-types/[id].tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
 ];
@@ -1440,9 +1444,10 @@ assert(
   'v0.9 Mobile Brand Manager je permission-gated i pokriva globalni filter/search/add/edit/type/line UX bez Product Variants.',
 );
 assert(
-  brandManagerHubV09.includes("router.push('/admin/catalog/brands' as Href)")
-    && brandManagerHubV09.includes("can('catalog.manage_taxonomy')"),
-  'v0.9 Admin Hub izlaže Brand Manager samo taxonomy administratorima.',
+  brandManagerHubV09.includes("router.push('/admin/catalog/dictionaries' as Href)")
+    && brandManagerHubV09.includes("can('catalog.manage_taxonomy')")
+    && brandManagerHubV09.includes("adminMatch('Brendovi')"),
+  'v0.9/v1.0 Admin Hub izlaže Šifarnike taxonomy administratorima i pretraga obuhvata Brendove.',
 );
 assert(
   brandManagerKeysV09.includes("brandsList: (params: unknown) => ['admin', 'brands', 'list', params] as const")
@@ -1618,6 +1623,109 @@ assert(
     'v0.9 Navigation reorganizacija ne vraća Product Variants.'
   );
 }
+
+// MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22
+const dictionariesApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/dictionary-admin-api.ts'), 'utf8');
+const dictionariesHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/dictionaries/index.tsx'), 'utf8');
+const dictionariesResourceV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/dictionaries/[resource].tsx'), 'utf8');
+const dictionariesTypeV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/dictionaries/product-types/[id].tsx'), 'utf8');
+const dictionariesAdminHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const dictionariesBrandV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/brands/index.tsx'), 'utf8');
+const dictionariesKeysV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const dictionariesOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+const brandLineApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/brand-manager-api.ts'), 'utf8');
+assert(
+  dictionariesHubV10.includes("can('catalog.manage_taxonomy')")
+    && dictionariesHubV10.includes("/admin/catalog/brands")
+    && dictionariesHubV10.includes("/admin/catalog/dictionaries/categories")
+    && dictionariesHubV10.includes("/admin/catalog/dictionaries/product-lines")
+    && dictionariesHubV10.includes("/admin/catalog/dictionaries/product-types")
+    && dictionariesHubV10.includes("/admin/catalog/dictionaries/specification-fields"),
+  'v1.0 Šifarnici hub je permission-gated i vodi na svih pet canonical destinacija bez duplog Brand Managera.',
+);
+assert(
+  dictionariesApiV10.includes('apiAdminDictionaries')
+    && dictionariesApiV10.includes('reorderBrands')
+    && dictionariesApiV10.includes('purgeSpecificationField')
+    && dictionariesApiV10.includes('reorderProductTypeFields')
+    && !dictionariesApiV10.includes('/api/v1/admin/catalog/dictionaries'),
+  'v1.0 Dictionary API koristi relativni centralizovani CRUD/reorder/purge/product-type ugovor.',
+);
+assert(
+  dictionariesResourceV10.includes('apiAdminDictionaries.create')
+    && dictionariesResourceV10.includes('apiAdminDictionaries.update')
+    && dictionariesResourceV10.includes('apiAdminDictionaries.deactivate')
+    && dictionariesResourceV10.includes('apiAdminDictionaries.reorder')
+    && dictionariesResourceV10.includes('apiAdminDictionaries.purgeSpecificationField')
+    && dictionariesResourceV10.includes('dependency_map_text')
+    && dictionariesResourceV10.includes('detail_input_enabled'),
+  'v1.0 Mobile šifarnici pokrivaju create/update/deactivate/reorder i bezbedni specification purge sa korelacijama.',
+);
+assert(
+  dictionariesTypeV10.includes('field_config')
+    && dictionariesTypeV10.includes('is_required')
+    && dictionariesTypeV10.includes('is_filterable')
+    && dictionariesTypeV10.includes('show_in_summary')
+    && dictionariesTypeV10.includes('include_in_name')
+    && dictionariesTypeV10.includes('completeness_weight')
+    && dictionariesTypeV10.includes('default_detail')
+    && dictionariesTypeV10.includes('reorderProductTypeFields')
+    && dictionariesTypeV10.includes('minimum_completeness_percent')
+    && dictionariesTypeV10.includes('name_template'),
+  'v1.0 Product Type detalj pokriva kompletan CMS field/completeness/name-template i reorder ugovor.',
+);
+assert(
+  dictionariesBrandV10.includes('apiAdminDictionaries.reorderBrands')
+    && dictionariesBrandV10.includes('Pomeri gore')
+    && dictionariesBrandV10.includes('Pomeri dole')
+    && dictionariesBrandV10.includes('apiAdminBrands.create')
+    && dictionariesBrandV10.includes('apiAdminBrands.update'),
+  'v1.0 postojeći Global Brand Manager ostaje canonical CRUD ekran i dobija shared reorder bez duplog odredišta.',
+);
+assert(
+  dictionariesBrandV10.includes('MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3')
+    && dictionariesBrandV10.includes('MAX_BRAND_LINES_PER_TYPE = 10')
+    && dictionariesBrandV10.includes('+ Dodaj liniju')
+    && dictionariesBrandV10.includes('Ukloni')
+    && brandLineApiV10.includes('max_lines_per_type: 10')
+    && dictionariesOpenApiV10.includes('do deset kuriranih linija po tipu')
+    && dictionariesOpenApiV10.includes('maxItems: 10'),
+  'v1.0 Brand Manager podržava do deset type-scoped linija i dinamički Mobile add/remove editor.',
+);
+assert(
+  dictionariesAdminHubV10.includes("router.push('/admin/catalog/dictionaries' as Href)")
+    && dictionariesAdminHubV10.includes("adminMatch('Kategorije')")
+    && dictionariesAdminHubV10.includes("adminMatch('Linije proizvoda')")
+    && dictionariesAdminHubV10.includes("adminMatch('Tipovi proizvoda')")
+    && dictionariesAdminHubV10.includes("adminMatch('Specifikaciona polja')"),
+  'v1.0 Admin Hub postavlja Šifarnike u Katalog i lager i pretraga nalazi ugnježdene opcije.',
+);
+assert(
+  dictionariesKeysV10.includes('dictionaryProductType:')
+    && dictionariesKeysV10.includes('dictionary: (resource: string)'),
+  'v1.0 Dictionary TanStack query keys su centralizovani.',
+);
+assert(
+  dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/{resource}:')
+    && dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/{resource}/{item}:')
+    && dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/{resource}/reorder:')
+    && dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/brands/reorder:')
+    && dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/product-types/{productType}:')
+    && dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/product-types/{productType}/fields/reorder:')
+    && dictionariesOpenApiV10.includes('/api/v1/admin/catalog/dictionaries/specification-fields/{item}/purge:'),
+  'OpenAPI dokumentuje kompletan ADMIN-CAT-10 dictionary route surface.',
+);
+const dictionariesVariantIdentifiersV10 = [
+  dictionariesHubV10,
+  dictionariesResourceV10,
+  dictionariesTypeV10,
+  dictionariesBrandV10,
+  dictionariesApiV10,
+].join('\n');
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(dictionariesVariantIdentifiersV10),
+  'v1.0 Šifarnici ne vraćaju aktivni Product Variants contract.',
+);
 
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

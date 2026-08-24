@@ -2,6 +2,7 @@
 @section('title','Brendovi')
 @section('content')
 {{-- MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3 --}}
+{{-- MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3 --}}
 @php
     $formBrand = $editingBrand ?? null;
     $showForm = $createMode || $formBrand !== null || $errors->any();
@@ -11,7 +12,7 @@
     <div>
         <span class="eyebrow">Kataloški šifarnici</span>
         <h1>Brendovi</h1>
-        <p>Jedan globalni brend može biti povezan sa više tipova proizvoda. Upravljaj zvaničnim podacima, tipovima i do tri kurirane linije po tipu bez dupliranja brendova.</p>
+        <p>Jedan globalni brend može biti povezan sa više tipova proizvoda. Upravljaj zvaničnim podacima, tipovima i do deset kuriranih linija po tipu bez dupliranja brendova.</p>
     </div>
     <div class="header-button-row">
         <a class="button button-primary" href="{{ route('admin.brand-manager.index', ['create' => 1]) }}">+ Dodaj brend</a>
@@ -102,7 +103,7 @@
         <div class="section-heading-row">
             <div>
                 <h3>Povezani tipovi i linije</h3>
-                <p class="muted">Izaberi tipove kojima brend realno pripada. Za svaki izabrani tip možeš uneti do tri kurirane linije. Postojeće dodatne istorijske linije se ne brišu.</p>
+                <p class="muted">Izaberi tipove kojima brend realno pripada. Za svaki izabrani tip možeš uneti do deset kuriranih linija. Postojeće dodatne istorijske linije se ne brišu.</p>
             </div>
         </div>
         @error('product_type_ids')<p class="text-danger">{{ $message }}</p>@enderror
@@ -121,7 +122,7 @@
                         <span><strong>{{ $type['name'] }}</strong>@if($type['category_name'])<small>{{ $type['category_name'] }}</small>@endif</span>
                     </label>
                     <div data-brand-line-fields @if(!$checked) hidden @endif>
-                        @for($slot=0; $slot<3; $slot++)
+                        @for($slot=0; $slot<10; $slot++)
                             <label>
                                 <span>Linija {{ $slot + 1 }}</span>
                                 <input
@@ -134,8 +135,8 @@
                                 >
                             </label>
                         @endfor
-                        @if($existingLines->count() > 3)
-                            <small class="muted">Još {{ $existingLines->count() - 3 }} postojeće linije ostaju sačuvane i nisu predmet automatskog uklanjanja.</small>
+                        @if($existingLines->count() > 10)
+                            <small class="muted">Još {{ $existingLines->count() - 10 }} postojeće linije ostaju sačuvane i nisu predmet automatskog uklanjanja.</small>
                         @endif
                     </div>
                 </article>

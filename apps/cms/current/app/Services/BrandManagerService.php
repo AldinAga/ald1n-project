@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
+// MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3
 final class BrandManagerService
 {
     /** @return array<string,mixed> */
@@ -62,7 +63,7 @@ final class BrandManagerService
                 'create' => true,
                 'update' => true,
                 'delete' => false,
-                'max_lines_per_type' => 3,
+                'max_lines_per_type' => 10,
             ],
         ];
     }
@@ -76,7 +77,7 @@ final class BrandManagerService
                 ['value' => 'active', 'label' => 'Aktivan'],
                 ['value' => 'inactive', 'label' => 'Neaktivan'],
             ],
-            'max_lines_per_type' => 3,
+            'max_lines_per_type' => 10,
         ];
     }
 
@@ -277,8 +278,8 @@ final class BrandManagerService
                 $normalizedSeen[$key] = true;
                 $names[] = $lineName;
             }
-            if (count($names) > 3) {
-                throw ValidationException::withMessages(['line_names_by_type.'.$typeId => 'Najviše tri kurirane linije mogu biti unete po tipu proizvoda.']);
+            if (count($names) > 10) {
+                throw ValidationException::withMessages(['line_names_by_type.'.$typeId => 'Najviše deset kuriranih linija može biti uneto po tipu proizvoda.']);
             }
             $lineMap[$typeId] = $names;
         }

@@ -134,7 +134,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
 
       {((can('catalog.manage_products') && (adminMatch('Artikli') || adminMatch('Dodaj artikal') || (isSuperAdmin && adminMatch('Nabavne cene')))) ||
         ((can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager')) ||
-        (can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi')))) ? (
+        (can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Katalog i lager</Text>
           <View style={styles.quickActions}>
@@ -142,7 +142,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
             {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/create')}>Dodaj artikal</Button> : null}
             {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)}>Nabavne cene</Button> : null}
             {(can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <Button variant="secondary" onPress={() => router.push('/admin/inventory')}>Lager</Button> : null}
-            {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi')) ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/brands' as Href)}>Šifarnici · Brendovi</Button> : null}
+            {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/dictionaries' as Href)}>Šifarnici</Button> : null}
           </View>
         </Card>
       ) : null}
