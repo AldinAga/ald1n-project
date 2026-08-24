@@ -114,6 +114,20 @@ export type AdminOrderDetailResponse = {
   capabilities: AdminOrderDetailCapabilities;
 };
 
+// MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23
+export type AdminOrderDocumentType = 'proforma' | 'invoice' | 'delivery_note';
+export type AdminOrderDocumentRecord = AdminOrderDetailRecord & {
+  id: number;
+  type: string;
+  number: string;
+  status: string;
+  revision_number: number;
+};
+export type AdminOrderDocumentMutationResponse = {
+  message: string;
+  data: AdminOrderDocumentRecord;
+};
+
 // MOBILE_V0_7_ORDERS_ADMIN_MUTATION_UI_BATCH7
 export type AdminOrderStatus = 'new' | 'processing' | 'confirmed' | 'cancelled';
 export type AdminOrderShipmentMethod = 'courier' | 'own_transport' | 'other';
@@ -291,5 +305,11 @@ export const apiAdminOrders = {
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments/${paymentId}/void`, { method: 'POST' }),
   shipment: (orderId: number, input: AdminOrderShipmentInput) =>
     apiExpoMultipartRequest<AdminOrderShipmentResponse> (`admin/orders/${orderId}/shipment`, adminOrderShipmentFormData(input)),
+  documentIssue: (orderId: number, input: { document_type: AdminOrderDocumentType }) =>
+    apiRequest<AdminOrderDocumentMutationResponse> (`admin/orders/${orderId}/documents`, { method: 'POST', body: input }),
+  documentCancel: (orderId: number, documentId: number, cancellation_reason: string) =>
+    apiRequest<AdminOrderDocumentMutationResponse> (`admin/orders/${orderId}/documents/${documentId}/cancel`, { method: 'POST', body: { cancellation_reason } }),
+  documentConfirmationPdfPath: (orderId: number) => `/api/v1/admin/orders/${orderId}/documents/confirmation.pdf`,
+  documentPdfPath: (orderId: number, documentId: number) => `/api/v1/admin/orders/${orderId}/documents/${documentId}.pdf`,
   shipmentProofPath: (orderId: number) => `/api/v1/admin/orders/${orderId}/shipment-proof`,
 };

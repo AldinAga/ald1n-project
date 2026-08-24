@@ -45,6 +45,8 @@ const required = [
   'src/app/(app)/admin/catalog/dictionaries/index.tsx',
   'src/app/(app)/admin/catalog/dictionaries/[resource].tsx',
   'src/app/(app)/admin/catalog/dictionaries/product-types/[id].tsx',
+  'src/features/admin/order-documents-admin.tsx',
+  'src/features/admin/order-document-files.ts',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
 ];
@@ -1725,6 +1727,49 @@ const dictionariesVariantIdentifiersV10 = [
 assert(
   !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(dictionariesVariantIdentifiersV10),
   'v1.0 Šifarnici ne vraćaju aktivni Product Variants contract.',
+);
+
+// MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23
+const adminOrderDocumentsUiV10 = fs.readFileSync(path.join(root, 'src/features/admin/order-documents-admin.tsx'), 'utf8');
+const adminOrderDocumentFilesV10 = fs.readFileSync(path.join(root, 'src/features/admin/order-document-files.ts'), 'utf8');
+const adminOrderDetailV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
+const adminOrdersApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
+assert(
+  adminOrdersApiV10.includes('documentIssue')
+    && adminOrdersApiV10.includes('documentCancel')
+    && adminOrdersApiV10.includes('documentConfirmationPdfPath')
+    && adminOrdersApiV10.includes('documentPdfPath'),
+  'v1.0 Admin Orders API klijent pokriva issue/cancel/PDF document workflow.',
+);
+assert(
+  adminOrderDetailV10.includes('<AdminOrderDocuments')
+    && adminOrderDetailV10.includes('canManage={response.capabilities.documents}'),
+  'v1.0 Admin Order detalj ugrađuje permission-gated Poslovni dokumenti workbench bez orphan ekrana.',
+);
+assert(
+  adminOrderDocumentsUiV10.includes("'proforma'")
+    && adminOrderDocumentsUiV10.includes("'invoice'")
+    && adminOrderDocumentsUiV10.includes("'delivery_note'")
+    && adminOrderDocumentsUiV10.includes('documentCancel')
+    && adminOrderDocumentsUiV10.includes('Potvrda PDF')
+    && adminOrderDocumentsUiV10.includes('confirmationMutation')
+    && adminOrderDocumentsUiV10.includes('cancelReason.trim().length < 5')
+    && adminOrderDocumentsUiV10.includes('revision_number'),
+  'v1.0 Mobile document workbench pokriva predračun, račun, otpremnicu, istoriju revizija i kontrolisano storniranje.',
+);
+assert(
+  adminOrderDocumentFilesV10.includes('apiDownload')
+    && adminOrderDocumentFilesV10.includes("mime !== 'application/pdf'")
+    && adminOrderDocumentFilesV10.includes('hasPdfSignature')
+    && adminOrderDocumentFilesV10.includes('apiAdminOrders.documentConfirmationPdfPath')
+    && adminOrderDocumentFilesV10.includes('apiAdminOrders.documentPdfPath')
+    && adminOrderDocumentFilesV10.includes('expo-sharing'),
+  'v1.0 Admin dokument PDF koristi authenticated Bearer download, PDF signature proveru i privatni cache/share flow.',
+);
+const adminOrderDocumentsVariantGuardV10 = adminOrderDocumentsUiV10 + adminOrderDocumentFilesV10 + adminOrdersApiV10;
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(adminOrderDocumentsVariantGuardV10),
+  'v1.0 Admin dokumenti ostaju product-only bez Product Variants contracta.',
 );
 
 console.log(`\nUkupno FAIL: ${failures}`);

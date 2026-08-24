@@ -8,6 +8,7 @@ import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AdminOrderActions } from '@/features/admin/orders-admin-actions';
+import { AdminOrderDocuments } from '@/features/admin/order-documents-admin';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import {
@@ -231,20 +232,14 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {documents.length > 0 ? (
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Dokumenti ({documents.length})</Text>
-          {documents.map((document, index) => (
-            <View key={`${text(document, 'id', String(index))}-${index}`} style={styles.listRow}>
-              <View style={styles.flexOne}>
-                <Text style={styles.itemTitle}>{text(document, 'number', `Dokument ${index + 1}`)}</Text>
-                <Text style={styles.muted}>{text(document, 'type')} · {text(document, 'status')}</Text>
-              </View>
-              <Text style={styles.muted}>Rev. {text(document, 'revision_number', '1')}</Text>
-            </View>
-          ))}
-        </Card>
-      ) : null}
+      {/* MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23 */}
+      <AdminOrderDocuments
+        orderId={orderId}
+        documents={documents}
+        canManage={response.capabilities.documents}
+        hasDelivery={delivery !== null}
+        onChanged={() => void query.refetch()}
+      />
 
       {receivable ? (
         <Card style={styles.card}>

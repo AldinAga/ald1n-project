@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Admin\ExchangeRateController as AdminExchangeRat
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\OrderMutationController as AdminOrderMutationController;
 use App\Http\Controllers\Api\V1\Admin\OrderShipmentController as AdminOrderShipmentController;
+use App\Http\Controllers\Api\V1\Admin\OrderDocumentController as AdminOrderDocumentController;
 use App\Http\Controllers\Api\V1\Admin\CourierServiceController as AdminCourierServiceController;
 use App\Http\Controllers\Api\V1\Admin\AfterSalesActionController as AdminAfterSalesActionController;
 use App\Http\Controllers\Api\V1\Admin\AfterSalesAttachmentController as AdminAfterSalesAttachmentController;
@@ -134,6 +135,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
                     Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
                     Route::get('/orders/{order}/shipment-proof', [AdminOrderShipmentController::class, 'proof'])->whereNumber('order')->name('orders.shipment.proof');
+                    // MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23
+                    Route::middleware('permission:invoices.manage')->group(function (): void {
+                        Route::post('/orders/{order}/documents', [AdminOrderDocumentController::class, 'store'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.documents.store');
+                        Route::get('/orders/{order}/documents/confirmation.pdf', [AdminOrderDocumentController::class, 'confirmation'])->whereNumber('order')->name('orders.documents.confirmation');
+                        Route::get('/orders/{order}/documents/{document}.pdf', [AdminOrderDocumentController::class, 'pdf'])->whereNumber('order')->whereNumber('document')->name('orders.documents.pdf');
+                        Route::post('/orders/{order}/documents/{document}/cancel', [AdminOrderDocumentController::class, 'cancel'])->whereNumber('order')->whereNumber('document')->middleware('throttle:admin-write')->name('orders.documents.cancel');
+                    });
                     Route::middleware('throttle:admin-write')->group(function (): void {
                         Route::patch('/orders/{order}/status', [AdminOrderMutationController::class, 'status'])->whereNumber('order')->name('orders.status');
                         Route::post('/orders/{order}/accept', [AdminOrderMutationController::class, 'accept'])->whereNumber('order')->name('orders.accept');
