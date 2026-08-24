@@ -2192,20 +2192,72 @@ security:
         '404': { description: Isporuka nije pronađena }
         '422': { description: Isporuka nije podobna za retry }
         '429': { description: Admin write rate limit }
+  # MOBILE_V1_0_SYSTEM_HEALTH_MUTATIONS_PARITY_BATCH25
   /api/v1/admin/system-health:
     get:
       tags: [Admin System Health]
-      summary: Read-only pregled trenutnog zdravlja sistema i istorije snapshot-a
+      summary: Pregled trenutnog zdravlja sistema, snapshot istorije, backup istorije i bezbednog security sažetka
       operationId: getAdminSystemHealth
       responses:
         '200':
-          description: Trenutno stanje sistema, read-only istorija i capability ugovor
+          description: Trenutno stanje sistema, istorije i server-driven capability ugovor.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdminSystemHealthResponse' }
         '401': { description: Nije autentifikovan }
         '403': { description: Nedovoljna dozvola system.health }
         '503': { description: System Health trenutno nije dostupan }
+  /api/v1/admin/system-health/run:
+    post:
+      tags: [Admin System Health]
+      summary: Ručno pokreni System Health proveru i sačuvaj snapshot
+      operationId: runAdminSystemHealth
+      responses:
+        '200':
+          description: Provera i snapshot su uspešno završeni i auditovani.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSystemHealthRunResponse' }
+        '403': { description: Nedovoljna dozvola system.health }
+        '429': { description: Admin write rate limit }
+        '503': { description: Provera ili snapshot nisu mogli da budu završeni }
+  /api/v1/admin/system-health/backup:
+    post:
+      tags: [Admin System Health]
+      summary: Kreiraj privatni ručni backup
+      description: Reuse postojećeg BackupService toka. database_only=true pravi samo MySQL/MariaDB dump; false uključuje i konfigurisane poslovne upload fajlove. Privatna serverska backup putanja se ne izlaže Mobile klijentu.
+      operationId: createAdminSystemBackup
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                database_only: { type: boolean, default: false }
+      responses:
+        '201':
+          description: Ručni backup je uspešno kreiran i auditovan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSystemHealthBackupResponse' }
+        '403': { description: Potrebne su system.health i backups.manage dozvole }
+        '429': { description: Backup rate limit }
+        '503': { description: Backup nije uspeo }
+  /api/v1/admin/system-health/prune:
+    post:
+      tags: [Admin System Health]
+      summary: Primeni postojeća daily/weekly backup retention pravila
+      operationId: pruneAdminSystemBackups
+      responses:
+        '200':
+          description: Retention je primenjen i broj uklonjenih/zadržanih backup zapisa je vraćen.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSystemHealthPruneResponse' }
+        '403': { description: Potrebne su system.health i backups.manage dozvole }
+        '429': { description: Admin write rate limit }
+        '503': { description: Retention nije mogao da bude primenjen }
   /api/v1/admin/audit-events:
     get:
       tags: [Admin Audit]
@@ -4159,35 +4211,99 @@ components:
         checked_at: { type: [string, 'null'], format: date-time }
     AdminSystemHealthHistoryItem:
       type: object
-      required: [id, status, checks, metrics, checked_at]
+      required: [id, status, checks, metrics, checker_name, checked_at]
       properties:
         id: { type: integer, minimum: 1 }
         status: { type: string }
-        checks:
-          type: array
-          items: {}
-        metrics:
-          type: object
-          additionalProperties: true
+        checks: { type: array, items: {} }
+        metrics: { type: object, additionalProperties: true }
+        checker_name: { type: [string, 'null'] }
         checked_at: { type: [string, 'null'], format: date-time }
+    AdminSystemHealthBackupItem:
+      type: object
+      required: [id, backup_key, backup_type, status, creator_name, size_bytes, started_at, finished_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        backup_key: { type: string }
+        backup_type: { type: string }
+        status: { type: string }
+        creator_name: { type: [string, 'null'] }
+        size_bytes: { type: integer, minimum: 0 }
+        started_at: { type: [string, 'null'], format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
+    AdminSystemHealthSecurityEvent:
+      type: object
+      required: [id, event_type, severity, actor_name, route_name, method, created_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        event_type: { type: string }
+        severity: { type: string }
+        actor_name: { type: [string, 'null'] }
+        route_name: { type: [string, 'null'] }
+        method: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'], format: date-time }
     AdminSystemHealthCapabilities:
       type: object
       required: [refresh, snapshot, backup, prune]
       properties:
         refresh: { type: boolean, const: true }
-        snapshot: { type: boolean, const: false }
-        backup: { type: boolean, const: false }
-        prune: { type: boolean, const: false }
+        snapshot: { type: boolean, const: true }
+        backup: { type: boolean }
+        prune: { type: boolean }
     AdminSystemHealthResponse:
       type: object
-      required: [data, history, capabilities]
+      required: [data, history, backups, security_events, capabilities]
       properties:
         data: { $ref: '#/components/schemas/AdminSystemHealthCurrent' }
         history:
           type: array
           maxItems: 20
           items: { $ref: '#/components/schemas/AdminSystemHealthHistoryItem' }
+        backups:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/AdminSystemHealthBackupItem' }
+        security_events:
+          type: array
+          maxItems: 15
+          items: { $ref: '#/components/schemas/AdminSystemHealthSecurityEvent' }
         capabilities: { $ref: '#/components/schemas/AdminSystemHealthCapabilities' }
+    AdminSystemHealthRunResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [status, checked_at]
+          properties:
+            status: { type: string }
+            checked_at: { type: [string, 'null'], format: date-time }
+    AdminSystemHealthBackupResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [backup_key, backup_type, status, size_bytes, database_only]
+          properties:
+            backup_key: { type: [string, 'null'] }
+            backup_type: { type: string }
+            status: { type: string }
+            size_bytes: { type: integer, minimum: 0 }
+            database_only: { type: boolean }
+    AdminSystemHealthPruneResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [removed, kept]
+          properties:
+            removed: { type: integer, minimum: 0 }
+            kept: { type: integer, minimum: 0 }
     AdminAuditUser:
       type: object
       required: [id, name, username]

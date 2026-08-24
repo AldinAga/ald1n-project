@@ -107,7 +107,21 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::delete('/report-schedules/{schedule}', [AdminReportScheduleController::class, 'destroy'])->whereNumber('schedule')->middleware('throttle:admin-write')->name('report-schedules.destroy');
                     Route::post('/report-deliveries/{delivery}/retry', [AdminReportScheduleController::class, 'retry'])->whereNumber('delivery')->middleware('throttle:admin-write')->name('report-deliveries.retry');
                 });
-                Route::get('/system-health', [AdminSystemHealthController::class, 'index'])->middleware('permission:system.health')->name('system-health.index');
+                // MOBILE_V1_0_SYSTEM_HEALTH_MUTATIONS_PARITY_BATCH25
+                Route::prefix('system-health')
+                    ->middleware('permission:system.health')
+                    ->name('system-health.')
+                    ->group(function (): void {
+                        Route::get('/', [AdminSystemHealthController::class, 'index'])->name('index');
+                        Route::post('/run', [AdminSystemHealthController::class, 'run'])
+                            ->middleware('throttle:admin-write')->name('run');
+                        Route::middleware('permission:backups.manage')->group(function (): void {
+                            Route::post('/backup', [AdminSystemHealthController::class, 'backup'])
+                                ->middleware('throttle:backup')->name('backup');
+                            Route::post('/prune', [AdminSystemHealthController::class, 'prune'])
+                                ->middleware('throttle:admin-write')->name('prune');
+                        });
+                    });
                 Route::middleware('permission:security.view')->group(function (): void {
                     Route::get('/audit-events', [AdminAuditEventController::class, 'index'])->name('audit-events.index');
                     Route::get('/audit-events/{event}', [AdminAuditEventController::class, 'show'])->whereNumber('event')->name('audit-events.show');

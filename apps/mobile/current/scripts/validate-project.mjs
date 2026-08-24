@@ -1094,10 +1094,10 @@ assert(
   p3SystemHealthApiBatch2CV06.includes('AdminSystemHealthResponse')
     && p3SystemHealthApiBatch2CV06.includes("apiRequest<AdminSystemHealthResponse> ('admin/system-health')")
     && !p3SystemHealthApiBatch2CV06.includes('/api/v1/admin/system-health')
-    && !p3SystemHealthApiBatch2CV06.includes('snapshot(')
-    && !p3SystemHealthApiBatch2CV06.includes('backup(')
-    && !p3SystemHealthApiBatch2CV06.includes('prune('),
-  'P3 Admin System Health 2C zaključava read-only Mobile API ugovor i relativnu admin/system-health putanju.',
+    && p3SystemHealthApiBatch2CV06.includes('run: () =>')
+    && p3SystemHealthApiBatch2CV06.includes('backup: (databaseOnly = false) =>')
+    && p3SystemHealthApiBatch2CV06.includes('prune: () =>'),
+  'P3/v1.0 Admin System Health koristi relativni API ugovor i izlaže run/backup/prune mutacije kroz canonical servisni tok.',
 );
 
 assert(
@@ -1111,12 +1111,13 @@ assert(
     && p3SystemHealthScreenBatch2CV06.includes('adminQueryKeys.systemHealth()')
     && p3SystemHealthScreenBatch2CV06.includes('response.capabilities.refresh')
     && p3SystemHealthScreenBatch2CV06.includes('query.refetch()')
-    && p3SystemHealthScreenBatch2CV06.includes('Istorija stanja')
-    && p3SystemHealthScreenBatch2CV06.includes('Read-only pristup')
-    && !p3SystemHealthScreenBatch2CV06.includes('snapshot(')
-    && !p3SystemHealthScreenBatch2CV06.includes('backup(')
-    && !p3SystemHealthScreenBatch2CV06.includes('prune('),
-  'P3 Admin System Health 2C zaključava permission-gated read-only UI, refresh, checks, metrics i history tok.',
+    && p3SystemHealthScreenBatch2CV06.includes('Istorija System Health provera')
+    && p3SystemHealthScreenBatch2CV06.includes('Privatni backup')
+    && p3SystemHealthScreenBatch2CV06.includes('Pokreni proveru i sačuvaj snapshot')
+    && p3SystemHealthScreenBatch2CV06.includes('Kreiraj kompletan backup')
+    && p3SystemHealthScreenBatch2CV06.includes('Primeni retention')
+    && p3SystemHealthScreenBatch2CV06.includes('ConfirmAction'),
+  'P3/v1.0 Admin System Health UI ostaje permission-gated i dodaje snapshot, backup, retention, backup istoriju i security događaje.',
 );
 {
   const fs = await import('node:fs');
@@ -1133,10 +1134,10 @@ assert(
     && p3SystemHealthOpenApiBatch2CV06.includes('AdminSystemHealthCapabilities:')
     && p3SystemHealthOpenApiBatch2CV06.includes('AdminSystemHealthResponse:')
     && p3SystemHealthOpenApiBatch2CV06.includes('Nedovoljna dozvola system.health')
-    && !p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health/run:')
-    && !p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health/backup:')
-    && !p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health/prune:'),
-  'OpenAPI dokumentuje samo read-only P3 Admin System Health GET ugovor bez snapshot/backup/prune mutacija.',
+    && p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health/run:')
+    && p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health/backup:')
+    && p3SystemHealthOpenApiBatch2CV06.includes('/api/v1/admin/system-health/prune:'),
+  'OpenAPI dokumentuje puni v1.0 Admin System Health GET/run/backup/prune ugovor.',
 );
 
 // MOBILE_P3_AUDIT_ADMIN_BATCH2C_OPENAPI_VALIDATOR_V06
@@ -1828,6 +1829,80 @@ assert(
 );
 
 console.log(`\nUkupno FAIL: ${failures}`);
+// MOBILE_V1_0_SYSTEM_HEALTH_MUTATIONS_PARITY_BATCH25
+const systemHealthApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/system-health-admin-api.ts'), 'utf8');
+const systemHealthUiV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/system-health/index.tsx'), 'utf8');
+const systemHealthControllerV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Controllers/Api/V1/Admin/SystemHealthController.php'), 'utf8');
+const systemHealthRoutesV10 = fs.readFileSync(path.join(root, '../../cms/current/routes/api.php'), 'utf8');
+const systemHealthServiceV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/SystemHealthService.php'), 'utf8');
+const backupServiceV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/BackupService.php'), 'utf8');
+const systemHealthOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(
+  systemHealthApiV10.includes('run: () =>')
+    && systemHealthApiV10.includes('backup: (databaseOnly = false) =>')
+    && systemHealthApiV10.includes('prune: () =>')
+    && systemHealthApiV10.includes("'admin/system-health/run'")
+    && systemHealthApiV10.includes("'admin/system-health/backup'")
+    && systemHealthApiV10.includes("'admin/system-health/prune'"),
+  'v1.0 System Health Mobile API pokriva snapshot, backup i retention mutacije relativnim canonical putanjama.',
+);
+assert(
+  systemHealthControllerV10.includes('SystemHealthService $health')
+    && systemHealthControllerV10.includes('BackupService $backup')
+    && systemHealthControllerV10.includes("'system.health_checked'")
+    && systemHealthControllerV10.includes("'backup.created'")
+    && systemHealthControllerV10.includes("'backup.pruned'")
+    && systemHealthControllerV10.includes("$actor->can('backups.manage')")
+    && systemHealthServiceV10.includes('function snapshot')
+    && backupServiceV10.includes('function create')
+    && backupServiceV10.includes('function prune'),
+  'v1.0 System Health API reuse-uje postojeće SystemHealthService i BackupService business guardove bez paralelne logike.',
+);
+assert(
+  systemHealthControllerV10.includes("'backups' => $this->backups()")
+    && systemHealthControllerV10.includes("'security_events' => $this->securityEvents()")
+    && !systemHealthControllerV10.includes('backup_path')
+    && !systemHealthApiV10.includes('backup_path'),
+  'v1.0 System Health Mobile state izlaže bezbednu backup/security istoriju bez privatnih backup putanja.',
+);
+assert(
+  systemHealthUiV10.includes('Pokreni proveru i sačuvaj snapshot')
+    && systemHealthUiV10.includes('Kreiraj kompletan backup')
+    && systemHealthUiV10.includes('Samo baza')
+    && systemHealthUiV10.includes('Primeni retention')
+    && systemHealthUiV10.includes('Poslednji security događaji')
+    && systemHealthUiV10.includes('ConfirmAction')
+    && systemHealthUiV10.includes('loading={backupMutation.isPending}')
+    && systemHealthUiV10.includes('loading={pruneMutation.isPending}')
+    && !systemHealthUiV10.includes('disabled={backupMutation.isPending}')
+    && !systemHealthUiV10.includes('disabled={pruneMutation.isPending}'),
+  'v1.0 System Health ekran pokriva Web health/backup workflow uz kontrolisani retention confirm i repeatable-action contract.',
+);
+assert(
+  systemHealthRoutesV10.includes("Route::prefix('system-health')")
+    && systemHealthRoutesV10.includes("permission:system.health")
+    && systemHealthRoutesV10.includes("permission:backups.manage")
+    && systemHealthRoutesV10.includes("throttle:backup")
+    && systemHealthRoutesV10.includes("name('run')")
+    && systemHealthRoutesV10.includes("name('backup')")
+    && systemHealthRoutesV10.includes("name('prune')"),
+  'v1.0 System Health API rute imaju system.health/backups.manage i odgovarajuće write/backup throttle guardove.',
+);
+assert(
+  systemHealthOpenApiV10.includes('/api/v1/admin/system-health:')
+    && systemHealthOpenApiV10.includes('/api/v1/admin/system-health/run:')
+    && systemHealthOpenApiV10.includes('/api/v1/admin/system-health/backup:')
+    && systemHealthOpenApiV10.includes('/api/v1/admin/system-health/prune:')
+    && systemHealthOpenApiV10.includes('AdminSystemHealthBackupItem:')
+    && systemHealthOpenApiV10.includes('AdminSystemHealthSecurityEvent:'),
+  'OpenAPI dokumentuje kompletan SET-03 System Health GET/run/backup/prune i safe history ugovor.',
+);
+const systemHealthVariantGuardV10 = systemHealthApiV10 + systemHealthUiV10 + systemHealthControllerV10;
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(systemHealthVariantGuardV10),
+  'v1.0 System Health parity ne vraća Product Variants contract.',
+);
+
 process.exit(failures === 0 ? 0 : 1);
 
 
