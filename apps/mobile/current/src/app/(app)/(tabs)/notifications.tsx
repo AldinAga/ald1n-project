@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -25,10 +25,46 @@ export default function NotificationsScreen() {
   );
   const feedback = useAppFeedback();
   const client = useQueryClient();
-  const { bootstrap, refreshBootstrap, setNotificationUnreadCount, hasFeature } = useAuth();
+  const { bootstrap, setNotificationUnreadCount, hasFeature } = useAuth();
+  const readInFlightIds = useRef<Set<string>> ( new Set());
   const allowed = hasFeature('notifications');
   const query = useQuery({ queryKey: ['notifications'], queryFn: () => api.notifications.list(), enabled: allowed });
-  const read = useMutation({ mutationFn: api.notifications.read, onSuccess: async () => { await client.invalidateQueries({ queryKey: ['notifications'] }); await refreshBootstrap(); } });
+  const read = useMutation({
+    mutationFn: api.notifications.read,
+    onSuccess: (updated, notificationId) => {
+      let changedUnread = false;
+
+      client.setQueryData<PaginatedResponse<BusinessNotification>> (
+        ['notifications'],
+        (current) => current ? {
+          ...current,
+          data: current.data.map((item) => {
+            if (item.id !== notificationId) return item;
+
+            changedUnread = !item.read;
+            return {
+              ...item,
+              ...updated,
+              read: true,
+              read_at: updated.read_at ?? item.read_at ?? new Date().toISOString()
+            };
+          })
+        } : current
+      );
+
+      if (changedUnread) {
+        const unread = bootstrap?.notification_counts.unread ?? 0;
+        setNotificationUnreadCount(Math.max(0, unread - 1));
+      }
+    },
+    onError: (error) => {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Obaveštenje nije označeno kao pročitano',
+        message: error instanceof Error ? error.message : 'Pokušaj ponovo.'
+      });
+    }
+  });
   const readAll = useMutation({
     mutationFn: api.notifications.readAll,
     onSuccess: (result) => {
@@ -61,10 +97,20 @@ export default function NotificationsScreen() {
   if (query.isLoading) return <LoadingState label="Učitavanje obaveštenja…" />;
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
-  const open = async (item: BusinessNotification) => {
-    if (!item.read) await read.mutateAsync(item.id);
+  const markReadInBackground = (item: BusinessNotification) => {
+    if (item.read || readInFlightIds.current.has(item.id)) return;
 
+    readInFlightIds.current.add(item.id);
+    read.mutate(item.id, {
+      onSettled: () => {
+        readInFlightIds.current.delete(item.id);
+      }
+    });
+  };
+
+  const open = (item: BusinessNotification) => {
     const destination = resolveBusinessNotificationNavigation(item);
+    markReadInBackground(item);
 
     if (destination.kind === 'order') {
       router.push({
