@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
@@ -191,13 +191,16 @@ export default function AdminOrdersIndexScreen() {
 
       <PageHeader
         title="Porudzbine admin"
-        eyebrow="Admin · Read only"
+        eyebrow="Admin · Prodaja"
         name={bootstrap?.user.name}
       />
 
       <Text style={styles.copy}>
-        Operativni pregled svih porudzbina u dozvoljenom administratorskom scope-u. Workflow izmene jos nisu izlozene u Mobile aplikaciji.
+        Operativni pregled porudžbina, workflow akcije i kontrolisana arhiva u dozvoljenom administratorskom scope-u.
       </Text>
+      <Button variant="secondary" onPress={() => router.push('/admin/orders/archived' as Href)}>
+        Arhivirane porudžbine
+      </Button>
 
       {response.filter_options.attention.length > 0 ? (
         <Card style={styles.attentionCard}>
@@ -301,9 +304,9 @@ export default function AdminOrdersIndexScreen() {
       </Card>
 
       <Card style={styles.readOnlyCard}>
-        <Text style={styles.cardTitle}>Read-only foundation</Text>
+        <Text style={styles.cardTitle}>Server-driven workflow</Text>
         <Text style={styles.muted}>
-          Backend capability workflow_mutations={String(response.capabilities.workflow_mutations)}. Status, uplata, slanje, kompletiranje, reassignment i interne napomene se u ovom koraku ne menjaju.
+          Backend capability workflow_mutations={String(response.capabilities.workflow_mutations)}. Operativne akcije ostaju permission-gated, a završene/otkazane porudžbine mogu u kontrolisanu arhivu.
         </Text>
       </Card>
     </Screen>

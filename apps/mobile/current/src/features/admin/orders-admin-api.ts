@@ -114,6 +114,37 @@ export type AdminOrderDetailResponse = {
   capabilities: AdminOrderDetailCapabilities;
 };
 
+// MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
+export type AdminArchivedOrderItem = {
+  id: number;
+  order_number: string;
+  status: string;
+  subtotal_rsd: number;
+  completed_at: string | null;
+  archived_at: string | null;
+  archive_reason: string;
+  customer: { name: string };
+  supplier: { id: number | null; name: string } | null;
+  can_restore: boolean;
+  can_purge: boolean;
+};
+
+export type AdminArchivedOrdersResponse = {
+  data: AdminArchivedOrderItem[];
+  pagination: AdminOrdersPagination;
+  filters: { q: string | null; page: number; per_page: number };
+  capabilities: { archive: boolean; restore: boolean; purge: boolean };
+};
+
+export type AdminOrderArchiveMutationResponse = {
+  message: string;
+  data: { id: number; order_number: string; archived_at?: string | null } & Partial<AdminArchivedOrderItem>;
+};
+
+export type AdminOrderArchivePurgeResponse = {
+  message: string;
+  data: { id: number; purged: boolean };
+};
 // MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23
 export type AdminOrderDocumentType = 'proforma' | 'invoice' | 'delivery_note';
 export type AdminOrderDocumentRecord = AdminOrderDetailRecord & {
@@ -279,7 +310,15 @@ export const apiAdminOrders = {
     apiRequest<AdminOrdersListResponse> (`admin/orders${requestQuery(params)}`),
   detail: (orderId: number) =>
     apiRequest<AdminOrderDetailResponse> (`admin/orders/${orderId}`),
-  status: (orderId: number, input: AdminOrderStatusInput) =>
+  // MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
+  archived: (params: Pick<AdminOrdersRequestParams, 'q' | 'page' | 'per_page'> = {}) =>
+    apiRequest<AdminArchivedOrdersResponse> (`admin/orders/archived${queryString({ q: params.q, page: params.page, per_page: params.per_page })}`),
+  archive: (orderId: number, archive_reason: string) =>
+    apiRequest<AdminOrderArchiveMutationResponse> (`admin/orders/${orderId}/archive`, { method: 'POST', body: { archive_reason } }),
+  restoreArchived: (orderId: number) =>
+    apiRequest<AdminOrderArchiveMutationResponse> (`admin/orders/archived/${orderId}/restore`, { method: 'POST' }),
+  purgeArchived: (orderId: number, input: { confirmation: string; purge_reason: string }) =>
+    apiRequest<AdminOrderArchivePurgeResponse> (`admin/orders/archived/${orderId}/purge`, { method: 'DELETE', body: input }),  status: (orderId: number, input: AdminOrderStatusInput) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/status`, { method: 'PATCH', body: input }),
   accept: (orderId: number) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/accept`, { method: 'POST' }),

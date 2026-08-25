@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AdminOrderActions } from '@/features/admin/orders-admin-actions';
 import { AdminOrderDocuments } from '@/features/admin/order-documents-admin';
+import { AdminOrderArchiveActions } from '@/features/admin/order-archive-admin';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import {
@@ -295,6 +296,13 @@ export default function AdminOrdersDetailScreen() {
         orderId={orderId}
         data={data}
         capabilities={response.capabilities}
+      />
+
+      <AdminOrderArchiveActions
+        orderId={orderId}
+        orderNumber={orderNumber}
+        canArchive={boolValue(order, 'is_completed') || text(order, 'status') === 'cancelled'}
+        onArchived={() => router.replace('/admin/orders/archived')}
       />
 
       <Card style={styles.readOnlyCard}>

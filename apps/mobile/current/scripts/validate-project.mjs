@@ -65,6 +65,9 @@ const required = [
   'src/app/(app)/admin/catalog/[id]/clone.tsx',
   'src/app/(app)/admin/catalog/bulk/index.tsx',
   'src/app/(app)/admin/catalog/data-quality/index.tsx',
+  'src/features/admin/order-archive-admin.tsx',
+  'src/app/(app)/admin/orders/archived.tsx',
+  'src/features/admin/operational-reports-admin-export.ts',
   'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
@@ -2289,6 +2292,97 @@ assert(
     catalogAdvancedApiV10 + catalogAdvancedActionsV10 + catalogCloneV10 + catalogBulkV10 + dataQualityApiV10 + dataQualityScreenV10 + catalogAdvancedControllerV10 + dataQualityControllerV10
   ),
   'v1.0 CATALOG_ADVANCED parity ne vraća Product Variants contract.',
+);
+// MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
+const orderReportOpsOrdersApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
+const orderReportOpsArchiveUiV10 = fs.readFileSync(path.join(root, 'src/features/admin/order-archive-admin.tsx'), 'utf8');
+const orderReportOpsArchiveScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/archived.tsx'), 'utf8');
+const orderReportOpsOrderListV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/index.tsx'), 'utf8');
+const orderReportOpsOrderDetailV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
+const orderReportOpsReportsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/reports-admin-api.ts'), 'utf8');
+const orderReportOpsReportsUiV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/reports/index.tsx'), 'utf8');
+const orderReportOpsExportV10 = fs.readFileSync(path.join(root, 'src/features/admin/operational-reports-admin-export.ts'), 'utf8');
+const orderReportOpsQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const orderReportOpsOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+const orderReportOpsApiRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
+const orderReportOpsArchiveControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/OrderArchiveController.php'), 'utf8');
+const orderReportOpsArchiveServiceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/OrderArchiveService.php'), 'utf8');
+const orderReportOpsReportServiceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/OrderReportService.php'), 'utf8');
+const orderReportOpsWebReportV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/ReportController.php'), 'utf8');
+const orderReportOpsApiReportV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/ReportController.php'), 'utf8');
+assert(
+  orderReportOpsOrdersApiV10.includes('admin/orders/archived')
+    && orderReportOpsOrdersApiV10.includes('restoreArchived:')
+    && orderReportOpsOrdersApiV10.includes('purgeArchived:'),
+  'v1.0 ADMIN-ORDER-02 Mobile API pokriva archived list, archive, restore i purge ugovor.',
+);
+assert(
+  orderReportOpsArchiveScreenV10.includes('Arhivirane porudžbine')
+    && orderReportOpsArchiveScreenV10.includes('Vrati iz arhive')
+    && orderReportOpsArchiveScreenV10.includes('Operativni purge')
+    && orderReportOpsArchiveUiV10.includes('Razlog arhiviranja'),
+  'v1.0 ADMIN-ORDER-02 Mobile UI pokriva arhivu, restore i SuperAdmin purge sa kontrolisanom potvrdom.',
+);
+assert(
+  orderReportOpsOrderListV10.includes("router.push('/admin/orders/archived' as Href)")
+    && orderReportOpsOrderDetailV10.includes('AdminOrderArchiveActions'),
+  'v1.0 ADMIN-ORDER-02 ostaje organizovan u postojećem Prodaja/Porudžbine toku.',
+);
+assert(
+  orderReportOpsApiRoutesV10.includes("Route::get('/orders/archived'")
+    && orderReportOpsApiRoutesV10.includes("Route::post('/orders/{order}/archive'")
+    && orderReportOpsApiRoutesV10.includes("Route::post('/orders/archived/{orderId}/restore'")
+    && orderReportOpsApiRoutesV10.includes("Route::delete('/orders/archived/{orderId}/purge'"),
+  'v1.0 ADMIN-ORDER-02 API route surface je kompletan.',
+);
+assert(
+  orderReportOpsArchiveControllerV10.includes('OrderArchiveService')
+    && orderReportOpsArchiveServiceV10.includes('paginateArchived')
+    && orderReportOpsArchiveServiceV10.includes('purgeById')
+    && orderReportOpsArchiveServiceV10.includes("hasRole('superadmin')"),
+  'v1.0 ADMIN-ORDER-02 reuse-uje canonical OrderArchiveService i čuva SuperAdmin-only purge.',
+);
+assert(
+  orderReportOpsReportsApiV10.includes("'orders-pdf'")
+    && orderReportOpsReportsApiV10.includes("'payments-csv'")
+    && orderReportOpsReportsApiV10.includes("'inventory-csv'")
+    && orderReportOpsReportsUiV10.includes('Operativni izvozi')
+    && orderReportOpsExportV10.includes('apiDownload'),
+  'v1.0 REPORT-02 Mobile pokriva orders PDF/CSV, payments CSV i inventory CSV kroz secure Bearer download.',
+);
+assert(
+  orderReportOpsApiRoutesV10.includes("Route::get('/reports/orders.pdf'")
+    && orderReportOpsApiRoutesV10.includes("Route::get('/reports/orders.csv'")
+    && orderReportOpsApiRoutesV10.includes("Route::get('/reports/payments.csv'")
+    && orderReportOpsApiRoutesV10.includes("Route::get('/reports/inventory.csv'"),
+  'v1.0 REPORT-02 API route surface je kompletan.',
+);
+assert(
+  orderReportOpsReportServiceV10.includes('public function paymentsCsv(User $user): string')
+    && orderReportOpsReportServiceV10.includes('public function inventoryCsv(): string')
+    && orderReportOpsApiReportV10.includes('$reports->paymentsCsv($user)')
+    && orderReportOpsApiReportV10.includes('$reports->inventoryCsv()')
+    && orderReportOpsWebReportV10.includes('$reports->paymentsCsv($request->user())')
+    && orderReportOpsWebReportV10.includes('$reports->inventoryCsv()'),
+  'v1.0 REPORT-02 Web i Mobile API dele isti OrderReportService export authority.',
+);
+assert(
+  orderReportOpsQueryV10.includes('adminOrdersRoot:')
+    && orderReportOpsQueryV10.includes('adminOrderArchives:'),
+  'v1.0 ORDER_REPORT_OPS TanStack query keys su centralizovani.',
+);
+assert(
+  orderReportOpsOpenApiV10.includes('/api/v1/admin/orders/archived:')
+    && orderReportOpsOpenApiV10.includes('/api/v1/admin/orders/{order}/archive:')
+    && orderReportOpsOpenApiV10.includes('/api/v1/admin/reports/orders.pdf:')
+    && orderReportOpsOpenApiV10.includes('/api/v1/admin/reports/inventory.csv:'),
+  'OpenAPI dokumentuje kompletan ORDER_REPORT_OPS route surface.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    orderReportOpsOrdersApiV10 + orderReportOpsArchiveUiV10 + orderReportOpsArchiveScreenV10 + orderReportOpsReportsApiV10 + orderReportOpsReportsUiV10 + orderReportOpsExportV10 + orderReportOpsArchiveControllerV10
+  ),
+  'v1.0 ORDER_REPORT_OPS parity ne vraća Product Variants contract.',
 );
 process.exit(failures === 0 ? 0 : 1);
 

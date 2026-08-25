@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\UserGroupController as AdminUserGroupController;
 use App\Http\Controllers\Api\V1\Admin\ExchangeRateController as AdminExchangeRateController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Api\V1\Admin\OrderArchiveController as AdminOrderArchiveController;
 use App\Http\Controllers\Api\V1\Admin\OrderMutationController as AdminOrderMutationController;
 use App\Http\Controllers\Api\V1\Admin\OrderShipmentController as AdminOrderShipmentController;
 use App\Http\Controllers\Api\V1\Admin\OrderDocumentController as AdminOrderDocumentController;
@@ -119,6 +120,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::get('/reports/management', [AdminReportController::class, 'management'])->name('reports.management');
                     Route::get('/reports/management.csv', [AdminReportController::class, 'managementCsv'])->middleware(['permission:reports.export', 'throttle:exports'])->name('reports.management.csv');
                     Route::get('/reports/management.pdf', [AdminReportController::class, 'managementPdf'])->middleware(['permission:reports.export', 'throttle:exports'])->name('reports.management.pdf');
+                    // MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
+                    Route::get('/reports/orders.pdf', [AdminReportController::class, 'ordersPdf'])->middleware(['permission:reports.export', 'throttle:exports'])->name('reports.orders.pdf');
+                    Route::get('/reports/orders.csv', [AdminReportController::class, 'ordersCsv'])->middleware(['permission:reports.export', 'throttle:exports'])->name('reports.orders.csv');
+                    Route::get('/reports/payments.csv', [AdminReportController::class, 'paymentsCsv'])->middleware(['permission:reports.export', 'throttle:exports'])->name('reports.payments.csv');
+                    Route::get('/reports/inventory.csv', [AdminReportController::class, 'inventoryCsv'])->middleware(['permission:inventory.export', 'throttle:exports'])->name('reports.inventory.csv');
                 });
                 Route::middleware('permission:reports.manage')->group(function (): void {
                     Route::get('/report-schedules', [AdminReportScheduleController::class, 'index'])->name('report-schedules.index');
@@ -196,6 +202,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 });
                 Route::middleware('permission:orders.manage')->group(function (): void {
                     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+                    // MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
+                    Route::get('/orders/archived', [AdminOrderArchiveController::class, 'index'])->name('orders.archived');
+                    Route::post('/orders/{order}/archive', [AdminOrderArchiveController::class, 'archive'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.archive');
+                    Route::post('/orders/archived/{orderId}/restore', [AdminOrderArchiveController::class, 'restore'])->whereNumber('orderId')->middleware('throttle:admin-write')->name('orders.restore');
+                    Route::delete('/orders/archived/{orderId}/purge', [AdminOrderArchiveController::class, 'purge'])->whereNumber('orderId')->middleware('throttle:admin-write')->name('orders.purge');
                     Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
                     Route::get('/orders/{order}/shipment-proof', [AdminOrderShipmentController::class, 'proof'])->whereNumber('order')->name('orders.shipment.proof');
                     // MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23

@@ -4288,6 +4288,88 @@ security:
         '200': { description: application/json attachment bez implicitnog snapshot upisa. }
         '403': { description: Nedostaje catalog.audit dozvola. }
         '429': { description: Export rate limit. }
+  # MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
+  /api/v1/admin/orders/archived:
+    get:
+      tags: [Admin Orders]
+      summary: Arhivirane porudžbine u dozvoljenom administratorskom scope-u
+      operationId: listAdminArchivedOrders
+      responses:
+        '200': { description: Paginirana arhiva sa restore/purge capabilities. }
+        '403': { description: Nedostaje orders.manage dozvola. }
+  /api/v1/admin/orders/{order}/archive:
+    post:
+      tags: [Admin Orders]
+      summary: Arhiviraj završenu ili otkazanu porudžbinu kroz OrderArchiveService
+      operationId: archiveAdminOrder
+      parameters:
+        - { name: order, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Porudžbina je arhivirana i auditovana. }
+        '403': { description: Nedostaje orders.manage dozvola. }
+        '422': { description: Porudžbina nije podobna za arhivu ili ima aktivan postprodajni slučaj. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/orders/archived/{orderId}/restore:
+    post:
+      tags: [Admin Orders]
+      summary: Vrati porudžbinu iz arhive
+      operationId: restoreAdminArchivedOrder
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Arhiviranje je opozvano. }
+        '403': { description: Nedostaje orders.manage dozvola. }
+        '404': { description: Porudžbina nije u dostupnoj arhivi. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/orders/archived/{orderId}/purge:
+    delete:
+      tags: [Admin Orders]
+      summary: SuperAdmin operational purge uz očuvanje poslovne istorije
+      operationId: purgeAdminArchivedOrder
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Porudžbina je uklonjena iz operativnih/arhivskih prikaza; pravna/finansijska istorija ostaje. }
+        '403': { description: Samo SuperAdministrator. }
+        '404': { description: Arhivirana porudžbina nije dostupna. }
+        '422': { description: Potvrda broja porudžbine ili razlog nisu validni. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/reports/orders.pdf:
+    get:
+      tags: [Admin Reports]
+      summary: Operativni PDF izvoz porudžbina
+      operationId: exportAdminOrdersPdf
+      responses:
+        '200': { description: application/pdf kroz canonical OrderReportService. }
+        '403': { description: Nedostaje reports.export dozvola. }
+        '429': { description: Export rate limit. }
+  /api/v1/admin/reports/orders.csv:
+    get:
+      tags: [Admin Reports]
+      summary: Operativni CSV izvoz porudžbina
+      operationId: exportAdminOrdersCsv
+      responses:
+        '200': { description: text/csv kroz canonical OrderReportService. }
+        '403': { description: Nedostaje reports.export dozvola. }
+        '429': { description: Export rate limit. }
+  /api/v1/admin/reports/payments.csv:
+    get:
+      tags: [Admin Reports]
+      summary: Operativni CSV izvoz uplata
+      operationId: exportAdminPaymentsCsv
+      responses:
+        '200': { description: text/csv kroz shared OrderReportService. }
+        '403': { description: Nedostaje reports.export dozvola. }
+        '429': { description: Export rate limit. }
+  /api/v1/admin/reports/inventory.csv:
+    get:
+      tags: [Admin Reports]
+      summary: Operativni CSV izvoz lagera
+      operationId: exportAdminInventoryCsv
+      responses:
+        '200': { description: text/csv kroz shared OrderReportService. }
+        '403': { description: Nedostaje inventory.export dozvola. }
+        '429': { description: Export rate limit. }
 components:
   securitySchemes:
     bearerAuth:

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\ManagementReportService;
+use App\Services\OrderReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -115,6 +116,87 @@ final class ReportController extends Controller
         ));
     }
 
+    public function ordersCsv(Request $request, OrderReportService $reports): Response
+    {
+        $user = $this->operationalExportActor($request, 'reports.export');
+        if ($reports->readinessIssues() !== []) return $this->unavailableExport();
+        try {
+            $content = $reports->csv($user, $this->operationalFilters($request));
+        } catch (Throwable $exception) {
+            report($exception);
+            return $this->unavailableExport();
+        }
+        return response($content, 200, $this->downloadHeaders(
+            'text/csv; charset=UTF-8',
+            'attachment; filename="porudzbine-'.now()->format('Ymd-His').'.csv"',
+        ));
+    }
+
+    public function ordersPdf(Request $request, OrderReportService $reports): Response
+    {
+        $user = $this->operationalExportActor($request, 'reports.export');
+        if ($reports->readinessIssues() !== []) return $this->unavailableExport();
+        try {
+            $content = $reports->pdf($user, $this->operationalFilters($request));
+        } catch (Throwable $exception) {
+            report($exception);
+            return $this->unavailableExport();
+        }
+        return response($content, 200, $this->downloadHeaders(
+            'application/pdf',
+            'inline; filename="izvestaj-porudzbina-'.now()->format('Ymd-His').'.pdf"',
+        ));
+    }
+
+    public function paymentsCsv(Request $request, OrderReportService $reports): Response
+    {
+        $user = $this->operationalExportActor($request, 'reports.export');
+        try {
+            $content = $reports->paymentsCsv($user);
+        } catch (Throwable $exception) {
+            report($exception);
+            return $this->unavailableExport();
+        }
+        return response($content, 200, $this->downloadHeaders(
+            'text/csv; charset=UTF-8',
+            'attachment; filename="uplate-'.now()->format('Ymd-His').'.csv"',
+        ));
+    }
+
+    public function inventoryCsv(Request $request, OrderReportService $reports): Response
+    {
+        $this->operationalExportActor($request, 'inventory.export');
+        try {
+            $content = $reports->inventoryCsv();
+        } catch (Throwable $exception) {
+            report($exception);
+            return $this->unavailableExport();
+        }
+        return response($content, 200, $this->downloadHeaders(
+            'text/csv; charset=UTF-8',
+            'attachment; filename="lager-izvestaj-'.now()->format('Ymd-His').'.csv"',
+        ));
+    }
+
+    private function operationalExportActor(Request $request, string $permission): User
+    {
+        $user = $this->viewActor($request);
+        abort_unless($user->can($permission), 403);
+        return $user;
+    }
+
+    /** @return array<string,mixed> */
+    private function operationalFilters(Request $request): array
+    {
+        return $request->validate([
+            'q' => ['nullable', 'string', 'max:190'],
+            'status' => ['nullable', 'in:new,processing,confirmed,shipped,completed,cancelled'],
+            'payment_status' => ['nullable', 'in:pending,paid,cancelled'],
+            'supplier_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+        ]);
+    }
     private function viewActor(Request $request): User
     {
         $user = $request->user();

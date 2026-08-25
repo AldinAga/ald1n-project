@@ -130,51 +130,26 @@ final class ReportController extends Controller
         }
     }
 
-    public function paymentsCsv(Request $request): Response
+    public function paymentsCsv(Request $request, OrderReportService $reports): Response
     {
         try {
-            $user = $request->user();
-            $query = Order::query()->with(['user', 'supplier'])->where('source_system', 'laravel')->latest('id');
-            if (!$user->hasRole('superadmin')) $query->where('supplier_user_id', $user->id);
-            $stream = fopen('php://temp', 'w+');
-            if ($stream === false) throw new \RuntimeException('Privremeni CSV stream nije dostupan.');
-            fwrite($stream, "\xEF\xBB\xBF");
-            fputcsv($stream, ['Porudžbina', 'Korisnik', 'Odgovorno lice', 'Vrednost RSD', 'Plaćeno RSD', 'Preostalo RSD', 'Status salda', 'Dospeće'], ';');
-            foreach ($query->cursor() as $order) {
-                $total = (float) $order->subtotal_rsd;
-                $paid = (float) ($order->paid_total_rsd ?? 0);
-                fputcsv($stream, [$order->order_number, $order->user?->displayName(), $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName()), number_format($total, 2, '.', ''), number_format($paid, 2, '.', ''), number_format(max(0, $total - $paid), 2, '.', ''), $order->payment_state ?? $order->payment_status, $order->payment_due_at?->format('Y-m-d H:i')], ';');
-            }
-            rewind($stream);
-            $content = stream_get_contents($stream) ?: '';
-            fclose($stream);
+            $content = $reports->paymentsCsv($request->user());
             return response($content, 200, ['Content-Type' => 'text/csv; charset=UTF-8', 'Content-Disposition' => 'attachment; filename="uplate-'.now()->format('Ymd-His').'.csv"', 'X-Content-Type-Options' => 'nosniff']);
         } catch (Throwable $exception) {
             $this->safeLog('CSV izvoz uplata nije uspeo.', $exception, $request->user());
             return response('Izvoz uplata trenutno nije dostupan. Pokrenite: php artisan app:payments-inventory-doctor --repair', 503, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
     }
-
-    public function inventoryCsv(Request $request): Response
+    public function inventoryCsv(Request $request, OrderReportService $reports): Response
     {
         try {
-            $stream = fopen('php://temp', 'w+');
-            if ($stream === false) throw new \RuntimeException('Privremeni CSV stream nije dostupan.');
-            fwrite($stream, "\xEF\xBB\xBF");
-            fputcsv($stream, ['SKU', 'Naziv', 'Stanje', 'Minimalni prag', 'Status upozorenja'], ';');
-            foreach (Product::query()->whereNull('deleted_at')->orderBy('sku')->cursor() as $product) {
-                fputcsv($stream, [$product->sku, $product->name, $product->stock_quantity, $product->low_stock_threshold, $product->stock_quantity <= $product->low_stock_threshold ? 'NIZAK LAGER' : 'OK'], ';');
-            }
-            rewind($stream);
-            $content = stream_get_contents($stream) ?: '';
-            fclose($stream);
+            $content = $reports->inventoryCsv();
             return response($content, 200, ['Content-Type' => 'text/csv; charset=UTF-8', 'Content-Disposition' => 'attachment; filename="lager-izvestaj-'.now()->format('Ymd-His').'.csv"', 'X-Content-Type-Options' => 'nosniff']);
         } catch (Throwable $exception) {
             $this->safeLog('CSV izvoz lagera nije uspeo.', $exception, $request->user());
             return response('Izvoz lagera trenutno nije dostupan. Pokrenite: php artisan app:payments-inventory-doctor --repair', 503, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
     }
-
     /** @return array{submitted:int,verified_total:float,outstanding_total:float,overdue:int} */
     private function safePaymentSummary(User $user): array
     {

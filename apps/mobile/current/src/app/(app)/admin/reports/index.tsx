@@ -28,8 +28,11 @@ import {
   type AdminReportScope,
   type AdminReportSegment,
   type AdminReportType,
+  type AdminOperationalReportFilters,
+  type AdminOperationalReportKind,
 } from '@/features/admin/reports-admin-api';
 import { openAdminReportExport } from '@/features/admin/reports-admin-export';
+import { openAdminOperationalReportExport } from '@/features/admin/operational-reports-admin-export';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth } from '@/features/auth/auth-provider';
 import { formatMoney } from '@/lib/formatters';
@@ -382,6 +385,13 @@ export default function AdminReportsIndexScreen() {
         </View>
       ) : null}
 
+      <OperationalReportsSection
+        canReports={can('reports.export')}
+        canInventory={can('inventory.export')}
+        filters={{ date_from: applied.date_from, date_to: applied.date_to, q: applied.q }}
+        styles={styles}
+      />
+
       {canManageSchedules && response.capabilities.manage_schedules ? (
         <ScheduleManagerSection applied={applied} styles={styles} />
       ) : null}
@@ -397,6 +407,53 @@ export default function AdminReportsIndexScreen() {
   );
 }
 
+function OperationalReportsSection({
+  canReports,
+  canInventory,
+  filters,
+  styles,
+}: {
+  canReports: boolean;
+  canInventory: boolean;
+  filters: AdminOperationalReportFilters;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const feedback = useAppFeedback();
+  const [exporting, setExporting] = useState<AdminOperationalReportKind | null>(null);
+
+  if (!canReports && !canInventory) return null;
+
+  const run = async (kind: AdminOperationalReportKind) => {
+    if (exporting) return;
+    setExporting(kind);
+    try {
+      await openAdminOperationalReportExport(kind, filters);
+    } catch (error) {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Operativni izvoz nije uspeo',
+        message: errorMessage(error, 'Pokušaj ponovo za nekoliko trenutaka.'),
+      });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  return (
+    <Card style={styles.filtersCard}>
+      <Text style={styles.sectionTitle}>Operativni izvozi</Text>
+      <Text style={styles.muted}>
+        Istorijski operativni exporti koriste postojeći OrderReportService i permission granice.
+      </Text>
+      <View style={styles.actionsRow}>
+        {canReports ? <Button variant="secondary" loading={exporting === 'orders-pdf'} disabled={exporting !== null} onPress={() => void run('orders-pdf')}>Porudžbine PDF</Button> : null}
+        {canReports ? <Button variant="secondary" loading={exporting === 'orders-csv'} disabled={exporting !== null} onPress={() => void run('orders-csv')}>Porudžbine CSV</Button> : null}
+        {canReports ? <Button variant="secondary" loading={exporting === 'payments-csv'} disabled={exporting !== null} onPress={() => void run('payments-csv')}>Uplate CSV</Button> : null}
+        {canInventory ? <Button variant="secondary" loading={exporting === 'inventory-csv'} disabled={exporting !== null} onPress={() => void run('inventory-csv')}>Lager CSV</Button> : null}
+      </View>
+    </Card>
+  );
+}
 function ScheduleManagerSection({
   applied,
   styles,

@@ -258,6 +258,38 @@ export function adminReportExportPath(
   return `admin/reports/management.${format}${requestQuery(params)}`;
 }
 
+export type AdminOperationalReportKind = 'orders-pdf' | 'orders-csv' | 'payments-csv' | 'inventory-csv';
+export type AdminOperationalReportFilters = {
+  q?: string;
+  status?: string;
+  payment_status?: string;
+  supplier_user_id?: number;
+  date_from?: string;
+  date_to?: string;
+};
+
+export function adminOperationalReportExportPath(
+  kind: AdminOperationalReportKind,
+  filters: AdminOperationalReportFilters = {},
+): string {
+  const suffix = ({
+    'orders-pdf': 'orders.pdf',
+    'orders-csv': 'orders.csv',
+    'payments-csv': 'payments.csv',
+    'inventory-csv': 'inventory.csv',
+  } as const)[kind];
+  const query = kind === 'orders-pdf' || kind === 'orders-csv'
+    ? queryString({
+        q: filters.q,
+        status: filters.status,
+        payment_status: filters.payment_status,
+        supplier_user_id: filters.supplier_user_id,
+        date_from: filters.date_from,
+        date_to: filters.date_to,
+      })
+    : '';
+  return `admin/reports/${suffix}${query}`;
+}
 export const apiAdminReports = {
   management: (params: AdminReportRequestParams = {}) =>
     apiRequest<AdminManagementReportResponse> (

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\User;
 use App\Services\Pdf\BusinessDocumentPdfService;
 use Illuminate\Database\Eloquent\Builder;
@@ -210,6 +211,54 @@ final class OrderReportService
                 'total_rsd' => (float) $order->subtotal_rsd,
             ])->values()->all(),
         ]);
+    }
+    public function paymentsCsv(User $user): string
+    {
+        $query = Order::query()->with(['user', 'supplier'])->where('source_system', 'laravel')->latest('id');
+        $this->access->applyManagedScope($query, $user);
+        $stream = fopen('php://temp', 'w+');
+        if ($stream === false) throw new \RuntimeException('Privremeni CSV stream nije dostupan.');
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, ['Porudžbina', 'Korisnik', 'Odgovorno lice', 'Vrednost RSD', 'Plaćeno RSD', 'Preostalo RSD', 'Status salda', 'Dospeće'], ';');
+        foreach ($query->cursor() as $order) {
+            $total = (float) $order->subtotal_rsd;
+            $paid = (float) ($order->paid_total_rsd ?? 0);
+            fputcsv($stream, [
+                $order->order_number,
+                $order->user?->displayName(),
+                $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName()),
+                number_format($total, 2, '.', ''),
+                number_format($paid, 2, '.', ''),
+                number_format(max(0, $total - $paid), 2, '.', ''),
+                $order->payment_state ?? $order->payment_status,
+                $order->payment_due_at?->format('Y-m-d H:i'),
+            ], ';');
+        }
+        rewind($stream);
+        $content = stream_get_contents($stream) ?: '';
+        fclose($stream);
+        return $content;
+    }
+
+    public function inventoryCsv(): string
+    {
+        $stream = fopen('php://temp', 'w+');
+        if ($stream === false) throw new \RuntimeException('Privremeni CSV stream nije dostupan.');
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, ['SKU', 'Naziv', 'Stanje', 'Minimalni prag', 'Status upozorenja'], ';');
+        foreach (Product::query()->whereNull('deleted_at')->orderBy('sku')->cursor() as $product) {
+            fputcsv($stream, [
+                $product->sku,
+                $product->name,
+                $product->stock_quantity,
+                $product->low_stock_threshold,
+                $product->stock_quantity <= $product->low_stock_threshold ? 'NIZAK LAGER' : 'OK',
+            ], ';');
+        }
+        rewind($stream);
+        $content = stream_get_contents($stream) ?: '';
+        fclose($stream);
+        return $content;
     }
     private function localLogoPath(string $path): ?string
     {
