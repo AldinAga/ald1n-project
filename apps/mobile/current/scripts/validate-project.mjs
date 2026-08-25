@@ -2384,6 +2384,115 @@ assert(
   ),
   'v1.0 ORDER_REPORT_OPS parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
+const systemSettingsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/system-settings-admin-api.ts'), 'utf8');
+const systemSettingsHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/index.tsx'), 'utf8');
+const systemSettingsAutomationV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/automation.tsx'), 'utf8');
+const systemSettingsTurnstileV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/turnstile.tsx'), 'utf8');
+const systemSettingsAppearanceV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/appearance.tsx'), 'utf8');
+const systemSettingsOrderEmailsV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/order-emails.tsx'), 'utf8');
+const systemSettingsDocumentsV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/documents.tsx'), 'utf8');
+const systemSettingsBankAccountsV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/bank-accounts.tsx'), 'utf8');
+const systemSettingsAdminHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const systemSettingsQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const systemSettingsRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
+const systemSettingsControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/SystemSettingsController.php'), 'utf8');
+const systemSettingsOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+const systemSettingsWebAutomationV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/AutomationController.php'), 'utf8');
+const systemSettingsWebAppearanceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/SiteAppearanceController.php'), 'utf8');
+const systemSettingsWebDocumentsV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/DocumentSettingsController.php'), 'utf8');
+const systemSettingsWebBankV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/BankAccountController.php'), 'utf8');
+assert(
+  systemSettingsApiV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_V3_EXPO_FILE_PICKER_OVERLOAD')
+    && systemSettingsApiV10.includes('multipleFiles: true')
+    && systemSettingsApiV10.includes('File.pickFileAsync({ mimeTypes: limits.mime_types })')
+    && !systemSettingsApiV10.includes('File.pickFileAsync({ mimeTypes: limits.mime_types, multipleFiles })'),
+  'v1.0 SYSTEM_SETTINGS file picker koristi Expo SDK57 literal overload za single/multiple izbor.',
+);
+assert(
+  systemSettingsAutomationV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET02')
+    && systemSettingsAutomationV10.includes('apiAdminSystemSettings.automation.run')
+    && systemSettingsAutomationV10.includes('resolveAlert'),
+  'v1.0 SET-02 Mobile pokriva automation settings, manual run i resolve alert kroz canonical automation authority.',
+);
+assert(
+  systemSettingsTurnstileV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET04')
+    && systemSettingsApiV10.includes('secret_configured')
+    && !systemSettingsApiV10.includes('data.turnstile_secret_key'),
+  'v1.0 SET-04 Mobile pokriva Turnstile bez izlaganja secret vrednosti.',
+);
+assert(
+  systemSettingsAppearanceV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET05')
+    && systemSettingsAppearanceV10.includes('login_slideshow_images')
+    && systemSettingsAppearanceV10.includes('login-slide-')
+    && systemSettingsApiV10.includes('apiExpoMultipartRequest'),
+  'v1.0 SET-05 Mobile pokriva brending, footer i SuperAdmin login background/slideshow asset workflow.',
+);
+assert(
+  systemSettingsOrderEmailsV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET08')
+    && systemSettingsOrderEmailsV10.includes('Pošalji outbox sada')
+    && systemSettingsOrderEmailsV10.includes('Ponovi sve failed poruke'),
+  'v1.0 SET-08 Mobile pokriva order e-mail settings, dispatch i retry workflow.',
+);
+assert(
+  systemSettingsDocumentsV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET09')
+    && systemSettingsDocumentsV10.includes('documents_logo')
+    && systemSettingsDocumentsV10.includes('removeLogo'),
+  'v1.0 SET-09 Mobile pokriva poslovne dokumente i kontrolisani PDF logo lifecycle.',
+);
+assert(
+  systemSettingsBankAccountsV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET10')
+    && systemSettingsBankAccountsV10.includes('apiAdminSystemSettings.bankAccounts.create')
+    && systemSettingsBankAccountsV10.includes('apiAdminSystemSettings.bankAccounts.update')
+    && systemSettingsBankAccountsV10.includes('apiAdminSystemSettings.bankAccounts.remove'),
+  'v1.0 SET-10 Mobile pokriva Bank Accounts CRUD uz canonical server MOD97 validaciju.',
+);
+assert(
+  systemSettingsHubV10.includes("'/admin/settings/automation'")
+    && systemSettingsHubV10.includes("'/admin/settings/turnstile'")
+    && systemSettingsHubV10.includes("'/admin/settings/appearance'")
+    && systemSettingsHubV10.includes("'/admin/settings/order-emails'")
+    && systemSettingsHubV10.includes("'/admin/settings/documents'")
+    && systemSettingsHubV10.includes("'/admin/settings/bank-accounts'")
+    && systemSettingsAdminHubV10.includes("router.push('/admin/settings' as Href)"),
+  'v1.0 SYSTEM_SETTINGS opcije su organizovane kroz jedan Sistem hub bez zagušenja glavne administracije.',
+);
+assert(
+  ['systemSettingsAutomation:', 'systemSettingsTurnstile:', 'systemSettingsAppearance:', 'systemSettingsOrderEmails:', 'systemSettingsDocuments:', 'systemSettingsBankAccounts:'].every((marker) => systemSettingsQueryV10.includes(marker)),
+  'v1.0 SYSTEM_SETTINGS TanStack query keys su centralizovani.',
+);
+assert(
+  systemSettingsRoutesV10.includes("Route::prefix('system-settings')")
+    && systemSettingsRoutesV10.includes('permission:system.manage_settings')
+    && systemSettingsRoutesV10.includes('permission:automation.manage')
+    && (systemSettingsRoutesV10.match(/AdminSystemSettingsController::class/g) || []).length === 20,
+  'v1.0 SYSTEM_SETTINGS API route surface ima 20 kontrolisanih operacija sa permission/throttle granicama.',
+);
+assert(
+  systemSettingsControllerV10.includes('WebSiteAppearanceController')
+    && systemSettingsControllerV10.includes('WebDocumentSettingsController')
+    && systemSettingsControllerV10.includes('WebBankAccountController')
+    && systemSettingsControllerV10.includes('OperationalAutomationService')
+    && systemSettingsControllerV10.includes('OrderEmailDispatcher')
+    && systemSettingsWebAutomationV10.includes('OperationalAutomationService')
+    && systemSettingsWebAppearanceV10.includes("storePublicly('site-assets'")
+    && systemSettingsWebDocumentsV10.includes('storePdfLogo')
+    && systemSettingsWebBankV10.includes('passesMod97'),
+  'v1.0 SYSTEM_SETTINGS API reuse-uje postojeće Web/service authority-je umesto paralelne poslovne logike.',
+);
+assert(
+  ['/api/v1/admin/system-settings/automation:', '/api/v1/admin/system-settings/turnstile:', '/api/v1/admin/system-settings/appearance:', '/api/v1/admin/system-settings/order-emails:', '/api/v1/admin/system-settings/documents:', '/api/v1/admin/system-settings/bank-accounts:'].every((pathMarker) => systemSettingsOpenApiV10.includes(pathMarker))
+    && systemSettingsOpenApiV10.includes('operationId: deleteAdminBankAccount')
+    && systemSettingsOpenApiV10.includes('multipart/form-data:'),
+  'OpenAPI dokumentuje kompletan SYSTEM_SETTINGS route surface.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    systemSettingsApiV10 + systemSettingsHubV10 + systemSettingsAutomationV10 + systemSettingsTurnstileV10 + systemSettingsAppearanceV10 + systemSettingsOrderEmailsV10 + systemSettingsDocumentsV10 + systemSettingsBankAccountsV10 + systemSettingsControllerV10
+  ),
+  'v1.0 SYSTEM_SETTINGS parity ne vraća Product Variants contract.',
+);
+
 process.exit(failures === 0 ? 0 : 1);
 
 

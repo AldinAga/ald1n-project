@@ -4370,6 +4370,169 @@ security:
         '200': { description: text/csv kroz shared OrderReportService. }
         '403': { description: Nedostaje inventory.export dozvola. }
         '429': { description: Export rate limit. }
+  # MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
+  /api/v1/admin/system-settings/automation:
+    get:
+      tags: [Admin System Settings]
+      operationId: getAdminAutomationSettings
+      summary: Read automation settings, readiness, alerts and recent runs.
+      responses:
+        '200': { description: Automation state }
+    put:
+      tags: [Admin System Settings]
+      operationId: updateAdminAutomationSettings
+      summary: Update canonical automation settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated automation state }
+  /api/v1/admin/system-settings/automation/run:
+    post:
+      tags: [Admin System Settings]
+      operationId: runAdminAutomation
+      summary: Run the existing OperationalAutomationService manually.
+      responses:
+        '200': { description: Automation state after run }
+  /api/v1/admin/system-settings/automation/alerts/{alert}/resolve:
+    post:
+      tags: [Admin System Settings]
+      operationId: resolveAdminAutomationAlert
+      parameters:
+        - { in: path, name: alert, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Automation state after resolving the alert }
+  /api/v1/admin/system-settings/turnstile:
+    get:
+      tags: [Admin System Settings]
+      operationId: getAdminTurnstileSettings
+      summary: Read Turnstile state without exposing the secret value.
+      responses:
+        '200': { description: Turnstile state }
+    put:
+      tags: [Admin System Settings]
+      operationId: updateAdminTurnstileSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated Turnstile state }
+  /api/v1/admin/system-settings/appearance:
+    get:
+      tags: [Admin System Settings]
+      operationId: getAdminSiteAppearanceSettings
+      responses:
+        '200': { description: Site appearance state }
+    post:
+      tags: [Admin System Settings]
+      operationId: updateAdminSiteAppearanceSettings
+      summary: Update site branding, footer and SuperAdmin login background assets.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated appearance state }
+  /api/v1/admin/system-settings/appearance/assets/{asset}/remove:
+    post:
+      tags: [Admin System Settings]
+      operationId: removeAdminSiteAppearanceAsset
+      parameters:
+        - { in: path, name: asset, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Appearance state after asset removal }
+  /api/v1/admin/system-settings/order-emails:
+    get:
+      tags: [Admin System Settings]
+      operationId: getAdminOrderEmailSettings
+      responses:
+        '200': { description: Order e-mail settings and safe outbox state }
+    put:
+      tags: [Admin System Settings]
+      operationId: updateAdminOrderEmailSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated e-mail settings }
+  /api/v1/admin/system-settings/order-emails/dispatch:
+    post:
+      tags: [Admin System Settings]
+      operationId: dispatchAdminOrderEmailOutbox
+      responses:
+        '200': { description: Dispatch result and refreshed state }
+  /api/v1/admin/system-settings/order-emails/retry:
+    post:
+      tags: [Admin System Settings]
+      operationId: retryAdminOrderEmailOutbox
+      responses:
+        '200': { description: Failed messages moved to retry and refreshed state }
+  /api/v1/admin/system-settings/documents:
+    get:
+      tags: [Admin System Settings]
+      operationId: getAdminDocumentSettings
+      responses:
+        '200': { description: Business document settings }
+    post:
+      tags: [Admin System Settings]
+      operationId: updateAdminDocumentSettings
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated document settings }
+  /api/v1/admin/system-settings/documents/logo:
+    delete:
+      tags: [Admin System Settings]
+      operationId: removeAdminDocumentLogo
+      responses:
+        '200': { description: Document settings after logo removal }
+  /api/v1/admin/system-settings/bank-accounts:
+    get:
+      tags: [Admin System Settings]
+      operationId: getAdminBankAccounts
+      responses:
+        '200': { description: Bank account directory }
+    post:
+      tags: [Admin System Settings]
+      operationId: createAdminBankAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Bank account directory after create }
+  /api/v1/admin/system-settings/bank-accounts/{bankAccount}:
+    patch:
+      tags: [Admin System Settings]
+      operationId: updateAdminBankAccount
+      parameters:
+        - { in: path, name: bankAccount, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Bank account directory after update }
+    delete:
+      tags: [Admin System Settings]
+      operationId: deleteAdminBankAccount
+      parameters:
+        - { in: path, name: bankAccount, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Bank account directory after delete }
+
 components:
   securitySchemes:
     bearerAuth:

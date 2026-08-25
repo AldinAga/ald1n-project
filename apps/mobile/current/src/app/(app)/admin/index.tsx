@@ -196,12 +196,14 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
 
       {((moduleEnabled('system_health') && can('system.health') && adminMatch('System Health')) ||
         (moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost')) ||
+        (can('system.manage_settings') && adminMatch('Sistemska podešavanja')) ||
         (isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema'))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Sistem</Text>
           <View style={styles.quickActions}>
             {moduleEnabled('system_health') && can('system.health') && adminMatch('System Health') ? <Button variant="secondary" onPress={() => router.push('/admin/system-health')}>System Health</Button> : null}
             {moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost') ? <Button variant="secondary" onPress={() => router.push('/admin/audit')}>Audit i bezbednost</Button> : null}
+            {can('system.manage_settings') && adminMatch('Sistemska podešavanja') ? <Button variant="secondary" onPress={() => router.push('/admin/settings' as Href)}>Sistemska podešavanja</Button> : null}
             {isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema') ? <Button variant="secondary" onPress={() => router.push('/admin/settings/modules' as Href)}>Moduli sistema</Button> : null}
           </View>
         </Card>

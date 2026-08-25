@@ -57,6 +57,13 @@ export const adminQueryKeys = {
   customerPortalConversation: (conversationId: number) => ['admin', 'customer-portal', 'conversation', conversationId] as const,
   // MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
   moduleSettings: () => ['admin', 'settings', 'modules'] as const,
+  // MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
+  systemSettingsAutomation: () => ['admin', 'settings', 'automation'] as const,
+  systemSettingsTurnstile: () => ['admin', 'settings', 'turnstile'] as const,
+  systemSettingsAppearance: () => ['admin', 'settings', 'appearance'] as const,
+  systemSettingsOrderEmails: () => ['admin', 'settings', 'order-emails'] as const,
+  systemSettingsDocuments: () => ['admin', 'settings', 'documents'] as const,
+  systemSettingsBankAccounts: () => ['admin', 'settings', 'bank-accounts'] as const,
   // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
   exchangeRate: () => ['admin', 'exchange-rate'] as const,
   // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4

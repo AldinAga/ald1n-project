@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\Admin\ReportScheduleController as AdminReportSch
 use App\Http\Controllers\Api\V1\Admin\SystemHealthController as AdminSystemHealthController;
 use App\Http\Controllers\Api\V1\Admin\AuditEventController as AdminAuditEventController;
 use App\Http\Controllers\Api\V1\Admin\ModuleSettingsController as AdminModuleSettingsController;
+use App\Http\Controllers\Api\V1\Admin\SystemSettingsController as AdminSystemSettingsController;
 use App\Http\Controllers\Api\V1\Admin\CustomerPortalController as AdminCustomerPortalController;
 use App\Http\Controllers\Api\V1\Admin\PortalConversationController as AdminPortalConversationController;
 use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
@@ -170,6 +171,29 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                         Route::get('/', [AdminModuleSettingsController::class, 'index'])->name('index');
                         Route::put('/', [AdminModuleSettingsController::class, 'update'])
                             ->middleware('throttle:admin-write')->name('update');
+                    });
+                    // MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
+                    Route::prefix('system-settings')->name('system-settings.')->group(function (): void {
+                        Route::get('/automation', [AdminSystemSettingsController::class, 'automation'])->name('automation.index');
+                        Route::put('/automation', [AdminSystemSettingsController::class, 'updateAutomation'])->middleware('throttle:admin-write')->name('automation.update');
+                        Route::post('/automation/run', [AdminSystemSettingsController::class, 'runAutomation'])->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.run');
+                        Route::post('/automation/alerts/{alert}/resolve', [AdminSystemSettingsController::class, 'resolveAutomationAlert'])->whereNumber('alert')->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.alerts.resolve');
+                        Route::get('/turnstile', [AdminSystemSettingsController::class, 'turnstile'])->name('turnstile.index');
+                        Route::put('/turnstile', [AdminSystemSettingsController::class, 'updateTurnstile'])->middleware('throttle:admin-write')->name('turnstile.update');
+                        Route::get('/appearance', [AdminSystemSettingsController::class, 'appearance'])->name('appearance.index');
+                        Route::post('/appearance', [AdminSystemSettingsController::class, 'updateAppearance'])->middleware('throttle:admin-write')->name('appearance.update');
+                        Route::post('/appearance/assets/{asset}/remove', [AdminSystemSettingsController::class, 'removeAppearanceAsset'])->where('asset', '[A-Za-z0-9-]+')->middleware('throttle:admin-write')->name('appearance.assets.remove');
+                        Route::get('/order-emails', [AdminSystemSettingsController::class, 'orderEmails'])->name('order-emails.index');
+                        Route::put('/order-emails', [AdminSystemSettingsController::class, 'updateOrderEmails'])->middleware('throttle:admin-write')->name('order-emails.update');
+                        Route::post('/order-emails/dispatch', [AdminSystemSettingsController::class, 'dispatchOrderEmails'])->middleware('throttle:admin-write')->name('order-emails.dispatch');
+                        Route::post('/order-emails/retry', [AdminSystemSettingsController::class, 'retryOrderEmails'])->middleware('throttle:admin-write')->name('order-emails.retry');
+                        Route::get('/documents', [AdminSystemSettingsController::class, 'documents'])->name('documents.index');
+                        Route::post('/documents', [AdminSystemSettingsController::class, 'updateDocuments'])->middleware('throttle:admin-write')->name('documents.update');
+                        Route::delete('/documents/logo', [AdminSystemSettingsController::class, 'removeDocumentLogo'])->middleware('throttle:admin-write')->name('documents.logo.remove');
+                        Route::get('/bank-accounts', [AdminSystemSettingsController::class, 'bankAccounts'])->name('bank-accounts.index');
+                        Route::post('/bank-accounts', [AdminSystemSettingsController::class, 'storeBankAccount'])->middleware('throttle:admin-write')->name('bank-accounts.store');
+                        Route::patch('/bank-accounts/{bankAccount}', [AdminSystemSettingsController::class, 'updateBankAccount'])->whereNumber('bankAccount')->middleware('throttle:admin-write')->name('bank-accounts.update');
+                        Route::delete('/bank-accounts/{bankAccount}', [AdminSystemSettingsController::class, 'destroyBankAccount'])->whereNumber('bankAccount')->middleware('throttle:admin-write')->name('bank-accounts.destroy');
                     });
                     Route::get('/exchange-rate', [AdminExchangeRateController::class, 'index'])->name('exchange-rate.index');
                     Route::put('/exchange-rate/manual', [AdminExchangeRateController::class, 'manual'])->middleware('throttle:admin-write')->name('exchange-rate.manual');
