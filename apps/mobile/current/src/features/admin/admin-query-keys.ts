@@ -59,6 +59,12 @@ export const adminQueryKeys = {
   exchangeRate: () => ['admin', 'exchange-rate'] as const,
   // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4
   purchaseCosts: (showAll: boolean) => ['admin', 'catalog', 'purchase-costs', showAll] as const,
+  // MOBILE_V1_0_CATALOG_ADVANCED_PARITY_BATCH35
+  catalogAdvancedRoot: () => ['admin', 'catalog'] as const,
+  catalogAdvancedProducts: (q: string) => ['admin', 'catalog', 'advanced-products', q] as const,
+  catalogAdvancedProduct: (productId: number) => ['admin', 'catalog', 'advanced-product', productId] as const,
+  catalogBulkOptions: () => ['admin', 'catalog', 'bulk', 'options'] as const,
+  dataQuality: () => ['admin', 'catalog', 'data-quality'] as const,
   // MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3
   brands: () => ['admin', 'brands'] as const,
   brandsList: (params: unknown) => ['admin', 'brands', 'list', params] as const,

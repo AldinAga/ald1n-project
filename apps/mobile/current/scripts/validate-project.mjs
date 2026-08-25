@@ -58,6 +58,13 @@ const required = [
   'src/features/admin/customer-portal-admin-api.ts',
   'src/features/admin/user-groups-admin-api.ts',
   'src/app/(app)/admin/user-groups/index.tsx',
+  'src/features/admin/catalog-advanced-admin-api.ts',
+  'src/features/admin/catalog-advanced-product-actions.tsx',
+  'src/features/admin/data-quality-admin-api.ts',
+  'src/features/admin/data-quality-admin-export.ts',
+  'src/app/(app)/admin/catalog/[id]/clone.tsx',
+  'src/app/(app)/admin/catalog/bulk/index.tsx',
+  'src/app/(app)/admin/catalog/data-quality/index.tsx',
   'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
@@ -2193,6 +2200,96 @@ assert(
   'Web i Mobile jasno oznacavaju Komercijalni prodajni kao glavni kurs.',
 );
 
+
+// MOBILE_V1_0_CATALOG_ADVANCED_PARITY_BATCH35
+const catalogAdvancedApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-advanced-admin-api.ts'), 'utf8');
+const catalogAdvancedActionsV10 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-advanced-product-actions.tsx'), 'utf8');
+const catalogCloneV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id]/clone.tsx'), 'utf8');
+const catalogBulkV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/bulk/index.tsx'), 'utf8');
+const dataQualityApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/data-quality-admin-api.ts'), 'utf8');
+const dataQualityExportV10 = fs.readFileSync(path.join(root, 'src/features/admin/data-quality-admin-export.ts'), 'utf8');
+const dataQualityScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/data-quality/index.tsx'), 'utf8');
+const catalogAdvancedHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const catalogAdvancedQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const catalogAdvancedRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
+const catalogAdvancedControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/CatalogAdvancedController.php'), 'utf8');
+const dataQualityControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/DataQualityController.php'), 'utf8');
+const catalogAdvancedOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+assert(
+  catalogAdvancedApiV10.includes('namePreview:')
+    && catalogAdvancedApiV10.includes('clone:')
+    && catalogAdvancedApiV10.includes('regenerateName:')
+    && catalogCloneV10.includes('Pregledaj naziv iz šablona')
+    && catalogAdvancedActionsV10.includes('Kloniraj artikal')
+    && catalogAdvancedActionsV10.includes('Regeneriši naziv iz šablona'),
+  'v1.0 ADMIN-CAT-04 Mobile pokriva clone, name preview i regenerate-name kroz canonical ProductAdmin/ProductTemplate authority.',
+);
+assert(
+  catalogAdvancedApiV10.includes('bulkOptions:')
+    && catalogAdvancedApiV10.includes('bulkPreview:')
+    && catalogAdvancedApiV10.includes('bulkExecute:')
+    && catalogBulkV10.includes('Masovne izmene')
+    && catalogBulkV10.includes('Pregledaj izmene')
+    && catalogBulkV10.includes('Izvrši prikazane izmene'),
+  'v1.0 ADMIN-CAT-05 Mobile pokriva bulk selection, preview i execute kroz postojeći ProductBulkService.',
+);
+assert(
+  dataQualityApiV10.includes('state:')
+    && dataQualityApiV10.includes('repair:')
+    && dataQualityExportV10.includes('openAdminDataQualityExport')
+    && dataQualityScreenV10.includes('Kvalitet podataka')
+    && dataQualityScreenV10.includes('Bezbedna automatska popravka'),
+  'v1.0 ADMIN-CAT-11 Mobile pokriva Data Quality audit, safe repair, history i JSON export.',
+);
+assert(
+  catalogAdvancedRoutesV10.includes("Route::post('/products/name-preview'")
+    && catalogAdvancedRoutesV10.includes("Route::post('/products/{product}/clone'")
+    && catalogAdvancedRoutesV10.includes("Route::post('/products/{product}/regenerate-name'")
+    && catalogAdvancedRoutesV10.includes("Route::get('/bulk/options'")
+    && catalogAdvancedRoutesV10.includes("Route::post('/bulk/preview'")
+    && catalogAdvancedRoutesV10.includes("Route::post('/bulk/execute'"),
+  'v1.0 CATALOG_ADVANCED catalog.manage_products API route surface je kompletan.',
+);
+assert(
+  catalogAdvancedRoutesV10.includes("Route::prefix('admin/data-quality')")
+    && catalogAdvancedRoutesV10.includes("->middleware('permission:catalog.audit')")
+    && dataQualityControllerV10.includes('DataQualityService')
+    && dataQualityControllerV10.includes("storeSnapshot($after, 'mobile-repair'"),
+  'v1.0 ADMIN-CAT-11 API čuva catalog.audit granicu i shared DataQualityService authority.',
+);
+assert(
+  catalogAdvancedControllerV10.includes('ProductBulkService')
+    && catalogAdvancedControllerV10.includes('ProductAdminService')
+    && catalogAdvancedControllerV10.includes('ProductTemplateService')
+    && catalogAdvancedControllerV10.includes('CatalogAccessService'),
+  'v1.0 ADMIN-CAT-04/05 API reuse-uje postojeće Laravel catalog authority servise bez paralelne poslovne logike.',
+);
+assert(
+  catalogAdvancedHubV10.includes("adminMatch('Masovne izmene')")
+    && catalogAdvancedHubV10.includes("adminMatch('Kvalitet podataka')")
+    && catalogAdvancedHubV10.includes("router.push('/admin/catalog/bulk' as Href)")
+    && catalogAdvancedHubV10.includes("router.push('/admin/catalog/data-quality' as Href)"),
+  'v1.0 CATALOG_ADVANCED opcije ostaju organizovane u Katalog i lager Admin grupi.',
+);
+assert(
+  catalogAdvancedQueryV10.includes('catalogAdvancedRoot:')
+    && catalogAdvancedQueryV10.includes('catalogBulkOptions:')
+    && catalogAdvancedQueryV10.includes('dataQuality:'),
+  'v1.0 CATALOG_ADVANCED TanStack query keys su centralizovani.',
+);
+assert(
+  catalogAdvancedOpenApiV10.includes('/api/v1/admin/catalog/products/name-preview:')
+    && catalogAdvancedOpenApiV10.includes('/api/v1/admin/catalog/products/{product}/clone:')
+    && catalogAdvancedOpenApiV10.includes('/api/v1/admin/catalog/bulk/execute:')
+    && catalogAdvancedOpenApiV10.includes('/api/v1/admin/data-quality:'),
+  'OpenAPI dokumentuje kompletan CATALOG_ADVANCED route surface.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    catalogAdvancedApiV10 + catalogAdvancedActionsV10 + catalogCloneV10 + catalogBulkV10 + dataQualityApiV10 + dataQualityScreenV10 + catalogAdvancedControllerV10 + dataQualityControllerV10
+  ),
+  'v1.0 CATALOG_ADVANCED parity ne vraća Product Variants contract.',
+);
 process.exit(failures === 0 ? 0 : 1);
 
 

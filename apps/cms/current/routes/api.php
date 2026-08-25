@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\Admin\CatalogProductController as AdminCatalogProductController;
+use App\Http\Controllers\Api\V1\Admin\CatalogAdvancedController as AdminCatalogAdvancedController;
+use App\Http\Controllers\Api\V1\Admin\DataQualityController as AdminDataQualityController;
 use App\Http\Controllers\Api\V1\Admin\ProductDeletionController as AdminProductDeletionController;
 use App\Http\Controllers\Api\V1\Admin\ProductPurchaseCostController as AdminProductPurchaseCostController;
 use App\Http\Controllers\Api\V1\Admin\CatalogBrandController as AdminCatalogBrandController;
@@ -380,6 +382,16 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->whereNumber('product')->middleware('throttle:admin-write')->name('products.archive');
                 Route::post('/products/{product}/restore', [AdminCatalogProductController::class, 'restore'])
                     ->whereNumber('product')->middleware('throttle:admin-write')->name('products.restore');
+                // MOBILE_V1_0_CATALOG_ADVANCED_PARITY_BATCH35
+                Route::post('/products/name-preview', [AdminCatalogAdvancedController::class, 'namePreview'])->name('products.name-preview');
+                Route::post('/products/{product}/clone', [AdminCatalogAdvancedController::class, 'clone'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.clone');
+                Route::post('/products/{product}/regenerate-name', [AdminCatalogAdvancedController::class, 'regenerateName'])
+                    ->whereNumber('product')->middleware('throttle:admin-write')->name('products.regenerate-name');
+                Route::get('/bulk/options', [AdminCatalogAdvancedController::class, 'bulkOptions'])->name('products.bulk.options');
+                Route::post('/bulk/preview', [AdminCatalogAdvancedController::class, 'bulkPreview'])->name('products.bulk.preview');
+                Route::post('/bulk/execute', [AdminCatalogAdvancedController::class, 'bulkExecute'])
+                    ->middleware('throttle:admin-write')->name('products.bulk.execute');
                 // MOBILE_V1_0_ADMIN_CATALOG_PURGE_TOTAL_PURGE_BATCH24
                 Route::get('/products/{product}/deletion', [AdminProductDeletionController::class, 'show'])
                     ->whereNumber('product')->name('products.deletion');
@@ -420,6 +432,18 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->whereNumber('product')->whereNumber('image')
                     ->middleware(['permission:catalog.manage_images', 'throttle:admin-write'])
                     ->name('products.images.destroy');
+            });
+
+        // MOBILE_V1_0_CATALOG_ADVANCED_PARITY_BATCH35
+        Route::prefix('admin/data-quality')
+            ->middleware('permission:catalog.audit')
+            ->name('admin.data-quality.')
+            ->group(function (): void {
+                Route::get('/', [AdminDataQualityController::class, 'index'])->name('index');
+                Route::post('/repair', [AdminDataQualityController::class, 'repair'])
+                    ->middleware('throttle:admin-write')->name('repair');
+                Route::get('/export', [AdminDataQualityController::class, 'export'])
+                    ->middleware('throttle:exports')->name('export');
             });
 
         // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33

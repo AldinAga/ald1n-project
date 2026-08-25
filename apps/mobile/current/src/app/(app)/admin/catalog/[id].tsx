@@ -16,6 +16,7 @@ import {
   type AdminCatalogProductDetail,
   type AdminCatalogProductUpdateInput,
 } from '@/features/admin/catalog-admin-api';
+import { CatalogAdvancedProductActions } from '@/features/admin/catalog-advanced-product-actions';
 import { ProductDeletionAdmin } from '@/features/admin/product-deletion-admin';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RemoteProductImageManager } from '@/features/catalog/product-image-manager';
@@ -618,6 +619,7 @@ export default function AdminCatalogEditScreen() {
           ) : null}
         </View>
       ) : null}
+      <CatalogAdvancedProductActions product={product} onChanged={refreshAll} />
       <ProductDeletionAdmin
         productId={product.id}
         onDeleted={async () => {

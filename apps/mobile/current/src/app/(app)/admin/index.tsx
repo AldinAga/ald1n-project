@@ -133,7 +133,8 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         </Card>
       ) : null}
 
-      {((can('catalog.manage_products') && (adminMatch('Artikli') || adminMatch('Dodaj artikal') || (isSuperAdmin && adminMatch('Nabavne cene')))) ||
+      {((can('catalog.manage_products') && (adminMatch('Artikli') || adminMatch('Dodaj artikal') || adminMatch('Masovne izmene') || (isSuperAdmin && adminMatch('Nabavne cene')))) ||
+        (can('catalog.audit') && adminMatch('Kvalitet podataka')) ||
         (moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager')) ||
         (can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')))) ? (
         <Card style={styles.adminGroupCard}>
@@ -142,6 +143,8 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
             {can('catalog.manage_products') && adminMatch('Artikli') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog' as Href)}>Artikli</Button> : null}
             {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/create')}>Dodaj artikal</Button> : null}
             {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)}>Nabavne cene</Button> : null}
+            {can('catalog.manage_products') && adminMatch('Masovne izmene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/bulk' as Href)}>Masovne izmene</Button> : null}
+            {can('catalog.audit') && adminMatch('Kvalitet podataka') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/data-quality' as Href)}>Kvalitet podataka</Button> : null}
             {moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <Button variant="secondary" onPress={() => router.push('/admin/inventory')}>Lager</Button> : null}
             {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/dictionaries' as Href)}>Šifarnici</Button> : null}
           </View>

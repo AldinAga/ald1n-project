@@ -4199,6 +4199,95 @@ security:
       responses:
         '200': { description: Odgovor sačuvan kroz PortalConversationService. }
         '422': { description: Nevalidna poruka ili visibility. }
+  # MOBILE_V1_0_CATALOG_ADVANCED_PARITY_BATCH35
+  /api/v1/admin/catalog/products/name-preview:
+    post:
+      tags: [Admin Catalog]
+      summary: Pregled naziva artikla prema canonical ProductTemplateService šablonu
+      operationId: previewAdminCatalogProductName
+      responses:
+        '200': { description: Server-generated pregled naziva bez upisa. }
+        '403': { description: Nedostaje catalog.manage_products dozvola. }
+        '422': { description: Validacija nije prošla. }
+  /api/v1/admin/catalog/products/{product}/clone:
+    post:
+      tags: [Admin Catalog]
+      summary: Kloniraj artikal kroz postojeći ProductAdminService
+      operationId: cloneAdminCatalogProduct
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '201': { description: Novi draft artikal sa novim SKU i lagerom 0. }
+        '403': { description: Nedostaje catalog.manage_products dozvola. }
+        '404': { description: Artikal nije u manage scope-u. }
+        '422': { description: Validacija nije prošla. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/catalog/products/{product}/regenerate-name:
+    post:
+      tags: [Admin Catalog]
+      summary: Regeneriši naziv artikla kroz canonical ProductTemplateService
+      operationId: regenerateAdminCatalogProductName
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Naziv i slug su regenerisani i auditovani. }
+        '404': { description: Artikal nije u manage scope-u. }
+        '422': { description: Šablon nije mogao da formira naziv. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/catalog/bulk/options:
+    get:
+      tags: [Admin Catalog]
+      summary: Server-driven bulk opcije bez repeatable/derived storage polja
+      operationId: getAdminCatalogBulkOptions
+      responses:
+        '200': { description: Aktivni brendovi, linije, tipovi, bezbedna spec polja i max batch. }
+        '403': { description: Nedostaje catalog.manage_products dozvola. }
+  /api/v1/admin/catalog/bulk/preview:
+    post:
+      tags: [Admin Catalog]
+      summary: Read-only pregled masovne izmene
+      operationId: previewAdminCatalogBulkUpdate
+      responses:
+        '200': { description: Broj artikala, uzorak i sažetak promena. }
+        '403': { description: Jedan ili više artikala nisu u manage scope-u. }
+        '422': { description: Nema promena ili validacija nije prošla. }
+  /api/v1/admin/catalog/bulk/execute:
+    post:
+      tags: [Admin Catalog]
+      summary: Izvrši bulk promenu kroz postojeći ProductBulkService
+      operationId: executeAdminCatalogBulkUpdate
+      responses:
+        '200': { description: Broj uspešno obrađenih artikala. }
+        '403': { description: Jedan ili više artikala nisu u manage scope-u. }
+        '422': { description: Validacija nije prošla. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/data-quality:
+    get:
+      tags: [Admin Catalog]
+      summary: Read-only Data Quality audit i istorija snapshotova
+      operationId: getAdminDataQuality
+      responses:
+        '200': { description: Score, summary, metrics, issues i istorija. }
+        '403': { description: Nedostaje catalog.audit dozvola. }
+  /api/v1/admin/data-quality/repair:
+    post:
+      tags: [Admin Catalog]
+      summary: Pokreni postojeću bezbednu DataQualityService repair rutinu
+      operationId: repairAdminDataQuality
+      responses:
+        '200': { description: Before/after audit i repair summary. }
+        '403': { description: Nedostaje catalog.audit dozvola. }
+        '422': { description: Eksplicitna potvrda nije poslata. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/data-quality/export:
+    get:
+      tags: [Admin Catalog]
+      summary: Preuzmi read-only Data Quality JSON export
+      operationId: exportAdminDataQuality
+      responses:
+        '200': { description: application/json attachment bez implicitnog snapshot upisa. }
+        '403': { description: Nedostaje catalog.audit dozvola. }
+        '429': { description: Export rate limit. }
 components:
   securitySchemes:
     bearerAuth:
