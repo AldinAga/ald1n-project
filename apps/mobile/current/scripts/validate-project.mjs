@@ -21,6 +21,9 @@ const required = [
   'src/app/(app)/(tabs)/orders.tsx', 'src/app/(app)/(tabs)/notifications.tsx',
   'src/app/(app)/(tabs)/account.tsx', 'src/app/(app)/product/[slug].tsx',
   'src/app/(app)/order/[id].tsx', 'src/app/(app)/devices.tsx', 'src/app/(app)/sessions.tsx',
+  'src/app/(app)/portal/messages/index.tsx', 'src/app/(app)/portal/messages/[id].tsx',
+  'src/app/(app)/admin/customer-portal/index.tsx', 'src/app/(app)/admin/customer-portal/[userId].tsx',
+  'src/app/(app)/admin/customer-portal/conversations/[id].tsx',
   'src/app/(app)/cart.tsx', 'src/app/(app)/checkout.tsx',
   'src/app/(app)/notification-settings.tsx',
   'src/app/(app)/after-sales/index.tsx',
@@ -51,6 +54,8 @@ const required = [
   'src/features/admin/product-deletion-admin.tsx',
   'src/features/admin/audit-admin-export.ts',
   'src/features/admin/module-settings-admin-api.ts',
+  'src/features/portal/portal-api.ts',
+  'src/features/admin/customer-portal-admin-api.ts',
   'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
@@ -2014,6 +2019,74 @@ assert(
   'v1.0 System Health parity ne vraća Product Variants contract.',
 );
 
+// MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
+const portalApiV10 = fs.readFileSync(path.join(root, 'src/features/portal/portal-api.ts'), 'utf8');
+const portalInboxV10 = fs.readFileSync(path.join(root, 'src/app/(app)/portal/messages/index.tsx'), 'utf8');
+const portalDetailV10 = fs.readFileSync(path.join(root, 'src/app/(app)/portal/messages/[id].tsx'), 'utf8');
+const adminPortalApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/customer-portal-admin-api.ts'), 'utf8');
+const adminPortalIndexV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/customer-portal/index.tsx'), 'utf8');
+const adminPortalUserV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/customer-portal/[userId].tsx'), 'utf8');
+const adminPortalConversationV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/customer-portal/conversations/[id].tsx'), 'utf8');
+const customerPortalRoutesV10 = fs.readFileSync(path.join(root, '../../cms/current/routes/api.php'), 'utf8');
+const customerPortalWebControllerV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Http/Controllers/Admin/CustomerPortalController.php'), 'utf8');
+const customerPortalAdminServiceV10 = fs.readFileSync(path.join(root, '../../cms/current/app/Services/CustomerPortalAdminService.php'), 'utf8');
+const customerPortalOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+const customerPortalHomeV10 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
+const customerPortalHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const customerPortalAdminFoundationApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-api.ts'), 'utf8');
+assert(
+  portalApiV10.includes("apiRequest<PortalInboxResponse> ('portal/messages')")
+    && portalInboxV10.includes("hasFeature('customer_portal')")
+    && portalInboxV10.includes('Nova tema')
+    && portalDetailV10.includes('Pošalji odgovor'),
+  'v1.0 PORTAL-01 Mobile pokriva customer inbox/create/detail/reply kroz relativni canonical API.',
+);
+assert(
+  adminPortalApiV10.includes('admin/customer-portal/users')
+    && adminPortalApiV10.includes('/orders/link')
+    && adminPortalApiV10.includes('/sessions')
+    && adminPortalIndexV10.includes('Kreiraj i pošalji poziv')
+    && adminPortalUserV10.includes('Opozovi sve prijave')
+    && adminPortalConversationV10.includes('Interna napomena')
+    && adminPortalConversationV10.includes('Sačuvaj obradu'),
+  'v1.0 PORTAL-ADMIN-01 Mobile pokriva customer create/invite/order-link/session-revoke i conversation workflow.',
+);
+assert(
+  customerPortalRoutesV10.includes("Route::prefix('portal/messages')")
+    && customerPortalRoutesV10.includes("Route::get('/customer-portal'")
+    && customerPortalRoutesV10.includes("permission:system.manage_users")
+    && customerPortalRoutesV10.includes("throttle:portal-messages"),
+  'v1.0 Customer Portal API rute čuvaju customer ownership i admin permission/throttle granice.',
+);
+assert(
+  customerPortalWebControllerV10.includes('CustomerPortalAdminService $portal')
+    && customerPortalAdminServiceV10.includes('CustomerActivationService')
+    && customerPortalAdminServiceV10.includes('PortalSessionService')
+    && customerPortalAdminServiceV10.includes('PortalOrderLinkHistory'),
+  'v1.0 Customer Portal Web i Mobile write workflow dele isti CustomerPortalAdminService authority.',
+);
+assert(
+  customerPortalHomeV10.includes("route: '/portal/messages' as const")
+    && customerPortalHubV10.includes("moduleEnabled('customer_portal')")
+    && customerPortalHubV10.includes("router.push('/admin/customer-portal' as Href)")
+    && customerPortalAdminFoundationApiV10.includes("| 'customer_portal';"),
+  'v1.0 Customer Portal je organizovan u Moje aktivnosti i Admin/Korisnici uz module visibility.',
+);
+assert(
+  customerPortalOpenApiV10.includes('/api/v1/portal/messages:')
+    && customerPortalOpenApiV10.includes('/api/v1/admin/customer-portal:')
+    && customerPortalOpenApiV10.includes('/api/v1/admin/customer-portal/users/{user}/orders/link:')
+    && customerPortalOpenApiV10.includes('/api/v1/admin/customer-portal/conversations/{conversation}:')
+    && !customerPortalOpenApiV10.includes('/api/v1/admin/catalog/purchase-costs:    get:')
+    && !customerPortalOpenApiV10.includes('AdminModuleSettingKey:      type: string'),
+  'OpenAPI dokumentuje PORTAL-01 i PORTAL-ADMIN-01 route surface i popravlja raniji purchase-cost/module-settings line-break drift.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    portalApiV10 + adminPortalApiV10 + customerPortalRoutesV10 + customerPortalAdminServiceV10
+  ),
+  'v1.0 Customer Portal parity ne vraća Product Variants contract.',
+);
 process.exit(failures === 0 ? 0 : 1);
 
 

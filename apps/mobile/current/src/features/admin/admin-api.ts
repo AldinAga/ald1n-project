@@ -14,7 +14,8 @@ export type AdminModuleKey =
   | 'catalog'
   | 'receivables'
   | 'users'
-  | 'settings';
+  | 'settings'
+  | 'customer_portal';
 
 export type AdminFoundationModule = {
   key: AdminModuleKey;

@@ -58,7 +58,7 @@ export default function HomeScreen() {
     title: string;
     copy: string;
     glyph: 'catalog' | 'cart' | 'orders' | 'check' | 'bell';
-    route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/admin';
+    route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/portal/messages' | '/admin';
   };
 
   // MOBILE_V0_9_HOME_INFORMATION_ARCHITECTURE_BATCH5C
@@ -73,6 +73,7 @@ export default function HomeScreen() {
     can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Obračun i status isplate', glyph: 'orders' as const, route: '/commissions' as const } : null,
     can('warranties.view_own') ? { title: 'Moje garancije', copy: 'Garantni listovi i održavanje', glyph: 'check' as const, route: '/warranties' as const } : null,
     can('after_sales.view_own') ? { title: 'Reklamacije i servis', copy: 'Postprodajni slučajevi i komunikacija', glyph: 'check' as const, route: '/after-sales' as const } : null,
+    hasFeature('customer_portal') ? { title: 'Poruke podršci', copy: 'Razgovori sa podrškom i pitanja uz porudžbine', glyph: 'bell' as const, route: '/portal/messages' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const adminActions = [

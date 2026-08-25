@@ -41,6 +41,7 @@ final class ApiAccessService
             'commissions' => app(ModuleVisibilityService::class)->enabled('commissions') && $has('commissions.view_own'),
             'after_sales' => app(ModuleVisibilityService::class)->enabled('after_sales') && ($has('after_sales.view_own') || $has('after_sales.create')) ,
             'warranties' => app(ModuleVisibilityService::class)->enabled('warranties') && $has('warranties.view_own'),
+            'customer_portal' => app(ModuleVisibilityService::class)->enabled('customer_portal') && $has('orders.view_own'),
             'field_operations' => app(ModuleVisibilityService::class)->enabled('field_operations') && $has('field_operations.view'),
             'profile' => true,
             'mobile_devices' => true,

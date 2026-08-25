@@ -6,6 +6,7 @@ use App\Http\Controllers\AfterSalesAttachmentController;
 use App\Http\Controllers\FieldWorkOrderAttachmentController;
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AuthRecoveryController;
+use App\Http\Controllers\Api\V1\PortalConversationController;
 use App\Http\Controllers\Api\V1\AfterSalesController;
 use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
@@ -23,6 +24,8 @@ use App\Http\Controllers\Api\V1\Admin\ReportScheduleController as AdminReportSch
 use App\Http\Controllers\Api\V1\Admin\SystemHealthController as AdminSystemHealthController;
 use App\Http\Controllers\Api\V1\Admin\AuditEventController as AdminAuditEventController;
 use App\Http\Controllers\Api\V1\Admin\ModuleSettingsController as AdminModuleSettingsController;
+use App\Http\Controllers\Api\V1\Admin\CustomerPortalController as AdminCustomerPortalController;
+use App\Http\Controllers\Api\V1\Admin\PortalConversationController as AdminPortalConversationController;
 use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\ExchangeRateController as AdminExchangeRateController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
@@ -170,6 +173,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::post('/users', [AdminUserController::class, 'store'])->middleware('throttle:admin-write')->name('users.store');
                     Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->name('users.show');
                     Route::put('/users/{user}', [AdminUserController::class, 'update'])->whereNumber('user')->middleware('throttle:admin-write')->name('users.update');
+
+                    // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
+                    Route::get('/customer-portal', [AdminCustomerPortalController::class, 'index'])->name('customer-portal.index');
+                    Route::post('/customer-portal/users', [AdminCustomerPortalController::class, 'store'])->middleware('throttle:admin-write')->name('customer-portal.users.store');
+                    Route::get('/customer-portal/users/{user}', [AdminCustomerPortalController::class, 'show'])->whereNumber('user')->name('customer-portal.users.show');
+                    Route::post('/customer-portal/users/{user}/invite', [AdminCustomerPortalController::class, 'invite'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.invite');
+                    Route::post('/customer-portal/users/{user}/orders/link', [AdminCustomerPortalController::class, 'linkOrder'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.orders.link');
+                    Route::delete('/customer-portal/users/{user}/sessions', [AdminCustomerPortalController::class, 'revokeSessions'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.sessions.destroy');
+                    Route::get('/customer-portal/conversations/{conversation}', [AdminPortalConversationController::class, 'show'])->whereNumber('conversation')->name('customer-portal.conversations.show');
+                    Route::post('/customer-portal/conversations/{conversation}/reply', [AdminPortalConversationController::class, 'reply'])->whereNumber('conversation')->middleware('throttle:portal-messages')->name('customer-portal.conversations.reply');
+                    Route::patch('/customer-portal/conversations/{conversation}', [AdminPortalConversationController::class, 'update'])->whereNumber('conversation')->middleware('throttle:admin-write')->name('customer-portal.conversations.update');
                 });
                 Route::middleware('permission:orders.manage')->group(function (): void {
                     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
@@ -399,6 +413,20 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->whereNumber('product')->whereNumber('image')
                     ->middleware(['permission:catalog.manage_images', 'throttle:admin-write'])
                     ->name('products.images.destroy');
+            });
+
+        // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
+        Route::prefix('portal/messages')
+            ->middleware('permission:orders.view_own')
+            ->name('portal.messages.')
+            ->group(function (): void {
+                Route::get('/', [PortalConversationController::class, 'index'])->name('index');
+                Route::post('/', [PortalConversationController::class, 'store'])
+                    ->middleware('throttle:portal-messages')->name('store');
+                Route::get('/{conversation}', [PortalConversationController::class, 'show'])
+                    ->whereNumber('conversation')->name('show');
+                Route::post('/{conversation}', [PortalConversationController::class, 'reply'])
+                    ->whereNumber('conversation')->middleware('throttle:portal-messages')->name('reply');
             });
         Route::get('/me', [AuthTokenController::class, 'me'])->name('me');
         Route::patch('/me', [AccountController::class, 'profile'])->name('me.update');

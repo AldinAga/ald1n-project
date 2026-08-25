@@ -26,6 +26,10 @@ tags:
     description: Administratorsko kreiranje i metadata za katalog artikala.
   - name: Admin
     description: Centralni Mobile Admin foundation i administratorski moduli.
+  - name: Customer Portal
+    description: Customer-safe portal komunikacija.
+  - name: Admin Customer Portal
+    description: Administratorski customer portal lifecycle i komunikacija.
 paths:
   # MOBILE_V1_0_AUTH_ACCOUNT_SECURITY_PARITY_BATCH32
   /api/v1/auth/password/forgot:
@@ -157,7 +161,8 @@ paths:
         '401': { description: Nije autentifikovan. }
         '404': { description: Sesija ne pripada trenutnom korisniku ili više nije aktivna. }
         '429': { description: Sensitive API rate limit. }
-  /api/v1/admin/catalog/purchase-costs:    get:
+  /api/v1/admin/catalog/purchase-costs:
+    get:
       tags: [Admin Catalog]
       summary: SuperAdmin masovni pregled nabavnih cena
       operationId: listAdminPurchaseCosts
@@ -4023,6 +4028,110 @@ security:
         '403': { description: Nedostaje system.manage_settings dozvola }
         '502': { description: Provider sinhronizacija nije uspela }
 
+  # MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
+  /api/v1/portal/messages:
+    get:
+      tags: [Customer Portal]
+      summary: Lista customer-safe portal komunikacija i sopstvenih porudžbina
+      operationId: listPortalConversations
+      responses:
+        '200': { description: Sopstvene teme i order opcije bez internih poruka. }
+        '403': { description: Nedostaje orders.view_own. }
+        '404': { description: Customer Portal modul je isključen. }
+    post:
+      tags: [Customer Portal]
+      summary: Otvori novu customer portal temu
+      operationId: createPortalConversation
+      responses:
+        '201': { description: Tema kreirana kroz postojeći PortalConversationService. }
+        '422': { description: Validacija ili order ownership greška. }
+        '429': { description: Portal message rate limit. }
+  /api/v1/portal/messages/{conversation}:
+    get:
+      tags: [Customer Portal]
+      summary: Customer-safe detalj sa samo javnim porukama
+      operationId: showPortalConversation
+      responses:
+        '200': { description: Customer-safe conversation detail. }
+        '404': { description: Tema nije dostupna korisniku. }
+    post:
+      tags: [Customer Portal]
+      summary: Customer odgovor u temi
+      operationId: replyPortalConversation
+      responses:
+        '200': { description: Odgovor sačuvan kroz PortalConversationService. }
+        '422': { description: Zatvorena tema ili nevalidna poruka. }
+        '429': { description: Portal message rate limit. }
+  /api/v1/admin/customer-portal:
+    get:
+      tags: [Admin Customer Portal]
+      summary: Customer Portal admin centar
+      operationId: getAdminCustomerPortal
+      responses:
+        '200': { description: Kupci, statistike i poslednje komunikacije. }
+        '403': { description: Nedostaje system.manage_users. }
+        '404': { description: Customer Portal modul je isključen. }
+  /api/v1/admin/customer-portal/users:
+    post:
+      tags: [Admin Customer Portal]
+      summary: Kreiraj customer nalog i pošalji activation invite
+      operationId: createAdminCustomerPortalUser
+      responses:
+        '201': { description: Kupac kreiran kroz shared CustomerPortalAdminService. }
+        '422': { description: Validacija korisnika. }
+  /api/v1/admin/customer-portal/users/{user}:
+    get:
+      tags: [Admin Customer Portal]
+      summary: Customer detalj, porudžbine, sesije i komunikacije
+      operationId: showAdminCustomerPortalUser
+      responses:
+        '200': { description: Customer admin detalj bez raw session hash/user-agent/token vrednosti. }
+        '404': { description: Nalog nije customer portal user. }
+  /api/v1/admin/customer-portal/users/{user}/invite:
+    post:
+      tags: [Admin Customer Portal]
+      summary: Ponovo pošalji activation invite
+      operationId: inviteAdminCustomerPortalUser
+      responses:
+        '200': { description: Poziv poslat kroz CustomerActivationService. }
+        '422': { description: Blokiran nalog ili invite greška. }
+  /api/v1/admin/customer-portal/users/{user}/orders/link:
+    post:
+      tags: [Admin Customer Portal]
+      summary: Poveži ili kontrolisano prenesi vlasništvo porudžbine
+      operationId: linkAdminCustomerPortalOrder
+      responses:
+        '200': { description: Transakciona i auditovana promena vlasništva. }
+        '422': { description: Potvrda prenosa ili razlog nisu validni. }
+  /api/v1/admin/customer-portal/users/{user}/sessions:
+    delete:
+      tags: [Admin Customer Portal]
+      summary: Opozovi web, Sanctum i povezane MobileDevice prijave
+      operationId: revokeAdminCustomerPortalSessions
+      responses:
+        '200': { description: Sve aktivne prijave kupca opozvane. }
+  /api/v1/admin/customer-portal/conversations/{conversation}:
+    get:
+      tags: [Admin Customer Portal]
+      summary: Admin conversation detalj sa javnim i internim porukama
+      operationId: showAdminPortalConversation
+      responses:
+        '200': { description: Conversation detail i staff options. }
+    patch:
+      tags: [Admin Customer Portal]
+      summary: Promeni status, prioritet i zaduženog
+      operationId: updateAdminPortalConversation
+      responses:
+        '200': { description: Workflow ažuriran i auditovan. }
+        '422': { description: Nevalidan workflow payload. }
+  /api/v1/admin/customer-portal/conversations/{conversation}/reply:
+    post:
+      tags: [Admin Customer Portal]
+      summary: Javni odgovor kupcu ili interna napomena
+      operationId: replyAdminPortalConversation
+      responses:
+        '200': { description: Odgovor sačuvan kroz PortalConversationService. }
+        '422': { description: Nevalidna poruka ili visibility. }
 components:
   securitySchemes:
     bearerAuth:
@@ -4146,7 +4255,8 @@ components:
         message: { type: string }
         data: { $ref: '#/components/schemas/AccountSessionRevokeData' }
 
-    AdminModuleSettingKey:      type: string
+    AdminModuleSettingKey:
+      type: string
       enum: [commissions, after_sales, field_operations, service_parts, warranties, receivables, reports, inventory, automation, system_health, audit, customer_portal, notifications]
     AdminModuleSetting:
       type: object

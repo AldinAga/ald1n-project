@@ -44,6 +44,12 @@ export const adminQueryKeys = {
   usersList: (params: unknown) => ['admin', 'users', 'list', params] as const,
   user: (userId: number) => ['admin', 'users', 'detail', userId] as const,
   userOptions: () => ['admin', 'users', 'options'] as const,
+  // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
+  customerPortalRoot: () => ['admin', 'customer-portal'] as const,
+  customerPortal: (params: unknown) => ['admin', 'customer-portal', 'list', params] as const,
+  customerPortalUserRoot: (userId: number) => ['admin', 'customer-portal', 'user', userId] as const,
+  customerPortalUser: (userId: number, orderQ: string) => ['admin', 'customer-portal', 'user', userId, orderQ] as const,
+  customerPortalConversation: (conversationId: number) => ['admin', 'customer-portal', 'conversation', conversationId] as const,
   // MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
   moduleSettings: () => ['admin', 'settings', 'modules'] as const,
   // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
