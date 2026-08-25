@@ -11,7 +11,7 @@ import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
-import { apiAdmin } from '@/features/admin/admin-api';
+import { apiAdmin, type AdminModuleKey } from '@/features/admin/admin-api';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useThemedStyles } from '@/theme/app-theme';
@@ -57,6 +57,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
   }
 
   const modules = foundation.modules.filter((module) => module.enabled);
+  const moduleEnabled = (key: AdminModuleKey) => foundation.modules.some((module) => module.key === key && module.enabled);
   const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
   const inventoryValuation = isSuperAdmin ? foundation.inventory_valuation : null;
   const adminSearchNeedle = adminSearch.trim().toLocaleLowerCase('sr');
@@ -118,22 +119,22 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
 
       {((can('orders.manage') && (adminMatch('Porudžbine') || adminMatch('Isporuke'))) ||
         (isSuperAdmin && adminMatch('Direktna prodaja')) ||
-        (can('commissions.manage') && adminMatch('Provizije')) ||
-        (can('receivables.manage') && adminMatch('Potraživanja'))) ? (
+        (moduleEnabled('commissions') && can('commissions.manage') && adminMatch('Provizije')) ||
+        (moduleEnabled('receivables') && can('receivables.manage') && adminMatch('Potraživanja'))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Prodaja</Text>
           <View style={styles.quickActions}>
             {can('orders.manage') && adminMatch('Porudžbine') ? <Button variant="secondary" onPress={() => router.push('/admin/orders')}>Porudžbine</Button> : null}
             {isSuperAdmin && adminMatch('Direktna prodaja') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog' as Href)}>Direktna prodaja</Button> : null}
-            {can('commissions.manage') && adminMatch('Provizije') ? <Button variant="secondary" onPress={() => router.push('/admin/commissions')}>Provizije</Button> : null}
-            {can('receivables.manage') && adminMatch('Potraživanja') ? <Button variant="secondary" onPress={() => router.push('/admin/receivables')}>Potraživanja</Button> : null}
+            {moduleEnabled('commissions') && can('commissions.manage') && adminMatch('Provizije') ? <Button variant="secondary" onPress={() => router.push('/admin/commissions')}>Provizije</Button> : null}
+            {moduleEnabled('receivables') && can('receivables.manage') && adminMatch('Potraživanja') ? <Button variant="secondary" onPress={() => router.push('/admin/receivables')}>Potraživanja</Button> : null}
             {can('orders.manage') && adminMatch('Isporuke') ? <Button variant="secondary" onPress={() => router.push('/admin/orders')}>Isporuke</Button> : null}
           </View>
         </Card>
       ) : null}
 
       {((can('catalog.manage_products') && (adminMatch('Artikli') || adminMatch('Dodaj artikal') || (isSuperAdmin && adminMatch('Nabavne cene')))) ||
-        ((can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager')) ||
+        (moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager')) ||
         (can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Katalog i lager</Text>
@@ -141,34 +142,34 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
             {can('catalog.manage_products') && adminMatch('Artikli') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog' as Href)}>Artikli</Button> : null}
             {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/create')}>Dodaj artikal</Button> : null}
             {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)}>Nabavne cene</Button> : null}
-            {(can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <Button variant="secondary" onPress={() => router.push('/admin/inventory')}>Lager</Button> : null}
+            {moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <Button variant="secondary" onPress={() => router.push('/admin/inventory')}>Lager</Button> : null}
             {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/dictionaries' as Href)}>Šifarnici</Button> : null}
           </View>
         </Card>
       ) : null}
 
-      {((can('after_sales.manage') && adminMatch('Reklamacije')) ||
-        (can('warranties.manage') && adminMatch('Garancije')) ||
-        (can('field_operations.view') && adminMatch('Terenske operacije')) ||
-        ((can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi'))) ? (
+      {((moduleEnabled('after_sales') && can('after_sales.manage') && adminMatch('Reklamacije')) ||
+        (moduleEnabled('warranties') && can('warranties.manage') && adminMatch('Garancije')) ||
+        (moduleEnabled('field_operations') && can('field_operations.view') && adminMatch('Terenske operacije')) ||
+        (moduleEnabled('service_parts') && (can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi'))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Postprodaja</Text>
           <View style={styles.quickActions}>
-            {can('after_sales.manage') && adminMatch('Reklamacije') ? <Button variant="secondary" onPress={() => router.push('/admin/after-sales')}>Reklamacije</Button> : null}
-            {can('warranties.manage') && adminMatch('Garancije') ? <Button variant="secondary" onPress={() => router.push('/admin/warranties')}>Garancije</Button> : null}
-            {can('field_operations.view') && adminMatch('Terenske operacije') ? <Button variant="secondary" onPress={() => router.push('/admin/field-operations')}>Terenske operacije</Button> : null}
-            {(can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi') ? <Button variant="secondary" onPress={() => router.push('/admin/service-parts')}>Servisni delovi</Button> : null}
+            {moduleEnabled('after_sales') && can('after_sales.manage') && adminMatch('Reklamacije') ? <Button variant="secondary" onPress={() => router.push('/admin/after-sales')}>Reklamacije</Button> : null}
+            {moduleEnabled('warranties') && can('warranties.manage') && adminMatch('Garancije') ? <Button variant="secondary" onPress={() => router.push('/admin/warranties')}>Garancije</Button> : null}
+            {moduleEnabled('field_operations') && can('field_operations.view') && adminMatch('Terenske operacije') ? <Button variant="secondary" onPress={() => router.push('/admin/field-operations')}>Terenske operacije</Button> : null}
+            {moduleEnabled('service_parts') && (can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi') ? <Button variant="secondary" onPress={() => router.push('/admin/service-parts')}>Servisni delovi</Button> : null}
           </View>
         </Card>
       ) : null}
 
-      {((can('reports.view') && adminMatch('Izveštaji')) ||
+      {((moduleEnabled('reports') && can('reports.view') && adminMatch('Izveštaji')) ||
         (can('system.manage_settings') && adminMatch('EUR/RSD')) ||
         (isSuperAdmin && adminMatch('Kurirske službe'))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Poslovanje</Text>
           <View style={styles.quickActions}>
-            {can('reports.view') && adminMatch('Izveštaji') ? <Button variant="secondary" onPress={() => router.push('/admin/reports')}>Izveštaji</Button> : null}
+            {moduleEnabled('reports') && can('reports.view') && adminMatch('Izveštaji') ? <Button variant="secondary" onPress={() => router.push('/admin/reports')}>Izveštaji</Button> : null}
             {can('system.manage_settings') && adminMatch('EUR/RSD') ? <Button variant="secondary" onPress={() => router.push('/admin/exchange-rate' as Href)}>EUR/RSD</Button> : null}
             {isSuperAdmin && adminMatch('Kurirske službe') ? <Button variant="secondary" onPress={() => router.push('/admin/couriers' as Href)}>Kurirske službe</Button> : null}
           </View>
@@ -184,13 +185,15 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         </Card>
       ) : null}
 
-      {((can('system.health') && adminMatch('System Health')) ||
-        (can('security.view') && adminMatch('Audit i bezbednost'))) ? (
+      {((moduleEnabled('system_health') && can('system.health') && adminMatch('System Health')) ||
+        (moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost')) ||
+        (isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema'))) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Sistem</Text>
           <View style={styles.quickActions}>
-            {can('system.health') && adminMatch('System Health') ? <Button variant="secondary" onPress={() => router.push('/admin/system-health')}>System Health</Button> : null}
-            {can('security.view') && adminMatch('Audit i bezbednost') ? <Button variant="secondary" onPress={() => router.push('/admin/audit')}>Audit i bezbednost</Button> : null}
+            {moduleEnabled('system_health') && can('system.health') && adminMatch('System Health') ? <Button variant="secondary" onPress={() => router.push('/admin/system-health')}>System Health</Button> : null}
+            {moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost') ? <Button variant="secondary" onPress={() => router.push('/admin/audit')}>Audit i bezbednost</Button> : null}
+            {isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema') ? <Button variant="secondary" onPress={() => router.push('/admin/settings/modules' as Href)}>Moduli sistema</Button> : null}
           </View>
         </Card>
       ) : null}

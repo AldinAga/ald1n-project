@@ -44,6 +44,8 @@ export const adminQueryKeys = {
   usersList: (params: unknown) => ['admin', 'users', 'list', params] as const,
   user: (userId: number) => ['admin', 'users', 'detail', userId] as const,
   userOptions: () => ['admin', 'users', 'options'] as const,
+  // MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
+  moduleSettings: () => ['admin', 'settings', 'modules'] as const,
   // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
   exchangeRate: () => ['admin', 'exchange-rate'] as const,
   // MOBILE_V1_0_ADMIN_PURCHASE_COST_PARITY_BATCH19_V4

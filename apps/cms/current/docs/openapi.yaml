@@ -3782,6 +3782,44 @@ security:
         '404': { description: Korisnik nije pronađen }
         '422': { description: Validacija ili last-SuperAdmin guard nije prošao }
 
+  # MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
+  /api/v1/admin/settings/modules:
+    get:
+      tags: [Admin]
+      summary: SuperAdmin pregled opcionih modula sistema
+      description: Vraća svih 13 opcionih CMS modula iz postojećeg ModuleVisibilityService authority-ja. Isključivanje ne briše podatke, istoriju, rute ili domain servise.
+      operationId: getAdminModuleSettings
+      responses:
+        '200':
+          description: Trenutno stanje opcionih i lista osnovnih modula.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminModuleSettingsResponse' }
+        '403': { description: Dostupno samo SuperAdministratoru sa system.manage_settings dozvolom. }
+    put:
+      tags: [Admin]
+      summary: SuperAdmin uključi ili isključi opcione module sistema
+      description: Delegira na postojeći ModuleVisibilityService i SettingsService; promena je reverzibilna i auditovana.
+      operationId: updateAdminModuleSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modules]
+              properties:
+                modules: { $ref: '#/components/schemas/AdminModuleSettingsState' }
+      responses:
+        '200':
+          description: Sva opciona stanja su sačuvana i vraćeno je novo server stanje.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminModuleSettingsResponse' }
+        '403': { description: Dostupno samo SuperAdministratoru sa system.manage_settings dozvolom. }
+        '422': { description: Nedostaje neko poznato stanje modula ili vrednost nije boolean. }
+        '429': { description: Admin write rate limit exceeded. }
+
   # MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
   /api/v1/admin/exchange-rate:
     get:
@@ -3919,6 +3957,59 @@ components:
           maxItems: 50
           items: { $ref: '#/components/schemas/AdminExchangeRateHistoryItem' }
         capabilities: { $ref: '#/components/schemas/AdminExchangeRateCapabilities' }
+    AdminModuleSettingKey:
+      type: string
+      enum: [commissions, after_sales, field_operations, service_parts, warranties, receivables, reports, inventory, automation, system_health, audit, customer_portal, notifications]
+    AdminModuleSetting:
+      type: object
+      required: [key, label, description, enabled]
+      properties:
+        key: { $ref: '#/components/schemas/AdminModuleSettingKey' }
+        label: { type: string }
+        description: { type: string }
+        enabled: { type: boolean }
+    AdminModuleSettingsState:
+      type: object
+      additionalProperties: false
+      required: [commissions, after_sales, field_operations, service_parts, warranties, receivables, reports, inventory, automation, system_health, audit, customer_portal, notifications]
+      properties:
+        commissions: { type: boolean }
+        after_sales: { type: boolean }
+        field_operations: { type: boolean }
+        service_parts: { type: boolean }
+        warranties: { type: boolean }
+        receivables: { type: boolean }
+        reports: { type: boolean }
+        inventory: { type: boolean }
+        automation: { type: boolean }
+        system_health: { type: boolean }
+        audit: { type: boolean }
+        customer_portal: { type: boolean }
+        notifications: { type: boolean }
+    AdminModuleSettingsData:
+      type: object
+      required: [modules, core_modules, capabilities]
+      properties:
+        modules:
+          type: array
+          minItems: 13
+          maxItems: 13
+          items: { $ref: '#/components/schemas/AdminModuleSetting' }
+        core_modules:
+          type: array
+          items: { type: string }
+        capabilities:
+          type: object
+          required: [update]
+          properties:
+            update: { type: boolean, const: true }
+    AdminModuleSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminModuleSettingsData' }
+
     AdminExchangeRateStateResponse:
       type: object
       required: [data]

@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Api\V1\Admin\ReportScheduleController as AdminReportScheduleController;
 use App\Http\Controllers\Api\V1\Admin\SystemHealthController as AdminSystemHealthController;
 use App\Http\Controllers\Api\V1\Admin\AuditEventController as AdminAuditEventController;
+use App\Http\Controllers\Api\V1\Admin\ModuleSettingsController as AdminModuleSettingsController;
 use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\ExchangeRateController as AdminExchangeRateController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
@@ -137,6 +138,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 // MOBILE_V0_8_COMPLETE_USER_MANAGEMENT_BATCH12
                 // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13
                 Route::middleware('permission:system.manage_settings')->group(function (): void {
+                    // MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
+                    Route::prefix('settings/modules')->name('settings.modules.')->group(function (): void {
+                        Route::get('/', [AdminModuleSettingsController::class, 'index'])->name('index');
+                        Route::put('/', [AdminModuleSettingsController::class, 'update'])
+                            ->middleware('throttle:admin-write')->name('update');
+                    });
                     Route::get('/exchange-rate', [AdminExchangeRateController::class, 'index'])->name('exchange-rate.index');
                     Route::put('/exchange-rate/manual', [AdminExchangeRateController::class, 'manual'])->middleware('throttle:admin-write')->name('exchange-rate.manual');
                     Route::put('/exchange-rate/automatic', [AdminExchangeRateController::class, 'automatic'])->middleware('throttle:admin-write')->name('exchange-rate.automatic');

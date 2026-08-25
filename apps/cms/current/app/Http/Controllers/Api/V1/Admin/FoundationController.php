@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\ManagementReportService;
+use App\Services\ModuleVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -113,7 +114,11 @@ final class FoundationController extends Controller
         ],
     ];
 
-    public function show(Request $request, ManagementReportService $reports): JsonResponse
+    public function show(
+        Request $request,
+        ManagementReportService $reports,
+        ModuleVisibilityService $moduleVisibility,
+    ): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -124,10 +129,12 @@ final class FoundationController extends Controller
         foreach (self::MODULES as $key => $definition) {
             $enabled = false;
 
-            foreach ($definition['permissions'] as $permission) {
-                if ($user->can($permission)) {
-                    $enabled = true;
-                    break;
+            if ($moduleVisibility->enabled($key)) {
+                foreach ($definition['permissions'] as $permission) {
+                    if ($user->can($permission)) {
+                        $enabled = true;
+                        break;
+                    }
                 }
             }
 

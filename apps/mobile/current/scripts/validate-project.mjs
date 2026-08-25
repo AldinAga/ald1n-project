@@ -49,6 +49,8 @@ const required = [
   'src/features/admin/order-document-files.ts',
   'src/features/admin/product-deletion-admin.tsx',
   'src/features/admin/audit-admin-export.ts',
+  'src/features/admin/module-settings-admin-api.ts',
+  'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
 ];
@@ -1234,6 +1236,51 @@ assert(
     && p3AuditOpenApiBatch2CV06.includes('Potrebne su security.view i audit.export dozvole')
     && p3AuditOpenApiBatch2CV06.includes('text/csv:'),
   'OpenAPI dokumentuje kompletan AUDIT-01 read/filter/detail + sanitizovani CSV export ugovor bez mutacija.',
+);
+
+// MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
+const set01ApiBatch30V10 = fs.readFileSync(path.join(root, 'src/features/admin/module-settings-admin-api.ts'), 'utf8');
+const set01ScreenBatch30V10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/modules/index.tsx'), 'utf8');
+const set01HubBatch30V10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const set01QueryBatch30V10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const set01OpenApiBatch30V10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+
+assert(
+  set01ApiBatch30V10.includes("apiRequest('admin/settings/modules') as Promise<AdminModuleSettingsResponse>")
+    && set01ApiBatch30V10.includes("method: 'PUT'")
+    && set01ApiBatch30V10.includes('body: { modules }')
+    && !set01ApiBatch30V10.includes('/api/v1/admin/settings/modules'),
+  'v1.0 SET-01 Mobile API koristi relativni canonical GET/PUT module settings ugovor.',
+);
+assert(
+  set01ScreenBatch30V10.includes("bootstrap?.user.role?.slug === 'superadmin'")
+    && set01ScreenBatch30V10.includes("can('system.manage_settings')")
+    && set01ScreenBatch30V10.includes('<Switch')
+    && set01ScreenBatch30V10.includes('apiAdminModuleSettings.update(payload)')
+    && set01ScreenBatch30V10.includes('refreshBootstrap()')
+    && set01ScreenBatch30V10.includes('adminQueryKeys.foundation()')
+    && set01ScreenBatch30V10.includes('Isključivanje ne briše podatke'),
+  'v1.0 SET-01 ekran je SuperAdmin-only, server-driven i osvežava bootstrap/foundation bez destruktivnog ponašanja.',
+);
+assert(
+  set01HubBatch30V10.includes("router.push('/admin/settings/modules' as Href)")
+    && set01HubBatch30V10.includes("moduleEnabled('commissions')")
+    && set01HubBatch30V10.includes("moduleEnabled('inventory')")
+    && set01HubBatch30V10.includes("moduleEnabled('system_health')")
+    && set01HubBatch30V10.includes("moduleEnabled('audit')"),
+  'v1.0 SET-01 Admin Hub poštuje server module visibility i izlaže Moduli sistema u organizovanoj Sistem grupi.',
+);
+assert(
+  set01QueryBatch30V10.includes("moduleSettings: () => ['admin', 'settings', 'modules'] as const"),
+  'v1.0 SET-01 TanStack query key je centralizovan.',
+);
+assert(
+  set01OpenApiBatch30V10.includes('/api/v1/admin/settings/modules:')
+    && set01OpenApiBatch30V10.includes('operationId: getAdminModuleSettings')
+    && set01OpenApiBatch30V10.includes('operationId: updateAdminModuleSettings')
+    && set01OpenApiBatch30V10.includes('AdminModuleSettingsState:')
+    && set01OpenApiBatch30V10.includes('SuperAdministratoru sa system.manage_settings'),
+  'OpenAPI dokumentuje kompletan SET-01 read/update ugovor i SuperAdmin permission granicu.',
 );
 
 // MOBILE_ADMIN_PRODUCT_IMAGES_EXPO_FILE_TRANSPORT_V06
