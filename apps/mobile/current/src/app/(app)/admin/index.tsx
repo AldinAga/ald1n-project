@@ -178,12 +178,14 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
 
       {(can('system.manage_users') && (
         adminMatch('Upravljanje korisnicima')
+        || adminMatch('Grupe pristupa')
         || (moduleEnabled('customer_portal') && adminMatch('Customer Portal'))
       )) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Korisnici</Text>
           <View style={styles.quickActions}>
             {adminMatch('Upravljanje korisnicima') ? <Button variant="secondary" onPress={() => router.push('/admin/users' as Href)}>Upravljanje korisnicima</Button> : null}
+            {adminMatch('Grupe pristupa') ? <Button variant="secondary" onPress={() => router.push('/admin/user-groups' as Href)}>Grupe pristupa</Button> : null}
             {moduleEnabled('customer_portal') && adminMatch('Customer Portal') ? <Button variant="secondary" onPress={() => router.push('/admin/customer-portal' as Href)}>Customer Portal</Button> : null}
           </View>
         </Card>

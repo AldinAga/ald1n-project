@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\Admin\ModuleSettingsController as AdminModuleSet
 use App\Http\Controllers\Api\V1\Admin\CustomerPortalController as AdminCustomerPortalController;
 use App\Http\Controllers\Api\V1\Admin\PortalConversationController as AdminPortalConversationController;
 use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\V1\Admin\UserGroupController as AdminUserGroupController;
 use App\Http\Controllers\Api\V1\Admin\ExchangeRateController as AdminExchangeRateController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\OrderMutationController as AdminOrderMutationController;
@@ -173,6 +174,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::post('/users', [AdminUserController::class, 'store'])->middleware('throttle:admin-write')->name('users.store');
                     Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->name('users.show');
                     Route::put('/users/{user}', [AdminUserController::class, 'update'])->whereNumber('user')->middleware('throttle:admin-write')->name('users.update');
+
+                    // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
+                    Route::get('/user-groups', [AdminUserGroupController::class, 'index'])->name('user-groups.index');
+                    Route::post('/user-groups', [AdminUserGroupController::class, 'store'])->middleware('throttle:admin-write')->name('user-groups.store');
+                    Route::put('/user-groups/{userGroup}', [AdminUserGroupController::class, 'update'])->whereNumber('userGroup')->middleware('throttle:admin-write')->name('user-groups.update');
+                    Route::delete('/user-groups/{userGroup}', [AdminUserGroupController::class, 'destroy'])->whereNumber('userGroup')->middleware('throttle:admin-write')->name('user-groups.destroy');
 
                     // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
                     Route::get('/customer-portal', [AdminCustomerPortalController::class, 'index'])->name('customer-portal.index');

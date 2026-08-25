@@ -56,6 +56,8 @@ const required = [
   'src/features/admin/module-settings-admin-api.ts',
   'src/features/portal/portal-api.ts',
   'src/features/admin/customer-portal-admin-api.ts',
+  'src/features/admin/user-groups-admin-api.ts',
+  'src/app/(app)/admin/user-groups/index.tsx',
   'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
@@ -2086,6 +2088,77 @@ assert(
     portalApiV10 + adminPortalApiV10 + customerPortalRoutesV10 + customerPortalAdminServiceV10
   ),
   'v1.0 Customer Portal parity ne vraća Product Variants contract.',
+);
+
+// MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
+const userGroupsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/user-groups-admin-api.ts'), 'utf8');
+const userGroupsScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/user-groups/index.tsx'), 'utf8');
+const userGroupsHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const userGroupsQueryKeysV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const userGroupsRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
+const userGroupsApiControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/UserGroupController.php'), 'utf8');
+const userGroupsWebControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/UserGroupController.php'), 'utf8');
+const userGroupsServiceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/UserGroupAdminService.php'), 'utf8');
+const userGroupsRequestV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Requests/AdminUserGroupRequest.php'), 'utf8');
+const userGroupsOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+assert(
+  ['list:', 'create:', 'update:', 'remove:'].every((marker) => userGroupsApiV10.includes(marker))
+    && userGroupsApiV10.includes('admin/user-groups'),
+  'v1.0 USER-02 Mobile API pokriva User Groups list/create/update/delete relativni canonical ugovor.',
+);
+assert(
+  userGroupsScreenV10.includes("can('system.manage_users')")
+    && userGroupsScreenV10.includes('Nova grupa pristupa')
+    && userGroupsScreenV10.includes('categoryMode')
+    && userGroupsScreenV10.includes('permissionIds')
+    && userGroupsScreenV10.includes('categoryIds')
+    && userGroupsScreenV10.includes('can_delete'),
+  'v1.0 USER-02 Mobile ekran pokriva permission, category scope, status, sort i bezbedni delete workflow.',
+);
+assert(
+  userGroupsHubV10.includes("adminMatch('Grupe pristupa')")
+    && userGroupsHubV10.includes("router.push('/admin/user-groups' as Href)"),
+  'v1.0 USER-02 Admin Hub drži Grupe pristupa u organizovanoj Korisnici sekciji.',
+);
+assert(
+  userGroupsQueryKeysV10.includes('userGroupsRoot:') && userGroupsQueryKeysV10.includes('userGroups:'),
+  'v1.0 USER-02 TanStack query keys su centralizovani.',
+);
+assert(
+  userGroupsRoutesV10.includes("Route::get('/user-groups'")
+    && userGroupsRoutesV10.includes("Route::post('/user-groups'")
+    && userGroupsRoutesV10.includes("Route::put('/user-groups/{userGroup}'")
+    && userGroupsRoutesV10.includes("Route::delete('/user-groups/{userGroup}'")
+    && userGroupsRoutesV10.includes('permission:system.manage_users'),
+  'v1.0 USER-02 API rute dele system.manage_users granicu i puni CRUD surface.',
+);
+assert(
+  userGroupsWebControllerV10.includes('UserGroupAdminService')
+    && userGroupsApiControllerV10.includes('UserGroupAdminService')
+    && userGroupsWebControllerV10.includes('AdminUserGroupRequest')
+    && userGroupsApiControllerV10.includes('AdminUserGroupRequest'),
+  'v1.0 USER-02 Web i Mobile API dele isti UserGroupAdminService i AdminUserGroupRequest authority.',
+);
+assert(
+  userGroupsServiceV10.includes("permissions()->sync")
+    && userGroupsServiceV10.includes("categories()->sync")
+    && userGroupsServiceV10.includes("users()->exists()")
+    && userGroupsRequestV10.includes("Rule::in(['all', 'selected', 'none'])")
+    && userGroupsRequestV10.includes("Rule::in(['active', 'inactive'])"),
+  'v1.0 USER-02 shared servis čuva permission/category sync i blokira brisanje grupe sa korisnicima.',
+);
+assert(
+  userGroupsOpenApiV10.includes('/api/v1/admin/user-groups:')
+    && userGroupsOpenApiV10.includes('/api/v1/admin/user-groups/{userGroup}:')
+    && userGroupsOpenApiV10.includes('AdminUserGroupInput:')
+    && userGroupsOpenApiV10.includes('AdminUserGroupRecord:'),
+  'OpenAPI dokumentuje kompletan USER-02 User Groups CRUD ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    userGroupsApiV10 + userGroupsScreenV10 + userGroupsRoutesV10 + userGroupsApiControllerV10 + userGroupsServiceV10
+  ),
+  'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
 process.exit(failures === 0 ? 0 : 1);
 

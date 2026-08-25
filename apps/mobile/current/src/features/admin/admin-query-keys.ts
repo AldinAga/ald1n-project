@@ -44,6 +44,9 @@ export const adminQueryKeys = {
   usersList: (params: unknown) => ['admin', 'users', 'list', params] as const,
   user: (userId: number) => ['admin', 'users', 'detail', userId] as const,
   userOptions: () => ['admin', 'users', 'options'] as const,
+  // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
+  userGroupsRoot: () => ['admin', 'user-groups'] as const,
+  userGroups: (params: unknown) => ['admin', 'user-groups', 'list', params] as const,
   // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
   customerPortalRoot: () => ['admin', 'customer-portal'] as const,
   customerPortal: (params: unknown) => ['admin', 'customer-portal', 'list', params] as const,

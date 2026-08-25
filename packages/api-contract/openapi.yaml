@@ -4028,6 +4028,73 @@ security:
         '403': { description: Nedostaje system.manage_settings dozvola }
         '502': { description: Provider sinhronizacija nije uspela }
 
+  # MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
+  /api/v1/admin/user-groups:
+    get:
+      tags: [Admin]
+      summary: Lista grupa pristupa sa permission i category scope podacima
+      operationId: listAdminUserGroups
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 190 } }
+        - { name: status, in: query, schema: { type: string, enum: [active, inactive] } }
+      responses:
+        '200':
+          description: Grupe, permission/category opcije i capabilities.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserGroupListResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola. }
+    post:
+      tags: [Admin]
+      summary: Kreiraj grupu pristupa
+      operationId: createAdminUserGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserGroupInput' }
+      responses:
+        '201':
+          description: Grupa je kreirana, a permission/category veze sinhronizovane.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserGroupMutationResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola. }
+        '422': { description: Validacija nije prošla. }
+        '429': { description: Admin write rate limit. }
+  /api/v1/admin/user-groups/{userGroup}:
+    parameters:
+      - { name: userGroup, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    put:
+      tags: [Admin]
+      summary: Izmeni grupu pristupa i sinhronizuj permission/category veze
+      operationId: updateAdminUserGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserGroupInput' }
+      responses:
+        '200':
+          description: Grupa je izmenjena kroz shared UserGroupAdminService.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserGroupMutationResponse' }
+        '403': { description: Nedostaje system.manage_users dozvola. }
+        '404': { description: Grupa nije pronađena. }
+        '422': { description: Validacija nije prošla. }
+        '429': { description: Admin write rate limit. }
+    delete:
+      tags: [Admin]
+      summary: Obriši praznu grupu pristupa
+      operationId: deleteAdminUserGroup
+      description: Brisanje je blokirano dok grupa ima dodeljene korisnike.
+      responses:
+        '200': { description: Prazna grupa je obrisana i auditovana. }
+        '403': { description: Nedostaje system.manage_users dozvola. }
+        '404': { description: Grupa nije pronađena. }
+        '422': { description: Grupa ima dodeljene korisnike i ne može biti obrisana. }
+        '429': { description: Admin write rate limit. }
   # MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
   /api/v1/portal/messages:
     get:
@@ -4139,6 +4206,72 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    AdminUserGroupPermission:
+      type: object
+      required: [id, name, slug, description]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+    AdminUserGroupCategory:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    AdminUserGroupInput:
+      type: object
+      required: [name, status, category_access_mode, sort_order]
+      properties:
+        name: { type: string, maxLength: 120 }
+        slug: { type: [string, 'null'], maxLength: 140 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+        status: { type: string, enum: [active, inactive] }
+        category_access_mode: { type: string, enum: [all, selected, none] }
+        include_uncategorized: { type: boolean }
+        sort_order: { type: integer, minimum: 0, maximum: 9999 }
+        permissions:
+          type: array
+          items: { type: integer, minimum: 1 }
+        categories:
+          type: array
+          items: { type: integer, minimum: 1 }
+    AdminUserGroupRecord:
+      type: object
+      required: [id, name, slug, description, status, category_access_mode, include_uncategorized, sort_order, users_count, can_delete, permissions, categories]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        status: { type: string, enum: [active, inactive] }
+        category_access_mode: { type: string, enum: [all, selected, none] }
+        include_uncategorized: { type: boolean }
+        sort_order: { type: integer, minimum: 0 }
+        users_count: { type: integer, minimum: 0 }
+        can_delete: { type: boolean }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUserGroupPermission' }
+        categories:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUserGroupCategory' }
+    AdminUserGroupListResponse:
+      type: object
+      required: [data, options, capabilities]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUserGroupRecord' }
+        options: { type: object, additionalProperties: true }
+        capabilities: { type: object, additionalProperties: { type: boolean } }
+    AdminUserGroupMutationResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminUserGroupRecord' }
     AdminExchangeRateConfiguration:
       type: object
       required: [rate, mode, provider, source, provider_date, updated_at, last_attempt_at, last_error, stale_after_hours, is_stale]
