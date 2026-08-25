@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\AfterSalesAttachmentController;
 use App\Http\Controllers\FieldWorkOrderAttachmentController;
 use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\AuthRecoveryController;
 use App\Http\Controllers\Api\V1\AfterSalesController;
 use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
@@ -57,6 +58,20 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::post('/auth/google', [GoogleAuthController::class, 'store'])
         ->middleware('throttle:api-google-auth')
         ->name('auth.google');
+
+    // MOBILE_V1_0_AUTH_ACCOUNT_SECURITY_PARITY_BATCH32
+    Route::post('/auth/password/forgot', [AuthRecoveryController::class, 'forgot'])
+        ->middleware('throttle:password-reset-link')
+        ->name('auth.password.forgot');
+    Route::post('/auth/password/reset', [AuthRecoveryController::class, 'reset'])
+        ->middleware('throttle:password-reset')
+        ->name('auth.password.reset');
+    Route::get('/auth/customer-activation', [AuthRecoveryController::class, 'activationState'])
+        ->middleware('throttle:customer-activation')
+        ->name('auth.customer-activation.state');
+    Route::post('/auth/customer-activation', [AuthRecoveryController::class, 'activate'])
+        ->middleware('throttle:customer-activation')
+        ->name('auth.customer-activation.store');
 
     Route::middleware(['auth:sanctum', 'active'])->group(function (): void {
         Route::get('/bootstrap', [BootstrapController::class, 'show'])->name('bootstrap');
@@ -391,6 +406,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware('throttle:api-sensitive')
             ->name('me.password');
         Route::put('/me/notification-preferences', [AccountController::class, 'notifications'])->name('me.notification-preferences');
+        // MOBILE_V1_0_ACCOUNT_LOGIN_SESSIONS_PARITY_BATCH32
+        Route::get('/me/sessions', [AccountController::class, 'sessions'])->name('me.sessions.index');
+        Route::delete('/me/sessions/others', [AccountController::class, 'revokeOtherSessions'])
+            ->middleware('throttle:api-sensitive')->name('me.sessions.others');
+        Route::delete('/me/sessions/{kind}/{session}', [AccountController::class, 'revokeSession'])
+            ->where('kind', 'api|web')->whereNumber('session')
+            ->middleware('throttle:api-sensitive')->name('me.sessions.destroy');
         Route::delete('/auth/token', [AuthTokenController::class, 'destroy'])->name('auth.token.destroy');
 
         Route::get('/devices', [MobileDeviceController::class, 'index'])->name('devices.index');

@@ -10,9 +10,12 @@ use App\Http\Requests\Api\V1\UpdatePasswordRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Http\Resources\Api\V1\NotificationPreferenceResource;
 use App\Http\Resources\Api\V1\UserResource;
+use App\Services\AccountSessionService;
 use App\Services\AuditLogger;
 use App\Services\UserNotificationPreferenceService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -110,5 +113,66 @@ final class AccountController extends Controller
             'message' => 'Lozinka je promenjena. Sve API prijave su opozvane.',
             'reauthenticate' => true,
         ]);
+    }
+    public function sessions(Request $request, AccountSessionService $sessions): JsonResponse
+    {
+        return response()->json([
+            'data' => $sessions->state($request->user(), $this->currentTokenId($request)),
+        ]);
+    }
+
+    public function revokeSession(
+        Request $request,
+        string $kind,
+        int $session,
+        AccountSessionService $sessions,
+        AuditLogger $audit,
+    ): JsonResponse {
+        $user = $request->user();
+        $result = $sessions->revoke($user, $kind, $session, $this->currentTokenId($request));
+        $audit->log(
+            'account.session_revoked_api',
+            'Opozvana aktivna prijava kroz mobilni API',
+            $user,
+            metadata: ['kind' => $kind, 'session_id' => $session, 'reauthenticate' => $result['reauthenticate']],
+            user: $user,
+            request: $request,
+            level: 'warning',
+        );
+
+        return response()->json([
+            'message' => 'Izabrana prijava je opozvana.',
+            'data' => $result,
+        ]);
+    }
+
+    public function revokeOtherSessions(
+        Request $request,
+        AccountSessionService $sessions,
+        AuditLogger $audit,
+    ): JsonResponse {
+        $user = $request->user();
+        $result = $sessions->revokeOthers($user, $this->currentTokenId($request));
+        $audit->log(
+            'account.other_sessions_revoked_api',
+            'Opozvane ostale prijave kroz mobilni API',
+            $user,
+            metadata: $result,
+            user: $user,
+            request: $request,
+            level: 'warning',
+        );
+
+        return response()->json([
+            'message' => 'Sve druge aktivne prijave su opozvane.',
+            'data' => $result,
+        ]);
+    }
+
+    private function currentTokenId(Request $request): ?int
+    {
+        $token = $request->user()?->currentAccessToken();
+
+        return $token instanceof Model ? (int) $token->getKey() : null;
     }
 }

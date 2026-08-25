@@ -16,10 +16,11 @@ const required = [
   'package.json', 'app.config.js', 'eas.json', '.env.example',
   'assets/icon.png', 'assets/adaptive-icon.png', 'assets/splash-icon.png',
   'src/app/_layout.tsx', 'src/app/(auth)/login.tsx',
+  'src/app/(auth)/forgot-password.tsx', 'src/app/(auth)/reset-password.tsx', 'src/app/(auth)/activate-account.tsx',
   'src/app/(app)/(tabs)/home.tsx', 'src/app/(app)/(tabs)/catalog.tsx',
   'src/app/(app)/(tabs)/orders.tsx', 'src/app/(app)/(tabs)/notifications.tsx',
   'src/app/(app)/(tabs)/account.tsx', 'src/app/(app)/product/[slug].tsx',
-  'src/app/(app)/order/[id].tsx', 'src/app/(app)/devices.tsx',
+  'src/app/(app)/order/[id].tsx', 'src/app/(app)/devices.tsx', 'src/app/(app)/sessions.tsx',
   'src/app/(app)/cart.tsx', 'src/app/(app)/checkout.tsx',
   'src/app/(app)/notification-settings.tsx',
   'src/app/(app)/after-sales/index.tsx',
@@ -1281,6 +1282,51 @@ assert(
     && set01OpenApiBatch30V10.includes('AdminModuleSettingsState:')
     && set01OpenApiBatch30V10.includes('SuperAdministratoru sa system.manage_settings'),
   'OpenAPI dokumentuje kompletan SET-01 read/update ugovor i SuperAdmin permission granicu.',
+);
+
+// MOBILE_V1_0_AUTH_ACCOUNT_SECURITY_PARITY_BATCH32
+const authAccountEndpointsBatch32 = fs.readFileSync(path.join(root, 'src/lib/api/endpoints.ts'), 'utf8');
+const authAccountLoginBatch32 = fs.readFileSync(path.join(root, 'src/app/(auth)/login.tsx'), 'utf8');
+const authForgotBatch32 = fs.readFileSync(path.join(root, 'src/app/(auth)/forgot-password.tsx'), 'utf8');
+const authResetBatch32 = fs.readFileSync(path.join(root, 'src/app/(auth)/reset-password.tsx'), 'utf8');
+const authActivateBatch32 = fs.readFileSync(path.join(root, 'src/app/(auth)/activate-account.tsx'), 'utf8');
+const accountScreenBatch32 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
+const accountSessionsBatch32 = fs.readFileSync(path.join(root, 'src/app/(app)/sessions.tsx'), 'utf8');
+const authAccountOpenApiBatch32 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+assert(
+  authAccountEndpointsBatch32.includes("auth/password/forgot")
+    && authAccountEndpointsBatch32.includes("auth/password/reset")
+    && authAccountEndpointsBatch32.includes("auth/customer-activation")
+    && authAccountEndpointsBatch32.includes('auth: false'),
+  'v1.0 AUTH-02/AUTH-03 Mobile API koristi guest recovery/activation ugovor bez paralelnog token sistema.',
+);
+assert(
+  authAccountLoginBatch32.includes("'/forgot-password' as Href")
+    && authAccountLoginBatch32.includes("'/activate-account' as Href")
+    && authForgotBatch32.includes('requestPasswordReset')
+    && authResetBatch32.includes('resetPassword')
+    && authResetBatch32.includes('[A-Za-z0-9]{80}')
+    && authActivateBatch32.includes('customerActivationState')
+    && authActivateBatch32.includes('activateAccount'),
+  'v1.0 AUTH-02/AUTH-03 Mobile UI pokriva forgot/reset/activation i prihvata 80-char CMS recovery token.',
+);
+assert(
+  accountScreenBatch32.includes("'/sessions' as Href")
+    && accountSessionsBatch32.includes('api.account.sessions')
+    && accountSessionsBatch32.includes('revokeSession')
+    && accountSessionsBatch32.includes('revokeOtherSessions')
+    && accountSessionsBatch32.includes('requireReauthentication'),
+  'v1.0 ACCOUNT-02 Mobile UI pokriva aktivne API/web prijave, pojedinačni revoke i revoke-others uz current-session zaštitu.',
+);
+assert(
+  authAccountOpenApiBatch32.includes('/api/v1/auth/password/forgot:')
+    && authAccountOpenApiBatch32.includes('/api/v1/auth/password/reset:')
+    && authAccountOpenApiBatch32.includes('/api/v1/auth/customer-activation:')
+    && authAccountOpenApiBatch32.includes('/api/v1/me/sessions:')
+    && authAccountOpenApiBatch32.includes('/api/v1/me/sessions/others:')
+    && authAccountOpenApiBatch32.includes('/api/v1/me/sessions/{kind}/{session}:')
+    && authAccountOpenApiBatch32.includes('AccountSessionsData:'),
+  'OpenAPI dokumentuje kompletan AUTH-02 + AUTH-03 + ACCOUNT-02 mobile parity ugovor.',
 );
 
 // MOBILE_ADMIN_PRODUCT_IMAGES_EXPO_FILE_TRANSPORT_V06

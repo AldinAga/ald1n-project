@@ -27,8 +27,137 @@ tags:
   - name: Admin
     description: Centralni Mobile Admin foundation i administratorski moduli.
 paths:
-  /api/v1/admin/catalog/purchase-costs:
+  # MOBILE_V1_0_AUTH_ACCOUNT_SECURITY_PARITY_BATCH32
+  /api/v1/auth/password/forgot:
+    post:
+      tags: [Auth]
+      summary: Zatraži reset lozinke bez otkrivanja postojanja naloga
+      description: Native API reuse-uje postojeći PasswordResetService, 60-minutni jednokratni hashed token i strogi password-reset-link rate limit. Browser Turnstile ostaje Web zaštita.
+      operationId: requestMobilePasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 190 }
+      responses:
+        '202': { description: Generički non-enumerating odgovor bez obzira da li nalog postoji. }
+        '422': { description: E-mail nije validan. }
+        '429': { description: Password reset rate limit. }
+  /api/v1/auth/password/reset:
+    post:
+      tags: [Auth]
+      summary: Iskoristi jednokratni reset token i postavi novu lozinku
+      operationId: resetMobilePassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token: { type: string, minLength: 80, maxLength: 80 }
+                password: { type: string, minLength: 12 }
+                password_confirmation: { type: string, minLength: 12 }
+      responses:
+        '200': { description: Lozinka promenjena; svi API tokeni i MobileDevice push/session zapisi su opozvani. }
+        '422': { description: Token je nevažeći/istekao/iskorišćen ili lozinka ne ispunjava policy. }
+        '429': { description: Password reset rate limit. }
+  /api/v1/auth/customer-activation:
     get:
+      tags: [Auth]
+      summary: Read-only provera customer activation tokena
+      operationId: getMobileCustomerActivationState
+      security: []
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string, minLength: 80, maxLength: 80 } }
+      responses:
+        '200':
+          description: Validnost poziva i canonical TTL.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [valid, expires_in_hours]
+                    properties:
+                      valid: { type: boolean }
+                      expires_in_hours: { type: integer, const: 72 }
+        '422': { description: Token format nije validan. }
+        '429': { description: Customer activation rate limit. }
+    post:
+      tags: [Auth]
+      summary: Aktiviraj korisnički nalog postojećim CustomerActivationService tokenom
+      operationId: activateMobileCustomerAccount
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token: { type: string, minLength: 80, maxLength: 80 }
+                password: { type: string, minLength: 12 }
+                password_confirmation: { type: string, minLength: 12 }
+      responses:
+        '200': { description: Nalog aktiviran istim one-time CMS authority-jem. }
+        '422': { description: Token je nevažeći/istekao/iskorišćen ili lozinka ne ispunjava policy. }
+        '429': { description: Customer activation rate limit. }
+  /api/v1/me/sessions:
+    get:
+      tags: [Account]
+      summary: Aktivne Sanctum/API i CMS browser prijave trenutnog korisnika
+      description: Ne izlaže raw session_hash, raw user_agent niti bearer tokene.
+      operationId: listAccountSessions
+      responses:
+        '200':
+          description: Server-driven pregled aktivnih API i web sesija.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSessionsResponse' }
+        '401': { description: Nije autentifikovan. }
+  /api/v1/me/sessions/others:
+    delete:
+      tags: [Account]
+      summary: Opozovi sve druge prijave i sačuvaj trenutni mobilni token
+      operationId: revokeOtherAccountSessions
+      responses:
+        '200':
+          description: Ostali Sanctum tokeni, povezani MobileDevice zapisi i aktivne browser sesije su opozvani.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSessionRevokeResponse' }
+        '401': { description: Nije autentifikovan. }
+        '429': { description: Sensitive API rate limit. }
+  /api/v1/me/sessions/{kind}/{session}:
+    delete:
+      tags: [Account]
+      summary: Opozovi jednu API ili web prijavu
+      operationId: revokeAccountSession
+      parameters:
+        - { name: kind, in: path, required: true, schema: { type: string, enum: [api, web] } }
+        - { name: session, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Izabrana prijava opozvana; current API revoke vraća reauthenticate=true.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSessionRevokeResponse' }
+        '401': { description: Nije autentifikovan. }
+        '404': { description: Sesija ne pripada trenutnom korisniku ili više nije aktivna. }
+        '429': { description: Sensitive API rate limit. }
+  /api/v1/admin/catalog/purchase-costs:    get:
       tags: [Admin Catalog]
       summary: SuperAdmin masovni pregled nabavnih cena
       operationId: listAdminPurchaseCosts
@@ -3957,8 +4086,67 @@ components:
           maxItems: 50
           items: { $ref: '#/components/schemas/AdminExchangeRateHistoryItem' }
         capabilities: { $ref: '#/components/schemas/AdminExchangeRateCapabilities' }
-    AdminModuleSettingKey:
-      type: string
+    AccountApiSession:
+      type: object
+      required: [id, kind, device_name, is_current]
+      properties:
+        id: { type: integer, minimum: 1 }
+        kind: { type: string, const: api }
+        device_name: { type: string }
+        platform: { type: [string, 'null'], enum: [android, ios, null] }
+        app_version: { type: [string, 'null'] }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        expires_at: { type: [string, 'null'], format: date-time }
+        is_current: { type: boolean }
+    AccountWebSession:
+      type: object
+      required: [id, kind, device_label, remembered]
+      properties:
+        id: { type: integer, minimum: 1 }
+        kind: { type: string, const: web }
+        device_label: { type: string }
+        ip_address: { type: [string, 'null'] }
+        remembered: { type: boolean }
+        logged_in_at: { type: [string, 'null'], format: date-time }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+    AccountSessionsData:
+      type: object
+      required: [api_sessions, web_sessions, capabilities]
+      properties:
+        api_sessions:
+          type: array
+          items: { $ref: '#/components/schemas/AccountApiSession' }
+        web_sessions:
+          type: array
+          items: { $ref: '#/components/schemas/AccountWebSession' }
+        capabilities:
+          type: object
+          required: [revoke_others]
+          properties:
+            revoke_others: { type: boolean }
+    AccountSessionsResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/AccountSessionsData' }
+    AccountSessionRevokeData:
+      type: object
+      required: [kind, reauthenticate]
+      properties:
+        kind: { type: string, enum: [api, web, others] }
+        id: { type: integer, minimum: 1 }
+        reauthenticate: { type: boolean }
+        revoked_api_sessions: { type: integer, minimum: 0 }
+        revoked_web_sessions: { type: integer, minimum: 0 }
+    AccountSessionRevokeResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AccountSessionRevokeData' }
+
+    AdminModuleSettingKey:      type: string
       enum: [commissions, after_sales, field_operations, service_parts, warranties, receivables, reports, inventory, automation, system_health, audit, customer_portal, notifications]
     AdminModuleSetting:
       type: object

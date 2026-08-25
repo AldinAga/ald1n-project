@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as Application from 'expo-application';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -682,6 +682,14 @@ export default function AccountScreen() {
           style={styles.fullButton}
         >
           Promeni lozinku
+        </Button>
+
+        <Button
+          variant="secondary"
+          onPress={() => router.push('/sessions' as Href)}
+          style={styles.fullButton}
+        >
+          Aktivne prijave i sesije
         </Button>
       </Card>
 

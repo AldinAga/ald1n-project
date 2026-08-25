@@ -5,6 +5,13 @@ import type {
   AccountPasswordInput,
   AccountPasswordResponse,
   AccountProfileInput,
+  AccountSessionRevokeResponse,
+  AccountSessionsData,
+  AuthRecoveryMessageResponse,
+  CustomerActivationInput,
+  CustomerActivationState,
+  PasswordResetInput,
+  PasswordResetRequestInput,
   AfterSalesCase,
   AfterSalesCaseSummary,
   AfterSalesMessage,
@@ -132,8 +139,18 @@ export const api = {
     login: (input: { login: string; password: string; device_name: string }) =>
       apiRequest<AuthTokenResponse>('auth/token', { method: 'POST', auth: false, body: input }),
     google: (input: { id_token: string; device_name: string }) =>
-      apiRequest<GoogleAuthResponse>('auth/google', { method: 'POST', auth: false, body: input }),
-    logout: () => apiRequest<void>('auth/token', { method: 'DELETE' }),
+      apiRequest<GoogleAuthResponse> ('auth/google', { method: 'POST', auth: false, body: input }),
+    requestPasswordReset: (input: PasswordResetRequestInput) =>
+      apiRequest<AuthRecoveryMessageResponse> ('auth/password/forgot', { method: 'POST', auth: false, body: input }),
+    resetPassword: (input: PasswordResetInput) =>
+      apiRequest<AuthRecoveryMessageResponse> ('auth/password/reset', { method: 'POST', auth: false, body: input }),
+    customerActivationState: async (token: string) => {
+      const response = await apiRequest<{ data: CustomerActivationState }> (`auth/customer-activation${queryString({ token })}`, { auth: false });
+      return response.data;
+    },
+    activateAccount: (input: CustomerActivationInput) =>
+      apiRequest<{ message: string; data: { activated: true } }> ('auth/customer-activation', { method: 'POST', auth: false, body: input }),
+    logout: () => apiRequest<void> ('auth/token', { method: 'DELETE' }),
     bootstrap: async () => {
       const response = await apiRequest<{ data: BootstrapData }>('bootstrap');
       return response.data;
@@ -153,12 +170,20 @@ export const api = {
         body: input
       }),
     notificationPreferences: async (input: Partial<NotificationPreferences>) => {
-      const response = await apiRequest<{ data: NotificationPreferences }>('me/notification-preferences', {
+      const response = await apiRequest<{ data: NotificationPreferences }> ('me/notification-preferences', {
         method: 'PUT',
         body: input
       });
       return response.data;
-    }
+    },
+    sessions: async () => {
+      const response = await apiRequest<{ data: AccountSessionsData }> ('me/sessions');
+      return response.data;
+    },
+    revokeSession: (kind: 'api' | 'web', id: number) =>
+      apiRequest<AccountSessionRevokeResponse> (`me/sessions/${kind}/${id}`, { method: 'DELETE' }),
+    revokeOtherSessions: () =>
+      apiRequest<AccountSessionRevokeResponse> ('me/sessions/others', { method: 'DELETE' })
   },
   catalog: {
     filters: async () => {

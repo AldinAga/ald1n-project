@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { GoogleSignInButton } from 'react-native-nitro-google-signin';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useRef, useState } from 'react';
@@ -124,6 +124,8 @@ export default function LoginScreen() {
           )} />
           {errors.root?.message ? <Text style={styles.rootError}>{errors.root.message}</Text> : null}
           <Button onPress={submit} loading={isSubmitting}>Prijavi se</Button>
+          <Button variant="ghost" onPress={() => router.push('/forgot-password' as Href)}>Zaboravljena lozinka?</Button>
+          <Button variant="ghost" onPress={() => router.push('/activate-account' as Href)}>Imam aktivacioni link</Button>
           <Text style={styles.registrationNote}>Novi Google nalog može automatski da kreira registraciju. Aktivacija i dalje prati pravila CMS-a.</Text>
           <View style={styles.apiLine}><View style={styles.onlineDot} /><Text style={styles.apiText} numberOfLines={1}>{API_URL}</Text></View>
         </View>

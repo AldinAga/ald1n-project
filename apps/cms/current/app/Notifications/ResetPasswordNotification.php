@@ -27,6 +27,7 @@ final class ResetPasswordNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $url = route('password.reset', ['token' => $this->token]);
+        $mobileUrl = 'ald1n://reset-password?token='.rawurlencode($this->token);
         $name = method_exists($notifiable, 'displayName')
             ? $notifiable->displayName()
             : 'korisniče';
@@ -36,6 +37,7 @@ final class ResetPasswordNotification extends Notification
             ->greeting('Zdravo, '.$name)
             ->line('Primili smo zahtev za resetovanje lozinke vašeg Ald1n CMS naloga.')
             ->action('Postavi novu lozinku', $url)
+            ->line('[Otvori reset u Ald1n CMS mobilnoj aplikaciji]('.$mobileUrl.')')
             ->line('Link važi '.$this->expiresInMinutes.' minuta i može se iskoristiti samo jednom.')
             ->line('Promenom lozinke biće opozvane aktivne API sesije i trajna prijava na drugim uređajima.')
             ->line('Ako niste poslali ovaj zahtev, ignorišite ovu poruku.');

@@ -69,6 +69,46 @@ export type AccountPasswordResponse = {
   reauthenticate: true;
 };
 
+// MOBILE_V1_0_AUTH_ACCOUNT_SECURITY_PARITY_BATCH32
+export type PasswordResetRequestInput = { email: string };
+export type PasswordResetInput = { token: string; password: string; password_confirmation: string };
+export type AuthRecoveryMessageResponse = { message: string; reauthenticate?: true };
+export type CustomerActivationState = { valid: boolean; expires_in_hours: number };
+export type CustomerActivationInput = { token: string; password: string; password_confirmation: string };
+export type AccountApiSession = {
+  id: number;
+  kind: 'api';
+  device_name: string;
+  platform: Nullable<'android' | 'ios'>;
+  app_version: Nullable<string>;
+  last_seen_at: Nullable<string>;
+  created_at: Nullable<string>;
+  expires_at: Nullable<string>;
+  is_current: boolean;
+};
+export type AccountWebSession = {
+  id: number;
+  kind: 'web';
+  device_label: string;
+  ip_address: Nullable<string>;
+  remembered: boolean;
+  logged_in_at: Nullable<string>;
+  last_seen_at: Nullable<string>;
+};
+export type AccountSessionsData = {
+  api_sessions: AccountApiSession[];
+  web_sessions: AccountWebSession[];
+  capabilities: { revoke_others: boolean };
+};
+export type AccountSessionRevokeData = {
+  kind: 'api' | 'web' | 'others';
+  id?: number;
+  reauthenticate: boolean;
+  revoked_api_sessions?: number;
+  revoked_web_sessions?: number;
+};
+export type AccountSessionRevokeResponse = { message: string; data: AccountSessionRevokeData };
+
 export type NotificationPreferences = {
   in_app_enabled: boolean;
   email_enabled: boolean;

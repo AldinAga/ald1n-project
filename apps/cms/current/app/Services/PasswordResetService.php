@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -105,6 +106,16 @@ final class PasswordResetService
             ])->save();
 
             $user->tokens()->delete();
+            if (Schema::hasTable('mobile_devices')) {
+                $user->mobileDevices()->update([
+                    'personal_access_token_id' => null,
+                    'push_token' => null,
+                    'push_token_hash' => null,
+                    'notifications_enabled' => false,
+                    'revoked_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             DB::table('password_reset_tokens')
                 ->where('user_id', $user->id)

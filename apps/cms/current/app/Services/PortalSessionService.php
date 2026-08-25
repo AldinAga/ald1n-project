@@ -102,6 +102,33 @@ final class PortalSessionService
     }
 
 
+    /** @return Collection<int,UserLoginSession> */
+    public function activeReadOnlyFor(User $user): Collection
+    {
+        if (!$this->available()) {
+            return collect();
+        }
+
+        $sessionMinutes = max(5, (int) config('session.lifetime', 120) + 5);
+        $normalCutoff = now()->subMinutes($sessionMinutes);
+        $rememberedCutoff = now()->subDays(31);
+
+        return UserLoginSession::query()
+            ->where('user_id', $user->id)
+            ->whereNull('revoked_at')
+            ->whereNull('logged_out_at')
+            ->where(static function ($fresh) use ($normalCutoff, $rememberedCutoff): void {
+                $fresh->where(static function ($normal) use ($normalCutoff): void {
+                    $normal->where('remembered', false)->where('last_seen_at', '>=', $normalCutoff);
+                })->orWhere(static function ($remembered) use ($rememberedCutoff): void {
+                    $remembered->where('remembered', true)->where('last_seen_at', '>=', $rememberedCutoff);
+                });
+            })
+            ->latest('last_seen_at')
+            ->limit(30)
+            ->get();
+    }
+
     public function expireStale(?User $user = null): int
     {
         if (!$this->available()) {
