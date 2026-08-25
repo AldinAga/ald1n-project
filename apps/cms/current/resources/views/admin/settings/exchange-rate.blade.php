@@ -12,6 +12,7 @@
         title="Klikni za sinhronizaciju EUR/RSD kursa"
     ><span data-exchange-rate-value>{{ $configuration['rate'] ? number_format($configuration['rate'], 4, ',', '.') : 'Nije podešen' }}</span>&nbsp;RSD</button>
 </div>
+<section class="panel form-section"><h2>Komercijalni prodajni kurs</h2><p class="muted"><strong>GLAVNI KURS APLIKACIJE.</strong> Vrsta kursa je zakljucana. Automatski refresh koristi NBS prodajni EUR kurs za devize; rucni unos je samo override iste vrste kursa.</p></section>
 <div class="settings-grid">
     <section class="panel form-section">
         <h2>Ručni kurs</h2>
@@ -24,7 +25,7 @@
     </section>
     <section class="panel form-section">
         <h2>Automatsko ažuriranje</h2>
-        <p class="muted">Frankfurter API se koristi kao javni izvor bez API ključa.</p>
+        <p class="muted">NBS javna kursna lista za devize se koristi kao javni izvor bez API ključa.</p>
         <form method="post" action="{{ route('admin.settings.exchange.automatic') }}" class="stack-form compact-form">
             @csrf
             <label class="check-card"><input type="checkbox" name="enabled" value="1" @checked($configuration['mode'] === 'auto')><span>Uključi automatski režim</span></label>

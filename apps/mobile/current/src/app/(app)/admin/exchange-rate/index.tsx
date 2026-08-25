@@ -141,6 +141,14 @@ export default function AdminExchangeRateScreen() {
         name={bootstrap?.user.name}
       />
 
+      {/* MOBILE_V1_0_COMMERCIAL_SELLING_RATE_AUTHORITY_BATCH34B */}
+      <Card style={styles.card}>
+        <Text style={styles.sectionTitle}>Komercijalni prodajni kurs</Text>
+        <Text style={styles.copy}>
+          GLAVNI KURS APLIKACIJE. Vrsta kursa je zakljucana; automatski refresh koristi NBS prodajni EUR kurs za devize. Rucni unos je samo override iste vrste kursa.
+        </Text>
+      </Card>
+
       <Card style={styles.hero}>
         <View style={styles.rowBetween}>
           <View style={styles.flex}>

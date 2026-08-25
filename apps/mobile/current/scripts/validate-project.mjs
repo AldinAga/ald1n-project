@@ -2160,6 +2160,39 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_COMMERCIAL_SELLING_RATE_AUTHORITY_BATCH34B
+const exchangeRateServiceBatch34B = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/app/Services/ExchangeRateService.php'),
+  'utf8',
+);
+const exchangeRateSettingsBatch34B = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/app/Services/SettingsService.php'),
+  'utf8',
+);
+const exchangeRateWebBatch34B = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/resources/views/admin/settings/exchange-rate.blade.php'),
+  'utf8',
+);
+const exchangeRateMobileBatch34B = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/exchange-rate/index.tsx'),
+  'utf8',
+);
+assert(
+  exchangeRateServiceBatch34B.includes("public const RATE_KIND = 'commercial_sell';")
+    && exchangeRateServiceBatch34B.includes('CurrentForeignExchange')
+    && exchangeRateServiceBatch34B.includes("private const PROVIDER = 'nbs';")
+    && exchangeRateServiceBatch34B.includes('$cells[5]')
+    && !exchangeRateServiceBatch34B.includes('frankfurter.dev'),
+  'v1.0 glavni EUR/RSD authority je zakljucan na NBS Komercijalni prodajni kurs.',
+);
+assert(
+  exchangeRateSettingsBatch34B.includes("'eur_rsd_provider' => 'nbs'")
+    && exchangeRateWebBatch34B.includes('GLAVNI KURS APLIKACIJE')
+    && exchangeRateMobileBatch34B.includes('GLAVNI KURS APLIKACIJE')
+    && exchangeRateMobileBatch34B.includes('Komercijalni prodajni kurs'),
+  'Web i Mobile jasno oznacavaju Komercijalni prodajni kao glavni kurs.',
+);
+
 process.exit(failures === 0 ? 0 : 1);
 
 

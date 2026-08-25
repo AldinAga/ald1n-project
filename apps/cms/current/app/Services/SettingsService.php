@@ -23,7 +23,7 @@ final class SettingsService
     private const DEFAULTS = [
         'eur_rsd_rate' => '',
         'eur_rsd_mode' => 'manual',
-        'eur_rsd_provider' => 'frankfurter',
+        'eur_rsd_provider' => 'nbs',
         'eur_rsd_source' => 'Nije podešeno',
         'eur_rsd_stale_after_hours' => '48',
         'eur_rsd_provider_date' => '',
