@@ -101,7 +101,7 @@ export default function AdminAuditDetailScreen() {
       <Card style={styles.readOnlyCard}>
         <Text style={styles.cardTitle}>Bezbednosni ugovor</Text>
         <Text style={styles.muted}>
-          Raw user_agent i raw context_json nisu deo API odgovora. Export i mutacije ostaju iskljuceni.
+          Raw user_agent i raw context_json nisu deo API odgovora. CSV export capability je server-driven; mutacije ostaju isključene.
         </Text>
         <Text style={styles.muted}>
           Capabilities: export={String(response.capabilities.export)}, mutate={String(response.capabilities.mutate)}

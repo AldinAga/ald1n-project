@@ -99,6 +99,16 @@ function requestQuery(params: AdminAuditRequestParams): string {
   });
 }
 
+function exportQuery(params: AdminAuditRequestParams): string {
+  return queryString({
+    action: params.action,
+    level: params.level,
+    user_id: params.user_id,
+    date_from: params.date_from,
+    date_to: params.date_to,
+  });
+}
+
 export const apiAdminAuditEvents = {
   list: (params: AdminAuditRequestParams = {}) =>
     apiRequest<AdminAuditListResponse> (
@@ -106,4 +116,7 @@ export const apiAdminAuditEvents = {
     ),
   detail: (eventId: number) =>
     apiRequest<AdminAuditDetailResponse> (`admin/audit-events/${eventId}`),
+  // MOBILE_V1_0_AUDIT_CSV_EXPORT_PARITY_BATCH29
+  exportPath: (params: AdminAuditRequestParams = {}) =>
+    `admin/audit-events.csv${exportQuery(params)}`,
 };

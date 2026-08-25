@@ -122,8 +122,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                                 ->middleware('throttle:admin-write')->name('prune');
                         });
                     });
+                // MOBILE_V1_0_AUDIT_CSV_EXPORT_PARITY_BATCH29
                 Route::middleware('permission:security.view')->group(function (): void {
                     Route::get('/audit-events', [AdminAuditEventController::class, 'index'])->name('audit-events.index');
+                    Route::get('/audit-events.csv', [AdminAuditEventController::class, 'csv'])
+                        ->middleware(['permission:audit.export', 'throttle:exports'])->name('audit-events.csv');
                     Route::get('/audit-events/{event}', [AdminAuditEventController::class, 'show'])->whereNumber('event')->name('audit-events.show');
                 });
                 // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11

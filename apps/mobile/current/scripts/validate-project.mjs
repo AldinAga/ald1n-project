@@ -48,6 +48,7 @@ const required = [
   'src/features/admin/order-documents-admin.tsx',
   'src/features/admin/order-document-files.ts',
   'src/features/admin/product-deletion-admin.tsx',
+  'src/features/admin/audit-admin-export.ts',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
 ];
@@ -1142,6 +1143,7 @@ assert(
 
 // MOBILE_P3_AUDIT_ADMIN_BATCH2C_OPENAPI_VALIDATOR_V06
 const p3AuditApiBatch2CV06 = fs.readFileSync(path.join(root, 'src/features/admin/audit-admin-api.ts'), 'utf8');
+const p3AuditExportBatch29V10 = fs.readFileSync(path.join(root, 'src/features/admin/audit-admin-export.ts'), 'utf8');
 const p3AuditListBatch2CV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/audit/index.tsx'), 'utf8');
 const p3AuditDetailBatch2CV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/audit/[id].tsx'), 'utf8');
 const p3AuditHubBatch2CV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
@@ -1156,13 +1158,24 @@ assert(
     && p3AuditApiBatch2CV06.includes('AdminAuditDetailResponse')
     && p3AuditApiBatch2CV06.includes('`admin/audit-events${requestQuery(params)}`')
     && p3AuditApiBatch2CV06.includes('apiRequest<AdminAuditDetailResponse> (`admin/audit-events/${eventId}`)')
+    && p3AuditApiBatch2CV06.includes('`admin/audit-events.csv${exportQuery(params)}`')
     && !p3AuditApiBatch2CV06.includes('/api/v1/admin/audit-events')
     && !p3AuditDirectFetchBatch2CV06.test(p3AuditApiBatch2CV06)
     && !p3AuditApiBatch2CV06.includes('globalThis.fetch')
     && !p3AuditApiBatch2CV06.includes('window.fetch')
     && !p3AuditRawUserAgentFieldBatch2CV06.test(p3AuditApiBatch2CV06)
     && !p3AuditRawContextFieldBatch2CV06.test(p3AuditApiBatch2CV06),
-  'P3 Admin Audit 2C zakljucava relativni read-only Mobile API ugovor bez raw user_agent/context_json polja.',
+  'P3/v1.0 Admin Audit zaključava relativni read-only list/detail/CSV Mobile API ugovor bez raw user_agent/context_json polja.',
+);
+
+assert(
+  p3AuditExportBatch29V10.includes('apiDownload(apiAdminAuditEvents.exportPath(params))')
+    && p3AuditExportBatch29V10.includes("contentType !== 'text/csv'")
+    && p3AuditExportBatch29V10.includes('new File(Paths.cache')
+    && p3AuditExportBatch29V10.includes("import('expo-sharing')")
+    && p3AuditExportBatch29V10.includes("mimeType: 'text/csv'")
+    && !p3AuditDirectFetchBatch2CV06.test(p3AuditExportBatch29V10),
+  'v1.0 AUDIT-01 CSV koristi postojeći Bearer binary transport, privatni cache i Expo Sharing bez paralelnog fetch toka.',
 );
 
 assert(
@@ -1179,9 +1192,12 @@ assert(
     && p3AuditListBatch2CV06.includes('DateTimeField')
     && p3AuditListBatch2CV06.includes('PER_PAGE_OPTIONS')
     && p3AuditListBatch2CV06.includes('query.refetch()')
+    && p3AuditListBatch2CV06.includes('openAdminAuditExport(applied)')
+    && p3AuditListBatch2CV06.includes('response.capabilities.export')
+    && p3AuditListBatch2CV06.includes('Izvezi CSV')
     && p3AuditListBatch2CV06.includes('Read-only pristup')
     && !p3AuditDirectFetchBatch2CV06.test(p3AuditListBatch2CV06),
-  'P3 Admin Audit 2C zakljucava security.view list/filter/pagination/refetch read-only UI.',
+  'P3/v1.0 Admin Audit zaključava security.view list/filter/pagination/refetch UI i server-driven audit.export CSV akciju.',
 );
 
 assert(
@@ -1213,9 +1229,11 @@ assert(
     && p3AuditOpenApiBatch2CV06.includes('AdminAuditEventsResponse:')
     && p3AuditOpenApiBatch2CV06.includes('AdminAuditEventDetailResponse:')
     && p3AuditOpenApiBatch2CV06.includes('Nedovoljna dozvola security.view')
-    && !p3AuditOpenApiBatch2CV06.includes('/api/v1/admin/audit-events.csv:')
-    && !p3AuditOpenApiBatch2CV06.includes('/api/v1/admin/audit-events/export:'),
-  'OpenAPI dokumentuje samo P3 Admin Audit read/filter list i safe detail ugovor bez export/mutation ruta.',
+    && p3AuditOpenApiBatch2CV06.includes('/api/v1/admin/audit-events.csv:')
+    && p3AuditOpenApiBatch2CV06.includes('operationId: downloadAdminAuditEventsCsv')
+    && p3AuditOpenApiBatch2CV06.includes('Potrebne su security.view i audit.export dozvole')
+    && p3AuditOpenApiBatch2CV06.includes('text/csv:'),
+  'OpenAPI dokumentuje kompletan AUDIT-01 read/filter/detail + sanitizovani CSV export ugovor bez mutacija.',
 );
 
 // MOBILE_ADMIN_PRODUCT_IMAGES_EXPO_FILE_TRANSPORT_V06

@@ -2281,6 +2281,33 @@ security:
         '403': { description: Nedovoljna dozvola security.view }
         '422': { description: Filteri audit dogadjaja nisu validni }
         '503': { description: Audit dogadjaji trenutno nisu dostupni }
+  # MOBILE_V1_0_AUDIT_CSV_EXPORT_PARITY_BATCH29
+  /api/v1/admin/audit-events.csv:
+    get:
+      tags: [Admin Audit]
+      summary: Preuzmi sanitizovani CSV security audit dogadjaja
+      description: Read-only izvoz do 10000 događaja uz iste filtere kao lista. Ne izlaže raw user_agent, raw context_json, header/cookie/payload kontejnere ili nesanitizovane secret vrednosti. Odgovor je private/no-store.
+      operationId: downloadAdminAuditEventsCsv
+      parameters:
+        - { in: query, name: action, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: level, schema: { type: string, maxLength: 40 } }
+        - { in: query, name: user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: date_from, schema: { type: string, format: date } }
+        - { in: query, name: date_to, description: Mora biti isti ili kasniji datum od date_from kada je date_from zadat., schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: UTF-8 CSV sa BOM-om i sanitizovanim audit podacima; maksimalno 10000 redova.
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'private, no-store, max-age=0' }
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { description: Nije autentifikovan }
+        '403': { description: Potrebne su security.view i audit.export dozvole }
+        '422': { description: Filteri audit dogadjaja nisu validni }
+        '429': { description: Export rate limit }
+        '503': { description: Audit dogadjaji trenutno nisu dostupni }
   /api/v1/admin/audit-events/{event}:
     get:
       tags: [Admin Audit]
@@ -4378,13 +4405,13 @@ components:
       required: [detail, export, mutate]
       properties:
         detail: { type: boolean, const: true }
-        export: { type: boolean, const: false }
+        export: { type: boolean, description: True samo kada autentifikovani korisnik ima audit.export uz security.view. }
         mutate: { type: boolean, const: false }
     AdminAuditDetailCapabilities:
       type: object
       required: [export, mutate]
       properties:
-        export: { type: boolean, const: false }
+        export: { type: boolean, description: Collection CSV export capability za trenutnog korisnika. }
         mutate: { type: boolean, const: false }
     AdminAuditEventsResponse:
       type: object

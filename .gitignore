@@ -179,3 +179,7 @@ apps/cms/current/storage/app/release-check/*
 apps/mobile/builds/
 releases/**/*.tar.gz
 releases/**/*.zip
+
+# Production PHP runtime logs are never source/history.
+apps/cms/current/error_log
+apps/cms/current/error_log.*

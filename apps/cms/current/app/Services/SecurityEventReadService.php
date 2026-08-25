@@ -22,6 +22,8 @@ final class SecurityEventReadService
         'cookies',
         'raw_body',
         'raw_payload',
+        'user_agent',
+        'user-agent',
     ];
 
     public function __construct(private readonly SensitiveDataSanitizer $sanitizer)
@@ -80,6 +82,47 @@ final class SecurityEventReadService
             'ip_address' => $this->nullableString($event->getAttribute('ip_address')),
             'context' => $this->safeContext($event->getAttribute('context_json')),
         ]);
+    }
+
+    /** @return list<string> */
+    public function csvHeader(): array
+    {
+        return [
+            'Datum',
+            'Nivo',
+            'Događaj',
+            'Korisnik',
+            'Username',
+            'Metod',
+            'Ruta',
+            'IP',
+            'Request ID',
+            'Sanitizovani kontekst',
+        ];
+    }
+
+    /** @return list<string> */
+    public function presentCsvRow(SecurityEvent $event): array
+    {
+        $detail = $this->presentDetail($event);
+        $user = is_array($detail['user'] ?? null) ? $detail['user'] : null;
+        $encodedContext = json_encode(
+            $detail['context'] ?? [],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+        );
+
+        return [
+            (string) ($detail['created_at'] ?? ''),
+            (string) ($detail['severity'] ?? ''),
+            (string) ($detail['event_type'] ?? ''),
+            is_array($user) ? (string) ($user['name'] ?? '') : 'Gost / sistem',
+            is_array($user) ? (string) ($user['username'] ?? '') : '',
+            (string) ($detail['method'] ?? ''),
+            (string) ($detail['route_name'] ?? ''),
+            (string) ($detail['ip_address'] ?? ''),
+            (string) ($detail['request_id'] ?? ''),
+            is_string($encodedContext) ? $encodedContext : '{}',
+        ];
     }
 
     /** @return list<string> */

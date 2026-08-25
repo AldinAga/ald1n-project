@@ -20,6 +20,7 @@ import {
   type AdminAuditPerPage,
   type AdminAuditRequestParams,
 } from '@/features/admin/audit-admin-api';
+import { openAdminAuditExport } from '@/features/admin/audit-admin-export';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
@@ -64,6 +65,7 @@ export default function AdminAuditIndexScreen() {
   const [draftTo, setDraftTo] = useState('');
   const [draftPerPage, setDraftPerPage] = useState<AdminAuditPerPage> (20);
   const [applied, setApplied] = useState<AdminAuditRequestParams> ({ per_page: 20 });
+  const [exporting, setExporting] = useState(false);
 
   const query = useQuery({
     queryKey: adminQueryKeys.auditEvents(applied),
@@ -115,6 +117,27 @@ export default function AdminAuditIndexScreen() {
   const setPage = (page: number) => {
     if (page < 1) return;
     setApplied((current) => ({ ...current, page }));
+  };
+
+  const exportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await openAdminAuditExport(applied);
+      feedback.notify({
+        tone: 'success',
+        title: 'Audit CSV je spreman',
+        message: 'Otvoren je sistemski dijalog za čuvanje ili deljenje sanitizovanog CSV izvoza.',
+      });
+    } catch (error) {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Audit CSV nije otvoren',
+        message: error instanceof Error ? error.message : 'Pokušaj ponovo.',
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!allowed) {
@@ -224,12 +247,23 @@ export default function AdminAuditIndexScreen() {
           <Text style={styles.sectionTitle}>Security dogadjaji</Text>
           <Text style={styles.muted}>{response.pagination.total} ukupno</Text>
         </View>
-        <Button
-          variant="secondary"
-          onPress={() => void query.refetch()}
-        >
-          {query.isFetching ? 'Osvezavanje...' : 'Osvezi'}
-        </Button>
+        <View style={styles.actionsRow}>
+          {response.capabilities.export ? (
+            <Button
+              variant="secondary"
+              loading={exporting}
+              onPress={() => void exportCsv()}
+            >
+              Izvezi CSV
+            </Button>
+          ) : null}
+          <Button
+            variant="secondary"
+            onPress={() => void query.refetch()}
+          >
+            {query.isFetching ? 'Osvezavanje...' : 'Osvezi'}
+          </Button>
+        </View>
       </View>
 
       {response.data.length === 0 ? (
@@ -270,7 +304,7 @@ export default function AdminAuditIndexScreen() {
       <Card style={styles.readOnlyCard}>
         <Text style={styles.cardTitle}>Read-only pristup</Text>
         <Text style={styles.muted}>
-          Export i mutacije nisu deo ovog Mobile Audit koraka. Raw context_json i user_agent nisu izlozeni.
+          CSV izvoz je dostupan samo kada server potvrdi audit.export dozvolu. Mutacije i brisanje audit zapisa ostaju isključeni. Raw context_json i user_agent nisu izloženi.
         </Text>
       </Card>
     </Screen>
