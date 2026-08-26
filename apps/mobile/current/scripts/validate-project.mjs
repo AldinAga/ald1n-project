@@ -141,8 +141,9 @@ assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Q
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 57 zahtevu.');
 // MOBILE_RELEASE_VERSION_V07
 // MOBILE_RELEASE_VERSION_V09
-assert(packageJson.version === '0.9.0', 'Aplikaciona package verzija je 0.9.0.');
-assert(packageLockJson.version === '0.9.0' && packageLockJson.packages?.['']?.version === '0.9.0', 'package-lock release verzija je 0.9.0.');
+// MOBILE_V1_0_RELEASE_METADATA_LOCK_BATCH40
+assert(packageJson.version === '1.0.0', 'Aplikaciona package verzija je 1.0.0.');
+assert(packageLockJson.version === '1.0.0' && packageLockJson.packages?.['']?.version === '1.0.0', 'package-lock release verzija je 1.0.0.');
 assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.14' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.14', 'expo-notifications prati SDK 57 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.2', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
@@ -521,7 +522,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '0.9.0'"), 'Expo app verzija je 0.9.0.');
+assert(appConfig.includes("version: '1.0.0'"), 'Expo app verzija je 1.0.0.');
 
 // MOBILE_BRANDING_ALD1N_CMS_V06
 const ald1nBrandSource = fs.readFileSync(path.join(root, 'assets/brand/ald1n-v2-logo.png'));
@@ -541,8 +542,8 @@ assert(
 );
 const appLayoutVersionSource = fs.readFileSync(path.join(root, 'src/app/(app)/_layout.tsx'), 'utf8');
 const accountVersionSource = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
-assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.9\.0['"]/.test(appLayoutVersionSource), 'App runtime version fallback je 0.9.0.');
-assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]0\.9\.0['"]/.test(accountVersionSource), 'Account version fallback je 0.9.0.');
+assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]1\.0\.0['"]/.test(appLayoutVersionSource), 'App runtime version fallback je 1.0.0.');
+assert(/nativeApplicationVersion[\s\S]{0,120}\?\?\s*['"]1\.0\.0['"]/.test(accountVersionSource), 'Account version fallback je 1.0.0.');
 assert(appConfig.includes('google-services.json') && appConfig.includes('googleServicesFile'), 'Android config podržava Firebase google-services.json kada postoji.');
 assert(appConfig.includes('react-native-nitro-google-signin'), 'App config uključuje Google Sign-In plugin kada je Firebase config prisutan.');
 assert(

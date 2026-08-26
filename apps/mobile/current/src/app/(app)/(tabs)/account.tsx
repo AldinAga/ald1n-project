@@ -772,7 +772,7 @@ export default function AccountScreen() {
           Ald1n Mobile{' '}
           {Application
             .nativeApplicationVersion
-            ?? '0.9.0'}
+            ?? '1.0.0'}
           {' · build '}
           {Application
             .nativeBuildVersion

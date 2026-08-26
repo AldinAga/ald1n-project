@@ -34,7 +34,7 @@ module.exports = ({ config }) => {
     slug: 'ald1n-mobile',
     owner: 'ald1n',
 
-    version: '0.9.0',
+    version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'ald1n',
