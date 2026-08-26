@@ -150,7 +150,7 @@ export default function ProductDetailScreen() {
 
         {canManageProductFromDetail ? (
           <Pressable
-            onPress={() => router.push({ pathname: '/admin/catalog/[id]', params: { id: String(product.id) } })}
+            onPress={() => router.replace({ pathname: '/admin/catalog/[id]', params: { id: String(product.id) } })}
             style={({ pressed }) => [styles.productAdminActionV09, pressed && styles.copyDescriptionButtonPressed]}
           >
             <Text style={styles.productAdminActionTextV09}>Uredi artikal</Text>
