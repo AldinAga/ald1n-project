@@ -68,6 +68,8 @@ const required = [
   'src/features/admin/order-archive-admin.tsx',
   'src/app/(app)/admin/orders/archived.tsx',
   'src/features/admin/operational-reports-admin-export.ts',
+  'src/features/admin/global-search-admin-api.ts',
+  'src/app/(app)/admin/search.tsx',
   'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
   'src/design/ald1n-tokens.generated.ts'
@@ -2491,6 +2493,80 @@ assert(
     systemSettingsApiV10 + systemSettingsHubV10 + systemSettingsAutomationV10 + systemSettingsTurnstileV10 + systemSettingsAppearanceV10 + systemSettingsOrderEmailsV10 + systemSettingsDocumentsV10 + systemSettingsBankAccountsV10 + systemSettingsControllerV10
   ),
   'v1.0 SYSTEM_SETTINGS parity ne vraća Product Variants contract.',
+);
+
+// MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
+const globalSearchApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/global-search-admin-api.ts'), 'utf8');
+const globalSearchScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/search.tsx'), 'utf8');
+const globalSearchAdminHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const globalSearchUsersV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/users/index.tsx'), 'utf8');
+const globalSearchQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+const globalSearchRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
+const globalSearchControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/GlobalSearchController.php'), 'utf8');
+const globalSearchAuthorityV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/GlobalCommandSearchService.php'), 'utf8');
+const globalSearchOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+assert(
+  globalSearchApiV10.includes("`global-search?q=${encodeURIComponent(q.trim().slice(0, 80))}`")
+    && globalSearchApiV10.includes('mobile_path: string;')
+    && globalSearchApiV10.includes('AdminGlobalSearchSection'),
+  'v1.0 CAT-02 Mobile API koristi relativni centralizovani global-search ugovor i tipizovane Mobile targete.',
+);
+assert(
+  globalSearchScreenV10.includes('MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38')
+    && globalSearchScreenV10.includes('adminQueryKeys.globalSearch(searchQuery)')
+    && globalSearchScreenV10.includes('searchQuery.length >= 2')
+    && globalSearchScreenV10.includes('setTimeout(() => setSearchQuery(normalized), 250)')
+    && globalSearchScreenV10.includes('router.push(item.mobile_path as Href)')
+    && globalSearchScreenV10.includes('data?.sections.map'),
+  'v1.0 CAT-02 Mobile ekran pokriva debounce, grouped rezultate i navigaciju kroz server-driven Mobile target.',
+);
+assert(
+  globalSearchAdminHubV10.includes("router.push('/admin/search' as Href)")
+    && globalSearchAdminHubV10.includes('Globalna pretraga')
+    && globalSearchAdminHubV10.includes('Pretraži sve module'),
+  'v1.0 CAT-02 Global Search je organizovan kao jedna jasna Admin quick-action destinacija bez zagušenja poslovnih sekcija.',
+);
+assert(
+  globalSearchUsersV10.includes('useLocalSearchParams')
+    && globalSearchUsersV10.includes('initialQuery')
+    && globalSearchUsersV10.includes("...(initialQuery ? { q: initialQuery } : {})"),
+  'v1.0 CAT-02 user rezultat otvara postojeći User Manager sa primenjenim q filterom.',
+);
+assert(
+  globalSearchQueryV10.includes("globalSearch: (q: string) => ['admin', 'global-search', q] as const"),
+  'v1.0 CAT-02 TanStack query key je centralizovan.',
+);
+assert(
+  globalSearchRoutesV10.includes('GlobalSearchController')
+    && globalSearchRoutesV10.includes("Route::get('/global-search', [GlobalSearchController::class, 'search'])")
+    && globalSearchRoutesV10.includes("->middleware('throttle:120,1')"),
+  'v1.0 CAT-02 API ruta je auth/active nasledjena i čuva postojeći Web search throttle.',
+);
+assert(
+  globalSearchControllerV10.includes('GlobalCommandSearchService $search')
+    && globalSearchControllerV10.includes('$search->search($actor, $query, 5)')
+    && globalSearchControllerV10.includes("unset($item['url']);")
+    && globalSearchControllerV10.includes("$item['mobile_path'] = $mobilePath;")
+    && globalSearchControllerV10.includes("'/product/'")
+    && globalSearchControllerV10.includes("'/admin/users?q='")
+    && globalSearchAuthorityV10.includes('final class GlobalCommandSearchService')
+    && globalSearchAuthorityV10.includes('$this->catalog')
+    && globalSearchAuthorityV10.includes('$this->orders->applyManagedScope')
+    && globalSearchAuthorityV10.includes('$this->afterSalesAccess->applyVisibleScope'),
+  'v1.0 CAT-02 Mobile API reuse-uje postojeći GlobalCommandSearchService authority i samo adaptira Web URL u Mobile target.',
+);
+assert(
+  globalSearchOpenApiV10.includes('/api/v1/global-search:')
+    && globalSearchOpenApiV10.includes('operationId: searchGlobalCommandSpace')
+    && globalSearchOpenApiV10.includes('mobile_path:')
+    && globalSearchOpenApiV10.includes('Web URL is intentionally omitted'),
+  'OpenAPI dokumentuje kompletan CAT-02 permission-aware Global Search ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    globalSearchApiV10 + globalSearchScreenV10 + globalSearchControllerV10
+  ),
+  'v1.0 CAT-02 Global Search parity ne vraća Product Variants contract.',
 );
 
 process.exit(failures === 0 ? 0 : 1);

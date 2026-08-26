@@ -104,6 +104,13 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         </View>
       ) : null}
 
+      {/* MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38 */}
+      <Card style={styles.adminGroupCard}>
+        <Text style={styles.sectionTitle}>Globalna pretraga</Text>
+        <Text style={styles.heroCopy}>Artikli, porudžbine, korisnici, garancije, reklamacije i prečice kroz jedan permission-aware ekran.</Text>
+        <Button variant="secondary" onPress={() => router.push('/admin/search' as Href)}>Pretraži sve module</Button>
+      </Card>
+
             {/* MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C */}
       <Card>
         <TextInput

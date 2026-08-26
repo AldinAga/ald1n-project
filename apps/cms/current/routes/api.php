@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\PortalConversationController;
 use App\Http\Controllers\Api\V1\AfterSalesController;
 use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\BootstrapController;
+use App\Http\Controllers\Api\V1\GlobalSearchController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\Admin\CatalogProductController as AdminCatalogProductController;
 use App\Http\Controllers\Api\V1\Admin\CatalogAdvancedController as AdminCatalogAdvancedController;
@@ -83,6 +84,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
     Route::middleware(['auth:sanctum', 'active'])->group(function (): void {
         Route::get('/bootstrap', [BootstrapController::class, 'show'])->name('bootstrap');
+        // MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
+        Route::get('/global-search', [GlobalSearchController::class, 'search'])
+            ->middleware('throttle:120,1')
+            ->name('global-search');
         Route::prefix('admin')
             ->name('admin.')
             ->group(function (): void {

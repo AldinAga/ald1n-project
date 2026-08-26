@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { router, type Href } from 'expo-router';
+import { router, type Href, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
@@ -50,15 +50,19 @@ function formatDateTime(value: string | null): string {
 
 // MOBILE_V0_8_COMPLETE_USER_MANAGEMENT_BATCH12
 export default function AdminUsersIndexScreen() {
+  // MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
+  const params = useLocalSearchParams<{ q?: string | string[] }> ();
+  const initialQueryParam = Array.isArray(params.q) ? params.q[0] : params.q;
+  const initialQuery = typeof initialQueryParam === 'string' ? initialQueryParam.trim().slice(0, 80) : '';
   const { colors: theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { can, bootstrap } = useAuth();
   const allowed = can('system.manage_users');
 
-  const [draftQuery, setDraftQuery] = useState('');
+  const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [draftStatus, setDraftStatus] = useState<AdminUserStatus | ''> ('');
   const [draftPerPage, setDraftPerPage] = useState<AdminUsersPerPage> (20);
-  const [applied, setApplied] = useState<AdminUserListParams> ({ page: 1, per_page: 20 });
+  const [applied, setApplied] = useState<AdminUserListParams> ({ page: 1, per_page: 20, ...(initialQuery ? { q: initialQuery } : {}) });
 
   const query = useQuery({
     queryKey: adminQueryKeys.usersList(applied),

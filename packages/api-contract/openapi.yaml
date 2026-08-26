@@ -4533,6 +4533,69 @@ security:
       responses:
         '200': { description: Bank account directory after delete }
 
+  # MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
+  /api/v1/global-search:
+    get:
+      tags: [Global Search]
+      operationId: searchGlobalCommandSpace
+      summary: Permission-aware global search using the existing GlobalCommandSearchService authority.
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 80 }
+      responses:
+        '200':
+          description: Ranked, permission-filtered search results with Mobile navigation targets.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [query, items, sections]
+                    properties:
+                      query: { type: string }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, type, title, name, identifier, subtitle, badge, status, group_key, group, mobile_path]
+                          properties:
+                            id: { type: string }
+                            type: { type: string, enum: [product, order, user, warranty, after_sales, command] }
+                            title: { type: string }
+                            name: { type: string }
+                            identifier: { type: string }
+                            sku: { type: string }
+                            subtitle: { type: string }
+                            meta: { type: string }
+                            badge: { type: string }
+                            status: { type: string }
+                            status_label: { type: string }
+                            stock_quantity: { type: [integer, 'null'] }
+                            group_key: { type: string }
+                            group: { type: string }
+                            mobile_path:
+                              type: string
+                              description: Existing Expo Router destination; Web URL is intentionally omitted from the Mobile API response.
+                      sections:
+                        type: array
+                        items:
+                          type: object
+                          required: [key, label, count]
+                          properties:
+                            key: { type: string }
+                            label: { type: string }
+                            count: { type: integer, minimum: 1 }
+        '401': { description: Authentication required. }
+        '429': { description: Search rate limit. }
+
 components:
   securitySchemes:
     bearerAuth:
