@@ -8,7 +8,8 @@ use RuntimeException;
 
 /**
  * Mali dependency-free PDF 1.4 renderer za poslovne dokumente.
- * Koristi Base14 fontove i CP1250 encoding differences za srpsku latinicu.
+ * Ugradjuje DejaVu TrueType fontove i CP1250 + ToUnicode mapu tako da
+ * srpska latinica (S/D/C/C/Z sa dijakriticima) ostaje vidljiva i kopirljiva.
  */
 final class SimplePdfWriter
 {
@@ -20,6 +21,8 @@ final class SimplePdfWriter
     private int $currentPage = -1;
     /** @var array<string,array{name:string,path:string,width:int,height:int,data:string,filter:string}> */
     private array $images = [];
+    /** @var array<string,array<string,mixed>> */
+    private array $fontSpecs = [];
 
     public function addPage(): int
     {
@@ -326,11 +329,17 @@ final class SimplePdfWriter
 
     public function stringWidth(string $text, float $size, bool $bold = false): float
     {
-        $length = function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
-        $wide = preg_match_all('/[MWŽŠĐČĆ0-9]/u', $text) ?: 0;
-        $narrow = preg_match_all('/[ilI1\.,:;\|\' ]/u', $text) ?: 0;
-        $factor = $bold ? 0.535 : 0.505;
-        return max(0, (($length - $wide - $narrow) * $factor + $wide * 0.7 + $narrow * 0.28) * $size);
+        $encoded = $this->encode($text);
+        if ($encoded === '') return 0.0;
+        $font = $this->fontSpec($bold);
+        $widths = (array) $font['widths'];
+        $defaultWidth = (int) ($font['default_width'] ?? 500);
+        $units = 0;
+        $length = strlen($encoded);
+        for ($index = 0; $index < $length; $index++) {
+            $units += (int) ($widths[ord($encoded[$index])] ?? $defaultWidth);
+        }
+        return max(0.0, $units * $size / 1000);
     }
 
     /** @return list<string> */
@@ -367,8 +376,27 @@ final class SimplePdfWriter
         $catalogId = $add('');
         $pagesId = $add('');
         $encodingId = $add('<< /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [138 /Scaron 142 /Zcaron 154 /scaron 158 /zcaron 198 /Cacute 200 /Ccaron 208 /Dcroat 230 /cacute 232 /ccaron 240 /dcroat] >>');
-        $fontRegularId = $add(sprintf('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding %d 0 R >>', $encodingId));
-        $fontBoldId = $add(sprintf('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding %d 0 R >>', $encodingId));
+        $toUnicode = $this->toUnicodeCMap();
+        $toUnicodeId = $add(sprintf("<< /Length %d >>\nstream\n%s\nendstream", strlen($toUnicode), $toUnicode));
+        $regularFont = $this->fontSpec(false);
+        $boldFont = $this->fontSpec(true);
+        $regularCompressed = gzcompress((string) $regularFont['data'], 9);
+        $boldCompressed = gzcompress((string) $boldFont['data'], 9);
+        if (!is_string($regularCompressed) || !is_string($boldCompressed)) {
+            throw new RuntimeException('PDF TrueType font kompresija nije uspela.');
+        }
+        $regularFontFileId = $add(sprintf(
+            "<< /Length %d /Length1 %d /Filter /FlateDecode >>\nstream\n%s\nendstream",
+            strlen($regularCompressed), strlen((string) $regularFont['data']), $regularCompressed,
+        ));
+        $boldFontFileId = $add(sprintf(
+            "<< /Length %d /Length1 %d /Filter /FlateDecode >>\nstream\n%s\nendstream",
+            strlen($boldCompressed), strlen((string) $boldFont['data']), $boldCompressed,
+        ));
+        $regularDescriptorId = $add($this->fontDescriptorObject($regularFont, $regularFontFileId));
+        $boldDescriptorId = $add($this->fontDescriptorObject($boldFont, $boldFontFileId));
+        $fontRegularId = $add($this->fontObject($regularFont, $encodingId, $toUnicodeId, $regularDescriptorId));
+        $fontBoldId = $add($this->fontObject($boldFont, $encodingId, $toUnicodeId, $boldDescriptorId));
 
         $imageObjectIds = [];
         foreach ($this->images as $image) {
@@ -432,6 +460,251 @@ final class SimplePdfWriter
         return [hexdec(substr($hex, 0, 2)) / 255, hexdec(substr($hex, 2, 2)) / 255, hexdec(substr($hex, 4, 2)) / 255];
     }
 
+    /** @return array<string,mixed> */
+    private function fontSpec(bool $bold): array
+    {
+        $key = $bold ? 'bold' : 'regular';
+        if (isset($this->fontSpecs[$key])) return $this->fontSpecs[$key];
+
+        $root = dirname(__DIR__, 3);
+        $name = $bold ? 'DejaVuSans-Bold' : 'DejaVuSans';
+        $path = $root.'/resources/fonts/'.($bold ? 'DejaVuSans-Bold.ttf' : 'DejaVuSans.ttf');
+        if (!is_file($path) || !is_readable($path)) {
+            throw new RuntimeException('PDF Unicode font nije dostupan: '.$path);
+        }
+        $data = @file_get_contents($path);
+        if (!is_string($data) || strlen($data) < 100000) {
+            throw new RuntimeException('PDF Unicode font je neispravan ili nepotpun: '.$path);
+        }
+
+        $tables = $this->ttfTableDirectory($data);
+        foreach (['head', 'hhea', 'hmtx', 'maxp', 'cmap'] as $required) {
+            if (!isset($tables[$required])) {
+                throw new RuntimeException('PDF TrueType font nema obaveznu '.$required.' tabelu.');
+            }
+        }
+
+        $headOffset = (int) $tables['head']['offset'];
+        $hheaOffset = (int) $tables['hhea']['offset'];
+        $hmtxOffset = (int) $tables['hmtx']['offset'];
+        $maxpOffset = (int) $tables['maxp']['offset'];
+        $unitsPerEm = $this->ttfU16($data, $headOffset + 18);
+        $numberOfHMetrics = $this->ttfU16($data, $hheaOffset + 34);
+        $numberOfGlyphs = $this->ttfU16($data, $maxpOffset + 4);
+        if ($unitsPerEm <= 0 || $numberOfHMetrics <= 0 || $numberOfGlyphs <= 0) {
+            throw new RuntimeException('PDF TrueType font metrics nisu validni.');
+        }
+
+        $cmap = $this->ttfSelectCmap($data, $tables['cmap']);
+        $fallbackGlyph = $this->ttfGlyphId($data, $cmap, 0x003F);
+        $widths = array_fill(0, 256, 0);
+        for ($code = 0; $code <= 255; $code++) {
+            $codepoint = $this->cp1250Codepoint($code);
+            $glyph = $codepoint === null ? 0 : $this->ttfGlyphId($data, $cmap, $codepoint);
+            if ($glyph <= 0 || $glyph >= $numberOfGlyphs) $glyph = $fallbackGlyph;
+            $metricIndex = min(max(0, $glyph), $numberOfHMetrics - 1);
+            $advance = $this->ttfU16($data, $hmtxOffset + ($metricIndex * 4));
+            $widths[$code] = max(0, (int) round($advance * 1000 / $unitsPerEm));
+        }
+
+        $scale = static fn (int $value): int => (int) round($value * 1000 / $unitsPerEm);
+        $ascent = $scale($this->ttfI16($data, $hheaOffset + 4));
+        $descent = $scale($this->ttfI16($data, $hheaOffset + 6));
+        $bbox = [
+            $scale($this->ttfI16($data, $headOffset + 36)),
+            $scale($this->ttfI16($data, $headOffset + 38)),
+            $scale($this->ttfI16($data, $headOffset + 40)),
+            $scale($this->ttfI16($data, $headOffset + 42)),
+        ];
+
+        return $this->fontSpecs[$key] = [
+            'name' => $name,
+            'path' => $path,
+            'data' => $data,
+            'widths' => $widths,
+            'default_width' => $widths[63] ?: 500,
+            'bbox' => $bbox,
+            'ascent' => $ascent,
+            'descent' => $descent,
+            'cap_height' => $ascent,
+            'stem_v' => $bold ? 120 : 80,
+        ];
+    }
+
+    /** @return array<string,array{offset:int,length:int}> */
+    private function ttfTableDirectory(string $data): array
+    {
+        if (strlen($data) < 12) throw new RuntimeException('PDF TrueType font header je nepotpun.');
+        $count = $this->ttfU16($data, 4);
+        if ($count <= 0 || strlen($data) < 12 + ($count * 16)) {
+            throw new RuntimeException('PDF TrueType font table directory je neispravan.');
+        }
+        $tables = [];
+        for ($index = 0; $index < $count; $index++) {
+            $position = 12 + ($index * 16);
+            $tag = substr($data, $position, 4);
+            $offset = $this->ttfU32($data, $position + 8);
+            $length = $this->ttfU32($data, $position + 12);
+            if ($tag === '' || $offset < 0 || $length < 0 || $offset + $length > strlen($data)) {
+                throw new RuntimeException('PDF TrueType font sadrzi neispravnu tabelu.');
+            }
+            $tables[$tag] = ['offset' => $offset, 'length' => $length];
+        }
+        return $tables;
+    }
+
+    /** @param array{offset:int,length:int} $table @return array{format:int,offset:int} */
+    private function ttfSelectCmap(string $data, array $table): array
+    {
+        $base = $table['offset'];
+        $count = $this->ttfU16($data, $base + 2);
+        $best = null;
+        $bestScore = -1;
+        for ($index = 0; $index < $count; $index++) {
+            $record = $base + 4 + ($index * 8);
+            $platform = $this->ttfU16($data, $record);
+            $encoding = $this->ttfU16($data, $record + 2);
+            $subtable = $base + $this->ttfU32($data, $record + 4);
+            if ($subtable + 2 > strlen($data)) continue;
+            $format = $this->ttfU16($data, $subtable);
+            $score = match (true) {
+                $format === 12 && $platform === 3 && $encoding === 10 => 100,
+                $format === 4 && $platform === 3 && $encoding === 1 => 90,
+                $format === 12 && $platform === 0 => 80,
+                $format === 4 && $platform === 0 => 70,
+                default => -1,
+            };
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = ['format' => $format, 'offset' => $subtable];
+            }
+        }
+        if (!is_array($best)) throw new RuntimeException('PDF TrueType font nema podrzanu Unicode cmap tabelu.');
+        return $best;
+    }
+
+    /** @param array{format:int,offset:int} $cmap */
+    private function ttfGlyphId(string $data, array $cmap, int $codepoint): int
+    {
+        $offset = $cmap['offset'];
+        if ($cmap['format'] === 12) {
+            $groups = $this->ttfU32($data, $offset + 12);
+            for ($index = 0; $index < $groups; $index++) {
+                $position = $offset + 16 + ($index * 12);
+                $start = $this->ttfU32($data, $position);
+                $end = $this->ttfU32($data, $position + 4);
+                if ($codepoint < $start) break;
+                if ($codepoint <= $end) {
+                    return $this->ttfU32($data, $position + 8) + ($codepoint - $start);
+                }
+            }
+            return 0;
+        }
+
+        $length = $this->ttfU16($data, $offset + 2);
+        $segments = intdiv($this->ttfU16($data, $offset + 6), 2);
+        $endCodes = $offset + 14;
+        $startCodes = $endCodes + ($segments * 2) + 2;
+        $deltas = $startCodes + ($segments * 2);
+        $ranges = $deltas + ($segments * 2);
+        for ($index = 0; $index < $segments; $index++) {
+            $end = $this->ttfU16($data, $endCodes + ($index * 2));
+            $start = $this->ttfU16($data, $startCodes + ($index * 2));
+            if ($codepoint < $start || $codepoint > $end) continue;
+            $delta = $this->ttfI16($data, $deltas + ($index * 2));
+            $rangeAddress = $ranges + ($index * 2);
+            $range = $this->ttfU16($data, $rangeAddress);
+            if ($range === 0) return ($codepoint + $delta) & 0xFFFF;
+            $glyphAddress = $rangeAddress + $range + (2 * ($codepoint - $start));
+            if ($glyphAddress + 2 > $offset + $length) return 0;
+            $glyph = $this->ttfU16($data, $glyphAddress);
+            return $glyph === 0 ? 0 : (($glyph + $delta) & 0xFFFF);
+        }
+        return 0;
+    }
+
+    private function cp1250Codepoint(int $code): ?int
+    {
+        $utf8 = @iconv('Windows-1250', 'UTF-8//IGNORE', chr($code));
+        if (!is_string($utf8) || $utf8 === '') return null;
+        $ucs4 = @iconv('UTF-8', 'UCS-4BE//IGNORE', $utf8);
+        if (!is_string($ucs4) || strlen($ucs4) < 4) return null;
+        $value = unpack('N', substr($ucs4, 0, 4));
+        return isset($value[1]) ? (int) $value[1] : null;
+    }
+
+    private function ttfU16(string $data, int $offset): int
+    {
+        if ($offset < 0 || $offset + 2 > strlen($data)) throw new RuntimeException('PDF TrueType uint16 izlazi van fonta.');
+        $value = unpack('n', substr($data, $offset, 2));
+        return (int) ($value[1] ?? 0);
+    }
+
+    private function ttfI16(string $data, int $offset): int
+    {
+        $value = $this->ttfU16($data, $offset);
+        return $value >= 0x8000 ? $value - 0x10000 : $value;
+    }
+
+    private function ttfU32(string $data, int $offset): int
+    {
+        if ($offset < 0 || $offset + 4 > strlen($data)) throw new RuntimeException('PDF TrueType uint32 izlazi van fonta.');
+        $value = unpack('N', substr($data, $offset, 4));
+        return (int) ($value[1] ?? 0);
+    }
+
+    /** @param array<string,mixed> $font */
+    private function fontDescriptorObject(array $font, int $fontFileId): string
+    {
+        $bbox = array_values((array) $font['bbox']);
+        return sprintf(
+            '<< /Type /FontDescriptor /FontName /%s /Flags 32 /FontBBox [%d %d %d %d] /ItalicAngle 0 /Ascent %d /Descent %d /CapHeight %d /StemV %d /MissingWidth %d /FontFile2 %d 0 R >>',
+            (string) $font['name'],
+            (int) ($bbox[0] ?? 0), (int) ($bbox[1] ?? 0), (int) ($bbox[2] ?? 0), (int) ($bbox[3] ?? 0),
+            (int) $font['ascent'], (int) $font['descent'], (int) $font['cap_height'], (int) $font['stem_v'],
+            (int) $font['default_width'], $fontFileId,
+        );
+    }
+
+    /** @param array<string,mixed> $font */
+    private function fontObject(array $font, int $encodingId, int $toUnicodeId, int $descriptorId): string
+    {
+        $widths = [];
+        $fontWidths = (array) $font['widths'];
+        $defaultWidth = (int) ($font['default_width'] ?? 500);
+        for ($code = 32; $code <= 255; $code++) {
+            $widths[] = (string) ((int) ($fontWidths[$code] ?? $defaultWidth));
+        }
+        return sprintf(
+            '<< /Type /Font /Subtype /TrueType /BaseFont /%s /FirstChar 32 /LastChar 255 /Widths [%s] /FontDescriptor %d 0 R /Encoding %d 0 R /ToUnicode %d 0 R >>',
+            (string) $font['name'], implode(' ', $widths), $descriptorId, $encodingId, $toUnicodeId,
+        );
+    }
+
+    private function toUnicodeCMap(): string
+    {
+        $entries = [];
+        for ($code = 32; $code <= 255; $code++) {
+            $unicode = @iconv('Windows-1250', 'UTF-16BE//IGNORE', chr($code));
+            if (!is_string($unicode) || $unicode === '') continue;
+            $entries[] = sprintf('<%02X> <%s>', $code, strtoupper(bin2hex($unicode)));
+        }
+        $chunks = [];
+        foreach (array_chunk($entries, 100) as $chunk) {
+            $chunks[] = count($chunk)." beginbfchar\n".implode("\n", $chunk)."\nendbfchar";
+        }
+        return "/CIDInit /ProcSet findresource begin\n"
+            ."12 dict begin\n"
+            ."begincmap\n"
+            ."/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n"
+            ."/CMapName /Ald1nCP1250 def\n"
+            ."/CMapType 2 def\n"
+            ."1 begincodespacerange\n<00> <FF>\nendcodespacerange\n"
+            .implode("\n", $chunks)."\n"
+            ."endcmap\n"
+            ."CMapName currentdict /CMap defineresource pop\n"
+            ."end\nend";
+    }
     private function encode(string $text): string
     {
         $encoded = @iconv('UTF-8', 'Windows-1250//TRANSLIT//IGNORE', $text);

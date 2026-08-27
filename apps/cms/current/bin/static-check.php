@@ -167,7 +167,7 @@ $check('porudžbina ima dodeljenog SuperAdmin/Admin dobavljača', str_contains($
 $check('admin scope vidi samo njemu dodeljene porudžbine', str_contains((string) file_get_contents($root.'/app/Services/OrderAccessService.php'), "where('supplier_user_id', ".'$user->id'.")"));
 $check('izveštaji podržavaju filtere i CSV/PDF', str_contains($reportsService, 'function csv') && str_contains($reportsService, 'function pdf') && str_contains($reportsService, 'date_from'));
 $check('poslovni dokumenti koriste nepromenljivi snapshot', str_contains($documentService, 'company_name') && str_contains($documentService, 'customer_name') && str_contains($documentService, 'supplier_name'));
-$check('PDF renderer je lokalni i bez Redis/eksternog servisa', str_contains($pdfWriter, '%PDF-1.4') && str_contains($pdfWriter, 'Helvetica-Bold'));
+$check('PDF renderer je lokalni, embedded TrueType i ToUnicode', str_contains($pdfWriter, '%PDF-1.4') && str_contains($pdfWriter, '/Subtype /TrueType') && str_contains($pdfWriter, '/ToUnicode') && str_contains($pdfWriter, 'DejaVuSans-Bold.ttf'));
 $check('brojevi dokumenata su transakcioni i jedinstveni', str_contains((string) file_get_contents($root.'/app/Services/DocumentNumberService.php'), 'lockForUpdate') && str_contains($documentsMigration, "document_number', 50)->unique"));
 $check('web rute imaju reports CSV/PDF i dokumente', str_contains($web, "name('reports.index')") && str_contains($web, "name('reports.orders.csv')") && str_contains($web, "name('reports.orders.pdf')") && str_contains($web, "name('orders.documents.store')"));
 $reportController = (string) file_get_contents($root.'/app/Http/Controllers/Admin/ReportController.php');
