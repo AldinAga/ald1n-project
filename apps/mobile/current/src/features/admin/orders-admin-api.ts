@@ -348,7 +348,8 @@ export const apiAdminOrders = {
     apiRequest<AdminOrderDocumentMutationResponse> (`admin/orders/${orderId}/documents`, { method: 'POST', body: input }),
   documentCancel: (orderId: number, documentId: number, cancellation_reason: string) =>
     apiRequest<AdminOrderDocumentMutationResponse> (`admin/orders/${orderId}/documents/${documentId}/cancel`, { method: 'POST', body: { cancellation_reason } }),
-  documentConfirmationPdfPath: (orderId: number) => `/api/v1/admin/orders/${orderId}/documents/confirmation.pdf`,
-  documentPdfPath: (orderId: number, documentId: number) => `/api/v1/admin/orders/${orderId}/documents/${documentId}.pdf`,
-  shipmentProofPath: (orderId: number) => `/api/v1/admin/orders/${orderId}/shipment-proof`,
+  // MOBILE_V1_0_ADMIN_ORDER_PDF_RELATIVE_PATH_HOTFIX_BATCH51_V3
+  documentConfirmationPdfPath: (orderId: number) => `admin/orders/${orderId}/documents/confirmation.pdf`,
+  documentPdfPath: (orderId: number, documentId: number) => `admin/orders/${orderId}/documents/${documentId}.pdf`,
+  shipmentProofPath: (orderId: number) => `admin/orders/${orderId}/shipment-proof`,
 };

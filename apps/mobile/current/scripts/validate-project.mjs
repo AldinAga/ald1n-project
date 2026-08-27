@@ -1999,12 +1999,16 @@ const adminOrderDocumentsUiV10 = fs.readFileSync(path.join(root, 'src/features/a
 const adminOrderDocumentFilesV10 = fs.readFileSync(path.join(root, 'src/features/admin/order-document-files.ts'), 'utf8');
 const adminOrderDetailV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
 const adminOrdersApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
+// MOBILE_V1_0_ADMIN_ORDER_PDF_RELATIVE_PATH_HOTFIX_BATCH51_V3
 assert(
   adminOrdersApiV10.includes('documentIssue')
     && adminOrdersApiV10.includes('documentCancel')
-    && adminOrdersApiV10.includes('documentConfirmationPdfPath')
-    && adminOrdersApiV10.includes('documentPdfPath'),
-  'v1.0 Admin Orders API klijent pokriva issue/cancel/PDF document workflow.',
+    && adminOrdersApiV10.includes('MOBILE_V1_0_ADMIN_ORDER_PDF_RELATIVE_PATH_HOTFIX_BATCH51_V3')
+    && adminOrdersApiV10.includes("documentConfirmationPdfPath: (orderId: number) => `admin/orders/${orderId}/documents/confirmation.pdf`")
+    && adminOrdersApiV10.includes("documentPdfPath: (orderId: number, documentId: number) => `admin/orders/${orderId}/documents/${documentId}.pdf`")
+    && adminOrdersApiV10.includes("shipmentProofPath: (orderId: number) => `admin/orders/${orderId}/shipment-proof`")
+    && !adminOrdersApiV10.includes('/api/v1/admin/orders/'),
+  'v1.0 Admin Orders PDF/shipment binary putanje su relativne i ne dupliraju /api/v1 prefiks.',
 );
 assert(
   adminOrderDetailV10.includes('<AdminOrderDocuments')
