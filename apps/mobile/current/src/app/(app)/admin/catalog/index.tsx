@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
@@ -17,6 +17,7 @@ import {
   type AdminCatalogProductSummary,
 } from '@/features/admin/catalog-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import { clearCatalogProductEditHandoff, peekCatalogProductEditHandoff } from '@/features/catalog/catalog-product-edit-handoff';
 import { useAppTheme } from '@/theme/app-theme';
 
 type CatalogMode = 'active' | 'archived';
@@ -64,6 +65,7 @@ export default function AdminCatalogIndexScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { bootstrap, can } = useAuth();
   const allowed = can('catalog.manage_products');
+  const [handoffEditId, setHandoffEditId] = useState<number | null> (() => peekCatalogProductEditHandoff());
 
   const [mode, setMode] = useState<CatalogMode> ('active');
   const [queryText, setQueryText] = useState('');
@@ -81,10 +83,29 @@ export default function AdminCatalogIndexScreen() {
   const query = useQuery({
     queryKey: ['admin', 'catalog', 'products', mode, search, status, page],
     queryFn: () => apiAdminCatalog.list(params, mode === 'archived'),
-    enabled: allowed,
+    enabled: allowed && handoffEditId === null,
   });
 
+  useEffect(() => {
+    if (!allowed || handoffEditId === null) return;
+    const productId = handoffEditId;
+    let frameId: number | null = null;
+    const task = InteractionManager.runAfterInteractions(() => {
+      frameId = requestAnimationFrame(() => {
+        clearCatalogProductEditHandoff(productId);
+        setHandoffEditId(null);
+        router.push({ pathname: '/admin/catalog/[id]', params: { id: String(productId) } } as Href);
+      });
+    });
+
+    return () => {
+      task.cancel();
+      if (frameId !== null) cancelAnimationFrame(frameId);
+    };
+  }, [allowed, handoffEditId]);
+
   if (!allowed) return <UnavailableState title="Administracija kataloga nije dostupna" />;
+  if (handoffEditId !== null) return <LoadingState label="Priprema izmene artikla..." />;
   if (query.isLoading) return <LoadingState label="Učitavanje artikala…" />;
   if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 

@@ -9,6 +9,7 @@ import { spacing, typography } from '@/constants/theme';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { apiCatalogAdvanced } from '@/features/admin/catalog-advanced-admin-api';
 import { ApiError } from '@/lib/api/client';
+import { useAppTheme } from '@/theme/app-theme';
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
@@ -24,6 +25,7 @@ export function CatalogAdvancedProductActions({
   onChanged: () => Promise<void>;
 }) {
   const feedback = useAppFeedback();
+  const { colors: theme } = useAppTheme();
   const client = useQueryClient();
   const regenerateMutation = useMutation({
     mutationFn: () => apiCatalogAdvanced.regenerateName(product.id),
@@ -39,8 +41,8 @@ export function CatalogAdvancedProductActions({
 
   return (
     <Card style={{ gap: spacing.md }}>
-      <Text style={{ ...typography.h3 }}>Napredne akcije artikla</Text>
-      <Text style={{ ...typography.body }}>
+      <Text style={{ ...typography.h3, color: theme.ink }}>Napredne akcije artikla</Text>
+      <Text style={{ ...typography.body, color: theme.muted }}>
         Kloniranje koristi novi SKU, status Nacrt i lager 0. Regenerisanje naziva koristi canonical šablon tipa proizvoda.
       </Text>
       <Button variant="secondary" onPress={() => router.push({ pathname: '/admin/catalog/[id]/clone', params: { id: String(product.id) } } as Href)}>

@@ -14,6 +14,7 @@ import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
+import { scheduleCatalogProductEditHandoff } from '@/features/catalog/catalog-product-edit-handoff';
 import { api } from '@/lib/api/endpoints';
 import { formatMoney } from '@/lib/formatters';
 
@@ -150,7 +151,10 @@ export default function ProductDetailScreen() {
 
         {canManageProductFromDetail ? (
           <Pressable
-            onPress={() => router.replace({ pathname: '/admin/catalog/[id]', params: { id: String(product.id) } })}
+            onPress={() => {
+              scheduleCatalogProductEditHandoff(product.id);
+              router.replace('/admin/catalog');
+            }}
             style={({ pressed }) => [styles.productAdminActionV09, pressed && styles.copyDescriptionButtonPressed]}
           >
             <Text style={styles.productAdminActionTextV09}>Uredi artikal</Text>

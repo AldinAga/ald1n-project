@@ -60,6 +60,7 @@ const required = [
   'src/app/(app)/admin/user-groups/index.tsx',
   'src/features/admin/catalog-advanced-admin-api.ts',
   'src/features/admin/catalog-advanced-product-actions.tsx',
+  'src/features/catalog/catalog-product-edit-handoff.ts',
   'src/features/admin/data-quality-admin-api.ts',
   'src/features/admin/data-quality-admin-export.ts',
   'src/app/(app)/admin/catalog/[id]/clone.tsx',
@@ -1623,6 +1624,9 @@ assert(
 // MOBILE_V0_9_PRODUCT_DETAIL_BATCH5A_VALIDATOR
 const v09ProductDetailBatch5A = fs.readFileSync(path.join(root, 'src/app/(app)/product/[slug].tsx'), 'utf8');
 const v09ProductCardBatch5A = fs.readFileSync(path.join(root, 'src/components/catalog/product-card.tsx'), 'utf8');
+// MOBILE_V1_0_CATALOG_EDIT_HANDOFF_VALIDATOR_BATCH45_V5
+const v09ProductEditHandoffBatch45 = fs.readFileSync(path.join(root, 'src/features/catalog/catalog-product-edit-handoff.ts'), 'utf8');
+const v09AdminCatalogHandoffBatch45 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/index.tsx'), 'utf8');
 const v09ProductDetailMarker = v09ProductDetailBatch5A.indexOf('MOBILE_V0_9_PRODUCT_DETAIL_COMMISSION_DIRECT_SALE_BATCH5A');
 const v09DirectSale = v09ProductDetailBatch5A.indexOf('Direktna prodaja', v09ProductDetailMarker);
 const v09Edit = v09ProductDetailBatch5A.indexOf('Uredi artikal', v09ProductDetailMarker);
@@ -1630,7 +1634,15 @@ const v09ProductDetailPass = v09ProductDetailMarker >= 0
   && v09DirectSale > v09ProductDetailMarker
   && v09Edit > v09DirectSale
   && v09ProductDetailBatch5A.includes("pathname: '/admin/catalog/[id]/direct-sale'")
-  && v09ProductDetailBatch5A.includes("pathname: '/admin/catalog/[id]'")
+  && v09ProductDetailBatch5A.includes('scheduleCatalogProductEditHandoff(product.id)')
+  && v09ProductDetailBatch5A.includes("router.replace('/admin/catalog')")
+  && !v09ProductDetailBatch5A.includes("router.replace({ pathname: '/admin/catalog/[id]'")
+  && v09ProductEditHandoffBatch45.includes('MOBILE_V1_0_CATALOG_EDIT_HANDOFF_PERFORMANCE_BATCH45')
+  && v09ProductEditHandoffBatch45.includes('pendingProductId')
+  && v09AdminCatalogHandoffBatch45.includes('InteractionManager.runAfterInteractions')
+  && v09AdminCatalogHandoffBatch45.includes('enabled: allowed && handoffEditId === null')
+  && v09AdminCatalogHandoffBatch45.includes("pathname: '/admin/catalog/[id]'")
+  && v09AdminCatalogHandoffBatch45.includes('Priprema izmene artikla...')
   && v09ProductDetailBatch5A.includes('product.commission_eur.toFixed(2)');
 if (v09ProductDetailPass) console.log('PASS v0.9 Product detalj prikazuje server proviziju, SuperAdmin Direct Sale i Uredi artikal kao poslednju admin akciju.');
 else { failures += 1; console.log('FAIL v0.9 Product detail commission/direct-sale/edit contract nije kompletan.'); }
