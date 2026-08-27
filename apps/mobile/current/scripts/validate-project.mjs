@@ -467,6 +467,18 @@ assert(
 
 const tabs = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/_layout.tsx'), 'utf8');
 assert(tabs.includes('focused') && tabs.includes('primaryContainer'), 'Bottom navigation ima Material 3 tonalni aktivni indikator.');
+// MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_VALIDATOR_BATCH48
+const appBottomNav = fs.readFileSync(path.join(root, 'src/components/layout/app-bottom-nav.tsx'), 'utf8');
+assert(
+  appBottomNav.includes('MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_BATCH48')
+    && appBottomNav.includes('focused ? styles.itemActive : null')
+    && appBottomNav.includes('backgroundColor: theme.primaryContainer')
+    && appBottomNav.includes('borderColor: theme.primary')
+    && appBottomNav.includes('color={focused ? theme.onPrimaryContainer : theme.muted}')
+    && appBottomNav.includes('color: theme.onPrimaryContainer')
+    && !appBottomNav.includes('focused ? styles.iconWrapActive : null'),
+  'v1.0 Bottom navigation aktivni TAB koristi puni tonalni pill indikator za ikonicu i naziv.',
+);
 assert(
   tabs.includes('backgroundColor: themeColors.danger') &&
   tabs.includes('color: themeColors.onDanger'),

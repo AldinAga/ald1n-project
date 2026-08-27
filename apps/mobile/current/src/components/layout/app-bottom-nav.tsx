@@ -1,4 +1,5 @@
 // MOBILE_GLOBAL_BOTTOM_NAV_V06
+// MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_BATCH48
 import { useEffect, useMemo, useState } from 'react';
 import { router, usePathname } from 'expo-router';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -141,17 +142,18 @@ export function AppBottomNav() {
               }}
               style={({ pressed }) => [
                 styles.item,
+                focused ? styles.itemActive : null,
                 pressed ? styles.pressed : null,
               ]}
             >
-              <View style={[styles.iconWrap, focused ? styles.iconWrapActive : null]}>
+              <View style={styles.iconWrap}>
                 <Glyph
                   name={item.glyph}
                   size={22}
-                  color={focused ? theme.primaryDark : theme.muted}
+                  color={focused ? theme.onPrimaryContainer : theme.muted}
                 />
                 {item.badge ? (
-                  <View style={styles.badge}>
+                  <View style={[styles.badge, focused ? styles.badgeActive : null]}>
                     <Text style={styles.badgeText}>
                       {item.badge > 99 ? '99+' : String(item.badge)}
                     </Text>
@@ -208,6 +210,11 @@ function createStyles(theme: AppColors) {
       paddingHorizontal: 2,
       paddingVertical: 2,
     },
+    itemActive: {
+      backgroundColor: theme.primaryContainer,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.primary,
+    },
     pressed: {
       opacity: 0.72,
     },
@@ -217,9 +224,6 @@ function createStyles(theme: AppColors) {
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    iconWrapActive: {
-      backgroundColor: theme.primaryContainer,
     },
     label: {
       ...typography.small,
@@ -231,7 +235,7 @@ function createStyles(theme: AppColors) {
       textAlign: 'center',
     },
     labelActive: {
-      color: theme.primaryDark,
+      color: theme.onPrimaryContainer,
       fontWeight: '900',
     },
     badge: {
@@ -247,6 +251,9 @@ function createStyles(theme: AppColors) {
       backgroundColor: theme.danger,
       borderWidth: 2,
       borderColor: theme.surface,
+    },
+    badgeActive: {
+      borderColor: theme.primaryContainer,
     },
     badgeText: {
       color: theme.onDanger,
