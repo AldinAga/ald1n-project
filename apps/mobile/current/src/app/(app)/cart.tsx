@@ -9,13 +9,14 @@ import { UnavailableState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import { useCart } from '@/features/cart/cart-provider';
-import { formatMoney } from '@/lib/formatters';
 
 export default function CartScreen() {
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
+  const { formatPrimaryMoney, primaryCurrency } = useMoneyPresentation();
 
   const { hasFeature } = useAuth();
   const { items, itemCount, setQuantity, removeItem, clearCart } = useCart();
@@ -76,7 +77,7 @@ export default function CartScreen() {
                   <View style={styles.itemCopy}>
                     <Text style={styles.itemName}>{item.productName}</Text>
                     <Text style={styles.itemMeta}>{item.sku}</Text>
-                    <Text style={styles.itemPrice}>{item.price ? formatMoney(item.price.amount, item.price.currency) : 'Cena nije prikazana'}</Text>
+                    <Text style={styles.itemPrice}>{item.price ? formatPrimaryMoney(item.price.amount, item.price.currency) : 'Cena nije prikazana'}</Text>
                   </View>
                 </View>
 
@@ -108,8 +109,8 @@ export default function CartScreen() {
             <Text style={styles.summaryTitle}>Pregled korpe</Text>
             {Object.entries(totals).map(([currency, amount]) => (
               <View key={currency} style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Procena · {currency}</Text>
-                <Text style={styles.summaryValue}>{formatMoney(amount, currency)}</Text>
+                <Text style={styles.summaryLabel}>Procena · primarno {primaryCurrency}</Text>
+                <Text style={styles.summaryValue}>{formatPrimaryMoney(amount, currency)}</Text>
               </View>
             ))}
             {!Object.keys(totals).length ? <Text style={styles.note}>Cene za ovaj nalog nisu prikazane. Server će obračunati porudžbinu pri potvrdi.</Text> : null}

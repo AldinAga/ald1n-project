@@ -9,8 +9,9 @@ import { Pill, type PillTone } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import { api } from '@/lib/api/endpoints';
-import { formatDate, formatMoney } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 import type { CommissionStatus } from '@/types/api';
 
@@ -24,6 +25,7 @@ function statusTone(status: CommissionStatus): PillTone {
 export default function CommissionDetailScreen() {
   const { colors: themeColors } = useAppTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const { formatPrimaryMoney } = useMoneyPresentation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const commissionId = Number(id);
   const { can, hasFeature } = useAuth();
@@ -58,7 +60,7 @@ export default function CommissionDetailScreen() {
       </View>
 
       <Card style={styles.heroCard}>
-        <Text style={styles.amount}>{formatMoney(commission.total_eur, 'EUR')}</Text>
+        <Text style={styles.amount}>{formatPrimaryMoney(commission.total_eur, 'EUR')}</Text>
         <Text style={styles.meta}>Obračun za porudžbinu {commission.order.order_number}</Text>
         <View style={styles.rule} />
         <Info label="Odgovorno lice" value={commission.responsible_name} />

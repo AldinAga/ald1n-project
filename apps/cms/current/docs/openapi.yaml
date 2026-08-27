@@ -6298,6 +6298,18 @@ components:
         minimum_supported_version: { type: string }
         latest_version: { type: string }
         store_url: { type: [string, 'null'], format: uri }
+    CurrencyPresentationContract:
+      type: object
+      required: [base, alternate, eur_rsd_rate, rate_kind, rate_label, provider, provider_date, is_stale]
+      properties:
+        base: { type: string, const: RSD }
+        alternate: { type: string, const: EUR }
+        eur_rsd_rate: { type: [number, 'null'], description: Read-only canonical EUR/RSD rate used only for client presentation. }
+        rate_kind: { type: string, const: commercial_sell }
+        rate_label: { type: string, const: Komercijalni prodajni }
+        provider: { type: [string, 'null'] }
+        provider_date: { type: [string, 'null'], format: date }
+        is_stale: { type: boolean }
     AppContract:
       type: object
       properties:
@@ -6306,6 +6318,7 @@ components:
         api_version: { type: string }
         timezone: { type: string }
         locale: { type: string }
+        currency: { $ref: '#/components/schemas/CurrencyPresentationContract' }
         android: { $ref: '#/components/schemas/PlatformVersion' }
         ios: { $ref: '#/components/schemas/PlatformVersion' }
     MobileDeviceInput:

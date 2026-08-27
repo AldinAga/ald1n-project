@@ -16,10 +16,10 @@ import {
 } from '@/constants/theme';
 import {
   formatDate,
-  formatMoney,
   humanize,
 } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import type { Order } from '@/types/api';
 
 function statusTone(
@@ -59,6 +59,7 @@ export function OrderCard({
   onPress: () => void;
 }) {
   const { colors: themeColors } = useAppTheme();
+  const { formatPrimaryMoney } = useMoneyPresentation();
 
   const styles = useMemo(
     () => createStyles(themeColors),
@@ -98,7 +99,7 @@ export function OrderCard({
             </Text>
 
             <Text style={styles.value}>
-              {formatMoney(order.subtotal_rsd)}
+              {formatPrimaryMoney(order.subtotal_rsd)}
             </Text>
           </View>
 

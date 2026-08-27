@@ -8,6 +8,7 @@ const symbolNames = {
   orders: { ios: 'shippingbox.fill', android: 'receipt_long', web: 'receipt_long' },
   bell: { ios: 'bell.fill', android: 'notifications', web: 'notifications' },
   account: { ios: 'person.crop.circle.fill', android: 'account_circle', web: 'account_circle' },
+  admin: { ios: 'shield.lefthalf.filled', android: 'admin_panel_settings', web: 'admin_panel_settings' },
   arrow: { ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' },
   search: { ios: 'magnifyingglass', android: 'search', web: 'search' },
   box: { ios: 'shippingbox', android: 'inventory_2', web: 'inventory_2' },
@@ -21,7 +22,7 @@ const symbolNames = {
 } as const;
 
 const fallback = {
-  home: '⌂', catalog: '▦', cart: '▤', orders: '≡', bell: '●', account: '◎',
+  home: '⌂', catalog: '▦', cart: '▤', orders: '≡', bell: '●', account: '◎', admin: '◆',
   arrow: '›', search: '⌕', box: '□', refresh: '↻', check: '✓', close: '×',
   device: '▯', lock: '◆', info: 'i', google: 'G',
 } as const;

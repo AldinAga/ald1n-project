@@ -12,11 +12,11 @@ import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
 import { scheduleCatalogProductEditHandoff } from '@/features/catalog/catalog-product-edit-handoff';
 import { api } from '@/lib/api/endpoints';
-import { formatMoney } from '@/lib/formatters';
 
 export default function ProductDetailScreen() {
   const productAdminAuth = useAuth();
@@ -24,6 +24,7 @@ export default function ProductDetailScreen() {
   const canManageProductFromDetail = productAdminAuth.can('catalog.manage_products');
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { formatPrimaryMoney } = useMoneyPresentation();
   const feedback = useAppFeedback();
 
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -101,7 +102,7 @@ export default function ProductDetailScreen() {
       <View style={styles.tags}><Pill tone={stock > 0 ? 'success' : 'danger'}>{stock > 0 ? `${stock} na stanju` : 'Nema na stanju'}</Pill>{product.brand ? <Pill>{product.brand.name}</Pill> : null}</View>
       <Text style={styles.title}>{product.name}</Text>
       <Text style={styles.sku}>{selectedSku}{product.model ? ` · ${product.model}` : ''}</Text>
-      <Card style={styles.priceCard}><View><Text style={styles.label}>Prodajna cena</Text><Text style={styles.price}>{price ? formatMoney(price.amount, price.currency) : 'Nije dostupna za ovu dozvolu'}</Text></View><View style={styles.priceIcon}><Glyph name="catalog" color={themeColors.primary} size={24} /></View></Card>
+      <Card style={styles.priceCard}><View><Text style={styles.label}>Prodajna cena</Text><Text style={styles.price}>{price ? formatPrimaryMoney(price.amount, price.currency) : 'Nije dostupna za ovu dozvolu'}</Text></View><View style={styles.priceIcon}><Glyph name="catalog" color={themeColors.primary} size={24} /></View></Card>
       {product.description ? (
         <Card>
           <View style={styles.descriptionHeader}>
@@ -135,7 +136,7 @@ export default function ProductDetailScreen() {
           {/* MOBILE_V0_9_PRODUCT_DETAIL_COMMISSION_DIRECT_SALE_BATCH5A */}
       <Card style={styles.commissionCardV09}>
         <Text style={styles.label}>Provizija</Text>
-        <Text style={styles.commissionValueV09}>{product.commission_eur.toFixed(2)} EUR</Text>
+        <Text style={styles.commissionValueV09}>{formatPrimaryMoney(product.commission_eur, 'EUR')}</Text>
         <Text style={styles.description}>Server obračun provizije za jedan komad artikla.</Text>
       </Card>
 

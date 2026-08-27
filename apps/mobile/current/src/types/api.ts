@@ -131,6 +131,17 @@ export type PlatformVersion = {
   store_url: Nullable<string>;
 };
 
+export type CurrencyPresentationContract = {
+  base: 'RSD';
+  alternate: 'EUR';
+  eur_rsd_rate: Nullable<number>;
+  rate_kind: 'commercial_sell';
+  rate_label: 'Komercijalni prodajni';
+  provider: Nullable<string>;
+  provider_date: Nullable<string>;
+  is_stale: boolean;
+};
+
 export type BootstrapData = {
   user: User;
   permissions: string[];
@@ -143,6 +154,7 @@ export type BootstrapData = {
     api_version: string;
     timezone: string;
     locale: string;
+    currency: CurrencyPresentationContract;
     android: PlatformVersion;
     ios: PlatformVersion;
   };

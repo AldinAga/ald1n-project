@@ -9,6 +9,7 @@ use App\Http\Resources\Api\V1\NotificationPreferenceResource;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\MobileDevice;
 use App\Services\ApiAccessService;
+use App\Services\ExchangeRateService;
 use App\Services\UserNotificationPreferenceService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -21,10 +22,37 @@ final class BootstrapController extends Controller
         Request $request,
         ApiAccessService $access,
         UserNotificationPreferenceService $preferences,
+        ExchangeRateService $exchangeRate,
     ): JsonResponse {
         $user = $request->user()->loadMissing(['role', 'group']);
         $preference = $preferences->for($user);
         $unreadCount = 0;
+        $currency = [
+            'base' => 'RSD',
+            'alternate' => 'EUR',
+            'eur_rsd_rate' => null,
+            'rate_kind' => ExchangeRateService::RATE_KIND,
+            'rate_label' => ExchangeRateService::RATE_LABEL,
+            'provider' => null,
+            'provider_date' => null,
+            'is_stale' => true,
+        ];
+
+        try {
+            $rateConfiguration = $exchangeRate->configuration();
+            $currency['eur_rsd_rate'] = is_numeric($rateConfiguration['rate'] ?? null)
+                ? (float) $rateConfiguration['rate']
+                : null;
+            $currency['provider'] = isset($rateConfiguration['provider'])
+                ? (string) $rateConfiguration['provider']
+                : null;
+            $currency['provider_date'] = isset($rateConfiguration['provider_date'])
+                ? (string) $rateConfiguration['provider_date']
+                : null;
+            $currency['is_stale'] = (bool) ($rateConfiguration['is_stale'] ?? true);
+        } catch (Throwable) {
+            // Presentation metadata is best-effort; bootstrap/auth must remain available.
+        }
 
         try {
             $unreadCount = $user->unreadNotifications()->count();
@@ -60,6 +88,7 @@ final class BootstrapController extends Controller
                 'api_version' => (string) config('mobile.api_version', 'v1'),
                 'timezone' => (string) config('app.timezone'),
                 'locale' => (string) config('app.locale'),
+                'currency' => $currency,
                 'android' => config('mobile.android'),
                 'ios' => config('mobile.ios'),
             ],

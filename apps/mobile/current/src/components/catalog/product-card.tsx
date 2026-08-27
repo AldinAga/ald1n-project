@@ -16,8 +16,8 @@ import {
   typography,
   type AppColors,
 } from '@/constants/theme';
-import { formatMoney } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import type { Product } from '@/types/api';
 
 export function ProductCard({
@@ -28,6 +28,7 @@ export function ProductCard({
   onPress: () => void;
 }) {
   const { colors: themeColors } = useAppTheme();
+  const { formatPrimaryMoney } = useMoneyPresentation();
 
   const styles = useMemo(
     () => createStyles(themeColors),
@@ -104,7 +105,7 @@ export function ProductCard({
           <View style={styles.footer}>
             <Text style={styles.price}>
               {product.price
-                ? formatMoney(
+                ? formatPrimaryMoney(
                     product.price.amount,
                     product.price.currency,
                   )
@@ -112,7 +113,7 @@ export function ProductCard({
             </Text>
 
                         {/* MOBILE_V0_9_CATALOG_COMMISSION_BATCH5A */}
-            <Text style={styles.sku}>Provizija: {product.commission_eur.toFixed(2)} EUR</Text>
+            <Text style={styles.sku}>Provizija: {formatPrimaryMoney(product.commission_eur, 'EUR')}</Text>
 <Text style={styles.sku}>
               {product.sku}
             </Text>

@@ -11,11 +11,13 @@ import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Card } from '@/components/ui/card';
-import { Glyph } from '@/components/ui/glyph';
+import { Glyph, type GlyphName } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
+import { SegmentedChoice } from '@/components/ui/segmented-choice';
 import { TextField } from '@/components/ui/text-field';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useAppPreferences, type AppThemeMode, type PrimaryCurrency } from '@/features/preferences/app-preferences';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
 import { initials } from '@/lib/formatters';
@@ -164,6 +166,35 @@ export default function AccountScreen() {
 
   const user =
     bootstrap?.user;
+
+  const {
+    themeMode,
+    primaryCurrency,
+    setThemeMode,
+    setPrimaryCurrency,
+  } = useAppPreferences();
+
+  const applyThemeMode = (value: string) => {
+    void setThemeMode(value as AppThemeMode).catch(() => {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Tema nije sačuvana',
+        message: 'Lokalno podešavanje teme trenutno nije moguće sačuvati.',
+      });
+    });
+  };
+
+  const applyPrimaryCurrency = (value: string) => {
+    void setPrimaryCurrency(value as PrimaryCurrency).catch(() => {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Valuta nije sačuvana',
+        message: 'Lokalno podešavanje primarne valute trenutno nije moguće sačuvati.',
+      });
+    });
+  };
+
+  const currencyContract = bootstrap?.app.currency;
 
   const [
     profileApiError,
@@ -384,6 +415,65 @@ export default function AccountScreen() {
           }
           last
         />
+      </Card>
+
+      <Card style={styles.personalizationCard}>
+        <SectionHeading
+          icon="info"
+          title="Izgled i prikaz"
+          copy="Podešavanja su vezana za tvoj nalog samo na ovom uređaju."
+          iconColor={themeColors.primary}
+          iconBackground={themeColors.primarySoft}
+        />
+
+        <View style={styles.preferenceBlock}>
+          <View style={styles.preferenceCopy}>
+            <Text style={styles.preferenceLabel}>Tema aplikacije</Text>
+            <Text style={styles.preferenceHint}>Sistem prati Android temu; Svetla i Tamna ostaju ručno izabrane.</Text>
+          </View>
+          <SegmentedChoice
+            accessibilityLabel="Tema aplikacije"
+            value={themeMode}
+            onChange={applyThemeMode}
+            options={[
+              { value: 'system', label: 'Sistem' },
+              { value: 'light', label: 'Svetla' },
+              { value: 'dark', label: 'Tamna' },
+            ]}
+          />
+        </View>
+
+        <View style={styles.preferenceBlock}>
+          <View style={styles.preferenceCopy}>
+            <Text style={styles.preferenceLabel}>Primarna valuta prikaza</Text>
+            <Text style={styles.preferenceHint}>Menja samo prikaz. Porudžbine, uplate i dokumenti ostaju u canonical poslovnim valutama.</Text>
+          </View>
+          <SegmentedChoice
+            accessibilityLabel="Primarna valuta prikaza"
+            value={primaryCurrency}
+            onChange={applyPrimaryCurrency}
+            options={[
+              { value: 'RSD', label: 'RSD' },
+              { value: 'EUR', label: 'EUR' },
+            ]}
+          />
+          <View style={styles.rateCard}>
+            <View style={styles.rateTop}>
+              <Text style={styles.rateLabel}>NBS · {currencyContract?.rate_label ?? 'Komercijalni prodajni'}</Text>
+              <Pill tone={currencyContract?.is_stale ? 'warning' : 'success'}>
+                {currencyContract?.is_stale ? 'Poslednji kurs' : 'Aktuelno'}
+              </Pill>
+            </View>
+            <Text style={styles.rateValue}>
+              {currencyContract?.eur_rsd_rate
+                ? '1 EUR = ' + currencyContract.eur_rsd_rate.toFixed(4) + ' RSD'
+                : 'Kurs trenutno nije dostupan za konverziju prikaza'}
+            </Text>
+            {currencyContract?.provider_date ? (
+              <Text style={styles.preferenceHint}>Datum kursa: {currencyContract.provider_date}</Text>
+            ) : null}
+          </View>
+        </View>
       </Card>
 
       <Card style={styles.formCard}>
@@ -806,7 +896,7 @@ function SectionHeading({
   iconColor,
   iconBackground
 }: {
-  icon: 'account' | 'lock';
+  icon: GlyphName;
   title: string;
   copy: string;
   iconColor: string;
@@ -944,6 +1034,32 @@ function createStyles(
       textAlign: 'right',
       flex: 1
     },
+
+    personalizationCard: {
+      gap: spacing.lg,
+      borderColor: theme.primary,
+    },
+    preferenceBlock: { gap: spacing.sm, paddingTop: spacing.sm },
+    preferenceCopy: { gap: 3 },
+    preferenceLabel: { ...typography.label, color: theme.ink },
+    preferenceHint: { ...typography.small, color: theme.muted },
+    rateCard: {
+      marginTop: spacing.xs,
+      padding: spacing.md,
+      gap: spacing.xs,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    rateTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    rateLabel: { ...typography.small, color: theme.muted, flex: 1 },
+    rateValue: { ...typography.label, color: theme.ink },
 
     formCard: {
       gap: spacing.lg

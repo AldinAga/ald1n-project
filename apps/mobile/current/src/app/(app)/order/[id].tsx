@@ -12,6 +12,7 @@ import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import {
   formatOrderFileSize,
   openOrderConfirmationPdf,
@@ -22,7 +23,7 @@ import {
 } from '@/features/orders/order-post-create-files';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
-import { formatDate, formatMoney, humanize } from '@/lib/formatters';
+import { formatDate, humanize } from '@/lib/formatters';
 import type {
   OrderDocumentSummary,
   OrderPaymentLedgerEntry,
@@ -62,6 +63,7 @@ function localPaymentDateValue(): string {
 export default function OrderDetailScreen() {
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
+  const { formatPrimaryMoney } = useMoneyPresentation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderId = Number(id);
   const validOrderId = Number.isInteger(orderId) && orderId > 0;
@@ -245,7 +247,7 @@ export default function OrderDetailScreen() {
       <Card style={styles.total}>
         <View>
           <Text style={styles.label}>Ukupna vrednost</Text>
-          <Text style={styles.totalValue}>{formatMoney(order.subtotal_rsd)}</Text>
+          <Text style={styles.totalValue}>{formatPrimaryMoney(order.subtotal_rsd)}</Text>
         </View>
         <View>
           <Text style={styles.label}>Kreirano</Text>
@@ -261,7 +263,7 @@ export default function OrderDetailScreen() {
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemMeta}>{item.sku} · {item.quantity} kom.</Text>
             </View>
-            <Text style={styles.itemPrice}>{formatMoney(item.line_total_rsd)}</Text>
+            <Text style={styles.itemPrice}>{formatPrimaryMoney(item.line_total_rsd)}</Text>
           </View>
         ))}
       </Card>
@@ -281,9 +283,7 @@ export default function OrderDetailScreen() {
       </Card>
 
       {postCreateQuery.isLoading ? (
-        <Card muted>
-          <Text style={styles.muted}>Učitavanje uplata, dokumenata i isporuke…</Text>
-        </Card>
+        <LoadingState label="Učitavanje uplata, dokumenata i isporuke" />
       ) : null}
 
       {postCreateQuery.isError ? (
@@ -301,9 +301,9 @@ export default function OrderDetailScreen() {
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Uplate</Text>
             <View style={styles.summaryGrid}>
-              <SummaryValue label="Vrednost" value={formatMoney(postCreate.order.subtotal_rsd)} />
-              <SummaryValue label="Potvrđeno" value={formatMoney(postCreate.order.paid_total_rsd)} />
-              <SummaryValue label="Preostalo" value={formatMoney(postCreate.order.remaining_rsd)} />
+              <SummaryValue label="Vrednost" value={formatPrimaryMoney(postCreate.order.subtotal_rsd)} />
+              <SummaryValue label="Potvrđeno" value={formatPrimaryMoney(postCreate.order.paid_total_rsd)} />
+              <SummaryValue label="Preostalo" value={formatPrimaryMoney(postCreate.order.remaining_rsd)} />
             </View>
             <Info label="Stanje" value={humanize(postCreate.order.payment_state)} />
             <Info
@@ -521,6 +521,7 @@ function PaymentRow({
   onOpen: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
+  const { formatPrimaryMoney } = useMoneyPresentation();
 
   return (
     <View style={styles.ledgerRow}>
@@ -532,7 +533,7 @@ function PaymentRow({
         {payment.rejection_reason ? <Text style={styles.rejection}>{payment.rejection_reason}</Text> : null}
       </View>
       <View style={styles.ledgerSide}>
-        <Text style={styles.itemPrice}>{formatMoney(payment.amount_rsd)}</Text>
+        <Text style={styles.itemPrice}>{formatPrimaryMoney(payment.amount_rsd)}</Text>
         {payment.has_proof && payment.proof ? (
           <Button variant="ghost" onPress={onOpen} loading={opening}>
             Otvori potvrdu
@@ -555,6 +556,7 @@ function DocumentRow({
   onOpen: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
+  const { formatPrimaryMoney } = useMoneyPresentation();
 
   return (
     <View style={styles.documentRow}>
@@ -563,7 +565,7 @@ function DocumentRow({
         <Text style={styles.itemMeta}>
           {humanize(document.type)} · rev. {document.revision_number} · {document.issued_at ? formatDate(document.issued_at, true) : '—'}
         </Text>
-        <Text style={styles.itemMeta}>{document.currency} · {formatMoney(document.total_rsd)}</Text>
+        <Text style={styles.itemMeta}>{document.currency} · {formatPrimaryMoney(document.total_rsd)}</Text>
       </View>
       <Button variant="ghost" onPress={onOpen} loading={opening} disabled={disabled}>
         PDF

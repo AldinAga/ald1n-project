@@ -4,6 +4,12 @@ import * as SecureStore from 'expo-secure-store';
 const TOKEN_KEY = 'ald1n.auth.token';
 const INSTALLATION_KEY = 'ald1n.installation.id';
 const DEVICE_ID_KEY = 'ald1n.device.server-id';
+const USER_PREFERENCES_PREFIX = 'ald1n.preferences.user.';
+
+export type StoredAppPreferences = {
+  theme_mode: 'system' | 'light' | 'dark';
+  primary_currency: 'RSD' | 'EUR';
+};
 
 const secureOptions: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
@@ -36,4 +42,38 @@ export async function getServerDeviceId(): Promise<number | null> {
 
 export async function clearServerDeviceId(): Promise<void> {
   await SecureStore.deleteItemAsync(DEVICE_ID_KEY, secureOptions);
+}
+
+function userPreferencesKey(userId: number): string {
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new Error('Neispravan korisnički identifikator za lokalna podešavanja.');
+  }
+  return USER_PREFERENCES_PREFIX + String(userId);
+}
+
+export async function getUserAppPreferences(userId: number): Promise<StoredAppPreferences | null> {
+  const raw = await SecureStore.getItemAsync(userPreferencesKey(userId), secureOptions);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredAppPreferences>;
+    if (!['system', 'light', 'dark'].includes(String(parsed.theme_mode))) return null;
+    if (!['RSD', 'EUR'].includes(String(parsed.primary_currency))) return null;
+    return {
+      theme_mode: parsed.theme_mode as StoredAppPreferences['theme_mode'],
+      primary_currency: parsed.primary_currency as StoredAppPreferences['primary_currency'],
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function setUserAppPreferences(
+  userId: number,
+  preferences: StoredAppPreferences,
+): Promise<void> {
+  await SecureStore.setItemAsync(
+    userPreferencesKey(userId),
+    JSON.stringify(preferences),
+    secureOptions,
+  );
 }

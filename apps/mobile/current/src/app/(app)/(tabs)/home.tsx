@@ -6,6 +6,7 @@ import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
+import { LoadingState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
 import { apiAdmin } from '@/features/admin/admin-api';
@@ -15,8 +16,8 @@ import {
   type AdminReportTrendPoint,
 } from '@/features/admin/reports-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import { useCart } from '@/features/cart/cart-provider';
-import { formatMoney } from '@/lib/formatters';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 
 // MOBILE_V0_6_HOME_DASHBOARD_PARITY_V1
@@ -29,6 +30,7 @@ const HOME_REPORT_PARAMS = {
 export default function HomeScreen() {
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { formatPrimaryMoney } = useMoneyPresentation();
 
   const { bootstrap, refreshBootstrap, hasFeature, can } = useAuth();
   const { itemCount } = useCart();
@@ -155,10 +157,7 @@ export default function HomeScreen() {
           </View>
 
           {reportQuery.isLoading ? (
-            <Card muted style={styles.stateCard}>
-              <Text style={styles.stateTitle}>Učitavanje poslovnih podataka…</Text>
-              <Text style={styles.stateCopy}>Povezujemo mobilni pregled sa upravljačkim izveštajem.</Text>
-            </Card>
+            <LoadingState label="Učitavanje poslovnih podataka" />
           ) : reportQuery.isError ? (
             <Card muted style={styles.stateCard}>
               <Text style={styles.stateTitle}>Dashboard trenutno nije dostupan</Text>
@@ -169,25 +168,25 @@ export default function HomeScreen() {
               <View style={styles.kpiGrid}>
                 <DashboardMetric
                   label="Prihod ovog meseca"
-                  value={formatMoney(report.summary.revenue_rsd, 'RSD')}
+                  value={formatPrimaryMoney(report.summary.revenue_rsd, 'RSD')}
                   meta={`${report.summary.orders_count} završenih porudžbina`}
                   tone="primary"
                 />
                 <DashboardMetric
                   label="Bruto dobit"
-                  value={formatMoney(report.summary.gross_profit_rsd, 'RSD')}
+                  value={formatPrimaryMoney(report.summary.gross_profit_rsd, 'RSD')}
                   meta={`Marža ${report.summary.gross_margin_percent.toFixed(1)}%`}
                   tone="success"
                 />
                 <DashboardMetric
                   label="Neto doprinos"
-                  value={formatMoney(report.summary.net_contribution_rsd, 'RSD')}
+                  value={formatPrimaryMoney(report.summary.net_contribution_rsd, 'RSD')}
                   meta={`Pokrivenost troška ${report.summary.cost_coverage_percent.toFixed(1)}%`}
                   tone="accent"
                 />
                 <DashboardMetric
                   label="Otvoreno potraživanje"
-                  value={formatMoney(report.summary.outstanding_rsd, 'RSD')}
+                  value={formatPrimaryMoney(report.summary.outstanding_rsd, 'RSD')}
                   meta={`${report.receivables.open_orders} otvorenih porudžbina`}
                   tone="danger"
                 />
@@ -196,14 +195,14 @@ export default function HomeScreen() {
                 <>
                   <DashboardMetric
                     label="Vrednost lagera po nabavnoj ceni"
-                    value={formatMoney(inventoryValuation.purchase_value_rsd, 'RSD')}
+                    value={formatPrimaryMoney(inventoryValuation.purchase_value_rsd, 'RSD')}
                     meta={inventoryValuation.missing_cost_items === 0 ? 'Sve stavke sa lagerom imaju nabavnu cenu' : String(inventoryValuation.missing_cost_items) + ' artikala sa lagerom bez nabavne cene'}
                     tone="accent"
                     route="/admin/inventory"
                   />
                   <DashboardMetric
                     label="Vrednost robe po prodajnoj ceni"
-                    value={formatMoney(inventoryValuation.sale_value_rsd, 'RSD')}
+                    value={formatPrimaryMoney(inventoryValuation.sale_value_rsd, 'RSD')}
                     meta={inventoryValuation.missing_sale_value_items === 0 ? 'Prodajna vrednost kompletnog pozitivnog lagera' : String(inventoryValuation.missing_sale_value_items) + ' artikala bez obračunate prodajne vrednosti'}
                     tone="primary"
                     route="/admin/inventory"

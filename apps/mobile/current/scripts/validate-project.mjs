@@ -471,10 +471,12 @@ assert(tabs.includes('focused') && tabs.includes('primaryContainer'), 'Bottom na
 const appBottomNav = fs.readFileSync(path.join(root, 'src/components/layout/app-bottom-nav.tsx'), 'utf8');
 assert(
   appBottomNav.includes('MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_BATCH48')
-    && appBottomNav.includes('focused ? styles.itemActive : null')
+    && appBottomNav.includes('!center && focused ? styles.itemActive : null')
+    && appBottomNav.includes('center && focused ? styles.homeCircleActive : null')
     && appBottomNav.includes('backgroundColor: theme.primaryContainer')
     && appBottomNav.includes('borderColor: theme.primary')
-    && appBottomNav.includes('color={focused ? theme.onPrimaryContainer : theme.muted}')
+    && appBottomNav.includes('(focused ? theme.onPrimary : theme.onPrimaryContainer)')
+    && appBottomNav.includes('(focused ? theme.onPrimaryContainer : theme.muted)')
     && appBottomNav.includes('color: theme.onPrimaryContainer')
     && !appBottomNav.includes('focused ? styles.iconWrapActive : null'),
   'v1.0 Bottom navigation aktivni TAB koristi puni tonalni pill indikator za ikonicu i naziv.',
@@ -1655,11 +1657,13 @@ const v09ProductDetailPass = v09ProductDetailMarker >= 0
   && v09AdminCatalogHandoffBatch45.includes('enabled: allowed && handoffEditId === null')
   && v09AdminCatalogHandoffBatch45.includes("pathname: '/admin/catalog/[id]'")
   && v09AdminCatalogHandoffBatch45.includes('Priprema izmene artikla...')
-  && v09ProductDetailBatch5A.includes('product.commission_eur.toFixed(2)');
+  && v09ProductDetailBatch5A.includes("formatPrimaryMoney(product.commission_eur, 'EUR')")
+  && v09ProductDetailBatch5A.includes('useMoneyPresentation');
 if (v09ProductDetailPass) console.log('PASS v0.9 Product detalj prikazuje server proviziju, SuperAdmin Direct Sale i Uredi artikal kao poslednju admin akciju.');
 else { failures += 1; console.log('FAIL v0.9 Product detail commission/direct-sale/edit contract nije kompletan.'); }
 const v09ProductCardPass = v09ProductCardBatch5A.includes('MOBILE_V0_9_CATALOG_COMMISSION_BATCH5A')
-  && v09ProductCardBatch5A.includes('Provizija: {product.commission_eur.toFixed(2)} EUR');
+  && v09ProductCardBatch5A.includes("Provizija: {formatPrimaryMoney(product.commission_eur, 'EUR')}")
+  && v09ProductCardBatch5A.includes('useMoneyPresentation');
 if (v09ProductCardPass) console.log('PASS v0.9 Catalog kartica prikazuje server obračunatu proviziju.');
 else { failures += 1; console.log('FAIL v0.9 Catalog commission card contract nije kompletan.'); }
 if (!/product_variant_id|ProductVariant|variants_enabled/.test(v09ProductDetailBatch5A + '\n' + v09ProductCardBatch5A)) console.log('PASS v0.9 Product detail/catalog commission tok ostaje product-only bez Product Variants.');
@@ -1785,6 +1789,107 @@ assert(
     'v0.9 Navigation reorganizacija ne vraća Product Variants.'
   );
 }
+
+// MOBILE_V1_0_PERSONALIZATION_NAVIGATION_UI_MOTION_BATCH50_V2
+const batch50StorageV2 = fs.readFileSync(path.join(root, 'src/lib/storage.ts'), 'utf8');
+const batch50PreferencesV2 = fs.readFileSync(path.join(root, 'src/features/preferences/app-preferences.tsx'), 'utf8');
+const batch50ThemeV2 = fs.readFileSync(path.join(root, 'src/theme/app-theme.ts'), 'utf8');
+const batch50RootV2 = fs.readFileSync(path.join(root, 'src/app/_layout.tsx'), 'utf8');
+const batch50AccountV2 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
+const batch50SegmentedV2 = fs.readFileSync(path.join(root, 'src/components/ui/segmented-choice.tsx'), 'utf8');
+const batch50LoadingV2 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
+const batch50MoneyV2 = fs.readFileSync(path.join(root, 'src/features/preferences/money-presentation.ts'), 'utf8');
+const batch50TypesV2 = fs.readFileSync(path.join(root, 'src/types/api.ts'), 'utf8');
+const batch50BottomNavV2 = fs.readFileSync(path.join(root, 'src/components/layout/app-bottom-nav.tsx'), 'utf8');
+const batch50PageHeaderV2 = fs.readFileSync(path.join(root, 'src/components/layout/page-header.tsx'), 'utf8');
+const batch50GlyphV2 = fs.readFileSync(path.join(root, 'src/components/ui/glyph.tsx'), 'utf8');
+const batch50BootstrapV2 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/BootstrapController.php'), 'utf8');
+const batch50ExchangeAuthorityV2 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/ExchangeRateService.php'), 'utf8');
+const batch50OpenApiV2 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+const batch50OrderDetailV2 = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id].tsx'), 'utf8');
+assert(
+  batch50StorageV2.includes('ald1n.preferences.user.')
+    && batch50StorageV2.includes('WHEN_UNLOCKED_THIS_DEVICE_ONLY')
+    && batch50PreferencesV2.includes("themeMode: 'system'")
+    && batch50PreferencesV2.includes("primaryCurrency: 'RSD'")
+    && batch50PreferencesV2.includes('setUserAppPreferences(userId, stored)'),
+  'v1.0 Batch50 V2 lokalna tema i valuta su per-user/per-device SecureStore preference bez server write-a.',
+);
+assert(
+  batch50AccountV2.includes('Izgled i prikaz')
+    && batch50AccountV2.includes("{ value: 'system', label: 'Sistem' }")
+    && batch50AccountV2.includes("{ value: 'light', label: 'Svetla' }")
+    && batch50AccountV2.includes("{ value: 'dark', label: 'Tamna' }")
+    && batch50AccountV2.includes("{ value: 'RSD', label: 'RSD' }")
+    && batch50AccountV2.includes("{ value: 'EUR', label: 'EUR' }")
+    && batch50SegmentedV2.includes('transition="quickLessBouncy"')
+    && batch50SegmentedV2.includes('accessibilityRole="radio"'),
+  'v1.0 Batch50 V2 Profil ima moderne single-choice Tema i Primarna valuta kontrole.',
+);
+assert(
+  batch50RootV2.includes('AppPreferencesProvider')
+    && batch50RootV2.includes("key={userId ?? 'anonymous'}")
+    && batch50RootV2.includes('defaultTheme={scheme}')
+    && batch50ThemeV2.includes('const { themeMode } = useAppPreferences()'),
+  'v1.0 Batch50 V2 lokalna tema upravlja RN/Tamagui/StatusBar shell-om posle korisničke preference hidratacije.',
+);
+assert(
+  batch50BootstrapV2.includes('ExchangeRateService $exchangeRate')
+    && batch50BootstrapV2.includes("'currency' => $currency")
+    && batch50BootstrapV2.includes('ExchangeRateService::RATE_KIND')
+    && batch50TypesV2.includes('CurrencyPresentationContract')
+    && batch50OpenApiV2.includes('CurrencyPresentationContract:'),
+  'v1.0 Batch50 V2 bootstrap izlaže samo read-only presentation metadata postojećeg NBS authority-ja.',
+);
+assert(
+  batch50ExchangeAuthorityV2.includes("public const RATE_KIND = 'commercial_sell'")
+    && batch50ExchangeAuthorityV2.includes("public const RATE_LABEL = 'Komercijalni prodajni'")
+    && batch50ExchangeAuthorityV2.includes('CurrentForeignExchange')
+    && batch50ExchangeAuthorityV2.includes("private const PROVIDER = 'nbs'")
+    && batch50ExchangeAuthorityV2.includes('$sellingRate = $this->decimalFromNbs($cells[5]);'),
+  'v1.0 Batch50 V2 NBS Komercijalni prodajni authority ostaje jedini EUR/RSD source.',
+);
+assert(
+  batch50MoneyV2.includes('convertPresentationAmount')
+    && batch50MoneyV2.includes("source === 'RSD' && targetCurrency === 'EUR'")
+    && batch50MoneyV2.includes("source === 'EUR' && targetCurrency === 'RSD'")
+    && batch50OrderDetailV2.includes('Iznos RSD *')
+    && batch50OrderDetailV2.includes('amount_rsd: amount'),
+  'v1.0 Batch50 V2 primarna valuta je display-only; canonical RSD payment input i payload ostaju nepromenjeni.',
+);
+assert(
+  batch50LoadingV2.includes("from 'react-native-reanimated'")
+    && batch50LoadingV2.includes('withRepeat(')
+    && batch50LoadingV2.includes('BrandMark')
+    && batch50LoadingV2.includes('accessibilityRole="progressbar"'),
+  'v1.0 Batch50 V2 globalni loading koristi branded Reanimated pulse i skeleton.',
+);
+assert(
+  batch50BottomNavV2.includes('MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2')
+    && batch50BottomNavV2.includes("label: 'Početna'")
+    && batch50BottomNavV2.includes('center: true')
+    && batch50BottomNavV2.includes('transform: [{ translateY: -17 }]')
+    && batch50BottomNavV2.includes("bootstrap?.user.role?.slug === 'superadmin'")
+    && batch50BottomNavV2.includes("label: 'Admin'")
+    && batch50BottomNavV2.includes("route: '/admin'")
+    && batch50BottomNavV2.includes("label: 'Obaveštenja'")
+    && batch50BottomNavV2.includes("label: 'Nalog'"),
+  'v1.0 Batch50 V2 bottom nav drži centralno izdvojenu Početnu i role-aware Admin/Obaveštenja četvrti slot.',
+);
+assert(
+  batch50PageHeaderV2.includes('MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2')
+    && batch50PageHeaderV2.includes("router.push('/notifications')")
+    && batch50PageHeaderV2.includes('notification_counts.unread')
+    && !batch50PageHeaderV2.includes("router.push('/account')")
+    && !batch50PageHeaderV2.includes('styles.avatar')
+    && batch50GlyphV2.includes("admin: { ios: 'shield.lefthalf.filled', android: 'admin_panel_settings'"),
+  'v1.0 Batch50 V2 header desno koristi notification bell+badge umesto profila, a Nalog ostaje u bottom nav-u.',
+);
+assert(
+  batch50BottomNavV2.includes("pathname.startsWith('/admin/catalog/')")
+    && batch50BottomNavV2.indexOf("pathname.startsWith('/admin/catalog/')") < batch50BottomNavV2.indexOf("pathname === '/admin' || pathname.startsWith('/admin/')"),
+  'v1.0 Batch50 V2 čuva Katalog active context za admin/catalog edit, dok ostali admin ekrani aktiviraju Admin slot.',
+);
 
 // MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22
 const dictionariesApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/dictionary-admin-api.ts'), 'utf8');

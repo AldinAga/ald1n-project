@@ -19,8 +19,9 @@ import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/compon
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import { api } from '@/lib/api/endpoints';
-import { formatDate, formatMoney } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 import type { Commission, CommissionListParams, CommissionStatus } from '@/types/api';
 
@@ -50,6 +51,7 @@ function isIsoDate(value: string): boolean {
 function CommissionCard({ item }: { item: Commission }) {
   const { colors: themeColors } = useAppTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const { formatPrimaryMoney } = useMoneyPresentation();
 
   return (
     <Pressable
@@ -67,7 +69,7 @@ function CommissionCard({ item }: { item: Commission }) {
           <Pill tone={statusTone(item.status)}>{item.status_label}</Pill>
         </View>
 
-        <Text style={styles.amount}>{formatMoney(item.total_eur, 'EUR')}</Text>
+        <Text style={styles.amount}>{formatPrimaryMoney(item.total_eur, 'EUR')}</Text>
         <Text style={styles.meta}>Odgovorno lice: {item.responsible_name}</Text>
         {item.status_note ? <Text style={styles.note}>{item.status_note}</Text> : null}
 
@@ -87,6 +89,7 @@ function CommissionCard({ item }: { item: Commission }) {
 export default function CommissionsListScreen() {
   const { colors: themeColors } = useAppTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const { formatPrimaryMoney } = useMoneyPresentation();
   const { bootstrap, can } = useAuth();
   const allowed = can('commissions.view_own');
 
@@ -179,15 +182,15 @@ export default function CommissionsListScreen() {
 
             <View style={styles.summaryGrid}>
               <Card style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{formatMoney(summary?.pending_eur ?? 0, 'EUR')}</Text>
+                <Text style={styles.summaryValue}>{formatPrimaryMoney(summary?.pending_eur ?? 0, 'EUR')}</Text>
                 <Text style={styles.summaryLabel}>Na čekanju</Text>
               </Card>
               <Card style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{formatMoney(summary?.approved_eur ?? 0, 'EUR')}</Text>
+                <Text style={styles.summaryValue}>{formatPrimaryMoney(summary?.approved_eur ?? 0, 'EUR')}</Text>
                 <Text style={styles.summaryLabel}>Odobreno</Text>
               </Card>
               <Card style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{formatMoney(summary?.paid_eur ?? 0, 'EUR')}</Text>
+                <Text style={styles.summaryValue}>{formatPrimaryMoney(summary?.paid_eur ?? 0, 'EUR')}</Text>
                 <Text style={styles.summaryLabel}>Isplaćeno</Text>
               </Card>
               <Card style={styles.summaryCard}>
