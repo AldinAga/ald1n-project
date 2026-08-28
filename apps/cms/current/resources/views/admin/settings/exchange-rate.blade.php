@@ -12,7 +12,7 @@
         title="Klikni za sinhronizaciju EUR/RSD kursa"
     ><span data-exchange-rate-value>{{ $configuration['rate'] ? number_format($configuration['rate'], 4, ',', '.') : 'Nije podešen' }}</span>&nbsp;RSD</button>
 </div>
-<section class="panel form-section"><h2>Komercijalni prodajni kurs</h2><p class="muted"><strong>GLAVNI KURS APLIKACIJE.</strong> Primarni automatski izvor je zvanicni NBS SOAP API za prodajni EUR kurs za devize. Frankfurter API v2 je sekundarni referentni fallback; postojeca NBS javna lista ostaje samo tercijarna emergency zastita. Rucni unos je override.</p></section>
+<section class="panel form-section"><h2>Komercijalni prodajni kurs</h2><p class="muted"><strong>GLAVNI KURS APLIKACIJE.</strong> Primarni automatski izvor je javna NBS kursna lista za devize: EUR / 978 / prodajni kurs. Frankfurter API v2 je sekundarni referentni fallback. Ako oba izvora nisu dostupna, poslednji uspesno sacuvan kurs ostaje aktivan bez resetovanja datuma svezine. Rucni unos je override.</p></section>
 <div class="settings-grid">
     <section class="panel form-section">
         <h2>Ručni kurs</h2>
@@ -25,7 +25,7 @@
     </section>
     <section class="panel form-section">
         <h2>Automatsko ažuriranje</h2>
-        <p class="muted">Redosled izvora: NBS API -> Frankfurter API v2 -> NBS javna kursna lista. NBS API zahteva UserName, Password i LicenceID u server .env konfiguraciji.</p>
+        <p class="muted">Redosled izvora: NBS javna kursna lista -> Frankfurter API v2 -> poslednji uspesno sacuvan kurs. NBS primarni izvor ne zahteva registraciju ni kredencijale.</p>
         <form method="post" action="{{ route('admin.settings.exchange.automatic') }}" class="stack-form compact-form">
             @csrf
             <label class="check-card"><input type="checkbox" name="enabled" value="1" @checked($configuration['mode'] === 'auto')><span>Uključi automatski režim</span></label>

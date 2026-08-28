@@ -1844,15 +1844,14 @@ assert(
 assert(
   batch50ExchangeAuthorityV2.includes("public const RATE_KIND = 'commercial_sell'")
     && batch50ExchangeAuthorityV2.includes("public const RATE_LABEL = 'Komercijalni prodajni'")
-    && batch50ExchangeAuthorityV2.includes("private const PRIMARY_PROVIDER = 'nbs_api';")
+    && batch50ExchangeAuthorityV2.includes("private const PRIMARY_PROVIDER = 'nbs_html';")
     && batch50ExchangeAuthorityV2.includes("private const FRANKFURTER_PROVIDER = 'frankfurter';")
     && batch50ExchangeAuthorityV2.includes('CurrentForeignExchange')
-    && batch50ExchangeAuthorityV2.includes('fetchNbsApiCommercialSellingRate()')
-    && batch50ExchangeAuthorityV2.includes('fetchFrankfurterRate()')
     && batch50ExchangeAuthorityV2.includes('fetchNbsHtmlCommercialSellingRate()')
-    && batch50ExchangeAuthorityV2.indexOf('fetchNbsApiCommercialSellingRate()') < batch50ExchangeAuthorityV2.indexOf('fetchFrankfurterRate()')
-    && batch50ExchangeAuthorityV2.indexOf('fetchFrankfurterRate()') < batch50ExchangeAuthorityV2.indexOf('fetchNbsHtmlCommercialSellingRate()'),
-  'v1.0 Batch50 V2 komercijalni prodajni authority ostaje centralan uz NBS API primary, Frankfurter secondary i NBS HTML tertiary provider chain.',
+    && batch50ExchangeAuthorityV2.includes('fetchFrankfurterRate()')
+    && batch50ExchangeAuthorityV2.indexOf('fetchNbsHtmlCommercialSellingRate()') < batch50ExchangeAuthorityV2.indexOf('fetchFrankfurterRate()')
+    && batch50ExchangeAuthorityV2.includes('poslednji uspesno sacuvan kurs ostaje aktivan'),
+  'v1.0 Batch50 V2 komercijalni prodajni authority ostaje centralan uz NBS javnu listu primary, Frankfurter secondary i poslednji sacuvani kurs emergency fallback.',
 );
 assert(
   batch50MoneyV2.includes('convertPresentationAmount')
@@ -2315,64 +2314,66 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
-// MOBILE_V1_0_NBS_API_PRIMARY_FRANKFURTER_FALLBACK_BATCH73
-const exchangeRateServiceBatch73 = fs.readFileSync(
+// MOBILE_V1_0_NBS_PUBLIC_LIST_PRIMARY_FRANKFURTER_FALLBACK_BATCH74_V2
+const exchangeRateServiceBatch74 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/app/Services/ExchangeRateService.php'),
   'utf8',
 );
-const exchangeRateSettingsBatch73 = fs.readFileSync(
+const exchangeRateSettingsBatch74 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/app/Services/SettingsService.php'),
   'utf8',
 );
-const exchangeRateServicesConfigBatch73 = fs.readFileSync(
+const exchangeRateServicesConfigBatch74 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/config/services.php'),
   'utf8',
 );
-const exchangeRateEnvBatch73 = fs.readFileSync(
+const exchangeRateEnvBatch74 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/.env.example'),
   'utf8',
 );
-const exchangeRateWebBatch73 = fs.readFileSync(
+const exchangeRateWebBatch74 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/resources/views/admin/settings/exchange-rate.blade.php'),
   'utf8',
 );
-const exchangeRateMobileBatch73 = fs.readFileSync(
+const exchangeRateMobileBatch74 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/exchange-rate/index.tsx'),
   'utf8',
 );
 assert(
-  exchangeRateServiceBatch73.includes("public const RATE_KIND = 'commercial_sell';")
-    && exchangeRateServiceBatch73.includes('webservices.nbs.rs/CommunicationOfficeService1_0/ExchangeRateService.asmx')
-    && exchangeRateServiceBatch73.includes('GetCurrentExchangeRate')
-    && exchangeRateServiceBatch73.includes('<exchangeRateListTypeID>1</exchangeRateListTypeID>')
-    && exchangeRateServiceBatch73.includes("private const PRIMARY_PROVIDER = 'nbs_api';")
-    && exchangeRateServiceBatch73.includes('SellingRate')
-    && exchangeRateServiceBatch73.includes('https://api.frankfurter.dev/v2/rate/EUR/RSD')
-    && exchangeRateServiceBatch73.includes("private const FRANKFURTER_PROVIDER = 'frankfurter';")
-    && exchangeRateServiceBatch73.includes('CurrentForeignExchange')
-    && exchangeRateServiceBatch73.indexOf('fetchNbsApiCommercialSellingRate()') < exchangeRateServiceBatch73.indexOf('fetchFrankfurterRate()')
-    && exchangeRateServiceBatch73.indexOf('fetchFrankfurterRate()') < exchangeRateServiceBatch73.indexOf('fetchNbsHtmlCommercialSellingRate()'),
-  'v1.0 EUR/RSD provider chain je NBS API primary -> Frankfurter secondary -> NBS HTML emergency tertiary.',
+  exchangeRateServiceBatch74.includes("public const RATE_KIND = 'commercial_sell';")
+    && exchangeRateServiceBatch74.includes("private const PRIMARY_PROVIDER = 'nbs_html';")
+    && exchangeRateServiceBatch74.includes('webappcenter.nbs.rs/ExchangeRateWebApp/ExchangeRate/CurrentForeignExchange')
+    && exchangeRateServiceBatch74.includes('EUR')
+    && exchangeRateServiceBatch74.includes('978')
+    && exchangeRateServiceBatch74.includes('$sellingRate = $this->decimalFromNbs($cells[5]);')
+    && exchangeRateServiceBatch74.includes('https://api.frankfurter.dev/v2/rate/EUR/RSD')
+    && exchangeRateServiceBatch74.includes("private const FRANKFURTER_PROVIDER = 'frankfurter';")
+    && exchangeRateServiceBatch74.indexOf('fetchNbsHtmlCommercialSellingRate()') < exchangeRateServiceBatch74.indexOf('fetchFrankfurterRate()')
+    && exchangeRateServiceBatch74.includes('poslednji uspesno sacuvan kurs ostaje aktivan')
+    && !exchangeRateServiceBatch74.includes('webservices.nbs.rs')
+    && !exchangeRateServiceBatch74.includes('nbsApiCredentials()')
+    && !exchangeRateServiceBatch74.includes('SOAPAction'),
+  'v1.0 EUR/RSD provider chain je NBS javna prodajna lista primary -> Frankfurter secondary -> poslednji uspesno sacuvan kurs emergency fallback.',
 );
 assert(
-  exchangeRateSettingsBatch73.includes("'eur_rsd_provider' => 'nbs_api'")
-    && exchangeRateServicesConfigBatch73.includes("env('NBS_EXCHANGE_API_USERNAME')")
-    && exchangeRateServicesConfigBatch73.includes("env('NBS_EXCHANGE_API_PASSWORD')")
-    && exchangeRateServicesConfigBatch73.includes("env('NBS_EXCHANGE_API_LICENCE_ID')")
-    && exchangeRateEnvBatch73.includes('NBS_EXCHANGE_API_USERNAME=')
-    && exchangeRateEnvBatch73.includes('FRANKFURTER_EXCHANGE_API_TIMEOUT_SECONDS=12'),
-  'NBS SOAP kredencijali i provider timeouts koriste server env/config bez hardkodovanih tajni.',
+  exchangeRateSettingsBatch74.includes("'eur_rsd_provider' => 'nbs_html'")
+    && exchangeRateServicesConfigBatch74.includes("env('NBS_EXCHANGE_HTML_TIMEOUT_SECONDS', 20)")
+    && exchangeRateServicesConfigBatch74.includes("env('FRANKFURTER_EXCHANGE_API_TIMEOUT_SECONDS', 12)")
+    && !exchangeRateServicesConfigBatch74.includes('NBS_EXCHANGE_API_USERNAME')
+    && !exchangeRateServicesConfigBatch74.includes('NBS_EXCHANGE_API_PASSWORD')
+    && !exchangeRateServicesConfigBatch74.includes('NBS_EXCHANGE_API_LICENCE_ID')
+    && exchangeRateEnvBatch74.includes('NBS_EXCHANGE_HTML_TIMEOUT_SECONDS=20')
+    && !exchangeRateEnvBatch74.includes('NBS_EXCHANGE_API_USERNAME='),
+  'NBS javna lista i Frankfurter timeouts koriste credential-free server env/config bez SOAP tajni.',
 );
 assert(
-  exchangeRateWebBatch73.includes('NBS SOAP API')
-    && exchangeRateWebBatch73.includes('Frankfurter API v2')
-    && exchangeRateMobileBatch73.includes('NBS API')
-    && exchangeRateMobileBatch73.includes('Frankfurter API v2'),
-  'Web i Mobile jasno prikazuju NBS primary i Frankfurter secondary fallback semantiku.',
-);
-assert(
-  !/NBS_EXCHANGE_API_(?:USERNAME|PASSWORD|LICENCE_ID)=.+/.test(exchangeRateEnvBatch73),
-  'NBS API tajne nisu upisane u tracked .env.example.',
+  exchangeRateWebBatch74.includes('NBS javna kursna lista')
+    && exchangeRateWebBatch74.includes('Frankfurter API v2')
+    && exchangeRateWebBatch74.includes('poslednji uspesno sacuvan kurs')
+    && exchangeRateMobileBatch74.includes('NBS kursna lista')
+    && exchangeRateMobileBatch74.includes('Frankfurter API v2')
+    && exchangeRateMobileBatch74.includes('poslednji uspesno sacuvan kurs'),
+  'Web i Mobile jasno prikazuju NBS javnu listu primary, Frankfurter secondary i sacuvani kurs emergency fallback semantiku.',
 );
 
 process.exit(failures === 0 ? 0 : 1);

@@ -145,7 +145,7 @@ export default function AdminExchangeRateScreen() {
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Komercijalni prodajni kurs</Text>
         <Text style={styles.copy}>
-          GLAVNI KURS APLIKACIJE. Primarni izvor je zvanicni NBS API za prodajni EUR kurs za devize; Frankfurter API v2 je sekundarni referentni fallback. Postojeca NBS javna lista ostaje samo poslednja emergency zastita.
+          GLAVNI KURS APLIKACIJE. Primarni izvor je javna NBS kursna lista za devize (EUR / 978 / prodajni kurs), bez kredencijala. Frankfurter API v2 je sekundarni referentni fallback. Ako oba izvora padnu, poslednji uspesno sacuvan kurs ostaje aktivan.
         </Text>
       </Card>
 
@@ -187,7 +187,7 @@ export default function AdminExchangeRateScreen() {
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Automatsko ažuriranje</Text>
         <Text style={styles.copy}>
-          Automatski rezim koristi NBS API kao primarni izvor, Frankfurter API v2 kao sekundarni fallback i NBS javnu listu samo kao tercijarnu emergency zastitu. Ukljucivanje odmah pokusava sinhronizaciju.
+          Automatski rezim prvo cita javnu NBS kursnu listu, zatim Frankfurter API v2. Ako oba izvora nisu dostupna, postojeci poslednji uspesno sacuvan kurs se ne prepisuje. Ukljucivanje odmah pokusava sinhronizaciju.
         </Text>
         <SelectSheet
           label="Automatsko ažuriranje"

@@ -19,11 +19,8 @@ return [
     ],
 
     'nbs_exchange' => [
-        'username' => env('NBS_EXCHANGE_API_USERNAME'),
-        'password' => env('NBS_EXCHANGE_API_PASSWORD'),
-        'licence_id' => env('NBS_EXCHANGE_API_LICENCE_ID'),
-        'timeout_seconds' => (int) env('NBS_EXCHANGE_API_TIMEOUT_SECONDS', 20),
-        'connect_timeout_seconds' => (int) env('NBS_EXCHANGE_API_CONNECT_TIMEOUT_SECONDS', 7),
+        'nbs_html_timeout_seconds' => (int) env('NBS_EXCHANGE_HTML_TIMEOUT_SECONDS', 20),
+        'nbs_html_connect_timeout_seconds' => (int) env('NBS_EXCHANGE_HTML_CONNECT_TIMEOUT_SECONDS', 7),
         'frankfurter_timeout_seconds' => (int) env('FRANKFURTER_EXCHANGE_API_TIMEOUT_SECONDS', 12),
         'frankfurter_connect_timeout_seconds' => (int) env('FRANKFURTER_EXCHANGE_API_CONNECT_TIMEOUT_SECONDS', 5),
     ],
