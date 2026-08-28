@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useAuth } from '@/features/auth/auth-provider';
 import { resolvePushNotificationNavigation } from '@/features/notifications/notification-routing';
-import { getPushPermissionState, registerCurrentDeviceForPush } from '@/features/notifications/push-service';
+import { syncCurrentDeviceAtStartup } from '@/features/notifications/push-service';
 
 const handledResponses = new Set<string>();
 
@@ -54,8 +54,10 @@ function openNotificationResponse(response: Notifications.NotificationResponse):
 
 export function PushNotificationBridge() {
   const queryClient = useQueryClient();
-  const { status, hasFeature, refreshBootstrap } = useAuth();
+  const { status, bootstrap, refreshBootstrap } = useAuth();
   const supportedPlatform = Platform.OS === 'android' || Platform.OS === 'ios';
+  const bootstrapReady = bootstrap !== null;
+  const pushRegistrationEnabled = Boolean(bootstrap?.features.push_registration);
 
   useEffect(() => {
     if (status !== 'authenticated' || !supportedPlatform) return;
@@ -79,19 +81,17 @@ export function PushNotificationBridge() {
   }, [queryClient, refreshBootstrap, status, supportedPlatform]);
 
   useEffect(() => {
-    if (status !== 'authenticated' || !supportedPlatform || !hasFeature('push_registration')) return;
+    if (status !== 'authenticated' || !bootstrapReady || !supportedPlatform) return;
 
     void (async () => {
       try {
-        const permission = await getPushPermissionState();
-        if (!permission.granted) return;
-        await registerCurrentDeviceForPush({ prompt: false });
+        await syncCurrentDeviceAtStartup({ includePush: pushRegistrationEnabled });
         await queryClient.invalidateQueries({ queryKey: ['devices'] });
       } catch {
-        // Silent token refresh must never block startup. Manual onboarding surfaces errors to the user.
+        // Startup device sync is best-effort; manual device/push screens surface actionable errors.
       }
     })();
-  }, [hasFeature, queryClient, status, supportedPlatform]);
+  }, [bootstrapReady, pushRegistrationEnabled, queryClient, status, supportedPlatform]);
 
   return null;
 }

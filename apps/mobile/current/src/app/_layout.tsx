@@ -11,7 +11,6 @@ import { TamaguiProvider } from 'tamagui';
 import { AppFeedbackProvider } from '@/components/ui/app-feedback';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
 import { CartProvider } from '@/features/cart/cart-provider';
-import { DeviceRegistrar } from '@/features/device/device-registrar';
 import { PushNotificationBridge } from '@/features/notifications/push-notification-bridge';
 import { AppPreferencesProvider, useAppPreferences } from '@/features/preferences/app-preferences';
 import { useAppTheme } from '@/theme/app-theme';
@@ -32,12 +31,7 @@ function AppReady() {
   useEffect(() => {
     if (status !== 'hydrating' && hydrated) void SplashScreen.hideAsync();
   }, [hydrated, status]);
-  return (
-    <>
-      <DeviceRegistrar />
-      <PushNotificationBridge />
-    </>
-  );
+  return <PushNotificationBridge />;
 }
 
 function ThemedApplication() {

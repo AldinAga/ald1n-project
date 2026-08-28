@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
 import { getInstallationId, getServerDeviceId, setServerDeviceId } from '@/lib/storage';
-import type { MobileDevice, MobileDeviceUpdateInput } from '@/types/api';
+import type { MobileDevice, MobileDeviceInput, MobileDeviceUpdateInput } from '@/types/api';
 
 export const BUSINESS_NOTIFICATION_CHANNEL = 'business-updates';
 
@@ -58,6 +58,43 @@ async function deviceMetadata(): Promise<MobileDeviceUpdateInput> {
   };
 }
 
+export async function syncCurrentDeviceAtStartup(options: { includePush: boolean }): Promise<MobileDevice> {
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
+    throw new Error('Startup device sync je dostupan samo na Android/iOS uredjajima.');
+  }
+
+  const installationId = await getInstallationId();
+  const metadata = await deviceMetadata();
+  let pushFields: Partial<MobileDeviceInput> = {};
+
+  if (options.includePush && Device.isDevice) {
+    try {
+      const permission = await Notifications.getPermissionsAsync();
+      if (permission.status === 'granted') {
+        await ensureBusinessNotificationChannel();
+        const token = (await Notifications.getExpoPushTokenAsync({ projectId: projectId() })).data;
+        if (token) {
+          pushFields = {
+            push_provider: 'expo',
+            push_token: token,
+            notifications_enabled: true
+          };
+        }
+      }
+    } catch {
+      // Push enrichment must not prevent the canonical device identity heartbeat.
+    }
+  }
+
+  const device = await api.devices.register({
+    installation_id: installationId,
+    platform: Platform.OS as 'android' | 'ios',
+    ...metadata,
+    ...pushFields
+  });
+  await setServerDeviceId(device.id);
+  return device;
+}
 async function registerFallback(input: MobileDeviceUpdateInput): Promise<MobileDevice> {
   const installationId = await getInstallationId();
   return api.devices.register({
