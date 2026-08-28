@@ -18,7 +18,6 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   refreshBootstrap: () => Promise<void>;
   replaceBootstrapUser: (user: User) => void;
-  setNotificationUnreadCount: (unread: number) => void;
   requireReauthentication: () => Promise<void>;
   can: (permission: string) => boolean;
   hasFeature: (feature: string) => boolean;
@@ -26,37 +25,51 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+type NotificationUnreadActionsContextValue = {
+  setUnread: (unread: number) => void;
+  decrementUnread: () => void;
+};
+
+const NotificationUnreadContext = createContext<number | null>(null);
+const NotificationUnreadActionsContext = createContext<NotificationUnreadActionsContextValue | null>(null);
+
+function normalizeNotificationUnread(unread: number): number {
+  return Number.isInteger(unread) && unread >= 0 ? unread : 0;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>('hydrating');
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
+  const [notificationUnread, setNotificationUnreadState] = useState(0);
+
+  const applyBootstrap = useCallback((next: BootstrapData | null) => {
+    setBootstrap(next);
+    setNotificationUnreadState(normalizeNotificationUnread(next?.notification_counts.unread ?? 0));
+  }, []);
 
   const clearSession = useCallback(async () => {
     await Promise.all([tokenStore.clear(), clearServerDeviceId()]);
-    setBootstrap(null);
+    applyBootstrap(null);
     setStatus('anonymous');
     queryClient.clear();
-  }, [queryClient]);
+  }, [applyBootstrap, queryClient]);
 
   const refreshBootstrap = useCallback(async () => {
     const next = await api.auth.bootstrap();
-    setBootstrap(next);
-  }, []);
+    applyBootstrap(next);
+  }, [applyBootstrap]);
 
   const replaceBootstrapUser = useCallback((user: User) => {
     setBootstrap((current) => current ? { ...current, user } : current);
   }, []);
 
   const setNotificationUnreadCount = useCallback((unread: number) => {
-    const safeUnread = Number.isInteger(unread) && unread >= 0 ? unread : 0;
+    setNotificationUnreadState(normalizeNotificationUnread(unread));
+  }, []);
 
-    setBootstrap((current) => current ? {
-      ...current,
-      notification_counts: {
-        ...current.notification_counts,
-        unread: safeUnread
-      }
-    } : current);
+  const decrementNotificationUnread = useCallback(() => {
+    setNotificationUnreadState((current) => Math.max(0, current - 1));
   }, []);
 
   const requireReauthentication = useCallback(async () => {
@@ -72,15 +85,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await tokenStore.set(token);
     try {
       const data = await api.auth.bootstrap();
-      setBootstrap(data);
+      applyBootstrap(data);
       setStatus('authenticated');
     } catch (error) {
       await tokenStore.clear();
-      setBootstrap(null);
+      applyBootstrap(null);
       setStatus('anonymous');
       throw error;
     }
-  }, []);
+  }, [applyBootstrap]);
 
   useEffect(() => {
     setUnauthorizedHandler(clearSession);
@@ -99,13 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus('authenticated');
       try {
         const data = await api.auth.bootstrap();
-        if (active) setBootstrap(data);
+        if (active) applyBootstrap(data);
       } catch {
         // Mrežna greška ne briše validnu lokalnu sesiju; 401 handler je briše.
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [applyBootstrap]);
 
   const signIn = useCallback(async (login: string, password: string) => {
     const deviceName = Device.modelName ?? Device.deviceName ?? 'Ald1n mobile device';
@@ -134,22 +147,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clearSession]);
 
-  const can = useCallback((permission: string) => Boolean(bootstrap?.permissions.includes(permission)), [bootstrap]);
-  const hasFeature = useCallback((feature: string) => Boolean(bootstrap?.features[feature]), [bootstrap]);
+  const permissions = bootstrap?.permissions;
+  const features = bootstrap?.features;
+  const can = useCallback((permission: string) => Boolean(permissions?.includes(permission)), [permissions]);
+  const hasFeature = useCallback((feature: string) => Boolean(features?.[feature]), [features]);
 
   const value = useMemo<AuthContextValue>(() => ({
     status, bootstrap, signIn, signInWithGoogle, signOut, refreshBootstrap,
-    replaceBootstrapUser, setNotificationUnreadCount, requireReauthentication, can, hasFeature
+    replaceBootstrapUser, requireReauthentication, can, hasFeature
   }), [
-    bootstrap, can, hasFeature, refreshBootstrap, replaceBootstrapUser, setNotificationUnreadCount, requireReauthentication,
+    bootstrap, can, hasFeature, refreshBootstrap, replaceBootstrapUser, requireReauthentication,
     signIn, signInWithGoogle, signOut, status
   ]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const notificationUnreadActions = useMemo<NotificationUnreadActionsContextValue>(() => ({
+    setUnread: setNotificationUnreadCount,
+    decrementUnread: decrementNotificationUnread,
+  }), [decrementNotificationUnread, setNotificationUnreadCount]);
+
+  return (
+    <AuthContext.Provider value={value}>
+      <NotificationUnreadActionsContext.Provider value={notificationUnreadActions}>
+        <NotificationUnreadContext.Provider value={notificationUnread}>
+          {children}
+        </NotificationUnreadContext.Provider>
+      </NotificationUnreadActionsContext.Provider>
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error('useAuth mora biti korišćen unutar AuthProvider-a.');
+  return value;
+}
+
+export function useNotificationUnread(): number {
+  const value = useContext(NotificationUnreadContext);
+  if (value === null) throw new Error('useNotificationUnread mora biti korišćen unutar AuthProvider-a.');
+  return value;
+}
+
+export function useNotificationUnreadActions(): NotificationUnreadActionsContextValue {
+  const value = useContext(NotificationUnreadActionsContext);
+  if (!value) throw new Error('useNotificationUnreadActions mora biti korišćen unutar AuthProvider-a.');
   return value;
 }

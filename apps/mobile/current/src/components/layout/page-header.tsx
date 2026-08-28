@@ -5,7 +5,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/ui/glyph';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
-import { useAuth } from '@/features/auth/auth-provider';
+import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
 type PageHeaderProps = {
@@ -26,9 +26,8 @@ export function PageHeader({
 }: PageHeaderProps) {
   const pathname = usePathname();
   const { colors: theme } = useAppTheme();
-  const { bootstrap, hasFeature } = useAuth();
+  const { hasFeature } = useAuth();
   const styles = createStyles(theme);
-  const unread = bootstrap?.notification_counts.unread ?? 0;
   const notificationsVisible = hasFeature('notifications');
 
   return (
@@ -64,30 +63,38 @@ export function PageHeader({
           </Pressable>
         ) : null}
 
-        {notificationsVisible ? (
-          <Pressable
-            accessibilityLabel={unread > 0 ? 'Obaveštenja, ' + String(unread) + ' nepročitanih' : 'Obaveštenja'}
-            accessibilityRole="button"
-            accessibilityState={{ selected: pathname === '/notifications' }}
-            onPress={() => {
-              if (pathname !== '/notifications') router.push('/notifications');
-            }}
-            style={({ pressed }) => [
-              styles.notificationButton,
-              pathname === '/notifications' ? styles.notificationButtonActive : null,
-              pressed ? styles.pressed : null,
-            ]}
-          >
-            <Glyph name="bell" size={23} color={pathname === '/notifications' ? theme.onPrimaryContainer : theme.ink} />
-            {unread > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unread > 99 ? '99+' : String(unread)}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        ) : null}
+        {notificationsVisible ? <PageHeaderNotificationButton pathname={pathname} /> : null}
       </View>
     </View>
+  );
+}
+
+function PageHeaderNotificationButton({ pathname }: { pathname: string }) {
+  const unread = useNotificationUnread();
+  const { colors: theme } = useAppTheme();
+  const styles = createStyles(theme);
+
+  return (
+    <Pressable
+      accessibilityLabel={unread > 0 ? 'Obaveštenja, ' + String(unread) + ' nepročitanih' : 'Obaveštenja'}
+      accessibilityRole="button"
+      accessibilityState={{ selected: pathname === '/notifications' }}
+      onPress={() => {
+        if (pathname !== '/notifications') router.push('/notifications');
+      }}
+      style={({ pressed }) => [
+        styles.notificationButton,
+        pathname === '/notifications' ? styles.notificationButtonActive : null,
+        pressed ? styles.pressed : null,
+      ]}
+    >
+      <Glyph name="bell" size={23} color={pathname === '/notifications' ? theme.onPrimaryContainer : theme.ink} />
+      {unread > 0 ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{unread > 99 ? '99+' : String(unread)}</Text>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 

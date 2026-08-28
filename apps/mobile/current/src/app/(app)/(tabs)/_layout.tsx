@@ -5,7 +5,7 @@ import { XStack } from 'tamagui';
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
 import { radii } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
-import { useAuth } from '@/features/auth/auth-provider';
+import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 
 function TabIcon({ name, color, focused }: { name: GlyphName; color: ColorValue; focused: boolean }) {
   const { colors: themeColors } = useAppTheme();
@@ -33,7 +33,8 @@ function TabIcon({ name, color, focused }: { name: GlyphName; color: ColorValue;
 
 export default function TabsLayout() {
   const { colors: themeColors } = useAppTheme();
-  const { bootstrap, hasFeature } = useAuth();
+  const { hasFeature } = useAuth();
+  const unread = useNotificationUnread();
 
   return (
     <Tabs
@@ -103,7 +104,7 @@ export default function TabsLayout() {
         options={{
           title: 'Obaveštenja',
           href: hasFeature('notifications') ? undefined : null,
-          tabBarBadge: bootstrap?.notification_counts.unread || undefined,
+          tabBarBadge: unread || undefined,
           tabBarIcon: ({ color, focused }) => <TabIcon name="bell" color={color} focused={focused} />,
         }}
       />

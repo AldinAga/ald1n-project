@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -15,7 +16,7 @@ import {
   apiAdminReports,
   type AdminReportTrendPoint,
 } from '@/features/admin/reports-admin-api';
-import { useAuth } from '@/features/auth/auth-provider';
+import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import { useCart } from '@/features/cart/cart-provider';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
@@ -116,26 +117,7 @@ export default function HomeScreen() {
       </View>
 
       {/* MOBILE_V0_9_HOME_FOCUS_SECTION_BATCH5C */}
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Fokus danas</Text>
-        <Text style={styles.sectionMeta}>
-          {(bootstrap?.notification_counts.unread ?? 0) > 0
-            ? `${bootstrap?.notification_counts.unread ?? 0} novih`
-            : 'Sve pod kontrolom'}
-        </Text>
-      </View>
-      <Card muted style={styles.stateCard}>
-        <Text style={styles.stateTitle}>
-          {(bootstrap?.notification_counts.unread ?? 0) > 0
-            ? 'Proveri nova obaveštenja'
-            : 'Nema novih obaveštenja'}
-        </Text>
-        <Text style={styles.stateCopy}>
-          {itemCount > 0
-            ? `${itemCount} stavki čeka u korpi.`
-            : 'Katalog, porudžbine i aktivnosti su spremni za rad.'}
-        </Text>
-      </Card>
+      <HomeFocusCard itemCount={itemCount} />
 
       {reportsAllowed ? (
         <View style={styles.dashboardSection}>
@@ -242,7 +224,7 @@ export default function HomeScreen() {
         </View>
       ) : (
         <View style={styles.metrics}>
-          <Metric value={String(bootstrap?.notification_counts.unread ?? 0)} label="Nepročitano" tone="primary" />
+          <HomeUnreadMetric />
           <Metric value={String(bootstrap?.permissions.length ?? 0)} label="Dozvole" tone="accent" />
           <Metric value={bootstrap?.app.api_version ?? 'v1'} label="API" tone="success" />
         </View>
@@ -349,6 +331,38 @@ export default function HomeScreen() {
     </Screen>
   );
 }
+
+const HomeFocusCard = memo(function HomeFocusCard({ itemCount }: { itemCount: number }) {
+  const unread = useNotificationUnread();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Fokus danas</Text>
+        <Text style={styles.sectionMeta}>
+          {unread > 0 ? `${unread} novih` : 'Sve pod kontrolom'}
+        </Text>
+      </View>
+      <Card muted style={styles.stateCard}>
+        <Text style={styles.stateTitle}>
+          {unread > 0 ? 'Proveri nova obaveštenja' : 'Nema novih obaveštenja'}
+        </Text>
+        <Text style={styles.stateCopy}>
+          {itemCount > 0
+            ? `${itemCount} stavki čeka u korpi.`
+            : 'Katalog, porudžbine i aktivnosti su spremni za rad.'}
+        </Text>
+      </Card>
+    </>
+  );
+});
+
+const HomeUnreadMetric = memo(function HomeUnreadMetric() {
+  const unread = useNotificationUnread();
+
+  return <Metric value={String(unread)} label="Nepročitano" tone="primary" />;
+});
 
 function DashboardMetric({
   value,

@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
-import { useAuth } from '@/features/auth/auth-provider';
+import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
 type MainRoute = '/home' | '/catalog' | '/orders' | '/notifications' | '/account' | '/admin';
@@ -57,6 +57,7 @@ export function AppBottomNav() {
   const insets = useSafeAreaInsets();
   const { colors: theme } = useAppTheme();
   const { bootstrap, hasFeature } = useAuth();
+  const unread = useNotificationUnread();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const active = activeKey(pathname);
@@ -105,7 +106,7 @@ export function AppBottomNav() {
           route: '/notifications',
           glyph: 'bell',
           visible: hasFeature('notifications'),
-          badge: bootstrap?.notification_counts.unread || undefined,
+          badge: unread || undefined,
         },
     {
       key: 'account',
@@ -114,7 +115,7 @@ export function AppBottomNav() {
       glyph: 'account',
       visible: true,
     },
-  ], [bootstrap?.notification_counts.unread, hasFeature, isSuperAdmin]);
+  ], [hasFeature, isSuperAdmin, unread]);
 
   if (keyboardVisible) return null;
 

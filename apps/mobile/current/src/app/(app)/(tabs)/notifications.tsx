@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/compon
 import { Pill } from '@/components/ui/pill';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
-import { useAuth } from '@/features/auth/auth-provider';
+import { useAuth, useNotificationUnreadActions } from '@/features/auth/auth-provider';
 import { resolveBusinessNotificationNavigation } from '@/features/notifications/notification-routing';
 import { api } from '@/lib/api/endpoints';
 import { formatDate } from '@/lib/formatters';
@@ -54,7 +54,8 @@ export default function NotificationsScreen() {
   );
   const feedback = useAppFeedback();
   const client = useQueryClient();
-  const { bootstrap, setNotificationUnreadCount, hasFeature } = useAuth();
+  const { bootstrap, hasFeature } = useAuth();
+  const { setUnread, decrementUnread } = useNotificationUnreadActions();
   const readInFlightIds = useRef<Set<string>> ( new Set());
   const allowed = hasFeature('notifications');
   const query = useQuery({ queryKey: ['notifications'], queryFn: () => api.notifications.list(), enabled: allowed });
@@ -82,8 +83,7 @@ export default function NotificationsScreen() {
       );
 
       if (changedUnread) {
-        const unread = bootstrap?.notification_counts.unread ?? 0;
-        setNotificationUnreadCount(Math.max(0, unread - 1));
+        decrementUnread();
       }
     },
     onError: (error) => {
@@ -116,7 +116,7 @@ export default function NotificationsScreen() {
         } : current
       );
 
-      setNotificationUnreadCount(result.unread);
+      setUnread(result.unread);
     },
     onError: (error) => {
       feedback.notify({

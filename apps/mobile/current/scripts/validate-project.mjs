@@ -1879,7 +1879,8 @@ assert(
 assert(
   batch50PageHeaderV2.includes('MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2')
     && batch50PageHeaderV2.includes("router.push('/notifications')")
-    && batch50PageHeaderV2.includes('notification_counts.unread')
+    && batch50PageHeaderV2.includes('useNotificationUnread')
+    && batch50PageHeaderV2.includes('function PageHeaderNotificationButton')
     && !batch50PageHeaderV2.includes("router.push('/account')")
     && !batch50PageHeaderV2.includes('styles.avatar')
     && batch50GlyphV2.includes("admin: { ios: 'shield.lefthalf.filled', android: 'admin_panel_settings'"),
