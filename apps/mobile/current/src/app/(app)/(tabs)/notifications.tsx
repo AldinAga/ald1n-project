@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -16,6 +16,35 @@ import { resolveBusinessNotificationNavigation } from '@/features/notifications/
 import { api } from '@/lib/api/endpoints';
 import { formatDate } from '@/lib/formatters';
 import type { BusinessNotification, PaginatedResponse } from '@/types/api';
+
+type NotificationRowProps = {
+  item: BusinessNotification;
+  onOpen: (item: BusinessNotification) => void;
+  styles: ReturnType<typeof createStyles>;
+};
+
+const NotificationRow = memo(function NotificationRow({ item, onOpen, styles }: NotificationRowProps) {
+  return (
+    <Pressable onPress={() => onOpen(item)}>
+      <Card style={[styles.card, !item.read && styles.unread]}>
+        <View style={[styles.dot, item.read && styles.dotRead]} />
+        <View style={styles.copyWrap}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Pill tone={item.severity === 'danger' ? 'danger' : item.severity === 'warning' ? 'warning' : 'info'}>
+              {item.read ? 'Pročitano' : 'Novo'}
+            </Pill>
+          </View>
+          {item.message ? <Text style={styles.message}>{item.message}</Text> : null}
+          <Text style={styles.date}>{formatDate(item.created_at, true)}</Text>
+        </View>
+      </Card>
+    </Pressable>
+  );
+});
+
+const notificationKeyExtractor = (item: BusinessNotification) => item.id;
+const NotificationListSeparator = () => <View style={{ height: spacing.md }} />;
 
 export default function NotificationsScreen() {
   const { colors: themeColors } = useAppTheme();
@@ -65,6 +94,11 @@ export default function NotificationsScreen() {
       });
     }
   });
+  const readMutateRef = useRef(read.mutate);
+  readMutateRef.current = read.mutate;
+  const feedbackRef = useRef(feedback);
+  feedbackRef.current = feedback;
+
   const readAll = useMutation({
     mutationFn: api.notifications.readAll,
     onSuccess: (result) => {
@@ -93,22 +127,18 @@ export default function NotificationsScreen() {
     }
   });
 
-  if (!allowed) return <UnavailableState title="Obaveštenja nisu dostupna" />;
-  if (query.isLoading) return <LoadingState label="Učitavanje obaveštenja…" />;
-  if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
-
-  const markReadInBackground = (item: BusinessNotification) => {
+  const markReadInBackground = useCallback((item: BusinessNotification) => {
     if (item.read || readInFlightIds.current.has(item.id)) return;
 
     readInFlightIds.current.add(item.id);
-    read.mutate(item.id, {
+    readMutateRef.current(item.id, {
       onSettled: () => {
         readInFlightIds.current.delete(item.id);
       }
     });
-  };
+  }, []);
 
-  const open = (item: BusinessNotification) => {
+  const open = useCallback((item: BusinessNotification) => {
     const destination = resolveBusinessNotificationNavigation(item);
     markReadInBackground(item);
 
@@ -136,32 +166,37 @@ export default function NotificationsScreen() {
       return;
     }
     if (destination.reason === 'stale_assignment') {
-      feedback.notify({
+      feedbackRef.current.notify({
         tone: 'warning',
         title: 'Porudžbina više nije dodeljena',
         message: 'Ova porudžbina je u međuvremenu dodeljena drugom odgovornom licu.'
       });
     }
-  };
+  }, [markReadInBackground]);
+
+  const renderNotification = useCallback(
+    ({ item }: { item: BusinessNotification }) => (
+      <NotificationRow item={item} onOpen={open} styles={styles} />
+    ),
+    [open, styles],
+  );
+
+
+  if (!allowed) return <UnavailableState title="Obaveštenja nisu dostupna" />;
+  if (query.isLoading) return <LoadingState label="Učitavanje obaveštenja…" />;
+  if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FlatList
       data={query.data?.data ?? []}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <Pressable onPress={() => void open(item)}>
-          <Card style={[styles.card, !item.read && styles.unread]}>
-            <View style={[styles.dot, item.read && styles.dotRead]} />
-            <View style={styles.copyWrap}>
-              <View style={styles.titleRow}><Text style={styles.title}>{item.title}</Text><Pill tone={item.severity === 'danger' ? 'danger' : item.severity === 'warning' ? 'warning' : 'info'}>{item.read ? 'Pročitano' : 'Novo'}</Pill></View>
-              {item.message ? <Text style={styles.message}>{item.message}</Text> : null}
-              <Text style={styles.date}>{formatDate(item.created_at, true)}</Text>
-            </View>
-          </Card>
-        </Pressable>
-      )}
-      ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+      keyExtractor={notificationKeyExtractor}
+      renderItem={renderNotification}
+      ItemSeparatorComponent={NotificationListSeparator}
+      initialNumToRender={8}
+      maxToRenderPerBatch={8}
+      windowSize={5}
+      updateCellsBatchingPeriod={50}
       refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={themeColors.primary} />}
       contentContainerStyle={styles.content}
       ListHeaderComponent={<View style={styles.header}><PageHeader title="Obaveštenja" eyebrow="Inbox" name={bootstrap?.user.name} /><Button variant="secondary" onPress={() => readAll.mutate()} loading={readAll.isPending}>Označi sve kao pročitano</Button></View>}
