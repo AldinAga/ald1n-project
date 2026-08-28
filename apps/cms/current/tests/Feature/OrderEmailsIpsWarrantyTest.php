@@ -14,6 +14,8 @@ use App\Models\ProductWarranty;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\WarrantyRule;
+use App\Services\DirectSaleService;
+use App\Services\OrderDocumentService;
 use App\Services\OrderEmailOutboxService;
 use App\Services\SettingsService;
 use Database\Seeders\CoreAccessSeeder;
@@ -163,6 +165,44 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
         self::assertStringContainsString('NBS IPS QR', $pdf->getContent());
     }
 
+    public function test_paid_direct_sale_bank_transfer_financial_documents_skip_ips_qr_and_render(): void
+    {
+        $superadmin = $this->user('direct-bank-paid-superadmin', 'superadmin');
+        $product = $this->product($superadmin, 'DIRECT-BANK-PAID-1', 12000);
+        app(SettingsService::class)->putMany([
+            'documents_company_name' => 'Ald1n Test',
+            'documents_company_address' => 'Test address 1',
+            'documents_company_city' => 'Beograd',
+            'documents_company_tax_id' => '123456789',
+            'documents_company_registration_number' => '12345678',
+        ], $superadmin->id);
+
+        Http::preventStrayRequests();
+        $order = app(DirectSaleService::class)->record($product, $superadmin, [
+            'buyer_name' => 'Walk In Buyer',
+            'buyer_phone' => '060123456',
+            'quantity' => 1,
+            'sale_price_rsd' => 12000,
+            'payment_method' => 'bank_transfer',
+        ], 'direct-bank-paid-documents-1');
+
+        self::assertSame('direct_sale', (string) $order->sales_channel);
+        self::assertSame('bank_transfer', (string) $order->payment_method);
+        self::assertSame('paid', (string) $order->payment_state);
+        self::assertSame(12000.0, (float) $order->paid_total_rsd);
+        self::assertSame('', trim((string) $order->bank_account_number_snapshot));
+
+        $documents = app(OrderDocumentService::class);
+        $proforma = $documents->issue($order, 'proforma', $superadmin);
+        $invoice = $documents->issue($order, 'invoice', $superadmin);
+
+        self::assertNull($proforma->ips_payload_snapshot);
+        self::assertNull($proforma->ips_qr_image_path);
+        self::assertNull($invoice->ips_payload_snapshot);
+        self::assertNull($invoice->ips_qr_image_path);
+        self::assertStringStartsWith('%PDF-1.4', $documents->render($proforma));
+        self::assertStringStartsWith('%PDF-1.4', $documents->render($invoice));
+    }
     public function test_warranty_duration_combines_months_and_days(): void
     {
         Carbon::setTestNow('2026-01-20 10:00:00');

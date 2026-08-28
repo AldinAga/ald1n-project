@@ -47,7 +47,7 @@ final class OrderDocumentService
 
         $order->loadMissing('user');
         $preparedIps = $this->nbsIpsQr->applies($order, $type)
-            ? $this->nbsIpsQr->generate($order, round((float) $order->subtotal_rsd, 2))
+            ? $this->nbsIpsQr->generate($order)
             : null;
         $storedIpsPath = null;
 

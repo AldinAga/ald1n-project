@@ -20,12 +20,20 @@ final class NbsIpsQrService
 
     public function applies(Order $order, string $documentType): bool
     {
-        return $order->payment_method === 'bank_transfer'
-            && in_array($documentType, ['proforma', 'invoice'], true);
+        if ($order->payment_method !== 'bank_transfer'
+            || !in_array($documentType, ['proforma', 'invoice'], true)) {
+            return false;
+        }
+
+        if (in_array((string) $order->payment_state, ['paid', 'overpaid', 'cancelled', 'refunded'], true)) {
+            return false;
+        }
+
+        return $this->outstandingAmount($order) > 0.004;
     }
 
     /** @return array{payload:string,png:string} */
-    public function generate(Order $order, float $amountRsd): array
+    public function generate(Order $order, ?float $amountRsd = null): array
     {
         $payload = $this->payloads->payload($order, $amountRsd);
         if ($payload === null) {
@@ -95,7 +103,7 @@ final class NbsIpsQrService
         if ($this->storedPath($document) !== null) return $document;
 
         $this->assertSchemaReady();
-        $generated = $this->generate($order, (float) $document->total_rsd);
+        $generated = $this->generate($order);
         $storedPath = null;
 
         try {
@@ -146,6 +154,11 @@ final class NbsIpsQrService
                 throw ValidationException::withMessages(['ips_qr' => 'Nedostaje kolona order_documents.'.$column.'. Pokreni: php artisan migrate --force']);
             }
         }
+    }
+
+    private function outstandingAmount(Order $order): float
+    {
+        return round(max(0.0, (float) $order->subtotal_rsd - (float) ($order->paid_total_rsd ?? 0)), 2);
     }
 
     private function storedPath(OrderDocument $document): ?string
