@@ -32,6 +32,7 @@ type NotificationUnreadActionsContextValue = {
 
 const NotificationUnreadContext = createContext<number | null>(null);
 const NotificationUnreadActionsContext = createContext<NotificationUnreadActionsContextValue | null>(null);
+const SessionRestoreReadyContext = createContext<boolean | null>(null);
 
 function normalizeNotificationUnread(unread: number): number {
   return Number.isInteger(unread) && unread >= 0 ? unread : 0;
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('hydrating');
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
   const [notificationUnread, setNotificationUnreadState] = useState(0);
+  const [sessionRestoreReady, setSessionRestoreReady] = useState(false);
 
   const applyBootstrap = useCallback((next: BootstrapData | null) => {
     setBootstrap(next);
@@ -103,18 +105,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const token = await tokenStore.get();
-      if (!active) return;
-      if (!token) {
-        setStatus('anonymous');
-        return;
-      }
-      setStatus('authenticated');
       try {
-        const data = await api.auth.bootstrap();
-        if (active) applyBootstrap(data);
-      } catch {
-        // Mrežna greška ne briše validnu lokalnu sesiju; 401 handler je briše.
+        const token = await tokenStore.get();
+        if (!active) return;
+        if (!token) {
+          setStatus('anonymous');
+          return;
+        }
+        setStatus('authenticated');
+        try {
+          const data = await api.auth.bootstrap();
+          if (active) applyBootstrap(data);
+        } catch {
+          // Mrežna greška ne briše validnu lokalnu sesiju; 401 handler je briše.
+        }
+      } finally {
+        if (active) setSessionRestoreReady(true);
       }
     })();
     return () => { active = false; };
@@ -167,11 +173,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      <NotificationUnreadActionsContext.Provider value={notificationUnreadActions}>
-        <NotificationUnreadContext.Provider value={notificationUnread}>
-          {children}
-        </NotificationUnreadContext.Provider>
-      </NotificationUnreadActionsContext.Provider>
+      <SessionRestoreReadyContext.Provider value={sessionRestoreReady}>
+        <NotificationUnreadActionsContext.Provider value={notificationUnreadActions}>
+          <NotificationUnreadContext.Provider value={notificationUnread}>
+            {children}
+          </NotificationUnreadContext.Provider>
+        </NotificationUnreadActionsContext.Provider>
+      </SessionRestoreReadyContext.Provider>
     </AuthContext.Provider>
   );
 }
@@ -179,6 +187,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error('useAuth mora biti korišćen unutar AuthProvider-a.');
+  return value;
+}
+
+export function useSessionRestoreReady(): boolean {
+  const value = useContext(SessionRestoreReadyContext);
+  if (value === null) throw new Error('useSessionRestoreReady mora biti korišćen unutar AuthProvider-a.');
   return value;
 }
 

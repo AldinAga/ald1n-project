@@ -9,7 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
 import { AppFeedbackProvider } from '@/components/ui/app-feedback';
-import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
+import { AuthProvider, useAuth, useSessionRestoreReady } from '@/features/auth/auth-provider';
 import { CartProvider } from '@/features/cart/cart-provider';
 import { PushNotificationBridge } from '@/features/notifications/push-notification-bridge';
 import { AppPreferencesProvider, useAppPreferences } from '@/features/preferences/app-preferences';
@@ -26,11 +26,11 @@ const queryClient = new QueryClient({
 });
 
 function AppReady() {
-  const { status } = useAuth();
+  const sessionRestoreReady = useSessionRestoreReady();
   const { hydrated } = useAppPreferences();
   useEffect(() => {
-    if (status !== 'hydrating' && hydrated) void SplashScreen.hideAsync();
-  }, [hydrated, status]);
+    if (sessionRestoreReady && hydrated) void SplashScreen.hideAsync();
+  }, [hydrated, sessionRestoreReady]);
   return <PushNotificationBridge />;
 }
 
