@@ -15,9 +15,19 @@ final class ExchangeRateService
     public const RATE_KIND = 'commercial_sell';
     public const RATE_LABEL = 'Komercijalni prodajni';
 
-    private const ENDPOINT = 'https://webappcenter.nbs.rs/ExchangeRateWebApp/ExchangeRate/CurrentForeignExchange';
-    private const PROVIDER = 'nbs';
-    private const SOURCE = 'Narodna banka Srbije - prodajni kurs za devize (Komercijalni prodajni)';
+    private const NBS_API_ENDPOINT = 'https://webservices.nbs.rs/CommunicationOfficeService1_0/ExchangeRateService.asmx';
+    private const NBS_API_ACTION = 'http://communicationoffice.nbs.rs/GetCurrentExchangeRate';
+    private const NBS_HTML_ENDPOINT = 'https://webappcenter.nbs.rs/ExchangeRateWebApp/ExchangeRate/CurrentForeignExchange';
+    private const FRANKFURTER_ENDPOINT = 'https://api.frankfurter.dev/v2/rate/EUR/RSD';
+
+    private const PRIMARY_PROVIDER = 'nbs_api';
+    private const NBS_API_SOURCE = 'Narodna banka Srbije API - prodajni kurs za devize (Komercijalni prodajni)';
+    private const FRANKFURTER_PROVIDER = 'frankfurter';
+    private const FRANKFURTER_SOURCE = 'Frankfurter API v2 - sekundarni EUR/RSD referentni fallback';
+    private const NBS_HTML_PROVIDER = 'nbs_html';
+    private const NBS_HTML_SOURCE = 'Narodna banka Srbije javna kursna lista - tercijarni emergency fallback prodajni kurs za devize';
+    private const FAILURE_PROVIDER = 'provider_chain';
+    private const FAILURE_SOURCE = 'NBS API -> Frankfurter API -> NBS javna kursna lista';
     private const MANUAL_SOURCE = 'Rucni override - Komercijalni prodajni EUR/RSD kurs';
 
     public function __construct(
@@ -33,7 +43,7 @@ final class ExchangeRateService
         $updatedAt = trim($all['eur_rsd_updated_at']) ?: null;
         $staleHours = max(1, min(720, (int) $all['eur_rsd_stale_after_hours']));
         $isStale = $updatedAt === null || now()->diffInHours(Carbon::parse($updatedAt), true) > $staleHours;
-        $provider = trim((string) ($all['eur_rsd_provider'] ?? '')) ?: self::PROVIDER;
+        $provider = trim((string) ($all['eur_rsd_provider'] ?? '')) ?: self::PRIMARY_PROVIDER;
 
         return [
             'rate' => $rate,
@@ -90,23 +100,37 @@ final class ExchangeRateService
         $this->audit->log('exchange_rate.mode_updated', 'Komercijalni prodajni EUR/RSD kurs', null, $before, $this->configuration());
     }
 
-    /** @return array{rate:float,date:string,source:string} */
+    /** @return array{rate:float,date:string,source:string,provider:string,fallback_reason?:string} */
     public function fetchCommercialSellingRate(): array
     {
-        $response = Http::withHeaders([
-            'Accept' => 'text/html,application/xhtml+xml',
-            'Accept-Language' => 'sr-RS,sr;q=0.9,en;q=0.7',
-            'User-Agent' => 'Mozilla/5.0 (compatible; Ald1nCMS/2.2; +https://cms.ald1n.com)',
-        ])->timeout(20)->connectTimeout(7)->get(self::ENDPOINT);
+        $errors = [];
 
-        if (!$response->successful()) {
-            throw new RuntimeException('NBS je vratio HTTP status '.$response->status().'.');
+        try {
+            return $this->fetchNbsApiCommercialSellingRate();
+        } catch (Throwable $exception) {
+            $errors[] = 'NBS API: '.$this->safeProviderError($exception);
         }
 
-        return $this->parseNbsCommercialSellingRate($response->body());
+        try {
+            $result = $this->fetchFrankfurterRate();
+            $result['fallback_reason'] = implode(' | ', $errors);
+            return $result;
+        } catch (Throwable $exception) {
+            $errors[] = 'Frankfurter: '.$this->safeProviderError($exception);
+        }
+
+        try {
+            $result = $this->fetchNbsHtmlCommercialSellingRate();
+            $result['fallback_reason'] = implode(' | ', $errors);
+            return $result;
+        } catch (Throwable $exception) {
+            $errors[] = 'NBS HTML: '.$this->safeProviderError($exception);
+        }
+
+        throw new RuntimeException('Automatski EUR/RSD izvori nisu dostupni. '.implode(' | ', $errors));
     }
 
-    /** @return array{rate:float,date:string,source:string} */
+    /** @return array{rate:float,date:string,source:string,provider:string,fallback_reason?:string} */
     public function updateAutomatically(string $triggeredBy = 'cron', ?int $userId = null, bool $force = false): array
     {
         $before = $this->configuration();
@@ -114,7 +138,6 @@ final class ExchangeRateService
             throw new RuntimeException('Automatsko azuriranje nije ukljuceno.');
         }
 
-        // Forced refresh changes the canonical value but preserves manual/auto mode.
         $effectiveMode = $force && $before['mode'] === 'manual' ? 'manual' : 'auto';
         $attemptAt = now()->format('Y-m-d H:i:s');
 
@@ -122,35 +145,48 @@ final class ExchangeRateService
             $result = $this->fetchCommercialSellingRate();
             $rate = (float) $result['rate'];
             $date = (string) $result['date'];
+            $provider = (string) $result['provider'];
+            $source = (string) $result['source'];
             $this->assertRate($rate);
 
             $this->settings->putMany([
                 'eur_rsd_rate' => number_format($rate, 6, '.', ''),
                 'eur_rsd_mode' => $effectiveMode,
-                'eur_rsd_provider' => self::PROVIDER,
-                'eur_rsd_source' => self::SOURCE,
+                'eur_rsd_provider' => $provider,
+                'eur_rsd_source' => $source,
                 'eur_rsd_provider_date' => $date,
                 'eur_rsd_updated_at' => $attemptAt,
                 'eur_rsd_last_attempt_at' => $attemptAt,
                 'eur_rsd_last_error' => '',
             ], $userId);
 
+            $message = match ($provider) {
+                self::PRIMARY_PROVIDER => 'NBS API Komercijalni prodajni EUR/RSD kurs je uspesno preuzet i postavljen kao glavni kurs.',
+                self::FRANKFURTER_PROVIDER => 'NBS API nije bio dostupan; Frankfurter API v2 sekundarni fallback je postavljen kao privremeni EUR/RSD kurs.',
+                self::NBS_HTML_PROVIDER => 'NBS API i Frankfurter nisu bili dostupni; postojeca NBS javna kursna lista je upotrebljena kao tercijarni emergency fallback.',
+                default => 'EUR/RSD kurs je automatski osvezen.',
+            };
+            $fallbackReason = trim((string) ($result['fallback_reason'] ?? ''));
+            if ($fallbackReason !== '') {
+                $message .= ' Fallback razlog: '.mb_substr($fallbackReason, 0, 250);
+            }
+
             ExchangeRateHistory::query()->create([
                 'old_rate' => $before['rate'],
                 'new_rate' => $rate,
                 'mode' => $effectiveMode,
-                'provider' => self::PROVIDER,
-                'source' => self::SOURCE,
+                'provider' => $provider,
+                'source' => $source,
                 'provider_date' => $date,
                 'triggered_by' => $triggeredBy,
                 'status' => 'success',
-                'message' => 'NBS Komercijalni prodajni EUR/RSD kurs je uspesno preuzet i postavljen kao glavni kurs.',
+                'message' => mb_substr($message, 0, 500),
                 'updated_by' => $userId,
             ]);
 
             return $result;
         } catch (Throwable $exception) {
-            $message = mb_substr($exception->getMessage(), 0, 500);
+            $message = mb_substr($this->safeProviderError($exception), 0, 500);
             $this->settings->putMany([
                 'eur_rsd_last_error' => $message,
                 'eur_rsd_last_attempt_at' => $attemptAt,
@@ -159,8 +195,8 @@ final class ExchangeRateService
                 'old_rate' => $before['rate'],
                 'new_rate' => null,
                 'mode' => $effectiveMode,
-                'provider' => self::PROVIDER,
-                'source' => self::SOURCE,
+                'provider' => self::FAILURE_PROVIDER,
+                'source' => self::FAILURE_SOURCE,
                 'provider_date' => null,
                 'triggered_by' => $triggeredBy,
                 'status' => 'failed',
@@ -171,11 +207,161 @@ final class ExchangeRateService
         }
     }
 
-    /** @return array{rate:float,date:string,source:string} */
-    private function parseNbsCommercialSellingRate(string $html): array
+    /** @return array{rate:float,date:string,source:string,provider:string} */
+    private function fetchNbsApiCommercialSellingRate(): array
+    {
+        [$username, $password, $licenceId] = $this->nbsApiCredentials();
+        $soap = $this->nbsSoapEnvelope($username, $password, $licenceId);
+        $timeout = max(3, min(60, (int) config('services.nbs_exchange.timeout_seconds', 20)));
+        $connectTimeout = max(2, min(20, (int) config('services.nbs_exchange.connect_timeout_seconds', 7)));
+
+        $response = Http::withHeaders([
+            'Accept' => 'text/xml,application/xml',
+            'Content-Type' => 'text/xml; charset=utf-8',
+            'SOAPAction' => self::NBS_API_ACTION,
+            'User-Agent' => 'Ald1nCMS/2.2 (+https://cms.ald1n.com)',
+        ])->withBody($soap, 'text/xml; charset=utf-8')
+            ->timeout($timeout)
+            ->connectTimeout($connectTimeout)
+            ->post(self::NBS_API_ENDPOINT);
+
+        if (!$response->successful()) {
+            throw new RuntimeException('NBS API je vratio HTTP status '.$response->status().'.');
+        }
+
+        return $this->parseNbsSoapCommercialSellingRate($response->body());
+    }
+
+    /** @return array{rate:float,date:string,source:string,provider:string} */
+    private function fetchFrankfurterRate(): array
+    {
+        $timeout = max(3, min(60, (int) config('services.nbs_exchange.frankfurter_timeout_seconds', 12)));
+        $connectTimeout = max(2, min(20, (int) config('services.nbs_exchange.frankfurter_connect_timeout_seconds', 5)));
+        $response = Http::acceptJson()
+            ->withHeaders(['User-Agent' => 'Ald1nCMS/2.2 (+https://cms.ald1n.com)'])
+            ->timeout($timeout)
+            ->connectTimeout($connectTimeout)
+            ->get(self::FRANKFURTER_ENDPOINT);
+
+        if (!$response->successful()) {
+            throw new RuntimeException('Frankfurter je vratio HTTP status '.$response->status().'.');
+        }
+
+        $payload = $response->json();
+        if (!is_array($payload)) {
+            throw new RuntimeException('Frankfurter odgovor nije validan JSON objekat.');
+        }
+        if (strtoupper((string) ($payload['base'] ?? '')) !== 'EUR' || strtoupper((string) ($payload['quote'] ?? '')) !== 'RSD') {
+            throw new RuntimeException('Frankfurter odgovor ne odgovara EUR/RSD paru.');
+        }
+        if (!is_numeric($payload['rate'] ?? null)) {
+            throw new RuntimeException('Frankfurter EUR/RSD kurs nije numericki validan.');
+        }
+        $rate = (float) $payload['rate'];
+        $this->assertRate($rate);
+        $date = $this->normalizeProviderDate((string) ($payload['date'] ?? ''));
+
+        return [
+            'rate' => $rate,
+            'date' => $date,
+            'source' => self::FRANKFURTER_SOURCE,
+            'provider' => self::FRANKFURTER_PROVIDER,
+        ];
+    }
+
+    /** @return array{rate:float,date:string,source:string,provider:string} */
+    private function fetchNbsHtmlCommercialSellingRate(): array
+    {
+        $response = Http::withHeaders([
+            'Accept' => 'text/html,application/xhtml+xml',
+            'Accept-Language' => 'sr-RS,sr;q=0.9,en;q=0.7',
+            'User-Agent' => 'Mozilla/5.0 (compatible; Ald1nCMS/2.2; +https://cms.ald1n.com)',
+        ])->timeout(20)->connectTimeout(7)->get(self::NBS_HTML_ENDPOINT);
+
+        if (!$response->successful()) {
+            throw new RuntimeException('NBS javna kursna lista je vratila HTTP status '.$response->status().'.');
+        }
+
+        return $this->parseNbsHtmlCommercialSellingRate($response->body());
+    }
+
+    /** @return array{0:string,1:string,2:string} */
+    private function nbsApiCredentials(): array
+    {
+        $username = trim((string) config('services.nbs_exchange.username', ''));
+        $password = trim((string) config('services.nbs_exchange.password', ''));
+        $licenceId = trim((string) config('services.nbs_exchange.licence_id', ''));
+        if ($username === '' || $password === '' || $licenceId === '') {
+            throw new RuntimeException('NBS API kredencijali nisu podeseni.');
+        }
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $licenceId) !== 1) {
+            throw new RuntimeException('NBS API LicenceID nema validan GUID format.');
+        }
+        return [$username, $password, $licenceId];
+    }
+
+    private function nbsSoapEnvelope(string $username, string $password, string $licenceId): string
+    {
+        $xml = static fn (string $value): string => htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        return '<?xml version="1.0" encoding="utf-8"?>'
+            .'<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+            .'<soap:Header><AuthenticationHeader xmlns="http://communicationoffice.nbs.rs">'
+            .'<UserName>'.$xml($username).'</UserName>'
+            .'<Password>'.$xml($password).'</Password>'
+            .'<LicenceID>'.$xml($licenceId).'</LicenceID>'
+            .'</AuthenticationHeader></soap:Header>'
+            .'<soap:Body><GetCurrentExchangeRate xmlns="http://communicationoffice.nbs.rs">'
+            .'<exchangeRateListTypeID>1</exchangeRateListTypeID>'
+            .'</GetCurrentExchangeRate></soap:Body></soap:Envelope>';
+    }
+
+    /** @return array{rate:float,date:string,source:string,provider:string} */
+    private function parseNbsSoapCommercialSellingRate(string $xml): array
+    {
+        if (trim($xml) === '') {
+            throw new RuntimeException('NBS API odgovor je prazan.');
+        }
+        $fault = [];
+        if (preg_match('/<faultstring\b[^\x3e]*\x3e(.*?)<\/faultstring>/isu', $xml, $fault) === 1) {
+            throw new RuntimeException('NBS API SOAP greska: '.mb_substr($this->xmlText((string) $fault[1]), 0, 180));
+        }
+
+        $rows = [];
+        preg_match_all('/\x3c(?:[A-Za-z0-9_]+:)?ExchangeRate\b[^\x3e]*\x3e(.*?)<\/(?:[A-Za-z0-9_]+:)?ExchangeRate>/isu', $xml, $rows);
+        foreach ($rows[1] ?? [] as $row) {
+            $rowXml = (string) $row;
+            $currencyCode = preg_replace('/\D+/', '', (string) ($this->xmlChild($rowXml, 'CurrencyCode') ?? ''));
+            $currencyAlpha = strtoupper(trim((string) ($this->xmlChild($rowXml, 'CurrencyCodeAlfaChar') ?? '')));
+            if ($currencyCode !== '978' && $currencyAlpha !== 'EUR') {
+                continue;
+            }
+            $unit = (int) preg_replace('/\D+/', '', (string) ($this->xmlChild($rowXml, 'Unit') ?? ''));
+            if ($unit !== 1) {
+                throw new RuntimeException('NBS API EUR red nema ocekivanu jedinicu 1.');
+            }
+            $sellingRaw = (string) ($this->xmlChild($rowXml, 'SellingRate') ?? '');
+            if ($sellingRaw === '') {
+                throw new RuntimeException('NBS API EUR red nema prodajni kurs.');
+            }
+            $rate = $this->decimalFromNbs($sellingRaw);
+            $this->assertRate($rate);
+            $date = $this->normalizeProviderDate((string) ($this->xmlChild($rowXml, 'Date') ?? ''));
+            return [
+                'rate' => $rate,
+                'date' => $date,
+                'source' => self::NBS_API_SOURCE,
+                'provider' => self::PRIMARY_PROVIDER,
+            ];
+        }
+
+        throw new RuntimeException('NBS API tekuca lista ne sadrzi EUR prodajni kurs za devize.');
+    }
+
+    /** @return array{rate:float,date:string,source:string,provider:string} */
+    private function parseNbsHtmlCommercialSellingRate(string $html): array
     {
         if (trim($html) === '') {
-            throw new RuntimeException('NBS odgovor je prazan.');
+            throw new RuntimeException('NBS javni HTML odgovor je prazan.');
         }
 
         $rows = [];
@@ -217,19 +403,50 @@ final class ExchangeRateService
         if (!preg_match('/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\./u', $plain, $dateMatch)) {
             throw new RuntimeException('NBS kursna lista nema prepoznatljiv datum formiranja.');
         }
-        $day = (int) $dateMatch[1];
-        $month = (int) $dateMatch[2];
-        $year = (int) $dateMatch[3];
-        if (!checkdate($month, $day, $year)) {
-            throw new RuntimeException('NBS datum kursne liste nije validan.');
-        }
-        $date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+        $date = $this->normalizeProviderDate($dateMatch[1].'.'.$dateMatch[2].'.'.$dateMatch[3].'.');
 
         return [
             'rate' => $sellingRate,
             'date' => $date,
-            'source' => self::SOURCE,
+            'source' => self::NBS_HTML_SOURCE,
+            'provider' => self::NBS_HTML_PROVIDER,
         ];
+    }
+
+    private function xmlChild(string $xml, string $name): ?string
+    {
+        $quoted = preg_quote($name, '/');
+        $match = [];
+        if (preg_match('/\x3c(?:[A-Za-z0-9_]+:)?'.$quoted.'\b[^\x3e]*\x3e(.*?)<\/(?:[A-Za-z0-9_]+:)?'.$quoted.'>/isu', $xml, $match) !== 1) {
+            return null;
+        }
+        return $this->xmlText((string) $match[1]);
+    }
+
+    private function xmlText(string $value): string
+    {
+        return trim(html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+    }
+
+    private function normalizeProviderDate(string $value): string
+    {
+        $value = trim($value);
+        $match = [];
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})/', $value, $match) === 1) {
+            $year = (int) $match[1];
+            $month = (int) $match[2];
+            $day = (int) $match[3];
+        } elseif (preg_match('/^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?/', $value, $match) === 1) {
+            $day = (int) $match[1];
+            $month = (int) $match[2];
+            $year = (int) $match[3];
+        } else {
+            throw new RuntimeException('Datum izvora kursa nije u podrzanom formatu.');
+        }
+        if (!checkdate($month, $day, $year)) {
+            throw new RuntimeException('Datum izvora kursa nije validan.');
+        }
+        return sprintf('%04d-%02d-%02d', $year, $month, $day);
     }
 
     private function htmlText(string $html): string
@@ -247,6 +464,19 @@ final class ExchangeRateService
             throw new RuntimeException('NBS prodajni EUR kurs nije numericki validan.');
         }
         return (float) $normalized;
+    }
+
+    private function safeProviderError(Throwable $exception): string
+    {
+        $message = $exception->getMessage();
+        foreach (['username', 'password', 'licence_id'] as $key) {
+            $secret = trim((string) config('services.nbs_exchange.'.$key, ''));
+            if ($secret !== '') {
+                $message = str_replace($secret, '[redacted]', $message);
+            }
+        }
+        $message = preg_replace('/<Password>.*?<\/Password>/isu', '<Password>[redacted]</Password>', $message) ?? $message;
+        return mb_substr(trim($message), 0, 350);
     }
 
     private function assertRate(float $rate): void

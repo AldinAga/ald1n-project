@@ -145,7 +145,7 @@ export default function AdminExchangeRateScreen() {
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Komercijalni prodajni kurs</Text>
         <Text style={styles.copy}>
-          GLAVNI KURS APLIKACIJE. Vrsta kursa je zakljucana; automatski refresh koristi NBS prodajni EUR kurs za devize. Rucni unos je samo override iste vrste kursa.
+          GLAVNI KURS APLIKACIJE. Primarni izvor je zvanicni NBS API za prodajni EUR kurs za devize; Frankfurter API v2 je sekundarni referentni fallback. Postojeca NBS javna lista ostaje samo poslednja emergency zastita.
         </Text>
       </Card>
 
@@ -187,7 +187,7 @@ export default function AdminExchangeRateScreen() {
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Automatsko ažuriranje</Text>
         <Text style={styles.copy}>
-          Automatski režim koristi postojeći centralni ExchangeRateService. Uključivanje odmah pokušava sinhronizaciju.
+          Automatski rezim koristi NBS API kao primarni izvor, Frankfurter API v2 kao sekundarni fallback i NBS javnu listu samo kao tercijarnu emergency zastitu. Ukljucivanje odmah pokusava sinhronizaciju.
         </Text>
         <SelectSheet
           label="Automatsko ažuriranje"

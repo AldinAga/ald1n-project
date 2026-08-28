@@ -18,6 +18,15 @@ return [
         'mail_enabled' => (bool) env('OPERATIONAL_EMAIL_NOTIFICATIONS', false),
     ],
 
+    'nbs_exchange' => [
+        'username' => env('NBS_EXCHANGE_API_USERNAME'),
+        'password' => env('NBS_EXCHANGE_API_PASSWORD'),
+        'licence_id' => env('NBS_EXCHANGE_API_LICENCE_ID'),
+        'timeout_seconds' => (int) env('NBS_EXCHANGE_API_TIMEOUT_SECONDS', 20),
+        'connect_timeout_seconds' => (int) env('NBS_EXCHANGE_API_CONNECT_TIMEOUT_SECONDS', 7),
+        'frankfurter_timeout_seconds' => (int) env('FRANKFURTER_EXCHANGE_API_TIMEOUT_SECONDS', 12),
+        'frankfurter_connect_timeout_seconds' => (int) env('FRANKFURTER_EXCHANGE_API_CONNECT_TIMEOUT_SECONDS', 5),
+    ],
     'ips_qr' => [
         'generate_url' => env('NBS_IPS_QR_GENERATE_URL', 'https://nbs.rs/QRcode/api/qr/v1/generate/320?lang=sr_RS_Latn'),
         'timeout' => (int) env('NBS_IPS_QR_TIMEOUT', 20),

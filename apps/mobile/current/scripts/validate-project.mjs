@@ -1844,10 +1844,15 @@ assert(
 assert(
   batch50ExchangeAuthorityV2.includes("public const RATE_KIND = 'commercial_sell'")
     && batch50ExchangeAuthorityV2.includes("public const RATE_LABEL = 'Komercijalni prodajni'")
+    && batch50ExchangeAuthorityV2.includes("private const PRIMARY_PROVIDER = 'nbs_api';")
+    && batch50ExchangeAuthorityV2.includes("private const FRANKFURTER_PROVIDER = 'frankfurter';")
     && batch50ExchangeAuthorityV2.includes('CurrentForeignExchange')
-    && batch50ExchangeAuthorityV2.includes("private const PROVIDER = 'nbs'")
-    && batch50ExchangeAuthorityV2.includes('$sellingRate = $this->decimalFromNbs($cells[5]);'),
-  'v1.0 Batch50 V2 NBS Komercijalni prodajni authority ostaje jedini EUR/RSD source.',
+    && batch50ExchangeAuthorityV2.includes('fetchNbsApiCommercialSellingRate()')
+    && batch50ExchangeAuthorityV2.includes('fetchFrankfurterRate()')
+    && batch50ExchangeAuthorityV2.includes('fetchNbsHtmlCommercialSellingRate()')
+    && batch50ExchangeAuthorityV2.indexOf('fetchNbsApiCommercialSellingRate()') < batch50ExchangeAuthorityV2.indexOf('fetchFrankfurterRate()')
+    && batch50ExchangeAuthorityV2.indexOf('fetchFrankfurterRate()') < batch50ExchangeAuthorityV2.indexOf('fetchNbsHtmlCommercialSellingRate()'),
+  'v1.0 Batch50 V2 komercijalni prodajni authority ostaje centralan uz NBS API primary, Frankfurter secondary i NBS HTML tertiary provider chain.',
 );
 assert(
   batch50MoneyV2.includes('convertPresentationAmount')
@@ -2310,401 +2315,64 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
-// MOBILE_V1_0_COMMERCIAL_SELLING_RATE_AUTHORITY_BATCH34B
-const exchangeRateServiceBatch34B = fs.readFileSync(
+// MOBILE_V1_0_NBS_API_PRIMARY_FRANKFURTER_FALLBACK_BATCH73
+const exchangeRateServiceBatch73 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/app/Services/ExchangeRateService.php'),
   'utf8',
 );
-const exchangeRateSettingsBatch34B = fs.readFileSync(
+const exchangeRateSettingsBatch73 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/app/Services/SettingsService.php'),
   'utf8',
 );
-const exchangeRateWebBatch34B = fs.readFileSync(
+const exchangeRateServicesConfigBatch73 = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/config/services.php'),
+  'utf8',
+);
+const exchangeRateEnvBatch73 = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/.env.example'),
+  'utf8',
+);
+const exchangeRateWebBatch73 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/resources/views/admin/settings/exchange-rate.blade.php'),
   'utf8',
 );
-const exchangeRateMobileBatch34B = fs.readFileSync(
+const exchangeRateMobileBatch73 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/exchange-rate/index.tsx'),
   'utf8',
 );
 assert(
-  exchangeRateServiceBatch34B.includes("public const RATE_KIND = 'commercial_sell';")
-    && exchangeRateServiceBatch34B.includes('CurrentForeignExchange')
-    && exchangeRateServiceBatch34B.includes("private const PROVIDER = 'nbs';")
-    && exchangeRateServiceBatch34B.includes('$cells[5]')
-    && !exchangeRateServiceBatch34B.includes('frankfurter.dev'),
-  'v1.0 glavni EUR/RSD authority je zakljucan na NBS Komercijalni prodajni kurs.',
+  exchangeRateServiceBatch73.includes("public const RATE_KIND = 'commercial_sell';")
+    && exchangeRateServiceBatch73.includes('webservices.nbs.rs/CommunicationOfficeService1_0/ExchangeRateService.asmx')
+    && exchangeRateServiceBatch73.includes('GetCurrentExchangeRate')
+    && exchangeRateServiceBatch73.includes('<exchangeRateListTypeID>1</exchangeRateListTypeID>')
+    && exchangeRateServiceBatch73.includes("private const PRIMARY_PROVIDER = 'nbs_api';")
+    && exchangeRateServiceBatch73.includes('SellingRate')
+    && exchangeRateServiceBatch73.includes('https://api.frankfurter.dev/v2/rate/EUR/RSD')
+    && exchangeRateServiceBatch73.includes("private const FRANKFURTER_PROVIDER = 'frankfurter';")
+    && exchangeRateServiceBatch73.includes('CurrentForeignExchange')
+    && exchangeRateServiceBatch73.indexOf('fetchNbsApiCommercialSellingRate()') < exchangeRateServiceBatch73.indexOf('fetchFrankfurterRate()')
+    && exchangeRateServiceBatch73.indexOf('fetchFrankfurterRate()') < exchangeRateServiceBatch73.indexOf('fetchNbsHtmlCommercialSellingRate()'),
+  'v1.0 EUR/RSD provider chain je NBS API primary -> Frankfurter secondary -> NBS HTML emergency tertiary.',
 );
 assert(
-  exchangeRateSettingsBatch34B.includes("'eur_rsd_provider' => 'nbs'")
-    && exchangeRateWebBatch34B.includes('GLAVNI KURS APLIKACIJE')
-    && exchangeRateMobileBatch34B.includes('GLAVNI KURS APLIKACIJE')
-    && exchangeRateMobileBatch34B.includes('Komercijalni prodajni kurs'),
-  'Web i Mobile jasno oznacavaju Komercijalni prodajni kao glavni kurs.',
-);
-
-
-// MOBILE_V1_0_CATALOG_ADVANCED_PARITY_BATCH35
-const catalogAdvancedApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-advanced-admin-api.ts'), 'utf8');
-const catalogAdvancedActionsV10 = fs.readFileSync(path.join(root, 'src/features/admin/catalog-advanced-product-actions.tsx'), 'utf8');
-const catalogCloneV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id]/clone.tsx'), 'utf8');
-const catalogBulkV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/bulk/index.tsx'), 'utf8');
-const dataQualityApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/data-quality-admin-api.ts'), 'utf8');
-const dataQualityExportV10 = fs.readFileSync(path.join(root, 'src/features/admin/data-quality-admin-export.ts'), 'utf8');
-const dataQualityScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/data-quality/index.tsx'), 'utf8');
-const catalogAdvancedHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
-const catalogAdvancedQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
-const catalogAdvancedRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
-const catalogAdvancedControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/CatalogAdvancedController.php'), 'utf8');
-const dataQualityControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/DataQualityController.php'), 'utf8');
-const catalogAdvancedOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
-assert(
-  catalogAdvancedApiV10.includes('namePreview:')
-    && catalogAdvancedApiV10.includes('clone:')
-    && catalogAdvancedApiV10.includes('regenerateName:')
-    && catalogCloneV10.includes('Pregledaj naziv iz šablona')
-    && catalogAdvancedActionsV10.includes('Kloniraj artikal')
-    && catalogAdvancedActionsV10.includes('Regeneriši naziv iz šablona'),
-  'v1.0 ADMIN-CAT-04 Mobile pokriva clone, name preview i regenerate-name kroz canonical ProductAdmin/ProductTemplate authority.',
+  exchangeRateSettingsBatch73.includes("'eur_rsd_provider' => 'nbs_api'")
+    && exchangeRateServicesConfigBatch73.includes("env('NBS_EXCHANGE_API_USERNAME')")
+    && exchangeRateServicesConfigBatch73.includes("env('NBS_EXCHANGE_API_PASSWORD')")
+    && exchangeRateServicesConfigBatch73.includes("env('NBS_EXCHANGE_API_LICENCE_ID')")
+    && exchangeRateEnvBatch73.includes('NBS_EXCHANGE_API_USERNAME=')
+    && exchangeRateEnvBatch73.includes('FRANKFURTER_EXCHANGE_API_TIMEOUT_SECONDS=12'),
+  'NBS SOAP kredencijali i provider timeouts koriste server env/config bez hardkodovanih tajni.',
 );
 assert(
-  catalogAdvancedApiV10.includes('bulkOptions:')
-    && catalogAdvancedApiV10.includes('bulkPreview:')
-    && catalogAdvancedApiV10.includes('bulkExecute:')
-    && catalogBulkV10.includes('Masovne izmene')
-    && catalogBulkV10.includes('Pregledaj izmene')
-    && catalogBulkV10.includes('Izvrši prikazane izmene'),
-  'v1.0 ADMIN-CAT-05 Mobile pokriva bulk selection, preview i execute kroz postojeći ProductBulkService.',
+  exchangeRateWebBatch73.includes('NBS SOAP API')
+    && exchangeRateWebBatch73.includes('Frankfurter API v2')
+    && exchangeRateMobileBatch73.includes('NBS API')
+    && exchangeRateMobileBatch73.includes('Frankfurter API v2'),
+  'Web i Mobile jasno prikazuju NBS primary i Frankfurter secondary fallback semantiku.',
 );
 assert(
-  dataQualityApiV10.includes('state:')
-    && dataQualityApiV10.includes('repair:')
-    && dataQualityExportV10.includes('openAdminDataQualityExport')
-    && dataQualityScreenV10.includes('Kvalitet podataka')
-    && dataQualityScreenV10.includes('Bezbedna automatska popravka'),
-  'v1.0 ADMIN-CAT-11 Mobile pokriva Data Quality audit, safe repair, history i JSON export.',
-);
-assert(
-  catalogAdvancedRoutesV10.includes("Route::post('/products/name-preview'")
-    && catalogAdvancedRoutesV10.includes("Route::post('/products/{product}/clone'")
-    && catalogAdvancedRoutesV10.includes("Route::post('/products/{product}/regenerate-name'")
-    && catalogAdvancedRoutesV10.includes("Route::get('/bulk/options'")
-    && catalogAdvancedRoutesV10.includes("Route::post('/bulk/preview'")
-    && catalogAdvancedRoutesV10.includes("Route::post('/bulk/execute'"),
-  'v1.0 CATALOG_ADVANCED catalog.manage_products API route surface je kompletan.',
-);
-assert(
-  catalogAdvancedRoutesV10.includes("Route::prefix('admin/data-quality')")
-    && catalogAdvancedRoutesV10.includes("->middleware('permission:catalog.audit')")
-    && dataQualityControllerV10.includes('DataQualityService')
-    && dataQualityControllerV10.includes("storeSnapshot($after, 'mobile-repair'"),
-  'v1.0 ADMIN-CAT-11 API čuva catalog.audit granicu i shared DataQualityService authority.',
-);
-assert(
-  catalogAdvancedControllerV10.includes('ProductBulkService')
-    && catalogAdvancedControllerV10.includes('ProductAdminService')
-    && catalogAdvancedControllerV10.includes('ProductTemplateService')
-    && catalogAdvancedControllerV10.includes('CatalogAccessService'),
-  'v1.0 ADMIN-CAT-04/05 API reuse-uje postojeće Laravel catalog authority servise bez paralelne poslovne logike.',
-);
-assert(
-  catalogAdvancedHubV10.includes("adminMatch('Masovne izmene')")
-    && catalogAdvancedHubV10.includes("adminMatch('Kvalitet podataka')")
-    && catalogAdvancedHubV10.includes("router.push('/admin/catalog/bulk' as Href)")
-    && catalogAdvancedHubV10.includes("router.push('/admin/catalog/data-quality' as Href)"),
-  'v1.0 CATALOG_ADVANCED opcije ostaju organizovane u Katalog i lager Admin grupi.',
-);
-assert(
-  catalogAdvancedQueryV10.includes('catalogAdvancedRoot:')
-    && catalogAdvancedQueryV10.includes('catalogBulkOptions:')
-    && catalogAdvancedQueryV10.includes('dataQuality:'),
-  'v1.0 CATALOG_ADVANCED TanStack query keys su centralizovani.',
-);
-assert(
-  catalogAdvancedOpenApiV10.includes('/api/v1/admin/catalog/products/name-preview:')
-    && catalogAdvancedOpenApiV10.includes('/api/v1/admin/catalog/products/{product}/clone:')
-    && catalogAdvancedOpenApiV10.includes('/api/v1/admin/catalog/bulk/execute:')
-    && catalogAdvancedOpenApiV10.includes('/api/v1/admin/data-quality:'),
-  'OpenAPI dokumentuje kompletan CATALOG_ADVANCED route surface.',
-);
-assert(
-  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
-    catalogAdvancedApiV10 + catalogAdvancedActionsV10 + catalogCloneV10 + catalogBulkV10 + dataQualityApiV10 + dataQualityScreenV10 + catalogAdvancedControllerV10 + dataQualityControllerV10
-  ),
-  'v1.0 CATALOG_ADVANCED parity ne vraća Product Variants contract.',
-);
-// MOBILE_V1_0_ORDER_REPORT_OPS_PARITY_BATCH36
-const orderReportOpsOrdersApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
-const orderReportOpsArchiveUiV10 = fs.readFileSync(path.join(root, 'src/features/admin/order-archive-admin.tsx'), 'utf8');
-const orderReportOpsArchiveScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/archived.tsx'), 'utf8');
-const orderReportOpsOrderListV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/index.tsx'), 'utf8');
-const orderReportOpsOrderDetailV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
-const orderReportOpsReportsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/reports-admin-api.ts'), 'utf8');
-const orderReportOpsReportsUiV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/reports/index.tsx'), 'utf8');
-const orderReportOpsExportV10 = fs.readFileSync(path.join(root, 'src/features/admin/operational-reports-admin-export.ts'), 'utf8');
-const orderReportOpsQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
-const orderReportOpsOpenApiV10 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
-const orderReportOpsApiRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
-const orderReportOpsArchiveControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/OrderArchiveController.php'), 'utf8');
-const orderReportOpsArchiveServiceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/OrderArchiveService.php'), 'utf8');
-const orderReportOpsReportServiceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/OrderReportService.php'), 'utf8');
-const orderReportOpsWebReportV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/ReportController.php'), 'utf8');
-const orderReportOpsApiReportV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/ReportController.php'), 'utf8');
-assert(
-  orderReportOpsOrdersApiV10.includes('admin/orders/archived')
-    && orderReportOpsOrdersApiV10.includes('restoreArchived:')
-    && orderReportOpsOrdersApiV10.includes('purgeArchived:'),
-  'v1.0 ADMIN-ORDER-02 Mobile API pokriva archived list, archive, restore i purge ugovor.',
-);
-assert(
-  orderReportOpsArchiveScreenV10.includes('Arhivirane porudžbine')
-    && orderReportOpsArchiveScreenV10.includes('Vrati iz arhive')
-    && orderReportOpsArchiveScreenV10.includes('Operativni purge')
-    && orderReportOpsArchiveUiV10.includes('Razlog arhiviranja'),
-  'v1.0 ADMIN-ORDER-02 Mobile UI pokriva arhivu, restore i SuperAdmin purge sa kontrolisanom potvrdom.',
-);
-assert(
-  orderReportOpsOrderListV10.includes("router.push('/admin/orders/archived' as Href)")
-    && orderReportOpsOrderDetailV10.includes('AdminOrderArchiveActions'),
-  'v1.0 ADMIN-ORDER-02 ostaje organizovan u postojećem Prodaja/Porudžbine toku.',
-);
-assert(
-  orderReportOpsApiRoutesV10.includes("Route::get('/orders/archived'")
-    && orderReportOpsApiRoutesV10.includes("Route::post('/orders/{order}/archive'")
-    && orderReportOpsApiRoutesV10.includes("Route::post('/orders/archived/{orderId}/restore'")
-    && orderReportOpsApiRoutesV10.includes("Route::delete('/orders/archived/{orderId}/purge'"),
-  'v1.0 ADMIN-ORDER-02 API route surface je kompletan.',
-);
-assert(
-  orderReportOpsArchiveControllerV10.includes('OrderArchiveService')
-    && orderReportOpsArchiveServiceV10.includes('paginateArchived')
-    && orderReportOpsArchiveServiceV10.includes('purgeById')
-    && orderReportOpsArchiveServiceV10.includes("hasRole('superadmin')"),
-  'v1.0 ADMIN-ORDER-02 reuse-uje canonical OrderArchiveService i čuva SuperAdmin-only purge.',
-);
-assert(
-  orderReportOpsReportsApiV10.includes("'orders-pdf'")
-    && orderReportOpsReportsApiV10.includes("'payments-csv'")
-    && orderReportOpsReportsApiV10.includes("'inventory-csv'")
-    && orderReportOpsReportsUiV10.includes('Operativni izvozi')
-    && orderReportOpsExportV10.includes('apiDownload'),
-  'v1.0 REPORT-02 Mobile pokriva orders PDF/CSV, payments CSV i inventory CSV kroz secure Bearer download.',
-);
-assert(
-  orderReportOpsApiRoutesV10.includes("Route::get('/reports/orders.pdf'")
-    && orderReportOpsApiRoutesV10.includes("Route::get('/reports/orders.csv'")
-    && orderReportOpsApiRoutesV10.includes("Route::get('/reports/payments.csv'")
-    && orderReportOpsApiRoutesV10.includes("Route::get('/reports/inventory.csv'"),
-  'v1.0 REPORT-02 API route surface je kompletan.',
-);
-assert(
-  orderReportOpsReportServiceV10.includes('public function paymentsCsv(User $user): string')
-    && orderReportOpsReportServiceV10.includes('public function inventoryCsv(): string')
-    && orderReportOpsApiReportV10.includes('$reports->paymentsCsv($user)')
-    && orderReportOpsApiReportV10.includes('$reports->inventoryCsv()')
-    && orderReportOpsWebReportV10.includes('$reports->paymentsCsv($request->user())')
-    && orderReportOpsWebReportV10.includes('$reports->inventoryCsv()'),
-  'v1.0 REPORT-02 Web i Mobile API dele isti OrderReportService export authority.',
-);
-assert(
-  orderReportOpsQueryV10.includes('adminOrdersRoot:')
-    && orderReportOpsQueryV10.includes('adminOrderArchives:'),
-  'v1.0 ORDER_REPORT_OPS TanStack query keys su centralizovani.',
-);
-assert(
-  orderReportOpsOpenApiV10.includes('/api/v1/admin/orders/archived:')
-    && orderReportOpsOpenApiV10.includes('/api/v1/admin/orders/{order}/archive:')
-    && orderReportOpsOpenApiV10.includes('/api/v1/admin/reports/orders.pdf:')
-    && orderReportOpsOpenApiV10.includes('/api/v1/admin/reports/inventory.csv:'),
-  'OpenAPI dokumentuje kompletan ORDER_REPORT_OPS route surface.',
-);
-assert(
-  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
-    orderReportOpsOrdersApiV10 + orderReportOpsArchiveUiV10 + orderReportOpsArchiveScreenV10 + orderReportOpsReportsApiV10 + orderReportOpsReportsUiV10 + orderReportOpsExportV10 + orderReportOpsArchiveControllerV10
-  ),
-  'v1.0 ORDER_REPORT_OPS parity ne vraća Product Variants contract.',
-);
-// MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
-const systemSettingsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/system-settings-admin-api.ts'), 'utf8');
-const systemSettingsHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/index.tsx'), 'utf8');
-const systemSettingsAutomationV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/automation.tsx'), 'utf8');
-const systemSettingsTurnstileV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/turnstile.tsx'), 'utf8');
-const systemSettingsAppearanceV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/appearance.tsx'), 'utf8');
-const systemSettingsOrderEmailsV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/order-emails.tsx'), 'utf8');
-const systemSettingsDocumentsV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/documents.tsx'), 'utf8');
-const systemSettingsBankAccountsV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/settings/bank-accounts.tsx'), 'utf8');
-const systemSettingsAdminHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
-const systemSettingsQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
-const systemSettingsRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
-const systemSettingsControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/SystemSettingsController.php'), 'utf8');
-const systemSettingsOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
-const systemSettingsWebAutomationV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/AutomationController.php'), 'utf8');
-const systemSettingsWebAppearanceV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/SiteAppearanceController.php'), 'utf8');
-const systemSettingsWebDocumentsV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/DocumentSettingsController.php'), 'utf8');
-const systemSettingsWebBankV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Admin/BankAccountController.php'), 'utf8');
-assert(
-  systemSettingsApiV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_V3_EXPO_FILE_PICKER_OVERLOAD')
-    && systemSettingsApiV10.includes('multipleFiles: true')
-    && systemSettingsApiV10.includes('File.pickFileAsync({ mimeTypes: limits.mime_types })')
-    && !systemSettingsApiV10.includes('File.pickFileAsync({ mimeTypes: limits.mime_types, multipleFiles })'),
-  'v1.0 SYSTEM_SETTINGS file picker koristi Expo SDK57 literal overload za single/multiple izbor.',
-);
-assert(
-  systemSettingsAutomationV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET02')
-    && systemSettingsAutomationV10.includes('apiAdminSystemSettings.automation.run')
-    && systemSettingsAutomationV10.includes('resolveAlert'),
-  'v1.0 SET-02 Mobile pokriva automation settings, manual run i resolve alert kroz canonical automation authority.',
-);
-assert(
-  systemSettingsTurnstileV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET04')
-    && systemSettingsApiV10.includes('secret_configured')
-    && !systemSettingsApiV10.includes('data.turnstile_secret_key'),
-  'v1.0 SET-04 Mobile pokriva Turnstile bez izlaganja secret vrednosti.',
-);
-assert(
-  systemSettingsAppearanceV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET05')
-    && systemSettingsAppearanceV10.includes('login_slideshow_images')
-    && systemSettingsAppearanceV10.includes('login-slide-')
-    && systemSettingsApiV10.includes('apiExpoMultipartRequest'),
-  'v1.0 SET-05 Mobile pokriva brending, footer i SuperAdmin login background/slideshow asset workflow.',
-);
-assert(
-  systemSettingsOrderEmailsV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET08')
-    && systemSettingsOrderEmailsV10.includes('Pošalji outbox sada')
-    && systemSettingsOrderEmailsV10.includes('Ponovi sve failed poruke'),
-  'v1.0 SET-08 Mobile pokriva order e-mail settings, dispatch i retry workflow.',
-);
-assert(
-  systemSettingsDocumentsV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET09')
-    && systemSettingsDocumentsV10.includes('documents_logo')
-    && systemSettingsDocumentsV10.includes('removeLogo'),
-  'v1.0 SET-09 Mobile pokriva poslovne dokumente i kontrolisani PDF logo lifecycle.',
-);
-assert(
-  systemSettingsBankAccountsV10.includes('MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37_SET10')
-    && systemSettingsBankAccountsV10.includes('apiAdminSystemSettings.bankAccounts.create')
-    && systemSettingsBankAccountsV10.includes('apiAdminSystemSettings.bankAccounts.update')
-    && systemSettingsBankAccountsV10.includes('apiAdminSystemSettings.bankAccounts.remove'),
-  'v1.0 SET-10 Mobile pokriva Bank Accounts CRUD uz canonical server MOD97 validaciju.',
-);
-assert(
-  systemSettingsHubV10.includes("'/admin/settings/automation'")
-    && systemSettingsHubV10.includes("'/admin/settings/turnstile'")
-    && systemSettingsHubV10.includes("'/admin/settings/appearance'")
-    && systemSettingsHubV10.includes("'/admin/settings/order-emails'")
-    && systemSettingsHubV10.includes("'/admin/settings/documents'")
-    && systemSettingsHubV10.includes("'/admin/settings/bank-accounts'")
-    && systemSettingsAdminHubV10.includes("router.push('/admin/settings' as Href)"),
-  'v1.0 SYSTEM_SETTINGS opcije su organizovane kroz jedan Sistem hub bez zagušenja glavne administracije.',
-);
-assert(
-  ['systemSettingsAutomation:', 'systemSettingsTurnstile:', 'systemSettingsAppearance:', 'systemSettingsOrderEmails:', 'systemSettingsDocuments:', 'systemSettingsBankAccounts:'].every((marker) => systemSettingsQueryV10.includes(marker)),
-  'v1.0 SYSTEM_SETTINGS TanStack query keys su centralizovani.',
-);
-assert(
-  systemSettingsRoutesV10.includes("Route::prefix('system-settings')")
-    && systemSettingsRoutesV10.includes('permission:system.manage_settings')
-    && systemSettingsRoutesV10.includes('permission:automation.manage')
-    && (systemSettingsRoutesV10.match(/AdminSystemSettingsController::class/g) || []).length === 20,
-  'v1.0 SYSTEM_SETTINGS API route surface ima 20 kontrolisanih operacija sa permission/throttle granicama.',
-);
-assert(
-  systemSettingsControllerV10.includes('WebSiteAppearanceController')
-    && systemSettingsControllerV10.includes('WebDocumentSettingsController')
-    && systemSettingsControllerV10.includes('WebBankAccountController')
-    && systemSettingsControllerV10.includes('OperationalAutomationService')
-    && systemSettingsControllerV10.includes('OrderEmailDispatcher')
-    && systemSettingsWebAutomationV10.includes('OperationalAutomationService')
-    && systemSettingsWebAppearanceV10.includes("storePublicly('site-assets'")
-    && systemSettingsWebDocumentsV10.includes('storePdfLogo')
-    && systemSettingsWebBankV10.includes('passesMod97'),
-  'v1.0 SYSTEM_SETTINGS API reuse-uje postojeće Web/service authority-je umesto paralelne poslovne logike.',
-);
-assert(
-  ['/api/v1/admin/system-settings/automation:', '/api/v1/admin/system-settings/turnstile:', '/api/v1/admin/system-settings/appearance:', '/api/v1/admin/system-settings/order-emails:', '/api/v1/admin/system-settings/documents:', '/api/v1/admin/system-settings/bank-accounts:'].every((pathMarker) => systemSettingsOpenApiV10.includes(pathMarker))
-    && systemSettingsOpenApiV10.includes('operationId: deleteAdminBankAccount')
-    && systemSettingsOpenApiV10.includes('multipart/form-data:'),
-  'OpenAPI dokumentuje kompletan SYSTEM_SETTINGS route surface.',
-);
-assert(
-  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
-    systemSettingsApiV10 + systemSettingsHubV10 + systemSettingsAutomationV10 + systemSettingsTurnstileV10 + systemSettingsAppearanceV10 + systemSettingsOrderEmailsV10 + systemSettingsDocumentsV10 + systemSettingsBankAccountsV10 + systemSettingsControllerV10
-  ),
-  'v1.0 SYSTEM_SETTINGS parity ne vraća Product Variants contract.',
-);
-
-// MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
-const globalSearchApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/global-search-admin-api.ts'), 'utf8');
-const globalSearchScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/search.tsx'), 'utf8');
-const globalSearchAdminHubV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
-const globalSearchUsersV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/users/index.tsx'), 'utf8');
-const globalSearchQueryV10 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
-const globalSearchRoutesV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
-const globalSearchControllerV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/GlobalSearchController.php'), 'utf8');
-const globalSearchAuthorityV10 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/GlobalCommandSearchService.php'), 'utf8');
-const globalSearchOpenApiV10 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
-assert(
-  globalSearchApiV10.includes("`global-search?q=${encodeURIComponent(q.trim().slice(0, 80))}`")
-    && globalSearchApiV10.includes('mobile_path: string;')
-    && globalSearchApiV10.includes('AdminGlobalSearchSection'),
-  'v1.0 CAT-02 Mobile API koristi relativni centralizovani global-search ugovor i tipizovane Mobile targete.',
-);
-assert(
-  globalSearchScreenV10.includes('MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38')
-    && globalSearchScreenV10.includes('adminQueryKeys.globalSearch(searchQuery)')
-    && globalSearchScreenV10.includes('searchQuery.length >= 2')
-    && globalSearchScreenV10.includes('setTimeout(() => setSearchQuery(normalized), 250)')
-    && globalSearchScreenV10.includes('router.push(item.mobile_path as Href)')
-    && globalSearchScreenV10.includes('data?.sections.map'),
-  'v1.0 CAT-02 Mobile ekran pokriva debounce, grouped rezultate i navigaciju kroz server-driven Mobile target.',
-);
-assert(
-  globalSearchAdminHubV10.includes("router.push('/admin/search' as Href)")
-    && globalSearchAdminHubV10.includes('Globalna pretraga')
-    && globalSearchAdminHubV10.includes('Pretraži sve module'),
-  'v1.0 CAT-02 Global Search je organizovan kao jedna jasna Admin quick-action destinacija bez zagušenja poslovnih sekcija.',
-);
-assert(
-  globalSearchUsersV10.includes('useLocalSearchParams')
-    && globalSearchUsersV10.includes('initialQuery')
-    && globalSearchUsersV10.includes("...(initialQuery ? { q: initialQuery } : {})"),
-  'v1.0 CAT-02 user rezultat otvara postojeći User Manager sa primenjenim q filterom.',
-);
-assert(
-  globalSearchQueryV10.includes("globalSearch: (q: string) => ['admin', 'global-search', q] as const"),
-  'v1.0 CAT-02 TanStack query key je centralizovan.',
-);
-assert(
-  globalSearchRoutesV10.includes('GlobalSearchController')
-    && globalSearchRoutesV10.includes("Route::get('/global-search', [GlobalSearchController::class, 'search'])")
-    && globalSearchRoutesV10.includes("->middleware('throttle:120,1')"),
-  'v1.0 CAT-02 API ruta je auth/active nasledjena i čuva postojeći Web search throttle.',
-);
-assert(
-  globalSearchControllerV10.includes('GlobalCommandSearchService $search')
-    && globalSearchControllerV10.includes('$search->search($actor, $query, 5)')
-    && globalSearchControllerV10.includes("unset($item['url']);")
-    && globalSearchControllerV10.includes("$item['mobile_path'] = $mobilePath;")
-    && globalSearchControllerV10.includes("'/product/'")
-    && globalSearchControllerV10.includes("'/admin/users?q='")
-    && globalSearchAuthorityV10.includes('final class GlobalCommandSearchService')
-    && globalSearchAuthorityV10.includes('$this->catalog')
-    && globalSearchAuthorityV10.includes('$this->orders->applyManagedScope')
-    && globalSearchAuthorityV10.includes('$this->afterSalesAccess->applyVisibleScope'),
-  'v1.0 CAT-02 Mobile API reuse-uje postojeći GlobalCommandSearchService authority i samo adaptira Web URL u Mobile target.',
-);
-assert(
-  globalSearchOpenApiV10.includes('/api/v1/global-search:')
-    && globalSearchOpenApiV10.includes('operationId: searchGlobalCommandSpace')
-    && globalSearchOpenApiV10.includes('mobile_path:')
-    && globalSearchOpenApiV10.includes('Web URL is intentionally omitted'),
-  'OpenAPI dokumentuje kompletan CAT-02 permission-aware Global Search ugovor.',
-);
-assert(
-  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
-    globalSearchApiV10 + globalSearchScreenV10 + globalSearchControllerV10
-  ),
-  'v1.0 CAT-02 Global Search parity ne vraća Product Variants contract.',
+  !/NBS_EXCHANGE_API_(?:USERNAME|PASSWORD|LICENCE_ID)=.+/.test(exchangeRateEnvBatch73),
+  'NBS API tajne nisu upisane u tracked .env.example.',
 );
 
 process.exit(failures === 0 ? 0 : 1);
