@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ProductImageGallery } from '@/components/catalog/product-image-gallery';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { useAppFeedback } from '@/components/ui/app-feedback';
@@ -98,7 +99,13 @@ export default function ProductDetailScreen() {
         <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹ Nazad na katalog</Text></Pressable>
         {canCreateOrder ? <Pressable onPress={() => router.push('/cart')} style={styles.cartLink}><Glyph name="cart" size={18} color={themeColors.primary} /><Text style={styles.cartText}>Korpa{itemCount ? ` (${itemCount})` : ''}</Text></Pressable> : null}
       </View>
-      <View style={styles.imageWrap}>{imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" /> : <Glyph name="box" size={46} color={themeColors.primary} />}</View>
+      <ProductImageGallery
+        mode="detail"
+        images={product.images}
+        primaryImageUrl={imageUrl}
+        productName={product.name}
+        productSku={product.sku}
+      />
       <View style={styles.tags}><Pill tone={stock > 0 ? 'success' : 'danger'}>{stock > 0 ? `${stock} na stanju` : 'Nema na stanju'}</Pill>{product.brand ? <Pill>{product.brand.name}</Pill> : null}</View>
       <Text style={styles.title}>{product.name}</Text>
       <Text style={styles.sku}>{selectedSku}{product.model ? ` · ${product.model}` : ''}</Text>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 
+import { ProductImageGallery } from '@/components/catalog/product-image-gallery';
 import { Card } from '@/components/ui/card';
 import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
@@ -34,6 +35,7 @@ export function ProductCard({
     () => createStyles(themeColors),
     [themeColors],
   );
+  const [imagesOpen, setImagesOpen] = useState(false);
 
   const stockTone =
     product.stock_quantity > 5
@@ -119,6 +121,36 @@ export function ProductCard({
             </Text>
           </View>
         </View>
+
+        <View style={styles.gallerySection}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={imagesOpen ? 'Sakrij fotografije artikla' : 'Prikaži sve fotografije artikla'}
+            onPress={(event) => {
+              event.stopPropagation();
+              setImagesOpen((current) => !current);
+            }}
+            style={({ pressed }) => [
+              styles.galleryToggle,
+              pressed && styles.galleryTogglePressed,
+            ]}
+          >
+            <Text style={styles.galleryToggleText}>
+              {imagesOpen ? 'Sakrij slike' : 'Sve slike'}
+            </Text>
+          </Pressable>
+
+          {imagesOpen ? (
+            <ProductImageGallery
+              mode="catalog"
+              productName={product.name}
+              productSku={product.sku}
+              productSlug={product.slug}
+              primaryImageUrl={product.primary_image_url}
+              stopParentPress
+            />
+          ) : null}
+        </View>
       </Card>
     </Pressable>
   );
@@ -191,6 +223,36 @@ function createStyles(theme: AppColors) {
     sku: {
       ...typography.small,
       color: theme.muted,
+    },
+
+    gallerySection: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      gap: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: theme.line,
+      backgroundColor: theme.surface,
+    },
+
+    galleryToggle: {
+      minHeight: 44,
+      marginTop: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: radii.pill,
+      backgroundColor: theme.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+    },
+
+    galleryTogglePressed: {
+      opacity: 0.72,
+    },
+
+    galleryToggleText: {
+      ...typography.label,
+      color: theme.primary,
     },
   });
 }
