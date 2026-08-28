@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PageHeader } from '@/components/layout/page-header';
@@ -13,6 +13,7 @@ import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
 import { api } from '@/lib/api/endpoints';
+import type { Product } from '@/types/api';
 
 export default function CatalogScreen() {
   const { colors: themeColors } = useAppTheme();
@@ -21,7 +22,6 @@ export default function CatalogScreen() {
   const { bootstrap, hasFeature } = useAuth();
   const { itemCount } = useCart();
   const allowed = hasFeature('catalog');
-  const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const [stock, setStock] = useState<string | undefined>();
   const filters = useQuery({
@@ -36,6 +36,8 @@ export default function CatalogScreen() {
     enabled: allowed
   });
   const stockOptions = [{ value: undefined, label: 'Svi' }, ...(filters.data?.stock_filters ?? [])];
+  const submitSearch = useCallback((value: string) => setSearch(value), []);
+  const renderProduct = useCallback(({ item }: { item: Product }) => <CatalogProductRow product={item} />, []);
 
   if (!allowed) return <UnavailableState title="Katalog nije dostupan" />;
   if (query.isLoading) return <LoadingState label="Učitavanje kataloga…" />;
@@ -45,27 +47,20 @@ export default function CatalogScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FlatList
       data={query.data?.data ?? []}
-      keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => <ProductCard product={item} onPress={() => router.push({ pathname: '/product/[slug]', params: { slug: item.slug } })} />}
-      ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+      keyExtractor={catalogKeyExtractor}
+      renderItem={renderProduct}
+      ItemSeparatorComponent={CatalogSeparator}
+      initialNumToRender={6}
+      maxToRenderPerBatch={6}
+      windowSize={5}
+      updateCellsBatchingPeriod={50}
       refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={themeColors.primary} />}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerWrap}>
           <View style={styles.headerLine}><View style={{ flex: 1 }}><PageHeader title="Katalog" eyebrow="Proizvodi" name={bootstrap?.user.name} /></View>{hasFeature('order_create') ? <Text onPress={() => router.push('/cart')} style={styles.cartLink}>Korpa{itemCount ? ` (${itemCount})` : ''}</Text> : null}</View>
-          <View style={styles.searchWrap}>
-            <Glyph name="search" size={22} color={themeColors.muted} />
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={() => setSearch(draft.trim())}
-              placeholder="Naziv, SKU ili model…"
-              placeholderTextColor={themeColors.muted}
-              returnKeyType="search"
-              style={styles.search}
-            />
-          </View>
+          <CatalogSearchInput value={search} onSubmit={submitSearch} />
           <View style={styles.filters}>
             {stockOptions.map((item) => (
               <Text key={item.label} onPress={() => setStock(item.value)} style={[styles.filter, stock === item.value && styles.filterActive]}>{item.label}</Text>
@@ -80,6 +75,49 @@ export default function CatalogScreen() {
   );
 }
 
+const CatalogProductRow = memo(function CatalogProductRow({ product }: { product: Product }) {
+  const handlePress = useCallback(
+    () => router.push({ pathname: '/product/[slug]', params: { slug: product.slug } }),
+    [product.slug],
+  );
+
+  return <ProductCard product={product} onPress={handlePress} />;
+});
+
+const CatalogSearchInput = memo(function CatalogSearchInput({
+  value,
+  onSubmit,
+}: {
+  value: string;
+  onSubmit: (value: string) => void;
+}) {
+  const { colors: themeColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const [draft, setDraft] = useState(value);
+
+  return (
+    <View style={styles.searchWrap}>
+      <Glyph name="search" size={22} color={themeColors.muted} />
+      <TextInput
+        value={draft}
+        onChangeText={setDraft}
+        onSubmitEditing={() => onSubmit(draft.trim())}
+        placeholder="Naziv, SKU ili model…"
+        placeholderTextColor={themeColors.muted}
+        returnKeyType="search"
+        style={styles.search}
+      />
+    </View>
+  );
+});
+
+function catalogKeyExtractor(item: Product) {
+  return String(item.id);
+}
+
+function CatalogSeparator() {
+  return <View style={{ height: spacing.md }} />;
+}
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.background },
