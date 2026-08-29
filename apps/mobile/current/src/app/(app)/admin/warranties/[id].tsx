@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmAction } from '@/components/ui/confirm-action';
 import { DateTimeField } from '@/components/ui/date-time-field';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import {
   ErrorState,
   LoadingState,
@@ -43,7 +44,17 @@ import { openAdminWarrantyPdf } from '@/features/warranties/warranty-pdf';
 import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 
+// MOBILE_V1_0_ADMIN_WARRANTY_DETAIL_UX_REORGANIZATION_BATCH85
+type WarrantyWorkspace = 'overview' | 'details' | 'maintenance' | 'document' | 'void';
 type MaintenanceMode = 'schedule' | 'complete';
+
+const WARRANTY_WORKSPACE_OPTIONS: Array<{ value: WarrantyWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Status garancije, kupac, artikal i najvažniji rokovi na jednom mestu.' },
+  { value: 'details', label: 'Podaci', description: 'Serijski brojevi, period važenja i uslovi garantnog lista.' },
+  { value: 'maintenance', label: 'Održavanje', description: 'Preventivni termini, servisne reference i završeni maintenance zapisi.' },
+  { value: 'document', label: 'Dokument', description: 'Garantni PDF i read-only snapshot ključnih podataka dokumenta.' },
+  { value: 'void', label: 'Poništavanje', description: 'Audit status i kontrolisana danger-zone akcija poništavanja garancije.' },
+];
 
 function errorMessage(
   error: unknown,
@@ -83,6 +94,7 @@ export default function AdminWarrantyDetailScreen() {
   const allowed = can('warranties.manage');
   const feedback = useAppFeedback();
   const client = useQueryClient();
+  const [workspace, setWorkspace] = useState<WarrantyWorkspace> ('overview');
   const [openingPdf, setOpeningPdf] = useState(false);
 
   const openPdf = async (warrantyId: number, warrantyNumber: string) => {
@@ -442,6 +454,7 @@ export default function AdminWarrantyDetailScreen() {
   }
 
   const warranty = query.data;
+  const workspaceMeta = WARRANTY_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
 
   return (
     <Screen contentStyle={styles.content}>
@@ -458,13 +471,20 @@ export default function AdminWarrantyDetailScreen() {
         name={bootstrap?.user.name}
       />
 
-      <Button
-        variant="secondary"
-        loading={openingPdf}
-        onPress={() => void openPdf(warranty.id, warranty.warranty_number)}
-      >
-        Otvori / podeli PDF
-      </Button>
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor garancije</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo garantnog lista koji želiš da obradiš.'}</Text>
+        <FilterBar>
+          {WARRANTY_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => setWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
 
       <Card style={styles.card}>
         <View style={styles.headerRow}>
@@ -516,7 +536,17 @@ export default function AdminWarrantyDetailScreen() {
         />
       </Card>
 
-      {warranty.capabilities.can_update ? (
+      {workspace === 'details' ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Podaci garantnog lista</Text>
+          <DetailRow label="Početak" value={warranty.starts_at ? formatDate(warranty.starts_at) : '—'} styles={styles} />
+          <DetailRow label="Važi do" value={warranty.expires_at ? formatDate(warranty.expires_at) : '—'} styles={styles} />
+          <DetailRow label="Serijski brojevi" value={warranty.serial_numbers.length > 0 ? warranty.serial_numbers.join(', ') : '—'} styles={styles} />
+          <DetailRow label="Uslovi" value={warranty.terms ?? '—'} styles={styles} />
+        </Card>
+      ) : null}
+
+      {workspace === 'details' && warranty.capabilities.can_update ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>
             Serijski brojevi i rok
@@ -564,8 +594,9 @@ export default function AdminWarrantyDetailScreen() {
         </Card>
       ) : null}
 
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>Rokovi</Text>
+      {workspace === 'overview' ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Rokovi</Text>
 
         <DetailRow
           label="Početak"
@@ -604,12 +635,32 @@ export default function AdminWarrantyDetailScreen() {
             : '—'}
           styles={styles}
         />
-      </Card>
+        </Card>
+      ) : null}
 
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>
-          Preventivno održavanje
-        </Text>
+      {workspace === 'document' ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Garantni dokument</Text>
+          <Text style={styles.meta}>PDF koristi postojeći autentifikovani Bearer download, privatni cache i share tok.</Text>
+          <DetailRow label="Broj garancije" value={warranty.warranty_number} styles={styles} />
+          <DetailRow label="Pravilo" value={warranty.rule?.name ?? 'Snapshot bez aktivnog pravila'} styles={styles} />
+          <DetailRow label="Serijski brojevi" value={warranty.serial_numbers.length > 0 ? warranty.serial_numbers.join(', ') : '—'} styles={styles} />
+          <DetailRow label="Uslovi" value={warranty.terms ?? '—'} styles={styles} />
+          <Button
+            variant="secondary"
+            loading={openingPdf}
+            onPress={() => void openPdf(warranty.id, warranty.warranty_number)}
+          >
+            Otvori / podeli PDF
+          </Button>
+        </Card>
+      ) : null}
+
+      {workspace === 'maintenance' ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>
+            Preventivno održavanje
+          </Text>
 
         {warranty.maintenance_records.length === 0 ? (
           <Text style={styles.meta}>
@@ -631,9 +682,10 @@ export default function AdminWarrantyDetailScreen() {
             />
           ))
         )}
-      </Card>
+        </Card>
+      ) : null}
 
-      {maintenanceRecordId !== null && maintenanceMode ? (
+      {workspace === 'maintenance' && maintenanceRecordId !== null && maintenanceMode ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>
             {maintenanceMode === 'schedule'
@@ -694,7 +746,7 @@ export default function AdminWarrantyDetailScreen() {
         </Card>
       ) : null}
 
-      {warranty.void ? (
+      {workspace === 'void' && warranty.void ? (
         <Card style={styles.voidCard}>
           <Text style={styles.sectionTitle}>
             Garancija je poništena
@@ -722,7 +774,7 @@ export default function AdminWarrantyDetailScreen() {
         </Card>
       ) : null}
 
-      {warranty.capabilities.can_void ? (
+      {workspace === 'void' && warranty.capabilities.can_void ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>
             Poništi garanciju
@@ -746,6 +798,13 @@ export default function AdminWarrantyDetailScreen() {
           >
             Poništi garanciju
           </Button>
+        </Card>
+      ) : null}
+
+      {workspace === 'void' && !warranty.void && !warranty.capabilities.can_void ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Poništavanje nije dostupno</Text>
+          <Text style={styles.meta}>Server capability trenutno ne dozvoljava poništavanje ove garancije.</Text>
         </Card>
       ) : null}
 
@@ -893,6 +952,10 @@ function createStyles(theme: AppColors) {
       ...typography.label,
       color: theme.primary,
       paddingVertical: spacing.sm,
+    },
+    workspaceCard: {
+      gap: spacing.md,
+      borderColor: theme.primary,
     },
     card: {
       gap: spacing.md,

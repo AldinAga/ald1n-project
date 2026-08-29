@@ -2319,6 +2319,41 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_WARRANTY_DETAIL_UX_REORGANIZATION_BATCH85_VALIDATOR
+const warrantyDetailUxBatch85 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/warranties/[id].tsx'),
+  'utf8',
+);
+assert(
+  warrantyDetailUxBatch85.includes('MOBILE_V1_0_ADMIN_WARRANTY_DETAIL_UX_REORGANIZATION_BATCH85')
+    && warrantyDetailUxBatch85.includes("type WarrantyWorkspace = 'overview' | 'details' | 'maintenance' | 'document' | 'void'")
+    && warrantyDetailUxBatch85.includes('Radni prostor garancije')
+    && warrantyDetailUxBatch85.includes("label: 'Pregled'")
+    && warrantyDetailUxBatch85.includes("label: 'Podaci'")
+    && warrantyDetailUxBatch85.includes("label: 'Održavanje'")
+    && warrantyDetailUxBatch85.includes("label: 'Dokument'")
+    && warrantyDetailUxBatch85.includes("label: 'Poništavanje'")
+    && warrantyDetailUxBatch85.includes("workspace === 'details'")
+    && warrantyDetailUxBatch85.includes("workspace === 'maintenance'")
+    && warrantyDetailUxBatch85.includes("workspace === 'document'")
+    && warrantyDetailUxBatch85.includes("workspace === 'void'"),
+  'v1.0 Batch85 Admin Warranty detalj je organizovan u Pregled, Podaci, Održavanje, Dokument i Poništavanje radne prostore.',
+);
+assert(
+  warrantyDetailUxBatch85.includes("can('warranties.manage')")
+    && warrantyDetailUxBatch85.includes('apiAdminWarranties.update')
+    && warrantyDetailUxBatch85.includes('apiAdminWarranties.void')
+    && warrantyDetailUxBatch85.includes('apiAdminWarranties.scheduleMaintenance')
+    && warrantyDetailUxBatch85.includes('apiAdminWarranties.completeMaintenance')
+    && warrantyDetailUxBatch85.includes('openAdminWarrantyPdf')
+    && warrantyDetailUxBatch85.includes('ConfirmAction'),
+  'v1.0 Batch85 Warranty UX čuva warranties.manage, update, void, maintenance i secure PDF poslovni ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(warrantyDetailUxBatch85),
+  'v1.0 Batch85 Warranty UX ne vraća Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_DETAIL_UX_REORGANIZATION_BATCH84_VALIDATOR
 const fieldOperationsDetailUxBatch84 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/field-operations/[id].tsx'),
