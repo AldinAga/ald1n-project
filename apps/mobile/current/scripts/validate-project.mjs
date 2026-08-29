@@ -2319,6 +2319,44 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_SERVICE_PARTS_UX_REORGANIZATION_BATCH87_VALIDATOR
+const servicePartsUxBatch87 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/service-parts/index.tsx'),
+  'utf8',
+);
+assert(
+  servicePartsUxBatch87.includes('MOBILE_V1_0_ADMIN_SERVICE_PARTS_UX_REORGANIZATION_BATCH87')
+    && servicePartsUxBatch87.includes("type ServicePartsWorkspace = 'overview' | 'parts' | 'create' | 'adjust' | 'procurement'")
+    && servicePartsUxBatch87.includes('Radni prostor servisnog lagera')
+    && servicePartsUxBatch87.includes("label: 'Pregled'")
+    && servicePartsUxBatch87.includes("label: 'Delovi'")
+    && servicePartsUxBatch87.includes("label: 'Novi deo'")
+    && servicePartsUxBatch87.includes("label: 'Korekcije'")
+    && servicePartsUxBatch87.includes("label: 'Nabavka'")
+    && servicePartsUxBatch87.includes("workspace === 'parts'")
+    && servicePartsUxBatch87.includes("workspace === 'create'")
+    && servicePartsUxBatch87.includes("workspace === 'adjust'")
+    && servicePartsUxBatch87.includes("workspace === 'procurement'"),
+  'v1.0 Batch87 Admin Service Parts je organizovan u Pregled, Delovi, Novi deo, Korekcije i Nabavka radne prostore.',
+);
+assert(
+  servicePartsUxBatch87.includes("can('service_parts.view')")
+    && servicePartsUxBatch87.includes("can('service_parts.manage')")
+    && servicePartsUxBatch87.includes("can('service_parts.procurement')")
+    && servicePartsUxBatch87.includes('apiAdminServiceParts.partsList')
+    && servicePartsUxBatch87.includes('apiAdminServiceParts.partCreate')
+    && servicePartsUxBatch87.includes('apiAdminServiceParts.partUpdate')
+    && servicePartsUxBatch87.includes('apiAdminServiceParts.partAdjust')
+    && servicePartsUxBatch87.includes('idempotency_key: adjustKey')
+    && servicePartsUxBatch87.includes("router.push('/admin/service-parts/suppliers')")
+    && servicePartsUxBatch87.includes("router.push('/admin/service-parts/purchases')"),
+  'v1.0 Batch87 Service Parts UX čuva view/manage/procurement permission, CRUD, movement-ledger adjustment, idempotency i procurement poslovni ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(servicePartsUxBatch87),
+  'v1.0 Batch87 Service Parts UX ne vraća Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86_VALIDATOR
 const orderDetailUxBatch86 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/orders/[id].tsx'),

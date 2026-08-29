@@ -8,7 +8,7 @@ import { Screen } from '@/components/layout/screen';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FilterChip } from '@/components/ui/filter-bar';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { Pill } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
 import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
@@ -72,6 +72,17 @@ function fromPart(part: AdminServicePart): PartDraft {
   };
 }
 
+// MOBILE_V1_0_ADMIN_SERVICE_PARTS_UX_REORGANIZATION_BATCH87
+type ServicePartsWorkspace = 'overview' | 'parts' | 'create' | 'adjust' | 'procurement';
+
+const SERVICE_PARTS_WORKSPACE_OPTIONS: Array<{ value: ServicePartsWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Brzi pregled servisnog lagera i dostupnih ovlašćenja.' },
+  { value: 'parts', label: 'Delovi', description: 'Pretraga, filteri, stanje, rezervacije i metadata servisnih delova.' },
+  { value: 'create', label: 'Novi deo', description: 'Kreiranje servisnog dela sa početnim stanjem kroz postojeći movement ledger.' },
+  { value: 'adjust', label: 'Korekcije', description: 'Kontrolisana promena fizičkog stanja uz razlog i postojeći idempotency ključ.' },
+  { value: 'procurement', label: 'Nabavka', description: 'Dobavljači i zahtevi za nabavku kroz postojeće procurement ekrane.' },
+];
+
 export default function AdminServicePartsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -86,7 +97,7 @@ export default function AdminServicePartsScreen() {
   const [draftQ, setDraftQ] = useState('');
   const [draftActive, setDraftActive] = useState<'' | 'true' | 'false'> ('');
   const [applied, setApplied] = useState<AdminServicePartListParams> ({ page: 1, per_page: 40 });
-  const [createOpen, setCreateOpen] = useState(false);
+  const [workspace, setWorkspace] = useState<ServicePartsWorkspace> ('overview');
   const [createDraft, setCreateDraft] = useState<PartDraft> (emptyDraft);
   const [editing, setEditing] = useState<AdminServicePart | null> (null);
   const [editDraft, setEditDraft] = useState<PartDraft> (emptyDraft);
@@ -137,7 +148,7 @@ export default function AdminServicePartsScreen() {
       await mutation.mutateAsync(() => apiAdminServiceParts.partCreate(input));
       await refreshRoot();
       setCreateDraft(emptyDraft());
-      setCreateOpen(false);
+      setWorkspace(canView ? 'parts' : 'overview');
       feedback.notify({ tone: 'success', title: 'Servisni deo je kreiran', message: 'Početno stanje je evidentirano kroz postojeći movement ledger.' });
     } catch (error) {
       feedback.notify({ tone: 'danger', title: 'Servisni deo nije kreiran', message: `${error instanceof Error ? error.message : 'Pokušaj ponovo.'} Uneti podaci ostaju u formi.` });
@@ -145,6 +156,7 @@ export default function AdminServicePartsScreen() {
   };
 
   const openEdit = (part: AdminServicePart) => {
+    setWorkspace('parts');
     setEditing(part);
     setEditDraft(fromPart(part));
   };
@@ -163,6 +175,7 @@ export default function AdminServicePartsScreen() {
   };
 
   const openAdjust = (part: AdminServicePart) => {
+    setWorkspace('adjust');
     setAdjusting(part);
     setAdjustQty('');
     setAdjustNote('');
@@ -183,6 +196,7 @@ export default function AdminServicePartsScreen() {
       }));
       await refreshRoot();
       setAdjusting(null);
+      setWorkspace(canView ? 'parts' : 'overview');
       feedback.notify({ tone: 'success', title: 'Korekcija lagera je evidentirana', message: 'Movement ledger i idempotency zaštita ostaju aktivni.' });
     } catch (error) {
       feedback.notify({ tone: 'danger', title: 'Korekcija nije evidentirana', message: `${error instanceof Error ? error.message : 'Pokušaj ponovo.'} Isti idempotency ključ ostaje za bezbedan retry.` });
@@ -196,23 +210,67 @@ export default function AdminServicePartsScreen() {
     per_page: 40,
   });
 
+  const workspaceMeta = SERVICE_PARTS_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+  const visibleWorkspaces = SERVICE_PARTS_WORKSPACE_OPTIONS.filter((option) => {
+    if (option.value === 'parts') return canView;
+    if (option.value === 'create') return canManage;
+    if (option.value === 'adjust') return canManage && canView;
+    if (option.value === 'procurement') return canProcurement;
+    return true;
+  });
+
+  const selectWorkspace = (next: ServicePartsWorkspace) => {
+    setWorkspace(next);
+    if (next !== 'parts') setEditing(null);
+    if (next !== 'adjust') setAdjusting(null);
+  };
+
   return (
     <Screen contentStyle={styles.content}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ Administracija</Text></Pressable>
       <PageHeader title="Servisni lager" eyebrow="Admin · v0.7" name={bootstrap?.user.name} />
       <Text style={styles.copy}>Servisni delovi, rezervisana količina, korekcije lagera, dobavljači i nabavke. Terenski utrošak ostaje u postojećem Field Operations toku.</Text>
 
-      <View style={styles.actions}>
-        {canProcurement ? <Button variant="secondary" onPress={() => router.push('/admin/service-parts/suppliers')}>Dobavljači</Button> : null}
-        {canProcurement ? <Button variant="secondary" onPress={() => router.push('/admin/service-parts/purchases')}>Nabavke</Button> : null}
-        {canManage ? <Button onPress={() => setCreateOpen((value) => !value)}>{createOpen ? 'Zatvori novi deo' : 'Dodaj servisni deo'}</Button> : null}
-      </View>
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor servisnog lagera</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo servisnog lagera koji želiš da obradiš.'}</Text>
+        <FilterBar>
+          {visibleWorkspaces.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
 
-      {!canView ? (
+      {workspace === 'overview' ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Pregled servisnog lagera</Text>
+          <Text style={styles.copy}>Ukupno servisnih delova: {canView && response ? response.meta.total : 'pregled nije dostupan'}</Text>
+          <Text style={styles.meta}>Pregled lagera: {canView ? 'dostupan' : 'nije dostupan'} · Upravljanje delovima: {canManage ? 'dostupno' : 'nije dostupno'} · Nabavka: {canProcurement ? 'dostupna' : 'nije dostupna'}</Text>
+          <Text style={styles.meta}>Fizički utrošak rezervisanih delova ostaje u postojećem Field Operations toku.</Text>
+        </Card>
+      ) : null}
+
+      {workspace === 'procurement' && canProcurement ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Nabavka servisnih delova</Text>
+          <Text style={styles.meta}>Dobavljači i zahtevi za nabavku ostaju na postojećim canonical ekranima i koriste isti procurement API.</Text>
+          <View style={styles.actions}>
+            <Button variant="secondary" onPress={() => router.push('/admin/service-parts/suppliers')}>Dobavljači</Button>
+            <Button onPress={() => router.push('/admin/service-parts/purchases')}>Nabavke</Button>
+          </View>
+        </Card>
+      ) : null}
+
+      {workspace === 'parts' && !canView ? (
         <Card style={styles.card}><Text style={styles.sectionTitle}>Pregled lagera nije dostupan</Text><Text style={styles.copy}>Tvoja uloga nema service_parts.view. Dostupne su samo akcije za koje poseduješ posebnu dozvolu.</Text></Card>
       ) : null}
 
-      {createOpen && canManage ? (
+      {workspace === 'create' && canManage ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Novi servisni deo</Text>
           <Text style={styles.meta}>Početno stanje se upisuje samo pri kreiranju i ulazi u movement ledger. Kasnije promene rade se isključivo kroz „Korekcija lagera“.</Text>
@@ -228,7 +286,7 @@ export default function AdminServicePartsScreen() {
         </Card>
       ) : null}
 
-      {editing && canManage ? (
+      {workspace === 'parts' && editing && canManage ? (
         <Card style={styles.card}>
           <View style={styles.rowBetween}><Text style={styles.sectionTitle}>Izmena: {editing.sku}</Text><Button variant="secondary" onPress={() => setEditing(null)}>Zatvori</Button></View>
           <Text style={styles.meta}>Fizičko stanje: {quantity(editing.stock_quantity)} {editing.unit ?? ''}. Ova forma namerno ne menja fizičko stanje.</Text>
@@ -243,7 +301,7 @@ export default function AdminServicePartsScreen() {
         </Card>
       ) : null}
 
-      {adjusting && canManage ? (
+      {workspace === 'adjust' && adjusting && canManage ? (
         <Card style={styles.card}>
           <View style={styles.rowBetween}><Text style={styles.sectionTitle}>Korekcija: {adjusting.sku}</Text><Button variant="secondary" onPress={() => setAdjusting(null)}>Zatvori</Button></View>
           <Text style={styles.meta}>Trenutno stanje {quantity(adjusting.stock_quantity)} · rezervisano {quantity(adjusting.reserved_quantity)} · raspoloživo {quantity(adjusting.available_quantity)} {adjusting.unit ?? ''}.</Text>
@@ -254,7 +312,15 @@ export default function AdminServicePartsScreen() {
         </Card>
       ) : null}
 
-      {canView && response ? (
+      {workspace === 'adjust' && canManage && canView && !adjusting ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Izaberi servisni deo</Text>
+          <Text style={styles.copy}>Korekcija lagera se pokreće iz liste delova kako bi se zadržali tačan deo, razlog promene i postojeći idempotency retry ugovor.</Text>
+          <Button onPress={() => selectWorkspace('parts')}>Otvori delove</Button>
+        </Card>
+      ) : null}
+
+      {workspace === 'parts' && canView && response ? (
         <>
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Filteri</Text>
@@ -294,6 +360,7 @@ function createStyles(theme: AppColors) {
     sectionTitle: { ...typography.h3, color: theme.ink },
     title: { ...typography.body, color: theme.ink, fontWeight: '800' },
     meta: { ...typography.small, color: theme.muted },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     card: { gap: spacing.md },
     list: { gap: spacing.md },
     actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
