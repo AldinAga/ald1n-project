@@ -89,6 +89,57 @@ const WEEKDAY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '7', label: 'Nedelja' },
 ];
 
+// MOBILE_V1_0_ADMIN_REPORTS_2_UX_BATCH79
+type ReportWorkspace =
+  | 'overview'
+  | 'profitability'
+  | 'inventory'
+  | 'receivables'
+  | 'after_sales'
+  | 'operations'
+  | 'schedules';
+
+const REPORT_WORKSPACE_OPTIONS: Array<{
+  value: ReportWorkspace;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'overview',
+    label: 'Pregled',
+    description: 'Klju\u010Dni pokazatelji, trend i \u010Dinak odgovornih lica.',
+  },
+  {
+    value: 'profitability',
+    label: 'Profitabilnost',
+    description: 'Prihod, bruto dobit i mar\u017Ea po izabranom segmentu.',
+  },
+  {
+    value: 'inventory',
+    label: 'Lager',
+    description: 'Vrednost lagera, koli\u010Dine, starost i najvrednije stavke.',
+  },
+  {
+    value: 'receivables',
+    label: 'Potra\u017Eivanja',
+    description: 'Otvorene obaveze i aging struktura potra\u017Eivanja.',
+  },
+  {
+    value: 'after_sales',
+    label: 'Postprodaja',
+    description: 'Slu\u010Dajevi, rokovi, reklamacije i servisni tro\u0161ak.',
+  },
+  {
+    value: 'operations',
+    label: 'Operativni',
+    description: 'Postoje\u0107i PDF i CSV operativni izvozi po dozvolama.',
+  },
+  {
+    value: 'schedules',
+    label: 'Rasporedi',
+    description: 'Zakazano slanje, istorija isporuka i kontrolisane akcije.',
+  },
+];
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
@@ -157,6 +208,8 @@ export default function AdminReportsIndexScreen() {
     report_type: 'management_summary',
   });
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null> (null);
+  const [workspace, setWorkspace] = useState<ReportWorkspace> ('overview');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const query = useQuery({
     queryKey: adminQueryKeys.managementReport(applied),
@@ -204,6 +257,7 @@ export default function AdminReportsIndexScreen() {
     if (q) next.q = q;
 
     setApplied(next);
+    setFiltersExpanded(false);
   };
 
   const clearFilters = () => {
@@ -253,6 +307,18 @@ export default function AdminReportsIndexScreen() {
 
   const response = query.data;
   const report = response.data;
+  const canUseOperational = can('reports.export') || can('inventory.export');
+  const canUseSchedules = canManageSchedules && response.capabilities.manage_schedules;
+  const workspaceOptions = REPORT_WORKSPACE_OPTIONS.filter((option) => {
+    if (option.value === 'operations') return canUseOperational;
+    if (option.value === 'schedules') return canUseSchedules;
+    return true;
+  });
+  const workspaceMeta = REPORT_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+  const selectWorkspace = (value: ReportWorkspace) => {
+    setWorkspace(value);
+    setFiltersExpanded(false);
+  };
 
   return (
     <Screen contentStyle={styles.content}>
@@ -275,6 +341,47 @@ export default function AdminReportsIndexScreen() {
         <Text style={styles.muted}>Generisano: {report.generated_at}</Text>
       </Card>
 
+      <Card style={styles.filtersCard}>
+        <Text style={styles.sectionTitle}>Radni prostor</Text>
+        <Text style={styles.muted}>
+          {workspaceMeta?.description ?? 'Izaberi poslovni pogled.'}
+        </Text>
+        <FilterBar>
+          {workspaceOptions.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
+
+      <Card style={styles.filtersCard}>
+        <View style={styles.sectionHead}>
+          <View style={styles.scheduleCopy}>
+            <Text style={styles.sectionTitle}>{'Kontekst izve\u0161taja'}</Text>
+            <Text style={styles.muted}>
+              {activeCount > 0
+                ? `${activeCount} aktivnih filtera`
+                : 'Bez dodatnih filtera'}
+            </Text>
+          </View>
+          <Button
+            variant="secondary"
+            onPress={() => setFiltersExpanded((value) => !value)}
+          >
+            {filtersExpanded
+              ? 'Sakrij filtere'
+              : activeCount > 0
+                ? `Filteri (${activeCount})`
+                : 'Filteri'}
+          </Button>
+        </View>
+      </Card>
+
+      {filtersExpanded ? (
       <Card style={styles.filtersCard}>
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Filteri</Text>
@@ -363,46 +470,71 @@ export default function AdminReportsIndexScreen() {
         />
         <Button onPress={applyFilters}>Primeni filtere</Button>
       </Card>
-
-      {response.capabilities.export ? (
-        <View style={styles.actionsRow}>
-          <Button
-            variant="secondary"
-            loading={exporting === 'csv'}
-            disabled={exporting !== null}
-            onPress={() => void runExport('csv')}
-          >
-            Otvori / podeli CSV
-          </Button>
-          <Button
-            variant="secondary"
-            loading={exporting === 'pdf'}
-            disabled={exporting !== null}
-            onPress={() => void runExport('pdf')}
-          >
-            Otvori / podeli PDF
-          </Button>
-        </View>
       ) : null}
 
-      <OperationalReportsSection
-        canReports={can('reports.export')}
-        canInventory={can('inventory.export')}
-        filters={{ date_from: applied.date_from, date_to: applied.date_to, q: applied.q }}
-        styles={styles}
-      />
+      {workspace === 'overview' ? (
+        <>
+          {response.capabilities.export ? (
+            <Card style={styles.filtersCard}>
+              <Text style={styles.sectionTitle}>{'Upravlja\u010Dki izvoz'}</Text>
+              <Text style={styles.muted}>
+                {'CSV i PDF koriste isti aktivni kontekst i postoje0107i serverski export tok.'}
+              </Text>
+              <View style={styles.actionsRow}>
+                <Button
+                  variant="secondary"
+                  loading={exporting === 'csv'}
+                  disabled={exporting !== null}
+                  onPress={() => void runExport('csv')}
+                >
+                  Otvori / podeli CSV
+                </Button>
+                <Button
+                  variant="secondary"
+                  loading={exporting === 'pdf'}
+                  disabled={exporting !== null}
+                  onPress={() => void runExport('pdf')}
+                >
+                  Otvori / podeli PDF
+                </Button>
+              </View>
+            </Card>
+          ) : null}
 
-      {canManageSchedules && response.capabilities.manage_schedules ? (
+          <SummarySection report={report} styles={styles} />
+          <TrendSection report={report} styles={styles} />
+          <TeamsSection report={report} styles={styles} />
+        </>
+      ) : null}
+
+      {workspace === 'profitability' ? (
+        <SegmentsSection report={report} styles={styles} />
+      ) : null}
+
+      {workspace === 'inventory' ? (
+        <InventorySection report={report} styles={styles} />
+      ) : null}
+
+      {workspace === 'receivables' ? (
+        <ReceivablesSection report={report} styles={styles} />
+      ) : null}
+
+      {workspace === 'after_sales' ? (
+        <AfterSalesSection report={report} styles={styles} />
+      ) : null}
+
+      {workspace === 'operations' && canUseOperational ? (
+        <OperationalReportsSection
+          canReports={can('reports.export')}
+          canInventory={can('inventory.export')}
+          filters={{ date_from: applied.date_from, date_to: applied.date_to, q: applied.q }}
+          styles={styles}
+        />
+      ) : null}
+
+      {workspace === 'schedules' && canUseSchedules ? (
         <ScheduleManagerSection applied={applied} styles={styles} />
       ) : null}
-
-      <SummarySection report={report} styles={styles} />
-      <SegmentsSection report={report} styles={styles} />
-      <TrendSection report={report} styles={styles} />
-      <InventorySection report={report} styles={styles} />
-      <ReceivablesSection report={report} styles={styles} />
-      <AfterSalesSection report={report} styles={styles} />
-      <TeamsSection report={report} styles={styles} />
     </Screen>
   );
 }
@@ -1055,7 +1187,16 @@ function SegmentsSection({
   report: AdminManagementReport;
   styles: ReturnType<typeof createStyles>;
 }) {
-  if (report.segments.length === 0) return null;
+  if (report.segments.length === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Profitabilnost po segmentu</Text>
+        <Card style={styles.compactCard}>
+          <Text style={styles.muted}>Nema podataka za izabrani kontekst.</Text>
+        </Card>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
