@@ -2319,6 +2319,47 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_WARRANTIES_LIST_UX_REORGANIZATION_BATCH94_VALIDATOR
+const warrantiesListUxBatch94 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/warranties/index.tsx'),
+  'utf8',
+);
+assert(
+  warrantiesListUxBatch94.includes('MOBILE_V1_0_ADMIN_WARRANTIES_LIST_UX_REORGANIZATION_BATCH94')
+    && warrantiesListUxBatch94.includes("type WarrantyListWorkspace = 'overview' | 'warranties' | 'filters' | 'maintenance' | 'rules'")
+    && warrantiesListUxBatch94.includes('Radni prostor garancija')
+    && warrantiesListUxBatch94.includes("label: 'Pregled'")
+    && warrantiesListUxBatch94.includes("label: 'Garancije'")
+    && warrantiesListUxBatch94.includes("label: 'Filteri'")
+    && warrantiesListUxBatch94.includes("label: 'Održavanje'")
+    && warrantiesListUxBatch94.includes("label: 'Pravila'")
+    && warrantiesListUxBatch94.includes("workspace === 'overview'")
+    && warrantiesListUxBatch94.includes("workspace === 'warranties'")
+    && warrantiesListUxBatch94.includes("workspace === 'filters'")
+    && warrantiesListUxBatch94.includes("workspace === 'maintenance'")
+    && warrantiesListUxBatch94.includes("setWorkspace('rules')"),
+  'v1.0 Batch94 Admin Warranties list is organized into overview, warranties, filters, maintenance and rules workspaces.',
+);
+assert(
+  warrantiesListUxBatch94.includes("can('warranties.manage')")
+    && warrantiesListUxBatch94.includes('apiAdminWarranties.list(params)')
+    && warrantiesListUxBatch94.includes('adminQueryKeys.warrantiesList(params)')
+    && warrantiesListUxBatch94.includes('value.q = appliedQ')
+    && warrantiesListUxBatch94.includes('value.status = status')
+    && warrantiesListUxBatch94.includes('value.maintenance = maintenance')
+    && warrantiesListUxBatch94.includes('setPage((current) => Math.max(1, current - 1))')
+    && warrantiesListUxBatch94.includes('setPage((current) => current + 1)')
+    && warrantiesListUxBatch94.includes('DataList<AdminWarrantySummary>')
+    && warrantiesListUxBatch94.includes("pathname: '/admin/warranties/[id]'")
+    && warrantiesListUxBatch94.includes('data.capabilities.rules')
+    && warrantiesListUxBatch94.includes("router.push('/admin/warranties/rules')"),
+  'v1.0 Batch94 Warranties list UX preserves permission, server list filters, pagination, virtualized list, detail routing and Rules capability contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(warrantiesListUxBatch94),
+  'v1.0 Batch94 Warranties list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_ORDERS_LIST_UX_REORGANIZATION_BATCH93_VALIDATOR
 const ordersListUxBatch93 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/orders/index.tsx'),
