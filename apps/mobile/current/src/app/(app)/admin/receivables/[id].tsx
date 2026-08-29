@@ -9,7 +9,7 @@ import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DateTimeField } from '@/components/ui/date-time-field';
-import { FilterChip } from '@/components/ui/filter-bar';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { MoneyField } from '@/components/ui/money-field';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
@@ -26,7 +26,18 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 
+// MOBILE_V1_0_ADMIN_RECEIVABLES_DETAIL_UX_REORGANIZATION_BATCH88
+type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'communication' | 'reminders' | 'audit';
 type Panel = 'update' | 'plan' | 'contact' | 'reminder' | null;
+
+const RECEIVABLES_WORKSPACE_OPTIONS: Array<{ value: ReceivablesWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Kljucevi predmeta naplate, saldo, kasnjenje i dostupne server akcije.' },
+  { value: 'case', label: 'Predmet', description: 'Status, odgovorno lice, sledeca akcija, obecana uplata i interna napomena.' },
+  { value: 'plan', label: 'Plan otplate', description: 'Postojece rate i kontrolisana zamena plana kroz server validaciju.' },
+  { value: 'communication', label: 'Komunikacija', description: 'Rucni i automatski kontakti uz postojecu customer visibility granicu.' },
+  { value: 'reminders', label: 'Opomene', description: 'Rucni podsetnik kroz postojeci ReceivablesService i e-mail outbox.' },
+  { value: 'audit', label: 'Audit', description: 'Autor izmene, poslednji kontakt, poslednja opomena i interna evidencija.' },
+];
 type PlanDraftRow = { key: number; due_at: string; amount_rsd: string; note: string };
 
 function money(value: number): string {
@@ -98,6 +109,7 @@ export default function AdminReceivablesDetailScreen() {
   const allowed = can('receivables.manage');
   const validId = Number.isInteger(receivableId) && receivableId > 0;
 
+  const [workspace, setWorkspace] = useState<ReceivablesWorkspace> ('overview');
   const [panel, setPanel] = useState<Panel> (null);
   const [status, setStatus] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
@@ -154,6 +166,7 @@ export default function AdminReceivablesDetailScreen() {
   ];
 
   const openUpdate = () => {
+    setWorkspace('case');
     setStatus(data.status);
     setAssignedTo(data.assigned_to ? String(data.assigned_to.id) : '');
     setNextActionAt(data.next_action_at ?? '');
@@ -163,6 +176,7 @@ export default function AdminReceivablesDetailScreen() {
   };
 
   const openPlan = () => {
+    setWorkspace('plan');
     let key = 1;
     const rows = data.installments.length > 0
       ? data.installments.map((item) => ({ key: key++, due_at: dateOnly(item.due_at), amount_rsd: String(item.amount_rsd), note: item.note ?? '' }))
@@ -173,6 +187,7 @@ export default function AdminReceivablesDetailScreen() {
   };
 
   const openContact = () => {
+    setWorkspace('communication');
     setContactChannel('');
     setContactDirection('');
     setContactSubject('');
@@ -182,6 +197,7 @@ export default function AdminReceivablesDetailScreen() {
   };
 
   const openReminder = () => {
+    setWorkspace('reminders');
     setReminderMessage('');
     setPanel('reminder');
   };
@@ -245,6 +261,13 @@ export default function AdminReceivablesDetailScreen() {
     }));
   };
 
+  const workspaceMeta = RECEIVABLES_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+
+  const selectWorkspace = (next: ReceivablesWorkspace) => {
+    setWorkspace(next);
+    setPanel(null);
+  };
+
   const submitReminder = () => void execute('Podsetnik je prosleđen u postojeći outbox', () => apiAdminReceivables.sendReminder(receivableId, {
     message: compact(reminderMessage),
   }));
@@ -253,6 +276,21 @@ export default function AdminReceivablesDetailScreen() {
     <Screen contentStyle={styles.content}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ Potraživanja</Text></Pressable>
       <PageHeader title={data.case_number} eyebrow="Admin · Potraživanja" name={bootstrap?.user.name} />
+
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor naplate</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo predmeta koji zelis da obradis.'}</Text>
+        <FilterBar>
+          {RECEIVABLES_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
 
       <Card style={styles.heroCard}>
         <View style={styles.rowBetween}>
@@ -284,7 +322,7 @@ export default function AdminReceivablesDetailScreen() {
         </View>
       </Card>
 
-      {panel === 'update' ? (
+      {workspace === 'case' && panel === 'update' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Ažuriranje predmeta</Text>
           <SelectSheet label="Status" value={status} options={statusOptions} onChange={setStatus} />
@@ -299,7 +337,7 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      {panel === 'plan' ? (
+      {workspace === 'plan' && panel === 'plan' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Plan otplate</Text>
           <Text style={styles.meta}>Server proverava zbir rata, hronologiju i zabranu zamene plana nakon alocirane uplate. Maksimalno {response.options.max_installments} rata.</Text>
@@ -323,7 +361,7 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      {panel === 'contact' ? (
+      {workspace === 'communication' && panel === 'contact' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Evidencija komunikacije</Text>
           <Text style={styles.meta}>Kanal i smer se prosleđuju postojećem server FormRequest ugovoru. Komunikacija je interna osim kada eksplicitno uključiš vidljivost kupcu.</Text>
@@ -341,7 +379,7 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      {panel === 'reminder' ? (
+      {workspace === 'reminders' && panel === 'reminder' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Ručni podsetnik</Text>
           <Text style={styles.warning}>Podsetnik ide kroz postojeći ReceivablesService i e-mail outbox. Ne kreira sintetičku uplatu niti zaobilazi postojeću deduplikaciju.</Text>
@@ -353,29 +391,64 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      <Card style={styles.sectionCard}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Rate</Text>
-          <Text style={styles.meta}>{data.installments.length}</Text>
-        </View>
-        {data.installments.length === 0 ? <EmptyState title="Nema plana otplate" message="Plan nije definisan za ovaj predmet." /> : data.installments.map((item) => <InstallmentRow item={item} key={item.id} />)}
-      </Card>
+      {workspace === 'case' && panel !== 'update' ? (
+        <Card style={styles.sectionCard}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>Predmet naplate</Text>
+            <Pill tone={tone(data.status)}>{data.status_label}</Pill>
+          </View>
+          <Text style={styles.meta}>Odgovorno lice: {data.assigned_to?.name ?? data.order?.supplier?.name ?? 'Nije dodeljeno'}</Text>
+          <Text style={styles.meta}>Sledeca akcija: {data.next_action_at ? formatDate(data.next_action_at, true) : '-'}</Text>
+          <Text style={styles.meta}>Obecana uplata: {data.promised_payment_at ? formatDate(data.promised_payment_at, true) : '-'}</Text>
+          {data.internal_note ? <Text style={styles.body}>{data.internal_note}</Text> : null}
+          {response.capabilities.can_update ? <Button onPress={openUpdate}>Azuriraj predmet</Button> : null}
+        </Card>
+      ) : null}
 
-      <Card style={styles.sectionCard}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Komunikacija</Text>
-          <Text style={styles.meta}>{data.contacts.length}</Text>
-        </View>
-        {data.contacts.length === 0 ? <EmptyState title="Nema komunikacije" message="Još nema evidentiranih kontakata ili automatskih opomena." /> : data.contacts.map((item) => <ContactRow item={item} key={item.id} />)}
-      </Card>
+      {workspace === 'plan' && panel !== 'plan' ? (
+        <Card style={styles.sectionCard}>
+          <View style={styles.rowBetween}>
+            <View style={styles.grow}>
+              <Text style={styles.sectionTitle}>Plan otplate</Text>
+              <Text style={styles.meta}>{data.installments.length} rata</Text>
+            </View>
+            {response.capabilities.can_replace_plan ? <Button variant="secondary" onPress={openPlan}>Uredi plan</Button> : null}
+          </View>
+          {data.installments.length === 0 ? <EmptyState title="Nema plana otplate" message="Plan nije definisan za ovaj predmet." /> : data.installments.map((item) => <InstallmentRow item={item} key={item.id} />)}
+        </Card>
+      ) : null}
 
-      <Card style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Audit podaci</Text>
-        <Text style={styles.meta}>Kreirao: {data.created_by?.name ?? 'Sistem'} · Izmenio: {data.updated_by?.name ?? '—'}</Text>
-        <Text style={styles.meta}>Poslednji kontakt: {data.last_contact_at ? formatDate(data.last_contact_at, true) : '—'}</Text>
-        <Text style={styles.meta}>Poslednja opomena: {data.last_reminder_at ? formatDate(data.last_reminder_at, true) : '—'}{data.last_reminder_stage !== null ? ` · faza ${data.last_reminder_stage}` : ''}</Text>
-        {data.internal_note ? <Text style={styles.body}>{data.internal_note}</Text> : null}
-      </Card>
+      {workspace === 'communication' && panel !== 'contact' ? (
+        <Card style={styles.sectionCard}>
+          <View style={styles.rowBetween}>
+            <View style={styles.grow}>
+              <Text style={styles.sectionTitle}>Komunikacija</Text>
+              <Text style={styles.meta}>{data.contacts.length} zapisa</Text>
+            </View>
+            {response.capabilities.can_add_contact ? <Button variant="secondary" onPress={openContact}>Evidentiraj kontakt</Button> : null}
+          </View>
+          {data.contacts.length === 0 ? <EmptyState title="Nema komunikacije" message="Jos nema evidentiranih kontakata ili automatskih opomena." /> : data.contacts.map((item) => <ContactRow item={item} key={item.id} />)}
+        </Card>
+      ) : null}
+
+      {workspace === 'reminders' && panel !== 'reminder' ? (
+        <Card style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Opomene i podsetnici</Text>
+          <Text style={styles.meta}>Poslednja opomena: {data.last_reminder_at ? formatDate(data.last_reminder_at, true) : '-'}{data.last_reminder_stage !== null ? " - faza " + data.last_reminder_stage : ""}</Text>
+          <Text style={styles.meta}>Rucni podsetnik koristi postojeci e-mail outbox i ne kreira uplatu.</Text>
+          {response.capabilities.can_send_reminder ? <Button onPress={openReminder}>Posalji podsetnik</Button> : null}
+        </Card>
+      ) : null}
+
+      {workspace === 'audit' ? (
+        <Card style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Audit podaci</Text>
+          <Text style={styles.meta}>Kreirao: {data.created_by?.name ?? 'Sistem'} · Izmenio: {data.updated_by?.name ?? '-'}</Text>
+          <Text style={styles.meta}>Poslednji kontakt: {data.last_contact_at ? formatDate(data.last_contact_at, true) : '-'}</Text>
+          <Text style={styles.meta}>Poslednja opomena: {data.last_reminder_at ? formatDate(data.last_reminder_at, true) : '-'}{data.last_reminder_stage !== null ? " - faza " + data.last_reminder_stage : ""}</Text>
+          {data.internal_note ? <Text style={styles.body}>{data.internal_note}</Text> : null}
+        </Card>
+      ) : null}
     </Screen>
   );
 }
@@ -384,6 +457,7 @@ function createStyles(theme: AppColors) {
   return StyleSheet.create({
     content: { gap: spacing.lg, paddingBottom: spacing.xxxl },
     back: { ...typography.small, color: theme.primary, fontWeight: '800' },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     heroCard: { gap: spacing.sm },
     heroValue: { ...typography.h2, color: theme.ink },
     actionsCard: { gap: spacing.md },

@@ -2319,6 +2319,48 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_RECEIVABLES_DETAIL_UX_REORGANIZATION_BATCH88_VALIDATOR
+const receivablesDetailUxBatch88 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/receivables/[id].tsx'),
+  'utf8',
+);
+assert(
+  receivablesDetailUxBatch88.includes('MOBILE_V1_0_ADMIN_RECEIVABLES_DETAIL_UX_REORGANIZATION_BATCH88')
+    && receivablesDetailUxBatch88.includes("type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'communication' | 'reminders' | 'audit'")
+    && receivablesDetailUxBatch88.includes('Radni prostor naplate')
+    && receivablesDetailUxBatch88.includes("label: 'Pregled'")
+    && receivablesDetailUxBatch88.includes("label: 'Predmet'")
+    && receivablesDetailUxBatch88.includes("label: 'Plan otplate'")
+    && receivablesDetailUxBatch88.includes("label: 'Komunikacija'")
+    && receivablesDetailUxBatch88.includes("label: 'Opomene'")
+    && receivablesDetailUxBatch88.includes("label: 'Audit'")
+    && receivablesDetailUxBatch88.includes("workspace === 'case'")
+    && receivablesDetailUxBatch88.includes("workspace === 'plan'")
+    && receivablesDetailUxBatch88.includes("workspace === 'communication'")
+    && receivablesDetailUxBatch88.includes("workspace === 'reminders'")
+    && receivablesDetailUxBatch88.includes("workspace === 'audit'"),
+  'v1.0 Batch88 Admin Receivables detail is organized into overview, case, plan, communication, reminders and audit workspaces.',
+);
+assert(
+  receivablesDetailUxBatch88.includes("can('receivables.manage')")
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.detail')
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.update')
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.replacePlan')
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.addContact')
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.sendReminder')
+    && receivablesDetailUxBatch88.includes('response.capabilities.can_update')
+    && receivablesDetailUxBatch88.includes('response.capabilities.can_replace_plan')
+    && receivablesDetailUxBatch88.includes('response.capabilities.can_add_contact')
+    && receivablesDetailUxBatch88.includes('response.capabilities.can_send_reminder')
+    && receivablesDetailUxBatch88.includes('response.options.max_installments')
+    && receivablesDetailUxBatch88.includes('visible_to_customer: contactVisible'),
+  'v1.0 Batch88 Receivables UX preserves permission, server capabilities, installment validation, contact visibility and outbox reminder contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(receivablesDetailUxBatch88),
+  'v1.0 Batch88 Receivables UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_SERVICE_PARTS_UX_REORGANIZATION_BATCH87_VALIDATOR
 const servicePartsUxBatch87 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/service-parts/index.tsx'),
