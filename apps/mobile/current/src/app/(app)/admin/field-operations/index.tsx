@@ -7,10 +7,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DataList } from '@/components/ui/data-list';
 import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
-import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
+import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
@@ -23,6 +24,17 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
+
+// MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_LIST_UX_REORGANIZATION_BATCH96
+type FieldOperationsListWorkspace = 'overview' | 'work_orders' | 'filters' | 'unassigned' | 'teams';
+
+const FIELD_OPERATIONS_LIST_WORKSPACE_OPTIONS: Array<{ value: FieldOperationsListWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Ukupni obim terenskih naloga, aktivni filteri, ekipe i brzi operativni ulazi.' },
+  { value: 'work_orders', label: 'Radni nalozi', description: 'Virtualizovana lista terenskih naloga sa ekipom, terminom, statusom i povezanim predmetom.' },
+  { value: 'filters', label: 'Filteri', description: 'Pretraga, status, ekipa, period, nedodeljeni nalozi i broj rezultata po strani.' },
+  { value: 'unassigned', label: 'Bez ekipe', description: 'Fokus na postojeći server-side unassigned kriterijum bez lokalne poslovne logike.' },
+  { value: 'teams', label: 'Ekipe', description: 'Pregled server-prosleđenih ekipa i brz filter njihovih terenskih naloga.' },
+];
 
 function tone(status: string): PillTone {
   if (status === 'completed') return 'success';
@@ -72,6 +84,7 @@ export default function AdminFieldOperationsListScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { bootstrap, can } = useAuth();
   const allowed = can('field_operations.view');
+  const [workspace, setWorkspace] = useState<FieldOperationsListWorkspace> ('overview');
 
   const [draftQ, setDraftQ] = useState('');
   const [draftStatus, setDraftStatus] = useState('');
@@ -115,6 +128,7 @@ export default function AdminFieldOperationsListScreen() {
       page: 1,
       per_page: draftPerPage,
     });
+    setWorkspace('work_orders');
   };
 
   const clearFilters = () => {
@@ -128,80 +142,236 @@ export default function AdminFieldOperationsListScreen() {
     setApplied({ page: 1, per_page: 40 });
   };
 
-  return (
-    <Screen contentStyle={styles.content}>
+
+  const workspaceMeta = FIELD_OPERATIONS_LIST_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+  const unassignedOnPage = response.data.filter((item) => !item.team).length;
+  const activeTeams = response.filter_options.teams.filter((team) => team.is_active);
+
+  const selectWorkspace = (next: FieldOperationsListWorkspace) => {
+    setWorkspace(next);
+  };
+
+  const showUnassigned = () => {
+    setDraftUnassigned(true);
+    setDraftTeam('');
+    setApplied((current) => ({ ...current, team_id: undefined, unassigned: true, page: 1 }));
+    setWorkspace('work_orders');
+  };
+
+  const showTeam = (teamId: number) => {
+    setDraftUnassigned(false);
+    setDraftTeam(String(teamId));
+    setApplied((current) => ({ ...current, team_id: teamId, unassigned: undefined, page: 1 }));
+    setWorkspace('work_orders');
+  };
+
+  const workspaceHeader = (
+    <View style={styles.header}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
         <Text style={styles.back}>‹ Administracija</Text>
       </Pressable>
-      <PageHeader title="Terenske operacije" eyebrow="Admin · v0.7" name={bootstrap?.user.name} />
+      <PageHeader title="Terenske operacije" eyebrow="Admin · v1.0" name={bootstrap?.user.name} />
       <Text style={styles.copy}>Radni nalozi, ekipe, termini, servisni delovi i završna terenska dokumentacija u dozvoljenom administratorskom scope-u.</Text>
-
-      <Card style={styles.filtersCard}>
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Filteri</Text>
-          <Text style={styles.muted}>{activeCount} aktivnih</Text>
-        </View>
-        <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="Broj naloga, slučaja, porudžbine ili referenca" />
-        <SelectSheet label="Status" value={draftStatus} options={statusOptions} onChange={setDraftStatus} />
-        <SelectSheet label="Ekipa" value={draftTeam} options={teamOptions(response.filter_options.teams)} onChange={setDraftTeam} />
-        <TextField label="Datum od" value={draftDateFrom} onChangeText={setDraftDateFrom} placeholder="YYYY-MM-DD" />
-        <TextField label="Datum do" value={draftDateTo} onChangeText={setDraftDateTo} placeholder="YYYY-MM-DD" />
-        <FilterBar activeCount={Number(draftUnassigned)} onClear={() => setDraftUnassigned(false)}>
-          <FilterChip label="Bez dodeljene ekipe" active={draftUnassigned} onPress={() => setDraftUnassigned((value) => !value)} />
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor terenskih operacija</Text>
+        <Text style={styles.copy}>{workspaceMeta?.description ?? 'Izaberi terenski zadatak koji želiš da obradiš.'}</Text>
+        <FilterBar>
+          {FIELD_OPERATIONS_LIST_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
         </FilterBar>
-        <SelectSheet
-          label="Broj po strani"
-          value={String(draftPerPage)}
-          options={[20, 40, 50, 100].map((value) => ({ value: String(value), label: String(value) }))}
-          onChange={(value) => {
-            const next = Number(value);
-            if (next === 20 || next === 40 || next === 50 || next === 100) setDraftPerPage(next);
-          }}
-        />
-        <Button onPress={applyFilters}>Primeni filtere</Button>
-        {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Očisti filtere</Button> : null}
       </Card>
+    </View>
+  );
 
-      <View style={styles.sectionHead}>
-        <View>
-          <Text style={styles.sectionTitle}>Radni nalozi</Text>
-          <Text style={styles.muted}>{response.meta.total} ukupno</Text>
-        </View>
-        <Button variant="secondary" onPress={() => void query.refetch()}>
-          {query.isFetching ? 'Osvežavanje…' : 'Osveži'}
-        </Button>
+  const pagination = (
+    <View style={styles.pagination}>
+      <Button
+        variant="secondary"
+        disabled={response.meta.current_page <= 1}
+        onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, response.meta.current_page - 1) }))}
+      >
+        Prethodna
+      </Button>
+      <Text style={styles.page}>{response.meta.current_page} / {Math.max(response.meta.last_page, 1)}</Text>
+      <Button
+        variant="secondary"
+        disabled={response.meta.current_page >= response.meta.last_page}
+        onPress={() => setApplied((current) => ({ ...current, page: response.meta.current_page + 1 }))}
+      >
+        Sledeća
+      </Button>
+    </View>
+  );
+
+  if (workspace === 'work_orders') {
+    return (
+      <DataList<AdminFieldWorkSummary>
+        data={response.data}
+        keyExtractor={(item) => String(item.id)}
+        header={(
+          <View style={styles.listHeader}>
+            {workspaceHeader}
+            <View style={styles.sectionHead}>
+              <View>
+                <Text style={styles.sectionTitle}>Radni nalozi</Text>
+                <Text style={styles.muted}>{response.meta.total} ukupno · {activeCount} aktivnih filtera</Text>
+              </View>
+              <Button variant="secondary" onPress={() => void query.refetch()}>
+                {query.isFetching ? 'Osvežavanje…' : 'Osveži'}
+              </Button>
+            </View>
+          </View>
+        )}
+        footer={pagination}
+        refreshing={query.isFetching}
+        onRefresh={() => void query.refetch()}
+        emptyTitle="Nema terenskih naloga"
+        emptyMessage="Nema rezultata za izabrane server filtere."
+        renderItem={(item) => <WorkOrderCard item={item} />}
+      />
+    );
+  }
+
+  if (workspace === 'filters') {
+    return (
+      <Screen contentStyle={styles.content}>
+        {workspaceHeader}
+        <Card style={styles.filtersCard}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Filteri</Text>
+            <Text style={styles.muted}>{activeCount} aktivnih</Text>
+          </View>
+          <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="Broj naloga, slučaja, porudžbine ili referenca" />
+          <SelectSheet label="Status" value={draftStatus} options={statusOptions} onChange={setDraftStatus} />
+          <SelectSheet label="Ekipa" value={draftTeam} options={teamOptions(response.filter_options.teams)} onChange={setDraftTeam} />
+          <TextField label="Datum od" value={draftDateFrom} onChangeText={setDraftDateFrom} placeholder="YYYY-MM-DD" />
+          <TextField label="Datum do" value={draftDateTo} onChangeText={setDraftDateTo} placeholder="YYYY-MM-DD" />
+          <FilterBar activeCount={Number(draftUnassigned)} onClear={() => setDraftUnassigned(false)}>
+            <FilterChip label="Bez dodeljene ekipe" active={draftUnassigned} onPress={() => setDraftUnassigned((value) => !value)} />
+          </FilterBar>
+          <SelectSheet
+            label="Broj po strani"
+            value={String(draftPerPage)}
+            options={[20, 40, 50, 100].map((value) => ({ value: String(value), label: String(value) }))}
+            onChange={(value) => {
+              const next = Number(value);
+              if (next === 20 || next === 40 || next === 50 || next === 100) setDraftPerPage(next);
+            }}
+          />
+          <View style={styles.actionsRow}>
+            <Button onPress={applyFilters}>Primeni i otvori naloge</Button>
+            {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Očisti filtere</Button> : null}
+          </View>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (workspace === 'unassigned') {
+    return (
+      <Screen contentStyle={styles.content}>
+        {workspaceHeader}
+        <Card style={styles.focusCard}>
+          <Text style={styles.sectionTitle}>Nalozi bez dodeljene ekipe</Text>
+          <Text style={styles.copy}>
+            Ovaj radni prostor koristi postojeći server-side unassigned filter; ne uvodi lokalnu klasifikaciju niti novi workflow kriterijum.
+          </Text>
+          <Text style={styles.muted}>Bez ekipe na trenutno učitanoj strani: {unassignedOnPage}</Text>
+          <View style={styles.actionsRow}>
+            <Button onPress={showUnassigned}>Prikaži nedodeljene naloge</Button>
+            <Button variant="secondary" onPress={() => setWorkspace('filters')}>Dodatni filteri</Button>
+          </View>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (workspace === 'teams') {
+    return (
+      <Screen contentStyle={styles.content}>
+        {workspaceHeader}
+        <Card style={styles.focusCard}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Ekipe</Text>
+            <Text style={styles.muted}>{activeTeams.length} aktivnih / {response.filter_options.teams.length} ukupno</Text>
+          </View>
+          {response.filter_options.teams.length === 0 ? (
+            <Text style={styles.copy}>Server trenutno nije vratio nijednu ekipu u filter opcijama.</Text>
+          ) : (
+            <View style={styles.teamList}>
+              {response.filter_options.teams.map((team) => (
+                <Card key={team.id} style={styles.teamCard}>
+                  <View style={styles.sectionHead}>
+                    <View style={styles.grow}>
+                      <Text style={styles.subject}>{team.name}</Text>
+                      <Text style={styles.meta}>{team.code} · {team.is_active ? 'Aktivna' : 'Neaktivna'}</Text>
+                      {team.service_area ? <Text style={styles.meta}>Zona: {team.service_area}</Text> : null}
+                    </View>
+                    <Button variant="secondary" onPress={() => showTeam(team.id)}>Nalozi</Button>
+                  </View>
+                </Card>
+              ))}
+            </View>
+          )}
+        </Card>
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen contentStyle={styles.content}>
+      {workspaceHeader}
+      <View style={styles.summaryGrid}>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{response.meta.total}</Text>
+          <Text style={styles.summaryLabel}>Ukupno naloga</Text>
+        </Card>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{response.data.length}</Text>
+          <Text style={styles.summaryLabel}>Na trenutnoj strani</Text>
+        </Card>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{unassignedOnPage}</Text>
+          <Text style={styles.summaryLabel}>Bez ekipe na strani</Text>
+        </Card>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{activeTeams.length}</Text>
+          <Text style={styles.summaryLabel}>Aktivnih ekipa</Text>
+        </Card>
       </View>
-
-      {response.data.length === 0 ? (
-        <EmptyState title="Nema terenskih naloga" message="Nema rezultata za izabrane filtere." />
-      ) : (
-        <View style={styles.list}>
-          {response.data.map((item) => <WorkOrderCard item={item} key={item.id} />)}
+      <Card style={styles.focusCard}>
+        <Text style={styles.sectionTitle}>Brze akcije</Text>
+        <View style={styles.actionsRow}>
+          <Button onPress={() => setWorkspace('work_orders')}>Otvori radne naloge</Button>
+          <Button variant="secondary" onPress={() => setWorkspace('filters')}>Filteri</Button>
+          <Button variant="secondary" onPress={() => setWorkspace('unassigned')}>Bez ekipe</Button>
+          <Button variant="secondary" onPress={() => setWorkspace('teams')}>Ekipe</Button>
         </View>
-      )}
-
-      <View style={styles.pagination}>
-        <Button
-          variant="secondary"
-          onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, response.meta.current_page - 1) }))}
-        >
-          Prethodna
-        </Button>
-        <Text style={styles.page}>{response.meta.current_page} / {response.meta.last_page}</Text>
-        <Button
-          variant="secondary"
-          onPress={() => setApplied((current) => ({ ...current, page: response.meta.current_page + 1 }))}
-        >
-          Sledeća
-        </Button>
-      </View>
+      </Card>
     </Screen>
   );
 }
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    content: { gap: spacing.lg, paddingBottom: 120 },
+    content: { gap: spacing.lg, paddingBottom: 140 },
+    header: { gap: spacing.lg },
+    workspaceCard: { gap: spacing.md },
+    listHeader: { gap: spacing.lg },
+    focusCard: { gap: spacing.md },
+    actionsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
+    summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    summaryCard: { minWidth: '47%', flexGrow: 1, gap: spacing.xs },
+    summaryValue: { ...typography.h2, color: theme.ink },
+    summaryLabel: { ...typography.small, color: theme.muted },
+    teamList: { gap: spacing.sm },
+    teamCard: { gap: spacing.sm },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     copy: { ...typography.body, color: theme.muted },
     filtersCard: { gap: spacing.md },

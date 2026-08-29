@@ -2319,6 +2319,54 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_LIST_UX_REORGANIZATION_BATCH96_VALIDATOR
+const fieldOperationsListUxBatch96 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/field-operations/index.tsx'),
+  'utf8',
+);
+assert(
+  fieldOperationsListUxBatch96.includes('MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_LIST_UX_REORGANIZATION_BATCH96')
+    && fieldOperationsListUxBatch96.includes("type FieldOperationsListWorkspace = 'overview' | 'work_orders' | 'filters' | 'unassigned' | 'teams'")
+    && fieldOperationsListUxBatch96.includes('Radni prostor terenskih operacija')
+    && fieldOperationsListUxBatch96.includes("label: 'Pregled'")
+    && fieldOperationsListUxBatch96.includes("label: 'Radni nalozi'")
+    && fieldOperationsListUxBatch96.includes("label: 'Filteri'")
+    && fieldOperationsListUxBatch96.includes("label: 'Bez ekipe'")
+    && fieldOperationsListUxBatch96.includes("label: 'Ekipe'")
+    && fieldOperationsListUxBatch96.includes("workspace === 'work_orders'")
+    && fieldOperationsListUxBatch96.includes("workspace === 'filters'")
+    && fieldOperationsListUxBatch96.includes("workspace === 'unassigned'")
+    && fieldOperationsListUxBatch96.includes("workspace === 'teams'"),
+  'v1.0 Batch96 Admin Field Operations list is organized into overview, work orders, filters, unassigned and teams workspaces.',
+);
+assert(
+  fieldOperationsListUxBatch96.includes("can('field_operations.view')")
+    && fieldOperationsListUxBatch96.includes('apiAdminFieldOperations.list(applied)')
+    && fieldOperationsListUxBatch96.includes('adminQueryKeys.fieldOperationsList(applied)')
+    && fieldOperationsListUxBatch96.includes('q: draftQ.trim() || undefined')
+    && fieldOperationsListUxBatch96.includes('status: draftStatus || undefined')
+    && fieldOperationsListUxBatch96.includes('team_id: draftTeam ? Number(draftTeam) : undefined')
+    && fieldOperationsListUxBatch96.includes('date_from: draftDateFrom.trim() || undefined')
+    && fieldOperationsListUxBatch96.includes('date_to: draftDateTo.trim() || undefined')
+    && fieldOperationsListUxBatch96.includes('unassigned: draftUnassigned || undefined')
+    && fieldOperationsListUxBatch96.includes('DataList<AdminFieldWorkSummary>')
+    && fieldOperationsListUxBatch96.includes("pathname: '/admin/field-operations/[id]'")
+    && fieldOperationsListUxBatch96.includes('Math.max(1, response.meta.current_page - 1)')
+    && fieldOperationsListUxBatch96.includes('response.meta.current_page + 1'),
+  'v1.0 Batch96 Field Operations list UX preserves permission, server filters, pagination, virtualized list and detail routing contracts.',
+);
+assert(
+  fieldOperationsListUxBatch96.includes('setApplied((current) => ({ ...current, team_id: undefined, unassigned: true, page: 1 }))')
+    && fieldOperationsListUxBatch96.includes('postojeći server-side unassigned filter')
+    && fieldOperationsListUxBatch96.includes('response.filter_options.teams.map')
+    && fieldOperationsListUxBatch96.includes('setApplied((current) => ({ ...current, team_id: teamId, unassigned: undefined, page: 1 }))'),
+  'v1.0 Batch96 Field Operations focus workspaces reuse existing server unassigned and team filter semantics without parallel business logic.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(fieldOperationsListUxBatch96),
+  'v1.0 Batch96 Field Operations list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_AFTER_SALES_LIST_UX_REORGANIZATION_BATCH95_VALIDATOR
 const afterSalesListUxBatch95 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/after-sales/index.tsx'),
