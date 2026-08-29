@@ -68,6 +68,17 @@ function attentionLabel(value: string): string {
   } as Record<string, string>)[value] ?? value;
 }
 
+// MOBILE_V1_0_ADMIN_ORDERS_LIST_UX_REORGANIZATION_BATCH93
+type OrdersListWorkspace = 'overview' | 'orders' | 'filters' | 'attention' | 'archive';
+
+const ORDERS_LIST_WORKSPACE_OPTIONS: { value: OrdersListWorkspace; label: string }[] = [
+  { value: 'overview', label: 'Pregled' },
+  { value: 'orders', label: 'Porudžbine' },
+  { value: 'filters', label: 'Filteri' },
+  { value: 'attention', label: 'Pažnja' },
+  { value: 'archive', label: 'Arhiva' },
+];
+
 export default function AdminOrdersIndexScreen() {
   const { colors: theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -85,6 +96,7 @@ export default function AdminOrdersIndexScreen() {
   const [draftAttention, setDraftAttention] = useState('');
   const [draftPerPage, setDraftPerPage] = useState<AdminOrdersPerPage> (40);
   const [applied, setApplied] = useState<AdminOrdersRequestParams> ({ page: 1, per_page: 40 });
+  const [workspace, setWorkspace] = useState<OrdersListWorkspace> ('overview');
 
   const query = useQuery({
     queryKey: adminQueryKeys.adminOrders(applied),
@@ -126,6 +138,7 @@ export default function AdminOrdersIndexScreen() {
     if (draftTo) next.date_to = draftTo;
     if (draftAttention) next.attention = draftAttention;
     setApplied(next);
+    setWorkspace('orders');
   };
 
   const clearFilters = () => {
@@ -139,6 +152,7 @@ export default function AdminOrdersIndexScreen() {
     setDraftAttention('');
     setDraftPerPage(40);
     setApplied({ page: 1, per_page: 40 });
+    setWorkspace('orders');
   };
 
   const setPage = (page: number) => {
@@ -195,120 +209,176 @@ export default function AdminOrdersIndexScreen() {
         name={bootstrap?.user.name}
       />
 
-      <Text style={styles.copy}>
-        Operativni pregled porudžbina, workflow akcije i kontrolisana arhiva u dozvoljenom administratorskom scope-u.
-      </Text>
-      <Button variant="secondary" onPress={() => router.push('/admin/orders/archived' as Href)}>
-        Arhivirane porudžbine
-      </Button>
+      <Card style={styles.workspaceCard}>
+        <View style={styles.sectionHead}>
+          <View>
+            <Text style={styles.sectionTitle}>Radni prostor porudžbina</Text>
+            <Text style={styles.muted}>Odvoji pregled, listu, filtere, pažnju i arhivu bez promene server workflow-a.</Text>
+          </View>
+          <Text style={styles.muted}>{response.pagination.total} ukupno</Text>
+        </View>
+        <FilterBar>
+          {ORDERS_LIST_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => setWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
 
-      {response.filter_options.attention.length > 0 ? (
+      {workspace === 'overview' ? (
+        <>
+          <Card style={styles.overviewCard}>
+            <Text style={styles.sectionTitle}>Operativni pregled</Text>
+            <Text style={styles.copy}>
+              Ukupno porudžbina u trenutnom server filteru: {response.pagination.total}. Strana {response.pagination.current_page} od {Math.max(response.pagination.last_page, 1)}.
+            </Text>
+            <Text style={styles.copy}>
+              Detail capability={String(response.capabilities.detail)} · workflow_mutations={String(response.capabilities.workflow_mutations)}
+            </Text>
+            <View style={styles.actionsRow}>
+              <Button onPress={() => setWorkspace('orders')}>Otvori porudžbine</Button>
+              <Button variant="secondary" onPress={() => setWorkspace('filters')}>Filteri</Button>
+              <Button variant="secondary" onPress={() => setWorkspace('attention')}>Pažnja</Button>
+              <Button variant="secondary" onPress={() => setWorkspace('archive')}>Arhiva</Button>
+            </View>
+          </Card>
+          <Card style={styles.overviewCard}>
+            <Text style={styles.sectionTitle}>Potrebna pažnja</Text>
+            {response.filter_options.attention.length > 0 ? response.filter_options.attention.map((key) => (
+              <Text key={key} style={styles.copy}>{attentionLabel(key)}: {response.attention[key] ?? 0}</Text>
+            )) : <Text style={styles.copy}>Server trenutno ne vraća kategorije za pažnju.</Text>}
+          </Card>
+        </>
+      ) : null}
+
+      {workspace === 'attention' ? (
         <Card style={styles.attentionCard}>
-          <Text style={styles.sectionTitle}>Potrebna paznja</Text>
-          <FilterBar activeCount={draftAttention ? 1 : 0} onClear={() => setDraftAttention('')}>
-            {response.filter_options.attention.map((key) => (
-              <FilterChip
-                key={key}
-                label={`${attentionLabel(key)} (${response.attention[key] ?? 0})`}
-                active={draftAttention === key}
-                onPress={() => setDraftAttention(draftAttention === key ? '' : key)}
-              />
-            ))}
-          </FilterBar>
+          <Text style={styles.sectionTitle}>Potrebna pažnja</Text>
+          <Text style={styles.copy}>Izaberi postojeći server attention filter, zatim otvori odgovarajuće porudžbine.</Text>
+          {response.filter_options.attention.length > 0 ? (
+            <>
+              <FilterBar activeCount={draftAttention ? 1 : 0} onClear={() => setDraftAttention('')}>
+                {response.filter_options.attention.map((key) => (
+                  <FilterChip
+                    key={key}
+                    label={`${attentionLabel(key)} (${response.attention[key] ?? 0})`}
+                    active={draftAttention === key}
+                    onPress={() => setDraftAttention(draftAttention === key ? '' : key)}
+                  />
+                ))}
+              </FilterBar>
+              <Button onPress={applyFilters}>Prikaži porudžbine</Button>
+            </>
+          ) : <Text style={styles.copy}>Server trenutno ne vraća kategorije za pažnju.</Text>}
         </Card>
       ) : null}
 
-      <Card style={styles.filtersCard}>
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Filteri</Text>
-          <Text style={styles.muted}>{activeCount} aktivnih</Text>
-        </View>
+      {workspace === 'filters' ? (
+        <Card style={styles.filtersCard}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Filteri</Text>
+            <Text style={styles.muted}>{activeCount} aktivnih</Text>
+          </View>
 
-        <TextField
-          label="Pretraga"
-          value={draftQ}
-          onChangeText={setDraftQ}
-          placeholder="Broj porudzbine, kupac, username ili email"
-        />
-        <SelectSheet label="Status" value={draftStatus} options={statusOptions} onChange={setDraftStatus} />
-        <SelectSheet label="Placanje" value={draftPayment} options={paymentOptions} onChange={setDraftPayment} />
-        <SelectSheet label="Izvor" value={draftSource} options={sourceOptions} onChange={setDraftSource} />
-        {response.filter_options.suppliers.length > 0 ? (
+          <TextField
+            label="Pretraga"
+            value={draftQ}
+            onChangeText={setDraftQ}
+            placeholder="Broj porudzbine, kupac, username ili email"
+          />
+          <SelectSheet label="Status" value={draftStatus} options={statusOptions} onChange={setDraftStatus} />
+          <SelectSheet label="Placanje" value={draftPayment} options={paymentOptions} onChange={setDraftPayment} />
+          <SelectSheet label="Izvor" value={draftSource} options={sourceOptions} onChange={setDraftSource} />
+          {response.filter_options.suppliers.length > 0 ? (
+            <SelectSheet
+              label="Odgovorno lice"
+              value={draftSupplier}
+              options={supplierOptions}
+              onChange={setDraftSupplier}
+            />
+          ) : null}
+          <DateTimeField label="Od datuma" mode="date" value={draftFrom} onChangeText={setDraftFrom} />
+          <DateTimeField label="Do datuma" mode="date" value={draftTo} onChangeText={setDraftTo} />
           <SelectSheet
-            label="Odgovorno lice"
-            value={draftSupplier}
-            options={supplierOptions}
-            onChange={setDraftSupplier}
+            label="Broj po strani"
+            value={String(draftPerPage)}
+            options={perPageOptions}
+            onChange={(value) => {
+              const next = Number(value);
+              if (next === 20 || next === 40 || next === 50 || next === 100) {
+                setDraftPerPage(next);
+              }
+            }}
           />
-        ) : null}
-        <DateTimeField label="Od datuma" mode="date" value={draftFrom} onChangeText={setDraftFrom} />
-        <DateTimeField label="Do datuma" mode="date" value={draftTo} onChangeText={setDraftTo} />
-        <SelectSheet
-          label="Broj po strani"
-          value={String(draftPerPage)}
-          options={perPageOptions}
-          onChange={(value) => {
-            const next = Number(value);
-            if (next === 20 || next === 40 || next === 50 || next === 100) {
-              setDraftPerPage(next);
-            }
-          }}
-        />
-        <Button onPress={applyFilters}>Primeni filtere</Button>
-        {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Ocisti filtere</Button> : null}
-      </Card>
-
-      <View style={styles.sectionHead}>
-        <View>
-          <Text style={styles.sectionTitle}>Porudzbine</Text>
-          <Text style={styles.muted}>{response.pagination.total} ukupno</Text>
-        </View>
-        <Button variant="secondary" onPress={() => void query.refetch()}>
-          {query.isFetching ? 'Osvezavanje...' : 'Osvezi'}
-        </Button>
-      </View>
-
-      {response.data.length === 0 ? (
-        <Card style={styles.card}>
-          <Text style={styles.muted}>Nema porudzbina za izabrane filtere.</Text>
+          <Button onPress={applyFilters}>Primeni filtere</Button>
+          {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Ocisti filtere</Button> : null}
         </Card>
-      ) : (
-        response.data.map((item) => (
-          <OrderCard
-            key={item.id}
-            item={item}
-            canOpen={response.capabilities.detail}
-            styles={styles}
-          />
-        ))
-      )}
+      ) : null}
 
-      <Card style={styles.paginationCard}>
-        <Text style={styles.muted}>
-          Strana {response.pagination.current_page} od {Math.max(response.pagination.last_page, 1)}
-        </Text>
-        <View style={styles.actionsRow}>
-          <Button
-            variant="secondary"
-            onPress={() => setPage(response.pagination.current_page - 1)}
-          >
-            Prethodna
-          </Button>
-          <Button
-            variant="secondary"
-            onPress={() => setPage(response.pagination.current_page + 1)}
-          >
-            Sledeca
-          </Button>
-        </View>
-      </Card>
+      {workspace === 'orders' ? (
+        <>
+          <View style={styles.sectionHead}>
+            <View>
+              <Text style={styles.sectionTitle}>Porudžbine</Text>
+              <Text style={styles.muted}>{response.pagination.total} ukupno</Text>
+            </View>
+            <Button variant="secondary" onPress={() => void query.refetch()}>
+              {query.isFetching ? 'Osvežavanje...' : 'Osveži'}
+            </Button>
+          </View>
 
-      <Card style={styles.readOnlyCard}>
-        <Text style={styles.cardTitle}>Server-driven workflow</Text>
-        <Text style={styles.muted}>
-          Backend capability workflow_mutations={String(response.capabilities.workflow_mutations)}. Operativne akcije ostaju permission-gated, a završene/otkazane porudžbine mogu u kontrolisanu arhivu.
-        </Text>
-      </Card>
+          {response.data.length === 0 ? (
+            <Card style={styles.card}>
+              <Text style={styles.muted}>Nema porudžbina za izabrane filtere.</Text>
+            </Card>
+          ) : (
+            response.data.map((item) => (
+              <OrderCard
+                key={item.id}
+                item={item}
+                canOpen={response.capabilities.detail}
+                styles={styles}
+              />
+            ))
+          )}
+
+          <Card style={styles.paginationCard}>
+            <Text style={styles.muted}>
+              Strana {response.pagination.current_page} od {Math.max(response.pagination.last_page, 1)}
+            </Text>
+            <View style={styles.actionsRow}>
+              <Button
+                variant="secondary"
+                onPress={() => setPage(response.pagination.current_page - 1)}
+              >
+                Prethodna
+              </Button>
+              <Button
+                variant="secondary"
+                onPress={() => setPage(response.pagination.current_page + 1)}
+              >
+                Sledeća
+              </Button>
+            </View>
+          </Card>
+        </>
+      ) : null}
+
+      {workspace === 'archive' ? (
+        <Card style={styles.readOnlyCard}>
+          <Text style={styles.sectionTitle}>Arhiva porudžbina</Text>
+          <Text style={styles.copy}>
+            Arhiviranje i vraćanje ostaju u postojećem kontrolisanom server workflow-u. Ovaj ekran samo vodi na postojeću arhivu.
+          </Text>
+          <Button variant="secondary" onPress={() => router.push('/admin/orders/archived' as Href)}>
+            Otvori arhivirane porudžbine
+          </Button>
+        </Card>
+      ) : null}
     </Screen>
   );
 }
@@ -363,6 +433,8 @@ function createStyles(theme: AppColors) {
     content: { paddingBottom: 140, gap: spacing.lg },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     copy: { ...typography.body, color: theme.muted },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
+    overviewCard: { gap: spacing.md },
     attentionCard: { gap: spacing.md },
     filtersCard: { gap: spacing.md },
     sectionHead: {

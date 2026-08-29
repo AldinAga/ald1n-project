@@ -2319,6 +2319,52 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_ORDERS_LIST_UX_REORGANIZATION_BATCH93_VALIDATOR
+const ordersListUxBatch93 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/orders/index.tsx'),
+  'utf8',
+);
+assert(
+  ordersListUxBatch93.includes('MOBILE_V1_0_ADMIN_ORDERS_LIST_UX_REORGANIZATION_BATCH93')
+    && ordersListUxBatch93.includes("type OrdersListWorkspace = 'overview' | 'orders' | 'filters' | 'attention' | 'archive'")
+    && ordersListUxBatch93.includes('Radni prostor porudžbina')
+    && ordersListUxBatch93.includes("label: 'Pregled'")
+    && ordersListUxBatch93.includes("label: 'Porudžbine'")
+    && ordersListUxBatch93.includes("label: 'Filteri'")
+    && ordersListUxBatch93.includes("label: 'Pažnja'")
+    && ordersListUxBatch93.includes("label: 'Arhiva'")
+    && ordersListUxBatch93.includes("workspace === 'overview'")
+    && ordersListUxBatch93.includes("workspace === 'orders'")
+    && ordersListUxBatch93.includes("workspace === 'filters'")
+    && ordersListUxBatch93.includes("workspace === 'attention'")
+    && ordersListUxBatch93.includes("workspace === 'archive'"),
+  'v1.0 Batch93 Admin Orders list is organized into overview, orders, filters, attention and archive workspaces.',
+);
+assert(
+  ordersListUxBatch93.includes("can('orders.manage')")
+    && ordersListUxBatch93.includes('apiAdminOrders.list(applied)')
+    && ordersListUxBatch93.includes('adminQueryKeys.adminOrders(applied)')
+    && ordersListUxBatch93.includes('next.q = q')
+    && ordersListUxBatch93.includes('next.status = draftStatus')
+    && ordersListUxBatch93.includes('next.payment_status = draftPayment')
+    && ordersListUxBatch93.includes('next.source_system = draftSource')
+    && ordersListUxBatch93.includes('next.supplier_user_id = supplierId')
+    && ordersListUxBatch93.includes('next.date_from = draftFrom')
+    && ordersListUxBatch93.includes('next.date_to = draftTo')
+    && ordersListUxBatch93.includes('next.attention = draftAttention')
+    && ordersListUxBatch93.includes('draftTo < draftFrom')
+    && ordersListUxBatch93.includes('response.capabilities.detail')
+    && ordersListUxBatch93.includes('response.capabilities.workflow_mutations')
+    && ordersListUxBatch93.includes("pathname: '/admin/orders/[id]'")
+    && ordersListUxBatch93.includes("router.push('/admin/orders/archived' as Href)")
+    && ordersListUxBatch93.includes('setApplied((current) => ({ ...current, page }))'),
+  'v1.0 Batch93 Orders list UX preserves permission, filters, attention, pagination, detail, archive and server capability contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(ordersListUxBatch93),
+  'v1.0 Batch93 Orders list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_COMMISSIONS_DETAIL_UX_REORGANIZATION_BATCH92_VALIDATOR
 const commissionsDetailUxBatch92 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/commissions/[id].tsx'),
