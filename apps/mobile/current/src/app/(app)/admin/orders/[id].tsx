@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { AdminOrderActions } from '@/features/admin/orders-admin-actions';
 import { AdminOrderDocuments } from '@/features/admin/order-documents-admin';
 import { AdminOrderArchiveActions } from '@/features/admin/order-archive-admin';
@@ -77,6 +78,18 @@ function displayScalar(value: AdminOrderDetailValue | undefined): string {
   return '-';
 }
 
+// MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86
+type OrderWorkspace = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'documents' | 'activity';
+
+const ORDER_WORKSPACE_OPTIONS: Array<{ value: OrderWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Status porudžbine, odgovorno lice i readiness upozorenja.' },
+  { value: 'customer', label: 'Kupac i stavke', description: 'Kupac, adresa, napomena i sve stavke porudžbine.' },
+  { value: 'fulfillment', label: 'Isporuka', description: 'Slanje pošiljke, kurir, tracking i potvrđena isporuka.' },
+  { value: 'finance', label: 'Finansije', description: 'Uplate, potraživanje i provizija povezani sa porudžbinom.' },
+  { value: 'documents', label: 'Dokumenti', description: 'Predračun, račun, otpremnica, revizije i postojeći secure PDF tok.' },
+  { value: 'activity', label: 'Tok i akcije', description: 'Interne napomene, timeline, workflow akcije, arhiviranje i server capabilities.' },
+];
+
 export default function AdminOrdersDetailScreen() {
   const { colors: theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -86,6 +99,7 @@ export default function AdminOrdersDetailScreen() {
   const orderId = Number(rawId);
   const validId = Number.isInteger(orderId) && orderId > 0;
   const allowed = can('orders.manage');
+  const [workspace, setWorkspace] = useState<OrderWorkspace> ('overview');
 
   const query = useQuery({
     queryKey: adminQueryKeys.adminOrder(orderId),
@@ -134,6 +148,7 @@ export default function AdminOrdersDetailScreen() {
   const status = text(order, 'status_label', text(order, 'status'));
   const customerName = text(customer, 'name', text(order, 'shipping_full_name', 'Kupac'));
   const supplierName = text(supplier, 'name', text(order, 'supplier_name_snapshot', '-'));
+  const workspaceMeta = ORDER_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
 
   return (
     <Screen contentStyle={styles.content}>
@@ -153,6 +168,21 @@ export default function AdminOrdersDetailScreen() {
         </Button>
       </View>
 
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor porudžbine</Text>
+        <Text style={styles.muted}>{workspaceMeta?.description ?? 'Izaberi deo porudžbine koji želiš da pregledaš ili obradiš.'}</Text>
+        <FilterBar>
+          {ORDER_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => setWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
+
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Porudzbina</Text>
         <DetailRow label="Kupac" value={customerName} styles={styles} />
@@ -166,7 +196,7 @@ export default function AdminOrdersDetailScreen() {
         {boolValue(order, 'is_completed') ? <DetailRow label="Zavrsena" value="Da" styles={styles} /> : null}
       </Card>
 
-      {shipping || customer ? (
+      {workspace === 'customer' && (shipping || customer) ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Kupac i isporuka</Text>
           <DetailRow label="Ime" value={customerName} styles={styles} />
@@ -177,7 +207,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {items.length > 0 ? (
+      {workspace === 'customer' && items.length > 0 ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Stavke ({items.length})</Text>
           {items.map((item, index) => (
@@ -193,7 +223,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {shipment ? (
+      {workspace === 'fulfillment' && shipment ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Slanje posiljke</Text>
           <DetailRow label="Status" value={text(shipment, 'status')} styles={styles} />
@@ -205,7 +235,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {delivery ? (
+      {workspace === 'fulfillment' && delivery ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Isporuka</Text>
           <DetailRow label="Nacin" value={text(delivery, 'delivery_method_label', text(delivery, 'delivery_method'))} styles={styles} />
@@ -217,7 +247,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {payments.length > 0 ? (
+      {workspace === 'finance' && payments.length > 0 ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Uplate ({payments.length})</Text>
           {payments.map((payment, index) => (
@@ -233,16 +263,20 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {/* MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23 */}
-      <AdminOrderDocuments
-        orderId={orderId}
-        documents={documents}
-        canManage={response.capabilities.documents}
-        hasDelivery={delivery !== null}
-        onChanged={() => void query.refetch()}
-      />
+      {workspace === 'documents' ? (
+        <>
+          {/* MOBILE_V1_0_ADMIN_ORDER_DOCUMENTS_INVOICE_PARITY_BATCH23 */}
+          <AdminOrderDocuments
+            orderId={orderId}
+            documents={documents}
+            canManage={response.capabilities.documents}
+            hasDelivery={delivery !== null}
+            onChanged={() => void query.refetch()}
+          />
+        </>
+      ) : null}
 
-      {receivable ? (
+      {workspace === 'finance' && receivable ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Potrazivanje</Text>
           <DetailRow label="Status" value={text(receivable, 'status')} styles={styles} />
@@ -251,7 +285,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {commission ? (
+      {workspace === 'finance' && commission ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Provizija</Text>
           <DetailRow label="Status" value={text(commission, 'status')} styles={styles} />
@@ -260,7 +294,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {internalNotes.length > 0 ? (
+      {workspace === 'activity' && internalNotes.length > 0 ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Interne napomene ({internalNotes.length})</Text>
           {internalNotes.map((note, index) => (
@@ -272,7 +306,7 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {timeline.length > 0 ? (
+      {workspace === 'activity' && timeline.length > 0 ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Timeline ({timeline.length})</Text>
           {timeline.map((event, index) => (
@@ -285,18 +319,20 @@ export default function AdminOrdersDetailScreen() {
         </Card>
       ) : null}
 
-      {warnings.length > 0 ? (
+      {workspace === 'overview' && warnings.length > 0 ? (
         <Card style={styles.warningCard}>
           <Text style={styles.sectionTitle}>Readiness upozorenja</Text>
           {warnings.map((warning, index) => <Text key={`${warning}-${index}`} style={styles.muted}>• {warning}</Text>)}
         </Card>
       ) : null}
 
-      <AdminOrderActions
-        orderId={orderId}
-        data={data}
-        capabilities={response.capabilities}
-      />
+      {workspace === 'activity' ? (
+        <>
+          <AdminOrderActions
+            orderId={orderId}
+            data={data}
+            capabilities={response.capabilities}
+          />
 
       <AdminOrderArchiveActions
         orderId={orderId}
@@ -321,6 +357,8 @@ export default function AdminOrdersDetailScreen() {
         {permissions ? <Text style={styles.muted}>Permission snapshot dostupan: da.</Text> : null}
         {actions ? <Text style={styles.muted}>Action snapshot dostupan: da, koristi se za operativni UI.</Text> : null}
       </Card>
+        </>
+      ) : null}
     </Screen>
   );
 }
@@ -350,6 +388,7 @@ function createStyles(theme: AppColors) {
     flexOne: { flex: 1, minWidth: 0 },
     status: { ...typography.label, color: theme.primary },
     muted: { ...typography.small, color: theme.muted },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     card: { gap: spacing.sm },
     warningCard: { gap: spacing.sm },
     readOnlyCard: { gap: spacing.sm },

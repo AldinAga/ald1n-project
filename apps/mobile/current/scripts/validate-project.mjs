@@ -2319,6 +2319,43 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86_VALIDATOR
+const orderDetailUxBatch86 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/orders/[id].tsx'),
+  'utf8',
+);
+assert(
+  orderDetailUxBatch86.includes('MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86')
+    && orderDetailUxBatch86.includes("type OrderWorkspace = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'documents' | 'activity'")
+    && orderDetailUxBatch86.includes('Radni prostor porudžbine')
+    && orderDetailUxBatch86.includes("label: 'Pregled'")
+    && orderDetailUxBatch86.includes("label: 'Kupac i stavke'")
+    && orderDetailUxBatch86.includes("label: 'Isporuka'")
+    && orderDetailUxBatch86.includes("label: 'Finansije'")
+    && orderDetailUxBatch86.includes("label: 'Dokumenti'")
+    && orderDetailUxBatch86.includes("label: 'Tok i akcije'")
+    && orderDetailUxBatch86.includes("workspace === 'customer'")
+    && orderDetailUxBatch86.includes("workspace === 'fulfillment'")
+    && orderDetailUxBatch86.includes("workspace === 'finance'")
+    && orderDetailUxBatch86.includes("workspace === 'documents'")
+    && orderDetailUxBatch86.includes("workspace === 'activity'"),
+  'v1.0 Batch86 Admin Order detalj je organizovan u Pregled, Kupac i stavke, Isporuka, Finansije, Dokumenti i Tok i akcije radne prostore.',
+);
+assert(
+  orderDetailUxBatch86.includes("can('orders.manage')")
+    && orderDetailUxBatch86.includes('apiAdminOrders.detail')
+    && orderDetailUxBatch86.includes('AdminOrderActions')
+    && orderDetailUxBatch86.includes('AdminOrderDocuments')
+    && orderDetailUxBatch86.includes('AdminOrderArchiveActions')
+    && orderDetailUxBatch86.includes('response.capabilities.workflow_mutations')
+    && orderDetailUxBatch86.includes('response.capabilities.documents'),
+  'v1.0 Batch86 Order UX čuva orders.manage, server-driven workflow, dokumente, archive i capability poslovni ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(orderDetailUxBatch86),
+  'v1.0 Batch86 Order UX ne vraća Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_WARRANTY_DETAIL_UX_REORGANIZATION_BATCH85_VALIDATOR
 const warrantyDetailUxBatch85 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/warranties/[id].tsx'),
