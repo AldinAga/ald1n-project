@@ -2319,6 +2319,48 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_WARRANTY_RULES_UX_REORGANIZATION_BATCH90_VALIDATOR
+const warrantyRulesUxBatch90 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/warranties/rules.tsx'),
+  'utf8',
+);
+assert(
+  warrantyRulesUxBatch90.includes('MOBILE_V1_0_ADMIN_WARRANTY_RULES_UX_REORGANIZATION_BATCH90')
+    && warrantyRulesUxBatch90.includes("type WarrantyRulesWorkspace = 'overview' | 'rules' | 'editor' | 'backfill'")
+    && warrantyRulesUxBatch90.includes('Radni prostor pravila garancije')
+    && warrantyRulesUxBatch90.includes("label: 'Pregled'")
+    && warrantyRulesUxBatch90.includes("label: 'Pravila'")
+    && warrantyRulesUxBatch90.includes("label: 'Uredi'")
+    && warrantyRulesUxBatch90.includes("label: 'Backfill'")
+    && warrantyRulesUxBatch90.includes("workspace === 'overview'")
+    && warrantyRulesUxBatch90.includes("workspace === 'rules'")
+    && warrantyRulesUxBatch90.includes("workspace === 'editor'")
+    && warrantyRulesUxBatch90.includes("workspace === 'backfill'"),
+  'v1.0 Batch90 Admin Warranty Rules is organized into overview, rules, editor and backfill workspaces.',
+);
+assert(
+  warrantyRulesUxBatch90.includes("can('warranties.manage')")
+    && warrantyRulesUxBatch90.includes('apiAdminWarranties.rules')
+    && warrantyRulesUxBatch90.includes('apiAdminWarranties.createRule')
+    && warrantyRulesUxBatch90.includes('apiAdminWarranties.updateRule')
+    && warrantyRulesUxBatch90.includes('apiAdminWarranties.backfill(500)')
+    && warrantyRulesUxBatch90.includes('adminQueryKeys.warrantyRules()')
+    && warrantyRulesUxBatch90.includes('adminQueryKeys.warranties()')
+    && warrantyRulesUxBatch90.includes('data.capabilities.create')
+    && warrantyRulesUxBatch90.includes('data.capabilities.update')
+    && warrantyRulesUxBatch90.includes('data.capabilities.backfill')
+    && warrantyRulesUxBatch90.includes('ConfirmAction')
+    && warrantyRulesUxBatch90.includes("{ value: 'global'")
+    && warrantyRulesUxBatch90.includes("{ value: 'category'")
+    && warrantyRulesUxBatch90.includes("{ value: 'product'")
+    && warrantyRulesUxBatch90.includes('setProductId(option.product.id)'),
+  'v1.0 Batch90 Warranty Rules UX preserves permission, scope, create, update, backfill, query invalidation and confirmation contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(warrantyRulesUxBatch90),
+  'v1.0 Batch90 Warranty Rules UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_RECEIVABLES_LIST_UX_REORGANIZATION_BATCH89_VALIDATOR
 const receivablesListUxBatch89 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/receivables/index.tsx'),

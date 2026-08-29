@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmAction } from '@/components/ui/confirm-action';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { SelectSheet } from '@/components/ui/select-sheet';
 import {
   ErrorState,
@@ -44,6 +45,16 @@ import { useAppTheme } from '@/theme/app-theme';
 type ProductOption = AsyncLookupOption & {
   product: AdminWarrantyRuleProduct;
 };
+
+// MOBILE_V1_0_ADMIN_WARRANTY_RULES_UX_REORGANIZATION_BATCH90
+type WarrantyRulesWorkspace = 'overview' | 'rules' | 'editor' | 'backfill';
+
+const WARRANTY_RULES_WORKSPACE_OPTIONS: Array<{ value: WarrantyRulesWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Status pravila, aktivni scope i brz ulaz u svakodnevni warranty rad.' },
+  { value: 'rules', label: 'Pravila', description: 'Postojeca pravila, scope, prioritet i status na jednom mestu.' },
+  { value: 'editor', label: 'Uredi', description: 'Kreiranje novog ili izmena postojeceg pravila uz server validaciju.' },
+  { value: 'backfill', label: 'Backfill', description: 'Kontrolisano generisanje nedostajucih garancija bez dupliranja snapshotova.' },
+];
 
 const SCOPE_OPTIONS = [
   { value: 'global', label: 'Svi proizvodi' },
@@ -99,6 +110,7 @@ export default function AdminWarrantyRulesScreen() {
   const feedback = useAppFeedback();
   const client = useQueryClient();
 
+  const [workspace, setWorkspace] = useState<WarrantyRulesWorkspace> ('overview');
   const [editingId, setEditingId] = useState<number | null> (null);
   const [name, setName] = useState('');
   const [scope, setScope] = useState<AdminWarrantyRuleScope> ('global');
@@ -120,6 +132,7 @@ export default function AdminWarrantyRulesScreen() {
   });
 
   const resetForm = () => {
+    setWorkspace('editor');
     setEditingId(null);
     setName('');
     setScope('global');
@@ -135,6 +148,7 @@ export default function AdminWarrantyRulesScreen() {
   };
 
   const editRule = (rule: AdminWarrantyRule) => {
+    setWorkspace('editor');
     setEditingId(rule.id);
     setName(rule.name);
     setScope(rule.scope_type);
@@ -249,6 +263,7 @@ export default function AdminWarrantyRulesScreen() {
     mutationFn: () => apiAdminWarranties.backfill(500),
     onSuccess: async (response) => {
       setConfirmBackfill(false);
+      setWorkspace('overview');
       await client.invalidateQueries({ queryKey: adminQueryKeys.warranties() });
       feedback.notify({
         tone: 'success',
@@ -297,6 +312,13 @@ export default function AdminWarrantyRulesScreen() {
   const canSave = editingId === null
     ? data.capabilities.create
     : data.capabilities.update;
+  const activeRules = data.data.filter((rule) => rule.is_active).length;
+  const workspaceMeta = WARRANTY_RULES_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+
+  const selectWorkspace = (next: WarrantyRulesWorkspace) => {
+    setConfirmBackfill(false);
+    setWorkspace(next);
+  };
 
   return (
     <Screen contentStyle={styles.content}>
@@ -315,7 +337,35 @@ export default function AdminWarrantyRulesScreen() {
         proizvod, kategorija, pa globalno pravilo.
       </Text>
 
-      {data.capabilities.backfill ? (
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor pravila garancije</Text>
+        <Text style={styles.copy}>{workspaceMeta?.description ?? 'Izaberi warranty zadatak koji zelis da obradis.'}</Text>
+        <FilterBar>
+          {WARRANTY_RULES_WORKSPACE_OPTIONS.filter((option) => option.value !== 'backfill' || data.capabilities.backfill).map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
+
+      {workspace === 'overview' ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Pregled pravila</Text>
+          <Text style={styles.copy}>Ukupno pravila: {data.data.length}</Text>
+          <Text style={styles.copy}>Aktivna pravila: {activeRules}</Text>
+          <Text style={styles.copy}>Prioritet primene ostaje product, category, pa globalni scope.</Text>
+          <View style={styles.titleRow}>
+            <Button onPress={resetForm}>Novo pravilo</Button>
+            <Button variant="secondary" onPress={() => selectWorkspace('rules')}>Postojeca pravila</Button>
+          </View>
+        </Card>
+      ) : null}
+
+      {workspace === 'backfill' && data.capabilities.backfill ? (
         <Button
           variant="secondary"
           onPress={() => setConfirmBackfill(true)}
@@ -324,7 +374,8 @@ export default function AdminWarrantyRulesScreen() {
         </Button>
       ) : null}
 
-      <Card style={styles.card}>
+      {workspace === 'editor' ? (
+        <Card style={styles.card}>
         <View style={styles.titleRow}>
           <Text style={styles.sectionTitle}>
             {editingId === null ? 'Novo pravilo' : `Izmena #${editingId}`}
@@ -440,9 +491,11 @@ export default function AdminWarrantyRulesScreen() {
         ) : (
           <Text style={styles.copy}>Ova akcija trenutno nije dostupna.</Text>
         )}
-      </Card>
+        </Card>
+      ) : null}
 
-      <Card style={styles.card}>
+      {workspace === 'rules' ? (
+        <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Postojeća pravila</Text>
         {data.data.length === 0 ? (
           <Text style={styles.copy}>Nema definisanih pravila.</Text>
@@ -474,7 +527,8 @@ export default function AdminWarrantyRulesScreen() {
             </Pressable>
           ))
         )}
-      </Card>
+        </Card>
+      ) : null}
 
       <ConfirmAction
         visible={confirmBackfill}
@@ -505,6 +559,10 @@ function createStyles(theme: AppColors) {
     },
     card: {
       gap: spacing.md,
+    },
+    workspaceCard: {
+      gap: spacing.md,
+      borderColor: theme.primary,
     },
     titleRow: {
       flexDirection: 'row',
