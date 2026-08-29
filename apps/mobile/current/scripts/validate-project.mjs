@@ -2319,6 +2319,44 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_DETAIL_UX_REORGANIZATION_BATCH84_VALIDATOR
+const fieldOperationsDetailUxBatch84 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/field-operations/[id].tsx'),
+  'utf8',
+);
+assert(
+  fieldOperationsDetailUxBatch84.includes('MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_DETAIL_UX_REORGANIZATION_BATCH84')
+    && fieldOperationsDetailUxBatch84.includes("type FieldWorkWorkspace = 'overview' | 'planning' | 'execution' | 'parts' | 'documents'")
+    && fieldOperationsDetailUxBatch84.includes('Radni prostor terenskog naloga')
+    && fieldOperationsDetailUxBatch84.includes("label: 'Pregled'")
+    && fieldOperationsDetailUxBatch84.includes("label: 'Planiranje'")
+    && fieldOperationsDetailUxBatch84.includes("label: 'Izvršenje'")
+    && fieldOperationsDetailUxBatch84.includes("label: 'Delovi'")
+    && fieldOperationsDetailUxBatch84.includes("label: 'Dokumentacija'")
+    && fieldOperationsDetailUxBatch84.includes("workspace === 'planning' && panel === 'schedule'")
+    && fieldOperationsDetailUxBatch84.includes("workspace === 'execution' && panel === 'complete'")
+    && fieldOperationsDetailUxBatch84.includes("workspace === 'parts' && panel === 'part-add'"),
+  'v1.0 Batch84 Admin Field Operations detalj je organizovan u Pregled, Planiranje, Izvršenje, Delovi i Dokumentacija radne prostore.',
+);
+assert(
+  fieldOperationsDetailUxBatch84.includes("can('field_operations.view')")
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.schedule')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.enRoute')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.onSite')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.complete')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.cancel')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.partAdd')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.partReserve')
+    && fieldOperationsDetailUxBatch84.includes('apiAdminFieldOperations.partRemove')
+    && fieldOperationsDetailUxBatch84.includes('pickAfterSalesAttachments')
+    && fieldOperationsDetailUxBatch84.includes('openAfterSalesAttachment'),
+  'v1.0 Batch84 Field Operations UX čuva permission, schedule, en-route, on-site, complete, cancel, parts i secure attachment poslovni ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(fieldOperationsDetailUxBatch84),
+  'v1.0 Batch84 Field Operations UX ne vraća Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_AFTER_SALES_DETAIL_UX_REORGANIZATION_BATCH83_VALIDATOR
 const afterSalesDetailUxBatch83 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/after-sales/[id].tsx'),

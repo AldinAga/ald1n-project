@@ -9,6 +9,7 @@ import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DateTimeField } from '@/components/ui/date-time-field';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
@@ -33,7 +34,17 @@ import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 import type { AfterSalesUploadFile } from '@/types/api';
 
+// MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_DETAIL_UX_REORGANIZATION_BATCH84
+type FieldWorkWorkspace = 'overview' | 'planning' | 'execution' | 'parts' | 'documents';
 type Panel = 'schedule' | 'complete' | 'cancel' | 'part-add' | null;
+
+const FIELD_WORKSPACE_OPTIONS: Array<{ value: FieldWorkWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Sažetak terenskog naloga, status, troškovi, delovi i dokumentacija.' },
+  { value: 'planning', label: 'Planiranje', description: 'Ekipa, termin, ruta i operativne napomene pre izlaska na teren.' },
+  { value: 'execution', label: 'Izvršenje', description: 'Status na putu / lokaciji, završetak, otkazivanje i stvarni troškovi.' },
+  { value: 'parts', label: 'Delovi', description: 'Planirani rezervni delovi, lokalne rezervacije i spoljašnje snabdevanje.' },
+  { value: 'documents', label: 'Dokumentacija', description: 'Dokazi i prilozi radnog naloga kroz postojeći secure download tok.' },
+];
 
 function statusTone(status: string): PillTone {
   if (status === 'completed') return 'success';
@@ -119,6 +130,7 @@ export default function AdminFieldOperationsDetailScreen() {
   const allowed = can('field_operations.view');
   const validId = Number.isInteger(workOrderId) && workOrderId > 0;
 
+  const [workspace, setWorkspace] = useState<FieldWorkWorkspace> ('overview');
   const [panel, setPanel] = useState<Panel> (null);
   const [teamId, setTeamId] = useState('');
   const [plannedStartAt, setPlannedStartAt] = useState('');
@@ -187,8 +199,15 @@ export default function AdminFieldOperationsDetailScreen() {
       label: `${part.sku} · ${part.name} · stanje ${formatNumber(part.stock_quantity, 3)}`,
     })),
   ];
+  const workspaceMeta = FIELD_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+
+  const selectWorkspace = (next: FieldWorkWorkspace) => {
+    setWorkspace(next);
+    setPanel(null);
+  };
 
   const openSchedule = () => {
+    setWorkspace('planning');
     setTeamId(data.team ? String(data.team.id) : '');
     setPlannedStartAt(data.planned_start_at ?? '');
     setPlannedEndAt(data.planned_end_at ?? '');
@@ -199,6 +218,7 @@ export default function AdminFieldOperationsDetailScreen() {
   };
 
   const openComplete = () => {
+    setWorkspace('execution');
     setCompletionResult('');
     setCompletionRouteReference(data.route_reference ?? '');
     setTravelKm(data.travel_km === null ? '' : String(data.travel_km));
@@ -212,11 +232,13 @@ export default function AdminFieldOperationsDetailScreen() {
   };
 
   const openCancel = () => {
+    setWorkspace('execution');
     setCancelReason('');
     setPanel('cancel');
   };
 
   const openPartAdd = () => {
+    setWorkspace('parts');
     setServicePartId('');
     setRequestedQuantity('1');
     setSupplyMode('local_stock');
@@ -337,18 +359,33 @@ export default function AdminFieldOperationsDetailScreen() {
         {data.route_reference ? <Text style={styles.meta}>Referenca: {data.route_reference}</Text> : null}
         <View style={styles.actions}>
           {data.capabilities.can_schedule ? <Button variant="secondary" onPress={openSchedule}>Termin / ekipa</Button> : null}
-          {data.capabilities.can_mark_en_route ? <Button onPress={() => void execute('Ekipa je na putu', () => apiAdminFieldOperations.enRoute(workOrderId))}>Na putu</Button> : null}
-          {data.capabilities.can_mark_on_site ? <Button onPress={() => void execute('Ekipa je na lokaciji', () => apiAdminFieldOperations.onSite(workOrderId))}>Na lokaciji</Button> : null}
+          {data.capabilities.can_mark_en_route ? <Button onPress={() => { setWorkspace('execution'); void execute('Ekipa je na putu', () => apiAdminFieldOperations.enRoute(workOrderId)); }}>Na putu</Button> : null}
+          {data.capabilities.can_mark_on_site ? <Button onPress={() => { setWorkspace('execution'); void execute('Ekipa je na lokaciji', () => apiAdminFieldOperations.onSite(workOrderId)); }}>Na lokaciji</Button> : null}
           {data.capabilities.can_complete ? <Button onPress={openComplete}>Završi nalog</Button> : null}
           {data.capabilities.can_cancel ? <Button variant="secondary" onPress={openCancel}>Otkaži nalog</Button> : null}
           {data.capabilities.can_add_parts ? <Button variant="secondary" onPress={openPartAdd}>Dodaj deo</Button> : null}
           {data.capabilities.can_reserve_parts && data.parts.some((line) => line.supply_mode === 'local_stock') ? (
-            <Button variant="secondary" onPress={() => void execute('Lokalni delovi su rezervisani', () => apiAdminFieldOperations.partReserve(workOrderId))}>Rezerviši lokalne delove</Button>
+            <Button variant="secondary" onPress={() => { setWorkspace('parts'); void execute('Lokalni delovi su rezervisani', () => apiAdminFieldOperations.partReserve(workOrderId)); }}>Rezerviši lokalne delove</Button>
           ) : null}
         </View>
       </Card>
 
-      {panel === 'schedule' ? (
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor terenskog naloga</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo terenskog naloga koji želiš da obradiš.'}</Text>
+        <FilterBar>
+          {FIELD_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
+
+      {workspace === 'planning' && panel === 'schedule' ? (
         <Card style={styles.panel}>
           <View style={styles.rowBetween}><Text style={styles.sectionTitle}>Termin i ekipa</Text><Button variant="secondary" onPress={() => setPanel(null)}>Zatvori</Button></View>
           <SelectSheet label="Terenska ekipa" value={teamId} options={teamOptions} onChange={setTeamId} />
@@ -361,7 +398,7 @@ export default function AdminFieldOperationsDetailScreen() {
         </Card>
       ) : null}
 
-      {panel === 'complete' ? (
+      {workspace === 'execution' && panel === 'complete' ? (
         <Card style={styles.panel}>
           <View style={styles.rowBetween}><Text style={styles.sectionTitle}>Završi radni nalog</Text><Button variant="secondary" onPress={() => setPanel(null)}>Zatvori</Button></View>
           <TextField label="Rezultat intervencije" value={completionResult} onChangeText={setCompletionResult} multiline />
@@ -401,7 +438,7 @@ export default function AdminFieldOperationsDetailScreen() {
         </Card>
       ) : null}
 
-      {panel === 'cancel' ? (
+      {workspace === 'execution' && panel === 'cancel' ? (
         <Card style={styles.panel}>
           <View style={styles.rowBetween}><Text style={styles.sectionTitle}>Otkaži radni nalog</Text><Button variant="secondary" onPress={() => setPanel(null)}>Zatvori</Button></View>
           <TextField label="Razlog otkazivanja" value={cancelReason} onChangeText={setCancelReason} multiline />
@@ -409,7 +446,7 @@ export default function AdminFieldOperationsDetailScreen() {
         </Card>
       ) : null}
 
-      {panel === 'part-add' ? (
+      {workspace === 'parts' && panel === 'part-add' ? (
         <Card style={styles.panel}>
           <View style={styles.rowBetween}><Text style={styles.sectionTitle}>Dodaj rezervni deo</Text><Button variant="secondary" onPress={() => setPanel(null)}>Zatvori</Button></View>
           <SelectSheet label="Rezervni deo" value={servicePartId} options={servicePartOptions} onChange={setServicePartId} />
@@ -425,7 +462,7 @@ export default function AdminFieldOperationsDetailScreen() {
         </Card>
       ) : null}
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'overview' && workspace !== 'planning' && workspace !== 'execution' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Operativni podaci</Text>
         <Text style={styles.meta}>Ekipa: {data.team?.name ?? 'Nije dodeljeno'}{data.team?.phone ? ` · ${data.team.phone}` : ''}</Text>
         <Text style={styles.meta}>Na putu: {data.en_route_at ? formatDate(data.en_route_at, true) : '—'}</Text>
@@ -437,7 +474,7 @@ export default function AdminFieldOperationsDetailScreen() {
         {data.cancellation_reason ? <Text style={styles.warning}>Otkazivanje: {data.cancellation_reason}</Text> : null}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'overview' && workspace !== 'execution' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Troškovi</Text>
         <Text style={styles.meta}>Kilometraža: {formatNumber(data.travel_km, 2)} km</Text>
         <Text style={styles.meta}>Put: {formatNumber(data.travel_cost_rsd)} RSD</Text>
@@ -445,7 +482,7 @@ export default function AdminFieldOperationsDetailScreen() {
         <Text style={styles.meta}>Delovi: {formatNumber(data.parts_cost_rsd)} RSD</Text>
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'overview' && workspace !== 'parts' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Rezervni delovi</Text>
         {data.parts.length === 0 ? <Text style={styles.meta}>Nema planiranih delova.</Text> : data.parts.map((line) => (
           <View key={line.id} style={styles.lineRow}>
@@ -460,7 +497,7 @@ export default function AdminFieldOperationsDetailScreen() {
         ))}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'overview' && workspace !== 'documents' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Dokazi i dokumentacija</Text>
         {data.attachments.length === 0 ? <Text style={styles.meta}>Nema priloga.</Text> : data.attachments.map((attachment) => (
           <AttachmentRow key={attachment.download_path} attachment={attachment} openingPath={openingAttachmentPath} onOpen={(file) => void openAttachment(file)} />
@@ -475,8 +512,10 @@ function createStyles(theme: AppColors) {
     content: { gap: spacing.lg, paddingBottom: 120 },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     hero: { gap: spacing.md },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     panel: { gap: spacing.md, borderColor: theme.primary },
     section: { gap: spacing.md },
+    hidden: { display: 'none' },
     subject: { ...typography.h2, color: theme.ink },
     sectionTitle: { ...typography.h3, color: theme.ink },
     itemTitle: { ...typography.label, color: theme.ink },
