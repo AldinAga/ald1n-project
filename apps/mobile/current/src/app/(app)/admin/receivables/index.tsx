@@ -49,6 +49,17 @@ function positiveInt(value: string, label: string): number {
   return parsed;
 }
 
+// MOBILE_V1_0_ADMIN_RECEIVABLES_LIST_UX_REORGANIZATION_BATCH89
+type ReceivablesListWorkspace = 'overview' | 'cases' | 'filters' | 'operations' | 'settings';
+
+const RECEIVABLES_LIST_WORKSPACE_OPTIONS: Array<{ value: ReceivablesListWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Kljucni pokazatelji naplate i brzi ulaz u svakodnevni rad.' },
+  { value: 'cases', label: 'Predmeti', description: 'Lista predmeta naplate, odgovorna lica, rokovi i paginacija.' },
+  { value: 'filters', label: 'Filteri', description: 'Pretraga, status, odgovorno lice, aging i fokus na sledecu akciju.' },
+  { value: 'operations', label: 'Operacije', description: 'Kontrolisana server provera i autorizovani CSV izvoz.' },
+  { value: 'settings', label: 'Podesavanja', description: 'Server-driven pravila kreiranja predmeta, opomena i primalaca.' },
+];
+
 function ReceivableCard({ item }: { item: AdminReceivableSummary }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -86,6 +97,7 @@ export default function AdminReceivablesListScreen() {
   const { bootstrap, can } = useAuth();
   const allowed = can('receivables.manage');
 
+  const [workspace, setWorkspace] = useState<ReceivablesListWorkspace> ('overview');
   const [draftQ, setDraftQ] = useState('');
   const [draftStatus, setDraftStatus] = useState('');
   const [draftAssignee, setDraftAssignee] = useState('');
@@ -144,6 +156,7 @@ export default function AdminReceivablesListScreen() {
       page: 1,
       per_page: draftPerPage,
     });
+    setWorkspace('cases');
   };
 
   const clearFilters = () => {
@@ -154,9 +167,11 @@ export default function AdminReceivablesListScreen() {
     setDraftAging('');
     setDraftPerPage(35);
     setApplied({ page: 1, per_page: 35 });
+    setWorkspace('cases');
   };
 
   const openSettings = () => {
+    setWorkspace('settings');
     setSettingsDraft({ ...response.settings });
     setSettingsOpen(true);
   };
@@ -183,6 +198,7 @@ export default function AdminReceivablesListScreen() {
       await mutation.mutateAsync(() => apiAdminReceivables.updateSettings(input));
       await client.invalidateQueries({ queryKey: adminQueryKeys.receivables() });
       setSettingsOpen(false);
+      setWorkspace('overview');
       feedback.notify({ tone: 'success', title: 'Podešavanja su sačuvana', message: 'Server je prihvatio Receivables podešavanja.' });
     } catch (error) {
       feedback.notify({ tone: 'danger', title: 'Podešavanja nisu sačuvana', message: error instanceof Error ? error.message : 'Pokušaj ponovo.' });
@@ -217,6 +233,19 @@ export default function AdminReceivablesListScreen() {
     }
   };
 
+  const workspaceMeta = RECEIVABLES_LIST_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+
+  const selectWorkspace = (next: ReceivablesListWorkspace) => {
+    setScanConfirmOpen(false);
+    if (next === 'settings') {
+      if (!response.capabilities.can_update_settings) return;
+      openSettings();
+      return;
+    }
+    setSettingsOpen(false);
+    setWorkspace(next);
+  };
+
   return (
     <Screen contentStyle={styles.content}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
@@ -225,14 +254,43 @@ export default function AdminReceivablesListScreen() {
       <PageHeader title="Potraživanja" eyebrow="Admin · v0.7" name={bootstrap?.user.name} />
       <Text style={styles.copy}>Aging, planovi otplate, komunikacija i automatske opomene kroz postojeći Receivables poslovni autoritet.</Text>
 
-      <View style={styles.statsGrid}>
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor potraživanja</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo naplate koji zelis da obradis.'}</Text>
+        <FilterBar>
+          {RECEIVABLES_LIST_WORKSPACE_OPTIONS.filter((option) => option.value !== 'settings' || response.capabilities.can_update_settings).map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
+
+      {workspace === 'overview' ? (
+        <>
+          <View style={styles.statsGrid}>
         <Card style={styles.statCard}><Text style={styles.statValue}>{response.meta.stats.active}</Text><Text style={styles.meta}>Aktivni predmeti</Text></Card>
         <Card style={styles.statCard}><Text style={styles.statValue}>{response.meta.stats.promised}</Text><Text style={styles.meta}>Obećane uplate</Text></Card>
         <Card style={styles.statCard}><Text style={styles.statValue}>{response.meta.stats.plans}</Text><Text style={styles.meta}>Planovi otplate</Text></Card>
         <Card style={styles.statCard}><Text style={styles.statValue}>{response.meta.stats.actions_overdue}</Text><Text style={styles.meta}>Zakasnele akcije</Text></Card>
-      </View>
+          </View>
+          <Card style={styles.overviewCard}>
+            <Text style={styles.sectionTitle}>Fokus naplate</Text>
+            <Text style={styles.meta}>Ukupno predmeta u trenutnom scope-u: {response.meta.total}. Za detaljan rad otvori Predmete ili primeni ciljane Filtere.</Text>
+            <View style={styles.actions}>
+              <Button onPress={() => selectWorkspace('cases')}>Otvori predmete</Button>
+              <Button variant="secondary" onPress={() => selectWorkspace('filters')}>Filteri</Button>
+              <Button variant="secondary" onPress={() => selectWorkspace('operations')}>Operacije</Button>
+            </View>
+          </Card>
+        </>
+      ) : null}
 
-      <Card style={styles.filtersCard}>
+      {workspace === 'filters' ? (
+        <Card style={styles.filtersCard}>
         <View style={styles.rowBetween}>
           <Text style={styles.sectionTitle}>Filteri</Text>
           <Text style={styles.meta}>{activeCount} aktivnih</Text>
@@ -259,21 +317,23 @@ export default function AdminReceivablesListScreen() {
           <Button onPress={applyFilters}>Primeni filtere</Button>
           {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Očisti</Button> : null}
         </View>
-      </Card>
+        </Card>
+      ) : null}
 
-      <Card style={styles.operationsCard}>
+      {workspace === 'operations' ? (
+        <Card style={styles.operationsCard}>
         <Text style={styles.sectionTitle}>Operativne akcije</Text>
         <Text style={styles.meta}>Ručno pokretanje provere može kreirati predmete i poslati opomene prema postojećim pravilima. CSV koristi isti autorizovani scope.</Text>
         <View style={styles.actions}>
           <Button variant="secondary" loading={exporting} disabled={!response.capabilities.can_export_csv} onPress={() => void exportCsv()}>
             Izvezi CSV
           </Button>
-          <Button variant="secondary" disabled={!response.capabilities.can_update_settings} onPress={openSettings}>Podešavanja</Button>
           <Button disabled={!response.capabilities.can_run_scan} onPress={() => setScanConfirmOpen(true)}>Pokreni proveru</Button>
         </View>
-      </Card>
+        </Card>
+      ) : null}
 
-      {scanConfirmOpen ? (
+      {workspace === 'operations' && scanConfirmOpen ? (
         <Card style={styles.warningCard}>
           <Text style={styles.sectionTitle}>Potvrdi kontrolisanu proveru</Text>
           <Text style={styles.copy}>Ova akcija poziva postojeći ReceivablesService automatizacioni tok i može kreirati predmete, zatvoriti izmirene predmete i poslati opomene kroz postojeći outbox.</Text>
@@ -284,11 +344,11 @@ export default function AdminReceivablesListScreen() {
         </Card>
       ) : null}
 
-      {settingsOpen && settingsDraft ? (
+      {workspace === 'settings' && settingsOpen && settingsDraft ? (
         <Card style={styles.settingsCard}>
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>Podešavanja naplate</Text>
-            <Button variant="secondary" onPress={() => setSettingsOpen(false)}>Zatvori</Button>
+            <Button variant="secondary" onPress={() => selectWorkspace('overview')}>Zatvori</Button>
           </View>
           <View style={styles.actions}>
             <FilterChip label="Receivables uključen" active={isOn(settingsDraft.receivables_enabled)} onPress={() => updateSetting('receivables_enabled', isOn(settingsDraft.receivables_enabled) ? '0' : '1')} />
@@ -306,9 +366,11 @@ export default function AdminReceivablesListScreen() {
         </Card>
       ) : null}
 
-      <View style={styles.rowBetween}>
-        <View>
-          <Text style={styles.sectionTitle}>Predmeti naplate</Text>
+      {workspace === 'cases' ? (
+        <>
+          <View style={styles.rowBetween}>
+            <View>
+              <Text style={styles.sectionTitle}>Predmeti naplate</Text>
           <Text style={styles.meta}>{response.meta.total} ukupno</Text>
         </View>
         <Button variant="secondary" onPress={() => void query.refetch()}>{query.isFetching ? 'Osvežavanje…' : 'Osveži'}</Button>
@@ -320,21 +382,23 @@ export default function AdminReceivablesListScreen() {
         <View style={styles.list}>{response.data.map((item) => <ReceivableCard item={item} key={item.id} />)}</View>
       )}
 
-      <View style={styles.pagination}>
-        <Button
-          variant="secondary"
-          onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}
-        >
-          Prethodna
-        </Button>
-        <Text style={styles.meta}>Strana {response.meta.current_page} / {response.meta.last_page}</Text>
-        <Button
-          variant="secondary"
-          onPress={() => setApplied((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}
-        >
-          Sledeća
-        </Button>
-      </View>
+          <View style={styles.pagination}>
+            <Button
+              variant="secondary"
+              onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}
+            >
+              Prethodna
+            </Button>
+            <Text style={styles.meta}>Strana {response.meta.current_page} / {response.meta.last_page}</Text>
+            <Button
+              variant="secondary"
+              onPress={() => setApplied((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}
+            >
+              Sledeća
+            </Button>
+          </View>
+        </>
+      ) : null}
     </Screen>
   );
 }
@@ -351,6 +415,8 @@ function createStyles(theme: AppColors) {
     statValue: { ...typography.h2, color: theme.ink },
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     statCard: { flexGrow: 1, minWidth: 145, gap: spacing.xs },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
+    overviewCard: { gap: spacing.md },
     filtersCard: { gap: spacing.md },
     operationsCard: { gap: spacing.md },
     settingsCard: { gap: spacing.md },

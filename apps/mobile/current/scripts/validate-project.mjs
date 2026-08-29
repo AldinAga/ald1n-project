@@ -2319,6 +2319,47 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_RECEIVABLES_LIST_UX_REORGANIZATION_BATCH89_VALIDATOR
+const receivablesListUxBatch89 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/receivables/index.tsx'),
+  'utf8',
+);
+assert(
+  receivablesListUxBatch89.includes('MOBILE_V1_0_ADMIN_RECEIVABLES_LIST_UX_REORGANIZATION_BATCH89')
+    && receivablesListUxBatch89.includes("type ReceivablesListWorkspace = 'overview' | 'cases' | 'filters' | 'operations' | 'settings'")
+    && receivablesListUxBatch89.includes('Radni prostor potraživanja')
+    && receivablesListUxBatch89.includes("label: 'Pregled'")
+    && receivablesListUxBatch89.includes("label: 'Predmeti'")
+    && receivablesListUxBatch89.includes("label: 'Filteri'")
+    && receivablesListUxBatch89.includes("label: 'Operacije'")
+    && receivablesListUxBatch89.includes("label: 'Podesavanja'")
+    && receivablesListUxBatch89.includes("workspace === 'overview'")
+    && receivablesListUxBatch89.includes("workspace === 'cases'")
+    && receivablesListUxBatch89.includes("workspace === 'filters'")
+    && receivablesListUxBatch89.includes("workspace === 'operations'")
+    && receivablesListUxBatch89.includes("workspace === 'settings'"),
+  'v1.0 Batch89 Admin Receivables list is organized into overview, cases, filters, operations and settings workspaces.',
+);
+assert(
+  receivablesListUxBatch89.includes("can('receivables.manage')")
+    && receivablesListUxBatch89.includes('apiAdminReceivables.list')
+    && receivablesListUxBatch89.includes('apiAdminReceivables.updateSettings')
+    && receivablesListUxBatch89.includes('apiAdminReceivables.scan')
+    && receivablesListUxBatch89.includes('shareAdminReceivablesCsv')
+    && receivablesListUxBatch89.includes('adminQueryKeys.receivablesList(applied)')
+    && receivablesListUxBatch89.includes('response.capabilities.can_export_csv')
+    && receivablesListUxBatch89.includes('response.capabilities.can_update_settings')
+    && receivablesListUxBatch89.includes('response.capabilities.can_run_scan')
+    && receivablesListUxBatch89.includes('response.filter_options.statuses')
+    && receivablesListUxBatch89.includes('response.filter_options.assignees')
+    && receivablesListUxBatch89.includes('setApplied((current) =>'),
+  'v1.0 Batch89 Receivables list UX preserves permission, filters, pagination, CSV, settings, scan and server capability contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(receivablesListUxBatch89),
+  'v1.0 Batch89 Receivables list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_RECEIVABLES_DETAIL_UX_REORGANIZATION_BATCH88_VALIDATOR
 const receivablesDetailUxBatch88 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/receivables/[id].tsx'),
