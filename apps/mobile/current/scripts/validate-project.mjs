@@ -2319,6 +2319,46 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_INVENTORY_UX_REORGANIZATION_BATCH82_VALIDATOR
+const inventoryUxBatch82 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/inventory/index.tsx'),
+  'utf8',
+);
+assert(
+  inventoryUxBatch82.includes('MOBILE_V1_0_ADMIN_INVENTORY_UX_REORGANIZATION_BATCH82')
+    && inventoryUxBatch82.includes("type InventoryWorkspace = 'overview' | 'stock' | 'receive' | 'count' | 'movements'")
+    && inventoryUxBatch82.includes("value: 'overview'")
+    && inventoryUxBatch82.includes("value: 'stock'")
+    && inventoryUxBatch82.includes("value: 'receive'")
+    && inventoryUxBatch82.includes("value: 'count'")
+    && inventoryUxBatch82.includes("value: 'movements'")
+    && inventoryUxBatch82.includes('Radni prostor lagera')
+    && inventoryUxBatch82.includes("workspace === 'stock'")
+    && inventoryUxBatch82.includes("workspace === 'receive'")
+    && inventoryUxBatch82.includes("workspace === 'count'")
+    && inventoryUxBatch82.includes("workspace === 'movements'"),
+  'v1.0 Batch82 Admin Inventory razdvaja monolitni ekran u permission-aware radne prostore Pregled, Stanje, Prijem, Popis i Promene.',
+);
+assert(
+  inventoryUxBatch82.includes("can('stock.view')")
+    && inventoryUxBatch82.includes("can('stock.adjust')")
+    && inventoryUxBatch82.includes("can('inventory.receive')")
+    && inventoryUxBatch82.includes("can('inventory.count')")
+    && inventoryUxBatch82.includes("can('inventory.export')")
+    && inventoryUxBatch82.includes('apiAdminInventory.adjust')
+    && inventoryUxBatch82.includes('apiAdminInventory.receive')
+    && inventoryUxBatch82.includes('apiAdminInventory.count')
+    && inventoryUxBatch82.includes('shareAdminInventoryCsv')
+    && inventoryUxBatch82.includes('idempotency_key: adjust.key')
+    && inventoryUxBatch82.includes('idempotency_key: receiptKey')
+    && inventoryUxBatch82.includes('idempotency_key: countKey'),
+  'v1.0 Batch82 Inventory UX čuva postojeće permission, idempotency, adjustment, receipt, count i CSV poslovne tokove.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(inventoryUxBatch82),
+  'v1.0 Batch82 Inventory UX ne vraća Product Variants contract.',
+);
+
 // MOBILE_V1_0_NBS_PUBLIC_LIST_PRIMARY_FRANKFURTER_FALLBACK_BATCH74_V2
 const exchangeRateServiceBatch74 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/app/Services/ExchangeRateService.php'),

@@ -26,7 +26,40 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
-type Panel = 'movements' | 'receive' | 'count' | null;
+// MOBILE_V1_0_ADMIN_INVENTORY_UX_REORGANIZATION_BATCH82
+type InventoryWorkspace = 'overview' | 'stock' | 'receive' | 'count' | 'movements';
+
+const INVENTORY_WORKSPACE_OPTIONS: Array<{
+  value: InventoryWorkspace;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'overview',
+    label: 'Pregled',
+    description: 'Sažetak lagera, poslednji prijemi i popisi, uz brze operativne akcije.',
+  },
+  {
+    value: 'stock',
+    label: 'Stanje',
+    description: 'Pretraga artikala, nizak lager i kontrolisana ručna korekcija stanja.',
+  },
+  {
+    value: 'receive',
+    label: 'Prijem',
+    description: 'Knjiženje prijema robe sa dobavljačem, dokumentom i stavkama.',
+  },
+  {
+    value: 'count',
+    label: 'Popis',
+    description: 'Fizički popis i finalizacija varijansi prema serverskom stanju.',
+  },
+  {
+    value: 'movements',
+    label: 'Promene',
+    description: 'Stock movement ledger sa pretragom i izvorom svake promene.',
+  },
+];
 type AdjustDraft = { product: AdminInventoryProduct; quantity: string; note: string; key: string };
 type ReceiptItemDraft = { product: AdminInventoryProduct; quantity: string; unitCost: string; note: string };
 type CountItemDraft = { product: AdminInventoryProduct; counted: string; note: string };
@@ -104,7 +137,7 @@ export default function AdminInventoryScreen() {
   const [stockLow, setStockLow] = useState(false);
   const [draftStatus, setDraftStatus] = useState('');
   const [applied, setApplied] = useState<AdminInventoryListParams> ({ page: 1, per_page: 35, stock: 'all' });
-  const [panel, setPanel] = useState<Panel> (null);
+  const [workspace, setWorkspace] = useState<InventoryWorkspace> ('overview');
   const [busyAction, setBusyAction] = useState<string | null> (null);
 
   const [adjust, setAdjust] = useState<AdjustDraft | null> (null);
@@ -137,13 +170,13 @@ export default function AdminInventoryScreen() {
   const lookupQuery = useQuery({
     queryKey: adminQueryKeys.inventoryLookup(lookupQ.trim()),
     queryFn: () => apiAdminInventory.list({ q: lookupQ.trim(), page: 1, per_page: 20, stock: 'all' }),
-    enabled: (panel === 'receive' || panel === 'count') && lookupQ.trim().length >= 2 && (canReceive || canCount),
+    enabled: (workspace === 'receive' || workspace === 'count') && lookupQ.trim().length >= 2 && (canReceive || canCount),
   });
 
   const movementsQuery = useQuery({
     queryKey: adminQueryKeys.inventoryMovements(movementApplied),
     queryFn: () => apiAdminInventory.movements(movementApplied),
-    enabled: panel === 'movements' && canView,
+    enabled: workspace === 'movements' && canView,
   });
 
   const mutation = useMutation({ mutationFn: (run: () => Promise<unknown>) => run() });
@@ -154,6 +187,14 @@ export default function AdminInventoryScreen() {
 
   const response = inventoryQuery.data;
   const lookupRows = lookupQuery.data?.data ?? [];
+  const stockFilterCount = Number(stockLow) + Number(Boolean(draftQ.trim())) + Number(Boolean(draftStatus.trim()));
+  const workspaceOptions = INVENTORY_WORKSPACE_OPTIONS.filter((option) => {
+    if (option.value === 'stock' || option.value === 'movements') return canView;
+    if (option.value === 'receive') return canReceive;
+    if (option.value === 'count') return canCount;
+    return true;
+  });
+  const workspaceMeta = INVENTORY_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
 
   const refreshInventory = async () => {
     await client.invalidateQueries({ queryKey: adminQueryKeys.inventory() });
@@ -183,9 +224,22 @@ export default function AdminInventoryScreen() {
     per_page: 35,
   });
 
-  const openPanel = (next: Panel) => {
-    setPanel(next);
+  const selectWorkspace = (next: InventoryWorkspace) => {
+    setWorkspace(next);
     setLookupQ('');
+  };
+
+  const clearStockFilters = () => {
+    setStockLow(false);
+    setDraftQ('');
+    setDraftStatus('');
+    setApplied({ page: 1, per_page: 35, stock: 'all' });
+  };
+
+  const showLowStock = () => {
+    setStockLow(true);
+    setApplied((current) => ({ ...current, stock: 'low', page: 1 }));
+    setWorkspace('stock');
   };
 
   const startAdjust = (product: AdminInventoryProduct) => {
@@ -285,40 +339,213 @@ export default function AdminInventoryScreen() {
 
   return (
     <Screen contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()}><Text style={styles.back}>← Admin</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.back()}>
+        <Text style={styles.back}>‹ Administracija</Text>
+      </Pressable>
       <PageHeader title="Lager" />
-      <Text style={styles.copy}>Operativni pregled stanja, ručne korekcije, prijem robe, popis, stock movement ledger i CSV izvoz.</Text>
+      <Text style={styles.copy}>
+        Operativni lager je organizovan po zadatku: pregled, stanje, prijem, popis i ledger promena.
+      </Text>
 
       {response ? (
         <View style={styles.statsGrid}>
-          <Card style={styles.statCard}><Text style={styles.meta}>Artikala</Text><Text style={styles.statValue}>{numberLabel(response.meta.total)}</Text></Card>
-          <Card style={styles.statCard}><Text style={styles.meta}>Nizak lager</Text><Text style={styles.statValue}>{numberLabel(response.summary.low_stock_count)}</Text></Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.meta}>Artikala</Text>
+            <Text style={styles.statValue}>{numberLabel(response.meta.total)}</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.meta}>Nizak lager</Text>
+            <Text style={styles.statValue}>{numberLabel(response.summary.low_stock_count)}</Text>
+          </Card>
         </View>
       ) : null}
 
-      <Card style={styles.filtersCard}>
-        <Text style={styles.sectionTitle}>Filteri lagera</Text>
-        <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="SKU ili naziv artikla" />
-        <TextField label="Status" value={draftStatus} onChangeText={setDraftStatus} placeholder="Opcionalno" />
-        <FilterBar activeCount={(stockLow ? 1 : 0) + (draftQ.trim() ? 1 : 0) + (draftStatus.trim() ? 1 : 0)} onClear={() => { setStockLow(false); setDraftQ(''); setDraftStatus(''); }}>
-          <FilterChip label="Samo nizak lager" active={stockLow} onPress={() => setStockLow((value) => !value)} />
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor lagera</Text>
+        <Text style={styles.meta}>
+          {workspaceMeta?.description ?? 'Izaberi operativni zadatak.'}
+        </Text>
+        <FilterBar>
+          {workspaceOptions.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
         </FilterBar>
-        <Button onPress={applyFilters}>Primeni filtere</Button>
       </Card>
 
-      <Card style={styles.operationsCard}>
-        <Text style={styles.sectionTitle}>Operacije</Text>
-        <View style={styles.actions}>
-          {canView ? <Button variant="secondary" onPress={() => openPanel(panel === 'movements' ? null : 'movements')}>Promene lagera</Button> : null}
-          {canReceive ? <Button variant="secondary" onPress={() => openPanel(panel === 'receive' ? null : 'receive')}>Prijem robe</Button> : null}
-          {canCount ? <Button variant="secondary" onPress={() => openPanel(panel === 'count' ? null : 'count')}>Popis</Button> : null}
-          {canExport ? <Button variant="secondary" loading={busyAction === 'csv'} onPress={() => void shareCsv()}>CSV</Button> : null}
-        </View>
-      </Card>
+      {workspace === 'overview' ? (
+        <>
+          <Card style={styles.panelCard}>
+            <Text style={styles.sectionTitle}>Brze akcije</Text>
+            <Text style={styles.meta}>Otvori samo deo lagera koji ti je trenutno potreban.</Text>
+            <View style={styles.actions}>
+              {canView ? <Button variant="secondary" onPress={() => selectWorkspace('stock')}>Stanje lagera</Button> : null}
+              {canReceive ? <Button variant="secondary" onPress={() => selectWorkspace('receive')}>Prijem robe</Button> : null}
+              {canCount ? <Button variant="secondary" onPress={() => selectWorkspace('count')}>Popis</Button> : null}
+              {canView ? <Button variant="secondary" onPress={() => selectWorkspace('movements')}>Promene lagera</Button> : null}
+              {canExport ? <Button variant="secondary" loading={busyAction === 'csv'} onPress={() => void shareCsv()}>CSV izvoz</Button> : null}
+            </View>
+          </Card>
 
-      {panel === 'movements' && canView ? (
+          {response ? (
+            <>
+              {response.summary.low_stock_count > 0 ? (
+                <Card style={styles.warningCard}>
+                  <Text style={styles.sectionTitle}>Potrebna pažnja</Text>
+                  <Text style={styles.meta}>
+                    {numberLabel(response.summary.low_stock_count)} artikala je na ili ispod minimalnog praga.
+                  </Text>
+                  <Button variant="secondary" onPress={showLowStock}>Prikaži nizak lager</Button>
+                </Card>
+              ) : null}
+
+              <View style={styles.overviewGrid}>
+                <Card style={styles.summaryCard}>
+                  <Text style={styles.sectionTitle}>Poslednji prijemi</Text>
+                  {response.summary.recent_receipts.length === 0 ? (
+                    <Text style={styles.meta}>Nema evidentiranih prijema.</Text>
+                  ) : response.summary.recent_receipts.map((item) => (
+                    <Text style={styles.meta} key={item.id}>
+                      {item.receipt_number} · {item.received_on ?? '—'} · {item.total_units} kom · {item.supplier_name ?? 'Bez dobavljača'}
+                    </Text>
+                  ))}
+                </Card>
+                <Card style={styles.summaryCard}>
+                  <Text style={styles.sectionTitle}>Poslednji popisi</Text>
+                  {response.summary.recent_counts.length === 0 ? (
+                    <Text style={styles.meta}>Nema evidentiranih popisa.</Text>
+                  ) : response.summary.recent_counts.map((item) => (
+                    <Text style={styles.meta} key={item.id}>
+                      {item.count_number} · {item.counted_on ?? '—'} · varijansa {item.total_variance}
+                    </Text>
+                  ))}
+                </Card>
+              </View>
+            </>
+          ) : null}
+        </>
+      ) : null}
+
+      {workspace === 'stock' && canView && response ? (
+        <>
+          <Card style={styles.filtersCard}>
+            <View style={styles.rowBetween}>
+              <View style={styles.grow}>
+                <Text style={styles.sectionTitle}>Stanje lagera</Text>
+                <Text style={styles.meta}>Pretraži artikle i izdvoji nizak lager.</Text>
+              </View>
+              <Button variant="secondary" loading={inventoryQuery.isFetching} onPress={() => void inventoryQuery.refetch()}>Osveži</Button>
+            </View>
+            <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="SKU ili naziv artikla" />
+            <TextField label="Status" value={draftStatus} onChangeText={setDraftStatus} placeholder="Opcionalno" />
+            <FilterBar activeCount={stockFilterCount} onClear={clearStockFilters}>
+              <FilterChip label="Samo nizak lager" active={stockLow} onPress={() => setStockLow((value) => !value)} />
+            </FilterBar>
+            <Button onPress={applyFilters}>Primeni filtere</Button>
+          </Card>
+
+          {adjust ? (
+            <Card style={styles.panelCard}>
+              <Text style={styles.sectionTitle}>Ručna korekcija</Text>
+              <Text style={styles.title}>{adjust.product.sku} · {adjust.product.name}</Text>
+              <Text style={styles.meta}>Trenutno stanje: {numberLabel(adjust.product.stock_quantity)}</Text>
+              <TextField label="Promena količine" value={adjust.quantity} onChangeText={(value) => setAdjust((current) => current ? { ...current, quantity: value } : current)} placeholder="npr. 3 ili -2" />
+              <TextField label="Napomena" value={adjust.note} onChangeText={(value) => setAdjust((current) => current ? { ...current, note: value } : current)} multiline />
+              <View style={styles.actions}>
+                <Button loading={busyAction === 'adjust'} onPress={() => void submitAdjust()}>Evidentiraj korekciju</Button>
+                <Button variant="secondary" onPress={() => setAdjust(null)}>Odustani</Button>
+              </View>
+            </Card>
+          ) : null}
+
+          <View style={styles.rowBetween}>
+            <View style={styles.grow}>
+              <Text style={styles.sectionTitle}>Artikli</Text>
+              <Text style={styles.meta}>{response.meta.total} ukupno</Text>
+            </View>
+          </View>
+          {response.data.length === 0 ? (
+            <EmptyState title="Nema artikala" message="Nema rezultata za izabrane filtere." />
+          ) : response.data.map((product) => (
+            <Card key={product.id} style={product.is_low_stock ? styles.warningCard : styles.itemCard}>
+              <View style={styles.rowBetween}>
+                <View style={styles.grow}>
+                  <Text style={styles.title}>{product.sku} · {product.name}</Text>
+                  <Text style={styles.meta}>Status: {product.status} · Ažurirano: {dateTime(product.updated_at)}</Text>
+                </View>
+                <Text style={styles.stock}>{numberLabel(product.stock_quantity)}</Text>
+              </View>
+              <Text style={styles.meta}>Minimalni prag: {numberLabel(product.low_stock_threshold)}{product.is_low_stock ? ' · NIZAK LAGER' : ''}</Text>
+              {canAdjust ? <Button variant="secondary" onPress={() => startAdjust(product)}>Koriguj stanje</Button> : null}
+            </Card>
+          ))}
+          <View style={styles.pagination}>
+            <Button variant="secondary" disabled={response.meta.current_page <= 1} onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}>Prethodna</Button>
+            <Text style={styles.meta}>Strana {response.meta.current_page} / {response.meta.last_page}</Text>
+            <Button variant="secondary" disabled={response.meta.current_page >= response.meta.last_page} onPress={() => setApplied((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}>Sledeća</Button>
+          </View>
+        </>
+      ) : null}
+
+      {workspace === 'receive' && canReceive ? (
         <Card style={styles.panelCard}>
-          <Text style={styles.sectionTitle}>Stock movement ledger</Text>
+          <Text style={styles.sectionTitle}>Prijem robe</Text>
+          <Text style={styles.meta}>Evidentiraj dokument prijema i artikle koji ulaze na lager.</Text>
+          <DateTimeField label="Datum prijema" mode="date" value={receiptDate} onChangeText={setReceiptDate} />
+          <TextField label="Dobavljač" value={receiptSupplier} onChangeText={setReceiptSupplier} />
+          <TextField label="Broj dokumenta dobavljača" value={receiptDocument} onChangeText={setReceiptDocument} />
+          <TextField label="Napomena" value={receiptNote} onChangeText={setReceiptNote} multiline />
+          <TextField label="Pronađi artikal" value={lookupQ} onChangeText={setLookupQ} placeholder="Najmanje 2 slova ili deo SKU-a" />
+          {lookupQuery.isFetching ? <Text style={styles.meta}>Pretraga…</Text> : null}
+          {lookupRows.map((product) => <ProductChoice key={product.id} product={product} onPress={() => addReceiptProduct(product)} label="Dodaj u prijem" />)}
+          <Text style={styles.sectionTitle}>Stavke ({receiptItems.length})</Text>
+          {receiptItems.map((item, index) => (
+            <Card key={item.product.id} style={styles.itemCard}>
+              <Text style={styles.title}>{item.product.sku} · {item.product.name}</Text>
+              <TextField label="Količina" value={item.quantity} onChangeText={(value) => setReceiptItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: value } : row))} keyboardType="number-pad" />
+              <TextField label="Nabavna cena RSD" value={item.unitCost} onChangeText={(value) => setReceiptItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, unitCost: value } : row))} keyboardType="decimal-pad" />
+              <TextField label="Napomena stavke" value={item.note} onChangeText={(value) => setReceiptItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, note: value } : row))} />
+              <Button variant="secondary" onPress={() => setReceiptItems((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Ukloni stavku</Button>
+            </Card>
+          ))}
+          <Text style={styles.meta}>Isti idempotency ključ ostaje tokom neuspelog retry-a; draft se briše tek posle uspešnog knjiženja.</Text>
+          <Button loading={busyAction === 'receive'} onPress={() => void submitReceipt()}>Proknjiži prijem</Button>
+        </Card>
+      ) : null}
+
+      {workspace === 'count' && canCount ? (
+        <Card style={styles.panelCard}>
+          <Text style={styles.sectionTitle}>Popis</Text>
+          <Text style={styles.meta}>Uporedi fizičko stanje sa serverskim stanjem i finalizuj varijanse.</Text>
+          <DateTimeField label="Datum popisa" mode="date" value={countDate} onChangeText={setCountDate} />
+          <TextField label="Obuhvat / oznaka" value={countScope} onChangeText={setCountScope} />
+          <TextField label="Napomena" value={countNote} onChangeText={setCountNote} multiline />
+          <TextField label="Pronađi artikal" value={lookupQ} onChangeText={setLookupQ} placeholder="Najmanje 2 slova ili deo SKU-a" />
+          {lookupQuery.isFetching ? <Text style={styles.meta}>Pretraga…</Text> : null}
+          {lookupRows.map((product) => <ProductChoice key={product.id} product={product} onPress={() => addCountProduct(product)} label="Dodaj u popis" />)}
+          <Text style={styles.sectionTitle}>Stavke ({countItems.length})</Text>
+          {countItems.map((item, index) => (
+            <Card key={item.product.id} style={styles.itemCard}>
+              <Text style={styles.title}>{item.product.sku} · {item.product.name}</Text>
+              <Text style={styles.meta}>Sistemsko stanje: {numberLabel(item.product.stock_quantity)}</Text>
+              <TextField label="Popisana količina" value={item.counted} onChangeText={(value) => setCountItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, counted: value } : row))} keyboardType="number-pad" />
+              <TextField label="Napomena stavke" value={item.note} onChangeText={(value) => setCountItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, note: value } : row))} />
+              <Button variant="secondary" onPress={() => setCountItems((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Ukloni stavku</Button>
+            </Card>
+          ))}
+          <Text style={styles.meta}>Popis koristi server kao finalni autoritet za sistemsko stanje, varijansu, row-lock i ledger.</Text>
+          <Button loading={busyAction === 'count'} onPress={() => void submitCount()}>Finalizuj popis</Button>
+        </Card>
+      ) : null}
+
+      {workspace === 'movements' && canView ? (
+        <Card style={styles.panelCard}>
+          <Text style={styles.sectionTitle}>Promene lagera</Text>
+          <Text style={styles.meta}>Istorija ulaza, izlaza, korekcija i popisa ostaje read-only ledger.</Text>
           <TextField label="Pretraga" value={movementQ} onChangeText={setMovementQ} placeholder="SKU ili naziv" />
           <TextField label="Vrsta promene" value={movementType} onChangeText={setMovementType} placeholder="manual_adjustment…" />
           <TextField label="Izvor" value={movementSource} onChangeText={setMovementSource} placeholder="Opcionalno" />
@@ -342,109 +569,6 @@ export default function AdminInventoryScreen() {
           ) : null}
         </Card>
       ) : null}
-
-      {panel === 'receive' && canReceive ? (
-        <Card style={styles.panelCard}>
-          <Text style={styles.sectionTitle}>Prijem robe</Text>
-          <DateTimeField label="Datum prijema" mode="date" value={receiptDate} onChangeText={setReceiptDate} />
-          <TextField label="Dobavljač" value={receiptSupplier} onChangeText={setReceiptSupplier} />
-          <TextField label="Broj dokumenta dobavljača" value={receiptDocument} onChangeText={setReceiptDocument} />
-          <TextField label="Napomena" value={receiptNote} onChangeText={setReceiptNote} multiline />
-          <TextField label="Pronađi artikal" value={lookupQ} onChangeText={setLookupQ} placeholder="Najmanje 2 slova ili deo SKU-a" />
-          {lookupQuery.isFetching ? <Text style={styles.meta}>Pretraga…</Text> : null}
-          {lookupRows.map((product) => <ProductChoice key={product.id} product={product} onPress={() => addReceiptProduct(product)} label="Dodaj u prijem" />)}
-          <Text style={styles.sectionTitle}>Stavke ({receiptItems.length})</Text>
-          {receiptItems.map((item, index) => (
-            <Card key={item.product.id} style={styles.itemCard}>
-              <Text style={styles.title}>{item.product.sku} · {item.product.name}</Text>
-              <TextField label="Količina" value={item.quantity} onChangeText={(value) => setReceiptItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: value } : row))} keyboardType="number-pad" />
-              <TextField label="Nabavna cena RSD" value={item.unitCost} onChangeText={(value) => setReceiptItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, unitCost: value } : row))} keyboardType="decimal-pad" />
-              <TextField label="Napomena stavke" value={item.note} onChangeText={(value) => setReceiptItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, note: value } : row))} />
-              <Button variant="secondary" onPress={() => setReceiptItems((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Ukloni stavku</Button>
-            </Card>
-          ))}
-          <Text style={styles.meta}>Isti idempotency ključ ostaje tokom neuspelog retry-a; draft se briše tek posle uspešnog knjiženja.</Text>
-          <Button loading={busyAction === 'receive'} onPress={() => void submitReceipt()}>Proknjiži prijem</Button>
-        </Card>
-      ) : null}
-
-      {panel === 'count' && canCount ? (
-        <Card style={styles.panelCard}>
-          <Text style={styles.sectionTitle}>Popis</Text>
-          <DateTimeField label="Datum popisa" mode="date" value={countDate} onChangeText={setCountDate} />
-          <TextField label="Obuhvat / oznaka" value={countScope} onChangeText={setCountScope} />
-          <TextField label="Napomena" value={countNote} onChangeText={setCountNote} multiline />
-          <TextField label="Pronađi artikal" value={lookupQ} onChangeText={setLookupQ} placeholder="Najmanje 2 slova ili deo SKU-a" />
-          {lookupQuery.isFetching ? <Text style={styles.meta}>Pretraga…</Text> : null}
-          {lookupRows.map((product) => <ProductChoice key={product.id} product={product} onPress={() => addCountProduct(product)} label="Dodaj u popis" />)}
-          <Text style={styles.sectionTitle}>Stavke ({countItems.length})</Text>
-          {countItems.map((item, index) => (
-            <Card key={item.product.id} style={styles.itemCard}>
-              <Text style={styles.title}>{item.product.sku} · {item.product.name}</Text>
-              <Text style={styles.meta}>Sistemsko stanje: {numberLabel(item.product.stock_quantity)}</Text>
-              <TextField label="Popisana količina" value={item.counted} onChangeText={(value) => setCountItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, counted: value } : row))} keyboardType="number-pad" />
-              <TextField label="Napomena stavke" value={item.note} onChangeText={(value) => setCountItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, note: value } : row))} />
-              <Button variant="secondary" onPress={() => setCountItems((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Ukloni stavku</Button>
-            </Card>
-          ))}
-          <Text style={styles.meta}>Popis koristi server kao finalni autoritet za sistemsko stanje, varijansu, row-lock i ledger.</Text>
-          <Button loading={busyAction === 'count'} onPress={() => void submitCount()}>Finalizuj popis</Button>
-        </Card>
-      ) : null}
-
-      {adjust ? (
-        <Card style={styles.panelCard}>
-          <Text style={styles.sectionTitle}>Ručna korekcija</Text>
-          <Text style={styles.title}>{adjust.product.sku} · {adjust.product.name}</Text>
-          <Text style={styles.meta}>Trenutno stanje: {numberLabel(adjust.product.stock_quantity)}</Text>
-          <TextField label="Promena količine" value={adjust.quantity} onChangeText={(value) => setAdjust((current) => current ? { ...current, quantity: value } : current)} placeholder="npr. 3 ili -2" />
-          <TextField label="Napomena" value={adjust.note} onChangeText={(value) => setAdjust((current) => current ? { ...current, note: value } : current)} multiline />
-          <View style={styles.actions}>
-            <Button loading={busyAction === 'adjust'} onPress={() => void submitAdjust()}>Evidentiraj korekciju</Button>
-            <Button variant="secondary" onPress={() => setAdjust(null)}>Odustani</Button>
-          </View>
-        </Card>
-      ) : null}
-
-      {response ? (
-        <>
-          <View style={styles.rowBetween}>
-            <View style={styles.grow}><Text style={styles.sectionTitle}>Artikli</Text><Text style={styles.meta}>{response.meta.total} ukupno</Text></View>
-            <Button variant="secondary" loading={inventoryQuery.isFetching} onPress={() => void inventoryQuery.refetch()}>Osveži</Button>
-          </View>
-          {response.data.length === 0 ? <EmptyState title="Nema artikala" message="Nema rezultata za izabrane filtere." /> : response.data.map((product) => (
-            <Card key={product.id} style={product.is_low_stock ? styles.warningCard : styles.itemCard}>
-              <View style={styles.rowBetween}>
-                <View style={styles.grow}>
-                  <Text style={styles.title}>{product.sku} · {product.name}</Text>
-                  <Text style={styles.meta}>Status: {product.status} · Ažurirano: {dateTime(product.updated_at)}</Text>
-                </View>
-                <Text style={styles.stock}>{numberLabel(product.stock_quantity)}</Text>
-              </View>
-              <Text style={styles.meta}>Minimalni prag: {numberLabel(product.low_stock_threshold)}{product.is_low_stock ? ' · NIZAK LAGER' : ''}</Text>
-              {canAdjust ? <Button variant="secondary" onPress={() => startAdjust(product)}>Koriguj stanje</Button> : null}
-            </Card>
-          ))}
-          <View style={styles.pagination}>
-            <Button variant="secondary" disabled={response.meta.current_page <= 1} onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}>Prethodna</Button>
-            <Text style={styles.meta}>Strana {response.meta.current_page} / {response.meta.last_page}</Text>
-            <Button variant="secondary" disabled={response.meta.current_page >= response.meta.last_page} onPress={() => setApplied((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}>Sledeća</Button>
-          </View>
-
-          <Card style={styles.summaryCard}>
-            <Text style={styles.sectionTitle}>Poslednji prijemi</Text>
-            {response.summary.recent_receipts.length === 0 ? <Text style={styles.meta}>Nema evidentiranih prijema.</Text> : response.summary.recent_receipts.map((item) => (
-              <Text style={styles.meta} key={item.id}>{item.receipt_number} · {item.received_on ?? '—'} · {item.total_units} kom · {item.supplier_name ?? 'Bez dobavljača'}</Text>
-            ))}
-          </Card>
-          <Card style={styles.summaryCard}>
-            <Text style={styles.sectionTitle}>Poslednji popisi</Text>
-            {response.summary.recent_counts.length === 0 ? <Text style={styles.meta}>Nema evidentiranih popisa.</Text> : response.summary.recent_counts.map((item) => (
-              <Text style={styles.meta} key={item.id}>{item.count_number} · {item.counted_on ?? '—'} · varijansa {item.total_variance}</Text>
-            ))}
-          </Card>
-        </>
-      ) : null}
     </Screen>
   );
 }
@@ -462,12 +586,13 @@ function createStyles(theme: AppColors) {
     statValue: { ...typography.h2, color: theme.ink },
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     statCard: { flexGrow: 1, minWidth: 145, gap: spacing.xs },
+    workspaceCard: { gap: spacing.md },
     filtersCard: { gap: spacing.md },
-    operationsCard: { gap: spacing.md },
     panelCard: { gap: spacing.md },
     itemCard: { gap: spacing.sm },
     warningCard: { gap: spacing.sm, borderColor: theme.primary },
-    summaryCard: { gap: spacing.sm },
+    summaryCard: { flexGrow: 1, minWidth: 260, gap: spacing.sm },
+    overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
     actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     rowBetween: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
     grow: { flex: 1, minWidth: 0 },
