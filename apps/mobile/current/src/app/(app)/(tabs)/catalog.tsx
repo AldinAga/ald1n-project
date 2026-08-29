@@ -81,7 +81,14 @@ const CatalogProductRow = memo(function CatalogProductRow({ product }: { product
     [product.slug],
   );
 
-  return <ProductCard product={product} onPress={handlePress} />;
+  // MOBILE_V1_0_CATALOG_HIDE_SKU_LIST_BATCH80
+  return (
+    <ProductCard
+      product={product}
+      onPress={handlePress}
+      showSku={false}
+    />
+  );
 });
 
 const CatalogSearchInput = memo(function CatalogSearchInput({

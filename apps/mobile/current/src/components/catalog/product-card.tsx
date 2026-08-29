@@ -24,9 +24,11 @@ import type { Product } from '@/types/api';
 export function ProductCard({
   product,
   onPress,
+  showSku = true,
 }: {
   product: Product;
   onPress: () => void;
+  showSku?: boolean;
 }) {
   const { colors: themeColors } = useAppTheme();
   const { formatPrimaryMoney } = useMoneyPresentation();
@@ -48,6 +50,12 @@ export function ProductCard({
     product.stock_quantity > 0
       ? `${product.stock_quantity} na stanju`
       : 'Nema na stanju';
+
+  // MOBILE_V1_0_CATALOG_HIDE_SKU_LIST_BATCH80
+  const metaLabel =
+    product.brand?.name
+    ?? product.type?.name
+    ?? (showSku ? product.sku : null);
 
   return (
     <Pressable
@@ -95,14 +103,14 @@ export function ProductCard({
             {product.name}
           </Text>
 
-          <Text
-            style={styles.meta}
-            numberOfLines={1}
-          >
-            {product.brand?.name ??
-              product.type?.name ??
-              product.sku}
-          </Text>
+          {metaLabel ? (
+            <Text
+              style={styles.meta}
+              numberOfLines={1}
+            >
+              {metaLabel}
+            </Text>
+          ) : null}
 
           <View style={styles.footer}>
             <Text style={styles.price}>
@@ -116,9 +124,11 @@ export function ProductCard({
 
                         {/* MOBILE_V0_9_CATALOG_COMMISSION_BATCH5A */}
             <Text style={styles.sku}>Provizija: {formatPrimaryMoney(product.commission_eur, 'EUR')}</Text>
-<Text style={styles.sku}>
-              {product.sku}
-            </Text>
+{showSku ? (
+              <Text style={styles.sku}>
+                {product.sku}
+              </Text>
+            ) : null}
           </View>
         </View>
 
