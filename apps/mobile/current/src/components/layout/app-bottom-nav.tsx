@@ -44,6 +44,7 @@ function activeKey(pathname: string): NavKey | null {
   if (pathname === '/notifications') return 'notifications';
   if (
     pathname === '/account'
+    || pathname.startsWith('/account/')
     || pathname === '/devices'
     || pathname === '/notification-settings'
     || pathname === '/sessions'

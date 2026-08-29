@@ -19,7 +19,9 @@ const required = [
   'src/app/(auth)/forgot-password.tsx', 'src/app/(auth)/reset-password.tsx', 'src/app/(auth)/activate-account.tsx',
   'src/app/(app)/(tabs)/home.tsx', 'src/app/(app)/(tabs)/catalog.tsx',
   'src/app/(app)/(tabs)/orders.tsx', 'src/app/(app)/(tabs)/notifications.tsx',
-  'src/app/(app)/(tabs)/account.tsx', 'src/app/(app)/product/[slug].tsx',
+  'src/app/(app)/(tabs)/account.tsx', 'src/app/(app)/account/profile.tsx',
+  'src/app/(app)/account/security.tsx', 'src/app/(app)/account/preferences.tsx',
+  'src/app/(app)/product/[slug].tsx',
   'src/app/(app)/order/[id].tsx', 'src/app/(app)/devices.tsx', 'src/app/(app)/sessions.tsx',
   'src/app/(app)/portal/messages/index.tsx', 'src/app/(app)/portal/messages/[id].tsx',
   'src/app/(app)/admin/customer-portal/index.tsx', 'src/app/(app)/admin/customer-portal/[userId].tsx',
@@ -443,7 +445,10 @@ assert(notificationSettings.includes('registerCurrentDeviceForPush') && notifica
 
 
 // MOBILE_ACCOUNT_PARITY_V05
-const accountScreen = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
+const accountScreen = [
+  fs.readFileSync(path.join(root, 'src/app/(app)/account/profile.tsx'), 'utf8'),
+  fs.readFileSync(path.join(root, 'src/app/(app)/account/security.tsx'), 'utf8'),
+].join('\n');
 assert(/api\.account\.updateProfile/.test(accountScreen) && /replaceBootstrapUser\s*\(\s*updated\s*\)/.test(accountScreen), 'Account ekran podrzava izmenu profila i lokalno osvezavanje bootstrap korisnika.');
 assert(/api\.account\.changePassword/.test(accountScreen) && /requireReauthentication\s*\(\s*\)/.test(accountScreen), 'Account ekran podrzava promenu lozinke i obaveznu ponovnu prijavu.');
 assert(/password\s*:\s*z\s*\.string\(\)\s*\.min\(\s*12\s*,/.test(accountScreen), 'Account ekran zahteva najmanje 12 znakova za novu lozinku.');
@@ -1795,7 +1800,7 @@ const batch50StorageV2 = fs.readFileSync(path.join(root, 'src/lib/storage.ts'), 
 const batch50PreferencesV2 = fs.readFileSync(path.join(root, 'src/features/preferences/app-preferences.tsx'), 'utf8');
 const batch50ThemeV2 = fs.readFileSync(path.join(root, 'src/theme/app-theme.ts'), 'utf8');
 const batch50RootV2 = fs.readFileSync(path.join(root, 'src/app/_layout.tsx'), 'utf8');
-const batch50AccountV2 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
+const batch50AccountV2 = fs.readFileSync(path.join(root, 'src/app/(app)/account/preferences.tsx'), 'utf8');
 const batch50SegmentedV2 = fs.readFileSync(path.join(root, 'src/components/ui/segmented-choice.tsx'), 'utf8');
 const batch50LoadingV2 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
 const batch50MoneyV2 = fs.readFileSync(path.join(root, 'src/features/preferences/money-presentation.ts'), 'utf8');
