@@ -2319,6 +2319,49 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_COMMISSIONS_DETAIL_UX_REORGANIZATION_BATCH92_VALIDATOR
+const commissionsDetailUxBatch92 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/commissions/[id].tsx'),
+  'utf8',
+);
+assert(
+  commissionsDetailUxBatch92.includes('MOBILE_V1_0_ADMIN_COMMISSIONS_DETAIL_UX_REORGANIZATION_BATCH92')
+    && commissionsDetailUxBatch92.includes("type CommissionDetailWorkspace = 'overview' | 'details' | 'payment' | 'actions' | 'history'")
+    && commissionsDetailUxBatch92.includes('Radni prostor provizije')
+    && commissionsDetailUxBatch92.includes("label: 'Pregled'")
+    && commissionsDetailUxBatch92.includes("label: 'Podaci'")
+    && commissionsDetailUxBatch92.includes("label: 'Isplata'")
+    && commissionsDetailUxBatch92.includes("label: 'Akcije'")
+    && commissionsDetailUxBatch92.includes("label: 'Istorija'")
+    && commissionsDetailUxBatch92.includes("workspace === 'overview'")
+    && commissionsDetailUxBatch92.includes("workspace === 'details'")
+    && commissionsDetailUxBatch92.includes("workspace === 'payment'")
+    && commissionsDetailUxBatch92.includes("workspace === 'actions'")
+    && commissionsDetailUxBatch92.includes("workspace === 'history'"),
+  'v1.0 Batch92 Admin Commission detail is organized into overview, details, payment, actions and history workspaces.',
+);
+assert(
+  commissionsDetailUxBatch92.includes("can('commissions.manage')")
+    && commissionsDetailUxBatch92.includes('apiAdminCommissions.detail')
+    && commissionsDetailUxBatch92.includes('apiAdminCommissions.transition')
+    && commissionsDetailUxBatch92.includes('adminQueryKeys.commission(commissionId)')
+    && commissionsDetailUxBatch92.includes('adminQueryKeys.commissions()')
+    && commissionsDetailUxBatch92.includes('commission.allowed_transitions')
+    && commissionsDetailUxBatch92.includes("formAction === 'cancelled' && !note.trim()")
+    && commissionsDetailUxBatch92.includes("formAction === 'paid' && !paymentMethod")
+    && commissionsDetailUxBatch92.includes('input.payment_method = paymentMethod')
+    && commissionsDetailUxBatch92.includes('input.payment_reference = paymentReference.trim()')
+    && commissionsDetailUxBatch92.includes('commission.payment')
+    && commissionsDetailUxBatch92.includes('commission.history')
+    && commissionsDetailUxBatch92.includes('StatusTimeline items={timeline}')
+    && commissionsDetailUxBatch92.includes('ConfirmAction visible={confirmAction}'),
+  'v1.0 Batch92 Commission detail UX preserves permission, server transitions, payment validation, confirmation, history and query invalidation contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(commissionsDetailUxBatch92),
+  'v1.0 Batch92 Commission detail UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_COMMISSIONS_LIST_UX_REORGANIZATION_BATCH91_VALIDATOR
 const commissionsListUxBatch91 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/commissions/index.tsx'),
