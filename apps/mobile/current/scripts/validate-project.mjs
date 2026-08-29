@@ -2319,6 +2319,54 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_AFTER_SALES_LIST_UX_REORGANIZATION_BATCH95_VALIDATOR
+const afterSalesListUxBatch95 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/after-sales/index.tsx'),
+  'utf8',
+);
+assert(
+  afterSalesListUxBatch95.includes('MOBILE_V1_0_ADMIN_AFTER_SALES_LIST_UX_REORGANIZATION_BATCH95')
+    && afterSalesListUxBatch95.includes("type AfterSalesListWorkspace = 'overview' | 'cases' | 'filters' | 'overdue' | 'execution'")
+    && afterSalesListUxBatch95.includes('Radni prostor postprodaje')
+    && afterSalesListUxBatch95.includes("label: 'Pregled'")
+    && afterSalesListUxBatch95.includes("label: 'Slučajevi'")
+    && afterSalesListUxBatch95.includes("label: 'Filteri'")
+    && afterSalesListUxBatch95.includes("label: 'Rokovi'")
+    && afterSalesListUxBatch95.includes("label: 'Izvršenje'")
+    && afterSalesListUxBatch95.includes("workspace === 'cases'")
+    && afterSalesListUxBatch95.includes("workspace === 'filters'")
+    && afterSalesListUxBatch95.includes("workspace === 'overdue'")
+    && afterSalesListUxBatch95.includes("workspace === 'execution'"),
+  'v1.0 Batch95 Admin After-sales list is organized into overview, cases, filters, overdue and execution workspaces.',
+);
+assert(
+  afterSalesListUxBatch95.includes("can('after_sales.manage')")
+    && afterSalesListUxBatch95.includes('apiAdminAfterSales.list(applied)')
+    && afterSalesListUxBatch95.includes('adminQueryKeys.afterSalesAdminList(applied)')
+    && afterSalesListUxBatch95.includes('q: draftQ.trim() || undefined')
+    && afterSalesListUxBatch95.includes('status: draftStatus || undefined')
+    && afterSalesListUxBatch95.includes('priority: draftPriority || undefined')
+    && afterSalesListUxBatch95.includes('case_type: draftType || undefined')
+    && afterSalesListUxBatch95.includes('overdue: draftOverdue || undefined')
+    && afterSalesListUxBatch95.includes('execution_pending: draftExecutionPending || undefined')
+    && afterSalesListUxBatch95.includes('DataList<AdminAfterSalesSummary>')
+    && afterSalesListUxBatch95.includes("pathname: '/admin/after-sales/[id]'")
+    && afterSalesListUxBatch95.includes('Math.max(1, response.meta.current_page - 1)')
+    && afterSalesListUxBatch95.includes('response.meta.current_page + 1'),
+  'v1.0 Batch95 After-sales list UX preserves permission, server filters, pagination, virtualized list and detail routing contracts.',
+);
+assert(
+  afterSalesListUxBatch95.includes('setApplied((current) => ({ ...current, overdue: true, page: 1 }))')
+    && afterSalesListUxBatch95.includes('setApplied((current) => ({ ...current, execution_pending: true, page: 1 }))')
+    && afterSalesListUxBatch95.includes('postojeći server-side overdue filter')
+    && afterSalesListUxBatch95.includes('postojeći server-side execution_pending filter'),
+  'v1.0 Batch95 attention workspaces reuse existing server overdue and execution_pending semantics without parallel business logic.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(afterSalesListUxBatch95),
+  'v1.0 Batch95 After-sales list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_WARRANTIES_LIST_UX_REORGANIZATION_BATCH94_VALIDATOR
 const warrantiesListUxBatch94 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/warranties/index.tsx'),

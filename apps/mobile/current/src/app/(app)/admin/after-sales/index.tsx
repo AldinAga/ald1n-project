@@ -7,10 +7,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DataList } from '@/components/ui/data-list';
 import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
-import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
+import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
@@ -23,6 +24,17 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
+
+// MOBILE_V1_0_ADMIN_AFTER_SALES_LIST_UX_REORGANIZATION_BATCH95
+type AfterSalesListWorkspace = 'overview' | 'cases' | 'filters' | 'overdue' | 'execution';
+
+const AFTER_SALES_LIST_WORKSPACE_OPTIONS: Array<{ value: AfterSalesListWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Ukupni obim, aktivni filteri i brz ulaz u svakodnevni postprodajni rad.' },
+  { value: 'cases', label: 'Slučajevi', description: 'Virtualizovana lista postprodajnih slučajeva sa statusom, rokom i odgovornim licem.' },
+  { value: 'filters', label: 'Filteri', description: 'Pretraga, status, prioritet, vrsta slučaja i broj rezultata po strani.' },
+  { value: 'overdue', label: 'Rokovi', description: 'Fokus na slučajeve koji su probili postojeći server-side rok.' },
+  { value: 'execution', label: 'Izvršenje', description: 'Fokus na slučajeve koji čekaju postojeću izvršnu postprodajnu radnju.' },
+];
 
 function tone(status: string): PillTone {
   if (status === 'resolved' || status === 'approved' || status === 'closed') return 'success';
@@ -82,6 +94,7 @@ export default function AdminAfterSalesListScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { bootstrap, can } = useAuth();
   const allowed = can('after_sales.manage');
+  const [workspace, setWorkspace] = useState<AfterSalesListWorkspace> ('overview');
 
   const [draftQ, setDraftQ] = useState('');
   const [draftStatus, setDraftStatus] = useState('');
@@ -124,6 +137,7 @@ export default function AdminAfterSalesListScreen() {
       page: 1,
       per_page: draftPerPage,
     });
+    setWorkspace('cases');
   };
 
   const clearFilters = () => {
@@ -137,82 +151,221 @@ export default function AdminAfterSalesListScreen() {
     setApplied({ page: 1, per_page: 40 });
   };
 
-  return (
-    <Screen contentStyle={styles.content}>
+
+  const workspaceMeta = AFTER_SALES_LIST_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+  const pendingActionsOnPage = response.data.reduce((total, item) => total + item.pending_actions_count, 0);
+
+  const selectWorkspace = (next: AfterSalesListWorkspace) => {
+    setWorkspace(next);
+  };
+
+  const showOverdueCases = () => {
+    setDraftOverdue(true);
+    setApplied((current) => ({ ...current, overdue: true, page: 1 }));
+    setWorkspace('cases');
+  };
+
+  const showExecutionCases = () => {
+    setDraftExecutionPending(true);
+    setApplied((current) => ({ ...current, execution_pending: true, page: 1 }));
+    setWorkspace('cases');
+  };
+
+  const workspaceHeader = (
+    <View style={styles.header}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
         <Text style={styles.back}>‹ Administracija</Text>
       </Pressable>
-      <PageHeader title="Postprodaja" eyebrow="Admin · v0.7" name={bootstrap?.user.name} />
+      <PageHeader title="Postprodaja" eyebrow="Admin · v1.0" name={bootstrap?.user.name} />
       <Text style={styles.copy}>
         Operativni pregled reklamacija, servisa, poruka i izvršnih postprodajnih radnji u dozvoljenom administratorskom scope-u.
       </Text>
-
-      <Card style={styles.filtersCard}>
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Filteri</Text>
-          <Text style={styles.muted}>{activeCount} aktivnih</Text>
-        </View>
-        <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="Broj slučaja, predmet ili porudžbina" />
-        <SelectSheet label="Status" value={draftStatus} options={statusOptions} onChange={setDraftStatus} />
-        <SelectSheet label="Prioritet" value={draftPriority} options={priorityOptions} onChange={setDraftPriority} />
-        <SelectSheet label="Vrsta slučaja" value={draftType} options={typeOptions} onChange={setDraftType} />
-        <FilterBar activeCount={Number(draftOverdue) + Number(draftExecutionPending)} onClear={() => { setDraftOverdue(false); setDraftExecutionPending(false); }}>
-          <FilterChip label="Probio rok" active={draftOverdue} onPress={() => setDraftOverdue((value) => !value)} />
-          <FilterChip label="Čeka izvršenje" active={draftExecutionPending} onPress={() => setDraftExecutionPending((value) => !value)} />
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor postprodaje</Text>
+        <Text style={styles.copy}>
+          {workspaceMeta?.description ?? 'Izaberi postprodajni zadatak koji želiš da obradiš.'}
+        </Text>
+        <FilterBar>
+          {AFTER_SALES_LIST_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
         </FilterBar>
-        <SelectSheet
-          label="Broj po strani"
-          value={String(draftPerPage)}
-          options={[20, 40, 50, 100].map((value) => ({ value: String(value), label: String(value) }))}
-          onChange={(value) => {
-            const next = Number(value);
-            if (next === 20 || next === 40 || next === 50 || next === 100) setDraftPerPage(next);
-          }}
-        />
-        <Button onPress={applyFilters}>Primeni filtere</Button>
-        {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Očisti filtere</Button> : null}
       </Card>
+    </View>
+  );
 
-      <View style={styles.sectionHead}>
-        <View>
-          <Text style={styles.sectionTitle}>Postprodajni slučajevi</Text>
-          <Text style={styles.muted}>{response.meta.total} ukupno</Text>
-        </View>
-        <Button variant="secondary" onPress={() => void query.refetch()}>
-          {query.isFetching ? 'Osvežavanje…' : 'Osveži'}
-        </Button>
+  const pagination = (
+    <View style={styles.pagination}>
+      <Button
+        variant="secondary"
+        disabled={response.meta.current_page <= 1}
+        onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, response.meta.current_page - 1) }))}
+      >
+        Prethodna
+      </Button>
+      <Text style={styles.page}>{response.meta.current_page} / {Math.max(response.meta.last_page, 1)}</Text>
+      <Button
+        variant="secondary"
+        disabled={response.meta.current_page >= response.meta.last_page}
+        onPress={() => setApplied((current) => ({ ...current, page: response.meta.current_page + 1 }))}
+      >
+        Sledeća
+      </Button>
+    </View>
+  );
+
+  if (workspace === 'cases') {
+    return (
+      <DataList<AdminAfterSalesSummary>
+        data={response.data}
+        keyExtractor={(item) => String(item.id)}
+        header={(
+          <View style={styles.listHeader}>
+            {workspaceHeader}
+            <View style={styles.sectionHead}>
+              <View>
+                <Text style={styles.sectionTitle}>Postprodajni slučajevi</Text>
+                <Text style={styles.muted}>{response.meta.total} ukupno · {activeCount} aktivnih filtera</Text>
+              </View>
+              <Button variant="secondary" onPress={() => void query.refetch()}>
+                {query.isFetching ? 'Osvežavanje…' : 'Osveži'}
+              </Button>
+            </View>
+          </View>
+        )}
+        footer={pagination}
+        refreshing={query.isFetching}
+        onRefresh={() => void query.refetch()}
+        emptyTitle="Nema postprodajnih slučajeva"
+        emptyMessage="Nema rezultata za izabrane filtere."
+        renderItem={(item) => <CaseCard item={item} />}
+      />
+    );
+  }
+
+  if (workspace === 'filters') {
+    return (
+      <Screen contentStyle={styles.content}>
+        {workspaceHeader}
+        <Card style={styles.filtersCard}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Filteri</Text>
+            <Text style={styles.muted}>{activeCount} aktivnih</Text>
+          </View>
+          <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="Broj slučaja, predmet ili porudžbina" />
+          <SelectSheet label="Status" value={draftStatus} options={statusOptions} onChange={setDraftStatus} />
+          <SelectSheet label="Prioritet" value={draftPriority} options={priorityOptions} onChange={setDraftPriority} />
+          <SelectSheet label="Vrsta slučaja" value={draftType} options={typeOptions} onChange={setDraftType} />
+          <FilterBar activeCount={Number(draftOverdue) + Number(draftExecutionPending)} onClear={() => { setDraftOverdue(false); setDraftExecutionPending(false); }}>
+            <FilterChip label="Probio rok" active={draftOverdue} onPress={() => setDraftOverdue((value) => !value)} />
+            <FilterChip label="Čeka izvršenje" active={draftExecutionPending} onPress={() => setDraftExecutionPending((value) => !value)} />
+          </FilterBar>
+          <SelectSheet
+            label="Broj po strani"
+            value={String(draftPerPage)}
+            options={[20, 40, 50, 100].map((value) => ({ value: String(value), label: String(value) }))}
+            onChange={(value) => {
+              const next = Number(value);
+              if (next === 20 || next === 40 || next === 50 || next === 100) setDraftPerPage(next);
+            }}
+          />
+          <View style={styles.actionsRow}>
+            <Button onPress={applyFilters}>Primeni i otvori slučajeve</Button>
+            {activeCount > 0 ? <Button variant="secondary" onPress={clearFilters}>Očisti filtere</Button> : null}
+          </View>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (workspace === 'overdue') {
+    return (
+      <Screen contentStyle={styles.content}>
+        {workspaceHeader}
+        <Card style={styles.focusCard}>
+          <Text style={styles.sectionTitle}>Slučajevi koji su probili rok</Text>
+          <Text style={styles.copy}>
+            Ovaj radni prostor koristi postojeći server-side overdue filter; ne uvodi lokalno računanje roka niti novi poslovni kriterijum.
+          </Text>
+          <View style={styles.actionsRow}>
+            <Button onPress={showOverdueCases}>Prikaži slučajeve koji su probili rok</Button>
+            <Button variant="secondary" onPress={() => setWorkspace('filters')}>Dodatni filteri</Button>
+          </View>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (workspace === 'execution') {
+    return (
+      <Screen contentStyle={styles.content}>
+        {workspaceHeader}
+        <Card style={styles.focusCard}>
+          <Text style={styles.sectionTitle}>Slučajevi koji čekaju izvršenje</Text>
+          <Text style={styles.copy}>
+            Koristi postojeći server-side execution_pending filter i postojeći detail workflow za izvršne radnje.
+          </Text>
+          <Text style={styles.muted}>Aktivne izvršne radnje na trenutno učitanoj strani: {pendingActionsOnPage}</Text>
+          <View style={styles.actionsRow}>
+            <Button onPress={showExecutionCases}>Prikaži slučajeve koji čekaju izvršenje</Button>
+            <Button variant="secondary" onPress={() => setWorkspace('filters')}>Dodatni filteri</Button>
+          </View>
+        </Card>
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen contentStyle={styles.content}>
+      {workspaceHeader}
+      <View style={styles.summaryGrid}>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{response.meta.total}</Text>
+          <Text style={styles.summaryLabel}>Ukupno slučajeva</Text>
+        </Card>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{response.data.length}</Text>
+          <Text style={styles.summaryLabel}>Na trenutnoj strani</Text>
+        </Card>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{activeCount}</Text>
+          <Text style={styles.summaryLabel}>Aktivnih filtera</Text>
+        </Card>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{pendingActionsOnPage}</Text>
+          <Text style={styles.summaryLabel}>Aktivnih radnji na strani</Text>
+        </Card>
       </View>
-
-      {response.data.length === 0 ? (
-        <EmptyState title="Nema postprodajnih slučajeva" message="Nema rezultata za izabrane filtere." />
-      ) : (
-        <View style={styles.list}>
-          {response.data.map((item) => <CaseCard item={item} key={item.id} />)}
+      <Card style={styles.focusCard}>
+        <Text style={styles.sectionTitle}>Brze akcije</Text>
+        <View style={styles.actionsRow}>
+          <Button onPress={() => setWorkspace('cases')}>Otvori slučajeve</Button>
+          <Button variant="secondary" onPress={() => setWorkspace('filters')}>Filteri</Button>
+          <Button variant="secondary" onPress={() => setWorkspace('overdue')}>Rokovi</Button>
+          <Button variant="secondary" onPress={() => setWorkspace('execution')}>Izvršenje</Button>
         </View>
-      )}
-
-      <View style={styles.pagination}>
-        <Button
-          variant="secondary"
-          onPress={() => setApplied((current) => ({ ...current, page: Math.max(1, response.meta.current_page - 1) }))}
-        >
-          Prethodna
-        </Button>
-        <Text style={styles.page}>{response.meta.current_page} / {response.meta.last_page}</Text>
-        <Button
-          variant="secondary"
-          onPress={() => setApplied((current) => ({ ...current, page: response.meta.current_page + 1 }))}
-        >
-          Sledeća
-        </Button>
-      </View>
+      </Card>
     </Screen>
   );
 }
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    content: { gap: spacing.lg, paddingBottom: 120 },
+    content: { gap: spacing.lg, paddingBottom: 140 },
+    header: { gap: spacing.lg },
+    workspaceCard: { gap: spacing.md },
+    listHeader: { gap: spacing.lg },
+    focusCard: { gap: spacing.md },
+    actionsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
+    summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    summaryCard: { minWidth: '47%', flexGrow: 1, gap: spacing.xs },
+    summaryValue: { ...typography.h2, color: theme.ink },
+    summaryLabel: { ...typography.small, color: theme.muted },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     copy: { ...typography.body, color: theme.muted },
     filtersCard: { gap: spacing.md },
