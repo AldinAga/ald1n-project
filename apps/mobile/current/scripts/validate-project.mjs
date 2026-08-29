@@ -135,7 +135,7 @@ for (const jsonFile of ['package.json', 'eas.json']) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const packageLockJson = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-assert(packageJson.dependencies?.expo === '~57.0.17' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.17' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.17', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
+assert(packageJson.dependencies?.expo === '~57.0.18' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.18' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.18', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['']?.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['node_modules/react-native']?.version === '0.86.3', 'React Native verzija prati Expo SDK 57 template.');
 assert(packageJson.dependencies?.['expo-router'] === '~57.0.17' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.17' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.17', 'Expo Router verzija je zaključana.');
 assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.16' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.16' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.16', 'Expo development client je uključen.');
@@ -162,12 +162,14 @@ assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.16' && packageLockJ
 // MOBILE_V0_8_EXPO_SDK57_COMPATIBILITY_MATRIX
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH21A_V3
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH45_V5
+// MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH99_V3
 const expoCompatibilityMatrixV08 = {
-  expo: { spec: '~57.0.17', version: '57.0.17' },
-  'expo-constants': { spec: '~57.0.15', version: '57.0.15' },
+  expo: { spec: '~57.0.18', version: '57.0.18' },
+  'expo-constants': { spec: '~57.0.16', version: '57.0.16' },
   'expo-crypto': { spec: '~57.0.2', version: '57.0.2' },
   'expo-dev-client': { spec: '~57.0.16', version: '57.0.16' },
   'expo-file-system': { spec: '~57.0.6', version: '57.0.6' },
+  'expo-font': { spec: '~57.0.2', version: '57.0.2' },
   'expo-linking': { spec: '~57.0.8', version: '57.0.8' },
   'expo-notifications': { spec: '~57.0.15', version: '57.0.15' },
   'expo-router': { spec: '~57.0.17', version: '57.0.17' },
@@ -175,7 +177,7 @@ const expoCompatibilityMatrixV08 = {
   'expo-secure-store': { spec: '~57.0.2', version: '57.0.2' },
   'expo-system-ui': { spec: '~57.0.3', version: '57.0.3' },
   'expo-splash-screen': { spec: '~57.0.8', version: '57.0.8' },
-  'expo-updates': { spec: '~57.0.18', version: '57.0.18' },
+  'expo-updates': { spec: '~57.0.19', version: '57.0.19' },
 };
 for (const [packageName, expected] of Object.entries(expoCompatibilityMatrixV08)) {
   assert(
