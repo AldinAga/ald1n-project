@@ -1234,14 +1234,14 @@ assert(
   p3AuditListBatch2CV06.includes("can('security.view')")
     && p3AuditListBatch2CV06.includes('apiAdminAuditEvents.list(applied)')
     && p3AuditListBatch2CV06.includes('adminQueryKeys.auditEvents(applied)')
-    && p3AuditListBatch2CV06.includes('Akcija / dogadjaj')
+    && p3AuditListBatch2CV06.includes('Akcija / događaj')
     && p3AuditListBatch2CV06.includes('DateTimeField')
     && p3AuditListBatch2CV06.includes('PER_PAGE_OPTIONS')
     && p3AuditListBatch2CV06.includes('query.refetch()')
     && p3AuditListBatch2CV06.includes('openAdminAuditExport(applied)')
     && p3AuditListBatch2CV06.includes('response.capabilities.export')
     && p3AuditListBatch2CV06.includes('Izvezi CSV')
-    && p3AuditListBatch2CV06.includes('Read-only pristup')
+    && p3AuditListBatch2CV06.includes('Read-only bezbednosni ugovor')
     && !p3AuditDirectFetchBatch2CV06.test(p3AuditListBatch2CV06),
   'P3/v1.0 Admin Audit zaključava security.view list/filter/pagination/refetch UI i server-driven audit.export CSV akciju.',
 );
@@ -2319,6 +2319,54 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_AUDIT_LIST_UX_REORGANIZATION_BATCH97_V2_VALIDATOR
+const auditListUxBatch97 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/audit/index.tsx'),
+  'utf8',
+);
+assert(
+  auditListUxBatch97.includes('MOBILE_V1_0_ADMIN_AUDIT_LIST_UX_REORGANIZATION_BATCH97')
+    && auditListUxBatch97.includes("type AuditListWorkspace = 'overview' | 'events' | 'filters' | 'export' | 'policy'")
+    && auditListUxBatch97.includes('Radni prostor audita')
+    && auditListUxBatch97.includes("label: 'Pregled'")
+    && auditListUxBatch97.includes("label: 'Događaji'")
+    && auditListUxBatch97.includes("label: 'Filteri'")
+    && auditListUxBatch97.includes("label: 'Izvoz'")
+    && auditListUxBatch97.includes("label: 'Bezbednost'")
+    && auditListUxBatch97.includes("workspace === 'events'")
+    && auditListUxBatch97.includes("workspace === 'filters'")
+    && auditListUxBatch97.includes("workspace === 'export'")
+    && auditListUxBatch97.includes("workspace === 'policy'"),
+  'v1.0 Batch97 Admin Audit list is organized into overview, events, filters, export and security-policy workspaces.',
+);
+assert(
+  auditListUxBatch97.includes("can('security.view')")
+    && auditListUxBatch97.includes('apiAdminAuditEvents.list(applied)')
+    && auditListUxBatch97.includes('adminQueryKeys.auditEvents(applied)')
+    && auditListUxBatch97.includes('next.action = action')
+    && auditListUxBatch97.includes('next.level = draftLevel')
+    && auditListUxBatch97.includes('next.user_id = userId')
+    && auditListUxBatch97.includes('next.date_from = draftFrom')
+    && auditListUxBatch97.includes('next.date_to = draftTo')
+    && auditListUxBatch97.includes('DataList<AdminAuditEventSummary>')
+    && auditListUxBatch97.includes("pathname: '/admin/audit/[id]'")
+    && auditListUxBatch97.includes('response.capabilities.detail')
+    && auditListUxBatch97.includes('response.capabilities.export')
+    && auditListUxBatch97.includes('openAdminAuditExport(applied)')
+    && auditListUxBatch97.includes('response.capabilities.mutate'),
+  'v1.0 Batch97 Audit list UX preserves security.view, server filters, pagination, safe detail, secure CSV and read-only capability contracts.',
+);
+assert(
+  auditListUxBatch97.includes('Datum Do ne može biti pre datuma Od.')
+    && auditListUxBatch97.includes('Raw context_json i user_agent nisu izloženi')
+    && auditListUxBatch97.includes('Mutacije i brisanje audit zapisa ostaju isključeni'),
+  'v1.0 Batch97 Audit UX preserves date validation, sanitized payload disclosure and explicit no-mutation policy.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(auditListUxBatch97),
+  'v1.0 Batch97 Audit list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_FIELD_OPERATIONS_LIST_UX_REORGANIZATION_BATCH96_VALIDATOR
 const fieldOperationsListUxBatch96 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/field-operations/index.tsx'),
