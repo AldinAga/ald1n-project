@@ -2319,6 +2319,47 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_COMMISSIONS_LIST_UX_REORGANIZATION_BATCH91_VALIDATOR
+const commissionsListUxBatch91 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/commissions/index.tsx'),
+  'utf8',
+);
+assert(
+  commissionsListUxBatch91.includes('MOBILE_V1_0_ADMIN_COMMISSIONS_LIST_UX_REORGANIZATION_BATCH91')
+    && commissionsListUxBatch91.includes("type CommissionListWorkspace = 'overview' | 'commissions' | 'filters' | 'bulk' | 'exports'")
+    && commissionsListUxBatch91.includes('Radni prostor provizija')
+    && commissionsListUxBatch91.includes("label: 'Pregled'")
+    && commissionsListUxBatch91.includes("label: 'Provizije'")
+    && commissionsListUxBatch91.includes("label: 'Filteri'")
+    && commissionsListUxBatch91.includes("label: 'Masovna isplata'")
+    && commissionsListUxBatch91.includes("label: 'Izvoz'")
+    && commissionsListUxBatch91.includes("workspace === 'overview'")
+    && commissionsListUxBatch91.includes("workspace === 'commissions'")
+    && commissionsListUxBatch91.includes("workspace === 'filters'")
+    && commissionsListUxBatch91.includes("workspace === 'bulk'")
+    && commissionsListUxBatch91.includes("workspace === 'exports'"),
+  'v1.0 Batch91 Admin Commissions list is organized into overview, commissions, filters, bulk payment and export workspaces.',
+);
+assert(
+  commissionsListUxBatch91.includes("can('commissions.manage')")
+    && commissionsListUxBatch91.includes('apiAdminCommissions.list')
+    && commissionsListUxBatch91.includes('apiAdminCommissions.bulkPay')
+    && commissionsListUxBatch91.includes('openAdminCommissionExport')
+    && commissionsListUxBatch91.includes('adminQueryKeys.commissionsList(params)')
+    && commissionsListUxBatch91.includes('adminQueryKeys.commissions()')
+    && commissionsListUxBatch91.includes('data.capabilities.can_filter_people')
+    && commissionsListUxBatch91.includes('data.capabilities.bulk_pay')
+    && commissionsListUxBatch91.includes('data.capabilities.exports')
+    && commissionsListUxBatch91.includes('data.filters.payment_methods')
+    && commissionsListUxBatch91.includes('setSelectedIds([])')
+    && commissionsListUxBatch91.includes('per_page: 40'),
+  'v1.0 Batch91 Commissions list UX preserves permission, filters, pagination, secure exports, bulk payment and server capability contracts.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(commissionsListUxBatch91),
+  'v1.0 Batch91 Commissions list UX does not restore Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_WARRANTY_RULES_UX_REORGANIZATION_BATCH90_VALIDATOR
 const warrantyRulesUxBatch90 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/warranties/rules.tsx'),

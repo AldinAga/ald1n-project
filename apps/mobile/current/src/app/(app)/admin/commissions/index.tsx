@@ -36,6 +36,17 @@ const STATUS_OPTIONS: Array<{ value: AdminCommissionStatus; label: string }> = [
   { value: 'cancelled', label: 'Stornirana' },
 ];
 
+// MOBILE_V1_0_ADMIN_COMMISSIONS_LIST_UX_REORGANIZATION_BATCH91
+type CommissionListWorkspace = 'overview' | 'commissions' | 'filters' | 'bulk' | 'exports';
+
+const COMMISSION_LIST_WORKSPACE_OPTIONS: Array<{ value: CommissionListWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Klucni iznosi i statusi provizija sa brzim ulazom u operativni rad.' },
+  { value: 'commissions', label: 'Provizije', description: 'Lista provizija, statusi, odgovorna lica, izbor za isplatu i paginacija.' },
+  { value: 'filters', label: 'Filteri', description: 'Pretraga, status, period, korisnik i odgovorno lice na jednom mestu.' },
+  { value: 'bulk', label: 'Masovna isplata', description: 'Kontrolisana isplata samo odobrenih i server-eligible provizija.' },
+  { value: 'exports', label: 'Izvoz', description: 'Postojeci autorizovani CSV i PDF izvoz kroz secure admin flow.' },
+];
+
 function positiveId(value: string): number | undefined {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
@@ -69,6 +80,7 @@ export default function AdminCommissionsIndexScreen() {
   const [bulkNote, setBulkNote] = useState('');
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null> (null);
+  const [workspace, setWorkspace] = useState<CommissionListWorkspace> ('overview');
 
   const params = useMemo(() => {
     const value: AdminCommissionListParams = { page, per_page: 40 };
@@ -114,12 +126,14 @@ export default function AdminCommissionsIndexScreen() {
     setAppliedTo(draftTo.trim());
     setPage(1);
     setSelectedIds([]);
+    setWorkspace('commissions');
   };
 
   const clearFilters = () => {
     setDraftQ(''); setDraftFrom(''); setDraftTo('');
     setAppliedQ(''); setAppliedFrom(''); setAppliedTo('');
     setStatus(undefined); setUserId(''); setSupplierId(''); setPage(1); setSelectedIds([]);
+    setWorkspace('commissions');
   };
 
   const toggleSelected = (id: number) => {
@@ -154,57 +168,115 @@ export default function AdminCommissionsIndexScreen() {
   const activeCount = Number(Boolean(appliedQ)) + Number(Boolean(status)) + Number(Boolean(appliedFrom)) + Number(Boolean(appliedTo)) + Number(Boolean(userId)) + Number(Boolean(supplierId));
   const canPrevious = data.meta.current_page > 1;
   const canNext = data.meta.current_page < data.meta.last_page;
+  const workspaceMeta = COMMISSION_LIST_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+
+  const selectWorkspace = (next: CommissionListWorkspace) => {
+    setConfirmBulk(false);
+    setWorkspace(next);
+  };
 
   const header = (
     <View style={styles.header}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ Administracija</Text></Pressable>
       <PageHeader title="Provizije" eyebrow="Admin · Wave A" name={bootstrap?.user.name} />
-      <Text style={styles.copy}>Odobravanje, isplata, storniranje i izvoz koriste postojeću CMS poslovnu logiku.</Text>
+      <Text style={styles.copy}>Odobravanje, isplata, storniranje i izvoz koriste postojecu CMS poslovnu logiku.</Text>
 
-      <View style={styles.summaryGrid}>
-        <SummaryCard label="Na čekanju" value={formatMoney(data.summary.pending_eur, 'EUR')} count={data.summary.pending_count} styles={styles} />
-        <SummaryCard label="Odobreno" value={formatMoney(data.summary.approved_eur, 'EUR')} count={data.summary.approved_count} styles={styles} />
-        <SummaryCard label="Isplaćeno" value={formatMoney(data.summary.paid_eur, 'EUR')} count={data.summary.paid_count} styles={styles} />
-        <SummaryCard label="Stornirano" value={formatMoney(data.summary.cancelled_eur, 'EUR')} count={data.summary.cancelled_count} styles={styles} />
-      </View>
-
-      <Card style={styles.filtersCard}>
-        <Text style={styles.sectionTitle}>Filteri</Text>
-        <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="Porudžbina, korisnik ili e-mail" />
-        <FilterBar activeCount={activeCount} onClear={clearFilters}>
-          {STATUS_OPTIONS.map((item) => <FilterChip key={item.value} label={item.label} active={status === item.value} onPress={() => { setStatus(status === item.value ? undefined : item.value); setPage(1); }} />)}
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor provizija</Text>
+        <Text style={styles.copy}>{workspaceMeta?.description ?? 'Izaberi deo provizija koji zelis da obradis.'}</Text>
+        <FilterBar>
+          {COMMISSION_LIST_WORKSPACE_OPTIONS.filter((option) => (option.value !== 'bulk' || data.capabilities.bulk_pay) && (option.value !== 'exports' || data.capabilities.exports)).map((option) => (
+            <FilterChip key={option.value} label={option.label} active={workspace === option.value} onPress={() => selectWorkspace(option.value)} />
+          ))}
         </FilterBar>
-        <DateTimeField label="Od datuma" mode="date" value={draftFrom} onChangeText={setDraftFrom} />
-        <DateTimeField label="Do datuma" mode="date" value={draftTo} onChangeText={setDraftTo} />
-        {data.capabilities.can_filter_people ? (
-          <>
-            <SelectSheet label="Korisnik" value={userId} options={[{ value: '', label: 'Svi korisnici' }, ...data.filters.users.map((item) => ({ value: String(item.id), label: item.email ? `${item.label} · ${item.email}` : item.label }))]} onChange={(value) => { setUserId(value); setPage(1); }} />
-            <SelectSheet label="Odgovorno lice" value={supplierId} options={[{ value: '', label: 'Sva odgovorna lica' }, ...data.filters.suppliers.map((item) => ({ value: String(item.id), label: item.email ? `${item.label} · ${item.email}` : item.label }))]} onChange={(value) => { setSupplierId(value); setPage(1); }} />
-          </>
-        ) : null}
-        <Button onPress={applyFilters}>Primeni filtere</Button>
       </Card>
 
-      {data.capabilities.exports ? (
-        <View style={styles.actionsRow}>
-          <Button variant="secondary" loading={exporting === 'csv'} disabled={exporting !== null} onPress={() => void runExport('csv')}>CSV</Button>
-          <Button variant="secondary" loading={exporting === 'pdf'} disabled={exporting !== null} onPress={() => void runExport('pdf')}>PDF</Button>
-        </View>
+      {workspace === 'overview' ? (
+        <>
+          <View style={styles.summaryGrid}>
+            <SummaryCard label="Na cekanju" value={formatMoney(data.summary.pending_eur, 'EUR')} count={data.summary.pending_count} styles={styles} />
+            <SummaryCard label="Odobreno" value={formatMoney(data.summary.approved_eur, 'EUR')} count={data.summary.approved_count} styles={styles} />
+            <SummaryCard label="Isplaceno" value={formatMoney(data.summary.paid_eur, 'EUR')} count={data.summary.paid_count} styles={styles} />
+            <SummaryCard label="Stornirano" value={formatMoney(data.summary.cancelled_eur, 'EUR')} count={data.summary.cancelled_count} styles={styles} />
+          </View>
+          <Card style={styles.overviewCard}>
+            <Text style={styles.sectionTitle}>Fokus provizija</Text>
+            <Text style={styles.copy}>Ukupno zapisa u trenutnom server scope-u: {data.meta.total}. Za obradu otvori Provizije, ciljane Filtere ili Masovnu isplatu.</Text>
+            <View style={styles.actionsRow}>
+              <Button onPress={() => selectWorkspace('commissions')}>Otvori provizije</Button>
+              <Button variant="secondary" onPress={() => selectWorkspace('filters')}>Filteri</Button>
+              {data.capabilities.bulk_pay ? <Button variant="secondary" onPress={() => selectWorkspace('bulk')}>Masovna isplata</Button> : null}
+              {data.capabilities.exports ? <Button variant="secondary" onPress={() => selectWorkspace('exports')}>Izvoz</Button> : null}
+            </View>
+          </Card>
+        </>
       ) : null}
 
-      {selectedIds.length > 0 && data.capabilities.bulk_pay ? (
-        <Card style={styles.bulkCard}>
-          <Text style={styles.sectionTitle}>Masovna isplata · {selectedIds.length}</Text>
-          <SelectSheet label="Način isplate" value={bulkMethod} options={data.filters.payment_methods.map((item) => ({ value: item.value, label: item.label }))} onChange={(value) => { if (value === 'bank_transfer' || value === 'cash' || value === 'other') setBulkMethod(value); }} />
-          <TextField label="Referenca" value={bulkReference} onChangeText={setBulkReference} placeholder="Broj naloga ili interne evidencije" />
-          <TextField label="Napomena" value={bulkNote} onChangeText={setBulkNote} placeholder="Opciona napomena" />
-          <Button disabled={!bulkMethod} loading={bulkMutation.isPending} onPress={() => setConfirmBulk(true)}>Označi kao isplaćene</Button>
+      {workspace === 'filters' ? (
+        <Card style={styles.filtersCard}>
+          <Text style={styles.sectionTitle}>Filteri</Text>
+          <TextField label="Pretraga" value={draftQ} onChangeText={setDraftQ} placeholder="Porudzbina, korisnik ili e-mail" />
+          <FilterBar activeCount={activeCount} onClear={clearFilters}>
+            {STATUS_OPTIONS.map((item) => <FilterChip key={item.value} label={item.label} active={status === item.value} onPress={() => { setStatus(status === item.value ? undefined : item.value); setPage(1); }} />)}
+          </FilterBar>
+          <DateTimeField label="Od datuma" mode="date" value={draftFrom} onChangeText={setDraftFrom} />
+          <DateTimeField label="Do datuma" mode="date" value={draftTo} onChangeText={setDraftTo} />
+          {data.capabilities.can_filter_people ? (
+            <>
+              <SelectSheet label="Korisnik" value={userId} options={[{ value: '', label: 'Svi korisnici' }, ...data.filters.users.map((item) => ({ value: String(item.id), label: item.email ? item.label + ' - ' + item.email : item.label }))]} onChange={(value) => { setUserId(value); setPage(1); }} />
+              <SelectSheet label="Odgovorno lice" value={supplierId} options={[{ value: '', label: 'Sva odgovorna lica' }, ...data.filters.suppliers.map((item) => ({ value: String(item.id), label: item.email ? item.label + ' - ' + item.email : item.label }))]} onChange={(value) => { setSupplierId(value); setPage(1); }} />
+            </>
+          ) : null}
+          <Button onPress={applyFilters}>Primeni filtere</Button>
+        </Card>
+      ) : null}
+
+      {workspace === 'bulk' && data.capabilities.bulk_pay ? (
+        selectedIds.length > 0 ? (
+          <Card style={styles.bulkCard}>
+            <Text style={styles.sectionTitle}>Masovna isplata · {selectedIds.length}</Text>
+            <SelectSheet label="Nacin isplate" value={bulkMethod} options={data.filters.payment_methods.map((item) => ({ value: item.value, label: item.label }))} onChange={(value) => { if (value === 'bank_transfer' || value === 'cash' || value === 'other') setBulkMethod(value); }} />
+            <TextField label="Referenca" value={bulkReference} onChangeText={setBulkReference} placeholder="Broj naloga ili interne evidencije" />
+            <TextField label="Napomena" value={bulkNote} onChangeText={setBulkNote} placeholder="Opciona napomena" />
+            <View style={styles.actionsRow}>
+              <Button disabled={!bulkMethod} loading={bulkMutation.isPending} onPress={() => setConfirmBulk(true)}>Oznaci kao isplacene</Button>
+              <Button variant="secondary" onPress={() => selectWorkspace('commissions')}>Promeni izbor</Button>
+            </View>
+          </Card>
+        ) : (
+          <Card style={styles.overviewCard}>
+            <Text style={styles.sectionTitle}>Nema izabranih provizija</Text>
+            <Text style={styles.copy}>U radnom prostoru Provizije izaberi server-eligible odobrene stavke, pa se vrati na Masovnu isplatu.</Text>
+            <Button onPress={() => selectWorkspace('commissions')}>Izaberi provizije</Button>
+          </Card>
+        )
+      ) : null}
+
+      {workspace === 'exports' && data.capabilities.exports ? (
+        <Card style={styles.overviewCard}>
+          <Text style={styles.sectionTitle}>Izvoz provizija</Text>
+          <Text style={styles.copy}>CSV i PDF koriste postojeci autorizovani Bearer/cache/share tok i trenutne server filtere.</Text>
+          <View style={styles.actionsRow}>
+            <Button variant="secondary" loading={exporting === 'csv'} disabled={exporting !== null} onPress={() => void runExport('csv')}>CSV</Button>
+            <Button variant="secondary" loading={exporting === 'pdf'} disabled={exporting !== null} onPress={() => void runExport('pdf')}>PDF</Button>
+          </View>
+        </Card>
+      ) : null}
+
+      {workspace === 'commissions' ? (
+        <Card style={styles.listIntroCard}>
+          <Text style={styles.sectionTitle}>Lista provizija</Text>
+          <Text style={styles.copy}>{data.meta.total} ukupno · izabrano za isplatu {selectedIds.length}</Text>
+          <View style={styles.actionsRow}>
+            <Button variant="secondary" onPress={() => void query.refetch()}>{query.isRefetching ? 'Osvezavanje...' : 'Osvezi'}</Button>
+            {selectedIds.length > 0 && data.capabilities.bulk_pay ? <Button onPress={() => selectWorkspace('bulk')}>Nastavi na isplatu</Button> : null}
+          </View>
         </Card>
       ) : null}
     </View>
   );
 
-  const footer = (
+  const footer = workspace === 'commissions' ? (
     <View style={styles.pagination}>
       <Text style={styles.pageMeta}>Strana {data.meta.current_page} / {data.meta.last_page} · {data.meta.total} zapisa</Text>
       <View style={styles.actionsRow}>
@@ -212,20 +284,20 @@ export default function AdminCommissionsIndexScreen() {
         <Button variant="secondary" disabled={!canNext} onPress={() => setPage((current) => current + 1)}>Sledeća</Button>
       </View>
     </View>
-  );
+  ) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <DataList
-        data={data.data}
+        data={workspace === 'commissions' ? data.data : []}
         keyExtractor={(item) => String(item.id)}
         renderItem={(item) => <CommissionCard item={item} selected={selectedIds.includes(item.id)} onToggle={() => toggleSelected(item.id)} onOpen={() => router.push({ pathname: '/admin/commissions/[id]', params: { id: String(item.id) } })} styles={styles} />}
         header={header}
         footer={footer}
         refreshing={query.isRefetching}
         onRefresh={() => void query.refetch()}
-        emptyTitle="Nema provizija"
-        emptyMessage="Nema provizija za izabrane filtere."
+        emptyTitle={workspace === 'commissions' ? 'Nema provizija' : 'Radni prostor je spreman'}
+        emptyMessage={workspace === 'commissions' ? 'Nema provizija za izabrane filtere.' : workspaceMeta?.description ?? 'Izaberi narednu akciju iz kontrola iznad.'}
       />
       <ConfirmAction visible={confirmBulk} title="Potvrdi masovnu isplatu" message={`Označiti ${selectedIds.length} izabranih odobrenih provizija kao isplaćene?`} confirmLabel="Isplati" busy={bulkMutation.isPending} onCancel={() => setConfirmBulk(false)} onConfirm={() => { setConfirmBulk(false); confirmBulkPay(); }} />
     </SafeAreaView>
@@ -261,6 +333,9 @@ function createStyles(theme: AppColors) {
     summaryCard: { width: '48%', gap: spacing.xs },
     summaryValue: { ...typography.h3, color: theme.ink },
     summaryLabel: { ...typography.small, color: theme.muted },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
+    overviewCard: { gap: spacing.md },
+    listIntroCard: { gap: spacing.md },
     filtersCard: { gap: spacing.md },
     bulkCard: { gap: spacing.md, borderWidth: 1, borderColor: theme.primary },
     sectionTitle: { ...typography.h3, color: theme.ink },
