@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DateTimeField } from '@/components/ui/date-time-field';
 import { MoneyField } from '@/components/ui/money-field';
+import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
@@ -36,8 +37,18 @@ import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 import type { AfterSalesUploadFile } from '@/types/api';
 
+// MOBILE_V1_0_ADMIN_AFTER_SALES_DETAIL_UX_REORGANIZATION_BATCH83
+type AfterSalesWorkspace = 'overview' | 'case' | 'communication' | 'actions' | 'history';
 type Panel = 'update' | 'message' | 'action-create' | 'action-complete' | 'action-cancel' | null;
 type ActionItemState = { selected: boolean; quantity: string; disposition: string };
+
+const AFTER_SALES_WORKSPACE_OPTIONS: Array<{ value: AfterSalesWorkspace; label: string; description: string }> = [
+  { value: 'overview', label: 'Pregled', description: 'Status, rok i sažetak sadržaja postprodajnog slučaja.' },
+  { value: 'case', label: 'Slučaj', description: 'Kupac, zahtev, pogođene stavke, prilozi i izmena slučaja.' },
+  { value: 'communication', label: 'Komunikacija', description: 'Javne i interne poruke sa bezbednim prilozima.' },
+  { value: 'actions', label: 'Radnje', description: 'Izvršne radnje, terenski nalozi, završetak i otkazivanje.' },
+  { value: 'history', label: 'Istorija', description: 'Read-only sled promena statusa i audit kontekst.' },
+];
 
 function statusTone(status: string): PillTone {
   if (status === 'resolved' || status === 'approved' || status === 'closed' || status === 'completed') return 'success';
@@ -79,6 +90,7 @@ export default function AdminAfterSalesDetailScreen() {
   const allowed = can('after_sales.manage');
   const validId = Number.isInteger(caseId) && caseId > 0;
 
+  const [workspace, setWorkspace] = useState<AfterSalesWorkspace> ('overview');
   const [panel, setPanel] = useState<Panel> (null);
   const [statusValue, setStatusValue] = useState('');
   const [priorityValue, setPriorityValue] = useState('');
@@ -159,8 +171,16 @@ export default function AdminAfterSalesDetailScreen() {
     .filter(([value]) => value !== 'refund' || data.capabilities.refund)
     .map(([value, label]) => ({ value, label }));
   const dispositionOptions = optionsFromMap(data.options.actions.dispositions);
+  const workspaceMeta = AFTER_SALES_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+
+  const selectWorkspace = (next: AfterSalesWorkspace) => {
+    setWorkspace(next);
+    setPanel(null);
+    setSelectedActionId(null);
+  };
 
   const openUpdate = () => {
+    setWorkspace('case');
     setStatusValue(data.status);
     setPriorityValue(data.priority);
     setAssigneeId(data.assignee ? String(data.assignee.id) : '');
@@ -199,6 +219,7 @@ export default function AdminAfterSalesDetailScreen() {
   };
 
   const openActionCreate = () => {
+    setWorkspace('actions');
     setActionType(availableActionTypes[0]?.value ?? '');
     setInventoryHandling(Object.keys(data.options.actions.inventory_handling)[0] ?? 'none');
     setActionAssigneeId('');
@@ -295,6 +316,7 @@ export default function AdminAfterSalesDetailScreen() {
   };
 
   const openComplete = (action: AdminAfterSalesAction) => {
+    setWorkspace('actions');
     setSelectedActionId(action.id);
     setCompletionReference(action.reference ?? '');
     setCompletionNote('');
@@ -302,6 +324,7 @@ export default function AdminAfterSalesDetailScreen() {
   };
 
   const openCancel = (action: AdminAfterSalesAction) => {
+    setWorkspace('actions');
     setSelectedActionId(action.id);
     setCancellationReason('');
     setPanel('action-cancel');
@@ -332,10 +355,33 @@ export default function AdminAfterSalesDetailScreen() {
         <Text style={styles.sectionTitle}>Operativne akcije</Text>
         <View style={styles.actions}>
           {data.capabilities.update ? <Button variant="secondary" onPress={openUpdate}>Izmeni slučaj</Button> : null}
-          {data.capabilities.message ? <Button variant="secondary" onPress={() => setPanel('message')}>Nova poruka</Button> : null}
+          {data.capabilities.message ? <Button variant="secondary" onPress={() => { setWorkspace('communication'); setPanel('message'); }}>Nova poruka</Button> : null}
           {data.capabilities.execute ? <Button variant="secondary" onPress={openActionCreate}>Nova izvršna radnja</Button> : null}
           <Button variant="secondary" onPress={() => void query.refetch()}>Osveži detalj</Button>
         </View>
+      </Card>
+
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor postprodaje</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo slučaja koji želiš da obradiš.'}</Text>
+        <FilterBar>
+          {AFTER_SALES_WORKSPACE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={workspace === option.value}
+              onPress={() => selectWorkspace(option.value)}
+            />
+          ))}
+        </FilterBar>
+      </Card>
+
+      <Card style={[styles.section, workspace !== 'overview' && styles.hidden]}>
+        <Text style={styles.sectionTitle}>Pregled slučaja</Text>
+        <Text style={styles.meta}>Status: {data.status_label} · Prioritet: {data.priority_label}</Text>
+        <Text style={styles.meta}>Pogođene stavke: {data.items.length} · Prilozi: {data.attachments.length}</Text>
+        <Text style={styles.meta}>Poruke: {data.messages.length} · Izvršne radnje: {data.actions.length}</Text>
+        <Text style={styles.meta}>Istorija statusa: {data.history.length} zapisa</Text>
       </Card>
 
       {panel === 'update' ? (
@@ -427,7 +473,7 @@ export default function AdminAfterSalesDetailScreen() {
         </Card>
       ) : null}
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'case' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Kupac i zahtev</Text>
         <Text style={styles.meta}>Kupac: {data.customer_snapshot.name ?? '—'}</Text>
         <Text style={styles.meta}>Telefon: {data.customer_snapshot.phone ?? '—'}</Text>
@@ -437,7 +483,7 @@ export default function AdminAfterSalesDetailScreen() {
         {data.resolution_summary ? <Text style={styles.body}>{data.resolution_summary}</Text> : null}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'case' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Pogođene stavke</Text>
         {data.items.map((item) => (
           <View key={item.id} style={styles.lineRow}>
@@ -446,7 +492,7 @@ export default function AdminAfterSalesDetailScreen() {
         ))}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'case' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Prilozi slučaja</Text>
         {data.attachments.length === 0 ? <Text style={styles.meta}>Nema priloga.</Text> : data.attachments.map((attachment) => (
           <View key={attachment.id} style={styles.fileRow}>
@@ -456,7 +502,7 @@ export default function AdminAfterSalesDetailScreen() {
         ))}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'communication' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Komunikacija</Text>
         {data.messages.length === 0 ? <Text style={styles.meta}>Nema poruka.</Text> : data.messages.map((message) => (
           <View key={message.id} style={styles.messageCard}>
@@ -473,7 +519,7 @@ export default function AdminAfterSalesDetailScreen() {
         ))}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'actions' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Izvršne radnje</Text>
         {data.actions.length === 0 ? <Text style={styles.meta}>Nema izvršnih radnji.</Text> : data.actions.map((action) => (
           <Card key={action.id} style={styles.actionCard}>
@@ -490,7 +536,7 @@ export default function AdminAfterSalesDetailScreen() {
         ))}
       </Card>
 
-      <Card style={styles.section}>
+      <Card style={[styles.section, workspace !== 'history' && styles.hidden]}>
         <Text style={styles.sectionTitle}>Istorija statusa</Text>
         {data.history.length === 0 ? <Text style={styles.meta}>Nema istorije.</Text> : data.history.map((entry) => (
           <View key={entry.id} style={styles.lineRow}>
@@ -508,7 +554,9 @@ function createStyles(theme: AppColors) {
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     hero: { gap: spacing.sm },
     section: { gap: spacing.md },
+    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     panel: { gap: spacing.md, borderColor: theme.primary },
+    hidden: { display: 'none' },
     subject: { ...typography.h2, color: theme.ink },
     sectionTitle: { ...typography.h3, color: theme.ink },
     itemTitle: { ...typography.label, color: theme.ink },

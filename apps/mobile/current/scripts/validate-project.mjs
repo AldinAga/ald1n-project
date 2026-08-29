@@ -2319,6 +2319,43 @@ assert(
   ),
   'v1.0 USER-02 parity ne vraća Product Variants contract.',
 );
+// MOBILE_V1_0_ADMIN_AFTER_SALES_DETAIL_UX_REORGANIZATION_BATCH83_VALIDATOR
+const afterSalesDetailUxBatch83 = fs.readFileSync(
+  path.join(root, 'src/app/(app)/admin/after-sales/[id].tsx'),
+  'utf8',
+);
+assert(
+  afterSalesDetailUxBatch83.includes('MOBILE_V1_0_ADMIN_AFTER_SALES_DETAIL_UX_REORGANIZATION_BATCH83')
+    && afterSalesDetailUxBatch83.includes("type AfterSalesWorkspace = 'overview' | 'case' | 'communication' | 'actions' | 'history'")
+    && afterSalesDetailUxBatch83.includes('Radni prostor postprodaje')
+    && afterSalesDetailUxBatch83.includes("label: 'Pregled'")
+    && afterSalesDetailUxBatch83.includes("label: 'Slučaj'")
+    && afterSalesDetailUxBatch83.includes("label: 'Komunikacija'")
+    && afterSalesDetailUxBatch83.includes("label: 'Radnje'")
+    && afterSalesDetailUxBatch83.includes("label: 'Istorija'")
+    && afterSalesDetailUxBatch83.includes("workspace !== 'case' && styles.hidden")
+    && afterSalesDetailUxBatch83.includes("workspace !== 'communication' && styles.hidden")
+    && afterSalesDetailUxBatch83.includes("workspace !== 'actions' && styles.hidden")
+    && afterSalesDetailUxBatch83.includes("workspace !== 'history' && styles.hidden"),
+  'v1.0 Batch83 Admin After-sales detalj je organizovan u Pregled, Slučaj, Komunikacija, Radnje i Istorija radne prostore.',
+);
+assert(
+  afterSalesDetailUxBatch83.includes("can('after_sales.manage')")
+    && afterSalesDetailUxBatch83.includes('apiAdminAfterSales.update')
+    && afterSalesDetailUxBatch83.includes('apiAdminAfterSales.message')
+    && afterSalesDetailUxBatch83.includes('apiAdminAfterSales.actionCreate')
+    && afterSalesDetailUxBatch83.includes('apiAdminAfterSales.actionComplete')
+    && afterSalesDetailUxBatch83.includes('apiAdminAfterSales.actionCancel')
+    && afterSalesDetailUxBatch83.includes('openAdminAfterSalesAttachment')
+    && afterSalesDetailUxBatch83.includes('pickAfterSalesAttachments')
+    && afterSalesDetailUxBatch83.includes('data.capabilities.refund'),
+  'v1.0 Batch83 After-sales UX čuva postojeći permission, update, message, attachment, execute, complete, cancel i refund capability poslovni ugovor.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(afterSalesDetailUxBatch83),
+  'v1.0 Batch83 After-sales UX ne vraća Product Variants contract.',
+);
+
 // MOBILE_V1_0_ADMIN_INVENTORY_UX_REORGANIZATION_BATCH82_VALIDATOR
 const inventoryUxBatch82 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/inventory/index.tsx'),
