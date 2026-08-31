@@ -3048,6 +3048,78 @@ assert(
   'Web i Mobile jasno prikazuju NBS javnu listu primary, Frankfurter secondary i sacuvani kurs emergency fallback semantiku.',
 );
 
+// MOBILE_V1_0_PRODUCT_IMAGE_PERFORMANCE_OPTIMIZATION_BATCH116_VALIDATOR
+const imagePerfCardB116 = fs.readFileSync(path.join(root, 'src/components/catalog/product-card.tsx'), 'utf8');
+const imagePerfGalleryB116 = fs.readFileSync(path.join(root, 'src/components/catalog/product-image-gallery.tsx'), 'utf8');
+const imagePerfDownloadB116 = fs.readFileSync(path.join(root, 'src/features/catalog/product-image-download.ts'), 'utf8');
+const imagePerfManagerB116 = fs.readFileSync(path.join(root, 'src/features/catalog/product-image-manager.tsx'), 'utf8');
+const imagePerfDetailB116 = fs.readFileSync(path.join(root, 'src/app/(app)/product/[slug].tsx'), 'utf8');
+const imagePerfCartB116 = fs.readFileSync(path.join(root, 'src/app/(app)/cart.tsx'), 'utf8');
+const imagePerfTypesB116 = fs.readFileSync(path.join(root, 'src/types/api.ts'), 'utf8');
+const imagePerfModelB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Models/ProductImage.php'), 'utf8');
+const imagePerfResourceB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Resources/ProductResource.php'), 'utf8');
+const imagePerfDerivativeB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/ProductImageDerivativeService.php'), 'utf8');
+const imagePerfServiceB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/ProductImageService.php'), 'utf8');
+assert(
+  packageJson.dependencies?.['expo-image'] === '~57.0.3'
+    && packageLockJson.packages?.['']?.dependencies?.['expo-image'] === '~57.0.3'
+    && /^57\.0\./.test(String(packageLockJson.packages?.['node_modules/expo-image']?.version ?? '')),
+  'Batch116 expo-image je SDK57-kompatibilan i zaključan u package/lock authority.',
+);
+assert(
+  imagePerfTypesB116.includes('primary_image_thumbnail_url')
+    && imagePerfTypesB116.includes('primary_image_display_url')
+    && imagePerfTypesB116.includes('original_url?: Nullable<string>')
+    && imagePerfTypesB116.includes('thumbnail_url: string | null;'),
+  'Batch116 Mobile tipovi odvajaju original, display i thumbnail image URL-ove.',
+);
+assert(
+  imagePerfCardB116.includes("from 'expo-image'")
+    && imagePerfCardB116.includes('primary_image_thumbnail_url')
+    && imagePerfCardB116.includes('cachePolicy="memory-disk"')
+    && imagePerfGalleryB116.includes('<FlatList')
+    && imagePerfGalleryB116.includes('initialNumToRender={2}')
+    && imagePerfGalleryB116.includes('image.thumbnail_url')
+    && imagePerfGalleryB116.includes('image.display_url')
+    && imagePerfGalleryB116.includes('cachePolicy="memory-disk"'),
+  'Batch116 katalog i galerija koriste thumbnail/display derivatives, expo-image cache i horizontalnu virtualizaciju.',
+);
+assert(
+  imagePerfDownloadB116.includes('originalUrl: string;')
+    && imagePerfDownloadB116.includes('fetch(input.originalUrl')
+    && !imagePerfDownloadB116.includes('fetch(input.displayUrl')
+    && !imagePerfDownloadB116.includes('fetch(input.thumbnailUrl')
+    && imagePerfGalleryB116.includes('originalUrl: image.originalUrl'),
+  'Batch116 Download je zaključan isključivo na canonical original full-quality URL.',
+);
+assert(
+  imagePerfManagerB116.includes("from 'expo-image'")
+    && imagePerfManagerB116.includes('image.thumbnail_url ?? image.display_url ?? image.original_url ?? image.url')
+    && imagePerfDetailB116.includes('primary_image_thumbnail_url')
+    && imagePerfCartB116.includes("from 'expo-image'")
+    && imagePerfCartB116.includes('cachePolicy="memory-disk"'),
+  'Batch116 edit/create preview, product detail i cart koriste optimizovan image presentation path.',
+);
+assert(
+  imagePerfModelB116.includes('getOriginalUrlAttribute')
+    && imagePerfModelB116.includes('getThumbnailUrlAttribute')
+    && imagePerfModelB116.includes('getDisplayUrlAttribute')
+    && imagePerfDerivativeB116.includes('THUMBNAIL_MAX_EDGE = 512')
+    && imagePerfDerivativeB116.includes('DISPLAY_MAX_EDGE = 1600')
+    && imagePerfDerivativeB116.includes("setImageFormat('webp')")
+    && imagePerfResourceB116.includes("'primary_image_thumbnail_url'")
+    && imagePerfResourceB116.includes("'original_url' =>")
+    && imagePerfServiceB116.includes('ensureSafe($createdImage)')
+    && imagePerfServiceB116.includes('refreshSafe($image)'),
+  'Batch116 backend pravi odvojene WebP derivatives, čuva original i automatski osvežava cache nakon upload/clone/rotate.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    imagePerfCardB116 + imagePerfGalleryB116 + imagePerfDownloadB116 + imagePerfManagerB116 + imagePerfDetailB116
+  ),
+  'Batch116 image performance rad ne vraća Product Variants contract.',
+);
+
 process.exit(failures === 0 ? 0 : 1);
 
 

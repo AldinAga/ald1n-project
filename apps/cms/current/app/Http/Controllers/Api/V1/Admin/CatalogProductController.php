@@ -542,6 +542,9 @@ final class CatalogProductController extends Controller
         return [
             'id' => (int) $image->id,
             'url' => $image->url,
+            'original_url' => $image->original_url,
+            'display_url' => $image->display_url,
+            'thumbnail_url' => $image->thumbnail_url,
             'download_url' => $image->download_url,
             'original_filename' => $image->original_filename ?: null,
             'mime_type' => $image->mime_type ?: null,

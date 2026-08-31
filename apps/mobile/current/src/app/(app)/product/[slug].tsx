@@ -44,7 +44,9 @@ export default function ProductDetailScreen() {
   const stock = product.stock_quantity;
   const price = product.price ?? null;
   const selectedSku = product.sku;
-  const imageUrl = product.primary_image_url;
+  const cartImageUrl = product.primary_image_thumbnail_url
+    ?? product.primary_image_display_url
+    ?? product.primary_image_url;
   const canAdd = canCreateOrder && stock > 0;
 
   const copyDescription = async () => {
@@ -76,7 +78,7 @@ export default function ProductDetailScreen() {
       price,
       quantity,
       maxQuantity: stock,
-      imageUrl
+      imageUrl: cartImageUrl
     });
     void (async () => {
       const openCart = await feedback.confirm({
@@ -102,7 +104,10 @@ export default function ProductDetailScreen() {
       <ProductImageGallery
         mode="detail"
         images={product.images}
-        primaryImageUrl={imageUrl}
+        primaryImageUrl={product.primary_image_url}
+        primaryImageOriginalUrl={product.primary_image_original_url ?? product.primary_image_url}
+        primaryImageDisplayUrl={product.primary_image_display_url ?? product.primary_image_url}
+        primaryImageThumbnailUrl={product.primary_image_thumbnail_url ?? product.primary_image_display_url ?? product.primary_image_url}
         productName={product.name}
         productSku={product.sku}
       />

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
 import {
-  Image,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -27,7 +27,8 @@ type GalleryMode = 'catalog' | 'detail';
 
 type GalleryItem = {
   key: string;
-  url: string;
+  originalUrl: string;
+  displayUrl: string;
   primary: boolean;
 };
 
@@ -36,38 +37,62 @@ type ProductImageGalleryProps = {
   productSku: string;
   productSlug?: string;
   primaryImageUrl?: string | null;
+  primaryImageOriginalUrl?: string | null;
+  primaryImageDisplayUrl?: string | null;
+  primaryImageThumbnailUrl?: string | null;
   images?: ProductImage[];
   mode: GalleryMode;
   stopParentPress?: boolean;
 };
 
+function cleanUrl(value: string | null | undefined): string | null {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : null;
+}
+
 function normalizeImages(
   images: ProductImage[] | undefined,
   primaryImageUrl: string | null | undefined,
+  primaryImageOriginalUrl: string | null | undefined,
+  primaryImageDisplayUrl: string | null | undefined,
+  primaryImageThumbnailUrl: string | null | undefined,
+  mode: GalleryMode,
 ): GalleryItem[] {
   const items: GalleryItem[] = [];
-  const seen = new Set<string>();
+  const seen = new Set<string> ();
 
   for (const image of images ?? []) {
-    const url = image.url?.trim();
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
+    const originalUrl = cleanUrl(image.original_url) ?? cleanUrl(image.url);
+    const displayUrl = mode === 'catalog'
+      ? cleanUrl(image.thumbnail_url) ?? cleanUrl(image.display_url) ?? originalUrl
+      : cleanUrl(image.display_url) ?? cleanUrl(image.thumbnail_url) ?? originalUrl;
+    if (!originalUrl || !displayUrl) continue;
+    const identity = `${image.id}:${originalUrl}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
     items.push({
-      key: `${image.id}-${url}`,
-      url,
+      key: identity,
+      originalUrl,
+      displayUrl,
       primary: Boolean(image.primary),
     });
   }
 
-  const primaryUrl = primaryImageUrl?.trim();
-  if (primaryUrl) {
-    const existing = items.find((item) => item.url === primaryUrl);
+  const primaryOriginal = cleanUrl(primaryImageOriginalUrl) ?? cleanUrl(primaryImageUrl);
+  const primaryDisplay = mode === 'catalog'
+    ? cleanUrl(primaryImageThumbnailUrl) ?? cleanUrl(primaryImageDisplayUrl) ?? primaryOriginal
+    : cleanUrl(primaryImageDisplayUrl) ?? cleanUrl(primaryImageThumbnailUrl) ?? primaryOriginal;
+
+  if (primaryOriginal && primaryDisplay) {
+    const existing = items.find((item) => item.originalUrl === primaryOriginal);
     if (existing) {
       existing.primary = true;
+      existing.displayUrl = primaryDisplay;
     } else {
       items.unshift({
-        key: `primary-${primaryUrl}`,
-        url: primaryUrl,
+        key: `primary:${primaryOriginal}`,
+        originalUrl: primaryOriginal,
+        displayUrl: primaryDisplay,
         primary: true,
       });
     }
@@ -81,6 +106,9 @@ export function ProductImageGallery({
   productSku,
   productSlug,
   primaryImageUrl,
+  primaryImageOriginalUrl,
+  primaryImageDisplayUrl,
+  primaryImageThumbnailUrl,
   images,
   mode,
   stopParentPress = false,
@@ -88,7 +116,7 @@ export function ProductImageGallery({
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
-  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+  const [downloadingKey, setDownloadingKey] = useState<string | null> (null);
 
   const needsDetail = mode === 'catalog' && images === undefined && Boolean(productSlug);
   const detailQuery = useQuery({
@@ -102,8 +130,24 @@ export function ProductImageGallery({
     () => normalizeImages(
       images ?? detailQuery.data?.images,
       detailQuery.data?.primary_image_url ?? primaryImageUrl,
+      detailQuery.data?.primary_image_original_url ?? primaryImageOriginalUrl,
+      detailQuery.data?.primary_image_display_url ?? primaryImageDisplayUrl,
+      detailQuery.data?.primary_image_thumbnail_url ?? primaryImageThumbnailUrl,
+      mode,
     ),
-    [detailQuery.data?.images, detailQuery.data?.primary_image_url, images, primaryImageUrl],
+    [
+      detailQuery.data?.images,
+      detailQuery.data?.primary_image_url,
+      detailQuery.data?.primary_image_original_url,
+      detailQuery.data?.primary_image_display_url,
+      detailQuery.data?.primary_image_thumbnail_url,
+      images,
+      mode,
+      primaryImageDisplayUrl,
+      primaryImageOriginalUrl,
+      primaryImageThumbnailUrl,
+      primaryImageUrl,
+    ],
   );
 
   const stopEvent = (event: GestureResponderEvent) => {
@@ -120,7 +164,7 @@ export function ProductImageGallery({
     setDownloadingKey(image.key);
     try {
       await downloadAndShareProductImage({
-        url: image.url,
+        originalUrl: image.originalUrl,
         productName,
         productSku,
         imageNumber: index + 1,
@@ -178,29 +222,36 @@ export function ProductImageGallery({
         <Text style={styles.count}>{resolvedImages.length} ukupno</Text>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={resolvedImages}
         horizontal
         nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-      >
-        {resolvedImages.map((image, index) => {
+        keyExtractor={(item) => item.key}
+        initialNumToRender={2}
+        maxToRenderPerBatch={3}
+        windowSize={3}
+        removeClippedSubviews
+        renderItem={({ item: image, index }) => {
           const downloading = downloadingKey === image.key;
           return (
             <View
-              key={image.key}
               style={[
                 styles.tile,
                 mode === 'catalog' ? styles.catalogTile : styles.detailTile,
               ]}
             >
               <Image
-                source={{ uri: image.url }}
+                source={{ uri: image.displayUrl }}
                 style={[
                   styles.image,
                   mode === 'catalog' ? styles.catalogImage : styles.detailImage,
                 ]}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                transition={120}
+                recyclingKey={image.key}
               />
 
               <View style={styles.metaRow}>
@@ -210,7 +261,7 @@ export function ProductImageGallery({
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Preuzmi sliku ${index + 1}`}
+                  accessibilityLabel={`Preuzmi originalnu sliku ${index + 1}`}
                   disabled={Boolean(downloadingKey)}
                   onPress={(event) => void handleDownload(image, index, event)}
                   style={({ pressed }) => [
@@ -220,146 +271,43 @@ export function ProductImageGallery({
                   ]}
                 >
                   <Text style={styles.downloadText}>
-                    {downloading ? 'Priprema...' : 'Preuzmi'}
+                    {downloading ? 'Priprema originala...' : 'Preuzmi original'}
                   </Text>
                 </Pressable>
               </View>
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
     </View>
   );
 }
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    root: {
-      gap: spacing.sm,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    title: {
-      ...typography.h3,
-      color: theme.ink,
-    },
-    count: {
-      ...typography.small,
-      color: theme.muted,
-    },
-    scrollContent: {
-      gap: spacing.md,
-      paddingRight: spacing.sm,
-    },
-    tile: {
-      borderWidth: 1,
-      borderColor: theme.line,
-      borderRadius: radii.lg,
-      overflow: 'hidden',
-      backgroundColor: theme.surface,
-    },
-    catalogTile: {
-      width: 172,
-    },
-    detailTile: {
-      width: 286,
-    },
-    image: {
-      width: '100%',
-      backgroundColor: theme.surfaceMuted,
-    },
-    catalogImage: {
-      height: 126,
-    },
-    detailImage: {
-      height: 236,
-    },
-    metaRow: {
-      minHeight: 52,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: theme.line,
-    },
-    labelWrap: {
-      flex: 1,
-      minWidth: 0,
-    },
-    imageLabel: {
-      ...typography.small,
-      color: theme.ink,
-    },
-    primaryLabel: {
-      ...typography.small,
-      color: theme.primary,
-      marginTop: 2,
-    },
-    downloadButton: {
-      minHeight: 36,
-      paddingHorizontal: spacing.md,
-      borderRadius: radii.pill,
-      backgroundColor: theme.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    downloadText: {
-      ...typography.label,
-      color: theme.primaryDark,
-    },
-    loading: {
-      minHeight: 72,
-      borderWidth: 1,
-      borderColor: theme.line,
-      borderRadius: radii.md,
-      backgroundColor: theme.surfaceMuted,
-      padding: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-    },
-    empty: {
-      minHeight: 92,
-      borderWidth: 1,
-      borderColor: theme.line,
-      borderRadius: radii.md,
-      backgroundColor: theme.surfaceMuted,
-      padding: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-    },
-    loadingText: {
-      ...typography.small,
-      color: theme.muted,
-      textAlign: 'center',
-    },
-    retryButton: {
-      minHeight: 34,
-      paddingHorizontal: spacing.md,
-      borderRadius: radii.pill,
-      borderWidth: 1,
-      borderColor: theme.line,
-      backgroundColor: theme.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    retryText: {
-      ...typography.label,
-      color: theme.primary,
-    },
-    pressed: {
-      opacity: 0.72,
-    },
-    disabled: {
-      opacity: 0.45,
-    },
+    root: { gap: spacing.sm },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+    title: { ...typography.h3, color: theme.ink },
+    count: { ...typography.small, color: theme.muted },
+    scrollContent: { gap: spacing.md, paddingRight: spacing.sm },
+    tile: { borderWidth: 1, borderColor: theme.line, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: theme.surface },
+    catalogTile: { width: 172 },
+    detailTile: { width: 286 },
+    image: { width: '100%', backgroundColor: theme.surfaceMuted },
+    catalogImage: { height: 126 },
+    detailImage: { height: 236 },
+    metaRow: { minHeight: 52, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },
+    labelWrap: { flex: 1, minWidth: 0 },
+    imageLabel: { ...typography.small, color: theme.ink },
+    primaryLabel: { ...typography.small, color: theme.primary, marginTop: 2 },
+    downloadButton: { minHeight: 36, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
+    downloadText: { ...typography.label, color: theme.primaryDark },
+    loading: { minHeight: 72, borderWidth: 1, borderColor: theme.line, borderRadius: radii.md, backgroundColor: theme.surfaceMuted, padding: spacing.md, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+    empty: { minHeight: 92, borderWidth: 1, borderColor: theme.line, borderRadius: radii.md, backgroundColor: theme.surfaceMuted, padding: spacing.md, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+    loadingText: { ...typography.small, color: theme.muted, textAlign: 'center' },
+    retryButton: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: radii.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
+    retryText: { ...typography.label, color: theme.primary },
+    pressed: { opacity: 0.72 },
+    disabled: { opacity: 0.45 },
   });
 }

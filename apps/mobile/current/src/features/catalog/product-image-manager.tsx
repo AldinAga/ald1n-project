@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
@@ -137,7 +138,8 @@ export function DraftProductImageManager({
             <Image
               accessibilityIgnoresInvertColors
               source={{ uri: image.uri }}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
               style={[
                 styles.preview,
                 { transform: [{ rotate: `${image.rotation_degrees}deg` }] },
@@ -341,11 +343,14 @@ export function RemoteProductImageManager({
       {managed.map((image, index) => (
         <Card key={image.id} style={styles.imageCard}>
           <View style={styles.previewFrame}>
-            {image.url ? (
+            {(image.thumbnail_url ?? image.display_url ?? image.original_url ?? image.url) ? (
               <Image
                 accessibilityIgnoresInvertColors
-                source={{ uri: image.url }}
-                resizeMode="contain"
+                source={{ uri: image.thumbnail_url ?? image.display_url ?? image.original_url ?? image.url ?? undefined }}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                transition={80}
+                recyclingKey={String(image.id)}
                 style={styles.preview}
               />
             ) : (

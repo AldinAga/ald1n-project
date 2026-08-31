@@ -14,7 +14,10 @@ use RuntimeException;
 
 final class ProductImageService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ProductImageDerivativeService $derivatives,
+    ) {}
 
     /** @param list<UploadedFile> $files */
     public function upload(Product $product, array $files): int
@@ -36,7 +39,7 @@ final class ProductImageService
             if (!is_string($path)) throw new RuntimeException('Slika nije mogla biti sačuvana.');
             $scope = ProductImage::query()->where('product_id', $product->id);
             $isFirst = !$scope->exists();
-            ProductImage::query()->create([
+            $createdImage = ProductImage::query()->create([
                 'product_id' => $product->id,
                 'file_path' => $path,
                 'storage_disk' => 'public',
@@ -49,6 +52,7 @@ final class ProductImageService
                 'is_primary' => $isFirst,
                 'created_at' => now(),
             ]);
+            $this->derivatives->ensureSafe($createdImage);
             $created++;
         }
         if ($created > 0) {
@@ -75,7 +79,7 @@ final class ProductImageService
                 continue;
             }
 
-            ProductImage::query()->create([
+            $createdImage = ProductImage::query()->create([
                 'product_id' => $target->id,
                 'file_path' => $path,
                 'storage_disk' => $disk,
@@ -88,6 +92,7 @@ final class ProductImageService
                 'is_primary' => $image->is_primary,
                 'created_at' => now(),
             ]);
+            $this->derivatives->ensureSafe($createdImage);
             $created++;
         }
         if ($created > 0) $this->audit->log('product.images.cloned', 'Klonirane slike sa artikla '.$source->sku.' na '.$target->sku, $target, metadata: ['source_product_id' => $source->id, 'count' => $created]);
@@ -169,6 +174,7 @@ final class ProductImageService
             $image->file_hash = is_file($finalPath) ? (hash_file('sha256', $finalPath) ?: null) : null;
             $image->rotation_degrees = ((int) $image->rotation_degrees + $degrees) % 360;
             $image->save();
+            $this->derivatives->refreshSafe($image);
 
             $this->audit->log(
                 'product.image.rotated',
@@ -249,6 +255,7 @@ final class ProductImageService
         $this->assertOwner($product, $image);
         abort_if($image->storage_disk !== 'public', 422, 'Legacy fajl je read-only. Rotiraj ga prvo ako želiš lokalnu kopiju.');
         $wasPrimary = (bool) $image->is_primary;
+        $this->derivatives->delete($image);
         Storage::disk('public')->delete($image->file_path);
         $imageId = $image->id;
         $image->delete();

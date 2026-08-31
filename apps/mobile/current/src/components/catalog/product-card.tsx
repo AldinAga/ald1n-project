@@ -1,6 +1,6 @@
+import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -38,6 +38,9 @@ export function ProductCard({
     [themeColors],
   );
   const [imagesOpen, setImagesOpen] = useState(false);
+  const catalogImageUrl = product.primary_image_thumbnail_url
+    ?? product.primary_image_display_url
+    ?? product.primary_image_url;
 
   const stockTone =
     product.stock_quantity > 5
@@ -66,13 +69,15 @@ export function ProductCard({
     >
       <Card style={styles.card}>
         <View style={styles.imageWrap}>
-          {product.primary_image_url ? (
+          {catalogImageUrl ? (
             <Image
               source={{
-                uri: product.primary_image_url,
+                uri: catalogImageUrl,
               }}
               style={styles.image}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              transition={100}
             />
           ) : (
             <Glyph
@@ -157,6 +162,9 @@ export function ProductCard({
               productSku={product.sku}
               productSlug={product.slug}
               primaryImageUrl={product.primary_image_url}
+              primaryImageOriginalUrl={product.primary_image_original_url ?? product.primary_image_url}
+              primaryImageDisplayUrl={product.primary_image_display_url ?? product.primary_image_url}
+              primaryImageThumbnailUrl={product.primary_image_thumbnail_url ?? product.primary_image_display_url ?? product.primary_image_url}
               stopParentPress
             />
           ) : null}

@@ -32,7 +32,17 @@ final class ProductResource extends JsonResource
             'commission_eur' => $commission,
             'stock_quantity' => $this->stock_quantity,
             'primary_image_url' => $this->absoluteUrl($this->primaryImage?->url),
-            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => ['id' => $image->id, 'url' => $this->absoluteUrl($image->url), 'primary' => $image->is_primary])->values()),
+            'primary_image_original_url' => $this->absoluteUrl($this->primaryImage?->original_url),
+            'primary_image_display_url' => $this->absoluteUrl($this->primaryImage?->display_url),
+            'primary_image_thumbnail_url' => $this->absoluteUrl($this->primaryImage?->thumbnail_url),
+            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => [
+                'id' => $image->id,
+                'url' => $this->absoluteUrl($image->url),
+                'original_url' => $this->absoluteUrl($image->original_url),
+                'display_url' => $this->absoluteUrl($image->display_url),
+                'thumbnail_url' => $this->absoluteUrl($image->thumbnail_url),
+                'primary' => $image->is_primary,
+            ])->values()),
 
             'specifications' => $this->whenLoaded('specificationValues', fn () => $this->specificationValues->filter(fn ($value) => $value->field !== null && $value->field->status === 'active')->map(fn ($value) => [
                 'field' => $value->field?->name,
@@ -51,15 +61,12 @@ final class ProductResource extends JsonResource
         if ($value === '') {
             return null;
         }
-
         if (preg_match('#^https?://#i', $value) === 1) {
             return $value;
         }
-
         if (str_starts_with($value, '//')) {
             return request()->getScheme().':'.$value;
         }
-
         return url('/'.ltrim($value, '/'));
     }
 }

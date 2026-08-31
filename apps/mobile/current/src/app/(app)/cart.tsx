@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { useAppFeedback } from '@/components/ui/app-feedback';
@@ -72,7 +73,7 @@ export default function CartScreen() {
               <Card key={item.key} style={styles.itemCard}>
                 <View style={styles.itemTop}>
                   <View style={styles.imageWrap}>
-                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="contain" /> : <Glyph name="box" size={28} color={themeColors.primary} />}
+                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="contain" cachePolicy="memory-disk" transition={80} /> : <Glyph name="box" size={28} color={themeColors.primary} />}
                   </View>
                   <View style={styles.itemCopy}>
                     <Text style={styles.itemName}>{item.productName}</Text>

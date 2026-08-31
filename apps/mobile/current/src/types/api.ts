@@ -181,7 +181,14 @@ export type GoogleAuthResponse = AuthTokenResponse | GoogleAuthPendingResponse;
 
 export type Taxonomy = { id: number; name: string; slug: string };
 export type Price = { amount: number; currency: string };
-export type ProductImage = { id: number; url: string; primary: boolean };
+export type ProductImage = {
+  id: number;
+  url: string;
+  original_url?: Nullable<string>;
+  display_url?: Nullable<string>;
+  thumbnail_url?: Nullable<string>;
+  primary: boolean;
+};
 export type ProductSpecification = {
   field: Nullable<string>;
   slug: Nullable<string>;
@@ -204,6 +211,9 @@ export type Product = {
   commission_eur: number;
   stock_quantity: number;
   primary_image_url: Nullable<string>;
+  primary_image_original_url?: Nullable<string>;
+  primary_image_display_url?: Nullable<string>;
+  primary_image_thumbnail_url?: Nullable<string>;
   images?: ProductImage[];
   specifications?: ProductSpecification[];
   updated_at: Nullable<string>;
@@ -877,6 +887,9 @@ export type AdminProductImageUploadFile = {
 export type AdminProductManagedImage = {
   id: number;
   url: string | null;
+  original_url: string | null;
+  display_url: string | null;
+  thumbnail_url: string | null;
   download_url: string | null;
   original_filename: string | null;
   mime_type: string | null;

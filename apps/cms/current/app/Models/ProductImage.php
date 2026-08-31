@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\ProductImageDerivativeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
@@ -39,24 +40,28 @@ final class ProductImage extends Model
                 return null;
             }
 
-            // Rotacija zadržava istu putanju javnog fajla. Verzija u URL-u sprečava
-            // browser/CDN da nakon rotacije nastavi da prikazuje staru fotografiju.
-            $version = trim((string) $this->file_hash);
-            if ($version === '') {
-                $version = hash('sha256', implode('|', [
-                    (string) $this->getKey(),
-                    $path,
-                    (string) $this->rotation_degrees,
-                    (string) $this->file_size,
-                ]));
-            }
-
-            return $url.(str_contains($url, '?') ? '&' : '?').'v='.substr($version, 0, 16);
+            $version = $this->cacheVersion($path);
+            return $url.(str_contains($url, '?') ? '&' : '?').'v='.$version;
         } catch (Throwable) {
-            // Neispravan pojedinačni zapis slike ne sme oboriti stranicu artikla.
+            // A malformed image row must never crash product presentation.
         }
 
         return null;
+    }
+
+    public function getOriginalUrlAttribute(): ?string
+    {
+        return $this->url;
+    }
+
+    public function getThumbnailUrlAttribute(): ?string
+    {
+        return $this->optimizedUrl('thumbnail') ?? $this->url;
+    }
+
+    public function getDisplayUrlAttribute(): ?string
+    {
+        return $this->optimizedUrl('display') ?? $this->url;
     }
 
     public function getDownloadUrlAttribute(): ?string
@@ -68,5 +73,37 @@ final class ProductImage extends Model
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function optimizedUrl(string $rendition): ?string
+    {
+        try {
+            $paths = ProductImageDerivativeService::relativePaths($this);
+            $path = $paths[$rendition] ?? null;
+            if (!is_string($path) || !Storage::disk('public')->exists($path)) {
+                return null;
+            }
+            $url = Storage::disk('public')->url($path);
+            if (!is_string($url) || $url === '') {
+                return null;
+            }
+            return $url.(str_contains($url, '?') ? '&' : '?').'v='.$this->cacheVersion($path);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function cacheVersion(string $path): string
+    {
+        $version = trim((string) $this->file_hash);
+        if ($version === '') {
+            $version = hash('sha256', implode('|', [
+                (string) $this->getKey(),
+                $path,
+                (string) $this->rotation_degrees,
+                (string) $this->file_size,
+            ]));
+        }
+        return substr($version, 0, 16);
     }
 }

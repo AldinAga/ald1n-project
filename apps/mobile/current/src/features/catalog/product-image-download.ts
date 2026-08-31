@@ -29,21 +29,14 @@ const EXTENSION_MIME: Record<string, string> = {
 };
 
 type ProductImageDownloadInput = {
-  url: string;
+  originalUrl: string;
   productName: string;
   productSku: string;
   imageNumber: number;
 };
 
 function sanitizeFilePart(value: string): string {
-  return value
-    .trim()
-    .replace(/[\\/:*?"<>|]/g, '-')
-    .replace(/[\u0000-\u001f\u007f]/g, '-')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80) || 'artikal';
+  return value.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/[\u0000-\u001f\u007f]/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'artikal';
 }
 
 function extensionFromUrl(url: string): string | null {
@@ -64,11 +57,10 @@ function assertRemoteImageUrl(url: string): void {
   try {
     parsed = new URL(url);
   } catch {
-    throw new Error('URL fotografije nije ispravan.');
+    throw new Error('URL originalne fotografije nije ispravan.');
   }
-
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    throw new Error('Fotografija mora koristiti HTTP ili HTTPS adresu.');
+    throw new Error('Originalna fotografija mora koristiti HTTP ili HTTPS adresu.');
   }
 }
 
@@ -76,7 +68,6 @@ async function loadSharingModule() {
   if (Platform.OS === 'web') {
     throw new Error('Čuvanje fotografija je dostupno u Android/iOS aplikaciji.');
   }
-
   try {
     return await import('expo-sharing');
   } catch {
@@ -84,78 +75,53 @@ async function loadSharingModule() {
   }
 }
 
-export async function downloadAndShareProductImage(
-  input: ProductImageDownloadInput,
-): Promise<void> {
-  assertRemoteImageUrl(input.url);
+export async function downloadAndShareProductImage(input: ProductImageDownloadInput): Promise<void> {
+  assertRemoteImageUrl(input.originalUrl);
 
-  const response = await fetch(input.url, { method: 'GET' });
+  // BATCH116 invariant: this transport accepts only the canonical original URL.
+  // Optimized display/thumbnail URLs are intentionally not part of this input contract.
+  const response = await fetch(input.originalUrl, { method: 'GET' });
   if (!response.ok) {
-    throw new Error(`Preuzimanje fotografije nije uspelo (${response.status}).`);
+    throw new Error(`Preuzimanje originalne fotografije nije uspelo (${response.status}).`);
   }
 
   const contentLengthHeader = response.headers.get('content-length');
   const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
-  if (
-    contentLength !== null
-    && Number.isFinite(contentLength)
-    && contentLength > MAX_PRODUCT_IMAGE_BYTES
-  ) {
-    throw new Error('Fotografija je veća od dozvoljenih 30 MB.');
+  if (contentLength !== null && Number.isFinite(contentLength) && contentLength > MAX_PRODUCT_IMAGE_BYTES) {
+    throw new Error('Originalna fotografija je veća od dozvoljenih 30 MB.');
   }
 
-  const rawContentType = response.headers
-    .get('content-type')
-    ?.split(';', 1)[0]
-    ?.trim()
-    .toLowerCase() ?? '';
-  const urlExtension = extensionFromUrl(input.url);
+  const rawContentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+  const urlExtension = extensionFromUrl(input.originalUrl);
   const mimeExtension = MIME_EXTENSIONS[rawContentType] ?? null;
   const extension = mimeExtension ?? urlExtension ?? 'jpg';
-  const mimeType = rawContentType.startsWith('image/')
-    ? rawContentType
-    : EXTENSION_MIME[extension] ?? 'image/jpeg';
+  const mimeType = rawContentType.startsWith('image/') ? rawContentType : EXTENSION_MIME[extension] ?? 'image/jpeg';
 
-  if (
-    rawContentType !== ''
-    && !rawContentType.startsWith('image/')
-    && rawContentType !== 'application/octet-stream'
-    && urlExtension === null
-  ) {
-    throw new Error('Server nije vratio fotografiju.');
+  if (rawContentType !== '' && !rawContentType.startsWith('image/') && rawContentType !== 'application/octet-stream' && urlExtension === null) {
+    throw new Error('Server nije vratio originalnu fotografiju.');
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength === 0) {
-    throw new Error('Preuzeta fotografija je prazna.');
-  }
-  if (bytes.byteLength > MAX_PRODUCT_IMAGE_BYTES) {
-    throw new Error('Fotografija je veća od dozvoljenih 30 MB.');
-  }
+  if (bytes.byteLength === 0) throw new Error('Preuzeta originalna fotografija je prazna.');
+  if (bytes.byteLength > MAX_PRODUCT_IMAGE_BYTES) throw new Error('Originalna fotografija je veća od dozvoljenih 30 MB.');
 
   const safeSku = sanitizeFilePart(input.productSku || input.productName);
   const safeNumber = Math.max(1, Math.floor(input.imageNumber));
-  const file = new File(
-    Paths.cache,
-    `${safeSku}-slika-${safeNumber}.${extension}`,
-  );
-
+  const file = new File(Paths.cache, `${safeSku}-original-slika-${safeNumber}.${extension}`);
   file.create({ overwrite: true, intermediates: true });
   file.write(bytes);
 
   if (!file.exists || file.size !== bytes.byteLength) {
     if (file.exists) file.delete();
-    throw new Error('Fotografiju nije moguće bezbedno pripremiti za čuvanje.');
+    throw new Error('Originalnu fotografiju nije moguće bezbedno pripremiti za čuvanje.');
   }
 
   const Sharing = await loadSharingModule();
   const available = await Sharing.isAvailableAsync();
-  if (!available) {
-    throw new Error('Sistemski meni za čuvanje fotografije nije dostupan.');
-  }
+  if (!available) throw new Error('Sistemski meni za čuvanje fotografije nije dostupan.');
 
   await Sharing.shareAsync(file.uri, {
     mimeType,
-    dialogTitle: `${input.productName} - slika ${safeNumber}`,
+    dialogTitle: `${input.productName} - originalna slika ${safeNumber}`,
   });
 }
