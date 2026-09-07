@@ -550,10 +550,15 @@ if (fs.existsSync(build16IconRegistryPath)) {
   try {
     const build16IconRegistry = JSON.parse(fs.readFileSync(build16IconRegistryPath, 'utf8'));
     assert(
-      build16IconRegistry.version === 1
+      build16IconRegistry.version === 2
         && build16IconRegistry.mobile?.authority === 'expo-symbols-material-symbols'
-        && build16IconRegistry.laravel?.target === 'phosphor-local-bundled',
-      'Build16 icon registry zaključava Android Symbols i Laravel Phosphor authority.'
+        && build16IconRegistry.laravel?.target === 'phosphor-local-bundled'
+        && build16IconRegistry.laravel?.currentRuntime === 'x-icon-phosphor-local-svg-sprite'
+        && build16IconRegistry.laravel?.runtimeSwitchInThisBatch === true
+        && build16IconRegistry.laravel?.targetWeight === 'regular'
+        && build16IconRegistry.laravel?.currentSemanticMap?.archive === 'archive'
+        && build16IconRegistry.laravel?.currentSemanticMap?.search === 'magnifying-glass',
+      'Build16 icon registry zaključava Android Symbols i aktivni Laravel Phosphor runtime authority.'
     );
   } catch (error) {
     fail(`Build16 icon registry nije validan JSON: ${error.message}`);

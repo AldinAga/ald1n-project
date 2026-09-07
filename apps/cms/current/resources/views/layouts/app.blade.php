@@ -93,7 +93,7 @@
     @stack('head')
 </head>
 <body>
-<header class="site-header" data-site-header>
+<header class="site-header" data-site-header data-build16-shell="1">
     <div class="header-primary-row">
         <a class="brand" href="{{ route('dashboard') }}" aria-label="{{ $siteName }}">
             @if($siteLogoLightUrl || $siteLogoDarkUrl)
@@ -143,7 +143,7 @@
             </a>
             @canany(['catalog.view','orders.manage','orders.view_own','system.manage_users','warranties.manage','warranties.view_own','after_sales.manage','after_sales.view_own','stock.view','reports.view','commissions.manage','commissions.view_own','notifications.view'])
             <button class="header-product-search-toggle icon-button" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-label="Globalna pretraga" title="Globalna pretraga">
-                <svg class="ui-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                <x-icon name="search" size="19" />
             </button>
             @endcan
             <button class="mobile-menu-toggle icon-button" type="button" data-mobile-menu-toggle aria-controls="siteHeaderMenu" aria-expanded="false" aria-label="Otvori glavni meni">
@@ -277,7 +277,7 @@
     <section class="header-product-search-dialog" role="dialog" aria-modal="true" aria-labelledby="headerProductSearchTitle">
         <div class="header-product-search-head">
             <label class="header-product-search-input-wrap">
-                <svg class="ui-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                <x-icon name="search" size="19" />
                 <span class="sr-only" id="headerProductSearchTitle">Globalna pretraga</span>
                 <input class="header-product-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Artikal, porudžbina, korisnik, garancija..." data-header-product-search-input aria-autocomplete="list" aria-controls="headerProductSearchResults">
             </label>

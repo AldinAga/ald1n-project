@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "designAuthority": "ald1n-operator-v1",
   "policy": {
     "oneFamilyPerSurface": true,
@@ -40,9 +40,9 @@
     ]
   },
   "laravel": {
-    "currentRuntime": "x-icon-custom-inline-svg",
+    "currentRuntime": "x-icon-phosphor-local-svg-sprite",
     "target": "phosphor-local-bundled",
-    "runtimeSwitchInThisBatch": false,
+    "runtimeSwitchInThisBatch": true,
     "targetWeight": "regular",
     "strokeConsistency": "single-family",
     "currentSemanticMap": {
@@ -91,8 +91,22 @@
       "mail": "envelope",
       "truck": "truck",
       "refresh": "arrows-clockwise",
-      "archive": "archive-box",
-      "trash": "trash"
+      "archive": "archive",
+      "trash": "trash",
+      "search": "magnifying-glass"
+    },
+    "bundle": {
+      "package": "@phosphor-icons/core",
+      "packageVersion": "2.1.1",
+      "packageLicense": "MIT",
+      "weight": "regular",
+      "delivery": "local-svg-sprite",
+      "publicPath": "assets/icons/phosphor-regular.svg",
+      "semanticNameCount": 48,
+      "vendoredSymbolCount": 48,
+      "fallback": "circle",
+      "packageTarballSha256": "313332be6190b724da24107addd781799b48bf76b13963f24501112ffe1baadd",
+      "bundleSha256": "60bbdf3e0db31413ad4328da08778cc02a428fa1bcec62102febc62666688f28"
     }
   }
 }
