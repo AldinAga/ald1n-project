@@ -1,8 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Nova porudžbina')
 @section('content')
-<a class="back-link" href="{{ route('orders.index') }}">← Moje porudžbine</a>
-<div class="page-heading" data-order-create-ready="1">
+<div class="build16-order-create-shell" data-build16-order-create="1">
+<a class="back-link build16-order-create-back" href="{{ route('orders.index') }}"><x-icon name="chevron-left" size="18" /><span>Moje porudžbine</span></a>
+<div class="page-heading build16-order-create-heading" data-order-create-ready="1">
     <div>
         <span class="eyebrow">Poručivanje robe</span>
         <h1>Nova porudžbina</h1>
@@ -11,11 +12,11 @@
     <div class="count-pill">Idempotency zaštita aktivna</div>
 </div>
 
-<form method="post" action="{{ route('orders.store') }}" data-ux-sticky-actions>
+<form method="post" action="{{ route('orders.store') }}" class="build16-order-create-form" data-ux-sticky-actions>
     @csrf
     <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', $idempotencyKey) }}">
 
-    <div class="admin-form-grid">
+    <div class="admin-form-grid build16-order-create-grid">
         <div class="form-main">
             <section class="panel form-section supplier-choice">
                 <h2>Od koga poručujete?</h2>
@@ -145,6 +146,7 @@
         </aside>
     </div>
 </form>
+</div>
 @endsection
 
 @push('scripts')

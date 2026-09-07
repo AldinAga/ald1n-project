@@ -4370,3 +4370,147 @@ body {
     padding: 14px 14px 14px 18px;
   }
 }
+
+
+/* MOBILE_BUILD16_CART_CHECKOUT_ORDER_CREATE_BATCH131 */
+
+.build16-order-create-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.build16-order-create-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 38px;
+  color: var(--ald-primary);
+}
+
+.build16-order-create-back:hover {
+  color: var(--ald-primary-strong);
+}
+
+.build16-order-create-heading {
+  align-items: end;
+  gap: 22px;
+  margin-bottom: 2px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ald-border);
+}
+
+.build16-order-create-heading > div:first-child {
+  max-width: 760px;
+}
+
+.build16-order-create-form {
+  display: grid;
+}
+
+.build16-order-create-grid {
+  gap: 22px;
+  align-items: start;
+}
+
+.build16-order-create-shell .form-section {
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-xl);
+  background: var(--ald-surface);
+  box-shadow: none;
+}
+
+.build16-order-create-shell .form-main,
+.build16-order-create-shell .form-side {
+  gap: 18px;
+}
+
+.build16-order-create-shell .form-section > h2 {
+  margin-bottom: 6px;
+}
+
+.build16-order-create-shell .supplier-choice-grid {
+  gap: 10px;
+}
+
+.build16-order-create-shell .supplier-option {
+  min-height: 72px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  transition:
+    border-color var(--ald-motion-fast) var(--ald-ease-out),
+    background var(--ald-motion-fast) var(--ald-ease-out),
+    transform var(--ald-motion-press) var(--ald-ease-out);
+}
+
+.build16-order-create-shell .supplier-option:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--ald-primary) 46%,
+      var(--ald-border)
+    );
+}
+
+.build16-order-create-shell .supplier-option:has(input:checked) {
+  border-color: var(--ald-primary);
+  background: var(--ald-primary-container);
+}
+
+.build16-order-create-shell .flat-table {
+  overflow: hidden;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+}
+
+.build16-order-create-shell .flat-table .admin-table {
+  margin: 0;
+}
+
+.build16-order-create-shell .sticky-card {
+  top: 152px;
+  box-shadow:
+    0 12px 30px
+      color-mix(
+        in srgb,
+        var(--ald-text) 7%,
+        transparent
+      );
+}
+
+.build16-order-create-shell .alpha-note {
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface-container);
+  color: var(--ald-muted);
+}
+
+.build16-order-create-shell .button-large {
+  width: 100%;
+  min-height: 46px;
+}
+
+@media (max-width: 900px) {
+  .build16-order-create-heading {
+    align-items: start;
+  }
+
+  .build16-order-create-shell .sticky-card {
+    position: static;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .build16-order-create-shell {
+    gap: 14px;
+  }
+
+  .build16-order-create-shell .form-section {
+    border-radius: var(--ald-radius-lg);
+  }
+
+  .build16-order-create-shell .supplier-option {
+    min-height: 64px;
+  }
+}

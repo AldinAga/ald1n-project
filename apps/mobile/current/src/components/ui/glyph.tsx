@@ -6,6 +6,7 @@ const symbolNames = {
   home: { ios: 'house.fill', android: 'home', web: 'home' },
   catalog: { ios: 'square.grid.2x2.fill', android: 'inventory_2', web: 'inventory_2' },
   add: { ios: 'plus.circle.fill', android: 'add_circle', web: 'add_circle' },
+  remove: { ios: 'minus', android: 'remove', web: 'remove' },
   cart: { ios: 'cart.fill', android: 'shopping_cart', web: 'shopping_cart' },
   orders: { ios: 'shippingbox.fill', android: 'receipt_long', web: 'receipt_long' },
   commission: { ios: 'banknote.fill', android: 'payments', web: 'payments' },

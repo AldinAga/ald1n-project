@@ -670,6 +670,55 @@ assert(
   'Build16 Account koristi grupisane OperatorRow površine i čuva Profil > Bezbednost > Obaveštenja > Uređaji > Odjava + sessions/preferences authority.'
 );
 
+// MOBILE_BUILD16_CART_CHECKOUT_BATCH131
+const build16CartBatch131 = fs.readFileSync(path.join(root, 'src/app/(app)/cart.tsx'), 'utf8');
+const build16CheckoutBatch131 = fs.readFileSync(path.join(root, 'src/app/(app)/checkout.tsx'), 'utf8');
+const build16GlyphBatch131 = fs.readFileSync(path.join(root, 'src/components/ui/glyph.tsx'), 'utf8');
+const build16IconRegistryBatch131 = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, 'packages/icon-system/ald1n-icons.json'), 'utf8')
+);
+
+assert(
+  build16CartBatch131.includes('MOBILE_BUILD16_CART_REDESIGN_BATCH131')
+    && !build16CartBatch131.includes('<Card')
+    && !build16CartBatch131.includes('‹ Nazad')
+    && build16CartBatch131.includes('cachePolicy="memory-disk"')
+    && build16CartBatch131.includes('setQuantity')
+    && build16CartBatch131.includes('removeItem')
+    && build16CartBatch131.includes('clearCart')
+    && build16CartBatch131.includes('name="remove"')
+    && build16CartBatch131.includes('name="add"')
+    && build16CartBatch131.includes("router.push('/checkout')"),
+  'Build16 Cart koristi Operator list/summary hijerarhiju bez Card/pseudo-icon obrasca i čuva Batch116 image cache + product-only quantity/remove/clear/checkout tok.'
+);
+
+assert(
+  build16CheckoutBatch131.includes('MOBILE_BUILD16_CHECKOUT_REDESIGN_BATCH131')
+    && !build16CheckoutBatch131.includes('<Card')
+    && !build16CheckoutBatch131.includes('‹ Nazad na korpu')
+    && build16CheckoutBatch131.includes('lastSubmission')
+    && build16CheckoutBatch131.includes('Crypto.randomUUID')
+    && build16CheckoutBatch131.includes("paymentMethod === 'bank_transfer'")
+    && build16CheckoutBatch131.includes("paymentMethod !== 'deferred_payment'")
+    && build16CheckoutBatch131.includes('selectedPayment?.requires_due_date')
+    && build16CheckoutBatch131.includes('payment_due_at:')
+    && build16CheckoutBatch131.includes('api.orders.create(payload, key)')
+    && build16CheckoutBatch131.includes('clearCart()')
+    && build16CheckoutBatch131.includes("pathname: '/order/[id]'")
+    && !build16CheckoutBatch131.includes('product_variant_id')
+    && !build16CheckoutBatch131.includes('variantId'),
+  'Build16 Checkout koristi Operator step hijerarhiju i čuva stable idempotency, bank transfer, deferred-payment, product-only create i success routing authority.'
+);
+
+assert(
+  build16GlyphBatch131.includes("remove: { ios: 'minus', android: 'remove', web: 'remove' }")
+    && build16IconRegistryBatch131.version === 2
+    && build16IconRegistryBatch131.mobile?.authority === 'expo-symbols-material-symbols'
+    && build16IconRegistryBatch131.mobile?.semanticNames?.includes('remove')
+    && build16IconRegistryBatch131.policy?.textPseudoFallbacksForbidden === true,
+  'Build16 Cart decrement koristi canonical Expo Symbols remove semantic bez tekstualnog pseudo-icon fallbacka.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {
