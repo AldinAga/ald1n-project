@@ -5,12 +5,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { useAppFeedback } from '@/components/ui/app-feedback';
-import { Card } from '@/components/ui/card';
+import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
-import { useThemedStyles } from '@/theme/app-theme';
+import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMoneyPresentation } from '@/features/preferences/money-presentation';
 import {
@@ -61,6 +61,7 @@ function localPaymentDateValue(): string {
 }
 
 export default function OrderDetailScreen() {
+  const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
   const { formatPrimaryMoney } = useMoneyPresentation();
@@ -230,21 +231,32 @@ export default function OrderDetailScreen() {
 
   return (
     <Screen keyboardShouldPersistTaps="handled">
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹ Nazad na porudžbine</Text>
+      {/* MOBILE_BUILD16_ORDER_DETAIL_REDESIGN_BATCH129 */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Nazad na porudžbine"
+        onPress={() => router.back()}
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+      >
+        <Glyph name="arrow" size={18} color={themeColors.primary} style={styles.backGlyph} />
+        <Text style={styles.backText}>Porudžbine</Text>
       </Pressable>
 
-      <View style={styles.heading}>
-        <View style={styles.flexOne}>
-          <Text style={styles.eyebrow}>PORUDŽBINA</Text>
-          <Text style={styles.title}>{order.order_number}</Text>
+      <View style={styles.identitySurface}>
+        <View style={styles.identityRail} />
+        <View style={styles.heading}>
+          <View style={styles.flexOne}>
+            <Text style={styles.eyebrow}>PORUDŽBINA</Text>
+            <Text style={styles.title}>{order.order_number}</Text>
+            <Text style={styles.identityMeta}>{formatDate(order.created_at, true)}</Text>
+          </View>
+          <Pill tone={order.status === 'completed' ? 'success' : order.status === 'cancelled' ? 'danger' : 'primary'}>
+            {humanize(order.status)}
+          </Pill>
         </View>
-        <Pill tone={order.status === 'completed' ? 'success' : order.status === 'cancelled' ? 'danger' : 'primary'}>
-          {humanize(order.status)}
-        </Pill>
       </View>
 
-      <Card style={styles.total}>
+      <View style={styles.summarySurface}>
         <View>
           <Text style={styles.label}>Ukupna vrednost</Text>
           <Text style={styles.totalValue}>{formatPrimaryMoney(order.subtotal_rsd)}</Text>
@@ -253,9 +265,9 @@ export default function OrderDetailScreen() {
           <Text style={styles.label}>Kreirano</Text>
           <Text style={styles.value}>{formatDate(order.created_at, true)}</Text>
         </View>
-      </Card>
+      </View>
 
-      <Card>
+      <View style={styles.operatorSection}>
         <Text style={styles.sectionTitle}>Stavke</Text>
         {order.items?.map((item) => (
           <View key={item.id} style={styles.item}>
@@ -266,39 +278,39 @@ export default function OrderDetailScreen() {
             <Text style={styles.itemPrice}>{formatPrimaryMoney(item.line_total_rsd)}</Text>
           </View>
         ))}
-      </Card>
+      </View>
 
-      <Card>
+      <View style={styles.operatorSection}>
         <Text style={styles.sectionTitle}>Isporuka</Text>
         <Text style={styles.value}>{order.shipping.full_name}</Text>
         <Text style={styles.muted}>{order.shipping.address}, {order.shipping.postal_code} {order.shipping.city}</Text>
         <Text style={styles.muted}>{order.shipping.phone}</Text>
-      </Card>
+      </View>
 
-      <Card>
+      <View style={styles.operatorSection}>
         <Text style={styles.sectionTitle}>Plaćanje i dobavljač</Text>
         <Info label="Način plaćanja" value={humanize(order.payment_method)} />
         <Info label="Status plaćanja" value={humanize(order.payment_status)} />
         <Info label="Dobavljač" value={order.supplier.name ?? '—'} />
-      </Card>
+      </View>
 
       {postCreateQuery.isLoading ? (
         <LoadingState label="Učitavanje uplata, dokumenata i isporuke" />
       ) : null}
 
       {postCreateQuery.isError ? (
-        <Card style={styles.section}>
+        <View style={styles.operatorSection}>
           <Text style={styles.sectionTitle}>Posle kreiranja porudžbine</Text>
           <Text style={styles.errorText}>{apiMessage(postCreateQuery.error, 'Dodatni podaci trenutno nisu dostupni.')}</Text>
           <Button variant="secondary" onPress={() => void postCreateQuery.refetch()}>
             Pokušaj ponovo
           </Button>
-        </Card>
+        </View>
       ) : null}
 
       {postCreate ? (
         <>
-          <Card style={styles.section}>
+          <View style={styles.operatorSection}>
             <Text style={styles.sectionTitle}>Uplate</Text>
             <View style={styles.summaryGrid}>
               <SummaryValue label="Vrednost" value={formatPrimaryMoney(postCreate.order.subtotal_rsd)} />
@@ -341,10 +353,10 @@ export default function OrderDetailScreen() {
                 )}
               </View>
             ) : null}
-          </Card>
+          </View>
 
           {postCreate.capabilities.can_upload_payment_proof ? (
-            <Card style={styles.section}>
+            <View style={styles.operatorSection}>
               <Text style={styles.sectionTitle}>Pošalji potvrdu uplate</Text>
               <Text style={styles.help}>
                 Do {formatOrderFileSize(postCreate.payment_proof_limits.max_bytes)} · {postCreate.payment_proof_limits.extensions.map((value) => value.toUpperCase()).join(', ')}
@@ -419,11 +431,11 @@ export default function OrderDetailScreen() {
               >
                 Pošalji potvrdu uplate
               </Button>
-            </Card>
+            </View>
           ) : null}
 
           {postCreate.capabilities.can_view_documents ? (
-            <Card style={styles.section}>
+            <View style={styles.operatorSection}>
               <Text style={styles.sectionTitle}>Dokumenti</Text>
 
               {postCreate.capabilities.can_issue_order_confirmation ? (
@@ -456,11 +468,11 @@ export default function OrderDetailScreen() {
               )) : (
                 <Text style={styles.muted}>Još nema izdatih dokumenata.</Text>
               )}
-            </Card>
+            </View>
           ) : null}
 
           {postCreate.delivery ? (
-            <Card style={styles.section}>
+            <View style={styles.operatorSection}>
               <Text style={styles.sectionTitle}>Potvrđena isporuka</Text>
               <Info label="Način" value={postCreate.delivery.delivery_method_label} />
               <Info
@@ -488,7 +500,7 @@ export default function OrderDetailScreen() {
                     Otvori / podeli dokaz isporuke
                   </Button>
                 ) : null}
-            </Card>
+            </View>
           ) : null}
         </>
       ) : null}
@@ -603,6 +615,55 @@ function Info({
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
+    backButton: {
+      alignSelf: 'flex-start',
+      minHeight: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 10,
+    },
+    backGlyph: { transform: [{ rotate: '180deg' }] },
+    backText: { ...typography.label, color: theme.primary },
+    identitySurface: {
+      position: 'relative',
+      overflow: 'hidden',
+      padding: spacing.lg,
+      paddingLeft: spacing.xl,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 14,
+      backgroundColor: theme.surface,
+    },
+    identityRail: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 4,
+      backgroundColor: theme.primary,
+    },
+    identityMeta: { ...typography.small, color: theme.muted, marginTop: spacing.xs },
+    summarySurface: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.lg,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 14,
+      backgroundColor: theme.surface,
+    },
+    operatorSection: {
+      gap: spacing.md,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 14,
+      backgroundColor: theme.surface,
+    },
+    pressed: { opacity: 0.78 },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     heading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
     flexOne: { flex: 1 },

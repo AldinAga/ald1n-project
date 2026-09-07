@@ -4023,3 +4023,203 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* MOBILE_BUILD16_ORDERS_BATCH129 */
+.build16-orders-list-shell,
+.build16-order-detail-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.build16-orders-heading {
+  margin-bottom: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ald-border);
+}
+
+.build16-orders-summary {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--ald-border);
+  border-left: 4px solid var(--ald-primary);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+}
+
+.build16-orders-summary-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ald-radius-md);
+  background: var(--ald-primary-container);
+  color: var(--ald-primary);
+}
+
+.build16-orders-summary small,
+.build16-orders-summary strong {
+  display: block;
+}
+
+.build16-orders-summary small {
+  color: var(--ald-muted);
+  font-size: .75rem;
+}
+
+.build16-orders-summary strong {
+  margin-top: 2px;
+  color: var(--ald-text);
+  font-size: 1rem;
+}
+
+.build16-orders-table-wrap {
+  overflow: hidden;
+  border-color: var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 2px 6px color-mix(in srgb, #000 6%, transparent);
+}
+
+.build16-orders-table tbody tr {
+  transition: background var(--ald-motion-fast) var(--ald-ease-out);
+}
+
+.build16-orders-table tbody tr:hover {
+  background: var(--ald-surface-container);
+}
+
+.build16-orders-table td strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.build16-orders-table .button {
+  border-radius: var(--ald-radius-md);
+}
+
+.build16-order-detail-shell > .back-link {
+  width: fit-content;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0 10px;
+  border-radius: var(--ald-radius-md);
+  color: var(--ald-primary);
+}
+
+.build16-order-detail-shell > .back-link:hover {
+  background: var(--ald-primary-container);
+}
+
+.build16-order-detail-heading {
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  margin: 0;
+  padding: 18px 18px 18px 22px;
+  border: 1px solid var(--ald-border);
+  border-left: 4px solid var(--ald-primary);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+}
+
+.build16-order-detail-heading h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+  line-height: 1.08;
+  font-variant-numeric: tabular-nums;
+}
+
+.build16-order-detail-heading .header-button-row {
+  justify-content: flex-end;
+}
+
+.build16-order-detail-heading .button,
+.build16-order-detail-shell .button {
+  border-radius: var(--ald-radius-md);
+}
+
+.build16-order-detail-grid {
+  gap: 16px;
+  align-items: start;
+}
+
+.build16-order-detail-shell .panel {
+  border-color: var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 2px 6px color-mix(in srgb, #000 6%, transparent);
+}
+
+.build16-order-detail-shell .form-section {
+  padding: 18px;
+}
+
+.build16-order-detail-shell .section-heading-row {
+  gap: 12px;
+}
+
+.build16-order-detail-shell .admin-table-wrap,
+.build16-order-detail-shell .flat-table {
+  border-color: var(--ald-border);
+  border-radius: var(--ald-radius-md);
+  background: var(--ald-surface);
+  box-shadow: none;
+}
+
+.build16-order-detail-shell .order-total {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ald-border);
+}
+
+.build16-order-detail-shell .order-total strong {
+  color: var(--ald-primary-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.build16-order-detail-shell .document-row,
+.build16-order-detail-shell .timeline-event,
+.build16-order-detail-shell .receivable-public-messages article {
+  border-color: var(--ald-border);
+  border-radius: var(--ald-radius-md);
+  background: var(--ald-surface-container);
+}
+
+.build16-order-detail-shell .danger-zone {
+  border-color: color-mix(in srgb, var(--ald-danger) 34%, var(--ald-border));
+  background: var(--ald-danger-soft);
+  box-shadow: none;
+}
+
+@media (max-width: 820px) {
+  .build16-orders-heading,
+  .build16-order-detail-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .build16-order-detail-heading .header-button-row {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 580px) {
+  .build16-orders-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .build16-orders-summary .button {
+    width: 100%;
+  }
+
+  .build16-order-detail-shell .form-section {
+    padding: 14px;
+  }
+}

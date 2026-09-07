@@ -32,7 +32,7 @@
     ];
 @endphp
 
-<div data-order-user-detail-ready="1">
+<div class="build16-order-detail-shell" data-order-user-detail-ready="1" data-build16-orders-detail="1">
     @if($warnings !== [])
         <div class="alert alert-warning order-detail-warning">
             <strong>Napomena sistema</strong>
@@ -44,9 +44,9 @@
         </div>
     @endif
 
-    <a class="back-link" href="{{ $urls['back'] ?? '/orders' }}">← Moje porudžbine</a>
+    <a class="back-link" href="{{ $urls['back'] ?? '/orders' }}"><x-icon name="chevron-left" size="18" /> Moje porudžbine</a>
 
-    <div class="page-heading">
+    <div class="page-heading build16-order-detail-heading">
         <div>
             <span class="eyebrow">Poručeno od {{ $order['supplier_name'] ?? 'Administratora' }}</span>
             <h1>{{ $order['order_number'] ?? 'Porudžbina' }}</h1>
@@ -69,7 +69,7 @@
         </div>
     </div>
 
-    <div class="settings-grid order-detail-grid operational-order-grid">
+    <div class="settings-grid order-detail-grid operational-order-grid build16-order-detail-grid">
         <section class="order-main-column">
             <section class="panel form-section">
                 <div class="section-heading-row">

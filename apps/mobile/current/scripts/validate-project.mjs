@@ -603,6 +603,39 @@ assert(
   'Build16 Product detail koristi Operator identity/commercial/section hijerarhiju, čuva Batch116 image authority i v0.9 Direct Sale > Uredi contract bez card-zoo/pseudo-back ikonice.'
 );
 
+// MOBILE_BUILD16_ORDERS_LIST_DETAIL_BATCH129
+const build16OrdersListBatch129 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/orders.tsx'), 'utf8');
+const build16OrderCardBatch129 = fs.readFileSync(path.join(root, 'src/components/orders/order-card.tsx'), 'utf8');
+const build16OrderDetailBatch129 = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id].tsx'), 'utf8');
+assert(
+  build16OrdersListBatch129.includes('MOBILE_BUILD16_ORDERS_LIST_REDESIGN_BATCH129')
+    && build16OrdersListBatch129.includes('MOBILE_V0_9_ORDERS_MY_AND_ASSIGNED_ONLY_BATCH5C')
+    && build16OrdersListBatch129.includes('Dodeljene porudžbine')
+    && !build16OrdersListBatch129.includes('Reklamacije i servis')
+    && !build16OrdersListBatch129.includes('Moje garancije')
+    && !build16OrdersListBatch129.includes('Moje provizije'),
+  'Build16 Orders lista koristi Operator hijerarhiju i čuva v0.9 Moje/Dodeljene granicu bez cross-feature prečica.'
+);
+assert(
+  build16OrderCardBatch129.includes('MOBILE_BUILD16_ORDER_CARD_REDESIGN_BATCH129')
+    && !build16OrderCardBatch129.includes('<Card')
+    && build16OrderCardBatch129.includes('shadowColor: theme.black')
+    && build16OrderCardBatch129.includes('fontVariant: [\'tabular-nums\']'),
+  'Build16 Order row je kompaktan Operator surface bez Card wrappera i koristi canonical AppColors shadow token.'
+);
+assert(
+  build16OrderDetailBatch129.includes('MOBILE_BUILD16_ORDER_DETAIL_REDESIGN_BATCH129')
+    && !build16OrderDetailBatch129.includes('<Card')
+    && !build16OrderDetailBatch129.includes('‹ Nazad na porudžbine')
+    && build16OrderDetailBatch129.includes('api.orders.postCreate(orderId)')
+    && build16OrderDetailBatch129.includes('postCreate.capabilities.can_upload_payment_proof')
+    && build16OrderDetailBatch129.includes('postCreate.capabilities.can_view_documents')
+    && build16OrderDetailBatch129.includes('postCreate.delivery')
+    && build16OrderDetailBatch129.includes('api.orders.cancel(orderId)')
+    && build16OrderDetailBatch129.includes("pathname: '/after-sales/create/[orderId]'"),
+  'Build16 Order detail koristi Operator section hierarchy i čuva post-create, payment proof, documents, delivery, cancel i after-sales authority.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {
