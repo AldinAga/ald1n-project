@@ -68,7 +68,7 @@ export function Button({
       onPress={pressHandler}
       minHeight={56}
       paddingHorizontal={spacing.xl}
-      borderRadius={radii.pill}
+      borderRadius={radii.md}
       borderWidth={1}
       borderColor={palette.border}
       backgroundColor={palette.background}
@@ -77,8 +77,8 @@ export function Button({
       opacity={isDisabled ? 0.48 : 1}
       transition="quickLessBouncy"
       pressStyle={{
-        scale: 0.98,
-        opacity: 0.9,
+        scale: 0.975,
+        opacity: 0.94,
       }}
       style={style}
     >
@@ -88,7 +88,7 @@ export function Button({
         <Text
           fontSize={typography.label.fontSize}
           lineHeight={typography.label.lineHeight}
-          fontWeight="800"
+          fontWeight="700"
           color={palette.text}
           textAlign="center"
         >

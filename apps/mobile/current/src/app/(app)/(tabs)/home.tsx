@@ -5,7 +5,8 @@ import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
-import { Glyph } from '@/components/ui/glyph';
+import { Glyph, type GlyphName } from '@/components/ui/glyph';
+import { OperatorRow } from '@/components/ui/operator-row';
 import { Pill } from '@/components/ui/pill';
 import { LoadingState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
@@ -26,6 +27,13 @@ import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 // MOBILE_V0_7_COMMISSION_RELEASE_CRITICAL_VISIBILITY
 const HOME_REPORT_PARAMS = {
   report_type: 'management_summary' as const,
+};
+
+type HomeAction = {
+  title: string;
+  copy: string;
+  glyph: GlyphName;
+  route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/portal/messages' | '/admin';
 };
 
 export default function HomeScreen() {
@@ -57,30 +65,23 @@ export default function HomeScreen() {
   const report = reportQuery.data?.data;
   const inventoryValuation = isSuperAdmin ? foundationQuery.data?.inventory_valuation ?? null : null;
 
-  type HomeAction = {
-    title: string;
-    copy: string;
-    glyph: 'catalog' | 'cart' | 'orders' | 'check' | 'bell';
-    route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/portal/messages' | '/admin';
-  };
-
   // MOBILE_V0_9_HOME_INFORMATION_ARCHITECTURE_BATCH5C
   const quickActions = [
     hasFeature('catalog') ? { title: 'Otvori katalog', copy: 'Pretraži aktivne proizvode', glyph: 'catalog' as const, route: '/catalog' as const } : null,
-    can('catalog.manage_products') ? { title: 'Dodaj artikal', copy: 'Kreiraj novi artikal', glyph: 'catalog' as const, route: '/admin/catalog/create' as const } : null,
+    can('catalog.manage_products') ? { title: 'Dodaj artikal', copy: 'Kreiraj novi artikal', glyph: 'add' as const, route: '/admin/catalog/create' as const } : null,
     hasFeature('order_create') ? { title: 'Korpa', copy: itemCount ? `${itemCount} komada spremno` : 'Pripremi novu porudžbinu', glyph: 'cart' as const, route: '/cart' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const myActivities = [
     hasFeature('orders') ? { title: 'Moje porudžbine', copy: 'Status, plaćanja i detalji porudžbina', glyph: 'orders' as const, route: '/orders' as const } : null,
-    can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Obračun i status isplate', glyph: 'orders' as const, route: '/commissions' as const } : null,
-    can('warranties.view_own') ? { title: 'Moje garancije', copy: 'Garantni listovi i održavanje', glyph: 'check' as const, route: '/warranties' as const } : null,
-    can('after_sales.view_own') ? { title: 'Reklamacije i servis', copy: 'Postprodajni slučajevi i komunikacija', glyph: 'check' as const, route: '/after-sales' as const } : null,
-    hasFeature('customer_portal') ? { title: 'Poruke podršci', copy: 'Razgovori sa podrškom i pitanja uz porudžbine', glyph: 'bell' as const, route: '/portal/messages' as const } : null,
+    can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Obračun i status isplate', glyph: 'commission' as const, route: '/commissions' as const } : null,
+    can('warranties.view_own') ? { title: 'Moje garancije', copy: 'Garantni listovi i održavanje', glyph: 'warranty' as const, route: '/warranties' as const } : null,
+    can('after_sales.view_own') ? { title: 'Reklamacije i servis', copy: 'Postprodajni slučajevi i komunikacija', glyph: 'service' as const, route: '/after-sales' as const } : null,
+    hasFeature('customer_portal') ? { title: 'Poruke podršci', copy: 'Razgovori sa podrškom i pitanja uz porudžbine', glyph: 'messages' as const, route: '/portal/messages' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const adminActions = [
-    adminAllowed ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'check' as const, route: '/admin' as const } : null,
+    adminAllowed ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'admin' as const, route: '/admin' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const refreshHome = () => {
@@ -235,24 +236,7 @@ export default function HomeScreen() {
         <Text style={styles.sectionMeta}>{quickActions.length} dostupno</Text>
       </View>
       <View style={styles.actions}>
-        {quickActions.map((action) => (
-          <Pressable
-            key={action.title}
-            onPress={() => router.push(action.route)}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Card style={styles.actionCard}>
-              <View style={styles.actionIcon}>
-                <Glyph name={action.glyph} size={24} color={themeColors.primary} />
-              </View>
-              <View style={styles.actionCopy}>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionText}>{action.copy}</Text>
-              </View>
-              <Glyph name="arrow" size={27} color={themeColors.muted} />
-            </Card>
-          </Pressable>
-        ))}
+        <HomeActionList actions={quickActions} />
       </View>
 
       {/* MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C */}
@@ -262,24 +246,7 @@ export default function HomeScreen() {
       </View>
       {myActivities.length > 0 ? (
         <View style={styles.actions}>
-          {myActivities.map((action) => (
-            <Pressable
-              key={action.title}
-              onPress={() => router.push(action.route)}
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <Card style={styles.actionCard}>
-                <View style={styles.actionIcon}>
-                  <Glyph name={action.glyph} size={24} color={themeColors.primary} />
-                </View>
-                <View style={styles.actionCopy}>
-                  <Text style={styles.actionTitle}>{action.title}</Text>
-                  <Text style={styles.actionText}>{action.copy}</Text>
-                </View>
-                <Glyph name="arrow" size={27} color={themeColors.muted} />
-              </Card>
-            </Pressable>
-          ))}
+          <HomeActionList actions={myActivities} />
         </View>
       ) : (
         <Card muted style={styles.stateCard}>
@@ -295,24 +262,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>Radni prostor</Text>
           </View>
           <View style={styles.actions}>
-            {adminActions.map((action) => (
-              <Pressable
-                key={action.title}
-                onPress={() => router.push(action.route)}
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Card style={styles.actionCard}>
-                  <View style={styles.actionIcon}>
-                    <Glyph name={action.glyph} size={24} color={themeColors.primary} />
-                  </View>
-                  <View style={styles.actionCopy}>
-                    <Text style={styles.actionTitle}>{action.title}</Text>
-                    <Text style={styles.actionText}>{action.copy}</Text>
-                  </View>
-                  <Glyph name="arrow" size={27} color={themeColors.muted} />
-                </Card>
-              </Pressable>
-            ))}
+            <HomeActionList actions={adminActions} />
           </View>
         </>
       ) : null}
@@ -329,6 +279,25 @@ export default function HomeScreen() {
         </View>
       </Card>
     </Screen>
+  );
+}
+
+function HomeActionList({ actions }: { actions: HomeAction[] }) {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.operatorList}>
+      {actions.map((action, index) => (
+        <OperatorRow
+          key={action.title}
+          title={action.title}
+          copy={action.copy}
+          glyph={action.glyph}
+          divider={index < actions.length - 1}
+          onPress={() => router.push(action.route)}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -607,19 +576,14 @@ function createStyles(theme: AppColors) {
     metricValue: { ...typography.h2, color: theme.ink },
     metricLabel: { ...typography.small, color: theme.muted },
     actions: { gap: spacing.md },
-    pressed: { transform: [{ scale: 0.99 }], opacity: 0.92 },
-    actionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-    actionIcon: {
-      width: 48,
-      height: 48,
+    operatorList: {
+      overflow: 'hidden',
       borderRadius: radii.lg,
-      backgroundColor: theme.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.line,
+      backgroundColor: theme.surface,
     },
-    actionCopy: { flex: 1 },
-    actionTitle: { ...typography.h3, color: theme.ink },
-    actionText: { ...typography.small, color: theme.muted, marginTop: 3 },
+    pressed: { transform: [{ scale: 0.99 }], opacity: 0.92 },
     foundation: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
     foundationIcon: {
       width: 38,

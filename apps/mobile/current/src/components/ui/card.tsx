@@ -27,13 +27,15 @@ export function Card({
       backgroundColor={
         muted ? '$surfaceContainer' : '$surface'
       }
-      borderRadius={radii.xl}
+      borderRadius={radii.lg}
       padding={spacing.lg}
+      borderWidth={1}
+      borderColor="$line"
       transition="200ms"
       boxShadow={
         muted
           ? undefined
-          : '0px 10px 22px $shadow1'
+          : '0px 2px 6px $shadow1'
       }
       style={style}
     >

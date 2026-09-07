@@ -75,7 +75,8 @@ const required = [
   'src/app/(app)/admin/search.tsx',
   'src/app/(app)/admin/settings/modules/index.tsx',
   'tamagui.config.ts',
-  'src/design/ald1n-tokens.generated.ts'
+  'src/design/ald1n-tokens.generated.ts',
+  'src/components/ui/operator-row.tsx'
 ];
 for (const file of required) assert(fs.existsSync(path.join(root, file)), `${file} postoji.`);
 
@@ -496,6 +497,57 @@ assert(
 );
 const glyph = fs.readFileSync(path.join(root, 'src/components/ui/glyph.tsx'), 'utf8');
 assert(glyph.includes('expo-symbols') && glyph.includes('SymbolView'), 'UI koristi native Expo Symbols umesto tekstualnih pseudo-ikonica.');
+// MOBILE_BUILD16_OPERATOR_PRIMITIVES_BATCH124
+assert(
+  !glyph.includes('const fallback')
+    && !/[⌂▦▤◆⌕]/.test(glyph)
+    && glyph.includes("expo-symbols/androidWeights/medium"),
+  'Build16 Glyph koristi jednu native Symbols porodicu bez tekstualnih pseudo-fallback ikonica.'
+);
+const operatorRow = fs.readFileSync(path.join(root, 'src/components/ui/operator-row.tsx'), 'utf8');
+assert(
+  operatorRow.includes('react-native-reanimated')
+    && operatorRow.includes('useReducedMotion')
+    && operatorRow.includes('withTiming')
+    && operatorRow.includes('OperatorRow'),
+  'Build16 OperatorRow koristi UI-thread press motion i reduced-motion ugovor.'
+);
+const operatorButton = fs.readFileSync(path.join(root, 'src/components/ui/button.tsx'), 'utf8');
+assert(
+  operatorButton.includes('borderRadius={radii.md}')
+    && !operatorButton.includes('borderRadius={radii.pill}')
+    && operatorButton.includes('scale: 0.975'),
+  'Build16 globalni Button koristi canonical operator radius i kontrolisani press feedback.'
+);
+const operatorCard = fs.readFileSync(path.join(root, 'src/components/ui/card.tsx'), 'utf8');
+assert(
+  operatorCard.includes('borderRadius={radii.lg}')
+    && operatorCard.includes("'0px 2px 6px $shadow1'")
+    && !operatorCard.includes("'0px 10px 22px $shadow1'"),
+  'Build16 globalni Card prati card-diet radius i suptilnu elevation hijerarhiju.'
+);
+const operatorHome = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
+assert(
+  operatorHome.includes('HomeActionList')
+    && operatorHome.includes('OperatorRow')
+    && !operatorHome.includes('<Card style={styles.actionCard}>'),
+  'Build16 Home akcije koriste jednu grupisanu operator površinu umesto card-per-row obrasca.'
+);
+const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
+assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
+if (fs.existsSync(build16IconRegistryPath)) {
+  try {
+    const build16IconRegistry = JSON.parse(fs.readFileSync(build16IconRegistryPath, 'utf8'));
+    assert(
+      build16IconRegistry.version === 1
+        && build16IconRegistry.mobile?.authority === 'expo-symbols-material-symbols'
+        && build16IconRegistry.laravel?.target === 'phosphor-local-bundled',
+      'Build16 icon registry zaključava Android Symbols i Laravel Phosphor authority.'
+    );
+  } catch (error) {
+    fail(`Build16 icon registry nije validan JSON: ${error.message}`);
+  }
+}
 
 const openapi = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
 

@@ -75,6 +75,7 @@ export const colors: AppColors = colorThemes.light;
 
 export const spacing = ald1nDesignTokens.spacing;
 export const radii = ald1nDesignTokens.radii;
+export const motion = ald1nDesignTokens.motion;
 
 /*
  * RN-specific shadow.
