@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router, type Href } from 'expo-router';
-import { StyleSheet, Text, View , TextInput} from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
-import { spacing, typography, type AppColors } from '@/constants/theme';
+import { OperatorRow } from '@/components/ui/operator-row';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
 import { apiAdmin, type AdminModuleKey } from '@/features/admin/admin-api';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
@@ -22,6 +22,7 @@ function moneyRsd(value: number): string {
 
 // MOBILE_V0_7_ADMIN_HUB_COMMISSION_PRIORITY
 // MOBILE_V0_8_SUPERADMIN_INVENTORY_VALUATION_BATCH3
+// MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132
 export default function AdminIndexScreen() {  const styles = useThemedStyles(createStyles);
   const { bootstrap, can } = useAuth();
   const [adminSearch, setAdminSearch] = useState('');
@@ -72,7 +73,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
       />
 
       <Card style={styles.hero}>
-        <Pill tone="primary">ADMIN RADNI PROSTOR</Pill>
+        <Text style={styles.heroEyebrow}>ADMIN RADNI PROSTOR</Text>
         <Text style={styles.heroTitle}>
           Centralizovan pristup administratorskim modulima.
         </Text>
@@ -108,11 +109,11 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
       <Card style={styles.adminGroupCard}>
         <Text style={styles.sectionTitle}>Globalna pretraga</Text>
         <Text style={styles.heroCopy}>Artikli, porudžbine, korisnici, garancije, reklamacije i prečice kroz jedan permission-aware ekran.</Text>
-        <Button variant="secondary" onPress={() => router.push('/admin/search' as Href)}>Pretraži sve module</Button>
+        <OperatorRow title="Pretraži sve module" copy="Permission-aware pretraga kroz poslovne domene." glyph="search" onPress={() => router.push('/admin/search' as Href)} />
       </Card>
 
             {/* MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C */}
-      <Card>
+      <Card style={styles.searchSurface}>
         <TextInput
           value={adminSearch}
           onChangeText={setAdminSearch}
@@ -131,11 +132,11 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Prodaja</Text>
           <View style={styles.quickActions}>
-            {can('orders.manage') && adminMatch('Porudžbine') ? <Button variant="secondary" onPress={() => router.push('/admin/orders')}>Porudžbine</Button> : null}
-            {isSuperAdmin && adminMatch('Direktna prodaja') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog' as Href)}>Direktna prodaja</Button> : null}
-            {moduleEnabled('commissions') && can('commissions.manage') && adminMatch('Provizije') ? <Button variant="secondary" onPress={() => router.push('/admin/commissions')}>Provizije</Button> : null}
-            {moduleEnabled('receivables') && can('receivables.manage') && adminMatch('Potraživanja') ? <Button variant="secondary" onPress={() => router.push('/admin/receivables')}>Potraživanja</Button> : null}
-            {can('orders.manage') && adminMatch('Isporuke') ? <Button variant="secondary" onPress={() => router.push('/admin/orders')}>Isporuke</Button> : null}
+            {can('orders.manage') && adminMatch('Porudžbine') ? <OperatorRow title="Porudžbine" glyph="orders" onPress={() => router.push('/admin/orders')} divider /> : null}
+            {isSuperAdmin && adminMatch('Direktna prodaja') ? <OperatorRow title="Direktna prodaja" glyph="cart" onPress={() => router.push('/admin/catalog' as Href)} divider /> : null}
+            {moduleEnabled('commissions') && can('commissions.manage') && adminMatch('Provizije') ? <OperatorRow title="Provizije" glyph="commission" onPress={() => router.push('/admin/commissions')} divider /> : null}
+            {moduleEnabled('receivables') && can('receivables.manage') && adminMatch('Potraživanja') ? <OperatorRow title="Potraživanja" glyph="report" onPress={() => router.push('/admin/receivables')} divider /> : null}
+            {can('orders.manage') && adminMatch('Isporuke') ? <OperatorRow title="Isporuke" glyph="orders" onPress={() => router.push('/admin/orders')} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -147,13 +148,13 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Katalog i lager</Text>
           <View style={styles.quickActions}>
-            {can('catalog.manage_products') && adminMatch('Artikli') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog' as Href)}>Artikli</Button> : null}
-            {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/create')}>Dodaj artikal</Button> : null}
-            {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)}>Nabavne cene</Button> : null}
-            {can('catalog.manage_products') && adminMatch('Masovne izmene') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/bulk' as Href)}>Masovne izmene</Button> : null}
-            {can('catalog.audit') && adminMatch('Kvalitet podataka') ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/data-quality' as Href)}>Kvalitet podataka</Button> : null}
-            {moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <Button variant="secondary" onPress={() => router.push('/admin/inventory')}>Lager</Button> : null}
-            {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <Button variant="secondary" onPress={() => router.push('/admin/catalog/dictionaries' as Href)}>Šifarnici</Button> : null}
+            {can('catalog.manage_products') && adminMatch('Artikli') ? <OperatorRow title="Artikli" glyph="catalog" onPress={() => router.push('/admin/catalog' as Href)} divider /> : null}
+            {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <OperatorRow title="Dodaj artikal" glyph="add" onPress={() => router.push('/admin/catalog/create')} divider /> : null}
+            {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <OperatorRow title="Nabavne cene" glyph="report" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)} divider /> : null}
+            {can('catalog.manage_products') && adminMatch('Masovne izmene') ? <OperatorRow title="Masovne izmene" glyph="admin" onPress={() => router.push('/admin/catalog/bulk' as Href)} divider /> : null}
+            {can('catalog.audit') && adminMatch('Kvalitet podataka') ? <OperatorRow title="Kvalitet podataka" glyph="info" onPress={() => router.push('/admin/catalog/data-quality' as Href)} divider /> : null}
+            {moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <OperatorRow title="Lager" glyph="box" onPress={() => router.push('/admin/inventory')} divider /> : null}
+            {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <OperatorRow title="Šifarnici" glyph="catalog" onPress={() => router.push('/admin/catalog/dictionaries' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -165,10 +166,10 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Postprodaja</Text>
           <View style={styles.quickActions}>
-            {moduleEnabled('after_sales') && can('after_sales.manage') && adminMatch('Reklamacije') ? <Button variant="secondary" onPress={() => router.push('/admin/after-sales')}>Reklamacije</Button> : null}
-            {moduleEnabled('warranties') && can('warranties.manage') && adminMatch('Garancije') ? <Button variant="secondary" onPress={() => router.push('/admin/warranties')}>Garancije</Button> : null}
-            {moduleEnabled('field_operations') && can('field_operations.view') && adminMatch('Terenske operacije') ? <Button variant="secondary" onPress={() => router.push('/admin/field-operations')}>Terenske operacije</Button> : null}
-            {moduleEnabled('service_parts') && (can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi') ? <Button variant="secondary" onPress={() => router.push('/admin/service-parts')}>Servisni delovi</Button> : null}
+            {moduleEnabled('after_sales') && can('after_sales.manage') && adminMatch('Reklamacije') ? <OperatorRow title="Reklamacije" glyph="service" onPress={() => router.push('/admin/after-sales')} divider /> : null}
+            {moduleEnabled('warranties') && can('warranties.manage') && adminMatch('Garancije') ? <OperatorRow title="Garancije" glyph="warranty" onPress={() => router.push('/admin/warranties')} divider /> : null}
+            {moduleEnabled('field_operations') && can('field_operations.view') && adminMatch('Terenske operacije') ? <OperatorRow title="Terenske operacije" glyph="service" onPress={() => router.push('/admin/field-operations')} divider /> : null}
+            {moduleEnabled('service_parts') && (can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi') ? <OperatorRow title="Servisni delovi" glyph="box" onPress={() => router.push('/admin/service-parts')} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -179,9 +180,9 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Poslovanje</Text>
           <View style={styles.quickActions}>
-            {moduleEnabled('reports') && can('reports.view') && adminMatch('Izveštaji') ? <Button variant="secondary" onPress={() => router.push('/admin/reports')}>Izveštaji</Button> : null}
-            {can('system.manage_settings') && adminMatch('EUR/RSD') ? <Button variant="secondary" onPress={() => router.push('/admin/exchange-rate' as Href)}>EUR/RSD</Button> : null}
-            {isSuperAdmin && adminMatch('Kurirske službe') ? <Button variant="secondary" onPress={() => router.push('/admin/couriers' as Href)}>Kurirske službe</Button> : null}
+            {moduleEnabled('reports') && can('reports.view') && adminMatch('Izveštaji') ? <OperatorRow title="Izveštaji" glyph="report" onPress={() => router.push('/admin/reports')} divider /> : null}
+            {can('system.manage_settings') && adminMatch('EUR/RSD') ? <OperatorRow title="EUR/RSD" glyph="report" onPress={() => router.push('/admin/exchange-rate' as Href)} divider /> : null}
+            {isSuperAdmin && adminMatch('Kurirske službe') ? <OperatorRow title="Kurirske službe" glyph="service" onPress={() => router.push('/admin/couriers' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -194,9 +195,9 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Korisnici</Text>
           <View style={styles.quickActions}>
-            {adminMatch('Upravljanje korisnicima') ? <Button variant="secondary" onPress={() => router.push('/admin/users' as Href)}>Upravljanje korisnicima</Button> : null}
-            {adminMatch('Grupe pristupa') ? <Button variant="secondary" onPress={() => router.push('/admin/user-groups' as Href)}>Grupe pristupa</Button> : null}
-            {moduleEnabled('customer_portal') && adminMatch('Customer Portal') ? <Button variant="secondary" onPress={() => router.push('/admin/customer-portal' as Href)}>Customer Portal</Button> : null}
+            {adminMatch('Upravljanje korisnicima') ? <OperatorRow title="Upravljanje korisnicima" glyph="account" onPress={() => router.push('/admin/users' as Href)} divider /> : null}
+            {adminMatch('Grupe pristupa') ? <OperatorRow title="Grupe pristupa" glyph="account" onPress={() => router.push('/admin/user-groups' as Href)} divider /> : null}
+            {moduleEnabled('customer_portal') && adminMatch('Customer Portal') ? <OperatorRow title="Customer Portal" glyph="messages" onPress={() => router.push('/admin/customer-portal' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -208,10 +209,10 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Sistem</Text>
           <View style={styles.quickActions}>
-            {moduleEnabled('system_health') && can('system.health') && adminMatch('System Health') ? <Button variant="secondary" onPress={() => router.push('/admin/system-health')}>System Health</Button> : null}
-            {moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost') ? <Button variant="secondary" onPress={() => router.push('/admin/audit')}>Audit i bezbednost</Button> : null}
-            {can('system.manage_settings') && adminMatch('Sistemska podešavanja') ? <Button variant="secondary" onPress={() => router.push('/admin/settings' as Href)}>Sistemska podešavanja</Button> : null}
-            {isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema') ? <Button variant="secondary" onPress={() => router.push('/admin/settings/modules' as Href)}>Moduli sistema</Button> : null}
+            {moduleEnabled('system_health') && can('system.health') && adminMatch('System Health') ? <OperatorRow title="System Health" glyph="info" onPress={() => router.push('/admin/system-health')} divider /> : null}
+            {moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost') ? <OperatorRow title="Audit i bezbednost" glyph="lock" onPress={() => router.push('/admin/audit')} divider /> : null}
+            {can('system.manage_settings') && adminMatch('Sistemska podešavanja') ? <OperatorRow title="Sistemska podešavanja" glyph="admin" onPress={() => router.push('/admin/settings' as Href)} divider /> : null}
+            {isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema') ? <OperatorRow title="Moduli sistema" glyph="admin" onPress={() => router.push('/admin/settings/modules' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -242,7 +243,15 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
     hero: {
-      gap: spacing.md,
+      gap: spacing.sm,
+      borderLeftWidth: 3,
+      borderLeftColor: theme.primary,
+    },
+    heroEyebrow: {
+      ...typography.small,
+      color: theme.primary,
+      fontWeight: '800',
+      letterSpacing: 1.1,
     },
     heroTitle: {
       ...typography.h2,
@@ -276,15 +285,27 @@ function createStyles(theme: AppColors) {
       color: theme.muted,
     },
     quickActions: {
-      gap: spacing.sm,
+      gap: 0,
+      marginHorizontal: -spacing.lg,
+      marginBottom: -spacing.lg,
+      overflow: 'hidden',
     },
     adminSearchInput: {
       ...typography.body,
       color: theme.ink,
-      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: radii.md,
+      backgroundColor: theme.surfaceMuted,
+    },
+    searchSurface: {
+      padding: spacing.sm,
     },
     adminGroupCard: {
-      gap: spacing.sm,
+      gap: spacing.md,
+      overflow: 'hidden',
     },
     sectionHead: {
       flexDirection: 'row',

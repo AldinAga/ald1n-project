@@ -1,5 +1,6 @@
 // MOBILE_GLOBAL_PAGE_HEADER_V06
 // MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2
+// MOBILE_BUILD16_PAGE_HEADER_FINAL_BATCH132
 import { router, usePathname } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -114,7 +115,7 @@ function createStyles(theme: AppColors) {
       alignItems: 'center',
       gap: spacing.md,
     },
-    logo: { width: 42, height: 42, borderRadius: 12, flexShrink: 0 },
+    logo: { width: 42, height: 42, borderRadius: radii.md, flexShrink: 0 },
     copy: { flex: 1, minWidth: 0 },
     eyebrow: {
       ...typography.small,
@@ -132,11 +133,13 @@ function createStyles(theme: AppColors) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.surfaceContainer,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
     },
     notificationButton: {
       width: 46,
       height: 46,
-      borderRadius: radii.pill,
+      borderRadius: radii.lg,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.surfaceContainer,
@@ -163,6 +166,6 @@ function createStyles(theme: AppColors) {
     },
     badgeText: { color: theme.onDanger, fontSize: 9, lineHeight: 10, fontWeight: '900' },
     disabled: { opacity: 0.45 },
-    pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
+    pressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
   });
 }

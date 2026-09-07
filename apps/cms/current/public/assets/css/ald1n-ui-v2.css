@@ -4514,3 +4514,130 @@ body {
     min-height: 64px;
   }
 }
+
+
+/* MOBILE_BUILD16_ADMIN_SHARED_STATES_FINAL_POLISH_BATCH132 */
+/* BUILD16_FINAL_BODY_FLAT_SURFACE */
+body {
+  background: var(--ald-background);
+}
+
+.modern-dashboard-hero {
+  background: var(--ald-surface);
+}
+
+.auth-intro {
+  background: var(--ald-primary-strong);
+}
+
+.page-heading {
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.panel {
+  border-color: var(--ald-border);
+  border-radius: var(--ald-radius-xl);
+  background: var(--ald-surface);
+  box-shadow: none;
+}
+
+.form-section {
+  gap: 16px;
+}
+
+.button {
+  border-radius: var(--ald-radius-md);
+  box-shadow: none;
+  transition:
+    background var(--ald-motion-fast) var(--ald-ease-out),
+    border-color var(--ald-motion-fast) var(--ald-ease-out),
+    color var(--ald-motion-fast) var(--ald-ease-out),
+    transform var(--ald-motion-press) var(--ald-ease-out);
+}
+
+.button-primary,
+.button-danger {
+  box-shadow: none;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+input,
+select,
+textarea {
+  border-radius: var(--ald-radius-md);
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid
+    color-mix(
+      in srgb,
+      var(--ald-primary) 38%,
+      transparent
+    );
+  outline-offset: 2px;
+}
+
+.empty-state {
+  min-height: 220px;
+  padding: 34px 24px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-xl);
+  background: var(--ald-surface);
+}
+
+.empty-state .ui-icon {
+  color: var(--ald-primary);
+}
+
+.empty-inline {
+  padding: 16px 18px;
+  border: 1px dashed var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface-muted);
+  color: var(--ald-muted);
+}
+
+.alert {
+  border-radius: var(--ald-radius-lg);
+}
+
+.admin-table-wrap,
+.flat-table {
+  border-radius: var(--ald-radius-lg);
+}
+
+.admin-table tbody tr {
+  transition: background var(--ald-motion-fast) var(--ald-ease-out);
+}
+
+.status-badge,
+.count-pill {
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .page-heading {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .panel,
+  .empty-state {
+    border-radius: var(--ald-radius-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .admin-table tbody tr,
+  a,
+  button,
+  summary {
+    transition: none !important;
+    transform: none !important;
+  }
+}

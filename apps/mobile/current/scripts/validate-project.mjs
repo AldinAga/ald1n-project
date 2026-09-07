@@ -719,6 +719,63 @@ assert(
   'Build16 Cart decrement koristi canonical Expo Symbols remove semantic bez tekstualnog pseudo-icon fallbacka.'
 );
 
+// MOBILE_BUILD16_ADMIN_SHARED_STATES_BATCH132
+const build16AdminHubBatch132 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+const build16SharedStatesBatch132 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
+const build16PageHeaderBatch132 = fs.readFileSync(path.join(root, 'src/components/layout/page-header.tsx'), 'utf8');
+const build16CmsCssBatch132 = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'),
+  'utf8'
+);
+
+assert(
+  build16AdminHubBatch132.includes('MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132')
+    && build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+    && !build16AdminHubBatch132.includes("import { Button } from '@/components/ui/button';")
+    && !build16AdminHubBatch132.includes('<Button variant="secondary"')
+    && build16AdminHubBatch132.includes('title="Porudžbine"')
+    && build16AdminHubBatch132.includes('title="Šifarnici"')
+    && build16AdminHubBatch132.includes('title="Reklamacije"')
+    && build16AdminHubBatch132.includes('title="Izveštaji"')
+    && build16AdminHubBatch132.includes('title="Upravljanje korisnicima"')
+    && build16AdminHubBatch132.includes('title="System Health"')
+    && build16AdminHubBatch132.includes('foundation.modules.filter')
+    && build16AdminHubBatch132.includes('inventory_valuation')
+    && build16AdminHubBatch132.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C'),
+  'Build16 Admin Hub koristi OperatorRow grupisane akcije i čuva permission/module/inventory/global-search authority bez button-zoo obrasca.'
+);
+
+assert(
+  build16SharedStatesBatch132.includes('MOBILE_BUILD16_SHARED_STATES_FINAL_BATCH132')
+    && build16SharedStatesBatch132.includes('useReducedMotion')
+    && build16SharedStatesBatch132.includes('if (reduceMotion)')
+    && build16SharedStatesBatch132.includes('accessibilityRole="progressbar"')
+    && build16SharedStatesBatch132.includes('BrandMark')
+    && build16SharedStatesBatch132.includes('apiError?.requestId')
+    && build16SharedStatesBatch132.includes('Pokušaj ponovo')
+    && !build16SharedStatesBatch132.includes('borderRadius: 999'),
+  'Build16 shared loading/empty/unavailable/error states koriste canonical radii, reduced-motion i postojeći retry/request-id contract.'
+);
+
+assert(
+  build16PageHeaderBatch132.includes('MOBILE_BUILD16_PAGE_HEADER_FINAL_BATCH132')
+    && build16PageHeaderBatch132.includes('notificationButton:')
+    && build16PageHeaderBatch132.includes('borderRadius: radii.lg')
+    && build16PageHeaderBatch132.includes('useNotificationUnread')
+    && build16PageHeaderBatch132.includes("router.push('/notifications')")
+    && build16PageHeaderBatch132.includes('borderRadius: radii.pill'),
+  'Build16 PageHeader zadržava notification badge/routing authority uz Operator control radius i restrained press feedback.'
+);
+
+assert(
+  build16CmsCssBatch132.includes('MOBILE_BUILD16_ADMIN_SHARED_STATES_FINAL_POLISH_BATCH132')
+    && build16CmsCssBatch132.includes('BUILD16_FINAL_BODY_FLAT_SURFACE')
+    && build16CmsCssBatch132.includes(':focus-visible')
+    && build16CmsCssBatch132.includes('.empty-state')
+    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion: reduce)'),
+  'Build16 Laravel final polish zaključava flat body, focus-visible, empty-state, control radius i reduced-motion presentation contract.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {
