@@ -2,7 +2,8 @@
 @section('title', 'Moj nalog')
 
 @section('content')
-<div class="page-heading">
+<div class="build16-account-shell" data-build16-account="1">
+<div class="page-heading build16-account-heading">
     <div>
         <span class="eyebrow">Korisnički nalog</span>
         <h1>Moj nalog</h1>
@@ -11,7 +12,7 @@
     <span class="status-badge status-{{ $user->status === 'active' ? 'active' : 'archived' }}">{{ $user->status }}</span>
 </div>
 
-<div class="settings-grid account-page-grid">
+<div class="settings-grid account-page-grid build16-account-grid">
     <section class="panel form-section">
         <div class="profile-header">
             <span class="profile-avatar">{{ $user->displayInitial() }}</span>
@@ -216,5 +217,6 @@
             </div>
         </form>
     </section>
+</div>
 </div>
 @endsection

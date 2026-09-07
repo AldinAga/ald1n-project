@@ -1,21 +1,19 @@
 import * as Application from 'expo-application';
 import { router, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Glyph, type GlyphName } from '@/components/ui/glyph';
+import { OperatorRow } from '@/components/ui/operator-row';
 import { Pill } from '@/components/ui/pill';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { initials } from '@/lib/formatters';
-import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
+import { useThemedStyles } from '@/theme/app-theme';
 
 export default function AccountScreen() {
-  const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
   const { bootstrap, signOut } = useAuth();
@@ -39,9 +37,11 @@ export default function AccountScreen() {
     <Screen>
       {/* MOBILE_V0_9_ACCOUNT_SECTION_ORDER_BATCH5C */}
       {/* MOBILE_V1_0_ACCOUNT_HUB_UX_BATCH81 */}
+      {/* MOBILE_BUILD16_ACCOUNT_REDESIGN_BATCH130 */}
       <PageHeader title="Nalog" eyebrow="Podešavanja" name={user?.name} />
 
-      <View style={styles.profile}>
+      <View style={styles.identitySurface}>
+        <View style={styles.rail} />
         <View style={styles.avatar}>
           <Text style={styles.initials}>{initials(user?.name)}</Text>
         </View>
@@ -52,64 +52,66 @@ export default function AccountScreen() {
         </View>
       </View>
 
-      <Card style={styles.summaryCard}>
+      <View style={styles.summarySurface}>
         <Detail label="Korisničko ime" value={user?.username} />
         <Detail label="Telefon" value={user?.phone} />
         <Detail label="Grad" value={user?.city} />
         <Detail label="Grupa" value={user?.group?.name} last />
-      </Card>
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Nalog i bezbednost</Text>
-        <HubRow
-          icon="account"
-          title="Profil"
-          copy="Lični, kontakt i adresni podaci."
-          onPress={() => router.push('/account/profile' as Href)}
-          theme={themeColors}
-        />
-        <HubRow
-          icon="lock"
-          title="Bezbednost"
-          copy="Promena lozinke i zaštita naloga."
-          onPress={() => router.push('/account/security' as Href)}
-          theme={themeColors}
-        />
-        <HubRow
-          icon="bell"
-          title="Obaveštenja"
-          copy="Push registracija, kanali i kategorije."
-          onPress={() => router.push('/notification-settings')}
-          theme={themeColors}
-        />
-        <HubRow
-          icon="device"
-          title="Uređaji"
-          copy="Pregledaj i opozovi prijavljene uređaje."
-          onPress={() => router.push('/devices')}
-          theme={themeColors}
-        />
-        <HubRow
-          icon="lock"
-          title="Aktivne prijave"
-          copy="API i web sesije, opoziv pojedinačnih prijava."
-          onPress={() => router.push('/sessions' as Href)}
-          theme={themeColors}
-        />
+        <View style={styles.operatorGroup}>
+          <OperatorRow
+            glyph="account"
+            title="Profil"
+            copy="Lični, kontakt i adresni podaci."
+            onPress={() => router.push('/account/profile' as Href)}
+            divider
+          />
+          <OperatorRow
+            glyph="lock"
+            title="Bezbednost"
+            copy="Promena lozinke i zaštita naloga."
+            onPress={() => router.push('/account/security' as Href)}
+            divider
+          />
+          <OperatorRow
+            glyph="bell"
+            title="Obaveštenja"
+            copy="Push registracija, kanali i kategorije."
+            onPress={() => router.push('/notification-settings')}
+            divider
+          />
+          <OperatorRow
+            glyph="device"
+            title="Uređaji"
+            copy="Pregledaj i opozovi prijavljene uređaje."
+            onPress={() => router.push('/devices')}
+          />
+        </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Prikaz</Text>
-        <HubRow
-          icon="info"
-          title="Izgled i valuta"
-          copy="Tema aplikacije, primarna valuta prikaza i NBS kurs."
-          onPress={() => router.push('/account/preferences' as Href)}
-          theme={themeColors}
-        />
+        <Text style={styles.sectionTitle}>Pristup i prikaz</Text>
+        <View style={styles.operatorGroup}>
+          <OperatorRow
+            glyph="lock"
+            title="Aktivne prijave"
+            copy="API i web sesije, opoziv pojedinačnih prijava."
+            onPress={() => router.push('/sessions' as Href)}
+            divider
+          />
+          <OperatorRow
+            glyph="info"
+            title="Izgled i valuta"
+            copy="Tema aplikacije, primarna valuta prikaza i NBS kurs."
+            onPress={() => router.push('/account/preferences' as Href)}
+          />
+        </View>
       </View>
 
-      <Card muted style={styles.versionCard}>
+      <View style={styles.versionSurface}>
         <Text style={styles.version}>
           Ald1n Mobile {Application.nativeApplicationVersion ?? '1.0.0'} · build{' '}
           {Application.nativeBuildVersion ?? 'dev'}
@@ -117,45 +119,10 @@ export default function AccountScreen() {
         <Text style={styles.versionSub}>
           API {bootstrap?.app.api_version ?? 'v1'} · Backend {bootstrap?.app.backend_version ?? '—'}
         </Text>
-      </Card>
+      </View>
 
       <Button variant="danger" onPress={logout}>Odjava</Button>
     </Screen>
-  );
-}
-
-function HubRow({
-  icon,
-  title,
-  copy,
-  onPress,
-  theme,
-}: {
-  icon: GlyphName;
-  title: string;
-  copy: string;
-  onPress: () => void;
-  theme: AppColors;
-}) {
-  const styles = createStyles(theme);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}
-    >
-      <Card style={styles.rowCard}>
-        <View style={styles.rowIcon}>
-          <Glyph name={icon} size={23} color={theme.primary} />
-        </View>
-        <View style={styles.rowCopyWrap}>
-          <Text style={styles.rowTitle}>{title}</Text>
-          <Text style={styles.rowCopy}>{copy}</Text>
-        </View>
-        <Glyph name="arrow" size={26} color={theme.muted} />
-      </Card>
-    </Pressable>
   );
 }
 
@@ -171,16 +138,25 @@ function Detail({ label, value, last = false }: { label: string; value?: string 
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    profile: {
+    identitySurface: {
+      position: 'relative',
+      overflow: 'hidden',
+      minHeight: 98,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.lg,
-      paddingVertical: spacing.sm,
+      padding: spacing.lg,
+      paddingLeft: spacing.xl,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surface,
     },
+    rail: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: theme.primary },
     avatar: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: 64,
+      height: 64,
+      borderRadius: radii.xl,
       backgroundColor: theme.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
@@ -191,7 +167,14 @@ function createStyles(theme: AppColors) {
     profileCopy: { flex: 1, alignItems: 'flex-start', gap: spacing.xs },
     name: { ...typography.h2, color: theme.ink },
     email: { ...typography.small, color: theme.muted },
-    summaryCard: { gap: 0, paddingVertical: 0 },
+    summarySurface: {
+      overflow: 'hidden',
+      paddingHorizontal: spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surface,
+    },
     detail: {
       minHeight: 48,
       flexDirection: 'row',
@@ -204,27 +187,22 @@ function createStyles(theme: AppColors) {
     detailValue: { ...typography.label, color: theme.ink, flex: 1, textAlign: 'right' },
     section: { gap: spacing.sm },
     sectionTitle: { ...typography.h3, color: theme.ink, marginBottom: spacing.xs },
-    rowCard: {
-      minHeight: 82,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingVertical: spacing.md,
-    },
-    rowIcon: {
-      width: 46,
-      height: 46,
+    operatorGroup: {
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: theme.line,
       borderRadius: radii.lg,
-      backgroundColor: theme.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: theme.surface,
     },
-    rowCopyWrap: { flex: 1, gap: 3 },
-    rowTitle: { ...typography.label, color: theme.ink },
-    rowCopy: { ...typography.small, color: theme.muted },
-    versionCard: { gap: spacing.xs },
-    version: { ...typography.small, color: theme.ink, textAlign: 'center' },
-    versionSub: { ...typography.small, color: theme.muted, textAlign: 'center' },
-    pressed: { opacity: 0.72 },
+    versionSurface: {
+      gap: spacing.xs,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surfaceContainer,
+    },
+    version: { ...typography.small, color: theme.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
+    versionSub: { ...typography.small, color: theme.muted, textAlign: 'center', fontVariant: ['tabular-nums'] },
   });
 }

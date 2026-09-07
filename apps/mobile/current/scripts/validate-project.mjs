@@ -636,6 +636,40 @@ assert(
   'Build16 Order detail koristi Operator section hierarchy i čuva post-create, payment proof, documents, delivery, cancel i after-sales authority.'
 );
 
+// MOBILE_BUILD16_NOTIFICATIONS_ACCOUNT_BATCH130
+const build16NotificationsBatch130 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/notifications.tsx'), 'utf8');
+const build16AccountBatch130 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/account.tsx'), 'utf8');
+assert(
+  build16NotificationsBatch130.includes('MOBILE_BUILD16_NOTIFICATIONS_REDESIGN_BATCH130')
+    && !build16NotificationsBatch130.includes('<Card')
+    && build16NotificationsBatch130.includes('api.notifications.readAll')
+    && build16NotificationsBatch130.includes('api.notifications.read')
+    && build16NotificationsBatch130.includes('resolveBusinessNotificationNavigation')
+    && build16NotificationsBatch130.includes("pathname: '/order/[id]'")
+    && build16NotificationsBatch130.includes("pathname: '/after-sales/[id]'")
+    && build16NotificationsBatch130.includes("pathname: '/product/[slug]'"),
+  'Build16 Notifications koristi Operator inbox bez Card-per-row obrasca i čuva read/read-all + poslovni deep-link routing authority.'
+);
+assert(
+  build16AccountBatch130.includes('MOBILE_BUILD16_ACCOUNT_REDESIGN_BATCH130')
+    && build16AccountBatch130.includes('MOBILE_V0_9_ACCOUNT_SECTION_ORDER_BATCH5C')
+    && build16AccountBatch130.includes('MOBILE_V1_0_ACCOUNT_HUB_UX_BATCH81')
+    && !build16AccountBatch130.includes('<Card')
+    && build16AccountBatch130.includes('OperatorRow')
+    && build16AccountBatch130.indexOf('title="Profil"') < build16AccountBatch130.indexOf('title="Bezbednost"')
+    && build16AccountBatch130.indexOf('title="Bezbednost"') < build16AccountBatch130.indexOf('title="Obaveštenja"')
+    && build16AccountBatch130.indexOf('title="Obaveštenja"') < build16AccountBatch130.indexOf('title="Uređaji"')
+    && build16AccountBatch130.includes("router.push('/account/profile' as Href)")
+    && build16AccountBatch130.includes("router.push('/account/security' as Href)")
+    && build16AccountBatch130.includes("router.push('/notification-settings')")
+    && build16AccountBatch130.includes("router.push('/devices')")
+    && build16AccountBatch130.includes("router.push('/sessions' as Href)")
+    && build16AccountBatch130.includes("router.push('/account/preferences' as Href)")
+    && build16AccountBatch130.includes('await signOut()')
+    && build16AccountBatch130.lastIndexOf('Odjava') > build16AccountBatch130.indexOf("router.push('/devices')"),
+  'Build16 Account koristi grupisane OperatorRow površine i čuva Profil > Bezbednost > Obaveštenja > Uređaji > Odjava + sessions/preferences authority.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {
