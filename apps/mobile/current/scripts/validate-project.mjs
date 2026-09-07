@@ -776,6 +776,25 @@ assert(
   'Build16 Laravel final polish zaključava flat body, focus-visible, empty-state, control radius i reduced-motion presentation contract.'
 );
 
+// MOBILE_BUILD16_NATIVE_RELEASE_GATE_BATCH133
+const build16NativeAppConfigBatch133 = fs.readFileSync(path.join(root, 'app.config.js'), 'utf8');
+const build16NativeEasBatch133 = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
+assert(
+  build16NativeAppConfigBatch133.includes('MOBILE_BUILD16_NATIVE_PALETTE_BATCH133')
+    && build16NativeAppConfigBatch133.includes("backgroundColor: '#F6F7F8'")
+    && (build16NativeAppConfigBatch133.match(/backgroundColor: '#101214'/g) ?? []).length === 2
+    && build16NativeAppConfigBatch133.includes("color: '#C45116'")
+    && !build16NativeAppConfigBatch133.includes('#6D45E5')
+    && !build16NativeAppConfigBatch133.includes('#F8F6FC')
+    && !build16NativeAppConfigBatch133.includes('#02141E')
+    && build16NativeEasBatch133.cli?.appVersionSource === 'remote'
+    && build16NativeEasBatch133.build?.production?.autoIncrement === true
+    && build16NativeEasBatch133.build?.production?.channel === 'production'
+    && build16NativeEasBatch133.build?.production?.env?.EXPO_PUBLIC_APP_ENV === 'production'
+    && build16NativeEasBatch133.build?.production?.env?.EXPO_PUBLIC_API_URL === 'https://cms.ald1n.com/api/v1',
+  'Build16 native Expo palette and production EAS remote-version authority are release-locked.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {

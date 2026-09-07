@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+// MOBILE_BUILD16_NATIVE_PALETTE_BATCH133
 const APP_ENV =
   process.env.EXPO_PUBLIC_APP_ENV || 'development';
 
@@ -39,7 +40,7 @@ module.exports = ({ config }) => {
     icon: './assets/icon.png',
     scheme: 'ald1n',
     userInterfaceStyle: 'automatic',
-    backgroundColor: '#F8F6FC',
+    backgroundColor: '#F6F7F8',
 
     updates: {
       url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
@@ -72,7 +73,7 @@ module.exports = ({ config }) => {
 
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#02141E',
+        backgroundColor: '#101214',
       },
 
       predictiveBackGestureEnabled: true,
@@ -91,7 +92,7 @@ module.exports = ({ config }) => {
       [
         'expo-splash-screen',
         {
-          backgroundColor: '#02141E',
+          backgroundColor: '#101214',
           image: './assets/splash-icon.png',
           imageWidth: 200,
           resizeMode: 'contain',
@@ -112,7 +113,7 @@ module.exports = ({ config }) => {
       [
         'expo-notifications',
         {
-          color: '#6D45E5',
+          color: '#C45116',
           defaultChannel: 'business-updates',
         },
       ],
