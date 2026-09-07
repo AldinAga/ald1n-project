@@ -71,18 +71,19 @@
     $catalogActiveFilterCount = count($catalogFilterChips);
 @endphp
 
-<div class="page-heading unified-catalog-heading" data-unified-catalog-ready="1" data-ux-catalog-workspace="1">
+<div class="build16-catalog-shell" data-build16-catalog-redesign="1">
+<div class="page-heading unified-catalog-heading build16-catalog-heading" data-unified-catalog-ready="1" data-ux-catalog-workspace="1">
     <div>
-        <span class="eyebrow">Jedinstveni katalog</span>
+        <span class="eyebrow">Katalog i lager</span>
         <h1>Artikli</h1>
-        <p>Pregled, pretraga i upravljanje artiklima na jednom mestu. Opcije izmene prikazuju se samo kada imaš pravo nad konkretnim artiklom.</p>
+        <p>Brza pretraga, jasni filteri i operativni pregled artikala bez menjanja postojećih pravila pristupa.</p>
     </div>
     <div class="page-heading-actions ux-catalog-command-actions" aria-label="Katalog komande">
-        <span class="count-pill">{{ $products->total() }} artikala</span>
+        <span class="count-pill"><x-icon name="boxes" size="16" />{{ $products->total() }} artikala</span>
         @if($canManageCatalog)
-            <a class="button button-ghost" href="{{ route('admin.products.archived') }}">Arhivirani artikli</a>
-            <a class="button button-ghost" href="{{ route('admin.products.bulk') }}">Bulk centar</a>
-            <a class="button button-primary" href="{{ route('admin.products.create') }}">+ Dodaj artikal</a>
+            <a class="button button-ghost" href="{{ route('admin.products.archived') }}"><x-icon name="archive" size="16" />Arhivirani</a>
+            <a class="button button-ghost" href="{{ route('admin.products.bulk') }}"><x-icon name="sliders" size="16" />Bulk centar</a>
+            <a class="button button-primary" href="{{ route('admin.products.create') }}"><x-icon name="plus-circle" size="16" />Dodaj artikal</a>
         @endif
     </div>
 </div>
@@ -97,6 +98,7 @@
                 <kbd aria-hidden="true">/</kbd>
             </label>
             <div class="ux-catalog-search-control">
+                <x-icon name="search" size="18" />
                 <input
                     id="catalog-workspace-search"
                     type="search"
@@ -114,7 +116,7 @@
                     data-catalog-search-clear
                     aria-label="Obri&#353;i tekst pretrage"
                     @if(blank(request('q'))) hidden @endif
-                ><span aria-hidden="true">&times;</span></button>
+                ><x-icon name="x" size="15" /></button>
             </div>
         </div>
 
@@ -142,10 +144,10 @@
         </label>
 
         <button class="button button-ghost" type="button" data-catalog-filter-open aria-expanded="false" aria-controls="catalog-filter-drawer">
-            Filteri
+            <x-icon name="sliders" size="16" />Filteri
             @if($catalogActiveFilterCount > 0)<span class="catalog-filter-count">{{ $catalogActiveFilterCount }}</span>@endif
         </button>
-        <button class="button button-primary" type="submit">Primeni</button>
+        <button class="button button-primary" type="submit"><x-icon name="check-circle" size="16" />Primeni</button>
     </div>
 
     <div class="catalog-filter-summary">
@@ -162,7 +164,7 @@
         <div class="catalog-filter-chips" aria-label="Aktivni filteri">
             @foreach($catalogFilterChips as $chip)
                 <a class="catalog-filter-chip" href="{{ route('catalog.index', request()->except(array_merge(['page'], $chip['remove']))) }}">
-                    <span>{{ $chip['label'] }}</span><b aria-hidden="true">×</b>
+                    <span>{{ $chip['label'] }}</span><x-icon name="x" size="13" />
                 </a>
             @endforeach
         </div>
@@ -172,7 +174,7 @@
     <aside class="catalog-filter-drawer" id="catalog-filter-drawer" data-catalog-filter-drawer aria-hidden="true" aria-label="Napredni filteri kataloga">
         <div class="catalog-filter-drawer-head">
             <div><span class="eyebrow">Katalog</span><h2>Napredni filteri</h2></div>
-            <button class="catalog-filter-close" type="button" data-catalog-filter-close aria-label="Zatvori filtere">×</button>
+            <button class="catalog-filter-close" type="button" data-catalog-filter-close aria-label="Zatvori filtere"><x-icon name="x" size="18" /></button>
         </div>
         <div class="catalog-filter-drawer-body">
             <div class="catalog-filter-drawer-grid">
@@ -284,7 +286,7 @@
         $displayStatus = $product->deleted_at ? 'archived' : $product->status;
         $statusLabel = ['active'=>'Aktivan','draft'=>'Nacrt','inactive'=>'Neaktivan','archived'=>'Arhiviran'][$displayStatus] ?? $displayStatus;
     @endphp
-    <article class="product-card unified-product-card {{ $canManageThis ? 'is-manageable' : '' }}">
+    <article class="product-card unified-product-card {{ $canManageThis ? 'is-manageable' : '' }}" data-build16-catalog-card="1">
         @if($canManageCatalog && $canManageThis)
             <label class="catalog-card-selector" title="Izaberi za bulk izmenu">
                 <input type="checkbox" name="product_ids[]" value="{{ $product->id }}" data-unified-product-select>
@@ -358,6 +360,7 @@
 @endif
 
 <div class="pagination-wrap">{{ $products->links() }}</div>
+</div>
 @endsection
 
 

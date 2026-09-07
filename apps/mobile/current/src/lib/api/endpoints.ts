@@ -190,7 +190,17 @@ export const api = {
       const response = await apiRequest<{ data: CatalogFilters }>('catalog/filters');
       return response.data;
     },
-    products: (params: { q?: string; stock?: string; sort?: string; page?: number; per_page?: number }) =>
+    products: (params: {
+      q?: string;
+      stock?: string;
+      sort?: string;
+      page?: number;
+      per_page?: number;
+      brand_id?: number;
+      product_type_id?: number;
+      product_line_id?: number;
+      category_id?: number;
+    }) =>
       apiRequest<PaginatedResponse<Product>>(`products${queryString(params)}`),
     product: async (slug: string) => {
       const response = await apiRequest<{ data: Product }>(`products/${encodeURIComponent(slug)}`);

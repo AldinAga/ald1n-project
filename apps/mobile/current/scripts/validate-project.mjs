@@ -544,6 +544,44 @@ assert(
     && !operatorHome.includes('<Pill'),
   'Build16 Home koristi approved Operator welcome/focus hijerarhiju bez legacy gradient-orb/pill hero obrasca.'
 );
+// MOBILE_BUILD16_CATALOG_REDESIGN_BATCH127
+const build16Catalog = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/catalog.tsx'), 'utf8');
+const build16CatalogProductCard = fs.readFileSync(path.join(root, 'src/components/catalog/product-card.tsx'), 'utf8');
+const build16SelectSheet = fs.readFileSync(path.join(root, 'src/components/ui/select-sheet.tsx'), 'utf8');
+const build16Endpoints = fs.readFileSync(path.join(root, 'src/lib/api/endpoints.ts'), 'utf8');
+assert(
+  build16Catalog.includes('MOBILE_BUILD16_CATALOG_REDESIGN_BATCH127')
+    && build16Catalog.includes('CatalogFilterPanel')
+    && build16Catalog.includes('SelectSheet')
+    && build16Catalog.includes('brand_id: brandId ? Number(brandId) : undefined')
+    && build16Catalog.includes('product_type_id: typeId ? Number(typeId) : undefined')
+    && build16Catalog.includes('product_line_id: lineId ? Number(lineId) : undefined')
+    && build16Catalog.includes('category_id: categoryId ? Number(categoryId) : undefined'),
+  'Build16 Catalog koristi Operator search/filter hijerarhiju i postojeći server taxonomy filter authority.'
+);
+assert(
+  build16CatalogProductCard.includes('MOBILE_BUILD16_CATALOG_PRODUCT_ROW_BATCH127')
+    && build16CatalogProductCard.includes('primary_image_thumbnail_url')
+    && build16CatalogProductCard.includes("cachePolicy=\"memory-disk\"")
+    && !build16CatalogProductCard.includes('<Card'),
+  'Build16 Catalog product row je kompaktan operator surface i čuva Batch116 thumbnail/cache contract.'
+);
+assert(
+  build16SelectSheet.includes('MOBILE_BUILD16_SELECT_SHEET_OPERATOR_BATCH127')
+    && build16SelectSheet.includes('<Glyph')
+    && build16SelectSheet.includes('name="check"')
+    && !build16SelectSheet.includes('⌄')
+    && !build16SelectSheet.includes('✓'),
+  'Build16 SelectSheet koristi native Glyph sistem bez tekstualnih pseudo-ikonica.'
+);
+assert(
+  build16Endpoints.includes('brand_id?: number;')
+    && build16Endpoints.includes('product_type_id?: number;')
+    && build16Endpoints.includes('product_line_id?: number;')
+    && build16Endpoints.includes('category_id?: number;'),
+  'Build16 Mobile catalog param contract izlaže postojeće CatalogQueryService taxonomy filtere bez novog backend toka.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {

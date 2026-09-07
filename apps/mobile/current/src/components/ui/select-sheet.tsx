@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { Glyph } from '@/components/ui/glyph';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
 
@@ -21,6 +22,7 @@ type SelectSheetProps = {
   disabled?: boolean;
 };
 
+// MOBILE_BUILD16_SELECT_SHEET_OPERATOR_BATCH127
 export function SelectSheet({
   label,
   value,
@@ -31,8 +33,8 @@ export function SelectSheet({
   disabled = false,
 }: SelectSheetProps) {
   const [open, setOpen] = useState(false);
-  const { colors } = useAppTheme();
-  const styles = createStyles(colors);
+  const { colors: themeColors } = useAppTheme();
+  const styles = createStyles(themeColors);
   const selected = options.find((option) => option.value === value);
 
   return (
@@ -53,7 +55,12 @@ export function SelectSheet({
         <Text style={selected ? styles.value : styles.placeholder} numberOfLines={1}>
           {selected?.label ?? placeholder}
         </Text>
-        <Text style={styles.chevron}>⌄</Text>
+        <Glyph
+          name="arrow"
+          size={18}
+          color={themeColors.muted}
+          style={styles.chevronGlyph}
+        />
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -97,7 +104,7 @@ export function SelectSheet({
                       <Text style={active ? styles.optionLabelActive : styles.optionLabel}>{option.label}</Text>
                       {option.detail ? <Text style={styles.optionDetail}>{option.detail}</Text> : null}
                     </View>
-                    {active ? <Text style={styles.check}>✓</Text> : null}
+                    {active ? <Glyph name="check" size={20} color={themeColors.primary} /> : null}
                   </Pressable>
                 );
               })}
@@ -114,12 +121,12 @@ function createStyles(theme: AppColors) {
     field: { gap: spacing.sm },
     label: { ...typography.label, color: theme.ink, paddingHorizontal: spacing.xs },
     trigger: {
-      minHeight: 56,
+      minHeight: 52,
       borderWidth: 1,
       borderColor: theme.line,
-      borderRadius: radii.xl,
+      borderRadius: radii.lg,
       backgroundColor: theme.surfaceContainer,
-      paddingHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -128,15 +135,15 @@ function createStyles(theme: AppColors) {
     triggerError: { borderColor: theme.danger },
     value: { ...typography.body, color: theme.ink, flex: 1 },
     placeholder: { ...typography.body, color: theme.muted, flex: 1 },
-    chevron: { ...typography.h3, color: theme.muted },
+    chevronGlyph: { transform: [{ rotate: '90deg' }] },
     error: { ...typography.small, color: theme.danger, paddingHorizontal: spacing.xs },
     modalRoot: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
     sheet: {
       maxHeight: '78%',
       backgroundColor: theme.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: radii.xxl,
+      borderTopRightRadius: radii.xxl,
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xxl,
     },
@@ -160,11 +167,11 @@ function createStyles(theme: AppColors) {
     close: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     options: { gap: spacing.sm, paddingBottom: spacing.xl },
     option: {
-      minHeight: 58,
+      minHeight: 56,
       borderWidth: 1,
       borderColor: theme.line,
       borderRadius: radii.lg,
-      paddingHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
       flexDirection: 'row',
       alignItems: 'center',
@@ -176,7 +183,6 @@ function createStyles(theme: AppColors) {
     optionLabel: { ...typography.label, color: theme.ink },
     optionLabelActive: { ...typography.label, color: theme.primary },
     optionDetail: { ...typography.small, color: theme.muted, marginTop: 2 },
-    check: { ...typography.h3, color: theme.primary },
     disabled: { opacity: 0.45 },
     pressed: { opacity: 0.82 },
   });
