@@ -33,6 +33,8 @@ final class CatalogDetailPageTest extends TestCase
         $response->assertOk()
             ->assertSee('Dell Latitude 5440')
             ->assertSee('SKU: DETAIL-1')
+            ->assertSee('data-build16-product-detail-redesign="1"', false)
+            ->assertSee('build16-product-detail-shell', false)
             ->assertDontSee('Poruči artikal');
     }
 

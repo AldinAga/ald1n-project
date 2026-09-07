@@ -1,7 +1,8 @@
 @extends('layouts.app')
 @section('title', $product->name)
 @section('content')
-<div data-catalog-detail-ready="1">
+{{-- MOBILE_BUILD16_PRODUCT_DETAIL_REDESIGN_BATCH128 --}}
+<div class="build16-product-detail-shell" data-catalog-detail-ready="1" data-build16-product-detail-redesign="1">
 @php
     $displayImages = $product->images
         ->map(fn ($image) => ['model' => $image, 'url' => $image->url, 'download_url' => $image->download_url])
@@ -10,9 +11,9 @@
     $mainImage = $displayImages->first();
     $galleryCount = $displayImages->count();
 @endphp
-<a class="back-link" href="{{ route('catalog.index') }}">← Nazad na artikle</a>
-<div class="product-detail {{ filled($product->description) ? 'has-desktop-description' : '' }}">
-    <section class="gallery-panel product-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
+<a class="back-link" href="{{ route('catalog.index') }}"><x-icon name="chevron-left" size="18" /> Nazad na artikle</a>
+<div class="product-detail build16-product-detail-layout {{ filled($product->description) ? 'has-desktop-description' : '' }}">
+    <section class="gallery-panel product-gallery build16-product-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
         @if($mainImage)
             <div class="product-gallery-stage" data-gallery-stage>
                 @if($galleryCount > 1)
@@ -104,7 +105,7 @@
     </section>
 
     @if(filled($product->description))
-        <section class="panel product-description-desktop" aria-labelledby="product-description-title">
+        <section class="panel product-description-desktop build16-product-description" aria-labelledby="product-description-title">
             <div class="product-description-heading">
                 <h2 id="product-description-title">Opis artikla</h2>
                 <button
@@ -119,13 +120,14 @@
         </section>
     @endif
 
-    <section class="detail-panel">
+    <section class="detail-panel build16-product-summary">
         <div class="tags">
             @if($product->type)<span>{{ $product->type->name }}</span>@endif
             @if($product->brand)<span class="neutral">{{ $product->brand->name }}</span>@endif
             @if($product->line)<span>{{ $product->line->name }}</span>@endif
             @if($product->model_name)<span>{{ $product->model_name }}</span>@endif
         </div>
+        <span class="eyebrow">Artikal</span>
         <h1>{{ $product->name }}</h1>
         <div class="sku">SKU: {{ $product->sku }}</div>
         @if($canManageProduct)
@@ -136,7 +138,7 @@
                 <a class="button button-ghost button-small" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
             </div>
         @endif
-        <div class="detail-numbers">
+        <div class="detail-numbers build16-product-metrics">
             @if($canViewPrices)
                 <div><small>Cena</small><strong>{{ number_format((float) $product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong></div>
             @endif
@@ -149,7 +151,7 @@
             @endforeach
         </div>
         @if($product->specificationValues->isNotEmpty())
-            <dl class="product-specification-list">
+            <dl class="product-specification-list build16-product-specifications">
                 @foreach($product->specificationValues->sortBy(fn ($value) => $value->field?->sort_order ?? 0) as $specification)
                     @continue(!$specification->field || $specification->field->status !== 'active')
                     @php
@@ -189,7 +191,7 @@
 </div>
 </div>
 @if($canRecordDirectSale)
-<section class="panel direct-sale-card" aria-labelledby="direct-sale-title">
+<section class="panel direct-sale-card build16-direct-sale" aria-labelledby="direct-sale-title">
     <div class="direct-sale-heading">
         <div>
             <span class="eyebrow">SUPER ADMINISTRATOR</span>

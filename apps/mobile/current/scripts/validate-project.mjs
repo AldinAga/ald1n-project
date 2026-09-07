@@ -582,6 +582,27 @@ assert(
   'Build16 Mobile catalog param contract izlaže postojeće CatalogQueryService taxonomy filtere bez novog backend toka.'
 );
 
+// MOBILE_BUILD16_PRODUCT_DETAIL_REDESIGN_BATCH128
+const build16ProductDetailBatch128 = fs.readFileSync(path.join(root, 'src/app/(app)/product/[slug].tsx'), 'utf8');
+const build16ProductDetailMarkerBatch128 = build16ProductDetailBatch128.indexOf('MOBILE_BUILD16_PRODUCT_DETAIL_REDESIGN_BATCH128');
+const build16ProductDetailLegacyMarkerBatch128 = build16ProductDetailBatch128.indexOf('MOBILE_V0_9_PRODUCT_DETAIL_COMMISSION_DIRECT_SALE_BATCH5A');
+const build16ProductDetailDirectSaleBatch128 = build16ProductDetailBatch128.indexOf('Direktna prodaja', build16ProductDetailLegacyMarkerBatch128);
+const build16ProductDetailEditBatch128 = build16ProductDetailBatch128.indexOf('Uredi artikal', build16ProductDetailLegacyMarkerBatch128);
+assert(
+  build16ProductDetailMarkerBatch128 >= 0
+    && build16ProductDetailBatch128.includes('identitySurface')
+    && build16ProductDetailBatch128.includes('commercialSurface')
+    && build16ProductDetailBatch128.includes('ProductImageGallery')
+    && build16ProductDetailBatch128.includes('primary_image_display_url')
+    && build16ProductDetailBatch128.includes('primary_image_thumbnail_url')
+    && build16ProductDetailLegacyMarkerBatch128 >= 0
+    && build16ProductDetailDirectSaleBatch128 > build16ProductDetailLegacyMarkerBatch128
+    && build16ProductDetailEditBatch128 > build16ProductDetailDirectSaleBatch128
+    && !build16ProductDetailBatch128.includes('<Card')
+    && !build16ProductDetailBatch128.includes('‹ Nazad na katalog'),
+  'Build16 Product detail koristi Operator identity/commercial/section hijerarhiju, čuva Batch116 image authority i v0.9 Direct Sale > Uredi contract bez card-zoo/pseudo-back ikonice.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {
