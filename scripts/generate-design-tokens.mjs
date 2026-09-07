@@ -5,7 +5,7 @@ const project = path.resolve(import.meta.dirname, '..');
 
 const sourceFile = path.join(
   project,
-  'packages/design-tokens/ald1n-violet.json'
+  'packages/design-tokens/ald1n-operator.json'
 );
 
 const mobileOut = path.join(
@@ -15,7 +15,7 @@ const mobileOut = path.join(
 
 const webOut = path.join(
   project,
-  'packages/web-theme/ald1n-violet.css'
+  'packages/web-theme/ald1n-operator.css'
 );
 
 const checkOnly = process.argv.includes('--check');
@@ -34,6 +34,15 @@ if (
     'Light i Dark Tamagui palette moraju imati po 12 boja.'
   );
 }
+
+const bannedAiPurple = new Set([
+  '#6d45e5',
+  '#a98cff',
+  '#7e5be6',
+  '#4b2baa',
+  '#c4b2ff',
+  '#d9caff',
+]);
 
 function parseHexColor(value) {
   if (
@@ -91,6 +100,21 @@ function contrastRatio(first, second) {
   );
 }
 
+function assertContrast(label, first, second, minimum = 4.5) {
+  const ratio = contrastRatio(first, second);
+
+  if (ratio < minimum) {
+    throw new Error(
+      `${label} nema dovoljan kontrast: ` +
+      `${ratio.toFixed(2)}:1, minimum ${minimum}:1`
+    );
+  }
+
+  console.log(
+    `PASS ${label} contrast ${ratio.toFixed(2)}:1`
+  );
+}
+
 for (const scheme of ['light', 'dark']) {
   const theme = data[scheme];
 
@@ -100,27 +124,55 @@ for (const scheme of ['light', 'dark']) {
     );
   }
 
-  if (!theme.primary || !theme.onPrimary) {
+  for (const [key, value] of Object.entries(theme)) {
+    if (
+      typeof value === 'string' &&
+      value.startsWith('#') &&
+      bannedAiPurple.has(value.toLowerCase())
+    ) {
+      throw new Error(
+        `${scheme}.${key} koristi zabranjeni AI-purple ton ${value}.`
+      );
+    }
+  }
+
+  if (
+    String(theme.accent).toLowerCase() !==
+    String(theme.primary).toLowerCase()
+  ) {
     throw new Error(
-      `${scheme} mora imati primary i onPrimary.`
+      `${scheme}.accent mora pratiti jedinstveni brand primary accent.`
     );
   }
 
-  const ratio = contrastRatio(
+  assertContrast(
+    `${scheme} primary/onPrimary`,
     theme.primary,
     theme.onPrimary
   );
 
-  if (ratio < 4.5) {
-    throw new Error(
-      `${scheme}.onPrimary nema dovoljan kontrast sa primary: ` +
-      `${ratio.toFixed(2)}:1`
-    );
-  }
+  assertContrast(
+    `${scheme} text/background`,
+    theme.text,
+    theme.background
+  );
 
-  console.log(
-    `PASS ${scheme} primary/onPrimary contrast ` +
-    `${ratio.toFixed(2)}:1`
+  assertContrast(
+    `${scheme} muted/background`,
+    theme.muted,
+    theme.background
+  );
+
+  assertContrast(
+    `${scheme} primaryContainer/onPrimaryContainer`,
+    theme.primaryContainer,
+    theme.onPrimaryContainer
+  );
+
+  assertContrast(
+    `${scheme} danger/onDanger`,
+    theme.danger,
+    theme.onDanger
   );
 }
 
@@ -168,7 +220,7 @@ function emit(file, content) {
 }
 
 const generatedTs = `// AUTO-GENERATED.
-// Source: packages/design-tokens/ald1n-violet.json
+// Source: packages/design-tokens/ald1n-operator.json
 // Ne menjati rucno.
 
 export const ald1nDesignTokens = ${JSON.stringify({
@@ -194,6 +246,26 @@ export const ald1nDarkPalette = ${JSON.stringify(
 export type Ald1nColorScheme = 'light' | 'dark';
 `;
 
+function foundationVars() {
+  return [
+    `  --ald-radius-sm: ${data.radii.sm}px;`,
+    `  --ald-radius-md: ${data.radii.md}px;`,
+    `  --ald-radius-lg: ${data.radii.lg}px;`,
+    `  --ald-radius-xl: ${data.radii.xl}px;`,
+    `  --ald-radius-xxl: ${data.radii.xxl}px;`,
+    `  --ald-radius-pill: ${data.radii.pill}px;`,
+    `  --ald-motion-instant: ${data.motion.instant};`,
+    `  --ald-motion-press: ${data.motion.press};`,
+    `  --ald-motion-fast: ${data.motion.fast};`,
+    `  --ald-motion-standard: ${data.motion.standard};`,
+    `  --ald-motion-emphasized: ${data.motion.emphasized};`,
+    `  --ald-motion-slow: ${data.motion.slow};`,
+    `  --ald-ease-out: ${data.motion.easeOut};`,
+    `  --ald-ease-in-out: ${data.motion.easeInOut};`,
+    `  --ald-ease-sheet: ${data.motion.easeSheet};`,
+  ].join('\n');
+}
+
 function cssVars(theme) {
   return [
     `  --ald-background: ${theme.background};`,
@@ -212,11 +284,18 @@ function cssVars(theme) {
     `  --ald-on-primary-container: ${theme.onPrimaryContainer};`,
     `  --ald-secondary-container: ${theme.secondaryContainer};`,
     `  --ald-accent: ${theme.accent};`,
+    `  --ald-accent-soft: ${theme.accentSoft};`,
     `  --ald-success: ${theme.success};`,
+    `  --ald-success-soft: ${theme.successSoft};`,
     `  --ald-warning: ${theme.warning};`,
+    `  --ald-warning-soft: ${theme.warningSoft};`,
     `  --ald-danger: ${theme.danger};`,
     `  --ald-on-danger: ${theme.onDanger};`,
+    `  --ald-danger-soft: ${theme.dangerSoft};`,
     `  --ald-info: ${theme.info};`,
+    `  --ald-info-soft: ${theme.infoSoft};`,
+    ``,
+    foundationVars(),
     ``,
     `  /* Laravel compatibility aliases */`,
     `  --pozadina: var(--ald-background);`,
@@ -244,9 +323,9 @@ function cssVars(theme) {
 
 const generatedCss = `/*
  * AUTO-GENERATED.
- * Source: packages/design-tokens/ald1n-violet.json
+ * Source: packages/design-tokens/ald1n-operator.json
  *
- * Jos se NE ucitava na Laravel produkciji.
+ * Canonical Build16 Operator theme tokens.
  */
 
 html[data-theme="light"],

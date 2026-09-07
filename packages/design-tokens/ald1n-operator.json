@@ -1,8 +1,40 @@
-// AUTO-GENERATED.
-// Source: packages/design-tokens/ald1n-operator.json
-// Ne menjati rucno.
-
-export const ald1nDesignTokens = {
+{
+  "meta": {
+    "name": "Ald1n Operator",
+    "version": "2.0.0",
+    "direction": "premium-utilitarian-operator",
+    "accent": "burnt-orange"
+  },
+  "palette": {
+    "light": [
+      "#FFFFFF",
+      "#FCFCFB",
+      "#F6F7F8",
+      "#EEF0F1",
+      "#FBE7DB",
+      "#EAD4C8",
+      "#D9B6A2",
+      "#F08A50",
+      "#D96B2B",
+      "#C45116",
+      "#8C350D",
+      "#17191C"
+    ],
+    "dark": [
+      "#0C0E10",
+      "#101214",
+      "#14171A",
+      "#171A1D",
+      "#1D2226",
+      "#20262B",
+      "#293138",
+      "#46515B",
+      "#697580",
+      "#FF8A3D",
+      "#FFD0B4",
+      "#F3F5F6"
+    ]
+  },
   "light": {
     "background": "#F6F7F8",
     "surface": "#FFFFFF",
@@ -98,36 +130,4 @@ export const ald1nDesignTokens = {
     "springStandard": "medium",
     "springExpressive": "medium"
   }
-} as const;
-
-export const ald1nLightPalette = [
-  "#FFFFFF",
-  "#FCFCFB",
-  "#F6F7F8",
-  "#EEF0F1",
-  "#FBE7DB",
-  "#EAD4C8",
-  "#D9B6A2",
-  "#F08A50",
-  "#D96B2B",
-  "#C45116",
-  "#8C350D",
-  "#17191C"
-] as const;
-
-export const ald1nDarkPalette = [
-  "#0C0E10",
-  "#101214",
-  "#14171A",
-  "#171A1D",
-  "#1D2226",
-  "#20262B",
-  "#293138",
-  "#46515B",
-  "#697580",
-  "#FF8A3D",
-  "#FFD0B4",
-  "#F3F5F6"
-] as const;
-
-export type Ald1nColorScheme = 'light' | 'dark';
+}

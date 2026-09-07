@@ -1,33 +1,54 @@
 /*
  * AUTO-GENERATED.
- * Source: packages/design-tokens/ald1n-violet.json
+ * Source: packages/design-tokens/ald1n-operator.json
  *
- * Jos se NE ucitava na Laravel produkciji.
+ * Canonical Build16 Operator theme tokens.
  */
 
 html[data-theme="light"],
 body[data-theme="light"] {
-  --ald-background: #F8F6FC;
+  --ald-background: #F6F7F8;
   --ald-surface: #FFFFFF;
-  --ald-surface-muted: #F0ECF7;
-  --ald-surface-container: #F1ECF8;
-  --ald-surface-container-high: #EAE4F3;
-  --ald-text: #1C1724;
-  --ald-muted: #746C7D;
-  --ald-border: #E0D9E9;
-  --ald-outline: #7B7284;
-  --ald-primary: #6D45E5;
+  --ald-surface-muted: #F1F3F4;
+  --ald-surface-container: #EEF0F1;
+  --ald-surface-container-high: #E4E7E9;
+  --ald-text: #17191C;
+  --ald-muted: #68717B;
+  --ald-border: #D9DEE2;
+  --ald-outline: #78828D;
+  --ald-primary: #C45116;
   --ald-on-primary: #FFFFFF;
-  --ald-primary-strong: #4B2BAA;
-  --ald-primary-container: #E9E1FF;
-  --ald-on-primary-container: #251052;
-  --ald-secondary-container: #EEE5F4;
-  --ald-accent: #FFAA00;
-  --ald-success: #168C63;
-  --ald-warning: #B87312;
-  --ald-danger: #C43D52;
+  --ald-primary-strong: #8C350D;
+  --ald-primary-container: #FBE7DB;
+  --ald-on-primary-container: #5A2108;
+  --ald-secondary-container: #E8EBED;
+  --ald-accent: #C45116;
+  --ald-accent-soft: #FBE7DB;
+  --ald-success: #19764D;
+  --ald-success-soft: #E3F2EA;
+  --ald-warning: #9A5B0A;
+  --ald-warning-soft: #FFF0D4;
+  --ald-danger: #B33A46;
   --ald-on-danger: #FFFFFF;
-  --ald-info: #2872C8;
+  --ald-danger-soft: #F9E5E8;
+  --ald-info: #236A9F;
+  --ald-info-soft: #E2EFF8;
+
+  --ald-radius-sm: 8px;
+  --ald-radius-md: 10px;
+  --ald-radius-lg: 14px;
+  --ald-radius-xl: 18px;
+  --ald-radius-xxl: 24px;
+  --ald-radius-pill: 999px;
+  --ald-motion-instant: 50ms;
+  --ald-motion-press: 120ms;
+  --ald-motion-fast: 160ms;
+  --ald-motion-standard: 200ms;
+  --ald-motion-emphasized: 280ms;
+  --ald-motion-slow: 400ms;
+  --ald-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ald-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ald-ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Laravel compatibility aliases */
   --pozadina: var(--ald-background);
@@ -54,27 +75,48 @@ body[data-theme="light"] {
 
 html[data-theme="dark"],
 body[data-theme="dark"] {
-  --ald-background: #15111B;
-  --ald-surface: #201927;
-  --ald-surface-muted: #2A2133;
-  --ald-surface-container: #2A2133;
-  --ald-surface-container-high: #382B45;
-  --ald-text: #F8F3FF;
-  --ald-muted: #BDB2C8;
-  --ald-border: #45384F;
-  --ald-outline: #877691;
-  --ald-primary: #A98CFF;
-  --ald-on-primary: #000000;
-  --ald-primary-strong: #C4B2FF;
-  --ald-primary-container: #38275A;
-  --ald-on-primary-container: #F1E9FF;
-  --ald-secondary-container: #30283A;
-  --ald-accent: #FFC14D;
-  --ald-success: #45C995;
-  --ald-warning: #E2A84A;
-  --ald-danger: #FF7585;
-  --ald-on-danger: #000000;
-  --ald-info: #75B7FF;
+  --ald-background: #101214;
+  --ald-surface: #171A1D;
+  --ald-surface-muted: #1D2226;
+  --ald-surface-container: #20262B;
+  --ald-surface-container-high: #293138;
+  --ald-text: #F3F5F6;
+  --ald-muted: #AAB2B9;
+  --ald-border: #313940;
+  --ald-outline: #6F7A84;
+  --ald-primary: #FF8A3D;
+  --ald-on-primary: #101214;
+  --ald-primary-strong: #FFB080;
+  --ald-primary-container: #4A2A19;
+  --ald-on-primary-container: #FFDCC7;
+  --ald-secondary-container: #252B30;
+  --ald-accent: #FF8A3D;
+  --ald-accent-soft: #4A2A19;
+  --ald-success: #4AC78A;
+  --ald-success-soft: #16382A;
+  --ald-warning: #E5A94B;
+  --ald-warning-soft: #483515;
+  --ald-danger: #FF7A85;
+  --ald-on-danger: #101214;
+  --ald-danger-soft: #482027;
+  --ald-info: #74B7E7;
+  --ald-info-soft: #173147;
+
+  --ald-radius-sm: 8px;
+  --ald-radius-md: 10px;
+  --ald-radius-lg: 14px;
+  --ald-radius-xl: 18px;
+  --ald-radius-xxl: 24px;
+  --ald-radius-pill: 999px;
+  --ald-motion-instant: 50ms;
+  --ald-motion-press: 120ms;
+  --ald-motion-fast: 160ms;
+  --ald-motion-standard: 200ms;
+  --ald-motion-emphasized: 280ms;
+  --ald-motion-slow: 400ms;
+  --ald-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ald-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ald-ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Laravel compatibility aliases */
   --pozadina: var(--ald-background);
