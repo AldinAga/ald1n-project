@@ -7,7 +7,6 @@ import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
 import { OperatorRow } from '@/components/ui/operator-row';
-import { Pill } from '@/components/ui/pill';
 import { LoadingState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
@@ -23,6 +22,7 @@ import { useCart } from '@/features/cart/cart-provider';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 
 // MOBILE_V0_6_HOME_DASHBOARD_PARITY_V1
+// MOBILE_BUILD16_HOME_REDESIGN_BATCH125
 
 // MOBILE_V0_7_COMMISSION_RELEASE_CRITICAL_VISIBILITY
 const HOME_REPORT_PARAMS = {
@@ -43,6 +43,7 @@ export default function HomeScreen() {
 
   const { bootstrap, refreshBootstrap, hasFeature, can } = useAuth();
   const { itemCount } = useCart();
+  const unread = useNotificationUnread();
   const user = bootstrap?.user;
   const adminAllowed = hasAdminAccess({
     permissions: bootstrap?.permissions ?? [],
@@ -100,16 +101,19 @@ export default function HomeScreen() {
         />
       )}
     >
-      <PageHeader title="Pregled" eyebrow="Ald1n Mobile" name={user?.name} />
+      <PageHeader title="Početna" eyebrow="Ald1n CMS" name={user?.name} />
 
       <View style={styles.hero}>
-        <View style={styles.heroOrb} />
-        <Pill tone="warning">AKTIVAN RADNI PROSTOR</Pill>
+        <View style={styles.heroAccent} />
+        <View style={styles.workspaceState}>
+          <View style={styles.workspaceDot} />
+          <Text style={styles.workspaceLabel}>Aktivan radni prostor</Text>
+        </View>
         <Text style={styles.greeting}>
-          Zdravo, {user?.first_name ?? user?.name?.split(' ')[0] ?? 'korisniče'}.
+          Dobro došli, {user?.first_name ?? user?.name?.split(' ')[0] ?? 'korisniče'}.
         </Text>
         <Text style={styles.heroCopy}>
-          Najvažniji poslovni podaci su spremni za mobilni rad.
+          Najvažniji poslovni podaci, obaveze i radni tokovi na jednom mestu.
         </Text>
         <View style={styles.heroMeta}>
           <Text style={styles.heroMetaLabel}>Uloga</Text>
@@ -118,13 +122,18 @@ export default function HomeScreen() {
       </View>
 
       {/* MOBILE_V0_9_HOME_FOCUS_SECTION_BATCH5C */}
-      <HomeFocusCard itemCount={itemCount} />
+      <HomeFocusPanel
+        unread={unread}
+        itemCount={itemCount}
+        completedOrders={report?.summary.orders_count ?? null}
+        afterSalesOpen={report?.after_sales.open ?? null}
+      />
 
       {reportsAllowed ? (
         <View style={styles.dashboardSection}>
           <View style={styles.sectionHead}>
             <View style={styles.sectionCopy}>
-              <Text style={styles.sectionEyebrow}>POSLOVNI PREGLED</Text>
+              <Text style={styles.sectionEyebrow}>Poslovni pregled</Text>
               <Text style={styles.sectionTitle}>Dashboard</Text>
               <Text style={styles.sectionSubtitle}>
                 {report?.period_label ?? 'Tekući mesec'}
@@ -199,7 +208,7 @@ export default function HomeScreen() {
               <Card style={styles.focusCard}>
                 <View style={styles.focusHeading}>
                   <View>
-                    <Text style={styles.sectionEyebrow}>OPERATIVNI SIGNAL</Text>
+                    <Text style={styles.sectionEyebrow}>Operativni signal</Text>
                     <Text style={styles.focusTitle}>Operativni signal</Text>
                   </View>
                   <Glyph name="info" size={22} color={themeColors.primary} />
@@ -301,9 +310,61 @@ function HomeActionList({ actions }: { actions: HomeAction[] }) {
   );
 }
 
-const HomeFocusCard = memo(function HomeFocusCard({ itemCount }: { itemCount: number }) {
-  const unread = useNotificationUnread();
+function HomeFocusPanel({
+  unread,
+  itemCount,
+  completedOrders,
+  afterSalesOpen,
+}: {
+  unread: number;
+  itemCount: number;
+  completedOrders: number | null;
+  afterSalesOpen: number | null;
+}) {
+  const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const signals: Array<{
+    label: string;
+    value: string;
+    glyph: GlyphName;
+    color: string;
+    surface: string;
+  }> = [
+    {
+      label: 'Obaveštenja',
+      value: String(unread),
+      glyph: 'bell',
+      color: themeColors.info,
+      surface: themeColors.infoSoft,
+    },
+    {
+      label: 'Korpa',
+      value: String(itemCount),
+      glyph: 'cart',
+      color: themeColors.primary,
+      surface: themeColors.primarySoft,
+    },
+  ];
+
+  if (completedOrders !== null) {
+    signals.push({
+      label: 'Završene porudžbine',
+      value: String(completedOrders),
+      glyph: 'orders',
+      color: themeColors.success,
+      surface: themeColors.successSoft,
+    });
+  }
+
+  if (afterSalesOpen !== null) {
+    signals.push({
+      label: 'Otvorena postprodaja',
+      value: String(afterSalesOpen),
+      glyph: 'service',
+      color: themeColors.warning,
+      surface: themeColors.warningSoft,
+    });
+  }
 
   return (
     <>
@@ -313,19 +374,20 @@ const HomeFocusCard = memo(function HomeFocusCard({ itemCount }: { itemCount: nu
           {unread > 0 ? `${unread} novih` : 'Sve pod kontrolom'}
         </Text>
       </View>
-      <Card muted style={styles.stateCard}>
-        <Text style={styles.stateTitle}>
-          {unread > 0 ? 'Proveri nova obaveštenja' : 'Nema novih obaveštenja'}
-        </Text>
-        <Text style={styles.stateCopy}>
-          {itemCount > 0
-            ? `${itemCount} stavki čeka u korpi.`
-            : 'Katalog, porudžbine i aktivnosti su spremni za rad.'}
-        </Text>
-      </Card>
+      <View style={styles.focusGrid}>
+        {signals.map((signal) => (
+          <View key={signal.label} style={styles.focusSignal}>
+            <View style={[styles.focusSignalIcon, { backgroundColor: signal.surface }]}>
+              <Glyph name={signal.glyph} size={20} color={signal.color} />
+            </View>
+            <Text style={styles.focusSignalValue}>{signal.value}</Text>
+            <Text style={styles.focusSignalLabel}>{signal.label}</Text>
+          </View>
+        ))}
+      </View>
     </>
   );
-});
+}
 
 const HomeUnreadMetric = memo(function HomeUnreadMetric() {
   const unread = useNotificationUnread();
@@ -380,7 +442,7 @@ function SalesPulse({
     <Card style={styles.pulseCard}>
       <View style={styles.pulseHeading}>
         <View>
-          <Text style={styles.sectionEyebrow}>FINANSIJSKI PULS</Text>
+          <Text style={styles.sectionEyebrow}>Finansijski puls</Text>
           <Text style={styles.focusTitle}>Trend prodaje</Text>
         </View>
         <Text style={styles.sectionMeta}>{periodLabel}</Text>
@@ -459,35 +521,58 @@ function createToneStyles(theme: AppColors) {
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
     hero: {
+      position: 'relative',
       overflow: 'hidden',
-      minHeight: 205,
-      borderRadius: 28,
+      minHeight: 168,
+      borderRadius: radii.xl,
       padding: spacing.xl,
-      backgroundColor: theme.hero,
-      justifyContent: 'flex-end',
-      gap: spacing.md,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.line,
+      justifyContent: 'center',
+      gap: spacing.sm,
     },
-    heroOrb: {
+    heroAccent: {
       position: 'absolute',
-      width: 230,
-      height: 230,
-      borderRadius: 115,
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 4,
       backgroundColor: theme.primary,
-      right: -88,
-      top: -82,
-      opacity: 0.5,
     },
-    greeting: { ...typography.hero, color: theme.white, maxWidth: 310 },
-    heroCopy: { ...typography.body, color: theme.heroMuted, maxWidth: 330 },
+    workspaceState: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    workspaceDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.success,
+    },
+    workspaceLabel: {
+      ...typography.small,
+      color: theme.muted,
+      fontWeight: '700',
+    },
+    greeting: { ...typography.h1, color: theme.ink, maxWidth: 330 },
+    heroCopy: { ...typography.body, color: theme.muted, maxWidth: 350 },
     heroMeta: {
       alignSelf: 'flex-start',
       flexDirection: 'row',
       gap: spacing.sm,
       alignItems: 'center',
       marginTop: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.md,
+      backgroundColor: theme.surfaceContainer,
     },
-    heroMetaLabel: { ...typography.small, color: theme.heroMuted },
-    heroMetaValue: { ...typography.label, color: theme.white },
+    heroMetaLabel: { ...typography.small, color: theme.muted },
+    heroMetaValue: { ...typography.label, color: theme.ink, fontWeight: '700' },
     dashboardSection: { gap: spacing.md },
     sectionHead: {
       flexDirection: 'row',
@@ -499,13 +584,46 @@ function createStyles(theme: AppColors) {
     sectionEyebrow: {
       ...typography.small,
       color: theme.primary,
-      fontWeight: '900',
-      letterSpacing: 0.7,
+      fontWeight: '700',
+      letterSpacing: 0.2,
     },
     sectionTitle: { ...typography.h2, color: theme.ink },
     sectionSubtitle: { ...typography.small, color: theme.muted, marginTop: 2 },
     sectionLink: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     sectionMeta: { ...typography.small, color: theme.muted },
+    focusGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    focusSignal: {
+      width: '48%',
+      flexGrow: 1,
+      minHeight: 112,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      backgroundColor: theme.surface,
+    },
+    focusSignalIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
+    focusSignalValue: {
+      ...typography.h2,
+      color: theme.ink,
+      fontVariant: ['tabular-nums'],
+    },
+    focusSignalLabel: {
+      ...typography.small,
+      color: theme.muted,
+      marginTop: 2,
+    },
     stateCard: { gap: spacing.xs },
     stateTitle: { ...typography.label, color: theme.ink },
     stateCopy: { ...typography.small, color: theme.muted },
@@ -516,9 +634,10 @@ function createStyles(theme: AppColors) {
     },
     kpiPressable: { width: '48%', flexGrow: 1 },
     dashboardMetricCard: {
-      minHeight: 142,
+      minHeight: 128,
       gap: spacing.xs,
-      borderRadius: radii.xl,
+      borderRadius: radii.lg,
+      padding: spacing.md,
     },
     dashboardMetricLabel: { ...typography.small, color: theme.muted },
     dashboardMetricValue: { ...typography.h3, color: theme.ink, marginTop: spacing.xs },

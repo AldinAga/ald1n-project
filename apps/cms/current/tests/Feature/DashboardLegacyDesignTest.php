@@ -28,7 +28,11 @@ final class DashboardLegacyDesignTest extends TestCase
         $response->assertSee('data-universal-dashboard-ready="1"', false);
         $response->assertSee('modern-dashboard-hero', false);
         $response->assertSee('dashboard-kpi-grid', false);
-        $response->assertSee('Univerzalni dashboard');
+        $response->assertSee('data-build16-home-redesign="1"', false);
+        $response->assertSee('build16-home-shell', false);
+        $response->assertSee('Ald1n CMS');
+        $response->assertSee('Fokus danas');
+        $response->assertSee('Brze akcije');
         $response->assertSee('Dodaj artikal');
         $response->assertSee('Porudžbine');
         $response->assertSee('Izveštaji');

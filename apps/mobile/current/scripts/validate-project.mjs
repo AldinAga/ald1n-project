@@ -533,6 +533,17 @@ assert(
     && !operatorHome.includes('<Card style={styles.actionCard}>'),
   'Build16 Home akcije koriste jednu grupisanu operator površinu umesto card-per-row obrasca.'
 );
+// MOBILE_BUILD16_HOME_REDESIGN_BATCH125
+assert(
+  operatorHome.includes('MOBILE_BUILD16_HOME_REDESIGN_BATCH125')
+    && operatorHome.includes('PageHeader title="Početna" eyebrow="Ald1n CMS"')
+    && operatorHome.includes('HomeFocusPanel')
+    && operatorHome.includes('heroAccent')
+    && operatorHome.includes('workspaceState')
+    && !operatorHome.includes('heroOrb')
+    && !operatorHome.includes('<Pill'),
+  'Build16 Home koristi approved Operator welcome/focus hijerarhiju bez legacy gradient-orb/pill hero obrasca.'
+);
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {

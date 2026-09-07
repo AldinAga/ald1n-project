@@ -54,10 +54,12 @@
     };
 @endphp
 
-<section class="modern-dashboard-hero" data-universal-dashboard-ready="1">
+{{-- BUILD16_HOME_REDESIGN_BATCH125 --}}
+<div class="build16-home-shell" data-build16-home-redesign="1">
+<section class="modern-dashboard-hero build16-home-hero" data-universal-dashboard-ready="1">
     <div class="dashboard-welcome">
-        <span class="dashboard-date">Univerzalni dashboard · {{ now()->translatedFormat('l, d. F Y.') }}</span>
-        <h1>Dobro došao, {{ $user->displayName() }}</h1>
+        <span class="dashboard-date">Ald1n CMS · {{ now()->translatedFormat('l, d. F Y.') }}</span>
+        <h1>Dobro došli, {{ $user->displayName() }}</h1>
         <p>
             {{ $customerFocused
                 ? 'Porudžbine, dokumenti, uplate, garancije, podrška i podešavanja naloga objedinjeni su na početnoj strani.'
@@ -123,7 +125,7 @@
 @if($user->hasRole('superadmin') && is_array($inventoryValuation))
 <section class="dashboard-kpi-grid" data-superadmin-inventory-valuation-v0-8="1">
     <a class="dashboard-kpi-card" href="{{ route('admin.products.purchase-costs') }}">
-        <span class="dashboard-kpi-icon tone-violet"><x-icon name="boxes" /></span>
+        <span class="dashboard-kpi-icon tone-primary"><x-icon name="boxes" /></span>
         <div><small>Vrednost po nabavnoj ceni</small><strong>{{ number_format((float) ($inventoryValuation['purchase_value_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ (int) ($inventoryValuation['missing_cost_total_items'] ?? 0) }} artikala bez nabavne cene</span></div>
     </a>
     <a class="dashboard-kpi-card" href="{{ route('admin.inventory.index') }}">
@@ -151,18 +153,18 @@
             <div><small>Preostalo za uplatu</small><strong>{{ number_format((float) ($portalSummary['outstanding_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>Otvorene finansijske obaveze</span></div>
         </a>
         <a class="dashboard-kpi-card" href="{{ route('portal.messages.index') }}">
-            <span class="dashboard-kpi-icon tone-violet"><x-icon name="mail" /></span>
+            <span class="dashboard-kpi-icon tone-primary"><x-icon name="mail" /></span>
             <div><small>Otvorene teme</small><strong>{{ number_format((int) ($portalSummary['open_conversations'] ?? 0), 0, ',', '.') }}</strong><span>{{ number_format((int) ($portalSummary['unread_messages'] ?? 0), 0, ',', '.') }} novih poruka</span></div>
         </a>
     @elseif($reportStats['ready'] ?? false)
         <a class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}"><span class="dashboard-kpi-icon tone-blue"><x-icon name="chart" /></span><div><small>Prihod ovog meseca</small><strong>{{ number_format((float) ($reportSummary['revenue_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ number_format((int) ($reportSummary['orders_count'] ?? 0), 0, ',', '.') }} završenih porudžbina</span></div></a>
         <a class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}"><span class="dashboard-kpi-icon tone-green"><x-icon name="money" /></span><div><small>Bruto dobit</small><strong>{{ number_format((float) ($reportSummary['gross_profit_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>Marža {{ number_format((float) ($reportSummary['gross_margin_percent'] ?? 0), 1, ',', '.') }}%</span></div></a>
-        <a class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}"><span class="dashboard-kpi-icon tone-violet"><x-icon name="wallet" /></span><div><small>Neto doprinos</small><strong>{{ number_format((float) ($reportSummary['net_contribution_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>Pokrivenost troška {{ number_format((float) ($reportSummary['cost_coverage_percent'] ?? 0), 1, ',', '.') }}%</span></div></a>
+        <a class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}"><span class="dashboard-kpi-icon tone-primary"><x-icon name="wallet" /></span><div><small>Neto doprinos</small><strong>{{ number_format((float) ($reportSummary['net_contribution_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>Pokrivenost troška {{ number_format((float) ($reportSummary['cost_coverage_percent'] ?? 0), 1, ',', '.') }}%</span></div></a>
         <a class="dashboard-kpi-card" href="{{ $access['receivables_manage'] ? route('admin.receivables.index') : $orderIndex }}"><span class="dashboard-kpi-icon tone-red"><x-icon name="receipt" /></span><div><small>Otvoreno potraživanje</small><strong>{{ number_format((float) ($reportSummary['outstanding_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ number_format((int) $receivableStats['active'], 0, ',', '.') }} aktivnih predmeta</span></div></a>
     @else
         <a class="dashboard-kpi-card" href="{{ $orderIndex }}"><span class="dashboard-kpi-icon tone-blue"><x-icon name="orders" /></span><div><small>Nove porudžbine</small><strong>{{ number_format((int) $orderStats['new'], 0, ',', '.') }}</strong><span>Čekaju obradu</span></div></a>
         <a class="dashboard-kpi-card" href="{{ $orderIndex }}"><span class="dashboard-kpi-icon tone-amber"><x-icon name="hourglass" /></span><div><small>U obradi</small><strong>{{ number_format((int) $orderStats['processing'], 0, ',', '.') }}</strong><span>Aktivne porudžbine</span></div></a>
-        <a class="dashboard-kpi-card" href="{{ $orderIndex }}"><span class="dashboard-kpi-icon tone-violet"><x-icon name="truck" /></span><div><small>Poslate</small><strong>{{ number_format((int) $orderStats['shipped'], 0, ',', '.') }}</strong><span>U procesu dostave</span></div></a>
+        <a class="dashboard-kpi-card" href="{{ $orderIndex }}"><span class="dashboard-kpi-icon tone-primary"><x-icon name="truck" /></span><div><small>Poslate</small><strong>{{ number_format((int) $orderStats['shipped'], 0, ',', '.') }}</strong><span>U procesu dostave</span></div></a>
         <a class="dashboard-kpi-card" href="{{ $orderIndex }}"><span class="dashboard-kpi-icon tone-green"><x-icon name="money" /></span><div><small>Vrednost porudžbina</small><strong>{{ number_format((float) $orderStats['value_rsd'], 2, ',', '.') }} RSD</strong><span>Bez otkazanih</span></div></a>
     @endif
 </section>
@@ -188,7 +190,7 @@
         </section>
 
         <section class="panel dashboard-panel dashboard-priority-panel">
-            <div class="dashboard-panel-heading"><div><span class="eyebrow">Fokus dana</span><h2>Prioritetne aktivnosti</h2><p>Stavke koje trenutno zahtevaju reakciju.</p></div><span class="dashboard-priority-count">{{ count($priorityActions) }}</span></div>
+            <div class="dashboard-panel-heading"><div><span class="eyebrow">Fokus danas</span><h2>Prioritetne aktivnosti</h2><p>Operativne stavke koje trenutno zahtevaju reakciju.</p></div><span class="dashboard-priority-count">{{ count($priorityActions) }}</span></div>
             <div class="dashboard-priority-list">
                 @forelse($priorityActions as $item)
                     <a href="{{ $item['url'] }}" class="dashboard-priority-item priority-{{ $item['tone'] }}"><span class="priority-icon"><x-icon name="{{ $item['icon'] }}" /></span><div><strong>{{ $item['title'] }}</strong><small>{{ $item['description'] }}</small></div><b>{{ is_float($item['count']) ? number_format($item['count'], 0, ',', '.') : $item['count'] }}</b><x-icon name="arrow-right" size="16" /></a>
@@ -212,10 +214,10 @@
         </section>
 
         <section class="panel dashboard-panel">
-            <div class="dashboard-panel-heading"><div><span class="eyebrow">Prečice</span><h2>Brze akcije</h2></div></div>
+            <div class="dashboard-panel-heading"><div><span class="eyebrow">Radni tokovi</span><h2>Brze akcije</h2></div></div>
             <div class="dashboard-action-grid">
                 @can('orders.create')<a href="{{ route('orders.create') }}"><span class="tone-blue"><x-icon name="plus-circle" /></span><strong>Nova porudžbina</strong><small>Kreiraj i rezerviši lager</small></a>@endcan
-                @can('catalog.manage_products')<a href="{{ route('admin.products.create') }}"><span class="tone-violet"><x-icon name="cube" /></span><strong>Dodaj artikal</strong><small>Novi proizvod ili konfiguracija</small></a>@endcan
+                @can('catalog.manage_products')<a href="{{ route('admin.products.create') }}"><span class="tone-primary"><x-icon name="cube" /></span><strong>Dodaj artikal</strong><small>Novi proizvod ili konfiguracija</small></a>@endcan
                 @can('catalog.manage_products')<a href="{{ route('admin.products.bulk') }}"><span class="tone-amber"><x-icon name="sliders" /></span><strong>Bulk izmena</strong><small>Masovna promena kataloga</small></a>@endcan
                 @can('receivables.manage')<a href="{{ route('admin.receivables.index') }}"><span class="tone-red"><x-icon name="wallet" /></span><strong>Potraživanja</strong><small>Aging i planovi otplate</small></a>@endcan
                 @can('after_sales.manage')<a href="{{ route('admin.after-sales.index') }}"><span class="tone-green"><x-icon name="shield" /></span><strong>Postprodaja</strong><small>Reklamacije i servis</small></a>@endcan
@@ -230,13 +232,13 @@
 @endif
 
 <section class="dashboard-operations-section">
-    <div class="dashboard-section-title"><div><span class="eyebrow">Univerzalni pristup</span><h2>Svi dostupni moduli na jednom mestu</h2></div></div>
+    <div class="dashboard-section-title"><div><span class="eyebrow">Administracija</span><h2>Svi dostupni moduli na jednom mestu</h2></div></div>
     <div class="dashboard-module-grid">
         @if($access['orders_manage'] || $access['orders_view_own'])
             <a class="dashboard-module-card" href="{{ $orderIndex }}"><span class="module-icon tone-blue"><x-icon name="orders" /></span><div><strong>Porudžbine</strong><small>{{ $orderStats['new'] }} novih · {{ $orderStats['processing'] }} u obradi · {{ $orderStats['shipped'] }} poslato</small></div><x-icon name="arrow-right" /></a>
         @endif
         @if($access['catalog_view'] || $access['catalog_manage_products'])
-            <a class="dashboard-module-card" href="{{ $productIndex }}"><span class="module-icon tone-violet"><x-icon name="boxes" /></span><div><strong>Katalog i lager</strong><small>{{ $productStats['active'] }} aktivnih · {{ $productStats['low_stock'] }} nizak lager · {{ $productStats['out_of_stock'] }} bez lagera</small></div><x-icon name="arrow-right" /></a>
+            <a class="dashboard-module-card" href="{{ $productIndex }}"><span class="module-icon tone-primary"><x-icon name="boxes" /></span><div><strong>Katalog i lager</strong><small>{{ $productStats['active'] }} aktivnih · {{ $productStats['low_stock'] }} nizak lager · {{ $productStats['out_of_stock'] }} bez lagera</small></div><x-icon name="arrow-right" /></a>
         @endif
         @if($access['after_sales_manage'] || $access['after_sales_view_own'])
             <a class="dashboard-module-card" href="{{ $afterSalesIndex }}"><span class="module-icon tone-red"><x-icon name="alert" /></span><div><strong>Reklamacije i servisi</strong><small>{{ $afterSalesStats['active'] }} aktivnih · {{ $afterSalesStats['overdue'] }} preko roka · {{ $afterSalesStats['pending_actions'] }} radnji</small></div><x-icon name="arrow-right" /></a>
@@ -254,12 +256,13 @@
             <a class="dashboard-module-card" href="{{ route('admin.receivables.index') }}"><span class="module-icon tone-red"><x-icon name="wallet" /></span><div><strong>Potraživanja</strong><small>{{ $receivableStats['active'] }} aktivnih · {{ number_format((float) $receivableStats['overdue_amount'], 0, ',', '.') }} RSD dospelo · {{ $receivableStats['plans'] }} planova</small></div><x-icon name="arrow-right" /></a>
         @endif
         @if($access['manage_users'])
-            <a class="dashboard-module-card" href="{{ route('admin.users.index') }}"><span class="module-icon tone-violet"><x-icon name="users" /></span><div><strong>Korisnici</strong><small>{{ $userStats['active'] }} aktivnih · {{ $userStats['pending'] }} na čekanju · {{ $userStats['blocked'] }} blokirano</small></div><x-icon name="arrow-right" /></a>
+            <a class="dashboard-module-card" href="{{ route('admin.users.index') }}"><span class="module-icon tone-primary"><x-icon name="users" /></span><div><strong>Korisnici</strong><small>{{ $userStats['active'] }} aktivnih · {{ $userStats['pending'] }} na čekanju · {{ $userStats['blocked'] }} blokirano</small></div><x-icon name="arrow-right" /></a>
         @endif
         @if($portalEnabled)
-            <a class="dashboard-module-card" href="{{ route('portal.messages.index') }}"><span class="module-icon tone-violet"><x-icon name="mail" /></span><div><strong>Poruke i podrška</strong><small>{{ (int) ($portalSummary['open_conversations'] ?? 0) }} otvorenih tema · {{ (int) ($portalSummary['unread_messages'] ?? 0) }} nepročitanih</small></div><x-icon name="arrow-right" /></a>
+            <a class="dashboard-module-card" href="{{ route('portal.messages.index') }}"><span class="module-icon tone-primary"><x-icon name="mail" /></span><div><strong>Poruke i podrška</strong><small>{{ (int) ($portalSummary['open_conversations'] ?? 0) }} otvorenih tema · {{ (int) ($portalSummary['unread_messages'] ?? 0) }} nepročitanih</small></div><x-icon name="arrow-right" /></a>
             <a class="dashboard-module-card" href="{{ route('account.show') }}"><span class="module-icon tone-green"><x-icon name="settings" /></span><div><strong>Moj nalog</strong><small>Profil, lozinka, sesije i obaveštenja</small></div><x-icon name="arrow-right" /></a>
         @endif
     </div>
 </section>
+</div>
 @endsection
