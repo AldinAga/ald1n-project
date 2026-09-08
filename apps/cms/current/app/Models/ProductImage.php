@@ -87,9 +87,26 @@ final class ProductImage extends Model
             if (!is_string($url) || $url === '') {
                 return null;
             }
-            return $url.(str_contains($url, '?') ? '&' : '?').'v='.$this->cacheVersion($path);
+            return $url.(str_contains($url, '?') ? '&' : '?').'v='.$this->optimizedCacheVersion($path);
         } catch (Throwable) {
             return null;
+        }
+    }
+
+    private function optimizedCacheVersion(string $path): string
+    {
+        try {
+            $disk = Storage::disk('public');
+            $absolute = $disk->path($path);
+            $modified = is_file($absolute) ? (int) filemtime($absolute) : 0;
+
+            return substr(hash('sha256', implode('|', [
+                $this->cacheVersion($path),
+                $path,
+                (string) $modified,
+            ])), 0, 16);
+        } catch (Throwable) {
+            return $this->cacheVersion($path);
         }
     }
 

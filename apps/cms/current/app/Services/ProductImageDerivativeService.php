@@ -174,9 +174,7 @@ final class ProductImageDerivativeService
             if ($image->getNumberImages() > 1) {
                 $image->setIteratorIndex(0);
             }
-            if (method_exists($image, 'autoOrientImage')) {
-                $image->autoOrientImage();
-            }
+            $this->normalizeImagickOrientation($image);
             $width = max(1, $image->getImageWidth());
             $height = max(1, $image->getImageHeight());
             if (max($width, $height) > $maxEdge) {
@@ -192,6 +190,50 @@ final class ProductImageDerivativeService
         } catch (Throwable $exception) {
             throw new RuntimeException('Imagick optimizacija nije uspela: '.$exception->getMessage(), 0, $exception);
         }
+    }
+
+    private function normalizeImagickOrientation(\Imagick $image): void
+    {
+        if (method_exists($image, 'autoOrient')) {
+            $image->autoOrient();
+            $image->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
+            return;
+        }
+
+        if (method_exists($image, 'autoOrientImage')) {
+            $image->autoOrientImage();
+            $image->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
+            return;
+        }
+
+        $orientation = $image->getImageOrientation();
+        $transparent = new \ImagickPixel('transparent');
+
+        switch ($orientation) {
+            case \Imagick::ORIENTATION_TOPRIGHT:
+                $image->flopImage();
+                break;
+            case \Imagick::ORIENTATION_BOTTOMRIGHT:
+                $image->rotateImage($transparent, 180);
+                break;
+            case \Imagick::ORIENTATION_BOTTOMLEFT:
+                $image->flipImage();
+                break;
+            case \Imagick::ORIENTATION_LEFTTOP:
+                $image->transposeImage();
+                break;
+            case \Imagick::ORIENTATION_RIGHTTOP:
+                $image->rotateImage($transparent, 90);
+                break;
+            case \Imagick::ORIENTATION_RIGHTBOTTOM:
+                $image->transverseImage();
+                break;
+            case \Imagick::ORIENTATION_LEFTBOTTOM:
+                $image->rotateImage($transparent, -90);
+                break;
+        }
+
+        $image->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
     }
 
     private function renderWithGd(string $source, string $target, int $maxEdge, int $quality): void

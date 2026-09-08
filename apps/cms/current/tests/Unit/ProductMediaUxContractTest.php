@@ -55,6 +55,22 @@ final class ProductMediaUxContractTest extends TestCase
         self::assertStringContainsString('Dodaj još jedan disk', $form);
     }
 
+    public function test_derivatives_use_supported_imagick_orientation_and_runtime_cache_busting(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $service = (string) file_get_contents($root.'/app/Services/ProductImageDerivativeService.php');
+        $model = (string) file_get_contents($root.'/app/Models/ProductImage.php');
+
+        self::assertStringContainsString("method_exists(\$image, 'autoOrient')", $service);
+        self::assertStringContainsString('$image->autoOrient();', $service);
+        self::assertStringContainsString("method_exists(\$image, 'autoOrientImage')", $service);
+        self::assertStringContainsString('ORIENTATION_RIGHTTOP', $service);
+        self::assertStringContainsString('transposeImage()', $service);
+        self::assertStringContainsString('transverseImage()', $service);
+        self::assertStringContainsString('setImageOrientation(\Imagick::ORIENTATION_TOPLEFT)', $service);
+        self::assertStringContainsString('optimizedCacheVersion', $model);
+        self::assertStringContainsString('filemtime($absolute)', $model);
+    }
     public function test_full_resolution_download_is_authorized(): void
     {
         $root = dirname(__DIR__, 2);
