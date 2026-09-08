@@ -113,9 +113,12 @@ export default function AdminProductDirectSaleScreen() {
   const saleMutation = useMutation({
     mutationFn: (input: AdminDirectSaleInput) => apiAdminCatalog.recordDirectSale(productId, input),
     onSuccess: async (response) => {
+      // MOBILE_BUILD16_CATALOG_MUTATION_FRESHNESS_BATCH134
       await Promise.all([
         client.invalidateQueries({ queryKey: ['admin'] }),
         client.invalidateQueries({ queryKey: ['products'] }),
+        client.invalidateQueries({ queryKey: ['product'] }),
+        client.invalidateQueries({ queryKey: ['catalog-filters'] }),
       ]);
       feedback.notify({
         tone: 'success',

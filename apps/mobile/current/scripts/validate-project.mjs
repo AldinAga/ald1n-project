@@ -809,6 +809,63 @@ assert(
   'Build16 native Expo palette and production EAS remote-version authority are release-locked.'
 );
 
+// MOBILE_BUILD16_CATALOG_RUNTIME_STABILIZATION_BATCH134_V6
+const build16CatalogCardBatch134 = fs.readFileSync(path.join(root, 'src/components/catalog/product-card.tsx'), 'utf8');
+const build16CatalogListBatch134 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/catalog.tsx'), 'utf8');
+const build16ProductDetailBatch134 = fs.readFileSync(path.join(root, 'src/app/(app)/product/[slug].tsx'), 'utf8');
+const build16DirectSaleBatch134 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id]/direct-sale.tsx'), 'utf8');
+const build16AdminEditBatch134 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/[id].tsx'), 'utf8');
+const build16CreateBatch134 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/create.tsx'), 'utf8');
+const build16EndpointsBatch134 = fs.readFileSync(path.join(root, 'src/lib/api/endpoints.ts'), 'utf8');
+const build16CmsCatalogControllerBatch134 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/CatalogProductController.php'), 'utf8');
+
+assert(
+  build16CatalogCardBatch134.includes('MOBILE_BUILD16_CATALOG_IMAGE_BOUNDS_HOTFIX_BATCH134')
+    && build16CatalogCardBatch134.includes("row: { minHeight: 142, flexDirection: 'row', alignItems: 'flex-start' }")
+    && build16CatalogCardBatch134.includes("width: 118,\n      height: 142,\n      flexShrink: 0,")
+    && build16CatalogCardBatch134.includes('image: { width: 118, height: 142 },')
+    && !build16CatalogCardBatch134.includes("width: 118,\n      minHeight: 142")
+    && !build16CatalogCardBatch134.includes("image: { width: '100%', height: '100%' }"),
+  'Build16 catalog product row preserves the already-committed bounded image geometry from 33604307.'
+);
+assert(
+  build16CatalogListBatch134.includes('MOBILE_BUILD16_CATALOG_FOCUS_FRESHNESS_BATCH134')
+    && build16CatalogListBatch134.includes('useFocusEffect')
+    && build16CatalogListBatch134.includes('void refetchProducts()')
+    && build16CatalogListBatch134.includes('void refetchFilters()'),
+  'Build16 catalog refetches server authority whenever the tab regains focus.'
+);
+assert(
+  build16ProductDetailBatch134.includes('MOBILE_BUILD16_PRODUCT_DETAIL_FOCUS_FRESHNESS_BATCH134')
+    && build16ProductDetailBatch134.includes('useFocusEffect')
+    && build16ProductDetailBatch134.includes('void refetchProduct()'),
+  'Build16 product detail refreshes stock/status authority on focus.'
+);
+assert(
+  build16DirectSaleBatch134.includes('MOBILE_BUILD16_CATALOG_MUTATION_FRESHNESS_BATCH134')
+    && build16DirectSaleBatch134.includes("queryKey: ['product']")
+    && build16DirectSaleBatch134.includes("queryKey: ['catalog-filters']")
+    && build16AdminEditBatch134.includes('MOBILE_BUILD16_CATALOG_MUTATION_FRESHNESS_BATCH134')
+    && build16AdminEditBatch134.includes("queryKey: ['product']"),
+  'Direct sale and catalog administration invalidate catalog list, detail and filter caches after mutation.'
+);
+assert(
+  build16CreateBatch134.includes('MOBILE_BUILD16_PRODUCT_CREATE_SINGLE_FLIGHT_IDEMPOTENCY_BATCH134')
+    && build16CreateBatch134.includes('submitInFlightRef.current')
+    && build16CreateBatch134.includes('createAttemptRef')
+    && build16CreateBatch134.includes('productCreateAttemptKey()')
+    && build16CreateBatch134.includes("setSubmitStage('images')")
+    && build16CreateBatch134.includes("imageFiles,\n      idempotencyKey,\n    }: {")
+    && build16CreateBatch134.includes('api.admin.catalog.createProduct(input, idempotencyKey)')
+    && build16EndpointsBatch134.includes('MOBILE_BUILD16_PRODUCT_CREATE_IDEMPOTENCY_BATCH134')
+    && build16EndpointsBatch134.includes("'Idempotency-Key': idempotencyKey")
+    && build16EndpointsBatch134.includes('timeoutMs: 60_000')
+    && build16CmsCatalogControllerBatch134.includes('MOBILE_BUILD16_PRODUCT_CREATE_IDEMPOTENCY_BATCH134')
+    && build16CmsCatalogControllerBatch134.includes("'catalog.product.create'")
+    && build16CmsCatalogControllerBatch134.includes('IdempotencyService'),
+  'Mobile product create is single-flight per active request and retries the same payload through server idempotency.'
+);
+
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
 assert(fs.existsSync(build16IconRegistryPath), 'Build16 canonical icon registry postoji.');
 if (fs.existsSync(build16IconRegistryPath)) {

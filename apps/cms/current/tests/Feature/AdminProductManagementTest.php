@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\StockMovement;
 use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -73,6 +74,64 @@ final class AdminProductManagementTest extends TestCase
     {
         $user = User::factory()->create();
         $this->actingAs($user)->get('/admin/catalog')->assertForbidden();
+    }
+
+    public function test_mobile_product_create_replays_same_product_for_same_idempotency_key(): void
+    {
+        $superadmin = $this->superadmin('idempotent-create');
+        $payload = [
+            'name' => 'Idempotentni mobilni artikal',
+            'regenerate_sku' => true,
+            'price_amount' => 15000,
+            'price_currency' => 'RSD',
+            'description' => 'Test mobilnog idempotentnog kreiranja.',
+            'stock_quantity' => 3,
+            'low_stock_threshold' => 1,
+            'status' => 'draft',
+        ];
+        $key = 'mobile-product-create:test:stable-key';
+
+        $this->actingAs($superadmin, 'sanctum');
+        $first = $this->withHeader('Idempotency-Key', $key)
+            ->postJson('/api/v1/admin/catalog/products', $payload);
+        $first->assertCreated();
+        $productId = (int) $first->json('data.id');
+
+        $second = $this->withHeader('Idempotency-Key', $key)
+            ->postJson('/api/v1/admin/catalog/products', $payload);
+        $second->assertCreated()->assertJsonPath('data.id', $productId);
+
+        self::assertSame(1, Product::query()->where('name', 'Idempotentni mobilni artikal')->count());
+        self::assertSame(1, StockMovement::query()
+            ->where('product_id', $productId)
+            ->where('source', 'product_creation')
+            ->count());
+    }
+
+    public function test_archived_product_is_excluded_from_operational_api_catalog_for_superadmin(): void
+    {
+        $superadmin = $this->superadmin('archive-api-scope');
+        $product = $this->product('ARCHIVE-API-1', 'Arhiviran API artikal', $superadmin->id);
+        $product->forceFill(['status' => 'archived', 'deleted_at' => now()])->save();
+
+        $response = $this->actingAs($superadmin, 'sanctum')->getJson('/api/v1/products?per_page=30');
+        $response->assertOk();
+        $rows = collect($response->json('data'));
+
+        self::assertFalse($rows->contains(
+            static fn (array $row): bool => (int) ($row['id'] ?? 0) === (int) $product->id,
+        ));
+    }
+
+    private function superadmin(string $username): User
+    {
+        return User::query()->create([
+            'role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id'),
+            'username' => $username,
+            'email' => $username.'@test.local',
+            'password_hash' => Hash::make('Secret123!'),
+            'status' => 'active',
+        ]);
     }
 
     private function admin(string $username = 'admin-test'): User

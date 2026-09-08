@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -49,6 +49,10 @@ function optionalPositiveId(value: string): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function productCreateAttemptKey(): string {
+  return `mobile-product-create:${Date.now()}:${Math.random().toString(36).slice(2, 14)}`;
 }
 
 function serverFieldErrors(error: unknown): Record<string, string> {
@@ -129,6 +133,10 @@ export default function AdminCatalogCreateScreen() {
   const [images, setImages] = useState<DraftProductImage[]> ([]);
   const [errors, setErrors] = useState<Record<string, string>> ({});
   const [submitError, setSubmitError] = useState<string | null> (null);
+  // MOBILE_BUILD16_PRODUCT_CREATE_SINGLE_FLIGHT_IDEMPOTENCY_BATCH134
+  const submitInFlightRef = useRef(false);
+  const createAttemptRef = useRef<{ fingerprint: string; key: string } | null> (null);
+  const [submitStage, setSubmitStage] = useState<'idle' | 'product' | 'images'> ('idle');
 
   const optionsQuery = useQuery({
     queryKey: ['admin-catalog-create-options'],
@@ -140,14 +148,18 @@ export default function AdminCatalogCreateScreen() {
     mutationFn: async ({
       input,
       imageFiles,
+      idempotencyKey,
     }: {
       input: AdminProductCreateInput;
       imageFiles: DraftProductImage[];
+      idempotencyKey: string;
     }) => {
-      const response = await api.admin.catalog.createProduct(input);
+      setSubmitStage('product');
+      const response = await api.admin.catalog.createProduct(input, idempotencyKey);
       let imageWarning: string | null = null;
 
       if (imageFiles.length > 0) {
+        setSubmitStage('images');
         try {
           const uploaded = await api.admin.catalog.uploadProductImages(response.data.id, imageFiles);
           const skipped = new Set(uploaded.skipped_input_indexes);
@@ -176,6 +188,8 @@ export default function AdminCatalogCreateScreen() {
     onSuccess: async ({ response, imageWarning }) => {
       await Promise.all([
         client.invalidateQueries({ queryKey: ['products'] }),
+        client.invalidateQueries({ queryKey: ['product'] }),
+        client.invalidateQueries({ queryKey: ['admin', 'catalog'] }),
         client.invalidateQueries({ queryKey: ['catalog-filters'] }),
         client.invalidateQueries({ queryKey: ['admin-catalog-create-options'] }),
       ]);
@@ -208,6 +222,10 @@ export default function AdminCatalogCreateScreen() {
         title: 'Artikal nije sačuvan',
         message: 'Uneti podaci i izabrane fotografije ostaju u formi. Ispravi grešku i pokušaj ponovo.',
       });
+    },
+    onSettled: () => {
+      submitInFlightRef.current = false;
+      setSubmitStage('idle');
     },
   });
 
@@ -338,6 +356,15 @@ export default function AdminCatalogCreateScreen() {
   // Draft image order and rotation are preserved until successful product creation.
 
   const submit = () => {
+    if (submitInFlightRef.current) {
+      feedback.notify({
+        tone: 'info',
+        title: 'Čuvanje je već u toku',
+        message: submitStage === 'images' ? 'Artikal je sačuvan. Fotografije se još šalju.' : 'Sačekaj završetak trenutnog zahteva.',
+      });
+      return;
+    }
+
     const nextErrors: Record<string, string> = {};
     const price = nonNegativeDecimal(priceAmount);
     const purchase = purchasePriceRsd.trim() ? nonNegativeDecimal(purchasePriceRsd) : undefined;
@@ -443,9 +470,19 @@ export default function AdminCatalogCreateScreen() {
       spec_structured: Object.keys(cleanSpecStructured).length ? cleanSpecStructured : undefined,
     };
 
+    const fingerprint = JSON.stringify(input);
+    const previousAttempt = createAttemptRef.current;
+    const idempotencyKey = previousAttempt?.fingerprint === fingerprint
+      ? previousAttempt.key
+      : productCreateAttemptKey();
+    createAttemptRef.current = { fingerprint, key: idempotencyKey };
+    submitInFlightRef.current = true;
+    setSubmitStage('product');
+
     mutation.mutate({
       input,
       imageFiles: imageUploadEnabled ? images : [],
+      idempotencyKey,
     });
   };
 
@@ -774,6 +811,13 @@ export default function AdminCatalogCreateScreen() {
         />
       </View>
 
+      {mutation.isPending ? (
+        <Text style={styles.submitProgress}>
+          {submitStage === 'images'
+            ? 'Artikal je sačuvan. Šaljem fotografije…'
+            : 'Čuvam artikal…'}
+        </Text>
+      ) : null}
       <Button onPress={submit} loading={mutation.isPending}>
         Kreiraj artikal
       </Button>
@@ -809,6 +853,7 @@ function createStyles(theme: AppColors) {
     storageRow: { gap: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
     storageRowTitle: { ...typography.label, color: theme.ink },
     inlineError: { ...typography.small, color: theme.danger },
+    submitProgress: { ...typography.small, color: theme.muted, textAlign: 'center' },
     multiline: { minHeight: 150, textAlignVertical: 'top', paddingTop: spacing.lg },
     multilineSmall: { minHeight: 110, textAlignVertical: 'top', paddingTop: spacing.lg },
     imageRow: {

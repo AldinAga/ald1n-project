@@ -194,9 +194,11 @@ export default function AdminCatalogEditScreen() {
   const imageUploadEnabled = Boolean(product?.capabilities.manage_images && canManageImages && options?.capabilities.image_upload);
 
   const refreshAll = async () => {
+    // MOBILE_BUILD16_CATALOG_MUTATION_FRESHNESS_BATCH134
     await Promise.all([
       client.invalidateQueries({ queryKey: ['admin', 'catalog'] }),
       client.invalidateQueries({ queryKey: ['products'] }),
+      client.invalidateQueries({ queryKey: ['product'] }),
       client.invalidateQueries({ queryKey: ['catalog-filters'] }),
     ]);
   };

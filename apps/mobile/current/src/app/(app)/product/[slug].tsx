@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProductImageGallery } from '@/components/catalog/product-image-gallery';
@@ -40,6 +40,12 @@ export default function ProductDetailScreen() {
   });
   const [quantity, setQuantity] = useState(1);
   const product = query.data;
+  // MOBILE_BUILD16_PRODUCT_DETAIL_FOCUS_FRESHNESS_BATCH134
+  const refetchProduct = query.refetch;
+  useFocusEffect(useCallback(() => {
+    if (!allowed || !slug) return;
+    void refetchProduct();
+  }, [allowed, refetchProduct, slug]));
 
   if (!allowed) return <UnavailableState title="Proizvod nije dostupan" />;
   if (query.isLoading) return <LoadingState label="Učitavanje proizvoda…" />;

@@ -120,8 +120,14 @@ export const api = {
         const response = await apiRequest<{ data: import('@/types/api').AdminCatalogCreateOptions }> ('admin/catalog/options');
         return response.data;
       },
-      createProduct: (input: import('@/types/api').AdminProductCreateInput) =>
-        apiRequest<import('@/types/api').AdminProductCreateResponse> ('admin/catalog/products', { method: 'POST', body: input }),
+      // MOBILE_BUILD16_PRODUCT_CREATE_IDEMPOTENCY_BATCH134
+      createProduct: (input: import('@/types/api').AdminProductCreateInput, idempotencyKey?: string) =>
+        apiRequest<import('@/types/api').AdminProductCreateResponse> ('admin/catalog/products', {
+          method: 'POST',
+          body: input,
+          headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+          timeoutMs: 60_000,
+        }),
       // MOBILE_PRODUCT_IMAGE_EXPO_FILE_TRANSPORT_V06
       uploadProductImages: (productId: number, files: import('@/types/api').AdminProductImageUploadFile[]) => {
         const body = new FormData();

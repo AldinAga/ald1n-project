@@ -198,13 +198,32 @@ final class CatalogProductController extends Controller
         ]]);
     }
 
+    // MOBILE_BUILD16_PRODUCT_CREATE_IDEMPOTENCY_BATCH134
     public function store(
         ProductRequest $request,
         ProductAdminService $service,
         ProductAnnouncementService $announcements,
+        \App\Services\IdempotencyService $idempotency,
     ): JsonResponse {
-        $product = $service->create($request->validated(), $request->user());
-        $announcementCount = $announcements->queueForNewlyPublished($product, $request->user());
+        $validated = $request->validated();
+        $actor = $request->user();
+        $idempotencyKey = trim((string) $request->header('Idempotency-Key', ''));
+
+        /** @var Product $product */
+        $product = $idempotencyKey !== ''
+            ? $idempotency->run(
+                $actor,
+                'catalog.product.create',
+                $idempotencyKey,
+                $validated,
+                Product::class,
+                fn (): Product => $service->create($validated, $actor),
+                static fn (int $id): Product => Product::query()->findOrFail($id),
+            )
+            : $service->create($validated, $actor);
+
+        // Announcement queues already deduplicate by product/recipient, so an idempotent replay is safe.
+        $announcementCount = $announcements->queueForNewlyPublished($product, $actor);
 
         return response()->json([
             'message' => 'Artikal je uspešno kreiran.',

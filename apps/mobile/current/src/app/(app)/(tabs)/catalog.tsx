@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -68,6 +68,15 @@ export default function CatalogScreen() {
     queryFn: () => api.catalog.products(productParams),
     enabled: allowed,
   });
+
+  // MOBILE_BUILD16_CATALOG_FOCUS_FRESHNESS_BATCH134
+  const refetchProducts = query.refetch;
+  const refetchFilters = filters.refetch;
+  useFocusEffect(useCallback(() => {
+    if (!allowed) return;
+    void refetchProducts();
+    void refetchFilters();
+  }, [allowed, refetchFilters, refetchProducts]));
 
   const stockOptions = useMemo(
     () => [{ value: undefined, label: 'Svi' }, ...(filters.data?.stock_filters ?? [])],
