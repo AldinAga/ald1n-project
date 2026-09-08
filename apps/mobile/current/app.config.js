@@ -46,9 +46,8 @@ module.exports = ({ config }) => {
       url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     },
 
-    runtimeVersion: {
-      policy: 'appVersion',
-    },
+    // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
+    runtimeVersion: '1.0.0-build17',
 
     ios: {
       ...(config.ios || {}),

@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type GestureResponderEvent,
 } from 'react-native';
 
@@ -31,6 +32,19 @@ type GalleryItem = {
   displayUrl: string;
   primary: boolean;
 };
+
+// MOBILE_BUILD17_PHONE_MEDIA_ASPECT_BATCH137
+const DEFAULT_GALLERY_ASPECT_RATIO = 4 / 3;
+const MIN_GALLERY_ASPECT_RATIO = 9 / 16;
+const MAX_GALLERY_ASPECT_RATIO = 16 / 9;
+
+function safeGalleryAspectRatio(width: number, height: number): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return DEFAULT_GALLERY_ASPECT_RATIO;
+  }
+
+  return Math.max(MIN_GALLERY_ASPECT_RATIO, Math.min(MAX_GALLERY_ASPECT_RATIO, width / height));
+}
 
 type ProductImageGalleryProps = {
   productName: string;
@@ -116,7 +130,15 @@ export function ProductImageGallery({
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
+  const { width: viewportWidth } = useWindowDimensions();
   const [downloadingKey, setDownloadingKey] = useState<string | null> (null);
+  const [aspectRatios, setAspectRatios] = useState<Record<string, number>> ({});
+  const detailTileWidth = Math.max(260, Math.min(420, viewportWidth - (spacing.lg * 2)));
+
+  const rememberAspectRatio = useCallback((key: string, width: number, height: number) => {
+    const next = safeGalleryAspectRatio(width, height);
+    setAspectRatios((current) => current[key] === next ? current : { ...current, [key]: next });
+  }, []);
 
   const needsDetail = mode === 'catalog' && images === undefined && Boolean(productSlug);
   const detailQuery = useQuery({
@@ -235,23 +257,22 @@ export function ProductImageGallery({
         removeClippedSubviews
         renderItem={({ item: image, index }) => {
           const downloading = downloadingKey === image.key;
+          const tileWidth = mode === 'catalog' ? 172 : detailTileWidth;
+          const aspectRatio = aspectRatios[image.key] ?? DEFAULT_GALLERY_ASPECT_RATIO;
           return (
-            <View
-              style={[
-                styles.tile,
-                mode === 'catalog' ? styles.catalogTile : styles.detailTile,
-              ]}
-            >
+            <View style={[styles.tile, { width: tileWidth }]}>
               <Image
                 source={{ uri: image.displayUrl }}
-                style={[
-                  styles.image,
-                  mode === 'catalog' ? styles.catalogImage : styles.detailImage,
-                ]}
+                style={[styles.image, { aspectRatio }]}
                 contentFit="contain"
                 cachePolicy="memory-disk"
                 transition={120}
                 recyclingKey={image.key}
+                onLoad={(event) => rememberAspectRatio(
+                  image.key,
+                  event.source.width,
+                  event.source.height,
+                )}
               />
 
               <View style={styles.metaRow}>
@@ -291,11 +312,7 @@ function createStyles(theme: AppColors) {
     count: { ...typography.small, color: theme.muted },
     scrollContent: { gap: spacing.md, paddingRight: spacing.sm },
     tile: { borderWidth: 1, borderColor: theme.line, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: theme.surface },
-    catalogTile: { width: 172 },
-    detailTile: { width: 286 },
     image: { width: '100%', backgroundColor: theme.surfaceMuted },
-    catalogImage: { height: 126 },
-    detailImage: { height: 236 },
     metaRow: { minHeight: 52, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },
     labelWrap: { flex: 1, minWidth: 0 },
     imageLabel: { ...typography.small, color: theme.ink },

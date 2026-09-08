@@ -136,9 +136,9 @@ for (const jsonFile of ['package.json', 'eas.json']) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const packageLockJson = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-assert(packageJson.dependencies?.expo === '~57.0.20' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.20' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.20', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
+assert(packageJson.dependencies?.expo === '~57.0.21' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.21' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.21', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['']?.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['node_modules/react-native']?.version === '0.86.3', 'React Native verzija prati Expo SDK 57 template.');
-assert(packageJson.dependencies?.['expo-router'] === '~57.0.19' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.19' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.19', 'Expo Router verzija je zaključana.');
+assert(packageJson.dependencies?.['expo-router'] === '~57.0.20' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.20' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.20', 'Expo Router verzija je zaključana.');
 assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.18' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.18' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.18', 'Expo development client je uključen.');
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
@@ -165,8 +165,9 @@ assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.18' && packageLockJ
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH45_V5
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH99_V3
 // MOBILE_BUILD16_EXPO_SDK57_PATCH_ALIGNMENT_BATCH123_V2
+// MOBILE_BUILD17_SDK57_PATCH_ALIGNMENT_BATCH137_V2
 const expoCompatibilityMatrixV08 = {
-  expo: { spec: '~57.0.20', version: '57.0.20' },
+  expo: { spec: '~57.0.21', version: '57.0.21' },
   'expo-constants': { spec: '~57.0.17', version: '57.0.17' },
   'expo-crypto': { spec: '~57.0.2', version: '57.0.2' },
   'expo-dev-client': { spec: '~57.0.18', version: '57.0.18' },
@@ -174,7 +175,7 @@ const expoCompatibilityMatrixV08 = {
   'expo-font': { spec: '~57.0.3', version: '57.0.3' },
   'expo-linking': { spec: '~57.0.9', version: '57.0.9' },
   'expo-notifications': { spec: '~57.0.17', version: '57.0.17' },
-  'expo-router': { spec: '~57.0.19', version: '57.0.19' },
+  'expo-router': { spec: '~57.0.20', version: '57.0.20' },
   'expo-sharing': { spec: '~57.0.18', version: '57.0.18' },
   'expo-secure-store': { spec: '~57.0.3', version: '57.0.3' },
   'expo-system-ui': { spec: '~57.0.3', version: '57.0.3' },
@@ -864,6 +865,27 @@ assert(
     && build16CmsCatalogControllerBatch134.includes("'catalog.product.create'")
     && build16CmsCatalogControllerBatch134.includes('IdempotencyService'),
   'Mobile product create is single-flight per active request and retries the same payload through server idempotency.'
+);
+
+// MOBILE_BUILD17_CATALOG_MEDIA_RUNTIME_HOTFIX_BATCH137
+const build17GalleryBatch137 = fs.readFileSync(path.join(root, 'src/components/catalog/product-image-gallery.tsx'), 'utf8');
+const build17AppConfigBatch137 = fs.readFileSync(path.join(root, 'app.config.js'), 'utf8');
+assert(
+  build17GalleryBatch137.includes('MOBILE_BUILD17_PHONE_MEDIA_ASPECT_BATCH137')
+    && build17GalleryBatch137.includes('useWindowDimensions')
+    && build17GalleryBatch137.includes('safeGalleryAspectRatio')
+    && build17GalleryBatch137.includes('event.source.width')
+    && build17GalleryBatch137.includes('event.source.height')
+    && build17GalleryBatch137.includes('style={[styles.image, { aspectRatio }]}')
+    && !build17GalleryBatch137.includes('catalogImage: { height: 126 }')
+    && !build17GalleryBatch137.includes('detailImage: { height: 236 }'),
+  'Build17 galerija prati stvarni 4:3/3:4 odnos telefonske fotografije bez fiksnog letterbox image box-a.'
+);
+assert(
+  build17AppConfigBatch137.includes('MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137')
+    && build17AppConfigBatch137.includes("runtimeVersion: '1.0.0-build17'")
+    && !build17AppConfigBatch137.includes("runtimeVersion: {\n      policy: 'appVersion'"),
+  'Build17 ima izolovan runtime 1.0.0-build17 pa OTA ne može slučajno targetirati Build15/Build16 runtime 1.0.0.'
 );
 
 const build16IconRegistryPath = path.join(projectRoot, 'packages/icon-system/ald1n-icons.json');
