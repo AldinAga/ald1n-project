@@ -223,3 +223,12 @@ apps/cms/current/error_log.*
 /.locks
 /.mobile-*.lock
 /PROJECT-STATUS.md
+
+# ALD1N_EAS_ROOT_OPERATIONAL_WORKSPACE_HYGIENE_V1
+# Completed Build16/Build17 preflight, rollback and quarantine workspaces are server-only operational artifacts.
+/.build16-batch*-backup-*
+/.build16-batch*-tmp-*
+/.build16-batch*-quarantine-*
+/.build17-batch*-backup-*
+/.build17-batch*-tmp-*
+/.build17-batch*-quarantine-*
