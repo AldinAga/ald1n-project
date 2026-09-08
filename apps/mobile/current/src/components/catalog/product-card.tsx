@@ -11,6 +11,7 @@ import { useAppTheme } from '@/theme/app-theme';
 import type { Product } from '@/types/api';
 
 // MOBILE_BUILD16_CATALOG_PRODUCT_ROW_BATCH127
+// MOBILE_BUILD16_CATALOG_IMAGE_BOUNDS_HOTFIX_BATCH134
 export function ProductCard({
   product,
   onPress,
@@ -135,17 +136,18 @@ function createStyles(theme: AppColors) {
       elevation: 1,
     },
     pressed: { opacity: 0.94, transform: [{ scale: 0.988 }] },
-    row: { minHeight: 142, flexDirection: 'row' },
+    row: { minHeight: 142, flexDirection: 'row', alignItems: 'flex-start' },
     imageWrap: {
       width: 118,
-      minHeight: 142,
+      height: 142,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.surfaceMuted,
       borderRightWidth: 1,
       borderRightColor: theme.line,
     },
-    image: { width: '100%', height: '100%' },
+    image: { width: 118, height: 142 },
     content: { flex: 1, padding: spacing.md, gap: 6 },
     topRow: {
       flexDirection: 'row',

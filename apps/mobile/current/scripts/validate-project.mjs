@@ -566,6 +566,20 @@ assert(
     && !build16CatalogProductCard.includes('<Card'),
   'Build16 Catalog product row je kompaktan operator surface i čuva Batch116 thumbnail/cache contract.'
 );
+// MOBILE_BUILD16_CATALOG_IMAGE_BOUNDS_HOTFIX_BATCH134
+assert(
+  build16CatalogProductCard.includes('MOBILE_BUILD16_CATALOG_IMAGE_BOUNDS_HOTFIX_BATCH134')
+    && build16CatalogProductCard.includes("row: { minHeight: 142, flexDirection: 'row', alignItems: 'flex-start' }")
+    && build16CatalogProductCard.includes(`imageWrap: {
+      width: 118,
+      height: 142,
+      flexShrink: 0,`)
+    && build16CatalogProductCard.includes('image: { width: 118, height: 142 },')
+    && !build16CatalogProductCard.includes(`imageWrap: {
+      width: 118,
+      minHeight: 142,`),
+  'Build16 Catalog slika ima eksplicitne bounds i intrinsic dimenzije fotografije ne mogu da rastegnu product row.'
+);
 assert(
   build16SelectSheet.includes('MOBILE_BUILD16_SELECT_SHEET_OPERATOR_BATCH127')
     && build16SelectSheet.includes('<Glyph')
