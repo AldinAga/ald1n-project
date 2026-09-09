@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\ReceivableCase;
 use App\Models\ReceivableContact;
 use App\Models\ReceivableInstallment;
+use App\Models\ReceivablePaymentAllocation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -155,6 +157,11 @@ final class ReceivablesService
             foreach ($normalized as $row) ReceivableInstallment::query()->create(['receivable_case_id' => $locked->id] + $row);
             $metadata = (array) ($locked->metadata_json ?? []);
             $metadata['plan_paid_baseline_rsd'] = round((float) $locked->order->paid_total_rsd, 2);
+            $metadata['plan_payment_high_water_id'] = (int) (OrderPayment::query()
+                ->where('order_id', $locked->order->id)
+                ->where('entry_type', 'payment')
+                ->where('status', 'verified')
+                ->max('id') ?? 0);
             $metadata['plan_created_at'] = now()->toISOString();
             $locked->update([
                 'status' => 'installment_plan',
@@ -288,6 +295,10 @@ final class ReceivablesService
         if (!$this->ready()) return null;
         $case = ReceivableCase::query()->where('order_id', $order->id)->first();
         if (!$case instanceof ReceivableCase) return null;
+        $metadata = (array) ($case->metadata_json ?? []);
+        if (Schema::hasTable('receivable_payment_allocations') && array_key_exists('plan_payment_high_water_id', $metadata)) {
+            return $this->syncForOrderWithPaymentLedger($order, $case);
+        }
 
         return DB::transaction(function () use ($case, $order): ReceivableCase {
             /** @var ReceivableCase $locked */
@@ -326,6 +337,91 @@ final class ReceivablesService
         }, 5);
     }
 
+    private function syncForOrderWithPaymentLedger(Order $order, ReceivableCase $case): ReceivableCase
+    {
+        return DB::transaction(function () use ($order, $case): ReceivableCase {
+            /** @var ReceivableCase $locked */
+            $locked = ReceivableCase::query()->lockForUpdate()->findOrFail($case->id);
+            /** @var Order $freshOrder */
+            $freshOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $metadata = (array) ($locked->metadata_json ?? []);
+            $highWater = max(0, (int) ($metadata['plan_payment_high_water_id'] ?? 0));
+            $planCreatedAt = Carbon::parse((string) ($metadata['plan_created_at'] ?? now()->toISOString()));
+            $baseline = round((float) ($metadata['plan_paid_baseline_rsd'] ?? 0), 2);
+            $allocatable = round(max(0, (float) $freshOrder->paid_total_rsd - $baseline), 2);
+
+            $installments = ReceivableInstallment::query()
+                ->where('receivable_case_id', $locked->id)
+                ->orderBy('sequence_no')
+                ->lockForUpdate()
+                ->get();
+            ReceivablePaymentAllocation::query()->where('receivable_case_id', $locked->id)->delete();
+            foreach ($installments as $installment) {
+                $installment->update(['paid_amount_rsd' => 0, 'paid_at' => null]);
+            }
+
+            $payments = OrderPayment::query()
+                ->where('order_id', $freshOrder->id)
+                ->where('entry_type', 'payment')
+                ->where('status', 'verified')
+                ->where(function ($query) use ($highWater, $planCreatedAt): void {
+                    $query->where('id', '>', $highWater)->orWhere('verified_at', '>', $planCreatedAt);
+                })
+                ->orderBy('paid_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $remainingAllocatable = $allocatable;
+            foreach ($payments as $payment) {
+                if ($remainingAllocatable <= 0.004) break;
+                $paymentRemaining = min(round((float) $payment->amount_rsd, 2), $remainingAllocatable);
+                foreach ($installments as $installment) {
+                    if ($paymentRemaining <= 0.004) break;
+                    $already = (float) $installment->paid_amount_rsd;
+                    $open = round(max(0, (float) $installment->amount_rsd - $already), 2);
+                    if ($open <= 0.004) continue;
+                    $amount = round(min($open, $paymentRemaining), 2);
+                    if ($amount <= 0) continue;
+                    ReceivablePaymentAllocation::query()->create([
+                        'receivable_case_id' => $locked->id,
+                        'receivable_installment_id' => $installment->id,
+                        'order_payment_id' => $payment->id,
+                        'amount_rsd' => $amount,
+                    ]);
+                    $newPaid = round($already + $amount, 2);
+                    $paidInFull = $newPaid + 0.004 >= (float) $installment->amount_rsd;
+                    $installment->update([
+                        'paid_amount_rsd' => $newPaid,
+                        'paid_at' => $paidInFull ? $payment->paid_at : null,
+                    ]);
+                    $installment->refresh();
+                    $paymentRemaining = round(max(0, $paymentRemaining - $amount), 2);
+                    $remainingAllocatable = round(max(0, $remainingAllocatable - $amount), 2);
+                }
+            }
+
+            foreach ($installments as $installment) {
+                $installment->refresh();
+                $isPaid = (float) $installment->paid_amount_rsd + 0.004 >= (float) $installment->amount_rsd;
+                $status = $isPaid ? 'paid' : ($installment->due_at?->isPast() ? 'overdue' : 'pending');
+                $installment->update(['status' => $status, 'paid_at' => $isPaid ? $installment->paid_at : null]);
+            }
+
+            $remaining = $this->remaining($freshOrder);
+            if ($remaining <= 0.004 || in_array((string) $freshOrder->payment_state, ['paid', 'overpaid'], true)) {
+                $locked->update(['status' => 'closed', 'closed_at' => $locked->closed_at ?: now(), 'next_action_at' => null, 'promised_payment_at' => null]);
+            } else {
+                $installments->each->refresh();
+                $nextInstallment = $installments->first(static fn (ReceivableInstallment $item): bool => $item->status !== 'paid');
+                $nextAction = $locked->promised_payment_at ?: $nextInstallment?->due_at ?: $freshOrder->payment_due_at;
+                $updates = ['next_action_at' => $nextAction, 'closed_at' => null];
+                if ($locked->status === 'closed') $updates['status'] = $installments->isNotEmpty() ? 'installment_plan' : 'monitoring';
+                $locked->update($updates);
+            }
+            return $locked->fresh(['order.user', 'order.supplier', 'installments', 'contacts.user', 'assignee']) ?? $locked;
+        }, 5);
+    }
     public function remaining(Order $order): float
     {
         return round(max(0, (float) $order->subtotal_rsd - (float) $order->paid_total_rsd), 2);

@@ -667,6 +667,8 @@ $check('beta7.16 doctor proverava outbox SMTP scheduler NBS i garancijske dane',
 $check('beta7.16 feature test pokriva admin porudžbinu događaje NBS QR i dane garancije', str_contains($orderEmailFeatureTest, 'test_admin_can_create_order') && str_contains($orderEmailFeatureTest, 'test_bank_transfer_invoice_snapshots_official_nbs_payload_png_and_exact_rsd_total') && str_contains($orderEmailFeatureTest, 'test_warranty_duration_combines_months_and_days'));
 
 $receivablesMigration = (string) file_get_contents($root.'/database/migrations/2026_07_31_000026_create_receivables_collection_beta7_17.php');
+$receivableAllocationMigration = (string) file_get_contents($root.'/database/migrations/2026_09_09_000147_create_receivable_payment_allocations_batch147.php');
+$receivableAllocationModel = (string) file_get_contents($root.'/app/Models/ReceivablePaymentAllocation.php');
 $receivablesService = (string) file_get_contents($root.'/app/Services/ReceivablesService.php');
 $receivablesController = (string) file_get_contents($root.'/app/Http/Controllers/Admin/ReceivablesController.php');
 $receivablesIndex = (string) file_get_contents($root.'/resources/views/admin/receivables/index.blade.php');
@@ -677,7 +679,7 @@ $layoutShell = (string) file_get_contents($root.'/resources/views/layouts/app.bl
 $check('beta7.17 migracija uvodi predmete rate i komunikaciju naplate', str_contains($receivablesMigration, 'receivable_cases') && str_contains($receivablesMigration, 'receivable_installments') && str_contains($receivablesMigration, 'receivable_contacts'));
 $check('beta7.17 migracija je recovery-safe za delimičan DDL', str_contains($receivablesMigration, 'createOrRepairCases') && str_contains($receivablesMigration, 'ensureColumns') && str_contains($receivablesMigration, 'down(): void'));
 $check('beta7.17 servis automatski otvara zatvara i usklađuje predmete', str_contains($receivablesService, 'ensureForOrder') && str_contains($receivablesService, 'syncForOrder') && str_contains($receivablesService, "'status' => 'closed'"));
-$check('beta7.17 rate se raspoređuju prema stvarno plaćenom iznosu', str_contains($receivablesService, 'plan_paid_baseline_rsd') && str_contains($receivablesService, 'paid_amount_rsd') && str_contains($receivablesService, '$allocatable'));
+$check('beta7.17 rate se raspoređuju prema stvarno plaćenom iznosu', str_contains($receivablesService, 'plan_paid_baseline_rsd') && str_contains($receivablesService, 'paid_amount_rsd') && str_contains($receivablesService, '$allocatable') && str_contains($receivableAllocationMigration, 'receivable_payment_allocations') && str_contains($receivableAllocationModel, 'ReceivablePaymentAllocation') && str_contains($receivablesService, 'plan_payment_high_water_id') && str_contains($receivablesService, 'syncForOrderWithPaymentLedger'));
 $check('beta7.17 automatske opomene koriste faze dedupe i outbox', str_contains($receivablesService, 'eligibleReminderStage') && str_contains($receivablesService, 'event_key') && str_contains($orderEmailOutbox, 'receivableReminder'));
 $check('beta7.17 admin ima aging pregled plan i evidenciju komunikacije', str_contains($receivablesIndex, 'aging-grid') && str_contains($receivablesShow, 'Plan otplate') && str_contains($receivablesShow, 'Komunikacija i opomene'));
 $check('beta7.17 podmeni se zatvara klikom van escape i izborom stavke', str_contains($layoutShell, 'closeDropdowns') && str_contains($layoutShell, "event.key !== 'Escape'") && str_contains($layoutShell, "target.closest?.('.nav-dropdown')"));
@@ -759,7 +761,7 @@ $check('Product Variants Feature test sada proverava retired route i uklonjenu �
 $check('Product Variants UI contract sada zahteva potpuno uklonjen variant UI', str_contains($productVariantUiContract, 'assertFileDoesNotExist') && str_contains($productVariantUiContract, "assertStringNotContainsString('product_variant_id'"));
 $check('Product Variants decommission smoke postoji kao završni regresioni guard', str_contains((string) file_get_contents($root.'/bin/product-variant-smoke.php'), 'Product Variants Decommission smoke') && str_contains((string) file_get_contents($root.'/bin/product-variant-smoke.php'), 'Aktivni CMS runtime nema Product Variants signal'));
 
-$check('beta7.17 feature test pokriva dedupe rate zatvaranje i UI regresiju', str_contains($receivablesTest, 'test_automation_creates_case_and_deduplicated_due_reminder') && str_contains($receivablesTest, 'test_verified_payments_allocate_oldest_installments_and_close_case') && str_contains($receivablesTest, 'test_dropdown_and_checkbox_regression_markers_are_present'));
+$check('beta7.17 feature test pokriva dedupe rate zatvaranje i UI regresiju', str_contains($receivablesTest, 'test_automation_creates_case_and_deduplicated_due_reminder') && str_contains($receivablesTest, 'test_verified_payments_allocate_oldest_installments_and_close_case') && str_contains($receivablesTest, 'test_random_dated_payments_split_across_installments_with_exact_completion_date') && str_contains($receivablesTest, 'test_dropdown_and_checkbox_regression_markers_are_present'));
 
 
 $managementMigration = (string) file_get_contents($root.'/database/migrations/2026_07_31_000030_create_management_reports_beta7_21.php');

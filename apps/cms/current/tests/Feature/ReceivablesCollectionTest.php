@@ -9,8 +9,10 @@ use App\Models\OrderEmailOutbox;
 use App\Models\OrderPayment;
 use App\Models\ReceivableCase;
 use App\Models\ReceivableInstallment;
+use App\Models\ReceivablePaymentAllocation;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\OrderPaymentService;
 use App\Services\ReceivablesService;
 use App\Services\SettingsService;
 use Database\Seeders\CoreAccessSeeder;
@@ -86,6 +88,48 @@ final class ReceivablesCollectionTest extends TestCase
         self::assertSame(['paid', 'paid'], ReceivableInstallment::query()->orderBy('sequence_no')->pluck('status')->all());
     }
 
+    public function test_random_dated_payments_split_across_installments_with_exact_completion_date(): void
+    {
+        $customer = $this->user('random-date-customer', 'user');
+        $admin = $this->user('random-date-admin', 'admin');
+        $order = $this->order($customer, $admin, 100000, 0, now()->addMonth());
+        $order->update(['payment_method' => 'deferred_payment', 'sales_channel' => 'direct_sale', 'completed_at' => now()]);
+        $service = app(ReceivablesService::class);
+        $case = $service->ensureForOrder($order->fresh(), $admin);
+        self::assertInstanceOf(ReceivableCase::class, $case);
+        $service->replacePlan($case, $admin, [
+            ['due_at' => now()->addDays(10)->toDateString(), 'amount_rsd' => 30000],
+            ['due_at' => now()->addDays(40)->toDateString(), 'amount_rsd' => 30000],
+            ['due_at' => now()->addDays(70)->toDateString(), 'amount_rsd' => 40000],
+        ]);
+
+        $date1 = now()->subDays(7)->setTime(9, 15, 0);
+        $date2 = now()->subDays(2)->setTime(16, 40, 0);
+        $payments = app(OrderPaymentService::class);
+        $payment1 = $payments->record($order->fresh(), [
+            'entry_type' => 'payment', 'amount_rsd' => 10000, 'payment_method' => 'cash',
+            'paid_at' => $date1, 'reference' => 'RANDOM-1', 'note' => 'Prva nasumična uplata.',
+        ], $admin);
+        $payment2 = $payments->record($order->fresh(), [
+            'entry_type' => 'payment', 'amount_rsd' => 35000, 'payment_method' => 'bank_transfer',
+            'paid_at' => $date2, 'reference' => 'RANDOM-2', 'note' => 'Druga nasumična uplata.',
+        ], $admin);
+        $order->refresh();
+        self::assertSame('45000.00', (string) $order->paid_total_rsd);
+        self::assertSame('partial', (string) $order->payment_state);
+
+        $installments = ReceivableInstallment::query()->where('receivable_case_id', $case->id)->orderBy('sequence_no')->get();
+        self::assertSame('30000.00', (string) $installments[0]->paid_amount_rsd);
+        self::assertSame('15000.00', (string) $installments[1]->paid_amount_rsd);
+        self::assertSame('0.00', (string) $installments[2]->paid_amount_rsd);
+        self::assertSame('paid', $installments[0]->status);
+        self::assertSame($date2->format('Y-m-d H:i:s'), $installments[0]->paid_at?->format('Y-m-d H:i:s'));
+
+        $allocations = ReceivablePaymentAllocation::query()->orderBy('order_payment_id')->orderBy('receivable_installment_id')->get();
+        self::assertCount(3, $allocations);
+        self::assertSame([$payment1->id, $payment2->id, $payment2->id], $allocations->pluck('order_payment_id')->all());
+        self::assertSame(['10000.00', '20000.00', '15000.00'], $allocations->pluck('amount_rsd')->map(static fn ($v) => (string) $v)->all());
+    }
     public function test_dropdown_and_checkbox_regression_markers_are_present(): void
     {
         $layout = (string) file_get_contents(resource_path('views/layouts/app.blade.php'));

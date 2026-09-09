@@ -11,10 +11,13 @@ use App\Http\Requests\StoreReceivablePlanRequest;
 use App\Http\Requests\UpdateReceivableCaseRequest;
 use App\Http\Requests\UpdateReceivableSettingsRequest;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\ReceivableCase;
 use App\Models\ReceivableContact;
 use App\Models\ReceivableInstallment;
+use App\Models\ReceivablePaymentAllocation;
 use App\Models\User;
+use App\Services\OrderPaymentService;
 use App\Services\ReceivablesService;
 use App\Services\SettingsService;
 use DateTimeInterface;
@@ -23,7 +26,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 final class ReceivablesController extends Controller
 {
@@ -108,12 +113,20 @@ final class ReceivablesController extends Controller
                 'assignees' => $this->assigneeOptions(),
                 'settings' => $this->settingsValues($settings),
                 'max_installments' => 24,
+                'payment_methods' => [
+                    'bank_transfer' => 'Uplata na račun',
+                    'cash' => 'Gotovina',
+                    'card' => 'Kartica',
+                    'cod' => 'Pouzećem',
+                    'other' => 'Drugo',
+                ],
             ],
             'capabilities' => [
                 'can_update' => true,
                 'can_replace_plan' => true,
                 'can_add_contact' => true,
                 'can_send_reminder' => true,
+                'can_record_payment' => $actor->hasPermission('payments.manage'),
             ],
         ]);
     }
@@ -167,6 +180,35 @@ final class ReceivablesController extends Controller
         return $this->mutationResponse($updated, $service);
     }
 
+    public function payment(
+        Request $request,
+        ReceivableCase $receivable,
+        ReceivablesService $receivables,
+        OrderPaymentService $payments,
+    ): JsonResponse {
+        $actor = $this->actor($request);
+        $this->authorizeCase($receivable, $actor);
+        abort_unless($actor->hasPermission('payments.manage'), 403);
+        $data = $request->validate([
+            'amount_rsd' => ['required', 'numeric', 'min:0.01'],
+            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'other'])],
+            'paid_at' => ['required', 'date'],
+            'reference' => ['nullable', 'string', 'max:120'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+        /** @var Order $order */
+        $order = $receivable->order()->firstOrFail();
+        $remaining = $receivables->remaining($order);
+        if (round((float) $data['amount_rsd'], 2) > $remaining + 0.004) {
+            throw ValidationException::withMessages([
+                'amount_rsd' => 'Uplata ne može biti veća od preostalog duga '.number_format($remaining, 2, ',', '.').' RSD.',
+            ]);
+        }
+        $data['entry_type'] = 'payment';
+        $payments->record($order, $data, $actor);
+        $updated = ReceivableCase::query()->findOrFail($receivable->id);
+        return $this->mutationResponse($updated, $receivables, 201);
+    }
     public function updateSettings(UpdateReceivableSettingsRequest $request, SettingsService $settings): JsonResponse
     {
         $actor = $this->actor($request);
@@ -367,9 +409,46 @@ final class ReceivablesController extends Controller
             'contacts' => $contacts
                 ->map(fn (ReceivableContact $contact): array => $this->contactPayload($contact))
                 ->values(),
+            'payments' => $this->paymentTimeline($case),
         ];
     }
 
+    /** @return list<array<string,mixed>> */
+    private function paymentTimeline(ReceivableCase $case): array
+    {
+        $orderId = (int) $case->order_id;
+        $query = OrderPayment::query()
+            ->where('order_id', $orderId)
+            ->where('entry_type', 'payment')
+            ->latest('paid_at')
+            ->latest('id');
+        if (Schema::hasTable('receivable_payment_allocations')) {
+            $query->with('receivableAllocations.installment');
+        }
+        return $query->limit(100)->get()->map(function (OrderPayment $payment): array {
+            $allocations = $payment->relationLoaded('receivableAllocations')
+                ? $payment->receivableAllocations
+                    ->filter(fn (ReceivablePaymentAllocation $allocation): bool => $allocation->installment instanceof ReceivableInstallment)
+                    ->map(fn (ReceivablePaymentAllocation $allocation): array => [
+                        'installment_id' => (int) $allocation->receivable_installment_id,
+                        'sequence_no' => (int) $allocation->installment->sequence_no,
+                        'due_at' => $this->dateValue($allocation->installment->due_at),
+                        'amount_rsd' => round((float) $allocation->amount_rsd, 2),
+                    ])->values()->all()
+                : [];
+            return [
+                'id' => (int) $payment->id,
+                'payment_number' => (string) $payment->payment_number,
+                'status' => (string) $payment->status,
+                'amount_rsd' => round((float) $payment->amount_rsd, 2),
+                'payment_method' => (string) $payment->payment_method,
+                'paid_at' => $this->dateValue($payment->paid_at),
+                'reference' => $payment->reference,
+                'note' => $payment->note,
+                'allocations' => $allocations,
+            ];
+        })->values()->all();
+    }
     /** @return array<string,mixed> */
     private function installmentPayload(ReceivableInstallment $installment): array
     {

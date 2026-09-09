@@ -53,8 +53,26 @@ export type AdminReceivableInstallment = {
   note: string | null;
 };
 
-export type AdminReceivableContact = {
+export type AdminReceivablePaymentAllocation = {
+  installment_id: number;
+  sequence_no: number;
+  due_at: string | null;
+  amount_rsd: number;
+};
+
+export type AdminReceivablePayment = {
   id: number;
+  payment_number: string;
+  status: string;
+  amount_rsd: number;
+  payment_method: string;
+  paid_at: string | null;
+  reference: string | null;
+  note: string | null;
+  allocations: AdminReceivablePaymentAllocation[];
+};
+
+export type AdminReceivableContact = {  id: number;
   channel: string;
   direction: string;
   subject: string | null;
@@ -71,6 +89,7 @@ export type AdminReceivableDetail = AdminReceivableSummary & {
   updated_by: AdminReceivableUser | null;
   installments: AdminReceivableInstallment[];
   contacts: AdminReceivableContact[];
+  payments: AdminReceivablePayment[];
 };
 
 export type AdminReceivableStats = {
@@ -137,12 +156,14 @@ export type AdminReceivableDetailResponse = {
     assignees: AdminReceivableUser[];
     settings: AdminReceivableSettings;
     max_installments: number;
+    payment_methods: Record<string, string>;
   };
   capabilities: {
     can_update: boolean;
     can_replace_plan: boolean;
     can_add_contact: boolean;
     can_send_reminder: boolean;
+    can_record_payment: boolean;
   };
 };
 
@@ -179,6 +200,13 @@ export type AdminReceivableReminderInput = {
   message?: string | null;
 };
 
+export type AdminReceivablePaymentInput = {
+  amount_rsd: number;
+  payment_method: string;
+  paid_at: string;
+  reference?: string | null;
+  note?: string | null;
+};
 export type AdminReceivableSettingsInput = {
   receivables_enabled: boolean;
   receivables_auto_create_cases: boolean;
@@ -238,6 +266,11 @@ export const apiAdminReceivables = {
     }),
   sendReminder: (receivableId: number, input: AdminReceivableReminderInput = {}) =>
     apiRequest<AdminReceivableMutationResponse> (`admin/receivables/${receivableId}/reminder`, {
+      method: 'POST',
+      body: input,
+    }),
+  recordPayment: (receivableId: number, input: AdminReceivablePaymentInput) =>
+    apiRequest<AdminReceivableMutationResponse> (`admin/receivables/${receivableId}/payments`, {
       method: 'POST',
       body: input,
     }),

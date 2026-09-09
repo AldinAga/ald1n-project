@@ -36,6 +36,7 @@ final class ReceivableCase extends Model
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
     public function installments(): HasMany { return $this->hasMany(ReceivableInstallment::class)->orderBy('sequence_no'); }
     public function contacts(): HasMany { return $this->hasMany(ReceivableContact::class)->latest('contacted_at')->latest('id'); }
+    public function paymentAllocations(): HasMany { return $this->hasMany(ReceivablePaymentAllocation::class, 'receivable_case_id'); }
 
     public function statusLabel(): string
     {

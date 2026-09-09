@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class ReceivableInstallment extends Model
 {
@@ -25,4 +26,5 @@ final class ReceivableInstallment extends Model
     }
 
     public function case(): BelongsTo { return $this->belongsTo(ReceivableCase::class, 'receivable_case_id'); }
+    public function allocations(): HasMany { return $this->hasMany(ReceivablePaymentAllocation::class, 'receivable_installment_id'); }
 }

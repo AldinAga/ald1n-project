@@ -21,19 +21,21 @@ import {
   apiAdminReceivables,
   type AdminReceivableContact,
   type AdminReceivableInstallment,
+  type AdminReceivablePayment,
 } from '@/features/admin/receivables-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 
 // MOBILE_V1_0_ADMIN_RECEIVABLES_DETAIL_UX_REORGANIZATION_BATCH88
-type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'communication' | 'reminders' | 'audit';
-type Panel = 'update' | 'plan' | 'contact' | 'reminder' | null;
+type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'payments' | 'communication' | 'reminders' | 'audit';
+type Panel = 'update' | 'plan' | 'payment' | 'contact' | 'reminder' | null;
 
 const RECEIVABLES_WORKSPACE_OPTIONS: Array<{ value: ReceivablesWorkspace; label: string; description: string }> = [
   { value: 'overview', label: 'Pregled', description: 'Kljucevi predmeta naplate, saldo, kasnjenje i dostupne server akcije.' },
   { value: 'case', label: 'Predmet', description: 'Status, odgovorno lice, sledeca akcija, obecana uplata i interna napomena.' },
   { value: 'plan', label: 'Plan otplate', description: 'Postojece rate i kontrolisana zamena plana kroz server validaciju.' },
+  { value: 'payments', label: 'Uplate', description: 'Stvarne uplate sa realnim datumom, iznosom i automatskom FIFO raspodelom na otvorene rate.' },
   { value: 'communication', label: 'Komunikacija', description: 'Rucni i automatski kontakti uz postojecu customer visibility granicu.' },
   { value: 'reminders', label: 'Opomene', description: 'Rucni podsetnik kroz postojeci ReceivablesService i e-mail outbox.' },
   { value: 'audit', label: 'Audit', description: 'Autor izmene, poslednji kontakt, poslednja opomena i interna evidencija.' },
@@ -83,6 +85,25 @@ function InstallmentRow({ item }: { item: AdminReceivableInstallment }) {
   );
 }
 
+function PaymentRow({ item }: { item: AdminReceivablePayment }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <View style={styles.lineRow}>
+      <View style={styles.grow}>
+        <Text style={styles.itemTitle}>{item.payment_number} · {money(item.amount_rsd)}</Text>
+        <Text style={styles.meta}>{item.paid_at ? formatDate(item.paid_at, true) : '—'} · {item.payment_method} · {item.status}</Text>
+        {item.allocations.length > 0 ? item.allocations.map((allocation) => (
+          <Text key={`${item.id}-${allocation.installment_id}`} style={styles.meta}>
+            Rata {allocation.sequence_no} → {money(allocation.amount_rsd)}
+          </Text>
+        )) : <Text style={styles.meta}>Bez nove allocation stavke (legacy plan ili uplata pre plana).</Text>}
+        {item.reference ? <Text style={styles.meta}>Referenca: {item.reference}</Text> : null}
+        {item.note ? <Text style={styles.body}>{item.note}</Text> : null}
+      </View>
+    </View>
+  );
+}
 function ContactRow({ item }: { item: AdminReceivableContact }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -127,6 +148,12 @@ export default function AdminReceivablesDetailScreen() {
   const [contactVisible, setContactVisible] = useState(false);
 
   const [reminderMessage, setReminderMessage] = useState('');
+
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+  const [paymentPaidAt, setPaymentPaidAt] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
 
   const query = useQuery({
     queryKey: adminQueryKeys.receivable(receivableId),
@@ -186,6 +213,17 @@ export default function AdminReceivablesDetailScreen() {
     setPanel('plan');
   };
 
+  const openPayment = () => {
+    setWorkspace('payments');
+    setPaymentAmount('');
+    setPaymentMethod(Object.keys(response.options.payment_methods)[0] ?? 'bank_transfer');
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16).replace('T', ' ');
+    setPaymentPaidAt(local);
+    setPaymentReference('');
+    setPaymentNote('');
+    setPanel('payment');
+  };
   const openContact = () => {
     setWorkspace('communication');
     setContactChannel('');
@@ -244,6 +282,23 @@ export default function AdminReceivablesDetailScreen() {
     }
   };
 
+  const submitPayment = () => {
+    try {
+      const amount = positiveAmount(paymentAmount, 'Iznos uplate');
+      if (amount > data.remaining_rsd + 0.004) throw new Error(`Uplata ne može biti veća od preostalog duga ${money(data.remaining_rsd)}.`);
+      if (!paymentPaidAt.trim()) throw new Error('Datum i vreme stvarne uplate su obavezni.');
+      if (!paymentMethod.trim()) throw new Error('Način plaćanja je obavezan.');
+      void execute('Uplata je evidentirana', () => apiAdminReceivables.recordPayment(receivableId, {
+        amount_rsd: amount,
+        payment_method: paymentMethod,
+        paid_at: paymentPaidAt.trim(),
+        reference: compact(paymentReference),
+        note: compact(paymentNote),
+      }));
+    } catch (error) {
+      feedback.notify({ tone: 'danger', title: 'Uplata nije spremna', message: error instanceof Error ? error.message : 'Proveri podatke uplate.' });
+    }
+  };
   const submitContact = () => {
     const channel = contactChannel.trim();
     const direction = contactDirection.trim();
@@ -337,6 +392,39 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
+      {workspace === 'payments' && panel === 'payment' ? (
+        <Card style={styles.panelCard}>
+          <Text style={styles.sectionTitle}>Evidentiraj uplatu</Text>
+          <Text style={styles.meta}>Unesi stvarni datum i iznos uplate. Datum nije vezan za datum dospeća rate; server automatski raspoređuje uplatu na najstarije otvorene rate.</Text>
+          <MoneyField label="Iznos uplate" value={paymentAmount} onChangeText={setPaymentAmount} currency="RSD" required />
+          <DateTimeField label="Datum i vreme stvarne uplate" value={paymentPaidAt} onChangeText={setPaymentPaidAt} required />
+          <SelectSheet
+            label="Način plaćanja"
+            value={paymentMethod}
+            options={Object.entries(response.options.payment_methods).map(([value, label]) => ({ value, label }))}
+            onChange={setPaymentMethod}
+          />
+          <TextField label="Referenca" value={paymentReference} onChangeText={setPaymentReference} placeholder="Opciono" />
+          <TextField label="Napomena" value={paymentNote} onChangeText={setPaymentNote} placeholder="Opciono" />
+          <View style={styles.actions}>
+            <Button onPress={submitPayment} disabled={mutation.isPending}>Sačuvaj uplatu</Button>
+            <Button variant="secondary" onPress={() => setPanel(null)}>Otkaži</Button>
+          </View>
+        </Card>
+      ) : null}
+
+      {workspace === 'payments' && panel !== 'payment' ? (
+        <Card style={styles.sectionCard}>
+          <View style={styles.rowBetween}>
+            <View style={styles.grow}>
+              <Text style={styles.sectionTitle}>Stvarne uplate</Text>
+              <Text style={styles.meta}>Plaćeno: {money(data.order?.paid_total_rsd ?? 0)} · Preostalo: {money(data.remaining_rsd)}</Text>
+            </View>
+            {response.capabilities.can_record_payment && data.remaining_rsd > 0 ? <Button onPress={openPayment}>Evidentiraj uplatu</Button> : null}
+          </View>
+          {data.payments.length > 0 ? data.payments.map((item) => <PaymentRow key={item.id} item={item} />) : <Text style={styles.meta}>Još nema evidentiranih uplata.</Text>}
+        </Card>
+      ) : null}
       {workspace === 'plan' && panel === 'plan' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Plan otplate</Text>

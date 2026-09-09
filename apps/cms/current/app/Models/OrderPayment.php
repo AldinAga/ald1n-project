@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class OrderPayment extends Model
 {
@@ -30,6 +31,7 @@ final class OrderPayment extends Model
 
     public function order(): BelongsTo { return $this->belongsTo(Order::class); }
     public function afterSalesAction(): BelongsTo { return $this->belongsTo(AfterSalesAction::class); }
+    public function receivableAllocations(): HasMany { return $this->hasMany(ReceivablePaymentAllocation::class, 'order_payment_id'); }
     public function submitter(): BelongsTo { return $this->belongsTo(User::class, 'submitted_by'); }
     public function verifier(): BelongsTo { return $this->belongsTo(User::class, 'verified_by'); }
     public function rejector(): BelongsTo { return $this->belongsTo(User::class, 'rejected_by'); }

@@ -312,6 +312,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->whereNumber('receivable')->middleware('throttle:admin-write')->name('contacts.store');
                 Route::post('{receivable}/reminder', [AdminReceivablesController::class, 'reminder'])
                     ->whereNumber('receivable')->middleware('throttle:admin-write')->name('reminder');
+                Route::post('{receivable}/payments', [AdminReceivablesController::class, 'payment'])
+                    ->whereNumber('receivable')->middleware(['permission:payments.manage', 'throttle:admin-write'])->name('payments.store');
             });
         Route::prefix('admin/field-work')->name('admin.field-work.')->group(function (): void {
             Route::middleware('permission:field_operations.view')->group(function (): void {
