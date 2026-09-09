@@ -142,10 +142,10 @@ $cache = (string) file_get_contents($root.'/config/cache.php');
 $queue = (string) file_get_contents($root.'/config/queue.php');
 $check('legacy SQL guard je registrovan pre izvršavanja', str_contains($provider, 'beforeExecuting') && str_contains($provider, 'LegacyReadOnlyGuard'));
 $check('legacy MySQL sesija je READ ONLY', str_contains($database, 'SET SESSION TRANSACTION READ ONLY'));
-$check('Redis je uklonjen iz database konfiguracije', !str_contains($database, "'redis' =>"));
-$check('Redis je uklonjen iz cache konfiguracije', !str_contains($cache, "'redis' =>"));
-$check('Redis je uklonjen iz queue konfiguracije', !str_contains($queue, "'redis' =>"));
-$check('login rate limiter koristi file store', str_contains($cache, "'limiter' => env('CACHE_LIMITER', 'file')"));
+$check('Redis cache konekcije postoje u database konfiguraciji', str_contains($database, "'redis' => [") && str_contains($database, "'client' => env('REDIS_CLIENT', 'phpredis')") && str_contains($database, "'cache' => [") && str_contains($database, "env('REDIS_CACHE_DB', '1')"));
+$check('Redis cache store postoji u cache konfiguraciji', str_contains($cache, "'redis' => [") && str_contains($cache, "'driver' => 'redis'") && str_contains($cache, "env('REDIS_CACHE_CONNECTION', 'cache')") && str_contains($cache, "env('REDIS_CACHE_LOCK_CONNECTION', 'cache')"));
+$check('queue ostaje bez Redis konekcije', !str_contains($queue, "'redis' =>"));
+$check('cache limiter zadržava file fallback i podržava runtime Redis override', str_contains($cache, "'limiter' => env('CACHE_LIMITER', 'file')"));
 
 $seeder = (string) file_get_contents($root.'/database/seeders/CoreAccessSeeder.php');
 foreach (['orders.create', 'orders.view_own', 'orders.cancel_own', 'orders.manage', 'stock.view', 'stock.adjust', 'reports.view', 'reports.export', 'invoices.manage', 'invoices.view_own'] as $permission) {
