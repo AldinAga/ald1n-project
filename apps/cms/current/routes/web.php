@@ -280,6 +280,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/receivables/{receivable}', [ReceivablesController::class, 'show'])->whereNumber('receivable')->name('receivables.show');
             Route::patch('/receivables/{receivable}', [ReceivablesController::class, 'update'])->whereNumber('receivable')->name('receivables.update');
             Route::put('/receivables/{receivable}/plan', [ReceivablesController::class, 'plan'])->whereNumber('receivable')->name('receivables.plan');
+            Route::post('/receivables/{receivable}/payments', [ReceivablesController::class, 'payment'])->whereNumber('receivable')->middleware(['permission:payments.manage', 'throttle:admin-write'])->name('receivables.payments.store');
             Route::post('/receivables/{receivable}/contacts', [ReceivablesController::class, 'contact'])->whereNumber('receivable')->name('receivables.contacts.store');
             Route::post('/receivables/{receivable}/reminder', [ReceivablesController::class, 'reminder'])->whereNumber('receivable')->name('receivables.reminder');
         });

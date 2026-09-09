@@ -79,9 +79,11 @@
         document.querySelectorAll('form').forEach((form) => {
             if (form.dataset.uxSubmitReady === '1') return;
             form.dataset.uxSubmitReady = '1';
+            const allowMultipleSubmit = form.hasAttribute('data-ux-allow-multiple-submit');
             let submitting = false;
 
             form.addEventListener('submit', (event) => {
+                if (allowMultipleSubmit) return;
                 if (submitting) {
                     event.preventDefault();
                     return;

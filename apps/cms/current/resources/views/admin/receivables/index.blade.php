@@ -1,7 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Potraživanja i naplata')
 @section('content')
-@include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovna pravila'])
 <div class="page-heading">
     <div><span class="eyebrow">Finansije</span><h1>Potraživanja i naplata</h1><p>Aging pregled, automatske opomene, obećane uplate, planovi rata i evidencija kontakata.</p></div>
     <div class="header-button-row">
@@ -55,7 +54,7 @@
             <td><strong>{{ number_format($remaining,2,',','.') }} RSD</strong><small>Plaćeno {{ number_format((float)($order?->paid_total_rsd??0),2,',','.') }}</small></td>
             <td><span class="status-badge receivable-status-{{ $case->status }}">{{ $statusLabels[$case->status] ?? $case->status }}</span>@if($case->promised_payment_at)<small>Obećano {{ $case->promised_payment_at->format('d.m.Y') }}</small>@endif</td>
             <td>{{ $case->next_action_at?->format('d.m.Y H:i') ?? 'Nije zakazano' }}</td>
-            <td><a class="button button-ghost button-small" href="{{ route('admin.receivables.show',$case) }}">Otvori</a></td>
+            <td><div class="header-button-row">@can('payments.manage')@if($remaining>0)<a class="button button-primary button-small" href="{{ route('admin.receivables.show',$case) }}#evidentiraj-uplatu">Uplata</a>@endif@endcan<a class="button button-ghost button-small" href="{{ route('admin.receivables.show',$case) }}">Otvori</a></div></td>
         </tr>
     @empty<tr><td colspan="7">Nema predmeta koji odgovaraju filterima.</td></tr>@endforelse
     </tbody></table></div>

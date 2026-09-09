@@ -11,8 +11,11 @@ use App\Http\Requests\StoreReceivablePlanRequest;
 use App\Http\Requests\UpdateReceivableCaseRequest;
 use App\Http\Requests\UpdateReceivableSettingsRequest;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\ReceivableCase;
 use App\Models\User;
+use App\Services\IdempotencyService;
+use App\Services\OrderPaymentService;
 use App\Services\ReceivablesService;
 use App\Services\SettingsService;
 use Illuminate\Database\Eloquent\Builder;
@@ -88,7 +91,7 @@ final class ReceivablesController extends Controller
     public function show(Request $request, ReceivableCase $receivable): View
     {
         $this->authorizeCase($request, $receivable);
-        $receivable->load(['order.user', 'order.supplier', 'order.documents', 'order.payments', 'assignee', 'creator', 'updater', 'installments', 'contacts.user']);
+        $receivable->load(['order.user', 'order.supplier', 'order.documents', 'order.payments.receivableAllocations.installment', 'assignee', 'creator', 'updater', 'installments', 'contacts.user']);
 
         return view('admin.receivables.show', [
             'case' => $receivable,
@@ -112,6 +115,50 @@ final class ReceivablesController extends Controller
         $this->authorizeCase($request, $receivable);
         $service->replacePlan($receivable, $request->user(), $request->validated('installments'));
         return back()->with('status', 'Plan otplate je sačuvan i povezan sa stvarnim uplatama.');
+    }
+
+    public function payment(
+        Request $request,
+        ReceivableCase $receivable,
+        OrderPaymentService $payments,
+        IdempotencyService $idempotency,
+    ): RedirectResponse {
+        $this->authorizeCase($request, $receivable);
+        $actor = $request->user();
+        abort_unless($actor instanceof User && $actor->hasPermission('payments.manage'), 403);
+
+        $data = $request->validate([
+            'idempotency_key' => ['required', 'string', 'max:200'],
+            'amount_rsd' => ['required', 'numeric', 'min:0.01'],
+            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'other'])],
+            'paid_at' => ['required', 'date'],
+            'reference' => ['nullable', 'string', 'max:120'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $idempotencyKey = (string) $data['idempotency_key'];
+        unset($data['idempotency_key']);
+
+        /** @var Order $order */
+        $order = $receivable->order()->firstOrFail();
+        $data['entry_type'] = 'payment';
+
+        /** @var OrderPayment $payment */
+        $payment = $idempotency->run(
+            $actor,
+            'admin.receivables.payment.record',
+            $idempotencyKey,
+            [
+                'receivable_case_id' => (int) $receivable->id,
+                'order_id' => (int) $order->id,
+                ...$data,
+            ],
+            OrderPayment::class,
+            fn (): OrderPayment => $payments->record($order, $data, $actor),
+            static fn (int $paymentId): OrderPayment => OrderPayment::query()->findOrFail($paymentId),
+        );
+
+        return back()->with('status', 'Uplata '.$payment->payment_number.' je evidentirana.');
     }
 
     public function contact(StoreReceivableContactRequest $request, ReceivableCase $receivable, ReceivablesService $service): RedirectResponse

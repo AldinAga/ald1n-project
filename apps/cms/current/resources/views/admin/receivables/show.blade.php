@@ -4,7 +4,7 @@
 <a class="back-link" href="{{ route('admin.receivables.index') }}">← Potraživanja i naplata</a>
 @php($order=$case->order)
 @php($days=$order?->payment_due_at && $order->payment_due_at->copy()->startOfDay()->lt(today()) ? $order->payment_due_at->copy()->startOfDay()->diffInDays(today()) : 0)
-<div class="page-heading"><div><span class="eyebrow">Predmet naplate</span><h1>{{ $case->case_number }}</h1><p>{{ $order?->order_number }} · {{ $order?->shipping_full_name ?: $order?->user?->displayName() ?: 'Kupac' }}</p></div><div class="header-button-row"><span class="status-badge receivable-status-{{ $case->status }}">{{ $statusLabels[$case->status] ?? $case->status }}</span><a class="button button-ghost" href="{{ route('admin.orders.show',$order) }}">Otvori porudžbinu</a></div></div>
+<div class="page-heading"><div><span class="eyebrow">Predmet naplate</span><h1>{{ $case->case_number }}</h1><p>{{ $order?->order_number }} · {{ $order?->shipping_full_name ?: $order?->user?->displayName() ?: 'Kupac' }}</p></div><div class="header-button-row"><span class="status-badge receivable-status-{{ $case->status }}">{{ $statusLabels[$case->status] ?? $case->status }}</span>@can('payments.manage')@if($remaining>0)<a class="button button-primary" href="#evidentiraj-uplatu">Evidentiraj uplatu</a>@endif@endcan<a class="button button-ghost" href="{{ route('admin.orders.show',$order) }}">Otvori porudžbinu</a></div></div>
 
 <div class="stats-grid four-cards">
 <article class="stat-card"><span>Ukupno</span><strong>{{ number_format((float)$order->subtotal_rsd,2,',','.') }} RSD</strong></article>
@@ -12,6 +12,46 @@
 <article class="stat-card danger"><span>Preostalo</span><strong>{{ number_format((float)$remaining,2,',','.') }} RSD</strong></article>
 <article class="stat-card warning"><span>Aging</span><strong>{{ $agingLabels[$agingBucket] ?? $agingBucket }}</strong><small>{{ $days>0 ? 'Kašnjenje '.$days.' dana' : 'Nije dospelo' }}</small></article>
 </div>
+@php($paymentMethodLabels=['bank_transfer'=>'Uplata na račun','cash'=>'Gotovina','card'=>'Kartica','cod'=>'Pouzećem','other'=>'Drugo'])
+@php($verifiedPayments=$order->payments->filter(fn($payment)=>$payment->entry_type==='payment' && $payment->status==='verified')->sortByDesc(fn($payment)=>$payment->paid_at?->timestamp ?? $payment->id))
+<section class="panel form-section" id="evidentiraj-uplatu">
+<div class="section-heading-row"><div><h2>Evidentiraj uplatu</h2><p class="muted">Unesi stvarni datum i iznos uplate. Sistem automatski raspoređuje iznos na najstarije otvorene rate, isto kao u Android aplikaciji.</p></div></div>
+@can('payments.manage')
+@if($remaining>0)
+<form method="post" action="{{ route('admin.receivables.payments.store',$case) }}" class="form-grid two-columns" data-ux-allow-multiple-submit>
+@csrf
+<input type="hidden" name="idempotency_key" value="{{ old('idempotency_key',(string)\Illuminate\Support\Str::uuid()) }}">
+<label><span>Iznos uplate RSD</span><input type="number" step="0.01" min="0.01" max="{{ number_format((float)$remaining,2,'.','') }}" name="amount_rsd" value="{{ old('amount_rsd') }}" required inputmode="decimal"><small>Preostalo: {{ number_format((float)$remaining,2,',','.') }} RSD</small></label>
+<label><span>Datum i vreme stvarne uplate</span><input type="datetime-local" name="paid_at" value="{{ old('paid_at',now()->format('Y-m-d\TH:i')) }}" required></label>
+<label><span>Način plaćanja</span><select name="payment_method" required>@foreach($paymentMethodLabels as $value=>$label)<option value="{{ $value }}" @selected(old('payment_method','bank_transfer')===$value)>{{ $label }}</option>@endforeach</select></label>
+<label><span>Referenca</span><input name="reference" maxlength="120" value="{{ old('reference') }}" placeholder="Opciono"></label>
+<label class="full-width"><span>Napomena</span><textarea name="note" maxlength="1000" placeholder="Opciono">{{ old('note') }}</textarea></label>
+<div class="full-width"><button class="button button-primary" type="submit">Evidentiraj uplatu</button></div>
+</form>
+@else
+<p class="muted">Potraživanje je u celosti izmireno.</p>
+@endif
+@endcan
+
+<div class="section-heading-row" style="margin-top:18px"><div><h3>Stvarne uplate</h3><p class="muted">Prikazane su samo verifikovane uplate iz finansijskog ledgera.</p></div></div>
+@if($verifiedPayments->isNotEmpty())
+<div class="table-wrap"><table><thead><tr><th>Datum</th><th>Iznos</th><th>Način</th><th>Referenca</th><th>Raspodela na rate</th><th>Napomena</th></tr></thead><tbody>
+@foreach($verifiedPayments as $payment)
+@php($caseAllocations=$payment->receivableAllocations->where('receivable_case_id',$case->id)->sortBy(fn($allocation)=>$allocation->installment?->sequence_no ?? PHP_INT_MAX))
+<tr>
+<td>{{ $payment->paid_at?->format('d.m.Y H:i') ?? '—' }}</td>
+<td><strong>{{ number_format((float)$payment->amount_rsd,2,',','.') }} RSD</strong></td>
+<td>{{ $paymentMethodLabels[$payment->payment_method] ?? $payment->payment_method }}</td>
+<td>{{ $payment->reference ?: '—' }}</td>
+<td>@forelse($caseAllocations as $allocation)<div>Rata #{{ $allocation->installment?->sequence_no ?? '?' }} · {{ number_format((float)$allocation->amount_rsd,2,',','.') }} RSD</div>@empty<span class="muted">Bez raspodele na ovaj predmet</span>@endforelse</td>
+<td>{{ $payment->note ?: '—' }}</td>
+</tr>
+@endforeach
+</tbody></table></div>
+@else
+<p class="muted">Još nema evidentiranih uplata.</p>
+@endif
+</section>
 
 <div class="settings-grid operational-order-grid">
 <section class="order-main-column">

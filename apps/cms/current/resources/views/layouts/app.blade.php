@@ -176,9 +176,9 @@
             </details>
             @endcanany
 
-            @canany(['orders.view_own','orders.manage','after_sales.view_own','after_sales.manage','field_operations.view','service_parts.view','service_parts.procurement','warranties.view_own','warranties.manage','receivables.manage'])
+            @canany(['orders.view_own','orders.manage','after_sales.view_own','after_sales.manage','field_operations.view','service_parts.view','service_parts.procurement','warranties.view_own','warranties.manage'])
             <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('orders.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*','admin.receivables.*') ? 'active' : '' }}"><span><x-icon name="orders" />Upravljanje porudžbinama</span></summary>
+                <summary class="{{ request()->routeIs('orders.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? 'active' : '' }}"><span><x-icon name="orders" />Upravljanje porudžbinama</span></summary>
                 <div class="nav-dropdown-menu">
                     @can('orders.view_own')<a href="{{ route('orders.index') }}"><x-icon name="orders" />Moje porudžbine</a>@endcan
                     @can('orders.manage')<a href="{{ route('admin.orders.index') }}"><x-icon name="receipt" />Sve porudžbine</a>@endcan
@@ -190,10 +190,11 @@
                     <span data-module-visibility="{{ $moduleVisibility->enabled('service_parts') ? '1' : '0' }}">@can('service_parts.procurement')<a href="{{ route('admin.service-part-purchases.index') }}"><x-icon name="receipt" />Nabavka delova</a>@endcan</span>
                     <span data-module-visibility="{{ $moduleVisibility->enabled('warranties') ? '1' : '0' }}">@can('warranties.view_own')<a href="{{ route('warranties.index') }}"><x-icon name="shield" />Moje garancije</a>@endcan</span>
                     <span data-module-visibility="{{ $moduleVisibility->enabled('warranties') ? '1' : '0' }}">@can('warranties.manage')<a href="{{ route('admin.warranties.index') }}"><x-icon name="shield" />Garancije i održavanje</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('receivables') ? '1' : '0' }}">@can('receivables.manage')<a href="{{ route('admin.receivables.index') }}"><x-icon name="wallet" />Potraživanja i naplata</a>@endcan</span>
                 </div>
             </details>
             @endcanany
+
+            <span data-module-visibility="{{ $moduleVisibility->enabled('receivables') ? '1' : '0' }}">@can('receivables.manage')<a class="{{ request()->routeIs('admin.receivables.*') ? 'active' : '' }}" href="{{ route('admin.receivables.index') }}"><span class="nav-link-content"><x-icon name="wallet" /><span>Potraživanja</span></span></a>@endcan</span>
 
             @if($headerUser?->hasRole('admin','superadmin'))
                 <span data-module-visibility="{{ $moduleVisibility->enabled('commissions') ? '1' : '0' }}">@can('commissions.manage')<a class="{{ request()->routeIs('admin.commissions.*') ? 'active' : '' }}" href="{{ route('admin.commissions.index') }}"><span class="nav-link-content"><x-icon name="wallet" /><span>Provizije</span></span></a>@endcan</span>
@@ -222,9 +223,9 @@
             </details>
             @endcan
 
-            @canany(['system.manage_settings','catalog.manage_taxonomy','receivables.manage','warranties.manage','field_operations.manage','service_parts.procurement','system.manage_users'])
+            @canany(['system.manage_settings','catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement','system.manage_users'])
             <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('admin.settings.*','admin.dictionary.*','admin.receivables.index','admin.warranties.index','admin.field-service-teams.*','admin.service-part-suppliers.*','admin.user-groups.*') ? 'active' : '' }}"><span><x-icon name="settings" />Podešavanja</span></summary>
+                <summary class="{{ request()->routeIs('admin.settings.*','admin.dictionary.*','admin.warranties.index','admin.field-service-teams.*','admin.service-part-suppliers.*','admin.user-groups.*') ? 'active' : '' }}"><span><x-icon name="settings" />Podešavanja</span></summary>
                 <div class="nav-dropdown-menu">
                     <span class="dropdown-label">Centar</span>
                     <a href="{{ route('admin.settings.index') }}"><x-icon name="settings" />Sva podešavanja</a>
@@ -236,10 +237,9 @@
                     @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.couriers.index') }}"><x-icon name="truck" />Kurirske službe</a>@endif
                     @endcan
 
-                    @canany(['catalog.manage_taxonomy','receivables.manage','warranties.manage','field_operations.manage','service_parts.procurement'])
+                    @canany(['catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement'])
                     <span class="dropdown-label">Pravila i šifarnici</span>
                     @can('catalog.manage_taxonomy')<a href="{{ route('admin.dictionary.index','categories') }}"><x-icon name="boxes" />Šifarnici kataloga</a>@endcan
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('receivables') ? '1' : '0' }}">@can('receivables.manage')<a href="{{ route('admin.receivables.index') }}"><x-icon name="wallet" />Pravila potraživanja</a>@endcan</span>
                     <span data-module-visibility="{{ $moduleVisibility->enabled('warranties') ? '1' : '0' }}">@can('warranties.manage')<a href="{{ route('admin.warranties.index') }}"><x-icon name="shield" />Garancijska pravila</a>@endcan</span>
                     <span data-module-visibility="{{ $moduleVisibility->enabled('field_operations') ? '1' : '0' }}">@can('field_operations.manage')<a href="{{ route('admin.field-service-teams.index') }}"><x-icon name="users" />Terenske ekipe</a>@endcan</span>
                     <span data-module-visibility="{{ $moduleVisibility->enabled('service_parts') ? '1' : '0' }}">@can('service_parts.procurement')<a href="{{ route('admin.service-part-suppliers.index') }}"><x-icon name="receipt" />Dobavljači delova</a>@endcan</span>
