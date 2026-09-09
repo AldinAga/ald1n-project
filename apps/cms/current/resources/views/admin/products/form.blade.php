@@ -42,7 +42,7 @@
         </button>
         <button type="button" data-ux-product-task="specifications">
             <span class="ux-product-task-index">2</span>
-            <span class="ux-product-task-copy"><strong>Specifikacije</strong><small>samo polja izabranog tipa</small></span>
+            <span class="ux-product-task-copy"><strong>Specifikacije</strong><small>ključna polja prvo, ostala na zahtev</small></span>
             <span class="ux-product-task-state" data-ux-product-task-state>—</span>
         </button>
         <button type="button" data-ux-product-task="commercial">
@@ -167,11 +167,58 @@
                 <section class="panel form-section form-section-priority product-specifications-section">
                     <div class="form-section-number">2</div>
                     <h2>Specifikacije</h2>
-                    <p class="muted">Polja ispod dolaze iz izabranog tipa artikla. Za disk možeš dodati više stavki, na primer SSD + SSD + HDD.</p>
+                    <p class="muted">Obavezna i najvažnija polja prikazana su odmah. Dodatne specifikacije ostaju dostupne jednim klikom, bez gubitka unetih vrednosti.</p>
 
                     @foreach($types as $type)
-                        <div class="spec-panel" data-spec-panel="{{ $type->id }}" @if((int)old('product_type_id',$product->product_type_id)!==$type->id) hidden @endif>
-                            <div class="field-grid">
+                        <div class="spec-panel" data-spec-panel="{{ $type->id }}" data-spec-priority-panel @if((int)old('product_type_id',$product->product_type_id)!==$type->id) hidden @endif>
+                            @php
+                                $renderableSpecFields = $type->fields->reject(fn ($candidate) => $candidate->isDerivedStorageTotalField());
+                                $specFieldMap = $type->fields->keyBy(fn ($candidate) => (int) $candidate->id);
+                                $prioritySpecIds = [];
+
+                                foreach ($renderableSpecFields as $candidate) {
+                                    $candidateIsRequired = (bool) ($candidate->pivot?->is_required ?? false);
+                                    $candidateWeight = max(1, (int) ($candidate->pivot?->completeness_weight ?? 1));
+                                    $candidateIsRepeatableStorage = $candidate->isRepeatableStorageField()
+                                        && !$type->fields->contains(fn ($child) => (int) $child->parent_field_id === (int) $candidate->id);
+
+                                    if ($candidateIsRequired || $candidateWeight >= 2 || $candidateIsRepeatableStorage) {
+                                        $prioritySpecIds[(int) $candidate->id] = true;
+                                    }
+                                }
+
+                                foreach (array_keys($prioritySpecIds) as $prioritySpecId) {
+                                    $cursor = $specFieldMap->get((int) $prioritySpecId);
+                                    $dependencyGuard = 0;
+                                    while ($cursor && $cursor->parent_field_id && $dependencyGuard < 20) {
+                                        $parentId = (int) $cursor->parent_field_id;
+                                        $prioritySpecIds[$parentId] = true;
+                                        $cursor = $specFieldMap->get($parentId);
+                                        $dependencyGuard++;
+                                    }
+                                }
+
+                                $prioritySpecCount = $renderableSpecFields
+                                    ->filter(fn ($candidate) => isset($prioritySpecIds[(int) $candidate->id]))
+                                    ->count();
+                                $optionalSpecCount = max(0, $renderableSpecFields->count() - $prioritySpecCount);
+                            @endphp
+                            <div class="product-spec-priority-bar">
+                                <div class="product-spec-priority-copy">
+                                    <strong>Ključne specifikacije</strong>
+                                    <small>Obavezna polja, važnija polja i njihove zavisnosti ostaju odmah vidljivi.</small>
+                                </div>
+                                <div class="product-spec-priority-actions">
+                                    <span class="product-spec-priority-badge">{{ $prioritySpecCount }} odmah</span>
+                                    @if($optionalSpecCount > 0)
+                                        <button class="button button-ghost button-small product-spec-optional-toggle" type="button" data-spec-optional-toggle aria-expanded="false">
+                                            <span data-spec-optional-toggle-label>Još specifikacija</span>
+                                            <span class="product-spec-optional-count" data-spec-optional-count>{{ $optionalSpecCount }}</span>
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="field-grid" data-spec-field-grid>
                                 @forelse($type->fields as $field)
                                     @continue($field->isDerivedStorageTotalField())
                                     @php
@@ -195,8 +242,9 @@
                                         $storageCalculatedTotal = collect($storageRows)->sum(fn ($row) => max(0, (int) ($row['capacity_gb'] ?? 0)));
                                         $storageStoredTotal = $storageTotalField ? old('specs.'.$storageTotalField->id, $specValues[$storageTotalField->id] ?? 0) : 0;
                                         $storageTotalValue = $hasStorageCapacity ? $storageCalculatedTotal : max(0, (int) $storageStoredTotal);
+                                        $fieldIsPriority = isset($prioritySpecIds[(int) $field->id]);
                                     @endphp
-                                    <div class="spec-field-group {{ $isRepeatableStorage ? 'field-span-2' : '' }}" data-spec-field-wrapper data-parent-field-id="{{ $field->parent_field_id }}" data-completeness-weight="{{ $field->pivot?->completeness_weight ?? 1 }}" data-required-field="{{ $field->pivot?->is_required ? '1' : '0' }}">
+                                    <div class="spec-field-group {{ $isRepeatableStorage ? 'field-span-2' : '' }} {{ $fieldIsPriority ? 'spec-field-priority' : 'spec-field-optional' }}" data-spec-field-wrapper data-spec-priority="{{ $fieldIsPriority ? '1' : '0' }}" @if(!$fieldIsPriority) data-spec-optional="1" hidden @endif data-parent-field-id="{{ $field->parent_field_id }}" data-completeness-weight="{{ $field->pivot?->completeness_weight ?? 1 }}" data-required-field="{{ $field->pivot?->is_required ? '1' : '0' }}">
                                         @if($isRepeatableStorage)
                                             <div class="repeatable-storage-field" data-repeatable-storage data-storage-initial-total="{{ $storageTotalValue }}">
                                                 <div class="repeatable-storage-heading">
@@ -517,6 +565,21 @@
             return !control.hasAttribute('disabled');
         };
 
+        const isSearchableControl = (control) => {
+            if (!(control instanceof HTMLElement)) return false;
+            if (control instanceof HTMLInputElement && control.type === 'hidden') return false;
+            if (control.hasAttribute('disabled')) return false;
+
+            const panel = control.closest('[data-spec-panel]');
+            if (panel?.hidden) return false;
+
+            const hiddenAncestor = control.closest('[hidden]');
+            if (!hiddenAncestor) return true;
+
+            return hiddenAncestor.matches('[data-spec-optional="1"]')
+                && hiddenAncestor.closest('[data-spec-panel]') === panel;
+        };
+
         const sectionFor = (control) => control?.closest('.form-section') || null;
 
         const firstNamed = (names) => {
@@ -527,9 +590,11 @@
             return null;
         };
 
-        const firstByPrefix = (prefixes) =>
-            Array.from(form.querySelectorAll('[name]'))
-                .find((control) => prefixes.some((prefix) => String(control.name || '').startsWith(prefix))) || null;
+        const firstByPrefix = (prefixes) => {
+            const matches = Array.from(form.querySelectorAll('[name]'))
+                .filter((control) => prefixes.some((prefix) => String(control.name || '').startsWith(prefix)));
+            return matches.find(isVisibleControl) || matches[0] || null;
+        };
 
         const definitions = [
             {
@@ -613,6 +678,51 @@
             return String(control.value || '').trim() !== '';
         };
 
+        const optionalWrappers = (panel) =>
+            Array.from(panel?.querySelectorAll('[data-spec-optional="1"]') || []);
+
+        const updateOptionalToggle = (panel) => {
+            if (!panel) return;
+            const wrappers = optionalWrappers(panel);
+            const toggle = panel.querySelector('[data-spec-optional-toggle]');
+            if (!toggle || wrappers.length === 0) return;
+
+            const expanded = panel.dataset.specOptionalExpanded === '1';
+            wrappers.forEach((wrapper) => { wrapper.hidden = !expanded; });
+
+            const filled = wrappers.filter((wrapper) =>
+                Array.from(wrapper.querySelectorAll('input:not([type="hidden"]),select,textarea'))
+                    .some((control) => hasValue(control))
+            ).length;
+
+            const label = toggle.querySelector('[data-spec-optional-toggle-label]');
+            const count = toggle.querySelector('[data-spec-optional-count]');
+            if (label) label.textContent = expanded ? 'Sakrij dodatne specifikacije' : 'Još specifikacija';
+            if (count) count.textContent = filled > 0 ? `${filled}/${wrappers.length}` : String(wrappers.length);
+            toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        };
+
+        const setOptionalExpanded = (panel, expanded) => {
+            if (!panel) return;
+            panel.dataset.specOptionalExpanded = expanded ? '1' : '0';
+            updateOptionalToggle(panel);
+        };
+
+        const revealOptionalForControl = (control) => {
+            const wrapper = control?.closest('[data-spec-optional="1"]');
+            if (!wrapper) return;
+            setOptionalExpanded(wrapper.closest('[data-spec-panel]'), true);
+        };
+
+        form.querySelectorAll('[data-spec-optional-toggle]').forEach((toggle) => {
+            const panel = toggle.closest('[data-spec-panel]');
+            if (!panel) return;
+            updateOptionalToggle(panel);
+            toggle.addEventListener('click', () => {
+                setOptionalExpanded(panel, panel.dataset.specOptionalExpanded !== '1');
+            });
+        });
+
         const visibleRequiredControls = () =>
             Array.from(form.querySelectorAll('[required]'))
                 .filter(isVisibleControl);
@@ -639,6 +749,7 @@
 
         const scrollToControl = (control) => {
             if (!control) return;
+            revealOptionalForControl(control);
             const target = sectionFor(control) || control;
             target.scrollIntoView({ behavior: 'smooth', block: 'center' });
             window.setTimeout(() => {
@@ -796,7 +907,7 @@
 
             Array.from(form.querySelectorAll('label')).forEach((label) => {
                 const control = label.querySelector('input:not([type="hidden"]),select,textarea');
-                if (!control || !isVisibleControl(control) || seen.has(control)) return;
+                if (!control || !isSearchableControl(control) || seen.has(control)) return;
 
                 const text = String(label.textContent || '').replace(/\s+/g, ' ').trim();
                 if (!text) return;
@@ -895,6 +1006,8 @@
                 if (fallback) scrollToControl(fallback);
             });
         });
+
+        serverErrorTargets().forEach(revealOptionalForControl);
 
         const refresh = () => {
             updateRequiredSummary();
@@ -1113,7 +1226,8 @@
             else missing.push({brand:'Brend',line:'Linija proizvoda',model:'Model proizvoda',categories:'Kategorija',description:'Opis',price:'Cena'}[core] || core);
         });
         panel.querySelectorAll('[data-spec-field-wrapper]').forEach((wrapper) => {
-            if (wrapper.hidden || wrapper.classList.contains('is-dependency-empty')) return;
+            const collapsedOptional = wrapper.dataset.specOptional === '1' && wrapper.hidden;
+            if ((wrapper.hidden && !collapsedOptional) || wrapper.classList.contains('is-dependency-empty')) return;
             const input = wrapper.querySelector('[data-spec-field-id]');
             if (!input || input.disabled) return;
             const weight = Math.max(1, Number(wrapper.dataset.completenessWeight || 1));
