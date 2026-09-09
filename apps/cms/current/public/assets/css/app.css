@@ -539,3 +539,23 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
 @media(max-width:620px){.login-slide-admin-card{grid-template-columns:1fr}.login-background-preview{min-height:330px}.login-background-preview-card{right:20px;left:20px;width:auto}.login-background-preview-media iframe{width:177.78vh;height:100vh}}
 @media(prefers-reduced-motion:reduce){.auth-background-slide{transition:none}.login-background-preview-media{transition:none}}
 /* /LOGIN_BACKGROUND_APPEARANCE_V1 */
+
+/* BATCH149E_V3_PRODUCT_FAST_START */
+.product-fast-start .section-heading-row { margin-bottom: 12px; }
+.product-fast-start-grid { align-items: start; }
+.product-fast-start .specification-type-selector { margin-bottom: 2px; }
+.product-fast-name { padding-top: 6px; }
+.product-status-field {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+    border-radius: 12px;
+}
+.product-status-field > span { font-weight: 700; }
+.product-sale-panel > h2 { margin-bottom: 4px; }
+.product-sale-panel > .muted { margin-top: 0; }
+@media (max-width: 760px) {
+    .product-fast-start-grid { grid-template-columns: minmax(0, 1fr); }
+    .product-fast-start-grid .field-span-2 { grid-column: auto; }
+}

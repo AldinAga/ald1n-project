@@ -7,7 +7,7 @@
         <div>
             <span class="eyebrow">Administracija kataloga</span>
             <h1>{{ $product->exists ? 'Izmeni artikal' : 'Dodaj novi artikal' }}</h1>
-            <p>{{ $product->exists ? $product->name.' · '.$product->sku : 'Naziv, fotografije i specifikacije su sada na vrhu forme.' }}</p>
+            <p>{{ $product->exists ? $product->name.' · '.$product->sku : 'Počni od tipa, brenda i modela — ostatak forme se prilagođava izboru.' }}</p>
         </div>
         @if($product->exists)
             <div class="page-heading-actions">
@@ -23,9 +23,9 @@
 <section class="panel ux-product-workspace" data-ux-product-workspace>
     <div class="ux-product-workspace-head">
         <div>
-            <span class="eyebrow">Product Workspace</span>
-            <h2>{{ $product->exists ? 'Uredi artikal kroz jasne radne celine' : 'Kreiraj artikal bez lutanja kroz formu' }}</h2>
-            <p class="muted">Ovo nije obavezni wizard. Otvori bilo koju celinu, pronađi polje ili idi direktno na sledeće obavezno polje koje još nije popunjeno.</p>
+            <span class="eyebrow">Brzi unos artikla</span>
+            <h2>{{ $product->exists ? 'Uredi artikal kroz jasne radne celine' : 'Od identiteta do objave bez nepotrebnog lutanja' }}</h2>
+            <p class="muted">Kao na modernim marketplace platformama, prvo definiši šta dodaješ. Tip artikla zatim sužava brendove, linije, specifikacije i automatsku kategoriju.</p>
         </div>
         <div class="ux-product-workspace-status">
             <span>Kompletnost artikla</span>
@@ -37,32 +37,27 @@
     <nav class="ux-product-task-map" aria-label="Radne celine Product Editor-a">
         <button type="button" data-ux-product-task="identity">
             <span class="ux-product-task-index">1</span>
-            <span class="ux-product-task-copy"><strong>Osnovno</strong><small>brend, linija, model, naziv</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
-        </button>
-        <button type="button" data-ux-product-task="media">
-            <span class="ux-product-task-index">2</span>
-            <span class="ux-product-task-copy"><strong>Fotografije</strong><small>slike i raspored</small></span>
+            <span class="ux-product-task-copy"><strong>Osnovno</strong><small>tip, brend, linija, model i naziv</small></span>
             <span class="ux-product-task-state" data-ux-product-task-state>—</span>
         </button>
         <button type="button" data-ux-product-task="specifications">
-            <span class="ux-product-task-index">3</span>
-            <span class="ux-product-task-copy"><strong>Specifikacije</strong><small>tip i njegova polja</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
-        </button>
-        <button type="button" data-ux-product-task="description">
-            <span class="ux-product-task-index">4</span>
-            <span class="ux-product-task-copy"><strong>Opis</strong><small>opis i interne napomene</small></span>
+            <span class="ux-product-task-index">2</span>
+            <span class="ux-product-task-copy"><strong>Specifikacije</strong><small>samo polja izabranog tipa</small></span>
             <span class="ux-product-task-state" data-ux-product-task-state>—</span>
         </button>
         <button type="button" data-ux-product-task="commercial">
-            <span class="ux-product-task-index">5</span>
-            <span class="ux-product-task-copy"><strong>Cena i lager</strong><small>cena, provizija i stanje</small></span>
+            <span class="ux-product-task-index">3</span>
+            <span class="ux-product-task-copy"><strong>Prodaja</strong><small>status, cena i lager</small></span>
             <span class="ux-product-task-state" data-ux-product-task-state>—</span>
         </button>
-        <button type="button" data-ux-product-task="publishing">
-            <span class="ux-product-task-index">6</span>
-            <span class="ux-product-task-copy"><strong>Objava</strong><small>status i završna provera</small></span>
+        <button type="button" data-ux-product-task="media">
+            <span class="ux-product-task-index">4</span>
+            <span class="ux-product-task-copy"><strong>Fotografije</strong><small>slike, glavna slika i raspored</small></span>
+            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        </button>
+        <button type="button" data-ux-product-task="description">
+            <span class="ux-product-task-index">5</span>
+            <span class="ux-product-task-copy"><strong>Opis</strong><small>opis i interne napomene</small></span>
             <span class="ux-product-task-state" data-ux-product-task-state>—</span>
         </button>
     </nav>
@@ -140,17 +135,28 @@
         @if($product->exists)@method('PUT')@endif
         <div class="admin-form-grid">
             <div class="form-main">
-                <section class="panel form-section form-section-priority">
+                <section class="panel form-section form-section-priority product-fast-start" data-product-fast-start>
                     <div class="form-section-number">1</div>
-                    <h2>Naziv artikla</h2>
-                    <div class="field-grid">
-                        <div class="field-span-2 product-name-editor">
+                    <div class="section-heading-row">
+                        <div>
+                            <span class="eyebrow">Brzi početak</span>
+                            <h2>Šta dodaješ?</h2>
+                            <p class="muted">Izaberi tip, zatim brend, liniju i model. Kategorija i dostupne specifikacije prilagođavaju se automatski.</p>
+                        </div>
+                    </div>
+                    <div class="field-grid product-fast-start-grid">
+                        <label class="specification-type-selector field-span-2"><span>Tip artikla</span><select name="product_type_id" data-product-type><option value="">Bez tipa / ručni unos</option>@foreach($types as $type)<option value="{{ $type->id }}" data-auto-name="{{ $type->auto_name_enabled ? '1' : '0' }}" data-name-template="{{ $type->name_template }}" data-min-completeness="{{ $type->minimum_completeness_percent ?? 0 }}" data-default-status="{{ $type->default_product_status ?? 'draft' }}" data-required-core="{{ implode(',',(array)($type->required_core_fields_json??[])) }}" data-category-id="{{ $type->category_id }}" data-category-name="{{ $type->category?->name }}" @selected((int)old('product_type_id',$product->product_type_id)===$type->id)>{{ $type->name }}</option>@endforeach</select><small class="muted" data-type-category-help>Kategorija će biti dodeljena automatski prema tipu artikla.</small></label>
+                        <label><span>Brend</span><select name="brand_id" data-brand-select><option value="">Bez brenda</option>{{-- CATALOG_TYPE_SCOPED_TAXONOMY_V07 --}}@foreach($brands as $brand)<option value="{{ $brand->id }}" data-product-type-ids="{{ implode(',', $brandTypeIds[$brand->id] ?? []) }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
+                        <label><span>Linija proizvoda</span><select name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" data-product-type-ids="{{ implode(',', $lineTypeIds[$line->id] ?? []) }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="muted" data-line-help>Prvo izaberi brend.</small></label>
+                        <label class="field-span-2 product-model-field"><span>Model proizvoda</span><input name="model_name" maxlength="190" value="{{ old('model_name',$product->model_name) }}" placeholder="npr. 830 G8" data-product-model><small class="muted">Tačna oznaka modela ulazi u automatski naziv artikla.</small></label>
+                        <div class="field-span-2 auto-category-card"><span>Automatska kategorija</span><strong data-auto-category-name>Biće određena prema izabranom tipu artikla</strong><small class="muted">Kategorija se ne bira ručno. Menja se u podešavanjima konkretnog tipa artikla.</small></div>
+                        <div class="field-span-2 product-name-editor product-fast-name">
                             <label><span>Naziv artikla</span><input name="name" maxlength="190" value="{{ old('name',$product->name) }}" data-product-name></label>
                             <div class="inline-actions">
                                 <button class="button button-ghost button-small" type="button" data-name-preview>Predloži naziv</button>
                                 <label class="check-card compact"><input type="checkbox" name="regenerate_name" value="1" @checked(old('regenerate_name'))><span>Generiši pri čuvanju</span></label>
                             </div>
-                            <small class="muted" data-name-template-help>Izaberi tip artikla u delu Specifikacije da vidiš šablon naziva.</small>
+                            <small class="muted" data-name-template-help>Izaberi tip artikla da vidiš šablon naziva.</small>
                         </div>
                         @if($product->exists)
                             <label><span>SKU *</span><input name="sku" required maxlength="100" value="{{ old('sku',$product->sku) }}"></label>
@@ -158,38 +164,11 @@
                         @endif
                     </div>
                 </section>
-
-                <section class="panel form-section form-section-priority product-media-section">
+                <section class="panel form-section form-section-priority product-specifications-section">
                     <div class="form-section-number">2</div>
-                    <div class="section-heading-row">
-                        <div>
-                            <h2>Dodavanje slika</h2>
-                            <p class="muted">Odmah nakon izbora videćeš fotografije, broj fajlova i procenat slanja.</p>
-                        </div>
-                        @if($product->exists)
-                            @can('catalog.manage_images')<a class="button button-ghost button-small" href="{{ route('admin.products.images.index',$product) }}">Otvori galeriju</a>@endcan
-                        @endif
-                    </div>
-                    @include('admin.products.partials.image-upload', ['inputId' => 'product-editor-images'])
-
-                    @if($product->exists && $product->images->isNotEmpty())
-                        <div class="image-sort-heading">
-                            <div><strong>Postojeće slike</strong><small>Glavnu sliku biraš zvezdicom. Ostale prevuci za promenu rasporeda.</small></div>
-                            <span class="image-sort-status" data-image-sort-status>Raspored je sačuvan</span>
-                        </div>
-                        <div class="product-edit-image-grid image-sortable-grid" data-image-sortable data-reorder-url="{{ route('admin.products.images.reorder',$product) }}">
-                            @foreach($product->images as $image)
-                                @include('admin.products.partials.image-card', ['product' => $product, 'image' => $image, 'iteration' => $loop->iteration, 'allowDelete' => false])
-                            @endforeach
-                        </div>
-                    @endif
-                </section>
-
-                <section class="panel form-section form-section-priority">
-                    <div class="form-section-number">3</div>
                     <h2>Specifikacije</h2>
-                    <p class="muted">Prvo izaberi tip artikla. Za disk možeš dodati više stavki, na primer SSD + SSD + HDD.</p>
-                    <label class="specification-type-selector"><span>Tip artikla</span><select name="product_type_id" data-product-type><option value="">Bez tipa</option>@foreach($types as $type)<option value="{{ $type->id }}" data-auto-name="{{ $type->auto_name_enabled ? '1' : '0' }}" data-name-template="{{ $type->name_template }}" data-min-completeness="{{ $type->minimum_completeness_percent ?? 0 }}" data-default-status="{{ $type->default_product_status ?? 'draft' }}" data-required-core="{{ implode(',',(array)($type->required_core_fields_json??[])) }}" data-category-id="{{ $type->category_id }}" data-category-name="{{ $type->category?->name }}" @selected((int)old('product_type_id',$product->product_type_id)===$type->id)>{{ $type->name }}</option>@endforeach</select><small class="muted" data-type-category-help>Kategorija će biti dodeljena automatski prema tipu artikla.</small></label>
+                    <p class="muted">Polja ispod dolaze iz izabranog tipa artikla. Za disk možeš dodati više stavki, na primer SSD + SSD + HDD.</p>
+
                     @foreach($types as $type)
                         <div class="spec-panel" data-spec-panel="{{ $type->id }}" @if((int)old('product_type_id',$product->product_type_id)!==$type->id) hidden @endif>
                             <div class="field-grid">
@@ -315,18 +294,35 @@
                     <div class="empty-inline" data-no-spec @if(old('product_type_id',$product->product_type_id)) hidden @endif>Izaberi tip artikla.</div>
                 </section>
 
-                <section class="panel form-section">
-                    <h2>Klasifikacija artikla</h2>
-                    <div class="field-grid">
-                        <label><span>Brend</span><select name="brand_id" data-brand-select><option value="">Bez brenda</option>{{-- CATALOG_TYPE_SCOPED_TAXONOMY_V07 --}}@foreach($brands as $brand)<option value="{{ $brand->id }}" data-product-type-ids="{{ implode(',', $brandTypeIds[$brand->id] ?? []) }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
-                        <label><span>Linija proizvoda</span><select name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" data-product-type-ids="{{ implode(',', $lineTypeIds[$line->id] ?? []) }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="muted" data-line-help>Prvo izaberi brend.</small></label>
-                        <label class="field-span-2 product-model-field"><span>Model proizvoda</span><input name="model_name" maxlength="190" value="{{ old('model_name',$product->model_name) }}" placeholder="npr. 830 G8" data-product-model><small class="muted">Tačna oznaka modela ulazi u automatski naziv artikla, npr. HP EliteBook 830 G8.</small></label>
-                        <div class="field-span-2 auto-category-card"><span>Automatska kategorija</span><strong data-auto-category-name>Biće određena prema izabranom tipu artikla</strong><small class="muted">Kategorija se više ne bira ručno. Menja se u podešavanjima konkretnog tipa artikla.</small></div>
+                <section class="panel form-section form-section-priority product-media-section">
+                    <div class="form-section-number">3</div>
+                    <div class="section-heading-row">
+                        <div>
+                            <h2>Dodavanje slika</h2>
+                            <p class="muted">Odmah nakon izbora videćeš fotografije, broj fajlova i procenat slanja.</p>
+                        </div>
+                        @if($product->exists)
+                            @can('catalog.manage_images')<a class="button button-ghost button-small" href="{{ route('admin.products.images.index',$product) }}">Otvori galeriju</a>@endcan
+                        @endif
                     </div>
+                    @include('admin.products.partials.image-upload', ['inputId' => 'product-editor-images'])
+
+                    @if($product->exists && $product->images->isNotEmpty())
+                        <div class="image-sort-heading">
+                            <div><strong>Postojeće slike</strong><small>Glavnu sliku biraš zvezdicom. Ostale prevuci za promenu rasporeda.</small></div>
+                            <span class="image-sort-status" data-image-sort-status>Raspored je sačuvan</span>
+                        </div>
+                        <div class="product-edit-image-grid image-sortable-grid" data-image-sortable data-reorder-url="{{ route('admin.products.images.reorder',$product) }}">
+                            @foreach($product->images as $image)
+                                @include('admin.products.partials.image-card', ['product' => $product, 'image' => $image, 'iteration' => $loop->iteration, 'allowDelete' => false])
+                            @endforeach
+                        </div>
+                    @endif
                 </section>
 
-                <section class="panel form-section">
-                    <h2>Opis</h2>
+                <section class="panel form-section product-description-section">
+                    <div class="form-section-number">4</div>
+                    <h2>Opis i napomene</h2>
                     <label><span>Opis / specifikacije *</span><textarea name="description" rows="10" required>{{ old('description',$product->description) }}</textarea></label>
                     <label><span>Interne napomene</span><textarea name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
                 </section>
@@ -338,8 +334,10 @@
                     <div class="completeness-track"><span data-completeness-bar style="width:{{ $currentCompleteness }}%"></span></div>
                     <p class="muted" data-completeness-message>Popuni podatke šablona kako bi artikal bio spreman za objavu.</p>
                 </section>
-                <section class="panel form-section sticky-card">
-                    <h2>Cena i lager</h2>
+                <section class="panel form-section sticky-card product-sale-panel" data-product-sale-panel>
+                    <h2>Prodaja</h2>
+                    <p class="muted">Najvažniji komercijalni podaci su na jednom mestu. Status je prvi da uvek znaš da li je artikal nacrt, aktivan ili neaktivan.</p>
+                    <label class="product-status-field"><span>Status artikla</span><select name="status" data-product-status>@foreach(['draft'=>'Nacrt','active'=>'Aktivan','inactive'=>'Neaktivan'] as $value=>$label)<option value="{{ $value }}" @selected(old('status',$product->status)===$value)>{{ $label }}</option>@endforeach</select><small class="muted">Nacrt = u pripremi · Aktivan = vidljiv u katalogu · Neaktivan = privremeno skriven.</small></label>
                     <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}"></label>
                     <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
                     <label><span>Nabavna cena RSD</span><input name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small>Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
@@ -354,7 +352,7 @@
                         <label><span>Količina</span><input type="number" value="{{ $product->stock_quantity }}" disabled><small class="muted">Za promenu je potrebna dozvola Korekcija lagera.</small></label>
                         <label><span>Prag niskog lagera</span><input type="number" value="{{ $product->low_stock_threshold }}" disabled></label>
                     @endif
-                    <label><span>Status</span><select name="status">@foreach(['draft'=>'Nacrt','active'=>'Aktivan','inactive'=>'Neaktivan'] as $value=>$label)<option value="{{ $value }}" @selected(old('status',$product->status)===$value)>{{ $label }}</option>@endforeach</select></label>
+
                     <button class="button button-primary button-large" type="submit">{{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}</button>
                 </section>
                 @if($product->exists)
@@ -537,7 +535,17 @@
             {
                 key: 'identity',
                 label: 'Osnovno',
-                control: () => firstNamed(['brand_id','product_line_id','model_name','sku','name']),
+                control: () => firstNamed(['product_type_id','brand_id','product_line_id','model_name','name','sku']),
+            },
+            {
+                key: 'specifications',
+                label: 'Specifikacije',
+                control: () => firstByPrefix(['specs[','spec_lists[','spec_structured[','spec_capacities[']),
+            },
+            {
+                key: 'commercial',
+                label: 'Prodaja',
+                control: () => firstNamed(['status','price_amount','stock_quantity','low_stock_threshold']),
             },
             {
                 key: 'media',
@@ -545,24 +553,9 @@
                 control: () => form.querySelector('input[type="file"],[data-product-image-upload],.inline-upload'),
             },
             {
-                key: 'specifications',
-                label: 'Specifikacije',
-                control: () => firstNamed(['product_type_id']) || firstByPrefix(['specs[','spec_lists[','spec_structured[','spec_capacities[']),
-            },
-            {
                 key: 'description',
                 label: 'Opis',
                 control: () => firstNamed(['description','notes']),
-            },
-            {
-                key: 'commercial',
-                label: 'Cena i lager',
-                control: () => firstNamed(['price_amount','stock_quantity','low_stock_threshold']),
-            },
-            {
-                key: 'publishing',
-                label: 'Objava',
-                control: () => firstNamed(['status']),
             },
         ];
 
