@@ -4,7 +4,17 @@
 <a class="back-link" href="{{ route('admin.receivables.index') }}">← Potraživanja i naplata</a>
 @php($order=$case->order)
 @php($days=$order?->payment_due_at && $order->payment_due_at->copy()->startOfDay()->lt(today()) ? $order->payment_due_at->copy()->startOfDay()->diffInDays(today()) : 0)
-<div class="page-heading"><div><span class="eyebrow">Predmet naplate</span><h1>{{ $case->case_number }}</h1><p>{{ $order?->order_number }} · {{ $order?->shipping_full_name ?: $order?->user?->displayName() ?: 'Kupac' }}</p></div><div class="header-button-row"><span class="status-badge receivable-status-{{ $case->status }}">{{ $statusLabels[$case->status] ?? $case->status }}</span>@can('payments.manage')@if($remaining>0)<a class="button button-primary" href="#evidentiraj-uplatu">Evidentiraj uplatu</a>@endif@endcan<a class="button button-ghost" href="{{ route('admin.orders.show',$order) }}">Otvori porudžbinu</a></div></div>
+@php($canManagePayments = request()->user()?->can('payments.manage') ?? false)
+<div class="page-heading">
+    <div><span class="eyebrow">Predmet naplate</span><h1>{{ $case->case_number }}</h1><p>{{ $order?->order_number }} · {{ $order?->shipping_full_name ?: $order?->user?->displayName() ?: 'Kupac' }}</p></div>
+    <div class="header-button-row">
+        <span class="status-badge receivable-status-{{ $case->status }}">{{ $statusLabels[$case->status] ?? $case->status }}</span>
+        @if($canManagePayments && $remaining > 0)
+        <a class="button button-primary" href="#evidentiraj-uplatu">Evidentiraj uplatu</a>
+        @endif
+        <a class="button button-ghost" href="{{ route('admin.orders.show',$order) }}">Otvori porudžbinu</a>
+    </div>
+</div>
 
 <div class="stats-grid four-cards">
 <article class="stat-card"><span>Ukupno</span><strong>{{ number_format((float)$order->subtotal_rsd,2,',','.') }} RSD</strong></article>
@@ -16,8 +26,7 @@
 @php($verifiedPayments=$order->payments->filter(fn($payment)=>$payment->entry_type==='payment' && $payment->status==='verified')->sortByDesc(fn($payment)=>$payment->paid_at?->timestamp ?? $payment->id))
 <section class="panel form-section" id="evidentiraj-uplatu">
 <div class="section-heading-row"><div><h2>Evidentiraj uplatu</h2><p class="muted">Unesi stvarni datum i iznos uplate. Sistem automatski raspoređuje iznos na najstarije otvorene rate, isto kao u Android aplikaciji.</p></div></div>
-@can('payments.manage')
-@if($remaining>0)
+@if($canManagePayments && $remaining > 0)
 <form method="post" action="{{ route('admin.receivables.payments.store',$case) }}" class="form-grid two-columns" data-ux-allow-multiple-submit>
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key',(string)\Illuminate\Support\Str::uuid()) }}">
@@ -28,10 +37,9 @@
 <label class="full-width"><span>Napomena</span><textarea name="note" maxlength="1000" placeholder="Opciono">{{ old('note') }}</textarea></label>
 <div class="full-width"><button class="button button-primary" type="submit">Evidentiraj uplatu</button></div>
 </form>
-@else
+@elseif($canManagePayments)
 <p class="muted">Potraživanje je u celosti izmireno.</p>
 @endif
-@endcan
 
 <div class="section-heading-row" style="margin-top:18px"><div><h3>Stvarne uplate</h3><p class="muted">Prikazane su samo verifikovane uplate iz finansijskog ledgera.</p></div></div>
 @if($verifiedPayments->isNotEmpty())
