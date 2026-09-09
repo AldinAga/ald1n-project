@@ -412,7 +412,7 @@ export default function AdminReceivablesDetailScreen() {
           <TextField label="Referenca" value={paymentReference} onChangeText={setPaymentReference} placeholder="Opciono" />
           <TextField label="Napomena" value={paymentNote} onChangeText={setPaymentNote} placeholder="Opciono" />
           <View style={styles.actions}>
-            <Button onPress={submitPayment} disabled={mutation.isPending}>Sačuvaj uplatu</Button>
+            <Button onPress={submitPayment}>Sačuvaj uplatu</Button>
             <Button variant="secondary" onPress={() => setPanel(null)}>Otkaži</Button>
           </View>
         </Card>
