@@ -201,6 +201,7 @@ export type AdminReceivableReminderInput = {
 };
 
 export type AdminReceivablePaymentInput = {
+  idempotency_key: string;
   amount_rsd: number;
   payment_method: string;
   paid_at: string;

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Crypto from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -149,6 +150,7 @@ export default function AdminReceivablesDetailScreen() {
 
   const [reminderMessage, setReminderMessage] = useState('');
 
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [paymentPaidAt, setPaymentPaidAt] = useState('');
@@ -215,6 +217,7 @@ export default function AdminReceivablesDetailScreen() {
 
   const openPayment = () => {
     setWorkspace('payments');
+    setPaymentIdempotencyKey(Crypto.randomUUID());
     setPaymentAmount('');
     setPaymentMethod(Object.keys(response.options.payment_methods)[0] ?? 'bank_transfer');
     const now = new Date();
@@ -288,7 +291,9 @@ export default function AdminReceivablesDetailScreen() {
       if (amount > data.remaining_rsd + 0.004) throw new Error(`Uplata ne može biti veća od preostalog duga ${money(data.remaining_rsd)}.`);
       if (!paymentPaidAt.trim()) throw new Error('Datum i vreme stvarne uplate su obavezni.');
       if (!paymentMethod.trim()) throw new Error('Način plaćanja je obavezan.');
+      if (!paymentIdempotencyKey) throw new Error('Sigurnosni ključ uplate nedostaje. Zatvori i ponovo otvori unos uplate.');
       void execute('Uplata je evidentirana', () => apiAdminReceivables.recordPayment(receivableId, {
+        idempotency_key: paymentIdempotencyKey,
         amount_rsd: amount,
         payment_method: paymentMethod,
         paid_at: paymentPaidAt.trim(),

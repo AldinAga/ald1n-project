@@ -17,6 +17,7 @@ use App\Models\ReceivableContact;
 use App\Models\ReceivableInstallment;
 use App\Models\ReceivablePaymentAllocation;
 use App\Models\User;
+use App\Services\IdempotencyService;
 use App\Services\OrderPaymentService;
 use App\Services\ReceivablesService;
 use App\Services\SettingsService;
@@ -185,27 +186,37 @@ final class ReceivablesController extends Controller
         ReceivableCase $receivable,
         ReceivablesService $receivables,
         OrderPaymentService $payments,
+        IdempotencyService $idempotency,
     ): JsonResponse {
         $actor = $this->actor($request);
         $this->authorizeCase($receivable, $actor);
         abort_unless($actor->hasPermission('payments.manage'), 403);
         $data = $request->validate([
+            'idempotency_key' => ['required', 'string', 'max:200'],
             'amount_rsd' => ['required', 'numeric', 'min:0.01'],
             'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'other'])],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:120'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
+        $idempotencyKey = (string) $data['idempotency_key'];
+        unset($data['idempotency_key']);
         /** @var Order $order */
         $order = $receivable->order()->firstOrFail();
-        $remaining = $receivables->remaining($order);
-        if (round((float) $data['amount_rsd'], 2) > $remaining + 0.004) {
-            throw ValidationException::withMessages([
-                'amount_rsd' => 'Uplata ne može biti veća od preostalog duga '.number_format($remaining, 2, ',', '.').' RSD.',
-            ]);
-        }
         $data['entry_type'] = 'payment';
-        $payments->record($order, $data, $actor);
+        $idempotency->run(
+            $actor,
+            'admin.receivables.payment.record',
+            $idempotencyKey,
+            [
+                'receivable_case_id' => (int) $receivable->id,
+                'order_id' => (int) $order->id,
+                ...$data,
+            ],
+            OrderPayment::class,
+            fn (): OrderPayment => $payments->record($order, $data, $actor),
+            static fn (int $paymentId): OrderPayment => OrderPayment::query()->findOrFail($paymentId),
+        );
         $updated = ReceivableCase::query()->findOrFail($receivable->id);
         return $this->mutationResponse($updated, $receivables, 201);
     }
