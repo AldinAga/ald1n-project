@@ -50,7 +50,7 @@ final class ProductTemplateService
                 'model' => trim((string) ($data['model_name'] ?? '')) !== '',
                 'categories' => !empty($data['category_ids']),
                 'description' => trim((string) ($data['description'] ?? '')) !== '',
-                'price' => isset($data['price_amount']) && is_numeric($data['price_amount']),
+                'price' => isset($data['price_amount']) && is_numeric($data['price_amount']) && (float) $data['price_amount'] > 0,
                 default => true,
             };
             if ($filled) $earned += 2;

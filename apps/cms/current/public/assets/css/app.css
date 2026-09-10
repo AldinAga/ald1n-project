@@ -710,3 +710,23 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
     margin-top: 0;
     clear: both;
 }
+
+/* TRUE_DRAFT_PRODUCT_EDITOR_V6_V4 */
+.product-publication-guidance {
+    margin: 0 0 14px;
+    padding: 11px 13px;
+    border: 1px solid color-mix(in srgb, var(--primary, #593b7a) 26%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary, #593b7a) 7%, transparent);
+    font-size: .9rem;
+    line-height: 1.45;
+}
+.product-save-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.product-save-actions-sidebar > .button { flex:1 1 150px; }
+.product-editor-action-buttons [data-product-save-draft] { white-space:nowrap; }
+@media (max-width:720px) {
+    .product-save-actions, .product-editor-action-buttons { align-items:stretch; }
+    .product-save-actions > .button,
+    .product-editor-action-buttons [data-product-save-draft],
+    .product-editor-action-buttons [data-product-save-primary] { width:100%; }
+}

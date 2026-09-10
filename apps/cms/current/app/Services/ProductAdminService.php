@@ -41,6 +41,7 @@ final class ProductAdminService
             $type = $this->typeFromData($data);
             $completeness = $this->templates->completeness($type, $data, $specs, $specDetails);
             $data['completeness_percent'] = $completeness['percent'];
+            $data = $this->applyDraftPersistenceDefaults($data);
             $data['name_is_manual'] = !$generated;
             $data['sku'] = $this->generateSku($data + ['specs' => $specs, 'spec_details' => $specDetails]);
             $data['slug'] = $this->uniqueSlug((string) $data['name']);
@@ -90,6 +91,7 @@ final class ProductAdminService
             $type = $this->typeFromData($data);
             $completeness = $this->templates->completeness($type, $data, $specs, $specDetails);
             $data['completeness_percent'] = $completeness['percent'];
+            $data = $this->applyDraftPersistenceDefaults($data, $locked);
             $submittedName = trim((string) ($data['name'] ?? ''));
             $data['name_is_manual'] = $generated
                 ? false
@@ -254,6 +256,28 @@ final class ProductAdminService
         if ($type !== null) $this->storageSpecifications->applyComputedTotals($type->fields, $specs, $structured);
         if (empty($data['status']) && $type !== null) $data['status'] = $defaults['status'];
         return [$data, $specs, $details, $structured, (array) ($data['images'] ?? [])];
+    }
+
+    /** @param array<string,mixed> $data @return array<string,mixed> */
+    private function applyDraftPersistenceDefaults(array $data, ?Product $existing = null): array
+    {
+        if ((string) ($data['status'] ?? '') !== 'draft') return $data;
+
+        $defaults = [
+            'price_amount' => 0,
+            'description' => '',
+            'stock_quantity' => 0,
+            'low_stock_threshold' => 1,
+        ];
+
+        foreach ($defaults as $key => $default) {
+            if (!array_key_exists($key, $data)) {
+                $data[$key] = $existing?->getAttribute($key) ?? $default;
+                continue;
+            }
+            if ($data[$key] === null || $data[$key] === '') $data[$key] = $default;
+        }
+        return $data;
     }
 
     /** @param array<string,mixed> $data */

@@ -38,7 +38,8 @@ final class ProductCompletenessService
         $updates = ['completeness_percent' => $result['percent']];
         $statusChanged = false;
         $minimum = max(0, min(100, (int) ($product->type?->minimum_completeness_percent ?? 0)));
-        if ($enforceMinimum && $product->status === 'active' && $result['percent'] < $minimum) {
+        $hasValidActivePrice = is_numeric($product->price_amount) && (float) $product->price_amount > 0;
+        if ($enforceMinimum && $product->status === 'active' && ($result['percent'] < $minimum || !$hasValidActivePrice)) {
             $updates['status'] = 'draft';
             $statusChanged = true;
         }

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', $product->exists ? 'Izmeni artikal' : 'Dodaj artikal')
 @section('content')
-<div data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-name-preview-url="{{ route('admin.products.name-preview') }}">
+<div data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-initial-product-status="{{ old('status',$product->status) }}" data-name-preview-url="{{ route('admin.products.name-preview') }}">
     <a class="back-link" href="{{ route('catalog.index') }}">← Nazad na artikle</a>
     <div class="page-heading">
         <div>
@@ -385,8 +385,9 @@
                 <section class="panel form-section sticky-card product-sale-panel" data-product-sale-panel>
                     <h2>Prodaja</h2>
                     <p class="muted">Najvažniji komercijalni podaci su na jednom mestu. Status je prvi da uvek znaš da li je artikal nacrt, aktivan ili neaktivan.</p>
+                    <div class="product-publication-guidance" data-product-publication-guidance>Za nepotpun unos koristi dugme za cuvanje nacrta. Aktivacija i dalje zahteva kompletne podatke i pozitivnu cenu.</div>
                     <label class="product-status-field"><span>Status artikla</span><select name="status" data-product-status>@foreach(['draft'=>'Nacrt','active'=>'Aktivan','inactive'=>'Neaktivan'] as $value=>$label)<option value="{{ $value }}" @selected(old('status',$product->status)===$value)>{{ $label }}</option>@endforeach</select><small class="muted">Nacrt = u pripremi · Aktivan = vidljiv u katalogu · Neaktivan = privremeno skriven.</small></label>
-                    <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}"></label>
+                    <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}" data-publication-price></label>
                     <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
                     <label><span>Nabavna cena RSD</span><input name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small>Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
                     @if(auth()->user()?->hasRole('superadmin'))
@@ -401,7 +402,10 @@
                         <label><span>Prag niskog lagera</span><input type="number" value="{{ $product->low_stock_threshold }}" disabled></label>
                     @endif
 
-                    <button class="button button-primary button-large" type="submit">{{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}</button>
+                    <div class="product-save-actions product-save-actions-sidebar">
+                        <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sa&#269;uvaj kao nacrt</button>
+                        <button class="button button-primary button-large" type="submit" data-product-save-context>{{ $product->exists ? 'Sa&#269;uvaj izmene' : 'Kreiraj artikal' }}</button>
+                    </div>
                 </section>
                 @if($product->exists)
                     <section class="panel danger-zone product-danger-zone">
@@ -497,6 +501,7 @@
                         <span class="product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
                     @endif
                 @endif
+                <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sa&#269;uvaj kao nacrt</button>
                 <button class="button button-primary button-large" type="submit" data-product-save-primary>
                     {{ $product->exists ? 'Sacuvaj izmene' : 'Kreiraj artikal' }}
                 </button>
@@ -1076,6 +1081,8 @@
     const nameInput = form?.querySelector('[data-product-name]');
     const nameHelp = form?.querySelector('[data-name-template-help]');
     const statusSelect = form?.querySelector('[name="status"]');
+    const priceInput = form?.querySelector('[data-publication-price]');
+    const publicationGuidance = form?.querySelector('[data-product-publication-guidance]');
     const completenessPercent = root?.querySelector('[data-completeness-percent]');
     const completenessBar = root?.querySelector('[data-completeness-bar]');
     const completenessMessage = root?.querySelector('[data-completeness-message]');
@@ -1204,7 +1211,10 @@
         if (core === 'model') return (modelInput?.value || '').trim() !== '';
         if (core === 'categories') return !!activeTypeOption()?.dataset.categoryId;
         if (core === 'description') return (form?.querySelector('[name="description"]')?.value || '').trim() !== '';
-        if (core === 'price') return (form?.querySelector('[name="price_amount"]')?.value || '') !== '';
+        if (core === 'price') {
+            const value = Number(form?.querySelector('[name="price_amount"]')?.value || 0);
+            return Number.isFinite(value) && value > 0;
+        }
         return true;
     };
 
@@ -1261,6 +1271,16 @@
         }
     };
 
+    const refreshPublicationMode = () => {
+        const status = statusSelect?.value || root?.dataset.initialProductStatus || 'draft';
+        const active = status === 'active';
+        if (priceInput) priceInput.min = active ? '0.01' : '0';
+        if (publicationGuidance) publicationGuidance.textContent = active
+            ? 'Aktivacija zahteva kompletne podatke i cenu vecu od nule.'
+            : 'Za nepotpun unos koristi Sa\u010duvaj kao nacrt. Standardno cuvanje zadrzava puna pravila validacije.';
+    };
+
+    statusSelect?.addEventListener('change', refreshPublicationMode);
     brandSelect?.addEventListener('change', updateProductLines);
     lineSelect?.addEventListener('change', refreshCompleteness);
     typeSelect?.addEventListener('change', () => { updateBrands(); updateProductLines(); updateSpecificationPanel(true); });
@@ -1268,6 +1288,7 @@
     form?.querySelectorAll('input,select,textarea').forEach((input) => input.addEventListener(input.matches('input[type="text"],input[type="number"],textarea') ? 'input' : 'change', refreshCompleteness));
     root?.querySelectorAll('[data-spec-field-id]').forEach((input) => input.addEventListener('change', () => { refreshDependencies(input.closest('[data-spec-panel]')); refreshCompleteness(); }));
 
+    refreshPublicationMode();
     updateBrands();
     updateProductLines();
     updateSpecificationPanel(false);

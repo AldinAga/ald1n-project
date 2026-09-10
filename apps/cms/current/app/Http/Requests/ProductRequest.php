@@ -36,6 +36,9 @@ final class ProductRequest extends FormRequest
     public function rules(): array
     {
         $productId = $this->route('product')?->id;
+        $webDraft = $this->isExplicitWebDraftSave();
+        $activePublication = !$webDraft && (string) $this->input('status') === 'active';
+
         return [
             'product_type_id' => ['nullable', 'integer', 'exists:product_types,id'],
             'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
@@ -45,14 +48,14 @@ final class ProductRequest extends FormRequest
             'regenerate_sku' => ['nullable', 'boolean'],
             'regenerate_name' => ['nullable', 'boolean'],
             'name' => ['nullable', 'string', 'max:190'],
-            'price_amount' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'price_amount' => [$webDraft ? 'nullable' : 'required', 'numeric', $activePublication ? 'min:0.01' : 'min:0', 'max:9999999999.99'],
             'price_currency' => ['required', Rule::in(['RSD', 'EUR'])],
             'purchase_price_rsd' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'manual_commission_eur' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
-            'description' => ['required', 'string', 'max:65000'],
+            'description' => [$webDraft ? 'nullable' : 'required', 'string', 'max:65000'],
             'notes' => ['nullable', 'string', 'max:65000'],
-            'stock_quantity' => ['required', 'integer', 'min:0', 'max:1000000'],
-            'low_stock_threshold' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'stock_quantity' => [$webDraft ? 'nullable' : 'required', 'integer', 'min:0', 'max:1000000'],
+            'low_stock_threshold' => [$webDraft ? 'nullable' : 'required', 'integer', 'min:0', 'max:1000000'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive'])],
             'category_ids' => ['array', 'max:1'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
@@ -68,7 +71,7 @@ final class ProductRequest extends FormRequest
             'spec_capacities.*.*' => ['nullable', 'integer', 'min:0', 'max:10000000'],
             'spec_structured' => ['array'],
             'spec_structured.*' => ['array', 'max:8'],
-            'spec_structured.*.*.type' => ['required', 'string', 'max:255'],
+            'spec_structured.*.*.type' => [$webDraft ? 'nullable' : 'required', 'string', 'max:255'],
             'spec_structured.*.*.capacity_gb' => ['nullable', 'integer', 'min:0', 'max:10000000'],
             'images' => ['array', 'max:20'],
             'images.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
@@ -77,7 +80,8 @@ final class ProductRequest extends FormRequest
 
     public function withValidator(\Illuminate\Validation\Validator $validator): void
     {
-        $validator->after(function (\Illuminate\Validation\Validator $validator): void {
+        $webDraft = $this->isExplicitWebDraftSave();
+        $validator->after(function (\Illuminate\Validation\Validator $validator) use ($webDraft): void {
             $product = $this->route('product');
 
             $brandId = $this->input('brand_id');
@@ -135,7 +139,7 @@ final class ProductRequest extends FormRequest
 
             foreach ($fields as $field) {
                 $raw = $specs[$field->id] ?? null;
-                if ((bool) ($field->pivot?->is_required ?? false) && ($raw === '' || $raw === null)) {
+                if (!$webDraft && (bool) ($field->pivot?->is_required ?? false) && ($raw === '' || $raw === null)) {
                     $validator->errors()->add('specs.'.$field->id, 'Polje „'.$field->name.'“ je obavezno.');
                 }
 
@@ -203,6 +207,7 @@ final class ProductRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $webDraft = $this->isExplicitWebDraftSave();
         $details = [];
         foreach ((array) $this->input('spec_details', []) as $fieldId => $value) {
             $details[$fieldId] = trim((string) $value);
@@ -269,7 +274,18 @@ final class ProductRequest extends FormRequest
             $this->request->remove('manual_commission_eur');
         }
 
+        if ($webDraft) {
+            $normalized['status'] = 'draft';
+        }
+
         $this->merge($normalized);
+    }
+
+    private function isExplicitWebDraftSave(): bool
+    {
+        $routeName = $this->route()?->getName();
+        return in_array($routeName, ['admin.products.store', 'admin.products.update'], true)
+            && $this->boolean('save_draft');
     }
 
     private function resolveCategoryId(?ProductType $type): ?int
