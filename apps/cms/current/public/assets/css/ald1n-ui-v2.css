@@ -5007,3 +5007,82 @@ textarea {
   }
 }
 /* /BATCH149G_V6_QUICK_SETTINGS_SIDE_PANEL */
+
+/* BATCH149G_V7_FULL_WIDTH_SYSTEM_NATIVE
+ * Visual polish only:
+ * - System theme and Native currency become full-width controls
+ * - each spans the same width as both two-column choices below combined
+ * - typography and height are increased proportionally
+ * - V6 side-by-side menu composition stays unchanged
+ */
+@media(max-width:1250px){
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-label-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:8px;
+  }
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action{
+    width:100%;
+    min-width:0;
+    min-height:48px;
+    justify-self:stretch;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:10px 14px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:linear-gradient(145deg,color-mix(in srgb,var(--panel-2) 96%,#fff 4%),var(--panel-2));
+    color:var(--text);
+    font-size:14px;
+    line-height:1.15;
+    font-weight:850;
+    box-shadow:0 6px 15px rgba(0,0,0,.07),inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action:hover{
+    color:var(--text);
+    border-color:color-mix(in srgb,var(--primary) 38%,var(--line));
+    background:color-mix(in srgb,var(--panel-2) 90%,var(--primary) 10%);
+  }
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action.is-active,
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action[aria-pressed="true"]{
+    border-color:color-mix(in srgb,var(--primary) 74%,#fff 7%);
+    background:color-mix(in srgb,var(--primary) 12%,var(--panel-2));
+    color:var(--primary);
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 22%,transparent),0 8px 18px rgba(0,0,0,.09);
+  }
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action .ui-icon{
+    width:18px;
+    height:18px;
+    flex:0 0 18px;
+  }
+}
+
+@media(max-width:620px){
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-label-row{
+    gap:6px;
+  }
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action{
+    min-height:42px;
+    gap:5px;
+    padding:7px 6px;
+    border-radius:10px;
+    font-size:12px;
+    line-height:1.1;
+  }
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action .ui-icon{
+    width:15px;
+    height:15px;
+    flex-basis:15px;
+  }
+}
+
+@media(max-width:360px){
+  .header-secondary-row>.mobile-menu-preferences.quick-settings-card .quick-settings-secondary-action{
+    min-height:40px;
+    padding:6px 4px;
+    font-size:11px;
+  }
+}
+/* /BATCH149G_V7_FULL_WIDTH_SYSTEM_NATIVE */
