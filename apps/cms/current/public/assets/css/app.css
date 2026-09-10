@@ -675,3 +675,38 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
 .cart-empty h2,.cart-empty p{margin:0}
 @media(max-width:980px){.cart-layout{grid-template-columns:1fr}.cart-summary{position:static}.cart-item{grid-template-columns:minmax(0,1fr) auto}.cart-item-quantity{grid-column:1/-1}.cart-item-remove{justify-self:end}}
 @media(max-width:620px){.catalog-management-actions{grid-template-columns:1fr 1fr}.cart-quantity-form{grid-template-columns:1fr}.cart-quantity-form small{grid-column:auto}.cart-item{grid-template-columns:1fr}.cart-item-price{text-align:left}.cart-item-remove{justify-self:stretch}.cart-item-remove .button{width:100%}.cart-item-quantity{grid-column:auto;grid-template-columns:1fr}.cart-page-heading{align-items:flex-start}}
+
+/* BATCH149G_V1_CART_ICON_PRODUCT_EDITOR_SIDE_RAIL_FLOW */
+.header-cart-button .ui-icon[data-icon-name="shopping-cart-simple"] {
+    width: 22px;
+    height: 22px;
+}
+
+/*
+ * Product editor right rail must remain normal document flow.
+ * The sale card used the global sticky-card behavior, allowing the later
+ * archive/purge danger zone to visually pass over its final inputs on desktop.
+ * Keep both cards in grid flow so stock threshold and every other input remain
+ * fully visible before Archive / Permanent delete controls begin.
+ */
+.admin-form-grid > .form-side {
+    grid-auto-rows: max-content;
+    overflow: visible;
+}
+.admin-form-grid > .form-side > .product-sale-panel.sticky-card {
+    position: static;
+    top: auto;
+    inset: auto;
+    z-index: auto;
+}
+.admin-form-grid > .form-side > .product-sale-panel,
+.admin-form-grid > .form-side > .product-danger-zone {
+    align-self: start;
+    min-height: 0;
+    overflow: visible;
+}
+.admin-form-grid > .form-side > .product-danger-zone {
+    position: static;
+    margin-top: 0;
+    clear: both;
+}

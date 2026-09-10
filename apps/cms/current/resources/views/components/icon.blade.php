@@ -6,6 +6,7 @@
         'archive' => 'archive',
         'arrow-right' => 'arrow-right',
         'bell' => 'bell',
+        'cart' => 'shopping-cart-simple',
         'boxes' => 'package',
         'chart' => 'chart-line-up',
         'check-circle' => 'check-circle',

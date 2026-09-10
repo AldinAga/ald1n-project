@@ -15,7 +15,7 @@
 
     @if($items->isEmpty())
         <section class="panel cart-empty">
-            <x-icon name="orders" size="34" />
+            <x-icon name="cart" size="38" />
             <h2>Korpa je prazna</h2>
             <p class="muted">Dodaj artikal iz kataloga. Ako je na lageru više komada, količinu možeš izabrati odmah ili promeniti ovde.</p>
             <a class="button button-primary" href="{{ route('catalog.index') }}">Otvori katalog</a>

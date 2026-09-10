@@ -16,6 +16,7 @@
                     data-cart-quantity-toggle
                     aria-expanded="false"
                 >
+                    <x-icon name="cart" size="17" />
                     Dodaj u korpu
                 </button>
                 <form
@@ -45,6 +46,7 @@
                         <button type="button" data-cart-quantity-plus aria-label="Povećaj količinu">+</button>
                     </div>
                     <button class="button button-primary {{ $cartCompact ? 'button-small' : '' }}" type="submit">
+                        <x-icon name="cart" size="16" />
                         Dodaj
                     </button>
                     <small>Dostupno: {{ $cartStock }}</small>
@@ -54,6 +56,7 @@
                     @csrf
                     <input type="hidden" name="quantity" value="1">
                     <button class="button button-primary {{ $cartCompact ? 'button-small' : 'button-large' }}" type="submit">
+                        <x-icon name="cart" size="17" />
                         Dodaj u korpu
                     </button>
                 </form>
