@@ -179,12 +179,10 @@
         @if(filled($product->description))
             <div class="description product-description-mobile">{!! nl2br(e((string) $product->description)) !!}</div>
         @endif
+        @include('partials.cart-add-control', ['product' => $product, 'compact' => false])
         @can('orders.create')
             @if($product->stock_quantity > 0)
-                <a class="button button-primary button-large" href="{{ route('orders.create', ['product' => $product->id]) }}">Poruči artikal</a>
-                <div class="alpha-note">Porudžbina transakcijski rezerviše lager.</div>
-            @else
-                <div class="alpha-note">Artikal trenutno nije na lageru.</div>
+                <div class="alpha-note">Dodavanje u korpu ne rezerviše lager. Lager se proverava i rezerviše tek pri slanju porudžbine.</div>
             @endif
         @endcan
     </section>

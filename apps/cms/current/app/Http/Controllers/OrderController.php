@@ -14,6 +14,7 @@ use App\Services\IpsPaymentPayloadService;
 use App\Services\OrderDetailPresenter;
 use App\Services\OrderDetailService;
 use App\Services\OrderService;
+use App\Services\OrderCartService;
 use App\Services\OrderTimelineService;
 use App\Services\OrderWorkflowService;
 use App\Support\ViewValue;
@@ -42,8 +43,11 @@ final class OrderController extends Controller
         ]);
     }
 
-    public function create(Request $request, CatalogAccessService $access): View
-    {
+    public function create(
+        Request $request,
+        CatalogAccessService $access,
+        OrderCartService $cart,
+    ): View {
         $query = Product::query()
             ->publiclyVisible()
             ->where('stock_quantity', '>', 0)
@@ -59,10 +63,38 @@ final class OrderController extends Controller
             'stock_quantity',
         ]);
 
+        $selectedProductId = (int) $request->integer('product');
+        $checkoutFromCart = $request->boolean('from_cart');
+        $prefilledItems = [];
+
+        if ($checkoutFromCart) {
+            $available = $products->keyBy('id');
+            foreach ($cart->quantities($request) as $productId => $quantity) {
+                if (!$available->has($productId)) {
+                    continue;
+                }
+                $prefilledItems[] = [
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                ];
+            }
+            $checkoutFromCart = $prefilledItems !== [];
+        } elseif ($selectedProductId > 0) {
+            $prefilledItems[] = [
+                'product_id' => $selectedProductId,
+                'quantity' => 1,
+            ];
+        }
+
+        $orderRowCount = max(5, min(50, count($prefilledItems)));
+
         return view('orders.create', [
             'products' => $products,
             'bankAccounts' => BankAccount::query()->where('is_active', true)->orderBy('label')->get(),
-            'selectedProductId' => (int) $request->integer('product'),
+            'selectedProductId' => $selectedProductId,
+            'prefilledItems' => $prefilledItems,
+            'orderRowCount' => $orderRowCount,
+            'checkoutFromCart' => $checkoutFromCart,
             'idempotencyKey' => (string) Str::uuid(),
             'suppliers' => User::query()
                 ->where('status', 'active')
@@ -74,9 +106,18 @@ final class OrderController extends Controller
         ]);
     }
 
-    public function store(StoreOrderRequest $request, OrderService $orders): RedirectResponse
-    {
-        $order = $orders->create($request->user(), $request->validated(), (string) $request->validated('idempotency_key'));
+    public function store(
+        StoreOrderRequest $request,
+        OrderService $orders,
+        OrderCartService $cart,
+    ): RedirectResponse {
+        $data = $request->validated();
+        $order = $orders->create($request->user(), $data, (string) $data['idempotency_key']);
+
+        if ((bool) ($data['cart_checkout'] ?? false)) {
+            $cart->clear($request);
+        }
+
         return redirect()->route('orders.show', $order)->with('status', 'Porudžbina '.$order->order_number.' je uspešno kreirana i lager je rezervisan.');
     }
 

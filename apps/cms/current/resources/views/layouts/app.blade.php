@@ -25,6 +25,16 @@
     } catch (\Throwable) {
         $exchangeRateHref = '#';
     }
+
+    $headerCartCount = 0;
+    try {
+        $headerCartCount = array_sum(array_map(
+            'intval',
+            (array) request()->session()->get(\App\Services\OrderCartService::SESSION_KEY, []),
+        ));
+    } catch (\Throwable) {
+        $headerCartCount = 0;
+    }
 @endphp
 <!doctype html>
 <html lang="sr-Latn" data-theme="dark" data-theme-mode="auto">
@@ -125,6 +135,12 @@
             </span>
             @endcan
             <span class="exchange-rate-sync-status" data-exchange-rate-sync-status aria-live="polite"></span>
+            @can('orders.create')
+            <a class="header-cart-button icon-button" href="{{ route('cart.index') }}" aria-label="Korpa · {{ $headerCartCount }} komada" title="Korpa">
+                <x-icon name="orders" size="19" />
+                @if($headerCartCount > 0)<span class="header-cart-count">{{ min(99, $headerCartCount) }}</span>@endif
+            </a>
+            @endcan
             <span data-module-visibility="{{ $moduleVisibility->enabled('notifications') ? '1' : '0' }}">
 @can('notifications.view')
 <a class="notification-header-button" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja">
@@ -178,8 +194,9 @@
 
             @canany(['orders.view_own','orders.manage','after_sales.view_own','after_sales.manage','field_operations.view','service_parts.view','service_parts.procurement','warranties.view_own','warranties.manage'])
             <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('orders.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? 'active' : '' }}"><span><x-icon name="orders" />Upravljanje porudžbinama</span></summary>
+                <summary class="{{ request()->routeIs('orders.*','cart.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? 'active' : '' }}"><span><x-icon name="orders" />Upravljanje porudžbinama</span></summary>
                 <div class="nav-dropdown-menu">
+                    @can('orders.create')<a href="{{ route('cart.index') }}"><x-icon name="orders" />Korpa @if($headerCartCount > 0)<b class="nav-count">{{ min(99, $headerCartCount) }}</b>@endif</a>@endcan
                     @can('orders.view_own')<a href="{{ route('orders.index') }}"><x-icon name="orders" />Moje porudžbine</a>@endcan
                     @can('orders.manage')<a href="{{ route('admin.orders.index') }}"><x-icon name="receipt" />Sve porudžbine</a>@endcan
                     <span data-module-visibility="{{ $moduleVisibility->enabled('after_sales') ? '1' : '0' }}">@can('after_sales.view_own')<a href="{{ route('after-sales.index') }}"><x-icon name="alert" />Moje reklamacije i servisi</a>@endcan</span>
@@ -910,6 +927,7 @@ const loadProductSearch = async (term) => {
 
     document.querySelectorAll('[data-confirm]').forEach((button) => button.addEventListener('click', (event) => { if (!confirm(button.dataset.confirm || 'Potvrdi akciju?')) event.preventDefault(); }));
 </script>
+<script src="{{ asset('assets/js/cart-ui.js') }}?v={{ @filemtime(public_path('assets/js/cart-ui.js')) ?: config('app.version') }}" defer></script>
 <script src="{{ asset('assets/js/ux-runtime.js') }}?v={{ config('app.version') }}" defer></script>
 @stack('scripts')
 </body>

@@ -18,6 +18,7 @@ final class StoreOrderRequest extends FormRequest
     {
         return [
             'idempotency_key' => ['required', 'string', 'max:200'],
+            'cart_checkout' => ['sometimes', 'boolean'],
             'supplier_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'shipping_full_name' => ['required', 'string', 'max:190'],
             'shipping_address' => ['required', 'string', 'max:255'],
@@ -62,6 +63,7 @@ final class StoreOrderRequest extends FormRequest
         }
         $this->merge([
             'items' => $items,
+            'cart_checkout' => $this->boolean('cart_checkout'),
             'bank_account_id' => $this->input('payment_method') === 'bank_transfer' && $this->filled('bank_account_id') ? $this->integer('bank_account_id') : null,
             'payment_due_at' => $this->input('payment_method') === 'deferred_payment' && $this->filled('payment_due_at') ? trim((string) $this->input('payment_due_at')) : null,
             'supplier_user_id' => $this->filled('supplier_user_id') ? $this->integer('supplier_user_id') : null,

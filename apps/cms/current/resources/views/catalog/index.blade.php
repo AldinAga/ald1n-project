@@ -326,10 +326,16 @@
                 @else
                     <span class="muted">Cena nije dostupna</span>
                 @endif
-                <a class="button button-small button-ghost" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>
+                @if(!$canManageThis)<a class="button button-small button-ghost" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>@endif
             </div>
+            @if(!$canManageCatalog)
+                <div class="catalog-card-cart">
+                    @include('partials.cart-add-control', ['product' => $product, 'compact' => true])
+                </div>
+            @endif
             @if($canManageThis)
                 <div class="catalog-management-actions">
+                    <a class="button button-small button-ghost catalog-action-details" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>
                     <a class="button button-small button-primary" href="{{ route('admin.products.edit', $product) }}">Izmeni</a>
 
                                             @if($product->deleted_at === null)

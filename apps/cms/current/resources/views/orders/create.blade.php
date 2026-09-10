@@ -15,6 +15,7 @@
 <form method="post" action="{{ route('orders.store') }}" class="build16-order-create-form" data-ux-sticky-actions>
     @csrf
     <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', $idempotencyKey) }}">
+    @if($checkoutFromCart)<input type="hidden" name="cart_checkout" value="1">@endif
 
     <div class="admin-form-grid build16-order-create-grid">
         <div class="form-main">
@@ -44,14 +45,15 @@
 
             <section class="panel form-section">
                 <h2>Stavke</h2>
-                <p class="muted">Izaberi do pet artikala i unesi potrebnu količinu.</p>
+                <p class="muted">{{ $checkoutFromCart ? 'Stavke i količine iz korpe su već popunjene. Možeš ih dodatno korigovati pre slanja.' : 'Izaberi artikle i unesi potrebnu količinu.' }}</p>
                 <div class="admin-table-wrap flat-table">
                     <table class="admin-table">
                         <thead>
                             <tr><th>Artikal</th><th>Količina</th></tr>
                         </thead>
                         <tbody>
-                            @for($index = 0; $index < 5; $index++)
+                            @for($index = 0; $index < $orderRowCount; $index++)
+                                @php($prefilledItem = $prefilledItems[$index] ?? null)
                                 <tr data-order-item-row>
                                     <td>
                                         <select name="items[{{ $index }}][product_id]" data-order-product>
@@ -59,7 +61,7 @@
                                             @foreach($products as $product)
                                                 <option
                                                     value="{{ $product->id }}"
-                                                    @selected((int) old('items.'.$index.'.product_id', $index === 0 ? $selectedProductId : 0) === (int) $product->id)
+                                                    @selected((int) old('items.'.$index.'.product_id', $prefilledItem['product_id'] ?? ($index === 0 ? $selectedProductId : 0)) === (int) $product->id)
                                                 >
                                                     {{ $product->sku }} · {{ $product->name }} · lager {{ $product->stock_quantity }}
                                                 </option>
@@ -72,7 +74,7 @@
                                             name="items[{{ $index }}][quantity]"
                                             min="1"
                                             max="1000"
-                                            value="{{ old('items.'.$index.'.quantity', $index === 0 && $selectedProductId ? 1 : '') }}"
+                                            value="{{ old('items.'.$index.'.quantity', $prefilledItem['quantity'] ?? ($index === 0 && $selectedProductId ? 1 : '')) }}"
                                         >
                                     </td>
                                 </tr>

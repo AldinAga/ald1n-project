@@ -56,6 +56,7 @@ use App\Http\Controllers\Auth\GoogleWebAuthController;
 use App\Http\Controllers\Auth\CustomerActivationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CommissionController as UserCommissionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
@@ -126,6 +127,20 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             ->middleware('throttle:120,1')
             ->name('catalog.quick-search');
         Route::get('/catalog/{slug}', [CatalogController::class, 'show'])->name('catalog.show');
+    });
+
+    Route::middleware('permission:orders.create')->group(function (): void {
+        Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+        Route::post('/cart/items/{product}', [CartController::class, 'store'])
+            ->whereNumber('product')
+            ->name('cart.items.store');
+        Route::patch('/cart/items/{product}', [CartController::class, 'update'])
+            ->whereNumber('product')
+            ->name('cart.items.update');
+        Route::delete('/cart/items/{product}', [CartController::class, 'destroy'])
+            ->whereNumber('product')
+            ->name('cart.items.destroy');
+        Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
     });
 
     Route::get('/global-search', [\App\Http\Controllers\GlobalCommandSearchController::class, 'search'])
