@@ -322,7 +322,7 @@
             </div>
             <div class="product-footer">
                 @if($canViewPrices)
-                    <strong class="price">{{ number_format((float)$product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong>
+                    <strong class="price" data-display-money data-money-amount="{{ $product->price_amount }}" data-money-currency="{{ strtoupper((string) $product->price_currency) }}">{{ number_format((float)$product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong>
                 @else
                     <span class="muted">Cena nije dostupna</span>
                 @endif

@@ -4641,3 +4641,38 @@ textarea {
     transform: none !important;
   }
 }
+
+/* BATCH149G_V4_MOBILE_HEADER_PREFERENCES_RATE_DISPLAY
+ * Keep the phone header focused on navigation-critical controls.
+ * Theme and catalog display-currency preferences live in the hamburger panel.
+ */
+.mobile-menu-preferences{display:none}
+@media(max-width:1250px){
+  .header-quick-actions>.header-theme-control{display:none!important}
+  .mobile-menu-preferences{display:grid;gap:10px;width:100%;padding:13px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .mobile-menu-preferences-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:0 2px}
+  .mobile-menu-preferences-heading .dropdown-label{margin:0;padding:0}
+  .mobile-menu-preferences-heading small{color:var(--muted);font-size:10px;text-align:right}
+  .mobile-menu-preference-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
+  .mobile-menu-preference-copy{min-width:0}
+  .mobile-menu-preference-copy strong,.mobile-menu-preference-copy small{display:block}
+  .mobile-menu-preference-copy strong{font-size:13px}
+  .mobile-menu-preference-copy small{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
+  .mobile-menu-theme-toggle{min-width:96px;min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);font-weight:850;cursor:pointer}
+  .mobile-menu-currency-switch{display:inline-grid;grid-template-columns:repeat(3,auto);gap:4px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .mobile-menu-currency-switch button{min-width:54px;min-height:34px;padding:6px 8px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:11px;font-weight:850;cursor:pointer}
+  .mobile-menu-currency-switch button.is-active,.mobile-menu-currency-switch button[aria-pressed="true"]{background:color-mix(in srgb,var(--primary) 17%,var(--panel-2));color:var(--primary);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 30%,transparent)}
+  .mobile-menu-currency-note{display:block;min-height:16px;padding:0 2px;color:var(--muted);font-size:10px;line-height:1.4}
+}
+@media(max-width:620px){
+  .header-quick-actions>.rate-badge{display:inline-flex!important}
+  .header-quick-actions .notification-header-button{display:none!important}
+  .header-quick-actions>.header-theme-control{display:none!important}
+}
+@media(max-width:420px){
+  .mobile-menu-preference-row{grid-template-columns:1fr;align-items:stretch}
+  .mobile-menu-theme-toggle{width:100%}
+  .mobile-menu-currency-switch{grid-template-columns:repeat(3,1fr);width:100%}
+  .mobile-menu-currency-switch button{min-width:0}
+}
+/* /BATCH149G_V4_MOBILE_HEADER_PREFERENCES_RATE_DISPLAY */

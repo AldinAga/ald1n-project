@@ -140,7 +140,7 @@
         @endif
         <div class="detail-numbers build16-product-metrics">
             @if($canViewPrices)
-                <div><small>Cena</small><strong>{{ number_format((float) $product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong></div>
+                <div><small>Cena</small><strong data-display-money data-money-amount="{{ $product->price_amount }}" data-money-currency="{{ strtoupper((string) $product->price_currency) }}">{{ number_format((float) $product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong></div>
             @endif
             <div><small>Provizija po komadu</small><strong>{{ number_format($commissionEur, 2, ',', '.') }} €</strong></div>
             <div><small>Lager</small><strong>{{ $product->stock_quantity }}</strong></div>

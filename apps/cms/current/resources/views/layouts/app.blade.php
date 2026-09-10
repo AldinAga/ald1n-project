@@ -37,7 +37,7 @@
     }
 @endphp
 <!doctype html>
-<html lang="sr-Latn" data-theme="dark" data-theme-mode="auto">
+<html lang="sr-Latn" data-theme="dark" data-theme-mode="auto" data-eur-rsd-rate="{{ is_numeric($exchangeRateValue) ? number_format((float) $exchangeRateValue, 6, '.', '') : '' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -123,15 +123,15 @@
                 data-exchange-rate-sync
                 data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
                 data-exchange-rate-source-title
-                title="{{ $exchangeRateSource }} · Klikni za sinhronizaciju"
+                title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje"
             >
                 <small data-exchange-rate-header-label>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</small>
-                <strong data-exchange-rate-value>{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 4, ',', '.') : 'Nije podešen' }}</strong>
+                <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
             </button>
             @else
             <span class="rate-badge {{ $exchangeRateIsStale ? 'is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
                 <small>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</small>
-                <strong data-exchange-rate-value>{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 4, ',', '.') : 'Nije podešen' }}</strong>
+                <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
             </span>
             @endcan
             <span class="exchange-rate-sync-status" data-exchange-rate-sync-status aria-live="polite"></span>
@@ -149,7 +149,7 @@
             </a>
 @endcan
 </span>
-            <button class="theme-mode-button" type="button" data-theme-toggle aria-label="Promeni režim teme" title="Promeni režim teme">
+            <button class="theme-mode-button header-theme-control" type="button" data-theme-toggle aria-label="Promeni režim teme" title="Promeni režim teme">
                 <span class="theme-mode-icon" data-theme-icon><x-icon name="monitor" size="17" /></span>
                 <span class="theme-mode-label" data-theme-label>Auto</span>
             </button>
@@ -281,6 +281,34 @@
             </details>
             @endcanany
         </nav>
+        <section class="mobile-menu-preferences" data-mobile-menu-preferences aria-label="Brza podešavanja">
+            <div class="mobile-menu-preferences-heading">
+                <span class="dropdown-label">Brza podešavanja</span>
+                <small>Prikaz važi na ovom uređaju.</small>
+            </div>
+            <div class="mobile-menu-preference-row">
+                <div class="mobile-menu-preference-copy">
+                    <strong>Tema</strong>
+                    <small>Sistem, tamna ili svetla</small>
+                </div>
+                <button class="mobile-menu-theme-toggle" type="button" data-theme-toggle aria-label="Promeni režim teme">
+                    <span class="theme-mode-icon" data-theme-icon><x-icon name="monitor" size="17" /></span>
+                    <span data-theme-label>Auto</span>
+                </button>
+            </div>
+            <div class="mobile-menu-preference-row mobile-menu-currency-row">
+                <div class="mobile-menu-preference-copy">
+                    <strong>Prikaz cena</strong>
+                    <small>Izvorna valuta ili preračun u RSD / EUR</small>
+                </div>
+                <div class="mobile-menu-currency-switch" role="group" aria-label="Valuta za prikaz cena">
+                    <button type="button" data-display-currency-option="native" aria-pressed="false">Izvorno</button>
+                    <button type="button" data-display-currency-option="RSD" aria-pressed="false">RSD</button>
+                    <button type="button" data-display-currency-option="EUR" aria-pressed="false">EUR</button>
+                </div>
+            </div>
+            <small class="mobile-menu-currency-note" data-display-currency-status aria-live="polite"></small>
+        </section>
         <form class="header-logout" method="post" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit"><x-icon name="logout" />Odjava</button></form>
     </div>
     @endauth
@@ -367,19 +395,91 @@
             localStorage.setItem('ald1n-theme-mode', normalized);
             localStorage.removeItem('ald1n-theme');
         }
-        document.querySelector('[data-theme-label]')?.replaceChildren(document.createTextNode(themeLabels[normalized]));
-        const icon = document.querySelector('[data-theme-icon]');
-        if (icon) icon.innerHTML = themeIcons[normalized];
+        document.querySelectorAll('[data-theme-label]').forEach((label) => {
+            label.replaceChildren(document.createTextNode(themeLabels[normalized]));
+        });
+        document.querySelectorAll('[data-theme-icon]').forEach((icon) => {
+            icon.innerHTML = themeIcons[normalized];
+        });
         applyThemeLogos();
     };
     applyThemeMode(document.documentElement.dataset.themeMode || 'auto', false);
-    document.querySelector('[data-theme-toggle]')?.addEventListener('click', () => {
-        const current = document.documentElement.dataset.themeMode || 'auto';
-        applyThemeMode(themeModes[(themeModes.indexOf(current) + 1) % themeModes.length]);
+    document.querySelectorAll('[data-theme-toggle]').forEach((toggle) => {
+        toggle.addEventListener('click', () => {
+            const current = document.documentElement.dataset.themeMode || 'auto';
+            applyThemeMode(themeModes[(themeModes.indexOf(current) + 1) % themeModes.length]);
+        });
     });
     themeQuery.addEventListener?.('change', () => {
         if ((document.documentElement.dataset.themeMode || 'auto') === 'auto') applyThemeMode('auto', false);
     });
+
+    // BATCH149G V4: device-local catalog price display preference.
+    const displayCurrencyStorageKey = 'ald1n-display-currency';
+    const displayCurrencyModes = ['native', 'RSD', 'EUR'];
+    const displayCurrencyLabels = { native: 'Izvorno', RSD: 'RSD', EUR: 'EUR' };
+    let displayCurrencyMode = localStorage.getItem(displayCurrencyStorageKey) || 'native';
+    if (!displayCurrencyModes.includes(displayCurrencyMode)) displayCurrencyMode = 'native';
+
+    const currentEurRsdRate = () => {
+        const rate = Number(document.documentElement.dataset.eurRsdRate || '');
+        return Number.isFinite(rate) && rate > 0 ? rate : null;
+    };
+    const formatDisplayMoney = (amount, currency) => {
+        const number = Number(amount);
+        if (!Number.isFinite(number)) return null;
+        return `${new Intl.NumberFormat('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(number)} ${currency}`;
+    };
+    const convertDisplayMoney = (amount, sourceCurrency, targetCurrency, eurRsdRate) => {
+        const number = Number(amount);
+        const source = String(sourceCurrency || '').toUpperCase();
+        const target = String(targetCurrency || '').toUpperCase();
+        if (!Number.isFinite(number) || !['RSD', 'EUR'].includes(source) || !['RSD', 'EUR'].includes(target)) return null;
+        if (source === target) return number;
+        if (!Number.isFinite(eurRsdRate) || eurRsdRate <= 0) return null;
+        return source === 'EUR' ? number * eurRsdRate : number / eurRsdRate;
+    };
+    const renderDisplayCurrency = () => {
+        const rate = currentEurRsdRate();
+        document.querySelectorAll('[data-display-money]').forEach((node) => {
+            const nativeAmount = Number(node.dataset.moneyAmount || '');
+            const nativeCurrency = String(node.dataset.moneyCurrency || '').toUpperCase();
+            let amount = nativeAmount;
+            let currency = nativeCurrency;
+            if (displayCurrencyMode !== 'native') {
+                const converted = convertDisplayMoney(nativeAmount, nativeCurrency, displayCurrencyMode, rate);
+                if (converted !== null) {
+                    amount = converted;
+                    currency = displayCurrencyMode;
+                }
+            }
+            const formatted = formatDisplayMoney(amount, currency);
+            if (formatted !== null) node.textContent = formatted;
+        });
+        document.querySelectorAll('[data-display-currency-option]').forEach((button) => {
+            const active = button.dataset.displayCurrencyOption === displayCurrencyMode;
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            button.classList.toggle('is-active', active);
+        });
+        document.querySelectorAll('[data-display-currency-status]').forEach((node) => {
+            if (displayCurrencyMode === 'native') {
+                node.textContent = 'Cene se prikazuju u valuti sačuvanoj na artiklu.';
+            } else if (rate === null) {
+                node.textContent = 'Kurs nije dostupan; cena ostaje u izvornoj valuti.';
+            } else {
+                node.textContent = `Prikaz: ${displayCurrencyLabels[displayCurrencyMode]} · EUR/RSD ${rate.toFixed(2).replace('.', ',')}`;
+            }
+        });
+    };
+    const applyDisplayCurrency = (mode, persist = true) => {
+        displayCurrencyMode = displayCurrencyModes.includes(mode) ? mode : 'native';
+        if (persist) localStorage.setItem(displayCurrencyStorageKey, displayCurrencyMode);
+        renderDisplayCurrency();
+    };
+    document.querySelectorAll('[data-display-currency-option]').forEach((button) => {
+        button.addEventListener('click', () => applyDisplayCurrency(button.dataset.displayCurrencyOption || 'native'));
+    });
+    applyDisplayCurrency(displayCurrencyMode, false);
 
     // ALD1N VNEXT B4: global product quick search runtime.
     const headerProductSearchToggle = document.querySelector('[data-header-product-search-toggle]');
@@ -617,9 +717,10 @@ const loadProductSearch = async (term) => {
     let exchangeRateSyncInFlight = false;
     let exchangeRateSyncResetTimer = null;
 
-    const formatExchangeRate = (value) => {
+    const formatExchangeRate = (value, decimals = 4) => {
         const number = Number(value);
-        return Number.isFinite(number) ? number.toFixed(4).replace('.', ',') : null;
+        const digits = Number.isInteger(decimals) ? Math.max(0, Math.min(6, decimals)) : 4;
+        return Number.isFinite(number) ? number.toFixed(digits).replace('.', ',') : null;
     };
 
     const setExchangeRateLiveStatus = (message) => {
@@ -673,8 +774,11 @@ const loadProductSearch = async (term) => {
         if (formattedRate === null) throw new Error('Server nije vratio ispravan EUR/RSD kurs.');
 
         document.querySelectorAll('[data-exchange-rate-value]').forEach((node) => {
-            node.textContent = formattedRate;
+            const requestedDecimals = Number.parseInt(node.dataset.exchangeRateDecimals || '4', 10);
+            node.textContent = formatExchangeRate(payload?.rate, requestedDecimals) || formattedRate;
         });
+        document.documentElement.dataset.eurRsdRate = String(Number(payload.rate));
+        renderDisplayCurrency();
 
         const source = typeof payload?.source === 'string' ? payload.source.trim() : '';
         const providerDate = typeof payload?.provider_date === 'string' ? payload.provider_date.trim() : '';
@@ -686,7 +790,7 @@ const loadProductSearch = async (term) => {
             });
             document.querySelectorAll('[data-exchange-rate-source-title]').forEach((node) => {
                 node.title = node.hasAttribute('data-exchange-rate-sync')
-                    ? `${source} · Klikni za sinhronizaciju`
+                    ? `${source} · Klikni za automatsko ažuriranje`
                     : source;
             });
         }
