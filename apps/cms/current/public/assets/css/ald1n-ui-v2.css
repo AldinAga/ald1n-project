@@ -4642,37 +4642,194 @@ textarea {
   }
 }
 
-/* BATCH149G_V4_MOBILE_HEADER_PREFERENCES_RATE_DISPLAY
- * Keep the phone header focused on navigation-critical controls.
- * Theme and catalog display-currency preferences live in the hamburger panel.
+/* BATCH149G_V5_QUICK_SETTINGS_CARD
+ * Sketch-aligned phone quick settings:
+ * - compact premium card
+ * - two large theme previews
+ * - two large currency choices
+ * - existing Auto/Native modes preserved as low-emphasis secondary actions
  */
 .mobile-menu-preferences{display:none}
 @media(max-width:1250px){
   .header-quick-actions>.header-theme-control{display:none!important}
-  .mobile-menu-preferences{display:grid;gap:10px;width:100%;padding:13px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .mobile-menu-preferences-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:0 2px}
-  .mobile-menu-preferences-heading .dropdown-label{margin:0;padding:0}
-  .mobile-menu-preferences-heading small{color:var(--muted);font-size:10px;text-align:right}
-  .mobile-menu-preference-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
-  .mobile-menu-preference-copy{min-width:0}
-  .mobile-menu-preference-copy strong,.mobile-menu-preference-copy small{display:block}
-  .mobile-menu-preference-copy strong{font-size:13px}
-  .mobile-menu-preference-copy small{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
-  .mobile-menu-theme-toggle{min-width:96px;min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);font-weight:850;cursor:pointer}
-  .mobile-menu-currency-switch{display:inline-grid;grid-template-columns:repeat(3,auto);gap:4px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-  .mobile-menu-currency-switch button{min-width:54px;min-height:34px;padding:6px 8px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:11px;font-weight:850;cursor:pointer}
-  .mobile-menu-currency-switch button.is-active,.mobile-menu-currency-switch button[aria-pressed="true"]{background:color-mix(in srgb,var(--primary) 17%,var(--panel-2));color:var(--primary);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 30%,transparent)}
-  .mobile-menu-currency-note{display:block;min-height:16px;padding:0 2px;color:var(--muted);font-size:10px;line-height:1.4}
+
+  .mobile-menu-preferences.quick-settings-card{
+    display:grid;
+    gap:0;
+    width:100%;
+    padding:17px;
+    border:1px solid color-mix(in srgb,var(--line) 90%,var(--primary) 10%);
+    border-radius:19px;
+    background:
+      linear-gradient(145deg,color-mix(in srgb,var(--panel) 96%,var(--primary) 4%),var(--panel));
+    box-shadow:0 12px 30px rgba(0,0,0,.10),inset 0 1px 0 color-mix(in srgb,#fff 8%,transparent);
+  }
+
+  .quick-settings-heading{
+    display:grid;
+    gap:3px;
+    padding:1px 1px 15px;
+  }
+  .quick-settings-heading strong{
+    font-size:18px;
+    line-height:1.2;
+    letter-spacing:-.015em;
+  }
+  .quick-settings-heading small{
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.4;
+  }
+
+  .quick-settings-group{display:grid;gap:10px}
+  .quick-settings-label-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .quick-settings-label{
+    color:var(--text);
+    font-size:12px;
+    font-weight:850;
+  }
+  .quick-settings-secondary-action{
+    min-height:28px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:4px 8px;
+    border:1px solid transparent;
+    border-radius:9px;
+    background:transparent;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+    cursor:pointer;
+  }
+  .quick-settings-secondary-action:hover{
+    color:var(--text);
+    background:var(--panel-2);
+  }
+  .quick-settings-secondary-action.is-active,
+  .quick-settings-secondary-action[aria-pressed="true"]{
+    border-color:color-mix(in srgb,var(--primary) 34%,var(--line));
+    background:color-mix(in srgb,var(--primary) 10%,var(--panel-2));
+    color:var(--primary);
+  }
+
+  .quick-settings-options{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  .quick-settings-tile{
+    position:relative;
+    min-width:0;
+    min-height:64px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:11px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    color:var(--text);
+    font-size:15px;
+    font-weight:850;
+    cursor:pointer;
+    box-shadow:0 7px 18px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.06);
+    transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,filter .16s ease;
+  }
+  .quick-settings-tile:hover{
+    transform:translateY(-1px);
+    filter:brightness(1.025);
+  }
+  .quick-settings-tile:focus-visible{
+    outline:none;
+    box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 22%,transparent),0 9px 22px rgba(0,0,0,.12);
+  }
+  .quick-settings-tile.is-active,
+  .quick-settings-tile[aria-pressed="true"]{
+    border-color:color-mix(in srgb,var(--primary) 78%,#fff 8%);
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 28%,transparent),0 10px 24px rgba(0,0,0,.14);
+  }
+  .quick-settings-tile.is-active::after,
+  .quick-settings-tile[aria-pressed="true"]::after{
+    content:"✓";
+    position:absolute;
+    top:7px;
+    right:7px;
+    width:17px;
+    height:17px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    background:var(--primary);
+    color:#fff;
+    font-size:10px;
+    font-weight:950;
+    box-shadow:0 3px 9px color-mix(in srgb,var(--primary) 38%,transparent);
+  }
+  .quick-settings-tile-icon{
+    width:30px;
+    height:30px;
+    flex:0 0 30px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:rgba(127,127,127,.10);
+  }
+  .quick-settings-theme-light{
+    background:linear-gradient(145deg,#ffffff,#f2f4f7);
+    border-color:#d8dde5;
+    color:#161d29;
+  }
+  .quick-settings-theme-light .quick-settings-tile-icon{background:#e9edf2;color:#222a36}
+  .quick-settings-theme-dark{
+    background:linear-gradient(145deg,#3b4148,#343a40);
+    border-color:#555d66;
+    color:#fff;
+  }
+  .quick-settings-theme-dark .quick-settings-tile-icon{background:rgba(255,255,255,.08);color:#fff}
+  .quick-settings-currency-tile{
+    background:linear-gradient(145deg,color-mix(in srgb,var(--panel-2) 94%,#fff 6%),var(--panel-2));
+    border-color:var(--line);
+  }
+  .quick-settings-currency-glyph{
+    font-size:21px;
+    line-height:1;
+    font-weight:700;
+  }
+
+  .quick-settings-divider{
+    height:1px;
+    margin:15px 0;
+    background:color-mix(in srgb,var(--line) 88%,transparent);
+  }
+  .mobile-menu-currency-note{
+    display:block;
+    min-height:15px;
+    padding:0 1px;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.4;
+  }
 }
 @media(max-width:620px){
   .header-quick-actions>.rate-badge{display:inline-flex!important}
   .header-quick-actions .notification-header-button{display:none!important}
   .header-quick-actions>.header-theme-control{display:none!important}
 }
-@media(max-width:420px){
-  .mobile-menu-preference-row{grid-template-columns:1fr;align-items:stretch}
-  .mobile-menu-theme-toggle{width:100%}
-  .mobile-menu-currency-switch{grid-template-columns:repeat(3,1fr);width:100%}
-  .mobile-menu-currency-switch button{min-width:0}
+@media(max-width:380px){
+  .mobile-menu-preferences.quick-settings-card{padding:14px}
+  .quick-settings-options{gap:8px}
+  .quick-settings-tile{min-height:60px;padding:10px 11px;font-size:14px}
+  .quick-settings-tile-icon{width:28px;height:28px;flex-basis:28px}
 }
-/* /BATCH149G_V4_MOBILE_HEADER_PREFERENCES_RATE_DISPLAY */
+@media(prefers-reduced-motion:reduce){
+  .quick-settings-tile{transition:none}
+  .quick-settings-tile:hover{transform:none}
+}
+/* /BATCH149G_V5_QUICK_SETTINGS_CARD */

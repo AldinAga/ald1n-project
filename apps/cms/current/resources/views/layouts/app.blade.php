@@ -281,33 +281,60 @@
             </details>
             @endcanany
         </nav>
-        <section class="mobile-menu-preferences" data-mobile-menu-preferences aria-label="Brza podešavanja">
-            <div class="mobile-menu-preferences-heading">
-                <span class="dropdown-label">Brza podešavanja</span>
+        {{-- BATCH149G_V5_QUICK_SETTINGS_CARD --}}
+        <section class="mobile-menu-preferences quick-settings-card" data-mobile-menu-preferences aria-label="Brza podešavanja">
+            <div class="quick-settings-heading">
+                <strong>Brza podešavanja</strong>
                 <small>Prikaz važi na ovom uređaju.</small>
             </div>
-            <div class="mobile-menu-preference-row">
-                <div class="mobile-menu-preference-copy">
-                    <strong>Tema</strong>
-                    <small>Sistem, tamna ili svetla</small>
+
+            <div class="quick-settings-group">
+                <div class="quick-settings-label-row">
+                    <span class="quick-settings-label">Tema</span>
+                    <button class="quick-settings-secondary-action" type="button" data-theme-mode-option="auto" aria-pressed="false">
+                        <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>
+                        Sistem
+                    </button>
                 </div>
-                <button class="mobile-menu-theme-toggle" type="button" data-theme-toggle aria-label="Promeni režim teme">
-                    <span class="theme-mode-icon" data-theme-icon><x-icon name="monitor" size="17" /></span>
-                    <span data-theme-label>Auto</span>
-                </button>
+                <div class="quick-settings-options" role="group" aria-label="Tema prikaza">
+                    <button class="quick-settings-tile quick-settings-theme-light" type="button" data-theme-mode-option="light" aria-pressed="false">
+                        <span class="quick-settings-tile-icon" aria-hidden="true">
+                            <svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+                        </span>
+                        <span>Svetla</span>
+                    </button>
+                    <button class="quick-settings-tile quick-settings-theme-dark" type="button" data-theme-mode-option="dark" aria-pressed="false">
+                        <span class="quick-settings-tile-icon" aria-hidden="true">
+                            <svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z"></path></svg>
+                        </span>
+                        <span>Tamna</span>
+                    </button>
+                </div>
             </div>
-            <div class="mobile-menu-preference-row mobile-menu-currency-row">
-                <div class="mobile-menu-preference-copy">
-                    <strong>Prikaz cena</strong>
-                    <small>Izvorna valuta ili preračun u RSD / EUR</small>
+
+            <div class="quick-settings-divider" aria-hidden="true"></div>
+
+            <div class="quick-settings-group">
+                <div class="quick-settings-label-row">
+                    <span class="quick-settings-label">Valuta prikaza</span>
+                    <button class="quick-settings-secondary-action" type="button" data-display-currency-option="native" aria-pressed="false">
+                        Izvorno
+                    </button>
                 </div>
-                <div class="mobile-menu-currency-switch" role="group" aria-label="Valuta za prikaz cena">
-                    <button type="button" data-display-currency-option="native" aria-pressed="false">Izvorno</button>
-                    <button type="button" data-display-currency-option="RSD" aria-pressed="false">RSD</button>
-                    <button type="button" data-display-currency-option="EUR" aria-pressed="false">EUR</button>
+                <div class="quick-settings-options" role="group" aria-label="Valuta za prikaz cena">
+                    <button class="quick-settings-tile quick-settings-currency-tile" type="button" data-display-currency-option="EUR" aria-pressed="false">
+                        <span class="quick-settings-tile-icon quick-settings-currency-glyph" aria-hidden="true">€</span>
+                        <span>EUR</span>
+                    </button>
+                    <button class="quick-settings-tile quick-settings-currency-tile" type="button" data-display-currency-option="RSD" aria-pressed="false">
+                        <span class="quick-settings-tile-icon" aria-hidden="true">
+                            <svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3M18 7l-3 3M6 17l3-3"></path></svg>
+                        </span>
+                        <span>RSD</span>
+                    </button>
                 </div>
+                <small class="mobile-menu-currency-note" data-display-currency-status aria-live="polite"></small>
             </div>
-            <small class="mobile-menu-currency-note" data-display-currency-status aria-live="polite"></small>
         </section>
         <form class="header-logout" method="post" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit"><x-icon name="logout" />Odjava</button></form>
     </div>
@@ -401,6 +428,11 @@
         document.querySelectorAll('[data-theme-icon]').forEach((icon) => {
             icon.innerHTML = themeIcons[normalized];
         });
+        document.querySelectorAll('[data-theme-mode-option]').forEach((button) => {
+            const active = button.dataset.themeModeOption === normalized;
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            button.classList.toggle('is-active', active);
+        });
         applyThemeLogos();
     };
     applyThemeMode(document.documentElement.dataset.themeMode || 'auto', false);
@@ -408,6 +440,11 @@
         toggle.addEventListener('click', () => {
             const current = document.documentElement.dataset.themeMode || 'auto';
             applyThemeMode(themeModes[(themeModes.indexOf(current) + 1) % themeModes.length]);
+        });
+    });
+    document.querySelectorAll('[data-theme-mode-option]').forEach((button) => {
+        button.addEventListener('click', () => {
+            applyThemeMode(button.dataset.themeModeOption || 'auto');
         });
     });
     themeQuery.addEventListener?.('change', () => {
