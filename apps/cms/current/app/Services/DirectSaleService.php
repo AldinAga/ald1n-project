@@ -25,6 +25,7 @@ final class DirectSaleService
         private readonly AuditLogger $audit,
         private readonly WarrantyService $warranties,
         private readonly ReceivablesService $receivables,
+        private readonly OrderPaymentService $payments,
     ) {
     }
 
@@ -49,6 +50,8 @@ final class DirectSaleService
         // MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
         $installmentCount = null;
         $paymentDueAt = null;
+        $customInstallments = [];
+        $firstPaymentMethod = null;
         if ($paymentMethod === 'deferred_payment') {
             if (!$this->receivables->ready()) {
                 throw ValidationException::withMessages([
@@ -67,6 +70,22 @@ final class DirectSaleService
             if (!$parsedDue || $parsedDue->format('Y-m-d') !== $paymentDueAt || $parsedDue < $today) {
                 throw ValidationException::withMessages(['payment_due_at' => 'Konačni datum pune isplate mora biti današnji ili budući datum.']);
             }
+
+            $customInput = $input['installments'] ?? null;
+            if (is_array($customInput) && $customInput !== []) {
+                $customInstallments = $this->normalizeCustomDeferredInstallments(
+                    $customInput,
+                    $installmentCount,
+                    round((float) ($input['sale_price_rsd'] ?? 0) * (int) ($input['quantity'] ?? 0), 2),
+                    $paymentDueAt,
+                );
+                $firstPaymentMethod = trim((string) ($input['first_payment_method'] ?? ''));
+                if (!in_array($firstPaymentMethod, ['cash', 'card', 'bank_transfer', 'other'], true)) {
+                    throw ValidationException::withMessages([
+                        'first_payment_method' => 'Izaberi način na koji je prva rata stvarno plaćena.',
+                    ]);
+                }
+            }
         }
 
         $payload = [
@@ -80,19 +99,36 @@ final class DirectSaleService
         if ($paymentMethod === 'deferred_payment') {
             $payload['installment_count'] = $installmentCount;
             $payload['payment_due_at'] = $paymentDueAt;
+            if ($customInstallments !== []) {
+                $payload['installments'] = $customInstallments;
+                $payload['first_payment_method'] = $firstPaymentMethod;
+            }
         }
 
+        $customWebDeferred = $paymentMethod === 'deferred_payment' && $customInstallments !== [];
         $order = $this->idempotency->run(
             $actor,
             'direct_sale.record',
             $idempotencyKey,
             $payload,
             Order::class,
-            fn (): Order => $this->recordInTransaction($product, $actor, $payload, $idempotencyKey),
+            function () use ($product, $actor, $payload, $idempotencyKey, $customWebDeferred, $customInstallments, $firstPaymentMethod): Order {
+                $created = $this->recordInTransaction($product, $actor, $payload, $idempotencyKey);
+                if ($customWebDeferred) {
+                    $this->applyCustomDeferredPlanAndFirstPayment(
+                        $created,
+                        $actor,
+                        $customInstallments,
+                        (string) $firstPaymentMethod,
+                    );
+                }
+                return $created;
+            },
             static fn (int $id): Order => Order::query()->findOrFail($id),
         );
 
-        if ($paymentMethod === 'deferred_payment') {
+        // Legacy Mobile/API deferred input intentionally keeps the established equal-plan flow.
+        if ($paymentMethod === 'deferred_payment' && !$customWebDeferred) {
             $this->ensureDeferredReceivablePlan($order, $actor, (int) $installmentCount, (string) $paymentDueAt);
         }
 
@@ -117,7 +153,7 @@ final class DirectSaleService
         ]) ?? $order;
     }
 
-    /** @param array{product_id:int,buyer_name:string,buyer_phone:?string,quantity:int,sale_price_rsd:float,payment_method:string,installment_count?:int,payment_due_at?:string} $payload */
+    /** @param array{product_id:int,buyer_name:string,buyer_phone:?string,quantity:int,sale_price_rsd:float,payment_method:string,installment_count?:int,payment_due_at?:string,installments?:list<array{due_at:string,amount_rsd:float,note:string}>,first_payment_method?:string} $payload */
     private function recordInTransaction(Product $product, User $actor, array $payload, string $idempotencyKey): Order
     {
         $lockedProduct = Product::query()
@@ -328,6 +364,115 @@ final class DirectSaleService
         return $order;
     }
 
+    /**
+     * @param array<int,mixed> $rows
+     * @return list<array{due_at:string,amount_rsd:float,note:string}>
+     */
+    private function normalizeCustomDeferredInstallments(array $rows, int $expectedCount, float $expectedTotalRsd, string $finalDueAt): array
+    {
+        $rows = array_values($rows);
+        if ($expectedCount < 1 || $expectedCount > 24 || count($rows) !== $expectedCount) {
+            throw ValidationException::withMessages(['installment_count' => 'Broj unetih rata mora odgovarati izabranom broju rata.']);
+        }
+
+        $expectedTotalCents = (int) round($expectedTotalRsd * 100);
+        if ($expectedTotalCents < $expectedCount) {
+            throw ValidationException::withMessages(['installments' => 'Ukupan iznos je premali za izabrani broj rata.']);
+        }
+
+        $today = new \DateTimeImmutable(today()->toDateString());
+        $previous = null;
+        $sumCents = 0;
+        $normalized = [];
+        foreach ($rows as $index => $row) {
+            if (!is_array($row)) {
+                throw ValidationException::withMessages(['installments.'.$index => 'Podaci rate nisu ispravni.']);
+            }
+            $dueText = trim((string) ($row['due_at'] ?? ''));
+            $due = \DateTimeImmutable::createFromFormat('!Y-m-d', $dueText);
+            if (!$due || $due->format('Y-m-d') !== $dueText || $due < $today) {
+                throw ValidationException::withMessages(['installments.'.$index.'.due_at' => 'Datum rate mora biti današnji ili budući datum.']);
+            }
+            if ($index === 0 && $due->format('Y-m-d') !== $today->format('Y-m-d')) {
+                throw ValidationException::withMessages(['installments.0.due_at' => 'Prva rata se evidentira odmah i njen datum mora biti današnji.']);
+            }
+            if ($previous instanceof \DateTimeImmutable && $due < $previous) {
+                throw ValidationException::withMessages(['installments.'.$index.'.due_at' => 'Datumi rata moraju biti hronološki poređani.']);
+            }
+            $previous = $due;
+
+            $amountCents = (int) round((float) ($row['amount_rsd'] ?? 0) * 100);
+            if ($amountCents <= 0) {
+                throw ValidationException::withMessages(['installments.'.$index.'.amount_rsd' => 'Iznos svake rate mora biti veći od nule.']);
+            }
+            $sumCents += $amountCents;
+            $normalized[] = [
+                'due_at' => $dueText,
+                'amount_rsd' => $amountCents / 100,
+                'note' => 'Direktna prodaja · rata '.($index + 1).'/'.$expectedCount,
+            ];
+        }
+
+        if ($sumCents !== $expectedTotalCents) {
+            throw ValidationException::withMessages([
+                'installments' => 'Zbir rata mora biti jednak ukupnoj vrednosti direktne prodaje.',
+            ]);
+        }
+        if (($normalized[array_key_last($normalized)]['due_at'] ?? '') !== $finalDueAt) {
+            throw ValidationException::withMessages([
+                'payment_due_at' => 'Konačni datum pune isplate mora odgovarati datumu poslednje rate.',
+            ]);
+        }
+
+        return $normalized;
+    }
+
+    /** @param list<array{due_at:string,amount_rsd:float,note:string}> $installments */
+    private function applyCustomDeferredPlanAndFirstPayment(Order $order, User $actor, array $installments, string $firstPaymentMethod): void
+    {
+        $first = $installments[0] ?? null;
+        if (!is_array($first)) {
+            throw ValidationException::withMessages(['installments' => 'Plan odloženog plaćanja nema prvu ratu.']);
+        }
+
+        $fresh = $order->fresh() ?? $order;
+        $case = $this->receivables->ensureForOrder($fresh, $actor);
+        if ($case === null) {
+            throw ValidationException::withMessages(['payment_method' => 'Potraživanje za odloženo plaćanje nije moguće otvoriti.']);
+        }
+
+        $case = $this->receivables->replacePlan($case, $actor, $installments);
+        $firstAmount = round((float) $first['amount_rsd'], 2);
+        $this->payments->record(
+            $fresh->fresh() ?? $fresh,
+            [
+                'entry_type' => 'payment',
+                'amount_rsd' => $firstAmount,
+                'payment_method' => $firstPaymentMethod,
+                'paid_at' => now(),
+                'reference' => 'Prva rata · Direktna prodaja '.$fresh->order_number,
+                'note' => 'Prva rata evidentirana odmah pri direktnoj prodaji.',
+            ],
+            $actor,
+        );
+
+        $case->refresh()->load('installments');
+        $savedFirst = $case->installments->sortBy('sequence_no')->first();
+        if ($savedFirst === null
+            || abs((float) $savedFirst->paid_amount_rsd - $firstAmount) > 0.01
+            || (string) $savedFirst->status !== 'paid') {
+            throw ValidationException::withMessages([
+                'installments.0.amount_rsd' => 'Prva rata nije pravilno povezana sa planom otplate. Direktna prodaja nije sačuvana.',
+            ]);
+        }
+
+        $afterPayment = $fresh->fresh();
+        if (!$afterPayment instanceof Order || abs((float) $afterPayment->paid_total_rsd - $firstAmount) > 0.01) {
+            throw ValidationException::withMessages([
+                'installments.0.amount_rsd' => 'Prva rata nije pravilno evidentirana u finansijskom ledgeru. Direktna prodaja nije sačuvana.',
+            ]);
+        }
+    }
     /**
      * Reconcile the installment plan after idempotent order creation. A retry may repair a
      * missing plan, but it may never silently replace a different existing plan.

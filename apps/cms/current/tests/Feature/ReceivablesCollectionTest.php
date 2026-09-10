@@ -7,11 +7,13 @@ namespace Tests\Feature;
 use App\Models\Order;
 use App\Models\OrderEmailOutbox;
 use App\Models\OrderPayment;
+use App\Models\Product;
 use App\Models\ReceivableCase;
 use App\Models\ReceivableInstallment;
 use App\Models\ReceivablePaymentAllocation;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\DirectSaleService;
 use App\Services\OrderPaymentService;
 use App\Services\ReceivablesService;
 use App\Services\SettingsService;
@@ -130,6 +132,66 @@ final class ReceivablesCollectionTest extends TestCase
         self::assertSame([$payment1->id, $payment2->id, $payment2->id], $allocations->pluck('order_payment_id')->all());
         self::assertSame(['10000.00', '20000.00', '15000.00'], $allocations->pluck('amount_rsd')->map(static fn ($v) => (string) $v)->all());
     }
+    public function test_direct_sale_custom_web_plan_records_first_installment_immediately_and_is_idempotent(): void
+    {
+        $admin = $this->user('direct-sale-custom-admin', 'superadmin');
+        $product = $this->directSaleProduct($admin, 'DIRECT-CUSTOM-1');
+        $service = app(DirectSaleService::class);
+        $input = [
+            'buyer_name' => 'Direktni kupac',
+            'buyer_phone' => '0601234567',
+            'quantity' => 1,
+            'sale_price_rsd' => 100000,
+            'payment_method' => 'deferred_payment',
+            'installment_count' => 3,
+            'payment_due_at' => now()->addMonths(2)->toDateString(),
+            'first_payment_method' => 'cash',
+            'installments' => [
+                ['due_at' => now()->toDateString(), 'amount_rsd' => 30000],
+                ['due_at' => now()->addMonth()->toDateString(), 'amount_rsd' => 30000],
+                ['due_at' => now()->addMonths(2)->toDateString(), 'amount_rsd' => 40000],
+            ],
+        ];
+        $key = 'test-direct-sale-custom-plan';
+
+        $order = $service->record($product, $admin, $input, $key);
+        self::assertSame('30000.00', (string) $order->paid_total_rsd);
+        self::assertSame('partial', (string) $order->payment_state);
+        self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count());
+        self::assertSame('30000.00', (string) OrderPayment::query()->where('order_id', $order->id)->value('amount_rsd'));
+
+        $case = ReceivableCase::query()->where('order_id', $order->id)->firstOrFail();
+        $installments = ReceivableInstallment::query()->where('receivable_case_id', $case->id)->orderBy('sequence_no')->get();
+        self::assertCount(3, $installments);
+        self::assertSame(['30000.00', '30000.00', '40000.00'], $installments->pluck('amount_rsd')->map(static fn ($v) => (string) $v)->all());
+        self::assertSame(['paid', 'pending', 'pending'], $installments->pluck('status')->all());
+        self::assertSame(now()->toDateString(), $installments[0]->paid_at?->toDateString());
+
+        $replay = $service->record($product->fresh(), $admin, $input, $key);
+        self::assertSame($order->id, $replay->id);
+        self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count());
+        self::assertSame(3, ReceivableInstallment::query()->where('receivable_case_id', $case->id)->count());
+    }
+
+    public function test_direct_sale_legacy_deferred_input_keeps_equal_plan_without_initial_payment(): void
+    {
+        $admin = $this->user('direct-sale-legacy-admin', 'superadmin');
+        $product = $this->directSaleProduct($admin, 'DIRECT-LEGACY-1');
+        $order = app(DirectSaleService::class)->record($product, $admin, [
+            'buyer_name' => 'Legacy kupac',
+            'quantity' => 1,
+            'sale_price_rsd' => 90000,
+            'payment_method' => 'deferred_payment',
+            'installment_count' => 3,
+            'payment_due_at' => now()->addMonths(3)->toDateString(),
+        ], 'test-direct-sale-legacy-plan');
+
+        self::assertSame('0.00', (string) $order->paid_total_rsd);
+        self::assertSame('unpaid', (string) $order->payment_state);
+        self::assertSame(0, OrderPayment::query()->where('order_id', $order->id)->count());
+        $case = ReceivableCase::query()->where('order_id', $order->id)->firstOrFail();
+        self::assertSame(3, ReceivableInstallment::query()->where('receivable_case_id', $case->id)->count());
+    }
     public function test_dropdown_and_checkbox_regression_markers_are_present(): void
     {
         $layout = (string) file_get_contents(resource_path('views/layouts/app.blade.php'));
@@ -140,6 +202,21 @@ final class ReceivablesCollectionTest extends TestCase
         self::assertStringContainsString('max-width:17px!important', $css);
     }
 
+    private function directSaleProduct(User $actor, string $sku): Product
+    {
+        return Product::query()->create([
+            'sku' => $sku,
+            'name' => 'Direct Sale Test '.$sku,
+            'slug' => strtolower($sku),
+            'price_amount' => 100000,
+            'price_currency' => 'RSD',
+            'description' => 'Direct sale deferred payment regression product.',
+            'stock_quantity' => 5,
+            'low_stock_threshold' => 1,
+            'status' => 'active',
+            'created_by' => $actor->id,
+        ]);
+    }
     private function user(string $username, string $role): User
     {
         return User::query()->create([

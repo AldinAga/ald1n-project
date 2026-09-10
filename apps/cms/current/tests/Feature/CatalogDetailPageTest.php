@@ -151,6 +151,22 @@ final class CatalogDetailPageTest extends TestCase
             ->assertDontSee('variantMap', false);
     }
 
+    public function test_superadmin_detail_renders_deferred_direct_sale_installment_builder(): void
+    {
+        $user = $this->superadmin();
+        $product = $this->product($user, 'deferred-direct-sale-product');
+
+        $response = $this->actingAs($user)->get('/catalog/'.$product->slug);
+
+        $response->assertOk()
+            ->assertSee('Odloženo plaćanje')
+            ->assertSee('data-direct-sale-deferred-panel', false)
+            ->assertSee('data-direct-sale-installment-count', false)
+            ->assertSee('first_payment_method', false)
+            ->assertSee('installments[0][amount_rsd]', false)
+            ->assertSee('installments[0][due_at]', false)
+            ->assertSee('data-ux-allow-multiple-submit', false);
+    }
     public function test_unknown_slug_returns_not_found_instead_of_server_error(): void
     {
         $response = $this->actingAs($this->superadmin())->get('/catalog/nepostojeci-artikal');
