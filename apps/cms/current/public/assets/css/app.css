@@ -734,3 +734,46 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
 .direct-sale-deferred-panel{grid-column:1/-1;display:grid;gap:16px;margin-top:4px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--panel-2)}
 .direct-sale-deferred-panel[hidden]{display:none!important}.direct-sale-deferred-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.direct-sale-deferred-heading h3{margin:4px 0 7px;font-size:20px}.direct-sale-deferred-heading p{margin:0;max-width:760px;color:var(--muted);line-height:1.55}.direct-sale-deferred-badge{display:inline-flex;align-items:center;min-height:34px;padding:6px 11px;border-radius:999px;border:1px solid rgba(213,139,0,.35);background:rgba(213,139,0,.1);color:var(--amber);font-size:12px;font-weight:900;white-space:nowrap}.direct-sale-deferred-controls{display:grid;grid-template-columns:minmax(120px,.55fr) minmax(210px,1fr) auto;gap:12px;align-items:end}.direct-sale-installments{display:grid;gap:10px}.direct-sale-installment-row{display:grid;grid-template-columns:90px minmax(150px,1fr) minmax(180px,1fr);gap:12px;align-items:end;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}.direct-sale-installment-row>strong{align-self:center}.direct-sale-installment-summary{display:grid;grid-template-columns:auto auto 1fr;gap:10px 14px;align-items:center;padding-top:4px}.direct-sale-installment-summary>span{color:var(--muted);font-size:12px;font-weight:800}.direct-sale-installment-summary>strong{font-size:18px}.direct-sale-installment-summary>small{justify-self:end;color:var(--muted);text-align:right}.direct-sale-installment-summary>small.is-balanced{color:var(--green);font-weight:800}
 @media(max-width:820px){.direct-sale-deferred-heading{flex-direction:column}.direct-sale-deferred-controls{grid-template-columns:1fr}.direct-sale-deferred-controls .button{width:100%}.direct-sale-installment-row{grid-template-columns:1fr 1fr}.direct-sale-installment-row>strong{grid-column:1/-1}.direct-sale-installment-summary{grid-template-columns:1fr}.direct-sale-installment-summary>small{justify-self:start;text-align:left}}
+/* BATCH149G_V2_MOBILE_HEADER_CART_OVERFLOW_HOTFIX
+ * Cart added one more fixed-width quick action to the authenticated phone header.
+ * Keep the main-menu hamburger permanently inside the viewport by prioritising
+ * the phone actions that are not duplicated elsewhere. EUR/RSD remains on the
+ * dashboard/settings and Notifications remain inside the opened main menu.
+ */
+@media (max-width:620px) {
+    .header-primary-row {
+        min-width:0;
+    }
+    .header-primary-row > .brand {
+        flex:0 0 auto;
+    }
+    .header-quick-actions {
+        min-width:0;
+        flex:1 1 auto;
+        justify-content:flex-end;
+        gap:6px;
+    }
+    .header-quick-actions > .rate-badge,
+    .header-quick-actions .notification-header-button {
+        display:none !important;
+    }
+    .header-cart-button,
+    .theme-mode-button,
+    .header-primary-row .user-chip,
+    .header-product-search-toggle,
+    .mobile-menu-toggle {
+        flex:0 0 auto;
+    }
+    .mobile-menu-toggle {
+        order:99;
+    }
+}
+@media (max-width:360px) {
+    .header-primary-row {
+        gap:8px;
+    }
+    .header-quick-actions {
+        gap:4px;
+    }
+}
+/* /BATCH149G_V2_MOBILE_HEADER_CART_OVERFLOW_HOTFIX */
