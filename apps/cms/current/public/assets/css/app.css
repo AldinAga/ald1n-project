@@ -778,13 +778,13 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
 }
 /* /BATCH149G_V2_MOBILE_HEADER_CART_OVERFLOW_HOTFIX */
 
-/* BATCH155_LAPTOP_HEADER_RESPONSIVE_HOTFIX
+/* BATCH155_V3_COMPACT_DESKTOP_HEADER
  * The authenticated business navigation outgrew the old 1250px collapse point.
  * Laptop-class viewports must enter the existing hamburger navigation before
  * top-level labels are forced into narrow flex items and split inside words.
  * Existing <=1250px mobile/tablet composition remains untouched.
  */
-@media (min-width:1251px) and (max-width:1800px) {
+@media (min-width:1251px) and (max-width:1440px) {
     .site-header {
         position:sticky;
     }
@@ -894,7 +894,7 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
         overflow:hidden;
     }
 }
-@media (min-width:1801px) {
+@media (min-width:1441px) {
     .header-secondary-row .main-nav > a,
     .header-secondary-row .nav-dropdown > summary,
     .header-secondary-row .nav-link-content,
@@ -905,4 +905,66 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
         word-break:normal!important;
     }
 }
-/* /BATCH155_LAPTOP_HEADER_RESPONSIVE_HOTFIX */
+/* /BATCH155_V3_COMPACT_DESKTOP_HEADER */
+
+/* BATCH155_V3_DESKTOP_DENSITY
+ * Keep the full desktop navigation visible on laptop-class widths when space allows.
+ * All top-level navigation controls use one compact typographic rhythm and never
+ * split words. The long order-management label is shortened in the Blade layout.
+ */
+@media (min-width:1441px) {
+    .header-secondary-row {
+        padding-left:clamp(12px,1.25vw,22px);
+        padding-right:clamp(12px,1.25vw,22px);
+        gap:10px;
+    }
+    .header-secondary-row .main-nav {
+        flex:1 1 auto;
+        min-width:0;
+        gap:2px;
+    }
+    .header-secondary-row .main-nav > span[data-module-visibility] {
+        min-width:0;
+        flex:0 0 auto;
+    }
+    .header-secondary-row .main-nav > a,
+    .header-secondary-row .main-nav > span[data-module-visibility] > a,
+    .header-secondary-row .main-nav > .nav-dropdown > summary {
+        min-height:40px;
+        padding:8px 6px;
+        font-size:14px;
+        font-weight:600;
+        line-height:1.2;
+        letter-spacing:-.01em;
+        white-space:nowrap!important;
+        overflow-wrap:normal!important;
+        word-break:normal!important;
+    }
+    .header-secondary-row .main-nav > a .nav-link-content,
+    .header-secondary-row .main-nav > span[data-module-visibility] > a .nav-link-content,
+    .header-secondary-row .main-nav > .nav-dropdown > summary > span {
+        gap:5px;
+        white-space:nowrap!important;
+        overflow-wrap:normal!important;
+        word-break:normal!important;
+    }
+    .header-secondary-row .main-nav > a .ui-icon,
+    .header-secondary-row .main-nav > span[data-module-visibility] > a .ui-icon,
+    .header-secondary-row .main-nav > .nav-dropdown > summary .ui-icon {
+        width:18px;
+        height:18px;
+        flex-basis:18px;
+    }
+    .header-secondary-row > .header-logout {
+        margin-left:auto;
+        flex:0 0 auto;
+    }
+    .header-secondary-row > .header-logout .logout-button {
+        height:36px;
+        padding:0 12px;
+        font-size:14px;
+        font-weight:600;
+        line-height:1.2;
+    }
+}
+/* /BATCH155_V3_DESKTOP_DENSITY */

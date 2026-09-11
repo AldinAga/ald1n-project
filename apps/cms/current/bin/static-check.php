@@ -186,7 +186,7 @@ $check('beta1.2 repair migracija je nedestruktivna', str_contains($reportsRepair
 $layout = (string) file_get_contents($root.'/resources/views/layouts/app.blade.php');
 $css = (string) file_get_contents($root.'/public/assets/css/app.css');
 $check('hamburger dugme postoji', str_contains($layout, 'data-mobile-menu-toggle') && str_contains($layout, 'aria-controls="siteHeaderMenu"'));
-$check('mobilni meni ima kontrolni JavaScript', str_contains($layout, 'setMobileMenu') && str_contains($layout, "matchMedia('(max-width: 1800px)')"));
+$check('mobilni meni ima kontrolni JavaScript', str_contains($layout, 'setMobileMenu') && str_contains($layout, "matchMedia('(max-width: 1440px)')"));
 $check('mobilni meni nema horizontalni scroll', str_contains($css, '.site-header.menu-open .header-secondary-row') && str_contains($css, 'overflow-y:auto') && str_contains($css, 'overflow-x:hidden'));
 $check('direktne mobilne stavke koriste zajednički levi wrapper', str_contains($layout, 'class="nav-link-content"') && substr_count($layout, 'class="nav-link-content"') >= 3);
 $check('Početna Provizije i Izveštaji su poravnati ulevo', str_contains($css, '.header-secondary-row .main-nav>a{justify-content:flex-start!important;text-align:left!important}') && str_contains($css, '.header-secondary-row .main-nav>a>.nav-link-content{width:100%;justify-content:flex-start;text-align:left}'));

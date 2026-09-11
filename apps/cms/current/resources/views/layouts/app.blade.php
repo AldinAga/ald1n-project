@@ -194,7 +194,7 @@
 
             @canany(['orders.view_own','orders.manage','after_sales.view_own','after_sales.manage','field_operations.view','service_parts.view','service_parts.procurement','warranties.view_own','warranties.manage'])
             <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('orders.*','cart.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? 'active' : '' }}"><span><x-icon name="orders" />Upravljanje porudžbinama</span></summary>
+                <summary class="{{ request()->routeIs('orders.*','cart.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? 'active' : '' }}"><span><x-icon name="orders" />Porudžbine</span></summary>
                 <div class="nav-dropdown-menu">
                     @can('orders.create')<a href="{{ route('cart.index') }}"><x-icon name="cart" />Korpa @if($headerCartCount > 0)<b class="nav-count">{{ min(99, $headerCartCount) }}</b>@endif</a>@endcan
                     @can('orders.view_own')<a href="{{ route('orders.index') }}"><x-icon name="orders" />Moje porudžbine</a>@endcan
@@ -941,7 +941,7 @@ const loadProductSearch = async (term) => {
     const siteHeader = document.querySelector('[data-site-header]');
     const mobileMenuToggle = document.querySelector('[data-mobile-menu-toggle]');
     const mobileMenu = document.querySelector('[data-mobile-menu]');
-    const mobileMenuQuery = window.matchMedia('(max-width: 1800px)');
+    const mobileMenuQuery = window.matchMedia('(max-width: 1440px)');
     const setMobileMenu = (open) => {
         if (!siteHeader || !mobileMenuToggle || !mobileMenu) return;
         const shouldOpen = Boolean(open && mobileMenuQuery.matches);
@@ -951,7 +951,7 @@ const loadProductSearch = async (term) => {
         mobileMenuToggle.setAttribute('aria-label', shouldOpen ? 'Zatvori glavni meni' : 'Otvori glavni meni');
     };
     const navDropdowns = Array.from(document.querySelectorAll('.nav-dropdown'));
-    const desktopHoverQuery = window.matchMedia('(min-width: 1801px) and (hover: hover) and (pointer: fine)');
+    const desktopHoverQuery = window.matchMedia('(min-width: 1441px) and (hover: hover) and (pointer: fine)');
     const hoverCloseTimers = new WeakMap();
     const clickPinnedDropdowns = new WeakSet();
     const clearDropdownClose = (dropdown) => {
