@@ -777,3 +777,132 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
     }
 }
 /* /BATCH149G_V2_MOBILE_HEADER_CART_OVERFLOW_HOTFIX */
+
+/* BATCH155_LAPTOP_HEADER_RESPONSIVE_HOTFIX
+ * The authenticated business navigation outgrew the old 1250px collapse point.
+ * Laptop-class viewports must enter the existing hamburger navigation before
+ * top-level labels are forced into narrow flex items and split inside words.
+ * Existing <=1250px mobile/tablet composition remains untouched.
+ */
+@media (min-width:1251px) and (max-width:1800px) {
+    .site-header {
+        position:sticky;
+    }
+    .mobile-menu-toggle {
+        display:flex;
+        width:44px;
+        height:44px;
+    }
+    .site-header.menu-open .mobile-menu-toggle span:nth-child(1) {
+        transform:translateY(7px) rotate(45deg);
+    }
+    .site-header.menu-open .mobile-menu-toggle span:nth-child(2) {
+        opacity:0;
+    }
+    .site-header.menu-open .mobile-menu-toggle span:nth-child(3) {
+        transform:translateY(-7px) rotate(-45deg);
+    }
+    .header-secondary-row {
+        display:none;
+        position:absolute;
+        top:100%;
+        left:0;
+        right:0;
+        width:100%;
+        max-height:calc(100vh - 66px);
+        overflow-y:auto;
+        overscroll-behavior:contain;
+        padding:14px 18px 18px;
+        align-items:stretch;
+        flex-direction:column;
+        gap:12px;
+        border-top:1px solid var(--line);
+        border-bottom:1px solid var(--line);
+        background:var(--panel);
+        box-shadow:0 22px 42px rgba(0,0,0,.26);
+    }
+    .site-header.menu-open .header-secondary-row {
+        display:flex;
+    }
+    .header-secondary-row .main-nav {
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        width:100%;
+        min-width:0;
+        gap:6px 10px;
+        overflow:visible;
+        padding:0;
+    }
+    .header-secondary-row .main-nav > a,
+    .header-secondary-row .main-nav > .nav-dropdown,
+    .header-secondary-row .nav-dropdown > summary {
+        width:100%;
+        min-width:0;
+    }
+    .header-secondary-row .main-nav > a,
+    .header-secondary-row .nav-dropdown > summary {
+        min-height:44px;
+        padding:10px 12px;
+        white-space:nowrap!important;
+        overflow-wrap:normal!important;
+        word-break:normal!important;
+    }
+    .header-secondary-row .main-nav > a {
+        justify-content:flex-start!important;
+        text-align:left!important;
+    }
+    .header-secondary-row .nav-link-content,
+    .header-secondary-row .nav-link-content > span,
+    .header-secondary-row .nav-dropdown > summary > span {
+        min-width:0;
+        white-space:nowrap!important;
+        overflow-wrap:normal!important;
+        word-break:normal!important;
+    }
+    .header-secondary-row .nav-dropdown > summary {
+        justify-content:space-between!important;
+    }
+    .header-secondary-row .nav-dropdown-menu {
+        position:static!important;
+        inset:auto!important;
+        width:100%;
+        min-width:0;
+        margin:5px 0 3px;
+        padding:6px;
+        box-shadow:none;
+        background:var(--panel-2);
+    }
+    .header-secondary-row .nav-dropdown-menu a {
+        justify-content:flex-start;
+        white-space:normal;
+    }
+    .header-secondary-row > .mobile-menu-preferences.quick-settings-card {
+        display:none!important;
+    }
+    .header-logout {
+        width:100%;
+        margin:0;
+        padding-top:12px;
+        border-top:1px solid var(--line);
+    }
+    .logout-button {
+        width:100%;
+        height:44px;
+        justify-content:center;
+    }
+    .mobile-menu-open {
+        overflow:hidden;
+    }
+}
+@media (min-width:1801px) {
+    .header-secondary-row .main-nav > a,
+    .header-secondary-row .nav-dropdown > summary,
+    .header-secondary-row .nav-link-content,
+    .header-secondary-row .nav-link-content > span,
+    .header-secondary-row .nav-dropdown > summary > span {
+        white-space:nowrap!important;
+        overflow-wrap:normal!important;
+        word-break:normal!important;
+    }
+}
+/* /BATCH155_LAPTOP_HEADER_RESPONSIVE_HOTFIX */

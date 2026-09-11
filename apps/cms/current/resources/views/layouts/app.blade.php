@@ -941,7 +941,7 @@ const loadProductSearch = async (term) => {
     const siteHeader = document.querySelector('[data-site-header]');
     const mobileMenuToggle = document.querySelector('[data-mobile-menu-toggle]');
     const mobileMenu = document.querySelector('[data-mobile-menu]');
-    const mobileMenuQuery = window.matchMedia('(max-width: 1250px)');
+    const mobileMenuQuery = window.matchMedia('(max-width: 1800px)');
     const setMobileMenu = (open) => {
         if (!siteHeader || !mobileMenuToggle || !mobileMenu) return;
         const shouldOpen = Boolean(open && mobileMenuQuery.matches);
@@ -951,7 +951,7 @@ const loadProductSearch = async (term) => {
         mobileMenuToggle.setAttribute('aria-label', shouldOpen ? 'Zatvori glavni meni' : 'Otvori glavni meni');
     };
     const navDropdowns = Array.from(document.querySelectorAll('.nav-dropdown'));
-    const desktopHoverQuery = window.matchMedia('(min-width: 1251px) and (hover: hover) and (pointer: fine)');
+    const desktopHoverQuery = window.matchMedia('(min-width: 1801px) and (hover: hover) and (pointer: fine)');
     const hoverCloseTimers = new WeakMap();
     const clickPinnedDropdowns = new WeakSet();
     const clearDropdownClose = (dropdown) => {
