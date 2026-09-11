@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
@@ -8,24 +9,26 @@ import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { SegmentedChoice } from '@/components/ui/segmented-choice';
 import { spacing, typography, type AppColors } from '@/constants/theme';
+import { apiAdminExchangeRate } from '@/features/admin/exchange-rate-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import {
   useAppPreferences,
   type AppThemeMode,
-  type PrimaryCurrency,
+  type PriceDisplayMode,
 } from '@/features/preferences/app-preferences';
 import { useThemedStyles } from '@/theme/app-theme';
 
 export default function AccountPreferencesScreen() {
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
-  const { bootstrap } = useAuth();
+  const { bootstrap, can, refreshBootstrap } = useAuth();
   const {
     themeMode,
-    primaryCurrency,
+    priceDisplayMode,
     setThemeMode,
-    setPrimaryCurrency,
+    setPriceDisplayMode,
   } = useAppPreferences();
+  const [refreshingRate, setRefreshingRate] = useState(false);
 
   const applyThemeMode = (value: string) => {
     void setThemeMode(value as AppThemeMode).catch(() => {
@@ -37,21 +40,46 @@ export default function AccountPreferencesScreen() {
     });
   };
 
-  const applyPrimaryCurrency = (value: string) => {
-    void setPrimaryCurrency(value as PrimaryCurrency).catch(() => {
+  const applyPriceDisplayMode = (value: string) => {
+    void setPriceDisplayMode(value as PriceDisplayMode).catch(() => {
       feedback.notify({
         tone: 'danger',
-        title: 'Valuta nije sačuvana',
-        message: 'Lokalno podešavanje primarne valute trenutno nije moguće sačuvati.',
+        title: 'Prikaz cene nije sačuvan',
+        message: 'Lokalno podešavanje valute prikaza trenutno nije moguće sačuvati.',
       });
     });
   };
 
   const currencyContract = bootstrap?.app.currency;
+  const canRefreshRate = can('system.manage_settings');
+
+  const refreshRate = async () => {
+    if (!canRefreshRate || refreshingRate) return;
+    setRefreshingRate(true);
+    try {
+      const response = await apiAdminExchangeRate.refresh();
+      await refreshBootstrap();
+      const rate = response.data.configuration.rate;
+      feedback.notify({
+        tone: 'success',
+        title: 'EUR/RSD kurs je ažuriran',
+        message: rate ? `Aktuelni kurs: ${rate.toFixed(2)} RSD` : 'Kurs je sinhronizovan.',
+      });
+    } catch (error) {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Kurs nije ažuriran',
+        message: error instanceof Error && error.message ? error.message : 'Automatska sinhronizacija trenutno nije dostupna.',
+      });
+    } finally {
+      setRefreshingRate(false);
+    }
+  };
 
   return (
     <Screen>
       {/* MOBILE_V1_0_ACCOUNT_HUB_PREFERENCES_BATCH81 */}
+      {/* MOBILE_LARAVEL_APK_PARITY_BATCH151_V4 */}
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
         <Text style={styles.back}>‹ Nalog</Text>
       </Pressable>
@@ -65,11 +93,16 @@ export default function AccountPreferencesScreen() {
             Sistem prati Android temu; Svetla i Tamna ostaju ručno izabrane.
           </Text>
           <SegmentedChoice
-            accessibilityLabel="Tema aplikacije"
+            accessibilityLabel="Sistemska tema aplikacije"
+            value={themeMode}
+            onChange={applyThemeMode}
+            options={[{ value: 'system', label: 'Sistem' }]}
+          />
+          <SegmentedChoice
+            accessibilityLabel="Ručna tema aplikacije"
             value={themeMode}
             onChange={applyThemeMode}
             options={[
-              { value: 'system', label: 'Sistem' },
               { value: 'light', label: 'Svetla' },
               { value: 'dark', label: 'Tamna' },
             ]}
@@ -77,14 +110,20 @@ export default function AccountPreferencesScreen() {
         </View>
 
         <View style={styles.preferenceBlock}>
-          <Text style={styles.preferenceLabel}>Primarna valuta prikaza</Text>
+          <Text style={styles.preferenceLabel}>Valuta prikaza</Text>
           <Text style={styles.preferenceHint}>
-            Menja samo prikaz. Porudžbine, uplate i dokumenti ostaju u canonical poslovnim valutama.
+            Izvorno zadržava valutu sačuvanu na artiklu. RSD i EUR samo preračunavaju prikaz; poslovni zapisi i dokumenti se ne menjaju.
           </Text>
           <SegmentedChoice
-            accessibilityLabel="Primarna valuta prikaza"
-            value={primaryCurrency}
-            onChange={applyPrimaryCurrency}
+            accessibilityLabel="Izvorna valuta prikaza"
+            value={priceDisplayMode}
+            onChange={applyPriceDisplayMode}
+            options={[{ value: 'source', label: 'Izvorno' }]}
+          />
+          <SegmentedChoice
+            accessibilityLabel="Preračunata valuta prikaza"
+            value={priceDisplayMode}
+            onChange={applyPriceDisplayMode}
             options={[
               { value: 'RSD', label: 'RSD' },
               { value: 'EUR', label: 'EUR' },
@@ -93,24 +132,38 @@ export default function AccountPreferencesScreen() {
         </View>
       </Card>
 
-      <Card style={styles.rateCard}>
-        <View style={styles.rateTop}>
-          <Text style={styles.rateLabel}>
-            NBS · {currencyContract?.rate_label ?? 'Komercijalni prodajni'}
+      <Pressable
+        accessibilityRole={canRefreshRate ? 'button' : undefined}
+        accessibilityLabel={canRefreshRate ? 'Ažuriraj EUR RSD kurs' : undefined}
+        accessibilityState={{ disabled: !canRefreshRate, busy: refreshingRate }}
+        disabled={!canRefreshRate || refreshingRate}
+        onPress={() => void refreshRate()}
+        style={({ pressed }) => [styles.ratePressable, pressed && canRefreshRate ? styles.ratePressed : null]}
+      >
+        <Card style={styles.rateCard}>
+          <View style={styles.rateTop}>
+            <Text style={styles.rateLabel}>
+              NBS · {currencyContract?.rate_label ?? 'Komercijalni prodajni'}
+            </Text>
+            <Pill tone={currencyContract?.is_stale ? 'warning' : 'success'}>
+              {refreshingRate ? 'Ažuriranje…' : currencyContract?.is_stale ? 'Poslednji kurs' : 'Aktuelno'}
+            </Pill>
+          </View>
+          <Text style={styles.rateValue}>
+            {currencyContract?.eur_rsd_rate
+              ? `1 EUR = ${currencyContract.eur_rsd_rate.toFixed(2)} RSD`
+              : 'Kurs trenutno nije dostupan za konverziju prikaza'}
           </Text>
-          <Pill tone={currencyContract?.is_stale ? 'warning' : 'success'}>
-            {currencyContract?.is_stale ? 'Poslednji kurs' : 'Aktuelno'}
-          </Pill>
-        </View>
-        <Text style={styles.rateValue}>
-          {currencyContract?.eur_rsd_rate
-            ? `1 EUR = ${currencyContract.eur_rsd_rate.toFixed(4)} RSD`
-            : 'Kurs trenutno nije dostupan za konverziju prikaza'}
-        </Text>
-        {currencyContract?.provider_date ? (
-          <Text style={styles.preferenceHint}>Datum kursa: {currencyContract.provider_date}</Text>
-        ) : null}
-      </Card>
+          {currencyContract?.provider_date ? (
+            <Text style={styles.preferenceHint}>Datum kursa: {currencyContract.provider_date}</Text>
+          ) : null}
+          <Text style={styles.preferenceHint}>
+            {canRefreshRate
+              ? 'Dodirni karticu kursa za automatsko ažuriranje.'
+              : 'Automatsko ažuriranje kursa je dostupno korisnicima sa sistemskom dozvolom.'}
+          </Text>
+        </Card>
+      </Pressable>
     </Screen>
   );
 }
@@ -123,6 +176,8 @@ function createStyles(theme: AppColors) {
     preferenceBlock: { gap: spacing.sm },
     preferenceLabel: { ...typography.label, color: theme.ink },
     preferenceHint: { ...typography.small, color: theme.muted },
+    ratePressable: { borderRadius: 18 },
+    ratePressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
     rateCard: { gap: spacing.sm },
     rateTop: {
       flexDirection: 'row',

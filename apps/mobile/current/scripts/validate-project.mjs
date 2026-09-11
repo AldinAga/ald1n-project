@@ -2126,9 +2126,14 @@ assert(
 assert(
   directSaleDeferredScreenV09.includes('Plan odloženog plaćanja')
     && directSaleDeferredScreenV09.includes('installmentCount')
-    && directSaleDeferredScreenV09.includes('paymentDueAt')
-    && directSaleDeferredScreenV09.includes('validIsoDateOnOrAfterToday'),
-  'v0.9 Direct Sale ekran prikazuje uslovni plan rata i konačni datum pune isplate.',
+    && directSaleDeferredScreenV09.includes('installmentRows')
+    && directSaleDeferredScreenV09.includes('firstPaymentMethod')
+    && directSaleDeferredScreenV09.includes('splitInstallmentsEvenly')
+    && directSaleDeferredScreenV09.includes('validIsoDateOnOrAfterToday')
+    && directSaleDeferredScreenV09.includes('payment_due_at: deferred ? finalDueAt : undefined')
+    && directSaleDeferredScreenV09.includes('first_payment_method: deferred ? firstPaymentMethod : undefined')
+    && directSaleDeferredScreenV09.includes('Rasporedi iznos ravnomerno'),
+  'v0.9/Batch151 Direct Sale ekran prikazuje custom plan rata, prvu ratu odmah i konačni datum pune isplate.',
 );
 assert(
   directSaleDeferredOpenApiV09.includes('enum: [cash, card, bank_transfer, other, deferred_payment]')
@@ -3139,20 +3144,22 @@ const receivablesDetailUxBatch88 = fs.readFileSync(
 );
 assert(
   receivablesDetailUxBatch88.includes('MOBILE_V1_0_ADMIN_RECEIVABLES_DETAIL_UX_REORGANIZATION_BATCH88')
-    && receivablesDetailUxBatch88.includes("type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'communication' | 'reminders' | 'audit'")
+    && receivablesDetailUxBatch88.includes("type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'payments' | 'communication' | 'reminders' | 'audit'")
     && receivablesDetailUxBatch88.includes('Radni prostor naplate')
     && receivablesDetailUxBatch88.includes("label: 'Pregled'")
     && receivablesDetailUxBatch88.includes("label: 'Predmet'")
     && receivablesDetailUxBatch88.includes("label: 'Plan otplate'")
+    && receivablesDetailUxBatch88.includes("label: 'Uplate'")
     && receivablesDetailUxBatch88.includes("label: 'Komunikacija'")
     && receivablesDetailUxBatch88.includes("label: 'Opomene'")
     && receivablesDetailUxBatch88.includes("label: 'Audit'")
     && receivablesDetailUxBatch88.includes("workspace === 'case'")
     && receivablesDetailUxBatch88.includes("workspace === 'plan'")
+    && receivablesDetailUxBatch88.includes("workspace === 'payments'")
     && receivablesDetailUxBatch88.includes("workspace === 'communication'")
     && receivablesDetailUxBatch88.includes("workspace === 'reminders'")
     && receivablesDetailUxBatch88.includes("workspace === 'audit'"),
-  'v1.0 Batch88 Admin Receivables detail is organized into overview, case, plan, communication, reminders and audit workspaces.',
+  'v1.0 Batch88 Admin Receivables detail is organized into overview, case, plan, payments, communication, reminders and audit workspaces.',
 );
 assert(
   receivablesDetailUxBatch88.includes("can('receivables.manage')")

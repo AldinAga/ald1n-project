@@ -17,9 +17,11 @@ import {
 
 export type AppThemeMode = 'system' | 'light' | 'dark';
 export type PrimaryCurrency = 'RSD' | 'EUR';
+export type PriceDisplayMode = 'source' | PrimaryCurrency;
 
 type AppPreferences = {
   themeMode: AppThemeMode;
+  priceDisplayMode: PriceDisplayMode;
   primaryCurrency: PrimaryCurrency;
 };
 
@@ -27,11 +29,13 @@ type AppPreferencesContextValue = AppPreferences & {
   hydrated: boolean;
   userId: number | null;
   setThemeMode: (mode: AppThemeMode) => Promise<void>;
+  setPriceDisplayMode: (mode: PriceDisplayMode) => Promise<void>;
   setPrimaryCurrency: (currency: PrimaryCurrency) => Promise<void>;
 };
 
 const DEFAULT_PREFERENCES: AppPreferences = {
   themeMode: 'system',
+  priceDisplayMode: 'source',
   primaryCurrency: 'RSD',
 };
 
@@ -63,9 +67,11 @@ export function AppPreferencesProvider({
     void getUserAppPreferences(userId)
       .then((stored) => {
         if (!active) return;
+        const mode = stored?.price_display_mode ?? stored?.primary_currency ?? 'source';
         const next = stored ? {
           themeMode: stored.theme_mode,
-          primaryCurrency: stored.primary_currency,
+          priceDisplayMode: mode,
+          primaryCurrency: mode === 'EUR' ? 'EUR' as const : 'RSD' as const,
         } : DEFAULT_PREFERENCES;
         setPreferences(next);
         preferencesRef.current = next;
@@ -81,14 +87,13 @@ export function AppPreferencesProvider({
     if (!userId) return;
     const stored: StoredAppPreferences = {
       theme_mode: next.themeMode,
+      price_display_mode: next.priceDisplayMode,
       primary_currency: next.primaryCurrency,
     };
     await setUserAppPreferences(userId, stored);
   }, [userId]);
 
-  const setThemeMode = useCallback(async (mode: AppThemeMode) => {
-    const previous = preferencesRef.current;
-    const next = { ...previous, themeMode: mode };
+  const commitPreferences = useCallback(async (next: AppPreferences, previous: AppPreferences) => {
     setPreferences(next);
     preferencesRef.current = next;
     try {
@@ -100,27 +105,30 @@ export function AppPreferencesProvider({
     }
   }, [persist]);
 
+  const setThemeMode = useCallback(async (mode: AppThemeMode) => {
+    const previous = preferencesRef.current;
+    await commitPreferences({ ...previous, themeMode: mode }, previous);
+  }, [commitPreferences]);
+
+  const setPriceDisplayMode = useCallback(async (mode: PriceDisplayMode) => {
+    const previous = preferencesRef.current;
+    const primaryCurrency = mode === 'source' ? previous.primaryCurrency : mode;
+    await commitPreferences({ ...previous, priceDisplayMode: mode, primaryCurrency }, previous);
+  }, [commitPreferences]);
+
   const setPrimaryCurrency = useCallback(async (currency: PrimaryCurrency) => {
     const previous = preferencesRef.current;
-    const next = { ...previous, primaryCurrency: currency };
-    setPreferences(next);
-    preferencesRef.current = next;
-    try {
-      await persist(next);
-    } catch (error) {
-      setPreferences(previous);
-      preferencesRef.current = previous;
-      throw error;
-    }
-  }, [persist]);
+    await commitPreferences({ ...previous, priceDisplayMode: currency, primaryCurrency: currency }, previous);
+  }, [commitPreferences]);
 
   const value = useMemo(() => ({
     ...preferences,
     hydrated,
     userId,
     setThemeMode,
+    setPriceDisplayMode,
     setPrimaryCurrency,
-  }), [hydrated, preferences, setPrimaryCurrency, setThemeMode, userId]);
+  }), [hydrated, preferences, setPriceDisplayMode, setPrimaryCurrency, setThemeMode, userId]);
 
   return <AppPreferencesContext.Provider value={value}>{children}</AppPreferencesContext.Provider>;
 }

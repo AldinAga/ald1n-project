@@ -14,7 +14,9 @@ import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import {
   apiAdminCatalog,
+  type AdminDirectSaleImmediatePaymentMethod,
   type AdminDirectSaleInput,
+  type AdminDirectSaleInstallment,
   type AdminDirectSalePaymentMethod,
 } from '@/features/admin/catalog-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -54,6 +56,32 @@ function moneyRsd(value: number): string {
   return `${new Intl.NumberFormat('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} RSD`;
 }
 
+type InstallmentDraft = { amount: string; dueAt: string };
+
+function localIsoDate(date: Date): string {
+  return `${date.getFullYear().toString().padStart(4, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+}
+
+function localTodayIso(): string {
+  return localIsoDate(new Date());
+}
+
+function defaultInstallmentDueAt(index: number): string {
+  if (index <= 0) return localTodayIso();
+  const now = new Date();
+  const firstOfTarget = new Date(now.getFullYear(), now.getMonth() + index, 1, 12, 0, 0, 0);
+  const lastDay = new Date(firstOfTarget.getFullYear(), firstOfTarget.getMonth() + 1, 0).getDate();
+  firstOfTarget.setDate(Math.min(now.getDate(), lastDay));
+  return localIsoDate(firstOfTarget);
+}
+
+function buildInstallmentDrafts(count: number, current: InstallmentDraft[] = []): InstallmentDraft[] {
+  return Array.from({ length: count }, (_, index) => current[index] ?? {
+    amount: '',
+    dueAt: defaultInstallmentDueAt(index),
+  });
+}
+
 function validIsoDateOnOrAfterToday(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   if (!match) return false;
@@ -62,9 +90,7 @@ function validIsoDateOnOrAfterToday(value: string): boolean {
   const day = Number(match[3]);
   const candidate = new Date(Date.UTC(year, month - 1, day));
   if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) return false;
-  const now = new Date();
-  const today = `${now.getFullYear().toString().padStart(4, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-  return value.trim() >= today;
+  return value.trim() >= localTodayIso();
 }
 
 // MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21
@@ -87,8 +113,9 @@ export default function AdminProductDirectSaleScreen() {
   const [quantity, setQuantity] = useState('1');
   const [salePriceRsd, setSalePriceRsd] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<AdminDirectSalePaymentMethod> ('cash');
-  const [installmentCount, setInstallmentCount] = useState('1');
-  const [paymentDueAt, setPaymentDueAt] = useState('');
+  const [installmentCount, setInstallmentCount] = useState('3');
+  const [firstPaymentMethod, setFirstPaymentMethod] = useState<AdminDirectSaleImmediatePaymentMethod> ('cash');
+  const [installmentRows, setInstallmentRows] = useState<InstallmentDraft[]> (() => buildInstallmentDrafts(3));
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [errors, setErrors] = useState<Record<string, string>> ({});
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -156,6 +183,44 @@ export default function AdminProductDirectSaleScreen() {
   const parsedQuantity = positiveInteger(quantity);
   const parsedPrice = positiveDecimal(salePriceRsd);
   const total = parsedQuantity !== null && parsedPrice !== null ? parsedQuantity * parsedPrice : null;
+  const expectedInstallmentCents = total !== null ? Math.round(total * 100) : null;
+  const installmentTotalCents = installmentRows.reduce((sum, row) => {
+    const amount = positiveDecimal(row.amount);
+    return sum + (amount === null ? 0 : Math.round(amount * 100));
+  }, 0);
+  const installmentDeltaCents = expectedInstallmentCents === null ? null : expectedInstallmentCents - installmentTotalCents;
+
+  const updateInstallmentCount = (value: string) => {
+    setInstallmentCount(value);
+    const parsed = positiveInteger(value);
+    if (parsed !== null && parsed <= 24) {
+      setInstallmentRows((current) => buildInstallmentDrafts(parsed, current));
+    }
+  };
+
+  const updateInstallmentRow = (index: number, patch: Partial<InstallmentDraft>) => {
+    setInstallmentRows((current) => current.map((row, rowIndex) => (
+      rowIndex === index ? { ...row, ...patch } : row
+    )));
+  };
+
+  const splitInstallmentsEvenly = () => {
+    const count = positiveInteger(installmentCount);
+    if (expectedInstallmentCents === null || count === null || count > 24 || expectedInstallmentCents < count) {
+      feedback.notify({ tone: 'warning', title: 'Unesi cenu i broj rata', message: 'Ukupna prodaja i broj rata moraju biti validni pre raspodele.' });
+      return;
+    }
+    const base = Math.floor(expectedInstallmentCents / count);
+    let remainder = expectedInstallmentCents % count;
+    setInstallmentRows((current) => buildInstallmentDrafts(count, current).map((row, index) => {
+      const cents = base + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder -= 1;
+      return {
+        amount: (cents / 100).toFixed(2),
+        dueAt: index === 0 ? localTodayIso() : (row.dueAt || defaultInstallmentDueAt(index)),
+      };
+    }));
+  };
 
   const prepareSubmission = () => {
     const nextErrors: Record<string, string> = {};
@@ -165,14 +230,64 @@ export default function AdminProductDirectSaleScreen() {
     if (qty === null || qty > 1000) nextErrors.quantity = 'Količina mora biti ceo broj između 1 i 1000.';
     else if (qty > options.product.stock_quantity) nextErrors.quantity = 'Količina je veća od raspoloživog lagera.';
     if (price === null) nextErrors.sale_price_rsd = 'Prodajna cena mora biti veća od nule.';
+
     const deferred = paymentMethod === 'deferred_payment';
-    const installments = deferred ? positiveInteger(installmentCount) : null;
-    if (deferred && (installments === null || installments > 24)) nextErrors.installment_count = 'Broj rata mora biti ceo broj između 1 i 24.';
-    if (deferred && !validIsoDateOnOrAfterToday(paymentDueAt)) nextErrors.payment_due_at = 'Unesi današnji ili budući datum u formatu YYYY-MM-DD.';
+    const count = deferred ? positiveInteger(installmentCount) : null;
+    let normalizedInstallments: AdminDirectSaleInstallment[] | undefined;
+    let finalDueAt: string | undefined;
+
+    if (deferred && (count === null || count > 24)) {
+      nextErrors.installment_count = 'Broj rata mora biti ceo broj između 1 i 24.';
+    } else if (deferred && count !== null) {
+      if (installmentRows.length !== count) {
+        nextErrors.installment_count = 'Broj redova rata mora odgovarati izabranom broju rata.';
+      } else {
+        const today = localTodayIso();
+        let previousDue = '';
+        let sumCents = 0;
+        const rows: AdminDirectSaleInstallment[] = [];
+
+        installmentRows.forEach((row, index) => {
+          const amount = positiveDecimal(row.amount);
+          const dueAt = index === 0 ? today : row.dueAt.trim();
+          if (amount === null) {
+            nextErrors[`installments.${index}.amount_rsd`] = 'Iznos rate mora biti veći od nule.';
+          }
+          if (!validIsoDateOnOrAfterToday(dueAt)) {
+            nextErrors[`installments.${index}.due_at`] = 'Datum rate mora biti današnji ili budući datum.';
+          } else if (index === 0 && dueAt !== today) {
+            nextErrors[`installments.${index}.due_at`] = 'Prva rata mora biti današnja.';
+          } else if (previousDue && dueAt < previousDue) {
+            nextErrors[`installments.${index}.due_at`] = 'Datumi rata moraju biti hronološki poređani.';
+          }
+          if (amount !== null) sumCents += Math.round(amount * 100);
+          if (dueAt) previousDue = dueAt;
+          if (amount !== null && validIsoDateOnOrAfterToday(dueAt)) {
+            rows.push({ amount_rsd: amount, due_at: dueAt });
+          }
+        });
+
+        const expectedCents = price !== null && qty !== null ? Math.round(price * qty * 100) : null;
+        if (expectedCents !== null && sumCents !== expectedCents) {
+          nextErrors.installments = 'Zbir rata mora biti jednak ukupnoj vrednosti direktne prodaje.';
+        }
+        if (rows.length === count && !nextErrors.installments) {
+          normalizedInstallments = rows;
+          finalDueAt = rows[rows.length - 1]?.due_at;
+        }
+      }
+    }
+
     if (!idempotencyKey) nextErrors.idempotency_key = 'Idempotency ključ nije spreman. Osveži ekran.';
 
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0 || qty === null || price === null || !idempotencyKey || (deferred && installments === null)) {
+    if (
+      Object.keys(nextErrors).length > 0
+      || qty === null
+      || price === null
+      || !idempotencyKey
+      || (deferred && (count === null || !normalizedInstallments || !finalDueAt))
+    ) {
       feedback.notify({ tone: 'warning', title: 'Proveri podatke prodaje', message: 'Ispravi označena polja i pokušaj ponovo.' });
       return;
     }
@@ -183,8 +298,10 @@ export default function AdminProductDirectSaleScreen() {
       quantity: qty,
       sale_price_rsd: price,
       payment_method: paymentMethod,
-      installment_count: deferred && installments !== null ? installments : undefined,
-      payment_due_at: deferred ? paymentDueAt.trim() : undefined,
+      installment_count: deferred && count !== null ? count : undefined,
+      payment_due_at: deferred ? finalDueAt : undefined,
+      installments: deferred ? normalizedInstallments : undefined,
+      first_payment_method: deferred ? firstPaymentMethod : undefined,
       idempotency_key: idempotencyKey,
     });
     setConfirmOpen(true);
@@ -286,21 +403,64 @@ export default function AdminProductDirectSaleScreen() {
         {paymentMethod === 'deferred_payment' ? (
           <Card muted style={styles.deferredCard}>
             <Text style={styles.sectionTitle}>Plan odloženog plaćanja</Text>
+            <Text style={styles.help}>
+              Podrazumevano su 3 rate. Iznos i datum svake rate možeš menjati; prva rata je obavezno današnja i server je odmah evidentira kao stvarnu uplatu.
+            </Text>
             <TextField
               label="Broj rata"
               value={installmentCount}
-              onChangeText={setInstallmentCount}
+              onChangeText={updateInstallmentCount}
               keyboardType="number-pad"
               error={errors.installment_count}
             />
-            <TextField
-              label="Konačni datum pune uplate (YYYY-MM-DD)"
-              value={paymentDueAt}
-              onChangeText={setPaymentDueAt}
-              placeholder="2026-12-31"
-              error={errors.payment_due_at}
+            <SelectSheet
+              label="Način plaćanja prve rate"
+              value={firstPaymentMethod}
+              options={[
+                { value: 'cash', label: 'Gotovina' },
+                { value: 'card', label: 'Kartica' },
+                { value: 'bank_transfer', label: 'Bankovni prenos' },
+                { value: 'other', label: 'Ostalo' },
+              ]}
+              onChange={(value) => {
+                if (value === 'cash' || value === 'card' || value === 'bank_transfer' || value === 'other') setFirstPaymentMethod(value);
+              }}
             />
-            <Text style={styles.help}>Server kreira 1–24 rate kroz postojeći Receivables sistem; poslednja rata dospeva tačno na izabrani konačni datum.</Text>
+            <Button variant="secondary" onPress={splitInstallmentsEvenly}>
+              Rasporedi iznos ravnomerno
+            </Button>
+            {installmentRows.map((row, index) => (
+              <View key={`installment-${index}`} style={styles.installmentRow}>
+                <Text style={styles.installmentTitle}>Rata {index + 1}</Text>
+                <TextField
+                  label="Iznos rate (RSD)"
+                  value={row.amount}
+                  onChangeText={(value) => updateInstallmentRow(index, { amount: value })}
+                  keyboardType="decimal-pad"
+                  error={errors[`installments.${index}.amount_rsd`]}
+                />
+                <TextField
+                  label={index === 0 ? 'Datum dospeća · prva rata danas' : 'Datum dospeća (YYYY-MM-DD)'}
+                  value={index === 0 ? localTodayIso() : row.dueAt}
+                  onChangeText={(value) => updateInstallmentRow(index, { dueAt: value })}
+                  disabled={index === 0}
+                  placeholder={defaultInstallmentDueAt(index)}
+                  error={errors[`installments.${index}.due_at`]}
+                />
+              </View>
+            ))}
+            {errors.installments ? <Text style={styles.inlineError}>{errors.installments}</Text> : null}
+            <View style={styles.installmentSummary}>
+              <Text style={styles.totalLabel}>Ukupno po ratama</Text>
+              <Text style={styles.installmentSummaryValue}>{moneyRsd(installmentTotalCents / 100)}</Text>
+              <Text style={[styles.help, installmentDeltaCents === 0 ? styles.balanced : null]}>
+                {expectedInstallmentCents === null
+                  ? 'Unesi cenu i količinu, zatim rasporedi iznos.'
+                  : installmentDeltaCents === 0
+                    ? 'Plan je usklađen sa ukupnom prodajom.'
+                    : `Razlika do ukupne prodaje: ${moneyRsd((installmentDeltaCents ?? 0) / 100)}`}
+              </Text>
+            </View>
           </Card>
         ) : null}
       </View>
@@ -329,7 +489,7 @@ export default function AdminProductDirectSaleScreen() {
         visible={confirmOpen}
         title="Potvrdi direktnu prodaju"
         message={pendingPayload
-          ? `Evidentira se ${pendingPayload.quantity} kom. po ${moneyRsd(pendingPayload.sale_price_rsd)}.${pendingPayload.payment_method === 'deferred_payment' ? ` Plan: ${pendingPayload.installment_count} rata, puna isplata do ${pendingPayload.payment_due_at}.` : ''} Lager će odmah biti umanjen.`
+          ? `Evidentira se ${pendingPayload.quantity} kom. po ${moneyRsd(pendingPayload.sale_price_rsd)}.${pendingPayload.payment_method === 'deferred_payment' ? ` Plan: ${pendingPayload.installment_count} rata, prva rata ${pendingPayload.installments?.[0] ? moneyRsd(pendingPayload.installments[0].amount_rsd) : '—'} odmah, puna isplata do ${pendingPayload.payment_due_at}.` : ''} Lager će odmah biti umanjen.`
           : 'Proveri podatke prodaje.'}
         confirmLabel="Potvrdi prodaju"
         cancelLabel="Odustani"
@@ -360,6 +520,11 @@ function createStyles(theme: AppColors) {
     sectionTitle: { ...typography.h3, color: theme.ink },
     help: { ...typography.small, color: theme.muted },
     deferredCard: { gap: spacing.md },
+    installmentRow: { gap: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
+    installmentTitle: { ...typography.label, color: theme.ink },
+    installmentSummary: { gap: spacing.xs, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
+    installmentSummaryValue: { ...typography.h3, color: theme.primary },
+    balanced: { color: theme.success },
     totalCard: { gap: spacing.xs },
     totalLabel: { ...typography.label, color: theme.muted },
     totalValue: { ...typography.h2, color: theme.primary },

@@ -195,6 +195,8 @@ export type AdminPurchaseCostMutationResponse = {
 // MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10
 // MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
 export type AdminDirectSalePaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'other' | 'deferred_payment';
+export type AdminDirectSaleImmediatePaymentMethod = Exclude<AdminDirectSalePaymentMethod, 'deferred_payment'>;
+export type AdminDirectSaleInstallment = { due_at: string; amount_rsd: number };
 
 export type AdminDirectSaleOptions = {
   product: {
@@ -222,6 +224,8 @@ export type AdminDirectSaleInput = {
   payment_method: AdminDirectSalePaymentMethod;
   installment_count?: number;
   payment_due_at?: string;
+  installments?: AdminDirectSaleInstallment[];
+  first_payment_method?: AdminDirectSaleImmediatePaymentMethod;
   idempotency_key: string;
 };
 

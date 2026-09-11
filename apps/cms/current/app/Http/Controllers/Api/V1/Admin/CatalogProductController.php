@@ -368,6 +368,10 @@ final class CatalogProductController extends Controller
             'payment_method' => ['required', \Illuminate\Validation\Rule::in(['cash', 'card', 'bank_transfer', 'other', 'deferred_payment'])],
             'installment_count' => ['exclude_unless:payment_method,deferred_payment', 'required_if:payment_method,deferred_payment', 'integer', 'min:1', 'max:24'],
             'payment_due_at' => ['exclude_unless:payment_method,deferred_payment', 'required_if:payment_method,deferred_payment', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'installments' => ['exclude_unless:payment_method,deferred_payment', 'nullable', 'array', 'min:1', 'max:24'],
+            'installments.*.amount_rsd' => ['required_with:installments', 'numeric', 'min:0.01', 'max:9999999999.99'],
+            'installments.*.due_at' => ['required_with:installments', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'first_payment_method' => ['exclude_unless:payment_method,deferred_payment', 'required_with:installments', \Illuminate\Validation\Rule::in(['cash', 'card', 'bank_transfer', 'other'])],
             'idempotency_key' => ['required', 'string', 'max:200'],
         ]);
 

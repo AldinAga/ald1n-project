@@ -284,7 +284,12 @@ final class ProductRequest extends FormRequest
     private function isExplicitWebDraftSave(): bool
     {
         $routeName = $this->route()?->getName();
-        return in_array($routeName, ['admin.products.store', 'admin.products.update'], true)
+        return in_array($routeName, [
+            'admin.products.store',
+            'admin.products.update',
+            'api.v1.admin.catalog.products.store',
+            'api.v1.admin.catalog.products.update',
+        ], true)
             && $this->boolean('save_draft');
     }
 

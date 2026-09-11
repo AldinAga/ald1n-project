@@ -1,16 +1,20 @@
 import { useCallback } from 'react';
 
 import { useAuth } from '@/features/auth/auth-provider';
-import { useAppPreferences, type PrimaryCurrency } from '@/features/preferences/app-preferences';
+import {
+  useAppPreferences,
+  type PriceDisplayMode,
+} from '@/features/preferences/app-preferences';
 import { formatMoney } from '@/lib/formatters';
 
 export function convertPresentationAmount(
   amount: number,
   sourceCurrency: string,
-  targetCurrency: PrimaryCurrency,
+  targetCurrency: PriceDisplayMode,
   eurRsdRate: number | null,
 ): { amount: number; currency: string; converted: boolean } {
   const source = sourceCurrency.toUpperCase();
+  if (targetCurrency === 'source') return { amount, currency: source, converted: false };
   if (source === targetCurrency) return { amount, currency: source, converted: false };
   if (!eurRsdRate || !Number.isFinite(eurRsdRate) || eurRsdRate <= 0) {
     return { amount, currency: source, converted: false };
@@ -26,16 +30,17 @@ export function convertPresentationAmount(
 
 export function useMoneyPresentation() {
   const { bootstrap } = useAuth();
-  const { primaryCurrency } = useAppPreferences();
+  const { priceDisplayMode, primaryCurrency } = useAppPreferences();
   const contract = bootstrap?.app.currency;
   const rate = typeof contract?.eur_rsd_rate === 'number' ? contract.eur_rsd_rate : null;
 
   const formatPrimaryMoney = useCallback((amount: number, sourceCurrency = 'RSD') => {
-    const presented = convertPresentationAmount(amount, sourceCurrency, primaryCurrency, rate);
+    const presented = convertPresentationAmount(amount, sourceCurrency, priceDisplayMode, rate);
     return formatMoney(presented.amount, presented.currency);
-  }, [primaryCurrency, rate]);
+  }, [priceDisplayMode, rate]);
 
   return {
+    priceDisplayMode,
     primaryCurrency,
     eurRsdRate: rate,
     rateLabel: contract?.rate_label ?? 'Komercijalni prodajni',

@@ -6,9 +6,12 @@ const INSTALLATION_KEY = 'ald1n.installation.id';
 const DEVICE_ID_KEY = 'ald1n.device.server-id';
 const USER_PREFERENCES_PREFIX = 'ald1n.preferences.user.';
 
+export type StoredPriceDisplayMode = 'source' | 'RSD' | 'EUR';
+
 export type StoredAppPreferences = {
   theme_mode: 'system' | 'light' | 'dark';
-  primary_currency: 'RSD' | 'EUR';
+  price_display_mode?: StoredPriceDisplayMode;
+  primary_currency?: 'RSD' | 'EUR';
 };
 
 const secureOptions: SecureStore.SecureStoreOptions = {
@@ -57,10 +60,19 @@ export async function getUserAppPreferences(userId: number): Promise<StoredAppPr
   try {
     const parsed = JSON.parse(raw) as Partial<StoredAppPreferences>;
     if (!['system', 'light', 'dark'].includes(String(parsed.theme_mode))) return null;
-    if (!['RSD', 'EUR'].includes(String(parsed.primary_currency))) return null;
+
+    const explicitDisplay = ['source', 'RSD', 'EUR'].includes(String(parsed.price_display_mode))
+      ? parsed.price_display_mode as StoredPriceDisplayMode
+      : null;
+    const legacyCurrency = ['RSD', 'EUR'].includes(String(parsed.primary_currency))
+      ? parsed.primary_currency as 'RSD' | 'EUR'
+      : null;
+    const displayMode = explicitDisplay ?? legacyCurrency ?? 'source';
+
     return {
       theme_mode: parsed.theme_mode as StoredAppPreferences['theme_mode'],
-      primary_currency: parsed.primary_currency as StoredAppPreferences['primary_currency'],
+      price_display_mode: displayMode,
+      primary_currency: legacyCurrency ?? (displayMode === 'EUR' ? 'EUR' : 'RSD'),
     };
   } catch {
     return null;

@@ -310,7 +310,7 @@ export default function AdminCatalogEditScreen() {
   const storageTotal = (fieldId: number) => (storageRows[String(fieldId)] ?? [])
     .reduce((sum, row) => sum + (nonNegativeInteger(row.capacityGb) ?? 0), 0);
 
-  const submit = () => {
+  const submit = (saveDraft = false) => {
     const nextErrors: Record<string, string> = {};
     const price = nonNegativeDecimal(priceAmount);
     const purchase = purchasePriceRsd.trim() ? nonNegativeDecimal(purchasePriceRsd) : undefined;
@@ -320,31 +320,35 @@ export default function AdminCatalogEditScreen() {
 
     if (!sku.trim()) nextErrors.sku = 'SKU je obavezan kod izmene artikla.';
     if (!name.trim() && (!selectedType || !selectedType.auto_name_enabled)) nextErrors.name = 'Unesi naziv ili koristi automatsko formiranje naziva.';
-    if (price === null) nextErrors.price_amount = 'Unesi ispravnu prodajnu cenu.';
+    if ((!saveDraft || priceAmount.trim()) && price === null) nextErrors.price_amount = 'Unesi ispravnu prodajnu cenu.';
     if (purchasePriceRsd.trim() && purchase === null) nextErrors.purchase_price_rsd = 'Unesi ispravnu nabavnu cenu.';
     if (isSuperAdmin && manualCommissionEur.trim() && commission === null) nextErrors.manual_commission_eur = 'Unesi ispravnu proviziju.';
-    if (!description.trim()) nextErrors.description = 'Opis je obavezan.';
-    if (stock === null) nextErrors.stock_quantity = 'Lager mora biti ceo broj 0 ili veći.';
-    if (threshold === null) nextErrors.low_stock_threshold = 'Prag lagera mora biti ceo broj 0 ili veći.';
+    if (!saveDraft && !description.trim()) nextErrors.description = 'Opis je obavezan.';
+    if ((!saveDraft || stockQuantity.trim()) && stock === null) nextErrors.stock_quantity = 'Lager mora biti ceo broj 0 ili veći.';
+    if ((!saveDraft || lowStockThreshold.trim()) && threshold === null) nextErrors.low_stock_threshold = 'Prag lagera mora biti ceo broj 0 ili veći.';
 
     for (const field of standardSpecificationFields) {
       const value = specs[String(field.id)] ?? '';
-      if (field.required && !value.trim()) nextErrors[`specs.${field.id}`] = `${field.name} je obavezno polje.`;
+      if (!saveDraft && field.required && !value.trim()) nextErrors[`specs.${field.id}`] = `${field.name} je obavezno polje.`;
     }
     for (const field of storageFields) {
       const rows = storageRows[String(field.id)] ?? [emptyStorageRow()];
       const entered = rows.some((row) => row.type.trim() || row.capacityGb.trim());
-      if (field.required && !entered) nextErrors[`spec_lists.${field.id}`] = `${field.name} je obavezno polje.`;
+      if (!saveDraft && field.required && !entered) nextErrors[`spec_lists.${field.id}`] = `${field.name} je obavezno polje.`;
       if (entered) rows.forEach((row, index) => {
-        if (!row.type.trim()) nextErrors[`spec_lists.${field.id}.${index}`] = 'Izaberi tip diska.';
-        const capacity = nonNegativeInteger(row.capacityGb);
-        if (capacity === null || capacity > 10000000) nextErrors[`spec_capacities.${field.id}.${index}`] = 'Kapacitet mora biti ceo broj 0-10000000 GB.';
+        if (!saveDraft && !row.type.trim()) nextErrors[`spec_lists.${field.id}.${index}`] = 'Izaberi tip diska.';
+        if (row.capacityGb.trim()) {
+          const capacity = nonNegativeInteger(row.capacityGb);
+          if (capacity === null || capacity > 10000000) nextErrors[`spec_capacities.${field.id}.${index}`] = 'Kapacitet mora biti ceo broj 0-10000000 GB.';
+        } else if (!saveDraft && row.type.trim()) {
+          nextErrors[`spec_capacities.${field.id}.${index}`] = 'Unesi kapacitet diska.';
+        }
       });
     }
 
     setErrors(nextErrors);
     setSubmitError(null);
-    if (Object.keys(nextErrors).length > 0 || price === null || stock === null || threshold === null) {
+    if (Object.keys(nextErrors).length > 0 || (!saveDraft && (price === null || stock === null || threshold === null))) {
       feedback.notify({ tone: 'warning', title: 'Dopuni obavezna polja', message: 'Sve izmene ostaju u formi.' });
       return;
     }
@@ -385,15 +389,16 @@ export default function AdminCatalogEditScreen() {
       model_name: modelName.trim() || undefined,
       name: name.trim() || undefined,
       regenerate_name: Boolean(selectedType?.auto_name_enabled && !name.trim()),
-      price_amount: price,
+      price_amount: price ?? undefined,
       price_currency: currency,
       purchase_price_rsd: purchase ?? undefined,
       ...(isSuperAdmin ? { manual_commission_eur: commission ?? undefined } : {}),
-      description: description.trim(),
+      description: description.trim() || undefined,
       notes: notes.trim() || undefined,
-      stock_quantity: stock,
-      low_stock_threshold: threshold,
-      status,
+      stock_quantity: stock ?? undefined,
+      low_stock_threshold: threshold ?? undefined,
+      status: saveDraft ? 'draft' : status,
+      save_draft: saveDraft || undefined,
       specs: Object.keys(cleanSpecs).length ? cleanSpecs : undefined,
       spec_details: Object.keys(cleanDetails).length ? cleanDetails : undefined,
       spec_lists: Object.keys(cleanSpecLists).length ? cleanSpecLists : undefined,
@@ -613,7 +618,8 @@ export default function AdminCatalogEditScreen() {
 
       {!product.is_archived ? (
         <View style={styles.section}>
-          <Button loading={saveMutation.isPending} onPress={submit}>Sačuvaj izmene</Button>
+          <Button variant="secondary" loading={saveMutation.isPending} onPress={() => submit(true)}>Sačuvaj kao nacrt</Button>
+          <Button loading={saveMutation.isPending} onPress={() => submit(false)}>Sačuvaj izmene</Button>
           {product.capabilities.archive ? (
             <Button variant="danger" loading={archiveMutation.isPending} onPress={() => archiveMutation.mutate()}>
               Arhiviraj artikal
