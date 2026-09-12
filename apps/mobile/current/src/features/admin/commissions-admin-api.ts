@@ -33,9 +33,32 @@ export type AdminCommissionHistoryItem = {
   created_at: string | null;
 };
 
+export type AdminCommissionLineItem = {
+  id: number;
+  product_id: number | null;
+  product_sku: string | null;
+  product_name: string;
+  quantity: number;
+  unit_price_rsd: number;
+  line_total_rsd: number;
+  commission_source_snapshot: string | null;
+  commission_rate_percent_snapshot: number | null;
+  commission_unit_eur_snapshot: number | null;
+  commission_total_eur_snapshot: number | null;
+};
+
+export type AdminCommissionBreakdown = {
+  order_subtotal_rsd: number;
+  items: AdminCommissionLineItem[];
+  items_commission_total_eur: number;
+  final_commission_total_eur: number;
+  adjustment_eur: number;
+  has_adjustment: boolean;
+};
+
 export type AdminCommission = {
   id: number;
-  order: { id: number; order_number: string };
+  order: { id: number; order_number: string; subtotal_rsd: number };
   user: { id: number; name: string; email: string | null };
   responsible_name: string;
   total_eur: number;
@@ -49,6 +72,7 @@ export type AdminCommission = {
   created_at: string | null;
   updated_at: string | null;
   history?: AdminCommissionHistoryItem[];
+  commission_breakdown?: AdminCommissionBreakdown;
 };
 
 export type AdminCommissionSummary = {

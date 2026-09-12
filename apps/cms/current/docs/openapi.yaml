@@ -5766,10 +5766,11 @@ components:
         id: { type: integer }
         order:
           type: object
-          required: [id, order_number]
+          required: [id, order_number, subtotal_rsd]
           properties:
             id: { type: integer }
             order_number: { type: string }
+            subtotal_rsd: { type: number, format: double, minimum: 0 }
         user:
           type: object
           required: [id, name, email]
@@ -5786,6 +5787,32 @@ components:
           anyOf:
             - { $ref: '#/components/schemas/AdminCommissionPayment' }
             - { type: 'null' }
+        commission_breakdown:
+          type: object
+          required: [order_subtotal_rsd, items, items_commission_total_eur, final_commission_total_eur, adjustment_eur, has_adjustment]
+          properties:
+            order_subtotal_rsd: { type: number, format: double, minimum: 0 }
+            items:
+              type: array
+              items:
+                type: object
+                required: [id, product_id, product_sku, product_name, quantity, unit_price_rsd, line_total_rsd, commission_source_snapshot, commission_rate_percent_snapshot, commission_unit_eur_snapshot, commission_total_eur_snapshot]
+                properties:
+                  id: { type: integer }
+                  product_id: { type: [integer, 'null'] }
+                  product_sku: { type: [string, 'null'] }
+                  product_name: { type: string }
+                  quantity: { type: integer, minimum: 1 }
+                  unit_price_rsd: { type: number, format: double, minimum: 0 }
+                  line_total_rsd: { type: number, format: double, minimum: 0 }
+                  commission_source_snapshot: { type: [string, 'null'] }
+                  commission_rate_percent_snapshot: { type: [number, 'null'], format: double }
+                  commission_unit_eur_snapshot: { type: [number, 'null'], format: double }
+                  commission_total_eur_snapshot: { type: [number, 'null'], format: double }
+            items_commission_total_eur: { type: number, format: double }
+            final_commission_total_eur: { type: number, format: double }
+            adjustment_eur: { type: number, format: double }
+            has_adjustment: { type: boolean }
         allowed_transitions:
           type: array
           items: { type: string, enum: [pending, approved, paid, cancelled] }

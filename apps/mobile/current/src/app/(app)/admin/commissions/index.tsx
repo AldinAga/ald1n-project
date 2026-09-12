@@ -37,10 +37,9 @@ const STATUS_OPTIONS: Array<{ value: AdminCommissionStatus; label: string }> = [
 ];
 
 // MOBILE_V1_0_ADMIN_COMMISSIONS_LIST_UX_REORGANIZATION_BATCH91
-type CommissionListWorkspace = 'overview' | 'commissions' | 'filters' | 'bulk' | 'exports';
+type CommissionListWorkspace = 'commissions' | 'filters' | 'bulk' | 'exports';
 
 const COMMISSION_LIST_WORKSPACE_OPTIONS: Array<{ value: CommissionListWorkspace; label: string; description: string }> = [
-  { value: 'overview', label: 'Pregled', description: 'Klucni iznosi i statusi provizija sa brzim ulazom u operativni rad.' },
   { value: 'commissions', label: 'Provizije', description: 'Lista provizija, statusi, odgovorna lica, izbor za isplatu i paginacija.' },
   { value: 'filters', label: 'Filteri', description: 'Pretraga, status, period, korisnik i odgovorno lice na jednom mestu.' },
   { value: 'bulk', label: 'Masovna isplata', description: 'Kontrolisana isplata samo odobrenih i server-eligible provizija.' },
@@ -80,7 +79,7 @@ export default function AdminCommissionsIndexScreen() {
   const [bulkNote, setBulkNote] = useState('');
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null> (null);
-  const [workspace, setWorkspace] = useState<CommissionListWorkspace> ('overview');
+  const [workspace, setWorkspace] = useState<CommissionListWorkspace> ('commissions');
 
   const params = useMemo(() => {
     const value: AdminCommissionListParams = { page, per_page: 40 };
@@ -181,8 +180,18 @@ export default function AdminCommissionsIndexScreen() {
       <PageHeader title="Provizije" eyebrow="Admin · Wave A" name={bootstrap?.user.name} />
       <Text style={styles.copy}>Odobravanje, isplata, storniranje i izvoz koriste postojecu CMS poslovnu logiku.</Text>
 
+      <Card style={styles.overviewCard}>
+        <Text style={styles.sectionTitle}>Sažetak provizija</Text>
+        <View style={styles.summaryGrid}>
+          <SummaryCard label="Na čekanju" value={formatMoney(data.summary.pending_eur, 'EUR')} count={data.summary.pending_count} styles={styles} />
+          <SummaryCard label="Odobreno" value={formatMoney(data.summary.approved_eur, 'EUR')} count={data.summary.approved_count} styles={styles} />
+          <SummaryCard label="Isplaćeno" value={formatMoney(data.summary.paid_eur, 'EUR')} count={data.summary.paid_count} styles={styles} />
+          <SummaryCard label="Stornirano" value={formatMoney(data.summary.cancelled_eur, 'EUR')} count={data.summary.cancelled_count} styles={styles} />
+        </View>
+      </Card>
+
       <Card style={styles.workspaceCard}>
-        <Text style={styles.sectionTitle}>Radni prostor provizija</Text>
+        <Text style={styles.sectionTitle}>Alati provizija</Text>
         <Text style={styles.copy}>{workspaceMeta?.description ?? 'Izaberi deo provizija koji zelis da obradis.'}</Text>
         <FilterBar>
           {COMMISSION_LIST_WORKSPACE_OPTIONS.filter((option) => (option.value !== 'bulk' || data.capabilities.bulk_pay) && (option.value !== 'exports' || data.capabilities.exports)).map((option) => (
@@ -191,26 +200,6 @@ export default function AdminCommissionsIndexScreen() {
         </FilterBar>
       </Card>
 
-      {workspace === 'overview' ? (
-        <>
-          <View style={styles.summaryGrid}>
-            <SummaryCard label="Na cekanju" value={formatMoney(data.summary.pending_eur, 'EUR')} count={data.summary.pending_count} styles={styles} />
-            <SummaryCard label="Odobreno" value={formatMoney(data.summary.approved_eur, 'EUR')} count={data.summary.approved_count} styles={styles} />
-            <SummaryCard label="Isplaceno" value={formatMoney(data.summary.paid_eur, 'EUR')} count={data.summary.paid_count} styles={styles} />
-            <SummaryCard label="Stornirano" value={formatMoney(data.summary.cancelled_eur, 'EUR')} count={data.summary.cancelled_count} styles={styles} />
-          </View>
-          <Card style={styles.overviewCard}>
-            <Text style={styles.sectionTitle}>Fokus provizija</Text>
-            <Text style={styles.copy}>Ukupno zapisa u trenutnom server scope-u: {data.meta.total}. Za obradu otvori Provizije, ciljane Filtere ili Masovnu isplatu.</Text>
-            <View style={styles.actionsRow}>
-              <Button onPress={() => selectWorkspace('commissions')}>Otvori provizije</Button>
-              <Button variant="secondary" onPress={() => selectWorkspace('filters')}>Filteri</Button>
-              {data.capabilities.bulk_pay ? <Button variant="secondary" onPress={() => selectWorkspace('bulk')}>Masovna isplata</Button> : null}
-              {data.capabilities.exports ? <Button variant="secondary" onPress={() => selectWorkspace('exports')}>Izvoz</Button> : null}
-            </View>
-          </Card>
-        </>
-      ) : null}
 
       {workspace === 'filters' ? (
         <Card style={styles.filtersCard}>
@@ -311,7 +300,8 @@ function SummaryCard({ label, value, count, styles }: { label: string; value: st
 function CommissionCard({ item, selected, onToggle, onOpen, styles }: { item: AdminCommission; selected: boolean; onToggle: () => void; onOpen: () => void; styles: ReturnType<typeof createStyles> }) {
   return (
     <Card style={styles.rowCard}>
-      <View style={styles.rowHead}><View style={styles.flex}><Text style={styles.order}>{item.order.order_number}</Text><Text style={styles.amount}>{formatMoney(item.total_eur, 'EUR')}</Text></View><Text style={styles.status}>{item.status_label}</Text></View>
+      <View style={styles.rowHead}><View style={styles.flex}><Pressable accessibilityRole="button" accessibilityLabel={`Otvori porudžbinu ${item.order.order_number}`} onPress={onOpen}><Text style={styles.order}>{item.order.order_number}</Text></Pressable><Text style={styles.amount}>{formatMoney(item.total_eur, 'EUR')}</Text><Text style={styles.meta}>Ukupna provizija</Text></View><Text style={styles.status}>{item.status_label}</Text></View>
+      <Text style={styles.meta}>Vrednost porudžbine: {formatMoney(item.order.subtotal_rsd, 'RSD')}</Text>
       <Text style={styles.meta}>{item.user.name}{item.user.email ? ` · ${item.user.email}` : ''}</Text>
       <Text style={styles.meta}>Odgovorno lice: {item.responsible_name}</Text>
       {item.status_note ? <Text style={styles.note}>{item.status_note}</Text> : null}

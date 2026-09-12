@@ -235,7 +235,7 @@ final class CommissionController extends Controller
     {
         $commission->loadMissing(['order.supplier', 'user', 'paymentBatch']);
         if ($withHistory) {
-            $commission->loadMissing('history.actor');
+            $commission->loadMissing(['history.actor', 'order.items']);
         }
 
         $status = (string) $commission->status;
@@ -245,6 +245,7 @@ final class CommissionController extends Controller
             'order' => [
                 'id' => (int) $commission->order_id,
                 'order_number' => (string) ($commission->order?->order_number ?? ''),
+                'subtotal_rsd' => round((float) ($commission->order?->subtotal_rsd ?? 0), 2),
             ],
             'user' => [
                 'id' => (int) $commission->user_id,
@@ -275,6 +276,42 @@ final class CommissionController extends Controller
         ];
 
         if ($withHistory) {
+            $items = $commission->order?->items ?? collect();
+            $itemsCommissionTotal = round((float) $items->sum(
+                static fn ($item): float => (float) ($item->commission_total_eur_snapshot ?? 0)
+            ), 2);
+            $finalCommissionTotal = round((float) $commission->total_eur, 2);
+            $adjustmentEur = round($finalCommissionTotal - $itemsCommissionTotal, 2);
+
+            $payload['commission_breakdown'] = [
+                'order_subtotal_rsd' => round((float) ($commission->order?->subtotal_rsd ?? 0), 2),
+                'items' => $items->map(static function ($item): array {
+                    return [
+                        'id' => (int) $item->id,
+                        'product_id' => $item->product_id !== null ? (int) $item->product_id : null,
+                        'product_sku' => $item->product_sku ?: null,
+                        'product_name' => (string) ($item->product_name ?? 'Artikal'),
+                        'quantity' => (int) $item->quantity,
+                        'unit_price_rsd' => round((float) $item->unit_price_rsd, 2),
+                        'line_total_rsd' => round((float) $item->line_total_rsd, 2),
+                        'commission_source_snapshot' => $item->commission_source_snapshot ?: null,
+                        'commission_rate_percent_snapshot' => $item->commission_rate_percent_snapshot !== null
+                            ? (float) $item->commission_rate_percent_snapshot
+                            : null,
+                        'commission_unit_eur_snapshot' => $item->commission_unit_eur_snapshot !== null
+                            ? round((float) $item->commission_unit_eur_snapshot, 2)
+                            : null,
+                        'commission_total_eur_snapshot' => $item->commission_total_eur_snapshot !== null
+                            ? round((float) $item->commission_total_eur_snapshot, 2)
+                            : null,
+                    ];
+                })->values()->all(),
+                'items_commission_total_eur' => $itemsCommissionTotal,
+                'final_commission_total_eur' => $finalCommissionTotal,
+                'adjustment_eur' => $adjustmentEur,
+                'has_adjustment' => abs($adjustmentEur) >= 0.01,
+            ];
+
             $payload['history'] = $commission->history->map(function ($event): array {
                 return [
                     'id' => (int) $event->id,
