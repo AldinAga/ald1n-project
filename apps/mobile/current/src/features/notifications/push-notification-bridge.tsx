@@ -26,6 +26,14 @@ function openNotificationResponse(response: Notifications.NotificationResponse):
   const data = response.notification.request.content.data ?? {};
   const destination = resolvePushNotificationNavigation(data);
 
+  if (destination.kind === 'admin_order') {
+    router.push({
+      pathname: '/admin/orders/[id]',
+      params: { id: String(destination.id) }
+    });
+    return;
+  }
+
   if (destination.kind === 'order') {
     router.push({
       pathname: '/order/[id]',

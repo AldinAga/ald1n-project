@@ -6,6 +6,10 @@ export type NotificationDestination =
       id: number;
     }
   | {
+      kind: 'admin_order';
+      id: number;
+    }
+  | {
       kind: 'after_sales_case';
       id: number;
     }
@@ -103,6 +107,25 @@ function orderIdFromRoute(
     : null;
 }
 
+function adminOrderIdFromRoute(
+  value: unknown
+): number | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const match =
+    value
+      .trim()
+      .match(
+        /^\/admin\/orders\/(\d+)\/?(?:\?.*)?$/i
+      );
+
+  return match?.[1]
+    ? positiveInteger(match[1])
+    : null;
+}
+
 function afterSalesCaseIdFromRoute(
   value: unknown
 ): number | null {
@@ -165,6 +188,49 @@ function resolveNotificationNavigation(
     normalizeTarget(
       input.target
     );
+
+  const explicitAdminOrderId =
+    adminOrderIdFromRoute(
+      input.route
+    );
+
+  const operationalAdminOrderEvents =
+    new Set([
+      'automation.order_unaccepted',
+      'automation.processing_overdue',
+      'automation.shipping_overdue',
+      'automation.payment_overdue'
+    ]);
+
+  if (
+    operationalAdminOrderEvents.has(event)
+  ) {
+    const adminOrderId =
+      (target?.type === 'order'
+        ? target.id
+        : null)
+      ?? positiveInteger(
+        input.orderId
+      )
+      ?? explicitAdminOrderId
+      ?? orderIdFromRoute(
+        input.route
+      );
+
+    if (adminOrderId) {
+      return {
+        kind: 'admin_order',
+        id: adminOrderId
+      };
+    }
+  }
+
+  if (explicitAdminOrderId) {
+    return {
+      kind: 'admin_order',
+      id: explicitAdminOrderId
+    };
+  }
 
   if (target) {
     if (

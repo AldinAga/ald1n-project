@@ -150,6 +150,11 @@ export default function NotificationsScreen() {
     const destination = resolveBusinessNotificationNavigation(item);
     markReadInBackground(item);
 
+    if (destination.kind === 'admin_order') {
+      router.push({ pathname: '/admin/orders/[id]', params: { id: String(destination.id) } });
+      return;
+    }
+
     if (destination.kind === 'order') {
       router.push({ pathname: '/order/[id]', params: { id: String(destination.id) } });
       return;
