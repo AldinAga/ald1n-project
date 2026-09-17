@@ -153,6 +153,15 @@ Do not execute project-scoped EAS commands from the monorepo root.
 
 Known historical failure prevented by this rule: `eas update:list` failed when launched from the monorepo root even though authentication worked.
 
+### Command-specific flag policy for eas-cli@23.2.0
+
+The flags are not uniform across EAS subcommands. Use the behavior proven on this hosting, not a blanket flag template.
+
+- `eas update:view GROUP_ID --json` is the canonical exact-group read. **Do not add `--non-interactive`**: eas-cli 23.2.0 rejects that flag for `update:view`.
+- `eas update:list ... --json --non-interactive` is proven working from the Mobile root.
+- `eas update ... --environment production --json --non-interactive` and `eas update:republish ... --json --non-interactive` are proven working in the Build17 OTA flow. Expo export may print a warning recommending `CI=1`; a warning alone is not a failed EAS publish. Judge the command by its real return code and returned update JSON.
+- Do not globally install a newer EAS CLI merely because the CLI prints an upgrade notice. Test a new major version through the same pinned npm-exec mechanism in a dedicated read-only compatibility audit first; only then change the canonical pin in this file.
+
 ---
 
 ## 6. OTA / Build policy
@@ -758,6 +767,7 @@ These failures have already happened and are now encoded as permanent guards:
 8. **Assuming a single OpenAPI location** -> topology failure. Active topology is exactly three tracked copies.
 9. **Using `php bin/php-lint.php` as full CMS authority** -> wrong gate. Canonical full gate is `php bin/static-check.php`.
 10. **Restarting recovery from scratch** -> risks duplicate commits/candidates/promotions. Recover from recorded state markers.
+11. **`eas update:view ... --non-interactive` on eas-cli 23.2.0** -> hard CLI failure. Use exact-group `update:view GROUP_ID --json` without `--non-interactive`.
 
 Any new repeated infrastructure failure should be added to this section after its root cause is proven.
 
