@@ -192,6 +192,11 @@ final class User extends Authenticatable
         return $this->hasMany(PortalConversation::class, 'user_id');
     }
 
+    public function crmNotes(): HasMany
+    {
+        return $this->hasMany(CustomerCrmNote::class, 'user_id')->latest('created_at')->latest('id');
+    }
+
     public function automationRuns(): HasMany
     {
         return $this->hasMany(AutomationRun::class, 'triggered_by');
