@@ -68,13 +68,11 @@ export default function HomeScreen() {
 
   // MOBILE_V0_9_HOME_INFORMATION_ARCHITECTURE_BATCH5C
   const quickActions = [
-    hasFeature('catalog') ? { title: 'Otvori katalog', copy: 'Pretraži aktivne proizvode', glyph: 'catalog' as const, route: '/catalog' as const } : null,
     can('catalog.manage_products') ? { title: 'Dodaj artikal', copy: 'Kreiraj novi artikal', glyph: 'add' as const, route: '/admin/catalog/create' as const } : null,
     hasFeature('order_create') ? { title: 'Korpa', copy: itemCount ? `${itemCount} komada spremno` : 'Pripremi novu porudžbinu', glyph: 'cart' as const, route: '/cart' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const myActivities = [
-    hasFeature('orders') ? { title: 'Moje porudžbine', copy: 'Status, plaćanja i detalji porudžbina', glyph: 'orders' as const, route: '/orders' as const } : null,
     can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Obračun i status isplate', glyph: 'commission' as const, route: '/commissions' as const } : null,
     can('warranties.view_own') ? { title: 'Moje garancije', copy: 'Garantni listovi i održavanje', glyph: 'warranty' as const, route: '/warranties' as const } : null,
     can('after_sales.view_own') ? { title: 'Reklamacije i servis', copy: 'Postprodajni slučajevi i komunikacija', glyph: 'service' as const, route: '/after-sales' as const } : null,
@@ -82,7 +80,7 @@ export default function HomeScreen() {
   ].filter(Boolean) as HomeAction[];
 
   const adminActions = [
-    adminAllowed ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'admin' as const, route: '/admin' as const } : null,
+    adminAllowed && !isSuperAdmin ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'admin' as const, route: '/admin' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const refreshHome = () => {
@@ -240,28 +238,30 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Brze akcije</Text>
-        <Text style={styles.sectionMeta}>{quickActions.length} dostupno</Text>
-      </View>
-      <View style={styles.actions}>
-        <HomeActionList actions={quickActions} />
-      </View>
+      {quickActions.length > 0 ? (
+        <>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Brze akcije</Text>
+            <Text style={styles.sectionMeta}>{quickActions.length} dostupno</Text>
+          </View>
+          <View style={styles.actions}>
+            <HomeActionList actions={quickActions} />
+          </View>
+        </>
+      ) : null}
 
       {/* MOBILE_V0_9_HOME_MY_ACTIVITIES_BATCH5C */}
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Moje aktivnosti</Text>
-        <Text style={styles.sectionMeta}>{myActivities.length} dostupno</Text>
-      </View>
       {myActivities.length > 0 ? (
-        <View style={styles.actions}>
-          <HomeActionList actions={myActivities} />
-        </View>
-      ) : (
-        <Card muted style={styles.stateCard}>
-          <Text style={styles.stateCopy}>Nema dodatnih korisničkih aktivnosti za ovaj nalog.</Text>
-        </Card>
-      )}
+        <>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Moje aktivnosti</Text>
+            <Text style={styles.sectionMeta}>{myActivities.length} dostupno</Text>
+          </View>
+          <View style={styles.actions}>
+            <HomeActionList actions={myActivities} />
+          </View>
+        </>
+      ) : null}
 
       {/* MOBILE_V0_9_HOME_ADMINISTRATION_BATCH5C */}
       {adminActions.length > 0 ? (
@@ -275,18 +275,6 @@ export default function HomeScreen() {
           </View>
         </>
       ) : null}
-
-      <Card muted style={styles.foundation}>
-        <View style={styles.foundationIcon}>
-          <Glyph name="check" color={themeColors.success} size={22} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.foundationTitle}>Sve je sinhronizovano</Text>
-          <Text style={styles.foundationCopy}>
-            Katalog, porudžbine i poslovna obaveštenja koriste isti bezbedan Ald1n nalog.
-          </Text>
-        </View>
-      </Card>
     </Screen>
   );
 }
@@ -703,16 +691,6 @@ function createStyles(theme: AppColors) {
       backgroundColor: theme.surface,
     },
     pressed: { transform: [{ scale: 0.99 }], opacity: 0.92 },
-    foundation: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
-    foundationIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: radii.md,
-      backgroundColor: theme.successSoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    foundationTitle: { ...typography.label, color: theme.ink },
-    foundationCopy: { ...typography.small, color: theme.muted, marginTop: 4 },
+
   });
 }

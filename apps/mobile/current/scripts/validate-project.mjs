@@ -754,7 +754,7 @@ assert(
     && build16AdminHubBatch132.includes('title="Izveštaji"')
     && build16AdminHubBatch132.includes('title="Upravljanje korisnicima"')
     && build16AdminHubBatch132.includes('title="System Health"')
-    && build16AdminHubBatch132.includes('foundation.modules.filter')
+    && build16AdminHubBatch132.includes('const moduleEnabled = (key: AdminModuleKey) => foundation.modules.some')
     && build16AdminHubBatch132.includes('inventory_valuation')
     && build16AdminHubBatch132.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C'),
   'Build16 Admin Hub koristi OperatorRow grupisane akcije i čuva permission/module/inventory/global-search authority bez button-zoo obrasca.'
@@ -2177,11 +2177,11 @@ assert(
   );
 
   assert(
-    home.includes("route: '/orders'") &&
+    !home.includes("title: 'Moje porudžbine'") &&
     home.includes("route: '/commissions'") &&
     home.includes("route: '/warranties'") &&
     home.includes("route: '/after-sales'"),
-    'v0.9 Moje aktivnosti centralizuju porudžbine, provizije, garancije i postprodaju.'
+    'Build18 Home ne duplira primarne Porudžbine, a zadržava provizije, garancije i postprodaju.'
   );
 
   assert(
@@ -2212,6 +2212,37 @@ assert(
   assert(
     !home.includes('ProductVariant') && !orders.includes('ProductVariant') && !admin.includes('ProductVariant'),
     'v0.9 Navigation reorganizacija ne vraća Product Variants.'
+  );
+
+  // MOBILE_BUILD18_UX_UI_SIMPLIFICATION_BATCH169
+  const appShellBuild18 = readText('src/app/(app)/_layout.tsx');
+  const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
+  assert(
+    tabs.includes("display: 'none'")
+      && appShellBuild18.includes('<AppBottomNav />')
+      && bottomNavBuild18.includes("label: 'Katalog'")
+      && bottomNavBuild18.includes("label: 'Porudžbine'")
+      && bottomNavBuild18.includes("label: 'Početna'")
+      && bottomNavBuild18.includes("label: 'Nalog'"),
+    'Build18 koristi jedan canonical AppBottomNav i drži interni Expo Tabs bar skrivenim.'
+  );
+  assert(
+    !home.includes("title: 'Otvori katalog'")
+      && !home.includes("title: 'Moje porudžbine'")
+      && home.includes('adminAllowed && !isSuperAdmin ?')
+      && home.includes('quickActions.length > 0 ?')
+      && home.includes('myActivities.length > 0 ?')
+      && !home.includes('Nema dodatnih korisničkih aktivnosti za ovaj nalog.')
+      && !home.includes('Sve je sinhronizovano'),
+    'Build18 Home uklanja duple primarne ulaze i pasivne prazne/status sekcije.'
+  );
+  assert(
+    !admin.includes('Admin moduli')
+      && !admin.includes('DOZVOLJENO')
+      && !admin.includes('Foundation spreman')
+      && admin.includes('Pretraži administraciju')
+      && ['Prodaja', 'Katalog i lager', 'Postprodaja', 'Poslovanje', 'Korisnici', 'Sistem'].every((label) => admin.includes(label)),
+    'Build18 Admin Hub zadržava permission-aware poslovne grupe bez pasivnih foundation kartica.'
   );
 }
 

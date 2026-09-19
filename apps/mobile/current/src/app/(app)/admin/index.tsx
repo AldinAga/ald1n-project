@@ -6,7 +6,6 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
-import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { OperatorRow } from '@/components/ui/operator-row';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
@@ -57,7 +56,6 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
     return <UnavailableState title="Admin podaci nisu dostupni" />;
   }
 
-  const modules = foundation.modules.filter((module) => module.enabled);
   const moduleEnabled = (key: AdminModuleKey) => foundation.modules.some((module) => module.key === key && module.enabled);
   const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
   const inventoryValuation = isSuperAdmin ? foundation.inventory_valuation : null;
@@ -75,10 +73,10 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
       <Card style={styles.hero}>
         <Text style={styles.heroEyebrow}>ADMIN RADNI PROSTOR</Text>
         <Text style={styles.heroTitle}>
-          Centralizovan pristup administratorskim modulima.
+          Poslovni alati na jednom mestu.
         </Text>
         <Text style={styles.heroCopy}>
-          Dozvole, API namespace i query-key konvencije dele isti foundation.
+          Prikazane su samo funkcije koje su dostupne vašem nalogu.
         </Text>
         <Text style={styles.metric}>
           {foundation.enabled_module_count} dostupnih domena
@@ -217,25 +215,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         </Card>
       ) : null}
 
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Admin moduli</Text>
-        <Text style={styles.sectionMeta}>P3 se uključuje po domenima</Text>
-      </View>
 
-      <View style={styles.modules}>
-        {modules.map((module) => (
-          <Card key={module.key} style={styles.moduleCard}>
-            <View style={styles.moduleHead}>
-              <Text style={styles.moduleTitle}>{module.label}</Text>
-              <Pill tone="success">DOZVOLJENO</Pill>
-            </View>
-            <Text style={styles.moduleCopy}>{module.description}</Text>
-            <Text style={styles.moduleMeta}>
-              Foundation spreman · domen funkcije se uključuju po P3 batch-evima.
-            </Text>
-          </Card>
-        ))}
-      </View>
     </Screen>
   );
 }
@@ -307,45 +287,12 @@ function createStyles(theme: AppColors) {
       gap: spacing.md,
       overflow: 'hidden',
     },
-    sectionHead: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: spacing.md,
-    },
+
     sectionTitle: {
       ...typography.h2,
       color: theme.ink,
       flex: 1,
     },
-    sectionMeta: {
-      ...typography.small,
-      color: theme.muted,
-    },
-    modules: {
-      gap: spacing.md,
-    },
-    moduleCard: {
-      gap: spacing.sm,
-    },
-    moduleHead: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    moduleTitle: {
-      ...typography.h3,
-      color: theme.ink,
-      flex: 1,
-    },
-    moduleCopy: {
-      ...typography.body,
-      color: theme.muted,
-    },
-    moduleMeta: {
-      ...typography.small,
-      color: theme.muted,
-    },
+
   });
 }
