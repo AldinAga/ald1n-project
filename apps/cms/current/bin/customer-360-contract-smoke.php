@@ -269,5 +269,136 @@ if (!$serviceExists) {
     }
 }
 
+$adminServiceSourcePath = dirname(__DIR__).'/app/Services/CustomerPortalAdminService.php';
+$controllerSourcePath = dirname(__DIR__).'/app/Http/Controllers/Api/V1/Admin/CustomerPortalController.php';
+$adminServiceSource = is_file($adminServiceSourcePath) ? file_get_contents($adminServiceSourcePath) : false;
+$controllerSource = is_file($controllerSourcePath) ? file_get_contents($controllerSourcePath) : false;
+$adminServiceSource = is_string($adminServiceSource) ? $adminServiceSource : '';
+$controllerSource = is_string($controllerSource) ? $controllerSource : '';
+$adminServiceHasAppend = method_exists(\App\Services\CustomerPortalAdminService::class, 'appendCrmNote');
+$controllerHasStore = method_exists(\App\Http\Controllers\Api\V1\Admin\CustomerPortalController::class, 'storeCrmNote');
+$controllerHasUnlinked = method_exists(\App\Http\Controllers\Api\V1\Admin\CustomerPortalController::class, 'unlinkedBuyers');
+$storeStart = strpos($controllerSource, 'public function storeCrmNote(');
+$inviteStart = strpos($controllerSource, 'public function invite(');
+$storeBlock = $storeStart !== false && $inviteStart !== false && $inviteStart > $storeStart
+    ? substr($controllerSource, $storeStart, $inviteStart - $storeStart)
+    : '';
+$routes = app('router')->getRoutes();
+$noteRoute = $routes->getByName('api.v1.admin.customer-portal.users.crm-notes.store');
+$unlinkedRoute = $routes->getByName('api.v1.admin.customer-portal.unlinked-buyers.index');
+$linkRoute = $routes->getByName('api.v1.admin.customer-portal.users.orders.link');
+$noteMiddleware = $noteRoute !== null ? $noteRoute->gatherMiddleware() : [];
+$unlinkedMiddleware = $unlinkedRoute !== null ? $unlinkedRoute->gatherMiddleware() : [];
+$legacyDetailKeys = ["'customer' =>", "'orders' =>", "'order_search' =>", "'active_web_sessions' =>", "'conversations' =>", "'status_labels' =>"];
+
+$check($adminServiceHasAppend, 'CustomerPortalAdminService exposes appendCrmNote');
+$check($controllerHasStore, 'Admin customer portal exposes storeCrmNote action');
+$check($controllerHasUnlinked, 'Admin customer portal exposes unlinkedBuyers action');
+$check(str_contains($controllerSource, "'customer_360' => \$customer360->build(\$user)"), 'Customer detail includes Customer360 payload');
+$check(collect($legacyDetailKeys)->every(static fn (string $needle): bool => str_contains($controllerSource, $needle)), 'Customer detail preserves legacy payload keys');
+$check($storeBlock !== '' && str_contains($storeBlock, '], 201);'), 'CRM note controller returns HTTP 201');
+$check($noteRoute !== null, 'CRM note POST route exists');
+$check($noteRoute !== null && str_ends_with($noteRoute->uri(), 'admin/customer-portal/users/{user}/crm-notes'), 'CRM note POST route URI is canonical');
+$check(in_array('permission:system.manage_users', $noteMiddleware, true), 'CRM note POST route keeps system.manage_users permission');
+$check(in_array('throttle:admin-write', $noteMiddleware, true), 'CRM note POST route uses admin-write throttle');
+$check($unlinkedRoute !== null, 'Unlinked buyers GET route exists');
+$check($unlinkedRoute !== null && str_ends_with($unlinkedRoute->uri(), 'admin/customer-portal/unlinked-buyers'), 'Unlinked buyers GET route URI is canonical');
+$check(in_array('permission:system.manage_users', $unlinkedMiddleware, true), 'Unlinked buyers GET route keeps system.manage_users permission');
+$check($linkRoute !== null && str_ends_with($linkRoute->uri(), 'admin/customer-portal/users/{user}/orders/link'), 'Existing explicit linkOrder ownership route remains unchanged');
+$check(!str_contains($routesSource, "Route::prefix('crm')") && !str_contains($routesSource, 'Route::prefix("crm")'), 'No parallel CRM route namespace exists');
+
+$task3AppendOk = false;
+$task3AuthorOk = false;
+$task3AuditMarkerOk = false;
+$task3AuditMetadataOk = false;
+$task3ShortRejected = false;
+$task3LongRejected = false;
+$task3NonCustomerRejected = false;
+
+if ($adminServiceHasAppend) {
+    DB::beginTransaction();
+    try {
+        $token = 'C360T3'.strtoupper(bin2hex(random_bytes(5)));
+        $seedCustomer = User::query()
+            ->whereHas('role', static fn ($roles) => $roles->where('slug', 'user'))
+            ->first();
+        $actor = User::query()
+            ->whereHas('role', static fn ($roles) => $roles->whereIn('slug', ['admin', 'superadmin']))
+            ->first();
+        if (!$seedCustomer instanceof User || !$actor instanceof User) {
+            throw new RuntimeException('Customer and admin templates are required for Task3 transaction fixture');
+        }
+
+        $customer = $seedCustomer->replicate();
+        $customer->username = strtolower($token.'_customer');
+        $customer->email = strtolower($token).'@example.invalid';
+        $customer->status = 'active';
+        $customer->save();
+
+        $portal = app(\App\Services\CustomerPortalAdminService::class);
+        $rawBody = '  Task3 CRM note '.$token.'  ';
+        $trimmedBody = trim($rawBody);
+        $beforeCount = CustomerCrmNote::query()->where('user_id', $customer->id)->count();
+        $note = $portal->appendCrmNote($customer, $rawBody, $actor);
+        $afterCount = CustomerCrmNote::query()->where('user_id', $customer->id)->count();
+
+        $task3AppendOk = $note instanceof CustomerCrmNote
+            && $afterCount === $beforeCount + 1
+            && $note->body === $trimmedBody
+            && (int) $note->user_id === (int) $customer->id;
+        $task3AuthorOk = (int) $note->author_user_id === (int) $actor->id;
+
+        $audit = \App\Models\AuditLog::query()
+            ->where('action', 'customer_crm.note_created')
+            ->where('auditable_id', $note->id)
+            ->latest('id')
+            ->first();
+        $metadata = $audit instanceof \App\Models\AuditLog && is_array($audit->metadata_json)
+            ? $audit->metadata_json
+            : [];
+        $task3AuditMarkerOk = $audit instanceof \App\Models\AuditLog
+            && (int) $audit->user_id === (int) $actor->id;
+        $auditPayload = json_encode([
+            'before' => $audit?->before_json,
+            'after' => $audit?->after_json,
+            'metadata' => $audit?->metadata_json,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $task3AuditMetadataOk = (int) ($metadata['customer_id'] ?? 0) === (int) $customer->id
+            && (int) ($metadata['note_id'] ?? 0) === (int) $note->id
+            && (int) ($metadata['body_length'] ?? -1) === mb_strlen($trimmedBody)
+            && is_string($auditPayload)
+            && !str_contains($auditPayload, $trimmedBody);
+
+        try {
+            $portal->appendCrmNote($customer, ' x ', $actor);
+        } catch (\Illuminate\Validation\ValidationException) {
+            $task3ShortRejected = true;
+        }
+        try {
+            $portal->appendCrmNote($customer, str_repeat('x', 5001), $actor);
+        } catch (\Illuminate\Validation\ValidationException) {
+            $task3LongRejected = true;
+        }
+        try {
+            $portal->appendCrmNote($actor, 'Task3 non customer guard', $actor);
+        } catch (\Illuminate\Validation\ValidationException) {
+            $task3NonCustomerRejected = true;
+        }
+    } catch (\Throwable $exception) {
+        echo 'CUSTOMER360_TASK3_FIXTURE_EXCEPTION='.get_class($exception).': '.$exception->getMessage().PHP_EOL;
+    } finally {
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
+    }
+}
+
+$check($task3AppendOk, 'CRM note append trims body and creates exactly one note');
+$check($task3AuthorOk, 'CRM note append records author identity');
+$check($task3AuditMarkerOk, 'CRM note append emits customer_crm.note_created audit marker');
+$check($task3AuditMetadataOk, 'CRM note audit stores IDs and length without duplicating note body');
+$check($task3ShortRejected, 'CRM note append rejects body shorter than 2 characters');
+$check($task3LongRejected, 'CRM note append rejects body longer than 5000 characters');
+$check($task3NonCustomerRejected, 'CRM note append rejects non-customer target');
 echo 'CUSTOMER360_CONTRACT_SMOKE='.$checks.'_CHECKS_'.($checks - $failures).'_PASS_'.$failures.'_FAIL'.PHP_EOL;
 exit($failures === 0 ? 0 : 1);

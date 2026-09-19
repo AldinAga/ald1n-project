@@ -220,8 +220,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
                     // MOBILE_V1_0_CUSTOMER_PORTAL_PARITY_BATCH33
                     Route::get('/customer-portal', [AdminCustomerPortalController::class, 'index'])->name('customer-portal.index');
+                    Route::get('/customer-portal/unlinked-buyers', [AdminCustomerPortalController::class, 'unlinkedBuyers'])->name('customer-portal.unlinked-buyers.index');
                     Route::post('/customer-portal/users', [AdminCustomerPortalController::class, 'store'])->middleware('throttle:admin-write')->name('customer-portal.users.store');
                     Route::get('/customer-portal/users/{user}', [AdminCustomerPortalController::class, 'show'])->whereNumber('user')->name('customer-portal.users.show');
+                    Route::post('/customer-portal/users/{user}/crm-notes', [AdminCustomerPortalController::class, 'storeCrmNote'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.crm-notes.store');
                     Route::post('/customer-portal/users/{user}/invite', [AdminCustomerPortalController::class, 'invite'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.invite');
                     Route::post('/customer-portal/users/{user}/orders/link', [AdminCustomerPortalController::class, 'linkOrder'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.orders.link');
                     Route::delete('/customer-portal/users/{user}/sessions', [AdminCustomerPortalController::class, 'revokeSessions'])->whereNumber('user')->middleware('throttle:admin-write')->name('customer-portal.users.sessions.destroy');

@@ -10,6 +10,7 @@ use App\Models\PortalConversation;
 use App\Models\PortalMessage;
 use App\Models\User;
 use App\Services\CustomerPortalAdminService;
+use App\Services\Customer360Service;
 use App\Services\ModuleVisibilityService;
 use App\Services\PortalSessionService;
 use Illuminate\Http\JsonResponse;
@@ -109,6 +110,7 @@ final class CustomerPortalController extends Controller
         Request $request,
         User $user,
         PortalSessionService $sessions,
+        Customer360Service $customer360,
         ModuleVisibilityService $modules,
     ): JsonResponse {
         $this->ensureEnabled($modules);
@@ -160,6 +162,7 @@ final class CustomerPortalController extends Controller
         return response()->json([
             'data' => [
                 'customer' => $this->userSummary($user),
+                'customer_360' => $customer360->build($user),
                 'orders' => $orders,
                 'order_search' => $orderSearch,
                 'active_web_sessions' => $activeSessions,
@@ -169,6 +172,51 @@ final class CustomerPortalController extends Controller
         ]);
     }
 
+    public function unlinkedBuyers(
+        Request $request,
+        Customer360Service $customer360,
+        ModuleVisibilityService $modules,
+    ): JsonResponse {
+        $this->ensureEnabled($modules);
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:190'],
+        ]);
+        $search = trim((string) ($data['q'] ?? ''));
+
+        return response()->json([
+            'data' => $customer360->unlinkedBuyers($search, 50)->values()->all(),
+        ]);
+    }
+
+    public function storeCrmNote(
+        Request $request,
+        User $user,
+        CustomerPortalAdminService $portal,
+        ModuleVisibilityService $modules,
+    ): JsonResponse {
+        $this->ensureEnabled($modules);
+        abort_unless($user->hasRole('user'), 404);
+        $data = $request->validate([
+            'body' => ['required', 'string', 'min:2', 'max:5000'],
+        ]);
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        $note = $portal->appendCrmNote($user, (string) $data['body'], $actor);
+        $note->loadMissing('author:id,first_name,last_name,username');
+
+        return response()->json([
+            'message' => 'CRM napomena je dodata.',
+            'data' => [
+                'id' => (int) $note->id,
+                'body' => (string) $note->body,
+                'created_at' => $note->created_at?->toIso8601String(),
+                'author' => $note->author ? [
+                    'id' => (int) $note->author->id,
+                    'name' => $note->author->displayName(),
+                ] : null,
+            ],
+        ], 201);
+    }
     public function invite(
         Request $request,
         User $user,

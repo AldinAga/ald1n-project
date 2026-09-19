@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\MobileDevice;
+use App\Models\CustomerCrmNote;
 use App\Models\Order;
 use App\Models\PortalConversation;
 use App\Models\PortalOrderLinkHistory;
@@ -92,6 +93,39 @@ final class CustomerPortalAdminService
         return $token;
     }
 
+    public function appendCrmNote(User $customer, string $body, User $actor): CustomerCrmNote
+    {
+        $this->assertCustomer($customer);
+        $body = trim($body);
+        $length = mb_strlen($body);
+        if ($length < 2 || $length > 5000) {
+            throw ValidationException::withMessages([
+                'body' => ['CRM napomena mora imati izmedju 2 i 5000 karaktera.'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($customer, $body, $length, $actor): CustomerCrmNote {
+            $note = CustomerCrmNote::query()->create([
+                'user_id' => $customer->id,
+                'author_user_id' => $actor->id,
+                'body' => $body,
+            ]);
+
+            $this->audit->log(
+                'customer_crm.note_created',
+                'Dodata interna CRM napomena',
+                $note,
+                metadata: [
+                    'customer_id' => (int) $customer->id,
+                    'note_id' => (int) $note->id,
+                    'body_length' => $length,
+                ],
+                user: $actor,
+            );
+
+            return $note;
+        }, 3);
+    }
     /** @return array{order:Order,previous_user_id:int,warranties_updated:int,conversations_updated:int,changed:bool} */
     public function linkOrder(
         User $customer,
