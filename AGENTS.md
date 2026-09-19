@@ -846,6 +846,56 @@ The production hosting checkout must not accumulate historical operation reports
 
 Read-only contract and health smokes must validate current contracts and immutability, not require a historical test record to exist forever. Total Product Purge contract validation must not fail merely because historical Product ID 19 was legitimately removed later. A fixture may be inspected when present, but its absence is not itself a contract failure.
 
+### Laravel -> Mobile feature parity is mandatory
+
+This is a permanent project-owner rule from **2026-09-19**.
+
+Every functional Laravel/CMS feature change must be carried through to the Mobile application where that capability is user-facing or consumed by Mobile. A backend feature is not considered fully closed merely because the Laravel implementation passes.
+
+For every applicable Laravel feature change, the implementation/release chain must explicitly account for:
+
+1. Laravel route/service/model/database behavior and permissions.
+2. Canonical OpenAPI changes across exactly the three active copies when the API surface changes.
+3. Mobile API client/types/query-key/validator parity in the same backend/API batch whenever Mobile consumes the contract.
+4. Mobile UX/workspace parity in the same batch or in an explicitly named immediately-following batch that remains part of the same feature acceptance chain.
+5. Regression guards proving that Product Variants remain decommissioned and existing permission/business authorities are reused instead of duplicated.
+
+Do not create a parallel Mobile business rule to compensate for missing Laravel authority. Do not create a parallel Laravel endpoint tree when an existing canonical feature namespace can be extended safely. Infrastructure-only backend work that has no Mobile-visible or Mobile-consumed behavior may be documented as not applicable, but that exception must be explicit in the operation report.
+
+A feature that intentionally splits backend/API work and Mobile UI work across consecutive batches remains **in progress** until the Mobile parity batch passes.
+
+### Git scope authority uses machine-stable manifests
+
+This is a permanent operational rule from **2026-09-19**, adopted after Reports451-454 demonstrated that human-readable Git status rendering is not a safe machine authority for exact scope decisions.
+
+Do not parse `git status --short` to decide whether an allowlist passes. It may apply rename detection or collapse untracked directories and therefore render a valid file set differently from the semantic file set.
+
+For automated scope authority use these exact sources:
+
+1. Staged paths: `git diff --cached --name-only --no-renames` and, when status letters are required, `git diff --cached --name-status --no-renames`.
+2. Tracked unstaged paths: `git diff --name-only --no-renames`.
+3. Untracked paths: `git ls-files --others --exclude-standard`.
+4. Normalize each list with stable sorting and compare it against an explicit expected manifest.
+5. `git status --short` may still be printed for human diagnostics, but it must never be the pass/fail authority for exact path scope.
+
+Do not broaden cleanup to compensate for a manifest mismatch. Fail before mutation unless every unexpected path is classified explicitly.
+
+### Immutable operation-report whitespace evidence
+
+Operation reports archive raw terminal evidence and must preserve their bytes. Do not rewrite or trim historical report lines merely to satisfy whitespace style checks.
+
+Before every commit, still execute `git diff --cached --check`. The normal rule remains RC=0 for source, configuration, specifications, `AGENTS.md`, and ordinary documentation.
+
+A non-zero result is permitted only for a dedicated evidence-only archival commit when all of the following are true:
+
+1. The staged manifest is exact and every staged addition/modification is under `docs/operations/`; a deliberate rotation deletion under the same directory is also allowed.
+2. The full `git diff --cached --check` output is captured in the current operation report.
+3. `git diff --cached --check -- . ':(exclude)docs/operations/**'` returns RC=0.
+4. No product source, configuration, spec, `AGENTS.md`, generated contract, or other non-report path is staged in that commit.
+5. The report files are committed byte-for-byte; do not normalize historical terminal whitespace.
+
+This exception is for immutable operation-report evidence only and must never be used to waive whitespace errors in product/source or authority documentation commits.
+
 ---
 
 ## 27. Updating this file
