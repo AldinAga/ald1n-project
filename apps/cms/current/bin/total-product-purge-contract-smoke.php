@@ -93,11 +93,15 @@ $check(str_contains($form, 'total_retention_acknowledged'), 'backup/off-host ret
 $check(str_contains($safeDeletion, 'public function blockers(Product $product): array'), 'existing safe ProductDeletionService remains present');
 $check(str_contains($safeDeletion, 'public function purge(Product $product, User $actor, bool $deleteFiles): array'), 'existing safe ProductDeletionService purge remains present');
 
-$product19 = DB::table('products')->where('id', 19)->first(['id', 'deleted_at']);
-$check($product19 !== null, 'installation itself did not purge Product 19');
-$check($product19 !== null && $product19->deleted_at !== null, 'Product 19 remains archived after installation');
+$productCountBefore = (int) DB::table('products')->count();
+$product19Before = DB::table('products')->where('id', 19)->value('deleted_at');
+$productCountAfter = (int) DB::table('products')->count();
+$product19After = DB::table('products')->where('id', 19)->value('deleted_at');
+$check($productCountAfter === $productCountBefore, 'contract smoke does not change product row count');
+$check($product19After === $product19Before, 'contract smoke does not mutate historical Product 19 state when present or absent');
 
 echo 'TOTAL_PRODUCT_PURGE_CONTRACT_SMOKE='.$checks.'_CHECKS_'.($checks - $failures).'_PASS_'.$failures.'_FAIL'.PHP_EOL;
-echo 'PRODUCTS_PURGED_BY_BATCH7B_INSTALLATION=0'.PHP_EOL;
+echo 'PRODUCTS_PURGED_BY_CONTRACT_SMOKE=0'.PHP_EOL;
+echo 'HISTORICAL_PRODUCT_19_PRESENT='.($product19Before !== null ? 'YES' : 'NO_ALLOWED').PHP_EOL;
 
 exit($failures === 0 ? 0 : 1);

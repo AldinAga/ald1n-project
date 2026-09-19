@@ -6,7 +6,7 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 **Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.
 
-Last consolidated: **2026-09-17**.
+Last consolidated: **2026-09-19**.
 
 ---
 
@@ -744,7 +744,7 @@ Do not delete:
 - uploads/product images,
 - private business documents,
 - active Laravel storage data,
-- operation report history,
+- the current uncheckpointed operation report or an immediate predecessor report still required by an active recovery,
 - valid verified backups,
 - EAS credentials,
 - unknown files merely because they are untracked.
@@ -792,7 +792,63 @@ The goal is not merely “eventually PASS.” The goal is that known environment
 
 ---
 
-## 26. Updating this file
+## 26. Owner-approved hosting hygiene and report numbering
+
+These rules are permanent from **2026-09-19** and supersede older operation-report/backup retention behavior where they conflict.
+
+### Terminal clear at the beginning of every Bash batch
+
+Every executable operational Bash batch must clear the terminal before logging, preflight, or mutations. Immediately after the shebang/comments, use:
+
+```bash
+clear 2>/dev/null || printf '\033c'
+```
+
+A failed `clear` in a non-interactive shell must not abort the batch.
+
+### Sequential operation-report number prefix
+
+Every newly generated operation report must begin with a monotonically increasing numeric prefix followed by `-`.
+
+Sequence authority when this rule was adopted:
+
+```text
+Last historical report number: 444
+First report under this rule: 445
+```
+
+After 445, increment by exactly one for every new report (`446-...`, `447-...`, etc.). Recovery attempts consume their own next number; never reuse a previous report number. After Report447 the next report is Report448.
+
+### Stable backup retention = exactly two
+
+Hosting must retain exactly the two newest restore-ready stable backups after cleanup. Before deleting older backups:
+
+1. Inventory the canonical Laravel `backup_runs` authority and canonical backup directory.
+2. Verify candidate backups with `php artisan app:backup-verify`.
+3. If fewer than two restore-ready backups exist, create and verify replacement manual backup(s) first.
+4. Only after two verified backups are proven may older canonical backup rows/directories and known legacy release snapshots be removed.
+5. Never delete either selected stable backup during the same cleanup.
+6. Backup cleanup may mutate backup metadata only; it must not modify business records.
+
+Do not retain 7 daily + 4 weekly backups merely because older default configuration allowed it. Owner policy is two stable backups total unless explicitly changed later. Every future housekeeping/release batch must verify the retention state and remove only newly accumulated superseded backups after proving the two keepers.
+
+### Operation reports: GitHub is the historical archive, hosting is an active workspace
+
+The production hosting checkout must not accumulate historical operation reports.
+
+- Keep locally only the current report and, when required for state binding/recovery, the immediate predecessor report.
+- Before removing a report not otherwise present on GitHub, checkpoint it to GitHub first.
+- Historical reports may be removed from the hosting working tree after GitHub authority is proven.
+- Large report-history cleanup must create a dedicated Git archive tag/commit before deletion so evidence remains recoverable.
+- Never delete the current uncheckpointed report or a predecessor that an active recovery still binds by SHA-256.
+
+### Contract smokes must not depend on disposable historical fixtures
+
+Read-only contract and health smokes must validate current contracts and immutability, not require a historical test record to exist forever. Total Product Purge contract validation must not fail merely because historical Product ID 19 was legitimately removed later. A fixture may be inspected when present, but its absence is not itself a contract failure.
+
+---
+
+## 27. Updating this file
 
 Update `AGENTS.md` whenever a newly proven hosting/release rule becomes permanent.
 
