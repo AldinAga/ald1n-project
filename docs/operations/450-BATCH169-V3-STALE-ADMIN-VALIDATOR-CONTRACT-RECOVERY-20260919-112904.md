@@ -1,16 +1,18 @@
 
 ============================================================
-449 - BATCH169 V2 MOBILE VALIDATOR CWD TARGETED RECOVERY
+450 - BATCH169 V3 STALE ADMIN VALIDATOR CONTRACT TARGETED RECOVERY
 ============================================================
-TIMESTAMP=20260919-112132
-EXPECTED_HEAD=009c6fdbeca23e9dbd651f4f9fdde62fd8915186
-RECOVERY_OF_REPORT=448
-RECOVERY_OF_FAILED_STAGE=MOBILE_VALIDATOR
-PURPOSE=CONTINUE_FROM_REPORT448_GREEN_UX_STATE_AND_RUN_VALIDATOR_FROM_CANONICAL_MOBILE_ROOT
+TIMESTAMP=20260919-112904
+EXPECTED_HEAD=62286fac9790d756f08072bd65333dc2938b57ed
+RECOVERY_OF_REPORT=449
+RECOVERY_OF_FAILED_STAGE=MOBILE_VALIDATOR_RECOVERY
+PURPOSE=REPLACE_ONE_STALE_BUILD16_ADMIN_HUB_VALIDATOR_EXPECTATION_AND_COMPLETE_ALREADY_GREEN_BUILD18_UX_SOURCE
 REAPPLY_UX_PATCH=NO
-REPEAT_TDD_RED_GREEN=NO_REUSE_VERIFIED_REPORT448_EVIDENCE
-REPEAT_CMS_STATIC=NO_REUSE_VERIFIED_REPORT448_983_OF_983
-REPEAT_MOBILE_TYPECHECK=NO_REUSE_VERIFIED_REPORT448_RC0
+HOME_ADMIN_SOURCE_MUTATION=NO_ADDITIONAL_CHANGE
+VALIDATOR_SOURCE_MUTATION=YES_ONE_STALE_EXPECTATION_ONLY
+REPEAT_TDD_RED_GREEN=NO_REUSE_REPORT448_AND_REPORT449_EVIDENCE
+REPEAT_CMS_STATIC=NO_REUSE_REPORT448_983_OF_983
+REPEAT_MOBILE_TYPECHECK=NO_REUSE_REPORT448_RC0
 DATABASE_WRITES=NO
 DEPENDENCY_INSTALL=NO
 EAS_COMMANDS_RUN=NO
@@ -19,7 +21,7 @@ BUILD_ACTION=NO
 GOOGLE_PLAY_ACTION=NO
 
 ============================================================
-0. PREFLIGHT - REPOSITORY AND KNOWN RUNTIME AUTHORITY
+0. PREFLIGHT - REPOSITORY AUTHORITY
 ============================================================
 
 ============================================================
@@ -31,8 +33,8 @@ From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_git_fetch_preflight=0
 BRANCH=main
-LOCAL_HEAD=009c6fdbeca23e9dbd651f4f9fdde62fd8915186
-REMOTE_HEAD=009c6fdbeca23e9dbd651f4f9fdde62fd8915186
+LOCAL_HEAD=62286fac9790d756f08072bd65333dc2938b57ed
+REMOTE_HEAD=62286fac9790d756f08072bd65333dc2938b57ed
 STAGED_COUNT=0
 HTACCESS_SHA_ACTUAL=d10ecf0d63f9a8e1bd978a440afcbadb34faf1d24eb899bf2582d1e5c0033cef
 HTACCESS_SHA_EXPECTED=d10ecf0d63f9a8e1bd978a440afcbadb34faf1d24eb899bf2582d1e5c0033cef
@@ -41,29 +43,26 @@ HTACCESS_DIFF_SHA_EXPECTED=8ce9fa55a71768bf711203fcc50be8eec6de26886bbf4852ceb30
 KNOWN_HTACCESS_DRIFT=PASS
 
 ============================================================
-1. BIND REPORT448 FAILURE STATE AND REUSE SUCCESSFUL EVIDENCE
+1. BIND REPORT449 FAILURE AUTHORITY
 ============================================================
-REPORT448_SHA_ACTUAL=b3c816d39a723341ef4e6e227f043190d79f648d1120b3a81864cd3f24e45b1e
-REPORT448_SHA_EXPECTED=b3c816d39a723341ef4e6e227f043190d79f648d1120b3a81864cd3f24e45b1e
-REPORT448_STATE=PASS_BOUND_EXACT_FAILURE_AND_SUCCESSFUL_PRIOR_STAGES
-TDD_GREEN_REUSED_FROM_REPORT448=PASS_15_OF_15
-CMS_STATIC_REUSED_FROM_REPORT448=PASS_983_OF_983
-MOBILE_TYPECHECK_REUSED_FROM_REPORT448=PASS_RC0
-STABLE_BACKUP_RETENTION_REUSED_FROM_REPORT448=PASS_EXACTLY_2_VERIFIED
+REPORT449_SHA_ACTUAL=84c2c8f76c12857577c1ab4d25e6f7895f5a9e5afc9213c302e4b0c97a863618
+REPORT449_SHA_EXPECTED=84c2c8f76c12857577c1ab4d25e6f7895f5a9e5afc9213c302e4b0c97a863618
+REPORT449_AUTHORITY=PASS_EXACT_SINGLE_STALE_VALIDATOR_FAILURE
+TDD_RED_AUTHORITY=REPORT449_EXACTLY_ONE_OLD_BUILD16_ADMIN_ASSERTION_FAIL
 
 ============================================================
-2. WORKTREE ALLOWLIST - EXACT PARTIAL STATE FROM REPORT448
+2. WORKTREE ALLOWLIST - EXACT PARTIAL BUILD18 UX STATE
 ============================================================
  M apps/cms/current/public/.htaccess
  M apps/mobile/current/scripts/validate-project.mjs
  M apps/mobile/current/src/app/(app)/(tabs)/home.tsx
  M apps/mobile/current/src/app/(app)/admin/index.tsx
-?? docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md
 ?? docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md
-WORKTREE_ALLOWLIST=PASS_REPORT448_PARTIAL_STATE_ONLY
+?? docs/operations/450-BATCH169-V3-STALE-ADMIN-VALIDATOR-CONTRACT-RECOVERY-20260919-112904.md
+WORKTREE_ALLOWLIST=PASS_REPORT449_PARTIAL_STATE_ONLY
 
 ============================================================
-3. VERIFY REPORT448 UX PATCH STATE WITHOUT REAPPLYING IT
+3. VERIFY GREEN BUILD18 UX SOURCE WITHOUT REPATCH
 ============================================================
 PASS internal Expo Tabs bar remains hidden
 PASS custom AppBottomNav remains rendered
@@ -78,233 +77,234 @@ PASS contextual product/cart actions remain
 PASS non-primary personal activities remain
 PASS passive Admin foundation cards remain removed
 PASS Admin business groups remain
-PASS validator contains Build18 UX regression guards
+PASS Admin module visibility authority remains active
+PASS Build18 validator guards remain
 PASS Product Variants remain decommissioned
-BUILD18_RECOVERY_SOURCE_STATE=15_CHECKS_15_PASS_0_FAIL
+BUILD18_SOURCE_STATE=16_CHECKS_16_PASS_0_FAIL
 SOURCE_STATE_RC=0
-RECOVERY_SOURCE_STATE=PASS_NO_REPATCH_REQUIRED
+BUILD18_UX_SOURCE=PASS_NO_REPATCH_REQUIRED
 
 ============================================================
-4. ARCHIVE REPORT448 AND ROTATE REPORT447 FROM ACTIVE HOSTING
+4. ARCHIVE REPORT449 AND ROTATE REPORT448 FROM ACTIVE HOSTING
 ============================================================
-rm 'docs/operations/447-BATCH168-V4-ANCHOR-PATCH-RECOVERY-AND-HYGIENE-FINALIZATION-20260919-100323.md'
-docs/operations/447-BATCH168-V4-ANCHOR-PATCH-RECOVERY-AND-HYGIENE-FINALIZATION-20260919-100323.md
+rm 'docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md'
 docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md
-REPORT448_STAGE_SCOPE=PASS_EXACT_2_PATHS
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:110: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:112: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:114: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:116: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:118: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:120: trailing whitespace.
-++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:122: trailing whitespace.
-++++++++   INFO  Blade templates cached successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:124: trailing whitespace.
-++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:126: trailing whitespace.
-++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:128: trailing whitespace.
-++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:130: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md
+REPORT449_STAGE_SCOPE=PASS_EXACT_2_PATHS
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:95: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:97: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:99: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:101: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:103: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:105: trailing whitespace.
 +++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:132: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:107: trailing whitespace.
 +++++++++   INFO  Blade templates cached successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:134: trailing whitespace.
-++++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:136: trailing whitespace.
-++++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:138: trailing whitespace.
-++++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:140: trailing whitespace.
-++++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:142: trailing whitespace.
-++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:144: trailing whitespace.
-++++++++⠋ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:146: trailing whitespace.
-++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:148: trailing whitespace.
-++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:150: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:152: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:154: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:156: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:158: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:160: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:162: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:164: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:166: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:168: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:170: trailing whitespace.
-+++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:172: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:174: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:176: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:178: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:180: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:182: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:184: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:186: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:188: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:190: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:192: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:194: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:196: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:198: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:200: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:202: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:204: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:206: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:208: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:210: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:212: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:214: trailing whitespace.
-+++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:216: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:218: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:220: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:222: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:224: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:226: trailing whitespace.
-+++++++   INFO  Compiled views cleared successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:228: trailing whitespace.
-+++++++   INFO  Blade templates cached successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:230: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:109: trailing whitespace.
++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:111: trailing whitespace.
++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:113: trailing whitespace.
++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:115: trailing whitespace.
+++++++++++   INFO  Compiled views cleared successfully.  
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:117: trailing whitespace.
+++++++++++   INFO  Blade templates cached successfully.  
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:119: trailing whitespace.
++++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:121: trailing whitespace.
++++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:123: trailing whitespace.
++++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:125: trailing whitespace.
++++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:127: trailing whitespace.
++++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:129: trailing whitespace.
++++++++++⠋ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:131: trailing whitespace.
 +++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:232: trailing whitespace.
-+++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:234: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:133: trailing whitespace.
 +++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:236: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:135: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:137: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:139: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:141: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:143: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:145: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:147: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:149: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:151: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:153: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:155: trailing whitespace.
+++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:157: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:159: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:161: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:163: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:165: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:167: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:169: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:171: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:173: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:175: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:177: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:179: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:181: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:183: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:185: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:187: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:189: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:191: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:193: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:195: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:197: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:199: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:201: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:203: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:205: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:207: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:209: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:211: trailing whitespace.
 ++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:238: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:213: trailing whitespace.
 ++++++++   INFO  Blade templates cached successfully.  
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:240: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:215: trailing whitespace.
+++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:217: trailing whitespace.
+++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:219: trailing whitespace.
+++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:221: trailing whitespace.
++++++++++   INFO  Compiled views cleared successfully.  
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:223: trailing whitespace.
++++++++++   INFO  Blade templates cached successfully.  
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:225: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:227: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:229: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:231: trailing whitespace.
+++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:233: trailing whitespace.
+++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:235: trailing whitespace.
+++++++++⠋ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:237: trailing whitespace.
+++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:239: trailing whitespace.
+++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:241: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:243: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:245: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:247: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:249: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:251: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:253: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:255: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:257: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:259: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:261: trailing whitespace.
++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:263: trailing whitespace.
 +++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:242: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:265: trailing whitespace.
 +++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:244: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:267: trailing whitespace.
 +++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:246: trailing whitespace.
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:269: trailing whitespace.
 +++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:248: trailing whitespace.
-+++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:250: trailing whitespace.
-+++++++⠋ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:252: trailing whitespace.
-+++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:254: trailing whitespace.
-+++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:256: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:258: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:260: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:262: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:264: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:266: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:268: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:270: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:272: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:274: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:276: trailing whitespace.
-++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:278: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:280: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:282: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:284: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:286: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:288: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:290: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:292: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:294: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:296: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:298: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:300: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:302: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:304: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:306: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:308: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:310: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:312: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:314: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:316: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:318: trailing whitespace.
-++++++ 
-docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md:320: trailing whitespace.
-++++++ 
-RC_report448_evidence_diff_check=2
-REPORT448_DIFF_POLICY=PASS_IMMUTABLE_REPORT_WHITESPACE_ONLY
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:271: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:273: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:275: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:277: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:279: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:281: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:283: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:285: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:287: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:289: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:291: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:293: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:295: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:297: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:299: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:301: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:303: trailing whitespace.
++++++++ 
+docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md:305: trailing whitespace.
++++++++ 
+RC_report449_evidence_diff_check=2
+REPORT449_DIFF_POLICY=PASS_IMMUTABLE_REPORT_WHITESPACE_ONLY
 
 ============================================================
 RUN - git_fetch_evidence_race
@@ -314,51 +314,57 @@ COMMAND=git fetch origin main
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_git_fetch_evidence_race=0
-LOCAL_BEFORE_EVIDENCE_COMMIT=009c6fdbeca23e9dbd651f4f9fdde62fd8915186
-REMOTE_BEFORE_EVIDENCE_COMMIT=009c6fdbeca23e9dbd651f4f9fdde62fd8915186
+LOCAL_BEFORE_EVIDENCE_COMMIT=62286fac9790d756f08072bd65333dc2938b57ed
+REMOTE_BEFORE_EVIDENCE_COMMIT=62286fac9790d756f08072bd65333dc2938b57ed
 
 ============================================================
-RUN - report448_evidence_commit
+RUN - report449_evidence_commit
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git commit -m docs: archive Build18 UX validator failure evidence
-[main 62286fa] docs: archive Build18 UX validator failure evidence
- 2 files changed, 1623 insertions(+), 2733 deletions(-)
- delete mode 100644 docs/operations/447-BATCH168-V4-ANCHOR-PATCH-RECOVERY-AND-HYGIENE-FINALIZATION-20260919-100323.md
- create mode 100644 docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md
-RC_report448_evidence_commit=0
-REPORT448_EVIDENCE_COMMIT=62286fac9790d756f08072bd65333dc2938b57ed
+COMMAND=git commit -m docs: archive Build18 UX stale-validator recovery evidence
+[main 4d4f732] docs: archive Build18 UX stale-validator recovery evidence
+ 2 files changed, 972 insertions(+), 1623 deletions(-)
+ delete mode 100644 docs/operations/448-BATCH169-BUILD18-UX-UI-SIMPLIFICATION-20260919-101244.md
+ create mode 100644 docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md
+RC_report449_evidence_commit=0
+REPORT449_EVIDENCE_COMMIT=4d4f7328ae5484249cbf7bb0e28daf1dbef03728
 
 ============================================================
-RUN - report448_evidence_push
+RUN - report449_evidence_push
 ============================================================
 CWD=/home/icaffeco/ald1n-project
 COMMAND=git push origin main
 To github.com:AldinAga/ald1n-project.git
-   009c6fd..62286fa  main -> main
-RC_report448_evidence_push=0
+   62286fa..4d4f732  main -> main
+RC_report449_evidence_push=0
 
 ============================================================
-RUN - report448_evidence_fetch_postpush
+RUN - report449_evidence_fetch_postpush
 ============================================================
 CWD=/home/icaffeco/ald1n-project
 COMMAND=git fetch origin main
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
-RC_report448_evidence_fetch_postpush=0
-REPORT448_PRESERVED_ON_GITHUB=PASS
-REPORT447_ACTIVE_HOSTING_ROTATION=PASS_REMOVED_FROM_CURRENT_BRANCH_PRESERVED_IN_HISTORY
+RC_report449_evidence_fetch_postpush=0
+REPORT449_PRESERVED_ON_GITHUB=PASS
+REPORT448_ACTIVE_HOSTING_ROTATION=PASS_REMOVED_FROM_CURRENT_BRANCH_PRESERVED_IN_HISTORY
 
 ============================================================
-5. ROOT CAUSE RECOVERY - RUN MOBILE VALIDATOR FROM CANONICAL MOBILE ROOT
+5. PATCH ONLY THE STALE BUILD16 ADMIN HUB VALIDATOR EXPECTATION
 ============================================================
-ROOT_CAUSE=REPORT448_INVOKED_VALIDATE_PROJECT_BY_ABSOLUTE_PATH_WITHOUT_CD_TO_MOBILE_ROOT
-FAILURE_MECHANISM=EXISTING_VALIDATOR_PROCESS_CWD_READ_RESOLVED_TO_HOME_ICAFFECO_SRC
-APP_SOURCE_FIX_REQUIRED=NO
-OPERATIONAL_FIX=RUN_VALIDATOR_WITH_CWD_APPS_MOBILE_CURRENT
+No syntax errors detected in /home/icaffeco/.ald1n-batch169-v3-20260919-112904/patch-stale-validator.php
+OLD_STALE_EXPECTATION_COUNT=1
+NEW_MODULE_AUTHORITY_EXPECTATION_COUNT=0
+PATCHED_STALE_BUILD16_ADMIN_VALIDATOR=1
+PATCH_RC=0
+VALIDATOR_CONTRACT_FIX=PASS_MODULE_VISIBILITY_AUTHORITY_PRESERVED_WITHOUT_PASSIVE_MODULE_CARDS
 
 ============================================================
-RUN - mobile_validator_recovery
+6. TDD GREEN - FULL MOBILE VALIDATOR FROM CANONICAL MOBILE ROOT
+============================================================
+
+============================================================
+RUN - mobile_validator_green
 ============================================================
 CWD=/home/icaffeco/ald1n-project/apps/mobile/current
 COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node scripts/validate-project.mjs
@@ -615,7 +621,7 @@ PASS Build16 Account koristi grupisane OperatorRow površine i čuva Profil > Be
 PASS Build16 Cart koristi Operator list/summary hijerarhiju bez Card/pseudo-icon obrasca i čuva Batch116 image cache + product-only quantity/remove/clear/checkout tok.
 PASS Build16 Checkout koristi Operator step hijerarhiju i čuva stable idempotency, bank transfer, deferred-payment, product-only create i success routing authority.
 PASS Build16 Cart decrement koristi canonical Expo Symbols remove semantic bez tekstualnog pseudo-icon fallbacka.
-FAIL Build16 Admin Hub koristi OperatorRow grupisane akcije i čuva permission/module/inventory/global-search authority bez button-zoo obrasca.
+PASS Build16 Admin Hub koristi OperatorRow grupisane akcije i čuva permission/module/inventory/global-search authority bez button-zoo obrasca.
 PASS Build16 shared loading/empty/unavailable/error states koriste canonical radii, reduced-motion i postojeći retry/request-id contract.
 PASS Build16 PageHeader zadržava notification badge/routing authority uz Operator control radius i restrained press feedback.
 PASS Build16 Laravel final polish zaključava flat body, focus-visible, empty-state, control radius i reduced-motion presentation contract.
@@ -865,7 +871,7 @@ PASS v1.0 Admin Catalog deletion API reuse-uje postojeće Laravel ProductDeletio
 PASS OpenAPI dokumentuje ADMIN-CAT-03 deletion readiness, purge i Total Product Purge ugovor.
 PASS v1.0 Admin Catalog purge tok ostaje product-only bez Product Variants contracta.
 
-Ukupno FAIL: 1
+Ukupno FAIL: 0
 PASS v1.0 System Health Mobile API pokriva snapshot, backup i retention mutacije relativnim canonical putanjama.
 PASS v1.0 System Health API reuse-uje postojeće SystemHealthService i BackupService business guardove bez paralelne logike.
 PASS v1.0 System Health Mobile state izlaže bezbednu backup/security istoriju bez privatnih backup putanja.
@@ -950,23 +956,137 @@ PASS Batch116 Download je zaključan isključivo na canonical original full-qual
 PASS Batch116 edit/create preview, product detail i cart koriste optimizovan image presentation path.
 PASS Batch116 backend pravi odvojene WebP derivatives, čuva original i automatski osvežava cache nakon upload/clone/rotate.
 PASS Batch116 image performance rad ne vraća Product Variants contract.
-RC_mobile_validator_recovery=1
-FAIL_STAGE=MOBILE_VALIDATOR_RECOVERY
-FAIL_MESSAGE=Mobile validator still fails when run from canonical Mobile root
+RC_mobile_validator_green=0
+MOBILE_VALIDATOR=PASS_UKUPNO_FAIL_0
+
+============================================================
+7. COMPLETE UNREACHED OPENAPI PARITY GATE
+============================================================
+OPENAPI_SHA_CMS=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
+OPENAPI_SHA_MOBILE=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
+OPENAPI_SHA_PACKAGE=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
+OPENAPI_PARITY=PASS_EXACT_3_COPIES
+
+============================================================
+8. SOURCE DIFF SCOPE AND WHITESPACE CHECK
+============================================================
+apps/mobile/current/scripts/validate-project.mjs
+apps/mobile/current/src/app/(app)/(tabs)/home.tsx
+apps/mobile/current/src/app/(app)/admin/index.tsx
+SOURCE_DIFF_SCOPE=PASS_EXACT_3_MOBILE_FILES
+RC_source_worktree_diff_check=0
+KNOWN_HTACCESS_DRIFT_POSTRECOVERY=PASS
+
+============================================================
+9. STAGE EXACT BUILD18 UX SOURCE + REMOTE RACE GUARD + COMMIT + PUSH
+============================================================
+apps/mobile/current/scripts/validate-project.mjs
+apps/mobile/current/src/app/(app)/(tabs)/home.tsx
+apps/mobile/current/src/app/(app)/admin/index.tsx
+SOURCE_STAGE_SCOPE=PASS_EXACT_3_FILES
+RC_source_cached_diff_check=0
+
+============================================================
+RUN - git_fetch_source_race
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git fetch origin main
+From github.com:AldinAga/ald1n-project
+ * branch            main       -> FETCH_HEAD
+RC_git_fetch_source_race=0
+LOCAL_BEFORE_SOURCE_COMMIT=4d4f7328ae5484249cbf7bb0e28daf1dbef03728
+REMOTE_BEFORE_SOURCE_COMMIT=4d4f7328ae5484249cbf7bb0e28daf1dbef03728
+
+============================================================
+RUN - source_commit
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git commit -m feat(mobile): finalize Build18 UX simplification
+[main e5bbdc2] feat(mobile): finalize Build18 UX simplification
+ 3 files changed, 61 insertions(+), 105 deletions(-)
+RC_source_commit=0
+SOURCE_COMMIT=e5bbdc248fdfc43da5af36ff096f99f8b2bcd054
+
+============================================================
+RUN - source_push
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git push origin main
+To github.com:AldinAga/ald1n-project.git
+   4d4f732..e5bbdc2  main -> main
+RC_source_push=0
+
+============================================================
+RUN - source_fetch_postpush
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git fetch origin main
+From github.com:AldinAga/ald1n-project
+ * branch            main       -> FETCH_HEAD
+RC_source_fetch_postpush=0
+LOCAL_HEAD_FINAL=e5bbdc248fdfc43da5af36ff096f99f8b2bcd054
+REMOTE_HEAD_FINAL=e5bbdc248fdfc43da5af36ff096f99f8b2bcd054
+
+============================================================
+10. FINAL BUILD18 UX CERTIFICATION
+============================================================
+PASS internal Expo Tabs bar remains hidden
+PASS custom AppBottomNav remains rendered
+PASS canonical primary destinations remain
+PASS Home catalog duplicate remains removed
+PASS Home orders duplicate remains removed
+PASS SuperAdmin duplicate Admin Home action remains removed
+PASS quick actions use progressive disclosure
+PASS activities use progressive disclosure
+PASS passive sync card remains removed
+PASS contextual product/cart actions remain
+PASS non-primary personal activities remain
+PASS passive Admin foundation cards remain removed
+PASS Admin business groups remain
+PASS Admin module visibility authority remains active
+PASS Build18 validator guards remain
+PASS Product Variants remain decommissioned
+BUILD18_SOURCE_STATE=16_CHECKS_16_PASS_0_FAIL
+FINAL_SOURCE_STATE_RC=0
+ M apps/cms/current/public/.htaccess
+?? docs/operations/450-BATCH169-V3-STALE-ADMIN-VALIDATOR-CONTRACT-RECOVERY-20260919-112904.md
+FINAL_WORKTREE_ALLOWLIST=PASS_KNOWN_HTACCESS_PLUS_CURRENT_REPORT450
+HOSTING_OPERATION_FILES_AFTER=3
+REPORT_RETENTION=PASS_README_PLUS_PREDECESSOR449_PLUS_CURRENT450
 
 ============================================================
 FINAL SUMMARY
 ============================================================
-BATCH169_V2_RESULT=FAIL
-REPORT_NUMBER=449
-RECOVERY_OF=448-BATCH169
-FAILED_STAGE=MOBILE_VALIDATOR_RECOVERY
-REPORT448_EVIDENCE_COMMIT=62286fac9790d756f08072bd65333dc2938b57ed
-SOURCE_COMMIT=NONE
-PUSH_COMPLETED=NO
+BATCH169_V3_RESULT=PASS_TARGETED_RECOVERY_AND_BATCH169_COMPLETE
+REPORT_NUMBER=450
+RECOVERY_OF=449-BATCH169-V2
+FAILED_STAGE=NONE
+ROOT_CAUSE=STALE_BUILD16_ADMIN_VALIDATOR_EXPECTED_REMOVED_PASSIVE_FOUNDATION_MODULES_FILTER_MARKER
+ROOT_CAUSE_FIX=VALIDATOR_NOW_ASSERTS_ACTIVE_MODULEENABLED_FOUNDATION_MODULES_SOME_AUTHORITY
+BUILD18_UX_SOURCE=PASS_EXISTING_HOME_ADMIN_PATCH_PRESERVED
+MOBILE_VALIDATOR=PASS_UKUPNO_FAIL_0
+CMS_STATIC=PASS_REUSED_FROM_REPORT448_983_OF_983
+MOBILE_TYPECHECK=PASS_REUSED_FROM_REPORT448_RC0
+STABLE_BACKUP_RETENTION=PASS_REUSED_FROM_REPORT448_EXACTLY_2_VERIFIED
+OPENAPI_PARITY=PASS_EXACT_3_COPIES
+REPORT449_EVIDENCE_COMMIT=4d4f7328ae5484249cbf7bb0e28daf1dbef03728
+SOURCE_COMMIT=e5bbdc248fdfc43da5af36ff096f99f8b2bcd054
+PUSH_COMPLETED=YES
+UX_NAV_AUTHORITY=PASS_SINGLE_CUSTOM_APP_BOTTOM_NAV_INTERNAL_EXPO_TABS_HIDDEN
+HOME_DUPLICATE_CATALOG_ENTRY=REMOVED
+HOME_DUPLICATE_ORDERS_ENTRY=REMOVED
+HOME_SUPERADMIN_DUPLICATE_ADMIN_ENTRY=REMOVED
+HOME_EMPTY_SECTIONS=PROGRESSIVE_DISCLOSURE
+HOME_PASSIVE_SYNC_CARD=REMOVED
+ADMIN_PASSIVE_MODULE_CARDS=REMOVED
+ADMIN_MODULE_VISIBILITY_AUTHORITY=PRESERVED_VIA_MODULEENABLED_FOUNDATION_MODULES_SOME
+PRODUCT_VARIANTS=REMAINS_DECOMMISSIONED
+OPENAPI_CHANGE=NO
+DATABASE_WRITES=NO
 EAS_COMMANDS_RUN=NO
 OTA_ACTION=NO
 BUILD_ACTION=NO
 GOOGLE_PLAY_ACTION=NO
-NEXT_ACTION=TARGETED_RECOVERY_FROM_RECORDED_FAILED_STAGE
-REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/449-BATCH169-V2-MOBILE-VALIDATOR-CWD-RECOVERY-20260919-112132.md
+REPORT_SEQUENCE_POLICY=ENABLED_NEXT_AFTER_450_IS_451
+NEXT_ACTION=REPORT451_BATCH170_BUILD18_CRM_CUSTOMER360_DATA_API_FOUNDATION
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/450-BATCH169-V3-STALE-ADMIN-VALIDATOR-CONTRACT-RECOVERY-20260919-112904.md
