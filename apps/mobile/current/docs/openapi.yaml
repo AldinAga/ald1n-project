@@ -4138,6 +4138,31 @@ security:
         '200': { description: Kupci, statistike i poslednje komunikacije. }
         '403': { description: Nedostaje system.manage_users. }
         '404': { description: Customer Portal modul je isključen. }
+  /api/v1/admin/customer-portal/unlinked-buyers:
+    get:
+      tags: [Admin Customer Portal]
+      summary: Read-only unlinked buyer and order candidates
+      description: Requires authenticated active staff with system.manage_users and enabled customer_portal module. Returns only operational orders where user_id is null and never suggests or mutates ownership.
+      operationId: listAdminCustomerPortalUnlinkedBuyers
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 190 } }
+      responses:
+        '200':
+          description: Up to 50 factual unlinked order candidates.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: '#/components/schemas/AdminCustomerUnlinkedBuyer' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /api/v1/admin/customer-portal/users:
     post:
       tags: [Admin Customer Portal]
@@ -4149,11 +4174,77 @@ security:
   /api/v1/admin/customer-portal/users/{user}:
     get:
       tags: [Admin Customer Portal]
-      summary: Customer detalj, porudžbine, sesije i komunikacije
+      summary: Customer detail with Customer 360, orders, sessions and communications
+      description: Requires authenticated active staff with system.manage_users and enabled customer_portal module. Preserves the existing detail payload and adds customer_360 read-model data.
       operationId: showAdminCustomerPortalUser
+      parameters:
+        - { name: user, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: order_q, in: query, required: false, schema: { type: string } }
       responses:
-        '200': { description: Customer admin detalj bez raw session hash/user-agent/token vrednosti. }
-        '404': { description: Nalog nije customer portal user. }
+        '200':
+          description: Customer admin detail without raw session hashes, raw user agents or bearer tokens.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [customer, customer_360, orders, order_search, active_web_sessions, conversations, status_labels]
+                    properties:
+                      customer: { type: object, additionalProperties: true }
+                      customer_360:
+                        type: object
+                        additionalProperties: false
+                        required: [summary, timeline, crm_notes]
+                        properties:
+                          summary: { $ref: '#/components/schemas/AdminCustomer360Summary' }
+                          timeline:
+                            type: array
+                            maxItems: 50
+                            items: { $ref: '#/components/schemas/AdminCustomer360TimelineItem' }
+                          crm_notes:
+                            type: array
+                            maxItems: 50
+                            items: { $ref: '#/components/schemas/AdminCustomerCrmNote' }
+                      orders: { type: array, items: { type: object, additionalProperties: true } }
+                      order_search: { type: array, items: { type: object, additionalProperties: true } }
+                      active_web_sessions: { type: array, items: { type: object, additionalProperties: true } }
+                      conversations: { type: array, items: { type: object, additionalProperties: true } }
+                      status_labels: { type: object, additionalProperties: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/customer-portal/users/{user}/crm-notes:
+    post:
+      tags: [Admin Customer Portal]
+      summary: Append an internal Customer 360 CRM note
+      description: Requires authenticated active staff with system.manage_users and enabled customer_portal module. Creation is append-only, audited, and protected by throttle:admin-write. The target must be a customer portal user.
+      operationId: createAdminCustomerCrmNote
+      parameters:
+        - { name: user, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCustomerCrmNoteCreateRequest' }
+      responses:
+        '201':
+          description: CRM note appended and audited.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, data]
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AdminCustomerCrmNote' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/admin/customer-portal/users/{user}/invite:
     post:
       tags: [Admin Customer Portal]
@@ -4603,6 +4694,77 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    AdminCustomer360Summary:
+      type: object
+      additionalProperties: false
+      required: [orders_count, lifetime_revenue_rsd, average_order_value_rsd, outstanding_rsd, last_purchase_at, active_after_sales_count, active_warranties_count, open_conversations_count, unread_staff_messages_count]
+      properties:
+        orders_count: { type: integer, minimum: 0 }
+        lifetime_revenue_rsd: { type: number, format: double, minimum: 0 }
+        average_order_value_rsd: { type: number, format: double, minimum: 0 }
+        outstanding_rsd: { type: number, format: double, minimum: 0 }
+        last_purchase_at: { type: [string, 'null'], format: date-time }
+        active_after_sales_count: { type: integer, minimum: 0 }
+        active_warranties_count: { type: integer, minimum: 0 }
+        open_conversations_count: { type: integer, minimum: 0 }
+        unread_staff_messages_count: { type: integer, minimum: 0 }
+    AdminCustomer360TimelineItem:
+      type: object
+      additionalProperties: false
+      required: [type, occurred_at, title, summary, order_id, conversation_id, after_sales_case_id, actor]
+      properties:
+        type: { type: string, enum: [order, order_link, crm_note, after_sales, conversation] }
+        occurred_at: { type: [string, 'null'], format: date-time }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        order_id: { type: [integer, 'null'], minimum: 1 }
+        conversation_id: { type: [integer, 'null'], minimum: 1 }
+        after_sales_case_id: { type: [integer, 'null'], minimum: 1 }
+        actor:
+          anyOf:
+            - type: object
+              additionalProperties: false
+              required: [id, name]
+              properties:
+                id: { type: integer, minimum: 1 }
+                name: { type: string }
+            - { type: 'null' }
+    AdminCustomerCrmNote:
+      type: object
+      additionalProperties: false
+      required: [id, body, created_at, author]
+      properties:
+        id: { type: integer, minimum: 1 }
+        body: { type: string, minLength: 2, maxLength: 5000 }
+        created_at: { type: [string, 'null'], format: date-time }
+        author:
+          anyOf:
+            - type: object
+              additionalProperties: false
+              required: [id, name]
+              properties:
+                id: { type: integer, minimum: 1 }
+                name: { type: string }
+            - { type: 'null' }
+    AdminCustomerCrmNoteCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 2, maxLength: 5000 }
+    AdminCustomerUnlinkedBuyer:
+      type: object
+      additionalProperties: false
+      required: [id, number, status, name, email, phone, subtotal_rsd, created_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        number: { type: string }
+        status: { type: string }
+        name: { type: [string, 'null'] }
+        email: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        subtotal_rsd: { type: number, format: double, minimum: 0 }
+        created_at: { type: [string, 'null'], format: date-time }
     AdminUserGroupPermission:
       type: object
       required: [id, name, slug, description]
