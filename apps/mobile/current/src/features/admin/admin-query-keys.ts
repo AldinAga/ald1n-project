@@ -13,6 +13,7 @@ export const adminQueryKeys = {
   warrantyRules: () => ['admin', 'warranties', 'rules'] as const,
   reports: () => ['admin', 'reports'] as const,
   managementReport: (params: unknown) => ['admin', 'reports', 'management', params] as const,
+  reportCustomerProfitability: (userId: number) => ['admin', 'reports', 'customer-profitability', userId] as const,
   reportSchedules: () => ['admin', 'reports', 'schedules'] as const,
   systemHealth: () => ['admin', 'system-health'] as const,
   auditEvents: (params: unknown) => ['admin', 'audit-events', params] as const,

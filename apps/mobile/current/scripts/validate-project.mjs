@@ -2795,6 +2795,58 @@ assert(
     && !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(customer360IndexBatch171 + customer360DetailBatch171),
   'Batch171 visible workspace ostaje postojeći Customer Portal authority bez heurističkog matching-a, profitability duplikata ili Product Variants povratka.',
 );
+// MOBILE_BUILD18_ADVANCED_ANALYTICS_BATCH172
+const advancedAnalyticsServiceBatch172 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/ManagementReportService.php'), 'utf8');
+const advancedAnalyticsOpenApiBatch172 = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+const advancedAnalyticsMobileApiBatch172 = fs.readFileSync(path.join(root, 'src/features/admin/reports-admin-api.ts'), 'utf8');
+const advancedAnalyticsQueryKeysBatch172 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+assert(
+  advancedAnalyticsServiceBatch172.includes('BUILD18_ADVANCED_ANALYTICS_BATCH172')
+    && advancedAnalyticsServiceBatch172.includes('public function advancedAnalytics(')
+    && advancedAnalyticsServiceBatch172.includes('public function comparison(')
+    && advancedAnalyticsServiceBatch172.includes('public function customerProfitability(')
+    && advancedAnalyticsServiceBatch172.includes('public function salesChannelProfitability(')
+    && advancedAnalyticsServiceBatch172.includes('public function productProfitability(')
+    && advancedAnalyticsServiceBatch172.includes('public function inventoryEfficiency(')
+    && advancedAnalyticsServiceBatch172.includes("'advanced_analytics' =>"),
+  'Batch172 ManagementReportService ostaje canonical authority za comparison, customer/channel/product profitability i inventory efficiency.',
+);
+assert(
+  advancedAnalyticsServiceBatch172.includes("'customer_user_id' => max(0, (int) ($input['customer_user_id'] ?? 0))")
+    && advancedAnalyticsServiceBatch172.includes("->where('orders.user_id', (int) $filters['customer_user_id'])")
+    && !advancedAnalyticsServiceBatch172.includes('historical_average_inventory_available\' => true')
+    && advancedAnalyticsServiceBatch172.includes("'basis' => 'current_inventory_cost_proxy'")
+    && advancedAnalyticsServiceBatch172.includes("'is_proxy' => true"),
+  'Batch172 customer profitability filter je server-authoritative, a turnover/GMROI eksplicitno ostaju current-inventory proxy bez lazne istorijske prosečne vrednosti.',
+);
+assert(
+  advancedAnalyticsOpenApiBatch172.includes('AdminReportAdvancedAnalytics:')
+    && advancedAnalyticsOpenApiBatch172.includes('AdminReportMetricDelta:')
+    && advancedAnalyticsOpenApiBatch172.includes('AdminReportProfitabilityRow:')
+    && advancedAnalyticsOpenApiBatch172.includes('AdminReportInventoryEfficiency:')
+    && advancedAnalyticsOpenApiBatch172.includes('name: customer_user_id')
+    && advancedAnalyticsOpenApiBatch172.includes("enum: [current_inventory_cost_proxy]"),
+  'Batch172 canonical OpenAPI dokumentuje advanced analytics, Customer360 handoff filter i transparentan inventory proxy basis.',
+);
+assert(
+  advancedAnalyticsMobileApiBatch172.includes('export type AdminReportAdvancedAnalytics = {')
+    && advancedAnalyticsMobileApiBatch172.includes('customer_user_id?: number;')
+    && advancedAnalyticsMobileApiBatch172.includes('customer_user_id: params.customer_user_id,')
+    && advancedAnalyticsMobileApiBatch172.includes('advanced_analytics: AdminReportAdvancedAnalytics;')
+    && advancedAnalyticsMobileApiBatch172.includes("basis: 'current_inventory_cost_proxy';"),
+  'Batch172 Mobile reports contract ima matching advanced analytics tipove i customer_user_id request parity pre visible Batch173 UI.',
+);
+assert(
+  advancedAnalyticsQueryKeysBatch172.includes('reportCustomerProfitability: (userId: number) =>')
+    && advancedAnalyticsQueryKeysBatch172.includes("['admin', 'reports', 'customer-profitability', userId] as const"),
+  'Batch172 centralni query keys pripremaju Customer360 profitability handoff bez novog API namespace-a.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(advancedAnalyticsServiceBatch172 + advancedAnalyticsMobileApiBatch172)
+    && !advancedAnalyticsServiceBatch172.includes('/analytics')
+    && !advancedAnalyticsMobileApiBatch172.includes('/analytics'),
+  'Batch172 advanced analytics ne vraca Product Variants niti uvodi paralelni analytics API namespace.',
+);
 // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
 const userGroupsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/user-groups-admin-api.ts'), 'utf8');
 const userGroupsScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/user-groups/index.tsx'), 'utf8');

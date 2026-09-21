@@ -15,12 +15,13 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
+// BUILD18_ADVANCED_ANALYTICS_BATCH172
 final class ManagementReportService
 {
     /** @var array<string,list<string>> */
     private const REQUIRED = [
         'orders' => ['id', 'source_system', 'sales_channel', 'supplier_user_id', 'status', 'subtotal_rsd', 'paid_total_rsd', 'eur_rsd_rate', 'created_at', 'completed_at'],
-        'order_items' => ['order_id', 'quantity', 'line_total_rsd', 'purchase_total_rsd_snapshot', 'commission_total_eur_snapshot', 'brand_name_snapshot', 'product_line_name_snapshot', 'product_type_name_snapshot'],
+        'order_items' => ['order_id', 'quantity', 'line_total_rsd', 'purchase_total_rsd_snapshot', 'commission_total_eur_snapshot', 'brand_name_snapshot', 'product_line_name_snapshot', 'product_type_name_snapshot', 'product_name', 'product_sku'],
         'products' => ['id', 'sku', 'name', 'stock_quantity', 'purchase_price_rsd', 'price_amount', 'price_currency'],
     ];
 
@@ -63,6 +64,7 @@ final class ManagementReportService
             'scope' => $scope,
             'group_by' => $group,
             'supplier_user_id' => max(0, (int) ($input['supplier_user_id'] ?? 0)),
+            'customer_user_id' => max(0, (int) ($input['customer_user_id'] ?? 0)),
             'brand' => trim((string) ($input['brand'] ?? '')),
             'line' => trim((string) ($input['line'] ?? '')),
             'type' => trim((string) ($input['type'] ?? '')),
@@ -81,6 +83,7 @@ final class ManagementReportService
         $receivables = $this->receivables($user, $filters);
         $afterSales = $this->afterSales($user, $filters);
         $teams = $this->teamPerformance($user, $filters);
+        $advancedAnalytics = $this->advancedAnalytics($user, $filters, $summary, $inventory);
 
         return [
             'report_type' => $reportType,
@@ -93,6 +96,7 @@ final class ManagementReportService
             'inventory' => $inventory,
             'receivables' => $receivables,
             'after_sales' => $afterSales,
+            'advanced_analytics' => $advancedAnalytics,
             'teams' => $teams,
         ];
     }
@@ -316,6 +320,306 @@ final class ManagementReportService
         ];
     }
 
+    /** @param array<string,mixed> $filters @param array<string,mixed> $summary @param array<string,mixed> $inventory @return array<string,mixed> */
+    public function advancedAnalytics(User $user, array $filters, array $summary, array $inventory): array
+    {
+        return [
+            'comparison' => $this->comparison($user, $filters, $summary),
+            'customers' => $this->customerProfitability($user, $filters),
+            'sales_channels' => $this->salesChannelProfitability($user, $filters),
+            'products' => $this->productProfitability($user, $filters),
+            'inventory_efficiency' => $this->inventoryEfficiency($user, $summary, $inventory, $filters),
+            'customer_ltv_basis' => 'completed_laravel_orders_all_time_within_actor_scope',
+        ];
+    }
+
+    /** @param array<string,mixed> $filters @param array<string,mixed> $currentSummary @return array<string,mixed> */
+    public function comparison(User $user, array $filters, array $currentSummary): array
+    {
+        $from = CarbonImmutable::parse((string) $filters['date_from'])->startOfDay();
+        $to = CarbonImmutable::parse((string) $filters['date_to'])->startOfDay();
+        $days = max(1, (int) $from->diffInDays($to) + 1);
+        $previousTo = $from->subDay();
+        $previousFrom = $previousTo->subDays($days - 1);
+        $previousFilters = $filters;
+        $previousFilters['date_from'] = $previousFrom->format('Y-m-d');
+        $previousFilters['date_to'] = $previousTo->format('Y-m-d');
+        $previousSummary = $this->summary($user, $previousFilters);
+        $metrics = [];
+        foreach (['orders_count', 'revenue_rsd', 'gross_profit_rsd', 'net_contribution_rsd', 'average_order_rsd', 'gross_margin_percent', 'net_margin_percent'] as $key) {
+            $metrics[$key] = $this->metricDelta((float) ($currentSummary[$key] ?? 0), (float) ($previousSummary[$key] ?? 0));
+        }
+
+        return [
+            'previous_period' => [
+                'date_from' => $previousFilters['date_from'],
+                'date_to' => $previousFilters['date_to'],
+            ],
+            'metrics' => $metrics,
+        ];
+    }
+
+    /** @param array<string,mixed> $filters @return list<array<string,mixed>> */
+    public function customerProfitability(User $user, array $filters): array
+    {
+        $current = $this->profitabilityRows($user, $filters, 'customer');
+        $current = array_slice($current, 0, 30);
+        if ($current === []) return [];
+
+        $customerIds = array_values(array_filter(array_map(static fn (array $row): ?int => isset($row['customer_user_id']) && $row['customer_user_id'] !== null ? (int) $row['customer_user_id'] : null, $current)));
+        $lifetimeFilters = $filters;
+        $lifetimeFilters['date_from'] = '2000-01-01';
+        $lifetimeFilters['date_to'] = CarbonImmutable::today(config('app.timezone', 'Europe/Belgrade'))->format('Y-m-d');
+        $lifetimeFilters['scope'] = 'completed';
+        $lifetimeFilters['brand'] = '';
+        $lifetimeFilters['line'] = '';
+        $lifetimeFilters['type'] = '';
+        $lifetimeFilters['q'] = '';
+        $lifetime = $this->profitabilityRows($user, $lifetimeFilters, 'customer', $customerIds);
+        $lifetimeMap = [];
+        foreach ($lifetime as $row) $lifetimeMap[(string) $row['key']] = $row;
+
+        return array_map(static function (array $row) use ($lifetimeMap): array {
+            $life = $lifetimeMap[(string) $row['key']] ?? null;
+            $orders = (int) ($life['orders_count'] ?? 0);
+            $revenue = (float) ($life['revenue_rsd'] ?? 0);
+            $net = (float) ($life['net_contribution_rsd'] ?? 0);
+            $row['lifetime_orders_count'] = $orders;
+            $row['lifetime_revenue_rsd'] = round($revenue, 2);
+            $row['lifetime_average_order_rsd'] = $orders > 0 ? round($revenue / $orders, 2) : 0.0;
+            $row['lifetime_net_contribution_rsd'] = round($net, 2);
+            $row['ltv_rsd'] = round($net, 2);
+            return $row;
+        }, $current);
+    }
+
+    /** @param array<string,mixed> $filters @return list<array<string,mixed>> */
+    public function salesChannelProfitability(User $user, array $filters): array
+    {
+        return array_slice($this->profitabilityRows($user, $filters, 'channel'), 0, 20);
+    }
+
+    /** @param array<string,mixed> $filters @return array{top:list<array<string,mixed>>,bottom:list<array<string,mixed>>,allocation_note:string} */
+    public function productProfitability(User $user, array $filters): array
+    {
+        $ids = $this->orderIds($user, $filters);
+        $query = DB::table('order_items as ri')
+            ->joinSub(clone $ids, 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'ri.order_id'))
+            ->join('orders as o', 'o.id', '=', 'ri.order_id');
+        $this->applyItemFilters($query, $filters, 'ri');
+        $base = $query
+            ->select(['ri.order_id', 'ri.quantity', 'ri.line_total_rsd', 'ri.purchase_total_rsd_snapshot'])
+            ->selectRaw("COALESCE(NULLIF(TRIM(ri.product_sku),''), NULLIF(TRIM(ri.product_name),''), 'unknown') as product_key")
+            ->selectRaw("COALESCE(NULLIF(TRIM(ri.product_name),''), NULLIF(TRIM(ri.product_sku),''), 'Unknown product') as product_label")
+            ->selectRaw('COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(o.eur_rsd_rate,0) as commission_rsd');
+
+        $rows = DB::query()->fromSub($base, 'product_profit_rows')
+            ->selectRaw('product_key as `key`')
+            ->selectRaw('product_label as label')
+            ->selectRaw('COUNT(DISTINCT order_id) as orders_count')
+            ->selectRaw('COALESCE(SUM(quantity),0) as units_count')
+            ->selectRaw('COALESCE(SUM(line_total_rsd),0) as revenue_rsd')
+            ->selectRaw('COALESCE(SUM(CASE WHEN purchase_total_rsd_snapshot IS NOT NULL THEN purchase_total_rsd_snapshot ELSE 0 END),0) as cogs_rsd')
+            ->selectRaw('COALESCE(SUM(CASE WHEN purchase_total_rsd_snapshot IS NULL THEN line_total_rsd ELSE 0 END),0) as missing_revenue_rsd')
+            ->selectRaw('COALESCE(SUM(commission_rsd),0) as commissions_rsd')
+            ->groupBy('product_key', 'product_label')->get()
+            ->map(static function ($row): array {
+                $revenue = (float) $row->revenue_rsd;
+                $known = max(0.0, $revenue - (float) $row->missing_revenue_rsd);
+                $gross = $known - (float) $row->cogs_rsd;
+                $commission = (float) $row->commissions_rsd;
+                $contribution = $gross - $commission;
+                return [
+                    'key' => (string) $row->key,
+                    'label' => (string) $row->label,
+                    'orders_count' => (int) $row->orders_count,
+                    'units_count' => (int) $row->units_count,
+                    'revenue_rsd' => round($revenue, 2),
+                    'cogs_rsd' => round((float) $row->cogs_rsd, 2),
+                    'gross_profit_rsd' => round($gross, 2),
+                    'commissions_rsd' => round($commission, 2),
+                    'contribution_after_commission_rsd' => round($contribution, 2),
+                    'gross_margin_percent' => $known > 0 ? round($gross / $known * 100, 2) : 0.0,
+                    'cost_coverage_percent' => $revenue > 0 ? round($known / $revenue * 100, 2) : 100.0,
+                    'unallocated_order_costs_excluded' => true,
+                ];
+            })->values();
+
+        return [
+            'top' => $rows->sortByDesc('contribution_after_commission_rsd')->take(10)->values()->all(),
+            'bottom' => $rows->sortBy('contribution_after_commission_rsd')->take(10)->values()->all(),
+            'allocation_note' => 'Product contribution excludes order-level refunds and field-service costs because those costs have no authoritative item allocation.',
+        ];
+    }
+
+    /** @param array<string,mixed> $summary @param array<string,mixed> $inventory @param array<string,mixed> $filters @return array<string,mixed> */
+    public function inventoryEfficiency(User $user, array $summary, array $inventory, array $filters): array
+    {
+        $inventoryCost = max(0.0, (float) ($inventory['purchase_value_rsd'] ?? $inventory['value_rsd'] ?? 0));
+        $cogs = max(0.0, (float) ($summary['cogs_rsd'] ?? 0));
+        $gross = (float) ($summary['gross_profit_rsd'] ?? 0);
+        $from = CarbonImmutable::parse((string) $filters['date_from']);
+        $to = CarbonImmutable::parse((string) $filters['date_to']);
+        $days = max(1, (int) $from->diffInDays($to) + 1);
+
+        $applicable = $user->hasRole('superadmin')
+            && (string) ($filters['scope'] ?? '') === 'completed'
+            && (int) ($filters['supplier_user_id'] ?? 0) === 0
+            && (int) ($filters['customer_user_id'] ?? 0) === 0
+            && (string) ($filters['brand'] ?? '') === ''
+            && (string) ($filters['line'] ?? '') === ''
+            && (string) ($filters['type'] ?? '') === ''
+            && (string) ($filters['q'] ?? '') === '';
+
+        return [
+            'basis' => 'current_inventory_cost_proxy',
+            'applicable' => $applicable,
+            'is_proxy' => true,
+            'historical_average_inventory_available' => false,
+            'period_days' => $days,
+            'inventory_cost_rsd' => round($inventoryCost, 2),
+            'period_cogs_rsd' => round($cogs, 2),
+            'period_gross_profit_rsd' => round($gross, 2),
+            'inventory_turnover_ratio' => $applicable && $inventoryCost > 0 ? round($cogs / $inventoryCost, 4) : 0.0,
+            'gmroi_percent' => $applicable && $inventoryCost > 0 ? round($gross / $inventoryCost * 100, 2) : 0.0,
+            'cost_coverage_percent' => round((float) ($summary['cost_coverage_percent'] ?? 0), 2),
+        ];
+    }
+
+    /** @return array{current:float,previous:float,absolute_change:float,percent_change:?float} */
+    private function metricDelta(float $current, float $previous): array
+    {
+        $change = $current - $previous;
+        return [
+            'current' => round($current, 2),
+            'previous' => round($previous, 2),
+            'absolute_change' => round($change, 2),
+            'percent_change' => abs($previous) > 0.000001 ? round($change / abs($previous) * 100, 2) : null,
+        ];
+    }
+
+    /** @param array<string,mixed> $filters @param list<int>|null $restrictCustomerIds @return list<array<string,mixed>> */
+    private function profitabilityRows(User $user, array $filters, string $dimension, ?array $restrictCustomerIds = null): array
+    {
+        $ids = $this->orderIds($user, $filters);
+        $query = DB::table('order_items as ri')
+            ->joinSub(clone $ids, 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'ri.order_id'))
+            ->join('orders as o', 'o.id', '=', 'ri.order_id')
+            ->leftJoin('users as cu', 'cu.id', '=', 'o.user_id');
+        $this->applyItemFilters($query, $filters, 'ri');
+
+        if ($dimension === 'customer') {
+            $query->whereNotNull('o.user_id');
+            if (is_array($restrictCustomerIds) && $restrictCustomerIds !== []) $query->whereIn('o.user_id', $restrictCustomerIds);
+            $key = 'CAST(o.user_id AS CHAR)';
+            $label = "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(cu.first_name,''),' ',COALESCE(cu.last_name,''))),''), cu.username, cu.email, CONCAT('Customer #', o.user_id))";
+            $email = 'cu.email';
+        } else {
+            $key = "COALESCE(NULLIF(TRIM(o.sales_channel),''),'unknown')";
+            $label = $key;
+            $email = 'NULL';
+        }
+
+        $base = $query
+            ->select(['ri.order_id', 'ri.quantity', 'ri.line_total_rsd', 'ri.purchase_total_rsd_snapshot'])
+            ->selectRaw($key.' as dimension_key')
+            ->selectRaw($label.' as dimension_label')
+            ->selectRaw($email.' as dimension_email')
+            ->selectRaw('COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(o.eur_rsd_rate,0) as commission_rsd');
+
+        $refunds = $this->dimensionRefunds($ids, $dimension, $restrictCustomerIds);
+        $serviceCosts = $this->dimensionServiceCosts($ids, $dimension, $restrictCustomerIds);
+
+        return DB::query()->fromSub($base, 'dimension_profit_rows')
+            ->selectRaw('dimension_key')
+            ->selectRaw('dimension_label')
+            ->selectRaw('dimension_email')
+            ->selectRaw('COUNT(DISTINCT order_id) as orders_count')
+            ->selectRaw('COALESCE(SUM(quantity),0) as units_count')
+            ->selectRaw('COALESCE(SUM(line_total_rsd),0) as revenue_rsd')
+            ->selectRaw('COALESCE(SUM(CASE WHEN purchase_total_rsd_snapshot IS NOT NULL THEN purchase_total_rsd_snapshot ELSE 0 END),0) as cogs_rsd')
+            ->selectRaw('COALESCE(SUM(CASE WHEN purchase_total_rsd_snapshot IS NULL THEN line_total_rsd ELSE 0 END),0) as missing_revenue_rsd')
+            ->selectRaw('COALESCE(SUM(commission_rsd),0) as commissions_rsd')
+            ->groupBy('dimension_key', 'dimension_label', 'dimension_email')->get()
+            ->map(static function ($row) use ($dimension, $refunds, $serviceCosts): array {
+                $key = (string) $row->dimension_key;
+                $revenue = (float) $row->revenue_rsd;
+                $known = max(0.0, $revenue - (float) $row->missing_revenue_rsd);
+                $gross = $known - (float) $row->cogs_rsd;
+                $commissions = (float) $row->commissions_rsd;
+                $refund = (float) ($refunds[$key] ?? 0);
+                $service = (float) ($serviceCosts[$key] ?? 0);
+                $net = $gross - $commissions - $refund - $service;
+                return [
+                    'key' => $key,
+                    'customer_user_id' => $dimension === 'customer' ? (int) $key : null,
+                    'label' => (string) $row->dimension_label,
+                    'email' => $row->dimension_email !== null ? (string) $row->dimension_email : null,
+                    'orders_count' => (int) $row->orders_count,
+                    'units_count' => (int) $row->units_count,
+                    'revenue_rsd' => round($revenue, 2),
+                    'known_revenue_rsd' => round($known, 2),
+                    'cogs_rsd' => round((float) $row->cogs_rsd, 2),
+                    'gross_profit_rsd' => round($gross, 2),
+                    'gross_margin_percent' => $known > 0 ? round($gross / $known * 100, 2) : 0.0,
+                    'commissions_rsd' => round($commissions, 2),
+                    'refunds_rsd' => round($refund, 2),
+                    'service_cost_rsd' => round($service, 2),
+                    'net_contribution_rsd' => round($net, 2),
+                    'net_margin_percent' => $known > 0 ? round($net / $known * 100, 2) : 0.0,
+                    'cost_coverage_percent' => $revenue > 0 ? round($known / $revenue * 100, 2) : 100.0,
+                    'lifetime_orders_count' => null,
+                    'lifetime_revenue_rsd' => null,
+                    'lifetime_average_order_rsd' => null,
+                    'lifetime_net_contribution_rsd' => null,
+                    'ltv_rsd' => null,
+                ];
+            })->sortByDesc('net_contribution_rsd')->values()->all();
+    }
+
+    /** @param list<int>|null $restrictCustomerIds @return array<string,float> */
+    private function dimensionRefunds($ids, string $dimension, ?array $restrictCustomerIds): array
+    {
+        if (!Schema::hasTable('order_payments')) return [];
+        $query = DB::table('order_payments as p')
+            ->joinSub(clone $ids, 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'p.order_id'))
+            ->join('orders as o', 'o.id', '=', 'p.order_id')
+            ->where('p.status', 'verified')->where('p.entry_type', 'refund');
+        if ($dimension === 'customer') {
+            $query->whereNotNull('o.user_id');
+            if (is_array($restrictCustomerIds) && $restrictCustomerIds !== []) $query->whereIn('o.user_id', $restrictCustomerIds);
+            $key = 'CAST(o.user_id AS CHAR)';
+        } else {
+            $key = "COALESCE(NULLIF(TRIM(o.sales_channel),''),'unknown')";
+        }
+        $rows = $query->selectRaw($key.' as dimension_key')->selectRaw('COALESCE(SUM(p.amount_rsd),0) as amount_rsd')->groupBy('dimension_key')->get();
+        $map = [];
+        foreach ($rows as $row) $map[(string) $row->dimension_key] = (float) $row->amount_rsd;
+        return $map;
+    }
+
+    /** @param list<int>|null $restrictCustomerIds @return array<string,float> */
+    private function dimensionServiceCosts($ids, string $dimension, ?array $restrictCustomerIds): array
+    {
+        if (!Schema::hasTable('field_work_orders') || !Schema::hasTable('after_sales_actions') || !Schema::hasTable('after_sales_cases')) return [];
+        $query = DB::table('field_work_orders as w')
+            ->join('after_sales_actions as a', 'a.id', '=', 'w.after_sales_action_id')
+            ->join('after_sales_cases as c', 'c.id', '=', 'a.after_sales_case_id')
+            ->joinSub(clone $ids, 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'c.order_id'))
+            ->join('orders as o', 'o.id', '=', 'c.order_id')
+            ->where('w.status', 'completed');
+        if ($dimension === 'customer') {
+            $query->whereNotNull('o.user_id');
+            if (is_array($restrictCustomerIds) && $restrictCustomerIds !== []) $query->whereIn('o.user_id', $restrictCustomerIds);
+            $key = 'CAST(o.user_id AS CHAR)';
+        } else {
+            $key = "COALESCE(NULLIF(TRIM(o.sales_channel),''),'unknown')";
+        }
+        $rows = $query->selectRaw($key.' as dimension_key')->selectRaw('COALESCE(SUM(w.total_cost_rsd),0) as amount_rsd')->groupBy('dimension_key')->get();
+        $map = [];
+        foreach ($rows as $row) $map[(string) $row->dimension_key] = (float) $row->amount_rsd;
+        return $map;
+    }
     /** @param array<string,mixed> $filters @return list<array<string,mixed>> */
     public function teamPerformance(User $user, array $filters): array
     {
@@ -368,6 +672,7 @@ final class ManagementReportService
         $query = Order::query()->where('source_system', 'laravel');
         $this->access->applyManagedScope($query, $user);
         if ($user->hasRole('superadmin') && (int) $filters['supplier_user_id'] > 0) $query->where('supplier_user_id', (int) $filters['supplier_user_id']);
+        if ((int) ($filters['customer_user_id'] ?? 0) > 0) $query->where('orders.user_id', (int) $filters['customer_user_id']);
         $dateColumn = $filters['scope'] === 'completed' ? 'completed_at' : 'created_at';
         if ($filters['scope'] === 'completed') $query->whereNotNull('completed_at')->where('status', '!=', 'cancelled');
         elseif ($filters['scope'] === 'active') $query->where('status', '!=', 'cancelled');

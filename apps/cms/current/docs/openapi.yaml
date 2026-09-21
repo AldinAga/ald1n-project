@@ -2119,6 +2119,7 @@ security:
         - { in: query, name: scope, schema: { type: string, enum: [completed, active, all] } }
         - { in: query, name: group_by, schema: { type: string, enum: [brand, line, type, product, admin] } }
         - { in: query, name: supplier_user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: customer_user_id, schema: { type: integer, minimum: 1 } }
         - { in: query, name: brand, schema: { type: string } }
         - { in: query, name: line, schema: { type: string } }
         - { in: query, name: type, schema: { type: string } }
@@ -2145,6 +2146,7 @@ security:
         - { in: query, name: scope, schema: { type: string, enum: [completed, active, all] } }
         - { in: query, name: group_by, schema: { type: string, enum: [brand, line, type, product, admin] } }
         - { in: query, name: supplier_user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: customer_user_id, schema: { type: integer, minimum: 1 } }
         - { in: query, name: brand, schema: { type: string } }
         - { in: query, name: line, schema: { type: string } }
         - { in: query, name: type, schema: { type: string } }
@@ -2179,6 +2181,7 @@ security:
         - { in: query, name: scope, schema: { type: string, enum: [completed, active, all] } }
         - { in: query, name: group_by, schema: { type: string, enum: [brand, line, type, product, admin] } }
         - { in: query, name: supplier_user_id, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: customer_user_id, schema: { type: integer, minimum: 1 } }
         - { in: query, name: brand, schema: { type: string } }
         - { in: query, name: line, schema: { type: string } }
         - { in: query, name: type, schema: { type: string } }
@@ -5519,6 +5522,7 @@ components:
         scope: { type: string, enum: [completed, active, all] }
         group_by: { type: string, enum: [brand, line, type, product, admin] }
         supplier_user_id: { type: integer, minimum: 1 }
+        customer_user_id: { type: integer, minimum: 1 }
         brand: { type: string }
         line: { type: string }
         type: { type: string }
@@ -5526,13 +5530,14 @@ components:
         report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
     AdminReportNormalizedFilters:
       type: object
-      required: [date_from, date_to, scope, group_by, supplier_user_id, brand, line, type, q]
+      required: [date_from, date_to, scope, group_by, supplier_user_id, customer_user_id, brand, line, type, q]
       properties:
         date_from: { type: string, format: date }
         date_to: { type: string, format: date }
         scope: { type: string, enum: [completed, active, all] }
         group_by: { type: string, enum: [brand, line, type, product, admin] }
         supplier_user_id: { type: integer }
+        customer_user_id: { type: integer }
         brand: { type: string }
         line: { type: string }
         type: { type: string }
@@ -5639,9 +5644,123 @@ components:
         overdue: { type: integer, minimum: 0 }
         complaint_rate_percent: { type: number }
         service_cost_rsd: { type: number }
-    AdminManagementReport:
+    AdminReportMetricDelta:
       type: object
-      required: [report_type, filters, period_label, generated_at, summary, segments, trend, inventory, receivables, after_sales, teams]
+      required: [current, previous, absolute_change, percent_change]
+      properties:
+        current: { type: number }
+        previous: { type: number }
+        absolute_change: { type: number }
+        percent_change: { type: [number, 'null'] }
+    AdminReportComparison:
+      type: object
+      required: [previous_period, metrics]
+      properties:
+        previous_period:
+          type: object
+          required: [date_from, date_to]
+          properties:
+            date_from: { type: string, format: date }
+            date_to: { type: string, format: date }
+        metrics:
+          type: object
+          required: [orders_count, revenue_rsd, gross_profit_rsd, net_contribution_rsd, average_order_rsd, gross_margin_percent, net_margin_percent]
+          properties:
+            orders_count: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+            revenue_rsd: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+            gross_profit_rsd: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+            net_contribution_rsd: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+            average_order_rsd: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+            gross_margin_percent: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+            net_margin_percent: { $ref: '#/components/schemas/AdminReportMetricDelta' }
+    AdminReportProfitabilityRow:
+      type: object
+      required: [key, customer_user_id, label, email, orders_count, units_count, revenue_rsd, known_revenue_rsd, cogs_rsd, gross_profit_rsd, gross_margin_percent, commissions_rsd, refunds_rsd, service_cost_rsd, net_contribution_rsd, net_margin_percent, cost_coverage_percent, lifetime_orders_count, lifetime_revenue_rsd, lifetime_average_order_rsd, lifetime_net_contribution_rsd, ltv_rsd]
+      properties:
+        key: { type: string }
+        customer_user_id: { type: [integer, 'null'] }
+        label: { type: string }
+        email: { type: [string, 'null'] }
+        orders_count: { type: integer, minimum: 0 }
+        units_count: { type: integer, minimum: 0 }
+        revenue_rsd: { type: number }
+        known_revenue_rsd: { type: number }
+        cogs_rsd: { type: number }
+        gross_profit_rsd: { type: number }
+        gross_margin_percent: { type: number }
+        commissions_rsd: { type: number }
+        refunds_rsd: { type: number }
+        service_cost_rsd: { type: number }
+        net_contribution_rsd: { type: number }
+        net_margin_percent: { type: number }
+        cost_coverage_percent: { type: number }
+        lifetime_orders_count: { type: [integer, 'null'] }
+        lifetime_revenue_rsd: { type: [number, 'null'] }
+        lifetime_average_order_rsd: { type: [number, 'null'] }
+        lifetime_net_contribution_rsd: { type: [number, 'null'] }
+        ltv_rsd: { type: [number, 'null'], description: Lifetime net contribution within actor scope }
+    AdminReportProductProfitabilityRow:
+      type: object
+      required: [key, label, orders_count, units_count, revenue_rsd, cogs_rsd, gross_profit_rsd, commissions_rsd, contribution_after_commission_rsd, gross_margin_percent, cost_coverage_percent, unallocated_order_costs_excluded]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        orders_count: { type: integer, minimum: 0 }
+        units_count: { type: integer, minimum: 0 }
+        revenue_rsd: { type: number }
+        cogs_rsd: { type: number }
+        gross_profit_rsd: { type: number }
+        commissions_rsd: { type: number }
+        contribution_after_commission_rsd: { type: number }
+        gross_margin_percent: { type: number }
+        cost_coverage_percent: { type: number }
+        unallocated_order_costs_excluded: { type: boolean, const: true }
+    AdminReportProductProfitability:
+      type: object
+      required: [top, bottom, allocation_note]
+      properties:
+        top:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/AdminReportProductProfitabilityRow' }
+        bottom:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/AdminReportProductProfitabilityRow' }
+        allocation_note: { type: string }
+    AdminReportInventoryEfficiency:
+      type: object
+      required: [basis, applicable, is_proxy, historical_average_inventory_available, period_days, inventory_cost_rsd, period_cogs_rsd, period_gross_profit_rsd, inventory_turnover_ratio, gmroi_percent, cost_coverage_percent]
+      properties:
+        basis: { type: string, enum: [current_inventory_cost_proxy] }
+        applicable: { type: boolean }
+        is_proxy: { type: boolean, const: true }
+        historical_average_inventory_available: { type: boolean, const: false }
+        period_days: { type: integer, minimum: 1 }
+        inventory_cost_rsd: { type: number }
+        period_cogs_rsd: { type: number }
+        period_gross_profit_rsd: { type: number }
+        inventory_turnover_ratio: { type: number, description: Period COGS divided by current inventory cost; proxy until historical average inventory snapshots exist }
+        gmroi_percent: { type: number, description: Period gross profit divided by current inventory cost; proxy until historical average inventory snapshots exist }
+        cost_coverage_percent: { type: number }
+    AdminReportAdvancedAnalytics:
+      type: object
+      required: [comparison, customers, sales_channels, products, inventory_efficiency, customer_ltv_basis]
+      properties:
+        comparison: { $ref: '#/components/schemas/AdminReportComparison' }
+        customers:
+          type: array
+          maxItems: 30
+          items: { $ref: '#/components/schemas/AdminReportProfitabilityRow' }
+        sales_channels:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/AdminReportProfitabilityRow' }
+        products: { $ref: '#/components/schemas/AdminReportProductProfitability' }
+        inventory_efficiency: { $ref: '#/components/schemas/AdminReportInventoryEfficiency' }
+        customer_ltv_basis: { type: string, enum: [completed_laravel_orders_all_time_within_actor_scope] }    AdminManagementReport:
+      type: object
+      required: [report_type, filters, period_label, generated_at, summary, segments, trend, inventory, receivables, after_sales, advanced_analytics, teams]
       properties:
         report_type: { type: string, enum: [management_summary, profitability, inventory, receivables, after_sales] }
         filters: { $ref: '#/components/schemas/AdminReportNormalizedFilters' }
@@ -5657,6 +5776,7 @@ components:
         inventory: { $ref: '#/components/schemas/AdminReportInventory' }
         receivables: { $ref: '#/components/schemas/AdminReportReceivables' }
         after_sales: { $ref: '#/components/schemas/AdminReportAfterSales' }
+        advanced_analytics: { $ref: '#/components/schemas/AdminReportAdvancedAnalytics' }
         teams:
           type: array
           items: { $ref: '#/components/schemas/AdminReportSegment' }

@@ -22,6 +22,7 @@ export type AdminReportFilters = {
   scope?: AdminReportScope;
   group_by?: AdminReportGroupBy;
   supplier_user_id?: number;
+  customer_user_id?: number;
   brand?: string;
   line?: string;
   type?: string;
@@ -38,6 +39,7 @@ export type AdminReportNormalizedFilters = {
   scope: AdminReportScope;
   group_by: AdminReportGroupBy;
   supplier_user_id: number;
+  customer_user_id: number;
   brand: string;
   line: string;
   type: string;
@@ -136,6 +138,96 @@ export type AdminReportAfterSales = {
   service_cost_rsd: number;
 };
 
+export type AdminReportMetricDelta = {
+  current: number;
+  previous: number;
+  absolute_change: number;
+  percent_change: number | null;
+};
+
+export type AdminReportComparison = {
+  previous_period: {
+    date_from: string;
+    date_to: string;
+  };
+  metrics: Record<
+    | 'orders_count'
+    | 'revenue_rsd'
+    | 'gross_profit_rsd'
+    | 'net_contribution_rsd'
+    | 'average_order_rsd'
+    | 'gross_margin_percent'
+    | 'net_margin_percent',
+    AdminReportMetricDelta
+  >;
+};
+
+export type AdminReportProfitabilityRow = {
+  key: string;
+  customer_user_id: number | null;
+  label: string;
+  email: string | null;
+  orders_count: number;
+  units_count: number;
+  revenue_rsd: number;
+  known_revenue_rsd: number;
+  cogs_rsd: number;
+  gross_profit_rsd: number;
+  gross_margin_percent: number;
+  commissions_rsd: number;
+  refunds_rsd: number;
+  service_cost_rsd: number;
+  net_contribution_rsd: number;
+  net_margin_percent: number;
+  cost_coverage_percent: number;
+  lifetime_orders_count: number | null;
+  lifetime_revenue_rsd: number | null;
+  lifetime_average_order_rsd: number | null;
+  lifetime_net_contribution_rsd: number | null;
+  ltv_rsd: number | null;
+};
+
+export type AdminReportProductProfitabilityRow = {
+  key: string;
+  label: string;
+  orders_count: number;
+  units_count: number;
+  revenue_rsd: number;
+  cogs_rsd: number;
+  gross_profit_rsd: number;
+  commissions_rsd: number;
+  contribution_after_commission_rsd: number;
+  gross_margin_percent: number;
+  cost_coverage_percent: number;
+  unallocated_order_costs_excluded: true;
+};
+
+export type AdminReportInventoryEfficiency = {
+  basis: 'current_inventory_cost_proxy';
+  applicable: boolean;
+  is_proxy: true;
+  historical_average_inventory_available: false;
+  period_days: number;
+  inventory_cost_rsd: number;
+  period_cogs_rsd: number;
+  period_gross_profit_rsd: number;
+  inventory_turnover_ratio: number;
+  gmroi_percent: number;
+  cost_coverage_percent: number;
+};
+
+export type AdminReportAdvancedAnalytics = {
+  comparison: AdminReportComparison;
+  customers: AdminReportProfitabilityRow[];
+  sales_channels: AdminReportProfitabilityRow[];
+  products: {
+    top: AdminReportProductProfitabilityRow[];
+    bottom: AdminReportProductProfitabilityRow[];
+    allocation_note: string;
+  };
+  inventory_efficiency: AdminReportInventoryEfficiency;
+  customer_ltv_basis: 'completed_laravel_orders_all_time_within_actor_scope';
+};
 export type AdminManagementReport = {
   report_type: AdminReportType;
   filters: AdminReportNormalizedFilters;
@@ -147,6 +239,7 @@ export type AdminManagementReport = {
   inventory: AdminReportInventory;
   receivables: AdminReportReceivables;
   after_sales: AdminReportAfterSales;
+  advanced_analytics: AdminReportAdvancedAnalytics;
   teams: AdminReportSegment[];
 };
 
@@ -243,6 +336,7 @@ function requestQuery(params: AdminReportRequestParams): string {
     scope: params.scope,
     group_by: params.group_by,
     supplier_user_id: params.supplier_user_id,
+    customer_user_id: params.customer_user_id,
     brand: params.brand,
     line: params.line,
     type: params.type,
