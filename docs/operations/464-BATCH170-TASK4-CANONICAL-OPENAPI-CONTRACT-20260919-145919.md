@@ -1,462 +1,459 @@
 
 ============================================================
-463 - BATCH170 TASK3 V3 ROUTE CACHE DIAGNOSTIC RECOVERY
+464 - BATCH170 TASK4 CANONICAL OPENAPI CONTRACT
 ============================================================
-TIMESTAMP=20260919-144238
-EXPECTED_HEAD=e68253aa8a7cff13c6ddd2a338d2b11062d50153
-RECOVERY_OF_REPORT=462
-RECOVERY_OF_FAILED_STAGE=ROUTE_CACHE_DIAGNOSIS
-ROOT_CAUSE_REPORT462_HELPER=ROUTES_ARE_CACHED_CALLED_BEFORE_KERNEL_BOOTSTRAP
+TIMESTAMP=20260919-145919
+EXPECTED_HEAD=c47cd49695e054c1069724af6ab810c196f629b9
+PREDECESSOR_REPORT=463
 EXECUTION_METHOD=NATIVE_OWNER_APPROVED
-TASK=3_CRM_MUTATION_CONTROLLER_ROUTES
-IMPLEMENTATION_ACTION=YES_CONTINUE_UNCOMMITTED_TASK3
-API_SURFACE_CHANGE=YES_TASK3_LARAVEL
-OPENAPI_PARITY=PENDING_MANDATORY_TASK4_AFTER_TASK3_PASS
-MOBILE_CONTRACT_PARITY=PENDING_MANDATORY_TASK5_AFTER_TASK4
-MOBILE_VISIBLE_WORKSPACE=PENDING_MANDATORY_BATCH171
-PERSISTENT_DATABASE_WRITES=NO_TEST_FIXTURES_TRANSACTION_ROLLBACK
+TASK=4_CANONICAL_OPENAPI_CONTRACT
+IMPLEMENTATION_ACTION=YES_OPENAPI_ONLY
+LARAVEL_TASK3_SOURCE_MUTATION=NO
+MOBILE_TYPES_CLIENT_MUTATION=NO_TASK5_PENDING
+PERSISTENT_DATABASE_WRITES=NO
 EAS_COMMANDS_RUN=NO
 OTA_ACTION=NO
 BUILD_ACTION=NO
 GOOGLE_PLAY_ACTION=NO
 
 ============================================================
-0. PREFLIGHT - BIND REPORT462 AND EXACT FAILED TASK3 WORKTREE
-============================================================
-
-============================================================
 RUN - git_fetch_preflight
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git fetch origin main
+COMMAND=git fetch origin main 
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_git_fetch_preflight=0
 BRANCH=main
-LOCAL_HEAD=e68253aa8a7cff13c6ddd2a338d2b11062d50153
-REMOTE_HEAD=e68253aa8a7cff13c6ddd2a338d2b11062d50153
-REPORT462_SHA_ACTUAL=eae20f517ea2d91b7577b1c772f9f0a4db87df3cc38553f685ff99a025c6b8b3
-REPORT462_SHA_EXPECTED=eae20f517ea2d91b7577b1c772f9f0a4db87df3cc38553f685ff99a025c6b8b3
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Services/CustomerPortalAdminService.php
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/app/Http/Controllers/Api/V1/Admin/CustomerPortalController.php
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/routes/api.php
-No syntax errors detected in /home/icaffeco/ald1n-project/apps/cms/current/bin/customer-360-contract-smoke.php
+LOCAL_HEAD=c47cd49695e054c1069724af6ab810c196f629b9
+REMOTE_HEAD=c47cd49695e054c1069724af6ab810c196f629b9
+REPORT463_SHA_ACTUAL=c6e194aacdbc88bcfded2f0198296d7f44a349513aad2e1fd8ec9f51a50654e5
+REPORT463_SHA_EXPECTED=c6e194aacdbc88bcfded2f0198296d7f44a349513aad2e1fd8ec9f51a50654e5
+OPENAPI_PKG_SHA=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
+OPENAPI_CMS_SHA=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
+OPENAPI_MOBILE_SHA=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
 HTACCESS_SHA_ACTUAL=d10ecf0d63f9a8e1bd978a440afcbadb34faf1d24eb899bf2582d1e5c0033cef
 HTACCESS_DIFF_SHA_ACTUAL=8ce9fa55a71768bf711203fcc50be8eec6de26886bbf4852ceb30a97b36958fe
-PREFLIGHT_MACHINE_MANIFESTS=PASS_EXACT_REPORT462_FAILED_STATE
+PREFLIGHT_STAGED_MANIFEST=PASS_EXACT
+PREFLIGHT_TRACKED_MANIFEST=PASS_EXACT
+PREFLIGHT_UNTRACKED_MANIFEST=PASS_EXACT
+PREFLIGHT_MACHINE_MANIFESTS=PASS_EXACT_TASK3_PASS_STATE
 
 ============================================================
-1. ARCHIVE REPORT462 FAIL EVIDENCE AND ROTATE REPORT461
+1. ARCHIVE REPORT463 PASS EVIDENCE AND ROTATE REPORT462
 ============================================================
-EVIDENCE_STAGE_SCOPE=PASS_EXACT_REPORT_ROTATION
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:59: trailing whitespace.
-+++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:61: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:63: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:65: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:67: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:69: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:71: trailing whitespace.
-+++++++++++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:73: trailing whitespace.
-+++++++++++++++++   INFO  Blade templates cached successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:75: trailing whitespace.
-+++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:77: trailing whitespace.
-+++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:79: trailing whitespace.
-+++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:81: trailing whitespace.
-++++++++++++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:83: trailing whitespace.
-++++++++++++++++++   INFO  Blade templates cached successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:85: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:87: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:89: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:91: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:93: trailing whitespace.
-+++++++++++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:95: trailing whitespace.
-+++++++++++++++++⠋ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:97: trailing whitespace.
-+++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:99: trailing whitespace.
-+++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:101: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:103: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:105: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:107: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:109: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:111: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:113: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:115: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:117: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:119: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:121: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:123: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:125: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:127: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:129: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:131: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:133: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:135: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:137: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:139: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:141: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:143: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:145: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:147: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:149: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:151: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:153: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:155: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:157: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:159: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:161: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:163: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:165: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:167: trailing whitespace.
-++++++++                                                                                                                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:169: trailing whitespace.
-++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select `id`, `pa  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:171: trailing whitespace.
-++++++++  th` from `backup_runs` where `status` = completed order by `id` desc)                                                                                                      
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:173: trailing whitespace.
-++++++++                                                                                                                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:175: trailing whitespace.
-++++++++                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:177: trailing whitespace.
-++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT'  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:179: trailing whitespace.
-++++++++                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:181: trailing whitespace.
+rm 'docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md'
+EVIDENCE_STAGE_SCOPE=PASS_EXACT
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:53: trailing whitespace.
 ++++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:183: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:185: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:187: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:189: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:191: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:193: trailing whitespace.
-+++++++++++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:195: trailing whitespace.
-+++++++++++++++++   INFO  Blade templates cached successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:197: trailing whitespace.
-+++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:199: trailing whitespace.
-+++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:201: trailing whitespace.
-+++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:203: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:55: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:57: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:59: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:61: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:63: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:65: trailing whitespace.
 ++++++++++++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:205: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:67: trailing whitespace.
 ++++++++++++++++++   INFO  Blade templates cached successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:207: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:209: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:211: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:213: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:215: trailing whitespace.
-+++++++++++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:217: trailing whitespace.
-+++++++++++++++++⠋ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:219: trailing whitespace.
-+++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:221: trailing whitespace.
-+++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:223: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:225: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:227: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:229: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:231: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:233: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:235: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:237: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:239: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:241: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:243: trailing whitespace.
-++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:245: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:247: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:249: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:251: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:253: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:255: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:257: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:259: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:261: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:263: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:265: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:267: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:269: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:271: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:273: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:275: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:277: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:279: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:281: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:283: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:285: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:287: trailing whitespace.
-++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:289: trailing whitespace.
-++++++++                                                                                                                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:291: trailing whitespace.
-++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select `id`, `pa  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:293: trailing whitespace.
-++++++++  th` from `backup_runs` where `status` = completed order by `id` desc)                                                                                                      
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:295: trailing whitespace.
-++++++++                                                                                                                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:297: trailing whitespace.
-++++++++                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:299: trailing whitespace.
-++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT'  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:301: trailing whitespace.
-++++++++                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:303: trailing whitespace.
-++++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:305: trailing whitespace.
-++++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:307: trailing whitespace.
-++++++++COMMAND=php /home/icaffeco/.ald1n-batch170-v5-20260919-122715/backup-state.php /home/icaffeco/ald1n-project/apps/cms/current 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:309: trailing whitespace.
-++++++++COMMAND=php artisan app:backup-verify --run=116 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:311: trailing whitespace.
-++++++++COMMAND=php artisan app:backup-verify --run=115 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:313: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:315: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:317: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:319: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:321: trailing whitespace.
-+++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:323: trailing whitespace.
-++++++++++++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:325: trailing whitespace.
-++++++++++++++++++   INFO  Blade templates cached successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:327: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:69: trailing whitespace.
 ++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:329: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:71: trailing whitespace.
 ++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:331: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:73: trailing whitespace.
 ++++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:333: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:75: trailing whitespace.
 +++++++++++++++++++   INFO  Compiled views cleared successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:335: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:77: trailing whitespace.
 +++++++++++++++++++   INFO  Blade templates cached successfully.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:337: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:79: trailing whitespace.
 ++++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:339: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:81: trailing whitespace.
 ++++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:341: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:83: trailing whitespace.
 ++++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:343: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:85: trailing whitespace.
 ++++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:345: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:87: trailing whitespace.
 ++++++++++++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:347: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:89: trailing whitespace.
 ++++++++++++++++++⠋ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:349: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:91: trailing whitespace.
 ++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:351: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:93: trailing whitespace.
 ++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:353: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:95: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:355: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:97: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:357: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:99: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:359: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:101: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:361: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:103: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:363: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:105: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:365: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:107: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:367: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:109: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:369: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:111: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:371: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:113: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:373: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:115: trailing whitespace.
 +++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:375: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:117: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:377: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:119: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:379: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:121: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:381: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:123: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:383: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:125: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:385: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:127: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:387: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:129: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:389: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:131: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:391: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:133: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:393: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:135: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:395: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:137: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:397: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:139: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:399: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:141: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:401: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:143: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:403: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:145: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:405: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:147: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:407: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:149: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:409: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:151: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:411: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:153: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:413: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:155: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:415: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:157: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:417: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:159: trailing whitespace.
 +++++++++++++++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:419: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:161: trailing whitespace.
 +++++++++                                                                                                                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:421: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:163: trailing whitespace.
 +++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select `id`, `pa  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:423: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:165: trailing whitespace.
 +++++++++  th` from `backup_runs` where `status` = completed order by `id` desc)                                                                                                      
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:425: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:167: trailing whitespace.
 +++++++++                                                                                                                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:427: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:169: trailing whitespace.
 +++++++++                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:429: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:171: trailing whitespace.
 +++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT'  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:431: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:173: trailing whitespace.
 +++++++++                                                                             
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:433: trailing whitespace.
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:175: trailing whitespace.
 +++++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:435: trailing whitespace.
-+++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:437: trailing whitespace.
-+++++++COMMAND=git commit -m docs:\ archive\ Customer360\ checkpoint\ recovery\ evidence 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:439: trailing whitespace.
-+++++++COMMAND=git push origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:441: trailing whitespace.
-+++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:443: trailing whitespace.
-+++++++COMMAND=php /home/icaffeco/.ald1n-batch170-v6-20260919-123753/patch-agents.php /home/icaffeco/ald1n-project/AGENTS.md 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:445: trailing whitespace.
-+++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:447: trailing whitespace.
-+++++++COMMAND=git commit -m docs:\ lock\ Customer360\ architecture\ and\ checkpoint\ policies 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:449: trailing whitespace.
-+++++++COMMAND=git push origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:451: trailing whitespace.
-+++++++COMMAND=git fetch origin main 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:453: trailing whitespace.
-+++++   INFO  Running migrations.  
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:455: trailing whitespace.
-+++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:457: trailing whitespace.
-+++++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:459: trailing whitespace.
-+++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:461: trailing whitespace.
-+++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:463: trailing whitespace.
-+++ 
-docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md:465: trailing whitespace.
-+++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:177: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:179: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:181: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:183: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:185: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:187: trailing whitespace.
+++++++++++++++++++   INFO  Compiled views cleared successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:189: trailing whitespace.
+++++++++++++++++++   INFO  Blade templates cached successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:191: trailing whitespace.
+++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:193: trailing whitespace.
+++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:195: trailing whitespace.
+++++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:197: trailing whitespace.
++++++++++++++++++++   INFO  Compiled views cleared successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:199: trailing whitespace.
++++++++++++++++++++   INFO  Blade templates cached successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:201: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:203: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:205: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:207: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:209: trailing whitespace.
+++++++++++++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:211: trailing whitespace.
+++++++++++++++++++⠋ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:213: trailing whitespace.
+++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:215: trailing whitespace.
+++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:217: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:219: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:221: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:223: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:225: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:227: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:229: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:231: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:233: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:235: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:237: trailing whitespace.
++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:239: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:241: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:243: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:245: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:247: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:249: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:251: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:253: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:255: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:257: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:259: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:261: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:263: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:265: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:267: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:269: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:271: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:273: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:275: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:277: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:279: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:281: trailing whitespace.
++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:283: trailing whitespace.
++++++++++                                                                                                                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:285: trailing whitespace.
++++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select `id`, `pa  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:287: trailing whitespace.
++++++++++  th` from `backup_runs` where `status` = completed order by `id` desc)                                                                                                      
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:289: trailing whitespace.
++++++++++                                                                                                                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:291: trailing whitespace.
++++++++++                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:293: trailing whitespace.
++++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT'  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:295: trailing whitespace.
++++++++++                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:297: trailing whitespace.
++++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:299: trailing whitespace.
++++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:301: trailing whitespace.
++++++++++COMMAND=php /home/icaffeco/.ald1n-batch170-v5-20260919-122715/backup-state.php /home/icaffeco/ald1n-project/apps/cms/current 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:303: trailing whitespace.
++++++++++COMMAND=php artisan app:backup-verify --run=116 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:305: trailing whitespace.
++++++++++COMMAND=php artisan app:backup-verify --run=115 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:307: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:309: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:311: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:313: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:315: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:317: trailing whitespace.
++++++++++++++++++++   INFO  Compiled views cleared successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:319: trailing whitespace.
++++++++++++++++++++   INFO  Blade templates cached successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:321: trailing whitespace.
++++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:323: trailing whitespace.
++++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:325: trailing whitespace.
++++++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:327: trailing whitespace.
+++++++++++++++++++++   INFO  Compiled views cleared successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:329: trailing whitespace.
+++++++++++++++++++++   INFO  Blade templates cached successfully.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:331: trailing whitespace.
++++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:333: trailing whitespace.
++++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:335: trailing whitespace.
++++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:337: trailing whitespace.
++++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:339: trailing whitespace.
++++++++++++++++++++⠋ Exporting...⠙ Exporting...⠹ Exporting...⠸ Exporting...⠼ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:341: trailing whitespace.
++++++++++++++++++++⠋ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:343: trailing whitespace.
++++++++++++++++++++⠋ Exporting...⠙ Exporting...[expo-cli] 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:345: trailing whitespace.
++++++++++++++++++++⠋ Uploading...⠙ Uploading...⠹ Uploading...⠋ Uploading assetmap.json (0 / 11.0 KB)⠸ Uploading...⠙ Uploading assetmap.json (11.0 KB / 11.0 KB)⠼ Uploading...⠹ Uploading assetmap.json (11.0 KB / 11.0 KB)⠴ Uploading...⠸ Uploading assetmap.json (11.0 KB / 11.0 KB)⠦ Uploading...⠼ Uploading assetmap.json (11.0 KB / 11.0 KB)⠧ Uploading...✔ Uploaded assetmap.json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:347: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view --help 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:349: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas --version 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:351: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas whoami 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:353: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:355: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@23.2.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:357: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas --version 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:359: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas whoami 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:361: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:list --branch production --limit 1 --json --non-interactive 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:363: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:view 9a3774f5-99fe-4008-8c85-2cad8b5c5a2e --json 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:365: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update --help 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:367: trailing whitespace.
+++++++++++++++++++COMMAND=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package eas-cli@24.7.0 -- eas update:republish --help 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:369: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:371: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:373: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:375: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:377: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:379: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:381: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:383: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:385: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:387: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:389: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:391: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:393: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:395: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:397: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:399: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:401: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:403: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:405: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:407: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:409: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:411: trailing whitespace.
+++++++++++++++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:413: trailing whitespace.
+++++++++++                                                                                                                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:415: trailing whitespace.
+++++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT' (Connection: mysql, Host: localhost, Port: 3306, Database: icaffeco_lrvl, SQL: select `id`, `pa  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:417: trailing whitespace.
+++++++++++  th` from `backup_runs` where `status` = completed order by `id` desc)                                                                                                      
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:419: trailing whitespace.
+++++++++++                                                                                                                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:421: trailing whitespace.
+++++++++++                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:423: trailing whitespace.
+++++++++++  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'path' in 'SELECT'  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:425: trailing whitespace.
+++++++++++                                                                             
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:427: trailing whitespace.
+++++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:429: trailing whitespace.
+++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:431: trailing whitespace.
+++++++++COMMAND=git commit -m docs:\ archive\ Customer360\ checkpoint\ recovery\ evidence 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:433: trailing whitespace.
+++++++++COMMAND=git push origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:435: trailing whitespace.
+++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:437: trailing whitespace.
+++++++++COMMAND=php /home/icaffeco/.ald1n-batch170-v6-20260919-123753/patch-agents.php /home/icaffeco/ald1n-project/AGENTS.md 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:439: trailing whitespace.
+++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:441: trailing whitespace.
+++++++++COMMAND=git commit -m docs:\ lock\ Customer360\ architecture\ and\ checkpoint\ policies 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:443: trailing whitespace.
+++++++++COMMAND=git push origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:445: trailing whitespace.
+++++++++COMMAND=git fetch origin main 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:447: trailing whitespace.
+++++++   INFO  Running migrations.  
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:449: trailing whitespace.
+++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:451: trailing whitespace.
+++++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:453: trailing whitespace.
+++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:455: trailing whitespace.
+++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:457: trailing whitespace.
+++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:459: trailing whitespace.
+++++ 
+docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md:554: trailing whitespace.
++   INFO  Routes cached successfully.  
 RC_evidence_full_diffcheck=2
 RC_evidence_nonreport_diffcheck=0
 
@@ -464,7 +461,7 @@ RC_evidence_nonreport_diffcheck=0
 RUN - git_fetch_evidence_race
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git fetch origin main
+COMMAND=git fetch origin main 
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_git_fetch_evidence_race=0
@@ -473,132 +470,107 @@ RC_git_fetch_evidence_race=0
 RUN - evidence_commit
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git commit -m docs: archive Customer360 Task3 diagnostic failure
-[main 8b4c50d] docs: archive Customer360 Task3 diagnostic failure
- 2 files changed, 616 insertions(+), 733 deletions(-)
- delete mode 100644 docs/operations/461-BATCH170-TASK3-CRM-MUTATION-CONTROLLER-ROUTES-20260919-142901.md
- create mode 100644 docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md
+COMMAND=git commit -m docs:\ archive\ Customer360\ Task3\ PASS\ evidence 
+[main 156363a] docs: archive Customer360 Task3 PASS evidence
+ 2 files changed, 1790 insertions(+), 616 deletions(-)
+ delete mode 100644 docs/operations/462-BATCH170-TASK3-V2-ROUTE-CACHE-RECOVERY-20260919-143437.md
+ create mode 100644 docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md
 RC_evidence_commit=0
 
 ============================================================
 RUN - evidence_push
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git push origin main
+COMMAND=git push origin main 
 To github.com:AldinAga/ald1n-project.git
-   e68253a..8b4c50d  main -> main
+   c47cd49..156363a  main -> main
 RC_evidence_push=0
 
 ============================================================
 RUN - evidence_postfetch
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git fetch origin main
+COMMAND=git fetch origin main 
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_evidence_postfetch=0
-EVIDENCE_COMMIT=8b4c50d0166fb9170df1e91029ec1f87dcc92855
+EVIDENCE_COMMIT=156363ad5d6704ab164e7ab830fffb4331f9aef8
 
 ============================================================
-2. TDD RED - REPRODUCE REPORT462 PRE-BOOT ROUTE CACHE HELPER BUG
+2. TDD RED - PROVE LARAVEL TASK3 EXISTS WHILE OPENAPI CONTRACT IS MISSING
 ============================================================
-No syntax errors detected in /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/route-cache-preboot-red.php
+No syntax errors detected in /home/icaffeco/.ald1n-batch170-task4-20260919-145919/openapi-task4-contract.php
+PASS Laravel unlinked-buyers route exists
+PASS Laravel CRM-note POST route exists
+PASS Laravel customer detail exposes customer_360
+PASS Three OpenAPI copies are byte-identical
+FAIL OpenAPI documents unlinked-buyers path
+FAIL OpenAPI documents CRM-note POST path
+FAIL OpenAPI defines AdminCustomer360Summary exactly once
+FAIL OpenAPI defines AdminCustomer360TimelineItem exactly once
+FAIL OpenAPI defines AdminCustomerCrmNote exactly once
+FAIL OpenAPI defines AdminCustomerCrmNoteCreateRequest exactly once
+FAIL OpenAPI defines AdminCustomerUnlinkedBuyer exactly once
+FAIL Customer detail schema includes customer_360 summary timeline and notes
+FAIL CRM-note contract pins request response permission throttle and error envelopes
+FAIL Unlinked-buyer contract is read-only factual and permission/error documented
+OPENAPI_TASK4_CONTRACT=14_CHECKS_4_PASS_10_FAIL
+RC_openapi_task4_red=1
+TDD_RED=PASS_LARAVEL_HTTP_PRESENT_OPENAPI_10_CONTRACT_GAPS
 
 ============================================================
-RUN - route_cache_preboot_red
+3. GREEN IMPLEMENTATION - PATCH CANONICAL OPENAPI AND BYTE-COPY TO CMS/MOBILE
+============================================================
+No syntax errors detected in /home/icaffeco/.ald1n-batch170-task4-20260919-145919/patch-openapi-task4.php
+
+============================================================
+RUN - patch_canonical_openapi
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=php /home/icaffeco/.ald1n-batch170-task4-20260919-145919/patch-openapi-task4.php /home/icaffeco/ald1n-project/packages/api-contract/openapi.yaml 
+OPENAPI_TASK4_PATCH=PASS
+RC_patch_canonical_openapi=0
+OPENAPI_COPY=PASS_CANONICAL_PACKAGE_TO_CMS_AND_MOBILE
+
+============================================================
+4. TDD GREEN - REQUIRE FULL CUSTOMER360 OPENAPI CONTRACT AND EXACT 3-COPY SHA PARITY
+============================================================
+
+============================================================
+RUN - openapi_task4_green
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=php /home/icaffeco/.ald1n-batch170-task4-20260919-145919/openapi-task4-contract.php /home/icaffeco/ald1n-project 
+PASS Laravel unlinked-buyers route exists
+PASS Laravel CRM-note POST route exists
+PASS Laravel customer detail exposes customer_360
+PASS Three OpenAPI copies are byte-identical
+PASS OpenAPI documents unlinked-buyers path
+PASS OpenAPI documents CRM-note POST path
+PASS OpenAPI defines AdminCustomer360Summary exactly once
+PASS OpenAPI defines AdminCustomer360TimelineItem exactly once
+PASS OpenAPI defines AdminCustomerCrmNote exactly once
+PASS OpenAPI defines AdminCustomerCrmNoteCreateRequest exactly once
+PASS OpenAPI defines AdminCustomerUnlinkedBuyer exactly once
+PASS Customer detail schema includes customer_360 summary timeline and notes
+PASS CRM-note contract pins request response permission throttle and error envelopes
+PASS Unlinked-buyer contract is read-only factual and permission/error documented
+OPENAPI_TASK4_CONTRACT=14_CHECKS_14_PASS_0_FAIL
+RC_openapi_task4_green=0
+OPENAPI_PKG_SHA_AFTER=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+OPENAPI_CMS_SHA_AFTER=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+OPENAPI_MOBILE_SHA_AFTER=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+OPENAPI_PARITY=PASS_BYTE_IDENTICAL_3_COPIES
+
+============================================================
+5. REGRESSION GATES - CUSTOMER360 61/61, CMS STATIC 983/983, PRODUCT VARIANTS NEGATIVE
+============================================================
+
+============================================================
+RUN - customer360_task4_regression
 ============================================================
 CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/route-cache-preboot-red.php /home/icaffeco/ald1n-project/apps/cms/current
-APP_CREATED=YES
-ROUTES_CACHE_PATH_PREBOOT=/home/icaffeco/ald1n-project/apps/cms/current/bootstrap/cache/routes-v7.php
-BEFORE_ROUTES_ARE_CACHED=YES
-RC_route_cache_preboot_red=255
-DIAGNOSTIC_TDD_RED=PASS_PREBOOT_ROUTES_ARE_CACHED_REPRODUCES_RC_255
-REPORT462_HELPER_ROOT_CAUSE=CONFIRMED_PREBOOT_FILES_BINDING_ACCESS
-
-============================================================
-3. TDD GREEN DIAGNOSTIC - BOOT KERNEL BEFORE ROUTE CACHE INSPECTION
-============================================================
-No syntax errors detected in /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/route-cache-state.php
-
-============================================================
-RUN - route_cache_before
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/route-cache-state.php /home/icaffeco/ald1n-project/apps/cms/current
-KERNEL_BOOTSTRAPPED=YES
-ROUTES_CACHE_ACTIVE=YES
-ROUTES_CACHE_PATH=/home/icaffeco/ald1n-project/apps/cms/current/bootstrap/cache/routes-v7.php
-ROUTES_CACHE_FILE_EXISTS=YES
-SOURCE_NOTE_ROUTE=YES
-SOURCE_UNLINKED_ROUTE=YES
-RUNTIME_NOTE_ROUTE=NO
-RUNTIME_UNLINKED_ROUTE=NO
-RUNTIME_LINK_ROUTE=YES
-RC_route_cache_before=0
-DIAGNOSTIC_TDD_GREEN=PASS_BOOT_SAFE_ROUTE_CACHE_HELPER
-STALE_ROUTE_CACHE_ROOT_CAUSE=CONFIRMED_SOURCE_NEW_RUNTIME_OLD_CACHE_ACTIVE
-
-============================================================
-4. SAFE ROUTE CACHE REFRESH WITH FAILURE ROLLBACK
-============================================================
-ROUTE_CACHE_PATH=/home/icaffeco/ald1n-project/apps/cms/current/bootstrap/cache/routes-v7.php
-ROUTE_CACHE_SHA_BEFORE=14b7ce1e556ddd84a12794757e1f4f3b78b55762b621bc8b70f5d513e447183e
-
-============================================================
-RUN - route_cache_refresh
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php artisan route:cache
-
-   INFO  Routes cached successfully.  
-
-RC_route_cache_refresh=0
-ROUTE_CACHE_SHA_AFTER=c4a5c23ab72bfbc3ae35510166f1ad35691604bb603787899ab7d03f3b005537
-
-============================================================
-RUN - route_cache_after
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/route-cache-state.php /home/icaffeco/ald1n-project/apps/cms/current
-KERNEL_BOOTSTRAPPED=YES
-ROUTES_CACHE_ACTIVE=YES
-ROUTES_CACHE_PATH=/home/icaffeco/ald1n-project/apps/cms/current/bootstrap/cache/routes-v7.php
-ROUTES_CACHE_FILE_EXISTS=YES
-SOURCE_NOTE_ROUTE=YES
-SOURCE_UNLINKED_ROUTE=YES
-RUNTIME_NOTE_ROUTE=YES
-RUNTIME_UNLINKED_ROUTE=YES
-RUNTIME_LINK_ROUTE=YES
-RC_route_cache_after=0
-ROUTE_CACHE_REFRESH_PROOF=PASS_NEW_ROUTES_RUNTIME_VISIBLE
-
-============================================================
-5. TDD GREEN - REQUIRE ALL 61 CUSTOMER360 CHECKS AND CLEAN FIXTURE ROLLBACK
-============================================================
-No syntax errors detected in /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/db-state.php
-
-============================================================
-RUN - db_state_before_task3_green
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/db-state.php /home/icaffeco/ald1n-project/apps/cms/current
-USERS_COUNT=19
-ORDERS_COUNT=27
-CUSTOMER_CRM_NOTES_COUNT=0
-AUDIT_LOGS_COUNT=733
-AFTER_SALES_CASES_COUNT=0
-PRODUCT_WARRANTIES_COUNT=30
-PORTAL_CONVERSATIONS_COUNT=0
-PORTAL_MESSAGES_COUNT=0
-PORTAL_ORDER_LINK_HISTORY_COUNT=0
-RC_db_state_before_task3_green=0
-
-============================================================
-RUN - customer360_task3_recovery_green
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php bin/customer-360-contract-smoke.php
+COMMAND=php bin/customer-360-contract-smoke.php 
 PASS customer_crm_notes table exists
 PASS CustomerCrmNote model exists
 PASS User exposes crmNotes HasMany relation
@@ -661,35 +633,13 @@ PASS CRM note append rejects body shorter than 2 characters
 PASS CRM note append rejects body longer than 5000 characters
 PASS CRM note append rejects non-customer target
 CUSTOMER360_CONTRACT_SMOKE=61_CHECKS_61_PASS_0_FAIL
-RC_customer360_task3_recovery_green=0
-TDD_GREEN=PASS_61_61
+RC_customer360_task4_regression=0
 
 ============================================================
-RUN - db_state_after_task3_green
+RUN - cms_static_task4
 ============================================================
 CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/db-state.php /home/icaffeco/ald1n-project/apps/cms/current
-USERS_COUNT=19
-ORDERS_COUNT=27
-CUSTOMER_CRM_NOTES_COUNT=0
-AUDIT_LOGS_COUNT=733
-AFTER_SALES_CASES_COUNT=0
-PRODUCT_WARRANTIES_COUNT=30
-PORTAL_CONVERSATIONS_COUNT=0
-PORTAL_MESSAGES_COUNT=0
-PORTAL_ORDER_LINK_HISTORY_COUNT=0
-RC_db_state_after_task3_green=0
-TASK3_FIXTURE_ROLLBACK=PASS_COUNTS_IDENTICAL
-
-============================================================
-6. CMS STATIC AND INTENTIONAL TASK4 TASK5 PARITY LEDGER
-============================================================
-
-============================================================
-RUN - cms_static_task3
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php bin/static-check.php
+COMMAND=php bin/static-check.php 
 PASS  postoji artisan
 PASS  postoji composer.json
 PASS  postoji composer.lock
@@ -1676,30 +1626,23 @@ PASS  v2.2.0 API greške imaju stabilan envelope
 PASS  v2.2.0 OpenAPI i Stable doctor su povezani
 
 Ukupno: 983, neuspešno: 0
-RC_cms_static_task3=0
-CMS_STATIC=PASS_983_983
-OPENAPI_CMS_SHA=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
-OPENAPI_MOBILE_SHA=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
-OPENAPI_PACKAGE_SHA=6a4ab29bee43be3af1fa9ff58466039ab5bf33cf3d7375e1d8dbb21e9f838577
-OPENAPI_BASELINE=PASS_UNCHANGED_3_COPIES
-OPENAPI_TASK4_REQUIRED=PASS_INTENTIONAL_TASK3_HTTP_DRIFT_DETECTED
-MOBILE_TASK5_REQUIRED=PASS_INTENTIONAL_TASK3_HTTP_DRIFT_DETECTED
+RC_cms_static_task4=0
+PRODUCT_VARIANTS_OPENAPI_GUARD=PASS
 
 ============================================================
-7. EXACT SOURCE STAGE, DIFF CHECK, PRODUCT VARIANTS NEGATIVE GUARD
+6. EXACT OPENAPI SOURCE STAGE, DIFF CHECK, REMOTE RACE, COMMIT AND PUSH
 ============================================================
-SOURCE_STAGED_SCOPE=PASS_EXACT_4_FILES
+SOURCE_STAGED_SCOPE=PASS_EXACT
+RC_source_diffcheck=0
 PRODUCT_VARIANTS_STAGED_GUARD=PASS
-
-============================================================
-8. REMOTE RACE, TASK3 COMMIT, PUSH, POSTFETCH
-============================================================
+PRECOMMIT_TRACKED_MANIFEST=PASS_EXACT
+PRECOMMIT_UNTRACKED_MANIFEST=PASS_EXACT
 
 ============================================================
 RUN - git_fetch_source_race
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git fetch origin main
+COMMAND=git fetch origin main 
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_git_fetch_source_race=0
@@ -1708,83 +1651,60 @@ RC_git_fetch_source_race=0
 RUN - source_commit
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git commit -m feat(cms): add Customer360 CRM API
-[main c47cd49] feat(cms): add Customer360 CRM API
- 4 files changed, 215 insertions(+)
+COMMAND=git commit -m docs\(api\):\ add\ Customer\ 360\ contracts 
+[main d08ef28] docs(api): add Customer 360 contracts
+ 3 files changed, 495 insertions(+), 9 deletions(-)
 RC_source_commit=0
 
 ============================================================
 RUN - source_push
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git push origin main
+COMMAND=git push origin main 
 To github.com:AldinAga/ald1n-project.git
-   8b4c50d..c47cd49  main -> main
+   156363a..d08ef28  main -> main
 RC_source_push=0
 
 ============================================================
 RUN - source_postfetch
 ============================================================
 CWD=/home/icaffeco/ald1n-project
-COMMAND=git fetch origin main
+COMMAND=git fetch origin main 
 From github.com:AldinAga/ald1n-project
  * branch            main       -> FETCH_HEAD
 RC_source_postfetch=0
-FINAL_LOCAL_HEAD=c47cd49695e054c1069724af6ab810c196f629b9
-FINAL_REMOTE_HEAD=c47cd49695e054c1069724af6ab810c196f629b9
+FINAL_LOCAL_HEAD=d08ef286239a3080cb600107f57d71e5f899177b
+FINAL_REMOTE_HEAD=d08ef286239a3080cb600107f57d71e5f899177b
 
 ============================================================
-9. FINAL ROUTE CACHE AND WORKTREE CERTIFICATION
+7. FINAL TASK4 CERTIFICATION
 ============================================================
-
-============================================================
-RUN - route_cache_final
-============================================================
-CWD=/home/icaffeco/ald1n-project/apps/cms/current
-COMMAND=php /home/icaffeco/.ald1n-batch170-task3-v3-20260919-144238/route-cache-state.php /home/icaffeco/ald1n-project/apps/cms/current
-KERNEL_BOOTSTRAPPED=YES
-ROUTES_CACHE_ACTIVE=YES
-ROUTES_CACHE_PATH=/home/icaffeco/ald1n-project/apps/cms/current/bootstrap/cache/routes-v7.php
-ROUTES_CACHE_FILE_EXISTS=YES
-SOURCE_NOTE_ROUTE=YES
-SOURCE_UNLINKED_ROUTE=YES
-RUNTIME_NOTE_ROUTE=YES
-RUNTIME_UNLINKED_ROUTE=YES
-RUNTIME_LINK_ROUTE=YES
-RC_route_cache_final=0
-FINAL_WORKTREE_MANIFESTS=PASS_KNOWN_HTACCESS_PLUS_CURRENT_REPORT463
+FINAL_STAGED_MANIFEST=PASS_EXACT
+FINAL_TRACKED_MANIFEST=PASS_EXACT
+FINAL_UNTRACKED_MANIFEST=PASS_EXACT
 
 ============================================================
 FINAL SUMMARY
 ============================================================
-BATCH170_TASK3_V3_RESULT=PASS_RECOVERED_FROM_REPORT462
-REPORT_NUMBER=463
+BATCH170_TASK4_RESULT=PASS
+REPORT_NUMBER=464
 FAILED_STAGE=NONE
-REPORT462_HELPER_ROOT_CAUSE=PREBOOT_ROUTES_ARE_CACHED_ACCESSED_FILES_BINDING_TOO_EARLY
-TASK3_ROOT_CAUSE=STALE_LARAVEL_ROUTE_CACHE_AFTER_ROUTES_SOURCE_CHANGED
-ROOT_CAUSE_PROOF=SOURCE_ROUTES_YES_RUNTIME_NEW_ROUTES_NO_CACHE_ACTIVE_YES
-EVIDENCE_COMMIT=8b4c50d0166fb9170df1e91029ec1f87dcc92855
-TASK3_SOURCE_COMMIT=c47cd49695e054c1069724af6ab810c196f629b9
+EVIDENCE_COMMIT=156363ad5d6704ab164e7ab830fffb4331f9aef8
+TASK4_SOURCE_COMMIT=d08ef286239a3080cb600107f57d71e5f899177b
 PUSH_COMPLETED=YES
-ROUTE_CACHE_REFRESH=APPLIED_COMMITTED
-ROUTE_CACHE_ROLLBACK=NOT_NEEDED
-ROUTE_CACHE_SHA_BEFORE=14b7ce1e556ddd84a12794757e1f4f3b78b55762b621bc8b70f5d513e447183e
-ROUTE_CACHE_SHA_AFTER=c4a5c23ab72bfbc3ae35510166f1ad35691604bb603787899ab7d03f3b005537
-DIAGNOSTIC_TDD_RED=PASS_PREBOOT_HELPER_FAILURE_REPRODUCED
-DIAGNOSTIC_TDD_GREEN=PASS_BOOT_SAFE_HELPER
-TDD_GREEN=PASS_61_61
-TASK3_FIXTURE_ROLLBACK=PASS_COUNTS_IDENTICAL
-CMS_STATIC=PASS_983_983
-CUSTOMER360_CRM_MUTATION_API=PASS
-OPENAPI_PARITY=PENDING_MANDATORY_TASK4
+OPENAPI_TASK4_CONTRACT=PASS_14_14
+OPENAPI_PARITY=PASS_BYTE_IDENTICAL_3_COPIES
+OPENAPI_FINAL_SHA=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+CUSTOMER360_BACKEND_TASK3=PASS_PREDECESSOR
 MOBILE_CONTRACT_PARITY=PENDING_MANDATORY_TASK5
 MOBILE_VISIBLE_WORKSPACE=PENDING_MANDATORY_BATCH171
 CUSTOMER360_OVERALL_FEATURE_COMPLETE=NO
+PROFITABILITY_AUTHORITY=DEFERRED_TO_MANAGEMENT_REPORT_SERVICE_BATCH172_173
 PRODUCT_VARIANTS=DECOMMISSIONED_GUARD_PASS
 EAS_COMMANDS_RUN=NO
 OTA_ACTION=NO
 BUILD_ACTION=NO
 GOOGLE_PLAY_ACTION=NO
-REPORT_SEQUENCE_POLICY=ENABLED_NEXT_AFTER_463_IS_464
-NEXT_ACTION=REPORT464_BATCH170_TASK4_CANONICAL_OPENAPI_CONTRACT
-REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/463-BATCH170-TASK3-V3-ROUTE-CACHE-DIAGNOSTIC-RECOVERY-20260919-144238.md
+REPORT_SEQUENCE_POLICY=ENABLED_NEXT_AFTER_464_IS_465
+NEXT_ACTION=REPORT465_BATCH170_TASK5_MOBILE_CONTRACT_PARITY
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/464-BATCH170-TASK4-CANONICAL-OPENAPI-CONTRACT-20260919-145919.md
