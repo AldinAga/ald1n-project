@@ -1,5 +1,47 @@
 
 ============================================================
+467 - BATCH170 TASK6 FULL REGRESSION RELEASE CHECKPOINT
+============================================================
+TIMESTAMP=20260921-100818
+EXPECTED_HEAD=e9e017d33c5abacaaa4704aa0bbb9c432fdbc455
+PREDECESSOR_REPORT=466
+EXECUTION_METHOD=NATIVE_OWNER_APPROVED
+TASK=6_FULL_BATCH170_REGRESSION_RELEASE_CHECKPOINT
+IMPLEMENTATION_ACTION=NO_VERIFICATION_AND_CHECKPOINT_ONLY
+LARAVEL_SOURCE_MUTATION=NO
+MOBILE_SOURCE_MUTATION=NO
+OPENAPI_SOURCE_MUTATION=NO
+PERSISTENT_DATABASE_WRITES=NO
+EAS_COMMANDS_RUN=NO
+OTA_ACTION=NO
+BUILD_ACTION=NO
+GOOGLE_PLAY_ACTION=NO
+
+============================================================
+1. EXACT REMOTE AUTHORITY AND HOSTING PREFLIGHT
+============================================================
+
+============================================================
+RUN - git_fetch_preflight
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git fetch origin main
+From github.com:AldinAga/ald1n-project
+ * branch            main       -> FETCH_HEAD
+RC_git_fetch_preflight=0
+BRANCH=main
+LOCAL_HEAD=e9e017d33c5abacaaa4704aa0bbb9c432fdbc455
+REMOTE_HEAD=e9e017d33c5abacaaa4704aa0bbb9c432fdbc455
+REPORT466_SHA_ACTUAL=d1e87e303147b62df65576d40b8efec42c1213af181a5de5fb39a594ad2c0a4a
+REPORT466_SHA_EXPECTED=d1e87e303147b62df65576d40b8efec42c1213af181a5de5fb39a594ad2c0a4a
+
+============================================================
+RUN - report465_git_blob
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git show HEAD:docs/operations/465-BATCH170-TASK5-MOBILE-CONTRACT-PARITY-20260921-094143.md
+
+============================================================
 465 - BATCH170 TASK5 MOBILE CONTRACT PARITY
 ============================================================
 TIMESTAMP=20260921-094143
@@ -712,3 +754,67 @@ OTA_ACTION=NO
 BUILD_ACTION=NO
 GOOGLE_PLAY_ACTION=NO
 REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/465-BATCH170-TASK5-MOBILE-CONTRACT-PARITY-20260921-094143.md
+RC_report465_git_blob=0
+REPORT465_SHA_ACTUAL=6b571009786e8930ca4bc714eba391da432ef6e72ffca86db92688c2b2b875c7
+REPORT465_SHA_EXPECTED=6b571009786e8930ca4bc714eba391da432ef6e72ffca86db92688c2b2b875c7
+OPENAPI_PKG_SHA=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+OPENAPI_CMS_SHA=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+OPENAPI_MOBILE_SHA=08c54fd0a7e9bee41cf200c33c5213a91274c7903c0eb0a1d1701f7d5e07fb9d
+HTACCESS_SHA_ACTUAL=d10ecf0d63f9a8e1bd978a440afcbadb34faf1d24eb899bf2582d1e5c0033cef
+HTACCESS_DIFF_SHA_ACTUAL=8ce9fa55a71768bf711203fcc50be8eec6de26886bbf4852ceb30a97b36958fe
+PREFLIGHT_STAGED_MANIFEST=PASS_EXACT
+PREFLIGHT_TRACKED_MANIFEST=PASS_EXACT
+PREFLIGHT_UNTRACKED_MANIFEST=PASS_EXACT
+PREFLIGHT_MACHINE_MANIFESTS=PASS_EXACT_TASK5_PASS_STATE
+
+============================================================
+2. PROVE TASK1-TASK5 SOURCE HISTORY IS PRESENT
+============================================================
+ANCESTOR_9971ae6ffd80b60a613c9822cd49bbf7923bdf47=0
+ANCESTOR_1c1e5d9393f328f6796304b081a9471891dabf92=0
+ANCESTOR_c47cd49695e054c1069724af6ab810c196f629b9=0
+ANCESTOR_d08ef286239a3080cb600107f57d71e5f899177b=0
+ANCESTOR_e9e017d33c5abacaaa4704aa0bbb9c432fdbc455=0
+BATCH170_TASK_HISTORY=PASS_TASK1_THROUGH_TASK5
+
+============================================================
+3. VERIFY EXACTLY TWO RESTORE-READY STABLE BACKUPS
+============================================================
+No syntax errors detected in /home/icaffeco/.ald1n-batch170-task6-20260921-100818/backup-state.php
+
+============================================================
+RUN - backup_state
+============================================================
+CWD=/home/icaffeco/ald1n-project/apps/cms/current
+COMMAND=php /home/icaffeco/.ald1n-batch170-task6-20260921-100818/backup-state.php /home/icaffeco/ald1n-project/apps/cms/current
+COMPLETED_BACKUP_COUNT=5
+COMPLETED_BACKUP_IDS=119,118,117,116,115
+BACKUP_119_PATH=/home/icaffeco/backups/current/20260921-023005-daily-063b72
+BACKUP_119_DIR=YES
+BACKUP_118_PATH=/home/icaffeco/backups/current/20260920-031006-weekly-eda4e5
+BACKUP_118_DIR=YES
+BACKUP_117_PATH=/home/icaffeco/backups/current/20260920-023005-daily-693c77
+BACKUP_117_DIR=YES
+BACKUP_116_PATH=/home/icaffeco/backups/current/20260919-023005-daily-21f4e1
+BACKUP_116_DIR=YES
+BACKUP_115_PATH=/home/icaffeco/backups/current/20260918-023005-daily-ec2507
+BACKUP_115_DIR=YES
+RC_backup_state=1
+
+============================================================
+FINAL SUMMARY - FAIL
+============================================================
+BATCH170_RESULT=FAIL
+REPORT_NUMBER=467
+FAILED_STAGE=BACKUPS
+FAIL_MESSAGE=stable backup state is not exactly two completed restore candidates
+CUSTOMER360_BACKEND_FOUNDATION=NOT_CERTIFIED_BY_TASK6
+MOBILE_CONTRACT_PARITY=NOT_CERTIFIED_BY_TASK6
+MOBILE_VISIBLE_WORKSPACE=PENDING_MANDATORY_BATCH171
+CUSTOMER360_OVERALL_FEATURE_COMPLETE=NO_UNTIL_BATCH171_PASS
+PROFITABILITY_AUTHORITY=DEFERRED_TO_MANAGEMENT_REPORT_SERVICE_BATCH172_173
+EAS_COMMANDS_RUN=NO
+OTA_ACTION=NO
+BUILD_ACTION=NO
+GOOGLE_PLAY_ACTION=NO
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/467-BATCH170-TASK6-FULL-REGRESSION-RELEASE-CHECKPOINT-20260921-100818.md
