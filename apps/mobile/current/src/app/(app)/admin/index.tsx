@@ -185,17 +185,18 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         </Card>
       ) : null}
 
+      {/* MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171 */}
       {(can('system.manage_users') && (
         adminMatch('Upravljanje korisnicima')
         || adminMatch('Grupe pristupa')
-        || (moduleEnabled('customer_portal') && adminMatch('Customer Portal'))
+        || (moduleEnabled('customer_portal') && (adminMatch('Customer 360') || adminMatch('Customer Portal')))
       )) ? (
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Korisnici</Text>
           <View style={styles.quickActions}>
             {adminMatch('Upravljanje korisnicima') ? <OperatorRow title="Upravljanje korisnicima" glyph="account" onPress={() => router.push('/admin/users' as Href)} divider /> : null}
             {adminMatch('Grupe pristupa') ? <OperatorRow title="Grupe pristupa" glyph="account" onPress={() => router.push('/admin/user-groups' as Href)} divider /> : null}
-            {moduleEnabled('customer_portal') && adminMatch('Customer Portal') ? <OperatorRow title="Customer Portal" glyph="messages" onPress={() => router.push('/admin/customer-portal' as Href)} divider /> : null}
+            {moduleEnabled('customer_portal') && (adminMatch('Customer 360') || adminMatch('Customer Portal')) ? <OperatorRow title="Customer 360" glyph="messages" onPress={() => router.push('/admin/customer-portal' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}

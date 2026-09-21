@@ -15,8 +15,10 @@ import { spacing, typography, type AppColors } from '@/constants/theme';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { apiAdminCustomerPortal } from '@/features/admin/customer-portal-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { useThemedStyles } from '@/theme/app-theme';
 
+// MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171
 export default function AdminCustomerPortalScreen() {
   const styles = useThemedStyles(createStyles);
   const feedback = useAppFeedback();
@@ -32,10 +34,16 @@ export default function AdminCustomerPortalScreen() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [unlinkedQ, setUnlinkedQ] = useState('');
 
   const query = useQuery({
     queryKey: adminQueryKeys.customerPortal({ q, status }),
     queryFn: () => apiAdminCustomerPortal.index({ q: q || undefined, status: status || undefined }),
+    enabled: allowed,
+  });
+  const unlinkedQuery = useQuery({
+    queryKey: adminQueryKeys.customerPortalUnlinkedBuyers(unlinkedQ),
+    queryFn: () => apiAdminCustomerPortal.unlinkedBuyers(unlinkedQ),
     enabled: allowed,
   });
   const create = useMutation({
@@ -65,7 +73,7 @@ export default function AdminCustomerPortalScreen() {
 
   return (
     <Screen>
-      <PageHeader title="Customer Portal" eyebrow="Administracija · Korisnici" name={bootstrap?.user.name} />
+      <PageHeader title="Customer 360" eyebrow="Administracija · Kupci" name={bootstrap?.user.name} />
 
       <View style={styles.stats}>
         <Stat label="Aktivni" value={query.data.stats.active_users} />
@@ -122,6 +130,33 @@ export default function AdminCustomerPortalScreen() {
         />
       </Card>
 
+      <Card style={styles.unlinkedCard}>
+        <Text style={styles.section}>Nepovezane porudžbine</Text>
+        <Text style={styles.meta}>Read-only kandidati bez registrovanog vlasnika. Povezivanje se radi iz detalja kupca.</Text>
+        <TextInput
+          value={unlinkedQ}
+          onChangeText={setUnlinkedQ}
+          placeholder="Pretraži broj porudžbine ili kupca"
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.search}
+        />
+        {unlinkedQuery.isLoading ? <Text style={styles.meta}>Učitavanje nepovezanih porudžbina…</Text> : null}
+        {unlinkedQuery.isError ? (
+          <Button variant="secondary" onPress={() => void unlinkedQuery.refetch()}>Pokušaj ponovo</Button>
+        ) : null}
+        {unlinkedQuery.data?.length ? unlinkedQuery.data.map((buyer) => (
+          <View key={buyer.id} style={styles.candidate}>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>{buyer.number}</Text>
+              <Text style={styles.meta}>{buyer.name ?? 'Kupac nije naveden'} · {buyer.status}</Text>
+              <Text style={styles.meta}>{buyer.email ?? 'E-mail nije dostupan'} · {buyer.phone ?? 'Telefon nije dostupan'}</Text>
+              <Text style={styles.meta}>{formatMoney(buyer.subtotal_rsd, 'RSD')} · {formatDate(buyer.created_at, true)}</Text>
+            </View>
+          </View>
+        )) : (!unlinkedQuery.isLoading && !unlinkedQuery.isError ? <Text style={styles.meta}>Nema nepovezanih porudžbina za ovu pretragu.</Text> : null)}
+      </Card>
+
       <Text style={styles.section}>Kupci</Text>
       {query.data.users.length ? query.data.users.map((user) => (
         <Pressable key={user.id} onPress={() => router.push(`/admin/customer-portal/${user.id}` as Href)}>
@@ -167,6 +202,8 @@ function createStyles(theme: AppColors) {
     statValue: { ...typography.h2, color: theme.ink },
     form: { gap: spacing.md },
     filters: { gap: spacing.md },
+    unlinkedCard: { gap: spacing.md },
+    candidate: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },
     section: { ...typography.h2, color: theme.ink },
     search: { ...typography.body, color: theme.ink, minHeight: 48 },
     row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

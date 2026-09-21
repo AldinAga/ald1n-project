@@ -2744,6 +2744,57 @@ assert(
   'Batch170 Task5 Mobile contract parity ne vraća Product Variants contract.',
 );
 
+// MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171_VALIDATOR
+const customer360IndexBatch171 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/customer-portal/index.tsx'), 'utf8');
+const customer360DetailBatch171 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/customer-portal/[userId].tsx'), 'utf8');
+const customer360HubBatch171 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
+assert(
+  customer360IndexBatch171.includes('MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171')
+    && customer360IndexBatch171.includes('adminQueryKeys.customerPortalUnlinkedBuyers(unlinkedQ)')
+    && customer360IndexBatch171.includes('apiAdminCustomerPortal.unlinkedBuyers(unlinkedQ)')
+    && customer360IndexBatch171.includes('Nepovezane porudžbine')
+    && customer360IndexBatch171.includes('Povezivanje se radi iz detalja kupca'),
+  'Batch171 Customer360 lista izlaže read-only nepovezane porudžbine kroz canonical API/query-key bez auto-match toka.',
+);
+assert(
+  customer360DetailBatch171.includes('MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171')
+    && customer360DetailBatch171.includes('const customer360 = query.data.customer_360;')
+    && customer360DetailBatch171.includes('summary.lifetime_revenue_rsd')
+    && customer360DetailBatch171.includes('summary.average_order_value_rsd')
+    && customer360DetailBatch171.includes('summary.outstanding_rsd')
+    && customer360DetailBatch171.includes('Poslednja kupovina'),
+  'Batch171 Customer360 detalj prikazuje canonical komercijalni summary bez lokalnog finansijskog preračunavanja.',
+);
+assert(
+  customer360DetailBatch171.includes('apiAdminCustomerPortal.appendCrmNote(userId, crmNoteBody.trim())')
+    && customer360DetailBatch171.includes('maxLength={5000}')
+    && customer360DetailBatch171.includes('crmNoteBody.trim().length < 2')
+    && customer360DetailBatch171.includes('customer360.crm_notes.map((note) =>')
+    && customer360DetailBatch171.includes('Interne CRM beleške'),
+  'Batch171 Customer360 detalj podržava append-only interne CRM beleške kroz postojeći mutation authority.',
+);
+assert(
+  customer360DetailBatch171.includes('customer360.timeline.map((item, index) =>')
+    && customer360DetailBatch171.includes('Aktivne reklamacije')
+    && customer360DetailBatch171.includes('Aktivne garancije')
+    && customer360DetailBatch171.includes('Otvorene komunikacije')
+    && customer360DetailBatch171.includes('Nepročitano za osoblje')
+    && customer360DetailBatch171.includes('Istorija kupca'),
+  'Batch171 Customer360 detalj prikazuje server timeline i servisne/komunikacione indikatore.',
+);
+assert(
+  customer360HubBatch171.includes('MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171')
+    && customer360HubBatch171.includes('title="Customer 360"')
+    && customer360HubBatch171.includes("router.push('/admin/customer-portal' as Href)")
+    && customer360IndexBatch171.includes('apiAdminCustomerPortal.createCustomer')
+    && customer360DetailBatch171.includes('apiAdminCustomerPortal.invite(userId)')
+    && customer360DetailBatch171.includes('apiAdminCustomerPortal.revokeSessions(userId)')
+    && customer360DetailBatch171.includes('apiAdminCustomerPortal.linkOrder(userId')
+    && !/(suggested_user_id|confidence|match_score|auto.?match)/i.test(customer360IndexBatch171 + customer360DetailBatch171)
+    && !/(gross_margin|gross_profit|net_contribution|\bltv\b|gmroi|\bcogs\b)/i.test(customer360IndexBatch171 + customer360DetailBatch171)
+    && !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(customer360IndexBatch171 + customer360DetailBatch171),
+  'Batch171 visible workspace ostaje postojeći Customer Portal authority bez heurističkog matching-a, profitability duplikata ili Product Variants povratka.',
+);
 // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
 const userGroupsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/user-groups-admin-api.ts'), 'utf8');
 const userGroupsScreenV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/user-groups/index.tsx'), 'utf8');

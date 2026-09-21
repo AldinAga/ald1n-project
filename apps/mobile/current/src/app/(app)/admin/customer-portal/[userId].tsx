@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, type Href, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 
+// MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171
 export default function AdminCustomerPortalUserScreen() {
   const params = useLocalSearchParams<{ userId: string }>();
   const userId = Number(params.userId);
@@ -29,6 +30,7 @@ export default function AdminCustomerPortalUserScreen() {
   const [reason, setReason] = useState('');
   const [confirmReassign, setConfirmReassign] = useState(false);
   const [moveRelated, setMoveRelated] = useState(false);
+  const [crmNoteBody, setCrmNoteBody] = useState('');
 
   const queryKey = adminQueryKeys.customerPortalUser(userId, orderQ);
   const query = useQuery({
@@ -39,6 +41,7 @@ export default function AdminCustomerPortalUserScreen() {
 
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: adminQueryKeys.customerPortalUserRoot(userId) });
+    await client.invalidateQueries({ queryKey: adminQueryKeys.customerPortalUser360(userId) });
     await client.invalidateQueries({ queryKey: adminQueryKeys.customerPortalRoot() });
   };
   const invite = useMutation({
@@ -75,17 +78,84 @@ export default function AdminCustomerPortalUserScreen() {
     },
   });
 
+  const appendNote = useMutation({
+    mutationFn: () => apiAdminCustomerPortal.appendCrmNote(userId, crmNoteBody.trim()),
+    onSuccess: async () => {
+      setCrmNoteBody('');
+      await refresh();
+      feedback.notify({ tone: 'success', title: 'Beleška dodata', message: 'Interna CRM beleška je sačuvana.' });
+    },
+  });
+
   if (!allowed) return <UnavailableState title="Kupac nije dostupan" />;
   if (query.isLoading) return <LoadingState label="Učitavanje kupca…" />;
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
   if (!query.data) return <UnavailableState title="Kupac nije pronađen" />;
 
   const customer = query.data.customer;
+  const customer360 = query.data.customer_360;
+  const summary = customer360.summary;
   return (
     <Screen>
       <Pressable onPress={() => router.back()}><Text style={styles.back}>‹ Customer Portal</Text></Pressable>
       <Text style={styles.title}>{customer.name}</Text>
       <Text style={styles.meta}>{customer.email ?? customer.username} · {customer.status}</Text>
+
+      <Card style={styles.customer360Card}>
+        <Text style={styles.section}>Customer 360</Text>
+        <View style={styles.metricGrid}>
+          <Metric label="Porudžbine" value={String(summary.orders_count)} />
+          <Metric label="Ukupan promet" value={formatMoney(summary.lifetime_revenue_rsd, 'RSD')} />
+          <Metric label="Prosečna porudžbina" value={formatMoney(summary.average_order_value_rsd, 'RSD')} />
+          <Metric label="Potraživanje" value={formatMoney(summary.outstanding_rsd, 'RSD')} />
+        </View>
+        <Text style={styles.meta}>Poslednja kupovina: {formatDate(summary.last_purchase_at, true)}</Text>
+        <View style={styles.signalGrid}>
+          <Text style={styles.meta}>Aktivne reklamacije: {summary.active_after_sales_count}</Text>
+          <Text style={styles.meta}>Aktivne garancije: {summary.active_warranties_count}</Text>
+          <Text style={styles.meta}>Otvorene komunikacije: {summary.open_conversations_count}</Text>
+          <Text style={styles.meta}>Nepročitano za osoblje: {summary.unread_staff_messages_count}</Text>
+        </View>
+      </Card>
+
+      <Card style={styles.actions}>
+        <Text style={styles.section}>Interne CRM beleške</Text>
+        <Text style={styles.meta}>Beleške su interne, append-only i vidljive samo administratorskom Customer 360 toku.</Text>
+        <TextInput
+          value={crmNoteBody}
+          onChangeText={setCrmNoteBody}
+          placeholder="Dodaj internu belešku"
+          multiline
+          maxLength={5000}
+          textAlignVertical="top"
+          style={styles.noteInput}
+        />
+        <Button
+          loading={appendNote.isPending}
+          disabled={crmNoteBody.trim().length < 2}
+          onPress={() => appendNote.mutate()}
+        >
+          Dodaj belešku
+        </Button>
+        {appendNote.isError ? <Text style={styles.error}>Beleška nije sačuvana. Proveri sadržaj i pokušaj ponovo.</Text> : null}
+        {customer360.crm_notes.length ? customer360.crm_notes.map((note) => (
+          <View key={note.id} style={styles.noteRow}>
+            <Text style={styles.rowTitle}>{note.author?.name ?? 'Osoblje'}</Text>
+            <Text style={styles.meta}>{formatDate(note.created_at, true)}</Text>
+            <Text style={styles.noteBody}>{note.body}</Text>
+          </View>
+        )) : <Text style={styles.meta}>Još nema internih CRM beleški.</Text>}
+      </Card>
+
+      <Text style={styles.section}>Istorija kupca</Text>
+      {customer360.timeline.length ? customer360.timeline.map((item, index) => (
+        <Card key={`${item.type}-${item.occurred_at ?? 'unknown'}-${index}`} style={styles.row}>
+          <Text style={styles.timelineType}>{timelineTypeLabel(item.type)}</Text>
+          <Text style={styles.rowTitle}>{item.title}</Text>
+          {item.summary ? <Text style={styles.meta}>{item.summary}</Text> : null}
+          <Text style={styles.meta}>{formatDate(item.occurred_at, true)}{item.actor?.name ? ` · ${item.actor.name}` : ''}</Text>
+        </Card>
+      )) : <Card muted><Text style={styles.meta}>Nema događaja u Customer 360 istoriji.</Text></Card>}
 
       <Card style={styles.actions}>
         <Button variant="secondary" loading={invite.isPending} onPress={() => invite.mutate()}>Pošalji aktivacioni poziv</Button>
@@ -161,12 +231,35 @@ export default function AdminCustomerPortalUserScreen() {
   );
 }
 
+function Metric({ label, value }: { label: string; value: string }) {
+  const styles = useThemedStyles(createStyles);
+  return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.meta}>{label}</Text></View>;
+}
+
+function timelineTypeLabel(type: string): string {
+  if (type === 'order') return 'Porudžbina';
+  if (type === 'order_link') return 'Povezivanje';
+  if (type === 'crm_note') return 'CRM beleška';
+  if (type === 'after_sales') return 'Reklamacija';
+  if (type === 'conversation') return 'Komunikacija';
+  return 'Događaj';
+}
+
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     title: { ...typography.h1, color: theme.ink },
     meta: { ...typography.small, color: theme.muted },
     actions: { gap: spacing.md },
+    customer360Card: { gap: spacing.md },
+    metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    metric: { width: '48%', gap: spacing.xs, padding: spacing.sm, borderRadius: 12, backgroundColor: theme.surfaceMuted },
+    metricValue: { ...typography.h3, color: theme.ink },
+    signalGrid: { gap: spacing.xs },
+    noteInput: { ...typography.body, color: theme.ink, minHeight: 120, borderWidth: 1, borderColor: theme.line, borderRadius: 12, padding: spacing.md, backgroundColor: theme.surfaceMuted },
+    noteRow: { gap: spacing.xs, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },
+    noteBody: { ...typography.body, color: theme.ink },
+    timelineType: { ...typography.small, color: theme.primary, fontWeight: '800' },
     section: { ...typography.h2, color: theme.ink },
     row: { gap: spacing.xs },
     rowTitle: { ...typography.label, color: theme.ink },
