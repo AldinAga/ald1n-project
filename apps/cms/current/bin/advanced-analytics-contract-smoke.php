@@ -24,6 +24,27 @@ $mobileApiSource = is_file($mobileApiPath) ? (string) file_get_contents($mobileA
 $queryKeysSource = is_file($queryKeysPath) ? (string) file_get_contents($queryKeysPath) : '';
 $validatorSource = is_file($validatorPath) ? (string) file_get_contents($validatorPath) : '';
 
+$securityBlock = "security:\n  - bearerAuth: []\n";
+$securityPos = strpos($openApiSource, $securityBlock);
+$componentsPos = strpos($openApiSource, "components:\n");
+$routesBelowSecurity = 0;
+if ($securityPos !== false && $componentsPos !== false && $securityPos < $componentsPos) {
+    $between = substr(
+        $openApiSource,
+        $securityPos + strlen($securityBlock),
+        $componentsPos - ($securityPos + strlen($securityBlock)),
+    );
+    preg_match_all('/^  \/api\/v1\/[^:]+:/m', $between, $matches);
+    $routesBelowSecurity = count($matches[0] ?? []);
+}
+$openApiStructureNormalized =
+    str_contains($openApiSource, "\n    AdminManagementReport:\n")
+    && !str_contains($openApiSource, '}    AdminManagementReport:')
+    && $securityPos !== false
+    && $componentsPos !== false
+    && $securityPos < $componentsPos
+    && $routesBelowSecurity === 0;
+
 $checks = 0;
 $failures = 0;
 $check = static function (bool $condition, string $message) use (&$checks, &$failures): void {
@@ -52,6 +73,13 @@ $check(str_contains($serviceSource, 'public function inventoryEfficiency('), 'Ma
 $check(str_contains($serviceSource, "'advanced_analytics' =>"), 'build payload includes advanced_analytics');
 $check(str_contains($serviceSource, "'customer_user_id' => max(0, (int) (\$input['customer_user_id'] ?? 0))"), 'normalized filters include customer_user_id');
 $check(str_contains($serviceSource, "->where('orders.user_id', (int) \$filters['customer_user_id'])"), 'order query applies explicit customer_user_id filter');
+$check(
+    $openApiStructureNormalized
+        && str_contains($openApiSource, 'AdminReportAdvancedAnalytics:')
+        && str_contains($openApiSource, '  /api/v1/admin/reports/management:')
+        && str_contains($openApiSource, '  /api/v1/admin/customer-portal:'),
+    'OpenAPI Batch172 structure is normalized for canonical YAML validator',
+);
 $check(str_contains($openApiSource, 'AdminReportAdvancedAnalytics:'), 'OpenAPI documents advanced analytics schema');
 $check(str_contains($openApiSource, 'name: customer_user_id'), 'OpenAPI documents customer_user_id filter');
 $check(str_contains($mobileApiSource, 'export type AdminReportAdvancedAnalytics = {'), 'Mobile API types include advanced analytics');

@@ -5,6 +5,12 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
+let yamlParser = null;
+try {
+  yamlParser = require('yaml');
+} catch {
+  yamlParser = null;
+}
 const root = path.resolve(import.meta.dirname, '..');
 let failures = 0;
 
@@ -927,6 +933,31 @@ const cmsOpenApi = fs.existsSync(cmsOpenApiPath)
 assert(cmsOpenApi !== null, 'CMS OpenAPI kopija postoji.');
 if (canonicalOpenApi !== null && cmsOpenApi !== null) {
   assert(cmsOpenApi === canonicalOpenApi, 'CMS OpenAPI kopija odgovara canonical packages/api-contract/openapi.yaml.');
+}
+// MOBILE_OPENAPI_REAL_YAML_PARSE_BATCH172_RECOVERY
+let canonicalOpenApiDocument = null;
+let canonicalOpenApiParseError = null;
+if (canonicalOpenApi !== null && yamlParser !== null) {
+  try {
+    canonicalOpenApiDocument = yamlParser.parse(canonicalOpenApi);
+  } catch (error) {
+    canonicalOpenApiParseError = error instanceof Error ? error.message : String(error);
+  }
+}
+assert(
+  yamlParser !== null
+    && canonicalOpenApiParseError === null
+    && canonicalOpenApiDocument?.openapi === '3.1.0'
+    && canonicalOpenApiDocument?.paths?.['/api/v1/admin/reports/management']
+    && canonicalOpenApiDocument?.paths?.['/api/v1/admin/customer-portal']
+    && canonicalOpenApiDocument?.components?.schemas?.AdminReportAdvancedAnalytics
+    && canonicalOpenApiDocument?.components?.schemas?.AdminManagementReport
+    && Array.isArray(canonicalOpenApiDocument?.security)
+    && Object.prototype.hasOwnProperty.call(canonicalOpenApiDocument.security[0] ?? {}, 'bearerAuth'),
+  'Batch172 recovery canonical OpenAPI YAML parsira kroz postojeci Node yaml toolchain i izlaže report/customer schemas i paths.',
+);
+if (canonicalOpenApiParseError !== null) {
+  console.error(`OpenAPI YAML parse error: ${canonicalOpenApiParseError}`);
 }
 // MOBILE_ASSIGNED_ORDERS_OPENAPI_V05
 assert(openapi.includes('/api/v1/orders/assigned:') && openapi.includes('/api/v1/orders/assigned/{order}:') && openapi.includes('operationId: listAssignedOrders') && openapi.includes('operationId: getAssignedOrder'), 'OpenAPI documents Assigned-to-me list/detail routes.');

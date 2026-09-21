@@ -2106,8 +2106,6 @@ paths:
         '403': { description: Nedovoljna dozvola }
         '404': { description: Garancija ili maintenance zapis nije dostupan }
         '422': { description: Završetak nije validan }
-security:
-  - bearerAuth: []
   /api/v1/admin/reports/management:
     get:
       tags: [Admin Reports]
@@ -4690,6 +4688,8 @@ security:
         '401': { description: Authentication required. }
         '429': { description: Search rate limit. }
 
+security:
+  - bearerAuth: []
 components:
   securitySchemes:
     bearerAuth:
@@ -5758,7 +5758,8 @@ components:
           items: { $ref: '#/components/schemas/AdminReportProfitabilityRow' }
         products: { $ref: '#/components/schemas/AdminReportProductProfitability' }
         inventory_efficiency: { $ref: '#/components/schemas/AdminReportInventoryEfficiency' }
-        customer_ltv_basis: { type: string, enum: [completed_laravel_orders_all_time_within_actor_scope] }    AdminManagementReport:
+        customer_ltv_basis: { type: string, enum: [completed_laravel_orders_all_time_within_actor_scope] }
+    AdminManagementReport:
       type: object
       required: [report_type, filters, period_label, generated_at, summary, segments, trend, inventory, receivables, after_sales, advanced_analytics, teams]
       properties:
