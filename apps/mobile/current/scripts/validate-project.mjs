@@ -2556,7 +2556,6 @@ assert(
   'v1.0 Admin Catalog purge tok ostaje product-only bez Product Variants contracta.',
 );
 
-console.log(`\nUkupno FAIL: ${failures}`);
 // MOBILE_V1_0_SYSTEM_HEALTH_MUTATIONS_PARITY_BATCH25
 const systemHealthApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/system-health-admin-api.ts'), 'utf8');
 const systemHealthUiV10 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/system-health/index.tsx'), 'utf8');
@@ -2698,6 +2697,51 @@ assert(
     portalApiV10 + adminPortalApiV10 + customerPortalRoutesV10 + customerPortalAdminServiceV10
   ),
   'v1.0 Customer Portal parity ne vraća Product Variants contract.',
+);
+
+// BATCH170_TASK5_CUSTOMER360_MOBILE_CONTRACT_PARITY
+const customer360QueryKeysTask5 = fs.readFileSync(path.join(root, 'src/features/admin/admin-query-keys.ts'), 'utf8');
+assert(
+  adminPortalApiV10.includes('export type AdminCustomer360Summary = {')
+    && adminPortalApiV10.includes('export type AdminCustomer360TimelineItem = {')
+    && adminPortalApiV10.includes('export type AdminCustomerCrmNote = {')
+    && adminPortalApiV10.includes('export type AdminCustomerCrmNoteCreateRequest = {')
+    && adminPortalApiV10.includes('export type AdminCustomerUnlinkedBuyer = {')
+    && adminPortalApiV10.includes('lifetime_revenue_rsd: number;')
+    && adminPortalApiV10.includes('average_order_value_rsd: number;')
+    && adminPortalApiV10.includes('unread_staff_messages_count: number;')
+    && adminPortalApiV10.includes("type: 'order' | 'order_link' | 'crm_note' | 'after_sales' | 'conversation';")
+    && adminPortalApiV10.includes('after_sales_case_id: number | null;')
+    && adminPortalApiV10.includes('author: { id: number; name: string } | null;')
+    && adminPortalApiV10.includes('subtotal_rsd: number;')
+    && adminPortalApiV10.includes('created_at: string | null;'),
+  'Batch170 Task5 Mobile Customer360 tipovi pokrivaju summary, timeline, CRM note request/response i unlinked buyer ugovor.',
+);
+assert(
+  adminPortalApiV10.includes('customer_360: {')
+    && adminPortalApiV10.includes('summary: AdminCustomer360Summary;')
+    && adminPortalApiV10.includes('timeline: AdminCustomer360TimelineItem[];')
+    && adminPortalApiV10.includes('crm_notes: AdminCustomerCrmNote[];'),
+  'Batch170 Task5 AdminPortalUserDetail izlaže typed customer_360 payload iz canonical OpenAPI ugovora.',
+);
+assert(
+  adminPortalApiV10.includes('unlinkedBuyers: async (q = \'\') =>')
+    && adminPortalApiV10.includes('admin/customer-portal/unlinked-buyers')
+    && adminPortalApiV10.includes('appendCrmNote: async (userId: number, body: string) =>')
+    && adminPortalApiV10.includes('admin/customer-portal/users/${userId}/crm-notes')
+    && adminPortalApiV10.includes("{ method: 'POST', body: { body } }"),
+  'Batch170 Task5 apiAdminCustomerPortal pokriva unlinked-buyers read i append-only CRM note POST bez paralelnog klijenta.',
+);
+assert(
+  customer360QueryKeysTask5.includes('customerPortalUnlinkedBuyers: (q: string) =>')
+    && customer360QueryKeysTask5.includes("['admin', 'customer-portal', 'unlinked-buyers', q] as const")
+    && customer360QueryKeysTask5.includes('customerPortalUser360: (userId: number) =>')
+    && customer360QueryKeysTask5.includes("['admin', 'customer-portal', 'user', userId, 'customer-360'] as const"),
+  'Batch170 Task5 Customer360 query keys ostaju u centralnom adminQueryKeys customer-portal stablu.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(adminPortalApiV10 + customer360QueryKeysTask5),
+  'Batch170 Task5 Mobile contract parity ne vraća Product Variants contract.',
 );
 
 // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
@@ -3571,6 +3615,7 @@ assert(
   'Batch116 image performance rad ne vraća Product Variants contract.',
 );
 
+console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 
 

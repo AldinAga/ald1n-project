@@ -54,6 +54,8 @@ export const adminQueryKeys = {
   customerPortal: (params: unknown) => ['admin', 'customer-portal', 'list', params] as const,
   customerPortalUserRoot: (userId: number) => ['admin', 'customer-portal', 'user', userId] as const,
   customerPortalUser: (userId: number, orderQ: string) => ['admin', 'customer-portal', 'user', userId, orderQ] as const,
+  customerPortalUnlinkedBuyers: (q: string) => ['admin', 'customer-portal', 'unlinked-buyers', q] as const,
+  customerPortalUser360: (userId: number) => ['admin', 'customer-portal', 'user', userId, 'customer-360'] as const,
   customerPortalConversation: (conversationId: number) => ['admin', 'customer-portal', 'conversation', conversationId] as const,
   // MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
   globalSearch: (q: string) => ['admin', 'global-search', q] as const,

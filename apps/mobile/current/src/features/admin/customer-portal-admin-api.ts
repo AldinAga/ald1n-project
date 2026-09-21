@@ -1,5 +1,49 @@
 import { apiRequest, queryString } from '@/lib/api/client';
 
+export type AdminCustomer360Summary = {
+  orders_count: number;
+  lifetime_revenue_rsd: number;
+  average_order_value_rsd: number;
+  outstanding_rsd: number;
+  last_purchase_at: string | null;
+  active_after_sales_count: number;
+  active_warranties_count: number;
+  open_conversations_count: number;
+  unread_staff_messages_count: number;
+};
+
+export type AdminCustomer360TimelineItem = {
+  type: 'order' | 'order_link' | 'crm_note' | 'after_sales' | 'conversation';
+  occurred_at: string | null;
+  title: string;
+  summary: string | null;
+  order_id: number | null;
+  conversation_id: number | null;
+  after_sales_case_id: number | null;
+  actor: { id: number; name: string } | null;
+};
+
+export type AdminCustomerCrmNote = {
+  id: number;
+  body: string;
+  created_at: string | null;
+  author: { id: number; name: string } | null;
+};
+
+export type AdminCustomerCrmNoteCreateRequest = {
+  body: string;
+};
+
+export type AdminCustomerUnlinkedBuyer = {
+  id: number;
+  number: string;
+  status: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  subtotal_rsd: number;
+  created_at: string | null;
+};
 export type AdminPortalCustomer = {
   id: number;
   name: string;
@@ -54,6 +98,11 @@ export type AdminPortalOrder = {
 
 export type AdminPortalUserDetail = {
   customer: AdminPortalCustomer;
+  customer_360: {
+    summary: AdminCustomer360Summary;
+    timeline: AdminCustomer360TimelineItem[];
+    crm_notes: AdminCustomerCrmNote[];
+  };
   orders: AdminPortalOrder[];
   order_search: AdminPortalOrder[];
   active_web_sessions: Array<{
@@ -117,7 +166,19 @@ export const apiAdminCustomerPortal = {
     );
     return response.data;
   },
-  invite: (id: number) =>
+  unlinkedBuyers: async (q = '') => {
+    const response = await apiRequest<{ data: AdminCustomerUnlinkedBuyer[] }> (
+      `admin/customer-portal/unlinked-buyers${queryString({ q: q || undefined })}`,
+    );
+    return response.data;
+  },
+  appendCrmNote: async (userId: number, body: string) => {
+    const response = await apiRequest<{ message: string; data: AdminCustomerCrmNote }> (
+      `admin/customer-portal/users/${userId}/crm-notes`,
+      { method: 'POST', body: { body } },
+    );
+    return response.data;
+  },  invite: (id: number) =>
     apiRequest<{ message: string; data: { expires_at: string | null } }> (
       `admin/customer-portal/users/${id}/invite`,
       { method: 'POST' },
