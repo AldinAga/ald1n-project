@@ -58,6 +58,32 @@ $check('Dashboard agregira product i user KPI u jednom upitu', substr_count($das
 $backup = $source('app/Console/Commands/BackupVerifyCommand.php');
 $check('Backup version-mismatch poruka koristi Stable terminologiju', str_contains($backup, 'strict Stable provera dobije svež backup trenutne verzije.') && !str_contains($backup, 'svez RC backup'));
 
+$backupConfigSource = $source('config/backup.php');
+$backupEnvExampleSource = $source('.env.example');
+$backupServiceSource = $source('app/Services/BackupService.php');
+$check(
+    'Stable backup owner policy uses exactly two total backups',
+    str_contains($backupConfigSource, "'stable_retention' => 2")
+        && !str_contains($backupConfigSource, "'daily_retention'")
+        && !str_contains($backupConfigSource, "'weekly_retention'")
+        && !str_contains($backupEnvExampleSource, 'BACKUP_DAILY_RETENTION')
+        && !str_contains($backupEnvExampleSource, 'BACKUP_WEEKLY_RETENTION'),
+);
+$check(
+    'Stable backup prune verifies two keepers before deleting superseded backups',
+    str_contains($backupServiceSource, "Artisan::call('app:backup-verify'")
+        && str_contains($backupServiceSource, "orderByDesc('started_at')")
+        && str_contains($backupServiceSource, 'count($keepers) !== $limit')
+        && str_contains($backupServiceSource, 'in_array((int) $run->getKey(), $keeperIds, true)')
+        && !str_contains($backupServiceSource, "foreach (['daily' =>"),
+);
+$check(
+    'Stable backup prune does not delete when fewer than two completed backups exist',
+    str_contains($backupServiceSource, 'if ($runs->count() < $limit)')
+        && str_contains($backupServiceSource, "'removed' => 0")
+        && str_contains($backupServiceSource, "'keeper_ids' => \$runs->map"),
+);
+
 $failed = count(array_filter($checks, static fn (array $item): bool => !$item[1]));
 fwrite(STDOUT, sprintf("Stable Maintenance smoke: %d/%d uspesno.\n", count($checks) - $failed, count($checks)));
 exit($failed === 0 ? 0 : 1);

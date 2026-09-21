@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\BackupRun;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -73,33 +74,63 @@ final class BackupService
         }
     }
 
-    /** @return array{removed:int,kept:int} */
+    /** @return array{removed:int,kept:int,keeper_ids:list<int>} */
     public function prune(): array
     {
         if (!Schema::hasTable('backup_runs')) {
-            return ['removed' => 0, 'kept' => 0];
+            return ['removed' => 0, 'kept' => 0, 'keeper_ids' => []];
         }
 
-        $removed = 0;
-        $kept = 0;
-        foreach (['daily' => max(1, (int) config('backup.daily_retention')), 'weekly' => max(1, (int) config('backup.weekly_retention'))] as $type => $limit) {
-            $runs = BackupRun::query()->where('backup_type', $type)->where('status', 'completed')->orderByDesc('started_at')->get();
-            foreach ($runs as $index => $run) {
-                if ($index < $limit) {
-                    $kept++;
-                    continue;
-                }
-                if ($run->backup_path && is_dir($run->backup_path)) {
-                    File::deleteDirectory($run->backup_path);
-                }
-                $run->delete();
-                $removed++;
+        $limit = (int) config('backup.stable_retention', 2);
+        if ($limit !== 2) {
+            throw new RuntimeException('Stable backup retention owner policy mora ostati tacno 2.');
+        }
+
+        $runs = BackupRun::query()
+            ->where('status', 'completed')
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($runs->count() < $limit) {
+            return [
+                'removed' => 0,
+                'kept' => $runs->count(),
+                'keeper_ids' => $runs->map(static fn (BackupRun $run): int => (int) $run->getKey())->values()->all(),
+            ];
+        }
+
+        $keepers = [];
+        foreach ($runs as $run) {
+            $verifyRc = Artisan::call('app:backup-verify', ['--run' => (string) $run->getKey()]);
+            if ($verifyRc !== 0) {
+                continue;
+            }
+            $keepers[] = $run;
+            if (count($keepers) === $limit) {
+                break;
             }
         }
 
-        return ['removed' => $removed, 'kept' => $kept];
-    }
+        if (count($keepers) !== $limit) {
+            throw new RuntimeException('Nisu pronadjena dva restore-ready backupa; retention cleanup je blokiran.');
+        }
 
+        $keeperIds = array_map(static fn (BackupRun $run): int => (int) $run->getKey(), $keepers);
+        $removed = 0;
+        foreach ($runs as $run) {
+            if (in_array((int) $run->getKey(), $keeperIds, true)) {
+                continue;
+            }
+            if ($run->backup_path && is_dir($run->backup_path)) {
+                File::deleteDirectory($run->backup_path);
+            }
+            $run->delete();
+            $removed++;
+        }
+
+        return ['removed' => $removed, 'kept' => count($keeperIds), 'keeper_ids' => $keeperIds];
+    }
     public function binaryAvailable(): bool
     {
         $binary = trim((string) config('backup.mysqldump_binary'));
