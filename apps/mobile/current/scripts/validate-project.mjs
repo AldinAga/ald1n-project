@@ -2822,7 +2822,15 @@ assert(
     && customer360DetailBatch171.includes('apiAdminCustomerPortal.revokeSessions(userId)')
     && customer360DetailBatch171.includes('apiAdminCustomerPortal.linkOrder(userId')
     && !/(suggested_user_id|confidence|match_score|auto.?match)/i.test(customer360IndexBatch171 + customer360DetailBatch171)
-    && !/(gross_margin|gross_profit|net_contribution|\bltv\b|gmroi|\bcogs\b)/i.test(customer360IndexBatch171 + customer360DetailBatch171)
+    && (
+      !/(gross_margin|gross_profit|net_contribution|\bltv\b|gmroi|\bcogs\b)/i.test(customer360IndexBatch171 + customer360DetailBatch171)
+      || (
+        customer360DetailBatch171.includes('MOBILE_BUILD18_CUSTOMER360_PROFITABILITY_BATCH173')
+        && customer360DetailBatch171.includes("can('reports.view')")
+        && customer360DetailBatch171.includes('apiAdminReports.management({')
+        && customer360DetailBatch171.includes('customer_user_id: userId')
+      )
+    )
     && !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(customer360IndexBatch171 + customer360DetailBatch171),
   'Batch171 visible workspace ostaje postojeći Customer Portal authority bez heurističkog matching-a, profitability duplikata ili Product Variants povratka.',
 );
@@ -2877,6 +2885,129 @@ assert(
     && !advancedAnalyticsServiceBatch172.includes('/analytics')
     && !advancedAnalyticsMobileApiBatch172.includes('/analytics'),
   'Batch172 advanced analytics ne vraca Product Variants niti uvodi paralelni analytics API namespace.',
+);
+// MOBILE_BUILD18_ADVANCED_ANALYTICS_UI_BATCH173
+const advancedReportsUiBatch173 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/reports/index.tsx'), 'utf8');
+const customer360ProfitabilityBatch173 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/customer-portal/[userId].tsx'), 'utf8');
+assert(
+  advancedReportsUiBatch173.includes('MOBILE_BUILD18_ADVANCED_ANALYTICS_UI_BATCH173')
+    && advancedReportsUiBatch173.includes('report.advanced_analytics.comparison')
+    && advancedReportsUiBatch173.includes('Poređenje sa prethodnim periodom')
+    && advancedReportsUiBatch173.includes('percent_change'),
+  'Batch173 Reports UI prikazuje server-computed prethodni period i delta metrike bez paralelnog analytics izvora.',
+);
+assert(
+  advancedReportsUiBatch173.includes('advanced.customers')
+    && advancedReportsUiBatch173.includes('advanced.sales_channels')
+    && advancedReportsUiBatch173.includes('Kupci i LTV')
+    && advancedReportsUiBatch173.includes('Prodajni kanali'),
+  'Batch173 Reports UI prikazuje customer/LTV i sales-channel profitabilnost direktno iz ManagementReportService payload-a.',
+);
+assert(
+  advancedReportsUiBatch173.includes('advanced.products.top')
+    && advancedReportsUiBatch173.includes('advanced.products.bottom')
+    && advancedReportsUiBatch173.includes('Najprofitabilniji proizvodi')
+    && advancedReportsUiBatch173.includes('Najslabiji proizvodi'),
+  'Batch173 Reports UI prikazuje server-ranked top/bottom product profitability bez lokalnog sortiranja ili preračunavanja.',
+);
+assert(
+  advancedReportsUiBatch173.includes('report.advanced_analytics.inventory_efficiency')
+    && advancedReportsUiBatch173.includes('current_inventory_cost_proxy')
+    && advancedReportsUiBatch173.includes('istorijski prosečan lager nije dostupan')
+    && advancedReportsUiBatch173.includes('GMROI'),
+  'Batch173 Inventory UI prikazuje turnover/GMROI uz eksplicitnu current-inventory proxy napomenu.',
+);
+assert(
+  customer360ProfitabilityBatch173.includes('MOBILE_BUILD18_CUSTOMER360_PROFITABILITY_BATCH173')
+    && customer360ProfitabilityBatch173.includes("can('reports.view')")
+    && customer360ProfitabilityBatch173.includes('adminQueryKeys.reportCustomerProfitability(userId)')
+    && customer360ProfitabilityBatch173.includes('apiAdminReports.management({')
+    && customer360ProfitabilityBatch173.includes("report_type: 'profitability'")
+    && customer360ProfitabilityBatch173.includes("scope: 'completed'")
+    && customer360ProfitabilityBatch173.includes('customer_user_id: userId'),
+  'Batch173 Customer360 profitability koristi postojeći reports.view + management endpoint + customer_user_id authority.',
+);
+// MOBILE_BUILD18_ADVANCED_ANALYTICS_UI_BATCH173_VALIDATOR_RECOVERY474
+const batch173ProfitabilityFields = new Set([
+  'revenue_rsd',
+  'cogs_rsd',
+  'gross_profit_rsd',
+  'net_contribution_rsd',
+  'ltv_rsd',
+  'gmroi_percent',
+  'gross_margin_percent',
+  'net_margin_percent',
+  'cost_coverage_percent',
+  'inventory_turnover_ratio',
+  'lifetime_revenue_rsd',
+  'lifetime_net_contribution_rsd',
+  'period_cogs_rsd',
+  'period_gross_profit_rsd',
+]);
+const batch173ArithmeticKinds = new Set([
+  ts.SyntaxKind.PlusToken,
+  ts.SyntaxKind.MinusToken,
+  ts.SyntaxKind.AsteriskToken,
+  ts.SyntaxKind.SlashToken,
+  ts.SyntaxKind.PercentToken,
+]);
+function batch173ContainsProfitabilityField(node) {
+  if (ts.isPropertyAccessExpression(node) && batch173ProfitabilityFields.has(node.name.text)) {
+    return true;
+  }
+  let found = false;
+  ts.forEachChild(node, (child) => {
+    if (!found && batch173ContainsProfitabilityField(child)) found = true;
+  });
+  return found;
+}
+function batch173HasLocalProfitabilityArithmetic(sourceText, fileName) {
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let found = false;
+  function visit(node) {
+    if (found) return;
+    if (
+      ts.isBinaryExpression(node)
+      && batch173ArithmeticKinds.has(node.operatorToken.kind)
+      && batch173ContainsProfitabilityField(node)
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return found;
+}
+const batch173LocalProfitabilityArithmetic =
+  batch173HasLocalProfitabilityArithmetic(advancedReportsUiBatch173, 'admin-reports-batch173.tsx')
+  || batch173HasLocalProfitabilityArithmetic(customer360ProfitabilityBatch173, 'customer360-batch173.tsx');
+assert(
+  !batch173HasLocalProfitabilityArithmetic(
+    "const Sample = () => <Metric value={profitability.ltv_rsd === null ? '-' : profitability.ltv_rsd} />;",
+    'batch173-valid-render-sample.tsx',
+  )
+    && batch173HasLocalProfitabilityArithmetic(
+      'const invalid = profitability.net_contribution_rsd / 2;',
+      'batch173-invalid-formula-sample.tsx',
+    ),
+  'Validator recovery474 distinguishes equality/JSX rendering from real local profitability arithmetic.',
+);
+assert(
+  customer360ProfitabilityBatch173.includes('profitability.ltv_rsd')
+    && customer360ProfitabilityBatch173.includes('profitability.lifetime_revenue_rsd')
+    && customer360ProfitabilityBatch173.includes('profitability.lifetime_net_contribution_rsd')
+    && customer360ProfitabilityBatch173.includes('profitability.net_contribution_rsd')
+    && !batch173LocalProfitabilityArithmetic
+    && !/\/analytics\b/.test(advancedReportsUiBatch173 + customer360ProfitabilityBatch173)
+    && !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(advancedReportsUiBatch173 + customer360ProfitabilityBatch173),
+  'Batch173 Mobile UI samo formatira server profitability vrednosti i ne vraća lokalne formule, /analytics namespace ili Product Variants.',
 );
 // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
 const userGroupsApiV10 = fs.readFileSync(path.join(root, 'src/features/admin/user-groups-admin-api.ts'), 'utf8');

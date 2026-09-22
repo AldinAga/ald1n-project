@@ -12,11 +12,13 @@ import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { apiAdminCustomerPortal, type AdminPortalOrder } from '@/features/admin/customer-portal-admin-api';
+import { apiAdminReports } from '@/features/admin/reports-admin-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 
 // MOBILE_BUILD18_CUSTOMER360_WORKSPACE_BATCH171
+// MOBILE_BUILD18_CUSTOMER360_PROFITABILITY_BATCH173
 export default function AdminCustomerPortalUserScreen() {
   const params = useLocalSearchParams<{ userId: string }>();
   const userId = Number(params.userId);
@@ -26,6 +28,7 @@ export default function AdminCustomerPortalUserScreen() {
   const client = useQueryClient();
   const { can } = useAuth();
   const allowed = can('system.manage_users') && Number.isInteger(userId) && userId > 0;
+  const profitabilityAllowed = can('reports.view');
   const [orderQ, setOrderQ] = useState('');
   const [reason, setReason] = useState('');
   const [confirmReassign, setConfirmReassign] = useState(false);
@@ -37,6 +40,15 @@ export default function AdminCustomerPortalUserScreen() {
     queryKey,
     queryFn: () => apiAdminCustomerPortal.user(userId, orderQ),
     enabled: allowed,
+  });
+  const profitabilityQuery = useQuery({
+    queryKey: adminQueryKeys.reportCustomerProfitability(userId),
+    queryFn: () => apiAdminReports.management({
+      report_type: 'profitability',
+      scope: 'completed',
+      customer_user_id: userId,
+    }),
+    enabled: allowed && profitabilityAllowed,
   });
 
   const refresh = async () => {
@@ -94,7 +106,9 @@ export default function AdminCustomerPortalUserScreen() {
 
   const customer = query.data.customer;
   const customer360 = query.data.customer_360;
-  const summary = customer360.summary;
+  const summary = customer360.summary;  const profitability = profitabilityQuery.data?.data.advanced_analytics.customers.find(
+    (row) => row.customer_user_id === userId,
+  ) ?? null;
   return (
     <Screen>
       <Pressable onPress={() => router.back()}><Text style={styles.back}>‹ Customer Portal</Text></Pressable>
@@ -118,6 +132,45 @@ export default function AdminCustomerPortalUserScreen() {
         </View>
       </Card>
 
+      {profitabilityAllowed ? (
+        <Card style={styles.customer360Card}>
+          <Text style={styles.section}>Profitabilnost kupca</Text>
+          <Text style={styles.meta}>
+            Finansijski pokazatelji dolaze iz Management Reports autoriteta i nisu preračunati u Customer 360 ekranu.
+          </Text>
+          {profitabilityQuery.isLoading ? <Text style={styles.meta}>Učitavanje profitabilnosti…</Text> : null}
+          {profitabilityQuery.isError ? (
+            <View style={styles.actions}>
+              <Text style={styles.error}>Profitabilnost trenutno nije dostupna.</Text>
+              <Button variant="secondary" onPress={() => void profitabilityQuery.refetch()}>Pokušaj ponovo</Button>
+            </View>
+          ) : null}
+          {!profitabilityQuery.isLoading && !profitabilityQuery.isError && profitability ? (
+            <>
+              <Text style={styles.rowTitle}>Lifetime</Text>
+              <View style={styles.metricGrid}>
+                <Metric label="LTV" value={profitability.ltv_rsd === null ? '—' : formatMoney(profitability.ltv_rsd, 'RSD')} />
+                <Metric label="Lifetime prihod" value={profitability.lifetime_revenue_rsd === null ? '—' : formatMoney(profitability.lifetime_revenue_rsd, 'RSD')} />
+                <Metric label="Lifetime neto doprinos" value={profitability.lifetime_net_contribution_rsd === null ? '—' : formatMoney(profitability.lifetime_net_contribution_rsd, 'RSD')} />
+                <Metric label="Lifetime porudžbine" value={profitability.lifetime_orders_count === null ? '—' : String(profitability.lifetime_orders_count)} />
+              </View>
+              <Text style={styles.rowTitle}>Izabrani period</Text>
+              <View style={styles.metricGrid}>
+                <Metric label="Prihod" value={formatMoney(profitability.revenue_rsd, 'RSD')} />
+                <Metric label="Bruto dobit" value={formatMoney(profitability.gross_profit_rsd, 'RSD')} />
+                <Metric label="Neto doprinos" value={formatMoney(profitability.net_contribution_rsd, 'RSD')} />
+                <Metric label="COGS" value={formatMoney(profitability.cogs_rsd, 'RSD')} />
+              </View>
+              <Text style={styles.meta}>Bruto marža: {profitability.gross_margin_percent.toFixed(1)}%</Text>
+              <Text style={styles.meta}>Neto marža: {profitability.net_margin_percent.toFixed(1)}%</Text>
+              <Text style={styles.meta}>Pokrivenost troška: {profitability.cost_coverage_percent.toFixed(1)}%</Text>
+            </>
+          ) : null}
+          {!profitabilityQuery.isLoading && !profitabilityQuery.isError && !profitability ? (
+            <Text style={styles.meta}>Nema profitability podataka za ovog kupca u canonical Management Reports odgovoru.</Text>
+          ) : null}
+        </Card>
+      ) : null}
       <Card style={styles.actions}>
         <Text style={styles.section}>Interne CRM beleške</Text>
         <Text style={styles.meta}>Beleške su interne, append-only i vidljive samo administratorskom Customer 360 toku.</Text>

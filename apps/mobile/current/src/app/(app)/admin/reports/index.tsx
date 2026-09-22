@@ -89,6 +89,8 @@ const WEEKDAY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '7', label: 'Nedelja' },
 ];
 
+// MOBILE_BUILD18_ADVANCED_ANALYTICS_UI_BATCH173
+// Visible analytics consume the existing ManagementReportService payload only.
 // MOBILE_V1_0_ADMIN_REPORTS_2_UX_BATCH79
 type ReportWorkspace =
   | 'overview'
@@ -508,11 +510,14 @@ export default function AdminReportsIndexScreen() {
       ) : null}
 
       {workspace === 'profitability' ? (
-        <SegmentsSection report={report} styles={styles} />
+        <AdvancedProfitabilitySection report={report} styles={styles} />
       ) : null}
 
       {workspace === 'inventory' ? (
-        <InventorySection report={report} styles={styles} />
+        <>
+          <InventoryEfficiencySection report={report} styles={styles} />
+          <InventorySection report={report} styles={styles} />
+        </>
       ) : null}
 
       {workspace === 'receivables' ? (
@@ -1180,6 +1185,149 @@ function SummarySection({
   );
 }
 
+function AdvancedProfitabilitySection({
+  report,
+  styles,
+}: {
+  report: AdminManagementReport;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const advanced = report.advanced_analytics;
+  const comparisonRows = [
+    { key: 'revenue_rsd', label: 'Prihod', format: 'money' },
+    { key: 'gross_profit_rsd', label: 'Bruto dobit', format: 'money' },
+    { key: 'net_contribution_rsd', label: 'Neto doprinos', format: 'money' },
+    { key: 'average_order_rsd', label: 'Prosečna porudžbina', format: 'money' },
+    { key: 'orders_count', label: 'Porudžbine', format: 'number' },
+    { key: 'gross_margin_percent', label: 'Bruto marža', format: 'percent' },
+    { key: 'net_margin_percent', label: 'Neto marža', format: 'percent' },
+  ] as const;
+
+  const formatComparison = (format: 'money' | 'number' | 'percent', value: number) => {
+    if (format === 'money') return formatMoney(value, 'RSD');
+    if (format === 'percent') return `${value.toFixed(1)}%`;
+    return value.toLocaleString('sr-RS');
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Napredna profitabilnost</Text>
+      <Text style={styles.muted}>
+        Vrednosti dolaze iz postojećeg ManagementReportService autoriteta; aplikacija ih samo prikazuje.
+      </Text>
+
+      <Text style={styles.sectionTitle}>Poređenje sa prethodnim periodom</Text>
+      <Text style={styles.muted}>
+        Prethodni period: {advanced.comparison.previous_period.date_from} – {advanced.comparison.previous_period.date_to}
+      </Text>
+      {comparisonRows.map((item) => {
+        const metric = report.advanced_analytics.comparison.metrics[item.key];
+        return (
+          <Card key={item.key} style={styles.compactCard}>
+            <Text style={styles.cardTitle}>{item.label}</Text>
+            <DetailRow label="Trenutno" value={formatComparison(item.format, metric.current)} styles={styles} />
+            <DetailRow label="Prethodno" value={formatComparison(item.format, metric.previous)} styles={styles} />
+            <DetailRow label="Promena" value={formatComparison(item.format, metric.absolute_change)} styles={styles} />
+            <DetailRow
+              label="Promena %"
+              value={metric.percent_change === null ? '—' : `${metric.percent_change.toFixed(1)}%`}
+              styles={styles}
+            />
+          </Card>
+        );
+      })}
+
+      <SegmentsSection report={report} styles={styles} />
+
+      <Text style={styles.sectionTitle}>Kupci i LTV</Text>
+      {advanced.customers.length ? advanced.customers.slice(0, 10).map((customer) => (
+        <Card key={customer.key} style={styles.compactCard}>
+          <Text style={styles.cardTitle}>{customer.label || 'Kupac bez oznake'}</Text>
+          {customer.email ? <Text style={styles.muted}>{customer.email}</Text> : null}
+          <DetailRow label="Porudžbine u periodu" value={String(customer.orders_count)} styles={styles} />
+          <DetailRow label="Prihod u periodu" value={formatMoney(customer.revenue_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Bruto dobit" value={formatMoney(customer.gross_profit_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Neto doprinos" value={formatMoney(customer.net_contribution_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Neto marža" value={`${customer.net_margin_percent.toFixed(1)}%`} styles={styles} />
+          <DetailRow label="LTV" value={customer.ltv_rsd === null ? '—' : formatMoney(customer.ltv_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Lifetime prihod" value={customer.lifetime_revenue_rsd === null ? '—' : formatMoney(customer.lifetime_revenue_rsd, 'RSD')} styles={styles} />
+        </Card>
+      )) : <Card muted><Text style={styles.muted}>Nema customer profitability podataka za izabrani kontekst.</Text></Card>}
+
+      <Text style={styles.sectionTitle}>Prodajni kanali</Text>
+      {advanced.sales_channels.length ? advanced.sales_channels.map((channel) => (
+        <Card key={channel.key} style={styles.compactCard}>
+          <Text style={styles.cardTitle}>{channel.label || channel.key}</Text>
+          <DetailRow label="Porudžbine" value={String(channel.orders_count)} styles={styles} />
+          <DetailRow label="Prihod" value={formatMoney(channel.revenue_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Bruto dobit" value={formatMoney(channel.gross_profit_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Neto doprinos" value={formatMoney(channel.net_contribution_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Neto marža" value={`${channel.net_margin_percent.toFixed(1)}%`} styles={styles} />
+        </Card>
+      )) : <Card muted><Text style={styles.muted}>Nema podataka po prodajnom kanalu.</Text></Card>}
+
+      <Text style={styles.sectionTitle}>Najprofitabilniji proizvodi</Text>
+      {advanced.products.top.length ? advanced.products.top.map((product) => (
+        <Card key={`top-${product.key}`} style={styles.compactCard}>
+          <Text style={styles.cardTitle}>{product.label}</Text>
+          <DetailRow label="Prihod" value={formatMoney(product.revenue_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Bruto dobit" value={formatMoney(product.gross_profit_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Doprinos posle provizije" value={formatMoney(product.contribution_after_commission_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Bruto marža" value={`${product.gross_margin_percent.toFixed(1)}%`} styles={styles} />
+        </Card>
+      )) : <Card muted><Text style={styles.muted}>Nema rangiranih proizvoda.</Text></Card>}
+
+      <Text style={styles.sectionTitle}>Najslabiji proizvodi</Text>
+      {advanced.products.bottom.length ? advanced.products.bottom.map((product) => (
+        <Card key={`bottom-${product.key}`} style={styles.compactCard}>
+          <Text style={styles.cardTitle}>{product.label}</Text>
+          <DetailRow label="Prihod" value={formatMoney(product.revenue_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Bruto dobit" value={formatMoney(product.gross_profit_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Doprinos posle provizije" value={formatMoney(product.contribution_after_commission_rsd, 'RSD')} styles={styles} />
+          <DetailRow label="Bruto marža" value={`${product.gross_margin_percent.toFixed(1)}%`} styles={styles} />
+        </Card>
+      )) : <Card muted><Text style={styles.muted}>Nema rangiranih proizvoda.</Text></Card>}
+
+      <Card style={styles.detailCard}>
+        <Text style={styles.muted}>{advanced.products.allocation_note}</Text>
+      </Card>
+    </View>
+  );
+}
+
+function InventoryEfficiencySection({
+  report,
+  styles,
+}: {
+  report: AdminManagementReport;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const efficiency = report.advanced_analytics.inventory_efficiency;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Efikasnost lagera</Text>
+      <Card style={styles.detailCard}>
+        <Text style={styles.cardTitle}>Turnover i GMROI</Text>
+        {efficiency.applicable ? (
+          <>
+            <DetailRow label="Obrt lagera" value={efficiency.inventory_turnover_ratio.toFixed(2)} styles={styles} />
+            <DetailRow label="GMROI" value={`${efficiency.gmroi_percent.toFixed(1)}%`} styles={styles} />
+            <DetailRow label="Trenutna nabavna vrednost lagera" value={formatMoney(efficiency.inventory_cost_rsd, 'RSD')} styles={styles} />
+            <DetailRow label="COGS u periodu" value={formatMoney(efficiency.period_cogs_rsd, 'RSD')} styles={styles} />
+            <DetailRow label="Bruto dobit u periodu" value={formatMoney(efficiency.period_gross_profit_rsd, 'RSD')} styles={styles} />
+            <DetailRow label="Pokrivenost troška" value={`${efficiency.cost_coverage_percent.toFixed(1)}%`} styles={styles} />
+          </>
+        ) : <Text style={styles.muted}>Nema dovoljno podataka za inventory-efficiency pokazatelje.</Text>}
+        {efficiency.is_proxy && efficiency.basis === 'current_inventory_cost_proxy' && !efficiency.historical_average_inventory_available ? (
+          <Text style={styles.warning}>
+            Proxy: koristi trenutnu nabavnu vrednost lagera; istorijski prosečan lager nije dostupan.
+          </Text>
+        ) : null}
+      </Card>
+    </View>
+  );
+}
 function SegmentsSection({
   report,
   styles,
