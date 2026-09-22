@@ -1,19 +1,10 @@
-# Ald1n operation reports on production hosting
+# Operations report archive
 
-Production hosting is an active workspace, not the long-term report archive.
+This directory is the canonical append-only archive for Ald1n batch, recovery, checkpoint, and certification reports.
 
-Historical operation reports through Report445 are preserved by the immutable GitHub tag:
-
-`ald1n-operations-archive-pre-build18-20260919`
-
-Archive commit:
-
-`c7901e0da7fffa8f527884a3c3d34fa56258561e`
-
-Report446 is preserved in reachable GitHub main history by commit:
-
-`fe55c3443bb77aa442b72b611305312fbd07e003`
-
-Permanent retention, backup, Bash terminal-clear, and report-numbering rules are defined in repository-root `AGENTS.md`.
-
-Local policy: keep only the current uncheckpointed report and an immediate predecessor only while an active recovery still requires it.
+Rules:
+- Every numbered operational report is stored in `docs/operations`.
+- Old numbered reports are never deleted or rotated out when a new report is created.
+- Failed and recovered attempts are retained as audit evidence.
+- New reports use the next report number; recovery revisions may keep the same report number with a V2/V3 suffix.
+- Application source documentation such as CMS/Mobile `TEST-REPORT.md` remains with the application and is not part of this operational batch archive.
