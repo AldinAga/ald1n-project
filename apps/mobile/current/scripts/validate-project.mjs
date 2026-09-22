@@ -2562,6 +2562,34 @@ assert(
     && adminCatalogDeletionUiV10.includes('loading={totalPurgeMutation.isPending}'),
   'v1.0 Mobile Product detalj ima postojeći archive/restore plus kontrolisani purge i SuperAdmin Total Product Purge danger-zone workflow.',
 );
+// MOBILE_BATCH174_TOTAL_PRODUCT_PURGE_UX_HARDENING
+assert(
+  adminCatalogDeletionUiV10.includes('MOBILE_BATCH174_TOTAL_PRODUCT_PURGE_UX_HARDENING')
+    && adminCatalogDeletionUiV10.includes('const [totalPurgeUnlocked, setTotalPurgeUnlocked] = useState(false);')
+    && adminCatalogDeletionUiV10.includes('const deleteImages = deleteImagesOverride ?? data.delete_images_default;')
+    && adminCatalogDeletionUiV10.includes('const canRequestTotalPurge =')
+    && adminCatalogDeletionUiV10.includes('totalReasonReady')
+    && adminCatalogDeletionUiV10.includes('totalSkuReady')
+    && adminCatalogDeletionUiV10.includes('totalIrreversibleReady')
+    && adminCatalogDeletionUiV10.includes('retentionAcknowledged')
+    && adminCatalogDeletionUiV10.includes('Otključaj Total Product Purge')
+    && adminCatalogDeletionUiV10.includes('Zaključaj i očisti potvrde')
+    && adminCatalogDeletionUiV10.includes('disabled={!regularPurgeReady}')
+    && adminCatalogDeletionUiV10.includes('disabled={!canRequestTotalPurge}')
+    && adminCatalogDeletionUiV10.includes('Potvrdi Total Product Purge'),
+  'Batch174 Total Product Purge UX je zaključan po defaultu i zahteva kompletan readiness pre finalne potvrde.',
+);
+assert(
+  adminCatalogDeletionUiV10.includes('data.purge_available')
+    && adminCatalogDeletionUiV10.includes('data.delete_images_default')
+    && adminCatalogDeletionUiV10.includes('data.total_purge_available')
+    && adminCatalogDeletionUiV10.includes('data.total_purge_reason_min_length')
+    && adminCatalogDeletionUiV10.includes('data.total_purge_reason_max_length')
+    && adminCatalogDeletionUiV10.includes('data.total_purge_irreversible_confirmation')
+    && adminCatalogDeletionUiV10.includes('data.retention_notice')
+    && !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(adminCatalogDeletionUiV10),
+  'Batch174 Total Product Purge UX ostaje server-driven i ne uvodi paralelni deletion authority ili Product Variants.',
+);
 assert(
   adminCatalogDeletionControllerV10.includes('ProductDeletionService $deletions')
     && adminCatalogDeletionControllerV10.includes('TotalProductPurgeService $purge')
