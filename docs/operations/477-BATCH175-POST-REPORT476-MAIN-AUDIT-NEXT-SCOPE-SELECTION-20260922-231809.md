@@ -1,0 +1,54 @@
+============================================================
+477 - BATCH175 POST-REPORT476 MAIN AUDIT AND NEXT SCOPE SELECTION
+============================================================
+TIMESTAMP=20260922-231809
+EXPECTED_HEAD=1b38dda65b9b0fb74624e01488495ee7ab6171b8
+EXPECTED_PARENT=618dfedcf7215b873c42e70726d349418b2b7655
+EXPECTED_BATCH174_SOURCE=2a64be26ca32c8ea922c32bc3ed0b4cc2de574da
+TASK=POST_REPORT476_MAIN_AUDIT_AND_SELECT_NEXT_VERIFIED_SCOPE
+REPORT_ARCHIVE_POLICY=APPEND_ONLY
+REPORT_CANONICAL_DIRECTORY=/home/icaffeco/ald1n-project/docs/operations
+SOURCE_MUTATION=NO
+LARAVEL_MUTATION=NO
+OPENAPI_MUTATION=NO
+DATABASE_MUTATION=NO
+MOBILE_SOURCE_MUTATION=NO
+EAS_COMMANDS_RUN=NO
+OTA_ACTION=NO
+BUILD_ACTION=NO
+GOOGLE_PLAY_ACTION=NO
+
+============================================================
+0. PREFLIGHT EXACT MAIN AND APPEND-ONLY REPORT ARCHIVE
+============================================================
+
+============================================================
+RUN - git_fetch_preflight
+============================================================
+CWD=/home/icaffeco/ald1n-project
+COMMAND=git fetch origin main
+From github.com:AldinAga/ald1n-project
+ * branch            main       -> FETCH_HEAD
+RC_git_fetch_preflight=0
+BRANCH=main
+LOCAL_HEAD=1b38dda65b9b0fb74624e01488495ee7ab6171b8
+REMOTE_HEAD=1b38dda65b9b0fb74624e01488495ee7ab6171b8
+HEAD_PARENT=618dfedcf7215b873c42e70726d349418b2b7655
+HEAD_SUBJECT=docs: certify Batch174 recovery V3
+REPORT476_BLOB_ACTUAL=e4c3505030e4258ed47789ba6c1abeca64a4b621
+REPORT476_BLOB_EXPECTED=e4c3505030e4258ed47789ba6c1abeca64a4b621
+PREVIOUS_ROADMAP_BASELINE=PASS_NO_PREAPPROVED_UNFINISHED_FEATURE
+TEMP_NUMBERED_REPORTS_OUTSIDE_BEGIN
+/home/icaffeco/.ald1n-report-archive-batch174-v3-20260922-230751/476-BATCH174-TOTAL-PRODUCT-PURGE-UX-HARDENING-RECOVERY-V3-20260922-230751.md
+TEMP_NUMBERED_REPORTS_OUTSIDE_END
+
+============================================================
+FAIL
+============================================================
+BATCH175_RESULT=FAIL
+FAILED_REASON=TEMP_NUMBERED_REPORT_OUTSIDE_DOCS_OPERATIONS
+SOURCE_MUTATION=NO
+DATABASE_MUTATION=NO
+REPORT_ARCHIVE_POLICY=APPEND_ONLY
+REPORT_CANONICAL_DIRECTORY=/home/icaffeco/ald1n-project/docs/operations
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/477-BATCH175-POST-REPORT476-MAIN-AUDIT-NEXT-SCOPE-SELECTION-20260922-231809.md

@@ -1,42 +1,14 @@
-# 000-LATEST
+# Ald1n Operations Report Archive
 
-- Current version: `0.8.0`
-- Mandatory extension parity: `50%` (`7/14`)
-- Latest PASS: `Shared Product Image Manager - Batch 9 V2`
-- Latest report: `029-MOBILE-V0.8.0-SHARED-PRODUCT-IMAGE-MANAGER-BATCH9-V2-20260821-100727.md`
-- Product List/Edit/Archive/Restore: `PASS`
-- Shared Product Image Manager: `PASS`
-- GitHub checkpoint: `DEFERRED - milestone-only policy`
-- EAS build: `NOT RUN`
-- Next action: `SuperAdmin Evidentiraj prodaju / Direct Sale`
-- Next numbered artifact: `030`
+- Canonical directory: `docs/operations`
+- Archive policy: **append-only**. Historical numbered reports are never rotated or deleted when a new report is added.
+- Base repository head audited by Batch175: `1b38dda65b9b0fb74624e01488495ee7ab6171b8`
+- Latest completed source batch: **Batch174 - Total Product Purge UX hardening**
+- Latest completed certification before this audit: `docs/operations/476-BATCH174-TOTAL-PRODUCT-PURGE-UX-HARDENING-RECOVERY-V3-20260922-230751.md`
+- Latest audit report: `docs/operations/477-BATCH175-POST-REPORT476-MAIN-AUDIT-NEXT-SCOPE-SELECTION-V2-20260923-221657.md`
+- Batch175 V2 recovery selection result: `CLEAN_BASELINE_NO_VERIFIED_OPEN_GAP`
+- First verified open gap: `NONE`
+- Next action: `AWAIT_USER_SELECTED_NEXT_SCOPE_FROM_CLEAN_POST_REPORT476_BASELINE`
+- Next report number: `478`
 
-## v0.8 mandatory extension - Batch 10 V3 Direct Sale PASS (20260821-110022)
-- SuperAdmin Evidentiraj prodaju direktno sa artikla: PASS
-- DirectSaleService reuse + stable idempotency: PASS
-- Mandatory extension parity: 9/14 = 64%
-- Next artifact: 038
-- Next action: Shipment UI + central Courier Directory
-
-## v0.8 mandatory extension - Batch 11 V2 Shipment + Courier Directory PASS (20260821-122208)
-- Shipment UI + central Courier Directory: PASS
-- Central Laravel OrderShipmentService/CourierDirectoryService authority preserved: PASS
-- Mandatory extension parity: 10/14 = 71%
-- Next artifact: 042
-- Next action: Complete User Management
-
-## v0.8 mandatory extension - Batch 12 Complete User Management PASS (20260821-135325)
-- Complete User Management: PASS
-- Shared Laravel AdminUserRequest/AdminUserService authority: PASS
-- Password token revoke and last active SuperAdmin guard: PASS
-- Mandatory extension parity: 12/14 = 86%
-- Next artifact: 044
-- Next action: EUR/RSD Exchange Rate settings, manual/automatic mode and Refresh/Sync
-
-## v0.8 mandatory extension - Batch 13 EUR/RSD Exchange Rate PASS (20260821-144459)
-- EUR/RSD Exchange Rate: PASS
-- Manual / Automatic / stale_after_hours / Refresh-Sync / History: PASS
-- Central ExchangeRateService authority: PASS
-- Mandatory extension parity: 14/14 = 100%
-- Next artifact: 048
-- Next action: final v0.8 release certification and single Android production EAS build gate
+This index is navigation metadata only. The numbered reports in this directory are the audit evidence of record.
