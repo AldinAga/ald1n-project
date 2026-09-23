@@ -3549,6 +3549,40 @@ assert(
   'v1.0 Batch88 Receivables UX does not restore Product Variants contract.',
 );
 
+// MOBILE_V1_0_RECEIVABLES_PAYMENT_OPENAPI_CONTRACT_REPAIR_BATCH176_VALIDATOR
+const receivablesPaymentOpenApiBatch176 = fs.readFileSync(path.join(root, 'docs/openapi.yaml'), 'utf8');
+const receivablesPaymentPathStartBatch176 = receivablesPaymentOpenApiBatch176.indexOf('  /api/v1/admin/receivables/{receivable}/payments:');
+const receivablesPaymentPathEndBatch176 = receivablesPaymentOpenApiBatch176.indexOf('  /api/v1/admin/field-work:', receivablesPaymentPathStartBatch176);
+assert(
+  receivablesPaymentPathStartBatch176 >= 0 && receivablesPaymentPathEndBatch176 > receivablesPaymentPathStartBatch176,
+  'Batch176 OpenAPI dokumentuje Admin Receivables record-payment runtime rutu.',
+);
+const receivablesPaymentOpenApiScopeBatch176 = receivablesPaymentOpenApiBatch176.slice(
+  receivablesPaymentPathStartBatch176,
+  receivablesPaymentPathEndBatch176,
+);
+assert(
+  receivablesPaymentOpenApiScopeBatch176.includes('operationId: recordAdminReceivablePayment')
+    && receivablesPaymentOpenApiScopeBatch176.includes('required: [idempotency_key, amount_rsd, payment_method, paid_at]')
+    && receivablesPaymentOpenApiScopeBatch176.includes('payment_method: { type: string, enum: [bank_transfer, cash, card, cod, other] }')
+    && receivablesPaymentOpenApiScopeBatch176.includes("'201':")
+    && receivablesPaymentOpenApiScopeBatch176.includes("'403':")
+    && receivablesPaymentOpenApiScopeBatch176.includes("'422':")
+    && receivablesPaymentOpenApiScopeBatch176.includes("'429':"),
+  'Batch176 Receivables payment OpenAPI prati postojeci idempotency, payment-method i response status ugovor.',
+);
+const receivablesPaymentMobileApiBatch176 = fs.readFileSync(path.join(root, 'src/features/admin/receivables-admin-api.ts'), 'utf8');
+assert(
+  receivablesPaymentMobileApiBatch176.includes('recordPayment: (receivableId: number, input: AdminReceivablePaymentInput)')
+    && receivablesPaymentMobileApiBatch176.includes('`admin/receivables/${receivableId}/payments`')
+    && receivablesPaymentMobileApiBatch176.includes('idempotency_key: string;')
+    && receivablesPaymentMobileApiBatch176.includes('paid_at: string;'),
+  'Batch176 OpenAPI repair ostaje vezan za vec postojeci Mobile recordPayment contract bez novog poslovnog toka.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(receivablesPaymentOpenApiScopeBatch176),
+  'Batch176 Receivables payment contract repair ne vraca Product Variants.',
+);
 // MOBILE_V1_0_ADMIN_SERVICE_PARTS_UX_REORGANIZATION_BATCH87_VALIDATOR
 const servicePartsUxBatch87 = fs.readFileSync(
   path.join(root, 'src/app/(app)/admin/service-parts/index.tsx'),

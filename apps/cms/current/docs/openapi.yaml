@@ -3046,6 +3046,33 @@ paths:
         '403': { description: Predmet nije unutar administratorskog scope-a. }
         '422': { description: Podsetnik nije validan. }
         '429': { description: Admin write throttle. }
+  /api/v1/admin/receivables/{receivable}/payments:
+    post:
+      tags: [Admin Receivables]
+      summary: Evidentira uplatu predmeta naplate kroz postojeci OrderPaymentService i idempotency guard
+      operationId: recordAdminReceivablePayment
+      parameters:
+        - { in: path, name: receivable, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idempotency_key, amount_rsd, payment_method, paid_at]
+              properties:
+                idempotency_key: { type: string, maxLength: 200 }
+                amount_rsd: { type: number, minimum: 0.01 }
+                payment_method: { type: string, enum: [bank_transfer, cash, card, cod, other] }
+                paid_at: { type: string, description: Datum ili datum-vreme prihvacen postojecim Laravel date validatorom. }
+                reference: { type: string, nullable: true, maxLength: 120 }
+                note: { type: string, nullable: true, maxLength: 1000 }
+      responses:
+        '201': { description: Uplata je idempotentno evidentirana, a osvezeni predmet naplate vracen kroz postojeci mutation response. }
+        '403': { description: Potreban je receivables.manage scope i payments.manage dozvola. }
+        '404': { description: Predmet naplate ili povezana porudzbina ne postoji. }
+        '422': { description: Podaci uplate nisu validni prema postojecem runtime ugovoru. }
+        '429': { description: Admin write throttle. }
   /api/v1/admin/field-work:
     get:
       tags: [Admin Field Operations]
