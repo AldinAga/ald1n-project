@@ -5,14 +5,15 @@
 - Current application version: **1.0.0**
 - Latest completed source batch: **Batch176 - Receivables payment OpenAPI contract repair (V2 recovery)**
 - Batch176 source commit: `0e1035d0ab60108e0648336f14e5b61daed74e3d`
-- Preserved failed Batch176 V1 evidence: `docs/operations/478-BATCH176-RECEIVABLES-PAYMENT-OPENAPI-CONTRACT-REPAIR-FAILED-20260923-225330.md`
-- Authoritative audit before repair: `docs/operations/477-BATCH175-POST-REPORT476-MAIN-AUDIT-NEXT-SCOPE-SELECTION-V3-RUNTIME-ROUTE-INVENTORY-20260923-224507.md`
-- Verified repaired gap: `POST /api/v1/admin/receivables/{receivable}/payments`
+- Latest release-readiness checkpoint: **Batch177 - Final Source Freeze and Release Readiness**
+- Frozen repository base: `a3bf34c263f8b9c3cf3d2f376d80337950e96d72`
+- Frozen application source commit: `0e1035d0ab60108e0648336f14e5b61daed74e3d`
 - Runtime admin route/OpenAPI parity: **PASS 205/205, zero drift**
 - Product Variants: **decommissioned guard preserved**
-- Latest report: `docs/operations/478-BATCH176-RECEIVABLES-PAYMENT-OPENAPI-CONTRACT-REPAIR-V2-DIRTY-DELTA-RECOVERY-20260923-225834.md`
-- Next source batch: `UNASSIGNED`
-- Next action: `AWAIT_USER_SELECTED_NEXT_SCOPE_FROM_CLEAN_POST_BATCH176_BASELINE`
-- Next report number: `479`
+- Final EAS production build: **not run in Batch177**
+- Latest report: `docs/operations/479-BATCH177-FINAL-SOURCE-FREEZE-RELEASE-READINESS-20260923-232003.md`
+- Next operational batch: **Batch178 - Single Final EAS Production Build**
+- Next action: `RUN_SINGLE_FINAL_EAS_PRODUCTION_BUILD_FROM_BATCH177_FROZEN_BASELINE`
+- Next report number: `480`
 
 This index is navigation metadata only. The numbered reports in this directory are the audit evidence of record.
