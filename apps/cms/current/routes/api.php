@@ -254,6 +254,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                         Route::patch('/orders/{order}/reassign', [AdminOrderMutationController::class, 'reassign'])->whereNumber('order')->middleware('permission:orders.reassign')->name('orders.reassign');
                         Route::patch('/orders/{order}/deadlines', [AdminOrderMutationController::class, 'deadlines'])->whereNumber('order')->name('orders.deadlines');
                         Route::patch('/orders/{order}/payment-status', [AdminOrderMutationController::class, 'paymentStatus'])->whereNumber('order')->name('orders.payment-status');
+                        Route::patch('/orders/{order}/sale-price', [AdminOrderMutationController::class, 'salePriceCorrection'])
+                            ->whereNumber('order')->middleware('permission:payments.manage')->name('orders.sale-price-correction');
                         Route::post('/orders/{order}/complete', [AdminOrderMutationController::class, 'complete'])->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
                         Route::post('/orders/{order}/reopen', [AdminOrderMutationController::class, 'reopen'])->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
                         Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])->whereNumber('order')->name('orders.shipment.store');

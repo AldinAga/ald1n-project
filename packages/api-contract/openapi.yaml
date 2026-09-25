@@ -2740,6 +2740,29 @@ paths:
         '403': { description: orders.reopen permission and managed scope required. }
         '422': { description: Order is not eligible for reopen. }
         '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/sale-price:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Correct a completed Direct Sale unit price and synchronized original payment
+      operationId: adminOrdersDirectSalePriceCorrection
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_unit_price_rsd, reason]
+              properties:
+                new_unit_price_rsd: { type: number, format: double, minimum: 0.01, maximum: 999999999.99 }
+                reason: { type: string, minLength: 3, maxLength: 1000 }
+      responses:
+        '200': { description: Direct Sale item, order subtotal and original verified payment corrected atomically with audit trail. }
+        '403': { description: SuperAdmin with orders.manage and payments.manage is required. }
+        '422': { description: Order is not a safe eligible Direct Sale correction case. }
+        '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/orders/{order}/payments:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }

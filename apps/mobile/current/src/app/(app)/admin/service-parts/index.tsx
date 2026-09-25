@@ -51,7 +51,7 @@ function compact(value: string): string | null {
 
 function quantity(value: number | null): string {
   if (value === null) return '—';
-  return Number(value).toLocaleString('sr-RS', { maximumFractionDigits: 3 });
+  return Number(value).toLocaleString('sr-RS', { maximumFractionDigits: 2 });
 }
 
 function money(value: number | null): string {

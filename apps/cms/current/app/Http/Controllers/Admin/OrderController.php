@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\IpsPaymentPayloadService;
+use App\Services\DirectSalePriceCorrectionService;
 use App\Services\OrderAccessService;
 use App\Services\OrderDetailPresenter;
 use App\Services\OrderDetailService;
@@ -250,6 +251,18 @@ final class OrderController extends Controller
         $reopened = $workflow->reopen($order, $request->user(), (string) $data['reason']);
 
         return back()->with('status', 'Porudžbina '.$reopened->order_number.' je ponovo otvorena za kontrolisanu korekciju.');
+    }
+
+    public function correctDirectSalePrice(Request $request, Order $order, DirectSalePriceCorrectionService $corrections, OrderAccessService $access): RedirectResponse
+    {
+        $actor = $request->user();
+        $access->authorizeManage($order, $actor);
+        $data = $request->validate([
+            'new_unit_price_rsd' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+        $updated = $corrections->correct($order, $actor, (float) $data['new_unit_price_rsd'], (string) $data['reason']);
+        return back()->with('status', 'Prodajna cena je korigovana. Novi ukupni iznos: '.number_format((float) $updated->subtotal_rsd, 2, ',', '.').' RSD.');
     }
 
     public function payment(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse

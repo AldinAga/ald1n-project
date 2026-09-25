@@ -43,6 +43,9 @@ final class OrderDetailPresenter
         $detail['permissions'] = [
             'manage_invoices' => $this->allows($actor, 'invoices.manage'),
             'manage_payments' => $this->allows($actor, 'payments.manage'),
+            'sale_price_correction' => $actor->hasRole('superadmin')
+                && $this->allows($actor, 'orders.manage')
+                && $this->allows($actor, 'payments.manage'),
             'internal_notes' => $this->allows($actor, 'orders.internal_notes'),
             'reassign' => $actor->hasRole('superadmin') && $this->allows($actor, 'orders.reassign'),
             'confirm_delivery' => $this->allows($actor, 'orders.confirm_delivery'),
@@ -71,6 +74,7 @@ final class OrderDetailPresenter
             'archive' => $this->route('admin.orders.archive', ['order' => $id]),
             'delivery_proof' => $this->route('orders.delivery.proof', ['order' => $id]),
             'payment_store' => $this->route('admin.orders.payments.store', ['order' => $id]),
+            'sale_price_correction' => $this->route('admin.orders.sale-price-correction', ['order' => $id]),
             'after_sales' => $this->route('admin.after-sales.index', ['q' => $detail['order']['order_number']]),
         ]);
         $detail['actions'] = [
@@ -100,6 +104,12 @@ final class OrderDetailPresenter
                 && in_array($status, ['confirmed', 'shipped'], true)
                 && $detail['shipment'] === null
                 && $detail['urls']['shipment_store'] !== null,
+            'sale_price_correction' => $isCompleted
+                && $isDirectSale
+                && $detail['permissions']['sale_price_correction']
+                && $detail['order']['payment_method'] !== 'deferred_payment'
+                && $status !== 'cancelled'
+                && $detail['urls']['sale_price_correction'] !== null,
         ];
 
         $detail['suppliers'] = $suppliers
@@ -448,6 +458,8 @@ final class OrderDetailPresenter
                     'name' => $this->text($item, 'product_name', 'Nepoznat artikal'),
                     'sku' => $this->text($item, 'product_sku', '—'),
                     'quantity' => $quantity,
+                    'unit_price_rsd' => round($unit, 2),
+                    'line_total_rsd' => round($line, 2),
                     'unit_price' => $this->money($unit, 'RSD'),
                     'line_total' => $this->money($line, 'RSD'),
                     'commission' => $this->money($commission, 'EUR'),

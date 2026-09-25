@@ -1,9 +1,18 @@
+export function formatDecimal(amount: number | null | undefined, maximumFractionDigits = 2): string {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '\u2014';
+  return new Intl.NumberFormat('sr-Latn-RS', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: Math.max(0, Math.min(2, maximumFractionDigits)),
+  }).format(amount);
+}
+
 export function formatMoney(amount: number | null | undefined, currency = 'RSD'): string {
-  if (amount === null || amount === undefined || Number.isNaN(amount)) return '—';
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '\u2014';
   return new Intl.NumberFormat('sr-Latn-RS', {
     style: 'currency',
     currency,
-    maximumFractionDigits: currency === 'RSD' ? 0 : 2
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 

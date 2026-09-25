@@ -127,6 +127,13 @@ final class OrderController extends Controller
                 'internal_notes' => $actor->can('orders.internal_notes'),
                 'reassign' => $actor->hasRole('superadmin') && $actor->can('orders.reassign'),
                 'payments' => $actor->can('payments.manage'),
+                'sale_price_correction' => $actor->hasRole('superadmin')
+                    && $actor->can('orders.manage')
+                    && $actor->can('payments.manage')
+                    && (string) $order->sales_channel === 'direct_sale'
+                    && $order->completed_at !== null
+                    && (string) $order->status !== 'cancelled'
+                    && (string) $order->payment_method !== 'deferred_payment',
                 'documents' => $actor->can('invoices.manage'),
                 'confirm_delivery' => $actor->can('orders.confirm_delivery'),
                 'reopen' => $actor->can('orders.reopen'),

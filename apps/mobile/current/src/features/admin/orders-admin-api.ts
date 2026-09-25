@@ -95,6 +95,7 @@ export type AdminOrderDetailCapabilities = {
   internal_notes: boolean;
   reassign: boolean;
   payments: boolean;
+  sale_price_correction: boolean;
   documents: boolean;
   confirm_delivery: boolean;
   reopen: boolean;
@@ -203,6 +204,8 @@ export type AdminOrderDeadlinesInput = {
   expected_processing_at?: string | null;
   expected_shipping_at?: string | null;
 };
+
+export type AdminOrderSalePriceCorrectionInput = { new_unit_price_rsd: number; reason: string };
 
 export type AdminOrderPaymentEntryInput = {
   entry_type: AdminOrderPaymentEntryType;
@@ -334,6 +337,8 @@ export const apiAdminOrders = {
     apiExpoMultipartRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/complete`, adminOrderCompletionFormData(input)),
   reopen: (orderId: number, reason: string) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/reopen`, { method: 'POST', body: { reason } }),
+  salePriceCorrection: (orderId: number, input: AdminOrderSalePriceCorrectionInput) =>
+    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/sale-price`, { method: 'PATCH', body: input }),
   paymentStore: (orderId: number, input: AdminOrderPaymentEntryInput) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments`, { method: 'POST', body: input }),
   paymentVerify: (orderId: number, paymentId: number) =>

@@ -37,7 +37,7 @@
     }
 @endphp
 <!doctype html>
-<html lang="sr-Latn" data-theme="dark" data-theme-mode="auto" data-eur-rsd-rate="{{ is_numeric($exchangeRateValue) ? number_format((float) $exchangeRateValue, 6, '.', '') : '' }}">
+<html lang="sr-Latn" data-theme="dark" data-theme-mode="auto" data-eur-rsd-rate="{{ is_numeric($exchangeRateValue) ? number_format((float) $exchangeRateValue, 2, '.', '') : '' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1067,6 +1067,48 @@ const loadProductSearch = async (term) => {
     });
 
     document.querySelectorAll('[data-confirm]').forEach((button) => button.addEventListener('click', (event) => { if (!confirm(button.dataset.confirm || 'Potvrdi akciju?')) event.preventDefault(); }));
+</script>
+<script data-global-two-decimal-display-contract>
+(() => {
+    const blocked = new Set(['SCRIPT','STYLE','INPUT','TEXTAREA','SELECT','OPTION','CODE','PRE']);
+    const nf = new Intl.NumberFormat('sr-Latn-RS', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const convert = (raw) => {
+        const parsed = Number(String(raw).replace(',', '.'));
+        return Number.isFinite(parsed) ? nf.format(parsed) : raw;
+    };
+    const normalizeText = (text) => {
+        if (/^\s*-?\d+[.,]\d{3,}\s*$/.test(text)) {
+            const leading = text.match(/^\s*/)?.[0] ?? "";
+            const trailing = text.match(/\s*$/)?.[0] ?? "";
+            return leading + convert(text.trim()) + trailing;
+        }
+        return text.replace(
+            /(-?\d+[.,]\d{3,})(?=\s*(?:RSD|EUR|\u20ac|%|din\b))/g,
+            (match) => convert(match),
+        );
+    };
+    const normalizeNode = (root) => {
+        if (!(root instanceof Node)) return;
+        if (root.nodeType === Node.TEXT_NODE) {
+            const parent = root.parentElement;
+            if (!parent || blocked.has(parent.tagName) || parent.closest('[data-keep-decimals]')) return;
+            const next = normalizeText(root.nodeValue ?? '');
+            if (next !== root.nodeValue) root.nodeValue = next;
+            return;
+        }
+        if (!(root instanceof Element || root instanceof Document || root instanceof DocumentFragment)) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(normalizeNode);
+    };
+    const start = () => {
+        normalizeNode(document.body);
+        const observer = new MutationObserver((records) => records.forEach((record) => record.addedNodes.forEach(normalizeNode)));
+        observer.observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
+})();
 </script>
 <script src="{{ asset('assets/js/cart-ui.js') }}?v={{ @filemtime(public_path('assets/js/cart-ui.js')) ?: config('app.version') }}" defer></script>
 <script src="{{ asset('assets/js/ux-runtime.js') }}?v={{ config('app.version') }}" defer></script>

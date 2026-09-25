@@ -31,6 +31,7 @@ import {
   pickAdminOrderProof,
 } from '@/features/admin/orders-admin-shipment-proof';
 import { useAppTheme } from '@/theme/app-theme';
+import { formatDecimal } from '@/lib/formatters';
 
 type Panel =
   | 'accept'
@@ -41,6 +42,7 @@ type Panel =
   | 'payment-status'
   | 'payment-entry'
   | 'payment-ledger'
+  | 'sale-price-correction'
   | 'shipment'
   | 'complete'
   | 'reopen'
@@ -73,8 +75,16 @@ function asRecords(value: AdminOrderDetailValue | undefined): AdminOrderDetailRe
 
 function recordText(record: AdminOrderDetailRecord | null, key: string, fallback = ''): string {
   const value = record?.[key];
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'number') return formatDecimal(value);
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^-?\d+[.,]\d{3,}$/.test(trimmed)) {
+      const parsed = Number(trimmed.replace(',', '.'));
+      if (Number.isFinite(parsed)) return formatDecimal(parsed);
+    }
+    return value;
+  }
+  if (typeof value === 'boolean') return String(value);
   return fallback;
 }
 
@@ -186,6 +196,8 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
   const [paymentLedgerAction, setPaymentLedgerAction] = useState<'verify' | 'reject' | 'void'> ('verify');
   const [paymentRejectReason, setPaymentRejectReason] = useState('');
+  const [salePrice, setSalePrice] = useState('');
+  const [salePriceReason, setSalePriceReason] = useState('');
   const [shipmentMethod, setShipmentMethod] = useState<AdminOrderShipmentMethod> ('courier');
   const [courierServiceId, setCourierServiceId] = useState(defaultCourierId);
   const [shippedAt, setShippedAt] = useState(localDateTimeNow);
@@ -282,6 +294,16 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
     }));
   }
 
+  function submitSalePriceCorrection(): void {
+    const amount = Number(salePrice.replace(',', '.'));
+    if (!Number.isFinite(amount) || amount <= 0) return notifyInputError(feedback, 'Unesi ispravnu novu prodajnu cenu u RSD.');
+    if (salePriceReason.trim().length < 3) return notifyInputError(feedback, 'Unesi razlog korekcije.');
+    execute('sale-price-correction', 'Prodajna cena je korigovana', () => apiAdminOrders.salePriceCorrection(orderId, {
+      new_unit_price_rsd: amount,
+      reason: salePriceReason.trim(),
+    }));
+  }
+
   function submitPaymentLedgerAction(): void {
     const paymentId = Number(selectedPaymentId);
     if (!Number.isInteger(paymentId) || paymentId <= 0) return notifyInputError(feedback, 'Izaberi uplatu.');
@@ -374,6 +396,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
           {!completed ? <Button variant="secondary" onPress={() => setPanel('deadlines')}>Rokovi</Button> : null}
           {!completed ? <Button variant="secondary" onPress={() => setPanel('payment-status')}>Status plaćanja</Button> : null}
           {capabilities.payments ? <Button variant="secondary" onPress={() => setPanel('payment-entry')}>Evidentiraj uplatu/refundaciju</Button> : null}
+          {capabilities.sale_price_correction ? <Button variant="secondary" onPress={() => setPanel('sale-price-correction')}>Koriguj prodajnu cenu</Button> : null}
           {capabilities.payments && paymentOptions.length > 0 ? <Button variant="secondary" onPress={() => setPanel('payment-ledger')}>Obradi postojeću uplatu</Button> : null}
           {recordBool(shipment, 'has_proof') ? <Button variant="secondary" loading={openingProof} onPress={() => void openShipmentProof()}>Otvori dokaz slanja</Button> : null}
           {shipmentTrackingUrl ? <Button variant="secondary" onPress={() => void openTrackingUrl(shipmentTrackingUrl)}>Otvori tracking stranicu</Button> : null}
@@ -450,6 +473,15 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
           <TextField label="Referenca" value={paymentReference} onChangeText={setPaymentReference} />
           <TextField label="Napomena" value={paymentNote} onChangeText={setPaymentNote} multiline />
           <Button loading={busy('payment-entry')} onPress={submitPaymentEntry}>Evidentiraj</Button>
+        </ActionPanel>
+      ) : null}
+
+      {panel === 'sale-price-correction' ? (
+        <ActionPanel title="Korekcija Direct Sale cene" onClose={() => setPanel(null)} styles={styles}>
+          <Text style={styles.warning}>Ova akcija menja stavku, subtotal i originalnu verifikovanu uplatu. Server dozvoljava samo bezbedne Direct Sale slucajeve i upisuje audit trag.</Text>
+          <MoneyField label="Nova jedinicna prodajna cena" value={salePrice} onChangeText={setSalePrice} currency="RSD" required />
+          <TextField label="Razlog korekcije" value={salePriceReason} onChangeText={setSalePriceReason} multiline />
+          <Button loading={busy('sale-price-correction')} onPress={submitSalePriceCorrection}>Potvrdi korekciju</Button>
         </ActionPanel>
       ) : null}
 

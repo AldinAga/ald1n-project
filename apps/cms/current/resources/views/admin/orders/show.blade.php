@@ -395,6 +395,32 @@
                     <strong>{{ $order['subtotal_rsd_display'] ?? '0,00 RSD' }}</strong>
                 </div>
 
+                @if(($actions['sale_price_correction'] ?? false) && !empty($urls['sale_price_correction']))
+                    <div class="panel" data-direct-sale-price-correction>
+                        <div class="section-heading-row">
+                            <div>
+                                <h3>Korekcija prodajne cene</h3>
+                                <p class="muted">Samo za Direct Sale. Izmena sinhronizuje stavku, subtotal i originalnu verifikovanu uplatu i ostavlja audit trag.</p>
+                            </div>
+                        </div>
+                        <form method="post" action="{{ $urls['sale_price_correction'] }}" class="settings-form">
+                            @csrf
+                            @method('PATCH')
+                            <label>
+                                <span>Nova jedinicna prodajna cena (RSD)</span>
+                                <input type="number" name="new_unit_price_rsd" step="0.01" min="0.01" max="999999999.99" required value="{{ isset($items[0]['unit_price_rsd']) ? number_format((float) $items[0]['unit_price_rsd'], 2, '.', '') : '' }}">
+                            </label>
+                            <label>
+                                <span>Razlog korekcije</span>
+                                <textarea name="reason" rows="3" minlength="3" maxlength="1000" required placeholder="Npr. greska pri rucnom unosu prodajne cene"></textarea>
+                            </label>
+                            <button class="button button-primary" type="submit" data-confirm="Potvrdi korekciju prodajne cene? Izmena ce uskladiti stavku, subtotal i originalnu verifikovanu uplatu.">
+                                Koriguj prodajnu cenu
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
                 @if(is_array($commission))
                     <div class="commission-inline-summary">
                         <span>

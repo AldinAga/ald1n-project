@@ -115,7 +115,7 @@
             <span class="dashboard-rate-icon"><x-icon name="coins" size="24" /></span>
             <div>
                 <small data-exchange-rate-dashboard-label>Aktuelni EUR/RSD kurs</small>
-                <strong data-exchange-rate-value>{{ $eurRsdRate ? number_format((float) $eurRsdRate, 4, ',', '.') : 'Nije podešen' }}</strong>
+                <strong data-exchange-rate-value>{{ $eurRsdRate ? number_format((float) $eurRsdRate, 2, ',', '.') : 'Nije podešen' }}</strong>
                 <span data-exchange-rate-source>{{ $eurRsdSource }}</span>
             </div>
         </div>

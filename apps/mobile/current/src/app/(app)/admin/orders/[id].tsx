@@ -21,6 +21,7 @@ import {
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
+import { formatDecimal } from '@/lib/formatters';
 
 function asRecord(value: AdminOrderDetailValue | undefined): AdminOrderDetailRecord | null {
   if (value === null || value === undefined || Array.isArray(value) || typeof value !== 'object') {
@@ -72,9 +73,16 @@ function moneyRsd(value: number | null): string {
 
 function displayScalar(value: AdminOrderDetailValue | undefined): string {
   if (value === null || value === undefined) return '-';
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
+  if (typeof value === 'number') return formatDecimal(value);
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^-?\d+[.,]\d{3,}$/.test(trimmed)) {
+      const parsed = Number(trimmed.replace(',', '.'));
+      if (Number.isFinite(parsed)) return formatDecimal(parsed);
+    }
+    return value;
   }
+  if (typeof value === 'boolean') return String(value);
   return '-';
 }
 

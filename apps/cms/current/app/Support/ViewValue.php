@@ -70,6 +70,17 @@ final class ViewValue
         }
     }
 
+    public static function decimal(mixed $value, int $maxDecimals = 2, string $fallback = '--'): string
+    {
+        if (!is_numeric($value)) return $fallback;
+        $maxDecimals = max(0, min(2, $maxDecimals));
+        $formatted = number_format(round((float) $value, $maxDecimals), $maxDecimals, ',', '.');
+        if ($maxDecimals > 0) {
+            $formatted = rtrim(rtrim($formatted, '0'), ',');
+        }
+        return $formatted;
+    }
+
     public static function route(string $name, mixed $parameters = [], bool $absolute = true): ?string
     {
         try {

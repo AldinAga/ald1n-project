@@ -3942,6 +3942,58 @@ assert(
   'Batch116 image performance rad ne vraća Product Variants contract.',
 );
 
+// MOBILE_V1_0_DIRECT_SALE_PRICE_CORRECTION_TWO_DECIMAL_BATCH179
+const batch179OrderApi = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
+const batch179OrderActions = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-actions.tsx'), 'utf8');
+const batch179OrderDetail = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
+const batch179Formatters = fs.readFileSync(path.join(root, 'src/lib/formatters.ts'), 'utf8');
+const batch179CmsService = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/DirectSalePriceCorrectionService.php'), 'utf8');
+const batch179CmsViewValue = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Support/ViewValue.php'), 'utf8');
+const batch179CmsLayout = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/resources/views/layouts/app.blade.php'), 'utf8');
+const batch179ApiRoutes = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/routes/api.php'), 'utf8');
+const batch179OpenApi = fs.readFileSync(path.join(projectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+assert(
+  batch179CmsService.includes('final class DirectSalePriceCorrectionService')
+    && batch179CmsService.includes('direct_sale.price_corrected')
+    && batch179CmsService.includes('OrderInternalNote::query()->create')
+    && batch179CmsService.includes("payment_method === 'deferred_payment'")
+    && batch179CmsService.includes("where('status', 'issued')"),
+  'Batch179 controlled Direct Sale price correction guards payment/document/deferred integrity and writes audit evidence.',
+);
+assert(
+  batch179ApiRoutes.includes("Route::patch('/orders/{order}/sale-price'")
+    && batch179OrderApi.includes('salePriceCorrection:')
+    && batch179OrderActions.includes("setPanel('sale-price-correction')")
+    && batch179OrderActions.includes('new_unit_price_rsd: amount'),
+  'Batch179 Web/API/Mobile expose the same controlled Direct Sale price correction authority.',
+);
+assert(
+  batch179OpenApi.includes('/api/v1/admin/orders/{order}/sale-price:')
+    && batch179OpenApi.includes('adminOrdersDirectSalePriceCorrection')
+    && batch179OpenApi.includes('new_unit_price_rsd'),
+  'Batch179 OpenAPI documents the controlled Direct Sale price correction route.',
+);
+assert(
+  batch179Formatters.includes('export function formatDecimal')
+    && batch179Formatters.includes('maximumFractionDigits: 2')
+    && batch179OrderDetail.includes('formatDecimal(parsed)')
+    && batch179OrderActions.includes('formatDecimal(parsed)'),
+  'Batch179 Mobile numeric presentation contract limits formatter-driven display values to at most two decimals.',
+);
+assert(
+  batch179CmsViewValue.includes('public static function decimal')
+    && batch179CmsViewValue.includes('min(2, $maxDecimals)')
+    && batch179CmsLayout.includes('data-global-two-decimal-display-contract')
+    && batch179CmsLayout.includes('maximumFractionDigits: 2')
+    && batch179CmsLayout.includes('data-keep-decimals'),
+  'Batch179 CMS presentation contract limits rendered decimal values to at most two decimals without changing stored precision.',
+);
+assert(
+  !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(
+    batch179OrderApi + batch179OrderActions + batch179CmsService + batch179OpenApi
+  ),
+  'Batch179 price correction and display work does not restore Product Variants.',
+);
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 

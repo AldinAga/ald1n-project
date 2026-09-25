@@ -10,7 +10,7 @@
         data-exchange-rate-sync
         data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
         title="Klikni za sinhronizaciju EUR/RSD kursa"
-    ><span data-exchange-rate-value>{{ $configuration['rate'] ? number_format($configuration['rate'], 4, ',', '.') : 'Nije podešen' }}</span>&nbsp;RSD</button>
+    ><span data-exchange-rate-value>{{ $configuration['rate'] ? number_format($configuration['rate'], 2, ',', '.') : 'Nije podešen' }}</span>&nbsp;RSD</button>
 </div>
 <section class="panel form-section"><h2>Komercijalni prodajni kurs</h2><p class="muted"><strong>GLAVNI KURS APLIKACIJE.</strong> Primarni automatski izvor je javna NBS kursna lista za devize: EUR / 978 / prodajni kurs. Frankfurter API v2 je sekundarni referentni fallback. Ako oba izvora nisu dostupna, poslednji uspesno sacuvan kurs ostaje aktivan bez resetovanja datuma svezine. Rucni unos je override.</p></section>
 <div class="settings-grid">

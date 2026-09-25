@@ -20,7 +20,7 @@ import { useAppTheme } from '@/theme/app-theme';
 
 type Transition = 'submit' | 'order' | 'receive' | 'cancel' | null;
 function tone(status: string): PillTone { if (status === 'received') return 'success'; if (status === 'cancelled') return 'danger'; if (status === 'ordered') return 'info'; if (status === 'submitted') return 'warning'; return 'primary'; }
-function qty(value: number | null): string { return value === null ? '—' : Number(value).toLocaleString('sr-RS', { maximumFractionDigits: 3 }); }
+function qty(value: number | null): string { return value === null ? '—' : Number(value).toLocaleString('sr-RS', { maximumFractionDigits: 2 }); }
 function money(value: number | null): string { return value === null ? '—' : `${Number(value).toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD`; }
 
 export default function AdminServicePartPurchaseDetailScreen() {

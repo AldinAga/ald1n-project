@@ -30,7 +30,7 @@ type Command =
 function rateText(value: number | null): string {
   return value === null
     ? 'Nije podešeno'
-    : `${value.toLocaleString('sr-RS', { minimumFractionDigits: 4, maximumFractionDigits: 6 })} RSD`;
+    : `${value.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD`;
 }
 
 function dateText(value: string | null): string {
@@ -45,8 +45,8 @@ function historyTone(status: AdminExchangeRateHistoryItem['status']): PillTone {
 
 function historyRate(item: AdminExchangeRateHistoryItem): string {
   if (item.new_rate === null) return 'Bez novog kursa';
-  const before = item.old_rate === null ? '—' : item.old_rate.toFixed(4);
-  return `${before} → ${item.new_rate.toFixed(4)} RSD`;
+  const before = item.old_rate === null ? '—' : item.old_rate.toFixed(2);
+  return `${before} → ${item.new_rate.toFixed(2)} RSD`;
 }
 
 // MOBILE_V0_8_EUR_RSD_EXCHANGE_RATE_BATCH13

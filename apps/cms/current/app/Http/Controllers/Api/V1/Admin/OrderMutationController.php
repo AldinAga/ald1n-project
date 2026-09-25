@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\User;
+use App\Services\DirectSalePriceCorrectionService;
 use App\Services\OrderAccessService;
 use App\Services\OrderOperationalService;
 use App\Services\OrderPaymentService;
@@ -173,6 +174,27 @@ final class OrderMutationController extends Controller
         $updated = $workflow->reopen($order, $actor, (string) $data['reason']);
 
         return $this->ok($updated, 'reopen', ['reopened_at' => $updated->reopened_at?->toISOString()]);
+    }
+
+    public function salePriceCorrection(
+        Request $request,
+        Order $order,
+        OrderAccessService $access,
+        DirectSalePriceCorrectionService $corrections,
+    ): JsonResponse {
+        $actor = $this->paymentActor($request);
+        abort_unless($actor->hasRole('superadmin'), 403);
+        $access->authorizeManage($order, $actor);
+        $data = $request->validate([
+            'new_unit_price_rsd' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+        $updated = $corrections->correct($order, $actor, (float) $data['new_unit_price_rsd'], (string) $data['reason']);
+
+        return $this->ok($updated, 'sale_price_correction', [
+            'subtotal_rsd' => round((float) $updated->subtotal_rsd, 2),
+            'paid_total_rsd' => round((float) $updated->paid_total_rsd, 2),
+        ]);
     }
 
     public function paymentStore(
