@@ -3994,6 +3994,18 @@ assert(
   ),
   'Batch179 price correction and display work does not restore Product Variants.',
 );
+const batch179LoginView = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/resources/views/auth/login.blade.php'), 'utf8');
+const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'), 'utf8');
+assert(
+  batch179LoginView.includes('data-login-glassmorphism')
+    && batch179LoginView.includes('auth-login-submit')
+    && batch179LoginView.includes("route('login.store')")
+    && batch179LoginView.includes('cf-turnstile')
+    && batch179LoginCss.includes('BATCH179_V3_LOGIN_GLASS_MORPHISM')
+    && batch179LoginCss.includes('backdrop-filter: blur(30px) saturate(155%)')
+    && batch179LoginCss.includes('@media (prefers-reduced-motion: reduce)'),
+  'Batch179 V3 Laravel login polish adds glassmorphism and motion while preserving auth, Turnstile and reduced-motion contracts.',
+);
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 

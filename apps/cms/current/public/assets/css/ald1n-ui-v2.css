@@ -5086,3 +5086,203 @@ textarea {
   }
 }
 /* /BATCH149G_V7_FULL_WIDTH_SYSTEM_NATIVE */
+
+/* BATCH179_V3_LOGIN_GLASS_MORPHISM */
+.auth-body {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 16%, color-mix(in srgb, var(--ald-primary) 30%, transparent) 0, transparent 34%),
+    radial-gradient(circle at 88% 82%, color-mix(in srgb, #7c5ce7 22%, transparent) 0, transparent 36%),
+    linear-gradient(145deg, color-mix(in srgb, var(--ald-background) 92%, #161124 8%), var(--ald-background));
+}
+.auth-body::before,
+.auth-body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  width: min(42vw, 560px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(34px);
+  opacity: .72;
+  animation: authAmbientFloat 11s ease-in-out infinite alternate;
+}
+.auth-body::before {
+  top: -18%;
+  left: -10%;
+  background: color-mix(in srgb, var(--ald-primary) 28%, transparent);
+}
+.auth-body::after {
+  right: -12%;
+  bottom: -22%;
+  background: color-mix(in srgb, #7b61ff 22%, transparent);
+  animation-delay: -4.5s;
+}
+.auth-glass-shell {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--ald-border) 54%, rgba(255,255,255,.34));
+  background: color-mix(in srgb, var(--ald-surface) 34%, transparent);
+  box-shadow: 0 34px 110px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.14);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+  backdrop-filter: blur(26px) saturate(145%);
+  animation: authGlassEnter .58s var(--ald-ease-out) both;
+}
+.auth-glass-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(125deg, rgba(255,255,255,.12), transparent 34%, transparent 70%, rgba(255,255,255,.05));
+}
+.auth-glass-intro {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 8%, color-mix(in srgb, var(--ald-primary) 42%, transparent), transparent 42%),
+    linear-gradient(145deg, rgba(13,20,34,.82), rgba(31,27,48,.72));
+}
+.auth-glass-intro::after {
+  content: "";
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  right: -82px;
+  bottom: -84px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 0 0 32px rgba(255,255,255,.025), 0 0 0 64px rgba(255,255,255,.018);
+  pointer-events: none;
+}
+.auth-glass-card {
+  position: relative;
+  overflow: hidden;
+  border-left: 1px solid color-mix(in srgb, var(--ald-border) 48%, rgba(255,255,255,.18));
+  background: color-mix(in srgb, var(--ald-surface) 70%, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(155%);
+  backdrop-filter: blur(30px) saturate(155%);
+  animation: authCardEnter .66s .08s var(--ald-ease-out) both;
+}
+html[data-theme="dark"] .auth-glass-card {
+  background: rgba(17,21,28,.70);
+  border-left-color: rgba(255,255,255,.10);
+}
+html[data-theme="light"] .auth-glass-card {
+  background: rgba(255,255,255,.70);
+  border-left-color: rgba(255,255,255,.56);
+}
+.auth-glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.58), transparent);
+  opacity: .72;
+}
+.auth-login-form input {
+  border-color: color-mix(in srgb, var(--ald-border) 72%, transparent);
+  background: color-mix(in srgb, var(--ald-surface-muted) 72%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: border-color var(--ald-motion-fast) ease, box-shadow var(--ald-motion-fast) ease, transform var(--ald-motion-fast) ease, background var(--ald-motion-fast) ease;
+}
+.auth-login-form input:hover {
+  border-color: color-mix(in srgb, var(--ald-primary) 38%, var(--ald-border));
+}
+.auth-login-form input:focus {
+  transform: translateY(-1px);
+  border-color: var(--ald-primary);
+  background: color-mix(in srgb, var(--ald-surface) 78%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ald-primary) 18%, transparent), 0 12px 30px color-mix(in srgb, var(--ald-primary) 10%, transparent);
+}
+.auth-login-submit {
+  position: relative;
+  overflow: hidden;
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--ald-primary) 74%, white 12%);
+  background: linear-gradient(115deg, var(--ald-primary), color-mix(in srgb, var(--ald-primary) 68%, #795ce8 32%));
+  color: var(--ald-on-primary);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--ald-primary) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.25);
+  transition: transform var(--ald-motion-emphasized) var(--ald-ease-out), box-shadow var(--ald-motion-emphasized) var(--ald-ease-out), filter var(--ald-motion-fast) ease;
+}
+.auth-login-submit::before {
+  content: "";
+  position: absolute;
+  top: -70%;
+  bottom: -70%;
+  width: 34%;
+  left: -45%;
+  transform: rotate(14deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.46), transparent);
+  transition: left .64s var(--ald-ease-out);
+  pointer-events: none;
+}
+.auth-login-submit:hover {
+  transform: translateY(-2px) scale(1.006);
+  filter: saturate(1.06);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--ald-primary) 36%, transparent), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.auth-login-submit:hover::before { left: 112%; }
+.auth-login-submit:active {
+  transform: translateY(0) scale(.992);
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--ald-primary) 25%, transparent);
+}
+.auth-login-submit-arrow {
+  display: inline-block;
+  font-size: 1.12em;
+  transition: transform var(--ald-motion-emphasized) var(--ald-ease-out);
+}
+.auth-login-submit:hover .auth-login-submit-arrow { transform: translateX(4px); }
+.auth-login-submit:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ald-primary) 44%, white 24%);
+  outline-offset: 3px;
+}
+.auth-glass-card .alert {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.auth-body > .floating-theme {
+  background: color-mix(in srgb, var(--ald-surface) 58%, transparent);
+  border-color: color-mix(in srgb, var(--ald-border) 60%, rgba(255,255,255,.22));
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 12px 34px rgba(0,0,0,.16);
+  transition: transform var(--ald-motion-fast) var(--ald-ease-out), border-color var(--ald-motion-fast) ease;
+}
+.auth-body > .floating-theme:hover { transform: translateY(-2px) rotate(4deg); border-color: var(--ald-primary); }
+@keyframes authGlassEnter {
+  from { opacity: 0; transform: translateY(18px) scale(.986); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes authCardEnter {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes authAmbientFloat {
+  from { transform: translate3d(-2%, -1%, 0) scale(.96); }
+  to { transform: translate3d(4%, 3%, 0) scale(1.05); }
+}
+@media (max-width: 820px) {
+  .auth-glass-card { border-left: 0; border-top: 1px solid color-mix(in srgb, var(--ald-border) 48%, rgba(255,255,255,.18)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-body::before,
+  .auth-body::after,
+  .auth-glass-shell,
+  .auth-glass-card { animation: none !important; }
+  .auth-login-submit,
+  .auth-login-submit::before,
+  .auth-login-submit-arrow,
+  .auth-login-form input,
+  .auth-body > .floating-theme { transition: none !important; }
+  .auth-login-submit:hover,
+  .auth-login-submit:active,
+  .auth-login-form input:focus,
+  .auth-body > .floating-theme:hover { transform: none !important; }
+}

@@ -87,19 +87,19 @@
     </div>
 @endif
 
-<div class="auth-layout {{ $hasLoginBackground ? 'auth-layout-over-background' : '' }}">
-    <section class="auth-intro">
+<div class="auth-layout auth-glass-shell {{ $hasLoginBackground ? 'auth-layout-over-background' : '' }}" data-login-glassmorphism>
+    <section class="auth-intro auth-glass-intro">
         <div class="brand brand-large">@if($siteLogoLightUrl || $siteLogoDarkUrl)<img class="auth-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteSettings['site_logo_alt'] }}">@else<span class="brand-mark">A</span><span><strong>{{ mb_strtoupper($siteSettings['site_name']) }}</strong><small>Poslovni sistem</small></span>@endif</div>
         <span class="eyebrow">Siguran pristup</span>
         <h1>Upravljajte katalogom i poslovnim procesima na jednom mestu.</h1>
         <p>Prijavite se svojim korisničkim nalogom kako biste nastavili.</p>
     </section>
-    <section class="auth-card">
+    <section class="auth-card auth-glass-card">
         <div><span class="eyebrow">Dobro došli</span><h2>Prijava</h2><p>Koristite korisničko ime ili e-mail adresu.</p></div>
         @if(session('status'))<div class="alert success">{{ session('status') }}</div>@endif
         @if(!empty($loginRuntimeError))<div class="alert error">{{ $loginRuntimeError }}</div>@endif
         @if($errors->any())<div class="alert error">{{ $errors->first() }}</div>@endif
-        <form method="post" action="{{ route('login.store') }}" class="stack-form">
+        <form method="post" action="{{ route('login.store') }}" class="stack-form auth-login-form">
             @csrf
             <label><span>Korisničko ime ili e-mail</span><input name="login" value="{{ old('login', $loginValue ?? '') }}" autocomplete="username" required autofocus></label>
             <label><span>Lozinka</span><input type="password" name="password" autocomplete="current-password" required></label>
@@ -107,7 +107,7 @@
             @if($turnstileEnabled)
                 <div class="turnstile-wrap"><div class="cf-turnstile" data-sitekey="{{ $turnstileSiteKey }}" data-theme="auto" data-action="login"></div></div>
             @endif
-            <button class="button button-primary button-large" type="submit">Prijavi se</button>
+            <button class="button button-primary button-large auth-login-submit" type="submit"><span class="auth-login-submit-label">Prijavi se</span><span class="auth-login-submit-arrow" aria-hidden="true">&rarr;</span></button>
         </form>
         @if((bool) config('services.google_web.enabled', false) && filled(config('services.google_web.client_id')) && filled(config('services.google_web.client_secret')))
             <div class="stack-form">
