@@ -24,3 +24,171 @@
 - Next report number: `481`
 
 This index is navigation metadata only. The numbered reports in this directory are the audit evidence of record.
+
+---
+
+## Batch179 final one-pass - 20260925-100803
+
+- Status: **PASS**
+- Source commit: 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md
+- Order: 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md / ID 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md
+- Direct Sale correction: 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md
+- Mutation authority: 
+- Payment, item, subtotal and paid total: synchronized and independently verified
+- Audit: internal note + 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md event verified
+- Stock: unchanged
+- CMS static: 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md
+- Mobile validator: zero failures
+- Runtime/OpenAPI: zero drift uncached and cached
+- Two-decimal presentation contract: PASS
+- Product Variants: remain decommissioned
+- Build18: preserved
+- Glass Morphism: not executed in Batch179; Batch180 must be re-audited/refreshed against the final post-Batch179 repository head before execution
+- Operation report: 
+============================================================
+POST-MUTATION FAILURE PRESERVATION
+============================================================
+SOURCE_ROLLBACK=SKIPPED_BUSINESS_DATA_ALREADY_MUTATED
+MANUAL_REVIEW_REQUIRED=YES
+ROUTE_CACHE_RESTORE=ROUTE_CACHE_REBUILT
+
+============================================================
+FAIL
+============================================================
+BATCH179_FINAL_ONE_PASS=FAIL
+FAILED_REASON=UNEXPECTED_RC_127_LINE_1205
+ORDER_ID=81
+ORDER_PRICE_CORRECTION_TARGET=2140.00_TO_21240.00
+DATABASE_MUTATION=YES_ORDER81_ONLY
+BUSINESS_DATA_MUTATION=YES_ORDER81_ONLY
+GLASS_SCRIPT_EXECUTED=NO
+SOURCE_COMMIT=74f34dbe2b41af14044a06e916e717d803da62ec
+SOURCE_PUSH=PASS
+TARGETED_BACKUP=/home/icaffeco/backups/batch179-order81-20260925-100803/order81-before.json
+REPORT_PATH=/home/icaffeco/ald1n-project/docs/operations/481-BATCH179-FINAL-ONE-PASS-20260925-100803.md
