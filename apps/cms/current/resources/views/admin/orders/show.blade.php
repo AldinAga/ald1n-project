@@ -379,7 +379,7 @@
                                     <td>{{ $item['name'] ?? 'Nepoznat artikal' }}</td>
                                     <td>{{ $item['sku'] ?? '—' }}</td>
                                     <td>{{ $item['quantity'] ?? 0 }}</td>
-                                    <td>{{ $item['unit_price'] ?? '0,00 RSD' }}</td>
+                                    <td>{{ ($order['is_direct_sale'] ?? false) ? ($item['unit_price_original_display'] ?? ($item['unit_price'] ?? '0,00 RSD')) : ($item['unit_price'] ?? '0,00 RSD') }}</td>
                                     <td>{{ $item['line_total'] ?? '0,00 RSD' }}</td>
                                     <td>{{ ($order['is_direct_sale'] ?? false) ? 'Nema provizije' : ($item['commission'] ?? '0,00 EUR') }}</td>
                                 </tr>
@@ -407,8 +407,15 @@
                             @csrf
                             @method('PATCH')
                             <label>
-                                <span>Nova jedinicna prodajna cena (RSD)</span>
-                                <input type="number" name="new_unit_price_rsd" step="0.01" min="0.01" max="999999999.99" required value="{{ isset($items[0]['unit_price_rsd']) ? number_format((float) $items[0]['unit_price_rsd'], 2, '.', '') : '' }}">
+                                <span>Valuta stvarne prodajne cene</span>
+                                <select name="new_unit_price_currency" required>
+                                    <option value="RSD" @selected(($items[0]['original_currency'] ?? 'RSD') === 'RSD')>RSD</option>
+                                    <option value="EUR" @selected(($items[0]['original_currency'] ?? 'RSD') === 'EUR')>EUR</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Nova jedinicna prodajna cena</span>
+                                <input type="number" name="new_unit_price_amount" step="0.01" min="0.01" max="999999999.99" required value="{{ isset($items[0]['unit_price_original']) ? number_format((float) $items[0]['unit_price_original'], 2, '.', '') : '' }}">
                             </label>
                             <label>
                                 <span>Razlog korekcije</span>

@@ -258,10 +258,13 @@ final class OrderController extends Controller
         $actor = $request->user();
         $access->authorizeManage($order, $actor);
         $data = $request->validate([
-            'new_unit_price_rsd' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'new_unit_price_amount' => ['nullable', 'required_without:new_unit_price_rsd', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'new_unit_price_currency' => ['nullable', 'required_with:new_unit_price_amount', Rule::in(['RSD', 'EUR'])],
+            'new_unit_price_rsd' => ['nullable', 'required_without:new_unit_price_amount', 'numeric', 'min:0.01', 'max:999999999.99'],
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ]);
-        $updated = $corrections->correct($order, $actor, (float) $data['new_unit_price_rsd'], (string) $data['reason']);
+        $legacy = !array_key_exists('new_unit_price_amount', $data);
+        $updated = $corrections->correct($order, $actor, (float) ($data['new_unit_price_amount'] ?? $data['new_unit_price_rsd']), $legacy ? 'RSD' : (string) $data['new_unit_price_currency'], (string) $data['reason']);
         return back()->with('status', 'Prodajna cena je korigovana. Novi ukupni iznos: '.number_format((float) $updated->subtotal_rsd, 2, ',', '.').' RSD.');
     }
 

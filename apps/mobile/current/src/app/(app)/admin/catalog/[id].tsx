@@ -27,9 +27,10 @@ import type {
   AdminCatalogSpecificationField,
 } from '@/types/api';
 
-type StorageRow = { type: string; capacityGb: string };
+type StorageUnit = 'GB' | 'TB';
+type StorageRow = { type: string; capacityValue: string; unit: StorageUnit };
 
-function emptyStorageRow(): StorageRow { return { type: '', capacityGb: '' }; }
+function emptyStorageRow(): StorageRow { return { type: '', capacityValue: '', unit: 'GB' }; }
 function apiMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
   if (error instanceof Error && error.message) return error.message;
@@ -55,6 +56,27 @@ function nonNegativeInteger(value: string): number | null {
   if (!/^\d+$/.test(normalized)) return null;
   const parsed = Number(normalized);
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+function storageCapacityGb(row: StorageRow): number | null {
+  const amount = nonNegativeDecimal(row.capacityValue);
+  if (amount === null) return null;
+  const gb = row.unit === 'TB' ? amount * 1024 : amount;
+  const rounded = Math.round(gb);
+  if (!Number.isSafeInteger(rounded) || Math.abs(gb - rounded) > 0.000001 || rounded < 0 || rounded > 10000000) return null;
+  return rounded;
+}
+function storageInputFromGb(capacityGb: number | undefined, unit: StorageUnit): string {
+  if (capacityGb === undefined) return '';
+  const amount = unit === 'TB' ? capacityGb / 1024 : capacityGb;
+  return Number.isInteger(amount) ? String(amount) : String(Number(amount.toFixed(3)));
+}
+function storageTotalLabel(totalGb: number): string {
+  if (totalGb >= 1024) {
+    const tb = totalGb / 1024;
+    const shown = Number.isInteger(tb) ? String(tb) : String(Number(tb.toFixed(3)));
+    return `${shown} TB · ${totalGb} GB`;
+  }
+  return `${totalGb} GB`;
 }
 function optionalPositiveId(value: string): number | undefined {
   const parsed = Number(value);
@@ -86,7 +108,10 @@ function initialStorage(detail: AdminCatalogProductDetail): Record<string, Stora
   const result: Record<string, StorageRow[]> = {};
   for (const [fieldId, rows] of Object.entries(detail.spec_structured ?? {})) {
     result[fieldId] = rows.length > 0
-      ? rows.map((row) => ({ type: row.type ?? '', capacityGb: row.capacity_gb === undefined ? '' : String(row.capacity_gb) }))
+      ? rows.map((row) => {
+          const unit: StorageUnit = row.display_unit === 'TB' ? 'TB' : 'GB';
+          return { type: row.type ?? '', capacityValue: storageInputFromGb(row.capacity_gb, unit), unit };
+        })
       : [emptyStorageRow()];
   }
   return result;
@@ -308,7 +333,7 @@ export default function AdminCatalogEditScreen() {
     });
   };
   const storageTotal = (fieldId: number) => (storageRows[String(fieldId)] ?? [])
-    .reduce((sum, row) => sum + (nonNegativeInteger(row.capacityGb) ?? 0), 0);
+    .reduce((sum, row) => sum + (storageCapacityGb(row) ?? 0), 0);
 
   const submit = (saveDraft = false) => {
     const nextErrors: Record<string, string> = {};
@@ -333,13 +358,13 @@ export default function AdminCatalogEditScreen() {
     }
     for (const field of storageFields) {
       const rows = storageRows[String(field.id)] ?? [emptyStorageRow()];
-      const entered = rows.some((row) => row.type.trim() || row.capacityGb.trim());
+      const entered = rows.some((row) => row.type.trim() || row.capacityValue.trim());
       if (!saveDraft && field.required && !entered) nextErrors[`spec_lists.${field.id}`] = `${field.name} je obavezno polje.`;
       if (entered) rows.forEach((row, index) => {
         if (!saveDraft && !row.type.trim()) nextErrors[`spec_lists.${field.id}.${index}`] = 'Izaberi tip diska.';
-        if (row.capacityGb.trim()) {
-          const capacity = nonNegativeInteger(row.capacityGb);
-          if (capacity === null || capacity > 10000000) nextErrors[`spec_capacities.${field.id}.${index}`] = 'Kapacitet mora biti ceo broj 0-10000000 GB.';
+        if (row.capacityValue.trim()) {
+          const capacity = storageCapacityGb(row);
+          if (capacity === null) nextErrors[`spec_capacities.${field.id}.${index}`] = 'Kapacitet mora dati ceo broj GB; koristi GB ili TB (npr. 512 GB, 1 TB, 1.5 TB).';
         } else if (!saveDraft && row.type.trim()) {
           nextErrors[`spec_capacities.${field.id}.${index}`] = 'Unesi kapacitet diska.';
         }
@@ -357,7 +382,7 @@ export default function AdminCatalogEditScreen() {
     const cleanDetails: Record<string, string> = {};
     const cleanSpecLists: Record<string, string[]> = {};
     const cleanSpecCapacities: Record<string, number[]> = {};
-    const cleanSpecStructured: Record<string, Array<{ type: string; capacity_gb?: number }>> = {};
+    const cleanSpecStructured: Record<string, Array<{ type: string; capacity_gb?: number; display_unit?: 'GB' | 'TB' }>> = {};
 
     for (const field of standardSpecificationFields) {
       const key = String(field.id);
@@ -369,8 +394,8 @@ export default function AdminCatalogEditScreen() {
     for (const field of storageFields) {
       const key = String(field.id);
       const rows = (storageRows[key] ?? [])
-        .filter((row) => row.type.trim() || row.capacityGb.trim())
-        .map((row) => ({ type: row.type.trim(), capacity_gb: nonNegativeInteger(row.capacityGb) ?? 0 }));
+        .filter((row) => row.type.trim() || row.capacityValue.trim())
+        .map((row) => ({ type: row.type.trim(), capacity_gb: storageCapacityGb(row) ?? 0, display_unit: row.unit }));
       const first = rows[0];
       if (!first) continue;
       cleanSpecs[key] = first.type;
@@ -481,7 +506,7 @@ export default function AdminCatalogEditScreen() {
             return (
               <Card key={`storage-${field.id}`} muted style={styles.storageCard}>
                 <Text style={styles.storageTitle}>{field.name}{field.required ? ' *' : ''}</Text>
-                <Text style={styles.help}>{repeater.total_field_name}: {total} {repeater.total_unit ?? repeater.capacity_unit}</Text>
+                <Text style={styles.help}>{repeater.total_field_name}: {storageTotalLabel(total)}</Text>
                 {errors[`spec_lists.${field.id}`] ? <Text style={styles.inlineError}>{errors[`spec_lists.${field.id}`]}</Text> : null}
                 {rows.map((row, index) => (
                   <View key={`${field.id}:${index}`} style={styles.storageRow}>
@@ -494,14 +519,23 @@ export default function AdminCatalogEditScreen() {
                       onChange={(value) => updateStorageRow(field.id, index, { type: value })}
                       error={errors[`spec_lists.${field.id}.${index}`]}
                     />
-                    <TextField
-                      label={`Kapacitet (${repeater.capacity_unit})`}
-                      value={row.capacityGb}
-                      onChangeText={(value) => updateStorageRow(field.id, index, { capacityGb: value })}
-                      keyboardType="number-pad"
-                      disabled={product.is_archived}
-                      error={errors[`spec_capacities.${field.id}.${index}`]}
-                    />
+                    <View style={styles.storageCapacityRow}>
+                      <TextField
+                        label="Kapacitet"
+                        value={row.capacityValue}
+                        onChangeText={(value) => updateStorageRow(field.id, index, { capacityValue: value })}
+                        keyboardType="decimal-pad"
+                        disabled={product.is_archived}
+                        error={errors[`spec_capacities.${field.id}.${index}`]}
+                      />
+                      <SelectSheet
+                        label="Jedinica"
+                        value={row.unit}
+                        disabled={product.is_archived}
+                        options={[{ value: 'GB', label: 'GB' }, { value: 'TB', label: 'TB' }]}
+                        onChange={(value) => { if (value === 'GB' || value === 'TB') updateStorageRow(field.id, index, { unit: value }); }}
+                      />
+                    </View>
                     {rows.length > 1 ? (
                       <Button variant="ghost" disabled={product.is_archived} onPress={() => removeStorageRow(field.id, index)}>Ukloni disk</Button>
                     ) : null}
@@ -658,6 +692,7 @@ function createStyles(theme: AppColors) {
     storageCard: { gap: spacing.md },
     storageTitle: { ...typography.h3, color: theme.ink },
     storageRow: { gap: spacing.sm, paddingTop: spacing.sm },
+    storageCapacityRow: { gap: spacing.sm },
     storageRowTitle: { ...typography.label, color: theme.ink },
     inlineError: { ...typography.small, color: theme.danger },
     imageRow: { gap: spacing.sm },

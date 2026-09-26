@@ -2754,9 +2754,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [new_unit_price_rsd, reason]
+              required: [reason]
+              anyOf:
+                - required: [new_unit_price_amount, new_unit_price_currency]
+                - required: [new_unit_price_rsd]
               properties:
-                new_unit_price_rsd: { type: number, format: double, minimum: 0.01, maximum: 999999999.99 }
+                new_unit_price_amount: { type: number, format: double, minimum: 0.01, maximum: 999999999.99 }
+                new_unit_price_currency: { type: string, enum: [RSD, EUR] }
+                new_unit_price_rsd: { type: number, format: double, minimum: 0.01, maximum: 999999999.99, deprecated: true }
                 reason: { type: string, minLength: 3, maxLength: 1000 }
       responses:
         '200': { description: Direct Sale item, order subtotal and original verified payment corrected atomically with audit trail. }
@@ -6340,7 +6345,7 @@ components:
       enum: [cash, card, bank_transfer, other, deferred_payment]
     AdminDirectSaleOptions:
       type: object
-      required: [product, payment_methods, idempotency_key, can_submit]
+      required: [product, sale_currencies, payment_methods, idempotency_key, can_submit]
       properties:
         product:
           type: object
@@ -6355,6 +6360,14 @@ components:
             catalog_price_currency: { type: string, enum: [EUR, RSD] }
             catalog_unit_price_rsd: { type: [number, 'null'], minimum: 0 }
         eur_rsd_rate: { type: [number, 'null'], exclusiveMinimum: 0 }
+        sale_currencies:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string, enum: [RSD, EUR] }
+              label: { type: string }
         payment_methods:
           type: array
           items:
@@ -6373,19 +6386,24 @@ components:
         data: { $ref: '#/components/schemas/AdminDirectSaleOptions' }
     AdminDirectSaleInput:
       type: object
-      required: [quantity, sale_price_rsd, payment_method, idempotency_key]
+      required: [quantity, payment_method, idempotency_key]
+      anyOf:
+        - required: [sale_price_amount, sale_price_currency]
+        - required: [sale_price_rsd]
       properties:
         buyer_name: { type: string, maxLength: 190 }
         buyer_phone: { type: string, maxLength: 80 }
         quantity: { type: integer, minimum: 1, maximum: 1000 }
-        sale_price_rsd: { type: number, exclusiveMinimum: 0 }
+        sale_price_amount: { type: number, exclusiveMinimum: 0, description: Stvarna cena po komadu u valuti sale_price_currency. }
+        sale_price_currency: { type: string, enum: [RSD, EUR], description: Valuta u kojoj je predmet stvarno prodat. }
+        sale_price_rsd: { type: number, exclusiveMinimum: 0, deprecated: true, description: Build19 kompatibilnost; tretira se kao RSD stvarna prodajna cena. }
         payment_method: { $ref: '#/components/schemas/AdminDirectSalePaymentMethod' }
         installment_count: { type: integer, minimum: 1, maximum: 24, description: Obavezno kada je payment_method=deferred_payment. }
         payment_due_at: { type: string, format: date, description: Konačni datum pune isplate; obavezno za deferred_payment i ne sme biti u prošlosti. }
         idempotency_key: { type: string, maxLength: 200 }
     AdminDirectSaleResult:
       type: object
-      required: [order_id, order_number, status, payment_state, subtotal_rsd, quantity, sale_price_rsd, stock_quantity_after]
+      required: [order_id, order_number, status, payment_state, subtotal_rsd, quantity, sale_price_amount, sale_price_currency, sale_price_rsd, stock_quantity_after]
       properties:
         order_id: { type: integer, minimum: 1 }
         order_number: { type: string }
@@ -6393,6 +6411,8 @@ components:
         payment_state: { type: string }
         subtotal_rsd: { type: number, minimum: 0 }
         quantity: { type: integer, minimum: 1 }
+        sale_price_amount: { type: number, exclusiveMinimum: 0 }
+        sale_price_currency: { type: string, enum: [RSD, EUR] }
         sale_price_rsd: { type: number, exclusiveMinimum: 0 }
         stock_quantity_after: { type: integer, minimum: 0 }
     AdminDirectSaleResponse:
@@ -6577,7 +6597,8 @@ components:
               required: [type]
               properties:
                 type: { type: string, maxLength: 255 }
-                capacity_gb: { type: integer, minimum: 0, maximum: 10000000 }
+                capacity_gb: { type: integer, minimum: 0, maximum: 10000000, description: Canonical storage capacity in GB. }
+                display_unit: { type: string, enum: [GB, TB], description: Preferred input/display unit; capacity_gb remains canonical. }
     AdminProductCreated:
       type: object
       required: [id, slug, sku, name, status]

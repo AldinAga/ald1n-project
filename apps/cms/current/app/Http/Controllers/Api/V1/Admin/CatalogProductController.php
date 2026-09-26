@@ -319,10 +319,8 @@ final class CatalogProductController extends Controller
             $blockingReason = 'Direktna prodaja je dostupna samo za aktivan ili neaktivan artikal.';
         } elseif ((int) $product->stock_quantity < 1) {
             $blockingReason = 'Artikal trenutno nema raspoloživ lager.';
-        } elseif ($catalogUnitPriceRsd === null || $catalogUnitPriceRsd <= 0) {
-            $blockingReason = (string) $product->price_currency === 'EUR'
-                ? 'EUR/RSD kurs mora biti podešen pre direktne prodaje EUR artikla.'
-                : 'Prodajna cena artikla mora biti veća od nule.';
+        } elseif ((float) $product->price_amount <= 0) {
+            $blockingReason = 'Prodajna cena artikla mora biti veća od nule.';
         }
 
         return response()->json(['data' => [
@@ -337,6 +335,10 @@ final class CatalogProductController extends Controller
                 'catalog_unit_price_rsd' => $catalogUnitPriceRsd,
             ],
             'eur_rsd_rate' => $rate,
+            'sale_currencies' => [
+                ['value' => 'RSD', 'label' => 'RSD'],
+                ['value' => 'EUR', 'label' => 'EUR'],
+            ],
             'payment_methods' => [
                 ['value' => 'cash', 'label' => 'Gotovina'],
                 ['value' => 'card', 'label' => 'Kartica'],
@@ -364,7 +366,10 @@ final class CatalogProductController extends Controller
             'buyer_name' => ['nullable', 'string', 'max:190'],
             'buyer_phone' => ['nullable', 'string', 'max:80'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
-            'sale_price_rsd' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
+            // Build20 clients send original amount+currency; Build19 sale_price_rsd remains accepted during rollout.
+            'sale_price_amount' => ['nullable', 'required_without:sale_price_rsd', 'numeric', 'min:0.01', 'max:9999999999.99'],
+            'sale_price_currency' => ['nullable', 'required_with:sale_price_amount', \Illuminate\Validation\Rule::in(['RSD', 'EUR'])],
+            'sale_price_rsd' => ['nullable', 'required_without:sale_price_amount', 'numeric', 'min:0.01', 'max:9999999999.99'],
             'payment_method' => ['required', \Illuminate\Validation\Rule::in(['cash', 'card', 'bank_transfer', 'other', 'deferred_payment'])],
             'installment_count' => ['exclude_unless:payment_method,deferred_payment', 'required_if:payment_method,deferred_payment', 'integer', 'min:1', 'max:24'],
             'payment_due_at' => ['exclude_unless:payment_method,deferred_payment', 'required_if:payment_method,deferred_payment', 'date_format:Y-m-d', 'after_or_equal:today'],
@@ -377,6 +382,7 @@ final class CatalogProductController extends Controller
 
         $order = $sales->record($product, $actor, $data, (string) $data['idempotency_key']);
         $product->refresh();
+        $soldItem = $order->items->first();
 
         return response()->json([
             'message' => 'Direktna prodaja '.(string) $order->order_number.' je evidentirana.',
@@ -387,7 +393,9 @@ final class CatalogProductController extends Controller
                 'payment_state' => (string) $order->payment_state,
                 'subtotal_rsd' => (float) $order->subtotal_rsd,
                 'quantity' => (int) $data['quantity'],
-                'sale_price_rsd' => (float) $data['sale_price_rsd'],
+                'sale_price_amount' => (float) ($soldItem?->unit_price_original ?? 0),
+                'sale_price_currency' => (string) ($soldItem?->original_currency ?? 'RSD'),
+                'sale_price_rsd' => (float) ($soldItem?->unit_price_rsd ?? 0),
                 'stock_quantity_after' => (int) $product->stock_quantity,
             ],
         ], 201);

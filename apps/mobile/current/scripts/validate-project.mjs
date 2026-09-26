@@ -1259,25 +1259,31 @@ assert(
     && directSaleOpenApiV08.includes('AdminDirectSaleResponse'),
   'OpenAPI dokumentuje SuperAdmin Direct Sale options/record i idempotency ugovor.',
 );
-// MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21
+// MOBILE_BUILD20_DIRECT_SALE_ACTUAL_CURRENCY
 const directSaleServiceV10 = fs.readFileSync(
   path.resolve(root, '../../cms/current/app/Services/DirectSaleService.php'),
   'utf8',
 );
 assert(
-  directSaleServiceV10.includes('MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21')
-    && directSaleServiceV10.includes("if ($salePrice <= 0)")
+  directSaleServiceV10.includes('MOBILE_BUILD20_DIRECT_SALE_ACTUAL_CURRENCY')
+    && directSaleServiceV10.includes("if ($salePriceAmount <= 0)")
+    && directSaleServiceV10.includes("['RSD', 'EUR']")
+    && directSaleServiceV10.includes("'unit_price_original' => $salePriceAmount")
+    && directSaleServiceV10.includes("'original_currency' => $salePriceCurrency")
     && !directSaleServiceV10.includes('DIRECT_SALE_MAX_UNIT_PRICE_GUARD')
     && !directSaleServiceV10.includes('assertSalePriceWithinCatalogUnitPrice')
     && !directSaleServiceV10.includes('Prodajna cena po komadu ne sme biti veća od zadate cene artikla')
-    && directSaleScreenV08.includes('MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21')
+    && directSaleScreenV08.includes('Valuta stvarne prodajne cene')
+    && directSaleScreenV08.includes('sale_price_amount: price')
+    && directSaleScreenV08.includes('sale_price_currency: saleCurrency')
     && !directSaleScreenV08.includes('price > options.product.catalog_unit_price_rsd')
     && !directSaleScreenV08.includes('Cena može biti niža, ali ne može biti viša')
-    && directSaleScreenV08.includes('zadata kataloška cena služi samo kao referenca')
-    && directSaleOpenApiV08.includes('referentna kataloška RSD cena')
-    && !directSaleOpenApiV08.includes('maksimalna RSD cena')
+    && directSaleOpenApiV08.includes('sale_currencies:')
+    && directSaleOpenApiV08.includes('sale_price_amount')
+    && directSaleOpenApiV08.includes('sale_price_currency')
+    && directSaleOpenApiV08.includes('Build19 kompatibilnost')
     && !directSaleOpenApiV08.includes('maksimalna prodajna cena'),
-  'v1.0 Direct Sale dozvoljava cenu iznad kataloške uz pozitivnu cenu i SuperAdmin workflow.',
+  'Build20 Direct Sale čuva stvarni amount/currency, ostaje bez kataloškog plafona i zadržava Build19 RSD kompatibilnost.',
 );
 // MOBILE_P2_ADMIN_FOUNDATION_GAP_CLOSE_V06
 const p2AdminFoundationIndexV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
@@ -3963,15 +3969,22 @@ assert(
 assert(
   batch179ApiRoutes.includes("Route::patch('/orders/{order}/sale-price'")
     && batch179OrderApi.includes('salePriceCorrection:')
+    && batch179OrderApi.includes('new_unit_price_amount: number')
+    && batch179OrderApi.includes("new_unit_price_currency: 'RSD' | 'EUR'")
     && batch179OrderActions.includes("setPanel('sale-price-correction')")
-    && batch179OrderActions.includes('new_unit_price_rsd: amount'),
-  'Batch179 Web/API/Mobile expose the same controlled Direct Sale price correction authority.',
+    && batch179OrderActions.includes('new_unit_price_amount: amount')
+    && batch179OrderActions.includes('new_unit_price_currency: salePriceCurrency')
+    && batch179OrderActions.includes('Valuta stvarne prodajne cene'),
+  'Build20 Web/API/Mobile expose the same controlled multi-currency Direct Sale price correction authority.',
 );
 assert(
   batch179OpenApi.includes('/api/v1/admin/orders/{order}/sale-price:')
     && batch179OpenApi.includes('adminOrdersDirectSalePriceCorrection')
-    && batch179OpenApi.includes('new_unit_price_rsd'),
-  'Batch179 OpenAPI documents the controlled Direct Sale price correction route.',
+    && batch179OpenApi.includes('new_unit_price_amount')
+    && batch179OpenApi.includes('new_unit_price_currency')
+    && batch179OpenApi.includes('new_unit_price_rsd')
+    && batch179OpenApi.includes('deprecated: true'),
+  'Build20 OpenAPI documents multi-currency Direct Sale correction with legacy RSD compatibility.',
 );
 assert(
   batch179Formatters.includes('export function formatDecimal')

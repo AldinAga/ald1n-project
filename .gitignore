@@ -183,3 +183,7 @@ releases/**/*.zip
 # Production PHP runtime logs are never source/history.
 apps/cms/current/error_log
 apps/cms/current/error_log.*
+
+# Production hosting runtime logs generated at repository root.
+/error_log
+/error_log.*

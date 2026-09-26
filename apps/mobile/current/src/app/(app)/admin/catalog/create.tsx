@@ -45,6 +45,27 @@ function nonNegativeInteger(value: string): number | null {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function storageCapacityGb(row: StorageRow): number | null {
+  const amount = nonNegativeDecimal(row.capacityValue);
+  if (amount === null) return null;
+  const gb = row.unit === 'TB' ? amount * 1024 : amount;
+  const rounded = Math.round(gb);
+  if (!Number.isSafeInteger(rounded) || Math.abs(gb - rounded) > 0.000001 || rounded < 0 || rounded > 10000000) return null;
+  return rounded;
+}
+function storageInputFromGb(capacityGb: number | undefined, unit: StorageUnit): string {
+  if (capacityGb === undefined) return '';
+  const amount = unit === 'TB' ? capacityGb / 1024 : capacityGb;
+  return Number.isInteger(amount) ? String(amount) : String(Number(amount.toFixed(3)));
+}
+function storageTotalLabel(totalGb: number): string {
+  if (totalGb >= 1024) {
+    const tb = totalGb / 1024;
+    const shown = Number.isInteger(tb) ? String(tb) : String(Number(tb.toFixed(3)));
+    return `${shown} TB · ${totalGb} GB`;
+  }
+  return `${totalGb} GB`;
+}
 function optionalPositiveId(value: string): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
@@ -93,13 +114,15 @@ function selectableOptions(
 }
 
 // MOBILE_ADMIN_PRODUCT_CREATE_BATCH2B_V06
+type StorageUnit = 'GB' | 'TB';
 type StorageRow = {
   type: string;
-  capacityGb: string;
+  capacityValue: string;
+  unit: StorageUnit;
 };
 
 function emptyStorageRow(): StorageRow {
-  return { type: '', capacityGb: '' };
+  return { type: '', capacityValue: '', unit: 'GB' };
 }
 
 export default function AdminCatalogCreateScreen() {
@@ -356,7 +379,7 @@ export default function AdminCatalogCreateScreen() {
   };
 
   const storageTotal = (fieldId: number): number => (storageRows[String(fieldId)] ?? [])
-    .reduce((sum, row) => sum + (nonNegativeInteger(row.capacityGb) ?? 0), 0);
+    .reduce((sum, row) => sum + (storageCapacityGb(row) ?? 0), 0);
 
   // MOBILE_PRODUCT_CREATE_REPEATABLE_ACTIONS_DRAFT_PRESERVATION_V07
   // MOBILE_PRODUCT_CREATE_PERSISTENT_DRAFT_RETRY_V07
@@ -399,7 +422,7 @@ export default function AdminCatalogCreateScreen() {
 
     for (const field of storageFields) {
       const rows = storageRows[String(field.id)] ?? [emptyStorageRow()];
-      const hasEnteredRow = rows.some((row) => row.type.trim() || row.capacityGb.trim());
+      const hasEnteredRow = rows.some((row) => row.type.trim() || row.capacityValue.trim());
       if (!saveDraft && field.required && !hasEnteredRow) {
         nextErrors[`spec_lists.${field.id}`] = `${field.name} je obavezno polje.`;
       }
@@ -407,10 +430,10 @@ export default function AdminCatalogCreateScreen() {
         if (!saveDraft && !row.type.trim()) {
           nextErrors[`spec_lists.${field.id}.${index}`] = 'Izaberi tip diska.';
         }
-        if (row.capacityGb.trim()) {
-          const capacity = nonNegativeInteger(row.capacityGb);
-          if (capacity === null || capacity > 10000000) {
-            nextErrors[`spec_capacities.${field.id}.${index}`] = 'Kapacitet mora biti ceo broj od 0 do 10000000 GB.';
+        if (row.capacityValue.trim()) {
+          const capacity = storageCapacityGb(row);
+          if (capacity === null) {
+            nextErrors[`spec_capacities.${field.id}.${index}`] = 'Kapacitet mora dati ceo broj GB; koristi GB ili TB (npr. 512 GB, 1 TB, 1.5 TB).';
           }
         } else if (!saveDraft && row.type.trim()) {
           nextErrors[`spec_capacities.${field.id}.${index}`] = 'Unesi kapacitet diska.';
@@ -433,7 +456,7 @@ export default function AdminCatalogCreateScreen() {
     const cleanDetails: Record<string, string> = {};
     const cleanSpecLists: Record<string, string[]> = {};
     const cleanSpecCapacities: Record<string, number[]> = {};
-    const cleanSpecStructured: Record<string, Array<{ type: string; capacity_gb?: number }>> = {};
+    const cleanSpecStructured: Record<string, Array<{ type: string; capacity_gb?: number; display_unit?: 'GB' | 'TB' }>> = {};
     for (const field of standardSpecificationFields) {
       const key = String(field.id);
       const value = (specs[key] ?? '').trim();
@@ -445,10 +468,11 @@ export default function AdminCatalogCreateScreen() {
     for (const field of storageFields) {
       const key = String(field.id);
       const rows = (storageRows[key] ?? [])
-        .filter((row) => row.type.trim() || row.capacityGb.trim())
+        .filter((row) => row.type.trim() || row.capacityValue.trim())
         .map((row) => ({
           type: row.type.trim(),
-          capacity_gb: nonNegativeInteger(row.capacityGb) ?? 0,
+          capacity_gb: storageCapacityGb(row) ?? 0,
+          display_unit: row.unit,
         }));
       const firstRow = rows[0];
       if (!firstRow) continue;
@@ -605,7 +629,7 @@ export default function AdminCatalogCreateScreen() {
                   <View style={styles.storageTotalBox}>
                     <Text style={styles.storageTotalLabel}>{repeater.total_field_name}</Text>
                     <Text style={styles.storageTotalValue}>
-                      {total} {repeater.total_unit ?? repeater.capacity_unit}
+                      {storageTotalLabel(total)}
                     </Text>
                   </View>
                 </View>
@@ -626,15 +650,24 @@ export default function AdminCatalogCreateScreen() {
                       onChange={(next) => updateStorageRow(field.id, index, { type: next })}
                       error={errors[`spec_lists.${field.id}.${index}`] ?? errors[`spec_structured.${field.id}.${index}.type`]}
                     />
-                    <TextField
-                      label={`Kapacitet (${repeater.capacity_unit})`}
-                      value={row.capacityGb}
-                      onChangeText={(next) => updateStorageRow(field.id, index, { capacityGb: next })}
-                      keyboardType="number-pad"
-                      error={errors[`spec_capacities.${field.id}.${index}`] ?? errors[`spec_structured.${field.id}.${index}.capacity_gb`]}
-                      placeholder="npr. 512"
-                    />
-                    {rows.length > 1 || row.type || row.capacityGb ? (
+                    <View style={styles.storageCapacityRow}>
+                      <TextField
+                        label="Kapacitet"
+                        value={row.capacityValue}
+                        onChangeText={(next) => updateStorageRow(field.id, index, { capacityValue: next })}
+                        keyboardType="decimal-pad"
+                        error={errors[`spec_capacities.${field.id}.${index}`] ?? errors[`spec_structured.${field.id}.${index}.capacity_gb`]}
+                        placeholder={row.unit === 'TB' ? 'npr. 1 ili 1.5' : 'npr. 512'}
+                      />
+                      <SelectSheet
+                        label="Jedinica"
+                        value={row.unit}
+                        options={[{ value: 'GB', label: 'GB' }, { value: 'TB', label: 'TB' }]}
+                        onChange={(value) => { if (value === 'GB' || value === 'TB') updateStorageRow(field.id, index, { unit: value }); }}
+                        error={errors[`spec_structured.${field.id}.${index}.display_unit`]}
+                      />
+                    </View>
+                    {rows.length > 1 || row.type || row.capacityValue ? (
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`Ukloni disk ${index + 1}`}
@@ -867,6 +900,7 @@ function createStyles(theme: AppColors) {
     storageTotalLabel: { ...typography.small, color: theme.muted, textAlign: 'right' },
     storageTotalValue: { ...typography.h3, color: theme.primary },
     storageRow: { gap: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
+    storageCapacityRow: { gap: spacing.sm },
     storageRowTitle: { ...typography.label, color: theme.ink },
     inlineError: { ...typography.small, color: theme.danger },
     submitProgress: { ...typography.small, color: theme.muted, textAlign: 'center' },

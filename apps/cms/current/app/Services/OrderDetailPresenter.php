@@ -451,6 +451,9 @@ final class OrderDetailPresenter
             ->map(function (Model $item): array {
                 $quantity = max(0, $this->integer($item, 'quantity'));
                 $unit = $this->number($item, 'unit_price_rsd');
+                $originalAmount = $this->number($item, 'unit_price_original', $unit);
+                $originalCurrency = strtoupper($this->text($item, 'original_currency', 'RSD'));
+                if (!in_array($originalCurrency, ['RSD', 'EUR'], true)) $originalCurrency = 'RSD';
                 $line = $this->number($item, 'line_total_rsd', $unit * $quantity);
                 $commission = $this->number($item, 'commission_total_eur_snapshot');
 
@@ -459,6 +462,9 @@ final class OrderDetailPresenter
                     'sku' => $this->text($item, 'product_sku', '—'),
                     'quantity' => $quantity,
                     'unit_price_rsd' => round($unit, 2),
+                    'unit_price_original' => round($originalAmount, 2),
+                    'original_currency' => $originalCurrency,
+                    'unit_price_original_display' => $this->money($originalAmount, $originalCurrency),
                     'line_total_rsd' => round($line, 2),
                     'unit_price' => $this->money($unit, 'RSD'),
                     'line_total' => $this->money($line, 'RSD'),

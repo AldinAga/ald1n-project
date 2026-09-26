@@ -56,7 +56,7 @@ final class StorageSpecificationService
         }
     }
 
-    /** @param array<int,array<string,mixed>> $rows @return array<int,array{type:string,capacity_gb:?int}> */
+    /** @param array<int,array<string,mixed>> $rows @return array<int,array{type:string,capacity_gb:?int,display_unit:string}> */
     public function normalizeRows(array $rows, ?int $fallbackTotal = null): array
     {
         $normalized = [];
@@ -64,8 +64,12 @@ final class StorageSpecificationService
             if (!is_array($row)) continue;
             $type = $this->cut(trim((string) ($row['type'] ?? '')), 255);
             $capacity = $this->normalizeCapacity($row['capacity_gb'] ?? null);
+            $displayUnit = strtoupper(trim((string) ($row['display_unit'] ?? '')));
+            if (!in_array($displayUnit, ['GB', 'TB'], true)) {
+                $displayUnit = $capacity !== null && $capacity >= 1024 && $capacity % 1024 === 0 ? 'TB' : 'GB';
+            }
             if ($type === '' && $capacity === null) continue;
-            $normalized[] = ['type' => $type, 'capacity_gb' => $capacity];
+            $normalized[] = ['type' => $type, 'capacity_gb' => $capacity, 'display_unit' => $displayUnit];
         }
 
         if ($fallbackTotal !== null && $fallbackTotal > 0 && $normalized !== []) {
@@ -79,15 +83,19 @@ final class StorageSpecificationService
         return $normalized;
     }
 
-    /** @return array<int,array{type:string,capacity_gb:?int}> */
+    /** @return array<int,array{type:string,capacity_gb:?int,display_unit:string}> */
     public function parseLegacyText(?string $value, ?int $fallbackTotal = null): array
     {
         $rows = [];
         foreach (preg_split('/\s*\+\s*/u', trim((string) $value), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $part) {
-            preg_match('/^(.*?)(?:\s+(\d+)\s*GB)?$/iu', trim($part), $match);
+            preg_match('/^(.*?)(?:\s+(\d+(?:[.,]\d+)?)\s*(GB|TB))?$/iu', trim($part), $match);
+            $unit = strtoupper((string) ($match[3] ?? 'GB'));
+            $amount = isset($match[2]) && $match[2] !== '' ? (float) str_replace(',', '.', (string) $match[2]) : null;
+            $capacityGb = $amount === null ? null : (int) round($amount * ($unit === 'TB' ? 1024 : 1));
             $rows[] = [
                 'type' => $this->cut(trim((string) ($match[1] ?? $part)), 255),
-                'capacity_gb' => isset($match[2]) && $match[2] !== '' ? (int) $match[2] : null,
+                'capacity_gb' => $capacityGb,
+                'display_unit' => in_array($unit, ['GB', 'TB'], true) ? $unit : 'GB',
             ];
         }
 
@@ -100,13 +108,18 @@ final class StorageSpecificationService
         return array_sum(array_map(static fn (array $row): int => max(0, (int) ($row['capacity_gb'] ?? 0)), $rows));
     }
 
-    /** @param array<int,array{type:string,capacity_gb:?int}> $rows */
+    /** @param array<int,array{type:string,capacity_gb:?int,display_unit?:string}> $rows */
     public function displayRows(array $rows): string
     {
         return implode(' + ', array_values(array_filter(array_map(static function (array $row): string {
             $type = trim((string) ($row['type'] ?? ''));
             $capacity = $row['capacity_gb'] ?? null;
-            return trim($type.($capacity !== null ? ' '.(int) $capacity.' GB' : ''));
+            $unit = strtoupper(trim((string) ($row['display_unit'] ?? 'GB')));
+            if (!in_array($unit, ['GB', 'TB'], true)) $unit = 'GB';
+            if ($capacity === null) return $type;
+            $amount = $unit === 'TB' ? ((int) $capacity / 1024) : (int) $capacity;
+            $formatted = rtrim(rtrim(number_format($amount, 3, '.', ''), '0'), '.');
+            return trim($type.' '.$formatted.' '.$unit);
         }, $rows), static fn (string $value): bool => $value !== '')));
     }
 

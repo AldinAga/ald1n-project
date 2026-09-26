@@ -860,7 +860,7 @@ export type AdminProductCreateInput = {
   spec_details?: Record<string, string>;
   spec_lists?: Record<string, string[]>;
   spec_capacities?: Record<string, number[]>;
-  spec_structured?: Record<string, Array<{ type: string; capacity_gb?: number }>>;
+  spec_structured?: Record<string, Array<{ type: string; capacity_gb?: number; display_unit?: 'GB' | 'TB' }>>;
 };
 
 export type AdminProductCreated = {

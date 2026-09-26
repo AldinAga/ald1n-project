@@ -157,6 +157,8 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const shipping = asRecord(data.shipping);
   const shipment = asRecord(data.shipment);
   const actions = asRecord(data.actions);
+  const items = asRecords(data.items);
+  const firstItem = items[0] ?? null;
   const payments = asRecords(data.payments);
   // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
   const couriers = asRecords(data.couriers);
@@ -196,7 +198,8 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
   const [paymentLedgerAction, setPaymentLedgerAction] = useState<'verify' | 'reject' | 'void'> ('verify');
   const [paymentRejectReason, setPaymentRejectReason] = useState('');
-  const [salePrice, setSalePrice] = useState('');
+  const [salePrice, setSalePrice] = useState(recordText(firstItem, 'unit_price_original', recordText(firstItem, 'unit_price_rsd')));
+  const [salePriceCurrency, setSalePriceCurrency] = useState<'RSD' | 'EUR'> (recordText(firstItem, 'original_currency') === 'EUR' ? 'EUR' : 'RSD');
   const [salePriceReason, setSalePriceReason] = useState('');
   const [shipmentMethod, setShipmentMethod] = useState<AdminOrderShipmentMethod> ('courier');
   const [courierServiceId, setCourierServiceId] = useState(defaultCourierId);
@@ -296,10 +299,11 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
 
   function submitSalePriceCorrection(): void {
     const amount = Number(salePrice.replace(',', '.'));
-    if (!Number.isFinite(amount) || amount <= 0) return notifyInputError(feedback, 'Unesi ispravnu novu prodajnu cenu u RSD.');
+    if (!Number.isFinite(amount) || amount <= 0) return notifyInputError(feedback, 'Unesi ispravnu novu prodajnu cenu.');
     if (salePriceReason.trim().length < 3) return notifyInputError(feedback, 'Unesi razlog korekcije.');
     execute('sale-price-correction', 'Prodajna cena je korigovana', () => apiAdminOrders.salePriceCorrection(orderId, {
-      new_unit_price_rsd: amount,
+      new_unit_price_amount: amount,
+      new_unit_price_currency: salePriceCurrency,
       reason: salePriceReason.trim(),
     }));
   }
@@ -479,7 +483,8 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
       {panel === 'sale-price-correction' ? (
         <ActionPanel title="Korekcija Direct Sale cene" onClose={() => setPanel(null)} styles={styles}>
           <Text style={styles.warning}>Ova akcija menja stavku, subtotal i originalnu verifikovanu uplatu. Server dozvoljava samo bezbedne Direct Sale slucajeve i upisuje audit trag.</Text>
-          <MoneyField label="Nova jedinicna prodajna cena" value={salePrice} onChangeText={setSalePrice} currency="RSD" required />
+          <SelectSheet label="Valuta stvarne prodajne cene" value={salePriceCurrency} options={[{ value: 'RSD', label: 'RSD' }, { value: 'EUR', label: 'EUR' }]} onChange={(value) => { if (value === 'RSD' || value === 'EUR') setSalePriceCurrency(value); }} />
+          <MoneyField label="Nova jedinicna prodajna cena" value={salePrice} onChangeText={setSalePrice} currency={salePriceCurrency} required />
           <TextField label="Razlog korekcije" value={salePriceReason} onChangeText={setSalePriceReason} multiline />
           <Button loading={busy('sale-price-correction')} onPress={submitSalePriceCorrection}>Potvrdi korekciju</Button>
         </ActionPanel>

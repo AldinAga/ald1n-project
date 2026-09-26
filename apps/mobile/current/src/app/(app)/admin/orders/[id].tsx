@@ -224,6 +224,7 @@ export default function AdminOrdersDetailScreen() {
                 <Text style={styles.itemTitle}>{text(item, 'name', text(item, 'product_name', `Stavka ${index + 1}`))}</Text>
                 <Text style={styles.muted}>SKU: {text(item, 'sku', text(item, 'product_sku'))}</Text>
                 <Text style={styles.muted}>Kolicina: {text(item, 'quantity', '1')}</Text>
+                {text(item, 'unit_price_original_display') ? <Text style={styles.muted}>Cena po komadu: {text(item, 'unit_price_original_display')}</Text> : null}
               </View>
               <Text style={styles.itemValue}>{text(item, 'line_total', moneyRsd(numberValue(item, 'line_total_rsd')))}</Text>
             </View>

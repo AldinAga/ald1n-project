@@ -47,6 +47,24 @@ final class DirectSaleService
         }
         $buyerPhone = trim((string) ($input['buyer_phone'] ?? ''));
 
+        // MOBILE_BUILD20_DIRECT_SALE_ACTUAL_CURRENCY
+        $legacyRsd = !array_key_exists('sale_price_amount', $input) && array_key_exists('sale_price_rsd', $input);
+        $salePriceAmount = round((float) ($input['sale_price_amount'] ?? $input['sale_price_rsd'] ?? 0), 2);
+        $salePriceCurrency = $legacyRsd ? 'RSD' : strtoupper(trim((string) ($input['sale_price_currency'] ?? '')));
+        if ($salePriceAmount <= 0) {
+            throw ValidationException::withMessages(['sale_price_amount' => 'Prodajna cena mora biti veća od nule.']);
+        }
+        if (!in_array($salePriceCurrency, ['RSD', 'EUR'], true)) {
+            throw ValidationException::withMessages(['sale_price_currency' => 'Valuta direktne prodaje mora biti RSD ili EUR.']);
+        }
+        $rateForInput = $this->settings->eurRsdRate();
+        if ($salePriceCurrency === 'EUR' && ($rateForInput === null || $rateForInput <= 0)) {
+            throw ValidationException::withMessages(['sale_price_currency' => 'EUR/RSD kurs mora biti podešen pre direktne prodaje u EUR.']);
+        }
+        $salePriceRsdForInput = $salePriceCurrency === 'EUR'
+            ? round($salePriceAmount * (float) $rateForInput, 2)
+            : $salePriceAmount;
+
         // MOBILE_V0_9_DIRECT_SALE_DEFERRED_PAYMENT_RECEIVABLES_BATCH5B_V2
         $installmentCount = null;
         $paymentDueAt = null;
@@ -76,7 +94,7 @@ final class DirectSaleService
                 $customInstallments = $this->normalizeCustomDeferredInstallments(
                     $customInput,
                     $installmentCount,
-                    round((float) ($input['sale_price_rsd'] ?? 0) * (int) ($input['quantity'] ?? 0), 2),
+                    round($salePriceRsdForInput * (int) ($input['quantity'] ?? 0), 2),
                     $paymentDueAt,
                 );
                 $firstPaymentMethod = trim((string) ($input['first_payment_method'] ?? ''));
@@ -93,7 +111,8 @@ final class DirectSaleService
             'buyer_name' => $buyerName,
             'buyer_phone' => $buyerPhone !== '' ? $buyerPhone : null,
             'quantity' => (int) ($input['quantity'] ?? 0),
-            'sale_price_rsd' => round((float) ($input['sale_price_rsd'] ?? 0), 2),
+            'sale_price_amount' => $salePriceAmount,
+            'sale_price_currency' => $salePriceCurrency,
             'payment_method' => $paymentMethod,
         ];
         if ($paymentMethod === 'deferred_payment') {
@@ -153,7 +172,7 @@ final class DirectSaleService
         ]) ?? $order;
     }
 
-    /** @param array{product_id:int,buyer_name:string,buyer_phone:?string,quantity:int,sale_price_rsd:float,payment_method:string,installment_count?:int,payment_due_at?:string,installments?:list<array{due_at:string,amount_rsd:float,note:string}>,first_payment_method?:string} $payload */
+    /** @param array{product_id:int,buyer_name:string,buyer_phone:?string,quantity:int,sale_price_amount:float,sale_price_currency:string,payment_method:string,installment_count?:int,payment_due_at?:string,installments?:list<array{due_at:string,amount_rsd:float,note:string}>,first_payment_method?:string} $payload */
     private function recordInTransaction(Product $product, User $actor, array $payload, string $idempotencyKey): Order
     {
         $lockedProduct = Product::query()
@@ -177,22 +196,24 @@ final class DirectSaleService
             ]);
         }
 
-        $salePrice = round($payload['sale_price_rsd'], 2);
-        if ($salePrice <= 0) {
-            throw ValidationException::withMessages([
-                'sale_price_rsd' => 'Prodajna cena mora biti veća od nule.',
-            ]);
+        $salePriceAmount = round((float) $payload['sale_price_amount'], 2);
+        $salePriceCurrency = strtoupper((string) $payload['sale_price_currency']);
+        if ($salePriceAmount <= 0) {
+            throw ValidationException::withMessages(['sale_price_amount' => 'Prodajna cena mora biti veća od nule.']);
+        }
+        if (!in_array($salePriceCurrency, ['RSD', 'EUR'], true)) {
+            throw ValidationException::withMessages(['sale_price_currency' => 'Valuta direktne prodaje mora biti RSD ili EUR.']);
         }
 
-        // MOBILE_V1_0_DIRECT_SALE_UNBOUNDED_PRICE_BATCH21
-        // The catalog price is a reference/default, not a ceiling. The entered sale price
-        // remains SuperAdmin-only and must still be a positive RSD amount.
+        // MOBILE_BUILD20_DIRECT_SALE_ACTUAL_CURRENCY
+        // Original amount/currency are preserved on OrderItem; all financial ledgers remain canonical RSD.
         $rate = $this->settings->eurRsdRate();
-        if ((string) $lockedProduct->price_currency === 'EUR' && ($rate === null || $rate <= 0)) {
-            throw ValidationException::withMessages([
-                'sale_price_rsd' => 'EUR/RSD kurs mora biti podešen pre direktne prodaje EUR artikla.',
-            ]);
+        if ($salePriceCurrency === 'EUR' && ($rate === null || $rate <= 0)) {
+            throw ValidationException::withMessages(['sale_price_currency' => 'EUR/RSD kurs mora biti podešen pre direktne prodaje u EUR.']);
         }
+        $salePrice = $salePriceCurrency === 'EUR'
+            ? round($salePriceAmount * (float) $rate, 2)
+            : $salePriceAmount;
         $quantityBefore = (int) $lockedProduct->stock_quantity;
 
         if ($quantityBefore < $quantity) {
@@ -259,8 +280,8 @@ final class DirectSaleService
             'product_sku' => (string) $lockedProduct->sku,
             'product_name' => (string) $lockedProduct->name,
             'quantity' => $quantity,
-            'unit_price_original' => $salePrice,
-            'original_currency' => 'RSD',
+            'unit_price_original' => $salePriceAmount,
+            'original_currency' => $salePriceCurrency,
             'unit_price_rsd' => $salePrice,
             'line_total_rsd' => $lineTotal,
             'purchase_unit_rsd_snapshot' => $purchaseUnit,
@@ -352,7 +373,10 @@ final class DirectSaleService
                 'product_id' => (int) $lockedProduct->id,
                 'customer_mode' => 'walk_in',
                 'quantity' => $quantity,
+                'sale_price_amount' => $salePriceAmount,
+                'sale_price_currency' => $salePriceCurrency,
                 'sale_price_rsd' => $salePrice,
+                'eur_rsd_rate' => $rate,
                 'payment_method' => $payload['payment_method'],
                 'installment_count' => $deferred ? (int) $payload['installment_count'] : null,
                 'payment_due_at' => $deferred ? (string) $payload['payment_due_at'] : null,

@@ -205,7 +205,7 @@ export type AdminOrderDeadlinesInput = {
   expected_shipping_at?: string | null;
 };
 
-export type AdminOrderSalePriceCorrectionInput = { new_unit_price_rsd: number; reason: string };
+export type AdminOrderSalePriceCorrectionInput = { new_unit_price_amount: number; new_unit_price_currency: 'RSD' | 'EUR'; new_unit_price_rsd?: number; reason: string };
 
 export type AdminOrderPaymentEntryInput = {
   entry_type: AdminOrderPaymentEntryType;

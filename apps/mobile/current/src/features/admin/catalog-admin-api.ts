@@ -66,6 +66,7 @@ export type AdminCatalogProductListResponse = {
 export type AdminCatalogStructuredSpec = {
   type: string;
   capacity_gb?: number;
+  display_unit?: 'GB' | 'TB';
 };
 
 export type AdminCatalogProductDetail = {
@@ -210,6 +211,7 @@ export type AdminDirectSaleOptions = {
     catalog_unit_price_rsd: number | null;
   };
   eur_rsd_rate: number | null;
+  sale_currencies: Array<{ value: 'RSD' | 'EUR'; label: string }>;
   payment_methods: Array<{ value: AdminDirectSalePaymentMethod; label: string }>;
   idempotency_key: string;
   can_submit: boolean;
@@ -220,7 +222,9 @@ export type AdminDirectSaleInput = {
   buyer_name?: string;
   buyer_phone?: string;
   quantity: number;
-  sale_price_rsd: number;
+  sale_price_amount: number;
+  sale_price_currency: 'RSD' | 'EUR';
+  sale_price_rsd?: number;
   payment_method: AdminDirectSalePaymentMethod;
   installment_count?: number;
   payment_due_at?: string;
@@ -238,6 +242,8 @@ export type AdminDirectSaleResponse = {
     payment_state: string;
     subtotal_rsd: number;
     quantity: number;
+    sale_price_amount: number;
+    sale_price_currency: 'RSD' | 'EUR';
     sale_price_rsd: number;
     stock_quantity_after: number;
   };

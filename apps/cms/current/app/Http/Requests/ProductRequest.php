@@ -73,6 +73,7 @@ final class ProductRequest extends FormRequest
             'spec_structured.*' => ['array', 'max:8'],
             'spec_structured.*.*.type' => [$webDraft ? 'nullable' : 'required', 'string', 'max:255'],
             'spec_structured.*.*.capacity_gb' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'spec_structured.*.*.display_unit' => ['nullable', Rule::in(['GB', 'TB'])],
             'images' => ['array', 'max:20'],
             'images.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ];
@@ -219,6 +220,7 @@ final class ProductRequest extends FormRequest
         ])->find($typeId) : null;
         $allowedFieldKeys = $type?->fields->pluck('id')->mapWithKeys(static fn ($id): array => [(int) $id => true])->all() ?? [];
         $specs = (array) $this->input('specs', []);
+        $incomingStructured = (array) $this->input('spec_structured', []);
         $structured = [];
         $capacityLists = (array) $this->input('spec_capacities', []);
 
@@ -233,8 +235,17 @@ final class ProductRequest extends FormRequest
                 if ($diskType === '' && $capacityRaw === '') continue;
 
                 $capacity = $capacityRaw === '' ? null : $capacityRaw;
-                $rows[] = ['type' => $diskType, 'capacity_gb' => $capacity];
-                $display[] = trim($diskType.($capacity !== null ? ' '.$capacity.' GB' : ''));
+                $incomingRow = is_array($incomingStructured[$fieldId][$index] ?? null) ? $incomingStructured[$fieldId][$index] : [];
+                $displayUnit = strtoupper(trim((string) ($incomingRow['display_unit'] ?? 'GB')));
+                if (!in_array($displayUnit, ['GB', 'TB'], true)) $displayUnit = 'GB';
+                $rows[] = ['type' => $diskType, 'capacity_gb' => $capacity, 'display_unit' => $displayUnit];
+                if ($capacity !== null) {
+                    $amount = $displayUnit === 'TB' ? ((int) $capacity / 1024) : (int) $capacity;
+                    $shown = rtrim(rtrim(number_format($amount, 3, '.', ''), '0'), '.');
+                    $display[] = trim($diskType.' '.$shown.' '.$displayUnit);
+                } else {
+                    $display[] = $diskType;
+                }
             }
             $structured[$fieldId] = $rows;
             $specs[$fieldId] = implode(' + ', array_filter($display, static fn (string $value): bool => $value !== ''));

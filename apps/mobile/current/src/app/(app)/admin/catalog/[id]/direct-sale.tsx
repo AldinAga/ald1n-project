@@ -52,9 +52,10 @@ function positiveDecimal(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function moneyRsd(value: number): string {
-  return `${new Intl.NumberFormat('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} RSD`;
+function money(value: number, currency: 'RSD' | 'EUR'): string {
+  return `${new Intl.NumberFormat('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} ${currency}`;
 }
+function moneyRsd(value: number): string { return money(value, 'RSD'); }
 
 type InstallmentDraft = { amount: string; dueAt: string };
 
@@ -111,7 +112,8 @@ export default function AdminProductDirectSaleScreen() {
   const [buyerName, setBuyerName] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [salePriceRsd, setSalePriceRsd] = useState('');
+  const [salePriceAmount, setSalePriceAmount] = useState('');
+  const [saleCurrency, setSaleCurrency] = useState<'RSD' | 'EUR'> ('RSD');
   const [paymentMethod, setPaymentMethod] = useState<AdminDirectSalePaymentMethod> ('cash');
   const [installmentCount, setInstallmentCount] = useState('3');
   const [firstPaymentMethod, setFirstPaymentMethod] = useState<AdminDirectSaleImmediatePaymentMethod> ('cash');
@@ -132,9 +134,8 @@ export default function AdminProductDirectSaleScreen() {
     const options = optionsQuery.data;
     if (!options || idempotencyKey) return;
     setIdempotencyKey(options.idempotency_key);
-    if (options.product.catalog_unit_price_rsd !== null) {
-      setSalePriceRsd(options.product.catalog_unit_price_rsd.toFixed(2));
-    }
+    setSalePriceAmount(Number(options.product.catalog_price_amount).toFixed(2));
+    setSaleCurrency(options.product.catalog_price_currency === 'EUR' ? 'EUR' : 'RSD');
   }, [optionsQuery.data, idempotencyKey]);
 
   const saleMutation = useMutation({
@@ -181,9 +182,15 @@ export default function AdminProductDirectSaleScreen() {
 
   const options = optionsQuery.data;
   const parsedQuantity = positiveInteger(quantity);
-  const parsedPrice = positiveDecimal(salePriceRsd);
-  const total = parsedQuantity !== null && parsedPrice !== null ? parsedQuantity * parsedPrice : null;
-  const expectedInstallmentCents = total !== null ? Math.round(total * 100) : null;
+  const parsedPrice = positiveDecimal(salePriceAmount);
+  const saleUnitRsd = parsedPrice === null
+    ? null
+    : saleCurrency === 'EUR'
+      ? (options.eur_rsd_rate !== null ? parsedPrice * options.eur_rsd_rate : null)
+      : parsedPrice;
+  const totalOriginal = parsedQuantity !== null && parsedPrice !== null ? parsedQuantity * parsedPrice : null;
+  const totalRsd = parsedQuantity !== null && saleUnitRsd !== null ? parsedQuantity * saleUnitRsd : null;
+  const expectedInstallmentCents = totalRsd !== null ? Math.round(totalRsd * 100) : null;
   const installmentTotalCents = installmentRows.reduce((sum, row) => {
     const amount = positiveDecimal(row.amount);
     return sum + (amount === null ? 0 : Math.round(amount * 100));
@@ -225,11 +232,13 @@ export default function AdminProductDirectSaleScreen() {
   const prepareSubmission = () => {
     const nextErrors: Record<string, string> = {};
     const qty = positiveInteger(quantity);
-    const price = positiveDecimal(salePriceRsd);
+    const price = positiveDecimal(salePriceAmount);
+    const unitRsd = price === null ? null : (saleCurrency === 'EUR' ? (options.eur_rsd_rate !== null ? price * options.eur_rsd_rate : null) : price);
 
     if (qty === null || qty > 1000) nextErrors.quantity = 'Količina mora biti ceo broj između 1 i 1000.';
     else if (qty > options.product.stock_quantity) nextErrors.quantity = 'Količina je veća od raspoloživog lagera.';
-    if (price === null) nextErrors.sale_price_rsd = 'Prodajna cena mora biti veća od nule.';
+    if (price === null) nextErrors.sale_price_amount = 'Prodajna cena mora biti veća od nule.';
+    if (saleCurrency === 'EUR' && options.eur_rsd_rate === null) nextErrors.sale_price_currency = 'EUR/RSD kurs nije dostupan za prodaju u EUR.';
 
     const deferred = paymentMethod === 'deferred_payment';
     const count = deferred ? positiveInteger(installmentCount) : null;
@@ -267,7 +276,7 @@ export default function AdminProductDirectSaleScreen() {
           }
         });
 
-        const expectedCents = price !== null && qty !== null ? Math.round(price * qty * 100) : null;
+        const expectedCents = unitRsd !== null && qty !== null ? Math.round(unitRsd * qty * 100) : null;
         if (expectedCents !== null && sumCents !== expectedCents) {
           nextErrors.installments = 'Zbir rata mora biti jednak ukupnoj vrednosti direktne prodaje.';
         }
@@ -285,6 +294,7 @@ export default function AdminProductDirectSaleScreen() {
       Object.keys(nextErrors).length > 0
       || qty === null
       || price === null
+      || unitRsd === null
       || !idempotencyKey
       || (deferred && (count === null || !normalizedInstallments || !finalDueAt))
     ) {
@@ -296,7 +306,8 @@ export default function AdminProductDirectSaleScreen() {
       buyer_name: buyerName.trim() || undefined,
       buyer_phone: buyerPhone.trim() || undefined,
       quantity: qty,
-      sale_price_rsd: price,
+      sale_price_amount: price,
+      sale_price_currency: saleCurrency,
       payment_method: paymentMethod,
       installment_count: deferred && count !== null ? count : undefined,
       payment_due_at: deferred ? finalDueAt : undefined,
@@ -382,16 +393,24 @@ export default function AdminProductDirectSaleScreen() {
           keyboardType="number-pad"
           error={errors.quantity}
         />
+        <SelectSheet
+          label="Valuta stvarne prodajne cene"
+          value={saleCurrency}
+          options={options.sale_currencies.map((currency) => ({ value: currency.value, label: currency.label }))}
+          onChange={(value) => { if (value === 'RSD' || value === 'EUR') setSaleCurrency(value); }}
+          error={errors.sale_price_currency}
+        />
         <TextField
-          label="Prodajna cena po komadu (RSD)"
-          value={salePriceRsd}
-          onChangeText={setSalePriceRsd}
+          label={`Prodajna cena po komadu (${saleCurrency})`}
+          value={salePriceAmount}
+          onChangeText={setSalePriceAmount}
           keyboardType="decimal-pad"
-          error={errors.sale_price_rsd}
+          error={errors.sale_price_amount ?? errors.sale_price_rsd}
         />
         <Text style={styles.help}>
-          Unesi pozitivnu prodajnu cenu po komadu; zadata kataloška cena služi samo kao referenca.
+          Unesi stvarnu cenu i valutu u kojoj je predmet prodat. Finansijski ledger se čuva u RSD; EUR prodaja koristi zabeleženi EUR/RSD kurs.
         </Text>
+        {saleCurrency === 'EUR' && saleUnitRsd !== null ? <Text style={styles.meta}>RSD protivvrednost po komadu: {moneyRsd(saleUnitRsd)}</Text> : null}
         <SelectSheet
           label="Način plaćanja"
           value={paymentMethod}
@@ -467,7 +486,8 @@ export default function AdminProductDirectSaleScreen() {
 
       <Card muted style={styles.totalCard}>
         <Text style={styles.totalLabel}>Ukupna prodaja</Text>
-        <Text style={styles.totalValue}>{total !== null ? moneyRsd(total) : '—'}</Text>
+        <Text style={styles.totalValue}>{totalOriginal !== null ? money(totalOriginal, saleCurrency) : '—'}</Text>
+        {saleCurrency === 'EUR' && totalRsd !== null ? <Text style={styles.meta}>Finansijska RSD protivvrednost: {moneyRsd(totalRsd)}</Text> : null}
         <Text style={styles.help}>
           {paymentMethod === 'deferred_payment'
             ? 'Artikal se odmah smatra isporučenim i lager se umanjuje, ali dug ostaje otvoren i prati se kroz Potraživanja do pune isplate.'
@@ -489,7 +509,7 @@ export default function AdminProductDirectSaleScreen() {
         visible={confirmOpen}
         title="Potvrdi direktnu prodaju"
         message={pendingPayload
-          ? `Evidentira se ${pendingPayload.quantity} kom. po ${moneyRsd(pendingPayload.sale_price_rsd)}.${pendingPayload.payment_method === 'deferred_payment' ? ` Plan: ${pendingPayload.installment_count} rata, prva rata ${pendingPayload.installments?.[0] ? moneyRsd(pendingPayload.installments[0].amount_rsd) : '—'} odmah, puna isplata do ${pendingPayload.payment_due_at}.` : ''} Lager će odmah biti umanjen.`
+          ? `Evidentira se ${pendingPayload.quantity} kom. po ${money(pendingPayload.sale_price_amount, pendingPayload.sale_price_currency)}.${pendingPayload.payment_method === 'deferred_payment' ? ` Plan se vodi u RSD: ${pendingPayload.installment_count} rata, prva rata ${pendingPayload.installments?.[0] ? moneyRsd(pendingPayload.installments[0].amount_rsd) : '—'} odmah, puna isplata do ${pendingPayload.payment_due_at}.` : ''} Lager će odmah biti umanjen.`
           : 'Proveri podatke prodaje.'}
         confirmLabel="Potvrdi prodaju"
         cancelLabel="Odustani"
