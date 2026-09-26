@@ -88,6 +88,17 @@ module.exports = ({ config }) => {
     plugins: [
       'expo-router',
 
+      // MOBILE_BUILD21_ANDROID_R8_DEX_OPTIMIZATION_BATCH494
+      [
+        'expo-build-properties',
+        {
+          android: {
+            enableMinifyInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+          },
+        },
+      ],
+
       [
         'expo-splash-screen',
         {

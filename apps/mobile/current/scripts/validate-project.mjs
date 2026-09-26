@@ -166,6 +166,18 @@ assert(packageJson.dependencies?.['expo-status-bar'] === '~57.0.1', 'Expo Status
 assert(packageJson.dependencies?.['expo-file-system'] === '~57.0.6' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~57.0.6' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '57.0.6', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
 assert(packageJson.dependencies?.['expo-sharing'] === '~57.0.18' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~57.0.18' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '57.0.18', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
 
+// MOBILE_BUILD21_ANDROID_R8_DEX_OPTIMIZATION_BATCH494_VALIDATOR
+const androidR8ConfigBuild21 = fs.readFileSync(path.join(root, 'app.config.js'), 'utf8');
+assert(
+  packageJson.dependencies?.['expo-build-properties'] === '~57.0.22'
+    && packageLockJson.packages?.['']?.dependencies?.['expo-build-properties'] === '~57.0.22'
+    && packageLockJson.packages?.['node_modules/expo-build-properties']?.version === '57.0.22'
+    && androidR8ConfigBuild21.includes("'expo-build-properties'")
+    && androidR8ConfigBuild21.includes('enableMinifyInReleaseBuilds: true')
+    && androidR8ConfigBuild21.includes('enableShrinkResourcesInReleaseBuilds: true'),
+  'Build21 Android release koristi SDK57 expo-build-properties, R8 minify i resource shrinking.',
+);
+
 // MOBILE_V0_8_EXPO_SDK57_COMPATIBILITY_MATRIX
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH21A_V3
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH45_V5
