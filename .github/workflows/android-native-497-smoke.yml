@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - audit/android-native-497
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -50,6 +53,5 @@ jobs:
           set -euo pipefail
           echo "HEAD=$(git rev-parse HEAD)"
           echo "BRANCH=$(git branch --show-current)"
-          test "$(git branch --show-current)" = "audit/android-native-497"
           test -f apps/mobile/current/package.json
           echo "SMOKE_497_RESULT=PASS"
