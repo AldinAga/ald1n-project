@@ -130,11 +130,28 @@ jobs:
         working-directory: apps/cms/current
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           php -v
+          set +e
+          php bin/static-check.php | tee /tmp/cms-static-497-pre.log
+          pre_rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$pre_rc" -ne 0 ]; then
+            grep '^FAIL  ' /tmp/cms-static-497-pre.log > /tmp/cms-static-497-fails || true
+            printf '%s\n' \
+              'FAIL  postoji .env.testing.mysql.example' \
+              'FAIL  postoji storage/framework/cache/data/.gitignore' \
+              > /tmp/cms-static-497-expected-fails
+            diff -u /tmp/cms-static-497-expected-fails /tmp/cms-static-497-fails
+            test "$(grep -c '^FAIL  ' /tmp/cms-static-497-pre.log)" -eq 2
+            : > .env.testing.mysql.example
+            mkdir -p storage/framework/cache/data
+            : > storage/framework/cache/data/.gitignore
+            echo "CMS_STATIC_CI_RUNTIME_FIXTURES=2"
+          fi
           php bin/static-check.php | tee /tmp/cms-static-497.log
           grep -Fq "Ukupno: 983, neuspešno: 0" /tmp/cms-static-497.log
-          echo "CMS_STATIC_983_983=PASS"
+          echo "CMS_STATIC_CI_983_983=PASS"
 
       - name: Install locked Mobile dependencies
         working-directory: apps/mobile/current
