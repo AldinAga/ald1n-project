@@ -91,29 +91,30 @@ jobs:
             echo "Portrait orientation lock unexpectedly remains in source." >&2
             exit 1
           fi
+          printf '%s\n' \
+            'ff8ee8bb46a2a4758d0398da3069c531db90dbe8 apps/mobile/current/app.config.js' \
+            '7d1752fe75ea32372cfc2e2c21a06bceeb12675f apps/mobile/current/scripts/validate-project.mjs' \
+            'ca243f82239a4486b6b0464b743e1cd8d4906266 apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx' \
+            'd0a16fe38dcfc1c5f05922b2fe36d34e3152f8ff apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx' \
+            '6ba0e040dfebd1ca7f83e57cc96054954bff3ee4 apps/mobile/current/src/app/(app)/(tabs)/orders.tsx' \
+            'ca2a491ae2e11df7d192c714c0239b575fb90d74 apps/mobile/current/src/app/(app)/_layout.tsx' \
+            '847e637390729831f2dc08a8d7942f1716d622cd apps/mobile/current/src/app/(app)/admin/commissions/index.tsx' \
+            '80cff4f278eb84335fe8f0c14de61cec3e2e434e apps/mobile/current/src/app/(app)/after-sales/index.tsx' \
+            '954335fce076ecbc10f01e1f8420cba047d1b30e apps/mobile/current/src/app/(app)/assigned-orders/index.tsx' \
+            'e04ccb2a70121886e63ecd1ffcdc1ac3a1dc65ac apps/mobile/current/src/app/(app)/commissions/index.tsx' \
+            '7dcaad6cdcaa2e25e430581d7703275e21179a13 apps/mobile/current/src/app/(app)/warranties/index.tsx' \
+            '9a021c01cae6d8907153eccfd6309e49db6decfa apps/mobile/current/src/app/(auth)/_layout.tsx' \
+            '9c8e56cbc66d55137261a8db91748e5c0d71bf0f apps/mobile/current/src/components/layout/app-bottom-nav.tsx' \
+            'a2b73510bbbe523696eb3c22645c34efa4def98f apps/mobile/current/src/components/layout/screen.tsx' \
+            '0c8a045557617487c3ec74e63835979ce903b651 apps/mobile/current/plugins/with-android-native-modernization.js' \
+            > /tmp/source-blobs-497
           while IFS=' ' read -r expected path; do
             actual="$(git rev-parse "HEAD:$path")"
             if [ "$actual" != "$expected" ]; then
               echo "SOURCE_BLOB_MISMATCH path=$path expected=$expected actual=$actual" >&2
               exit 1
             fi
-          done <<'EOF'
-ff8ee8bb46a2a4758d0398da3069c531db90dbe8 apps/mobile/current/app.config.js
-7d1752fe75ea32372cfc2e2c21a06bceeb12675f apps/mobile/current/scripts/validate-project.mjs
-ca243f82239a4486b6b0464b743e1cd8d4906266 apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx
-d0a16fe38dcfc1c5f05922b2fe36d34e3152f8ff apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx
-6ba0e040dfebd1ca7f83e57cc96054954bff3ee4 apps/mobile/current/src/app/(app)/(tabs)/orders.tsx
-ca2a491ae2e11df7d192c714c0239b575fb90d74 apps/mobile/current/src/app/(app)/_layout.tsx
-847e637390729831f2dc08a8d7942f1716d622cd apps/mobile/current/src/app/(app)/admin/commissions/index.tsx
-80cff4f278eb84335fe8f0c14de61cec3e2e434e apps/mobile/current/src/app/(app)/after-sales/index.tsx
-954335fce076ecbc10f01e1f8420cba047d1b30e apps/mobile/current/src/app/(app)/assigned-orders/index.tsx
-e04ccb2a70121886e63ecd1ffcdc1ac3a1dc65ac apps/mobile/current/src/app/(app)/commissions/index.tsx
-7dcaad6cdcaa2e25e430581d7703275e21179a13 apps/mobile/current/src/app/(app)/warranties/index.tsx
-9a021c01cae6d8907153eccfd6309e49db6decfa apps/mobile/current/src/app/(auth)/_layout.tsx
-9c8e56cbc66d55137261a8db91748e5c0d71bf0f apps/mobile/current/src/components/layout/app-bottom-nav.tsx
-a2b73510bbbe523696eb3c22645c34efa4def98f apps/mobile/current/src/components/layout/screen.tsx
-0c8a045557617487c3ec74e63835979ce903b651 apps/mobile/current/plugins/with-android-native-modernization.js
-EOF
+          done < /tmp/source-blobs-497
           echo "COMMITTED_SOURCE_497=PASS"
 
       - name: OpenAPI 3-copy parity
