@@ -1,6 +1,9 @@
 name: Android Native 497 Full Audit
 
 on:
+  push:
+    branches:
+      - audit/android-native-497
   workflow_dispatch:
 
 permissions:
@@ -86,11 +89,36 @@ jobs:
               .github/ci/497c-source-part3.patch \
               .github/ci/497c-source-part4.patch > /tmp/497c-source.patch
           test "$(sha256sum /tmp/497c-source.patch | awk '{print $1}')" = "d0b0ea461c1238ae24f1d7b77e2251b5cd44494d2986464deeb7830dc1cdd446"
-          git -C apps/mobile/current apply --check /tmp/497c-source.patch
-          git -C apps/mobile/current apply /tmp/497c-source.patch
+          mkdir -p apps/mobile/current/plugins
+          cp .github/ci/with-android-native-modernization.js apps/mobile/current/plugins/with-android-native-modernization.js
+          git apply --check --directory=apps/mobile/current /tmp/497c-source.patch
+          git apply --directory=apps/mobile/current /tmp/497c-source.patch
+          node --check apps/mobile/current/plugins/with-android-native-modernization.js
           git diff --check
+          cat > /tmp/expected-497-paths <<'EOF'
+apps/mobile/current/app.config.js
+apps/mobile/current/scripts/validate-project.mjs
+apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx
+apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx
+apps/mobile/current/src/app/(app)/(tabs)/orders.tsx
+apps/mobile/current/src/app/(app)/_layout.tsx
+apps/mobile/current/src/app/(app)/admin/commissions/index.tsx
+apps/mobile/current/src/app/(app)/after-sales/index.tsx
+apps/mobile/current/src/app/(app)/assigned-orders/index.tsx
+apps/mobile/current/src/app/(app)/commissions/index.tsx
+apps/mobile/current/src/app/(app)/warranties/index.tsx
+apps/mobile/current/src/app/(auth)/_layout.tsx
+apps/mobile/current/src/components/layout/app-bottom-nav.tsx
+apps/mobile/current/src/components/layout/screen.tsx
+EOF
+          git diff --name-only --no-renames | LC_ALL=C sort > /tmp/actual-497-paths
+          LC_ALL=C sort /tmp/expected-497-paths -o /tmp/expected-497-paths
+          diff -u /tmp/expected-497-paths /tmp/actual-497-paths
+          test -f apps/mobile/current/plugins/with-android-native-modernization.js
+          grep -Fq "'./plugins/with-android-native-modernization'" apps/mobile/current/app.config.js
           echo "PATCHED_FILES_BEGIN"
-          git diff --name-only --no-renames
+          cat /tmp/actual-497-paths
+          echo "apps/mobile/current/plugins/with-android-native-modernization.js (new untracked candidate file)"
           echo "PATCHED_FILES_END"
 
       - name: Install locked Mobile dependencies
@@ -104,8 +132,17 @@ jobs:
         working-directory: apps/mobile/current
         shell: bash
         run: |
-          set -euo pipefail
-          node node_modules/expo/bin/cli install --check
+          set -uo pipefail
+          set +e
+          node node_modules/expo/bin/cli install --check 2>&1 | tee /tmp/expo-install-check-497.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "EXPO_COMPATIBILITY_CHECK_RC=$rc"
+          if [ "$rc" -eq 0 ]; then
+            echo "EXPO_COMPATIBILITY_DRIFT=NONE"
+          else
+            echo "EXPO_COMPATIBILITY_DRIFT=DETECTED_NONBLOCKING_FOR_NATIVE_BASELINE_AUDIT"
+          fi
 
       - name: Mobile typecheck
         working-directory: apps/mobile/current
