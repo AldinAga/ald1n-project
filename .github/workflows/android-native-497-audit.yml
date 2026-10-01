@@ -66,9 +66,13 @@ jobs:
           npm --version
           echo "ANDROID_HOME=${ANDROID_HOME:-UNSET}"
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-UNSET}"
-          command -v sdkmanager
-          sdkmanager --version
-          sdkmanager --list_installed | sed -n '1,220p'
+          test -n "${ANDROID_HOME:-}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 4 -type f -name sdkmanager -print -quit)"
+          test -n "$SDKMANAGER"
+          echo "SDKMANAGER=$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          "$SDKMANAGER" --version
+          "$SDKMANAGER" --list_installed | sed -n '1,220p'
 
       - name: Ensure SDK 36 build tools
         shell: bash
