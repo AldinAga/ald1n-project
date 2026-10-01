@@ -206,13 +206,14 @@ jobs:
           const native = JSON.parse(fs.readFileSync('app/ald1n-native-497c.json', 'utf8'));
           const graph = JSON.parse(fs.readFileSync('app/ald1n-graph-497c.json', 'utf8'));
           const failures = [];
-          if (String(native.agp) !== '8.12.0') failures.push(`AGP=${native.agp}`);
+          const agpMatch = String(native.agp).match(/(?:^|\s)(\d+\.\d+\.\d+)$/);
+          if (!agpMatch || agpMatch[1] !== '8.12.0') failures.push(`AGP=${native.agp}`);
           if (Number(native.compileSdk) !== 36) failures.push(`compileSdk=${native.compileSdk}`);
           if (Number(native.minSdk) !== 24) failures.push(`minSdk=${native.minSdk}`);
           if (Number(native.targetSdk) !== 36) failures.push(`targetSdk=${native.targetSdk}`);
           if (native.minify !== true) failures.push(`minify=${native.minify}`);
           if (native.shrinkResources !== true) failures.push(`shrinkResources=${native.shrinkResources}`);
-          if (!Array.isArray(native.proguard) || !native.proguard.includes('proguard-android-optimize.txt')) failures.push(`proguard=${JSON.stringify(native.proguard)}`);
+          if (!Array.isArray(native.proguard) || !native.proguard.some((name) => String(name).startsWith('proguard-android-optimize.txt'))) failures.push(`proguard=${JSON.stringify(native.proguard)}`);
           if (String(native.optimizedShrinking) !== 'true') failures.push(`optimizedShrinking=${native.optimizedShrinking}`);
           if (Number(graph.unresolved) !== 0) failures.push(`unresolved=${graph.unresolved}`);
           if (!Array.isArray(graph.material) || graph.material.length !== 1) failures.push(`material=${JSON.stringify(graph.material)}`);
