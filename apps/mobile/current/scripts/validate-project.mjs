@@ -178,6 +178,122 @@ assert(
   'Build21 Android release koristi SDK57 expo-build-properties, R8 minify i resource shrinking.',
 );
 
+// MOBILE_BUILD22_CANONICAL_NAVIGATION_AST_497_V3
+function canonicalAppNavigation497(source) {
+  const file = ts.createSourceFile('app-shell.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  if (file.parseDiagnostics.length) return false;
+  const imports = file.statements.filter((node) => ts.isImportDeclaration(node)
+    && ts.isStringLiteral(node.moduleSpecifier)
+    && node.moduleSpecifier.text === '@/components/layout/app-bottom-nav');
+  if (imports.length !== 1) return false;
+  const bindings = imports[0].importClause?.namedBindings;
+  if (!bindings || !ts.isNamedImports(bindings)
+    || !bindings.elements.some((item) => item.name.text === 'AppBottomNav'
+      && (!item.propertyName || item.propertyName.text === 'AppBottomNav'))) return false;
+  const navNodes = [];
+  function visit(node) {
+    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node))
+      && ts.isIdentifier(node.tagName) && node.tagName.text === 'AppBottomNav') navNodes.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  if (navNodes.length !== 2 || navNodes.some((node) => !ts.isJsxSelfClosingElement(node))) return false;
+  function unwrap(node) {
+    while (ts.isParenthesizedExpression(node)) node = node.expression;
+    return node;
+  }
+  let sharedContainer;
+  const found = new Set();
+  for (const node of navNodes) {
+    const attrs = node.attributes.properties;
+    if (attrs.length !== 1 || !ts.isJsxAttribute(attrs[0]) || attrs[0].name.getText(file) !== 'variant'
+      || !attrs[0].initializer || !ts.isStringLiteral(attrs[0].initializer)) return false;
+    const variant = attrs[0].initializer.text;
+    if (!['rail', 'bottom'].includes(variant) || found.has(variant)) return false;
+    const branch = node.parent;
+    if (!ts.isConditionalExpression(branch) || branch.whenTrue !== node
+      || unwrap(branch.whenFalse).kind !== ts.SyntaxKind.NullKeyword) return false;
+    let condition = unwrap(branch.condition);
+    const negative = ts.isPrefixUnaryExpression(condition) && condition.operator === ts.SyntaxKind.ExclamationToken;
+    if (negative) condition = unwrap(condition.operand);
+    if (!ts.isIdentifier(condition) || condition.text !== 'useNavigationRail'
+      || negative !== (variant === 'bottom')) return false;
+    const expression = branch.parent;
+    if (!ts.isJsxExpression(expression) || expression.expression !== branch
+      || !ts.isJsxElement(expression.parent)) return false;
+    const container = expression.parent;
+    if (sharedContainer && sharedContainer !== container) return false;
+    sharedContainer = container;
+    let parent = container.parent;
+    while (ts.isParenthesizedExpression(parent)) parent = parent.parent;
+    if (!ts.isReturnStatement(parent) || !ts.isBlock(parent.parent)
+      || !ts.isFunctionDeclaration(parent.parent.parent)
+      || parent.parent.parent.name?.text !== 'AppLayout') return false;
+    found.add(variant);
+  }
+  return found.has('rail') && found.has('bottom');
+}
+
+// MOBILE_BUILD22_ANDROID_NATIVE_MODERNIZATION_BATCH497_VALIDATOR
+const androidNativeConfig497 = fs.readFileSync(path.join(root, 'app.config.js'), 'utf8');
+const androidNativePlugin497 = fs.readFileSync(path.join(root, 'plugins/with-android-native-modernization.js'), 'utf8');
+const androidNativeLayout497 = fs.readFileSync(path.join(root, 'src/app/(app)/_layout.tsx'), 'utf8');
+const androidNativeAuth497 = fs.readFileSync(path.join(root, 'src/app/(auth)/_layout.tsx'), 'utf8');
+const androidNativeScreen497 = fs.readFileSync(path.join(root, 'src/components/layout/screen.tsx'), 'utf8');
+const androidNativeNav497 = fs.readFileSync(path.join(root, 'src/components/layout/app-bottom-nav.tsx'), 'utf8');
+const androidNativeCatalog497 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/catalog.tsx'), 'utf8');
+assert(
+  !androidNativeConfig497.includes("orientation: 'portrait'")
+    && androidNativeConfig497.includes("'./plugins/with-android-native-modernization'")
+    && androidNativeConfig497.includes('optimizedResourceShrinking: true'),
+  'Build22 Android native config uklanja portrait lock i registruje idempotentan modernization plugin.',
+);
+assert(
+  androidNativePlugin497.includes('proguard-android-optimize.txt')
+    && androidNativePlugin497.includes('android.r8.optimizedResourceShrinking')
+    && !androidNativePlugin497.includes('warning suppression'),
+  'Build22 native plugin koristi optimized ProGuard ugovor bez maskiranja edge-to-edge warninga.',
+);
+assert(
+  androidNativeLayout497.includes('viewportWidth >= 600')
+    && androidNativeLayout497.includes('<AppBottomNav variant="rail" />')
+    && androidNativeNav497.includes("variant?: 'bottom' | 'rail'")
+    && androidNativeNav497.includes('styles.railFrame')
+    && androidNativeAuth497.includes("edges={['top', 'right', 'bottom', 'left']}")
+    && androidNativeAuth497.includes('maxWidth: 760')
+    && androidNativeScreen497.includes("edges={['top', 'left', 'right']}")
+    && androidNativeCatalog497.includes('viewportWidth >= 1600 ? 4')
+    && androidNativeCatalog497.includes('numColumns={catalogColumns}')
+    && androidNativeCatalog497.includes('maxWidth: 1200')
+    && androidNativeCatalog497.includes("edges={['top', 'left', 'right']}"),
+  'Build22 adaptive Android shell koristi lateral safe-area, navigation rail i responsive katalog.',
+);
+
+// MOBILE_BUILD22_ANDROID_NATIVE_MODERNIZATION_497C_FOLLOWUP_VALIDATOR
+const lateralSafeAreaPaths497C = [
+  'src/app/(app)/(tabs)/orders.tsx',
+  'src/app/(app)/(tabs)/notifications.tsx',
+  'src/app/(app)/assigned-orders/index.tsx',
+  'src/app/(app)/warranties/index.tsx',
+  'src/app/(app)/commissions/index.tsx',
+  'src/app/(app)/admin/commissions/index.tsx',
+  'src/app/(app)/after-sales/index.tsx',
+];
+const lateralSafeAreaSources497C = lateralSafeAreaPaths497C.map((rel) => fs.readFileSync(path.join(root, rel), 'utf8'));
+assert(
+  lateralSafeAreaSources497C.every((source) => source.includes("edges={['top', 'left', 'right']}")),
+  'Build22 lateral safe-area pokriva operativne liste sa sopstvenim SafeAreaView korenom.',
+);
+assert(
+  androidNativeNav497.includes('ScrollView')
+    && androidNativeNav497.includes('contentContainerStyle={styles.rail}')
+    && androidNativeNav497.includes('keyboardShouldPersistTaps="handled"')
+    && androidNativeNav497.includes('railScroller:')
+    && androidNativeNav497.includes('minHeight: 0')
+    && androidNativeNav497.includes('flexGrow: 1'),
+  'Build22 navigation rail ostaje dostupan u niskom landscape/keyboard prozoru preko vertikalnog skrolovanja.',
+);
+
 // MOBILE_V0_8_EXPO_SDK57_COMPATIBILITY_MATRIX
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH21A_V3
 // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH45_V5
@@ -2268,7 +2384,7 @@ assert(
   const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
   assert(
     tabs.includes("display: 'none'")
-      && appShellBuild18.includes('<AppBottomNav />')
+      && canonicalAppNavigation497(appShellBuild18)
       && bottomNavBuild18.includes("label: 'Katalog'")
       && bottomNavBuild18.includes("label: 'Porudžbine'")
       && bottomNavBuild18.includes("label: 'Početna'")

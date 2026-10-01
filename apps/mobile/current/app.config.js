@@ -36,7 +36,6 @@ module.exports = ({ config }) => {
     owner: 'ald1n',
 
     version: '1.0.0',
-    orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'ald1n',
     userInterfaceStyle: 'automatic',
@@ -96,6 +95,14 @@ module.exports = ({ config }) => {
             enableMinifyInReleaseBuilds: true,
             enableShrinkResourcesInReleaseBuilds: true,
           },
+        },
+      ],
+
+      // MOBILE_BUILD22_ANDROID_NATIVE_MODERNIZATION_BATCH497
+      [
+        './plugins/with-android-native-modernization',
+        {
+          optimizedResourceShrinking: true,
         },
       ],
 

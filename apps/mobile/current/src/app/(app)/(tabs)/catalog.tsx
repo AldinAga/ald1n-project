@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,6 +33,8 @@ export default function CatalogScreen() {
   const { bootstrap, hasFeature } = useAuth();
   const { itemCount } = useCart();
   const allowed = hasFeature('catalog');
+  const { width: viewportWidth } = useWindowDimensions();
+  const catalogColumns = viewportWidth >= 1600 ? 4 : viewportWidth >= 1200 ? 3 : viewportWidth >= 840 ? 2 : 1;
 
   const [search, setSearch] = useState('');
   const [stock, setStock] = useState(undefined as string | undefined);
@@ -114,11 +117,14 @@ export default function CatalogScreen() {
   const total = query.data?.meta?.total ?? query.data?.data.length ?? 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
+        key={`catalog-${catalogColumns}`}
         data={query.data?.data ?? []}
         keyExtractor={catalogKeyExtractor}
         renderItem={renderProduct}
+        numColumns={catalogColumns}
+        columnWrapperStyle={catalogColumns > 1 ? styles.catalogRow : undefined}
         ItemSeparatorComponent={CatalogSeparator}
         initialNumToRender={7}
         maxToRenderPerBatch={7}
@@ -249,12 +255,17 @@ export default function CatalogScreen() {
 }
 
 const CatalogProductRow = memo(function CatalogProductRow({ product }: { product: Product }) {
+  const styles = useThemedStyles(createStyles);
   const handlePress = useCallback(
     () => router.push({ pathname: '/product/[slug]', params: { slug: product.slug } }),
     [product.slug],
   );
 
-  return <ProductCard product={product} onPress={handlePress} showSku={false} />;
+  return (
+    <View style={styles.catalogGridItem}>
+      <ProductCard product={product} onPress={handlePress} showSku={false} />
+    </View>
+  );
 });
 
 type CatalogFilterPanelProps = {
@@ -403,9 +414,19 @@ function createStyles(theme: AppColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
     content: {
+      width: '100%',
+      maxWidth: 1200,
+      alignSelf: 'center',
       paddingHorizontal: spacing.lg,
       paddingBottom: 120,
       backgroundColor: theme.background,
+    },
+    catalogRow: {
+      gap: spacing.md,
+    },
+    catalogGridItem: {
+      flex: 1,
+      minWidth: 0,
     },
     headerWrap: { gap: spacing.md, marginBottom: spacing.lg },
     headerLine: {
