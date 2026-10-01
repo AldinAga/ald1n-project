@@ -1,5 +1,3 @@
-import com.android.Version
-
 // 497C diagnostics only. AGP DSL minSdk/targetSdk are scalar Integer values.
 // The original 497 tasks remain registered but are NOT executed.
 tasks.register("ald1nNativeSnapshot497C") {
@@ -13,7 +11,7 @@ tasks.register("ald1nNativeSnapshot497C") {
         def release = android.buildTypes.getByName("release")
         def snapshot = [
             gradle: gradle.gradleVersion,
-            agp: Version.ANDROID_GRADLE_PLUGIN_VERSION,
+            agp: project.extensions.getByName("androidComponents").pluginVersion.toString(),
             java: System.getProperty("java.version"),
             compileSdk: compile.intValue(), minSdk: minimum.intValue(), targetSdk: target.intValue(),
             applicationId: android.defaultConfig.applicationId,
