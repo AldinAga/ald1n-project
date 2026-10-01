@@ -1,0 +1,48 @@
+// 497C diagnostics only. AGP DSL minSdk/targetSdk are scalar Integer values.
+// The original 497 tasks remain registered but are NOT executed.
+tasks.register("ald1nNativeSnapshot497C") {
+    doLast {
+        def compile = android.compileSdk
+        def minimum = android.defaultConfig.minSdk
+        def target = android.defaultConfig.targetSdk
+        if (![compile, minimum, target].every { it instanceof Number && it.intValue() > 0 }) {
+            throw new GradleException("497C: SDK DSL values must be positive integers, not UNKNOWN.")
+        }
+        def release = android.buildTypes.getByName("release")
+        def snapshot = [
+            gradle: gradle.gradleVersion,
+            agp: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION,
+            java: System.getProperty("java.version"),
+            compileSdk: compile.intValue(), minSdk: minimum.intValue(), targetSdk: target.intValue(),
+            applicationId: android.defaultConfig.applicationId,
+            versionName: android.defaultConfig.versionName,
+            versionCode: android.defaultConfig.versionCode,
+            minify: release.minifyEnabled,
+            shrinkResources: release.shrinkResources,
+            proguard: release.proguardFiles.collect { it.name },
+            optimizedShrinking: providers.gradleProperty("android.r8.optimizedResourceShrinking").getOrElse("UNSET"),
+            fullModeProperty: providers.gradleProperty("android.enableR8.fullMode").getOrElse("UNSET")
+        ]
+        new File(projectDir, "ald1n-native-497c.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(snapshot))
+        println "ALD1N_NATIVE_497C=" + groovy.json.JsonOutput.toJson(snapshot)
+    }
+}
+tasks.register("ald1nReleaseGraph497C") {
+    doLast {
+        def graph = configurations.getByName("releaseRuntimeClasspath").incoming.resolutionResult
+        def missing = graph.allDependencies.findAll { it instanceof org.gradle.api.artifacts.result.UnresolvedDependencyResult }
+        if (!missing.isEmpty()) {
+            throw new GradleException("497C: " + missing.size() + " unresolved release dependencies. Native graph NOT certified.")
+        }
+        def modules = graph.allComponents.collect { it.moduleVersion }.findAll { it != null }
+        def material = modules.findAll { it.group == "com.google.android.material" && it.name == "material" }.collect { it.version }.unique().sort()
+        def fresco = modules.findAll { it.group == "com.facebook.fresco" }.collect { it.version }.unique().sort()
+        if (material.size() != 1) throw new GradleException("497C: expected one resolved Material version.")
+        def result = [unresolved: 0, material: material, fresco: fresco,
+            modules: modules.collect { it.group + ":" + it.name + ":" + it.version }.unique().sort()]
+        new File(projectDir, "ald1n-graph-497c.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(result))
+        println "ALD1N_GRAPH_497C_UNRESOLVED=0"
+        println "ALD1N_MATERIAL_497C=" + material.join(",")
+        println "ALD1N_FRESCO_497C=" + fresco.join(",")
+    }
+}
