@@ -36,7 +36,7 @@ export function Screen({
     return (
       <SafeAreaView
         style={safeStyle}
-        edges={['top']}
+        edges={['top', 'left', 'right']}
       >
         <View
           style={[
@@ -54,7 +54,7 @@ export function Screen({
   return (
     <SafeAreaView
       style={safeStyle}
-      edges={['top']}
+      edges={['top', 'left', 'right']}
     >
       <ScrollView
         contentContainerStyle={[
@@ -77,6 +77,9 @@ const styles = StyleSheet.create({
   },
 
   content: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
     paddingHorizontal: spacing.lg,
     paddingBottom: 120,
     gap: spacing.lg,
