@@ -1,9 +1,6 @@
 name: Android Native 497 Smoke
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
