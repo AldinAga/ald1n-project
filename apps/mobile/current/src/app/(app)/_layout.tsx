@@ -1,7 +1,7 @@
 // MOBILE_GLOBAL_APP_SHELL_V06
 import * as Application from 'expo-application';
 import { Redirect, Stack } from 'expo-router';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { AppBottomNav } from '@/components/layout/app-bottom-nav';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ export default function AppLayout() {
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { status, bootstrap } = useAuth();
+  const { width: viewportWidth } = useWindowDimensions();
+  const useNavigationRail = viewportWidth >= 600;
 
   if (status === 'hydrating') return <LoadingState />;
   if (status !== 'authenticated') return <Redirect href="/login" />;
@@ -47,7 +49,8 @@ export default function AppLayout() {
   }
 
   return (
-    <View style={styles.shell}>
+    <View style={[styles.shell, useNavigationRail ? styles.shellRail : null]}>
+      {useNavigationRail ? <AppBottomNav variant="rail" /> : null}
       <View style={styles.stack}>
         <Stack
           screenOptions={{
@@ -56,7 +59,7 @@ export default function AppLayout() {
           }}
         />
       </View>
-      <AppBottomNav />
+      {!useNavigationRail ? <AppBottomNav variant="bottom" /> : null}
     </View>
   );
 }
@@ -66,6 +69,9 @@ function createStyles(theme: AppColors) {
     shell: {
       flex: 1,
       backgroundColor: theme.background,
+    },
+    shellRail: {
+      flexDirection: 'row',
     },
     stack: {
       flex: 1,

@@ -276,7 +276,7 @@ export default function AdminCommissionsIndexScreen() {
   ) : null;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DataList
         data={workspace === 'commissions' ? data.data : []}
         keyExtractor={(item) => String(item.id)}

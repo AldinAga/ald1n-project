@@ -37,7 +37,7 @@ export default function AssignedOrdersScreen() {
   const orders = query.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={orders}
         keyExtractor={(item) => String(item.id)}

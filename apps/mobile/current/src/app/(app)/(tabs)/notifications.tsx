@@ -191,7 +191,7 @@ export default function NotificationsScreen() {
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={notifications}
         keyExtractor={notificationKeyExtractor}

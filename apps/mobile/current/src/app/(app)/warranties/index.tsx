@@ -93,7 +93,7 @@ export default function WarrantiesListScreen() {
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={query.data?.data ?? []}
         keyExtractor={(item) => String(item.id)}

@@ -3,7 +3,7 @@
 // MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2
 import { useEffect, useMemo, useState } from 'react';
 import { router, usePathname } from 'expo-router';
-import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
@@ -53,7 +53,7 @@ function activeKey(pathname: string): NavKey | null {
   return null;
 }
 
-export function AppBottomNav() {
+export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rail' }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { colors: theme } = useAppTheme();
@@ -63,6 +63,7 @@ export function AppBottomNav() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const active = activeKey(pathname);
   const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
+  const rail = variant === 'rail';
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -118,66 +119,94 @@ export function AppBottomNav() {
     },
   ], [hasFeature, isSuperAdmin, unread]);
 
-  if (keyboardVisible) return null;
+  if (keyboardVisible && !rail) return null;
+
+  const navItems = items.map((item) => {
+    if (!item.visible) return rail ? null : <View key={item.key} style={styles.item} pointerEvents="none" />;
+    const focused = active === item.key;
+    const center = item.center === true && !rail;
+    return (
+      <Pressable
+        accessibilityLabel={item.label}
+        accessibilityRole="button"
+        accessibilityState={{ selected: focused }}
+        key={item.key}
+        onPress={() => { if (!focused) router.replace(item.route); }}
+        style={({ pressed }) => [
+          styles.item,
+          rail ? styles.railItem : null,
+          center ? styles.homeItem : null,
+          !center && focused ? styles.itemActive : null,
+          pressed ? styles.pressed : null,
+        ]}
+      >
+        <View
+          style={[
+            styles.iconWrap,
+            center ? styles.homeCircle : null,
+            center && focused ? styles.homeCircleActive : null,
+          ]}
+        >
+          <Glyph
+            name={item.glyph}
+            size={center ? 28 : 22}
+            color={center
+              ? (focused ? theme.onPrimary : theme.onPrimaryContainer)
+              : (focused ? theme.onPrimaryContainer : theme.muted)}
+          />
+          {item.badge ? (
+            <View style={[styles.badge, focused ? styles.badgeActive : null]}>
+              <Text style={styles.badgeText}>{item.badge > 99 ? '99+' : String(item.badge)}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.label,
+            focused ? styles.labelActive : null,
+            center ? styles.homeLabel : null,
+          ]}
+        >
+          {item.label}
+        </Text>
+      </Pressable>
+    );
+  });
 
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.safeFrame, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}
+      style={rail
+        ? [
+            styles.railFrame,
+            {
+              paddingTop: Math.max(insets.top, spacing.lg),
+              paddingBottom: Math.max(insets.bottom, spacing.lg),
+              paddingLeft: Math.max(insets.left, spacing.sm),
+            },
+          ]
+        : [
+            styles.safeFrame,
+            {
+              paddingBottom: Math.max(insets.bottom, spacing.sm),
+              paddingLeft: Math.max(insets.left, spacing.md),
+              paddingRight: Math.max(insets.right, spacing.md),
+            },
+          ]}
     >
-      <View style={styles.bar}>
-        {items.map((item) => {
-          if (!item.visible) return <View key={item.key} style={styles.item} pointerEvents="none" />;
-          const focused = active === item.key;
-          const center = item.center === true;
-          return (
-            <Pressable
-              accessibilityLabel={item.label}
-              accessibilityRole="button"
-              accessibilityState={{ selected: focused }}
-              key={item.key}
-              onPress={() => { if (!focused) router.replace(item.route); }}
-              style={({ pressed }) => [
-                styles.item,
-                center ? styles.homeItem : null,
-                !center && focused ? styles.itemActive : null,
-                pressed ? styles.pressed : null,
-              ]}
-            >
-              <View
-                style={[
-                  styles.iconWrap,
-                  center ? styles.homeCircle : null,
-                  center && focused ? styles.homeCircleActive : null,
-                ]}
-              >
-                <Glyph
-                  name={item.glyph}
-                  size={center ? 28 : 22}
-                  color={center
-                    ? (focused ? theme.onPrimary : theme.onPrimaryContainer)
-                    : (focused ? theme.onPrimaryContainer : theme.muted)}
-                />
-                {item.badge ? (
-                  <View style={[styles.badge, focused ? styles.badgeActive : null]}>
-                    <Text style={styles.badgeText}>{item.badge > 99 ? '99+' : String(item.badge)}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.label,
-                  focused ? styles.labelActive : null,
-                  center ? styles.homeLabel : null,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {rail ? (
+        <ScrollView
+          style={styles.railScroller}
+          contentContainerStyle={styles.rail}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {navItems}
+        </ScrollView>
+      ) : (
+        <View style={styles.bar}>{navItems}</View>
+      )}
     </View>
   );
 }
@@ -187,8 +216,31 @@ function createStyles(theme: AppColors) {
     safeFrame: {
       flexShrink: 0,
       backgroundColor: theme.background,
-      paddingHorizontal: spacing.md,
       paddingTop: 18,
+    },
+    railFrame: {
+      width: 104,
+      minHeight: 0,
+      flexShrink: 0,
+      paddingRight: spacing.sm,
+      backgroundColor: theme.background,
+    },
+    railScroller: {
+      flex: 1,
+      minHeight: 0,
+      width: '100%',
+    },
+    rail: {
+      flexGrow: 1,
+      width: '100%',
+      alignItems: 'stretch',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: 28,
+      backgroundColor: theme.surface,
     },
     bar: {
       minHeight: 76,
@@ -217,6 +269,13 @@ function createStyles(theme: AppColors) {
       borderRadius: radii.xl,
       paddingHorizontal: 2,
       paddingVertical: 2,
+    },
+    railItem: {
+      flex: 0,
+      width: '100%',
+      minHeight: 62,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.sm,
     },
     itemActive: {
       backgroundColor: theme.primaryContainer,

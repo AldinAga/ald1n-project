@@ -159,7 +159,7 @@ export default function CommissionsListScreen() {
   const lastPage = meta?.last_page ?? currentPage;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={query.data?.data ?? []}
         keyExtractor={(item) => String(item.id)}
