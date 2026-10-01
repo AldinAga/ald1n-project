@@ -1,9 +1,6 @@
 name: Android Native 497 Full Audit
 
 on:
-  push:
-    branches:
-      - audit/android-native-497
   workflow_dispatch:
 
 permissions:
