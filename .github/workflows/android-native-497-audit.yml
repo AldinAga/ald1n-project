@@ -1,6 +1,9 @@
 name: Android Native 497 Full Audit
 
 on:
+  push:
+    branches:
+      - audit/android-native-497
   workflow_dispatch:
 
 permissions:
@@ -17,7 +20,7 @@ env:
 
 jobs:
   native-audit:
-    name: Patch candidate and certify Gradle runtime
+    name: Certify committed candidate and Gradle runtime
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
@@ -77,46 +80,60 @@ jobs:
           set -euo pipefail
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Patch Build22 candidate in ephemeral checkout
+      - name: Verify committed Build22 candidate source
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/ci/497c-source-part1.patch \
-              .github/ci/497c-source-part2.patch \
-              .github/ci/497c-source-part3.patch \
-              .github/ci/497c-source-part4.patch > /tmp/497c-source.patch
-          test "$(sha256sum /tmp/497c-source.patch | awk '{print $1}')" = "d0b0ea461c1238ae24f1d7b77e2251b5cd44494d2986464deeb7830dc1cdd446"
-          mkdir -p apps/mobile/current/plugins
-          cp .github/ci/with-android-native-modernization.js apps/mobile/current/plugins/with-android-native-modernization.js
-          git apply --check --directory=apps/mobile/current /tmp/497c-source.patch
-          git apply --directory=apps/mobile/current /tmp/497c-source.patch
+          test -z "$(git status --porcelain)"
           node --check apps/mobile/current/plugins/with-android-native-modernization.js
-          git diff --check
-          printf '%s\n' \
-            'apps/mobile/current/app.config.js' \
-            'apps/mobile/current/scripts/validate-project.mjs' \
-            'apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx' \
-            'apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx' \
-            'apps/mobile/current/src/app/(app)/(tabs)/orders.tsx' \
-            'apps/mobile/current/src/app/(app)/_layout.tsx' \
-            'apps/mobile/current/src/app/(app)/admin/commissions/index.tsx' \
-            'apps/mobile/current/src/app/(app)/after-sales/index.tsx' \
-            'apps/mobile/current/src/app/(app)/assigned-orders/index.tsx' \
-            'apps/mobile/current/src/app/(app)/commissions/index.tsx' \
-            'apps/mobile/current/src/app/(app)/warranties/index.tsx' \
-            'apps/mobile/current/src/app/(auth)/_layout.tsx' \
-            'apps/mobile/current/src/components/layout/app-bottom-nav.tsx' \
-            'apps/mobile/current/src/components/layout/screen.tsx' \
-            > /tmp/expected-497-paths
-          git diff --name-only --no-renames | LC_ALL=C sort > /tmp/actual-497-paths
-          LC_ALL=C sort /tmp/expected-497-paths -o /tmp/expected-497-paths
-          diff -u /tmp/expected-497-paths /tmp/actual-497-paths
-          test -f apps/mobile/current/plugins/with-android-native-modernization.js
           grep -Fq "'./plugins/with-android-native-modernization'" apps/mobile/current/app.config.js
-          echo "PATCHED_FILES_BEGIN"
-          cat /tmp/actual-497-paths
-          echo "apps/mobile/current/plugins/with-android-native-modernization.js (new untracked candidate file)"
-          echo "PATCHED_FILES_END"
+          if grep -Fq "orientation: 'portrait'" apps/mobile/current/app.config.js; then
+            echo "Portrait orientation lock unexpectedly remains in source." >&2
+            exit 1
+          fi
+          while IFS=' ' read -r expected path; do
+            actual="$(git rev-parse "HEAD:$path")"
+            if [ "$actual" != "$expected" ]; then
+              echo "SOURCE_BLOB_MISMATCH path=$path expected=$expected actual=$actual" >&2
+              exit 1
+            fi
+          done <<'EOF'
+ff8ee8bb46a2a4758d0398da3069c531db90dbe8 apps/mobile/current/app.config.js
+7d1752fe75ea32372cfc2e2c21a06bceeb12675f apps/mobile/current/scripts/validate-project.mjs
+ca243f82239a4486b6b0464b743e1cd8d4906266 apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx
+d0a16fe38dcfc1c5f05922b2fe36d34e3152f8ff apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx
+6ba0e040dfebd1ca7f83e57cc96054954bff3ee4 apps/mobile/current/src/app/(app)/(tabs)/orders.tsx
+ca2a491ae2e11df7d192c714c0239b575fb90d74 apps/mobile/current/src/app/(app)/_layout.tsx
+847e637390729831f2dc08a8d7942f1716d622cd apps/mobile/current/src/app/(app)/admin/commissions/index.tsx
+80cff4f278eb84335fe8f0c14de61cec3e2e434e apps/mobile/current/src/app/(app)/after-sales/index.tsx
+954335fce076ecbc10f01e1f8420cba047d1b30e apps/mobile/current/src/app/(app)/assigned-orders/index.tsx
+e04ccb2a70121886e63ecd1ffcdc1ac3a1dc65ac apps/mobile/current/src/app/(app)/commissions/index.tsx
+7dcaad6cdcaa2e25e430581d7703275e21179a13 apps/mobile/current/src/app/(app)/warranties/index.tsx
+9a021c01cae6d8907153eccfd6309e49db6decfa apps/mobile/current/src/app/(auth)/_layout.tsx
+9c8e56cbc66d55137261a8db91748e5c0d71bf0f apps/mobile/current/src/components/layout/app-bottom-nav.tsx
+a2b73510bbbe523696eb3c22645c34efa4def98f apps/mobile/current/src/components/layout/screen.tsx
+0c8a045557617487c3ec74e63835979ce903b651 apps/mobile/current/plugins/with-android-native-modernization.js
+EOF
+          echo "COMMITTED_SOURCE_497=PASS"
+
+      - name: OpenAPI 3-copy parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp -s packages/api-contract/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp -s packages/api-contract/openapi.yaml apps/cms/current/docs/openapi.yaml
+          echo "OPENAPI_3_COPY_PARITY=PASS"
+          sha256sum packages/api-contract/openapi.yaml apps/mobile/current/docs/openapi.yaml apps/cms/current/docs/openapi.yaml
+
+      - name: CMS static gate 983 of 983
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v
+          php bin/static-check.php | tee /tmp/cms-static-497.log
+          grep -Fq "Ukupno: 983, neuspešno: 0" /tmp/cms-static-497.log
+          echo "CMS_STATIC_983_983=PASS"
 
       - name: Install locked Mobile dependencies
         working-directory: apps/mobile/current
