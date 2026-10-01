@@ -95,22 +95,22 @@ jobs:
           git apply --directory=apps/mobile/current /tmp/497c-source.patch
           node --check apps/mobile/current/plugins/with-android-native-modernization.js
           git diff --check
-          cat > /tmp/expected-497-paths <<'EOF'
-apps/mobile/current/app.config.js
-apps/mobile/current/scripts/validate-project.mjs
-apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx
-apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx
-apps/mobile/current/src/app/(app)/(tabs)/orders.tsx
-apps/mobile/current/src/app/(app)/_layout.tsx
-apps/mobile/current/src/app/(app)/admin/commissions/index.tsx
-apps/mobile/current/src/app/(app)/after-sales/index.tsx
-apps/mobile/current/src/app/(app)/assigned-orders/index.tsx
-apps/mobile/current/src/app/(app)/commissions/index.tsx
-apps/mobile/current/src/app/(app)/warranties/index.tsx
-apps/mobile/current/src/app/(auth)/_layout.tsx
-apps/mobile/current/src/components/layout/app-bottom-nav.tsx
-apps/mobile/current/src/components/layout/screen.tsx
-EOF
+          printf '%s\n' \
+            'apps/mobile/current/app.config.js' \
+            'apps/mobile/current/scripts/validate-project.mjs' \
+            'apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx' \
+            'apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx' \
+            'apps/mobile/current/src/app/(app)/(tabs)/orders.tsx' \
+            'apps/mobile/current/src/app/(app)/_layout.tsx' \
+            'apps/mobile/current/src/app/(app)/admin/commissions/index.tsx' \
+            'apps/mobile/current/src/app/(app)/after-sales/index.tsx' \
+            'apps/mobile/current/src/app/(app)/assigned-orders/index.tsx' \
+            'apps/mobile/current/src/app/(app)/commissions/index.tsx' \
+            'apps/mobile/current/src/app/(app)/warranties/index.tsx' \
+            'apps/mobile/current/src/app/(auth)/_layout.tsx' \
+            'apps/mobile/current/src/components/layout/app-bottom-nav.tsx' \
+            'apps/mobile/current/src/components/layout/screen.tsx' \
+            > /tmp/expected-497-paths
           git diff --name-only --no-renames | LC_ALL=C sort > /tmp/actual-497-paths
           LC_ALL=C sort /tmp/expected-497-paths -o /tmp/expected-497-paths
           diff -u /tmp/expected-497-paths /tmp/actual-497-paths
