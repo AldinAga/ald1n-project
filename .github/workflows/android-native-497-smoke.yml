@@ -1,9 +1,6 @@
 name: Android Native 497 Smoke
 
 on:
-  push:
-    branches:
-      - audit/android-native-497
   pull_request:
     branches:
       - main
