@@ -142,6 +142,23 @@ for (const jsonFile of ['package.json', 'eas.json']) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const packageLockJson = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+// PRODUCTION_SUBMIT_HARDENING_BATCH505R_VALIDATOR
+const productionSubmitHelperPath505R = path.join(root, 'scripts/submit-android-production.mjs');
+const productionSubmitHelper505R = fs.existsSync(productionSubmitHelperPath505R)
+  ? fs.readFileSync(productionSubmitHelperPath505R, 'utf8')
+  : '';
+assert(
+  packageJson.scripts?.['submit:android:production'] === 'node scripts/submit-android-production.mjs'
+    && productionSubmitHelper505R.includes('PRODUCTION_SUBMIT_HARDENING_BATCH505R')
+    && productionSubmitHelper505R.includes("['--check', '--execute']")
+    && productionSubmitHelper505R.includes("'--profile', 'production'")
+    && productionSubmitHelper505R.includes("'--id', buildId")
+    && productionSubmitHelper505R.includes("'--non-interactive'")
+    && productionSubmitHelper505R.includes("'--wait'")
+    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '24.8.0'")
+    && productionSubmitHelper505R.includes("const EXPECTED_PACKAGE = 'com.ald1n.mobile'"),
+  'Production Android submit zahteva explicitni Build ID, production profil i pinovani EAS CLI.',
+);
 assert(packageJson.dependencies?.expo === '~57.0.26' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.26' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.26', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['']?.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['node_modules/react-native']?.version === '0.86.3', 'React Native verzija prati Expo SDK 57 template.');
 assert(packageJson.dependencies?.['expo-router'] === '~57.0.24' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.24' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.24', 'Expo Router verzija je zaključana.');

@@ -21,7 +21,8 @@
     "build:ios:preview": "npx eas-cli@latest build --platform ios --profile preview",
     "build:ios:production": "npx eas-cli@latest build --platform ios --profile production",
     "build:android:development": "npx eas-cli@latest build --platform android --profile development",
-    "build:ios:development": "npx eas-cli@latest build --platform ios --profile development"
+    "build:ios:development": "npx eas-cli@latest build --platform ios --profile development",
+    "submit:android:production": "node scripts/submit-android-production.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.0",
