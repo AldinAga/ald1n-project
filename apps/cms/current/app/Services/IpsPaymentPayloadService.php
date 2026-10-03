@@ -71,10 +71,19 @@ final class IpsPaymentPayloadService
 
     public function persist(Order $order, ?float $amountRsd = null): ?string
     {
-        $payload = $this->payload($order, $amountRsd);
-        if ($payload === null) return null;
-
+        // BATCH511_V2_PAYMENT_IPS_CACHE_GUARD
+        // Derived IPS cache must never roll back canonical payment ledger state.
         try {
+            if ($this->shouldClearCachedPayload($order, $amountRsd)) {
+                $this->clearCachedPayload($order);
+                return null;
+            }
+
+            $payload = $this->payload($order, $amountRsd);
+            if ($payload === null) {
+                $this->clearCachedPayload($order);
+                return null;
+            }
             if (!Schema::hasTable('order_ips_qr')) return $payload;
             $columns = Schema::getColumnListing('order_ips_qr');
             if (array_diff(['order_id', 'status', 'payload_text'], $columns) !== []) return $payload;
@@ -86,6 +95,12 @@ final class IpsPaymentPayloadService
             if (in_array('created_at', $columns, true)) $values['created_at'] = now();
             DB::table('order_ips_qr')->updateOrInsert(['order_id' => $order->id], $values);
         } catch (Throwable $exception) {
+            // Never leave a previously ready cache row authoritative after a failed refresh.
+            try {
+                $this->clearCachedPayload($order);
+            } catch (Throwable) {
+            }
+
             try {
                 Log::warning('IPS payload je generisan, ali nije sačuvan.', [
                     'order_id' => $order->id,
@@ -99,6 +114,32 @@ final class IpsPaymentPayloadService
         return $payload;
     }
 
+    private function shouldClearCachedPayload(Order $order, ?float $amountRsd = null): bool
+    {
+        if ((string) $order->payment_method !== 'bank_transfer') return true;
+        if ((string) $order->status === 'cancelled') return true;
+        if (in_array((string) $order->payment_state, ['paid', 'overpaid', 'cancelled', 'refunded'], true)) return true;
+
+        return $this->outstandingAmount($order, $amountRsd) <= 0.004;
+    }
+
+    private function clearCachedPayload(Order $order): void
+    {
+        if (!$order->exists || (int) $order->getKey() <= 0) return;
+        if (!Schema::hasTable('order_ips_qr')) return;
+
+        $columns = Schema::getColumnListing('order_ips_qr');
+        if (!in_array('order_id', $columns, true)) return;
+
+        DB::table('order_ips_qr')->where('order_id', (int) $order->getKey())->delete();
+    }
+
+    private function outstandingAmount(Order $order, ?float $amountRsd = null): float
+    {
+        $amount = $amountRsd ?? max(0.0, (float) $order->subtotal_rsd - (float) ($order->paid_total_rsd ?? 0));
+
+        return round(max(0.0, $amount), 2);
+    }
     private function cleanLine(string $value, int $maxLength): string
     {
         $value = trim(preg_replace('/[|\r\n]+/u', ' ', $value) ?? $value);
