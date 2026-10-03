@@ -168,6 +168,11 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const accepted = recordText(order, 'accepted_at') !== '';
   const workflowEnabled = capabilities.workflow_mutations && capabilities.orders_manage;
   const hasShipment = shipment !== null;
+  // MOBILE_SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513
+  const isCashOnDelivery = recordText(order, 'payment_method') === 'cash_on_delivery';
+  const deliveryActionLabel = isCashOnDelivery
+    ? 'Potvrdi da je pošiljka isporučena i da je naplaćen otkup'
+    : 'Potvrdi da je pošiljka isporučena';
   const defaultCourier = couriers.find((courier) => recordBool(courier, 'is_default')) ?? couriers[0] ?? null;
   const defaultCourierId = defaultCourier ? String(recordId(defaultCourier) ?? '') : '';
 
@@ -389,10 +394,20 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Operativne akcije</Text>
         <Text style={styles.muted}>Sve izmene prolaze kroz postojeće Laravel domain servise i server ponovo proverava dozvole i trenutno stanje porudžbine.</Text>
+        {(canShipment || canComplete || (hasShipment && !completed)) ? (
+          <View style={styles.deliveryActionStack}>
+            {canShipment ? (
+              <Button style={styles.deliveryActionButton} onPress={() => setPanel('shipment')}>Potvrdi da je pošiljka poslata</Button>
+            ) : hasShipment && !completed ? (
+              <Button style={styles.deliveryActionButton} variant="secondary" disabled>Pošiljka je poslata</Button>
+            ) : null}
+            {canComplete ? (
+              <Button style={styles.deliveryActionButton} onPress={() => setPanel('complete')}>{deliveryActionLabel}</Button>
+            ) : null}
+          </View>
+        ) : null}
         <View style={styles.actionGrid}>
           {canAccept ? <Button variant="secondary" onPress={() => setPanel('accept')}>Preuzmi porudžbinu</Button> : null}
-          {canShipment ? <Button onPress={() => setPanel('shipment')}>Evidentiraj slanje</Button> : null}
-          {canComplete ? <Button onPress={() => setPanel('complete')}>Kompletiraj isporuku</Button> : null}
           {canReopen ? <Button variant="secondary" onPress={() => setPanel('reopen')}>Ponovo otvori</Button> : null}
           {!completed ? <Button variant="secondary" onPress={() => setPanel('status')}>Promeni status</Button> : null}
           {capabilities.internal_notes ? <Button variant="secondary" onPress={() => setPanel('note')}>Interna napomena</Button> : null}
@@ -523,13 +538,15 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
           {shipmentMethod === 'courier' ? <TextField label="Broj za praćenje pošiljke" value={trackingNumber} onChangeText={setTrackingNumber} autoCapitalize="characters" /> : null}
           <TextField label="Napomena o slanju" value={shipmentNote} onChangeText={setShipmentNote} multiline />
           <ProofPicker file={shipmentProof} onPick={() => void chooseProof('shipment')} onClear={() => setShipmentProof(null)} styles={styles} />
-          <Button loading={busy('shipment')} onPress={submitShipment}>Evidentiraj da je poručeni artikal poslat kupcu</Button>
+          <Button loading={busy('shipment')} onPress={submitShipment}>Potvrdi da je pošiljka poslata</Button>
         </ActionPanel>
       ) : null}
 
       {panel === 'complete' ? (
         <ActionPanel title="Potvrda stvarne isporuke" onClose={() => setPanel(null)} styles={styles}>
-          <Text style={styles.warning}>Ova akcija završava isporuku. Kod pouzeća backend tek ovde može evidentirati konačno plaćanje.</Text>
+          <Text style={styles.warning}>{isCashOnDelivery
+            ? 'Potvrdom isporuke backend evidentira preostali iznos kao naplaćen pouzećem i završava porudžbinu.'
+            : 'Ova akcija potvrđuje stvarnu isporuku. Saldo mora biti potpuno izmiren pre završetka porudžbine.'}</Text>
           <SelectSheet label="Način isporuke" value={deliveryMethod} options={[
             { value: 'own_transport', label: 'Sopstveni transport' },
             { value: 'courier', label: 'Kurirska služba' },
@@ -542,7 +559,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
           <TextField label="Napomena o isporuci" value={deliveryNote} onChangeText={setDeliveryNote} multiline />
           <TextField label="Napomena o kompletiranju" value={completionNote} onChangeText={setCompletionNote} multiline />
           <ProofPicker file={deliveryProof} onPick={() => void chooseProof('delivery')} onClear={() => setDeliveryProof(null)} styles={styles} />
-          <Button loading={busy('complete')} onPress={submitCompletion}>Potvrdi isporuku i kompletiraj</Button>
+          <Button loading={busy('complete')} onPress={submitCompletion}>{deliveryActionLabel}</Button>
         </ActionPanel>
       ) : null}
 
@@ -591,6 +608,8 @@ function createStyles(theme: AppColors) {
     label: { ...typography.label, color: theme.ink },
     muted: { ...typography.small, color: theme.muted },
     warning: { ...typography.small, color: theme.warning, fontWeight: '700' },
+    deliveryActionStack: { gap: spacing.sm, alignSelf: 'stretch' },
+    deliveryActionButton: { width: '100%', alignSelf: 'stretch' },
     actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'flex-start' },
     inlineActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     proofBox: { gap: spacing.sm, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },

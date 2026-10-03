@@ -3490,6 +3490,37 @@ assert(
   'v1.0 Batch93 Orders list UX does not restore Product Variants contract.',
 );
 
+// MOBILE_SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513_VALIDATOR
+const shipmentDeliveryActionsBatch513 = fs.readFileSync(
+  path.join(root, 'src/features/admin/orders-admin-actions.tsx'),
+  'utf8',
+);
+const shipmentDeliveryWebBatch513 = fs.readFileSync(
+  path.join(projectRoot, 'apps/cms/current/resources/views/admin/orders/show.blade.php'),
+  'utf8',
+);
+assert(
+  shipmentDeliveryActionsBatch513.includes('MOBILE_SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513')
+    && shipmentDeliveryActionsBatch513.includes("recordText(order, 'payment_method') === 'cash_on_delivery'")
+    && shipmentDeliveryActionsBatch513.includes('deliveryActionStack')
+    && shipmentDeliveryActionsBatch513.includes('deliveryActionButton')
+    && shipmentDeliveryActionsBatch513.includes('Potvrdi da je pošiljka poslata')
+    && shipmentDeliveryActionsBatch513.includes('Potvrdi da je pošiljka isporučena i da je naplaćen otkup')
+    && shipmentDeliveryActionsBatch513.includes('{deliveryActionLabel}'),
+  'Batch513 Mobile prikazuje odvojene stacked potvrde slanja i isporuke sa COD-aware tekstom.',
+);
+assert(
+  shipmentDeliveryWebBatch513.includes('SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513')
+    && shipmentDeliveryWebBatch513.includes('id="order-workspace-logistics-actions"')
+    && shipmentDeliveryWebBatch513.includes('data-logistics-action="shipment"')
+    && shipmentDeliveryWebBatch513.includes('data-logistics-action="delivery"')
+    && shipmentDeliveryWebBatch513.includes('data-logistics-panel="shipment"')
+    && shipmentDeliveryWebBatch513.includes('data-logistics-panel="delivery"')
+    && shipmentDeliveryWebBatch513.includes('Potvrdi da je pošiljka poslata')
+    && shipmentDeliveryWebBatch513.includes('Potvrdi da je pošiljka isporučena i da je naplaćen otkup'),
+  'Batch513 Laravel order detail koristi jedan Slanje i isporuka action hub i on-demand forme.',
+);
+
 // MOBILE_V1_0_ADMIN_COMMISSIONS_DETAIL_UX_REORGANIZATION_BATCH92_VALIDATOR
 // MOBILE_BATCH156_ADMIN_COMMISSION_SINGLE_PAGE_VALIDATOR
 const commissionsDetailUxBatch156 = fs.readFileSync(

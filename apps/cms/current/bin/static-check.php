@@ -316,7 +316,8 @@ $check('beta7.7 PDF logo se ugrađuje kao lokalni JPEG', str_contains($documentS
 $check('beta7.7 PDF ne prikazuje subagent email kupca', str_contains($documentService, "'customer_email' => null") && !str_contains($businessPdf, "document['customer_email']") && str_contains($documentFeatureTest, 'assertStringNotContainsString($customer->email'));
 $check('beta7.7 kompletiranje COD porudžbine evidentira preostali saldo', str_contains($workflow, 'public function complete') && str_contains($workflow, "'payment_method' => 'cash_on_delivery'") && str_contains($workflow, "'completed_at' => now()") && str_contains($paymentFeatureTest, 'test_admin_can_complete_cod_order_and_lock_all_further_financial_actions'));
 $check('beta7.7 kompletirana porudžbina zaključava dalje izmene', str_contains($workflow, 'assertNotCompleted') && str_contains($paymentService, 'assertOrderOpen') && str_contains($adminOrderView, 'Porudžbina i isporuka su kompletirane'));
-$check('beta7.7 kompletiranje je jasno dostupno u detalju i listi', str_contains($adminOrderView, 'Evidentiraj isporuku i kompletiraj') && str_contains($adminOrderIndex, 'Evidentiraj isporuku') && str_contains($web, "name('orders.complete')"));
+// SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513_STATIC
+$check('beta7.7 kompletiranje je jasno dostupno u detalju i listi', str_contains($adminOrderView, 'Slanje i isporuka') && str_contains($adminOrderView, 'Potvrdi da je pošiljka poslata') && str_contains($adminOrderView, 'Potvrdi da je pošiljka isporučena i da je naplaćen otkup') && str_contains($adminOrderIndex, 'Evidentiraj isporuku') && str_contains($web, "name('orders.complete')"));
 
 
 $deliveryMigration = (string) file_get_contents($root.'/database/migrations/2026_07_30_000017_add_delivery_workflow_beta7_8.php');

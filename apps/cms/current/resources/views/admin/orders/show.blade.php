@@ -17,6 +17,14 @@
     $shipment = $detail['shipment'] ?? null;
     $couriers = $detail['couriers'] ?? [];
     $formDefaults = $detail['form_defaults'] ?? [];
+    // SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513
+    $logisticsOpenAction = old('shipment_method') !== null
+        ? 'shipment'
+        : (old('delivery_method') !== null ? 'delivery' : null);
+    $isCashOnDelivery = ($order['payment_method'] ?? '') === 'cash_on_delivery';
+    $deliveryActionLabel = $isCashOnDelivery
+        ? 'Potvrdi da je pošiljka isporučena i da je naplaćen otkup'
+        : 'Potvrdi da je pošiljka isporučena';
     $suppliers = $detail['suppliers'] ?? [];
     $activeDocumentsByType = collect($documents)->where('status', 'issued')->unique('type')->keyBy('type');
     $documentHistoryTypes = collect($documents)->pluck('type')->filter()->unique();
@@ -102,10 +110,10 @@
         $workspaceCompleted = (bool) ($order['is_completed'] ?? false);
         $workspaceShipmentTarget = is_array($shipment)
             ? '#order-workspace-shipment-record'
-            : (($actions['shipment'] ?? false) ? '#order-workspace-shipment-entry' : null);
+            : (($actions['shipment'] ?? false) ? '#order-workspace-logistics-actions' : null);
         $workspaceDeliveryTarget = $workspaceCompleted
             ? (is_array($delivery) ? '#order-workspace-delivery-record' : '#order-workspace-completed')
-            : (($actions['complete'] ?? false) ? '#delivery-completion' : null);
+            : (($actions['complete'] ?? false) ? '#order-workspace-logistics-actions' : null);
 
         if (($actions['accept'] ?? false) && !empty($urls['accept'])) {
             $workspaceNextTarget = '#order-workspace-accept';
@@ -113,12 +121,12 @@
             $workspaceNextTitle = 'Porudžbina čeka preuzimanje';
             $workspaceNextText = 'Preuzmi je za obradu. Nakon toga nastavi kroz status, slanje i stvarnu isporuku.';
         } elseif (($actions['shipment'] ?? false) && !empty($urls['shipment_store'])) {
-            $workspaceNextTarget = '#order-workspace-shipment-entry';
+            $workspaceNextTarget = '#order-workspace-logistics-actions';
             $workspaceNextLabel = 'Evidentiraj slanje';
             $workspaceNextTitle = 'Sledeći korak je slanje pošiljke';
             $workspaceNextText = 'Evidentiraj da je roba poslata. Ova akcija ne potvrđuje stvarnu isporuku niti naplatu pouzećem.';
         } elseif (($actions['complete'] ?? false) && !empty($urls['complete'])) {
-            $workspaceNextTarget = '#delivery-completion';
+            $workspaceNextTarget = '#order-workspace-logistics-actions';
             $workspaceNextLabel = 'Potvrdi isporuku';
             $workspaceNextTitle = 'Slanje je evidentirano — potvrdi stvarnu isporuku';
             $workspaceNextText = 'Kompletiranje zaključuje stvarnu isporuku i, kada je primenljivo, konačno evidentiranje plaćanja.';
@@ -198,6 +206,44 @@
         </aside>
     </section>
 
+    @if(!($order['is_completed'] ?? false) && (($actions['shipment'] ?? false) || ($actions['complete'] ?? false) || is_array($shipment)))
+        <section class="panel order-workspace-anchor" id="order-workspace-logistics-actions" data-logistics-actions>
+            <div class="section-heading-row">
+                <div>
+                    <span class="eyebrow">Logistika</span>
+                    <h2>Slanje i isporuka</h2>
+                    <p class="muted">Izaberi poslovni događaj koji stvarno potvrđuješ. Slanje i konačna isporuka ostaju odvojeni audit događaji.</p>
+                </div>
+            </div>
+            <div class="header-button-row">
+                @if($actions['shipment'] ?? false)
+                    <button class="button button-primary button-large" type="button" data-logistics-action="shipment" aria-controls="order-workspace-shipment-entry" aria-expanded="{{ $logisticsOpenAction === 'shipment' ? 'true' : 'false' }}">
+                        <x-icon name="truck" /> Potvrdi da je pošiljka poslata
+                    </button>
+                @elseif(is_array($shipment))
+                    <button class="button button-ghost button-large" type="button" disabled aria-disabled="true">
+                        <x-icon name="check-circle" /> Pošiljka je poslata
+                    </button>
+                @endif
+
+                @if($actions['complete'] ?? false)
+                    <button class="button button-success button-large" type="button" data-logistics-action="delivery" aria-controls="delivery-completion" aria-expanded="{{ $logisticsOpenAction === 'delivery' ? 'true' : 'false' }}">
+                        <x-icon name="check-circle" /> {{ $deliveryActionLabel }}
+                    </button>
+                @endif
+            </div>
+            @if($actions['complete'] ?? false)
+                <p class="muted">
+                    @if($isCashOnDelivery)
+                        Potvrda konačne isporuke automatski evidentira preostali iznos kao naplaćen pouzećem i kompletira porudžbinu.
+                    @else
+                        Potvrda konačne isporuke kompletira porudžbinu; za načine plaćanja koji nisu pouzeće saldo mora prethodno biti potpuno izmiren.
+                    @endif
+                </p>
+            @endif
+        </section>
+    @endif
+
     @if(is_array($shipment))
         <section class="panel shipment-record-card order-workspace-anchor" data-shipment-card id="order-workspace-shipment-record">
             <div class="section-heading-row">
@@ -219,7 +265,7 @@
             </div>
         </section>
     @elseif(($actions['shipment'] ?? false) && !empty($urls['shipment_store']))
-        <section class="panel shipment-entry-card order-workspace-anchor" data-shipment-card id="order-workspace-shipment-entry">
+        <section class="panel shipment-entry-card order-workspace-anchor" data-shipment-card data-logistics-panel="shipment" id="order-workspace-shipment-entry" @if($logisticsOpenAction !== 'shipment') hidden @endif>
             <div class="section-heading-row">
                 <div><span class="eyebrow">Logistika</span><h2>Evidencija slanja pošiljke</h2><p class="muted">Evidentira samo da je pošiljka poslata. Ne označava porudžbinu kao dostavljenu/completed i ne evidentira naplatu pouzećem.</p></div>
             </div>
@@ -235,7 +281,7 @@
                     <label><span>Dokaz slanja (opciono, do 10 MB)</span><input type="file" name="shipment_proof" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label>
                     <label class="shipment-wide"><span>Napomena o slanju</span><textarea name="note" rows="3" maxlength="3000"></textarea></label>
                 </div>
-                <button class="button button-success button-large" type="submit" data-confirm="Potvrditi da je poručeni artikal poslat kupcu? Ova akcija ne potvrđuje isporuku niti naplatu."><x-icon name="truck" /> Evidentiraj da je poručeni artikal poslat kupcu</button>
+                <button class="button button-success button-large" type="submit" data-confirm="Potvrditi da je pošiljka poslata? Ova akcija ne potvrđuje isporuku niti naplatu."><x-icon name="truck" /> Potvrdi da je pošiljka poslata</button>
             </form>
         </section>
     @endif
@@ -282,11 +328,11 @@
             </div>
         </section>
     @elseif(($actions['complete'] ?? false) && !empty($urls['complete']))
-        <section id="delivery-completion" class="panel order-completion-card">
+        <section id="delivery-completion" class="panel order-completion-card" data-logistics-panel="delivery" @if($logisticsOpenAction !== 'delivery') hidden @endif>
             <div class="completion-icon"><x-icon name="check-circle" /></div>
             <div class="completion-content">
                 <span class="eyebrow">Završetak isporuke</span>
-                <h2>Evidentiraj isporuku i kompletiraj porudžbinu</h2>
+                <h2>Potvrda stvarne isporuke</h2>
                 @if(($order['payment_method'] ?? '') === 'cash_on_delivery')
                     <p>Preostali iznos od <strong>{{ $order['remaining_rsd_display'] ?? '0,00 RSD' }}</strong> biće evidentiran kao naplaćen pouzećem. Podaci isporuke ostaju trajno zabeleženi.</p>
                 @else
@@ -343,8 +389,8 @@
                         <span>Završna interna napomena</span>
                         <input name="completion_note" maxlength="1000" placeholder="Npr. roba isporučena kupcu i naplaćena pouzećem">
                     </label>
-                    <button class="button button-success button-large delivery-complete-button" type="submit" data-confirm="Potvrdi stvarnu isporuku, kompletiranje porudžbine i konačno evidentiranje plaćanja?">
-                        <x-icon name="check-circle" /> Evidentiraj isporuku i kompletiraj
+                    <button class="button button-success button-large delivery-complete-button" type="submit" data-confirm="{{ $isCashOnDelivery ? 'Potvrditi da je pošiljka isporučena i da je otkup naplaćen? Ova akcija kompletira porudžbinu.' : 'Potvrditi da je pošiljka isporučena? Ova akcija kompletira porudžbinu.' }}">
+                        <x-icon name="check-circle" /> {{ $deliveryActionLabel }}
                     </button>
                 </form>
             </div>
@@ -774,6 +820,22 @@
 
 <script>
 (() => {
+    const logisticsButtons = Array.from(document.querySelectorAll('[data-logistics-action]'));
+    const logisticsPanels = Array.from(document.querySelectorAll('[data-logistics-panel]'));
+    const setLogisticsPanel = (name) => {
+        logisticsPanels.forEach((panel) => {
+            panel.hidden = panel.dataset.logisticsPanel !== name;
+        });
+        logisticsButtons.forEach((button) => {
+            button.setAttribute('aria-expanded', button.dataset.logisticsAction === name ? 'true' : 'false');
+        });
+        const active = logisticsPanels.find((panel) => panel.dataset.logisticsPanel === name);
+        active?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    logisticsButtons.forEach((button) => {
+        button.addEventListener('click', () => setLogisticsPanel(button.dataset.logisticsAction || ''));
+    });
+
     document.querySelectorAll('[data-shipment-form]').forEach((form) => {
         const method = form.querySelector('[data-shipment-method]');
         const courierField = form.querySelector('[data-courier-field]');
