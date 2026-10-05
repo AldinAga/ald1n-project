@@ -1,0 +1,173 @@
++    },
+     stack: {
+       flex: 1,
+       minHeight: 0,
+diff --git a/src/app/(app)/admin/commissions/index.tsx b/src/app/(app)/admin/commissions/index.tsx
+index 3315d38..847e637 100644
+--- a/src/app/(app)/admin/commissions/index.tsx
++++ b/src/app/(app)/admin/commissions/index.tsx
+@@ -276,7 +276,7 @@ export default function AdminCommissionsIndexScreen() {
+   ) : null;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <DataList
+         data={workspace === 'commissions' ? data.data : []}
+         keyExtractor={(item) => String(item.id)}
+diff --git a/src/app/(app)/after-sales/index.tsx b/src/app/(app)/after-sales/index.tsx
+index 489c7a6..80cff4f 100644
+--- a/src/app/(app)/after-sales/index.tsx
++++ b/src/app/(app)/after-sales/index.tsx
+@@ -75,7 +75,7 @@ export default function AfterSalesListScreen() {
+   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
+         data={query.data?.data ?? []}
+         keyExtractor={(item) => String(item.id)}
+diff --git a/src/app/(app)/assigned-orders/index.tsx b/src/app/(app)/assigned-orders/index.tsx
+index 6ec3f93..954335f 100644
+--- a/src/app/(app)/assigned-orders/index.tsx
++++ b/src/app/(app)/assigned-orders/index.tsx
+@@ -37,7 +37,7 @@ export default function AssignedOrdersScreen() {
+   const orders = query.data?.pages.flatMap((page) => page.data) ?? [];
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
+         data={orders}
+         keyExtractor={(item) => String(item.id)}
+diff --git a/src/app/(app)/commissions/index.tsx b/src/app/(app)/commissions/index.tsx
+index 5ad7bed..e04ccb2 100644
+--- a/src/app/(app)/commissions/index.tsx
++++ b/src/app/(app)/commissions/index.tsx
+@@ -159,7 +159,7 @@ export default function CommissionsListScreen() {
+   const lastPage = meta?.last_page ?? currentPage;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
+         data={query.data?.data ?? []}
+         keyExtractor={(item) => String(item.id)}
+diff --git a/src/app/(app)/warranties/index.tsx b/src/app/(app)/warranties/index.tsx
+index 2a2cf78..7dcaad6 100644
+--- a/src/app/(app)/warranties/index.tsx
++++ b/src/app/(app)/warranties/index.tsx
+@@ -93,7 +93,7 @@ export default function WarrantiesListScreen() {
+   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
+         data={query.data?.data ?? []}
+         keyExtractor={(item) => String(item.id)}
+diff --git a/src/app/(auth)/_layout.tsx b/src/app/(auth)/_layout.tsx
+index dfab7e0..9a021c0 100644
+--- a/src/app/(auth)/_layout.tsx
++++ b/src/app/(auth)/_layout.tsx
+@@ -1,10 +1,38 @@
+ import { Redirect, Stack } from 'expo-router';
++import { StyleSheet, View } from 'react-native';
++import { SafeAreaView } from 'react-native-safe-area-context';
++
+ import { LoadingState } from '@/components/ui/states';
++import type { AppColors } from '@/constants/theme';
+ import { useAuth } from '@/features/auth/auth-provider';
++import { useThemedStyles } from '@/theme/app-theme';
+ 
+ export default function AuthLayout() {
+   const { status } = useAuth();
++  const styles = useThemedStyles(createStyles);
+   if (status === 'hydrating') return <LoadingState />;
+   if (status === 'authenticated') return <Redirect href="/home" />;
+-  return <Stack screenOptions={{ headerShown: false }} />;
++  return (
++    <SafeAreaView style={styles.safe} edges={['top', 'right', 'bottom', 'left']}>
++      <View style={styles.stage}>
++        <Stack screenOptions={{ headerShown: false }} />
++      </View>
++    </SafeAreaView>
++  );
++}
++
++function createStyles(theme: AppColors) {
++  return StyleSheet.create({
++    safe: {
++      flex: 1,
++      backgroundColor: theme.background,
++    },
++    stage: {
++      flex: 1,
++      width: '100%',
++      maxWidth: 760,
++      alignSelf: 'center',
++      backgroundColor: theme.background,
++    },
++  });
+ }
+diff --git a/src/components/layout/app-bottom-nav.tsx b/src/components/layout/app-bottom-nav.tsx
+index f9f6b4f..9c8e56c 100644
+--- a/src/components/layout/app-bottom-nav.tsx
++++ b/src/components/layout/app-bottom-nav.tsx
+@@ -3,7 +3,7 @@
+ // MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2
+ import { useEffect, useMemo, useState } from 'react';
+ import { router, usePathname } from 'expo-router';
+-import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
++import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ 
+ import { Glyph, type GlyphName } from '@/components/ui/glyph';
+@@ -53,7 +53,7 @@ function activeKey(pathname: string): NavKey | null {
+   return null;
+ }
+ 
+-export function AppBottomNav() {
++export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rail' }) {
+   const pathname = usePathname();
+   const insets = useSafeAreaInsets();
+   const { colors: theme } = useAppTheme();
+@@ -63,6 +63,7 @@ export function AppBottomNav() {
+   const styles = useMemo(() => createStyles(theme), [theme]);
+   const active = activeKey(pathname);
+   const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
++  const rail = variant === 'rail';
+ 
+   useEffect(() => {
+     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+@@ -118,66 +119,94 @@ export function AppBottomNav() {
+     },
+   ], [hasFeature, isSuperAdmin, unread]);
+ 
+-  if (keyboardVisible) return null;
++  if (keyboardVisible && !rail) return null;
++
++  const navItems = items.map((item) => {
++    if (!item.visible) return rail ? null : <View key={item.key} style={styles.item} pointerEvents="none" />;
++    const focused = active === item.key;
++    const center = item.center === true && !rail;
++    return (
++      <Pressable
++        accessibilityLabel={item.label}
++        accessibilityRole="button"
++        accessibilityState={{ selected: focused }}
++        key={item.key}
++        onPress={() => { if (!focused) router.replace(item.route); }}
++        style={({ pressed }) => [
++          styles.item,
++          rail ? styles.railItem : null,
++          center ? styles.homeItem : null,
++          !center && focused ? styles.itemActive : null,
++          pressed ? styles.pressed : null,
++        ]}
++      >
++        <View
++          style={[
++            styles.iconWrap,
++            center ? styles.homeCircle : null,

@@ -1,0 +1,175 @@
++  lateralSafeAreaSources497C.every((source) => source.includes("edges={['top', 'left', 'right']}")),
++  'Build22 lateral safe-area pokriva operativne liste sa sopstvenim SafeAreaView korenom.',
++);
++assert(
++  androidNativeNav497.includes('ScrollView')
++    && androidNativeNav497.includes('contentContainerStyle={styles.rail}')
++    && androidNativeNav497.includes('keyboardShouldPersistTaps="handled"')
++    && androidNativeNav497.includes('railScroller:')
++    && androidNativeNav497.includes('minHeight: 0')
++    && androidNativeNav497.includes('flexGrow: 1'),
++  'Build22 navigation rail ostaje dostupan u niskom landscape/keyboard prozoru preko vertikalnog skrolovanja.',
++);
++
+ // MOBILE_V0_8_EXPO_SDK57_COMPATIBILITY_MATRIX
+ // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH21A_V3
+ // MOBILE_V1_0_EXPO_SDK57_PATCH_ALIGNMENT_BATCH45_V5
+@@ -2268,7 +2384,7 @@ assert(
+   const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
+   assert(
+     tabs.includes("display: 'none'")
+-      && appShellBuild18.includes('<AppBottomNav />')
++      && canonicalAppNavigation497(appShellBuild18)
+       && bottomNavBuild18.includes("label: 'Katalog'")
+       && bottomNavBuild18.includes("label: 'Porudžbine'")
+       && bottomNavBuild18.includes("label: 'Početna'")
+diff --git a/src/app/(app)/(tabs)/catalog.tsx b/src/app/(app)/(tabs)/catalog.tsx
+index bdec3b7..ca243f8 100644
+--- a/src/app/(app)/(tabs)/catalog.tsx
++++ b/src/app/(app)/(tabs)/catalog.tsx
+@@ -10,6 +10,7 @@ import {
+   Text,
+   TextInput,
+   View,
++  useWindowDimensions,
+ } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ 
+@@ -32,6 +33,8 @@ export default function CatalogScreen() {
+   const { bootstrap, hasFeature } = useAuth();
+   const { itemCount } = useCart();
+   const allowed = hasFeature('catalog');
++  const { width: viewportWidth } = useWindowDimensions();
++  const catalogColumns = viewportWidth >= 1600 ? 4 : viewportWidth >= 1200 ? 3 : viewportWidth >= 840 ? 2 : 1;
+ 
+   const [search, setSearch] = useState('');
+   const [stock, setStock] = useState(undefined as string | undefined);
+@@ -114,11 +117,14 @@ export default function CatalogScreen() {
+   const total = query.data?.meta?.total ?? query.data?.data.length ?? 0;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
++        key={`catalog-${catalogColumns}`}
+         data={query.data?.data ?? []}
+         keyExtractor={catalogKeyExtractor}
+         renderItem={renderProduct}
++        numColumns={catalogColumns}
++        columnWrapperStyle={catalogColumns > 1 ? styles.catalogRow : undefined}
+         ItemSeparatorComponent={CatalogSeparator}
+         initialNumToRender={7}
+         maxToRenderPerBatch={7}
+@@ -249,12 +255,17 @@ export default function CatalogScreen() {
+ }
+ 
+ const CatalogProductRow = memo(function CatalogProductRow({ product }: { product: Product }) {
++  const styles = useThemedStyles(createStyles);
+   const handlePress = useCallback(
+     () => router.push({ pathname: '/product/[slug]', params: { slug: product.slug } }),
+     [product.slug],
+   );
+ 
+-  return <ProductCard product={product} onPress={handlePress} showSku={false} />;
++  return (
++    <View style={styles.catalogGridItem}>
++      <ProductCard product={product} onPress={handlePress} showSku={false} />
++    </View>
++  );
+ });
+ 
+ type CatalogFilterPanelProps = {
+@@ -403,10 +414,20 @@ function createStyles(theme: AppColors) {
+   return StyleSheet.create({
+     safe: { flex: 1, backgroundColor: theme.background },
+     content: {
++      width: '100%',
++      maxWidth: 1200,
++      alignSelf: 'center',
+       paddingHorizontal: spacing.lg,
+       paddingBottom: 120,
+       backgroundColor: theme.background,
+     },
++    catalogRow: {
++      gap: spacing.md,
++    },
++    catalogGridItem: {
++      flex: 1,
++      minWidth: 0,
++    },
+     headerWrap: { gap: spacing.md, marginBottom: spacing.lg },
+     headerLine: {
+       flexDirection: 'row',
+diff --git a/src/app/(app)/(tabs)/notifications.tsx b/src/app/(app)/(tabs)/notifications.tsx
+index 1a05522..d0a16fe 100644
+--- a/src/app/(app)/(tabs)/notifications.tsx
++++ b/src/app/(app)/(tabs)/notifications.tsx
+@@ -191,7 +191,7 @@ export default function NotificationsScreen() {
+   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
+         data={notifications}
+         keyExtractor={notificationKeyExtractor}
+diff --git a/src/app/(app)/(tabs)/orders.tsx b/src/app/(app)/(tabs)/orders.tsx
+index 8ab8c79..6ba0e04 100644
+--- a/src/app/(app)/(tabs)/orders.tsx
++++ b/src/app/(app)/(tabs)/orders.tsx
+@@ -42,7 +42,7 @@ export default function OrdersScreen() {
+   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+ 
+   return (
+-    <SafeAreaView style={styles.safe} edges={['top']}>
++    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+       <FlatList
+         data={orders}
+         keyExtractor={orderKeyExtractor}
+diff --git a/src/app/(app)/_layout.tsx b/src/app/(app)/_layout.tsx
+index a43b4d5..ca2a491 100644
+--- a/src/app/(app)/_layout.tsx
++++ b/src/app/(app)/_layout.tsx
+@@ -1,7 +1,7 @@
+ // MOBILE_GLOBAL_APP_SHELL_V06
+ import * as Application from 'expo-application';
+ import { Redirect, Stack } from 'expo-router';
+-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
++import { Linking, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+ 
+ import { AppBottomNav } from '@/components/layout/app-bottom-nav';
+ import { Button } from '@/components/ui/button';
+@@ -16,6 +16,8 @@ export default function AppLayout() {
+   const { colors: themeColors } = useAppTheme();
+   const styles = useThemedStyles(createStyles);
+   const { status, bootstrap } = useAuth();
++  const { width: viewportWidth } = useWindowDimensions();
++  const useNavigationRail = viewportWidth >= 600;
+ 
+   if (status === 'hydrating') return <LoadingState />;
+   if (status !== 'authenticated') return <Redirect href="/login" />;
+@@ -47,7 +49,8 @@ export default function AppLayout() {
+   }
+ 
+   return (
+-    <View style={styles.shell}>
++    <View style={[styles.shell, useNavigationRail ? styles.shellRail : null]}>
++      {useNavigationRail ? <AppBottomNav variant="rail" /> : null}
+       <View style={styles.stack}>
+         <Stack
+           screenOptions={{
+@@ -56,7 +59,7 @@ export default function AppLayout() {
+           }}
+         />
+       </View>
+-      <AppBottomNav />
++      {!useNavigationRail ? <AppBottomNav variant="bottom" /> : null}
+     </View>
+   );
+ }
+@@ -67,6 +70,9 @@ function createStyles(theme: AppColors) {
+       flex: 1,
+       backgroundColor: theme.background,
+     },
++    shellRail: {
++      flexDirection: 'row',

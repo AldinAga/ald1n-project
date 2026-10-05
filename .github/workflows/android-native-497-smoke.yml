@@ -1,0 +1,51 @@
+name: Android Native 497 Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Check GitHub runner and native prerequisites
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+
+      - name: Runner information
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          uname -a
+          echo "CPU_COUNT=$(nproc)"
+          free -h
+          df -h /
+
+      - name: Java runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          javac -version
+          echo "JAVA_HOME=$JAVA_HOME"
+
+      - name: Node runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+
+      - name: Audit source authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "BRANCH=$(git branch --show-current)"
+          test -f apps/mobile/current/package.json
+          echo "SMOKE_497_RESULT=PASS"

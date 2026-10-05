@@ -1,0 +1,273 @@
+name: Android Native 497 Full Audit
+
+on:
+  push:
+    branches:
+      - audit/android-native-497
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-native-497-full-audit
+  cancel-in-progress: true
+
+env:
+  CI: "1"
+  EXPO_PUBLIC_APP_ENV: production
+  EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+
+jobs:
+  native-audit:
+    name: Certify committed candidate and Gradle runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout exact audit branch commit
+        uses: actions/checkout@v4
+        with:
+          ref: audit/android-native-497
+          fetch-depth: 1
+
+      - name: Source authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "AUDIT_HEAD=$(git rev-parse HEAD)"
+          echo "AUDIT_BRANCH=$(git branch --show-current)"
+          test "$(git branch --show-current)" = "audit/android-native-497"
+          test "$(git rev-parse origin/main 2>/dev/null || true)" = "" || true
+          test -f apps/mobile/current/package.json
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2
+          cache: npm
+          cache-dependency-path: apps/mobile/current/package-lock.json
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Android SDK inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME"
+          java -version
+          javac -version
+          node --version
+          npm --version
+          echo "ANDROID_HOME=${ANDROID_HOME:-UNSET}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-UNSET}"
+          test -n "${ANDROID_HOME:-}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 4 -type f -name sdkmanager -print -quit)"
+          test -n "$SDKMANAGER"
+          echo "SDKMANAGER=$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          "$SDKMANAGER" --version
+          "$SDKMANAGER" --list_installed | sed -n '1,220p'
+
+      - name: Ensure SDK 36 build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Verify committed Build22 candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          node --check apps/mobile/current/plugins/with-android-native-modernization.js
+          grep -Fq "'./plugins/with-android-native-modernization'" apps/mobile/current/app.config.js
+          if grep -Fq "orientation: 'portrait'" apps/mobile/current/app.config.js; then
+            echo "Portrait orientation lock unexpectedly remains in source." >&2
+            exit 1
+          fi
+          printf '%s\n' \
+            'ff8ee8bb46a2a4758d0398da3069c531db90dbe8 apps/mobile/current/app.config.js' \
+            '7d1752fe75ea32372cfc2e2c21a06bceeb12675f apps/mobile/current/scripts/validate-project.mjs' \
+            'ca243f82239a4486b6b0464b743e1cd8d4906266 apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx' \
+            'd0a16fe38dcfc1c5f05922b2fe36d34e3152f8ff apps/mobile/current/src/app/(app)/(tabs)/notifications.tsx' \
+            '6ba0e040dfebd1ca7f83e57cc96054954bff3ee4 apps/mobile/current/src/app/(app)/(tabs)/orders.tsx' \
+            'ca2a491ae2e11df7d192c714c0239b575fb90d74 apps/mobile/current/src/app/(app)/_layout.tsx' \
+            '847e637390729831f2dc08a8d7942f1716d622cd apps/mobile/current/src/app/(app)/admin/commissions/index.tsx' \
+            '80cff4f278eb84335fe8f0c14de61cec3e2e434e apps/mobile/current/src/app/(app)/after-sales/index.tsx' \
+            '954335fce076ecbc10f01e1f8420cba047d1b30e apps/mobile/current/src/app/(app)/assigned-orders/index.tsx' \
+            'e04ccb2a70121886e63ecd1ffcdc1ac3a1dc65ac apps/mobile/current/src/app/(app)/commissions/index.tsx' \
+            '7dcaad6cdcaa2e25e430581d7703275e21179a13 apps/mobile/current/src/app/(app)/warranties/index.tsx' \
+            '9a021c01cae6d8907153eccfd6309e49db6decfa apps/mobile/current/src/app/(auth)/_layout.tsx' \
+            '9c8e56cbc66d55137261a8db91748e5c0d71bf0f apps/mobile/current/src/components/layout/app-bottom-nav.tsx' \
+            'a2b73510bbbe523696eb3c22645c34efa4def98f apps/mobile/current/src/components/layout/screen.tsx' \
+            '0c8a045557617487c3ec74e63835979ce903b651 apps/mobile/current/plugins/with-android-native-modernization.js' \
+            > /tmp/source-blobs-497
+          while IFS=' ' read -r expected path; do
+            actual="$(git rev-parse "HEAD:$path")"
+            if [ "$actual" != "$expected" ]; then
+              echo "SOURCE_BLOB_MISMATCH path=$path expected=$expected actual=$actual" >&2
+              exit 1
+            fi
+          done < /tmp/source-blobs-497
+          echo "COMMITTED_SOURCE_497=PASS"
+
+      - name: OpenAPI 3-copy parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp -s packages/api-contract/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp -s packages/api-contract/openapi.yaml apps/cms/current/docs/openapi.yaml
+          echo "OPENAPI_3_COPY_PARITY=PASS"
+          sha256sum packages/api-contract/openapi.yaml apps/mobile/current/docs/openapi.yaml apps/cms/current/docs/openapi.yaml
+
+      - name: CMS static gate 983 of 983
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -uo pipefail
+          php -v
+          set +e
+          php bin/static-check.php | tee /tmp/cms-static-497-pre.log
+          pre_rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$pre_rc" -ne 0 ]; then
+            grep '^FAIL  ' /tmp/cms-static-497-pre.log > /tmp/cms-static-497-fails || true
+            printf '%s\n' \
+              'FAIL  postoji .env.testing.mysql.example' \
+              'FAIL  postoji storage/framework/cache/data/.gitignore' \
+              > /tmp/cms-static-497-expected-fails
+            diff -u /tmp/cms-static-497-expected-fails /tmp/cms-static-497-fails
+            test "$(grep -c '^FAIL  ' /tmp/cms-static-497-pre.log)" -eq 2
+            : > .env.testing.mysql.example
+            mkdir -p storage/framework/cache/data
+            : > storage/framework/cache/data/.gitignore
+            echo "CMS_STATIC_CI_RUNTIME_FIXTURES=2"
+          fi
+          php bin/static-check.php | tee /tmp/cms-static-497.log
+          grep -Fq "Ukupno: 983, neuspešno: 0" /tmp/cms-static-497.log
+          echo "CMS_STATIC_CI_983_983=PASS"
+
+      - name: Install locked Mobile dependencies
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+
+      - name: Expo compatibility check
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          node node_modules/expo/bin/cli install --check 2>&1 | tee /tmp/expo-install-check-497.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "EXPO_COMPATIBILITY_CHECK_RC=$rc"
+          if [ "$rc" -eq 0 ]; then
+            echo "EXPO_COMPATIBILITY_DRIFT=NONE"
+          else
+            echo "EXPO_COMPATIBILITY_DRIFT=DETECTED_NONBLOCKING_FOR_NATIVE_BASELINE_AUDIT"
+          fi
+
+      - name: Mobile typecheck
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+
+      - name: Mobile project validator
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs | tee /tmp/mobile-validator-497.log
+          grep -Fq "Ukupno FAIL: 0" /tmp/mobile-validator-497.log
+
+      - name: Prebuild Android from corrected candidate
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
+
+      - name: Generated native contract
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'proguard-android-optimize.txt' android/app/build.gradle
+          grep -Fq 'android.r8.optimizedResourceShrinking=true' android/gradle.properties
+          if grep -RFn 'android:screenOrientation="portrait"' android/app/src/main/AndroidManifest.xml; then
+            echo 'Portrait orientation lock unexpectedly remains.' >&2
+            exit 1
+          fi
+          echo 'GENERATED_NATIVE_CONTRACT=PASS'
+
+      - name: Register corrected Gradle audit tasks
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/.github/ci/ald1n-audit-497c.gradle" android/app/ald1n-audit-497c.gradle
+          printf '\napply from: file("ald1n-audit-497c.gradle")\n' >> android/app/build.gradle
+
+      - name: Resolve native SDK and release configuration
+        working-directory: apps/mobile/current/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace :app:ald1nNativeSnapshot497C
+          cat app/ald1n-native-497c.json
+
+      - name: Resolve release dependency graph
+        working-directory: apps/mobile/current/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace :app:ald1nReleaseGraph497C
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const native = JSON.parse(fs.readFileSync('app/ald1n-native-497c.json', 'utf8'));
+          const graph = JSON.parse(fs.readFileSync('app/ald1n-graph-497c.json', 'utf8'));
+          const failures = [];
+          const agpMatch = String(native.agp).match(/(?:^|\s)(\d+\.\d+\.\d+)$/);
+          if (!agpMatch || agpMatch[1] !== '8.12.0') failures.push(`AGP=${native.agp}`);
+          if (Number(native.compileSdk) !== 36) failures.push(`compileSdk=${native.compileSdk}`);
+          if (Number(native.minSdk) !== 24) failures.push(`minSdk=${native.minSdk}`);
+          if (Number(native.targetSdk) !== 36) failures.push(`targetSdk=${native.targetSdk}`);
+          if (native.minify !== true) failures.push(`minify=${native.minify}`);
+          if (native.shrinkResources !== true) failures.push(`shrinkResources=${native.shrinkResources}`);
+          if (!Array.isArray(native.proguard) || !native.proguard.some((name) => String(name).startsWith('proguard-android-optimize.txt'))) failures.push(`proguard=${JSON.stringify(native.proguard)}`);
+          if (String(native.optimizedShrinking) !== 'true') failures.push(`optimizedShrinking=${native.optimizedShrinking}`);
+          if (Number(graph.unresolved) !== 0) failures.push(`unresolved=${graph.unresolved}`);
+          if (!Array.isArray(graph.material) || graph.material.length !== 1) failures.push(`material=${JSON.stringify(graph.material)}`);
+          if (failures.length) {
+            console.error('NATIVE_497_ASSERTIONS=FAIL ' + failures.join(' | '));
+            process.exit(1);
+          }
+          console.log('NATIVE_497_ASSERTIONS=PASS');
+          console.log('NATIVE_497_MATERIAL_RESOLVED=' + graph.material[0]);
+          console.log('NATIVE_497_FRESCO_RESOLVED=' + (graph.fresco || []).join(','));
+          NODE
+
+      - name: Save native audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-native-497-audit-evidence
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            apps/mobile/current/android/app/ald1n-native-497c.json
+            apps/mobile/current/android/app/ald1n-graph-497c.json
+            apps/mobile/current/android/gradle.properties
+            apps/mobile/current/android/app/build.gradle
+            apps/mobile/current/android/app/src/main/AndroidManifest.xml
