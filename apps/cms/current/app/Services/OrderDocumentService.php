@@ -146,6 +146,18 @@ final class OrderDocumentService
                 'delivery_note_snapshot' => $locked->delivery?->note,
             ]);
 
+            foreach ($locked->items->values() as $index => $item) {
+                $document->items()->create([
+                    'sequence_no' => $index + 1,
+                    'product_id' => $item->product_id,
+                    'product_sku' => $item->product_sku,
+                    'product_name' => $item->product_name,
+                    'quantity' => (int) $item->quantity,
+                    'unit_price_rsd' => (float) $item->unit_price_rsd,
+                    'line_total_rsd' => (float) $item->line_total_rsd,
+                ]);
+            }
+
             if (is_array($preparedIps)) {
                 $storedIpsPath = $this->nbsIpsQr->store($document, $preparedIps);
                 $document->update([
@@ -226,6 +238,61 @@ final class OrderDocumentService
         return $document;
     }
 
+    /** @return \Illuminate\Support\Collection<int,OrderDocument> */
+    public function invalidateIssuedForAmendmentLocked(Order $order, User $actor, string $reason): \Illuminate\Support\Collection
+    {
+        $documents = OrderDocument::query()
+            ->where('order_id', $order->id)
+            ->whereIn('document_type', ['order_confirmation', 'proforma', 'invoice'])
+            ->where('status', 'issued')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($documents as $document) {
+            $document->update([
+                'status' => 'cancelled',
+                'cancelled_by' => $actor->id,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $reason,
+            ]);
+            $this->audit->log(
+                'order.document_cancelled',
+                'Storniran dokument '.$document->document_number.' zbog izmene porudžbine',
+                $document,
+                before: ['status' => 'issued'],
+                after: ['status' => 'cancelled', 'cancellation_reason' => $reason],
+                metadata: ['source' => 'customer_order_amendment'],
+                user: $actor,
+            );
+        }
+
+        if ($documents->isNotEmpty()) {
+            $ids = $documents->pluck('id')->map('intval')->all();
+            DB::afterCommit(function () use ($ids, $reason): void {
+                foreach (OrderDocument::query()->with('order.user')->whereIn('id', $ids)->get() as $document) {
+                    try {
+                        if ($document->order?->user instanceof User) {
+                            $this->notifications->order(
+                                $document->order->user,
+                                'order.document_cancelled',
+                                'Dokument je storniran nakon izmene porudžbine',
+                                'Dokument '.$document->document_number.' je storniran jer je porudžbina izmenjena pre slanja.',
+                                $document->order,
+                                ['severity' => 'warning', 'icon' => 'file-text'],
+                            );
+                        }
+                        $this->emails->documentCancelled($document, $reason);
+                    } catch (Throwable $exception) {
+                        Log::warning('Amendment document cancellation notification failed.', ['document_id' => $document->id, 'exception' => $exception]);
+                    }
+                }
+            });
+        }
+
+        return $documents;
+    }
+
     public function cancel(OrderDocument $document, User $actor, string $reason): OrderDocument
     {
         $reason = trim($reason);
@@ -291,9 +358,9 @@ final class OrderDocumentService
 
     public function render(OrderDocument $document): string
     {
-        $document->loadMissing(['supersedes', 'order.user', 'order.supplier', 'order.items', 'order.payments', 'order.delivery']);
+        $document->loadMissing(['supersedes', 'items', 'order.user', 'order.supplier', 'order.payments', 'order.delivery']);
         $document = $this->nbsIpsQr->ensureForDocument($document);
-        $document->loadMissing(['supersedes', 'order.user', 'order.supplier', 'order.items', 'order.payments', 'order.delivery']);
+        $document->loadMissing(['supersedes', 'items', 'order.user', 'order.supplier', 'order.payments', 'order.delivery']);
         $order = $document->order;
         $ipsQrPath = $this->nbsIpsQr->localPath($document);
         $settings = $this->settings->all();
@@ -351,19 +418,19 @@ final class OrderDocumentService
         ], [
             'order_number' => $order?->order_number,
             'supplier_name' => $document->supplier_name,
-        ], $order?->items->map(static fn ($item): array => [
+        ], $document->items->map(static fn ($item): array => [
             'sku' => $item->product_sku,
             'name' => $item->product_name,
             'quantity' => (int) $item->quantity,
             'unit_price_rsd' => (float) $item->unit_price_rsd,
             'line_total_rsd' => (float) $item->line_total_rsd,
-        ])->values()->all() ?? []);
+        ])->values()->all());
     }
 
 
     private function assertIssueSchemaReady(string $type): void
     {
-        $requiredTables = ['order_documents', 'document_counters'];
+        $requiredTables = ['order_documents', 'order_document_items', 'document_counters'];
         if ($type === 'delivery_note') {
             $requiredTables[] = 'order_deliveries';
         }

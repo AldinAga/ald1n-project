@@ -422,6 +422,59 @@ final class ReceivablesService
             return $locked->fresh(['order.user', 'order.supplier', 'installments', 'contacts.user', 'assignee']) ?? $locked;
         }, 5);
     }
+    /** @param array<string,mixed> $context */
+    public function invalidatePlanForOrderAmendmentLocked(Order $order, User $actor, array $context): void
+    {
+        /** @var ReceivableCase|null $case */
+        $case = ReceivableCase::query()->where('order_id', $order->id)->lockForUpdate()->first();
+        if (!$case instanceof ReceivableCase) return;
+
+        $installments = ReceivableInstallment::query()
+            ->where('receivable_case_id', $case->id)
+            ->orderBy('sequence_no')
+            ->lockForUpdate()
+            ->get();
+        $allocations = Schema::hasTable('receivable_payment_allocations')
+            ? ReceivablePaymentAllocation::query()->where('receivable_case_id', $case->id)->lockForUpdate()->get()
+            : collect();
+
+        $snapshot = [
+            'case_status' => (string) $case->status,
+            'installments' => $installments->map->toArray()->values()->all(),
+            'allocations' => $allocations->map->toArray()->values()->all(),
+        ];
+
+        if (Schema::hasTable('receivable_payment_allocations')) {
+            ReceivablePaymentAllocation::query()->where('receivable_case_id', $case->id)->delete();
+        }
+        ReceivableInstallment::query()->where('receivable_case_id', $case->id)->delete();
+        $metadata = (array) ($case->metadata_json ?? []);
+        unset($metadata['plan_paid_baseline_rsd'], $metadata['plan_payment_high_water_id'], $metadata['plan_created_at']);
+        $metadata['last_order_amendment_at'] = now()->toISOString();
+        $case->update([
+            'status' => 'monitoring',
+            'promised_payment_at' => null,
+            'next_action_at' => $order->payment_due_at,
+            'closed_at' => null,
+            'metadata_json' => $metadata,
+            'updated_by' => $actor->id,
+        ]);
+        $this->audit->log(
+            'receivable.plan_invalidated_by_order_amendment',
+            'Plan naplate je poništen zbog izmene porudžbine '.$order->order_number,
+            $case,
+            before: $snapshot,
+            after: ['status' => 'monitoring'] + $context,
+            user: $actor,
+        );
+
+        $orderId = (int) $order->id;
+        DB::afterCommit(function () use ($orderId): void {
+            $fresh = Order::query()->find($orderId);
+            if ($fresh instanceof Order) $this->syncForOrder($fresh);
+        });
+    }
+
     public function remaining(Order $order): float
     {
         return round(max(0, (float) $order->subtotal_rsd - (float) $order->paid_total_rsd), 2);

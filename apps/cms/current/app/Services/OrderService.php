@@ -127,43 +127,11 @@ final class OrderService
                 throw ValidationException::withMessages(['items' => sprintf('Nedovoljan lager za %s (%s). Dostupno: %d.', $product->name, $product->sku, $product->stock_quantity)]);
             }
 
-            $unitPriceRsd = $this->priceRsd($product, $rate);
-            $lineTotalRsd = round($unitPriceRsd * $quantity, 2);
-            $manualCommission = $product->manual_commission_eur !== null ? (float) $product->manual_commission_eur : null;
-            $commissionUnit = $this->commissionCalculator->unitEur((float) $product->price_amount, (string) $product->price_currency, $manualCommission, $rate);
-            // COMMISSION_PERCENTAGE_POLICY_V0_7
-            $usesManualCommission = $this->commissionCalculator->usesManual(
-                (float) $product->price_amount,
-                (string) $product->price_currency,
-                $manualCommission,
-                $rate,
-            );
-            $commissionTotal = round($commissionUnit * $quantity, 2);
-            $purchaseUnitRsd = $product->purchase_price_rsd !== null && (float) $product->purchase_price_rsd > 0
-                ? round((float) $product->purchase_price_rsd, 2)
-                : null;
-            $purchaseTotalRsd = $purchaseUnitRsd === null ? null : round($purchaseUnitRsd * $quantity, 2);
+            $snapshot = $this->itemSnapshot($product, $quantity, $rate);
+            $lineTotalRsd = (float) $snapshot['line_total_rsd'];
+            $commissionTotal = (float) $snapshot['commission_total_eur_snapshot'];
 
-            $orderItem = $order->items()->create([
-                'product_id' => $product->id,
-                'product_sku' => $product->sku,
-                'product_name' => $product->name,
-                'quantity' => $quantity,
-                'unit_price_original' => $product->price_amount,
-                'original_currency' => $product->price_currency,
-                'unit_price_rsd' => $unitPriceRsd,
-                'line_total_rsd' => $lineTotalRsd,
-                'purchase_unit_rsd_snapshot' => $purchaseUnitRsd,
-                'purchase_total_rsd_snapshot' => $purchaseTotalRsd,
-                'cost_source_snapshot' => $purchaseUnitRsd === null ? 'missing' : 'product',
-                'brand_name_snapshot' => $product->brand?->name,
-                'product_line_name_snapshot' => $product->line?->name,
-                'product_type_name_snapshot' => $product->type?->name,
-                'commission_source_snapshot' => $usesManualCommission ? 'manual' : 'automatic',
-                'commission_rate_percent_snapshot' => $usesManualCommission ? null : CommissionCalculator::DEFAULT_RATE_PERCENT,
-                'commission_unit_eur_snapshot' => $commissionUnit,
-                'commission_total_eur_snapshot' => $commissionTotal,
-            ]);
+            $orderItem = $order->items()->create(['product_id' => $product->id] + $snapshot);
 
             $before = (int) $product->stock_quantity;
             $after = $before - $quantity;
@@ -274,6 +242,45 @@ final class OrderService
         }
 
         return $account;
+    }
+
+    /** @return array<string,mixed> */
+    public function itemSnapshot(Product $product, int $quantity, ?float $rate): array
+    {
+        $quantity = max(1, $quantity);
+        $product->loadMissing(['brand', 'line', 'type']);
+        $unitPriceRsd = $this->priceRsd($product, $rate);
+        $manualCommission = $product->manual_commission_eur !== null ? (float) $product->manual_commission_eur : null;
+        $commissionUnit = $this->commissionCalculator->unitEur((float) $product->price_amount, (string) $product->price_currency, $manualCommission, $rate);
+        $usesManualCommission = $this->commissionCalculator->usesManual(
+            (float) $product->price_amount,
+            (string) $product->price_currency,
+            $manualCommission,
+            $rate,
+        );
+        $purchaseUnitRsd = $product->purchase_price_rsd !== null && (float) $product->purchase_price_rsd > 0
+            ? round((float) $product->purchase_price_rsd, 2)
+            : null;
+
+        return [
+            'product_sku' => $product->sku,
+            'product_name' => $product->name,
+            'quantity' => $quantity,
+            'unit_price_original' => $product->price_amount,
+            'original_currency' => $product->price_currency,
+            'unit_price_rsd' => $unitPriceRsd,
+            'line_total_rsd' => round($unitPriceRsd * $quantity, 2),
+            'purchase_unit_rsd_snapshot' => $purchaseUnitRsd,
+            'purchase_total_rsd_snapshot' => $purchaseUnitRsd === null ? null : round($purchaseUnitRsd * $quantity, 2),
+            'cost_source_snapshot' => $purchaseUnitRsd === null ? 'missing' : 'product',
+            'brand_name_snapshot' => $product->brand?->name,
+            'product_line_name_snapshot' => $product->line?->name,
+            'product_type_name_snapshot' => $product->type?->name,
+            'commission_source_snapshot' => $usesManualCommission ? 'manual' : 'automatic',
+            'commission_rate_percent_snapshot' => $usesManualCommission ? null : CommissionCalculator::DEFAULT_RATE_PERCENT,
+            'commission_unit_eur_snapshot' => $commissionUnit,
+            'commission_total_eur_snapshot' => round($commissionUnit * $quantity, 2),
+        ];
     }
 
     private function priceRsd(Product $product, ?float $rate): float

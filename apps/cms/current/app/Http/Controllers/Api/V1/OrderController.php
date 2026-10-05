@@ -6,11 +6,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOwnOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\OrderDelivery;
 use App\Models\OrderDocument;
 use App\Models\OrderPayment;
+use App\Services\OrderAmendmentService;
 use App\Services\OrderDocumentService;
 use App\Services\OrderPaymentService;
 use App\Services\OrderService;
@@ -31,7 +33,7 @@ final class OrderController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         return OrderResource::collection(
-            Order::query()->operational()->where('user_id', $request->user()->id)->with(['items', 'commission', 'supplier'])->latest('id')->paginate(30)
+            Order::query()->operational()->where('user_id', $request->user()->id)->with(['items', 'commission', 'supplier', 'shipment'])->latest('id')->paginate(30)
         );
     }
 
@@ -40,7 +42,7 @@ final class OrderController extends Controller
         return OrderResource::collection(
             Order::query()->operational()
                 ->where('supplier_user_id', $request->user()->id)
-                ->with(['items', 'commission', 'supplier'])
+                ->with(['items', 'commission', 'supplier', 'shipment'])
                 ->latest('id')
                 ->paginate(30)
         );
@@ -50,7 +52,7 @@ final class OrderController extends Controller
     {
         abort_unless((int) $order->supplier_user_id === (int) $request->user()->id, 404);
 
-        return new OrderResource($order->load(['items', 'commission', 'supplier']));
+        return new OrderResource($order->load(['items', 'commission', 'supplier', 'shipment']));
     }
     public function store(StoreOrderRequest $request, OrderService $orders): JsonResponse
     {
@@ -65,7 +67,20 @@ final class OrderController extends Controller
             || (int) $order->supplier_user_id === $userId;
 
         abort_unless($canView, 404);
-        return new OrderResource($order->load(['items', 'commission', 'supplier']));
+        return new OrderResource($order->load(['items', 'commission', 'supplier', 'shipment']));
+    }
+
+    public function update(
+        UpdateOwnOrderRequest $request,
+        Order $order,
+        OrderAmendmentService $amendments,
+    ): OrderResource {
+        $idempotencyKey = trim((string) $request->header('Idempotency-Key', ''));
+        if ($idempotencyKey === '') {
+            throw ValidationException::withMessages(['idempotency_key' => 'Idempotency-Key header je obavezan.']);
+        }
+        $updated = $amendments->amend($order, $request->user(), $request->validated(), $idempotencyKey);
+        return new OrderResource($updated->load(['items', 'commission', 'supplier', 'shipment']));
     }
 
     public function cancel(Request $request, Order $order, OrderWorkflowService $workflow): OrderResource

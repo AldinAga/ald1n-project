@@ -211,8 +211,12 @@ final class OrderController extends Controller
     public function status(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
     {
         $access->authorizeManage($order, $request->user());
-        $data = $request->validate(['status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'shipped', 'cancelled'])], 'note' => ['nullable', 'string', 'max:1000']]);
-        $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null);
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'shipped', 'cancelled'])],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'order_version_token' => ['nullable', 'string', 'size:64'],
+        ]);
+        $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
         return back()->with('status', 'Status porudžbine je ažuriran.');
     }
 

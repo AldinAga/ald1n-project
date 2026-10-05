@@ -149,6 +149,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
 
     Route::middleware('permission:orders.view_own')->group(function (): void {
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}/edit', [OrderController::class, 'edit'])->whereNumber('order')->name('orders.edit');
+        Route::patch('/orders/{order}', [OrderController::class, 'update'])->whereNumber('order')->middleware('throttle:orders')->name('orders.update');
         Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
     });
     Route::middleware('permission:orders.create')->group(function (): void {

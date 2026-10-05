@@ -22,17 +22,19 @@ final class OrderShipmentService
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
         private readonly OrderEmailOutboxService $emails,
+        private readonly OrderVersionService $versions,
     ) {}
 
     /** @param array<string,mixed> $data */
-    public function record(Order $order, User $actor, array $data, ?UploadedFile $proof = null): OrderShipment
+    public function record(Order $order, User $actor, array $data, ?UploadedFile $proof = null, ?string $expectedOrderToken = null): OrderShipment
     {
         $storedProof = null;
 
         try {
-            $shipment = DB::transaction(function () use ($order, $actor, $data, $proof, &$storedProof): OrderShipment {
+            $shipment = DB::transaction(function () use ($order, $actor, $data, $proof, $expectedOrderToken, &$storedProof): OrderShipment {
                 /** @var Order $locked */
-                $locked = Order::query()->with(['user', 'shipment'])->lockForUpdate()->findOrFail($order->id);
+                $locked = Order::query()->with(['user', 'shipment', 'items'])->lockForUpdate()->findOrFail($order->id);
+                $this->versions->assertFresh($locked, (string) $expectedOrderToken, 'order_version_token');
 
                 if ((string) $locked->source_system !== 'laravel') {
                     throw ValidationException::withMessages(['shipment' => 'Slanje se može evidentirati samo za Laravel porudžbine.']);

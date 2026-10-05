@@ -267,6 +267,9 @@ export type Order = {
   payment_method: string;
   payment_status: string;
   subtotal_rsd: number;
+  customer_note: Nullable<string>;
+  edit_token: string;
+  capabilities: { can_amend: boolean };
   supplier: { id: Nullable<number>; name: Nullable<string>; email: Nullable<string>; phone: Nullable<string>; role: Nullable<string> };
   shipping: { full_name: string; address: string; city: string; postal_code: string; phone: string };
   tracking_number: Nullable<string>;
@@ -274,6 +277,17 @@ export type Order = {
   commission?: Nullable<{ total_eur: number; status: string }>;
   created_at: Nullable<string>;
   updated_at: Nullable<string>;
+};
+
+export type UpdateOrderInput = {
+  expected_edit_token: string;
+  shipping_full_name: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_postal_code: string;
+  shipping_phone: string;
+  customer_note: Nullable<string>;
+  items: Array<{ product_id: number; quantity: number }>;
 };
 
 export type OrderPrivateFile = {

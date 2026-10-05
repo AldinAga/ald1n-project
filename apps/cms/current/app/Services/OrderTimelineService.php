@@ -181,7 +181,7 @@ final class OrderTimelineService
                 }
             }
 
-            $auditActions = ['order.payment_status_changed', 'order.tracking_changed', 'order.accepted', 'order.deadlines_changed', 'order.completed', 'order.reopened'];
+            $auditActions = ['order.payment_status_changed', 'order.tracking_changed', 'order.accepted', 'order.deadlines_changed', 'order.completed', 'order.reopened', 'order.customer_amended'];
             $audits = AuditLog::query()
                 ->with('user')
                 ->where('auditable_type', $order->getMorphClass())
@@ -223,6 +223,7 @@ final class OrderTimelineService
             'order.deadlines_changed' => 'Ažurirani su očekivani rokovi obrade i slanja.',
             'order.completed' => 'Isporuka je završena, plaćanje je potvrđeno i porudžbina je zaključana.',
             'order.reopened' => 'Porudžbina je ponovo otvorena radi kontrolisane korekcije.',
+            'order.customer_amended' => 'Kupac je izmenio porudžbinu pre slanja.',
             default => (string) $audit->subject,
         };
     }

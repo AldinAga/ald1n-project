@@ -16,7 +16,10 @@ use Throwable;
 
 final class OrderDetailPresenter
 {
-    public function __construct(private readonly CourierDirectoryService $courierDirectory) {}
+    public function __construct(
+        private readonly CourierDirectoryService $courierDirectory,
+        private readonly OrderVersionService $versions,
+    ) {}
     /**
      * @param Collection<int,array<string,mixed>> $timeline
      * @param Collection<int,User> $suppliers
@@ -198,8 +201,11 @@ final class OrderDetailPresenter
             'delivery_proof' => $this->route('orders.delivery.proof', ['order' => $id]),
             'shipment_proof' => $this->route('orders.shipment.proof', ['order' => $id]),
             'after_sales_create' => $this->route('after-sales.create', ['order' => $id]),
+            'edit' => $this->route('orders.edit', ['order' => $id]),
         ]);
         $detail['actions'] = [
+            'amend' => $this->versions->canCustomerAmend($order, $actor)
+                && $detail['urls']['edit'] !== null,
             'upload_payment_proof' => $detail['permissions']['upload_payment_proof']
                 && $detail['order']['payment_method'] === 'bank_transfer'
                 && $status !== 'cancelled'
@@ -335,6 +341,7 @@ final class OrderDetailPresenter
                 'supplier_role' => $supplierRole !== '' ? $supplierRole : '—',
                 'user_name' => $this->userName($user instanceof User ? $user : null, 'Nepoznat korisnik'),
                 'user_username' => $user instanceof User ? $this->text($user, 'username', '—') : '—',
+                'order_version_token' => $this->versions->token($order),
             ],
             'items' => $this->items($order),
             'delivery' => $this->delivery($delivery),

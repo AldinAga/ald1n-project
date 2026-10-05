@@ -38,6 +38,7 @@ final class OrderWorkflowService
         private readonly IpsPaymentPayloadService $ips,
         private readonly WarrantyService $warranties,
         private readonly OrderEmailOutboxService $emails,
+        private readonly OrderVersionService $versions,
     ) {}
 
     public function cancelOwn(Order $order, User $user, ?string $note = null): Order
@@ -51,15 +52,18 @@ final class OrderWorkflowService
         return $this->changeStatus($order, 'cancelled', $user, $note ?: 'Korisnik je otkazao porudžbinu.');
     }
 
-    public function changeStatus(Order $order, string $newStatus, User $actor, ?string $note = null): Order
+    public function changeStatus(Order $order, string $newStatus, User $actor, ?string $note = null, ?string $expectedOrderToken = null): Order
     {
-        $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note): Order {
+        $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note, $expectedOrderToken): Order {
             /** @var Order $locked */
             $locked = Order::query()->with(['items', 'commission'])->lockForUpdate()->findOrFail($order->id);
             $this->assertNotDirectSale($locked);
             $this->assertNotCompleted($locked);
             $this->assertLaravelOrder($locked);
             $oldStatus = (string) $locked->status;
+            if ($newStatus === 'confirmed') {
+                $this->versions->assertFresh($locked, (string) $expectedOrderToken, 'order_version_token');
+            }
 
             if ($newStatus === 'shipped') {
                 throw ValidationException::withMessages(['status' => 'Status Poslata se evidentira isključivo kroz Evidenciju slanja pošiljke.']);

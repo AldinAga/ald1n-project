@@ -4196,6 +4196,64 @@ assert(
     && batch179LoginCss.includes('@media (prefers-reduced-motion: reduce)'),
   'Batch179 V3 Laravel login polish adds glassmorphism and motion while preserving auth, Turnstile and reduced-motion contracts.',
 );
+// MOBILE_BATCH515_CUSTOMER_ORDER_AMENDMENT_VALIDATOR
+const batch515ProjectRoot = path.resolve(root, '../../..');
+const batch515OrderEdit = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id]/edit.tsx'), 'utf8');
+const batch515OrderDetail = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id].tsx'), 'utf8');
+const batch515OrderTypes = fs.readFileSync(path.join(root, 'src/types/api.ts'), 'utf8');
+const batch515OrderApi = fs.readFileSync(path.join(root, 'src/lib/api/endpoints.ts'), 'utf8');
+const batch515AdminApi = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
+const batch515AdminActions = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-actions.tsx'), 'utf8');
+const batch515Amendment = fs.readFileSync(path.join(batch515ProjectRoot, 'apps/cms/current/app/Services/OrderAmendmentService.php'), 'utf8');
+const batch515Version = fs.readFileSync(path.join(batch515ProjectRoot, 'apps/cms/current/app/Services/OrderVersionService.php'), 'utf8');
+const batch515Documents = fs.readFileSync(path.join(batch515ProjectRoot, 'apps/cms/current/app/Services/OrderDocumentService.php'), 'utf8');
+const batch515ProductForm = fs.readFileSync(path.join(batch515ProjectRoot, 'apps/cms/current/resources/views/admin/products/form.blade.php'), 'utf8');
+const batch515OpenApi = fs.readFileSync(path.join(batch515ProjectRoot, 'packages/api-contract/openapi.yaml'), 'utf8');
+assert(
+  batch515OrderTypes.includes('edit_token: string')
+    && batch515OrderTypes.includes('can_amend: boolean')
+    && batch515OrderTypes.includes('export type UpdateOrderInput')
+    && batch515OrderApi.includes('update: async (id: number')
+    && batch515OrderApi.includes("'Idempotency-Key': idempotencyKey"),
+  'Batch515 Mobile customer order amendment carries edit token and idempotent PATCH contract.',
+);
+assert(
+  batch515OrderEdit.includes('Sačuvaj izmene porudžbine')
+    && batch515OrderEdit.includes('error.status === 409')
+    && batch515OrderEdit.includes('api.catalog.products')
+    && batch515OrderDetail.includes('Uredi porudžbinu'),
+  'Batch515 Mobile exposes one simple pre-shipment order amendment UX with stale conflict refresh.',
+);
+assert(
+  batch515AdminApi.includes('order_version_token')
+    && batch515AdminActions.includes('orderVersionToken')
+    && batch515AdminActions.includes('MOBILE_SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513'),
+  'Batch515 transports stale-state token through admin confirmation/shipment and preserves Batch513 dual-action UX.',
+);
+assert(
+  batch515Amendment.includes('final class OrderAmendmentService')
+    && batch515Amendment.includes('order.customer_amended')
+    && batch515Amendment.includes("'movement_type' => 'order_amendment'")
+    && batch515Version.includes('final class OrderVersionService'),
+  'Batch515 backend owns transactional amendment, inventory delta and optimistic concurrency.',
+);
+assert(
+  batch515Documents.includes('$document->items->map')
+    && !batch515Documents.includes('$order?->items->map')
+    && batch515Documents.includes('invalidateIssuedForAmendmentLocked'),
+  'Batch515 document rendering is immutable and amendment invalidates active document revisions.',
+);
+assert(
+  batch515ProductForm.includes('Sačuvaj kao nacrt')
+    && batch515ProductForm.includes('Sačuvaj izmene')
+    && !batch515ProductForm.includes('Sa&#269;uvaj izmene')
+    && !batch515ProductForm.includes('Sacuvaj izmene')
+    && batch515OpenApi.includes('operationId: updateOrder')
+    && batch515OpenApi.includes('expected_edit_token')
+    && batch515OpenApi.includes("'409'"),
+  'Batch515 fixes Laravel UTF-8 save labels and documents the customer amendment conflict contract.',
+);
+
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 

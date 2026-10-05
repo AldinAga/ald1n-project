@@ -268,6 +268,18 @@ export default function OrderDetailScreen() {
       </View>
 
       <View style={styles.operatorSection}>
+        <Text style={styles.sectionTitle}>Izmene porudžbine</Text>
+        {order.capabilities.can_amend ? (
+          <>
+            <Text style={styles.muted}>Artikle, količine, adresu i napomenu možeš menjati sve dok pošiljka ne bude poslata.</Text>
+            <Button onPress={() => router.push({ pathname: '/order/[id]/edit', params: { id: String(order.id) } })}>Uredi porudžbinu</Button>
+          </>
+        ) : (
+          <Text style={styles.muted}>Porudžbina je zaključana za izmene nakon slanja, završetka ili otkazivanja.</Text>
+        )}
+      </View>
+
+      <View style={styles.operatorSection}>
         <Text style={styles.sectionTitle}>Stavke</Text>
         {order.items?.map((item) => (
           <View key={item.id} style={styles.item}>

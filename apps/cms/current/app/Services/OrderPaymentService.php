@@ -272,6 +272,11 @@ final class OrderPaymentService
     }
 
 
+    public function recalculateForAmendmentLocked(Order $order): void
+    {
+        $this->recalculateLocked($order);
+    }
+
     private function syncReceivable(Order $order): void
     {
         try {

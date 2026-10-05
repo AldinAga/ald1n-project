@@ -30,12 +30,14 @@ final class OrderMutationController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'cancelled'])],
             'note' => ['nullable', 'string', 'max:1000'],
+            'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
         $updated = $workflow->changeStatus(
             $order,
             (string) $data['status'],
             $actor,
             isset($data['note']) ? trim((string) $data['note']) : null,
+            isset($data['order_version_token']) ? (string) $data['order_version_token'] : null,
         );
 
         return $this->ok($updated, 'status', ['status' => (string) $updated->status]);

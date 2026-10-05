@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\CommissionPaymentBatch;
+use App\Models\Order;
 use App\Models\OrderCommission;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -165,6 +166,48 @@ final class CommissionWorkflowService
         }
 
         return $batch;
+    }
+
+    public function reconcileAfterCustomerAmendmentLocked(Order $order, User $actor, bool $itemsChanged): void
+    {
+        if (!$itemsChanged) return;
+        /** @var OrderCommission|null $commission */
+        $commission = OrderCommission::query()->where('order_id', $order->id)->lockForUpdate()->first();
+        if (!$commission instanceof OrderCommission) return;
+        $oldStatus = (string) $commission->status;
+        if (in_array($oldStatus, ['paid', 'cancelled'], true)) {
+            throw ValidationException::withMessages([
+                'items' => 'Stavke se ne mogu menjati preko isplaćene ili stornirane provizije. Obrati se SuperAdministratoru.',
+            ]);
+        }
+        $total = round((float) DB::table('order_items')->where('order_id', $order->id)->sum('commission_total_eur_snapshot'), 2);
+        $changes = ['total_eur' => $total, 'status_updated_at' => now()];
+        if ($oldStatus === 'approved') {
+            $changes += [
+                'status' => 'pending',
+                'status_note' => 'Kupac je izmenio stavke porudžbine; provizija zahteva ponovno odobrenje.',
+                'approved_by' => null,
+                'approved_at' => null,
+                'paid_by' => null,
+                'paid_at' => null,
+                'payment_batch_id' => null,
+                'payment_method' => null,
+                'payment_reference' => null,
+            ];
+        }
+        $commission->update($changes);
+        if ($oldStatus === 'approved') {
+            $this->history($commission, $actor, 'approved', 'pending', 'Kupac je izmenio stavke porudžbine; provizija zahteva ponovno odobrenje.', ['source' => 'customer_order_amendment']);
+        }
+        $this->audit->log(
+            'commission.recalculated_after_customer_amendment',
+            'Provizija je preračunata posle izmene porudžbine '.$order->order_number,
+            $commission,
+            before: ['status' => $oldStatus],
+            after: ['status' => (string) $commission->status, 'total_eur' => $total],
+            metadata: ['source' => 'customer_order_amendment'],
+            user: $actor,
+        );
     }
 
     private function authorize(OrderCommission $commission, User $actor): void

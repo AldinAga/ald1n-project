@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOwnOrderRequest;
 use App\Models\BankAccount;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CatalogAccessService;
 use App\Services\IpsPaymentPayloadService;
+use App\Services\OrderAmendmentService;
 use App\Services\OrderDetailPresenter;
 use App\Services\OrderDetailService;
 use App\Services\OrderService;
@@ -203,6 +205,50 @@ final class OrderController extends Controller
         }
     }
 
+
+    public function edit(
+        Request $request,
+        Order $order,
+        OrderAmendmentService $amendments,
+    ): View {
+        /** @var User $actor */
+        $actor = $request->user();
+        abort_unless((int) $order->user_id === (int) $actor->id, 404);
+        if (!$amendments->canAmend($order, $actor)) {
+            abort(409, 'Porudžbina više ne može da se menja jer je poslata, završena ili otkazana.');
+        }
+        $order->loadMissing('items');
+
+        return view('orders.edit', [
+            'order' => $order,
+            'items' => $order->items,
+            'editToken' => app(\App\Services\OrderVersionService::class)->token($order),
+            'idempotencyKey' => (string) Str::uuid(),
+            'searchUrl' => route('catalog.quick-search'),
+        ]);
+    }
+
+    public function update(
+        UpdateOwnOrderRequest $request,
+        Order $order,
+        OrderAmendmentService $amendments,
+    ): RedirectResponse {
+        $data = $request->validated();
+        $idempotencyKey = trim((string) ($data['idempotency_key'] ?? ''));
+        if ($idempotencyKey === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['idempotency_key' => 'Idempotency ključ je obavezan.']);
+        }
+        unset($data['idempotency_key']);
+        try {
+            $updated = $amendments->amend($order, $request->user(), $data, $idempotencyKey);
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
+            return redirect()->route('orders.edit', $order)
+                ->withErrors(['order' => $exception->getMessage()])
+                ->withInput($request->except(['expected_edit_token', 'idempotency_key']));
+        }
+
+        return redirect()->route('orders.show', $updated)->with('status', 'Izmene porudžbine su sačuvane. Administrator će proveriti poslednju verziju pre slanja.');
+    }
 
     public function lastDetailRenderException(): ?Throwable
     {

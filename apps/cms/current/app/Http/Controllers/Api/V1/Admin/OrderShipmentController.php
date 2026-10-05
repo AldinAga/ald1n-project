@@ -48,6 +48,7 @@ final class OrderShipmentController extends Controller
             'tracking_number' => ['nullable', 'string', 'max:120'],
             'note' => ['nullable', 'string', 'max:3000'],
             'shipment_proof' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
+            'order_version_token' => ['required', 'string', 'size:64'],
         ]);
 
         $shipment = $shipments->record(
@@ -55,6 +56,7 @@ final class OrderShipmentController extends Controller
             $actor,
             $data,
             $request->file('shipment_proof'),
+            (string) $data['order_version_token'],
         );
         $shipment->loadMissing(['courier', 'order']);
 

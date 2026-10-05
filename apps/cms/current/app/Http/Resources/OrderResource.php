@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\User;
+use App\Services\OrderVersionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,6 +13,10 @@ final class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        /** @var OrderVersionService $versions */
+        $versions = app(OrderVersionService::class);
+        $actor = $request->user();
+
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
@@ -24,6 +30,11 @@ final class OrderResource extends JsonResource
             'payment_method' => $this->payment_method,
             'payment_status' => $this->payment_status,
             'subtotal_rsd' => (float) $this->subtotal_rsd,
+            'customer_note' => $this->customer_note,
+            'edit_token' => $versions->token($this->resource),
+            'capabilities' => [
+                'can_amend' => $actor instanceof User && $versions->canCustomerAmend($this->resource, $actor),
+            ],
             'supplier' => [
                 'id' => $this->supplier_user_id,
                 'name' => $this->supplier_name_snapshot,

@@ -193,6 +193,7 @@ export type AdminOrderMutationResult = {
 export type AdminOrderStatusInput = {
   status: AdminOrderStatus;
   note?: string | null;
+  order_version_token?: string | null;
 };
 
 export type AdminOrderReassignInput = {
@@ -218,6 +219,7 @@ export type AdminOrderPaymentEntryInput = {
 
 // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
 export type AdminOrderShipmentInput = {
+  order_version_token: string;
   shipment_method: AdminOrderShipmentMethod;
   courier_service_id?: number | null;
   shipped_at: string;
@@ -266,6 +268,7 @@ function appendOptionalFormValue(body: FormData, key: string, value: string | nu
 
 function adminOrderShipmentFormData(input: AdminOrderShipmentInput): FormData {
   const body = new FormData();
+  body.append('order_version_token', input.order_version_token);
   body.append('shipment_method', input.shipment_method);
   body.append('shipped_at', input.shipped_at);
   body.append('recipient_name', input.recipient_name);

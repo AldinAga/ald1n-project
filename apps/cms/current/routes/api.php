@@ -542,6 +542,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}/post-create', [OrderController::class, 'postCreate'])->whereNumber('order')->name('orders.post-create');
             Route::get('/orders/{order}/delivery-proof', [OrderController::class, 'deliveryProof'])->whereNumber('order')->name('orders.delivery.proof');
+            Route::patch('/orders/{order}', [OrderController::class, 'update'])->whereNumber('order')->middleware('throttle:orders')->name('orders.update');
             Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
         });
         Route::post('/orders', [OrderController::class, 'store'])

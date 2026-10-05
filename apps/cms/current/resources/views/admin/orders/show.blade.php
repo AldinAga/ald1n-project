@@ -271,6 +271,7 @@
             </div>
             <form method="post" action="{{ $urls['shipment_store'] }}" enctype="multipart/form-data" class="shipment-form" data-shipment-form>
                 @csrf
+                <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
                 <div class="shipment-grid">
                     <label><span>Način isporuke</span><select name="shipment_method" data-shipment-method required><option value="courier" selected>Kurirska služba</option><option value="own_transport">Sopstveni prevoz</option><option value="other">Drugo</option></select></label>
                     <label data-courier-field><span>Kurirska služba</span><select name="courier_service_id" data-courier-select required>@foreach($couriers as $courier)<option value="{{ $courier['id'] }}" data-tracking-url="{{ $courier['tracking_url'] }}" @selected($courier['is_default'] ?? false)>{{ $courier['name'] }}</option>@endforeach</select><a class="shipment-tracking-link" data-courier-tracking-link href="#" target="_blank" rel="noopener">Zvanična stranica za praćenje</a></label>
@@ -762,6 +763,7 @@
                     <form method="post" action="{{ $urls['status'] }}">
                         @csrf
                         @method('PATCH')
+                        <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
                         <label>
                             <span>Novi status</span>
                             <select name="status">

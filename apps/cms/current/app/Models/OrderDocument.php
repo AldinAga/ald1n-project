@@ -56,4 +56,9 @@ final class OrderDocument extends Model
     {
         return $this->hasMany(self::class, 'supersedes_document_id');
     }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderDocumentItem::class, 'order_document_id')->orderBy('sequence_no')->orderBy('id');
+    }
 }

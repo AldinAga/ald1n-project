@@ -164,6 +164,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const couriers = asRecords(data.couriers);
 
   const orderStatus = recordText(order, 'status');
+  const orderVersionToken = recordText(order, 'order_version_token');
   const completed = recordBool(order, 'is_completed') || recordText(order, 'completed_at') !== '';
   const accepted = recordText(order, 'accepted_at') !== '';
   const workflowEnabled = capabilities.workflow_mutations && capabilities.orders_manage;
@@ -340,6 +341,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
     if (shipmentMethod === 'courier' && (!Number.isInteger(selectedCourierId) || selectedCourierId <= 0)) return notifyInputError(feedback, 'Izaberi kurirsku službu.');
     if (shipmentMethod === 'courier' && !trackingNumber.trim()) return notifyInputError(feedback, 'Za kurirsku službu unesi tracking broj.');
     execute('shipment', 'Slanje pošiljke je evidentirano', () => apiAdminOrders.shipment(orderId, {
+      order_version_token: orderVersionToken,
       shipment_method: shipmentMethod,
       courier_service_id: shipmentMethod === 'courier' ? selectedCourierId : null,
       shipped_at: shippedAt.trim(),
@@ -438,7 +440,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
             { value: 'cancelled', label: 'Otkazana' },
           ]} onChange={(value) => { if (isStatus(value)) setStatusValue(value); }} />
           <TextField label="Napomena" value={statusNote} onChangeText={setStatusNote} multiline />
-          <Button loading={busy('status')} onPress={() => execute('status', 'Status porudžbine je promenjen', () => apiAdminOrders.status(orderId, { status: statusValue, note: statusNote.trim() || null }))}>Sačuvaj status</Button>
+          <Button loading={busy('status')} onPress={() => execute('status', 'Status porudžbine je promenjen', () => apiAdminOrders.status(orderId, { status: statusValue, note: statusNote.trim() || null, order_version_token: orderVersionToken }))}>Sačuvaj status</Button>
         </ActionPanel>
       ) : null}
 

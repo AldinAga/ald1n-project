@@ -1245,6 +1245,50 @@ paths:
       responses:
         '200': { description: Porudžbina }
         '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Orders]
+      summary: Izmena sopstvene porudžbine pre slanja
+      operationId: updateOrder
+      parameters:
+        - in: path
+          name: order
+          required: true
+          schema: { type: integer }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_edit_token, shipping_full_name, shipping_address, shipping_city, shipping_postal_code, shipping_phone, items]
+              properties:
+                expected_edit_token: { type: string, minLength: 64, maxLength: 64, description: Optimistic concurrency token from the latest order detail. }
+                shipping_full_name: { type: string, maxLength: 190 }
+                shipping_address: { type: string, maxLength: 255 }
+                shipping_city: { type: string, maxLength: 120 }
+                shipping_postal_code: { type: string, maxLength: 20 }
+                shipping_phone: { type: string, maxLength: 40 }
+                customer_note: { type: [string, 'null'], maxLength: 5000 }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [product_id, quantity]
+                    properties:
+                      product_id: { type: integer, minimum: 1 }
+                      quantity: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '200': { description: Porudžbina je izmenjena; odgovor sadrži novi edit_token i capabilities.can_amend. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Porudžbina je promenjena od učitavanja ekrana; osveži poslednju verziju. }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/orders/{order}/cancel:
     post:
       tags: [Orders]
@@ -2566,6 +2610,8 @@ paths:
         '404': { description: Dokument ne pripada ovoj porudžbini ili ne postoji. }
         '422': { description: Samo aktivan dokument može biti storniran ili razlog nije validan. }
         '429': { description: Admin write rate limit exceeded. }
+  # Batch515: version-sensitive admin confirmation and shipment payloads carry order_version_token.
+  # order_version_token: 64-char SHA-256 order version token returned by admin order detail.
   /api/v1/admin/orders/{order}/status:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }

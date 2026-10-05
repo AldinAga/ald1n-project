@@ -53,6 +53,9 @@
             <p>{{ $order['created_at'] ?? '—' }} · lager {{ $order['inventory_state'] ?? '—' }}</p>
         </div>
         <div class="header-button-row">
+            @if(($actions['amend'] ?? false) && !empty($urls['edit']))
+                <a class="button button-primary" href="{{ $urls['edit'] }}"><x-icon name="sliders" /> Uredi porudžbinu</a>
+            @endif
             @if(($actions['after_sales_create'] ?? false) && !empty($urls['after_sales_create']))
                 <a class="button button-ghost" href="{{ $urls['after_sales_create'] }}">
                     <x-icon name="alert" /> Reklamacija / servis
@@ -72,6 +75,13 @@
     <div class="settings-grid order-detail-grid operational-order-grid build16-order-detail-grid">
         <section class="order-main-column">
             <section class="panel form-section">
+                @if($actions['amend'] ?? false)
+                    <div class="alpha-note" data-order-amendment-available>
+                        <strong>Porudžbinu još možeš izmeniti.</strong> Artikle, količine, adresu i napomenu možeš menjati sve dok pošiljka ne bude poslata.
+                    </div>
+                @elseif(in_array($order['status'] ?? '', ['shipped', 'cancelled'], true) || ($order['is_completed'] ?? false))
+                    <div class="alpha-note" data-order-amendment-locked><strong>Porudžbina je zaključana.</strong> Izmene više nisu dostupne nakon slanja, završetka ili otkazivanja.</div>
+                @endif
                 <div class="section-heading-row">
                     <div>
                         <h2>Stavke porudžbine</h2>

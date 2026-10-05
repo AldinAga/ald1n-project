@@ -37,6 +37,7 @@ import type {
   OrderPaymentLedgerEntry,
   OrderPostCreate,
   SubmitOrderPaymentProofInput,
+  UpdateOrderInput,
   PaginatedResponse,
   Product,
   User,
@@ -235,6 +236,14 @@ export const api = {
     },
     detail: async (id: number) => {
       const response = await apiRequest<{ data: Order }>(`orders/${id}`);
+      return response.data;
+    },
+    update: async (id: number, input: UpdateOrderInput, idempotencyKey: string) => {
+      const response = await apiRequest<{ data: Order }>(`orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: input,
+      });
       return response.data;
     },
     cancel: async (id: number, note?: string) => {

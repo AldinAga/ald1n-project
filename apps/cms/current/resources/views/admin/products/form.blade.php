@@ -385,7 +385,7 @@
                 <section class="panel form-section sticky-card product-sale-panel" data-product-sale-panel>
                     <h2>Prodaja</h2>
                     <p class="muted">Najvažniji komercijalni podaci su na jednom mestu. Status je prvi da uvek znaš da li je artikal nacrt, aktivan ili neaktivan.</p>
-                    <div class="product-publication-guidance" data-product-publication-guidance>Za nepotpun unos koristi dugme za cuvanje nacrta. Aktivacija i dalje zahteva kompletne podatke i pozitivnu cenu.</div>
+                    <div class="product-publication-guidance" data-product-publication-guidance>Za nepotpun unos koristi dugme za čuvanje nacrta. Aktivacija i dalje zahteva kompletne podatke i pozitivnu cenu.</div>
                     <label class="product-status-field"><span>Status artikla</span><select name="status" data-product-status>@foreach(['draft'=>'Nacrt','active'=>'Aktivan','inactive'=>'Neaktivan'] as $value=>$label)<option value="{{ $value }}" @selected(old('status',$product->status)===$value)>{{ $label }}</option>@endforeach</select><small class="muted">Nacrt = u pripremi · Aktivan = vidljiv u katalogu · Neaktivan = privremeno skriven.</small></label>
                     <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}" data-publication-price></label>
                     <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
@@ -403,8 +403,8 @@
                     @endif
 
                     <div class="product-save-actions product-save-actions-sidebar">
-                        <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sa&#269;uvaj kao nacrt</button>
-                        <button class="button button-primary button-large" type="submit" data-product-save-context>{{ $product->exists ? 'Sa&#269;uvaj izmene' : 'Kreiraj artikal' }}</button>
+                        <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
+                        <button class="button button-primary button-large" type="submit" data-product-save-context>{{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}</button>
                     </div>
                 </section>
                 @if($product->exists)
@@ -490,8 +490,8 @@
 
         <div class="product-editor-action-bar" data-product-editor-action-bar>
             <div class="product-editor-action-copy">
-                <strong>{{ $product->exists ? 'Sacuvaj izmene artikla' : 'Kreiraj artikal' }}</strong>
-                <span>{{ $product->exists ? 'Sve izmene na ovoj stranici cuvaju se jednim klikom.' : 'Sacuvaj novi artikal kada zavrsis unos.' }}</span>
+                <strong>{{ $product->exists ? 'Sačuvaj izmene artikla' : 'Kreiraj artikal' }}</strong>
+                <span>{{ $product->exists ? 'Sve izmene na ovoj stranici čuvaju se jednim klikom.' : 'Sačuvaj novi artikal kada završiš unos.' }}</span>
             </div>
             <div class="product-editor-action-buttons">
                 @if($product->exists && auth()->user()?->hasRole('superadmin'))
@@ -501,9 +501,9 @@
                         <span class="product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
                     @endif
                 @endif
-                <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sa&#269;uvaj kao nacrt</button>
+                <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
                 <button class="button button-primary button-large" type="submit" data-product-save-primary>
-                    {{ $product->exists ? 'Sacuvaj izmene' : 'Kreiraj artikal' }}
+                    {{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}
                 </button>
             </div>
         </div>
