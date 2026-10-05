@@ -25,7 +25,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rule;
 use Throwable;
 
@@ -108,7 +107,7 @@ final class OrderController extends Controller
         }
 
         try {
-            $ipsPayload = $ips->persist($order);
+            $ipsPayload = $ips->forDisplay($order);
         } catch (Throwable $exception) {
             $this->safeLog('Orders detail IPS podaci nisu uspeli.', $exception, $actor);
             $ipsPayload = null;
@@ -272,14 +271,6 @@ final class OrderController extends Controller
         return back()->with('status', 'Prodajna cena je korigovana. Novi ukupni iznos: '.number_format((float) $updated->subtotal_rsd, 2, ',', '.').' RSD.');
     }
 
-    public function payment(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
-    {
-        $access->authorizeManage($order, $request->user());
-        $data = $request->validate(['payment_status' => ['required', Rule::in(['pending', 'paid', 'cancelled'])]]);
-        $workflow->updatePaymentStatus($order, (string) $data['payment_status'], $request->user());
-        return back()->with('status', 'Status plaćanja je ažuriran.');
-    }
-
     public function tracking(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
     {
         $access->authorizeManage($order, $request->user());
@@ -330,7 +321,7 @@ final class OrderController extends Controller
             'q' => ['nullable', 'string', 'max:190'],
             'source_system' => ['nullable', Rule::in(['legacy', 'laravel'])],
             'status' => ['nullable', Rule::in(['new', 'processing', 'confirmed', 'shipped', 'completed', 'cancelled'])],
-            'payment_status' => ['nullable', Rule::in(['pending', 'paid', 'cancelled'])],
+            'payment_status' => ['nullable', Rule::in(['pending', 'paid', 'refunded', 'cancelled'])],
             'supplier_user_id' => ['nullable', 'integer', 'min:1'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
@@ -342,7 +333,7 @@ final class OrderController extends Controller
     private function renderIndexProtected(User $actor, array $data): Response
     {
         try {
-            $html = view('admin.orders.index', $data)->with('errors', new ViewErrorBag())->render();
+            $html = view('admin.orders.index', $data)->render();
             return response($html, 200);
         } catch (Throwable $exception) {
             $incident = (string) Str::uuid();
@@ -364,7 +355,7 @@ final class OrderController extends Controller
     private function renderShowProtected(User $actor, array $data): Response
     {
         try {
-            $html = view('admin.orders.show', $data)->with('errors', new ViewErrorBag())->render();
+            $html = view('admin.orders.show', $data)->render();
             return response($html, 200);
         } catch (Throwable $exception) {
             $this->lastDetailRenderException = $exception;

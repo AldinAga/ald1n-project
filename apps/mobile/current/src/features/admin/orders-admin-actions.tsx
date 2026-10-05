@@ -19,7 +19,6 @@ import {
   type AdminOrderDetailValue,
   type AdminOrderPaymentEntryType,
   type AdminOrderPaymentMethod,
-  type AdminOrderPaymentStatus,
   type AdminOrderProofFile,
   type AdminOrderShipmentMethod,
   type AdminOrderStatus,
@@ -39,7 +38,6 @@ type Panel =
   | 'note'
   | 'reassign'
   | 'deadlines'
-  | 'payment-status'
   | 'payment-entry'
   | 'payment-ledger'
   | 'sale-price-correction'
@@ -130,9 +128,6 @@ function isDeliveryMethod(value: string): value is AdminOrderDeliveryMethod {
   return value === 'own_transport' || value === 'courier' || value === 'customer_pickup' || value === 'other';
 }
 
-function isPaymentStatus(value: string): value is AdminOrderPaymentStatus {
-  return value === 'pending' || value === 'paid' || value === 'cancelled';
-}
 
 function isPaymentEntryType(value: string): value is AdminOrderPaymentEntryType {
   return value === 'payment' || value === 'refund';
@@ -194,7 +189,6 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   const [reassignReason, setReassignReason] = useState('');
   const [processingAt, setProcessingAt] = useState('');
   const [shippingAt, setShippingAt] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<AdminOrderPaymentStatus> ('pending');
   const [entryType, setEntryType] = useState<AdminOrderPaymentEntryType> ('payment');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<AdminOrderPaymentMethod> ('bank_transfer');
@@ -415,7 +409,6 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
           {capabilities.internal_notes ? <Button variant="secondary" onPress={() => setPanel('note')}>Interna napomena</Button> : null}
           {capabilities.reassign ? <Button variant="secondary" onPress={() => setPanel('reassign')}>Promeni odgovorno lice</Button> : null}
           {!completed ? <Button variant="secondary" onPress={() => setPanel('deadlines')}>Rokovi</Button> : null}
-          {!completed ? <Button variant="secondary" onPress={() => setPanel('payment-status')}>Status plaćanja</Button> : null}
           {capabilities.payments ? <Button variant="secondary" onPress={() => setPanel('payment-entry')}>Evidentiraj uplatu/refundaciju</Button> : null}
           {capabilities.sale_price_correction ? <Button variant="secondary" onPress={() => setPanel('sale-price-correction')}>Koriguj prodajnu cenu</Button> : null}
           {capabilities.payments && paymentOptions.length > 0 ? <Button variant="secondary" onPress={() => setPanel('payment-ledger')}>Obradi postojeću uplatu</Button> : null}
@@ -468,16 +461,6 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
         </ActionPanel>
       ) : null}
 
-      {panel === 'payment-status' ? (
-        <ActionPanel title="Status plaćanja" onClose={() => setPanel(null)} styles={styles}>
-          <SelectSheet label="Status" value={paymentStatus} options={[
-            { value: 'pending', label: 'Na čekanju' },
-            { value: 'paid', label: 'Plaćeno' },
-            { value: 'cancelled', label: 'Otkazano' },
-          ]} onChange={(value) => { if (isPaymentStatus(value)) setPaymentStatus(value); }} />
-          <Button loading={busy('payment-status')} onPress={() => execute('payment-status', 'Status plaćanja je ažuriran', () => apiAdminOrders.paymentStatus(orderId, paymentStatus))}>Sačuvaj status plaćanja</Button>
-        </ActionPanel>
-      ) : null}
 
       {panel === 'payment-entry' ? (
         <ActionPanel title="Nova stavka finansijskog ledgera" onClose={() => setPanel(null)} styles={styles}>

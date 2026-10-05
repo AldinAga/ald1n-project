@@ -4327,3 +4327,11 @@ assert(
     && scopedTaxonomyOpenApiV07.includes('product_type_ids:'),
   'OpenAPI dokumentuje type-scoped brand i product-line metadata.',
 );
+
+// BATCH516_FINANCIAL_STATE_CANONICALIZATION
+{
+  const batch516Api = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8');
+  const batch516Actions = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-actions.tsx'), 'utf8');
+  assert(!batch516Api.includes('/payment-status') && !batch516Api.includes('paymentStatus: (orderId'), 'Batch516 removes manual payment-status API mutation.');
+  assert(!batch516Actions.includes("'payment-status'") && !batch516Actions.includes('Sačuvaj status plaćanja'), 'Batch516 removes manual payment-status UI mutation.');
+}

@@ -26,7 +26,6 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\View;
 use Throwable;
 
@@ -154,7 +153,7 @@ final class OrderController extends Controller
         }
 
         try {
-            $ipsPayload = $ips->persist($order);
+            $ipsPayload = $ips->forDisplay($order);
         } catch (Throwable $exception) {
             $this->safeLog('User order IPS payload nije uspeo.', $exception, $actor, $order);
             $ipsPayload = null;
@@ -169,9 +168,7 @@ final class OrderController extends Controller
                 $ipsPayload,
                 array_values(array_unique($warnings)),
             );
-            $html = view('orders.show', ['detail' => $detail])
-                ->with('errors', new ViewErrorBag())
-                ->render();
+            $html = view('orders.show', ['detail' => $detail])->render();
 
             return response($html, 200);
         } catch (Throwable $exception) {

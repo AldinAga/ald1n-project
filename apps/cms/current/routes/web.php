@@ -282,7 +282,6 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
             Route::post('/orders/{order}/reopen', [AdminOrderController::class, 'reopen'])
                 ->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
-            Route::patch('/orders/{order}/payment', [AdminOrderController::class, 'payment'])->whereNumber('order')->name('orders.payment');
             Route::patch('/orders/{order}/sale-price', [AdminOrderController::class, 'correctDirectSalePrice'])
                 ->whereNumber('order')->middleware(['permission:payments.manage', 'throttle:admin-write'])->name('orders.sale-price-correction');
             Route::patch('/orders/{order}/tracking', [AdminOrderController::class, 'tracking'])->whereNumber('order')->name('orders.tracking');

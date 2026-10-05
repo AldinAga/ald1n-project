@@ -164,7 +164,6 @@ export type AdminOrderDocumentMutationResponse = {
 export type AdminOrderStatus = 'new' | 'processing' | 'confirmed' | 'cancelled';
 export type AdminOrderShipmentMethod = 'courier' | 'own_transport' | 'other';
 export type AdminOrderDeliveryMethod = 'own_transport' | 'courier' | 'customer_pickup' | 'other';
-export type AdminOrderPaymentStatus = 'pending' | 'paid' | 'cancelled';
 export type AdminOrderPaymentEntryType = 'payment' | 'refund';
 export type AdminOrderPaymentMethod = 'bank_transfer' | 'cash' | 'cash_on_delivery' | 'card' | 'other';
 
@@ -334,8 +333,6 @@ export const apiAdminOrders = {
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/reassign`, { method: 'PATCH', body: input }),
   deadlines: (orderId: number, input: AdminOrderDeadlinesInput) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/deadlines`, { method: 'PATCH', body: input }),
-  paymentStatus: (orderId: number, payment_status: AdminOrderPaymentStatus) =>
-    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payment-status`, { method: 'PATCH', body: { payment_status } }),
   complete: (orderId: number, input: AdminOrderCompletionInput) =>
     apiExpoMultipartRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/complete`, adminOrderCompletionFormData(input)),
   reopen: (orderId: number, reason: string) =>

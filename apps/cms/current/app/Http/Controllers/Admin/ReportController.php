@@ -18,7 +18,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Illuminate\Support\ViewErrorBag;
 use Throwable;
 
 final class ReportController extends Controller
@@ -206,7 +205,7 @@ final class ReportController extends Controller
         return $request->validate([
             'q' => ['nullable', 'string', 'max:190'],
             'status' => ['nullable', 'in:new,processing,confirmed,shipped,completed,cancelled'],
-            'payment_status' => ['nullable', 'in:pending,paid,cancelled'],
+            'payment_status' => ['nullable', 'in:pending,paid,refunded,cancelled'],
             'supplier_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
@@ -275,10 +274,6 @@ final class ReportController extends Controller
     private function renderProtected(Request $request, User $user, array $data): Response
     {
         try {
-            if (!view()->shared('errors')) {
-                view()->share('errors', new ViewErrorBag());
-            }
-
             $html = view('admin.reports.index', $data)->render();
 
             return response($html, 200, [

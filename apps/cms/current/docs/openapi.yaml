@@ -2715,28 +2715,6 @@ paths:
         '403': { description: orders.manage permission and managed scope required. }
         '422': { description: Validation failed. }
         '429': { description: Admin write rate limit exceeded. }
-  /api/v1/admin/orders/{order}/payment-status:
-    parameters:
-      - { name: order, in: path, required: true, schema: { type: integer } }
-    patch:
-      summary: Update legacy order payment status
-      operationId: adminOrdersPaymentStatus
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [payment_status]
-              properties:
-                payment_status: { type: string, enum: [pending, paid, cancelled] }
-      responses:
-        '200': { description: Payment status updated through OrderWorkflowService. }
-        '403': { description: orders.manage permission and managed scope required. }
-        '422': { description: Validation failed or completed order is locked. }
-        '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/orders/{order}/complete:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
@@ -6891,7 +6869,7 @@ components:
             order_number: { type: string }
             status: { type: string }
             payment_method: { type: string }
-            payment_status: { type: string }
+            payment_status: { type: string, enum: [pending, paid, refunded, cancelled] }
             payment_state: { type: string }
             subtotal_rsd: { type: number }
             paid_total_rsd: { type: number }

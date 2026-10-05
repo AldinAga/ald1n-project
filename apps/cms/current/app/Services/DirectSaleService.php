@@ -26,6 +26,8 @@ final class DirectSaleService
         private readonly WarrantyService $warranties,
         private readonly ReceivablesService $receivables,
         private readonly OrderPaymentService $payments,
+        private readonly OrderFinancialStateService $financial,
+        private readonly OrderFinancialReconciliationService $reconciliation,
     ) {
     }
 
@@ -151,6 +153,8 @@ final class DirectSaleService
             $this->ensureDeferredReceivablePlan($order, $actor, (int) $installmentCount, (string) $paymentDueAt);
         }
 
+        $this->reconciliation->reconcile($order);
+
         try {
             $this->warranties->ensureForOrder($order->loadMissing('user'), $actor);
         } catch (Throwable $exception) {
@@ -253,11 +257,11 @@ final class DirectSaleService
             'eur_rsd_rate' => $rate,
             'customer_note' => 'Direktna prodaja Super Administratora krajnjem kupcu.',
             'payment_method' => $payload['payment_method'],
-            'payment_status' => $deferred ? 'pending' : 'paid',
-            'payment_state' => $deferred ? 'unpaid' : 'paid',
-            'paid_total_rsd' => $deferred ? 0 : $lineTotal,
+            'payment_status' => 'pending',
+            'payment_state' => 'unpaid',
+            'paid_total_rsd' => 0,
             'payment_due_at' => $deferred ? (string) $payload['payment_due_at'] : null,
-            'payment_verified_at' => $deferred ? null : $soldAt,
+            'payment_verified_at' => null,
             'completed_at' => $soldAt,
             'completed_by' => (int) $actor->id,
             'completion_note' => 'Direktna prodaja evidentirana i lično dostavljena krajnjem kupcu.',
@@ -336,6 +340,9 @@ final class DirectSaleService
                 'verified_at' => $soldAt,
             ]);
         }
+
+        $this->financial->projectLocked($order);
+        $order->refresh();
 
         OrderDelivery::query()->create([
             'order_id' => (int) $order->id,

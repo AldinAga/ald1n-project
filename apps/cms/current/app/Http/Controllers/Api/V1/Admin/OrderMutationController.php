@@ -110,22 +110,6 @@ final class OrderMutationController extends Controller
         ]);
     }
 
-    public function paymentStatus(
-        Request $request,
-        Order $order,
-        OrderAccessService $access,
-        OrderWorkflowService $workflow,
-    ): JsonResponse {
-        $actor = $this->actor($request);
-        $access->authorizeManage($order, $actor);
-        $data = $request->validate([
-            'payment_status' => ['required', Rule::in(['pending', 'paid', 'cancelled'])],
-        ]);
-        $updated = $workflow->updatePaymentStatus($order, (string) $data['payment_status'], $actor);
-
-        return $this->ok($updated, 'payment_status', ['payment_status' => (string) $updated->payment_status]);
-    }
-
     public function complete(
         Request $request,
         Order $order,

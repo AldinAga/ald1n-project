@@ -19,9 +19,9 @@ final class OrderPaymentService
         private readonly DocumentNumberService $numbers,
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
-        private readonly IpsPaymentPayloadService $ips,
+        private readonly OrderFinancialStateService $financial,
         private readonly OrderEmailOutboxService $emails,
-        private readonly ReceivablesService $receivables,
+        private readonly OrderFinancialReconciliationService $reconciliation,
     ) {}
 
     /** @param array<string,mixed> $data */
@@ -279,38 +279,12 @@ final class OrderPaymentService
 
     private function syncReceivable(Order $order): void
     {
-        try {
-            $this->receivables->syncForOrder($order->fresh() ?? $order);
-        } catch (\Throwable $exception) {
-            \Illuminate\Support\Facades\Log::warning('Receivable synchronization failed after payment change.', [
-                'order_id' => $order->id,
-                'exception' => $exception,
-            ]);
-        }
+        $this->reconciliation->reconcile($order);
     }
 
     private function recalculateLocked(Order $order): void
     {
-        $net = (float) OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified')
-            ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
-            ->value('net_total');
-        $refundTotal = (float) OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified')->where('entry_type', 'refund')->sum('amount_rsd');
-        $total = (float) $order->subtotal_rsd;
-        $state = 'unpaid';
-        if ($order->status === 'cancelled') $state = 'cancelled';
-        elseif ($net < -0.004 || ($refundTotal > 0.004 && $net <= 0.004)) $state = 'refunded';
-        elseif ($net <= 0.004) $state = 'unpaid';
-        elseif ($net + 0.004 < $total) $state = 'partial';
-        elseif ($net > $total + 0.004) $state = 'overpaid';
-        else $state = 'paid';
-
-        $order->update([
-            'paid_total_rsd' => round($net, 2),
-            'payment_state' => $state,
-            'payment_status' => $state === 'cancelled' ? 'cancelled' : ($state === 'refunded' ? 'refunded' : (in_array($state, ['paid', 'overpaid'], true) ? 'paid' : 'pending')),
-            'payment_verified_at' => in_array($state, ['paid', 'overpaid'], true) ? ($order->payment_verified_at ?: now()) : null,
-        ]);
-        $this->ips->persist($order->fresh());
+        $this->financial->projectLocked($order);
     }
 
     private function isDeferredDirectSale(Order $order): bool

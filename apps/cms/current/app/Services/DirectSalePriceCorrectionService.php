@@ -16,7 +16,12 @@ use Illuminate\Validation\ValidationException;
 
 final class DirectSalePriceCorrectionService
 {
-    public function __construct(private readonly AuditLogger $audit, private readonly SettingsService $settings) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly SettingsService $settings,
+        private readonly OrderFinancialStateService $financial,
+        private readonly OrderFinancialReconciliationService $reconciliation,
+    ) {}
 
     public function correct(Order $order, User $actor, float $newUnitPriceAmount, string $newUnitPriceCurrency, string $reason): Order
     {
@@ -34,7 +39,7 @@ final class DirectSalePriceCorrectionService
             throw ValidationException::withMessages(['reason' => 'Razlog korekcije mora imati najmanje 3 karaktera.']);
         }
 
-        return DB::transaction(function () use ($order, $actor, $priceAmount, $priceCurrency, $reason): Order {
+        $updated = DB::transaction(function () use ($order, $actor, $priceAmount, $priceCurrency, $reason): Order {
             $locked = Order::query()->lockForUpdate()->findOrFail((int) $order->getKey());
             if ((string) $locked->source_system !== 'laravel' || (string) $locked->sales_channel !== 'direct_sale') {
                 throw ValidationException::withMessages(['order' => 'Korekcija cene je dozvoljena samo za Laravel Direct Sale porudžbine.']);
@@ -74,10 +79,11 @@ final class DirectSalePriceCorrectionService
                 throw ValidationException::withMessages(['new_unit_price_amount' => 'Nova cena ili valuta mora biti različita od postojeće.']);
             }
 
-            if (abs((float) $locked->paid_total_rsd - $oldTotal) > 0.004
-                || (string) $locked->payment_status !== 'paid'
-                || (string) $locked->payment_state !== 'paid') {
-                throw ValidationException::withMessages(['order' => 'Postojeci paid total ili status placanja nije uskladjen sa Direct Sale iznosom.']);
+            $projection = $this->financial->derive($locked);
+            if (abs((float) $projection['paid_total_rsd'] - $oldTotal) > 0.004
+                || (string) $projection['payment_status'] !== 'paid'
+                || !in_array((string) $projection['payment_state'], ['paid', 'overpaid'], true)) {
+                throw ValidationException::withMessages(['order' => 'Canonical ledger projekcija nije usklađena sa Direct Sale iznosom.']);
             }
 
             $payments = OrderPayment::query()->where('order_id', $locked->id)->lockForUpdate()->get();
@@ -99,13 +105,12 @@ final class DirectSalePriceCorrectionService
             $payment->forceFill(['amount_rsd' => $newTotal])->save();
             $locked->forceFill([
                 'subtotal_rsd' => $newTotal,
-                'paid_total_rsd' => $newTotal,
                 'eur_rsd_rate' => $priceCurrency === 'EUR' ? $rate : $locked->eur_rsd_rate,
-                'payment_status' => 'paid',
-                'payment_state' => 'paid',
                 'updated_by' => (int) $actor->id,
                 'last_internal_note_at' => now(),
             ])->save();
+            $this->financial->projectLocked($locked);
+            $locked->refresh();
 
             OrderInternalNote::query()->create([
                 'order_id' => (int) $locked->id,
@@ -124,5 +129,7 @@ final class DirectSalePriceCorrectionService
 
             return $locked->fresh(['items.product', 'payments', 'delivery', 'commission', 'receivableCase', 'internalNotes']) ?? $locked;
         }, 5);
+        $this->reconciliation->reconcile($updated);
+        return $updated;
     }
 }

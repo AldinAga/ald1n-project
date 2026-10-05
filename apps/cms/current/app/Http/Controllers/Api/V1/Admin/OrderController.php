@@ -26,7 +26,7 @@ final class OrderController extends Controller
     private const STATUSES = ['new', 'processing', 'confirmed', 'shipped', 'completed', 'cancelled'];
 
     /** @var list<string> */
-    private const PAYMENT_STATUSES = ['pending', 'paid', 'cancelled'];
+    private const PAYMENT_STATUSES = ['pending', 'paid', 'refunded', 'cancelled'];
 
     /** @var list<string> */
     private const SOURCE_SYSTEMS = ['laravel', 'legacy'];

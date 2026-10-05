@@ -69,7 +69,13 @@ final class IpsPaymentPayloadService
         return implode('|', $parts);
     }
 
-    public function persist(Order $order, ?float $amountRsd = null): ?string
+    public function forDisplay(Order $order, ?float $amountRsd = null): ?string
+    {
+        if ($this->shouldClearCachedPayload($order, $amountRsd)) return null;
+        return $this->payload($order, $amountRsd);
+    }
+
+    public function refreshCache(Order $order, ?float $amountRsd = null): ?string
     {
         // BATCH511_V2_PAYMENT_IPS_CACHE_GUARD
         // Derived IPS cache must never roll back canonical payment ledger state.
@@ -112,6 +118,12 @@ final class IpsPaymentPayloadService
         }
 
         return $payload;
+    }
+
+    /** @deprecated Use refreshCache() only from mutation/reconciliation paths. */
+    public function persist(Order $order, ?float $amountRsd = null): ?string
+    {
+        return $this->refreshCache($order, $amountRsd);
     }
 
     private function shouldClearCachedPayload(Order $order, ?float $amountRsd = null): bool

@@ -35,7 +35,8 @@ final class OrderWorkflowService
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
         private readonly DocumentNumberService $numbers,
-        private readonly IpsPaymentPayloadService $ips,
+        private readonly OrderFinancialStateService $financial,
+        private readonly OrderFinancialReconciliationService $reconciliation,
         private readonly WarrantyService $warranties,
         private readonly OrderEmailOutboxService $emails,
         private readonly OrderVersionService $versions,
@@ -116,6 +117,8 @@ final class OrderWorkflowService
             }
 
             $locked->refresh();
+            $this->financial->projectLocked($locked);
+            $locked->refresh();
             $this->audit->log(
                 'order.status_changed',
                 'Promenjen status porudžbine '.$locked->order_number,
@@ -144,6 +147,7 @@ final class OrderWorkflowService
             $this->notifications->commission($updated->commission->user, 'commission.cancelled', 'Provizija je stornirana', 'Provizija je stornirana jer je porudžbina '.$updated->order_number.' otkazana.', $updated->commission, ['severity' => 'danger']);
         }
         if ($updated->status === 'cancelled') {
+            $this->reconciliation->reconcile($updated);
             try {
                 $this->warranties->voidForOrder($updated, $actor, $note ?: 'Porudžbina je otkazana.');
             } catch (Throwable $exception) {
@@ -172,27 +176,6 @@ final class OrderWorkflowService
             ['status' => $updated->status, 'note' => $note, 'actor_id' => $actor->id, 'changed_at' => $updated->updated_at?->toISOString()],
         );
 
-        return $updated;
-    }
-
-    public function updatePaymentStatus(Order $order, string $paymentStatus, User $actor): Order
-    {
-        $updated = DB::transaction(function () use ($order, $paymentStatus, $actor): Order {
-            /** @var Order $locked */
-            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $this->assertNotDirectSale($locked);
-            $this->assertNotCompleted($locked);
-            $this->assertLaravelOrder($locked);
-            $before = $locked->payment_status;
-            $locked->update(['payment_status' => $paymentStatus, 'updated_by' => $actor->id]);
-            $this->audit->log('order.payment_status_changed', 'Promenjen status plaćanja '.$locked->order_number, $locked, ['payment_status' => $before], ['payment_status' => $paymentStatus], user: $actor);
-            return $locked->fresh(['user', 'supplier']) ?? $locked;
-        }, 5);
-
-        if ($updated->user instanceof User) {
-            $this->notifications->order($updated->user, 'order.payment_status_changed', 'Promenjen status plaćanja', 'Status plaćanja za '.$updated->order_number.' je '.$updated->payment_status.'.', $updated);
-        }
-        $this->emails->orderChanged($updated, 'order_payment_changed', 'Promenjen status plaćanja '.$updated->order_number, 'Status plaćanja je '.$updated->payment_status.'.', ['payment_status' => $updated->payment_status, 'actor_id' => $actor->id, 'changed_at' => $updated->updated_at?->toISOString()]);
         return $updated;
     }
 
@@ -340,11 +323,8 @@ final class OrderWorkflowService
                     user: $actor,
                 );
 
-                $net = (float) OrderPayment::query()
-                    ->where('order_id', $locked->id)
-                    ->where('status', 'verified')
-                    ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
-                    ->value('net_total');
+                $projection = $this->financial->derive($locked);
+                $net = (float) $projection['paid_total_rsd'];
                 $total = round((float) $locked->subtotal_rsd, 2);
                 $remaining = round(max(0.0, $total - $net), 2);
 
@@ -386,20 +366,16 @@ final class OrderWorkflowService
                     ]);
                 }
 
-                $state = $net > $total + 0.004 ? 'overpaid' : 'paid';
                 $locked->update([
                     'status' => 'shipped',
                     'completed_at' => now(),
                     'completed_by' => $actor->id,
                     'completion_note' => $completionNote !== '' ? $completionNote : 'Isporuka je završena i porudžbina je kompletirana.',
-                    'paid_total_rsd' => round($net, 2),
-                    'payment_state' => $state,
-                    'payment_status' => 'paid',
-                    'payment_verified_at' => $locked->payment_verified_at ?: now(),
                     'updated_by' => $actor->id,
                 ]);
-
-                $this->ips->persist($locked->fresh());
+                $this->financial->projectLocked($locked);
+                $locked->refresh();
+                $state = (string) $locked->payment_state;
                 $this->audit->log(
                     'order.completed',
                     'Kompletirana porudžbina '.$locked->order_number,
@@ -432,6 +408,8 @@ final class OrderWorkflowService
                 $this->deletePrivateFile((string) $oldProof['disk'], (string) $oldProof['path']);
             }
         }
+
+        $this->reconciliation->reconcile($updated);
 
         try {
             $this->warranties->ensureForOrder($updated->loadMissing('user'), $actor);
