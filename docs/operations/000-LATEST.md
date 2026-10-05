@@ -4,7 +4,7 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch516: `318c0cb9f7225f2f2139f72debbb5723872e6316`
+- Current source authority after Batch517: `6ddb27ba26bf893ca1659f814eaa02398b607556`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build22 EAS ID: `b32bfcbd-5f4c-45f5-95a9-5b756749b31a`
 - Build22 source commit: `e082641bd4e58c320d4faca0dd50997deca7f416`
@@ -17,10 +17,25 @@
 - Batch512R2 fresh release readiness: **PASS**
 - EAS remote Android versionCode at readiness: **22**
 - Next expected versionCode if one new production build is executed: **23**
-- Latest report: `docs/operations/518-BATCH516R2-FINANCIAL-STATE-CANONICALIZATION-RECOVERY-V2-20261005-152924.md`
+- Latest report: `docs/operations/521-BATCH517R2-CATALOG-IMAGE-AVAILABILITY-RECOVERY-V2-20261005-212733.md`
 - No EAS build, EAS submit, OTA publish, Google Play action, migration, or database mutation was performed by Batch512R2.
 - Build23: **DEFERRED BY USER** so additional grouped functionality can be included before spending another production build.
 - Next gate: **continue grouped source work; run fresh release readiness again before any future Build23.**
+
+## Batch517 - Catalog Image Availability & Legacy Media Publication
+
+- Status: **PASS**
+- Source commit: `6ddb27ba26bf893ca1659f814eaa02398b607556`
+- Legacy product images for the targeted production SKU set are published to canonical public storage with validated originals and derivatives.
+- Catalog API primary-image presentation now falls back to the first ordered image when historical primary flags are missing.
+- The authenticated legacy Web media route remains private; Mobile continues using public thumbnail/display/original URLs.
+- Production repair was dry-run gated and, when needed, executed only after a verified database backup.
+- CMS static remains 983/983; Mobile/Expo/OpenAPI gates passed.
+- No EAS build, submit, OTA publish or Google Play action. Build23 remains deferred.
+- Next grouped chain: Batch518A APK payment-proof upload + order continuation, then Batch518B navigation UX consolidation.
+
+---
+
 
 ## Batch516 - Financial State Canonicalization
 
