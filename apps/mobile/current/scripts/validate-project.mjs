@@ -4254,6 +4254,17 @@ assert(
   'Batch515 fixes Laravel UTF-8 save labels and documents the customer amendment conflict contract.',
 );
 
+// BATCH517_CATALOG_IMAGE_AVAILABILITY
+{
+  const batch517Card = fs.readFileSync(path.join(root, 'src/components/catalog/product-card.tsx'), 'utf8');
+  const batch517Gallery = fs.readFileSync(path.join(root, 'src/components/catalog/product-image-gallery.tsx'), 'utf8');
+  const thumb = batch517Card.indexOf('product.primary_image_thumbnail_url');
+  const display = batch517Card.indexOf('product.primary_image_display_url');
+  const base = batch517Card.indexOf('product.primary_image_url');
+  assert(thumb >= 0 && display > thumb && base > display, 'Batch517 katalog zadržava thumbnail -> display -> original image fallback.');
+  assert(batch517Gallery.includes('image.thumbnail_url') && batch517Gallery.includes('image.display_url') && batch517Gallery.includes('image.url'), 'Batch517 detail galerija zadržava thumbnail/display/original fallback.');
+}
+
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 

@@ -27,6 +27,7 @@ final class CatalogQueryService
                 'type',
                 'categories',
                 'images',
+                'presentationImage',
                 'creator:id,first_name,last_name,email',
                 'specificationValues.field',
             ]);
@@ -80,7 +81,7 @@ final class CatalogQueryService
                 'type:id,name,slug',
                 'categories:id,name,slug',
                 'creator:id,first_name,last_name,email',
-                'primaryImage',
+                'presentationImage',
             ])
             ->withCount('images');
 

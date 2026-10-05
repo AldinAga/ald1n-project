@@ -20,7 +20,7 @@ final class CatalogController extends Controller
     public function show(Request $request, string $slug, CatalogQueryService $catalog): ProductResource
     {
         $product = $catalog->findVisibleBySlug($request->user(), $slug);
-        $product->loadMissing('primaryImage');
+        $product->loadMissing('presentationImage');
 
         return new ProductResource($product);
     }
