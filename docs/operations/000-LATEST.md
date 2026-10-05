@@ -4,7 +4,7 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch513R2: `3cbd0d0a67023352292020722441b29185649ca4`
+- Current source authority after Batch515: `5ceb1cbc43aaeaa132fe9abc2e4a1ea8e2555d27`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build22 EAS ID: `b32bfcbd-5f4c-45f5-95a9-5b756749b31a`
 - Build22 source commit: `e082641bd4e58c320d4faca0dd50997deca7f416`
@@ -17,10 +17,25 @@
 - Batch512R2 fresh release readiness: **PASS**
 - EAS remote Android versionCode at readiness: **22**
 - Next expected versionCode if one new production build is executed: **23**
-- Latest report: `docs/operations/513R2-SHIPMENT-DELIVERY-DUAL-ACTION-UX-RECOVERY-20261003-120531.md`
+- Latest report: `docs/operations/515R3-CUSTOMER-ORDER-AMENDMENT-RECOVERY-V3-20261005-095450.md`
 - No EAS build, EAS submit, OTA publish, Google Play action, migration, or database mutation was performed by Batch512R2.
 - Build23: **DEFERRED BY USER** so additional grouped functionality can be included before spending another production build.
 - Next gate: **continue grouped source work; run fresh release readiness again before any future Build23.**
+
+## Batch515R3 - Customer Order Amendment Recovery V3
+
+- Status: **PASS**
+- Source commit: `5ceb1cbc43aaeaa132fe9abc2e4a1ea8e2555d27`
+- Customer can amend products, quantities, delivery data and note until shipment/completion/cancellation lock.
+- Inventory deltas, idempotency and optimistic concurrency protect retries and stale user/admin screens.
+- Order documents now persist immutable item snapshots; customer amendment invalidates active confirmation/proforma/invoice for later revision.
+- Payment ledger is preserved; payment state, receivables and commission workflow are reconciled with the amended subtotal/items.
+- Laravel product save labels use canonical UTF-8 `Sačuvaj` copy.
+- Controlled migration `2026_10_03_000200_create_order_document_items_batch515.php` applied after DB backup and source gates.
+- No EAS build, EAS submit, OTA publish or Google Play action. Build23 remains deferred.
+
+---
+
 
 ## Planned Build23 command
 
