@@ -4,7 +4,7 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch515: `5ceb1cbc43aaeaa132fe9abc2e4a1ea8e2555d27`
+- Current source authority after Batch516: `318c0cb9f7225f2f2139f72debbb5723872e6316`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build22 EAS ID: `b32bfcbd-5f4c-45f5-95a9-5b756749b31a`
 - Build22 source commit: `e082641bd4e58c320d4faca0dd50997deca7f416`
@@ -17,10 +17,24 @@
 - Batch512R2 fresh release readiness: **PASS**
 - EAS remote Android versionCode at readiness: **22**
 - Next expected versionCode if one new production build is executed: **23**
-- Latest report: `docs/operations/515R3-CUSTOMER-ORDER-AMENDMENT-RECOVERY-V3-20261005-095450.md`
+- Latest report: `docs/operations/518-BATCH516R2-FINANCIAL-STATE-CANONICALIZATION-RECOVERY-V2-20261005-152924.md`
 - No EAS build, EAS submit, OTA publish, Google Play action, migration, or database mutation was performed by Batch512R2.
 - Build23: **DEFERRED BY USER** so additional grouped functionality can be included before spending another production build.
 - Next gate: **continue grouped source work; run fresh release readiness again before any future Build23.**
+
+## Batch516 - Financial State Canonicalization
+
+- Status: **PASS**
+- Source commit: `318c0cb9f7225f2f2139f72debbb5723872e6316`
+- `order_payments` is the canonical received/refunded money ledger; order financial status fields are derived through one projector.
+- Manual Web/API/Mobile payment-status mutation is removed; real ledger operations remain authoritative.
+- GET order detail no longer persists IPS cache; downstream IPS/receivables reconciliation runs after canonical mutations.
+- Controlled production derived-state repair completed only after dry-run census and verified database backup.
+- CMS static remains 983/983; Mobile/Expo/OpenAPI parity gates passed.
+- No EAS build, submit, OTA publish or Google Play action. Build23 remains deferred.
+
+---
+
 
 ## Batch515R3 - Customer Order Amendment Recovery V3
 
