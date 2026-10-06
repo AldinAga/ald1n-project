@@ -161,6 +161,35 @@ export default function AdminOrdersDetailScreen() {
   const trackingNumber = text(shipment, 'tracking_number', text(order, 'tracking_number'));
   const trackingUrl = text(shipment, 'tracking_url');
   const canOpenTracking = trackingUrl.toLowerCase().startsWith('https://');
+  // MOBILE_BATCH518B_ADMIN_ORDER_NEXT_STEP
+  const completed = boolValue(order, 'is_completed') || text(order, 'completed_at', '') !== '' || ['completed', 'cancelled'].includes(text(order, 'status', ''));
+  const nextStep: { title: string; copy: string; label: string; workspace: OrderWorkspace } = !completed && !shipment && response.capabilities.workflow_mutations
+    ? {
+        title: 'Evidentiraj slanje',
+        copy: 'Nastavi u Tok i akcije, izaberi kurira i unesi tracking broj.',
+        label: 'Otvori akcije slanja',
+        workspace: 'activity',
+      }
+    : shipment && !delivery && response.capabilities.confirm_delivery
+      ? {
+          title: 'Potvrdi isporuku',
+          copy: 'Pošiljka je poslata. Sledeća operativna radnja je potvrda stvarne isporuke.',
+          label: 'Otvori akcije isporuke',
+          workspace: 'activity',
+        }
+      : delivery && response.capabilities.documents
+        ? {
+            title: 'Pregledaj dokumente',
+            copy: 'Isporuka je evidentirana. Nastavi na poslovne dokumente i revizije.',
+            label: 'Otvori dokumente',
+            workspace: 'documents',
+          }
+        : {
+            title: 'Pregledaj tok i akcije',
+            copy: 'Otvori audit, interne napomene i trenutno dozvoljene workflow akcije.',
+            label: 'Otvori tok i akcije',
+            workspace: 'activity',
+          };
 
   return (
     <Screen contentStyle={styles.content}>
@@ -179,6 +208,13 @@ export default function AdminOrdersDetailScreen() {
           {query.isFetching ? 'Osvezavanje...' : 'Osvezi'}
         </Button>
       </View>
+
+      <Card style={styles.nextStepCard}>
+        <Text style={styles.nextStepEyebrow}>Sledeći korak</Text>
+        <Text style={styles.sectionTitle}>{nextStep.title}</Text>
+        <Text style={styles.muted}>{nextStep.copy}</Text>
+        <Button onPress={() => setWorkspace(nextStep.workspace)}>{nextStep.label}</Button>
+      </Card>
 
       <Card style={styles.workspaceCard}>
         <Text style={styles.sectionTitle}>Radni prostor porudžbine</Text>
@@ -409,6 +445,8 @@ function createStyles(theme: AppColors) {
     flexOne: { flex: 1, minWidth: 0 },
     status: { ...typography.label, color: theme.primary },
     muted: { ...typography.small, color: theme.muted },
+    nextStepCard: { gap: spacing.sm, borderColor: theme.primary, borderLeftWidth: 4, borderLeftColor: theme.primary, backgroundColor: theme.primarySoft },
+    nextStepEyebrow: { ...typography.small, color: theme.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
     workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     card: { gap: spacing.sm },
     warningCard: { gap: spacing.sm },

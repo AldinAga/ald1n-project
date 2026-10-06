@@ -214,6 +214,36 @@ export default function OrderDetailScreen() {
     });
   };
 
+  // MOBILE_BATCH518B_CUSTOMER_ORDER_NEXT_STEP
+  const nextStep = (() => {
+    const remaining = postCreate?.order.remaining_rsd ?? 0;
+    if (postCreate?.capabilities.can_upload_payment_proof && remaining > 0) {
+      return {
+        title: 'Pošalji potvrdu uplate',
+        copy: 'Porudžbina ima otvoren saldo. Izaberi potvrdu i nastavi bez napuštanja porudžbine.',
+        label: 'Izaberi potvrdu',
+        onPress: () => void chooseProof(),
+      };
+    }
+    if (order.capabilities.can_amend) {
+      return {
+        title: 'Uredi porudžbinu',
+        copy: 'Artikle, količine i podatke isporuke još možeš izmeniti pre slanja.',
+        label: 'Uredi porudžbinu',
+        onPress: () => router.push({ pathname: '/order/[id]/edit', params: { id: String(order.id) } }),
+      };
+    }
+    if (postCreate?.delivery && canCreateAfterSales) {
+      return {
+        title: 'Postprodajna podrška',
+        copy: 'Isporuka je potvrđena. Ako postoji problem, nastavi direktno na reklamaciju, povrat ili servis.',
+        label: 'Pokreni reklamaciju, povrat ili servis',
+        onPress: () => router.push({ pathname: '/after-sales/create/[orderId]', params: { orderId: String(order.id) } }),
+      };
+    }
+    return null;
+  })();
+
   const openSecureFile = async (
     key: string,
     action: () => Promise<void>,
@@ -273,6 +303,15 @@ export default function OrderDetailScreen() {
           <Text style={styles.value}>{formatDate(order.created_at, true)}</Text>
         </View>
       </View>
+
+      {nextStep ? (
+        <View style={styles.nextStepSurface}>
+          <Text style={styles.nextStepEyebrow}>Sledeći korak</Text>
+          <Text style={styles.sectionTitle}>{nextStep.title}</Text>
+          <Text style={styles.muted}>{nextStep.copy}</Text>
+          <Button onPress={nextStep.onPress}>{nextStep.label}</Button>
+        </View>
+      ) : null}
 
       <View style={styles.operatorSection}>
         <Text style={styles.sectionTitle}>Izmene porudžbine</Text>
@@ -675,6 +714,17 @@ function createStyles(theme: AppColors) {
       borderRadius: 14,
       backgroundColor: theme.surface,
     },
+    nextStepSurface: {
+      gap: spacing.sm,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.primary,
+      borderRadius: 14,
+      backgroundColor: theme.primarySoft,
+    },
+    nextStepEyebrow: { ...typography.small, color: theme.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
     operatorSection: {
       gap: spacing.md,
       padding: spacing.lg,

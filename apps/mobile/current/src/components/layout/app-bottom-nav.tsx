@@ -1,6 +1,7 @@
 // MOBILE_GLOBAL_BOTTOM_NAV_V06
 // MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_BATCH48
 // MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2
+// MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV
 import { useEffect, useMemo, useState } from 'react';
 import { router, usePathname } from 'expo-router';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,8 +12,8 @@ import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
-type MainRoute = '/home' | '/catalog' | '/orders' | '/notifications' | '/account' | '/admin';
-type NavKey = 'home' | 'catalog' | 'orders' | 'notifications' | 'account' | 'admin';
+type MainRoute = '/home' | '/catalog' | '/orders' | '/notifications' | '/account';
+type NavKey = 'home' | 'catalog' | 'orders' | 'notifications' | 'account';
 
 type NavItem = {
   key: NavKey;
@@ -37,10 +38,15 @@ function activeKey(pathname: string): NavKey | null {
     pathname === '/orders'
     || pathname.startsWith('/order/')
     || pathname.startsWith('/assigned-orders')
-    || pathname.startsWith('/after-sales')
+  ) return 'orders';
+  if (
+    pathname.startsWith('/after-sales')
     || pathname.startsWith('/warranties')
     || pathname.startsWith('/commissions')
-  ) return 'orders';
+    || pathname.startsWith('/portal/messages')
+    || pathname === '/admin'
+    || (pathname.startsWith('/admin/') && !pathname.startsWith('/admin/catalog/'))
+  ) return 'home';
   if (pathname === '/notifications') return 'notifications';
   if (
     pathname === '/account'
@@ -49,7 +55,6 @@ function activeKey(pathname: string): NavKey | null {
     || pathname === '/notification-settings'
     || pathname === '/sessions'
   ) return 'account';
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) return 'admin';
   return null;
 }
 
@@ -57,12 +62,11 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { colors: theme } = useAppTheme();
-  const { bootstrap, hasFeature } = useAuth();
+  const { hasFeature } = useAuth();
   const unread = useNotificationUnread();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const active = activeKey(pathname);
-  const isSuperAdmin = bootstrap?.user.role?.slug === 'superadmin';
   const rail = variant === 'rail';
 
   useEffect(() => {
@@ -94,22 +98,14 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
       visible: true,
       center: true,
     },
-    isSuperAdmin
-      ? {
-          key: 'admin',
-          label: 'Admin',
-          route: '/admin',
-          glyph: 'admin',
-          visible: true,
-        }
-      : {
-          key: 'notifications',
-          label: 'Obaveštenja',
-          route: '/notifications',
-          glyph: 'bell',
-          visible: hasFeature('notifications'),
-          badge: unread || undefined,
-        },
+    {
+      key: 'notifications',
+      label: 'Obaveštenja',
+      route: '/notifications',
+      glyph: 'bell',
+      visible: hasFeature('notifications'),
+      badge: unread || undefined,
+    },
     {
       key: 'account',
       label: 'Nalog',
@@ -117,7 +113,7 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
       glyph: 'account',
       visible: true,
     },
-  ], [hasFeature, isSuperAdmin, unread]);
+  ], [hasFeature, unread]);
 
   if (keyboardVisible && !rail) return null;
 

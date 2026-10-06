@@ -2412,12 +2412,12 @@ assert(
   assert(
     !home.includes("title: 'Otvori katalog'")
       && !home.includes("title: 'Moje porudžbine'")
-      && home.includes('adminAllowed && !isSuperAdmin ?')
+      && home.includes("adminAllowed ? { title: 'Administracija'")
       && home.includes('quickActions.length > 0 ?')
       && home.includes('myActivities.length > 0 ?')
       && !home.includes('Nema dodatnih korisničkih aktivnosti za ovaj nalog.')
       && !home.includes('Sve je sinhronizovano'),
-    'Build18 Home uklanja duple primarne ulaze i pasivne prazne/status sekcije.'
+    'Build18/Batch518B Home uklanja duple primarne ulaze i izlaže Administraciju svim dozvoljenim admin ulogama.'
   );
   assert(
     !admin.includes('Admin moduli')
@@ -2509,15 +2509,16 @@ assert(
 );
 assert(
   batch50BottomNavV2.includes('MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2')
+    && batch50BottomNavV2.includes('MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV')
+    && batch50BottomNavV2.includes("label: 'Katalog'")
+    && batch50BottomNavV2.includes("label: 'Porudžbine'")
     && batch50BottomNavV2.includes("label: 'Početna'")
     && batch50BottomNavV2.includes('center: true')
     && batch50BottomNavV2.includes('transform: [{ translateY: -17 }]')
-    && batch50BottomNavV2.includes("bootstrap?.user.role?.slug === 'superadmin'")
-    && batch50BottomNavV2.includes("label: 'Admin'")
-    && batch50BottomNavV2.includes("route: '/admin'")
     && batch50BottomNavV2.includes("label: 'Obaveštenja'")
-    && batch50BottomNavV2.includes("label: 'Nalog'"),
-  'v1.0 Batch50 V2 bottom nav drži centralno izdvojenu Početnu i role-aware Admin/Obaveštenja četvrti slot.',
+    && batch50BottomNavV2.includes("label: 'Nalog'")
+    && !batch50BottomNavV2.includes("key: 'admin'"),
+  'v1.0 Batch50 V2 + Batch518B bottom nav drži centralnu Početnu i pet stabilnih tabova za sve uloge.',
 );
 assert(
   batch50PageHeaderV2.includes('MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2')
@@ -2531,8 +2532,10 @@ assert(
 );
 assert(
   batch50BottomNavV2.includes("pathname.startsWith('/admin/catalog/')")
-    && batch50BottomNavV2.indexOf("pathname.startsWith('/admin/catalog/')") < batch50BottomNavV2.indexOf("pathname === '/admin' || pathname.startsWith('/admin/')"),
-  'v1.0 Batch50 V2 čuva Katalog active context za admin/catalog edit, dok ostali admin ekrani aktiviraju Admin slot.',
+    && batch50BottomNavV2.includes("pathname === '/admin'")
+    && batch50BottomNavV2.includes("!pathname.startsWith('/admin/catalog/')")
+    && !batch50BottomNavV2.includes("return 'admin';"),
+  'v1.0 Batch50 V2 + Batch518B čuva Katalog context za admin/catalog, a ostali Admin ekrani koriste Početna context bez Admin taba.',
 );
 
 // MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22
@@ -4284,6 +4287,20 @@ assert(
   assert(b518Order.includes('proofSuccess') && b518Order.includes('postCreateQuery.refetch()'), 'Batch518A payment proof success refreshes visible order/payment context.');
   assert(b518Actions.includes('onShipmentSuccess?: () => void') && b518Admin.includes("onShipmentSuccess={() => setWorkspace('fulfillment')}"), 'Batch518A shipment success continues directly to Isporuka workspace.');
   assert(b518Admin.includes('Kopiraj broj') && b518Admin.includes('Otvori praćenje') && b518Admin.includes("trackingUrl.toLowerCase().startsWith('https://')"), 'Batch518A fulfillment exposes safe copy/open tracking actions.');
+}
+
+// MOBILE_BATCH518B_NAVIGATION_UX_CONSOLIDATION
+{
+  const b518bNav = fs.readFileSync(path.join(root, 'src/components/layout/app-bottom-nav.tsx'), 'utf8');
+  const b518bHome = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
+  const b518bOrder = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id].tsx'), 'utf8');
+  const b518bAdminOrder = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
+  const b518bItems = b518bNav.slice(b518bNav.indexOf('const items: NavItem[]'), b518bNav.indexOf('if (keyboardVisible'));
+  assert(b518bNav.includes('MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV') && !b518bItems.includes("key: 'admin'") && b518bItems.includes("key: 'notifications'") && b518bItems.includes("key: 'home'") && b518bItems.includes("key: 'catalog'") && b518bItems.includes("key: 'orders'") && b518bItems.includes("key: 'account'"), 'Batch518B bottom nav ostaje pet stabilnih tabova za sve uloge.');
+  assert(b518bNav.includes("pathname.startsWith('/after-sales')") && b518bNav.includes("pathname.startsWith('/warranties')") && b518bNav.includes("pathname.startsWith('/commissions')") && b518bNav.includes("pathname.startsWith('/portal/messages')") && !b518bNav.includes("return 'admin';"), 'Batch518B aktivnosti i Admin zadržavaju Početna kontekst bez dodatnog taba.');
+  assert(b518bHome.includes("adminAllowed ? { title: 'Administracija'") && !b518bHome.includes('adminAllowed && !isSuperAdmin'), 'Batch518B Početna izlaže Administraciju svim dozvoljenim admin ulogama.');
+  assert(b518bOrder.includes('MOBILE_BATCH518B_CUSTOMER_ORDER_NEXT_STEP') && b518bOrder.includes('Sledeći korak') && b518bOrder.includes('Pošalji potvrdu uplate') && b518bOrder.includes('Uredi porudžbinu') && b518bOrder.includes('Pokreni reklamaciju, povrat ili servis'), 'Batch518B customer order detalj izlaže contextual Sledeći korak.');
+  assert(b518bAdminOrder.includes('MOBILE_BATCH518B_ADMIN_ORDER_NEXT_STEP') && b518bAdminOrder.includes('Evidentiraj slanje') && b518bAdminOrder.includes('Potvrdi isporuku') && b518bAdminOrder.includes('setWorkspace(nextStep.workspace)'), 'Batch518B Admin order detalj izlaže contextual Sledeći korak i workspace continuation.');
 }
 
 console.log(`\nUkupno FAIL: ${failures}`);

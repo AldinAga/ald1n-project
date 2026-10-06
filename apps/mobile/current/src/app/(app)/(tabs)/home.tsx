@@ -79,8 +79,9 @@ export default function HomeScreen() {
     hasFeature('customer_portal') ? { title: 'Poruke podršci', copy: 'Razgovori sa podrškom i pitanja uz porudžbine', glyph: 'messages' as const, route: '/portal/messages' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
+  // MOBILE_BATCH518B_HOME_ADMIN_ENTRY
   const adminActions = [
-    adminAllowed && !isSuperAdmin ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'admin' as const, route: '/admin' as const } : null,
+    adminAllowed ? { title: 'Administracija', copy: 'Otvori grupisani administratorski radni prostor', glyph: 'admin' as const, route: '/admin' as const } : null,
   ].filter(Boolean) as HomeAction[];
 
   const refreshHome = () => {
