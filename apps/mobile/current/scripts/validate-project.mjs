@@ -180,6 +180,22 @@ const restoreCredentialFlow = fs.readFileSync(path.join(root, 'src/features/auth
 assert(restoreCredentialNative.includes('CreateRestoreCredentialRequest') && restoreCredentialNative.includes('E2eeUnavailableException') && restoreCredentialNative.includes('isCloudBackupEnabled = false'), 'Build23 Restore Credentials create flow ima E2EE fallback.');
 assert(restoreCredentialNative.includes('GetRestoreCredentialOption') && restoreCredentialNative.includes('RestoreCredential') && restoreCredentialNative.includes('TYPE_CLEAR_RESTORE_CREDENTIAL'), 'Build23 Restore Credentials retrieve/clear flow koristi pravi Android RestoreCredential tip.');
 assert(restoreCredentialFlow.includes('tryRestoreSession') && restoreCredentialFlow.includes('ensureRestoreCredential') && restoreCredentialFlow.includes('clearRestoreCredential'), 'Build23 auth lifecycle pokriva zero-tap restore, post-login create i logout clear.');
+// MOBILE_BUILD23_PLAY_APP_SIGNING_DAL_BATCH522
+const dalPath522 = path.join(projectRoot, 'apps/cms/current/public/.well-known/assetlinks.json');
+let dalPayload522 = null;
+try { dalPayload522 = JSON.parse(fs.readFileSync(dalPath522, 'utf8')); } catch {}
+const dalEntry522 = Array.isArray(dalPayload522) ? dalPayload522.find((item) => item?.target?.namespace === 'android_app' && item?.target?.package_name === 'com.ald1n.mobile') : null;
+const dalRelations522 = Array.isArray(dalEntry522?.relation) ? dalEntry522.relation : [];
+const dalFingerprints522 = Array.isArray(dalEntry522?.target?.sha256_cert_fingerprints) ? dalEntry522.target.sha256_cert_fingerprints : [];
+assert(
+  Boolean(dalEntry522)
+    && dalRelations522.includes('delegate_permission/common.handle_all_urls')
+    && dalRelations522.includes('delegate_permission/common.get_login_creds')
+    && dalFingerprints522.length >= 1
+    && dalFingerprints522.every((value) => /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(String(value))),
+  'Build23 Play App Signing DAL povezuje com.ald1n.mobile sa login credentials i HTTPS app-link authority-jem.',
+);
+
 
 assert(packageJson.dependencies?.['react-native-nitro-modules'] === '0.36.1', 'Nitro Modules runtime je pinovan.');
 assert(packageJson.dependencies?.tamagui === '2.6.0', 'Tamagui 2 runtime je pinovan.');
