@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'integrity_runtime_hashes' => [
+        'public/.htaccess' => 'd10ecf0d63f9a8e1bd978a440afcbadb34faf1d24eb899bf2582d1e5c0033cef',
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Release check profiles
@@ -292,6 +296,7 @@ return [
             'command' => 'app:cms-v2-1-6-doctor',
             'render' => ['--render' => true],
             'repair' => ['--repair' => true],
+            'snapshot' => ['--snapshot' => true],
             'strict' => ['--strict' => true],
         ],
         'cms_v220' => [

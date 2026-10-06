@@ -27,6 +27,13 @@ final class SmartProductsDoctorCommand extends Command
             try {
                 Artisan::call('migrate', ['--force' => true]);
                 $this->output->write(Artisan::output());
+                $normalizedWeights = 0;
+                if (Schema::hasTable('product_type_fields') && Schema::hasColumn('product_type_fields', 'completeness_weight')) {
+                    $normalizedWeights = DB::table('product_type_fields')
+                        ->where(fn ($query) => $query->where('completeness_weight', '<', 1)->orWhere('completeness_weight', '>', 100))
+                        ->update(['completeness_weight' => 1]);
+                }
+                $this->info('NORMALIZED_COMPLETENESS_WEIGHTS='.$normalizedWeights);
                 $result = $completeness->recalculateAll();
                 $this->info(sprintf(
                     'Ponovo obračunata kompletnost za %d artikala; %d aktivnih artikala vraćeno je u nacrt.',

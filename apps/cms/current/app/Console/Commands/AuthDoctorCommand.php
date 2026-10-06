@@ -206,7 +206,7 @@ final class AuthDoctorCommand extends Command
                 'request' => $request,
             ]);
             $html = $view->with('errors', new ViewErrorBag())->render();
-            if (!str_contains($html, 'data-universal-dashboard-ready="1"') || !str_contains($html, 'Dobro došao')) {
+            if (!str_contains($html, 'data-universal-dashboard-ready="1"') || !str_contains($html, 'Dobro došli')) {
                 $this->failLine('Dashboard je renderovan, ali očekivani sadržaj nije pronađen.');
                 return false;
             }

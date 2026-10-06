@@ -14,6 +14,13 @@ final class LegacyMediaCheckCommand extends Command
 
     public function handle(): int
     {
+        $legacyCount = ProductImage::query()->where('storage_disk', 'legacy')->count();
+        if ($legacyCount === 0) {
+            $this->info('LEGACY_MEDIA_NONE=PASS');
+            $this->info('PASS Nema legacy image redova; legacy media root nije potreban za aktivni katalog.');
+            return self::SUCCESS;
+        }
+
         $configuredRoot = trim((string) config('services.legacy_media.root'));
         if ($configuredRoot === '') {
             $this->error('LEGACY_MEDIA_ROOT nije podešen u serverskom .env fajlu.');

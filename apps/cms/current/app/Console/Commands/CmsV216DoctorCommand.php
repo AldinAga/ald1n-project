@@ -16,6 +16,7 @@ final class CmsV216DoctorCommand extends Command
     protected $signature = 'app:cms-v2-1-6-doctor
         {--render : Renderuj Data Quality Center}
         {--repair : Primeni bezbedne data-quality popravke}
+        {--snapshot : Sačuvaj Data Quality snapshot eksplicitno}
         {--strict : Uključi stroge performance pragove}';
 
     protected $description = 'Proveri v2.1.6 performance indekse, cache slojeve, Data Quality Center i runtime integritet.';
@@ -56,7 +57,9 @@ final class CmsV216DoctorCommand extends Command
             $this->line('Repair summary: '.json_encode($repair, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         }
         $report = $quality->audit((int) config('performance.data_quality_sample_limit', 20));
-        $quality->storeSnapshot($report, 'release', auth()->id());
+        if ($this->option('repair') || $this->option('snapshot')) {
+            $quality->storeSnapshot($report, 'release', auth()->id());
+        }
         if ((int) $report['summary']['critical'] > 0) {
             $this->error('FAIL Data quality audit ima '.$report['summary']['critical'].' kritičnih problema.');
             $failed = true;

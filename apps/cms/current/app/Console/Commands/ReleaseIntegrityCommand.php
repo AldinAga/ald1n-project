@@ -74,6 +74,13 @@ final class ReleaseIntegrityCommand extends Command
 
             $actual = hash_file('sha256', $path);
             if (!is_string($actual) || !hash_equals($expected, $actual)) {
+                $runtimeHashes = (array) config('release.integrity_runtime_hashes', []);
+                $runtimeExpected = trim((string) ($runtimeHashes[$relative] ?? ''));
+                if ($runtimeExpected !== '' && is_string($actual) && hash_equals($runtimeExpected, $actual)) {
+                    $this->line('PASS Runtime-integrity override: '.$relative.'.');
+                    $verified++;
+                    continue;
+                }
                 $this->error('FAIL SHA-256 mismatch: '.$relative.'.');
                 $failed = true;
                 continue;

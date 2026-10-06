@@ -263,9 +263,8 @@ final class DeploymentCheckCommand extends Command
             'mail from address' => filter_var((string) config('mail.from.address'), FILTER_VALIDATE_EMAIL) !== false,
             'SMTP host' => (string) config('mail.default') !== 'smtp'
                 || trim((string) config('mail.mailers.smtp.host')) !== '',
-            'cache store supported' => in_array((string) config('cache.default'), ['file', 'database', 'array'], true),
-            'Redis disabled' => (string) config('cache.default') !== 'redis'
-                && (string) config('session.driver') !== 'redis'
+            'cache store supported' => array_key_exists((string) config('cache.default'), (array) config('cache.stores', [])),
+            'Redis reserved for cache only' => (string) config('session.driver') !== 'redis'
                 && (string) config('queue.default') !== 'redis'
         ];
 
