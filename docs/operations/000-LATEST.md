@@ -4,34 +4,29 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch518B: `4858a9e92bd0c6bde4e0d6ebf8557d64f3dd8267`
+- Current source authority after Batch520: `dff990823507719d5e2f476523cdeeb9e15cdd5b`
 - Last existing Android production build: **Build22 / versionCode 22**
-- Build22 EAS ID: `b32bfcbd-5f4c-45f5-95a9-5b756749b31a`
-- Build22 source commit: `e082641bd4e58c320d4faca0dd50997deca7f416`
 - Build profile / channel: **production / production**
-- SDK57 patch alignment: **PASS**, commit `4ba582c0fdb03f5dd8357ee4ff083a45edcda9f5`
-- Payment/IPS settlement repair: **PASS / CLOSED**, commit `d69605e6d09ebe9be14c104eef257769c5ebaac4`
-- Production submit procedure hardening: **PASS**, commit `350ee82767edd4b6a1cf989b94567dc4db903e29`
-- Batch512 first attempt: **FAIL before release gates; audit preserved**
-- Batch512R: **FAIL at historical-report-sync; audit preserved**
-- Batch512R2 fresh release readiness: **PASS**
-- EAS remote Android versionCode at readiness: **22**
-- Next expected versionCode if one new production build is executed: **23**
-- Latest report: `docs/operations/524-BATCH518BR-NAVIGATION-UX-CONSOLIDATION-RECOVERY-20261006-094416.md`
-- No EAS build, EAS submit, OTA publish, Google Play action, migration, or database mutation was performed by Batch512R2.
-- Build23: **DEFERRED BY USER** so additional grouped functionality can be included before spending another production build.
-- Next gate: **continue grouped source work; run fresh release readiness again before any future Build23.**
+- Build23: **DEFERRED**; no build/submit/OTA/Google Play action performed.
+- Future Build23 release mode: **production build with AutoSubmit** after all gates and explicit owner authorization.
+- Google Play release notes: **required as copy/paste text at Build23 completion**.
+- Batch520: **PASS** — subagent shipment tracking visibility + Push/E-mail/Both preference.
+- Next gate: **Google Play pre-Build23 compliance/native audit (API 36, R8/resource shrinking, 16 KB readiness, adaptive/edge-to-edge, image/memory), then fresh release readiness and physical acceptance before explicit Build23 AutoSubmit authorization.**
 
-## Batch518B - Navigation UX Consolidation
+## Batch520 - Subagent Shipment Tracking Notifications
 
-- Status: **PASS via Batch518BR recovery**
-- Source commit: `4858a9e92bd0c6bde4e0d6ebf8557d64f3dd8267`
-- Bottom navigation is now the same five destinations for all roles: Katalog, Porudžbine, Početna, Obaveštenja and Nalog; Administracija is entered from Početna instead of replacing Obaveštenja for SuperAdmin.
-- Customer activities (provizije, garancije, postprodaja and portal messages) preserve Početna context, while order flows remain under Porudžbine and admin catalog remains under Katalog.
-- Customer and Admin order details now expose a visible contextual Sledeći korak that continues into existing canonical actions/workspaces without creating new business rules.
-- CMS static remains 983/983; Mobile typecheck/validator, Expo and OpenAPI parity gates passed.
-- No schema/database mutation, EAS build, submit, OTA publish or Google Play action. Build23 remains deferred.
-- Next gate: fresh pre-Build23 release readiness before any production build decision.
+- Status: **PASS**
+- Source commit: `dff990823507719d5e2f476523cdeeb9e15cdd5b`
+- Creator/subagent sees shipment tracking prominently near the top of the customer order detail with courier, shipped time, copy and safe HTTPS tracking actions.
+- Notification settings expose exactly Push, E-mail or Push + E-mail for shipment tracking alerts; no disabled/none option is introduced.
+- Canonical OrderShipmentService sends the creator/subagent shipment alert using the chosen channel while keeping a persistent in-app event record.
+- Push selection reuses existing device registration; email reuses existing operational notification mail channel.
+- Existing supplier/operational order email flow remains separate and creator duplication is suppressed for the shipment event.
+- CMS static 983/983, Mobile typecheck/validator, Expo checks and OpenAPI parity passed.
+- Production migration applied only after verified backup.
+- No EAS build, submit, OTA or Google Play action.
+
+---
 
 ---
 
