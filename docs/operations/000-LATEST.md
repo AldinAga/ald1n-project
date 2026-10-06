@@ -4,14 +4,40 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch520: `dff990823507719d5e2f476523cdeeb9e15cdd5b`
+- Current source authority after Batch521R5: `42f4207ef106d8567a267bd4e99972a43a25e48f`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build profile / channel: **production / production**
 - Build23: **DEFERRED**; no build/submit/OTA/Google Play action performed.
 - Future Build23 release mode: **production build with AutoSubmit** after all gates and explicit owner authorization.
 - Google Play release notes: **required as copy/paste text at Build23 completion**.
 - Batch520: **PASS** — subagent shipment tracking visibility + Push/E-mail/Both preference.
-- Next gate: **Google Play pre-Build23 compliance/native audit (API 36, R8/resource shrinking, 16 KB readiness, adaptive/edge-to-edge, image/memory), then fresh release readiness and physical acceptance before explicit Build23 AutoSubmit authorization.**
+- Batch521: **PASS_IMPLEMENTED_GATED via Batch521R5 recovery** — Android Zero-Tap Restore Credentials implemented together with the current SDK57 patch alignment; production activation awaits exact Play App Signing SHA-256 + Digital Asset Links verification.
+- Next gate: **Play App Signing SHA-256 + Digital Asset Links activation gate, then Google Play/native compliance audit, fresh release readiness and physical acceptance before explicit Build23 AutoSubmit authorization.**
+
+## Batch521 / Batch521R / Batch521R2 / Batch521R3 / Batch521R4 / Batch521R5 - Android Zero-Tap Restore Credentials
+
+- Status: **PASS_IMPLEMENTED_GATED via Batch521R5 recovery**
+- Source commit: `42f4207ef106d8567a267bd4e99972a43a25e48f`
+- Original Batch521 stopped before mutation on the Report533 post-checkpoint tracked residue.
+- Batch521R normalized that exact append-only residue and then rolled back after the server rejected an unsupported Composer require flag.
+- Batch521R2 proved the supported Composer path and WebAuthn 5.3.9 resolution, then rolled back after a cwd-relative source-scope inventory mismatch.
+- Batch521R3 fixed source inventory and proved TDD green, CMS 983/983, Mobile typecheck/validator and zero new Composer advisories; it rolled back when Expo's live SDK57 compatibility authority advanced to a new same-day patch set.
+- Batch521R4 aligned expo 57.0.27, expo-constants 57.0.21, expo-linking 57.0.12, expo-notifications 57.0.22, expo-router 57.0.25 and expo-updates 57.0.25 through canonical CloudLinux npm, proved exact source routes and all canonical quality gates, then rolled back because its native audit incorrectly required allowBackup=false.
+- Batch521R5 preserves the existing Android backup posture, verifies expo-secure-store exclusions for encrypted SecureStore data when backup is enabled, and keeps Restore Credentials independent of allowBackup as required by Android guidance.
+- Android Credential Manager Restore Credentials client + Laravel WebAuthn server foundation are implemented.
+- Restore verification uses userVerification=discouraged to match Android passive GetRestoreCredentialOption semantics.
+- Resolved web-auth/webauthn-lib is guarded at 5.3.3+ within the package's 5.3.x contract for Android apk-key-hash origin support.
+- Restore keys are stored separately from future user-managed passkeys.
+- Normal password and Google sign-in remain canonical and unchanged in user behavior.
+- Logout and HTTP 401 clear the Restore Credential state; create flow uses cloud backup with E2EE-unavailable fallback.
+- Production activation remains fail-closed until exact Google Play App Signing SHA-256, android:apk-key-hash origin and HTTPS Digital Asset Links are verified.
+- Recovery report: `docs/operations/539-BATCH521R5-ZERO-TAP-RESTORE-CREDENTIALS-RECOVERY-20261006-182159.md`
+- Failed Batch521R4 report: `docs/operations/538-BATCH521R4-ZERO-TAP-RESTORE-CREDENTIALS-RECOVERY-20261006-175355.md`
+- Failed Batch521R3 report: `docs/operations/537-BATCH521R3-ZERO-TAP-RESTORE-CREDENTIALS-RECOVERY-20261006-155312.md`
+- Failed Batch521R2 report: `docs/operations/536-BATCH521R2-ZERO-TAP-RESTORE-CREDENTIALS-RECOVERY-20261006-153616.md`
+- Failed Batch521R report: `docs/operations/535-BATCH521R-ZERO-TAP-RESTORE-CREDENTIALS-RECOVERY-20261006-152558.md`
+- Failed original Batch521 report: `docs/operations/534-BATCH521-ZERO-TAP-RESTORE-CREDENTIALS-20261006-143308.md`
+- No EAS build, submit, OTA or Google Play action.
 
 ## Batch520 - Subagent Shipment Tracking Notifications
 
