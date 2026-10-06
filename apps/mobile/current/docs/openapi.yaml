@@ -6687,6 +6687,7 @@ components:
         in_app_enabled: { type: boolean }
         email_enabled: { type: boolean }
         push_enabled: { type: boolean }
+        shipment_tracking_channel: { type: string, enum: [push, email, both], default: both }
         order_updates: { type: boolean }
         payment_alerts: { type: boolean }
         document_updates: { type: boolean }
@@ -6771,6 +6772,15 @@ components:
         locale: { type: [string, 'null'], maxLength: 20 }
         timezone: { type: [string, 'null'], maxLength: 64 }
         notifications_enabled: { type: boolean }
+    OrderShipmentSummary:
+      type: object
+      required: [shipment_method, courier_name, tracking_url, tracking_number, shipped_at]
+      properties:
+        shipment_method: { type: string }
+        courier_name: { type: [string, 'null'] }
+        tracking_url: { type: [string, 'null'], format: uri }
+        tracking_number: { type: [string, 'null'] }
+        shipped_at: { type: [string, 'null'], format: date-time }
     OrderPrivateFile:
       type: object
       required: [original_name, mime_type, size_bytes]
@@ -6886,6 +6896,7 @@ components:
           type: array
           items: { $ref: '#/components/schemas/OrderDocumentSummary' }
         delivery: { anyOf: [{ $ref: '#/components/schemas/OrderDeliverySummary' }, { type: 'null' }] }
+        shipment: { anyOf: [{ $ref: '#/components/schemas/OrderShipmentSummary' }, { type: 'null' }] }
         capabilities: { $ref: '#/components/schemas/OrderPostCreateCapabilities' }
         payment_proof_limits: { $ref: '#/components/schemas/OrderPaymentProofLimits' }
     AfterSalesCaseSummary:

@@ -148,7 +148,7 @@ final class OrderShipmentService
                     user: $actor,
                 );
 
-                return $created->fresh(['order.user', 'courier', 'recorder']) ?? $created;
+                return $created->fresh(['order.user', 'order.supplier', 'courier', 'recorder']) ?? $created;
             }, 5);
         } catch (Throwable $exception) {
             if (is_array($storedProof)) {
@@ -158,16 +158,21 @@ final class OrderShipmentService
         }
 
         $updatedOrder = $shipment->order;
-        if ($updatedOrder instanceof Order && $updatedOrder->user instanceof User) {
-            $parts = ['Porudžbina '.$updatedOrder->order_number.' je poslata kupcu.'];
-            if (filled($shipment->courier_name_snapshot)) $parts[] = 'Kurir: '.$shipment->courier_name_snapshot.'.';
-            if (filled($shipment->tracking_number_snapshot)) $parts[] = 'Broj za praćenje: '.$shipment->tracking_number_snapshot.'.';
-            $this->notifications->order($updatedOrder->user, 'order.shipped', 'Porudžbina je poslata', implode(' ', $parts), $updatedOrder, ['severity' => 'success', 'icon' => 'truck']);
+        if ($updatedOrder instanceof Order && $updatedOrder->user instanceof User && filled($shipment->tracking_number_snapshot)) {
+            $trackingUrl = trim((string) $shipment->courier_tracking_url_snapshot);
+            $this->notifications->shipmentTracking(
+                $updatedOrder->user,
+                $updatedOrder,
+                (string) $shipment->tracking_number_snapshot,
+                $shipment->courier_name_snapshot ?: null,
+                str_starts_with($trackingUrl, 'https://') ? $trackingUrl : null,
+                $shipment->shipped_at?->toISOString(),
+            );
         }
         if ($updatedOrder instanceof Order) {
             $this->emails->orderChanged(
                 $updatedOrder,
-                'order_status_changed',
+                'order_shipment_recorded',
                 'Porudžbina '.$updatedOrder->order_number.' je poslata',
                 'Slanje pošiljke je evidentirano. Ovo ne znači da je porudžbina isporučena niti naplaćena pouzećem.',
                 [

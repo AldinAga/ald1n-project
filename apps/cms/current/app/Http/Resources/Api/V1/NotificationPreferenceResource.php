@@ -15,6 +15,9 @@ final class NotificationPreferenceResource extends JsonResource
             'in_app_enabled' => (bool) $this->in_app_enabled,
             'email_enabled' => (bool) $this->email_enabled,
             'push_enabled' => (bool) ($this->push_enabled ?? false),
+            'shipment_tracking_channel' => in_array((string) ($this->shipment_tracking_channel ?? 'both'), ['push', 'email', 'both'], true)
+                ? (string) $this->shipment_tracking_channel
+                : 'both',
             'order_updates' => (bool) $this->order_updates,
             'payment_alerts' => (bool) $this->payment_alerts,
             'document_updates' => (bool) $this->document_updates,

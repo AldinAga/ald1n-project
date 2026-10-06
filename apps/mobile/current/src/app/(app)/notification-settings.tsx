@@ -21,6 +21,12 @@ import {
 import { api } from '@/lib/api/endpoints';
 import type { NotificationPreferences } from '@/types/api';
 
+const trackingChannelOptions: Array<{ value: NotificationPreferences['shipment_tracking_channel']; title: string; copy: string }> = [
+  { value: 'push', title: 'Push', copy: 'Obaveštenje odmah na registrovanom telefonu.' },
+  { value: 'email', title: 'E-mail', copy: 'Broj pošiljke stiže na e-mail naloga.' },
+  { value: 'both', title: 'Push + E-mail', copy: 'Pošalji broj pošiljke na oba kanala.' },
+];
+
 const preferenceRows: Array<{ key: keyof NotificationPreferences; title: string; copy: string }> = [
   { key: 'order_updates', title: 'Porudžbine', copy: 'Kreiranje, status i otkazivanje porudžbine.' },
   { key: 'payment_alerts', title: 'Uplate', copy: 'Evidentirane uplate, refundacije i promene statusa.' },
@@ -71,7 +77,7 @@ export default function NotificationSettingsScreen() {
   if (!preferences || devices.isLoading) return <LoadingState label="Učitavanje podešavanja…" />;
   if (devices.isError) return <ErrorState error={devices.error} onRetry={() => void devices.refetch()} />;
 
-  const enableDevicePush = async () => {
+  const enableDevicePush = async (): Promise<boolean> => {
     setPushAction(true);
     try {
       await registerCurrentDeviceForPush({ prompt: true });
@@ -81,12 +87,14 @@ export default function NotificationSettingsScreen() {
         queryClient.invalidateQueries({ queryKey: ['devices'] }),
         refreshPermission()
       ]);
+      return true;
     } catch (error) {
       feedback.notify({
         tone: 'danger',
         title: 'Push registracija nije završena',
         message: error instanceof Error ? error.message : 'Pokušaj ponovo.'
       });
+      return false;
     } finally {
       setPushAction(false);
     }
@@ -120,6 +128,18 @@ export default function NotificationSettingsScreen() {
         setPushAction(false);
       }
     })();
+  };
+
+  const setShipmentTrackingChannel = async (value: NotificationPreferences['shipment_tracking_channel']) => {
+    if ((value === 'push' || value === 'both') && !currentDevice?.push_registered) {
+      const registered = await enableDevicePush();
+      if (!registered) return;
+    }
+    preferenceMutation.mutate({
+      shipment_tracking_channel: value,
+      ...(value === 'push' || value === 'both' ? { push_enabled: true } : {}),
+      ...(value === 'email' || value === 'both' ? { email_enabled: true } : {}),
+    });
   };
 
   const setPreference = (key: keyof NotificationPreferences, value: boolean) => {
@@ -186,13 +206,37 @@ export default function NotificationSettingsScreen() {
         disabled={preferenceMutation.isPending}
       />
 
+      <Text style={styles.sectionTitle}>Broj pošiljke</Text>
+      <Text style={styles.copy}>Izaberi kako želiš da dobiješ broj za praćenje čim SuperAdministrator evidentira slanje.</Text>
+      <View style={styles.trackingOptions}>
+        {trackingChannelOptions.map((option) => {
+          const selected = preferences.shipment_tracking_channel === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected, disabled: preferenceMutation.isPending || pushAction }}
+              onPress={() => void setShipmentTrackingChannel(option.value)}
+              disabled={preferenceMutation.isPending || pushAction}
+              style={({ pressed }) => [styles.trackingOption, selected && styles.trackingOptionSelected, pressed && styles.pressed]}
+            >
+              <View style={styles.trackingOptionCopy}>
+                <Text style={styles.preferenceTitle}>{option.title}</Text>
+                <Text style={styles.preferenceCopy}>{option.copy}</Text>
+              </View>
+              <Glyph name={selected ? 'check' : 'info'} size={20} color={selected ? themeColors.primary : themeColors.muted} />
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Text style={styles.sectionTitle}>Kategorije</Text>
       {preferenceRows.map((row) => (
         <PreferenceRow
           key={row.key}
           title={row.title}
           copy={row.copy}
-          value={preferences[row.key]}
+          value={Boolean(preferences[row.key])}
           onChange={(value) => setPreference(row.key, value)}
           disabled={preferenceMutation.isPending}
         />
@@ -243,6 +287,11 @@ function createStyles(theme: AppColors) {
   noticeCopy: { ...typography.small, color: theme.muted, marginTop: spacing.xs },
   sectionTitle: { ...typography.h2, color: theme.ink, marginTop: spacing.md },
   preferenceCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  trackingOptions: { gap: spacing.sm },
+  trackingOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: theme.line, borderRadius: radii.lg, padding: spacing.md },
+  trackingOptionSelected: { borderColor: theme.primary, backgroundColor: theme.primarySoft },
+  trackingOptionCopy: { flex: 1 },
+  pressed: { opacity: 0.72 },
   preferenceTitle: { ...typography.label, color: theme.ink },
   preferenceCopy: { ...typography.small, color: theme.muted, marginTop: spacing.xs }
 });

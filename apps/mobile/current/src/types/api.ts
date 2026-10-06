@@ -113,6 +113,7 @@ export type NotificationPreferences = {
   in_app_enabled: boolean;
   email_enabled: boolean;
   push_enabled: boolean;
+  shipment_tracking_channel: 'push' | 'email' | 'both';
   order_updates: boolean;
   payment_alerts: boolean;
   document_updates: boolean;
@@ -254,6 +255,14 @@ export type OrderItem = {
   line_total_rsd: number;
   commission_total_eur: number;
 };
+export type OrderShipmentSummary = {
+  shipment_method: string;
+  courier_name: Nullable<string>;
+  tracking_url: Nullable<string>;
+  tracking_number: Nullable<string>;
+  shipped_at: Nullable<string>;
+};
+
 export type Order = {
   id: number;
   order_number: string;
@@ -379,6 +388,7 @@ export type OrderPostCreate = {
   payments: OrderPaymentLedgerEntry[];
   documents: OrderDocumentSummary[];
   delivery: Nullable<OrderDeliverySummary>;
+  shipment: Nullable<OrderShipmentSummary>;
   capabilities: OrderPostCreateCapabilities;
   payment_proof_limits: OrderPaymentProofLimits;
 };

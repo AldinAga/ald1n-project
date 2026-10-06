@@ -513,7 +513,16 @@ assert(orderPostCreateFileHelper.includes('File.pickFileAsync') && orderPostCrea
 assert(orderPostCreateFileHelper.includes('apiDownload') && orderPostCreateFileHelper.includes('Paths.cache') && orderPostCreateFileHelper.includes('response.contentLength !== response.bytes.byteLength') && orderPostCreateFileHelper.includes('file.write(response.bytes)') && orderPostCreateFileHelper.includes('file.size !== response.bytes.byteLength'), 'Order privatni fajlovi koriste Bearer binary transport i provereni privatni cache.');
 assert(orderPostCreateFileHelper.includes('hasPdfSignature') && orderPostCreateFileHelper.includes("responseMime !== 'application/pdf'") && orderPostCreateFileHelper.includes("import('expo-sharing')") && orderPostCreateFileHelper.includes('Sharing.isAvailableAsync()') && orderPostCreateFileHelper.includes('Sharing.shareAsync(downloaded.uri') && orderPostCreateFileHelper.includes("Platform.OS === 'web'"), 'Order PDF/proof helper validira PDF i otvara privatne fajlove kroz postojeći Expo Sharing flow.');
 assert(orderPostCreateFileHelper.includes('api.orders.paymentProofPath') && orderPostCreateFileHelper.includes('api.orders.confirmationPdfPath') && orderPostCreateFileHelper.includes('api.orders.documentPdfPath') && orderPostCreateFileHelper.includes('api.orders.deliveryProofPath'), 'Order private-file helper prihvata samo tipizovane customer API path buildere.');
-assert(orderDetailScreen.includes('openOrderPaymentProof') && orderDetailScreen.includes('openOrderConfirmationPdf') && orderDetailScreen.includes('openOrderDocumentPdf') && orderDetailScreen.includes('openOrderDeliveryProof') && !orderDetailScreen.includes('Linking.openURL'), 'Order detalj ne otvara privatne URL-ove direktno već koristi secure Bearer/cache/share helper.');
+const orderDetailDirectLinkCallCount = orderDetailScreen.split('Linking.openURL(').length - 1;
+assert(
+  orderDetailScreen.includes('openOrderPaymentProof')
+    && orderDetailScreen.includes('openOrderConfirmationPdf')
+    && orderDetailScreen.includes('openOrderDocumentPdf')
+    && orderDetailScreen.includes('openOrderDeliveryProof')
+    && orderDetailScreen.includes('Linking.openURL(shipment.tracking_url)')
+    && orderDetailDirectLinkCallCount === 1,
+  'Order detalj privatne fajlove otvara kroz secure Bearer/cache/share helper; jedini direktan URL je javni HTTPS shipment tracking link.',
+);
 assert(orderDetailScreen.includes('api.orders.cancel(orderId)') && orderDetailScreen.includes("can('after_sales.create')") && orderDetailScreen.includes("pathname: '/after-sales/create/[orderId]'"), 'Post-create UI čuva postojeći customer cancel i After-sales create tok.');
 assert(!/\b(?:verifyPayment|rejectPayment|voidPayment|completeOrder|reopenOrder|submitted_by|verified_by|rejected_by|voided_by|confirmed_by|issued_by|proof_path|proof_disk|admin\.)\b/.test(`${orderDetailScreen}\n${orderPostCreateFileHelper}`), 'Order customer post-create UI/helper ne izlažu admin akcije, actor ID-jeve ili storage putanje.');
 assert(endpoints.includes('afterSales:') && endpoints.includes('after-sales'), 'API klijent sadrži after-sales ugovor.');
@@ -4384,3 +4393,8 @@ assert(
   assert(!batch516Api.includes('/payment-status') && !batch516Api.includes('paymentStatus: (orderId'), 'Batch516 removes manual payment-status API mutation.');
   assert(!batch516Actions.includes("'payment-status'") && !batch516Actions.includes('Sačuvaj status plaćanja'), 'Batch516 removes manual payment-status UI mutation.');
 }
+
+// MOBILE_BATCH520_SUBAGENT_SHIPMENT_TRACKING_NOTIFICATIONS
+check('Batch520 notification preference exposes push/email/both shipment tracking channel.', source('src/types/api.ts').includes("shipment_tracking_channel: 'push' | 'email' | 'both'") && source('src/app/(app)/notification-settings.tsx').includes('trackingChannelOptions'));
+check('Batch520 customer order detail surfaces shipment tracking at top with copy/open actions.', source('src/app/(app)/order/[id].tsx').includes('MOBILE_BATCH520_SHIPMENT_TRACKING_HERO') && source('src/app/(app)/order/[id].tsx').includes('Kopiraj broj') && source('src/app/(app)/order/[id].tsx').includes('Otvori praćenje'));
+check('Batch520 Mobile/OpenAPI shipment tracking contract remains product-only.', source('docs/openapi.yaml').includes('OrderShipmentSummary') && !source('docs/openapi.yaml').includes('product_variant_id'));

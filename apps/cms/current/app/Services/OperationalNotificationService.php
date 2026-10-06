@@ -15,6 +15,36 @@ use Throwable;
 final class OperationalNotificationService
 {
     public function __construct(private readonly MobilePushOutboxService $push) {}
+    public function shipmentTracking(User $recipient, Order $order, string $trackingNumber, ?string $courierName, ?string $trackingUrl, ?string $shippedAt): void
+    {
+        $preference = $this->preference($recipient);
+        $channel = (string) ($preference->shipment_tracking_channel ?? 'both');
+        if (!in_array($channel, ['push', 'email', 'both'], true)) {
+            $channel = 'both';
+        }
+
+        $parts = ['Porudžbina '.$order->order_number.' je poslata.'];
+        if (filled($courierName)) $parts[] = 'Kurir: '.$courierName.'.';
+        $parts[] = 'Broj pošiljke: '.$trackingNumber.'.';
+
+        $this->send($recipient, [
+            'event' => 'order.shipment_tracking',
+            'title' => 'Pošiljka je poslata',
+            'message' => implode(' ', $parts),
+            'url' => route('orders.show', $order),
+            'action_label' => 'Otvori porudžbinu',
+            'severity' => 'success',
+            'icon' => 'truck',
+            'tracking_number' => $trackingNumber,
+            'courier' => $courierName,
+            'tracking_url' => $trackingUrl,
+            'shipped_at' => $shippedAt,
+            '_in_app' => true,
+            '_email' => in_array($channel, ['email', 'both'], true),
+            '_push' => in_array($channel, ['push', 'both'], true),
+        ]);
+    }
+
     /** @param array<string,mixed> $extra */
     public function order(User $recipient, string $event, string $title, string $message, Order $order, array $extra = []): void
     {
@@ -63,9 +93,9 @@ final class OperationalNotificationService
                 return;
             }
 
-            $data['_in_app'] = $preference->in_app_enabled;
-            $data['_email'] = $preference->email_enabled;
-            $data['_push'] = (bool) ($preference->push_enabled ?? false);
+            $data['_in_app'] = array_key_exists('_in_app', $data) ? (bool) $data['_in_app'] : (bool) $preference->in_app_enabled;
+            $data['_email'] = array_key_exists('_email', $data) ? (bool) $data['_email'] : (bool) $preference->email_enabled;
+            $data['_push'] = array_key_exists('_push', $data) ? (bool) $data['_push'] : (bool) ($preference->push_enabled ?? false);
             if (!$data['_in_app'] && !$data['_email'] && !$data['_push']) {
                 return;
             }

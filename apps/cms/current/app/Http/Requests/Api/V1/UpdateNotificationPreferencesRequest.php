@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 final class UpdateNotificationPreferencesRequest extends FormRequest
 {
@@ -23,6 +24,8 @@ final class UpdateNotificationPreferencesRequest extends FormRequest
         ] as $field) {
             $rules[$field] = ['sometimes', 'boolean'];
         }
+
+        $rules['shipment_tracking_channel'] = ['sometimes', 'string', Rule::in(['push', 'email', 'both'])];
 
         return $rules;
     }

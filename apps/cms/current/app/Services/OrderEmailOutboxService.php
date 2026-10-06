@@ -195,7 +195,7 @@ final class OrderEmailOutboxService
             $interval = $this->intervalFor($category);
             $scheduled = $this->scheduledFor($interval);
             $batchKey = $category.'-'.$scheduled->format('YmdHi');
-            $recipients = $this->recipients($order, $category);
+            $recipients = $this->recipients($order, $category, $eventType);
 
             foreach ($recipients as $recipient) {
                 try {
@@ -254,6 +254,7 @@ final class OrderEmailOutboxService
             'order_created' => 'order_email_event_created',
             'order_status_changed' => 'order_email_event_status',
             'order_tracking_changed' => 'order_email_event_tracking',
+            'order_shipment_recorded' => 'order_email_event_status',
             'order_payment_changed' => 'order_email_event_payment',
             'order_accepted' => 'order_email_event_accepted',
             'order_reassigned' => 'order_email_event_reassigned',
@@ -267,7 +268,7 @@ final class OrderEmailOutboxService
     }
 
     /** @return list<array{email:string,name:?string,user_id:?int,is_admin:bool}> */
-    private function recipients(Order $order, string $category): array
+    private function recipients(Order $order, string $category, string $eventType): array
     {
         $recipients = [];
         $add = static function (?string $email, ?string $name, ?int $userId, bool $isAdmin) use (&$recipients): void {
@@ -276,7 +277,7 @@ final class OrderEmailOutboxService
             $recipients[$email] = ['email' => $email, 'name' => $name !== '' ? $name : null, 'user_id' => $userId, 'is_admin' => $isAdmin];
         };
 
-        if ($this->settings->get('order_email_send_creator', '1') === '1' && $order->user instanceof User) {
+        if ($eventType !== 'order_shipment_recorded' && $this->settings->get('order_email_send_creator', '1') === '1' && $order->user instanceof User) {
             $add($order->user->email, $order->user->displayName(), $order->user->id, $order->user->hasRole('admin', 'superadmin'));
         }
         if ($this->settings->get('order_email_send_supplier', '1') === '1' && $order->supplier instanceof User) {

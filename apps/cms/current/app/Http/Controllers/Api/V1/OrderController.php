@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderDelivery;
 use App\Models\OrderDocument;
 use App\Models\OrderPayment;
+use App\Models\OrderShipment;
 use App\Services\OrderAmendmentService;
 use App\Services\OrderDocumentService;
 use App\Services\OrderPaymentService;
@@ -96,7 +97,7 @@ final class OrderController extends Controller
         $user = $request->user();
         $canViewPayments = $user->hasPermission('payments.view_own');
         $canViewDocuments = $user->hasPermission('invoices.view_own');
-        $relations = ['delivery'];
+        $relations = ['delivery', 'shipment'];
 
         if ($canViewPayments) {
             $relations[] = 'payments';
@@ -131,6 +132,9 @@ final class OrderController extends Controller
         $delivery = $order->delivery instanceof OrderDelivery
             ? $this->deliveryPayload($order->delivery)
             : null;
+        $shipment = $order->shipment instanceof OrderShipment
+            ? $this->shipmentPayload($order->shipment)
+            : null;
 
         $bankTransfer = $order->payment_method === 'bank_transfer' ? [
             'account_label' => $order->bank_account_label_snapshot ?: null,
@@ -163,6 +167,7 @@ final class OrderController extends Controller
                 'payments' => $payments,
                 'documents' => $documents,
                 'delivery' => $delivery,
+                'shipment' => $shipment,
                 'capabilities' => [
                     'can_view_payments' => $canViewPayments,
                     'can_upload_payment_proof' => $canUploadProof,
@@ -338,6 +343,20 @@ final class OrderController extends Controller
                 'mime_type' => $delivery->proof_mime_type ?: 'application/octet-stream',
                 'size_bytes' => (int) ($delivery->proof_size ?: 0),
             ] : null,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function shipmentPayload(OrderShipment $shipment): array
+    {
+        $trackingUrl = trim((string) $shipment->courier_tracking_url_snapshot);
+
+        return [
+            'shipment_method' => (string) $shipment->shipment_method,
+            'courier_name' => $shipment->courier_name_snapshot ?: null,
+            'tracking_url' => str_starts_with($trackingUrl, 'https://') ? $trackingUrl : null,
+            'tracking_number' => $shipment->tracking_number_snapshot ?: null,
+            'shipped_at' => $shipment->shipped_at?->toIso8601String(),
         ];
     }
 

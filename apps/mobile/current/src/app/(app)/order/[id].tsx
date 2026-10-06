@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { useAppFeedback } from '@/components/ui/app-feedback';
@@ -147,6 +148,18 @@ export default function OrderDetailScreen() {
   const order = query.data;
   const canCancel = hasFeature('order_cancel') && !['cancelled', 'completed', 'delivered'].includes(order.status);
   const canCreateAfterSales = can('after_sales.create');
+  const shipment = postCreate?.shipment ?? null;
+
+  const copyTrackingNumber = async () => {
+    if (!shipment?.tracking_number) return;
+    await Clipboard.setStringAsync(shipment.tracking_number);
+    feedback.notify({ tone: 'success', title: 'Broj pošiljke je kopiran', message: shipment.tracking_number });
+  };
+
+  const openTracking = async () => {
+    if (!shipment?.tracking_url || !shipment.tracking_url.startsWith('https://')) return;
+    await Linking.openURL(shipment.tracking_url);
+  };
 
   const confirmCancel = () => {
     void (async () => {
@@ -292,6 +305,26 @@ export default function OrderDetailScreen() {
           </Pill>
         </View>
       </View>
+
+      {shipment?.tracking_number ? (
+        <View style={styles.trackingHero}>
+          {/* MOBILE_BATCH520_SHIPMENT_TRACKING_HERO */}
+          <View style={styles.trackingHeroHead}>
+            <View style={styles.trackingHeroIcon}><Glyph name="box" size={22} color={themeColors.primary} /></View>
+            <View style={styles.flexOne}>
+              <Text style={styles.nextStepEyebrow}>Pošiljka poslata</Text>
+              <Text style={styles.sectionTitle}>{shipment.tracking_number}</Text>
+            </View>
+          </View>
+          <Text style={styles.muted}>{shipment.courier_name ?? 'Kurirska služba'}{shipment.shipped_at ? ' · ' + formatDate(shipment.shipped_at, true) : ''}</Text>
+          <View style={styles.trackingActions}>
+            <Button variant="secondary" onPress={() => void copyTrackingNumber()}>Kopiraj broj</Button>
+            {shipment.tracking_url?.startsWith('https://') ? (
+              <Button onPress={() => void openTracking()}>Otvori praćenje</Button>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.summarySurface}>
         <View>
@@ -704,6 +737,10 @@ function createStyles(theme: AppColors) {
       backgroundColor: theme.primary,
     },
     identityMeta: { ...typography.small, color: theme.muted, marginTop: spacing.xs },
+    trackingHero: { gap: spacing.sm, padding: spacing.md, borderRadius: 16, backgroundColor: theme.primarySoft },
+    trackingHeroHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    trackingHeroIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface },
+    trackingActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     summarySurface: {
       flexDirection: 'row',
       justifyContent: 'space-between',

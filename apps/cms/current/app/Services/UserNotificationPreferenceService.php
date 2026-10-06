@@ -26,7 +26,7 @@ final class UserNotificationPreferenceService
         return $user->notificationPreference()->updateOrCreate([], $values);
     }
 
-    /** @return array<string,bool> */
+    /** @return array<string,mixed> */
     public function defaults(User $user): array
     {
         $staff = $user->hasRole('admin', 'superadmin');
@@ -35,6 +35,7 @@ final class UserNotificationPreferenceService
             'in_app_enabled' => true,
             'email_enabled' => false,
             'push_enabled' => false,
+            'shipment_tracking_channel' => 'both',
             'order_updates' => true,
             'payment_alerts' => true,
             'document_updates' => true,
