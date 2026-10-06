@@ -4,7 +4,7 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch517: `6ddb27ba26bf893ca1659f814eaa02398b607556`
+- Current source authority after Batch518A: `e55cbc9d9062c96f405d83e57a592ae5b545776e`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build22 EAS ID: `b32bfcbd-5f4c-45f5-95a9-5b756749b31a`
 - Build22 source commit: `e082641bd4e58c320d4faca0dd50997deca7f416`
@@ -17,10 +17,23 @@
 - Batch512R2 fresh release readiness: **PASS**
 - EAS remote Android versionCode at readiness: **22**
 - Next expected versionCode if one new production build is executed: **23**
-- Latest report: `docs/operations/521-BATCH517R2-CATALOG-IMAGE-AVAILABILITY-RECOVERY-V2-20261005-212733.md`
+- Latest report: `docs/operations/522-BATCH518A-APK-UPLOAD-ORDER-CONTINUATION-20261006-083557.md`
 - No EAS build, EAS submit, OTA publish, Google Play action, migration, or database mutation was performed by Batch512R2.
 - Build23: **DEFERRED BY USER** so additional grouped functionality can be included before spending another production build.
 - Next gate: **continue grouped source work; run fresh release readiness again before any future Build23.**
+
+## Batch518A - APK Upload & Order Continuation
+
+- Status: **PASS**
+- Source commit: `e55cbc9d9062c96f405d83e57a592ae5b545776e`
+- Android payment-proof upload now uses the existing Expo File + Expo multipart transport instead of legacy React Native uri/name/type multipart.
+- Successful customer proof upload refreshes order/payment context and leaves explicit success feedback on the same order.
+- Successful admin shipment now continues directly to Isporuka, where tracking is prominent with copy and safe HTTPS open actions.
+- CMS static remains 983/983; Mobile typecheck/validator, Expo and OpenAPI parity gates passed.
+- No schema/database mutation, EAS build, submit, OTA publish or Google Play action. Build23 remains deferred.
+- Next grouped batch: Batch518B Navigation UX Consolidation.
+
+---
 
 ## Batch517 - Catalog Image Availability & Legacy Media Publication
 
