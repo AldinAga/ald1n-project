@@ -50,12 +50,14 @@ type MutationCommand = {
   key: string;
   successTitle: string;
   run: () => Promise<unknown>;
+  onSuccess?: () => void | Promise<void>;
 };
 
 type Props = {
   orderId: number;
   data: AdminOrderDetailRecord;
   capabilities: AdminOrderDetailCapabilities;
+  onShipmentSuccess?: () => void;
 };
 
 function asRecord(value: AdminOrderDetailValue | undefined): AdminOrderDetailRecord | null {
@@ -141,7 +143,7 @@ function notifyInputError(feedback: ReturnType<typeof useAppFeedback>, message: 
   feedback.notify({ tone: 'danger', title: 'Proveri unos', message });
 }
 
-export function AdminOrderActions({ orderId, data, capabilities }: Props) {
+export function AdminOrderActions({ orderId, data, capabilities, onShipmentSuccess }: Props) {
   const { colors: theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const feedback = useAppFeedback();
@@ -240,6 +242,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
       setShipmentProof(null);
       setDeliveryProof(null);
       await client.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      await command.onSuccess?.();
       feedback.notify({ tone: 'success', title: command.successTitle, message: 'Podaci porudžbine su osveženi.' });
     },
     onError: (error) => {
@@ -252,7 +255,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
   });
 
   const busy = (key: string) => mutation.isPending && mutation.variables?.key === key;
-  const execute = (key: string, successTitle: string, run: () => Promise<unknown>) => mutation.mutate({ key, successTitle, run });
+  const execute = (key: string, successTitle: string, run: () => Promise<unknown>, onSuccess?: () => void | Promise<void>) => mutation.mutate({ key, successTitle, run, onSuccess });
 
   async function chooseProof(target: 'shipment' | 'delivery'): Promise<void> {
     try {
@@ -344,7 +347,7 @@ export function AdminOrderActions({ orderId, data, capabilities }: Props) {
       tracking_number: shipmentMethod === 'courier' ? trackingNumber.trim() : null,
       note: shipmentNote.trim() || null,
       shipment_proof: shipmentProof,
-    }));
+    }), onShipmentSuccess);
   }
 
   function submitCompletion(): void {

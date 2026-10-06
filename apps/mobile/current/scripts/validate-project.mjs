@@ -4265,6 +4265,27 @@ assert(
   assert(batch517Gallery.includes('image.thumbnail_url') && batch517Gallery.includes('image.display_url') && batch517Gallery.includes('image.url'), 'Batch517 detail galerija zadržava thumbnail/display/original fallback.');
 }
 
+// BATCH518A_APK_UPLOAD_ORDER_CONTINUATION
+{
+  const b518Endpoints = fs.readFileSync(path.join(root, 'src/lib/api/endpoints.ts'), 'utf8');
+  const b518Client = fs.readFileSync(path.join(root, 'src/lib/api/client.ts'), 'utf8');
+  const b518Order = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id].tsx'), 'utf8');
+  const b518Actions = fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-actions.tsx'), 'utf8');
+  const b518Admin = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
+  const proofStart = b518Endpoints.indexOf('function orderPaymentProofFormData');
+  const proofEnd = b518Endpoints.indexOf('export const api =');
+  const proofScope = b518Endpoints.slice(proofStart, proofEnd);
+  const submitStart = b518Endpoints.indexOf('submitPaymentProof:');
+  const submitEnd = b518Endpoints.indexOf('paymentProofPath:');
+  const submitScope = b518Endpoints.slice(submitStart, submitEnd);
+  assert(proofScope.includes("formData.append('proof', new File(input.proof.uri))") && !proofScope.includes('uri: input.proof.uri'), 'Batch518A payment proof uses Expo File multipart body.');
+  assert(submitScope.includes('apiExpoMultipartRequest') && !submitScope.includes('apiRequest<'), 'Batch518A payment proof uses APK-safe Expo multipart transport.');
+  assert(b518Client.includes('Slanje fajla je isteklo') && b518Client.includes('Mrezna greska pri slanju fajla'), 'Batch518A shared multipart errors are file-generic.');
+  assert(b518Order.includes('proofSuccess') && b518Order.includes('postCreateQuery.refetch()'), 'Batch518A payment proof success refreshes visible order/payment context.');
+  assert(b518Actions.includes('onShipmentSuccess?: () => void') && b518Admin.includes("onShipmentSuccess={() => setWorkspace('fulfillment')}"), 'Batch518A shipment success continues directly to Isporuka workspace.');
+  assert(b518Admin.includes('Kopiraj broj') && b518Admin.includes('Otvori praćenje') && b518Admin.includes("trackingUrl.toLowerCase().startsWith('https://')"), 'Batch518A fulfillment exposes safe copy/open tracking actions.');
+}
+
 console.log(`\nUkupno FAIL: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
 

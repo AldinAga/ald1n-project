@@ -167,12 +167,12 @@ export async function apiExpoMultipartRequest<T>
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiError(0, {
-        message: 'Slanje fotografija je isteklo. Pokusaj ponovo.',
+        message: 'Slanje fajla je isteklo. Pokusaj ponovo.',
         code: 'request_timeout',
       });
     }
     throw new ApiError(0, {
-      message: error instanceof Error ? error.message : 'Mrezna greska pri slanju fotografija.',
+      message: error instanceof Error ? error.message : 'Mrezna greska pri slanju fajla.',
       code: 'network_error',
     });
   } finally {

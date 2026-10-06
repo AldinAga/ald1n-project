@@ -77,6 +77,7 @@ export default function OrderDetailScreen() {
   const [proofReference, setProofReference] = useState('');
   const [proofNote, setProofNote] = useState('');
   const [proofError, setProofError] = useState<string | null>(null);
+  const [proofSuccess, setProofSuccess] = useState<string | null>(null);
   const [pickingProof, setPickingProof] = useState(false);
   const [openingFile, setOpeningFile] = useState<string | null>(null);
 
@@ -111,14 +112,18 @@ export default function OrderDetailScreen() {
       setProofPaidAt(localPaymentDateValue());
       setProofError(null);
 
-      await client.invalidateQueries({ queryKey: ['orders'] });
-      await client.invalidateQueries({ queryKey: ['order', orderId] });
-      await client.invalidateQueries({ queryKey: ['order-post-create', orderId] });
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['orders'] }),
+        query.refetch(),
+        postCreateQuery.refetch(),
+      ]);
 
+      const successMessage = response.message || 'Potvrda uplate je poslata i evidencija je osvežena.';
+      setProofSuccess(successMessage);
       feedback.notify({
         tone: 'success',
         title: 'Potvrda uplate je poslata',
-        message: response.message || 'Potvrda je poslata odgovornom licu na proveru.',
+        message: successMessage,
       });
     },
     onError: (error) => {
@@ -162,6 +167,7 @@ export default function OrderDetailScreen() {
   const chooseProof = async () => {
     if (!postCreate) return;
     setProofError(null);
+    setProofSuccess(null);
     setPickingProof(true);
 
     try {
@@ -198,6 +204,7 @@ export default function OrderDetailScreen() {
     }
 
     setProofError(null);
+    setProofSuccess(null);
     proofMutation.mutate({
       amount_rsd: amount,
       paid_at: paidAtDate.toISOString(),
@@ -435,6 +442,7 @@ export default function OrderDetailScreen() {
               ) : null}
 
               {proofError ? <Text style={styles.errorText}>{proofError}</Text> : null}
+              {proofSuccess ? <Text style={styles.successText}>{proofSuccess}</Text> : null}
 
               <Button
                 onPress={submitProof}
@@ -709,6 +717,7 @@ function createStyles(theme: AppColors) {
     fileMeta: { ...typography.small, color: theme.muted, marginTop: 3 },
     removeLabel: { ...typography.label, color: theme.danger, paddingVertical: spacing.sm },
     errorText: { ...typography.small, color: theme.danger, backgroundColor: theme.dangerSoft, padding: spacing.md, borderRadius: 16 },
+    successText: { ...typography.small, color: theme.success, padding: spacing.md, borderRadius: 16, backgroundColor: theme.surfaceMuted },
     documentRow: { gap: spacing.md, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: theme.line },
   });
 }

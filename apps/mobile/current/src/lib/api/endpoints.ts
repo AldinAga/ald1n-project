@@ -106,11 +106,8 @@ function orderPaymentProofFormData(input: SubmitOrderPaymentProofInput): FormDat
     formData.append('note', input.note);
   }
 
-  formData.append('proof', {
-    uri: input.proof.uri,
-    name: input.proof.name,
-    type: input.proof.type
-  });
+  // MOBILE_BATCH518A_PAYMENT_PROOF_EXPO_FILE_TRANSPORT
+  formData.append('proof', new File(input.proof.uri));
 
   return formData;
 }
@@ -258,11 +255,11 @@ export const api = {
       return response.data;
     },
     submitPaymentProof: async (id: number, input: SubmitOrderPaymentProofInput) => {
-      const response = await apiRequest<{ message: string; data: OrderPaymentLedgerEntry }>(`orders/${id}/payments/proof`, {
-        method: 'POST',
-        body: orderPaymentProofFormData(input)
-      });
-      return response;
+      return apiExpoMultipartRequest<{ message: string; data: OrderPaymentLedgerEntry }>(
+        `orders/${id}/payments/proof`,
+        orderPaymentProofFormData(input),
+        60_000,
+      );
     },
     paymentProofPath: (orderId: number, paymentId: number) =>
       `/api/v1/orders/${orderId}/payments/${paymentId}/proof`,

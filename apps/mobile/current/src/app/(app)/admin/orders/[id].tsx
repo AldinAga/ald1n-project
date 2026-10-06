@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
@@ -157,6 +158,9 @@ export default function AdminOrdersDetailScreen() {
   const customerName = text(customer, 'name', text(order, 'shipping_full_name', 'Kupac'));
   const supplierName = text(supplier, 'name', text(order, 'supplier_name_snapshot', '-'));
   const workspaceMeta = ORDER_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+  const trackingNumber = text(shipment, 'tracking_number', text(order, 'tracking_number'));
+  const trackingUrl = text(shipment, 'tracking_url');
+  const canOpenTracking = trackingUrl.toLowerCase().startsWith('https://');
 
   return (
     <Screen contentStyle={styles.content}>
@@ -238,7 +242,14 @@ export default function AdminOrdersDetailScreen() {
           <DetailRow label="Status" value={text(shipment, 'status')} styles={styles} />
           <DetailRow label="Nacin" value={text(shipment, 'shipping_method_label', text(shipment, 'shipping_method'))} styles={styles} />
           <DetailRow label="Kurir" value={text(shipment, 'courier_name')} styles={styles} />
-          <DetailRow label="Tracking" value={text(shipment, 'tracking_number', text(shipment, 'reference'))} styles={styles} />
+          <Text style={styles.trackingLabel}>Broj za praćenje</Text>
+          <Text selectable style={styles.trackingValue}>{trackingNumber || 'Nije unet'}</Text>
+          {trackingNumber ? (
+            <View style={styles.trackingActions}>
+              <Button variant="secondary" onPress={() => void Clipboard.setStringAsync(trackingNumber)}>Kopiraj broj</Button>
+              {canOpenTracking ? <Button variant="secondary" onPress={() => void Linking.openURL(trackingUrl)}>Otvori praćenje</Button> : null}
+            </View>
+          ) : null}
           <DetailRow label="Poslato" value={formatDateTime(text(shipment, 'shipped_at'))} styles={styles} />
           <DetailRow label="Napomena" value={text(shipment, 'note')} styles={styles} />
         </Card>
@@ -341,6 +352,7 @@ export default function AdminOrdersDetailScreen() {
             orderId={orderId}
             data={data}
             capabilities={response.capabilities}
+            onShipmentSuccess={() => setWorkspace('fulfillment')}
           />
 
       <AdminOrderArchiveActions
@@ -402,6 +414,9 @@ function createStyles(theme: AppColors) {
     warningCard: { gap: spacing.sm },
     readOnlyCard: { gap: spacing.sm },
     sectionTitle: { ...typography.h3, color: theme.ink },
+    trackingLabel: { ...typography.small, color: theme.muted },
+    trackingValue: { ...typography.h2, color: theme.primary, letterSpacing: 0.5 },
+    trackingActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     body: { ...typography.body, color: theme.ink },
     detailRow: {
       flexDirection: 'row',
