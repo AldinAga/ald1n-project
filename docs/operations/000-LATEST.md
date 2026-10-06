@@ -4,15 +4,29 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch521R5: `42f4207ef106d8567a267bd4e99972a43a25e48f`
+- Current source authority after Batch522: `33316a89165c49f78215dd33e7ab03513f13f8a3`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build profile / channel: **production / production**
 - Build23: **DEFERRED**; no build/submit/OTA/Google Play action performed.
 - Future Build23 release mode: **production build with AutoSubmit** after all gates and explicit owner authorization.
 - Google Play release notes: **required as copy/paste text at Build23 completion**.
 - Batch520: **PASS** — subagent shipment tracking visibility + Push/E-mail/Both preference.
-- Batch521: **PASS_IMPLEMENTED_GATED via Batch521R5 recovery** — Android Zero-Tap Restore Credentials implemented together with the current SDK57 patch alignment; production activation awaits exact Play App Signing SHA-256 + Digital Asset Links verification.
-- Next gate: **Play App Signing SHA-256 + Digital Asset Links activation gate, then Google Play/native compliance audit, fresh release readiness and physical acceptance before explicit Build23 AutoSubmit authorization.**
+- Batch521: **PASS_ACTIVATED via Batch522** — Android Zero-Tap Restore Credentials implementation is committed, migrated and production-enabled after exact Play App Signing SHA-256 + live Digital Asset Links verification.
+- Next gate: **fresh pre-Build23 release readiness, explicit owner authorization, then one production Build23 with AutoSubmit; Build23 artifact must pass 16 KB bundle/ELF verification before final acceptance.**
+
+## Batch522 - Play App Signing + Digital Asset Links + Native Compliance Gate
+
+- Status: **PASS_ACTIVATED_GATED**
+- Source commit: `33316a89165c49f78215dd33e7ab03513f13f8a3`
+- Exact Google Play App Signing SHA-256 was supplied from Play App Signing authority and explicitly rejected if equal to the historical EAS upload certificate.
+- Production Digital Asset Links is live at `https://cms.ald1n.com/.well-known/assetlinks.json` for `com.ald1n.mobile`, including handle_all_urls and get_login_creds relations.
+- Restore Credentials production config is enabled only after live HTTP 200 + application/json + exact fingerprint verification.
+- Restore server origin is derived as android:apk-key-hash from the Play app-signing SHA-256.
+- Native source readiness covers API 36, R8/resource shrinking, optimized ProGuard, edge-to-edge/adaptive posture, DAL metadata and SecureStore backup exclusions.
+- 16 KB source/toolchain readiness is accepted, but final bundletool/ELF alignment remains an artifact gate on Build23.
+- No database mutation, EAS build, EAS submit, OTA publish or Google Play mutation was performed.
+- Play fingerprint recorded in public DAL authority: `1D:08:DB:67:06:C6:53:4B:18:AE:E6:D5:AA:C2:3C:B6:0B:CE:EA:28:9B:9D:AD:07:3B:E6:A1:63:5C:2E:DB:21`.
+- Report: `docs/operations/540-BATCH522-PLAY-APP-SIGNING-DAL-NATIVE-COMPLIANCE-20261006-221245.md`.
 
 ## Batch521 / Batch521R / Batch521R2 / Batch521R3 / Batch521R4 / Batch521R5 - Android Zero-Tap Restore Credentials
 
