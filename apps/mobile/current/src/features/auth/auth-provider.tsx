@@ -5,6 +5,7 @@ import { api } from '@/lib/api/endpoints';
 import { setUnauthorizedHandler } from '@/lib/api/client';
 import { clearServerDeviceId, tokenStore } from '@/lib/storage';
 import { clearGoogleCredentialState, getGoogleIdToken } from '@/features/auth/google-auth';
+import { clearRestoreCredential, ensureRestoreCredential, tryRestoreSession } from '@/features/auth/restore-credentials';
 import type { BootstrapData, User } from '@/types/api';
 
 type AuthStatus = 'hydrating' | 'anonymous' | 'authenticated';
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await api.auth.bootstrap();
       applyBootstrap(data);
       setStatus('authenticated');
+      void ensureRestoreCredential();
     } catch (error) {
       await tokenStore.clear();
       applyBootstrap(null);
@@ -98,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applyBootstrap]);
 
   useEffect(() => {
-    setUnauthorizedHandler(clearSession);
+    setUnauthorizedHandler(async () => {
+      await clearRestoreCredential();
+      await clearSession();
+    });
     return () => setUnauthorizedHandler(null);
   }, [clearSession]);
 
@@ -109,13 +114,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = await tokenStore.get();
         if (!active) return;
         if (!token) {
-          setStatus('anonymous');
-          return;
+          const restoredToken = await tryRestoreSession();
+          if (!active) return;
+          if (!restoredToken) {
+            setStatus('anonymous');
+            return;
+          }
+          await tokenStore.set(restoredToken);
         }
         setStatus('authenticated');
         try {
           const data = await api.auth.bootstrap();
-          if (active) applyBootstrap(data);
+          if (active) {
+            applyBootstrap(data);
+            void ensureRestoreCredential();
+          }
         } catch {
           // Mrežna greška ne briše validnu lokalnu sesiju; 401 handler je briše.
         }
@@ -149,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.auth.logout();
     } finally {
-      await Promise.all([clearSession(), clearGoogleCredentialState()]);
+      await Promise.all([clearSession(), clearGoogleCredentialState(), clearRestoreCredential()]);
     }
   }, [clearSession]);
 

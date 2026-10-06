@@ -1,0 +1,16 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.ald1n'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.ald1nrestorecredentials"
+}
+
+dependencies {
+  implementation "androidx.credentials:credentials:1.6.0"
+  implementation "androidx.credentials:credentials-play-services-auth:1.6.0"
+}

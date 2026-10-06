@@ -161,6 +161,20 @@ export type BootstrapData = {
   };
 };
 
+export type RestoreCredentialCeremony = {
+  ceremony_id: string;
+  options: Record<string, unknown>;
+};
+
+export type RestoreCredentialRegisterInput = {
+  ceremony_id: string;
+  credential: Record<string, unknown>;
+};
+
+export type RestoreCredentialVerifyInput = RestoreCredentialRegisterInput & {
+  device_name: string;
+};
+
 export type AuthTokenResponse = {
   token: string;
   token_type: 'Bearer';

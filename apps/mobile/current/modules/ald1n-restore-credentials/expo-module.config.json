@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["expo.modules.ald1nrestorecredentials.Ald1nRestoreCredentialsModule"]
+  }
+}

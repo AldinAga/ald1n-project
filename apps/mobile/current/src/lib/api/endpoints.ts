@@ -154,6 +154,18 @@ export const api = {
     },
     activateAccount: (input: CustomerActivationInput) =>
       apiRequest<{ message: string; data: { activated: true } }> ('auth/customer-activation', { method: 'POST', auth: false, body: input }),
+    restoreOptions: async () => {
+      const response = await apiRequest<{ data: import('@/types/api').RestoreCredentialCeremony }> ('auth/restore/options', { auth: false });
+      return response.data;
+    },
+    restoreVerify: (input: import('@/types/api').RestoreCredentialVerifyInput) =>
+      apiRequest<AuthTokenResponse> ('auth/restore/verify', { method: 'POST', auth: false, body: input }),
+    restoreRegistrationOptions: async () => {
+      const response = await apiRequest<{ data: import('@/types/api').RestoreCredentialCeremony }> ('auth/restore/registration-options');
+      return response.data;
+    },
+    restoreRegister: (input: import('@/types/api').RestoreCredentialRegisterInput) =>
+      apiRequest<{ data: { registered: true } }> ('auth/restore/register', { method: 'POST', body: input }),
     logout: () => apiRequest<void> ('auth/token', { method: 'DELETE' }),
     bootstrap: async () => {
       const response = await apiRequest<{ data: BootstrapData }>('bootstrap');

@@ -98,6 +98,12 @@ module.exports = ({ config }) => {
         },
       ],
 
+      // MOBILE_BUILD23_ZERO_TAP_RESTORE_CREDENTIALS_BATCH521
+      [
+        './plugins/with-restore-credential-association',
+        { assetLinksUrl: 'https://cms.ald1n.com/.well-known/assetlinks.json' },
+      ],
+
       // MOBILE_BUILD22_ANDROID_NATIVE_MODERNIZATION_BATCH497
       [
         './plugins/with-android-native-modernization',

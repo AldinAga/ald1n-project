@@ -4767,6 +4767,61 @@ paths:
         '401': { description: Authentication required. }
         '429': { description: Search rate limit. }
 
+  /auth/restore/options:
+    get:
+      security: []
+      summary: Get Android Restore Credential authentication options
+      responses:
+        '200':
+          description: One-shot WebAuthn restore authentication ceremony.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RestoreCredentialCeremony' }
+        '503': { description: Restore Credentials is not production-enabled/configured. }
+  /auth/restore/verify:
+    post:
+      security: []
+      summary: Verify Android Restore Credential and issue canonical bearer token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestoreCredentialVerifyInput' }
+      responses:
+        '201': { description: Canonical Mobile bearer session created. }
+        '422': { description: Invalid or expired WebAuthn ceremony. }
+        '503': { description: Restore Credentials is not production-enabled/configured. }
+  /auth/restore/registration-options:
+    get:
+      summary: Get authenticated Android Restore Credential registration options
+      responses:
+        '200':
+          description: One-shot WebAuthn restore registration ceremony.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RestoreCredentialCeremony' }
+        '401': { description: Authentication required. }
+        '503': { description: Restore Credentials is not production-enabled/configured. }
+  /auth/restore/register:
+    post:
+      summary: Register system-managed Android Restore Credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestoreCredentialRegisterInput' }
+      responses:
+        '201': { description: Restore Credential registered. }
+        '401': { description: Authentication required. }
+        '422': { description: Invalid or expired WebAuthn ceremony. }
+        '503': { description: Restore Credentials is not production-enabled/configured. }
+
 security:
   - bearerAuth: []
 components:
@@ -4776,6 +4831,27 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    RestoreCredentialCeremony:
+      type: object
+      additionalProperties: false
+      required: [ceremony_id, options]
+      properties:
+        ceremony_id: { type: string, format: uuid }
+        options: { type: object, additionalProperties: true }
+    RestoreCredentialRegisterInput:
+      type: object
+      additionalProperties: false
+      required: [ceremony_id, credential]
+      properties:
+        ceremony_id: { type: string, format: uuid }
+        credential: { type: object, additionalProperties: true }
+    RestoreCredentialVerifyInput:
+      allOf:
+        - { $ref: '#/components/schemas/RestoreCredentialRegisterInput' }
+        - type: object
+          required: [device_name]
+          properties:
+            device_name: { type: string, maxLength: 120 }
     AdminCustomer360Summary:
       type: object
       additionalProperties: false

@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\V1\CatalogOptionsController;
 use App\Http\Controllers\Api\V1\GoogleAuthController;
 use App\Http\Controllers\Api\V1\MobileDeviceController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\RestoreCredentialController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OrderOptionsController;
 use App\Http\Controllers\Api\V1\CommissionController;
@@ -69,6 +70,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         ->name('auth.google');
 
     // MOBILE_V1_0_AUTH_ACCOUNT_SECURITY_PARITY_BATCH32
+    Route::get('/auth/restore/options', [RestoreCredentialController::class, 'authenticationOptions'])
+        ->middleware('throttle:api-restore-credentials')
+        ->name('auth.restore.options');
+    Route::post('/auth/restore/verify', [RestoreCredentialController::class, 'verify'])
+        ->middleware('throttle:api-restore-credentials')
+        ->name('auth.restore.verify');
+
     Route::post('/auth/password/forgot', [AuthRecoveryController::class, 'forgot'])
         ->middleware('throttle:password-reset-link')
         ->name('auth.password.forgot');
@@ -84,6 +92,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
     Route::middleware(['auth:sanctum', 'active'])->group(function (): void {
         Route::get('/bootstrap', [BootstrapController::class, 'show'])->name('bootstrap');
+        Route::get('/auth/restore/registration-options', [RestoreCredentialController::class, 'registrationOptions'])
+            ->middleware('throttle:api-restore-credentials')->name('auth.restore.registration-options');
+        Route::post('/auth/restore/register', [RestoreCredentialController::class, 'register'])
+            ->middleware('throttle:api-restore-credentials')->name('auth.restore.register');
+
         // MOBILE_V1_0_GLOBAL_SEARCH_PARITY_BATCH38
         Route::get('/global-search', [GlobalSearchController::class, 'search'])
             ->middleware('throttle:120,1')

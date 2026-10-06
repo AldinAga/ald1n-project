@@ -159,9 +159,9 @@ assert(
     && productionSubmitHelper505R.includes("const EXPECTED_PACKAGE = 'com.ald1n.mobile'"),
   'Production Android submit zahteva explicitni Build ID, production profil i pinovani EAS CLI.',
 );
-assert(packageJson.dependencies?.expo === '~57.0.26' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.26' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.26', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
+assert(packageJson.dependencies?.expo === '~57.0.27' && packageLockJson.packages?.['']?.dependencies?.expo === '~57.0.27' && packageLockJson.packages?.['node_modules/expo']?.version === '57.0.27', 'Expo SDK 57 verzija prati aktuelni SDK 57 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['']?.dependencies?.['react-native'] === '0.86.3' && packageLockJson.packages?.['node_modules/react-native']?.version === '0.86.3', 'React Native verzija prati Expo SDK 57 template.');
-assert(packageJson.dependencies?.['expo-router'] === '~57.0.24' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.24' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.24', 'Expo Router verzija je zaključana.');
+assert(packageJson.dependencies?.['expo-router'] === '~57.0.25' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~57.0.25' && packageLockJson.packages?.['node_modules/expo-router']?.version === '57.0.25', 'Expo Router verzija je zaključana.');
 assert(packageJson.dependencies?.['expo-dev-client'] === '~57.0.19' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~57.0.19' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '57.0.19', 'Expo development client je uključen.');
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
@@ -171,9 +171,16 @@ assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odg
 // MOBILE_V1_0_RELEASE_METADATA_LOCK_BATCH40
 assert(packageJson.version === '1.0.0', 'Aplikaciona package verzija je 1.0.0.');
 assert(packageLockJson.version === '1.0.0' && packageLockJson.packages?.['']?.version === '1.0.0', 'package-lock release verzija je 1.0.0.');
-assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.21' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.21' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.21', 'expo-notifications prati SDK 57 preporučenu verziju.');
+assert(packageJson.dependencies?.['expo-notifications'] === '~57.0.22' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~57.0.22' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '57.0.22', 'expo-notifications prati SDK 57 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~57.0.3', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
+assert(fs.existsSync(path.join(root, 'modules/ald1n-restore-credentials/expo-module.config.json')) && fs.existsSync(path.join(root, 'modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1nrestorecredentials/Ald1nRestoreCredentialsModule.kt')), 'Build23 Restore Credentials local Expo Android module postoji.');
+const restoreCredentialNative = fs.readFileSync(path.join(root, 'modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1nrestorecredentials/Ald1nRestoreCredentialsModule.kt'), 'utf8');
+const restoreCredentialFlow = fs.readFileSync(path.join(root, 'src/features/auth/restore-credentials.ts'), 'utf8');
+assert(restoreCredentialNative.includes('CreateRestoreCredentialRequest') && restoreCredentialNative.includes('E2eeUnavailableException') && restoreCredentialNative.includes('isCloudBackupEnabled = false'), 'Build23 Restore Credentials create flow ima E2EE fallback.');
+assert(restoreCredentialNative.includes('GetRestoreCredentialOption') && restoreCredentialNative.includes('RestoreCredential') && restoreCredentialNative.includes('TYPE_CLEAR_RESTORE_CREDENTIAL'), 'Build23 Restore Credentials retrieve/clear flow koristi pravi Android RestoreCredential tip.');
+assert(restoreCredentialFlow.includes('tryRestoreSession') && restoreCredentialFlow.includes('ensureRestoreCredential') && restoreCredentialFlow.includes('clearRestoreCredential'), 'Build23 auth lifecycle pokriva zero-tap restore, post-login create i logout clear.');
+
 assert(packageJson.dependencies?.['react-native-nitro-modules'] === '0.36.1', 'Nitro Modules runtime je pinovan.');
 assert(packageJson.dependencies?.tamagui === '2.6.0', 'Tamagui 2 runtime je pinovan.');
 assert(packageJson.dependencies?.['@tamagui/config'] === '2.6.0', 'Tamagui Config v5 paket je pinovan.');
@@ -318,21 +325,22 @@ assert(
 // MOBILE_BUILD16_EXPO_SDK57_PATCH_ALIGNMENT_BATCH123_V2
 // MOBILE_BUILD17_SDK57_PATCH_ALIGNMENT_BATCH137_V2
 // MOBILE_BUILD22_SDK57_PATCH_ALIGNMENT_BATCH504R
+// MOBILE_BUILD23_SDK57_PATCH_ALIGNMENT_BATCH521R4
 const expoCompatibilityMatrixV08 = {
-  expo: { spec: '~57.0.26', version: '57.0.26' },
-  'expo-constants': { spec: '~57.0.20', version: '57.0.20' },
+  expo: { spec: '~57.0.27', version: '57.0.27' },
+  'expo-constants': { spec: '~57.0.21', version: '57.0.21' },
   'expo-crypto': { spec: '~57.0.3', version: '57.0.3' },
   'expo-dev-client': { spec: '~57.0.19', version: '57.0.19' },
   'expo-file-system': { spec: '~57.0.7', version: '57.0.7' },
   'expo-font': { spec: '~57.0.4', version: '57.0.4' },
-  'expo-linking': { spec: '~57.0.11', version: '57.0.11' },
-  'expo-notifications': { spec: '~57.0.21', version: '57.0.21' },
-  'expo-router': { spec: '~57.0.24', version: '57.0.24' },
+  'expo-linking': { spec: '~57.0.12', version: '57.0.12' },
+  'expo-notifications': { spec: '~57.0.22', version: '57.0.22' },
+  'expo-router': { spec: '~57.0.25', version: '57.0.25' },
   'expo-sharing': { spec: '~57.0.22', version: '57.0.22' },
   'expo-secure-store': { spec: '~57.0.4', version: '57.0.4' },
   'expo-system-ui': { spec: '~57.0.4', version: '57.0.4' },
   'expo-splash-screen': { spec: '~57.0.9', version: '57.0.9' },
-  'expo-updates': { spec: '~57.0.24', version: '57.0.24' },
+  'expo-updates': { spec: '~57.0.25', version: '57.0.25' },
 };
 for (const [packageName, expected] of Object.entries(expoCompatibilityMatrixV08)) {
   assert(

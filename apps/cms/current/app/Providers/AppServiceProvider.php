@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\RestoreCredential;
 use App\Models\User;
 use App\Services\ExchangeRateService;
 use App\Services\LegacyReadOnlyGuard;
@@ -17,12 +18,16 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passkeys\Passkeys;
 use Throwable;
 
 final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        Passkeys::ignoreRoutes();
+        Passkeys::useUserModel(User::class);
+        Passkeys::usePasskeyModel(RestoreCredential::class);
     }
 
     public function boot(): void
@@ -236,6 +241,14 @@ final class AppServiceProvider extends ServiceProvider
             return [
                 Limit::perMinute(10)->by('orders-minute|'.$actor),
                 Limit::perHour(100)->by('orders-hour|'.$actor),
+            ];
+        });
+
+        RateLimiter::for('api-restore-credentials', static function (Request $request): array {
+            $actor = $request->user()?->getAuthIdentifier() ?? $request->ip();
+            return [
+                Limit::perMinute(10)->by('restore-credentials-minute|'.$actor),
+                Limit::perHour(60)->by('restore-credentials-hour|'.$actor),
             ];
         });
 

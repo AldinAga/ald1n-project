@@ -11,12 +11,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\PasskeyAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Throwable;
 
-final class User extends Authenticatable
+final class User extends Authenticatable implements PasskeyUser
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable;
 
     private bool $roleSlugResolved = false;
     private ?string $resolvedRoleSlug = null;
@@ -205,6 +207,17 @@ final class User extends Authenticatable
     public function submittedPayments(): HasMany
     {
         return $this->hasMany(OrderPayment::class, 'submitted_by');
+    }
+
+    public function getPasskeyDisplayName(): string
+    {
+        return $this->displayName();
+    }
+
+    public function getPasskeyUsername(): string
+    {
+        $email = trim((string) $this->email);
+        return $email !== '' ? $email : (string) $this->username;
     }
 
     public function displayName(): string

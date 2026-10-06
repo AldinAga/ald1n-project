@@ -13,6 +13,7 @@
     "require": {
         "php": "^8.4",
         "laravel/framework": "^13.8",
+        "laravel/passkeys": "^0.2.1",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0"
     },
