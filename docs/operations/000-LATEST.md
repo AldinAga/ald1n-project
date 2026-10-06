@@ -4,7 +4,7 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch522: `33316a89165c49f78215dd33e7ab03513f13f8a3`
+- Current source authority after Batch523R2: `8a776f8b8820f51791d990ae436c782944525eac`
 - Last existing Android production build: **Build22 / versionCode 22**
 - Build profile / channel: **production / production**
 - Build23: **DEFERRED**; no build/submit/OTA/Google Play action performed.
@@ -12,7 +12,23 @@
 - Google Play release notes: **required as copy/paste text at Build23 completion**.
 - Batch520: **PASS** — subagent shipment tracking visibility + Push/E-mail/Both preference.
 - Batch521: **PASS_ACTIVATED via Batch522** — Android Zero-Tap Restore Credentials implementation is committed, migrated and production-enabled after exact Play App Signing SHA-256 + live Digital Asset Links verification.
-- Next gate: **fresh pre-Build23 release readiness, explicit owner authorization, then one production Build23 with AutoSubmit; Build23 artifact must pass 16 KB bundle/ELF verification before final acceptance.**
+- Next gate: **explicit owner authorization, then exactly one production Build23 with AutoSubmit; Build23 artifact must pass bundletool/ELF 16 KB verification before final acceptance.**
+
+## Batch523 / Batch523R / Batch523R2 - Fresh Pre-Build23 Release Readiness
+
+- Status: **PASS_READY_FOR_OWNER_AUTHORIZATION via Batch523R2 recovery**
+- Source commit: `8a776f8b8820f51791d990ae436c782944525eac`
+- Original Batch523 generated a 937-entry CMS release manifest sorted by relative path and passed release-integrity, CMS 983/983, stable strict+render, Mobile, Expo, OpenAPI and live DAL gates.
+- Original Batch523 stopped before source commit because its local Restore-options checker looked for rpId at the JSON root instead of the controller's canonical data.options envelope.
+- Batch523R corrected the Restore-options checker but stopped before mutation because its replacement manifest helper accidentally sorted complete hash-prefixed lines instead of sorting by relative path, producing a different manifest SHA from the same source authority.
+- Batch523R2 binds both failed reports by exact SHA, reuses the original Batch523 path-sorted generator byte-for-byte, requires the exact original 937-entry manifest SHA, validates the canonical data.options Restore contract, and commits only that manifest source change.
+- Live Restore options are verified as rpId=cms.ald1n.com and userVerification=discouraged; live DAL remains bound to the exact Play App Signing SHA-256.
+- EAS remote Android version remains 22; the next single production AutoSubmit build is versionCode 23.
+- Build23 remains deferred until explicit owner authorization.
+- Final bundletool/ELF 16 KB verification remains mandatory on the Build23 AAB before final acceptance.
+- Failed original report: `docs/operations/541-BATCH523-FRESH-PRE-BUILD23-RELEASE-READINESS-20261006-222816.md`.
+- Failed first recovery report: `docs/operations/542-BATCH523R-PRE-BUILD23-RELEASE-READINESS-RECOVERY-20261006-223757.md`.
+- Successful recovery report: `docs/operations/543-BATCH523R2-PRE-BUILD23-RELEASE-READINESS-RECOVERY-20261006-224326.md`.
 
 ## Batch522 - Play App Signing + Digital Asset Links + Native Compliance Gate
 
@@ -130,7 +146,7 @@
 ## Planned Build23 command
 
 ```bash
-/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package="eas-cli@24.8.0" -- eas build --platform android --profile production --non-interactive --wait --json
+/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package="eas-cli@24.8.0" -- eas build --platform android --profile production --auto-submit-with-profile production --non-interactive --wait --json
 ```
 
 ## Google Play - Napomene o verziji
