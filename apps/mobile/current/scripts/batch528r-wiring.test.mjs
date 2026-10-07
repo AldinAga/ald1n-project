@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const dir = process.env.ALD1N_528R_SOURCE_DIR || path.dirname(fileURLToPath(import.meta.url));
 const ci = fs.readFileSync(path.join(dir, 'batch528-ci.sh'), 'utf8');
 const audit = fs.readFileSync(path.join(dir, 'batch528-native-snapshot.gradle'), 'utf8');
+const repoRoot = path.resolve(dir, '../../../..');
+const workflow = fs.readFileSync(path.join(repoRoot, '.github/workflows/ald1n-native-528.yml'), 'utf8');
 test('snapshot is not installed as a global Gradle init script', () => {
   assert.ok(!/run native-snapshot[^\n]*--init-script/.test(ci));
 });
@@ -62,4 +64,13 @@ test('native audit reclaims ephemeral runner disk without changing ABI contract'
   assert.ok(reclaim >= 0 && gradle > reclaim);
   assert.ok(!ci.includes('reactNativeArchitectures=arm64-v8a'));
   assert.ok(!ci.includes('reactNativeArchitectures=armeabi-v7a'));
+});
+
+test('workflow bootstraps required CMake before native disk reclaim', () => {
+  assert.ok(workflow.includes("'cmake;3.22.1'"));
+  assert.ok(workflow.includes('test -x "$sdk/cmake/3.22.1/bin/ninja"'));
+  const cmake = workflow.indexOf("'cmake;3.22.1'");
+  const native = workflow.indexOf('run: bash apps/mobile/current/scripts/batch528-ci.sh');
+  assert.ok(cmake >= 0 && native > cmake);
+  assert.ok(ci.includes('[ -x "$sdk/cmake/3.22.1/bin/ninja" ]'));
 });

@@ -42,7 +42,8 @@ jobs:
           manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
           test -x "$manager"
           "$manager" --version
-          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+          test -x "$sdk/cmake/3.22.1/bin/ninja"
           "$manager" --list_installed
       - name: Actual compiler RED-GREEN, full release, R8 and lint
         shell: bash
