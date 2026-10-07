@@ -1,4 +1,5 @@
 import groovy.json.JsonOutput
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
 
 // Applied ONLY to generated android/app/build.gradle, never as a global init script.
 // Included settings/plugin builds have independent project hierarchies.
@@ -15,7 +16,16 @@ gradle.projectsEvaluated {
             def configuration = app.configurations.getByName('releaseRuntimeClasspath')
             def resolved = configuration.resolvedConfiguration
             resolved.rethrowFailure()
-            def ids = resolved.resolvedArtifacts.collect { it.moduleVersion.id.toString() }.unique().sort()
+            def resolutionResult = configuration.incoming.resolutionResult
+            def unresolved = resolutionResult.allDependencies.findAll { it instanceof UnresolvedDependencyResult }
+            if (!unresolved.isEmpty()) {
+                throw new GradleException('Batch528R2B: unresolved dependencies: ' + unresolved.collect { it.attempted.displayName }.unique().sort().join(', '))
+            }
+            def ids = resolutionResult.allComponents
+                .collect { it.moduleVersion?.toString() }
+                .findAll { it != null }
+                .unique()
+                .sort()
             def rootExtra = gradle.rootProject.extensions.extraProperties
             def snap = [
                 agp: agp.toString(), gradle: gradle.gradleVersion,

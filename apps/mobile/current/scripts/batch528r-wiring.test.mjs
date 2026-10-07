@@ -43,3 +43,9 @@ test('no error-suppressing workaround added to audit helper', () => {
     assert.ok(!audit.includes(needle), needle);
   }
 });
+
+test('dependency inventory walks the resolved graph without selecting Android artifacts', () => {
+  assert.ok(audit.includes('configuration.incoming.resolutionResult'));
+  assert.ok(!audit.includes('resolved.resolvedArtifacts'));
+  assert.ok(!audit.includes('configuration.incoming.artifactView'));
+});
