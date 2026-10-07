@@ -4,15 +4,29 @@
 - Archive policy: **append-only** for numbered reports.
 - Current application version: **1.0.0**
 - Current runtimeVersion: **1.0.0-build17**
-- Current source authority after Batch523R2: `8a776f8b8820f51791d990ae436c782944525eac`
-- Last existing Android production build: **Build22 / versionCode 22**
+- Current source authority after Batch525R2: `7066a7aee04a7bdb2c37e862905f74306737e78b`
+- Last successful Android production build: **Build22 / versionCode 22**
+- Latest attempted Android production build: **Build23 / versionCode 23 — ERRORED during Gradle configuration; no AAB and no Google Play submission**
+- EAS remote Android versionCode: **23**; next possible versionCode is **24**.
 - Build profile / channel: **production / production**
-- Build23: **DEFERRED**; no build/submit/OTA/Google Play action performed.
-- Future Build23 release mode: **production build with AutoSubmit** after all gates and explicit owner authorization.
+- Build23: **ERRORED** — versionCode 23 was consumed and the build failed before AAB creation because the local Restore Credentials Expo module lacked `android.defaultConfig.versionName`.
+- Build24: **DEFERRED / NOT AUTHORIZED**. AutoSubmit is allowed again, but exactly one Build24 production AutoSubmit requires separate explicit owner authorization.
 - Google Play release notes: **required as copy/paste text at Build23 completion**.
 - Batch520: **PASS** — subagent shipment tracking visibility + Push/E-mail/Both preference.
 - Batch521: **PASS_ACTIVATED via Batch522** — Android Zero-Tap Restore Credentials implementation is committed, migrated and production-enabled after exact Play App Signing SHA-256 + live Digital Asset Links verification.
-- Next gate: **explicit owner authorization, then exactly one production Build23 with AutoSubmit; Build23 artifact must pass bundletool/ELF 16 KB verification before final acceptance.**
+- Next gate: **explicit owner authorization for exactly one Build24 production build with AutoSubmit; Build24 AAB must pass bundletool/ELF 16 KB verification before final acceptance.**
+
+## Batch524 / Batch525 / Batch525R / Batch525R2 - Build23 Failure + Gradle Source Fix
+
+- Build23 versionCode **23** is consumed with status **ERRORED**; no AAB was produced and no Google Play submission occurred.
+- Exact EAS Gradle root cause: local project `:ald1n-restore-credentials` lacked `android.defaultConfig.versionName`.
+- Batch525 stopped before mutation on a stale diagnostic-file dependency. Batch525R re-proved the exact root cause from the live EAS log but stopped before mutation because its worktree gate did not classify known historical operations residue.
+- Batch525R2 binds Batch525R by exact report SHA, preserves the known historical residue read-only, adds only `defaultConfig { versionCode 1; versionName "1.0.0" }` to the Restore Credentials Expo module, and passes Mobile/Expo/CMS/OpenAPI plus isolated Android prebuild gates.
+- Source fix commit: `7066a7aee04a7bdb2c37e862905f74306737e78b`.
+- EAS remote Android versionCode remains **23**; the next possible versionCode is **24**.
+- AutoSubmit is allowed again, but Build24 remains not authorized until a separate explicit owner approval.
+- Build24 AAB still requires mandatory bundletool/ELF 16 KB acceptance after a successful build.
+- Report: `docs/operations/548-BATCH525R2-BUILD23-GRADLE-VERSIONNAME-FIX-RECOVERY-20261007-100059.md`.
 
 ## Batch523 / Batch523R / Batch523R2 - Fresh Pre-Build23 Release Readiness
 
