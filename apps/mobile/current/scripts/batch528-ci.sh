@@ -41,6 +41,77 @@ run() {
   codes=("${PIPESTATUS[@]}")
   [ "${codes[0]}" -eq 0 ] && [ "${codes[1]}" -eq 0 ] || exit 1
 }
+
+record_disk_capacity() {
+  label="$1"
+  case "$label" in
+    before-cleanup) log="$OUT/disk-capacity-before-cleanup.log" ;;
+    after-cleanup) log="$OUT/disk-capacity-after-cleanup.log" ;;
+    *) echo "Unknown disk telemetry label: $label"; exit 1 ;;
+  esac
+  {
+    printf 'LABEL=%s\n' "$label"
+    printf 'ROOT_FILESYSTEM\n'
+    df -h /
+    printf 'ROOT_INODES\n'
+    df -i /
+    printf 'KEY_PATH_SIZES\n'
+    du -sh "$APP/node_modules" "$APP/android" "${HOME:-/home/runner}/.gradle" 2>/dev/null || true
+  } > "$log"
+  cat "$log"
+}
+
+reclaim_ephemeral_runner_disk() {
+  STAGE=runner-disk-reclaim
+  [ "${GITHUB_ACTIONS:-}" = true ] || { echo 'Disk reclaim is GitHub Actions only'; return 0; }
+  sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+  [ -n "$sdk" ] || { echo 'Android SDK path unavailable'; exit 1; }
+  record_disk_capacity before-cleanup
+
+  for path in /usr/share/dotnet /usr/local/share/powershell /usr/share/swift /opt/ghc; do
+    if [ -e "$path" ]; then
+      printf 'Removing unrelated preinstalled runner path: %s\n' "$path"
+      sudo rm -rf -- "$path"
+    fi
+  done
+
+  if [ -n "${RUNNER_TOOL_CACHE:-}" ] && [ -d "$RUNNER_TOOL_CACHE/CodeQL" ]; then
+    printf 'Removing unrelated CodeQL tool cache: %s\n' "$RUNNER_TOOL_CACHE/CodeQL"
+    sudo rm -rf -- "$RUNNER_TOOL_CACHE/CodeQL"
+  fi
+
+  if [ -d "$sdk/system-images" ]; then
+    printf 'Removing Android emulator system images not used by build audit\n'
+    sudo rm -rf -- "$sdk/system-images"
+  fi
+  if [ -d "$sdk/emulator" ]; then
+    printf 'Removing Android emulator binaries not used by build audit\n'
+    sudo rm -rf -- "$sdk/emulator"
+  fi
+
+  if [ -d "$sdk/ndk" ]; then
+    find "$sdk/ndk" -mindepth 1 -maxdepth 1 -type d ! -name '27.1.12297006' -print > "$OUT/unused-ndk-paths.txt"
+    while IFS= read -r path; do
+      [ -n "$path" ] || continue
+      printf 'Removing unused NDK: %s\n' "$path"
+      sudo rm -rf -- "$path"
+    done < "$OUT/unused-ndk-paths.txt"
+  fi
+
+  if [ -d "$sdk/cmake" ]; then
+    find "$sdk/cmake" -mindepth 1 -maxdepth 1 -type d ! -name '3.22.1' -print > "$OUT/unused-cmake-paths.txt"
+    while IFS= read -r path; do
+      [ -n "$path" ] || continue
+      printf 'Removing unused Android CMake: %s\n' "$path"
+      sudo rm -rf -- "$path"
+    done < "$OUT/unused-cmake-paths.txt"
+  fi
+
+  sudo apt-get clean
+  [ -x "$sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" ] || { echo 'Required NDK clang missing after cleanup'; exit 1; }
+  [ -x "$sdk/cmake/3.22.1/bin/ninja" ] || { echo 'Required CMake ninja missing after cleanup'; exit 1; }
+  record_disk_capacity after-cleanup
+}
 cd "$ROOT" || exit 2
 [ "$(git rev-parse HEAD)" = "${GITHUB_SHA:?GITHUB_SHA required}" ] || exit 2
 git merge-base --is-ancestor "$BASE" HEAD || exit 2
@@ -67,6 +138,7 @@ run prebuild node node_modules/expo/bin/cli prebuild --platform android --no-ins
 cp "$APP/package.json" "$OUT/package-after-prebuild.json" || exit 2
 run prebuild-delta-contract node scripts/batch528-native-contract.mjs prebuild "$OUT/package-before-prebuild.json" "$OUT/package-after-prebuild.json"
 cp "$OUT/package-before-prebuild.json" "$APP/package.json" || exit 2
+reclaim_ephemeral_runner_disk
 export ALD1N_528_SNAPSHOT="$OUT/native-snapshot.json"
 cd "$APP/android" || exit 2
 run gradle-version ./gradlew --version

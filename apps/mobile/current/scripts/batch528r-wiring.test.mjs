@@ -49,3 +49,17 @@ test('dependency inventory walks the resolved graph without selecting Android ar
   assert.ok(!audit.includes('resolved.resolvedArtifacts'));
   assert.ok(!audit.includes('configuration.incoming.artifactView'));
 });
+
+test('native audit reclaims ephemeral runner disk without changing ABI contract', () => {
+  assert.ok(ci.includes('STAGE=runner-disk-reclaim'));
+  assert.ok(ci.includes('disk-capacity-before-cleanup.log'));
+  assert.ok(ci.includes('disk-capacity-after-cleanup.log'));
+  assert.ok(ci.includes('/usr/share/dotnet'));
+  assert.ok(ci.includes('27.1.12297006'));
+  assert.ok(ci.includes('3.22.1'));
+  const reclaim = ci.indexOf('STAGE=runner-disk-reclaim');
+  const gradle = ci.indexOf('run gradle-version ');
+  assert.ok(reclaim >= 0 && gradle > reclaim);
+  assert.ok(!ci.includes('reactNativeArchitectures=arm64-v8a'));
+  assert.ok(!ci.includes('reactNativeArchitectures=armeabi-v7a'));
+});
