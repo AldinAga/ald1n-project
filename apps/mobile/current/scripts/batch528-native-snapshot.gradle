@@ -1,9 +1,11 @@
 import groovy.json.JsonOutput
 
-// Read-only audit task injected using --init-script; never applied to production source.
+// Applied ONLY to generated android/app/build.gradle, never as a global init script.
+// Included settings/plugin builds have independent project hierarchies.
+def auditApp = project
+if (auditApp.path != ':app') throw new GradleException('Batch528R: snapshot must be applied to :app')
 gradle.projectsEvaluated {
-    def app = gradle.rootProject.findProject(':app')
-    if (app == null) throw new GradleException('Batch528: :app missing')
+    def app = auditApp
     app.tasks.register('ald1nSnapshot528') {
         doLast {
             def android = app.extensions.getByName('android')

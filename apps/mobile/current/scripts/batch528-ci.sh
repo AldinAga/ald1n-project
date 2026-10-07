@@ -51,7 +51,7 @@ run npm-version npm --version
 run java-version java -version
 cd "$APP" || exit 2
 run source-contract node scripts/batch528-native-contract.mjs source "$APP"
-run contract-tests node --test scripts/batch528-native-contract.test.mjs
+run contract-tests node --test scripts/batch528-native-contract.test.mjs scripts/batch528r-wiring.test.mjs
 # Clean runner only: this does NOT run on the CloudLinux production hosting.
 run npm-ci npm ci --no-audit --no-fund
 run typecheck npm run typecheck
@@ -70,7 +70,15 @@ cp "$OUT/package-before-prebuild.json" "$APP/package.json" || exit 2
 export ALD1N_528_SNAPSHOT="$OUT/native-snapshot.json"
 cd "$APP/android" || exit 2
 run gradle-version ./gradlew --version
-run native-snapshot ./gradlew --no-daemon --console=plain --stacktrace --init-script "$APP/scripts/batch528-native-snapshot.gradle" :app:ald1nSnapshot528
+# Exercise the original global-init failure and the fixed project application in a real composite build.
+run composite-scope-regression node "$APP/scripts/batch528r-composite-probe.mjs" "$APP/android/gradlew" "$APP/scripts/batch528-native-snapshot.gradle" "$OUT/composite-scope"
+# Apply the observer to this generated :app only. No SDK/R8/signing configuration is changed.
+STAGE=install-project-audit
+cp "$APP/scripts/batch528-native-snapshot.gradle" "$APP/android/app/ald1n-audit-528.gradle" || exit 2
+printf '\napply from: file("ald1n-audit-528.gradle")\n' >> "$APP/android/app/build.gradle" || exit 2
+cp "$APP/android/settings.gradle" "$OUT/generated-settings.gradle" || exit 2
+cp "$APP/android/app/build.gradle" "$OUT/generated-app-build.gradle" || exit 2
+run native-snapshot ./gradlew --no-daemon --console=plain --stacktrace :app:ald1nSnapshot528
 run snapshot-contract node "$APP/scripts/batch528-native-contract.mjs" snapshot "$OUT/native-snapshot.json"
 # A generated debug signing configuration is permitted ONLY for this non-release audit.
 node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1])); if(s.signingConfigName!=="debug") throw Error("Audit must not use production signing configuration");' "$OUT/native-snapshot.json" || exit 1
