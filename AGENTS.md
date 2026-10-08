@@ -898,7 +898,26 @@ This exception is for immutable operation-report evidence only and must never be
 
 ---
 
-## 27. Updating this file
+## 27. Permanent Android native CI and Play release lessons (2026-10-08)
+
+Canonical incident report: `docs/incident-reviews/2026-10-08-build23-24-batch528-native-ci-postmortem.md`. Always read it and the newest `docs/operations` reports before a new Android native/release batch.
+
+- Build23 failed in Expo local module Android Gradle version metadata; Build24 failed in Kotlin Restore Credentials zero-argument Coroutine overload/return type. TypeScript, Expo Doctor, prebuild, dependency graph and source-string tests are not substitutes for actual release Kotlin/Java/R8 compilation.
+- Scoped Gradle snapshot helpers must not be injected globally into React Native composite included builds: register the observer only on the generated main `:app` and exercise both positive and negative composite regressions.
+- CloudLinux's default PATH is not authoritative for Node. Use the canonical Node binary and versioned npm CLI, check tracked/staged/untracked manifests, own only locks created by the current process, preserve canonical repo/index and forensic report evidence.
+- On ephemeral GitHub-hosted native runners, establish disk capacity before compilation and install the **exact required** side-by-side CMake/NDK/SDK first. Disk reclaim must only remove inventoried dispensable runner content; never blindly run the existing GitHub cleanup on a self-hosted runner.
+- Android Gradle/Kotlin K2 lint engine may crash on Worklets/Reanimated `apply(from = "*.gradle.kts")` with `Cannot find a KaModule for the VirtualFile`. Audit-only version-checked third-party module exemptions must be recorded as **partial lint coverage**, never as a universal Lint PASS; keep `:app:lintRelease` mandatory.
+- The Expo SDK57 splash plugin places an API33-only `android:windowSplashScreenBehavior` in unqualified Android style resources; preserve minSdk24 and place the attribute under `values-v33` via guarded config plugin. Test both generated resource locations and physical devices API24–32 and API33+.
+- Use **fail-fast gates**: static tests/config/prebuild resource guards first, then Android app Lint before expensive Kotlin RED/GREEN and release R8; verify `:app:minifyReleaseWithR8`, AAB, APK, mapping, all ABIs, real signing and device acceptance before release authorization.
+- GitHub Actions deprecated Node20 internal runtime warnings are distinct from project Node. Update pinned action SHAs to verified stable Node24-native revisions, align project Node with server when certified, attribute Gradle deprecations with `--warning-mode all`, and never hide warnings merely to produce a green log.
+- The successful native audit on commit `7ff4a5ee1dabfb09131893041de33731d26b11d7` proves an **audit-only debug-signed** build path. It is **not** a production-signed Play release or Build25 authorization. Always rerun release-quality checks on the final exact approved production candidate.
+- **P0 Play safety:** never schedule EAS auto-submit before the actual production AAB has passed cryptographic signer/payload, ABI/16KB and manifest checks. Once this gate passes, automate `eas submit` using the exact verified build ID; keep error/timeout retries idempotent. Check latest EAS remote Android versionCode before allocation, not historical report guesses.
+- Open original A04–A14 findings are separate acceptance blockers until proven closed: native signature, Restore lifecycle/reauth, old active OTA and API compatibility, image publication concurrency, canonical report/index reconciliation, runtime compatibility, 16KB/device, transaction tests, builder reproducibility.
+- For every production build report **exact command, app version, remote versionCode, runtimeVersion, source commit, profile/channel, and copy/paste Google Play Napomene o verziji**. No production/EAS/Play writes until gates and exact source authority are verified.
+
+---
+
+## 28. Updating this file
 
 Update `AGENTS.md` whenever a newly proven hosting/release rule becomes permanent.
 
