@@ -74,3 +74,19 @@ test('workflow bootstraps required CMake before native disk reclaim', () => {
   assert.ok(cmake >= 0 && native > cmake);
   assert.ok(ci.includes('[ -x "$sdk/cmake/3.22.1/bin/ninja" ]'));
 });
+
+test('known Worklets KaModule lint crash workaround is isolated after release R8 and before full lint', () => {
+  assert.ok(ci.includes('STAGE=worklets-lint-known-bug-workaround'), 'scoped Worklets lint workaround stage missing');
+  assert.ok(ci.includes('node_modules/react-native-worklets/android/build.gradle.kts'));
+  assert.ok(ci.includes('WORKLETS_EXPECTED_VERSION=0.10.1'));
+  assert.ok(ci.includes('apply(from = "./fix-prefab.gradle.kts")'));
+  assert.ok(ci.includes('apply(from = "./generate-stub-pch.gradle.kts")'));
+  assert.ok(ci.includes('tasks.configureEach { if (name.startsWith("lint")) enabled = false }'));
+  const release = ci.indexOf('run release-log-contract ');
+  const patch = ci.indexOf('apply_worklets_lint_known_bug_workaround\n', release);
+  const lint = ci.indexOf('run lint-release ');
+  assert.ok(release >= 0 && patch > release && lint > patch);
+  for (const needle of ['-x :react-native-worklets:lintAnalyzeRelease', 'ignoreFailures', 'continueOnError']) {
+    assert.ok(!ci.includes(needle), needle);
+  }
+});

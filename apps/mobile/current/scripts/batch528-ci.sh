@@ -13,11 +13,19 @@ MODULE=modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1
 mkdir -p "$OUT" || exit 2
 STAGE=preflight
 RED_SWAPPED=0
+WORKLETS_PATCHED=0
+WORKLETS_EXPECTED_VERSION=0.10.1
+WORKLETS_GRADLE_REL=node_modules/react-native-worklets/android/build.gradle.kts
+WORKLETS_PACKAGE_REL=node_modules/react-native-worklets/package.json
 finish() {
   rc=$?
   trap - EXIT
   if [ "$RED_SWAPPED" -eq 1 ]; then
     cp "$OUT/candidate-module.kt" "$APP/$MODULE" || rc=90
+  fi
+  if [ "$WORKLETS_PATCHED" -eq 1 ] && [ -f "$OUT/worklets-build.gradle.kts.original" ]; then
+    cp "$OUT/worklets-build.gradle.kts.original" "$APP/$WORKLETS_GRADLE_REL" || rc=91
+    WORKLETS_PATCHED=0
   fi
   {
     printf 'CANDIDATE_COMMIT=%s\n' "${GITHUB_SHA:-UNKNOWN}"
@@ -112,6 +120,46 @@ reclaim_ephemeral_runner_disk() {
   [ -x "$sdk/cmake/3.22.1/bin/ninja" ] || { echo 'Required CMake ninja missing after cleanup'; exit 1; }
   record_disk_capacity after-cleanup
 }
+apply_worklets_lint_known_bug_workaround() {
+  STAGE=worklets-lint-known-bug-workaround
+  gradle_file="$APP/$WORKLETS_GRADLE_REL"
+  package_file="$APP/$WORKLETS_PACKAGE_REL"
+  [ -f "$gradle_file" ] || { echo 'Worklets Gradle file missing'; exit 1; }
+  [ -f "$package_file" ] || { echo 'Worklets package file missing'; exit 1; }
+  node - "$package_file" "$WORKLETS_EXPECTED_VERSION" <<'WORKLETS_NODE'
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (pkg.version !== process.argv[3]) throw new Error(`Unexpected react-native-worklets version: ${pkg.version}`);
+WORKLETS_NODE
+  grep -Fq 'apply(from = "./fix-prefab.gradle.kts")' "$gradle_file" || { echo 'Worklets fix-prefab Kotlin script anchor missing'; exit 1; }
+  grep -Fq 'apply(from = "./generate-stub-pch.gradle.kts")' "$gradle_file" || { echo 'Worklets generate-stub Kotlin script anchor missing'; exit 1; }
+  if grep -Fq 'tasks.configureEach { if (name.startsWith("lint")) enabled = false }' "$gradle_file"; then
+    echo 'Worklets lint workaround already present; dependency baseline changed'
+    exit 1
+  fi
+  cp "$gradle_file" "$OUT/worklets-build.gradle.kts.original" || exit 2
+  sha256sum "$gradle_file" > "$OUT/worklets-gradle-before-sha256.txt" || exit 2
+  cat >> "$gradle_file" <<'WORKLETS_PATCH'
+
+// Batch528 audit-only workaround for Android Lint bug 430991549.
+// AGP 8.11+ lint can crash on applied .gradle.kts scripts before reporting app lint findings.
+// Current Worklets upstream uses the same module-scoped lint-task disable pattern for a K2 UAST lint crash.
+tasks.configureEach { if (name.startsWith("lint")) enabled = false }
+WORKLETS_PATCH
+  WORKLETS_PATCHED=1
+  grep -Fq 'tasks.configureEach { if (name.startsWith("lint")) enabled = false }' "$gradle_file" || exit 1
+  sha256sum "$gradle_file" > "$OUT/worklets-gradle-after-sha256.txt" || exit 2
+  printf 'WORKLETS_LINT_KAMODULE_WORKAROUND=APPLIED_VERSION_%s\n' "$WORKLETS_EXPECTED_VERSION"
+}
+
+restore_worklets_lint_known_bug_workaround() {
+  if [ "$WORKLETS_PATCHED" -eq 1 ]; then
+    cp "$OUT/worklets-build.gradle.kts.original" "$APP/$WORKLETS_GRADLE_REL" || return 1
+    WORKLETS_PATCHED=0
+    printf 'WORKLETS_LINT_KAMODULE_WORKAROUND=RESTORED_ORIGINAL\n'
+  fi
+}
+
 cd "$ROOT" || exit 2
 [ "$(git rev-parse HEAD)" = "${GITHUB_SHA:?GITHUB_SHA required}" ] || exit 2
 git merge-base --is-ancestor "$BASE" HEAD || exit 2
@@ -170,7 +218,9 @@ printf 'REAL_COMPILER_RED_CONFIRMED=YES\n'
 run restored-source-contract node "$APP/scripts/batch528-native-contract.mjs" source "$APP"
 run release ./gradlew :ald1n-restore-credentials:compileReleaseKotlin :app:assembleRelease :app:bundleRelease --no-daemon --console=plain --stacktrace --no-build-cache
 run release-log-contract node "$APP/scripts/batch528-native-contract.mjs" release-log "$OUT/release.log"
+apply_worklets_lint_known_bug_workaround
 run lint-release ./gradlew :app:lintRelease --no-daemon --console=plain --stacktrace --no-build-cache
+restore_worklets_lint_known_bug_workaround || exit 1
 STAGE=artifact-inventory
 [ -s "$APP/android/app/build/outputs/mapping/release/mapping.txt" ] || { echo 'R8 mapping missing'; exit 1; }
 AAB="$APP/android/app/build/outputs/bundle/release/app-release.aab"
