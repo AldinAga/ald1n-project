@@ -120,3 +120,16 @@ test('R3E Reanimated 4.5.1 Lint exception is scoped, version guarded and restore
   assert.ok(snap >= 0 && restore > lint && restoreW > restore && restoreW < red);
   for (const bad of ['-x :app:lintRelease', '--warning-mode none', 'ignoreFailures', 'continueOnError', 'org.gradle.daemon.performance.disable-logging=true']) assert.ok(!ci.includes(bad),bad);
 });
+
+test('R3F Expo splash API33 plugin order and fast generated-resource contract are mandatory', () => {
+  const config=fs.readFileSync(path.join(dir,'../app.config.js'),'utf8');
+  const custom=config.indexOf("'./plugins/with-splash-api33-resources'");
+  const splash=config.indexOf("'expo-splash-screen'");
+  // Expo withMod evaluates later-registered hooks before earlier hooks.
+  assert.ok(custom >= 0 && splash > custom, 'API33 mod must register before Expo splash mod');
+  const prebuild=ci.indexOf('run prebuild-delta-contract ');
+  const check=ci.indexOf('run splash-api33-native-contract ');
+  const reclaim=ci.indexOf('reclaim_ephemeral_runner_disk\n',prebuild);
+  assert.ok(prebuild >= 0 && check > prebuild && reclaim > check, 'API33 source contract must run before Gradle');
+  assert.ok(ci.includes('scripts/splash-api33-resources.test.mjs'), 'API33 regression must be in CI');
+});

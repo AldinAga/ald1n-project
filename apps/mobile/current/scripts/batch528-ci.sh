@@ -218,7 +218,7 @@ run npm-version npm --version
 run java-version java -version
 cd "$APP" || exit 2
 run source-contract node scripts/batch528-native-contract.mjs source "$APP"
-run contract-tests node --test scripts/batch528-native-contract.test.mjs scripts/batch528r-wiring.test.mjs
+run contract-tests node --test scripts/batch528-native-contract.test.mjs scripts/batch528r-wiring.test.mjs scripts/splash-api33-resources.test.mjs
 # Clean runner only: this does NOT run on the CloudLinux production hosting.
 run npm-ci npm ci --no-audit --no-fund
 run typecheck npm run typecheck
@@ -233,6 +233,8 @@ cp "$APP/package.json" "$OUT/package-before-prebuild.json" || exit 2
 run prebuild node node_modules/expo/bin/cli prebuild --platform android --no-install --clean
 cp "$APP/package.json" "$OUT/package-after-prebuild.json" || exit 2
 run prebuild-delta-contract node scripts/batch528-native-contract.mjs prebuild "$OUT/package-before-prebuild.json" "$OUT/package-after-prebuild.json"
+# SPLASH_API33_RESOURCE_CONTRACT_R3F
+run splash-api33-native-contract node -e 'require("./plugins/with-splash-api33-resources").verifyGeneratedSplashResources(process.argv[1]); console.log("SPLASH_API33_NATIVE_CONTRACT=PASS")' "$APP/android"
 cp "$OUT/package-before-prebuild.json" "$APP/package.json" || exit 2
 reclaim_ephemeral_runner_disk
 export ALD1N_528_SNAPSHOT="$OUT/native-snapshot.json"
