@@ -17,6 +17,10 @@ WORKLETS_PATCHED=0
 WORKLETS_EXPECTED_VERSION=0.10.1
 WORKLETS_GRADLE_REL=node_modules/react-native-worklets/android/build.gradle.kts
 WORKLETS_PACKAGE_REL=node_modules/react-native-worklets/package.json
+REANIMATED_PATCHED=0
+REANIMATED_EXPECTED_VERSION=4.5.1
+REANIMATED_GRADLE_REL=node_modules/react-native-reanimated/android/build.gradle.kts
+REANIMATED_PACKAGE_REL=node_modules/react-native-reanimated/package.json
 finish() {
   rc=$?
   trap - EXIT
@@ -26,6 +30,10 @@ finish() {
   if [ "$WORKLETS_PATCHED" -eq 1 ] && [ -f "$OUT/worklets-build.gradle.kts.original" ]; then
     cp "$OUT/worklets-build.gradle.kts.original" "$APP/$WORKLETS_GRADLE_REL" || rc=91
     WORKLETS_PATCHED=0
+  fi
+  if [ "$REANIMATED_PATCHED" -eq 1 ] && [ -f "$OUT/reanimated-build.gradle.kts.original" ]; then
+    cp "$OUT/reanimated-build.gradle.kts.original" "$APP/$REANIMATED_GRADLE_REL" || rc=92
+    REANIMATED_PATCHED=0
   fi
   {
     printf 'CANDIDATE_COMMIT=%s\n' "${GITHUB_SHA:-UNKNOWN}"
@@ -126,7 +134,7 @@ apply_worklets_lint_known_bug_workaround() {
   package_file="$APP/$WORKLETS_PACKAGE_REL"
   [ -f "$gradle_file" ] || { echo 'Worklets Gradle file missing'; exit 1; }
   [ -f "$package_file" ] || { echo 'Worklets package file missing'; exit 1; }
-  node - "$package_file" "$WORKLETS_EXPECTED_VERSION" <<'WORKLETS_NODE'
+  node - "$package_file" "$WORKLETS_EXPECTED_VERSION" <<'WORKLETS_NODE' || exit 1
 const fs = require('fs');
 const pkg = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 if (pkg.version !== process.argv[3]) throw new Error(`Unexpected react-native-worklets version: ${pkg.version}`);
@@ -157,6 +165,46 @@ restore_worklets_lint_known_bug_workaround() {
     cp "$OUT/worklets-build.gradle.kts.original" "$APP/$WORKLETS_GRADLE_REL" || return 1
     WORKLETS_PATCHED=0
     printf 'WORKLETS_LINT_KAMODULE_WORKAROUND=RESTORED_ORIGINAL\n'
+  fi
+}
+
+apply_reanimated_lint_known_bug_workaround() {
+  STAGE=reanimated-lint-known-bug-workaround
+  gradle_file="$APP/$REANIMATED_GRADLE_REL"
+  package_file="$APP/$REANIMATED_PACKAGE_REL"
+  [ -f "$gradle_file" ] || { echo 'Reanimated Gradle file missing'; exit 1; }
+  [ -f "$package_file" ] || { echo 'Reanimated package file missing'; exit 1; }
+  node - "$package_file" "$REANIMATED_EXPECTED_VERSION" <<'REANIMATED_NODE' || exit 1
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (pkg.version !== process.argv[3]) throw new Error("Unexpected react-native-reanimated version: " + pkg.version);
+REANIMATED_NODE
+  grep -Fq 'apply(from = "./generate-stub-pch.gradle.kts")' "$gradle_file" || { echo 'Reanimated Kotlin script trigger anchor missing'; exit 1; }
+  grep -Fq 'tasks.configureEach { if (name.startsWith("lintVital")) enabled = false }' "$gradle_file" || { echo 'Reanimated upstream lintVital anchor missing'; exit 1; }
+  if grep -Fq 'tasks.configureEach { if (name.startsWith("lint")) enabled = false }' "$gradle_file"; then
+    echo 'Reanimated lint exception already present; dependency baseline changed'
+    exit 1
+  fi
+  cp "$gradle_file" "$OUT/reanimated-build.gradle.kts.original" || exit 2
+  sha256sum "$gradle_file" > "$OUT/reanimated-gradle-before-sha256.txt" || exit 2
+  cat >> "$gradle_file" <<'REANIMATED_PATCH'
+
+// Batch528 audit-only scoped workaround for Android Lint issue 430991549.
+// Reanimated 4.5.1 uses apply(from = "./generate-stub-pch.gradle.kts").
+tasks.configureEach { if (name.startsWith("lint")) enabled = false }
+REANIMATED_PATCH
+  REANIMATED_PATCHED=1
+  grep -Fq 'tasks.configureEach { if (name.startsWith("lint")) enabled = false }' "$gradle_file" || exit 1
+  sha256sum "$gradle_file" > "$OUT/reanimated-gradle-after-sha256.txt" || exit 2
+  printf 'REANIMATED_LINT_KAMODULE_WORKAROUND=APPLIED_VERSION_%s\n' "$REANIMATED_EXPECTED_VERSION"
+}
+
+restore_reanimated_lint_known_bug_workaround() {
+  if [ "$REANIMATED_PATCHED" -eq 1 ]; then
+    cp "$OUT/reanimated-build.gradle.kts.original" "$APP/$REANIMATED_GRADLE_REL" || return 1
+    cmp -s "$OUT/reanimated-build.gradle.kts.original" "$APP/$REANIMATED_GRADLE_REL" || return 1
+    REANIMATED_PATCHED=0
+    printf 'REANIMATED_LINT_KAMODULE_WORKAROUND=RESTORED_ORIGINAL\n'
   fi
 }
 
@@ -202,6 +250,16 @@ run native-snapshot ./gradlew --no-daemon --console=plain --stacktrace :app:ald1
 run snapshot-contract node "$APP/scripts/batch528-native-contract.mjs" snapshot "$OUT/native-snapshot.json"
 # A generated debug signing configuration is permitted ONLY for this non-release audit.
 node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1])); if(s.signingConfigName!=="debug") throw Error("Audit must not use production signing configuration");' "$OUT/native-snapshot.json" || exit 1
+# Audit-only Lint preflight runs FIRST so known plugin Lint crashes cannot waste an R8 rebuild.
+apply_worklets_lint_known_bug_workaround
+apply_reanimated_lint_known_bug_workaround
+run lint-release ./gradlew :app:lintRelease --no-daemon --console=plain --stacktrace --no-build-cache
+grep -Eq '^> Task :app:lintRelease($| )' "$OUT/lint-release.log" || { echo "app lintRelease task execution missing"; exit 1; }
+if grep -Eq '^> Task :app:lintRelease (SKIPPED|UP-TO-DATE|FROM-CACHE)' "$OUT/lint-release.log"; then echo "app lintRelease was not executed"; exit 1; fi
+grep -Fq 'BUILD SUCCESSFUL' "$OUT/lint-release.log" || { echo "app lintRelease did not succeed"; exit 1; }
+printf 'EARLY_APP_LINT_RESULT=PASS_EXECUTED\n'
+restore_reanimated_lint_known_bug_workaround || exit 1
+restore_worklets_lint_known_bug_workaround || exit 1
 cp "$APP/$MODULE" "$OUT/candidate-module.kt" || exit 2
 STAGE=real-kotlin-red
 RED_SWAPPED=1
@@ -218,9 +276,6 @@ printf 'REAL_COMPILER_RED_CONFIRMED=YES\n'
 run restored-source-contract node "$APP/scripts/batch528-native-contract.mjs" source "$APP"
 run release ./gradlew :ald1n-restore-credentials:compileReleaseKotlin :app:assembleRelease :app:bundleRelease --no-daemon --console=plain --stacktrace --no-build-cache
 run release-log-contract node "$APP/scripts/batch528-native-contract.mjs" release-log "$OUT/release.log"
-apply_worklets_lint_known_bug_workaround
-run lint-release ./gradlew :app:lintRelease --no-daemon --console=plain --stacktrace --no-build-cache
-restore_worklets_lint_known_bug_workaround || exit 1
 STAGE=artifact-inventory
 [ -s "$APP/android/app/build/outputs/mapping/release/mapping.txt" ] || { echo 'R8 mapping missing'; exit 1; }
 AAB="$APP/android/app/build/outputs/bundle/release/app-release.aab"

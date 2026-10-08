@@ -75,18 +75,48 @@ test('workflow bootstraps required CMake before native disk reclaim', () => {
   assert.ok(ci.includes('[ -x "$sdk/cmake/3.22.1/bin/ninja" ]'));
 });
 
-test('known Worklets KaModule lint crash workaround is isolated after release R8 and before full lint', () => {
+test('known Worklets KaModule lint exception is scoped before native release', () => {
   assert.ok(ci.includes('STAGE=worklets-lint-known-bug-workaround'), 'scoped Worklets lint workaround stage missing');
   assert.ok(ci.includes('node_modules/react-native-worklets/android/build.gradle.kts'));
   assert.ok(ci.includes('WORKLETS_EXPECTED_VERSION=0.10.1'));
   assert.ok(ci.includes('apply(from = "./fix-prefab.gradle.kts")'));
   assert.ok(ci.includes('apply(from = "./generate-stub-pch.gradle.kts")'));
   assert.ok(ci.includes('tasks.configureEach { if (name.startsWith("lint")) enabled = false }'));
-  const release = ci.indexOf('run release-log-contract ');
-  const patch = ci.indexOf('apply_worklets_lint_known_bug_workaround\n', release);
+  const snapshot = ci.indexOf('run snapshot-contract ');
+  const patch = ci.indexOf('apply_worklets_lint_known_bug_workaround', snapshot);
   const lint = ci.indexOf('run lint-release ');
-  assert.ok(release >= 0 && patch > release && lint > patch);
+  const kotlinRed = ci.indexOf('STAGE=real-kotlin-red');
+  const release = ci.indexOf('run release-log-contract ');
+  assert.ok(snapshot >= 0 && patch > snapshot && lint > patch && kotlinRed > lint && release > kotlinRed);
   for (const needle of ['-x :react-native-worklets:lintAnalyzeRelease', 'ignoreFailures', 'continueOnError']) {
     assert.ok(!ci.includes(needle), needle);
   }
+});
+
+test('R3E early complete app lint runs after snapshot and before Kotlin RED and R8', () => {
+  const snap = ci.indexOf('run snapshot-contract ');
+  const wp = ci.indexOf('apply_worklets_lint_known_bug_workaround\n', snap);
+  const rp = ci.indexOf('apply_reanimated_lint_known_bug_workaround\n', snap);
+  const lint = ci.indexOf('run lint-release ');
+  const red = ci.indexOf('STAGE=real-kotlin-red');
+  const release = ci.indexOf('run release ./gradlew ');
+  assert.ok(snap >= 0 && wp > snap && rp > wp && lint > rp && lint < red && red < release, 'lint must fail fast before expensive Kotlin RED/R8 native release');
+  assert.ok(ci.includes("grep -Eq '^> Task :app:lintRelease($| )'"), 'actual app lint execution marker must be required');
+});
+
+test('R3E Reanimated 4.5.1 Lint exception is scoped, version guarded and restored before release', () => {
+  const snap = ci.indexOf('run snapshot-contract ');
+  const lint = ci.indexOf('run lint-release ');
+  const red = ci.indexOf('STAGE=real-kotlin-red');
+  assert.ok(ci.includes('REANIMATED_EXPECTED_VERSION=4.5.1'));
+  assert.ok(ci.includes('node_modules/react-native-reanimated/android/build.gradle.kts'));
+  assert.ok(ci.includes('apply(from = "./generate-stub-pch.gradle.kts")'));
+  assert.ok(ci.includes('REANIMATED_LINT_KAMODULE_WORKAROUND=APPLIED_VERSION_'));
+  assert.ok(ci.includes("<<'WORKLETS_NODE' || exit 1"));
+  assert.ok(ci.includes("<<'REANIMATED_NODE' || exit 1"));
+  assert.ok(ci.includes('restore_reanimated_lint_known_bug_workaround || exit 1'));
+  const restore = ci.indexOf('restore_reanimated_lint_known_bug_workaround || exit 1',lint);
+  const restoreW = ci.indexOf('restore_worklets_lint_known_bug_workaround || exit 1',lint);
+  assert.ok(snap >= 0 && restore > lint && restoreW > restore && restoreW < red);
+  for (const bad of ['-x :app:lintRelease', '--warning-mode none', 'ignoreFailures', 'continueOnError', 'org.gradle.daemon.performance.disable-logging=true']) assert.ok(!ci.includes(bad),bad);
 });
