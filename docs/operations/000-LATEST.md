@@ -1,4 +1,32 @@
-# Ald1n Operations - Current Canonical State
+# Ald1n Operations - CURRENT Build25 Authority (2026-10-09)
+
+This header is the up-to-date **source and gate index at audit preparation time**.
+Reverify live refs before any new batch. This file is NOT EAS, Play, billing or production source authority.
+
+- GitHub `main` at Report575: `b5b942e645d28d3ed5f248eaae4180ebe9a54ee6` (does not contain pending Build25 audit work).
+- Last verified audit parent: `7c4e4ef435b46a65bc0e0db57dd74509a62a5e89` (Report574 / Report575).
+- Batch576 remediation candidate branch: `audit/build25-report575-targeted-fixes-20261009`; obtain its exact HEAD from GitHub and Report576 after push, never infer it here.
+- Report575: `575-BATCH541-BUILD25-DEEP-FORENSIC-AUDIT-20261009-123747-575124.md` (read-only PASS; 2 code/documentation findings; 7 external blockers).
+- App: `Ald1n CMS`; version `1.0.0`; runtimeVersion `1.0.0-build17`; Android applicationId `com.ald1n.mobile`.
+- EAS production profile/channel: `production` / `production`; no production build/submit authorized.
+- EAS_CLI=eas-cli@24.7.0 (from AGENTS.md and eas.json).
+- REMOTE_ANDROID_VERSIONCODE=UNATTESTED. Read exact EAS remote authority at a separately authorized read-only gate; do NOT assume 23 or 24.
+- BUILD25_AUTHORIZED=NO.
+- PROGRESS=65_PERCENT_ESTIMATE; source-only/offline remediation does not change release readiness.
+- Native CI on **exact** pending candidate: NOT RUN. The dedicated branch `audit/build25-native-ci-explicit-trigger-20261009` must not be pushed without separate explicit approval and cost gate.
+- Direct production CLI and legacy submit are fail-closed. Automatic AAB/APK upload remains disabled.
+- Open: GitHub billing/artifact quota, signer certificate authority, exact AAB/16 KB/ELF, API24-32/API33+ devices, A03-A14 acceptance, approved source merge, owner production authorization.
+- Reports: `docs/operations/573-BATCH539-BUILD25-DEEP-OFFLINE-CONVERGENCE-SCOPE.md`, `docs/operations/574-BATCH540-BUILD25-CI-COST-SAFETY-SCOPE.md`, and `docs/operations/576-BATCH542-BUILD25-REPORT575-TARGETED-FIX-SCOPE.md`.
+
+---
+
+## Archived Build23/Build24 historical snapshot - NOT CURRENT
+
+Obsolete historical entries below are not operational instructions.
+They preserve earlier reports and commands strictly for forensic reference.
+Ignore any historical next-versionCode, old EAS pin or Build23/24 authorization language below.
+
+### Ald1n Operations - Historical source authority from Build23/24
 
 - Canonical directory: `docs/operations`
 - Archive policy: **append-only** for numbered reports.
@@ -157,7 +185,7 @@
 ---
 
 
-## Planned Build23 command
+## Historical planned Build23 command - OBSOLETE, DO NOT EXECUTE
 
 ```bash
 /home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node /opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js exec --yes --package="eas-cli@24.8.0" -- eas build --platform android --profile production --auto-submit-with-profile production --non-interactive --wait --json

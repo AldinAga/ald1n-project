@@ -38,7 +38,10 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/mobile/current
-          node --test scripts/release25/ci-cost-gate.test.mjs scripts/release25/deep-offline-contract.test.mjs scripts/release25/validator-pin-recovery.test.mjs
+          for tool in java jar keytool jarsigner zip unzip; do
+            command -v "$tool" >/dev/null 2>&1 || { printf "SIGNATURE_PREFLIGHT_TOOL_MISSING=%s\n" "$tool" >&2; exit 86; }
+          done
+          node --test scripts/release25/ci-cost-gate.test.mjs scripts/release25/deep-offline-contract.test.mjs scripts/release25/validator-pin-recovery.test.mjs scripts/release25/verify-signature.test.mjs scripts/release25/batch576-report575-remediation.test.mjs
       - name: Record Android SDK and install observed Build24 components
         shell: bash
         run: |
