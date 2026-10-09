@@ -49,11 +49,10 @@ class Ald1nRestoreCredentialsModule : Module() {
       return@Coroutine credential.authenticationResponseJson
     }
 
-    AsyncFunction("clearRestoreCredential") Coroutine {
+    AsyncFunction("clearRestoreCredential") Coroutine { ->
       val context = appContext.reactContext ?: throw IllegalStateException("Android context nije dostupan.")
       val manager = CredentialManager.create(context)
       manager.clearCredentialState(ClearCredentialStateRequest(requestType = TYPE_CLEAR_RESTORE_CREDENTIAL))
-      return@Coroutine null
     }
   }
 }

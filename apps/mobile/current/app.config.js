@@ -112,6 +112,8 @@ module.exports = ({ config }) => {
         },
       ],
 
+      // Register BEFORE expo-splash-screen: Expo withMod runs hooks in reverse registration order.
+      './plugins/with-splash-api33-resources',
       [
         'expo-splash-screen',
         {
