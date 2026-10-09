@@ -160,7 +160,7 @@ assert(
     && productionSubmitHelper505R.includes("'--id', buildId")
     && productionSubmitHelper505R.includes("'--non-interactive'")
     && productionSubmitHelper505R.includes("'--wait'")
-    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '24.8.0'")
+    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '24.7.0'")
     && productionSubmitHelper505R.includes("const EXPECTED_PACKAGE = 'com.ald1n.mobile'"),
   'Production Android submit zahteva explicitni Build ID, production profil i pinovani EAS CLI.',
 );
@@ -442,6 +442,7 @@ if (unsafeCastConsumers.length === 0) {
   );
 }
 
+const syntaxFailuresBefore = failures;
 for (const file of sourceFiles) {
   const source = fs.readFileSync(file, 'utf8');
   const result = ts.transpileModule(source, {
@@ -458,7 +459,7 @@ for (const file of sourceFiles) {
     fail(`${path.relative(root, file)} ima TypeScript sintaksnu grešku: ${diagnostics.map((d) => ts.flattenDiagnosticMessageText(d.messageText, ' ')).join('; ')}`);
   }
 }
-assert(failures === 0, `${sourceFiles.length} TypeScript/TSX fajlova prolazi sintaksnu proveru.`);
+assert(failures === syntaxFailuresBefore, `${sourceFiles.length} TypeScript/TSX fajlova prolazi sintaksnu proveru.`);
 const configSource = fs.readFileSync(path.join(root, 'app.config.js'), 'utf8');
 const configResult = ts.transpileModule(configSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
@@ -529,7 +530,7 @@ const assignedOrdersDetailScreen = fs.readFileSync(path.join(root, 'src/app/(app
 {
   const fs = await import('node:fs');
   const path = await import('node:path');
-  const ordersV09 = fs.readFileSync(path.join(process.cwd(), 'src/app/(app)/(tabs)/orders.tsx'), 'utf8');
+  const ordersV09 = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/orders.tsx'), 'utf8');
   assert(ordersV09.includes("const assignedOrdersAllowed = can('orders.manage');") && ordersV09.includes("router.push('/assigned-orders')") && ordersV09.includes('Dodeljene porudžbine'), 'v0.9 Orders ekran otvara Dodeljene porudžbine samo korisniku sa orders.manage dozvolom.');
 }
 assert(assignedOrdersListScreen.includes('api.orders.assignedList') && assignedOrdersListScreen.includes("can('orders.manage')") && assignedOrdersListScreen.includes("pathname: '/assigned-orders/[id]'") && assignedOrdersListScreen.includes('useInfiniteQuery') && assignedOrdersListScreen.includes('fetchNextPage'), 'Assigned Orders lista koristi dedicated API, permission gate, detail rutu i server pagination.');
@@ -1805,7 +1806,7 @@ assert(
 {
   const fs = await import('node:fs');
   const path = await import('node:path');
-  const adminV09 = fs.readFileSync(path.join(process.cwd(), 'src/app/(app)/admin/index.tsx'), 'utf8');
+  const adminV09 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
   assert(adminV09.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C') && adminV09.includes("can('system.health')") && adminV09.includes("router.push('/admin/system-health')") && adminV09.includes('System Health'), 'v0.9 Admin Hub drži System Health u grupi Sistem samo kroz system.health dozvolu.');
 }
 
@@ -2371,7 +2372,7 @@ assert(
 {
   const fs = await import('node:fs');
   const path = await import('node:path');
-  const mobileRoot = process.cwd();
+  const mobileRoot = root;
   const readText = (rel) => fs.readFileSync(path.join(mobileRoot, rel), 'utf8');
   const tabs = readText('src/app/(app)/(tabs)/_layout.tsx');
   const home = readText('src/app/(app)/(tabs)/home.tsx');
@@ -4341,14 +4342,14 @@ assert(
   assert(b518bAdminOrder.includes('MOBILE_BATCH518B_ADMIN_ORDER_NEXT_STEP') && b518bAdminOrder.includes('Evidentiraj slanje') && b518bAdminOrder.includes('Potvrdi isporuku') && b518bAdminOrder.includes('setWorkspace(nextStep.workspace)'), 'Batch518B Admin order detalj izlaže contextual Sledeći korak i workspace continuation.');
 }
 
-console.log(`\nUkupno FAIL: ${failures}`);
-process.exit(failures === 0 ? 0 : 1);
+// Build25 validator summary moved below all active assertions.
 
 
 // MOBILE_GLOBAL_REPEATABLE_ACTIONS_PRODUCT_CREATE_UX_V07
 const globalRepeatableButtonV07 = fs.readFileSync(path.join(root, 'src/components/ui/button.tsx'), 'utf8');
 const globalRepeatableProductCreateV07 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/catalog/create.tsx'), 'utf8');
 const globalRepeatableProductImagePickerV07 = fs.readFileSync(path.join(root, 'src/features/catalog/product-image-picker.ts'), 'utf8');
+const globalRepeatableImageManagerV07 = fs.readFileSync(path.join(root, 'src/features/catalog/product-image-manager.tsx'), 'utf8');
 assert(
   globalRepeatableButtonV07.includes('MOBILE_GLOBAL_REPEATABLE_ACTIONS_V07')
     && globalRepeatableButtonV07.includes('const isDisabled = Boolean(disabled);')
@@ -4361,8 +4362,12 @@ assert(
 );
 assert(
   globalRepeatableProductCreateV07.includes('MOBILE_PRODUCT_CREATE_REPEATABLE_ACTIONS_DRAFT_PRESERVATION_V07')
-    && globalRepeatableProductCreateV07.includes('setImages((current) => [...current, ...result.files]);')
-    && globalRepeatableProductCreateV07.includes('disabled={images.length >= options.image_limits.max_files}')
+    && globalRepeatableProductCreateV07.includes('onChange={setImages}')
+    && globalRepeatableProductCreateV07.includes('<DraftProductImageManager')
+    && globalRepeatableProductCreateV07.includes('limits={options.image_limits}')
+    && globalRepeatableImageManagerV07.includes('const existing = new Set(images.map(imageKey));')
+    && globalRepeatableImageManagerV07.includes('if (existing.has(imageKey(file))) continue;')
+    && globalRepeatableImageManagerV07.includes('onChange([...images, ...appended])')
     && globalRepeatableProductCreateV07.includes('Sve što si uneo ostaje u formi.')
     && globalRepeatableProductCreateV07.includes('Uneti podaci i izabrane fotografije ostaju u formi.'),
   'Admin Product Create dozvoljava ponovljene image-picker sesije i čuva draft nakon validacione greške.',
@@ -4386,7 +4391,7 @@ assert(
 );
 assert(
   unrestrictedTapCreateV07.includes('MOBILE_PRODUCT_CREATE_PERSISTENT_DRAFT_RETRY_V07')
-    && unrestrictedTapCreateV07.includes('setImages((current) => [...current, ...result.files]);')
+    && unrestrictedTapCreateV07.includes('onChange={setImages}')
     && unrestrictedTapCreateV07.includes('Sve što si uneo ostaje u formi.')
     && unrestrictedTapCreateV07.includes('Uneti podaci i izabrane fotografije ostaju u formi.')
     && !/if\s*\(\s*pickingImages\s*\)\s*return/.test(unrestrictedTapCreateV07)
@@ -4424,6 +4429,11 @@ assert(
 }
 
 // MOBILE_BATCH520_SUBAGENT_SHIPMENT_TRACKING_NOTIFICATIONS
+const source = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+const check = (message, result) => assert(result, message);
 check('Batch520 notification preference exposes push/email/both shipment tracking channel.', source('src/types/api.ts').includes("shipment_tracking_channel: 'push' | 'email' | 'both'") && source('src/app/(app)/notification-settings.tsx').includes('trackingChannelOptions'));
 check('Batch520 customer order detail surfaces shipment tracking at top with copy/open actions.', source('src/app/(app)/order/[id].tsx').includes('MOBILE_BATCH520_SHIPMENT_TRACKING_HERO') && source('src/app/(app)/order/[id].tsx').includes('Kopiraj broj') && source('src/app/(app)/order/[id].tsx').includes('Otvori praćenje'));
 check('Batch520 Mobile/OpenAPI shipment tracking contract remains product-only.', source('docs/openapi.yaml').includes('OrderShipmentSummary') && !source('docs/openapi.yaml').includes('product_variant_id'));
+
+console.log(`\nUkupno FAIL: ${failures}`);
+process.exitCode = failures === 0 ? 0 : 1;
