@@ -7,7 +7,7 @@ const SHA='c'.repeat(40);
 function setup(response){
  const calls=[];
  const spawn=(cmd,args,opts)=>{calls.push({cmd,args,opts});return response?.({cmd,args,opts})??{status:0,stdout:JSON.stringify({versionCode:24,owner:'ald1n',projectId:'d43b3866-6838-4217-a23e-3dc7f2cc76cc',packageName:'com.ald1n.mobile'}),stderr:''}};
- const x=createEasTransport({nodeBin:'/canonical/node',npmCli:'/canonical/npm.js',easVersion:'24.8.0',mobileRoot:'/sandbox/app',spawn,fetchArtifact:async()=>({status:200})});
+ const x=createEasTransport({nodeBin:'/canonical/node',npmCli:'/canonical/npm.js',easVersion:'24.7.0',mobileRoot:'/sandbox/app',spawn,fetchArtifact:async()=>({status:200})});
  return {x,calls};
 }
 const approval={authorized:true,sourceSha:SHA,attemptId:'attempt-01',persistedIntent:true,lockHeld:true,productionWriteEnabled:true};
@@ -52,7 +52,7 @@ test('build_dispatch_has_no_auto_submit_and_exact_intent',async()=>{
 test('artifact_download_refuses_existing_target',async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'ald1n25-download-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  const dst=path.join(root,'release.aab');fs.writeFileSync(dst,'original');
- const x=createEasTransport({nodeBin:'/n',npmCli:'/npm',easVersion:'24.8.0',mobileRoot:'/r',spawn:()=>({status:0,stdout:JSON.stringify({id:ID,status:'FINISHED',platform:'ANDROID',artifacts:{buildUrl:'https://example.test/download.aab'}}),stderr:''}),fetchArtifact:async()=>new Response('new data')});
+ const x=createEasTransport({nodeBin:'/n',npmCli:'/npm',easVersion:'24.7.0',mobileRoot:'/r',spawn:()=>({status:0,stdout:JSON.stringify({id:ID,status:'FINISHED',platform:'ANDROID',artifacts:{buildUrl:'https://example.test/download.aab'}}),stderr:''}),fetchArtifact:async()=>new Response('new data')});
  await assert.rejects(()=>x.downloadAabForBuild(ID,dst),/ARTIFACT_ALREADY_EXISTS/);
  assert.equal(fs.readFileSync(dst,'utf8'),'original');
 });
@@ -60,7 +60,7 @@ test('artifact_download_does_not_delete_foreign_temp_symlink',async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'ald1n25-download-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  const dst=path.join(root,'release.aab');const foreign=path.join(root,'foreign');fs.writeFileSync(foreign,'keep');
  const tmp=dst+'.downloading';fs.symlinkSync(foreign,tmp);
- const x=createEasTransport({nodeBin:'/n',npmCli:'/npm',easVersion:'24.8.0',mobileRoot:'/r',spawn:()=>({status:0,stdout:JSON.stringify({id:ID,status:'FINISHED',platform:'ANDROID',artifacts:{buildUrl:'https://example.test/download.aab'}}),stderr:''}),fetchArtifact:async()=>new Response('new data')});
+ const x=createEasTransport({nodeBin:'/n',npmCli:'/npm',easVersion:'24.7.0',mobileRoot:'/r',spawn:()=>({status:0,stdout:JSON.stringify({id:ID,status:'FINISHED',platform:'ANDROID',artifacts:{buildUrl:'https://example.test/download.aab'}}),stderr:''}),fetchArtifact:async()=>new Response('new data')});
  await assert.rejects(()=>x.downloadAabForBuild(ID,dst));
  assert.equal(fs.lstatSync(tmp).isSymbolicLink(),true);assert.equal(fs.readFileSync(foreign,'utf8'),'keep');
 });
