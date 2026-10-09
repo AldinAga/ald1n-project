@@ -148,6 +148,11 @@ const productionSubmitHelper505R = fs.existsSync(productionSubmitHelperPath505R)
   ? fs.readFileSync(productionSubmitHelperPath505R, 'utf8')
   : '';
 assert(
+  productionSubmitHelper505R.includes('DIRECT_SUBMIT_DISABLED')
+    && productionSubmitHelper505R.includes("if (mode === '--execute') die("),
+  'Legacy direct Android submit je trajno blokiran; zahtevana je verifikacija AAB-a.',
+);
+assert(
   packageJson.scripts?.['submit:android:production'] === 'node scripts/submit-android-production.mjs'
     && productionSubmitHelper505R.includes('PRODUCTION_SUBMIT_HARDENING_BATCH505R')
     && productionSubmitHelper505R.includes("['--check', '--execute']")

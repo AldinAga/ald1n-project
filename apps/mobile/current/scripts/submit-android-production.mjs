@@ -30,6 +30,8 @@ if (args.length !== 2 || !['--check', '--execute'].includes(args[0])) {
   die('usage: npm run submit:android:production -- --check|--execute <EAS_BUILD_ID>');
 }
 const mode = args[0];
+// DIRECT_SUBMIT_DISABLED -- requires verified AAB, cannot use raw --id path.
+if (mode === '--execute') die('DIRECT_SUBMIT_DISABLED: use verified Build25 controller', 78);
 const buildId = args[1];
 if (!UUID_RE.test(buildId)) die('EAS_BUILD_ID must be an explicit UUID');
 
