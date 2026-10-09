@@ -1,0 +1,54 @@
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+// Applied ONLY to generated android/app/build.gradle, never as a global init script.
+// Included settings/plugin builds have independent project hierarchies.
+def auditApp = project
+if (auditApp.path != ':app') throw new GradleException('Batch528R: snapshot must be applied to :app')
+gradle.projectsEvaluated {
+    def app = auditApp
+    app.tasks.register('ald1nSnapshot528') {
+        doLast {
+            def android = app.extensions.getByName('android')
+            def release = android.buildTypes.getByName('release')
+            def loader = app.plugins.findPlugin('com.android.application').class.classLoader
+            def agp = loader.loadClass('com.android.Version').getField('ANDROID_GRADLE_PLUGIN_VERSION').get(null)
+            def configuration = app.configurations.getByName('releaseRuntimeClasspath')
+            def resolved = configuration.resolvedConfiguration
+            resolved.rethrowFailure()
+            def resolutionResult = configuration.incoming.resolutionResult
+            def unresolved = resolutionResult.allDependencies.findAll { it instanceof UnresolvedDependencyResult }
+            if (!unresolved.isEmpty()) {
+                throw new GradleException('Batch528R2B: unresolved dependencies: ' + unresolved.collect { it.attempted.displayName }.unique().sort().join(', '))
+            }
+            def ids = resolutionResult.allComponents
+                .collect { it.moduleVersion?.toString() }
+                .findAll { it != null }
+                .unique()
+                .sort()
+            def rootExtra = gradle.rootProject.extensions.extraProperties
+            def snap = [
+                agp: agp.toString(), gradle: gradle.gradleVersion,
+                kotlin: rootExtra.has('kotlinVersion') ? rootExtra.get('kotlinVersion').toString() : 'UNKNOWN',
+                ndk: android.ndkVersion.toString(), java: System.getProperty('java.version'),
+                compileSdk: android.compileSdk, targetSdk: android.defaultConfig.targetSdkVersion.apiLevel,
+                minSdk: android.defaultConfig.minSdkVersion.apiLevel,
+                applicationId: android.defaultConfig.applicationId, versionName: android.defaultConfig.versionName,
+                localAuditVersionCode: android.defaultConfig.versionCode,
+                minify: release.minifyEnabled, shrinkResources: release.shrinkResources,
+                proguard: release.proguardFiles.collect { it.name },
+                optimizedShrinking: app.findProperty('android.r8.optimizedResourceShrinking')?.toString(),
+                fullMode: app.findProperty('android.enableR8.fullMode')?.toString(),
+                architectures: app.findProperty('reactNativeArchitectures')?.toString(),
+                signingConfigName: release.signingConfig?.name,
+                restoreProject: gradle.rootProject.findProject(':ald1n-restore-credentials') != null,
+                dependencies: ids,
+                productionReleaseAuthorized: false
+            ]
+            def outputPath = System.getenv('ALD1N_528_SNAPSHOT')
+            if (outputPath == null) throw new GradleException('ALD1N_528_SNAPSHOT required')
+            new File(outputPath).text = JsonOutput.prettyPrint(JsonOutput.toJson(snap)) + '\n'
+            logger.lifecycle('BATCH528_NATIVE_SNAPSHOT_WRITTEN')
+        }
+    }
+}
