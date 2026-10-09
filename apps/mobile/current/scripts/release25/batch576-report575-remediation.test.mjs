@@ -33,7 +33,7 @@ test('P2: current pointer records exact audit source without pretending remote v
   assert.ok(pre.includes('REMOTE_ANDROID_VERSIONCODE=UNATTESTED'));
   assert.ok(pre.includes('EAS_CLI=eas-cli@24.7.0'));
   assert.ok(pre.includes('BUILD25_AUTHORIZED=NO'));
-  assert.ok(pre.includes('PROGRESS=65_PERCENT_ESTIMATE'));
+  assert.ok(pre.includes('PROGRESS=75_PERCENT_ESTIMATE'));
   assert.ok(!pre.includes('eas-cli@24.8.0'));
   assert.ok(!pre.includes('next possible versionCode is 24'));
 });

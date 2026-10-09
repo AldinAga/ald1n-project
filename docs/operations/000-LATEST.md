@@ -12,11 +12,14 @@ Reverify live refs before any new batch. This file is NOT EAS, Play, billing or 
 - EAS_CLI=eas-cli@24.7.0 (from AGENTS.md and eas.json).
 - REMOTE_ANDROID_VERSIONCODE=UNATTESTED. Read exact EAS remote authority at a separately authorized read-only gate; do NOT assume 23 or 24.
 - BUILD25_AUTHORIZED=NO.
-- PROGRESS=65_PERCENT_ESTIMATE; source-only/offline remediation does not change release readiness.
-- Native CI on **exact** pending candidate: NOT RUN. The dedicated branch `audit/build25-native-ci-explicit-trigger-20261009` must not be pushed without separate explicit approval and cost gate.
+- PROGRESS=75_PERCENT_ESTIMATE; native CI audit run 37932584905 PASSED; no production release gate has passed.
+- Native CI on candidate `dc775bd39af46764896ee5e204f22122e3018c58`: PASS, GitHub Actions run 37932584905 (one run, no artifact retained). Trigger branch is at the same SHA. New release-controller-only changes require new source approval before any additional CI.
 - Direct production CLI and legacy submit are fail-closed. Automatic AAB/APK upload remains disabled.
-- Open: GitHub billing/artifact quota, signer certificate authority, exact AAB/16 KB/ELF, API24-32/API33+ devices, A03-A14 acceptance, approved source merge, owner production authorization.
+- Open: EAS remote version command exit 1 (Report577), exact remote project identity (CLI version JSON does not carry it), public Git history/GitHub secret scan attestation, upload signing certificate, retained signed AAB/16 KB/ELF, devices, A03-A14 acceptance, source merge and owner build/Play authorization.
 - Reports: `docs/operations/573-BATCH539-BUILD25-DEEP-OFFLINE-CONVERGENCE-SCOPE.md`, `docs/operations/574-BATCH540-BUILD25-CI-COST-SAFETY-SCOPE.md`, and `docs/operations/576-BATCH542-BUILD25-REPORT575-TARGETED-FIX-SCOPE.md`.
+
+- Report577: read-only PASS, EAS version:get exited 1 and suppressed its raw cause, so remote versionCode is still not attested.
+- Batch579: pinned eas-cli v24.7.0 source confirms version:get returns a decimal string; parser remediation is isolated, EAS auth/identity remain independent gates.
 
 ---
 

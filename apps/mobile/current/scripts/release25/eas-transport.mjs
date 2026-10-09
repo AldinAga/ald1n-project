@@ -24,8 +24,12 @@ export function createEasTransport({nodeBin,npmCli,easVersion,mobileRoot,spawn=s
  return Object.freeze({
   async readRemoteVersion(){
    const data=cli(['build:version:get','--platform','android','--profile','production','--json']);
-   if(!Number.isInteger(data?.versionCode))throw failure('EAS_VERSION_SCHEMA_UNKNOWN');
-   return data;
+   // eas-cli@24.7.0 emits Android versionCode as a decimal string, not an integer.
+   // Normalize only strict canonical decimal values; never invent remote project identity fields.
+   const raw=data?.versionCode;
+   const value=(typeof raw==='string' && /^[1-9][0-9]{0,9}$/.test(raw))?Number(raw):raw;
+   if(!Number.isSafeInteger(value)||value<1||value>2100000000)throw failure('EAS_VERSION_SCHEMA_UNKNOWN');
+   return {...data,versionCode:value};
   },
   async readBuild(buildId,expected={}){
    if(!UUID.test(buildId))throw failure('INVALID_BUILD_ID');
