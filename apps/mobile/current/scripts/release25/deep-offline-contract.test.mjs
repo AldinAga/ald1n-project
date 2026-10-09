@@ -66,7 +66,7 @@ test('production build and legacy submit remain explicitly fail closed',()=>{
  marker(helper,'DIRECT_SUBMIT_DISABLED: use verified Build25 controller');
  assert.ok(!wf.includes('workflow_dispatch:'));
  assert.ok(!wf.includes('audit/build25-deep-offline-convergence-20261009'));
- marker(wf,'      - audit/build25-combined-native-ci-20261009');
+ marker(wf,'      - audit/build25-native-ci-explicit-trigger-20261009');
 });
 test('production Android identity and API remain unchanged',()=>{
  marker(app,"runtimeVersion: '1.0.0-build17'");

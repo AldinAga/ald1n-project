@@ -2,7 +2,7 @@ name: Ald1n Build25 - combined native CI (audit only)
 on:
   push:
     branches:
-      - audit/build25-combined-native-ci-20261009
+      - audit/build25-native-ci-explicit-trigger-20261009
 permissions:
   contents: read
 concurrency:
@@ -33,6 +33,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Cheap source and cost gates before Android SDK setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/mobile/current
+          node --test scripts/release25/ci-cost-gate.test.mjs scripts/release25/deep-offline-contract.test.mjs scripts/release25/validator-pin-recovery.test.mjs
       - name: Record Android SDK and install observed Build24 components
         shell: bash
         run: |
@@ -48,8 +54,24 @@ jobs:
       - name: Actual compiler RED-GREEN, full release, R8 and lint
         shell: bash
         run: bash apps/mobile/current/scripts/batch528-ci.sh
-      - name: Preserve audit evidence - never Play upload
+      - name: Record native evidence digests in Actions summary
         if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf '## Build25 native compiler evidence (audit-only)\n\n'
+            printf 'Source SHA: %s\n\n' "$GITHUB_SHA"
+            printf 'Native evidence artifacts are NOT uploaded. Exact binary/device/signer gates remain BLOCKED.\n\n'
+            shopt -s nullglob
+            for file in apps/mobile/current/android/app/build/outputs/bundle/release/*.aab apps/mobile/current/android/app/build/outputs/mapping/release/mapping.txt; do
+              if [ -f "$file" ]; then
+                sha256sum "$file"
+              fi
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Preserve audit evidence - never Play upload
+        if: ${{ false }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: build25-combined-native-evidence-${{ github.sha }}
