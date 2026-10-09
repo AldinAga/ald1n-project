@@ -37,7 +37,7 @@ export async function collectPreflight({repoRoot,expectedSourceSha,authority,git
  if(!authority?.ok)add(blockers,'CLI_OR_IDENTITY_AUTHORITY');
  const id=authority?.identity||{};
  if(id.packageName!=='com.ald1n.mobile'||id.projectId!==EXPECTED_PROJECT||id.apiUrl!==EXPECTED_API||id.channel!=='production'||id.profile!=='production'||id.track!=='production')add(blockers,'WRONG_PRODUCTION_IDENTITY');
- let git,remote,tools;
+ let git,remote,remoteProject,tools;
  try{git=await gitReader.snapshot()}catch{add(blockers,'GIT_READ_FAILED')}
  if(git){
   if(git.head!==expectedSourceSha||git.remoteMain!==expectedSourceSha)add(blockers,'SOURCE_CHANGED_OR_DIVERGENT');
@@ -47,12 +47,17 @@ export async function collectPreflight({repoRoot,expectedSourceSha,authority,git
   if(git.sourcePatchesPresent!==true)add(blockers,'MISSING_NATIVE_FIXES');
   evidence.gitSha=git.head;
  }
+ // An independent EAS project:info query must attest owner/slug/UUID.
+ // build:version:get returns versionCode only. Never infer identity from it.
+ try{remoteProject=await easReader.readRemoteProjectIdentity()}catch{add(blockers,'EAS_PROJECT_READ_FAILED')}
+ if(!remoteProject){add(blockers,'EAS_PROJECT_READ_FAILED')}
+ else if(remoteProject.owner!==id.owner||remoteProject.slug!=='ald1n-mobile'||remoteProject.projectId!==id.projectId){add(blockers,'REMOTE_IDENTITY_MISMATCH')}
+ else {evidence.remoteProjectIdentityVerified=true}
  try{remote=await easReader.readRemoteVersion()}catch{add(blockers,'EAS_VERSION_READ_FAILED')}
  if(remote){
   if(!Number.isInteger(remote.versionCode)||remote.versionCode<1)add(blockers,'REMOTE_VERSION_INVALID');
   else evidence.remoteVersionCode=remote.versionCode;
   if(expectedRemoteVersionCode!==undefined && remote.versionCode!==expectedRemoteVersionCode)add(blockers,'REMOTE_VERSION_CHANGED');
-  if(remote.owner!==id.owner||remote.projectId!==id.projectId||remote.packageName!==id.packageName)add(blockers,'REMOTE_IDENTITY_MISMATCH');
  }
  try{tools=await toolProbe.inspect()}catch{add(blockers,'TOOL_PROBE_FAILED')}
  if(tools){

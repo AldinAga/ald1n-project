@@ -11,17 +11,30 @@ const isFinished=(b)=>b?.status==='FINISHED'&&b?.platform==='ANDROID';
 export function createEasTransport({nodeBin,npmCli,easVersion,mobileRoot,spawn=spawnSync,fetchArtifact=fetch}){
  if(typeof easVersion!=='string'||!/^\d+\.\d+\.\d+$/.test(easVersion))throw failure('INVALID_CLI_PIN');
  if(!nodeBin||!npmCli||!path.isAbsolute(nodeBin)||!path.isAbsolute(npmCli)||!path.isAbsolute(mobileRoot))throw failure('INVALID_CANONICAL_EAS_PATHS');
- const cli=(args,{mutation=false}={})=>{
+ const cli=(args,{mutation=false,textOutput=false}={})=>{
   if(args.includes('--latest')||args.includes('--auto-submit')||args.includes('--auto-submit-with-profile'))throw failure('FORBIDDEN_CLI_ARG');
   const all=[npmCli,'exec','--yes',`--package=eas-cli@${easVersion}`,'--','eas',...args];
   const result=spawn(nodeBin,all,{cwd:mobileRoot,encoding:'utf8',maxBuffer:64*1024*1024,timeout:mutation?3*60*60*1000:3*60*1000,env:{...process.env,EXPO_PUBLIC_APP_ENV:'production',EXPO_PUBLIC_API_URL:'https://cms.ald1n.com/api/v1'}});
   if(result?.error||result?.status!==0)throw failure(mutation?'DISPATCH_OUTCOME_UNKNOWN':'EAS_READ_FAILED');
+  if(textOutput)return result.stdout;
   try {return JSON.parse(result.stdout)}catch {throw failure(mutation?'DISPATCH_OUTCOME_UNKNOWN':'INVALID_EAS_JSON')}
  };
  const requireApproval=(approval,sourceSha,attemptId)=>{
   if(approval?.authorized!==true||approval?.productionWriteEnabled!==true||approval?.persistedIntent!==true||approval?.lockHeld!==true||!SHA.test(sourceSha)||approval.sourceSha!==sourceSha||!attemptId||approval.attemptId!==attemptId)throw failure('BUILD_NOT_AUTHORIZED');
  };
  return Object.freeze({
+  async readRemoteProjectIdentity(){
+   // Pinned eas-cli@24.7.0 project:info prints only fullName + ID, never JSON.
+   // The independently read project identity MUST NOT be inferred from version:get.
+   const output=cli(['project:info'],{textOutput:true});
+   if(typeof output!=='string'||output.length>4096)throw failure('EAS_PROJECT_SCHEMA_UNKNOWN');
+   const lines=output.replace(/\x1b\[[0-9;]*m/g,'').trim().split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+   if(lines.length!==2)throw failure('EAS_PROJECT_SCHEMA_UNKNOWN');
+   const full=lines[0].match(/^fullName[ \t]{2,}@([a-z0-9._-]+)\/([a-z0-9._-]+)$/);
+   const id=lines[1].match(/^ID[ \t]{2,}([0-9a-f-]{36})$/i);
+   if(!full||!id||!UUID.test(id[1]))throw failure('EAS_PROJECT_SCHEMA_UNKNOWN');
+   return {owner:full[1],slug:full[2],projectId:id[1]};
+  },
   async readRemoteVersion(){
    const data=cli(['build:version:get','--platform','android','--profile','production','--json']);
    // eas-cli@24.7.0 emits Android versionCode as a decimal string, not an integer.

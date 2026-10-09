@@ -8,7 +8,7 @@ function input(overrides={}){
     repoRoot:'/tmp/readonly-repo',expectedSourceSha:sha,
     authority:{ok:true,identity:{cliVersion:'24.8.0',packageName:'com.ald1n.mobile',owner:'ald1n',projectId:'d43b3866-6838-4217-a23e-3dc7f2cc76cc',apiUrl:'https://cms.ald1n.com/api/v1',runtimeVersion:'1.0.0-build17',channel:'production',profile:'production',track:'production'}},
     gitReader:{async snapshot(){return {head:sha,remoteMain:sha,staged:[],unstaged:[],untracked:[],knownHtaccessSha256:null,sourcePatchesPresent:true}}},
-    easReader:{async readRemoteVersion(){return {versionCode:24,owner:'ald1n',projectId:'d43b3866-6838-4217-a23e-3dc7f2cc76cc',packageName:'com.ald1n.mobile'}}},
+    easReader:{async readRemoteProjectIdentity(){return {owner:'ald1n',slug:'ald1n-mobile',projectId:'d43b3866-6838-4217-a23e-3dc7f2cc76cc'}},async readRemoteVersion(){return {versionCode:24}}},
     toolProbe:{async inspect(){return {jarsigner:true,keytool:true,bundletool:true,readelf:true,unzip:true,freeSpaceBytes:4e9}}},
     acceptanceIndex:{A03:'PASS',A04:'PASS',A05:'PASS',A06:'PASS',A07:'PASS',A08:'PASS',A09:'PASS',A10:'PASS',A11:'PASS',A12:'PASS',A13:'PASS',A14:'PASS',device:'PASS'},...overrides
   };
@@ -37,7 +37,7 @@ test('blocks_missing_signing_or_bundletool',async()=>{
  const r=await collectPreflight(input({toolProbe}));assert.equal(r.ok,false);assert.match(r.blockers.join(','),/TOOL/);
 });
 test('blocks_remote_version_change',async()=>{
- const easReader={async readRemoteVersion(){return {versionCode:25,owner:'ald1n',projectId:'d43b3866-6838-4217-a23e-3dc7f2cc76cc',packageName:'com.ald1n.mobile'}}};
+ const easReader={async readRemoteProjectIdentity(){return {owner:'ald1n',slug:'ald1n-mobile',projectId:'d43b3866-6838-4217-a23e-3dc7f2cc76cc'}},async readRemoteVersion(){return {versionCode:25}}};
  const r=await collectPreflight(input({easReader,expectedRemoteVersionCode:24}));assert.equal(r.ok,false);assert.match(r.blockers.join(','),/REMOTE_VERSION_CHANGED/);
 });
 test('rejects_wrong_project_id_or_api',async()=>{
