@@ -236,6 +236,17 @@ For each screen, re-check current capability flags, success-navigation and draft
 
 These phases are separately scoped implementation units. Assign actual batch numbers only after reconstructing fresh main + operations reports at execution time; never repeat completed batches.
 
+## Owner release-label decision — v1.5.0 (2026-10-10)
+
+- Owner selected the **next major UX refresh Android version displayed as v1.5**, with canonical Android `versionName` **`1.5.0`**, not v1.5 used as a `versionCode`.
+- **Source today remains v1.0.0.** The application `app.config.js` and `package.json` still state `1.0.0`, and the native source validator `scripts/batch528-native-contract.mjs` expects application snapshot `versionName: '1.0.0'`. This is an intentional historical baseline, not evidence of a v1.5 build.
+- EAS has `appVersionSource: 'remote'`, `production.autoIncrement: true`. The next Google Play `versionCode` is **not derivable** from `1.5.0` and must be re-attested from fresh EAS/Play authority after resolving any in-flight Build25 reservation.
+- The source-version change is a **separate release-version convergence task following functional UX readiness**, not an incidental UI patch: update the canonical Expo display version and any validated app/package metadata and application `versionName` assertions **only after confirming the exact Build25 controller/CI version pin and obtaining an independent owner-approved source/release scope**.
+- The internal Android library module's `versionName '1.0.0'` and local library `versionCode 1` are independent artifact metadata; do **not** indiscriminately replace those library constants with the application `1.5.0`.
+- Expo `runtimeVersion: '1.0.0-build17'` remains the observed current source value, **not automatically a v1.5 value**. Reassess JS/OTA/runtime compatibility against the exact new binary and its native interfaces. A runtime change, if required, requires explicit native/release approval and versioned OTA routing analysis.
+- No production Build25 build/submit or OTA is authorized by this version preference. Treat already closed native/R8/AGP/Gradle/16 KB gates as invariants; failing release gates must fail closed rather than weakening a test to accept v1.5.
+- Google Play release notes for the eventual production build must be provided in Serbian, alongside **exact build command, app version, remote-attested versionCode, runtimeVersion, source commit, build profile/channel** and evidence IDs. Never invent these before an actual authorized artifact exists.
+
 ## 7. Mobile-native/release invariants
 
 Current locked source contract at parent:
@@ -289,4 +300,4 @@ Current locked source contract at parent:
 5. The Laravel Web detail migration may be deployed only under its own production gate and physical/rendered-view acceptance, independently of Mobile UX release/Build25 gating. No production deployment is implied by spec approval.
 6. Final owner-facing report must separate **implemented, tested, deployment-ready, deployed, physically verified**. Never call a spec or source-only patch a production fix.
 
-**Reviewer check:** Does the owner approve the explicit **Laravel admin order detail + Ald1n Mobile** buyer-first order hierarchy, separate recipient vs creator/assignee identity, responsive right-hand first buyer card, existing order-specific state transitions, narrow #134 routing investigation, optional least-privilege API fix only when proven, and no production/OTA/Build25/Play operations at this stage?
+**Reviewer check:** Does the owner approve the target v1.5.0 Android release label as a separately gated release-version change after UX acceptance, and the explicit **Laravel admin order detail + Ald1n Mobile** buyer-first order hierarchy, separate recipient vs creator/assignee identity, responsive right-hand first buyer card, existing order-specific state transitions, narrow #134 routing investigation, optional least-privilege API fix only when proven, and no production/OTA/Build25/Play operations at this stage?
