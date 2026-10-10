@@ -86,6 +86,8 @@ $checks = [
     'Mobile cards have safe one-column fallback and data labels'
         => str_contains($css, '@media (max-width: 560px)')
            && str_contains($css, 'content: attr(data-label);'),
+    'POST quick-action forms stay independent interactive boxes'
+        => preg_match('/\.ald-ops-index \.quick-order-actions form\s*\{\s*display:\s*inline-flex\s*;/', $css) === 1,
     'Quick actions keep keyboard focus treatment'
         => str_contains($css, '.ald-ops-index .quick-order-actions .button:focus-visible')
            && str_contains($css, 'outline-offset: 2px;'),
