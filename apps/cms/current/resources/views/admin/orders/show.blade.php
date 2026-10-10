@@ -165,7 +165,7 @@
             @php
                 $buyerPhoneRaw = trim((string) ($order['shipping_phone'] ?? ''));
                 $buyerPhoneDial = preg_replace('/[^0-9+]/', '', $buyerPhoneRaw) ?? '';
-                $buyerHasCallablePhone = preg_match('/^\\+?[0-9]{6,15}$/D', $buyerPhoneDial) === 1;
+                $buyerHasCallablePhone = preg_match('/^\+?[0-9]{6,15}$/D', $buyerPhoneDial) === 1;
             @endphp
             <dl class="detail-list order-buyer-detail-list">
                 <dt>Ime i prezime primaoca</dt>
