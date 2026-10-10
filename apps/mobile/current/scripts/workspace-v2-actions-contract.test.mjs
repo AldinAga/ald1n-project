@@ -30,6 +30,12 @@ test('QuickActionHub is a controlled disclosure, not a mutation handler', () => 
   assert.doesNotMatch(s, /apiAdminOrders|fetch\(|useMutation/);
 });
 
+test('a next-step request cannot reopen a submitted or dismissed panel on refetch', () => {
+  const s = read('src/features/admin/orders-admin-actions.tsx');
+  assert.match(s, /lastRequestedSequence\.current === requestedAction\.sequence/);
+  assert.match(s, /lastRequestedSequence\.current = requestedAction\.sequence/);
+});
+
 test('AdminOrderActions reuses existing panels with capability-driven compact links', () => {
   const s = read('src/features/admin/orders-admin-actions.tsx');
   assert.match(s, /<QuickActionHub/);
