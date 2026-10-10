@@ -8,7 +8,9 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
+import { WorkspaceGrid } from '@/components/workspaces/workspace-grid';
+import type { GlyphName } from '@/components/ui/glyph';
+import { OrderBuyerCard } from '@/features/admin/order-buyer-card';
 import { AdminOrderActions } from '@/features/admin/orders-admin-actions';
 import { AdminOrderDocuments } from '@/features/admin/order-documents-admin';
 import { AdminOrderArchiveActions } from '@/features/admin/order-archive-admin';
@@ -90,13 +92,13 @@ function displayScalar(value: AdminOrderDetailValue | undefined): string {
 // MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86
 type OrderWorkspace = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'documents' | 'activity';
 
-const ORDER_WORKSPACE_OPTIONS: Array<{ value: OrderWorkspace; label: string; description: string }> = [
-  { value: 'overview', label: 'Pregled', description: 'Status porudžbine, odgovorno lice i readiness upozorenja.' },
-  { value: 'customer', label: 'Kupac i stavke', description: 'Kupac, adresa, napomena i sve stavke porudžbine.' },
-  { value: 'fulfillment', label: 'Isporuka', description: 'Slanje pošiljke, kurir, tracking i potvrđena isporuka.' },
-  { value: 'finance', label: 'Finansije', description: 'Uplate, potraživanje i provizija povezani sa porudžbinom.' },
-  { value: 'documents', label: 'Dokumenti', description: 'Predračun, račun, otpremnica, revizije i postojeći secure PDF tok.' },
-  { value: 'activity', label: 'Tok i akcije', description: 'Interne napomene, timeline, workflow akcije, arhiviranje i server capabilities.' },
+const ORDER_WORKSPACE_OPTIONS: Array<{ value: OrderWorkspace; label: string; description: string; glyph: GlyphName }> = [
+  { value: 'overview', label: 'Pregled', glyph: 'report', description: 'Status porudžbine, odgovorno lice i readiness upozorenja.' },
+  { value: 'customer', label: 'Kupac', glyph: 'account', description: 'Kupac, adresa, napomena i sve stavke porudžbine.' },
+  { value: 'fulfillment', label: 'Isporuka', glyph: 'orders', description: 'Slanje pošiljke, kurir, tracking i potvrđena isporuka.' },
+  { value: 'finance', label: 'Finansije', glyph: 'commission', description: 'Uplate, potraživanje i provizija povezani sa porudžbinom.' },
+  { value: 'documents', label: 'Dokumenti', glyph: 'box', description: 'Predračun, račun, otpremnica, revizije i postojeći secure PDF tok.' },
+  { value: 'activity', label: 'Istorija', glyph: 'messages', description: 'Interne napomene, timeline, workflow akcije, arhiviranje i server capabilities.' },
 ];
 
 export default function AdminOrdersDetailScreen() {
@@ -156,8 +158,8 @@ export default function AdminOrdersDetailScreen() {
   const orderNumber = text(order, 'order_number', `Porudzbina #${orderId}`);
   const status = text(order, 'status_label', text(order, 'status'));
   const customerName = text(customer, 'name', text(order, 'shipping_full_name', 'Kupac'));
+  const recipientName = text(order, 'shipping_full_name', '—');
   const supplierName = text(supplier, 'name', text(order, 'supplier_name_snapshot', '-'));
-  const workspaceMeta = ORDER_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
   const trackingNumber = text(shipment, 'tracking_number', text(order, 'tracking_number'));
   const trackingUrl = text(shipment, 'tracking_url');
   const canOpenTracking = trackingUrl.toLowerCase().startsWith('https://');
@@ -209,6 +211,15 @@ export default function AdminOrdersDetailScreen() {
         </Button>
       </View>
 
+      <OrderBuyerCard
+        name={recipientName}
+        phone={text(order, 'shipping_phone', '—')}
+        address={text(order, 'shipping_address', '—')}
+        postalCode={text(order, 'shipping_postal_code', '')}
+        city={text(order, 'shipping_city', '')}
+        note={text(order, 'customer_note', '—')}
+      />
+
       <Card style={styles.nextStepCard}>
         <Text style={styles.nextStepEyebrow}>Sledeći korak</Text>
         <Text style={styles.sectionTitle}>{nextStep.title}</Text>
@@ -218,17 +229,11 @@ export default function AdminOrdersDetailScreen() {
 
       <Card style={styles.workspaceCard}>
         <Text style={styles.sectionTitle}>Radni prostor porudžbine</Text>
-        <Text style={styles.muted}>{workspaceMeta?.description ?? 'Izaberi deo porudžbine koji želiš da pregledaš ili obradiš.'}</Text>
-        <FilterBar>
-          {ORDER_WORKSPACE_OPTIONS.map((option) => (
-            <FilterChip
-              key={option.value}
-              label={option.label}
-              active={workspace === option.value}
-              onPress={() => setWorkspace(option.value)}
-            />
-          ))}
-        </FilterBar>
+        <WorkspaceGrid
+          options={ORDER_WORKSPACE_OPTIONS.map(({ value, label, glyph }) => ({ id: value, label, glyph }))}
+          selected={workspace}
+          onSelect={setWorkspace}
+        />
       </Card>
 
       <Card style={styles.card}>
