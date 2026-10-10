@@ -50,7 +50,7 @@ if ($frames !== []) {
     fwrite(STDERR, "FAIL: Unclosed CSS block\n");
     exit(2);
 }
-$expected = [1700 => 4, 1300 => 3, 900 => 2, 480 => 1];
+$expected = [1700 => 4, 1500 => 4, 1499 => 3, 1300 => 3, 1101 => 3, 1100 => 2, 900 => 2, 681 => 2, 680 => 1, 480 => 1];
 $passed = 0;
 foreach ($expected as $width => $columns) {
     $actual = null;
@@ -66,5 +66,5 @@ foreach ($expected as $width => $columns) {
 $onlyExpected = count($rules) === 4;
 echo ($onlyExpected ? 'PASS' : 'FAIL').' canonical grid declarations: '.count($rules).'/4'.PHP_EOL;
 $passed += (int) $onlyExpected;
-echo sprintf('Catalog responsive grid: %d/5 successful.%s', $passed, PHP_EOL);
-exit($passed === 5 ? 0 : 1);
+echo sprintf('Catalog responsive grid: %d/11 successful.%s', $passed, PHP_EOL);
+exit($passed === 11 ? 0 : 1);
