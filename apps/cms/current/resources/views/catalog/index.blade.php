@@ -269,11 +269,12 @@
 </form>
 
 @if($canManageCatalog)
-<form method="get" action="{{ route('admin.products.bulk') }}" data-unified-catalog-bulk>
+<form method="get" action="{{ route('admin.products.bulk') }}" id="catalog-bulk-operation-form" data-unified-catalog-bulk>
     <div class="bulk-selection-bar unified-bulk-bar" hidden data-unified-bulk-bar>
         <button class="button button-primary button-small" type="submit">Bulk izmena izabranih</button>
         <span data-unified-bulk-count>0 izabrano</span>
     </div>
+</form>
 @endif
 
 <div class="product-grid unified-product-grid">
@@ -289,7 +290,7 @@
     <article class="product-card unified-product-card {{ $canManageThis ? 'is-manageable' : '' }}" data-build16-catalog-card="1">
         @if($canManageCatalog && $canManageThis)
             <label class="catalog-card-selector" title="Izaberi za bulk izmenu">
-                <input type="checkbox" name="product_ids[]" value="{{ $product->id }}" data-unified-product-select>
+                <input type="checkbox" name="product_ids[]" form="catalog-bulk-operation-form" value="{{ $product->id }}" data-unified-product-select>
                 <span>Izaberi</span>
             </label>
         @endif
@@ -336,22 +337,24 @@
             @if($canManageThis)
                 <div class="catalog-management-actions">
                     <a class="button button-small button-ghost catalog-action-details" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>
-                    <a class="button button-small button-primary" href="{{ route('admin.products.edit', $product) }}">Izmeni</a>
-
-                                            @if($product->deleted_at === null)
-                                                {{-- V0_8_PRODUCT_STATUS_LIGHTWEIGHT_CONTROL_BATCH2 --}}
-                                                <form method="post" action="{{ route('admin.products.status', $product) }}" class="inline-form" data-product-status-toggle>
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <input type="hidden" name="status" value="{{ $displayStatus === 'active' ? 'inactive' : 'active' }}">
-                                                    <button class="button button-small {{ $displayStatus === 'active' ? 'button-ghost' : 'button-primary' }}" type="submit">
-                                                        {{ $displayStatus === 'active' ? 'Deaktiviraj' : 'Aktiviraj' }}
-                                                    </button>
-                                                </form>
-                                            @endif
-
-                    @if($canManageThisImages)<a class="button button-small button-ghost" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
-                    <a class="button button-small button-ghost" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
+                    <div class="catalog-card-action-row catalog-card-primary-actions">
+                        <a class="button button-small button-primary" href="{{ route('admin.products.edit', $product) }}">Izmeni</a>
+                    @if($product->deleted_at === null)
+                        {{-- V0_8_PRODUCT_STATUS_LIGHTWEIGHT_CONTROL_BATCH2 --}}
+                        <form method="post" action="{{ route('admin.products.status', $product) }}" class="inline-form" data-product-status-toggle>
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="status" value="{{ $displayStatus === 'active' ? 'inactive' : 'active' }}">
+                            <button class="button button-small {{ $displayStatus === 'active' ? 'button-ghost' : 'button-primary' }}" type="submit">
+                                {{ $displayStatus === 'active' ? 'Deaktiviraj' : 'Aktiviraj' }}
+                            </button>
+                        </form>
+                    @endif
+                    </div>
+                    <div class="catalog-card-action-row catalog-card-secondary-actions">
+                        @if($canManageThisImages)<a class="button button-small button-ghost" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
+                        <a class="button button-small button-ghost" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
+                    </div>
                 </div>
             @endif
         </div>
@@ -360,10 +363,6 @@
     <div class="empty-state">Nema artikala koji odgovaraju filterima.</div>
 @endforelse
 </div>
-
-@if($canManageCatalog)
-</form>
-@endif
 
 <div class="pagination-wrap">{{ $products->links() }}</div>
 </div>
