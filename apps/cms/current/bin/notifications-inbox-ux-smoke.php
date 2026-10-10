@@ -27,7 +27,7 @@ $rules = [
         && str_contains($blade, "route('notifications.read-all')")
         && substr_count($blade, '@csrf') === 2,
     'Every notification retains its own POST target and native submit' =>
-        str_contains($blade, "route('notifications.read', $notification->id)")
+        str_contains($blade, "route('notifications.read', \$notification->id)")
         && str_contains($blade, 'method="post"')
         && str_contains($blade, 'type="submit"'),
     'List preserves existing pagination and empty state' =>
