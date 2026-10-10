@@ -3856,17 +3856,22 @@ assert(
     && orderDetailUxBatch86.includes("type OrderWorkspace = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'documents' | 'activity'")
     && orderDetailUxBatch86.includes('Radni prostor porudžbine')
     && orderDetailUxBatch86.includes("label: 'Pregled'")
-    && orderDetailUxBatch86.includes("label: 'Kupac i stavke'")
+    && orderDetailUxBatch86.includes("label: 'Kupac'")
     && orderDetailUxBatch86.includes("label: 'Isporuka'")
     && orderDetailUxBatch86.includes("label: 'Finansije'")
     && orderDetailUxBatch86.includes("label: 'Dokumenti'")
-    && orderDetailUxBatch86.includes("label: 'Tok i akcije'")
+    && orderDetailUxBatch86.includes("label: 'Istorija'")
     && orderDetailUxBatch86.includes("workspace === 'customer'")
     && orderDetailUxBatch86.includes("workspace === 'fulfillment'")
     && orderDetailUxBatch86.includes("workspace === 'finance'")
     && orderDetailUxBatch86.includes("workspace === 'documents'")
-    && orderDetailUxBatch86.includes("workspace === 'activity'"),
-  'v1.0 Batch86 Admin Order detalj je organizovan u Pregled, Kupac i stavke, Isporuka, Finansije, Dokumenti i Tok i akcije radne prostore.',
+    && orderDetailUxBatch86.includes("workspace === 'activity'")
+    && orderDetailUxBatch86.includes('<OrderBuyerCard')
+    && orderDetailUxBatch86.includes('<WorkspaceGrid')
+    && orderDetailUxBatch86.includes('<AdminOrderActions')
+    && orderDetailUxBatch86.indexOf('<OrderBuyerCard') < orderDetailUxBatch86.indexOf('<AdminOrderActions')
+    && orderDetailUxBatch86.indexOf('<AdminOrderActions') < orderDetailUxBatch86.indexOf('<WorkspaceGrid'),
+  'v1.5 UX 2.0 zadržava Batch86 šest radnih prostora uz buyer-first karticu i jednu operativnu zonu iznad navigacije.',
 );
 assert(
   orderDetailUxBatch86.includes("can('orders.manage')")
