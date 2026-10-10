@@ -63,3 +63,54 @@ test('rejects_unknown_build_provenance',async()=>{
  const b=baseline();b.evidence.buildId='22222222-2222-4222-8222-222222222222';const {state,libPaths,...input}=b;
  assert.equal((await verifyNativeAab(input)).ok,false);
 });
+
+// Build25 regression: Android's 16 KB page-size Play requirement applies to 64-bit ABIs.
+// 32-bit libraries must still have valid, power-of-two ELF PT_LOAD alignment >= 4 KB.
+const is32BitAbi=entry=>entry.includes('/lib/armeabi-v7a/')||entry.includes('/lib/x86/');
+const mixedLibInspector=async entry=>({ok:true,loadAlignments:[is32BitAbi(entry)?0x1000:0x4000]});
+
+test('build25_accepts_4k_32bit_ELF_while_keeping_16k_64bit_requirement',async()=>{
+ const {state,libPaths,...input}=baseline({libInspector:mixedLibInspector});
+ const result=await verifyNativeAab(input);
+ assert.equal(result.ok,true,JSON.stringify(result.blockers));
+ assert.equal(result.observed.nativeLibCount,4);
+ assert.deepEqual(result.observed.abiSet,[...ABIS].sort());
+});
+test('build25_rejects_4k_arm64_even_if_other_ABIs_are_valid',async()=>{
+ const inspector=async entry=>({ok:true,loadAlignments:[entry.includes('/lib/arm64-v8a/')?0x1000:0x4000]});
+ const {state,libPaths,...input}=baseline({libInspector:inspector});
+ const r=await verifyNativeAab(input);
+ assert.equal(r.ok,false);assert.match(r.blockers.join(','),/ELF_NOT_16K.*arm64-v8a/);
+});
+test('build25_rejects_4k_x86_64_even_if_32bit_is_valid',async()=>{
+ const inspector=async entry=>({ok:true,loadAlignments:[entry.includes('/lib/x86_64/')?0x1000:0x4000]});
+ const {state,libPaths,...input}=baseline({libInspector:inspector});
+ const r=await verifyNativeAab(input);
+ assert.equal(r.ok,false);assert.match(r.blockers.join(','),/ELF_NOT_16K.*x86_64/);
+});
+test('build25_rejects_32bit_ELF_below_4k',async()=>{
+ const inspector=async entry=>({ok:true,loadAlignments:[is32BitAbi(entry)?0x800:0x4000]});
+ const {state,libPaths,...input}=baseline({libInspector:inspector});
+ const r=await verifyNativeAab(input);
+ assert.equal(r.ok,false);assert.match(r.blockers.join(','),/ELF_NOT_4K/);
+});
+test('build25_rejects_non_power_of_two_ELF_alignment_in_either_ABI_family',async()=>{
+ for(const badAbi of ['x86','arm64-v8a']){
+  const inspector=async entry=>({ok:true,loadAlignments:[entry.includes(`/lib/${badAbi}/`)?0x6000:0x4000]});
+  const {state,libPaths,...input}=baseline({libInspector:inspector});
+  const r=await verifyNativeAab(input);
+  assert.equal(r.ok,false,`${badAbi} incorrectly accepted invalid ELF alignment`);
+ }
+});
+test('build25_mixed_alignment_still_rejects_missing_device_acceptance',async()=>{
+ const b=baseline({libInspector:mixedLibInspector});b.evidence.deviceReceipt=undefined;
+ const {state,libPaths,...input}=b;
+ const r=await verifyNativeAab(input);
+ assert.equal(r.ok,false);assert.match(r.blockers.join(','),/DEVICE_RECEIPT_MISSING/);
+});
+test('build25_mixed_alignment_still_rejects_4k_bundle_zip_policy',async()=>{
+ const b=baseline({libInspector:mixedLibInspector});b.state.config='page_alignment: PAGE_ALIGNMENT_4K';
+ const {state,libPaths,...input}=b;
+ const r=await verifyNativeAab(input);
+ assert.equal(r.ok,false);assert.match(r.blockers.join(','),/BUNDLE_PAGE_ALIGNMENT_NOT_16K/);
+});

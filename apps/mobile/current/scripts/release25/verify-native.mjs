@@ -6,6 +6,8 @@ const fail=(reason,observed={})=>({ok:false,blockers:[reason],observed});
 const SHA256=/^[0-9a-f]{64}$/i;
 const XPATH={packageName:'/manifest/@package',appVersion:'/manifest/@android:versionName',versionCode:'/manifest/@android:versionCode',minSdk:'/manifest/uses-sdk/@android:minSdkVersion',targetSdk:'/manifest/uses-sdk/@android:targetSdkVersion'};
 const REAL_ABIS=['arm64-v8a','armeabi-v7a','x86','x86_64'];
+// 16 KB page-size devices are 64-bit; keep 32-bit ELF PT_LOAD alignment valid at 4 KB.
+const MIN_ELF_LOAD_ALIGNMENT=Object.freeze({'arm64-v8a':16384,'x86_64':16384,'armeabi-v7a':4096,'x86':4096});
 function cmdRunner(cmd,args,opts={}){return spawnSync(cmd,args,{encoding:'utf8',maxBuffer:128*1024*1024,timeout:120000,...opts})}
 function parseElfAlignments(data){
  const list=[];for(const line of data.split('\n')){
@@ -48,18 +50,19 @@ export async function verifyNativeAab({sealedAabPath,expectedIdentity,expectedVe
  const entries=String(zip.stdout).trim().split('\n').filter(Boolean);
  const libs=entries.filter(x=>x.endsWith('.so'));
  if(!libs.length)return fail('NO_NATIVE_LIBRARIES',observed);
- const byAbi=new Set();
+ const byAbi=new Set(),abiByEntry=new Map();
  for(const entry of libs){
   if(entry.includes('\\')||entry.includes('..')||entry.startsWith('/'))return fail('UNSAFE_LIB_PATH',observed);
   const m=entry.match(/^[^/]+\/lib\/(arm64-v8a|armeabi-v7a|x86|x86_64)\/[^/]+\.so$/);
   if(!m)return fail('UNEXPECTED_LIB_ENTRY',observed);
-  byAbi.add(m[1]);
+  byAbi.add(m[1]);abiByEntry.set(entry,m[1]);
  }
  for(const abi of expectedAbiSet)if(!byAbi.has(abi))return fail(`ABI_MISSING:${abi}`,observed);
  for(const entry of libs){
   let result;
   try{result=await libInspector(entry,sealedAabPath,runTool)}catch{return fail(`ELF_INSPECTION_FAILED:${entry}`,observed)}
-  if(!result?.ok||!Array.isArray(result.loadAlignments)||!result.loadAlignments.length||result.loadAlignments.some(x=>!Number.isInteger(x)||x<16384))return fail(`ELF_NOT_16K:${entry}`,observed);
+  const minAlignment=MIN_ELF_LOAD_ALIGNMENT[abiByEntry.get(entry)];
+  if(!result?.ok||!Array.isArray(result.loadAlignments)||!result.loadAlignments.length||result.loadAlignments.some(x=>!Number.isSafeInteger(x)||x<minAlignment||(BigInt(x)&(BigInt(x)-1n))!==0n))return fail(`ELF_NOT_${minAlignment===16384?'16K':'4K'}:${entry}`,observed);
  }
  observed.nativeLibCount=libs.length;observed.abiSet=[...byAbi].sort();
  if(!evidence?.sourceSha||evidence.sourceSha!==evidence.finalSourceSha||evidence.buildId!==evidence.productionBuildId)return fail('NATIVE_EVIDENCE_BUILD_MISMATCH',observed);
