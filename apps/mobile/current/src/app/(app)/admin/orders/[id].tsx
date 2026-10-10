@@ -91,6 +91,7 @@ function displayScalar(value: AdminOrderDetailValue | undefined): string {
 
 // MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86
 type OrderWorkspace = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'documents' | 'activity';
+type OrderNextStepAction = 'accept' | 'shipment' | 'complete';
 
 const ORDER_WORKSPACE_OPTIONS: Array<{ value: OrderWorkspace; label: string; description: string; glyph: GlyphName }> = [
   { value: 'overview', label: 'Pregled', glyph: 'report', description: 'Status porudžbine, odgovorno lice i readiness upozorenja.' },
@@ -111,6 +112,7 @@ export default function AdminOrdersDetailScreen() {
   const validId = Number.isInteger(orderId) && orderId > 0;
   const allowed = can('orders.manage');
   const [workspace, setWorkspace] = useState<OrderWorkspace> ('overview');
+  const [requestedAction, setRequestedAction] = useState<{ kind: OrderNextStepAction; sequence: number } | null>(null);
 
   const query = useQuery({
     queryKey: adminQueryKeys.adminOrder(orderId),
@@ -164,34 +166,50 @@ export default function AdminOrdersDetailScreen() {
   const trackingUrl = text(shipment, 'tracking_url');
   const canOpenTracking = trackingUrl.toLowerCase().startsWith('https://');
   // MOBILE_BATCH518B_ADMIN_ORDER_NEXT_STEP
+  // Server actions, not status guesses, decide which operation can be offered.
   const completed = boolValue(order, 'is_completed') || text(order, 'completed_at', '') !== '' || ['completed', 'cancelled'].includes(text(order, 'status', ''));
-  const nextStep: { title: string; copy: string; label: string; workspace: OrderWorkspace } = !completed && !shipment && response.capabilities.workflow_mutations
-    ? {
-        title: 'Evidentiraj slanje',
-        copy: 'Nastavi u Tok i akcije, izaberi kurira i unesi tracking broj.',
-        label: 'Otvori akcije slanja',
-        workspace: 'activity',
-      }
-    : shipment && !delivery && response.capabilities.confirm_delivery
-      ? {
-          title: 'Potvrdi isporuku',
-          copy: 'Pošiljka je poslata. Sledeća operativna radnja je potvrda stvarne isporuke.',
-          label: 'Otvori akcije isporuke',
-          workspace: 'activity',
-        }
-      : delivery && response.capabilities.documents
-        ? {
-            title: 'Pregledaj dokumente',
-            copy: 'Isporuka je evidentirana. Nastavi na poslovne dokumente i revizije.',
-            label: 'Otvori dokumente',
-            workspace: 'documents',
-          }
-        : {
-            title: 'Pregledaj tok i akcije',
-            copy: 'Otvori audit, interne napomene i trenutno dozvoljene workflow akcije.',
-            label: 'Otvori tok i akcije',
-            workspace: 'activity',
-          };
+  const canAcceptNext = response.capabilities.workflow_mutations && boolValue(actions, 'accept');
+  const canShipmentNext = response.capabilities.workflow_mutations && boolValue(actions, 'shipment');
+  const canCompleteNext = response.capabilities.confirm_delivery && boolValue(actions, 'complete');
+  const nextStep: { title: string; copy: string; label: string; workspace: OrderWorkspace; action?: OrderNextStepAction } =
+    !completed && canAcceptNext ? {
+      title: 'Preuzmi porudžbinu',
+      copy: 'Proveri kontakt kupca i stavke, pa preuzmi porudžbinu u obradu.',
+      label: 'Preuzmi porudžbinu',
+      workspace: 'overview',
+      action: 'accept',
+    } : !completed && canShipmentNext ? {
+      title: 'Evidentiraj slanje',
+      copy: 'Proveri uslove plaćanja i evidentiraj samo stvarno slanje pošiljke.',
+      label: 'Otvori slanje',
+      workspace: 'fulfillment',
+      action: 'shipment',
+    } : !completed && canCompleteNext ? {
+      title: 'Potvrdi isporuku',
+      copy: 'Potvrdi stvarnu isporuku; kod pouzeća naplata se evidentira samo po pravilima servera.',
+      label: 'Otvori potvrdu isporuke',
+      workspace: 'fulfillment',
+      action: 'complete',
+    } : delivery && response.capabilities.documents ? {
+      title: 'Pregledaj dokumente',
+      copy: 'Isporuka je evidentirana. Pregledaj dozvoljene dokumente i revizije.',
+      label: 'Otvori dokumente',
+      workspace: 'documents',
+    } : {
+      title: completed ? 'Pregled završenog toka' : 'Pregledaj detalje i istoriju',
+      copy: 'Stvarne dozvoljene radnje i evidencija porudžbine su dostupne u radnom prostoru.',
+      label: completed ? 'Otvori istoriju' : 'Pregledaj porudžbinu',
+      workspace: completed ? 'activity' : 'overview',
+    };
+
+  const openNextStep = () => {
+    if (nextStep.action) {
+      const kind = nextStep.action;
+      setRequestedAction((previous) => ({ kind, sequence: (previous?.sequence ?? 0) + 1 }));
+    } else {
+      setWorkspace(nextStep.workspace);
+    }
+  };
 
   return (
     <Screen contentStyle={styles.content}>
@@ -224,8 +242,16 @@ export default function AdminOrdersDetailScreen() {
         <Text style={styles.nextStepEyebrow}>Sledeći korak</Text>
         <Text style={styles.sectionTitle}>{nextStep.title}</Text>
         <Text style={styles.muted}>{nextStep.copy}</Text>
-        <Button onPress={() => setWorkspace(nextStep.workspace)}>{nextStep.label}</Button>
+        <Button onPress={openNextStep}>{nextStep.label}</Button>
       </Card>
+
+      <AdminOrderActions
+        orderId={orderId}
+        data={data}
+        capabilities={response.capabilities}
+        requestedAction={requestedAction}
+        onShipmentSuccess={() => setWorkspace('fulfillment')}
+      />
 
       <Card style={styles.workspaceCard}>
         <Text style={styles.sectionTitle}>Radni prostor porudžbine</Text>
@@ -389,13 +415,6 @@ export default function AdminOrdersDetailScreen() {
 
       {workspace === 'activity' ? (
         <>
-          <AdminOrderActions
-            orderId={orderId}
-            data={data}
-            capabilities={response.capabilities}
-            onShipmentSuccess={() => setWorkspace('fulfillment')}
-          />
-
       <AdminOrderArchiveActions
         orderId={orderId}
         orderNumber={orderNumber}
