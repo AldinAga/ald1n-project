@@ -5387,3 +5387,372 @@ html[data-theme="light"] .auth-glass-card {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ALD1N_ADMIN_ORDERS_INDEX_WORKSPACE_BATCH566
+ * Presentation-only admin list: preserve original Laravel GET/POST/PATCH
+ * actions and accessible order table; responsive rows become visual cards.
+ */
+.ald-ops-index {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.ald-ops-index .ald-ops-index-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 0;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--ald-border);
+}
+.ald-ops-index .ald-ops-index-heading p {
+  max-width: 68ch;
+  line-height: 1.5;
+}
+.ald-ops-index .ald-ops-index-heading .header-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+.ald-ops-index .ald-ops-index-attention {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.ald-ops-index .ald-ops-index-attention .attention-card {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 84px;
+  gap: 14px;
+  padding: 15px 18px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  transition: border-color var(--ald-motion-fast) var(--ald-ease-out),
+              background var(--ald-motion-fast) var(--ald-ease-out);
+}
+.ald-ops-index .ald-ops-index-attention .attention-card:hover,
+.ald-ops-index .ald-ops-index-attention .attention-card:focus-visible {
+  border-color: var(--ald-primary);
+  background: var(--ald-surface-container);
+}
+.ald-ops-index .ald-ops-index-attention .attention-card.active {
+  border-color: var(--ald-primary);
+  box-shadow: inset 3px 0 0 var(--ald-primary);
+}
+.ald-ops-index .ald-ops-index-attention .attention-card strong {
+  display: block;
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.ald-ops-index .ald-ops-index-attention .attention-card small {
+  display: block;
+  margin-top: 5px;
+  color: var(--ald-muted);
+}
+.ald-ops-index .ald-ops-index-attention > .button {
+  min-height: 44px;
+  align-self: center;
+}
+.ald-ops-index .ald-ops-index-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, #000 5%, transparent);
+}
+.ald-ops-index .ald-ops-index-filter > label {
+  min-width: 0;
+  max-width: 100%;
+}
+.ald-ops-index .ald-ops-index-filter .search-field {
+  grid-column: span 2;
+}
+.ald-ops-index .ald-ops-index-filter input,
+.ald-ops-index .ald-ops-index-filter select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.ald-ops-index .ald-ops-index-filter .filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ald-ops-index .ald-ops-index-filter .filter-actions .button {
+  min-height: 42px;
+}
+.ald-ops-index .ald-ops-index-table-shell {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 5px 18px color-mix(in srgb, #000 6%, transparent);
+}
+.ald-ops-index .ald-ops-index-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ald-ops-index .operational-orders-table {
+  width: 100%;
+  min-width: 1260px;
+}
+.ald-ops-index .operational-orders-table thead th {
+  padding: 13px 12px;
+  font-size: .74rem;
+  font-weight: 800;
+  color: var(--ald-muted);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  background: var(--ald-surface-container);
+  border-bottom: 1px solid var(--ald-border);
+}
+.ald-ops-index .operational-orders-table tbody tr {
+  transition: background var(--ald-motion-fast) var(--ald-ease-out);
+}
+.ald-ops-index .operational-orders-table tbody tr:hover {
+  background: var(--ald-surface-container);
+}
+.ald-ops-index .operational-orders-table tbody tr.row-overdue {
+  box-shadow: inset 3px 0 0 var(--ald-danger);
+}
+.ald-ops-index .operational-orders-table tbody td {
+  vertical-align: top;
+  min-width: 0;
+  padding: 15px 12px;
+  line-height: 1.44;
+  border-bottom: 1px solid var(--ald-border);
+  overflow-wrap: anywhere;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="number"] a {
+  color: var(--ald-primary-strong);
+  font-weight: 800;
+  text-decoration: none;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="number"] a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ald-ops-index .operational-orders-table td .muted {
+  display: block;
+  margin-top: 6px;
+  font-size: .75rem;
+  line-height: 1.4;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="status"] .status-badge {
+  display: inline-flex;
+  width: fit-content;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="amount"] strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ald-ops-index .quick-order-actions {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+.ald-ops-index .quick-order-actions form {
+  display: contents;
+}
+.ald-ops-index .quick-order-actions .button {
+  min-height: 40px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--ald-radius-md);
+  font-weight: 750;
+  line-height: 1.22;
+  white-space: normal;
+}
+.ald-ops-index .quick-order-actions .button:focus-visible {
+  outline: 2px solid var(--ald-primary);
+  outline-offset: 2px;
+}
+.ald-ops-index .ald-ops-index-table-shell:focus-visible {
+  outline: 2px solid var(--ald-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 1280px) {
+  .ald-ops-index .ald-ops-index-filter {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 980px) {
+  .ald-ops-index .ald-ops-index-table-shell {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .ald-ops-index .operational-orders-table,
+  .ald-ops-index .operational-orders-table tbody {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+  .ald-ops-index .operational-orders-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ald-ops-index .operational-orders-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .ald-ops-index .operational-orders-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+    align-content: start;
+    padding: 16px;
+    border: 1px solid var(--ald-border);
+    border-radius: var(--ald-radius-lg);
+    background: var(--ald-surface);
+    box-shadow: 0 3px 12px color-mix(in srgb, #000 5%, transparent);
+  }
+  .ald-ops-index .operational-orders-table tbody tr.row-overdue {
+    border-left: 3px solid var(--ald-danger);
+    box-shadow: 0 3px 12px color-mix(in srgb, #000 5%, transparent);
+  }
+  .ald-ops-index .operational-orders-table tbody td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    line-height: 1.35;
+  }
+  .ald-ops-index .operational-orders-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: .69rem;
+    font-weight: 800;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ald-muted);
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="number"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="status"] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="creator"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="assignee"] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="payment"] {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="amount"] {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="deadline"] {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="date"] {
+    grid-column: 2;
+    grid-row: 4;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="actions"] {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    padding-top: 12px;
+    border-top: 1px solid var(--ald-border);
+  }
+  .ald-ops-index .operational-orders-table tbody td[data-ops-cell="empty"] {
+    grid-column: 1 / -1;
+    border: 0;
+  }
+  .ald-ops-index .operational-orders-table tbody td[data-ops-cell="empty"]::before {
+    content: none;
+  }
+  .ald-ops-index .quick-order-actions {
+    width: 100%;
+  }
+}
+@media (max-width: 560px) {
+  .ald-ops-index .ald-ops-index-heading .header-button-row,
+  .ald-ops-index .ald-ops-index-heading .header-button-row > .button {
+    width: 100%;
+  }
+  .ald-ops-index .ald-ops-index-filter {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+  .ald-ops-index .ald-ops-index-filter .search-field,
+  .ald-ops-index .ald-ops-index-filter .filter-actions {
+    grid-column: 1;
+  }
+  .ald-ops-index .ald-ops-index-filter .filter-actions {
+    justify-content: stretch;
+  }
+  .ald-ops-index .ald-ops-index-filter .filter-actions .button {
+    flex: 1 1 120px;
+  }
+  .ald-ops-index .operational-orders-table tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ald-ops-index .operational-orders-table tbody tr > td {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+  .ald-ops-index .quick-order-actions .button {
+    flex: 1 1 135px;
+  }
+}
+@media (max-width: 460px) {
+  .ald-ops-index .ald-ops-index-attention {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ald-ops-index .ald-ops-index-attention > .button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ald-ops-index .attention-card,
+  .ald-ops-index .operational-orders-table tbody tr {
+    transition: none;
+  }
+}
