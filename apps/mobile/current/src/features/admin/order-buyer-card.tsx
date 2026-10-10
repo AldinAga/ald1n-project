@@ -33,8 +33,9 @@ export function OrderBuyerCard({ name, phone, address, postalCode, city, note }:
   const styles = useMemo(() => createStyles(theme), [theme]);
   const feedback = useAppFeedback();
   const dial = callablePhone(phone);
-  const postalCity = [postalCode, city].filter((value) => value && value !== '-').join(' ');
-  const addressDisplay = [address, postalCity].filter((value) => value && value !== '-').join(', ');
+  const hasPart = (value: string) => value.trim() !== '' && value.trim() !== '-' && value.trim() !== '—';
+  const postalCity = [postalCode, city].filter(hasPart).join(' ');
+  const addressDisplay = [address, postalCity].filter(hasPart).join(', ');
 
   async function copyPhone() {
     try {
