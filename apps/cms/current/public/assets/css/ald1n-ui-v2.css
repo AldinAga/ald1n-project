@@ -5332,3 +5332,58 @@ html[data-theme="light"] .auth-glass-card {
   .auth-login-form input:focus,
   .auth-body > .floating-theme:hover { transform: none !important; }
 }
+
+/* ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565
+ * Keep independent PATCH forms outside the bulk GET form and give every
+ * permitted action a stable place, regardless of permission combinations.
+ */
+.build16-catalog-shell .unified-product-card .catalog-management-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.build16-catalog-shell .unified-product-card .catalog-management-actions > .catalog-action-details,
+.build16-catalog-shell .unified-product-card .catalog-management-actions > .catalog-card-action-row {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row > :is(a, form) {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row > :only-child {
+  grid-column: 1 / -1;
+}
+.build16-catalog-shell .unified-product-card .catalog-management-actions .button {
+  width: 100%;
+  min-height: 42px;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: normal;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row > form > .button {
+  height: 100%;
+}
+.build16-catalog-shell .unified-product-card .product-footer .price {
+  font-size: clamp(1.15rem, 1.4vw, 1.36rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.015em;
+  line-height: 1.28;
+}
+@media (max-width: 380px) {
+  .build16-catalog-shell .unified-product-card .catalog-card-action-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
