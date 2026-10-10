@@ -4,11 +4,16 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {submitAcceptedAab} from './release25/submit-gate.mjs';
+import {runSeparatedPhase} from './release25/separated-phases.mjs';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA=/^[0-9a-f]{40}$/i;
 function sha256(pathName){const h=createHash('sha256');const fd=fs.openSync(pathName,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);try{const b=Buffer.allocUnsafe(1024*1024);let p=0;for(;;){const n=fs.readSync(fd,b,0,b.length,p);if(!n)break;h.update(b.subarray(0,n));p+=n}return h.digest('hex')}finally{fs.closeSync(fd)}}
 const immutableError=(message)=>new Error(message);
 export async function runController({mode,sourceSha,attemptId,stateDir,authorization,authority,preflight,journalApi,eas,signatureVerifier,nativeVerifier,submitter=submitAcceptedAab,artifactPath,sourceAuthority,expectedSignerSha256,expectedIdentity,expectedRuntime,evidence}){
+ if(['build-only','submit-only'].includes(mode)){
+  return await runSeparatedPhase({mode,sourceSha,attemptId,stateDir,authorization,authority,preflight,journalApi,eas,signatureVerifier,nativeVerifier,submitter,artifactPath,sourceAuthority,expectedSignerSha256,expectedIdentity,expectedRuntime,evidence});
+ }
+ if(mode==='execute')throw immutableError('EXECUTION_NOT_AUTHORIZED_USE_SEPARATED_PHASES');
  if(!['preflight','simulate','execute'].includes(mode))throw immutableError('INVALID_CONTROLLER_MODE');
  if(!SHA.test(sourceSha))throw immutableError('INVALID_SOURCE_SHA');
  if(authority?.ok!==true||authority?.identity?.profile!=='production'||authority.identity.channel!=='production'||authority.identity.track!=='production'||authority.identity.releaseStatus!=='completed')return {status:'BLOCKED',reason:'UNVERIFIED_RELEASE_AUTHORITY'};

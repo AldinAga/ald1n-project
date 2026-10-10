@@ -31,8 +31,9 @@ export const makeGitReader=(repoRoot)=>({async snapshot(){
  };
 }});
 const add=(blockers,name)=>{if(!blockers.includes(name))blockers.push(name)};
-export async function collectPreflight({repoRoot,expectedSourceSha,authority,gitReader,easReader,toolProbe,acceptanceIndex,expectedRemoteVersionCode}){
+export async function collectPreflight({repoRoot,expectedSourceSha,authority,gitReader,easReader,toolProbe,acceptanceIndex,expectedRemoteVersionCode,phase='submit'}){
  const blockers=[];const evidence={repoRoot,expectedSourceSha};
+ if(!['build','submit'].includes(phase))add(blockers,'INVALID_PREFLIGHT_PHASE');
  if(!SHA40.test(expectedSourceSha))add(blockers,'INVALID_SOURCE_SHA');
  if(!authority?.ok)add(blockers,'CLI_OR_IDENTITY_AUTHORITY');
  const id=authority?.identity||{};
@@ -61,9 +62,10 @@ export async function collectPreflight({repoRoot,expectedSourceSha,authority,git
  }
  try{tools=await toolProbe.inspect()}catch{add(blockers,'TOOL_PROBE_FAILED')}
  if(tools){
-  for(const name of ['jarsigner','keytool','bundletool','readelf','unzip'])if(tools[name]!==true)add(blockers,`TOOL_MISSING:${name}`);
+  if(phase==='submit')for(const name of ['jarsigner','keytool','bundletool','readelf','unzip'])if(tools[name]!==true)add(blockers,`TOOL_MISSING:${name}`);
   if(!Number.isFinite(tools.freeSpaceBytes)||tools.freeSpaceBytes<2e9)add(blockers,'ARTIFACT_DISK_CAPACITY');
  }
- for(const name of FINDINGS){if(acceptanceIndex?.[name]!=='PASS')add(blockers,`RELEASE_FINDING_NOT_CLOSED:${name}`)}
+ if(phase==='submit')for(const name of FINDINGS){if(acceptanceIndex?.[name]!=='PASS')add(blockers,`RELEASE_FINDING_NOT_CLOSED:${name}`)}
+ if(blockers.length===0){evidence.preflightPhase=phase;if(phase==='submit')evidence.releaseAcceptancesVerified=true}
  return {ok:blockers.length===0,blockers,evidence};
 }
