@@ -5577,7 +5577,10 @@ html[data-theme="light"] .auth-glass-card {
   min-width: 0;
 }
 .ald-ops-index .quick-order-actions form {
-  display: contents;
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
 }
 .ald-ops-index .quick-order-actions .button {
   min-height: 40px;
