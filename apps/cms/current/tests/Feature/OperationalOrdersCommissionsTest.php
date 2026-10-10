@@ -163,6 +163,74 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->assertSee("event.key !== 'Escape'", false);
     }
 
+    // ALD1N_ORDER_WORKSPACE_V2_BUYER_FIRST_WEB
+    public function test_admin_order_contact_card_is_first_and_uses_shipping_recipient_snapshot(): void
+    {
+        $customer = $this->user('buyer-first-creator', 'user');
+        $admin = $this->user('buyer-first-admin', 'admin');
+        $product = $this->product($admin, 'BUYER-FIRST-ITEM', 10);
+        $order = $this->createOrder($customer, $admin, $product, 'buyer-first-web-order');
+
+        $order->forceFill([
+            'shipping_full_name' => 'Krajnji Primalac',
+            'shipping_phone' => '+381 60 123 4567',
+            'shipping_address' => 'Ulica provere 12',
+            'shipping_postal_code' => '11000',
+            'shipping_city' => 'Beograd',
+            'customer_note' => 'Pozvati pre isporuke.',
+        ])->save();
+
+        $html = $this->actingAs($admin)
+            ->get('/admin/orders/'.$order->id)
+            ->assertOk()
+            ->getContent();
+
+        self::assertSame(1, substr_count($html, 'id="order-workspace-customer"'));
+        self::assertStringContainsString('data-buyer-first-layout="1"', $html);
+        $buyerPos = strpos($html, 'id="order-workspace-customer"');
+        $commandPos = strpos($html, 'class="panel order-workspace-command');
+        $itemsPos = strpos($html, 'id="order-workspace-items"');
+        self::assertNotFalse($buyerPos);
+        self::assertNotFalse($commandPos);
+        self::assertNotFalse($itemsPos);
+        self::assertLessThan($commandPos, $buyerPos);
+        self::assertLessThan($itemsPos, $buyerPos);
+
+        $buyerEnd = strpos($html, '</section>', $buyerPos);
+        self::assertNotFalse($buyerEnd);
+        $buyerCard = substr($html, $buyerPos, $buyerEnd - $buyerPos);
+        self::assertStringContainsString('Krajnji kupac', $buyerCard);
+        self::assertStringContainsString('Krajnji Primalac', $buyerCard);
+        self::assertStringContainsString('Ulica provere 12', $buyerCard);
+        self::assertStringContainsString('11000', $buyerCard);
+        self::assertStringContainsString('Beograd', $buyerCard);
+        self::assertStringContainsString('Pozvati pre isporuke.', $buyerCard);
+        self::assertStringContainsString('href="tel:+381601234567"', $buyerCard);
+        self::assertStringNotContainsString('buyer-first-creator@example.test', $buyerCard);
+        self::assertStringNotContainsString('Odgovorno lice', $buyerCard);
+    }
+
+    public function test_admin_order_missing_buyer_phone_keeps_readable_value_without_dial_link(): void
+    {
+        $customer = $this->user('buyer-no-phone-creator', 'user');
+        $admin = $this->user('buyer-no-phone-admin', 'admin');
+        $product = $this->product($admin, 'BUYER-NO-PHONE', 10);
+        $order = $this->createOrder($customer, $admin, $product, 'buyer-no-phone-web');
+        $order->forceFill(['shipping_phone' => '—'])->save();
+
+        $html = $this->actingAs($admin)
+            ->get('/admin/orders/'.$order->id)
+            ->assertOk()
+            ->getContent();
+        $buyerPos = strpos($html, 'id="order-workspace-customer"');
+        self::assertNotFalse($buyerPos);
+        $buyerEnd = strpos($html, '</section>', $buyerPos);
+        self::assertNotFalse($buyerEnd);
+        $buyerCard = substr($html, $buyerPos, $buyerEnd - $buyerPos);
+        self::assertStringContainsString('Telefon', $buyerCard);
+        self::assertStringNotContainsString('href="tel:', $buyerCard);
+    }
+
     private function createOrder(User $customer, User $supplier, Product $product, string $key): Order
     {
         $this->actingAs($customer)->post('/orders', [
