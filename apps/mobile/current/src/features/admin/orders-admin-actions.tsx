@@ -9,6 +9,7 @@ import { MoneyField } from '@/components/ui/money-field';
 import { SelectSheet } from '@/components/ui/select-sheet';
 import { TextField } from '@/components/ui/text-field';
 import { useAppFeedback } from '@/components/ui/app-feedback';
+import { QuickActionHub, type QuickAction } from '@/components/workspaces/quick-action-hub';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import {
   apiAdminOrders,
@@ -388,12 +389,24 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
     }];
   });
 
+  const quickActions: QuickAction[] = [];
+  if (canAccept) quickActions.push({ id: 'accept', label: 'Preuzmi porudžbinu', glyph: 'check', kind: 'primary', onPress: () => setPanel('accept') });
+  if (capabilities.internal_notes) quickActions.push({ id: 'note', label: 'Interna napomena', glyph: 'messages', onPress: () => setPanel('note') });
+  if (capabilities.reassign) quickActions.push({ id: 'reassign', label: 'Odgovorno lice', glyph: 'account', onPress: () => setPanel('reassign') });
+  if (capabilities.payments) quickActions.push({ id: 'payment-entry', label: 'Uplata / refundacija', glyph: 'commission', onPress: () => setPanel('payment-entry') });
+  if (capabilities.payments && paymentOptions.length > 0) quickActions.push({ id: 'payment-ledger', label: 'Obradi uplatu', glyph: 'commission', onPress: () => setPanel('payment-ledger') });
+  if (shipmentTrackingUrl) quickActions.push({ id: 'tracking', label: 'Tracking', glyph: 'orders', onPress: () => void openTrackingUrl(shipmentTrackingUrl) });
+  if (recordBool(shipment, 'has_proof')) quickActions.push({ id: 'shipment-proof', label: 'Dokaz slanja', glyph: 'box', pending: openingProof, onPress: () => void openShipmentProof() });
+  if (!completed) quickActions.push({ id: 'status', label: 'Promeni status', glyph: 'refresh', onPress: () => setPanel('status') });
+  if (!completed) quickActions.push({ id: 'deadlines', label: 'Operativni rokovi', glyph: 'report', onPress: () => setPanel('deadlines') });
+  if (capabilities.sale_price_correction) quickActions.push({ id: 'sale-price-correction', label: 'Korekcija cene', glyph: 'commission', onPress: () => setPanel('sale-price-correction') });
+  if (canReopen) quickActions.push({ id: 'reopen', label: 'Ponovo otvori', glyph: 'refresh', kind: 'danger', onPress: () => setPanel('reopen') });
+
   return (
     <View style={styles.section}>
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>Operativne akcije</Text>
-        <Text style={styles.muted}>Sve izmene prolaze kroz postojeće Laravel domain servise i server ponovo proverava dozvole i trenutno stanje porudžbine.</Text>
-        {(canShipment || canComplete || (hasShipment && !completed)) ? (
+      {(canShipment || canComplete || (hasShipment && !completed)) ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Slanje i isporuka</Text>
           <View style={styles.deliveryActionStack}>
             {canShipment ? (
               <Button style={styles.deliveryActionButton} onPress={() => setPanel('shipment')}>Potvrdi da je pošiljka poslata</Button>
@@ -404,21 +417,9 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
               <Button style={styles.deliveryActionButton} onPress={() => setPanel('complete')}>{deliveryActionLabel}</Button>
             ) : null}
           </View>
-        ) : null}
-        <View style={styles.actionGrid}>
-          {canAccept ? <Button variant="secondary" onPress={() => setPanel('accept')}>Preuzmi porudžbinu</Button> : null}
-          {canReopen ? <Button variant="secondary" onPress={() => setPanel('reopen')}>Ponovo otvori</Button> : null}
-          {!completed ? <Button variant="secondary" onPress={() => setPanel('status')}>Promeni status</Button> : null}
-          {capabilities.internal_notes ? <Button variant="secondary" onPress={() => setPanel('note')}>Interna napomena</Button> : null}
-          {capabilities.reassign ? <Button variant="secondary" onPress={() => setPanel('reassign')}>Promeni odgovorno lice</Button> : null}
-          {!completed ? <Button variant="secondary" onPress={() => setPanel('deadlines')}>Rokovi</Button> : null}
-          {capabilities.payments ? <Button variant="secondary" onPress={() => setPanel('payment-entry')}>Evidentiraj uplatu/refundaciju</Button> : null}
-          {capabilities.sale_price_correction ? <Button variant="secondary" onPress={() => setPanel('sale-price-correction')}>Koriguj prodajnu cenu</Button> : null}
-          {capabilities.payments && paymentOptions.length > 0 ? <Button variant="secondary" onPress={() => setPanel('payment-ledger')}>Obradi postojeću uplatu</Button> : null}
-          {recordBool(shipment, 'has_proof') ? <Button variant="secondary" loading={openingProof} onPress={() => void openShipmentProof()}>Otvori dokaz slanja</Button> : null}
-          {shipmentTrackingUrl ? <Button variant="secondary" onPress={() => void openTrackingUrl(shipmentTrackingUrl)}>Otvori tracking stranicu</Button> : null}
-        </View>
-      </Card>
+        </Card>
+      ) : null}
+      <QuickActionHub actions={quickActions} />
 
       {panel === 'accept' ? (
         <ActionPanel title="Preuzimanje porudžbine" onClose={() => setPanel(null)} styles={styles}>
