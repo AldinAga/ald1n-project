@@ -51,7 +51,7 @@ $checks = [
         => $checkFilters && str_contains($blade, 'class="filter-panel admin-filter order-filter ald-ops-index-filter" method="get"'),
     'Filters have a search landmark without extra form'
         => str_contains($blade, 'role="search" aria-label="Filtriranje porudžbina"')
-           && substr_count($blade, '<form') === 3,
+           && substr_count($blade, '<form') === 4,
     'Data table and headers remain semantically available'
         => str_contains($blade, '<table class="admin-table operational-orders-table ald-ops-index-table">')
            && str_contains($blade, 'aria-label="Lista porudžbina"')
