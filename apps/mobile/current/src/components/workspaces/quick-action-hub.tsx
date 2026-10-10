@@ -100,7 +100,7 @@ function createStyles(theme: AppColors) {
     primaryAction: { borderColor: theme.primary, backgroundColor: theme.primarySoft },
     dangerAction: { borderColor: theme.danger },
     disabled: { opacity: 0.45 },
-    actionLabel: { ...typography.small, color: theme.ink, fontWeight: '750', flex: 1, flexShrink: 1 },
+    actionLabel: { ...typography.small, color: theme.ink, fontWeight: '700', flex: 1, flexShrink: 1 },
     dangerLabel: { color: theme.danger },
     disclosure: {
       alignSelf: 'flex-start', minHeight: 44, flexDirection: 'row',
