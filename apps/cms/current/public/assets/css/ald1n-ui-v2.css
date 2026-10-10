@@ -2690,6 +2690,41 @@ html[data-theme="dark"] .catalog-filter-toolbar select,html[data-theme="dark"] .
     .order-workspace-anchor,#delivery-completion{scroll-behavior:auto}
 }
 
+/* ALD1N_ORDER_WORKSPACE_V2_BUYER_FIRST_WEB
+   Accessible DOM: buyer first; CSS places it on the right at desktop widths. */
+.order-priority-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr);grid-template-areas:"command buyer";align-items:start;gap:16px;margin:0 0 18px}
+.order-priority-layout>*{min-width:0}
+.order-priority-layout>.order-workspace-customer{grid-area:buyer;margin:0;padding:18px;border-color:color-mix(in srgb,var(--primary) 32%,var(--line));background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 96%,var(--primary) 4%),var(--panel))}
+.order-buyer-card-heading{align-items:flex-start;gap:9px}
+.order-buyer-card-heading h2{margin:4px 0;font-size:1.06rem;line-height:1.3;overflow-wrap:anywhere}
+.order-buyer-shortcut{display:inline-flex;align-items:center;min-height:40px;font-size:.73rem;font-weight:800;white-space:nowrap;color:var(--primary);text-decoration:none}
+.order-buyer-shortcut:focus-visible,.order-buyer-call:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+.order-buyer-detail-list{margin:14px 0 0}
+.order-buyer-detail-list dt{font-size:.76rem}
+.order-buyer-detail-list dd{overflow-wrap:anywhere}
+.order-buyer-detail-list .order-buyer-name{font-weight:850;font-size:1.03rem}
+.order-buyer-detail-list .order-buyer-note{white-space:pre-wrap;line-height:1.55}
+.order-buyer-call{display:inline-flex;align-items:center;min-height:44px;font-weight:800;color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.order-priority-layout>.order-workspace-command{grid-area:command;grid-template-columns:1fr;gap:12px;margin:0;padding:16px}
+.order-priority-layout .order-workspace-command-main{gap:12px}
+.order-priority-layout .order-workspace-snapshot{gap:8px}
+.order-priority-layout .order-workspace-next{gap:7px;padding:12px 14px}
+.order-priority-layout .order-workspace-next .order-workspace-primary{width:auto;min-height:42px}
+@media(max-width:1120px){
+    .order-priority-layout{grid-template-columns:minmax(0,1.2fr) minmax(280px,.85fr)}
+    .order-priority-layout .order-workspace-snapshot{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .order-buyer-card-heading{flex-direction:column}
+}
+@media(max-width:980px){
+    .order-priority-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"buyer" "command"}
+    .order-buyer-card-heading{flex-direction:row;flex-wrap:wrap}
+}
+@media(max-width:480px){
+    .order-priority-layout{gap:12px}
+    .order-priority-layout>.order-workspace-customer,.order-priority-layout>.order-workspace-command{padding:14px}
+    .order-priority-layout .order-workspace-next .order-workspace-primary{width:100%}
+}
+
 /* migrated from resources/views/admin/orders/archived.blade.php block 1 */
 .order-archive-actions{display:grid;gap:8px;min-width:0}
 .order-archive-purge{min-width:0;border:1px solid color-mix(in srgb,var(--danger) 35%,var(--line));border-radius:12px;background:var(--panel)}
