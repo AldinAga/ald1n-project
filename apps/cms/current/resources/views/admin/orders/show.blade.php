@@ -153,6 +153,41 @@
         }
     @endphp
 
+    <div class="order-priority-layout" data-buyer-first-layout="1">
+        <section class="panel form-section order-workspace-anchor order-workspace-customer" id="order-workspace-customer" aria-labelledby="order-buyer-card-title">
+            <div class="section-heading-row order-buyer-card-heading">
+                <div>
+                    <span class="eyebrow">Prva informacija za obradu</span>
+                    <h2 id="order-buyer-card-title">Krajnji kupac — kontakt i dostava</h2>
+                </div>
+                <a class="order-buyer-shortcut" href="#order-workspace-items">Stavke porudžbine →</a>
+            </div>
+            @php
+                $buyerPhoneRaw = trim((string) ($order['shipping_phone'] ?? ''));
+                $buyerPhoneDial = preg_replace('/[^0-9+]/', '', $buyerPhoneRaw) ?? '';
+                $buyerHasCallablePhone = preg_match('/^\\+?[0-9]{6,15}$/D', $buyerPhoneDial) === 1;
+            @endphp
+            <dl class="detail-list order-buyer-detail-list">
+                <dt>Ime i prezime primaoca</dt>
+                <dd class="order-buyer-name">{{ $order['shipping_full_name'] ?? '—' }}</dd>
+                <dt>Telefon</dt>
+                <dd>
+                    @if($buyerHasCallablePhone)
+                        <a class="order-buyer-call" href="tel:{{ $buyerPhoneDial }}" aria-label="Pozovi primaoca porudžbine">{{ $buyerPhoneRaw }}</a>
+                    @else
+                        {{ $buyerPhoneRaw !== '' ? $buyerPhoneRaw : '—' }}
+                    @endif
+                </dd>
+                <dt>Adresa za isporuku</dt>
+                <dd class="order-buyer-address">
+                    {{ $order['shipping_address'] ?? '—' }},
+                    {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}
+                </dd>
+                <dt>Napomena krajnjeg kupca</dt>
+                <dd class="order-buyer-note">{{ trim((string) ($order['customer_note'] ?? '')) ?: '—' }}</dd>
+            </dl>
+        </section>
+
     <section class="panel order-workspace-command" aria-labelledby="order-workspace-next-title">
         <div class="order-workspace-command-main">
             <div class="order-workspace-command-heading">
@@ -205,6 +240,7 @@
             </a>
         </aside>
     </section>
+    </div>
 
     @if(!($order['is_completed'] ?? false) && (($actions['shipment'] ?? false) || ($actions['complete'] ?? false) || is_array($shipment)))
         <section class="panel order-workspace-anchor" id="order-workspace-logistics-actions" data-logistics-actions>
@@ -721,19 +757,7 @@
 </details>
             @endif
 
-            <section class="panel form-section order-workspace-anchor" id="order-workspace-customer">
-                <h2>Dostava</h2>
-                <dl class="detail-list">
-                    <dt>Kupac</dt><dd>{{ $order['shipping_full_name'] ?? '—' }}</dd>
-                    <dt>Adresa</dt>
-                    <dd>
-                        {{ $order['shipping_address'] ?? '—' }},
-                        {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}
-                    </dd>
-                    <dt>Telefon</dt><dd>{{ $order['shipping_phone'] ?? '—' }}</dd>
-                    <dt>Napomena</dt><dd>{{ $order['customer_note'] ?? '—' }}</dd>
-                </dl>
-            </section>
+
 
             @if(is_array($delivery))
                 <section class="panel form-section delivery-record-card order-workspace-anchor" id="order-workspace-delivery-record">
