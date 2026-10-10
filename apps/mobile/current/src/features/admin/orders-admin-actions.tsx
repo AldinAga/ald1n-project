@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
@@ -186,8 +186,10 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
   const canReopen = capabilities.reopen && actionFlag(actions, 'reopen', workflowEnabled && completed);
 
   const [panel, setPanel] = useState<Panel> (null);
+  const lastRequestedSequence = useRef<number | null>(null);
   useEffect(() => {
-    if (!requestedAction) return;
+    if (!requestedAction || lastRequestedSequence.current === requestedAction.sequence) return;
+    lastRequestedSequence.current = requestedAction.sequence;
     if (requestedAction.kind === 'accept' && canAccept) setPanel('accept');
     if (requestedAction.kind === 'shipment' && canShipment) setPanel('shipment');
     if (requestedAction.kind === 'complete' && canComplete) setPanel('complete');
