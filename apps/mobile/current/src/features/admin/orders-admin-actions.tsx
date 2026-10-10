@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
@@ -59,6 +59,7 @@ type Props = {
   data: AdminOrderDetailRecord;
   capabilities: AdminOrderDetailCapabilities;
   onShipmentSuccess?: () => void;
+  requestedAction?: { kind: 'accept' | 'shipment' | 'complete'; sequence: number } | null;
 };
 
 function asRecord(value: AdminOrderDetailValue | undefined): AdminOrderDetailRecord | null {
@@ -144,7 +145,7 @@ function notifyInputError(feedback: ReturnType<typeof useAppFeedback>, message: 
   feedback.notify({ tone: 'danger', title: 'Proveri unos', message });
 }
 
-export function AdminOrderActions({ orderId, data, capabilities, onShipmentSuccess }: Props) {
+export function AdminOrderActions({ orderId, data, capabilities, onShipmentSuccess, requestedAction }: Props) {
   const { colors: theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const feedback = useAppFeedback();
@@ -185,6 +186,12 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
   const canReopen = capabilities.reopen && actionFlag(actions, 'reopen', workflowEnabled && completed);
 
   const [panel, setPanel] = useState<Panel> (null);
+  useEffect(() => {
+    if (!requestedAction) return;
+    if (requestedAction.kind === 'accept' && canAccept) setPanel('accept');
+    if (requestedAction.kind === 'shipment' && canShipment) setPanel('shipment');
+    if (requestedAction.kind === 'complete' && canComplete) setPanel('complete');
+  }, [requestedAction, canAccept, canShipment, canComplete]);
   const [statusValue, setStatusValue] = useState<AdminOrderStatus> ('processing');
   const [statusNote, setStatusNote] = useState('');
   const [internalNote, setInternalNote] = useState('');
