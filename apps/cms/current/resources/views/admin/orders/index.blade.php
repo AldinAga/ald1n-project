@@ -20,8 +20,8 @@
     $suppliers = $suppliers ?? collect();
 @endphp
 
-<div class="orders-page-ready" data-orders-page-ready="1">
-    <div class="page-heading">
+<div class="orders-page-ready ald-ops-index" data-orders-page-ready="1">
+    <div class="page-heading ald-ops-index-heading">
         <div>
             <span class="eyebrow">Operacije</span>
             <h1>{{ auth()->user()?->hasRole('superadmin') ? 'Sve porudžbine' : 'Meni dodeljene porudžbine' }}</h1>
@@ -49,7 +49,7 @@
             <pre>php artisan app:orders-doctor --repair --render</pre>
         </section>
     @else
-        <div class="attention-strip">
+        <div class="attention-strip ald-ops-index-attention">
             <a class="attention-card {{ request('attention') === 'unaccepted' ? 'active' : '' }}" href="{{ route('admin.orders.index', array_merge(request()->except('page'), ['attention' => 'unaccepted'])) }}">
                 <span class="attention-icon warning"><x-icon name="hourglass" /></span>
                 <span><strong>{{ $attentionCounts['unaccepted'] }}</strong><small>Čekaju preuzimanje</small></span>
@@ -63,7 +63,7 @@
             @endif
         </div>
 
-        <form class="filter-panel admin-filter order-filter" method="get">
+        <form class="filter-panel admin-filter order-filter ald-ops-index-filter" method="get" role="search" aria-label="Filtriranje porudžbina">
             <label class="search-field">
                 <span>Pretraga</span>
                 <input name="q" value="{{ request('q') }}" placeholder="Broj porudžbine, korisnik ili kupac">
@@ -116,19 +116,20 @@
             </div>
         </form>
 
-        <div class="admin-table-wrap">
-            <table class="admin-table operational-orders-table">
+        <div class="admin-table-wrap ald-ops-index-table-shell" role="region" aria-label="Lista porudžbina" tabindex="0">
+            <table class="admin-table operational-orders-table ald-ops-index-table">
+                <caption class="ald-ops-index-sr-only">Administratorski pregled porudžbina sa statusima, rokovima i dostupnim akcijama.</caption>
                 <thead>
                     <tr>
-                        <th>Broj</th>
-                        <th>Korisnik</th>
-                        <th>Odgovorno lice</th>
-                        <th>Status obrade</th>
-                        <th>Plaćanje</th>
-                        <th>Iznos</th>
-                        <th>Rok</th>
-                        <th>Datum</th>
-                        <th>Brze akcije</th>
+                        <th scope="col">Broj</th>
+                        <th scope="col">Korisnik</th>
+                        <th scope="col">Odgovorno lice</th>
+                        <th scope="col">Status obrade</th>
+                        <th scope="col">Plaćanje</th>
+                        <th scope="col">Iznos</th>
+                        <th scope="col">Rok</th>
+                        <th scope="col">Datum</th>
+                        <th scope="col">Brze akcije</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -148,20 +149,20 @@
                                 $supplierName = $order->supplier?->displayName();
                             }
                         @endphp
-                        <tr class="{{ $isOverdue ? 'row-overdue' : '' }}">
-                            <td>
+                        <tr class="{{ $isOverdue ? 'row-overdue' : '' }} ald-ops-index-order">
+                            <td data-ops-cell="number" data-label="Broj">
                                 <a href="{{ route('admin.orders.show', $order) }}"><strong>{{ $order->order_number }}</strong></a>
                                 <small class="muted">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</small>
                             </td>
-                            <td>
+                            <td data-ops-cell="creator" data-label="Korisnik">
                                 {{ $order->user?->displayName() ?? '—' }}
                                 <small class="muted">{{ $order->user?->email }}</small>
                             </td>
-                            <td>
+                            <td data-ops-cell="assignee" data-label="Odgovorno lice">
                                 {{ $supplierName ?: '—' }}
                                 <small class="muted">{{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}</small>
                             </td>
-                            <td>
+                            <td data-ops-cell="status" data-label="Status obrade">
                                 <span class="status-badge status-{{ $order->completed_at ? 'completed' : ($order->status === 'cancelled' ? 'archived' : ($order->status === 'shipped' ? 'active' : 'draft')) }}">
                                     {{ $order->completed_at ? 'Kompletirana' : ($statusLabels[$order->status] ?? $order->status) }}
                                 </span>
@@ -172,18 +173,18 @@
                                     <small class="muted">Provizija: {{ $order->commission->status }}</small>
                                 @endif
                             </td>
-                            <td>{{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
-                            <td><strong>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</strong></td>
-                            <td>
+                            <td data-ops-cell="payment" data-label="Plaćanje">{{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
+                            <td data-ops-cell="amount" data-label="Iznos"><strong>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</strong></td>
+                            <td data-ops-cell="deadline" data-label="Rok">
                                 @if($order->expected_shipping_at)
                                     <span class="{{ $isOverdue ? 'text-danger' : '' }}">{{ $order->expected_shipping_at->format('d.m.Y H:i') }}</span>
                                 @else
                                     —
                                 @endif
                             </td>
-                            <td>{{ $order->created_at?->format('d.m.Y H:i') }}</td>
-                            <td>
-                                <div class="quick-order-actions">
+                            <td data-ops-cell="date" data-label="Datum">{{ $order->created_at?->format('d.m.Y H:i') }}</td>
+                            <td data-ops-cell="actions" data-label="Brze akcije">
+                                <div class="quick-order-actions" aria-label="Akcije za porudžbinu {{ $order->order_number }}">
                                     <a class="button button-ghost button-small" href="{{ route('admin.orders.show', $order) }}">Detalji</a>
                                     @if($order->source_system === 'laravel' && !$order->accepted_at && in_array($order->status, ['new', 'processing'], true))
                                         <form method="post" action="{{ route('admin.orders.accept', $order) }}">
@@ -213,7 +214,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9">Nema porudžbina.</td></tr>
+                        <tr><td colspan="9" data-ops-cell="empty">Nema porudžbina.</td></tr>
                     @endforelse
                 </tbody>
             </table>
