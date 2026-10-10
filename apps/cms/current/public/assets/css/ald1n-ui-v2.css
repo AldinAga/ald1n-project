@@ -5759,3 +5759,290 @@ html[data-theme="light"] .auth-glass-card {
     transition: none;
   }
 }
+
+/* ALD1N_NOTIFICATIONS_INBOX_UX_BATCH567
+ * Authored over the canonical theme; no extra dependencies, filtering,
+ * AJAX navigation, route changes or local-state copies of unread totals.
+ */
+.ald-inbox-ux {
+  min-width: 0;
+  gap: 18px;
+}
+.ald-inbox-ux .ald-inbox-ux-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  min-width: 0;
+  padding: 8px 0 20px;
+  margin: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-heading-copy {
+  min-width: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-heading-copy p {
+  max-width: 66ch;
+  line-height: 1.55;
+}
+.ald-inbox-ux .ald-inbox-ux-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ald-inbox-ux .ald-inbox-ux-unread-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: var(--ald-primary-container);
+  border: 1px solid color-mix(in srgb, var(--ald-primary) 32%, var(--ald-border));
+  color: var(--ald-primary-strong);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--ald-radius-pill);
+}
+.ald-inbox-ux .ald-inbox-ux-read-all {
+  margin: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-read-all .button {
+  min-height: 44px;
+}
+.ald-inbox-ux .ald-inbox-ux-main {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 1140px;
+  min-width: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.ald-inbox-ux .ald-inbox-ux-section-heading h2 {
+  font-size: clamp(1.1rem, 1.45vw, 1.35rem);
+  line-height: 1.25;
+  margin: 5px 0 0;
+  color: var(--ald-text);
+}
+.ald-inbox-ux .ald-inbox-ux-section-heading p {
+  max-width: 56ch;
+  margin: 0;
+  font-size: .82rem;
+  line-height: 1.5;
+  color: var(--ald-muted);
+}
+.ald-inbox-ux .ald-inbox-ux-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.ald-inbox-ux .build16-notification-list .notification-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 3px 14px color-mix(in srgb, #000 5%, transparent);
+  transition: border-color var(--ald-motion-fast) var(--ald-ease-out),
+              background var(--ald-motion-fast) var(--ald-ease-out),
+              transform var(--ald-motion-fast) var(--ald-ease-out);
+}
+.ald-inbox-ux .build16-notification-list .notification-card.is-unread {
+  border-color: color-mix(in srgb, var(--ald-primary) 55%, var(--ald-border));
+  border-inline-start: 4px solid var(--ald-primary);
+  background: color-mix(in srgb, var(--ald-primary-container) 25%, var(--ald-surface));
+}
+.ald-inbox-ux .build16-notification-list .notification-card.is-read {
+  opacity: .88;
+}
+.ald-inbox-ux .notification-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--ald-primary);
+  background: var(--ald-surface-container);
+}
+.ald-inbox-ux .notification-card:focus-within {
+  border-color: var(--ald-primary);
+}
+.ald-inbox-ux .ald-inbox-ux-card-button {
+  display: block;
+  width: 100%;
+  min-height: 118px;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  text-align: start;
+  background: transparent;
+  color: var(--ald-text);
+  cursor: pointer;
+}
+.ald-inbox-ux .ald-inbox-ux-card-button:focus-visible {
+  outline: 3px solid var(--ald-primary);
+  outline-offset: 2px;
+}
+.ald-inbox-ux .ald-inbox-ux-card-layout {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(170px, auto);
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 18px;
+}
+.ald-inbox-ux .ald-inbox-ux-card-layout .notification-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  border-radius: var(--ald-radius-md);
+  flex-shrink: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-card-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ald-text);
+}
+.ald-inbox-ux .ald-inbox-ux-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 11px;
+  min-width: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-card-title strong {
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--ald-text);
+  overflow-wrap: anywhere;
+}
+.ald-inbox-ux .ald-inbox-ux-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 3px 9px;
+  font-size: .69rem;
+  font-weight: 800;
+  line-height: 1.15;
+  border-radius: var(--ald-radius-pill);
+  border: 1px solid var(--ald-border);
+  color: var(--ald-muted);
+  background: var(--ald-surface-container);
+}
+.ald-inbox-ux .ald-inbox-ux-status.is-new {
+  background: var(--ald-primary-container);
+  border-color: color-mix(in srgb, var(--ald-primary) 34%, var(--ald-border));
+  color: var(--ald-primary-strong);
+}
+.ald-inbox-ux .ald-inbox-ux-card-message {
+  display: block;
+  font-size: .9rem;
+  line-height: 1.48;
+  color: var(--ald-text);
+  overflow-wrap: anywhere;
+}
+.ald-inbox-ux .ald-inbox-ux-card-date {
+  display: block;
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ald-muted);
+}
+.ald-inbox-ux .ald-inbox-ux-card-action {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-md);
+  font-size: .78rem;
+  font-weight: 750;
+  color: var(--ald-text);
+  text-align: end;
+  line-height: 1.3;
+}
+.ald-inbox-ux .is-unread .ald-inbox-ux-card-action {
+  border-color: var(--ald-primary);
+  background: var(--ald-primary);
+  color: var(--ald-on-primary);
+}
+.ald-inbox-ux .ald-inbox-ux-empty {
+  min-height: 250px;
+  border: 1px dashed var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  padding: 30px 18px;
+}
+.ald-inbox-ux .ald-inbox-ux-pagination {
+  margin-top: 2px;
+}
+@media (max-width: 800px) {
+  .ald-inbox-ux .ald-inbox-ux-card-layout {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-action {
+    grid-column: 2;
+    justify-content: space-between;
+    width: fit-content;
+    max-width: 100%;
+  }
+}
+@media (max-width: 640px) {
+  .ald-inbox-ux .ald-inbox-ux-heading {
+    align-items: stretch;
+  }
+  .ald-inbox-ux .ald-inbox-ux-heading-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-layout {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-layout .notification-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-action {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
+  }
+  .ald-inbox-ux .ald-inbox-ux-read-all .button {
+    width: 100%;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 400px) {
+  .ald-inbox-ux .ald-inbox-ux-heading-actions > * {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ald-inbox-ux .notification-card {
+    transition: none;
+  }
+  .ald-inbox-ux .notification-card:hover {
+    transform: none;
+  }
+}
