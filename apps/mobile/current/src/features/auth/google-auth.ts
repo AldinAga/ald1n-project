@@ -10,7 +10,7 @@ let configured = false;
 
 function configureGoogle(): void {
   if (configured) return;
-  GoogleOneTapSignIn.configure({ webClientId: 'autoDetect' });
+  GoogleOneTapSignIn.configure({ webClientId: '270925336895-dpmgc8e7cek9uq814ffsqjmdfd4i8diq.apps.googleusercontent.com' });
   configured = true;
 }
 

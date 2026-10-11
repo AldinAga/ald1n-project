@@ -654,7 +654,18 @@ assert(/apiRequest<\{ data: User \}>\(\s*'me'\s*,\s*\{[\s\S]*?method:\s*'PATCH'/
 assert(/apiRequest<AccountPasswordResponse>\(\s*'me\/password'\s*,\s*\{[\s\S]*?method:\s*'PUT'/.test(accountEndpoints), 'API klijent koristi PUT /me/password za lozinku.');
 
 const googleAuth = fs.readFileSync(path.join(root, 'src/features/auth/google-auth.ts'), 'utf8');
-assert(googleAuth.includes("webClientId: 'autoDetect'") && googleAuth.includes('getGoogleIdToken'), 'Google Sign-In koristi web client ID iz google-services.json i vraća ID token backendu.');
+const firebaseGoogleConfig = JSON.parse(fs.readFileSync(path.join(root, 'google-services.json'), 'utf8'));
+const firebaseProdClients = (firebaseGoogleConfig.client ?? []).filter((item) => item.client_info?.android_client_info?.package_name === 'com.ald1n.mobile');
+const firebaseWebClients = firebaseProdClients.length === 1 ? (firebaseProdClients[0].oauth_client ?? []).filter((item) => item.client_type === 3) : [];
+const firebaseWebClientId = firebaseWebClients.length === 1 ? firebaseWebClients[0].client_id : null;
+assert(
+  typeof firebaseWebClientId === 'string'
+    && /^[0-9]+-[A-Za-z0-9-]+\.apps\.googleusercontent\.com$/.test(firebaseWebClientId)
+    && googleAuth.includes(`webClientId: '${firebaseWebClientId}'`)
+    && !googleAuth.includes("webClientId: 'autoDetect'")
+    && googleAuth.includes('getGoogleIdToken'),
+  'Google Sign-In koristi eksplicitni Web client ID iz google-services.json i vraca ID token backendu.',
+);
 assert(googleAuth.includes('createAccount') && googleAuth.includes('presentExplicitSignIn'), 'Google login ima saved-account, registration/account-picker i explicit fallback tok.');
 
 const loginScreen = fs.readFileSync(
