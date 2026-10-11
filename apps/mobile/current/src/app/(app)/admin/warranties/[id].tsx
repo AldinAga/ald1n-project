@@ -22,7 +22,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmAction } from '@/components/ui/confirm-action';
 import { DateTimeField } from '@/components/ui/date-time-field';
-import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
+import { WorkspaceGrid } from '@/components/workspaces/workspace-grid';
+import { QuickActionHub, type QuickAction } from '@/components/workspaces/quick-action-hub';
+import type { GlyphName } from '@/components/ui/glyph';
 import {
   ErrorState,
   LoadingState,
@@ -48,12 +50,12 @@ import { useAppTheme } from '@/theme/app-theme';
 type WarrantyWorkspace = 'overview' | 'details' | 'maintenance' | 'document' | 'void';
 type MaintenanceMode = 'schedule' | 'complete';
 
-const WARRANTY_WORKSPACE_OPTIONS: Array<{ value: WarrantyWorkspace; label: string; description: string }> = [
-  { value: 'overview', label: 'Pregled', description: 'Status garancije, kupac, artikal i najvažniji rokovi na jednom mestu.' },
-  { value: 'details', label: 'Podaci', description: 'Serijski brojevi, period važenja i uslovi garantnog lista.' },
-  { value: 'maintenance', label: 'Održavanje', description: 'Preventivni termini, servisne reference i završeni maintenance zapisi.' },
-  { value: 'document', label: 'Dokument', description: 'Garantni PDF i read-only snapshot ključnih podataka dokumenta.' },
-  { value: 'void', label: 'Poništavanje', description: 'Audit status i kontrolisana danger-zone akcija poništavanja garancije.' },
+const WARRANTY_WORKSPACE_OPTIONS: Array<{ value: WarrantyWorkspace; glyph: GlyphName; label: string; description: string }> = [
+  { value: 'overview', glyph: 'home', label: 'Pregled', description: 'Status garancije, kupac, artikal i najvažniji rokovi na jednom mestu.' },
+  { value: 'details', glyph: 'account', label: 'Podaci', description: 'Serijski brojevi, period važenja i uslovi garantnog lista.' },
+  { value: 'maintenance', glyph: 'service', label: 'Održavanje', description: 'Preventivni termini, servisne reference i završeni maintenance zapisi.' },
+  { value: 'document', glyph: 'copy', label: 'Dokument', description: 'Garantni PDF i read-only snapshot ključnih podataka dokumenta.' },
+  { value: 'void', glyph: 'close', label: 'Poništavanje', description: 'Audit status i kontrolisana danger-zone akcija poništavanja garancije.' },
 ];
 
 function errorMessage(
@@ -455,6 +457,34 @@ export default function AdminWarrantyDetailScreen() {
 
   const warranty = query.data;
   const workspaceMeta = WARRANTY_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
+  const selectWorkspace = (next: WarrantyWorkspace) => {
+    setWorkspace(next);
+  };
+
+  // All quick actions use existing permissions/record eligibility; only PDF is an authorized read-only operation.
+  const quickActions: QuickAction[] = [];
+  if (warranty.capabilities.can_update) {
+    quickActions.push({ id: 'edit-details', label: 'Uredi podatke', glyph: 'account', kind: 'primary',
+      disabled: updateMutation.isPending, pending: updateMutation.isPending,
+      onPress: () => setWorkspace('details') });
+  }
+  if (warranty.maintenance_records.some((record) => record.can_schedule || record.can_complete)) {
+    quickActions.push({ id: 'maintenance', label: 'Preventivno održavanje', glyph: 'service',
+      kind: quickActions.length === 0 ? 'primary' : 'secondary',
+      disabled: maintenanceMutation.isPending, pending: maintenanceMutation.isPending,
+      onPress: () => setWorkspace('maintenance') });
+  }
+  quickActions.push({ id: 'pdf', label: 'Otvori / podeli PDF', glyph: 'copy',
+    kind: quickActions.length === 0 ? 'primary' : 'secondary',
+    disabled: openingPdf, pending: openingPdf,
+    onPress: () => { void openPdf(warranty.id, warranty.warranty_number); } });
+  if (warranty.capabilities.can_void) {
+    quickActions.push({ id: 'void', label: 'Poništavanje', glyph: 'close', kind: 'danger',
+      disabled: voidMutation.isPending, pending: voidMutation.isPending,
+      onPress: () => setWorkspace('void') });
+  }
+  quickActions.push({ id: 'refresh', label: 'Osveži detalj', glyph: 'refresh', kind: 'secondary',
+    disabled: query.isFetching, pending: query.isFetching, onPress: () => { void query.refetch(); } });
 
   return (
     <Screen contentStyle={styles.content}>
@@ -470,21 +500,6 @@ export default function AdminWarrantyDetailScreen() {
         eyebrow="Admin · Garantni list"
         name={bootstrap?.user.name}
       />
-
-      <Card style={styles.workspaceCard}>
-        <Text style={styles.sectionTitle}>Radni prostor garancije</Text>
-        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo garantnog lista koji želiš da obradiš.'}</Text>
-        <FilterBar>
-          {WARRANTY_WORKSPACE_OPTIONS.map((option) => (
-            <FilterChip
-              key={option.value}
-              label={option.label}
-              active={workspace === option.value}
-              onPress={() => setWorkspace(option.value)}
-            />
-          ))}
-        </FilterBar>
-      </Card>
 
       <Card style={styles.card}>
         <View style={styles.headerRow}>
@@ -536,6 +551,21 @@ export default function AdminWarrantyDetailScreen() {
         />
       </Card>
 
+      <QuickActionHub actions={quickActions} title="Operativne akcije garancije" maxVisible={4} />
+
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor garancije</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo garantnog lista koji želiš da obradiš.'}</Text>
+        <WorkspaceGrid
+          options={WARRANTY_WORKSPACE_OPTIONS.map((option) => ({
+            id: option.value, label: option.label, glyph: option.glyph,
+            a11yLabel: option.label + ': ' + option.description,
+          }))}
+          selected={workspace}
+          onSelect={selectWorkspace}
+        />
+      </Card>
+
       {workspace === 'details' ? (
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Podaci garantnog lista</Text>
@@ -546,8 +576,8 @@ export default function AdminWarrantyDetailScreen() {
         </Card>
       ) : null}
 
-      {workspace === 'details' && warranty.capabilities.can_update ? (
-        <Card style={styles.card}>
+      {warranty.capabilities.can_update ? (
+        <Card style={[styles.card, workspace !== 'details' && styles.hidden]}>
           <Text style={styles.sectionTitle}>
             Serijski brojevi i rok
           </Text>
@@ -685,8 +715,8 @@ export default function AdminWarrantyDetailScreen() {
         </Card>
       ) : null}
 
-      {workspace === 'maintenance' && maintenanceRecordId !== null && maintenanceMode ? (
-        <Card style={styles.card}>
+      {maintenanceRecordId !== null && maintenanceMode ? (
+        <Card style={[styles.card, workspace !== 'maintenance' && styles.hidden]}>
           <Text style={styles.sectionTitle}>
             {maintenanceMode === 'schedule'
               ? 'Zakaži održavanje'
@@ -774,8 +804,8 @@ export default function AdminWarrantyDetailScreen() {
         </Card>
       ) : null}
 
-      {workspace === 'void' && warranty.capabilities.can_void ? (
-        <Card style={styles.card}>
+      {warranty.capabilities.can_void ? (
+        <Card style={[styles.card, workspace !== 'void' && styles.hidden]}>
           <Text style={styles.sectionTitle}>
             Poništi garanciju
           </Text>
@@ -957,6 +987,7 @@ function createStyles(theme: AppColors) {
       gap: spacing.md,
       borderColor: theme.primary,
     },
+    hidden: { display: 'none' },
     card: {
       gap: spacing.md,
     },

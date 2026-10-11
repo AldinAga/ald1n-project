@@ -3780,6 +3780,27 @@ assert(
     && receivablesDetailUxBatch88.includes('visible_to_customer: contactVisible'),
   'v1.0 Batch88 Receivables UX preserves permission, server capabilities, installment validation, contact visibility and outbox reminder contracts.',
 );
+// ALD1N_WORKSPACE_V2_RECEIVABLES_BATCH629_VALIDATOR
+assert(
+  receivablesDetailUxBatch88.includes('<WorkspaceGrid')
+    && receivablesDetailUxBatch88.includes('<QuickActionHub actions={quickActions}')
+    && receivablesDetailUxBatch88.includes('selected={workspace}')
+    && receivablesDetailUxBatch88.includes('onSelect={selectWorkspace}')
+    && !receivablesDetailUxBatch88.includes('<FilterBar')
+    && receivablesDetailUxBatch88.includes('const selectWorkspace = (next: ReceivablesWorkspace) => {\n    setWorkspace(next);\n  };')
+    && receivablesDetailUxBatch88.includes("panel === 'payment'")
+    && receivablesDetailUxBatch88.includes("panel === 'plan'")
+    && receivablesDetailUxBatch88.includes("panel === 'contact'")
+    && receivablesDetailUxBatch88.includes("panel === 'reminder'")
+    && receivablesDetailUxBatch88.includes('idempotency_key: paymentIdempotencyKey')
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.replacePlan')
+    && receivablesDetailUxBatch88.includes('apiAdminReceivables.sendReminder')
+    && receivablesDetailUxBatch88.includes('visible_to_customer: contactVisible')
+    && receivablesDetailUxBatch88.includes('if (response.capabilities.can_record_payment && data.remaining_rsd > 0)')
+    && receivablesDetailUxBatch88.indexOf('<Card style={styles.heroCard}>') < receivablesDetailUxBatch88.indexOf('<QuickActionHub')
+    && receivablesDetailUxBatch88.indexOf('<QuickActionHub') < receivablesDetailUxBatch88.indexOf('<WorkspaceGrid'),
+  'Workspace V2 Receivables cuva sedam sekcija, payment draft/idempotency, server capability i outbox granice.',
+);
 assert(
   !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(receivablesDetailUxBatch88),
   'v1.0 Batch88 Receivables UX does not restore Product Variants contract.',
@@ -3928,6 +3949,25 @@ assert(
     && warrantyDetailUxBatch85.includes('openAdminWarrantyPdf')
     && warrantyDetailUxBatch85.includes('ConfirmAction'),
   'v1.0 Batch85 Warranty UX čuva warranties.manage, update, void, maintenance i secure PDF poslovni ugovor.',
+);
+// ALD1N_WORKSPACE_V2_WARRANTIES_BATCH629_VALIDATOR
+assert(
+  warrantyDetailUxBatch85.includes('<WorkspaceGrid')
+    && warrantyDetailUxBatch85.includes('<QuickActionHub actions={quickActions}')
+    && warrantyDetailUxBatch85.includes('selected={workspace}')
+    && warrantyDetailUxBatch85.includes('onSelect={selectWorkspace}')
+    && !warrantyDetailUxBatch85.includes('<FilterBar')
+    && warrantyDetailUxBatch85.includes("workspace !== 'details' && styles.hidden")
+    && warrantyDetailUxBatch85.includes("workspace !== 'maintenance' && styles.hidden")
+    && warrantyDetailUxBatch85.includes("workspace !== 'void' && styles.hidden")
+    && warrantyDetailUxBatch85.includes('maintenanceRecordId !== null && maintenanceMode')
+    && warrantyDetailUxBatch85.includes('warranty.capabilities.can_void')
+    && warrantyDetailUxBatch85.includes('voidReason.trim().length < 5')
+    && warrantyDetailUxBatch85.includes('setConfirmVoid(true)')
+    && warrantyDetailUxBatch85.includes('openAdminWarrantyPdf')
+    && warrantyDetailUxBatch85.indexOf('label="Telefon"') < warrantyDetailUxBatch85.indexOf('<QuickActionHub')
+    && warrantyDetailUxBatch85.indexOf('<QuickActionHub') < warrantyDetailUxBatch85.indexOf('<WorkspaceGrid'),
+  'Workspace V2 Warranties zadrzava pet sekcija, mounted drafts, server capabilities i potvrdu ponistavanja.',
 );
 assert(
   !/(ProductVariant|product_variant_id|product_variants|variants_enabled)/.test(warrantyDetailUxBatch85),

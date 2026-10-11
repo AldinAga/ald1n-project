@@ -10,7 +10,10 @@ import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DateTimeField } from '@/components/ui/date-time-field';
-import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
+import { FilterChip } from '@/components/ui/filter-bar';
+import { WorkspaceGrid } from '@/components/workspaces/workspace-grid';
+import { QuickActionHub, type QuickAction } from '@/components/workspaces/quick-action-hub';
+import type { GlyphName } from '@/components/ui/glyph';
 import { MoneyField } from '@/components/ui/money-field';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
@@ -32,14 +35,14 @@ import { useAppTheme } from '@/theme/app-theme';
 type ReceivablesWorkspace = 'overview' | 'case' | 'plan' | 'payments' | 'communication' | 'reminders' | 'audit';
 type Panel = 'update' | 'plan' | 'payment' | 'contact' | 'reminder' | null;
 
-const RECEIVABLES_WORKSPACE_OPTIONS: Array<{ value: ReceivablesWorkspace; label: string; description: string }> = [
-  { value: 'overview', label: 'Pregled', description: 'Kljucevi predmeta naplate, saldo, kasnjenje i dostupne server akcije.' },
-  { value: 'case', label: 'Predmet', description: 'Status, odgovorno lice, sledeca akcija, obecana uplata i interna napomena.' },
-  { value: 'plan', label: 'Plan otplate', description: 'Postojece rate i kontrolisana zamena plana kroz server validaciju.' },
-  { value: 'payments', label: 'Uplate', description: 'Stvarne uplate sa realnim datumom, iznosom i automatskom FIFO raspodelom na otvorene rate.' },
-  { value: 'communication', label: 'Komunikacija', description: 'Rucni i automatski kontakti uz postojecu customer visibility granicu.' },
-  { value: 'reminders', label: 'Opomene', description: 'Rucni podsetnik kroz postojeci ReceivablesService i e-mail outbox.' },
-  { value: 'audit', label: 'Audit', description: 'Autor izmene, poslednji kontakt, poslednja opomena i interna evidencija.' },
+const RECEIVABLES_WORKSPACE_OPTIONS: Array<{ value: ReceivablesWorkspace; glyph: GlyphName; label: string; description: string }> = [
+  { value: 'overview', glyph: 'home', label: 'Pregled', description: 'Kljucevi predmeta naplate, saldo, kasnjenje i dostupne server akcije.' },
+  { value: 'case', glyph: 'account', label: 'Predmet', description: 'Status, odgovorno lice, sledeca akcija, obecana uplata i interna napomena.' },
+  { value: 'plan', glyph: 'report', label: 'Plan otplate', description: 'Postojece rate i kontrolisana zamena plana kroz server validaciju.' },
+  { value: 'payments', glyph: 'commission', label: 'Uplate', description: 'Stvarne uplate sa realnim datumom, iznosom i automatskom FIFO raspodelom na otvorene rate.' },
+  { value: 'communication', glyph: 'messages', label: 'Komunikacija', description: 'Rucni i automatski kontakti uz postojecu customer visibility granicu.' },
+  { value: 'reminders', glyph: 'bell', label: 'Opomene', description: 'Rucni podsetnik kroz postojeci ReceivablesService i e-mail outbox.' },
+  { value: 'audit', glyph: 'lock', label: 'Audit', description: 'Autor izmene, poslednji kontakt, poslednja opomena i interna evidencija.' },
 ];
 type PlanDraftRow = { key: number; due_at: string; amount_rsd: string; note: string };
 
@@ -323,34 +326,45 @@ export default function AdminReceivablesDetailScreen() {
 
   const workspaceMeta = RECEIVABLES_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
 
+  // Workspace navigation cannot discard payment idempotency, installment, contact or reminder drafts.
   const selectWorkspace = (next: ReceivablesWorkspace) => {
     setWorkspace(next);
-    setPanel(null);
   };
 
   const submitReminder = () => void execute('Podsetnik je prosleđen u postojeći outbox', () => apiAdminReceivables.sendReminder(receivableId, {
     message: compact(reminderMessage),
   }));
 
+  // Server permission/capabilities authorize each action; tapping a quick action only opens an existing form.
+  const quickActions: QuickAction[] = [];
+  if (response.capabilities.can_record_payment && data.remaining_rsd > 0) {
+    quickActions.push({ id: 'record-payment', label: 'Evidentiraj uplatu', glyph: 'commission',
+      kind: 'primary', disabled: mutation.isPending, pending: mutation.isPending, onPress: openPayment });
+  }
+  if (response.capabilities.can_update) {
+    quickActions.push({ id: 'update', label: 'Ažuriraj predmet', glyph: 'account',
+      kind: 'secondary', disabled: mutation.isPending, pending: mutation.isPending, onPress: openUpdate });
+  }
+  if (response.capabilities.can_replace_plan) {
+    quickActions.push({ id: 'plan', label: 'Plan otplate', glyph: 'report',
+      kind: 'secondary', disabled: mutation.isPending, pending: mutation.isPending, onPress: openPlan });
+  }
+  if (response.capabilities.can_add_contact) {
+    quickActions.push({ id: 'contact', label: 'Evidentiraj kontakt', glyph: 'messages',
+      kind: 'secondary', disabled: mutation.isPending, pending: mutation.isPending, onPress: openContact });
+  }
+  if (response.capabilities.can_send_reminder) {
+    quickActions.push({ id: 'reminder', label: 'Pripremi podsetnik', glyph: 'bell',
+      kind: 'secondary', disabled: mutation.isPending, pending: mutation.isPending, onPress: openReminder });
+  }
+  quickActions.push({ id: 'refresh', label: 'Osveži detalj', glyph: 'refresh',
+    kind: 'secondary', disabled: query.isFetching, pending: query.isFetching,
+    onPress: () => { void query.refetch(); } });
+
   return (
     <Screen contentStyle={styles.content}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ Potraživanja</Text></Pressable>
       <PageHeader title={data.case_number} eyebrow="Admin · Potraživanja" name={bootstrap?.user.name} />
-
-      <Card style={styles.workspaceCard}>
-        <Text style={styles.sectionTitle}>Radni prostor naplate</Text>
-        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo predmeta koji zelis da obradis.'}</Text>
-        <FilterBar>
-          {RECEIVABLES_WORKSPACE_OPTIONS.map((option) => (
-            <FilterChip
-              key={option.value}
-              label={option.label}
-              active={workspace === option.value}
-              onPress={() => selectWorkspace(option.value)}
-            />
-          ))}
-        </FilterBar>
-      </Card>
 
       <Card style={styles.heroCard}>
         <View style={styles.rowBetween}>
@@ -372,17 +386,22 @@ export default function AdminReceivablesDetailScreen() {
         ) : null}
       </Card>
 
-      <Card style={styles.actionsCard}>
-        <Text style={styles.sectionTitle}>Akcije predmeta</Text>
-        <View style={styles.actions}>
-          {response.capabilities.can_update ? <Button variant="secondary" onPress={openUpdate}>Ažuriraj predmet</Button> : null}
-          {response.capabilities.can_replace_plan ? <Button variant="secondary" onPress={openPlan}>Plan otplate</Button> : null}
-          {response.capabilities.can_add_contact ? <Button variant="secondary" onPress={openContact}>Evidentiraj kontakt</Button> : null}
-          {response.capabilities.can_send_reminder ? <Button onPress={openReminder}>Pošalji podsetnik</Button> : null}
-        </View>
+      <QuickActionHub actions={quickActions} title="Operativne akcije naplate" maxVisible={4} />
+
+      <Card style={styles.workspaceCard}>
+        <Text style={styles.sectionTitle}>Radni prostor naplate</Text>
+        <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo predmeta koji zelis da obradis.'}</Text>
+        <WorkspaceGrid
+          options={RECEIVABLES_WORKSPACE_OPTIONS.map((option) => ({
+            id: option.value, label: option.label, glyph: option.glyph,
+            a11yLabel: option.label + ': ' + option.description,
+          }))}
+          selected={workspace}
+          onSelect={selectWorkspace}
+        />
       </Card>
 
-      {workspace === 'case' && panel === 'update' ? (
+      {panel === 'update' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Ažuriranje predmeta</Text>
           <SelectSheet label="Status" value={status} options={statusOptions} onChange={setStatus} />
@@ -397,7 +416,7 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      {workspace === 'payments' && panel === 'payment' ? (
+      {panel === 'payment' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Evidentiraj uplatu</Text>
           <Text style={styles.meta}>Unesi stvarni datum i iznos uplate. Datum nije vezan za datum dospeća rate; server automatski raspoređuje uplatu na najstarije otvorene rate.</Text>
@@ -430,7 +449,7 @@ export default function AdminReceivablesDetailScreen() {
           {data.payments.length > 0 ? data.payments.map((item) => <PaymentRow key={item.id} item={item} />) : <Text style={styles.meta}>Još nema evidentiranih uplata.</Text>}
         </Card>
       ) : null}
-      {workspace === 'plan' && panel === 'plan' ? (
+      {panel === 'plan' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Plan otplate</Text>
           <Text style={styles.meta}>Server proverava zbir rata, hronologiju i zabranu zamene plana nakon alocirane uplate. Maksimalno {response.options.max_installments} rata.</Text>
@@ -454,7 +473,7 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      {workspace === 'communication' && panel === 'contact' ? (
+      {panel === 'contact' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Evidencija komunikacije</Text>
           <Text style={styles.meta}>Kanal i smer se prosleđuju postojećem server FormRequest ugovoru. Komunikacija je interna osim kada eksplicitno uključiš vidljivost kupcu.</Text>
@@ -472,7 +491,7 @@ export default function AdminReceivablesDetailScreen() {
         </Card>
       ) : null}
 
-      {workspace === 'reminders' && panel === 'reminder' ? (
+      {panel === 'reminder' ? (
         <Card style={styles.panelCard}>
           <Text style={styles.sectionTitle}>Ručni podsetnik</Text>
           <Text style={styles.warning}>Podsetnik ide kroz postojeći ReceivablesService i e-mail outbox. Ne kreira sintetičku uplatu niti zaobilazi postojeću deduplikaciju.</Text>
