@@ -11,7 +11,9 @@ import { Card } from '@/components/ui/card';
 import { ConfirmAction } from '@/components/ui/confirm-action';
 import { DateTimeField } from '@/components/ui/date-time-field';
 import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
+import { WorkspaceGrid } from '@/components/workspaces/workspace-grid';
 import { SelectSheet } from '@/components/ui/select-sheet';
+import type { GlyphName } from '@/components/ui/glyph';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
@@ -101,43 +103,52 @@ type ReportWorkspace =
   | 'operations'
   | 'schedules';
 
+// ALD1N_WORKSPACE_V2_W3_REPORTS_GRID_BATCH630
 const REPORT_WORKSPACE_OPTIONS: Array<{
   value: ReportWorkspace;
+  glyph: GlyphName;
   label: string;
   description: string;
 }> = [
   {
     value: 'overview',
+    glyph: 'home',
     label: 'Pregled',
     description: 'Klju\u010Dni pokazatelji, trend i \u010Dinak odgovornih lica.',
   },
   {
     value: 'profitability',
+    glyph: 'commission',
     label: 'Profitabilnost',
     description: 'Prihod, bruto dobit i mar\u017Ea po izabranom segmentu.',
   },
   {
     value: 'inventory',
+    glyph: 'catalog',
     label: 'Lager',
     description: 'Vrednost lagera, koli\u010Dine, starost i najvrednije stavke.',
   },
   {
     value: 'receivables',
+    glyph: 'orders',
     label: 'Potra\u017Eivanja',
     description: 'Otvorene obaveze i aging struktura potra\u017Eivanja.',
   },
   {
     value: 'after_sales',
+    glyph: 'service',
     label: 'Postprodaja',
     description: 'Slu\u010Dajevi, rokovi, reklamacije i servisni tro\u0161ak.',
   },
   {
     value: 'operations',
+    glyph: 'report',
     label: 'Operativni',
     description: 'Postoje\u0107i PDF i CSV operativni izvozi po dozvolama.',
   },
   {
     value: 'schedules',
+    glyph: 'bell',
     label: 'Rasporedi',
     description: 'Zakazano slanje, istorija isporuka i kontrolisane akcije.',
   },
@@ -348,16 +359,16 @@ export default function AdminReportsIndexScreen() {
         <Text style={styles.muted}>
           {workspaceMeta?.description ?? 'Izaberi poslovni pogled.'}
         </Text>
-        <FilterBar>
-          {workspaceOptions.map((option) => (
-            <FilterChip
-              key={option.value}
-              label={option.label}
-              active={workspace === option.value}
-              onPress={() => selectWorkspace(option.value)}
-            />
-          ))}
-        </FilterBar>
+        <WorkspaceGrid
+          options={workspaceOptions.map((option) => ({
+            id: option.value,
+            label: option.label,
+            glyph: option.glyph,
+            a11yLabel: option.label + ': ' + option.description,
+          }))}
+          selected={workspace}
+          onSelect={selectWorkspace}
+        />
       </Card>
 
       <Card style={styles.filtersCard}>
@@ -480,7 +491,7 @@ export default function AdminReportsIndexScreen() {
             <Card style={styles.filtersCard}>
               <Text style={styles.sectionTitle}>{'Upravlja\u010Dki izvoz'}</Text>
               <Text style={styles.muted}>
-                {'CSV i PDF koriste isti aktivni kontekst i postoje0107i serverski export tok.'}
+                {'CSV i PDF koriste isti aktivni kontekst i postojeći serverski export tok.'}
               </Text>
               <View style={styles.actionsRow}>
                 <Button

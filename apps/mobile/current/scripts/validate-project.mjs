@@ -1778,6 +1778,21 @@ assert(
   'OpenAPI dokumentuje kompletan P3 Admin Reports read/export/schedule ugovor od 10 operacija.',
 );
 
+// ALD1N_WORKSPACE_V2_W3_REPORTS_BATCH630_VALIDATOR
+const w3ReportsBatch630 = fs.readFileSync(path.join(root,'src/app/(app)/admin/reports/index.tsx'),'utf8');
+assert(
+  w3ReportsBatch630.includes('ALD1N_WORKSPACE_V2_W3_REPORTS_GRID_BATCH630')
+    && w3ReportsBatch630.includes('<WorkspaceGrid')
+    && w3ReportsBatch630.includes('selected={workspace}')
+    && w3ReportsBatch630.includes('onSelect={selectWorkspace}')
+    && w3ReportsBatch630.includes('options={workspaceOptions.map((option) => ({')
+    && w3ReportsBatch630.includes("if (option.value === 'operations') return canUseOperational")
+    && w3ReportsBatch630.includes("if (option.value === 'schedules') return canUseSchedules")
+    && w3ReportsBatch630.includes('FilterBar activeCount={activeCount} onClear={clearFilters}')
+    && w3ReportsBatch630.includes('openAdminReportExport(format, applied)'),
+  'W3 Reports navigation is a seven-option permission-filtered responsive icon grid without changing date/filter/export authority.',
+);
+
 // MOBILE_P3_SYSTEM_HEALTH_ADMIN_BATCH2C_OPENAPI_VALIDATOR_V06
 const p3SystemHealthApiBatch2CV06 = fs.readFileSync(path.join(root, 'src/features/admin/system-health-admin-api.ts'), 'utf8');
 const p3SystemHealthScreenBatch2CV06 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/system-health/index.tsx'), 'utf8');
