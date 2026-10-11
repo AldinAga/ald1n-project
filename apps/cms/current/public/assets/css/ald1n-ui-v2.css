@@ -2690,6 +2690,41 @@ html[data-theme="dark"] .catalog-filter-toolbar select,html[data-theme="dark"] .
     .order-workspace-anchor,#delivery-completion{scroll-behavior:auto}
 }
 
+/* ALD1N_ORDER_WORKSPACE_V2_BUYER_FIRST_WEB
+   Accessible DOM: buyer first; CSS places it on the right at desktop widths. */
+.order-priority-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr);grid-template-areas:"command buyer";align-items:start;gap:16px;margin:0 0 18px}
+.order-priority-layout>*{min-width:0}
+.order-priority-layout>.order-workspace-customer{grid-area:buyer;margin:0;padding:18px;border-color:color-mix(in srgb,var(--primary) 32%,var(--line));background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 96%,var(--primary) 4%),var(--panel))}
+.order-buyer-card-heading{align-items:flex-start;gap:9px}
+.order-buyer-card-heading h2{margin:4px 0;font-size:1.06rem;line-height:1.3;overflow-wrap:anywhere}
+.order-buyer-shortcut{display:inline-flex;align-items:center;min-height:40px;font-size:.73rem;font-weight:800;white-space:nowrap;color:var(--primary);text-decoration:none}
+.order-buyer-shortcut:focus-visible,.order-buyer-call:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+.order-buyer-detail-list{margin:14px 0 0}
+.order-buyer-detail-list dt{font-size:.76rem}
+.order-buyer-detail-list dd{overflow-wrap:anywhere}
+.order-buyer-detail-list .order-buyer-name{font-weight:850;font-size:1.03rem}
+.order-buyer-detail-list .order-buyer-note{white-space:pre-wrap;line-height:1.55}
+.order-buyer-call{display:inline-flex;align-items:center;min-height:44px;font-weight:800;color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.order-priority-layout>.order-workspace-command{grid-area:command;grid-template-columns:1fr;gap:12px;margin:0;padding:16px}
+.order-priority-layout .order-workspace-command-main{gap:12px}
+.order-priority-layout .order-workspace-snapshot{gap:8px}
+.order-priority-layout .order-workspace-next{gap:7px;padding:12px 14px}
+.order-priority-layout .order-workspace-next .order-workspace-primary{width:auto;min-height:42px}
+@media(max-width:1120px){
+    .order-priority-layout{grid-template-columns:minmax(0,1.2fr) minmax(280px,.85fr)}
+    .order-priority-layout .order-workspace-snapshot{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .order-buyer-card-heading{flex-direction:column}
+}
+@media(max-width:980px){
+    .order-priority-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"buyer" "command"}
+    .order-buyer-card-heading{flex-direction:row;flex-wrap:wrap}
+}
+@media(max-width:480px){
+    .order-priority-layout{gap:12px}
+    .order-priority-layout>.order-workspace-customer,.order-priority-layout>.order-workspace-command{padding:14px}
+    .order-priority-layout .order-workspace-next .order-workspace-primary{width:100%}
+}
+
 /* migrated from resources/views/admin/orders/archived.blade.php block 1 */
 .order-archive-actions{display:grid;gap:8px;min-width:0}
 .order-archive-purge{min-width:0;border:1px solid color-mix(in srgb,var(--danger) 35%,var(--line));border-radius:12px;background:var(--panel)}
@@ -3540,10 +3575,21 @@ body {
   padding: 16px 18px;
 }
 
+/* ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010 */
 .build16-catalog-shell .product-grid.unified-product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1499px) {
+  .build16-catalog-shell .product-grid.unified-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1100px) {
+  .build16-catalog-shell .product-grid.unified-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .build16-catalog-shell .product-card.unified-product-card {
@@ -3680,7 +3726,7 @@ body {
   }
 
   .build16-catalog-shell .product-grid.unified-product-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: 12px;
   }
 
@@ -5285,4 +5331,718 @@ html[data-theme="light"] .auth-glass-card {
   .auth-login-submit:active,
   .auth-login-form input:focus,
   .auth-body > .floating-theme:hover { transform: none !important; }
+}
+
+/* ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565
+ * Keep independent PATCH forms outside the bulk GET form and give every
+ * permitted action a stable place, regardless of permission combinations.
+ */
+.build16-catalog-shell .unified-product-card .catalog-management-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.build16-catalog-shell .unified-product-card .catalog-management-actions > .catalog-action-details,
+.build16-catalog-shell .unified-product-card .catalog-management-actions > .catalog-card-action-row {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row > :is(a, form) {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row > :only-child {
+  grid-column: 1 / -1;
+}
+.build16-catalog-shell .unified-product-card .catalog-management-actions .button {
+  width: 100%;
+  min-height: 42px;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: normal;
+}
+.build16-catalog-shell .unified-product-card .catalog-card-action-row > form > .button {
+  height: 100%;
+}
+.build16-catalog-shell .unified-product-card .product-footer .price {
+  font-size: clamp(1.15rem, 1.4vw, 1.36rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.015em;
+  line-height: 1.28;
+}
+@media (max-width: 380px) {
+  .build16-catalog-shell .unified-product-card .catalog-card-action-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ALD1N_ADMIN_ORDERS_INDEX_WORKSPACE_BATCH566
+ * Presentation-only admin list: preserve original Laravel GET/POST/PATCH
+ * actions and accessible order table; responsive rows become visual cards.
+ */
+.ald-ops-index {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.ald-ops-index .ald-ops-index-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 0;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--ald-border);
+}
+.ald-ops-index .ald-ops-index-heading p {
+  max-width: 68ch;
+  line-height: 1.5;
+}
+.ald-ops-index .ald-ops-index-heading .header-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+.ald-ops-index .ald-ops-index-attention {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.ald-ops-index .ald-ops-index-attention .attention-card {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 84px;
+  gap: 14px;
+  padding: 15px 18px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  transition: border-color var(--ald-motion-fast) var(--ald-ease-out),
+              background var(--ald-motion-fast) var(--ald-ease-out);
+}
+.ald-ops-index .ald-ops-index-attention .attention-card:hover,
+.ald-ops-index .ald-ops-index-attention .attention-card:focus-visible {
+  border-color: var(--ald-primary);
+  background: var(--ald-surface-container);
+}
+.ald-ops-index .ald-ops-index-attention .attention-card.active {
+  border-color: var(--ald-primary);
+  box-shadow: inset 3px 0 0 var(--ald-primary);
+}
+.ald-ops-index .ald-ops-index-attention .attention-card strong {
+  display: block;
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.ald-ops-index .ald-ops-index-attention .attention-card small {
+  display: block;
+  margin-top: 5px;
+  color: var(--ald-muted);
+}
+.ald-ops-index .ald-ops-index-attention > .button {
+  min-height: 44px;
+  align-self: center;
+}
+.ald-ops-index .ald-ops-index-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, #000 5%, transparent);
+}
+.ald-ops-index .ald-ops-index-filter > label {
+  min-width: 0;
+  max-width: 100%;
+}
+.ald-ops-index .ald-ops-index-filter .search-field {
+  grid-column: span 2;
+}
+.ald-ops-index .ald-ops-index-filter input,
+.ald-ops-index .ald-ops-index-filter select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.ald-ops-index .ald-ops-index-filter .filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ald-ops-index .ald-ops-index-filter .filter-actions .button {
+  min-height: 42px;
+}
+.ald-ops-index .ald-ops-index-table-shell {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 5px 18px color-mix(in srgb, #000 6%, transparent);
+}
+.ald-ops-index .ald-ops-index-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ald-ops-index .operational-orders-table {
+  width: 100%;
+  min-width: 1260px;
+}
+.ald-ops-index .operational-orders-table thead th {
+  padding: 13px 12px;
+  font-size: .74rem;
+  font-weight: 800;
+  color: var(--ald-muted);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  background: var(--ald-surface-container);
+  border-bottom: 1px solid var(--ald-border);
+}
+.ald-ops-index .operational-orders-table tbody tr {
+  transition: background var(--ald-motion-fast) var(--ald-ease-out);
+}
+.ald-ops-index .operational-orders-table tbody tr:hover {
+  background: var(--ald-surface-container);
+}
+.ald-ops-index .operational-orders-table tbody tr.row-overdue {
+  box-shadow: inset 3px 0 0 var(--ald-danger);
+}
+.ald-ops-index .operational-orders-table tbody td {
+  vertical-align: top;
+  min-width: 0;
+  padding: 15px 12px;
+  line-height: 1.44;
+  border-bottom: 1px solid var(--ald-border);
+  overflow-wrap: anywhere;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="number"] a {
+  color: var(--ald-primary-strong);
+  font-weight: 800;
+  text-decoration: none;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="number"] a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ald-ops-index .operational-orders-table td .muted {
+  display: block;
+  margin-top: 6px;
+  font-size: .75rem;
+  line-height: 1.4;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="status"] .status-badge {
+  display: inline-flex;
+  width: fit-content;
+}
+.ald-ops-index .operational-orders-table td[data-ops-cell="amount"] strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ald-ops-index .quick-order-actions {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+.ald-ops-index .quick-order-actions form {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+}
+.ald-ops-index .quick-order-actions .button {
+  min-height: 40px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--ald-radius-md);
+  font-weight: 750;
+  line-height: 1.22;
+  white-space: normal;
+}
+.ald-ops-index .quick-order-actions .button:focus-visible {
+  outline: 2px solid var(--ald-primary);
+  outline-offset: 2px;
+}
+.ald-ops-index .ald-ops-index-table-shell:focus-visible {
+  outline: 2px solid var(--ald-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 1280px) {
+  .ald-ops-index .ald-ops-index-filter {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 980px) {
+  .ald-ops-index .ald-ops-index-table-shell {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .ald-ops-index .operational-orders-table,
+  .ald-ops-index .operational-orders-table tbody {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+  .ald-ops-index .operational-orders-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ald-ops-index .operational-orders-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .ald-ops-index .operational-orders-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+    align-content: start;
+    padding: 16px;
+    border: 1px solid var(--ald-border);
+    border-radius: var(--ald-radius-lg);
+    background: var(--ald-surface);
+    box-shadow: 0 3px 12px color-mix(in srgb, #000 5%, transparent);
+  }
+  .ald-ops-index .operational-orders-table tbody tr.row-overdue {
+    border-left: 3px solid var(--ald-danger);
+    box-shadow: 0 3px 12px color-mix(in srgb, #000 5%, transparent);
+  }
+  .ald-ops-index .operational-orders-table tbody td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    line-height: 1.35;
+  }
+  .ald-ops-index .operational-orders-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: .69rem;
+    font-weight: 800;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ald-muted);
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="number"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="status"] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="creator"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="assignee"] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="payment"] {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="amount"] {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="deadline"] {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="date"] {
+    grid-column: 2;
+    grid-row: 4;
+  }
+  .ald-ops-index .operational-orders-table td[data-ops-cell="actions"] {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    padding-top: 12px;
+    border-top: 1px solid var(--ald-border);
+  }
+  .ald-ops-index .operational-orders-table tbody td[data-ops-cell="empty"] {
+    grid-column: 1 / -1;
+    border: 0;
+  }
+  .ald-ops-index .operational-orders-table tbody td[data-ops-cell="empty"]::before {
+    content: none;
+  }
+  .ald-ops-index .quick-order-actions {
+    width: 100%;
+  }
+}
+@media (max-width: 560px) {
+  .ald-ops-index .ald-ops-index-heading .header-button-row,
+  .ald-ops-index .ald-ops-index-heading .header-button-row > .button {
+    width: 100%;
+  }
+  .ald-ops-index .ald-ops-index-filter {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+  .ald-ops-index .ald-ops-index-filter .search-field,
+  .ald-ops-index .ald-ops-index-filter .filter-actions {
+    grid-column: 1;
+  }
+  .ald-ops-index .ald-ops-index-filter .filter-actions {
+    justify-content: stretch;
+  }
+  .ald-ops-index .ald-ops-index-filter .filter-actions .button {
+    flex: 1 1 120px;
+  }
+  .ald-ops-index .operational-orders-table tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ald-ops-index .operational-orders-table tbody tr > td {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+  .ald-ops-index .quick-order-actions .button {
+    flex: 1 1 135px;
+  }
+}
+@media (max-width: 460px) {
+  .ald-ops-index .ald-ops-index-attention {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ald-ops-index .ald-ops-index-attention > .button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ald-ops-index .attention-card,
+  .ald-ops-index .operational-orders-table tbody tr {
+    transition: none;
+  }
+}
+
+/* ALD1N_NOTIFICATIONS_INBOX_UX_BATCH567
+ * Authored over the canonical theme; no extra dependencies, filtering,
+ * AJAX navigation, route changes or local-state copies of unread totals.
+ */
+.ald-inbox-ux {
+  min-width: 0;
+  gap: 18px;
+}
+.ald-inbox-ux .ald-inbox-ux-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  min-width: 0;
+  padding: 8px 0 20px;
+  margin: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-heading-copy {
+  min-width: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-heading-copy p {
+  max-width: 66ch;
+  line-height: 1.55;
+}
+.ald-inbox-ux .ald-inbox-ux-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ald-inbox-ux .ald-inbox-ux-unread-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: var(--ald-primary-container);
+  border: 1px solid color-mix(in srgb, var(--ald-primary) 32%, var(--ald-border));
+  color: var(--ald-primary-strong);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--ald-radius-pill);
+}
+.ald-inbox-ux .ald-inbox-ux-read-all {
+  margin: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-read-all .button {
+  min-height: 44px;
+}
+.ald-inbox-ux .ald-inbox-ux-main {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 1140px;
+  min-width: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.ald-inbox-ux .ald-inbox-ux-section-heading h2 {
+  font-size: clamp(1.1rem, 1.45vw, 1.35rem);
+  line-height: 1.25;
+  margin: 5px 0 0;
+  color: var(--ald-text);
+}
+.ald-inbox-ux .ald-inbox-ux-section-heading p {
+  max-width: 56ch;
+  margin: 0;
+  font-size: .82rem;
+  line-height: 1.5;
+  color: var(--ald-muted);
+}
+.ald-inbox-ux .ald-inbox-ux-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.ald-inbox-ux .build16-notification-list .notification-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  box-shadow: 0 3px 14px color-mix(in srgb, #000 5%, transparent);
+  transition: border-color var(--ald-motion-fast) var(--ald-ease-out),
+              background var(--ald-motion-fast) var(--ald-ease-out),
+              transform var(--ald-motion-fast) var(--ald-ease-out);
+}
+.ald-inbox-ux .build16-notification-list .notification-card.is-unread {
+  border-color: color-mix(in srgb, var(--ald-primary) 55%, var(--ald-border));
+  border-inline-start: 4px solid var(--ald-primary);
+  background: color-mix(in srgb, var(--ald-primary-container) 25%, var(--ald-surface));
+}
+.ald-inbox-ux .build16-notification-list .notification-card.is-read {
+  opacity: .88;
+}
+.ald-inbox-ux .notification-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--ald-primary);
+  background: var(--ald-surface-container);
+}
+.ald-inbox-ux .notification-card:focus-within {
+  border-color: var(--ald-primary);
+}
+.ald-inbox-ux .ald-inbox-ux-card-button {
+  display: block;
+  width: 100%;
+  min-height: 118px;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  text-align: start;
+  background: transparent;
+  color: var(--ald-text);
+  cursor: pointer;
+}
+.ald-inbox-ux .ald-inbox-ux-card-button:focus-visible {
+  outline: 3px solid var(--ald-primary);
+  outline-offset: 2px;
+}
+.ald-inbox-ux .ald-inbox-ux-card-layout {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(170px, auto);
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 18px;
+}
+.ald-inbox-ux .ald-inbox-ux-card-layout .notification-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  border-radius: var(--ald-radius-md);
+  flex-shrink: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-card-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ald-text);
+}
+.ald-inbox-ux .ald-inbox-ux-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 11px;
+  min-width: 0;
+}
+.ald-inbox-ux .ald-inbox-ux-card-title strong {
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--ald-text);
+  overflow-wrap: anywhere;
+}
+.ald-inbox-ux .ald-inbox-ux-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 3px 9px;
+  font-size: .69rem;
+  font-weight: 800;
+  line-height: 1.15;
+  border-radius: var(--ald-radius-pill);
+  border: 1px solid var(--ald-border);
+  color: var(--ald-muted);
+  background: var(--ald-surface-container);
+}
+.ald-inbox-ux .ald-inbox-ux-status.is-new {
+  background: var(--ald-primary-container);
+  border-color: color-mix(in srgb, var(--ald-primary) 34%, var(--ald-border));
+  color: var(--ald-primary-strong);
+}
+.ald-inbox-ux .ald-inbox-ux-card-message {
+  display: block;
+  font-size: .9rem;
+  line-height: 1.48;
+  color: var(--ald-text);
+  overflow-wrap: anywhere;
+}
+.ald-inbox-ux .ald-inbox-ux-card-date {
+  display: block;
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ald-muted);
+}
+.ald-inbox-ux .ald-inbox-ux-card-action {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--ald-border);
+  border-radius: var(--ald-radius-md);
+  font-size: .78rem;
+  font-weight: 750;
+  color: var(--ald-text);
+  text-align: end;
+  line-height: 1.3;
+}
+.ald-inbox-ux .is-unread .ald-inbox-ux-card-action {
+  border-color: var(--ald-primary);
+  background: var(--ald-primary);
+  color: var(--ald-on-primary);
+}
+.ald-inbox-ux .ald-inbox-ux-empty {
+  min-height: 250px;
+  border: 1px dashed var(--ald-border);
+  border-radius: var(--ald-radius-lg);
+  background: var(--ald-surface);
+  padding: 30px 18px;
+}
+.ald-inbox-ux .ald-inbox-ux-pagination {
+  margin-top: 2px;
+}
+@media (max-width: 800px) {
+  .ald-inbox-ux .ald-inbox-ux-card-layout {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-action {
+    grid-column: 2;
+    justify-content: space-between;
+    width: fit-content;
+    max-width: 100%;
+  }
+}
+@media (max-width: 640px) {
+  .ald-inbox-ux .ald-inbox-ux-heading {
+    align-items: stretch;
+  }
+  .ald-inbox-ux .ald-inbox-ux-heading-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-layout {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-layout .notification-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-action {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
+  }
+  .ald-inbox-ux .ald-inbox-ux-read-all .button {
+    width: 100%;
+  }
+  .ald-inbox-ux .ald-inbox-ux-card-button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 400px) {
+  .ald-inbox-ux .ald-inbox-ux-heading-actions > * {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ald-inbox-ux .notification-card {
+    transition: none;
+  }
+  .ald-inbox-ux .notification-card:hover {
+    transform: none;
+  }
 }

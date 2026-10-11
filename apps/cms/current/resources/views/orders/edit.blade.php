@@ -103,7 +103,7 @@
 <style>
 .order-amendment-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--border-color,#d9dee7)}
 .order-amendment-item>div:first-of-type{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
-.order-amendment-item small{color:var(--text-muted,#667085)}
+.order-amendment-item small{color:var(--muted,#667085)}
 [data-product-results]{display:grid;gap:8px;margin-top:10px}
 [data-product-results] .button{justify-content:flex-start;text-align:left}
 .form-section-subtle{margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color,#d9dee7)}
