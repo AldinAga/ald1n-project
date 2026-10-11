@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DateTimeField } from '@/components/ui/date-time-field';
 import { MoneyField } from '@/components/ui/money-field';
-import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
+import { WorkspaceGrid } from '@/components/workspaces/workspace-grid';
+import { QuickActionHub, type QuickAction } from '@/components/workspaces/quick-action-hub';
+import type { GlyphName } from '@/components/ui/glyph';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SelectSheet } from '@/components/ui/select-sheet';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
@@ -42,12 +44,12 @@ type AfterSalesWorkspace = 'overview' | 'case' | 'communication' | 'actions' | '
 type Panel = 'update' | 'message' | 'action-create' | 'action-complete' | 'action-cancel' | null;
 type ActionItemState = { selected: boolean; quantity: string; disposition: string };
 
-const AFTER_SALES_WORKSPACE_OPTIONS: Array<{ value: AfterSalesWorkspace; label: string; description: string }> = [
-  { value: 'overview', label: 'Pregled', description: 'Status, rok i sažetak sadržaja postprodajnog slučaja.' },
-  { value: 'case', label: 'Slučaj', description: 'Kupac, zahtev, pogođene stavke, prilozi i izmena slučaja.' },
-  { value: 'communication', label: 'Komunikacija', description: 'Javne i interne poruke sa bezbednim prilozima.' },
-  { value: 'actions', label: 'Radnje', description: 'Izvršne radnje, terenski nalozi, završetak i otkazivanje.' },
-  { value: 'history', label: 'Istorija', description: 'Read-only sled promena statusa i audit kontekst.' },
+const AFTER_SALES_WORKSPACE_OPTIONS: Array<{ value: AfterSalesWorkspace; glyph: GlyphName; label: string; description: string }> = [
+  { value: 'overview', glyph: 'home', label: 'Pregled', description: 'Status, rok i sažetak sadržaja postprodajnog slučaja.' },
+  { value: 'case', glyph: 'account', label: 'Slučaj', description: 'Kupac, zahtev, pogođene stavke, prilozi i izmena slučaja.' },
+  { value: 'communication', glyph: 'messages', label: 'Komunikacija', description: 'Javne i interne poruke sa bezbednim prilozima.' },
+  { value: 'actions', glyph: 'service', label: 'Radnje', description: 'Izvršne radnje, terenski nalozi, završetak i otkazivanje.' },
+  { value: 'history', glyph: 'report', label: 'Istorija', description: 'Read-only sled promena statusa i audit kontekst.' },
 ];
 
 function statusTone(status: string): PillTone {
@@ -173,10 +175,9 @@ export default function AdminAfterSalesDetailScreen() {
   const dispositionOptions = optionsFromMap(data.options.actions.dispositions);
   const workspaceMeta = AFTER_SALES_WORKSPACE_OPTIONS.find((option) => option.value === workspace);
 
+  // Keep the screen-owned draft and active action panel mounted while navigating sections.
   const selectWorkspace = (next: AfterSalesWorkspace) => {
     setWorkspace(next);
-    setPanel(null);
-    setSelectedActionId(null);
   };
 
   const openUpdate = () => {
@@ -330,6 +331,25 @@ export default function AdminAfterSalesDetailScreen() {
     setPanel('action-cancel');
   };
 
+  // Capabilities remain server-owned; this hub opens the existing panels only.
+  const quickActions: QuickAction[] = [];
+  if (data.capabilities.update) {
+    quickActions.push({ id: 'update', label: 'Izmeni slučaj', glyph: 'service', kind: 'primary',
+      disabled: mutation.isPending, onPress: openUpdate });
+  }
+  if (data.capabilities.message) {
+    quickActions.push({ id: 'message', label: 'Nova poruka', glyph: 'messages',
+      kind: quickActions.length === 0 ? 'primary' : 'secondary', disabled: mutation.isPending,
+      onPress: () => { setWorkspace('communication'); setPanel('message'); } });
+  }
+  if (data.capabilities.execute) {
+    quickActions.push({ id: 'execute', label: 'Nova izvršna radnja', glyph: 'service',
+      kind: quickActions.length === 0 ? 'primary' : 'secondary', disabled: mutation.isPending,
+      onPress: openActionCreate });
+  }
+  quickActions.push({ id: 'refresh', label: 'Osveži detalj', glyph: 'refresh',
+    disabled: mutation.isPending || query.isFetching, onPress: () => void query.refetch() });
+
   return (
     <Screen contentStyle={styles.content}>
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
@@ -351,29 +371,19 @@ export default function AdminAfterSalesDetailScreen() {
         <Text style={styles.meta}>Rok: {data.due_at ? formatDate(data.due_at, true) : 'Nije definisan'}</Text>
       </Card>
 
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Operativne akcije</Text>
-        <View style={styles.actions}>
-          {data.capabilities.update ? <Button variant="secondary" onPress={openUpdate}>Izmeni slučaj</Button> : null}
-          {data.capabilities.message ? <Button variant="secondary" onPress={() => { setWorkspace('communication'); setPanel('message'); }}>Nova poruka</Button> : null}
-          {data.capabilities.execute ? <Button variant="secondary" onPress={openActionCreate}>Nova izvršna radnja</Button> : null}
-          <Button variant="secondary" onPress={() => void query.refetch()}>Osveži detalj</Button>
-        </View>
-      </Card>
+      <QuickActionHub actions={quickActions} title="Operativne akcije" maxVisible={4} />
 
       <Card style={styles.workspaceCard}>
         <Text style={styles.sectionTitle}>Radni prostor postprodaje</Text>
         <Text style={styles.meta}>{workspaceMeta?.description ?? 'Izaberi deo slučaja koji želiš da obradiš.'}</Text>
-        <FilterBar>
-          {AFTER_SALES_WORKSPACE_OPTIONS.map((option) => (
-            <FilterChip
-              key={option.value}
-              label={option.label}
-              active={workspace === option.value}
-              onPress={() => selectWorkspace(option.value)}
-            />
-          ))}
-        </FilterBar>
+        <WorkspaceGrid
+          options={AFTER_SALES_WORKSPACE_OPTIONS.map((option) => ({
+            id: option.value, label: option.label, glyph: option.glyph,
+            a11yLabel: option.label + ': ' + option.description,
+          }))}
+          selected={workspace}
+          onSelect={selectWorkspace}
+        />
       </Card>
 
       <Card style={[styles.section, workspace !== 'overview' && styles.hidden]}>
