@@ -3948,10 +3948,19 @@ assert(
     && fieldOperationsDetailUxBatch84.includes("label: 'Izvršenje'")
     && fieldOperationsDetailUxBatch84.includes("label: 'Delovi'")
     && fieldOperationsDetailUxBatch84.includes("label: 'Dokumentacija'")
-    && fieldOperationsDetailUxBatch84.includes("workspace === 'planning' && panel === 'schedule'")
-    && fieldOperationsDetailUxBatch84.includes("workspace === 'execution' && panel === 'complete'")
-    && fieldOperationsDetailUxBatch84.includes("workspace === 'parts' && panel === 'part-add'"),
-  'v1.0 Batch84 Admin Field Operations detalj je organizovan u Pregled, Planiranje, Izvršenje, Delovi i Dokumentacija radne prostore.',
+    && fieldOperationsDetailUxBatch84.includes("panel === 'schedule'")
+    && fieldOperationsDetailUxBatch84.includes("panel === 'complete'")
+    && fieldOperationsDetailUxBatch84.includes("panel === 'part-add'")
+    && fieldOperationsDetailUxBatch84.includes("panel === 'cancel'")
+    && fieldOperationsDetailUxBatch84.includes('const selectWorkspace = (next: FieldWorkWorkspace) => {\n    setWorkspace(next);\n  };')
+    && fieldOperationsDetailUxBatch84.includes('<WorkspaceGrid')
+    && fieldOperationsDetailUxBatch84.includes('<QuickActionHub actions={quickActions}')
+    && fieldOperationsDetailUxBatch84.includes('selected={workspace}')
+    && fieldOperationsDetailUxBatch84.includes('onSelect={selectWorkspace}')
+    && !fieldOperationsDetailUxBatch84.includes('<FilterBar')
+    && !fieldOperationsDetailUxBatch84.includes('<FilterChip')
+    && fieldOperationsDetailUxBatch84.indexOf('<QuickActionHub') < fieldOperationsDetailUxBatch84.indexOf('<WorkspaceGrid'),
+  'Workspace V2 Field Operations cuva Batch84 pet radnih prostora, dozvole i trajne formularske skice.',
 );
 assert(
   fieldOperationsDetailUxBatch84.includes("can('field_operations.view')")
