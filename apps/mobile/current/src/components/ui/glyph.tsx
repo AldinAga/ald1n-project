@@ -26,6 +26,8 @@ const symbolNames = {
   device: { ios: 'iphone', android: 'smartphone', web: 'smartphone' },
   lock: { ios: 'lock.fill', android: 'lock', web: 'lock' },
   info: { ios: 'info.circle.fill', android: 'info', web: 'info' },
+  phone: { ios: 'phone.fill', android: 'call', web: 'call' },
+  copy: { ios: 'doc.on.doc', android: 'content_copy', web: 'content_copy' },
   google: { ios: 'person.badge.key.fill', android: 'passkey', web: 'passkey' },
 } as const;
 
