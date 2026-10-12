@@ -353,6 +353,28 @@ REPORT644_BACKUP_RESTORE=OWNER_DEFERRED
 REPORT644_PRODUCTION_MUTATIONS=NONE
 
 
+## Batch645 Order134 strict read-only production diagnosis — operator execution PENDING (2026-10-12)
+- Fresh canonical GitHub main `7890d0cc345ba8f7acfa62cb3c240c7c820e1fb8` before this plan, Report644 newest, `AGENTS.md` and existing operations report confirmed. PR4 remains Draft/unmerged, source SHA `25d29162c01938b7a58abe6914fee403beb72879` with five CMS-only files, no overlap with newer main. Prior Report644 new Laravel MySQL notification regression tests **3/3 PASS, 12 assertions**; broad two-class run 8/11 due three independent preexisting baseline failures, reproduced unchanged on main at 5/8. PR4 merge/deploy remains gated.
+- Batch645 probes **actual live Order ID 134** without guessing archived/purged state from source, never touching the dirty production checkout. Read-only MySQL PDO audit loads existing **cached Laravel config** without bootstrapping service providers, confirms production mysql DB differs from legacy DB, uses `SET TRANSACTION READ ONLY` plus explicit transaction/ROLLBACK, and restricts SQL to `SELECT` including schema introspection. Collects only order presence/status/archived/purged flags, owner and assigned-supplier presence and active role, admin/superadmin counts, and bounded aggregated inbox/push order134 route classifications. No user IDs, titles, addresses, messages, tokens, credentials, order amounts, SQL dump, notification payloads or raw exceptions are written to output.
+- The source-access contract from reviewed main: `/api/v1/admin/orders/134` requires `orders.manage`; `OrderAccessService::canManage` grants superadmin, or admin only when currently assigned supplier. `/api/v1/orders/134` checks owner/supplier and `orders.view_own`; `Order::resolveRouteBindingQuery` excludes archived rows. PR4's historical notification-resource repair is NOT considered deployed merely because source tests passed. Actual live host file blobs will be compared against current GitHub main and PR4 changed-source blobs; this is a source-parity observation, not proof of HTTP response.
+- Authenticated live HTTP 200/403/404 tests are **explicitly HOLD** in this first read-only batch: no approved role-scoped test tokens/sessions have been supplied, and live Sanctum/session middleware may update token last_used_at, security/audit or session state even for a GET. No HTTP request is sent; the script labels expected route/permission rules as `STATIC_*`, actual HTTP `NOT_RUN`. Physical Android cold/warm-start UAT also remains HOLD. A future role-auth HTTP gate must be separately approved and configured safely after reading Batch645 results.
+- Canonical operator artifact prepared `/home/icaffeco/ald1n-project/incoming/ald1n-b645-order134-readonly-diagnosis-v1.sh` with SHA-256 `61051fe6690b67bd298c0f6d7ec7859471ac7ebacfadbe4943fb41136332186c` (21,636 bytes), NEVER committed. It validates the exact location, fetched GitHub main ancestry for merged PR5+PR6, Git blob identity of Report644 `8dd931754e332e9ef81f3fd194dc8bb9eff6af83`, exact Draft PR4 branch tip `25d29162c01938b7a58abe6914fee403beb72879`, and remote/local report sequence (max remote 644) before reserving next `docs/operations/645-BATCH645-LIVE-ORDER134-READONLY-DIAG-*.md`.
+- Bash starts with mandatory clear; no forbidden CloudLinux process substitution or `/dev/fd`, no `git clean/reset/checkout/merge`, no web GET/POST, no Artisan writes or business-mutation SQL. It fetches remote Git refs only; stages and tracked diff fingerprints before/after must match. Private ephemeral PHP probe file is under HOME and erased after use. Report is restricted to PII-free enumerated flags; missing cached config, unexpected remote/ref/report sequence, read-only DB failure or incomplete notification schema ends HOLD.
+- Local QA performed on delivered exact embedded script: `bash -n` PASS, PHP lint PASS, payload identity PASS, five `routeShape()` sanitization fixtures PASS, negative unconfigured cached-config path correctly HOLD/RC2 with no exception/secret output, static dangerous-command/process-substitution scan PASS. No actual live DB query was possible from this GitHub session; the host Report645 is **NOT YET EXECUTED**.
+- Two completed backup runs 151/150 maintain file/run integrity PASS but owner explicitly deferred restore. They are not restore-ready, and backup pruning is still prohibited. All 82 unarchived historic operations reports and staged report/index files remain protected. Build25, versionCode25, runtimeVersion1.0.0-build17, production OTA group and EAS pin 24.8.0 unchanged.
+
+BATCH645_SOURCE_CONTRACT_REVIEW=PASS
+BATCH645_LOCAL_SCRIPT_LINT=PASS
+BATCH645_ROUTE_SANITIZER_FIXTURES=5_OF_5_PASS
+BATCH645_LOCAL_NEGATIVE_FAIL_CLOSED=PASS
+BATCH645_LIVE_ORDER134_DB=PENDING_HOST_REPORT645
+BATCH645_LIVE_AUTHENTICATED_HTTP=HOLD_NO_APPROVED_TEST_SESSIONS
+BATCH645_ANDROID_UAT=HOLD
+BATCH645_PR4_MERGE=NOT_AUTHORIZED
+BATCH645_BACKUP_RESTORE=OWNER_DEFERRED
+BATCH645_PRODUCTION_MUTATIONS=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
