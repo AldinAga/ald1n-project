@@ -11,7 +11,7 @@ const eas=JSON.parse(fs.readFileSync(path.join(mobile,'eas.json'),'utf8'));
 const agents=fs.readFileSync(path.join(root,'AGENTS.md'),'utf8');
 test('validator helper and eas pin all match canonical AGENTS authority',()=>{
   assert.equal(eas.cli.version,'24.8.0');
-  assert.match(agents,/eas-cli@24\.7\.0/);
+  assert.match(agents,/eas-cli@24\.8\.0/);
   const pin=`const EAS_CLI_VERSION = '${eas.cli.version}'`;
   assert.ok(helper.includes(pin));
   assert.ok(validator.includes(`productionSubmitHelper505R.includes("${pin}")`));
