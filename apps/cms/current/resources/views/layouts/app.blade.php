@@ -1,6 +1,5 @@
 @inject('moduleVisibility', 'App\Services\ModuleVisibilityService')
 {{-- MODULE_VISIBILITY_CONTROL_V6_SAFE_LAYOUT_SPANS --}}
-<style>[data-module-visibility="0"]{display:none!important}[data-module-visibility="1"]{display:contents}</style>
 @php
     $headerUser = null;
     try {
@@ -39,6 +38,7 @@
 <!doctype html>
 <html lang="sr-Latn" data-theme="dark" data-theme-mode="auto" data-eur-rsd-rate="{{ is_numeric($exchangeRateValue) ? number_format((float) $exchangeRateValue, 2, '.', '') : '' }}">
 <head>
+    <style>[data-module-visibility="0"]{display:none!important}[data-module-visibility="1"]{display:contents}</style>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow,noarchive">
