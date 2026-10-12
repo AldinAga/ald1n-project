@@ -93,6 +93,21 @@ BATCH632_CLI_V2_EXECUTION=NOT_RUN_ON_HOST
 - Current independent gates: PR4_SOURCE_STATIC=PASS, PR4_LARAVEL_DB_AND_LIVE=HOLD; PR5_SOURCE_PARITY=13_OF_13_PASS, PR5_FULL_RELEASE25_TESTS=PENDING; EAS_24_12_1_STARTUP_HELP=PASS, EAS_UPGRADE=NOT_APPROVED; no new build/OTA/Play.
 - Reports633/634 currently exist as owner-uploaded on-host artifacts. Their full byte-identical GitHub archival status is not yet independently attested. Preserve them locally until checkpointed under the numbered files in GitHub history and reconcile before historical cleanup.
 
+## Batch632 operator Report635 and focused regex recovery (2026-10-12)
+- Owner uploaded authentic hosting report `635-BATCH632-RELEASE25-PIN-RECOVERY-20261012-115257.md`. Local copied report SHA-256 `682d388132ddef905dad12884220ca06545621c2717b62cc2848862264d4a2dc`. v3 script from canonical `incoming` saw exact PR5 source SHA `596026f2e7ce48c1c3b06fc4083526c17337dbf6` and verified PIN_PARITY=13/13, source Node syntax PASS. Two targeted Node files ran 9 tests: **8 pass, 1 fail** (RC=1), before reaching the JDK and complete Release25 suite.
+- Exact ROOT_CAUSE: `apps/mobile/current/scripts/release25/validator-pin-recovery.test.mjs` uses `assert.match(agents,/eas-cli@24\\.7\\.0/)` even though the canonical `AGENTS.md` and `eas.json` both require 24.8.0. Report635's assertion output dumps full AGENTS text. This is a *test expectation* defect; there is no reason to modify actual EAS pin again. JDK17 availability, seven cryptographic tests and complete 125-test suite remain UNATTESTED by Report635.
+- Targeted correction: original draft PR5 branch `audit/batch632-release25-pin-parity-20261012` received **one-line-only** test change to regex `/eas-cli@24\\.8\\.0/`, commit `bbfd4d2723a389eea7c465cf22ade610aeb60063`, file blob `2d987294e7315f7d6ab1128814f94f21d66de559`. RED vs fetched AGENTS for old regex, GREEN for correct regex. The EAS helper, validator, pin in eas.json, production Build25 guard and app identity are unchanged.
+- Canonical operator recovery script `/home/icaffeco/ald1n-project/incoming/ald1n-b632-release25-pin-recovery-v4.sh`, SHA-256 `1de33671519f3c4bc6cab9ce83d4a7ac776527037dfb16b3bd475ed1293e4a76` (Bash syntax passed offline). It requires Report635 exact SHA, fetches exact updated branch commit, enforces five-file diff scope and whitespace, reruns source pin and two targeted Node tests, then runs full 15-file Release25 suite with *real JDK17+zip/unzip*. If JDK17 unavailable, run remaining noncrypto tests and classify full signature gate HOLD; never fake signing or report full PASS. Generates next numbered report automatically under `docs/operations`.
+- Source fix is on **DRAFT PR5 only**, unmerged, untested on hosting after regex change, unshipped. No new EAS/OTA/native build/Play action. This does not alter PR4 Order134.
+- Uploaded Report633/634/635 bytes are local owner/host evidence; GitHub archive status for these numbered reports is still not independently proven. Preserve them until archived.
+
+REPORT635_PIN=13_OF_13_PASS
+REPORT635_TARGETED_TESTS=8_OF_9_FAIL_ONE_REGEX
+REPORT635_FULL_RELEASE25=NOT_REACHED
+REPORT635_PRODUCTION_MUTATIONS=NONE
+PR5_HEAD=bbfd4d2723a389eea7c465cf22ade610aeb60063
+PR5_RETEST=AWAITING_HOST_V4
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
