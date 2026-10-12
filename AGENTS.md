@@ -822,6 +822,8 @@ These failures have already happened and are now encoded as permanent guards:
 9. **Using `php bin/php-lint.php` as full CMS authority** -> wrong gate. Canonical full gate is `php bin/static-check.php`.
 10. **Restarting recovery from scratch** -> risks duplicate commits/candidates/promotions. Recover from recorded state markers.
 11. **`eas update:view ... --non-interactive` on eas-cli 24.7.0** -> hard CLI failure. Use exact-group `update:view GROUP_ID --json` without `--non-interactive`.
+12. **Historical operations pointer mistaken for CURRENT authority** (Report636) -> Release regression tests must distinguish the leading live `000-LATEST.md` authority from explicitly marked old Build25 pre-OTA snapshots. Preserve historical evidence separately; never revert the current index to satisfy a stale old-header test.
+13. **No JDK17 signing tools on the CloudLinux shell PATH** (Report636) -> Real `jar`/`keytool`/`jarsigner` regression stays HOLD until actual supported Java 17 tools are present, locally or in an approved isolated JDK17 CI runner. Do not silently mock, skip, globally install tools or label cryptographic verification PASS. Re-probe before assuming this environment finding remains true.
 
 Any new repeated infrastructure failure should be added to this section after its root cause is proven.
 
