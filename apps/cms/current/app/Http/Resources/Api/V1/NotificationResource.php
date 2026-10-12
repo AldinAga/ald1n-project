@@ -38,6 +38,19 @@ final class NotificationResource extends JsonResource
             return $explicit;
         }
 
+        // Recover the original administrator destination for historical notifications
+        // that predate explicit mobile routes. Keep the order ID authoritative.
+        $orderId = (int) ($data['order_id'] ?? 0);
+        $legacyUrl = $data['url'] ?? null;
+        if ($orderId > 0 && is_string($legacyUrl)) {
+            $path = parse_url(trim($legacyUrl), PHP_URL_PATH);
+            if (is_string($path)
+                && preg_match('~^/admin/orders/([1-9][0-9]*)/?$~', $path, $matches)
+                && (int) $matches[1] === $orderId) {
+                return '/admin/orders/'.$orderId;
+            }
+        }
+
         foreach ([
             'order_id' => '/orders/%s',
             'after_sales_case_id' => '/after-sales/%s',
