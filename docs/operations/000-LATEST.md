@@ -1,3 +1,20 @@
+# CURRENT AUTHORITY — Workspace V2 production OTA / Batch632 (2026-10-12)
+
+- GitHub main source deployed as OTA: `52850d185d2c26d0a72a26d64520528714fe2f01`. For current main HEAD reverify live GitHub refs; later documentation commits do not imply a new OTA.
+- Build25 appVersion `1.0.0`, versionCode `25`, runtimeVersion `1.0.0-build17`; production profile/channel, Android `com.ald1n.mobile`.
+- Workspace V2 source quality PASS (TypeScript, Mobile 0 FAIL, 52/52 tests, Expo compatibility and Android export).
+- Candidate OTA group `8f27e122-317b-4db1-93a6-9bb95653de26`; production exact-group-verified `27dd4b5d-63b3-4902-9b0b-5f289076f0e6` (2026-10-12 00:55:37Z), Android runtime `1.0.0-build17`.
+- Previous production group `3488c7cc-ac63-472d-bd7c-27e5abc677bd` for controlled recovery assessment only. Physical Android UAT: owner-attested PASS; full multi-device telemetry not supplied.
+- Canonical EAS CLI is `24.8.0` in eas.json and current AGENTS.md; CLI `24.12.1` was advertised as newer but not verified compatible, so not approved for upgrade.
+- Production CMS host last observed checkout `b5b942e6...` with 97 dirty/untracked entries. Not verified equal to GitHub; do not run destructive sync.
+- Order #134, archived notification deep links, hosting parity, 320px/a11y and broad device QA: follow-on scoped gates, NOT implicitly PASS.
+- Canonical closure report: `docs/operations/632-WORKSPACE-V2-BUILD25-PRODUCTION-OTA-CLOSURE-20261012.md`.
+- No new Android build, Google Play submit, production CMS mutation or OTA republish is authorized by Batch632 documentation.
+
+---
+
+## Historical Build25 pre-OTA snapshot — NOT CURRENT AUTHORITY
+
 # Ald1n Operations - CURRENT Build25 Authority (2026-10-09)
 
 This header is the up-to-date **source and gate index at audit preparation time**.
