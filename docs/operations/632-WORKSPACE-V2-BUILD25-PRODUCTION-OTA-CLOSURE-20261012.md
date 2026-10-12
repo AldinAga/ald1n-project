@@ -315,6 +315,22 @@ BATCH632_BACKUP_DELETE=HOLD
 BATCH632_PRODUCTION_SOURCE_MUTATION=NONE
 
 
+## Batch632 owner-directed restore deferral; independent PR4 QA resumed (2026-10-12)
+- Project owner explicitly elected to **skip** the isolated-restore preflight and move to the next independent Ald1n development scope. The previously proposed `incoming/ald1n-b632-isolated-restore-preflight-v1.sh` / Report644 **were not executed**, and no standalone MySQL restore test database was provisioned or proven.
+- This is **deferral of the restore drill, not waiver of the stable-two-backups cleanup safety policy**. Laravel file+SQL+attachments and backup_runs authority for completed IDs 151 and 150 remain PASS from Reports642/643. Both directories remain protected and **RESTORE_READY=NOT_ATTESTED**. No deletion/pruning of the old third directory, snapshot or backup_runs records is permitted. No changes to production DB, CMS runtime, Build25, OTA, Play, or EAS pin.
+- Resume next independent plan item: **Draft PR4 Order134 order-notification route end-to-end QA**. At recovery time PR4 exact candidate is `25d29162c01938b7a58abe6914fee403beb72879`, five CMS source/test changes, previous exact-source smoke 14/14 and CMS static 983/983 PASS from Report633. Main has moved ahead by documentation and unrelated Mobile changes without overlap in those five paths, but PR4 remains DRAFT, unmerged and unshipped.
+- Next QA should run the two real Laravel feature test classes against a **new ephemeral CI MySQL _test schema** with the test database doctor guards, not on live CloudLinux's dirty checkout or customer data. Then separately retain live Order134 role/status diagnostic, authenticated HTTP and physical Android deep-link test as HOLD until grounded evidence; source/test QA alone cannot approve merging PR4.
+- User's skip request is not a new production build or release authorization. Historical Reports642/643 remain canonical; proceed without creating Report644 until a real QA action produces a new numbered report.
+
+RESTORE_PREFLIGHT=OWNER_DEFERRED_NOT_EXECUTED
+TWO_BACKUP_FILE_AND_RUN_VERIFICATION=PASS_151_AND_150
+TWO_BACKUP_RESTORE_READY=HOLD
+BACKUP_DELETIONS=PROHIBITED
+PR4_ISOLATED_LARAVEL_MYSQL_QA=NEXT
+PR4_MERGE_DEPLOY=NOT_AUTHORIZED
+PRODUCTION_MUTATION=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
