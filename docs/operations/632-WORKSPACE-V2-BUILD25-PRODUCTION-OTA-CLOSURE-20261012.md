@@ -189,6 +189,27 @@ BATCH632_ANDROID_BUILD=NONE
 BATCH632_OTA_PUBLISH=NONE
 BATCH632_PLAY_SUBMISSION=NONE
 
+## Batch632 host Report638 safe cleanup confirmation and Report639 inventory gate (2026-10-12)
+- Operator Report638 `638-BATCH632-SAFE-HOST-HOUSEKEEPING-20261012-125100.md` created by canonical `incoming/ald1n-b632-safe-host-housekeeping-v1.sh`, script SHA-256 `021121aab64681c1ed205dcec21e7bb6e7992c5cebd5b6a3a9b3826f7cd3173d`, report SHA-256 `1c8aeee139e28ee02a3575d7932f042b7d6ce0a05a2cfc4d25f6b4e91bdb0932`. Report638 explicitly binds approved GitHub main `e3b0ed6f160a1962dce73cd6abf6ed361607b0f3`, PR5 `e461d6d2...`, PR6 `fde5aa9e...` and Report637 predecessor hash `010458e9...`.
+- Report638 `BATCH632_SAFE_HOST_HOUSEKEEPING=PASS`, audited command RC0 / tee RC0. Verified archive parity then removed **4 local untracked archived reports (633-636)** and **6 exact-SHA obsolete operator/test scripts**; script absent skips are documented. Report637 preserved. Before/after app tracked Git diff manifest unchanged; `PRODUCTION_SOURCE_MUTATIONS=NONE`, no native build, OTA, Play or DB mutation.
+- Residual local app-scope observation: **8 unstaged tracked paths, 0 staged tracked paths, 1 untracked path**. These are counts only, not proof of dispensability. Backup retention requires two restore-ready points, not verified. PR4 Laravel DB and Android acceptance remain separate HOLD.
+- Report638 was archived verbatim under GitHub `docs/operations/638-BATCH632-SAFE-HOST-HOUSEKEEPING-20261012-125100.md` in commit `7e7b952bd9c3656865bfc3a8424b9c7e8c647e0c`; verified exact Git blob `2a72d71718bb9bd5c7d1c2e39a95620ca5d9ad74`, byte count 2924. Do not delete Report638 before next report and reconciliation.
+- Next authorized action is a **read-only** source/hosting drift and backup-candidate inventory, script `incoming/ald1n-b632-host-inventory-v1.sh`, SHA-256 `6b06979341fbfea231b9771e325c666d6cfda278bd011c4f56ccc3c35c3be9d8`. It requires exact Report638 local/GitHub bytes, validates PR5/PR6 main ancestry, checks local+remote latest numbered report is 638, and reserves `639-BATCH632-HOST-DRIFT-BACKUP-INVENTORY-*.md` in canonical `docs/operations`. It records path identifiers without file contents (sensitive paths are masked), Git working/main blob parity and default backup manifest counts, explicitly DOES NOT delete any file or call database/backup restore. Its Bash syntax passed local audit, but hosting execution remains NOT RUN.
+- **Safety warning:** tracked `scripts/maintenance/ald1n-project-residual-cleanup.sh` still defaults to `KEEP_APP_BACKUPS=3` and maintenance reports under `/home/icaffeco/backups/maintenance-reports`, contrary to current AGENTS §1A and §26. Its `--apply` mode is NOT authorized; do not use it for the next cleanup. Canonical Laravel `app:backup-verify --run` or `--path` exists but cannot be assumed to have certified two stable backups without actual results. Zero backup deletions in Report638.
+- Source cleanup PR5 and root cleanup PR6 already merged, no further source/runtime deletion is implied by this operations update. Build25 version 1.0.0 / versionCode25 / runtimeVersion1.0.0-build17 and production OTA unchanged.
+
+REPORT638_SAFE_HOST_CLEANUP=PASS
+REPORT638_ARCHIVED_GITHUB=BYTE_EXACT
+REPORT638_REMOVED_ARCHIVED_REPORTS=4
+REPORT638_REMOVED_KNOWN_SCRIPTS=6
+REPORT638_APP_TRACKED_UNSTAGED=8
+REPORT638_APP_TRACKED_STAGED=0
+REPORT638_APP_UNTRACKED=1
+REPORT639_HOST_INVENTORY=NOT_EXECUTED
+BACKUP_RESTORE_READY_TWO_POINTS=HOLD
+PRODUCTION_SOURCE_MUTATION=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
