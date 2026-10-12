@@ -82,6 +82,51 @@ final class MobilePushPhase3BTest extends TestCase
         self::assertSame('delivered', $row->fresh()->status);
     }
 
+    public function test_order_notifications_use_role_specific_routes_for_inbox_and_push(): void
+    {
+        foreach ([
+            'admin' => '/admin/orders/134',
+            'superadmin' => '/admin/orders/134',
+            'user' => '/orders/134',
+        ] as $role => $expectedRoute) {
+            $user = User::query()->create([
+                'role_id' => Role::query()->where('slug', $role)->valueOrFail('id'),
+                'username' => 'b632-route-'.$role,
+                'email' => 'b632-route-'.$role.'@example.test',
+                'password_hash' => Hash::make('Secret123!'),
+                'first_name' => 'Route',
+                'last_name' => 'Check',
+                'status' => 'active',
+            ]);
+            $user->notificationPreference()->create([
+                'in_app_enabled' => true,
+                'email_enabled' => false,
+                'push_enabled' => true,
+                'order_updates' => true,
+                'payment_alerts' => true,
+                'document_updates' => true,
+                'after_sales_updates' => true,
+                'warranty_updates' => true,
+                'service_updates' => true,
+                'receivable_updates' => true,
+                'commission_updates' => true,
+                'stock_alerts' => false,
+                'daily_digest' => false,
+            ]);
+            $this->device($user, 'ExponentPushToken[b632-route-'.$role.']');
+
+            $order = new \App\Models\Order(['order_number' => 'ALD-134']);
+            $order->id = 134;
+            app(OperationalNotificationService::class)->order(
+                $user, 'order.status_changed', 'Status', 'Ažurirana porudžbina', $order,
+            );
+
+            $outbox = MobilePushOutbox::query()->where('user_id', $user->id)->sole();
+            self::assertSame($expectedRoute, $outbox->data_json['route'] ?? null);
+            self::assertSame($expectedRoute, $user->notifications()->sole()->data['route'] ?? null);
+        }
+    }
+
     public function test_device_not_registered_receipt_disables_stale_push_token(): void
     {
         $user = $this->user();
