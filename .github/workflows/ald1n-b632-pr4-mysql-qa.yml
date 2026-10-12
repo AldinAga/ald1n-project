@@ -147,7 +147,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./vendor/bin/phpunit --no-ansi -c phpunit.mysql.xml --filter 'test_legacy_admin_notification_recovers_matching_order_route|test_legacy_notification_rejects_mismatched_admin_order_id|test_order_notifications_use_role_specific_routes_for_inbox_and_push'
+          ./vendor/bin/phpunit --colors=never -c phpunit.mysql.xml --filter 'test_legacy_admin_notification_recovers_matching_order_route|test_legacy_notification_rejects_mismatched_admin_order_id|test_order_notifications_use_role_specific_routes_for_inbox_and_push'
           printf '%s\n' 'PASS: BATCH632_PR4_NEW_LARAVEL_MYSQL_FEATURES'
       - name: Immutable source and no artifacts
         shell: bash
