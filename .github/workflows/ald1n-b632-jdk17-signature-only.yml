@@ -1,4 +1,4 @@
-name: Ald1n Batch632 - isolated JDK17 signature QA (no build)
+name: Ald1n Batch632 - full Release25 JDK17 audit (no build)
 on:
   push:
     branches:
@@ -51,6 +51,17 @@ jobs:
           cd apps/mobile/current
           node --test scripts/release25/verify-signature.test.mjs
           printf '%s\n' 'PASS: BATCH632_REAL_JDK17_SIGNATURE_SUITE'
+      - name: Complete 125 Release25 tests in one real-JDK17 environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/mobile/current
+          count="$(find scripts/release25 -maxdepth 1 -type f -name '*.test.mjs' | wc -l)"
+          test "$count" -eq 15
+          printf 'RELEASE25_TEST_FILES=%s\n' "$count"
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: BATCH632_RELEASE25_FULL_125_TESTS_JDK17'
+
       - name: Verify no tracked source changed
         shell: bash
         run: |
