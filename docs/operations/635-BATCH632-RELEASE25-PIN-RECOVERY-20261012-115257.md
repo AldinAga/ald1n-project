@@ -1,0 +1,1312 @@
+# Report 635 - Batch632 Release25 EAS pin recovery and real JDK gate
+
+Script: `/home/icaffeco/ald1n-project/incoming/ald1n-b632-release25-pin-recovery-v3.sh`
+
+Script SHA-256: `36dd2913ff74cf34e8b2e87893ab5cea4ffc7be4822f57cd0a5e315540963fa1`
+
+GitHub main SHA at report reservation: `179d3c9d7de0bf16b228db4359e339aeb3408000`
+
+Candidate branch: `audit/batch632-release25-pin-parity-20261012`
+
+Expected candidate SHA: `596026f2e7ce48c1c3b06fc4083526c17337dbf6`
+
+Execution: 2026-10-12T11:52:57+02:00
+
+## Full terminal output
+
+```text
+=== FETCH PIN RECOVERY PR AT EXACT SHA ===
+RECOVERY_BRANCH_SHA=596026f2e7ce48c1c3b06fc4083526c17337dbf6
+=== NODE / SOURCE ATTESTATION ===
+v22.23.3
+SOURCE_COMMIT=596026f2e7ce48c1c3b06fc4083526c17337dbf6
+=== TARGETED EAS PIN CONTRACT: EXACT SOURCE ===
+PASS eas.json canonical 24.8.0
+PASS build:android:preview
+PASS build:ios:preview
+PASS build:ios:production
+PASS build:android:development
+PASS build:ios:development
+PASS submission helper canonical
+PASS validator helper assertion canonical
+PASS AGENTS authority
+PASS Build25 protected production controller
+PASS Play submit protected controller
+PASS retired pin absent from actual CLI definitions
+PASS production channel intact
+PIN_PARITY=13/13
+=== SOURCE FILE SYNTAX ===
+PASS: NODE_SYNTAX
+=== SOURCE IMMUTABILITY BASELINE ===
+=== EXACT PIN REGRESSION TEST FILES ===
+TAP version 13
+# Subtest: validator is cwd independent, no inherited TypeScript error
+ok 1 - validator is cwd independent, no inherited TypeScript error
+  ---
+  duration_ms: 3.320702
+  type: 'test'
+  ...
+# Subtest: all late validators execute before exactly one terminal summary
+ok 2 - all late validators execute before exactly one terminal summary
+  ---
+  duration_ms: 1.363795
+  type: 'test'
+  ...
+# Subtest: late product image checks match current shared manager, not old local image state
+ok 3 - late product image checks match current shared manager, not old local image state
+  ---
+  duration_ms: 0.645179
+  type: 'test'
+  ...
+# Subtest: five optional EAS build scripts are pinned to canonical node/npm, no latest
+ok 4 - five optional EAS build scripts are pinned to canonical node/npm, no latest
+  ---
+  duration_ms: 0.544967
+  type: 'test'
+  ...
+# Subtest: production build and legacy submit remain explicitly fail closed
+ok 5 - production build and legacy submit remain explicitly fail closed
+  ---
+  duration_ms: 0.288404
+  type: 'test'
+  ...
+# Subtest: production Android identity and API remain unchanged
+ok 6 - production Android identity and API remain unchanged
+  ---
+  duration_ms: 0.23778
+  type: 'test'
+  ...
+# Subtest: validator helper and eas pin all match canonical AGENTS authority
+not ok 7 - validator helper and eas pin all match canonical AGENTS authority
+  ---
+  duration_ms: 6.182208
+  type: 'test'
+  location: '/home/icaffeco/ald1n-b632-pin-qa-wgnDXV/repo/apps/mobile/current/scripts/release25/validator-pin-recovery.test.mjs:12:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /eas-cli@24\.7\.0/. Input:
+    
+    '# AGENTS.md — Ald1n CMS & Mobile execution guardrails\n' +
+      '\n' +
+      'This file is the canonical working contract for automated/agent-assisted changes in the **Ald1n CMS & Mobile** repository.\n' +
+      '\n' +
+      'Its purpose is practical: prevent repeated recovery batches caused by known CloudLinux, Expo/EAS, Git, shell, validator, and release-environment edge cases.\n' +
+      '\n' +
+      '**Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.\n' +
+      '\n' +
+      'Last consolidated: **2026-10-12** (including permanent operator script/report path policy).\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      '## 1. Repository and runtime authority\n' +
+      '\n' +
+      'Repository:\n' +
+      '\n' +
+      '```text\n' +
+      '/home/icaffeco/ald1n-project\n' +
+      '```\n' +
+      '\n' +
+      'Primary locations:\n' +
+      '\n' +
+      '```text\n' +
+      'CMS:    /home/icaffeco/ald1n-project/apps/cms/current\n' +
+      'Mobile: /home/icaffeco/ald1n-project/apps/mobile/current\n' +
+      'Docs:   /home/icaffeco/ald1n-project/docs/operations\n' +
+      'Incoming executable batches:\n' +
+      '        /home/icaffeco/ald1n-project/incoming\n' +
+      '```\n' +
+      '\n' +
+      'Production mobile identity:\n' +
+      '\n' +
+      '```text\n' +
+      'Display name:    Ald1n CMS\n' +
+      'Expo owner:      ald1n\n' +
+      'Expo slug:       ald1n-mobile\n' +
+      'Expo project ID: d43b3866-6838-4217-a23e-3dc7f2cc76cc\n' +
+      'Android package: com.ald1n.mobile\n' +
+      'Production API:  https://cms.ald1n.com/api/v1\n' +
+      'App version:     1.0.0\n' +
+      'Current runtime: 1.0.0-build17\n' +
+      '```\n' +
+      '\n' +
+      'Current platform baseline:\n' +
+      '\n' +
+      '```text\n' +
+      'CMS:    Laravel 13 / PHP 8.4\n' +
+      'Mobile: Expo SDK 57 / React Native 0.86 / TypeScript\n' +
+      '```\n' +
+      '\n' +
+      'Do not change these identities incidentally inside maintenance, bugfix, documentation, or OTA batches.\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      '## 1A. Mandatory operator batch artifacts (project-owner policy, 2026-10-12)\n' +
+      '\n' +
+      '**Permanent rule for EVERY Ald1n CMS/Mobile chat, batch, sub-batch, recovery, QA, CLI/version audit, and agent/operator handoff. Read and enforce it before providing, uploading, generating or running ANY batch execution commands. No implicit exceptions.**\n' +
+      '\n' +
+      '### Operator-delivered and executable scripts — one location ONLY\n' +
+      '\n' +
+      '```text\n' +
+      '/home/icaffeco/ald1n-project/incoming\n' +
+      '```\n' +
+      '\n' +
+      '- All new or revised operator-facing scripts delivered for manual execution on this hosting (e.g. `.sh`, `.php`, `.mjs`, `.js`, or helper files that are part of that operator batch) must be uploaded/placed in **this exact directory** before execution.\n' +
+      '- Every copy/paste execution command MUST refer to `/home/icaffeco/ald1n-project/incoming/<script-name>`, never `$HOME/<script-name>`, a root-level stray script, or an ad-hoc script in the CMS/Mobile source.\n' +
+      "- Inspect and verify the script's content, expected SHA-256 and canonical location before running. If it is missing, report HOLD; do not silently fall back to a legacy copy at another path.\n" +
+      '- The root `/incoming/` is intentionally Git-ignored: do NOT change `.gitignore`, force-add runtime scripts or perform a broad git sync as a workaround. Tracked application source/test scripts within their actual packages are a different category and must **not** be moved out of their source locations; this policy governs delivered operator-execution artifacts.\n' +
+      '\n' +
+      '### Batch-generated reports and terminal logs — one location ONLY\n' +
+      '\n' +
+      '```text\n' +
+      '/home/icaffeco/ald1n-project/docs/operations\n' +
+      '```\n' +
+      '\n' +
+      '- Every newly generated post-execution batch report, smoke/QA receipt, full terminal log, failure report, and compatibility-lab result MUST be **created at this exact directory**. Do not save batch reports/logs to `$HOME`, `/tmp`, `incoming`, or unrelated app directories.\n' +
+      '- Preserve the existing sequential numeric report prefix rule in section 26: first resolve the highest report number from current GitHub `main` AND any local `docs/operations` reports, then assign the next unused number, without overwriting or reusing old reports. Distinguish **Batch number** from **Report sequence number**.\n' +
+      "- A report must capture the exact source SHA/branch, script name and SHA-256, controls executed, real return codes, PASS/FAIL/HOLD gates, mutation status, and any limitations. Terminal output must be visible LIVE and recorded in that report (`tee`; preserve the audited command's RC, not `tee`'s RC).\n" +
+      '- For read-only QA, only write the designated operation report into the project working tree. Temporary extraction, npm cache, lock and scratch artifacts go outside the repository as required by section 9 and must not be used as a report destination.\n' +
+      '- The GitHub historical report/archive and local current/predecessor retention rules of section 26 remain in force: checkpoint report evidence to GitHub before pruning archived local copies. Never delete uncheckpointed reports.\n' +
+      '- If canonical `incoming` or `docs/operations` is unavailable, or the report sequence cannot be established safely, fail CLOSED and explain the blocker; do not invent a different destination.\n' +
+      '\n' +
+      '### Canonical operator invocation (applies to Batch632 and future batches)\n' +
+      '\n' +
+      '```bash\n' +
+      'ROOT=/home/icaffeco/ald1n-project\n' +
+      'SCRIPT="$ROOT/incoming/<batch-script>.sh"\n' +
+      'test -f "$SCRIPT" || { echo "HOLD: missing canonical batch script: $SCRIPT"; exit 2; }\n' +
+      '# Verify the exact advertised SHA-256 BEFORE running.\n' +
+      '# The script must write its numbered terminal report to "$ROOT/docs/operations".\n' +
+      'bash "$SCRIPT"\n' +
+      '```\n' +
+      '\n' +
+      'Do not retroactively move or rewrite completed production source, release archives or historic reports to implement this path policy. This is a delivery/execution/output rule for current and future batches.\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      '## 2. Permanent product rules\n' +
+      '\n' +
+      'These are not optional cleanup targets or legacy TODOs.\n' +
+      '\n' +
+      '- **Product Variants are permanently decommissioned** from active UI, routes, API contracts, services, Mobile types, and operational workflows. Do not restore variant editor/workflows unless explicitly requested by the project owner.\n' +
+      '- Mobile cart/order creation remains **product-only**.\n' +
+      '- Multiple taps are allowed generally; only active network mutations may use deliberate single-flight/idempotency protection.\n' +
+      '- Direct Sale remains available from product detail for authorized users.\n' +
+      '- Deferred Direct Sale supports installments and final due date according to the existing server contract.\n' +
+      '- Commission remains visible in catalog/product detail where already implemented.\n' +
+      '- `Uredi artikal` remains the final admin action on product detail after Direct Sale.\n' +
+      '\n' +
+      'A batch that unexpectedly reintroduces Product Variants must fail.\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      '## 3. CloudLinux Node/npm authority\n' +
+      '\n' +
+      "Do not assume the shell's default `node`, `npm`, or `eas` binaries are the project authority.\n" +
+      '\n' +
+      'Canonical Node binary:\n' +
+      '\n' +
+      '```bash\n' +
+      'NODE_BIN=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node\n' +
+      '```\n' +
+      '\n' +
+      'Canonical npm CLI:\n' +
+      '\n' +
+      '```bash\n' +
+      'NPM_CLI=/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js\n' +
+      '```\n' +
+      '\n' +
+      'Use them explicitly:\n' +
+      '\n' +
+      '```bash\n' +
+      '"$NODE_BIN" "$NPM_CLI" run typecheck\n' +
+      '```\n' +
+      '\n' +
+      'Do not depend on an interactive shell profile, `nvm`, user aliases, or a globally installed `eas` command.\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      '## 4. Expo dependency rule on this hosting\n' +
+      '\n' +
+      '### Never use this for dependency repair/install\n' +
+      '\n' +
+      '```bash\n' +
+      'expo install --fix\n' +
+      '```\n' +
+      '\n' +
+      "On this CloudLinux/NodeJS Selector environment, Expo's internal npm child process can fail when a physical `node_modules` directory is involved.\n" +
+      '\n' +
+      'Approved pattern:\n' +
+      '\n' +
+      '1. Expo may be used for **compatibility checking** such as `expo install --check`.\n' +
+      '2. Actual dependency installation/update is performed through the canonical Node/npm CLI path above.\n' +
+      '3. Do not create/install `node_modules` merely to perform a release compatibility check.\n' +
+      '4. Do not run broad dependency repair commands during unrelated bugfix batches.\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      '## 5. EAS CLI authority — critical\n' +
+      '\n' +
+      'Do **not** require or probe for a physical/global `eas` binary as a hard prerequisite.\n' +
+      '\n' +
+      'Canonical EAS CLI version for the current server and checked-in eas.json (verified 2026-10-12):\n' +
+      '\n' +
+      '```text\n' +
+      'eas-cli@24.8.0\n' +
+      '```\n' +
+      '\n' +
+      'A newer release (24.12.1 was advertised by EAS CLI on 2026-10-12) is **not** automatically approved: run isolated read-only compatibility probes and negative/fail-closed regression tests before changing this pin. Do not install globally or alter production as part of a tools audit.\n' +
+      '\n' +
+      'Approved invocation:\n' +
+      '\n' +
+      '```bash\n' +
+      'EAS_SPEC="eas-cli@24.8.0"\n' +
+      '"$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas --version\n' +
+      '```\n' +
+      '\n' +
+      'All EAS operations must use this pinned npm-exec path unless the project owner explicitly changes the authority.\n' +
+      '\n' +
+      '### Project-scoped EAS commands must run from the Mobile app root\n' +
+      '\n' +
+      'This is mandatory:\n' +
+      '\n' +
+      '```bash\n' +
+      'cd /home/icaffeco/ald1n-project/apps/mobile/current\n' +
+      '```\n' +
+      '\n' +
+      'Then run project-scoped commands such as:\n' +
+      '\n' +
+      '```bash\n' +
+      '"$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update:list ...\n' +
+      '"$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update:view ...\n' +
+      '"$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update ...\n' +
+      '"$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update:republish ...\n' +
+      '```\n' +
+      '\n' +
+      'Do not execute project-scoped EAS commands from the monorepo root.\n' +
+      '\n' +
+      'Known historical failure prevented by this rule: `eas update:list` failed when launched from the monorepo root even though authentication worked.\n' +
+      '\n' +
+      '### Command-specific flag policy for eas-cli@24.8.0\n' +
+      '\n' +
+      'The flags are not uniform across EAS subcommands. Use the behavior proven on this hosting, not a blanket flag template.\n' +
+      '\n' +
+      '- `eas update:view GROUP_ID --json` is the canonical exact-group read. **Do not add `--non-interactive`**: eas-cli 24.7.0 rejects that flag for `update:view`.\n' +
+      '- `eas update:list ... --json --non-interactive` is proven working from the Mobile root.\n' +
+      '- `eas update ... --environment production --json --non-interactive` and `eas update:republish ... --json --non-interactive` are proven working in the Build17 OTA flow. Expo export may print a warning recommending `CI=1`; a warning alone is not a failed EAS publish. Judge the command by its real return code and returned update JSON.\n' +
+      '- Do not globally install a newer EAS CLI merely because the CLI prints an upgrade notice. Test a new major version through the same pinned npm-exec mechanism in a dedicated read-only compatibility audit first; only then change the canonical pin in th'... 26640 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    # AGENTS.md — Ald1n CMS & Mobile execution guardrails
+    
+    This file is the canonical working contract for automated/agent-assisted changes in the **Ald1n CMS & Mobile** repository.
+    
+    Its purpose is practical: prevent repeated recovery batches caused by known CloudLinux, Expo/EAS, Git, shell, validator, and release-environment edge cases.
+    
+    **Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.
+    
+    Last consolidated: **2026-10-12** (including permanent operator script/report path policy).
+    
+    ---
+    
+    ## 1. Repository and runtime authority
+    
+    Repository:
+    
+    ```text
+    /home/icaffeco/ald1n-project
+    ```
+    
+    Primary locations:
+    
+    ```text
+    CMS:    /home/icaffeco/ald1n-project/apps/cms/current
+    Mobile: /home/icaffeco/ald1n-project/apps/mobile/current
+    Docs:   /home/icaffeco/ald1n-project/docs/operations
+    Incoming executable batches:
+            /home/icaffeco/ald1n-project/incoming
+    ```
+    
+    Production mobile identity:
+    
+    ```text
+    Display name:    Ald1n CMS
+    Expo owner:      ald1n
+    Expo slug:       ald1n-mobile
+    Expo project ID: d43b3866-6838-4217-a23e-3dc7f2cc76cc
+    Android package: com.ald1n.mobile
+    Production API:  https://cms.ald1n.com/api/v1
+    App version:     1.0.0
+    Current runtime: 1.0.0-build17
+    ```
+    
+    Current platform baseline:
+    
+    ```text
+    CMS:    Laravel 13 / PHP 8.4
+    Mobile: Expo SDK 57 / React Native 0.86 / TypeScript
+    ```
+    
+    Do not change these identities incidentally inside maintenance, bugfix, documentation, or OTA batches.
+    
+    ---
+    
+    ## 1A. Mandatory operator batch artifacts (project-owner policy, 2026-10-12)
+    
+    **Permanent rule for EVERY Ald1n CMS/Mobile chat, batch, sub-batch, recovery, QA, CLI/version audit, and agent/operator handoff. Read and enforce it before providing, uploading, generating or running ANY batch execution commands. No implicit exceptions.**
+    
+    ### Operator-delivered and executable scripts — one location ONLY
+    
+    ```text
+    /home/icaffeco/ald1n-project/incoming
+    ```
+    
+    - All new or revised operator-facing scripts delivered for manual execution on this hosting (e.g. `.sh`, `.php`, `.mjs`, `.js`, or helper files that are part of that operator batch) must be uploaded/placed in **this exact directory** before execution.
+    - Every copy/paste execution command MUST refer to `/home/icaffeco/ald1n-project/incoming/<script-name>`, never `$HOME/<script-name>`, a root-level stray script, or an ad-hoc script in the CMS/Mobile source.
+    - Inspect and verify the script's content, expected SHA-256 and canonical location before running. If it is missing, report HOLD; do not silently fall back to a legacy copy at another path.
+    - The root `/incoming/` is intentionally Git-ignored: do NOT change `.gitignore`, force-add runtime scripts or perform a broad git sync as a workaround. Tracked application source/test scripts within their actual packages are a different category and must **not** be moved out of their source locations; this policy governs delivered operator-execution artifacts.
+    
+    ### Batch-generated reports and terminal logs — one location ONLY
+    
+    ```text
+    /home/icaffeco/ald1n-project/docs/operations
+    ```
+    
+    - Every newly generated post-execution batch report, smoke/QA receipt, full terminal log, failure report, and compatibility-lab result MUST be **created at this exact directory**. Do not save batch reports/logs to `$HOME`, `/tmp`, `incoming`, or unrelated app directories.
+    - Preserve the existing sequential numeric report prefix rule in section 26: first resolve the highest report number from current GitHub `main` AND any local `docs/operations` reports, then assign the next unused number, without overwriting or reusing old reports. Distinguish **Batch number** from **Report sequence number**.
+    - A report must capture the exact source SHA/branch, script name and SHA-256, controls executed, real return codes, PASS/FAIL/HOLD gates, mutation status, and any limitations. Terminal output must be visible LIVE and recorded in that report (`tee`; preserve the audited command's RC, not `tee`'s RC).
+    - For read-only QA, only write the designated operation report into the project working tree. Temporary extraction, npm cache, lock and scratch artifacts go outside the repository as required by section 9 and must not be used as a report destination.
+    - The GitHub historical report/archive and local current/predecessor retention rules of section 26 remain in force: checkpoint report evidence to GitHub before pruning archived local copies. Never delete uncheckpointed reports.
+    - If canonical `incoming` or `docs/operations` is unavailable, or the report sequence cannot be established safely, fail CLOSED and explain the blocker; do not invent a different destination.
+    
+    ### Canonical operator invocation (applies to Batch632 and future batches)
+    
+    ```bash
+    ROOT=/home/icaffeco/ald1n-project
+    SCRIPT="$ROOT/incoming/<batch-script>.sh"
+    test -f "$SCRIPT" || { echo "HOLD: missing canonical batch script: $SCRIPT"; exit 2; }
+    # Verify the exact advertised SHA-256 BEFORE running.
+    # The script must write its numbered terminal report to "$ROOT/docs/operations".
+    bash "$SCRIPT"
+    ```
+    
+    Do not retroactively move or rewrite completed production source, release archives or historic reports to implement this path policy. This is a delivery/execution/output rule for current and future batches.
+    
+    ---
+    
+    ## 2. Permanent product rules
+    
+    These are not optional cleanup targets or legacy TODOs.
+    
+    - **Product Variants are permanently decommissioned** from active UI, routes, API contracts, services, Mobile types, and operational workflows. Do not restore variant editor/workflows unless explicitly requested by the project owner.
+    - Mobile cart/order creation remains **product-only**.
+    - Multiple taps are allowed generally; only active network mutations may use deliberate single-flight/idempotency protection.
+    - Direct Sale remains available from product detail for authorized users.
+    - Deferred Direct Sale supports installments and final due date according to the existing server contract.
+    - Commission remains visible in catalog/product detail where already implemented.
+    - `Uredi artikal` remains the final admin action on product detail after Direct Sale.
+    
+    A batch that unexpectedly reintroduces Product Variants must fail.
+    
+    ---
+    
+    ## 3. CloudLinux Node/npm authority
+    
+    Do not assume the shell's default `node`, `npm`, or `eas` binaries are the project authority.
+    
+    Canonical Node binary:
+    
+    ```bash
+    NODE_BIN=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node
+    ```
+    
+    Canonical npm CLI:
+    
+    ```bash
+    NPM_CLI=/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js
+    ```
+    
+    Use them explicitly:
+    
+    ```bash
+    "$NODE_BIN" "$NPM_CLI" run typecheck
+    ```
+    
+    Do not depend on an interactive shell profile, `nvm`, user aliases, or a globally installed `eas` command.
+    
+    ---
+    
+    ## 4. Expo dependency rule on this hosting
+    
+    ### Never use this for dependency repair/install
+    
+    ```bash
+    expo install --fix
+    ```
+    
+    On this CloudLinux/NodeJS Selector environment, Expo's internal npm child process can fail when a physical `node_modules` directory is involved.
+    
+    Approved pattern:
+    
+    1. Expo may be used for **compatibility checking** such as `expo install --check`.
+    2. Actual dependency installation/update is performed through the canonical Node/npm CLI path above.
+    3. Do not create/install `node_modules` merely to perform a release compatibility check.
+    4. Do not run broad dependency repair commands during unrelated bugfix batches.
+    
+    ---
+    
+    ## 5. EAS CLI authority — critical
+    
+    Do **not** require or probe for a physical/global `eas` binary as a hard prerequisite.
+    
+    Canonical EAS CLI version for the current server and checked-in eas.json (verified 2026-10-12):
+    
+    ```text
+    eas-cli@24.8.0
+    ```
+    
+    A newer release (24.12.1 was advertised by EAS CLI on 2026-10-12) is **not** automatically approved: run isolated read-only compatibility probes and negative/fail-closed regression tests before changing this pin. Do not install globally or alter production as part of a tools audit.
+    
+    Approved invocation:
+    
+    ```bash
+    EAS_SPEC="eas-cli@24.8.0"
+    "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas --version
+    ```
+    
+    All EAS operations must use this pinned npm-exec path unless the project owner explicitly changes the authority.
+    
+    ### Project-scoped EAS commands must run from the Mobile app root
+    
+    This is mandatory:
+    
+    ```bash
+    cd /home/icaffeco/ald1n-project/apps/mobile/current
+    ```
+    
+    Then run project-scoped commands such as:
+    
+    ```bash
+    "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update:list ...
+    "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update:view ...
+    "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update ...
+    "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas update:republish ...
+    ```
+    
+    Do not execute project-scoped EAS commands from the monorepo root.
+    
+    Known historical failure prevented by this rule: `eas update:list` failed when launched from the monorepo root even though authentication worked.
+    
+    ### Command-specific flag policy for eas-cli@24.8.0
+    
+    The flags are not uniform across EAS subcommands. Use the behavior proven on this hosting, not a blanket flag template.
+    
+    - `eas update:view GROUP_ID --json` is the canonical exact-group read. **Do not add `--non-interactive`**: eas-cli 24.7.0 rejects that flag for `update:view`.
+    - `eas update:list ... --json --non-interactive` is proven working from the Mobile root.
+    - `eas update ... --environment production --json --non-interactive` and `eas update:republish ... --json --non-interactive` are proven working in the Build17 OTA flow. Expo export may print a warning recommending `CI=1`; a warning alone is not a failed EAS publish. Judge the command by its real return code and returned update JSON.
+    - Do not globally install a newer EAS CLI merely because the CLI prints an upgrade notice. Test a new major version through the same pinned npm-exec mechanism in a dedicated read-only compatibility audit first; only then change the canonical pin in this file.
+    
+    ---
+    
+    ## 6. OTA / Build policy
+    
+    Before deciding that a native build is required, compare native/runtime-critical files against the active native build source authority.
+    
+    For JS/TS-only changes compatible with the current runtime:
+    
+    ```text
+    runtimeVersion = 1.0.0-build17
+    ```
+    
+    prefer **EAS Update OTA** instead of a new native build.
+    
+    Do not create Build18 merely because source code changed.
+    
+    A new native build is justified only when native/config/dependency/runtime compatibility requires it.
+    
+    Do not submit to Google Play unless the requested task explicitly requires Play action.
+    
+    ### OTA release pattern
+    
+    For SDK 57, use the production environment explicitly:
+    
+    ```bash
+    eas update ... --environment production --non-interactive
+    ```
+    
+    Recommended safe sequence:
+    
+    1. Verify source/runtime/config authority.
+    2. Publish an isolated candidate update.
+    3. Capture the **candidate group ID directly from `eas update --json`** when possible.
+    4. Verify that exact group with `eas update:view GROUP_ID --json`.
+    5. Re-check production authority before promotion.
+    6. Promote the exact verified candidate with `eas update:republish --group ... --destination-channel production --platform android ...`.
+    7. Capture the production group from republish JSON.
+    8. Verify the exact production group with `eas update:view`.
+    9. Do not use collection/list queries as the only source of truth when an exact-group query is available.
+    
+    If an EAS collection query is temporarily unavailable but exact-group authority works, do not destroy a valid candidate or republish blindly.
+    
+    ---
+    
+    ### Workspace V2 Build25 OTA release authority (2026-10-12)
+    
+    - Android Build25: versionName 1.0.0, versionCode 25, runtimeVersion 1.0.0-build17, production channel, package com.ald1n.mobile.
+    - Workspace V2 source SHA: 52850d185d2c26d0a72a26d64520528714fe2f01. Candidate group: 8f27e122-317b-4db1-93a6-9bb95653de26 on workspace-v2-uat-20261012.
+    - Verified production republish group: 27dd4b5d-63b3-4902-9b0b-5f289076f0e6; Android update 01a12d9b-a56a-75e0-bd8d-be25ed4acb4a. Exact group re-read matched source SHA/runtime/production branch.
+    - Prior production group / rollback candidate: 3488c7cc-ac63-472d-bd7c-27e5abc677bd (Google Sign-In fix). Re-attest state before any rollback. No automatic rollback.
+    - Owner confirmed physical Android UAT in conversation; exact device matrix/telemetry not independently documented. Release technically closed, no new build, versionCode increase, or Play submit.
+    - Operations report: docs/operations/632-WORKSPACE-V2-BUILD25-PRODUCTION-OTA-CLOSURE-20261012.md.
+    
+    ## 7. State-aware recovery — never repeat successful work
+    
+    Every recovery batch must determine what already succeeded before taking action.
+    
+    At minimum inspect and record:
+    
+    ```text
+    SOURCE_MUTATION
+    COMMIT_CREATED
+    PUSH_COMPLETED
+    CANDIDATE_PUBLISHED
+    CANDIDATE_GROUP_ID
+    PRODUCTION_PROMOTED
+    PRODUCTION_GROUP_ID
+    FAILED_STAGE
+    ```
+    
+    Rules:
+    
+    - If source was already committed and pushed, **do not patch/commit the same fix again**.
+    - If a candidate was already published and verified, reuse its exact group when safe.
+    - If production was already promoted and only post-validation failed, do not blindly republish or rollback.
+    - If a preflight failed before mutation, recovery starts from the unchanged source state.
+    - Bind the exact previous report SHA-256 before recovery so the recovery script proves which state it is continuing from.
+    
+    Recovery must continue from the last verified state, not restart the whole batch by default.
+    
+    ---
+    
+    ## 8. Git preflight and direct-GitHub-write recovery
+    
+    Before any source mutation:
+    
+    ```bash
+    git fetch origin main
+    ```
+    
+    Record:
+    
+    ```text
+    BRANCH
+    LOCAL_HEAD
+    REMOTE_HEAD
+    ```
+    
+    Do not immediately mutate when local and remote differ.
+    
+    ### Safe fast-forward policy
+    
+    If local is behind remote:
+    
+    1. Confirm local is an ancestor of remote.
+    2. Confirm local has no unpushed commits.
+    3. Inspect the exact remote-only commits/files.
+    4. Confirm the remote delta is expected and safe.
+    5. Then use:
+    
+    ```bash
+    git merge --ff-only origin/main
+    ```
+    
+    Never use a blind `git pull` in a batch.
+    
+    This is especially important because documentation may be pushed directly through GitHub while the server checkout remains one commit behind.
+    
+    ### Known runtime drift
+    
+    The following production `.htaccess` runtime drift is historically allowed only when both hashes match exactly:
+    
+    ```text
+    apps/cms/current/public/.htaccess
+    file SHA-256: d10ecf0d63f9a8e1bd978a440afcbadb34faf1d24eb899bf2582d1e5c0033cef
+    diff SHA-256: 8ce9fa55a71768bf711203fcc50be8eec6de26886bbf4852ceb30a97b36958fe
+    ```
+    
+    If either hash changes, treat it as new drift and stop for review.
+    
+    Do not stage this known runtime drift unless explicitly requested.
+    
+    ---
+    
+    ## 9. Batch temporary files must stay outside the Git worktree
+    
+    Do not place runtime scratch directories such as:
+    
+    ```text
+    .batch123-...
+    .batch159-...
+    ```
+    
+    inside `/home/icaffeco/ald1n-project`.
+    
+    A previous checkpoint batch created its own temp directory inside the repo and then detected its own files as unexpected untracked contamination.
+    
+    Use an external location, for example:
+    
+    ```bash
+    TMP_DIR="$HOME/.ald1n-batch${BATCH_NO}-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$TMP_DIR"
+    ```
+    
+    Locks used only by the batch should also live outside the repository unless they are intentionally tracked project files.
+    
+    ---
+    
+    ## 10. Shell portability rules for this hosting
+    
+    Batch scripts must be executable through:
+    
+    ```bash
+    bash /home/icaffeco/ald1n-project/incoming/<script>.sh
+    ```
+    
+    Permanent restrictions:
+    
+    - Do not use `python3` in operational batch scripts.
+    - Do not use `/dev/fd`.
+    - Do not use process substitution:
+    
+    ```bash
+    <(command)
+    >(command)
+    ```
+    
+    - Use plain ASCII shell command flags.
+    - Prefer portable temporary files/FIFOs over shell-specific descriptor tricks.
+    
+    ### `set -e`, `ERR`, and expected non-zero return codes
+    
+    Do not design a batch where an expected `RC=1` can be converted into a fatal error by global `set -e` or an `ERR` trap.
+    
+    Examples of commands where `1` can be expected/meaningful:
+    
+    ```text
+    grep    -> no matches
+    git grep -> no matches
+    git diff --quiet -> differences exist
+    ```
+    
+    Capture and classify the return code explicitly.
+    
+    Recommended pattern:
+    
+    ```bash
+    set +e
+    command_here
+    rc=$?
+    set -e   # only if this batch intentionally uses errexit
+    
+    case "$rc" in
+      0) ... ;;
+      1) ... expected semantic ... ;;
+      *) fail ... ;;
+    esac
+    ```
+    
+    A simpler and often safer policy for these operational scripts is to avoid global `set -e` entirely and use explicit RC checks for critical commands.
+    
+    ### `set -u` and literal dollar signs
+    
+    If `set -u` is active, escape literal `$` characters inside double-quoted fingerprints.
+    
+    Wrong:
+    
+    ```bash
+    grep -Fq "'automation.'.$type" file.php
+    ```
+    
+    This expands shell variable `$type` and may abort the script.
+    
+    Correct:
+    
+    ```bash
+    grep -Fq "'automation.'.\$type" file.php
+    ```
+    
+    Or use single quotes where practical.
+    
+    ---
+    
+    ## 11. Terminal logging contract
+    
+    All operational batches must show detailed progress **live in the terminal** and save the same audit output to the report.
+    
+    Do not hide important command output only inside temporary files.
+    
+    Preferred logging helper:
+    
+    ```bash
+    log() {
+      printf '%s\n' "$*" | tee -a "$REPORT"
+    }
+    ```
+    
+    For normal commands:
+    
+    ```bash
+    command 2>&1 | tee -a "$REPORT"
+    rc=${PIPESTATUS[0]}
+    ```
+    
+    Always preserve the real command return code rather than `tee`'s return code.
+    
+    ### JSON-producing commands
+    
+    When stdout must remain valid JSON while also being visible live, do not corrupt stdout by adding prefixes or mixed stderr.
+    
+    Use separate stdout/stderr capture and, where needed, named FIFOs + `tee` so:
+    
+    - raw stdout JSON remains parseable,
+    - stderr remains separate,
+    - both streams are visible live,
+    - both are persisted in the report.
+    
+    No process substitution and no `/dev/fd`.
+    
+    ---
+    
+    ## 12. Validator parsing rules
+    
+    Never classify a batch as failed simply because the text `FAIL` appears somewhere in validator output.
+    
+    The valid success summary contains:
+    
+    ```text
+    Ukupno FAIL: 0
+    ```
+    
+    Therefore this is forbidden as a success/failure parser:
+    
+    ```bash
+    grep -Fq 'FAIL' validator.log
+    ```
+    
+    Use explicit parser rules:
+    
+    1. Require the exact zero-failure summary.
+    2. Detect only actual failure lines/structured markers.
+    3. Treat informational historical text containing `FAIL` as non-fatal.
+    
+    Do the same for other tools whose success output can contain words such as `error`, `fail`, or `warning` in explanatory text.
+    
+    ---
+    
+    ## 13. Canonical quality gates
+    
+    ### CMS
+    
+    Canonical full CMS static gate:
+    
+    ```bash
+    cd /home/icaffeco/ald1n-project/apps/cms/current
+    php bin/static-check.php
+    ```
+    
+    Current expected result:
+    
+    ```text
+    Ukupno: 983, neuspešno: 0
+    ```
+    
+    Do **not** replace this gate with:
+    
+    ```bash
+    php bin/php-lint.php
+    ```
+    
+    `php-lint.php` is not equivalent to the canonical static gate.
+    
+    ### Mobile TypeScript
+    
+    ```bash
+    cd /home/icaffeco/ald1n-project/apps/mobile/current
+    "$NODE_BIN" "$NPM_CLI" run typecheck
+    ```
+    
+    Expected: RC 0.
+    
+    ### Mobile validator
+    
+    ```bash
+    "$NODE_BIN" scripts/validate-project.mjs
+    ```
+    
+    Expected summary:
+    
+    ```text
+    Ukupno FAIL: 0
+    ```
+    
+    ### OpenAPI parity
+    
+    There are exactly three active tracked OpenAPI copies:
+    
+    ```text
+    apps/cms/current/docs/openapi.yaml
+    apps/mobile/current/docs/openapi.yaml
+    packages/api-contract/openapi.yaml
+    ```
+    
+    They must remain byte-identical unless an approved batch is intentionally changing the API contract and updates all three together.
+    
+    ---
+    
+    ## 14. TDD for bugfixes and behavior changes
+    
+    For a behavioral bugfix:
+    
+    1. Add/create the smallest behavioral regression test first.
+    2. Run it against the existing source.
+    3. Confirm it fails for the expected reason (**RED**).
+    4. Apply the minimal production fix.
+    5. Run the same test and confirm it passes (**GREEN**).
+    6. Run broader TypeScript/validator/CMS/OpenAPI/project guards.
+    7. Only then commit/push.
+    
+    Do not call a test “TDD” if the test was first run only after the production change.
+    
+    If the project has no convenient test runner for the isolated behavior, a dependency-free Node/PHP behavioral runner is acceptable when it directly imports/exercises real production code.
+    
+    ---
+    
+    ## 15. Source-diff scope before commit
+    
+    Before commit, print and review:
+    
+    ```bash
+    git status --short
+    git diff -- <expected paths>
+    git diff --check
+    ```
+    
+    Then verify the changed-file set exactly matches the approved scope.
+    
+    A batch that intended to change 3 Mobile files must not silently include:
+    
+    - operation reports,
+    - `.htaccess`,
+    - backup files,
+    - credentials,
+    - unrelated formatting,
+    - generated caches,
+    - temporary scripts.
+    
+    Stage explicit paths, not `git add -A`, unless the approved task is specifically a controlled checkpoint of known reports.
+    
+    ---
+    
+    ## 16. Commit/push policy
+    
+    Before push:
+    
+    1. Re-fetch remote.
+    2. Ensure remote did not move unexpectedly.
+    3. Ensure staged scope is exact.
+    4. Run `git diff --cached --check`.
+    5. Commit with a task-specific message.
+    6. Push `main`.
+    7. Fetch again.
+    8. Require `LOCAL_HEAD == REMOTE_HEAD` for the new commit.
+    
+    If push succeeds but a later OTA/release step fails, recovery must preserve that commit and continue release work. Do not create a duplicate source commit.
+    
+    ---
+    
+    ## 17. Operation reports are state authority
+    
+    Every executable batch must produce an operation report under:
+    
+    ```text
+    docs/operations/
+    ```
+    
+    Important state markers should be machine-readable, one per line where practical:
+    
+    ```text
+    BATCH_RESULT=
+    FAILED_STAGE=
+    SOURCE_MUTATION=
+    COMMIT_CREATED=
+    PUSH_COMPLETED=
+    SOURCE_COMMIT=
+    OTA_REQUIRED=
+    CANDIDATE_PUBLISHED=
+    CANDIDATE_GROUP_ID=
+    PRODUCTION_PROMOTED=
+    PRODUCTION_GROUP_ID=
+    BUILD_CREATED=
+    GOOGLE_PLAY_ACTION=
+    NEXT_ACTION=
+    ```
+    
+    For recovery batches, bind the exact previous report SHA-256 before doing work.
+    
+    A report must be detailed enough that the next batch can safely determine the exact system state without guessing.
+    
+    ---
+    
+    ## 18. Default PASS / FAIL continuation rule
+    
+    Project-owner preference:
+    
+    - **FAIL report** -> diagnose exact root cause and create the targeted recovery batch immediately.
+    - **PASS report** -> certify it and create the next planned batch immediately.
+    - If the next step is manual/physical acceptance -> create an executable preflight/checklist batch rather than only prose.
+    
+    Do not ask the project owner to restate this rule on every batch.
+    
+    Do not create unnecessary recovery generations for known hosting behaviors that this file already documents.
+    
+    ---
+    
+    ## 19. Pre-flight checklist before every mutation batch
+    
+    A new batch should answer these **before touching source**:
+    
+    ```text
+    [ ] Am I on branch main?
+    [ ] Did I fetch origin/main?
+    [ ] Are local/remote heads equal?
+    [ ] If not equal, did I prove a safe fast-forward rather than blindly pull?
+    [ ] Are there staged changes? If yes, stop unless they are explicitly expected.
+    [ ] Is the known .htaccess drift still exactly the known hash/diff?
+    [ ] Is my temp directory outside the Git worktree?
+    [ ] Am I using canonical Node/npm paths?
+    [ ] If EAS is needed, am I using npm exec eas-cli@24.8.0?
+    [ ] Will every project-scoped EAS command run from apps/mobile/current?
+    [ ] Does the script avoid python3, /dev/fd, and process substitution?
+    [ ] Can any expected RC=1 be accidentally trapped by set -e/ERR?
+    [ ] Can set -u expand any literal $ text in grep/regex fingerprints?
+    [ ] Does validator parsing explicitly accept "Ukupno FAIL: 0"?
+    [ ] Is the previous report SHA bound for recovery work?
+    [ ] Do I know whether source/commit/candidate/production actions already happened?
+    [ ] Is a new native build actually required, or is Build17 OTA compatible?
+    [ ] Is Google Play action explicitly requested? If not, do not perform it.
+    ```
+    
+    A batch should fail in preflight **before mutation** when one of these cannot be proven safely.
+    
+    ---
+    
+    ## 20. Pre-release checklist for Mobile OTA
+    
+    Before candidate publish:
+    
+    ```text
+    [ ] TypeScript RC=0
+    [ ] Mobile validator: Ukupno FAIL: 0
+    [ ] CMS static: 983/983, 0 failed
+    [ ] Product Variants guard PASS
+    [ ] OpenAPI parity PASS when API surface is relevant
+    [ ] app name = Ald1n CMS
+    [ ] slug = ald1n-mobile
+    [ ] owner = ald1n
+    [ ] project ID = d43b3866-6838-4217-a23e-3dc7f2cc76cc
+    [ ] Android package = com.ald1n.mobile
+    [ ] runtime = 1.0.0-build17 for Build17-compatible OTA
+    [ ] production API = https://cms.ald1n.com/api/v1
+    [ ] source commit pushed and local/remote synchronized
+    [ ] EAS whoami succeeds through pinned npm-exec authority
+    ```
+    
+    After publish:
+    
+    ```text
+    [ ] Candidate group ID captured
+    [ ] Exact candidate update:view matches expected commit/runtime/platform
+    [ ] Production authority rechecked before promotion
+    [ ] Exact candidate promoted, not a guessed/latest group
+    [ ] Production group ID captured
+    [ ] Exact production update:view matches expected commit/runtime/platform
+    [ ] No unexpected native build
+    [ ] No unexpected Google Play action
+    ```
+    
+    ---
+    
+    ## 21. Physical-device acceptance
+    
+    For user-visible Mobile changes, use physical-device acceptance when the behavior cannot be fully certified by static/automated checks alone.
+    
+    Typical OTA boot sequence:
+    
+    1. Force-close app.
+    2. Open and allow OTA retrieval.
+    3. Wait for update/application initialization.
+    4. Force-close again.
+    5. Reopen.
+    6. Exercise the exact original failure scenario.
+    
+    Acceptance should test the actual reported problem first, then a small regression smoke set.
+    
+    Do not perform destructive production business mutations merely to prove UI controls exist. If no safe test record exists, record the limitation explicitly rather than modifying arbitrary live business data.
+    
+    ---
+    
+    ## 22. Backup rules
+    
+    Before data-destructive or high-risk production operations, use the existing first-party backup flow where appropriate.
+    
+    Canonical CMS manual backup:
+    
+    ```bash
+    cd /home/icaffeco/ald1n-project/apps/cms/current
+    php artisan app:backup-create --type=manual
+    ```
+    
+    Verify it:
+    
+    ```bash
+    php artisan app:backup-verify
+    ```
+    
+    Do not report a backup as restore-ready until verification passes.
+    
+    Do not expose `.env`, Google credentials, tokens, passwords, private keys, or backup secrets in terminal/report output.
+    
+    ---
+    
+    ## 23. Cleanup safety
+    
+    Never use an unrestricted destructive command such as:
+    
+    ```bash
+    git clean -fdx
+    ```
+    
+    for routine cleanup.
+    
+    Inventory first. Delete only explicitly classified temporary/runtime junk.
+    
+    Do not delete:
+    
+    - `.env`,
+    - Google/Firebase credentials,
+    - uploads/product images,
+    - private business documents,
+    - active Laravel storage data,
+    - the current uncheckpointed operation report or an immediate predecessor report still required by an active recovery,
+    - valid verified backups,
+    - EAS credentials,
+    - unknown files merely because they are untracked.
+    
+    Use quarantine/backup before deleting uncertain runtime artifacts.
+    
+    ---
+    
+    ## 24. Lessons already learned — do not rediscover via failed batches
+    
+    These failures have already happened and are now encoded as permanent guards:
+    
+    1. **Project EAS command from monorepo root** -> collection query failed. Run from Mobile root.
+    2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@24.8.0`.
+    3. **Local repo one documentation commit behind GitHub** -> preflight mismatch. Verify ancestry/delta and `git merge --ff-only` when safe.
+    4. **Temp directory created inside repo** -> checkpoint detected its own temp files as contamination. Temp/lock outside worktree.
+    5. **Broad grep for `FAIL`** -> false failure on `Ukupno FAIL: 0`. Parse exact failure semantics.
+    6. **`git grep` no-match RC=1 under ERR/errexit** -> false fatal failure. Capture expected RC explicitly.
+    7. **`set -u` + literal `$type` inside double-quoted grep fingerprint** -> unbound shell variable abort. Escape literal dollars/use single quotes.
+    8. **Assuming a single OpenAPI location** -> topology failure. Active topology is exactly three tracked copies.
+    9. **Using `php bin/php-lint.php` as full CMS authority** -> wrong gate. Canonical full gate is `php bin/static-check.php`.
+    10. **Restarting recovery from scratch** -> risks duplicate commits/candidates/promotions. Recover from recorded state markers.
+    11. **`eas update:view ... --non-interactive` on eas-cli 24.7.0** -> hard CLI failure. Use exact-group `update:view GROUP_ID --json` without `--non-interactive`.
+    
+    Any new repeated infrastructure failure should be added to this section after its root cause is proven.
+    
+    ---
+    
+    ## 25. Batch design principle
+    
+    A good Ald1n batch is:
+    
+    - bounded,
+    - state-aware,
+    - verbose,
+    - reversible before mutation,
+    - explicit about authority,
+    - conservative with production data,
+    - strict about changed-file scope,
+    - idempotent or recovery-safe,
+    - aware of this CloudLinux hosting environment,
+    - able to explain exactly what succeeded if a later stage fails.
+    
+    The goal is not merely “eventually PASS.” The goal is that known environment constraints are checked **before** execution so a normal change does not require V2/V3/V4/V5 recoveries for already-understood reasons.
+    
+    ---
+    
+    ## 26. Owner-approved hosting hygiene and report numbering
+    
+    These rules are permanent from **2026-09-19** and supersede older operation-report/backup retention behavior where they conflict.
+    
+    ### Terminal clear at the beginning of every Bash batch
+    
+    Every executable operational Bash batch must clear the terminal before logging, preflight, or mutations. Immediately after the shebang/comments, use:
+    
+    ```bash
+    clear 2>/dev/null || printf '\033c'
+    ```
+    
+    A failed `clear` in a non-interactive shell must not abort the batch.
+    
+    ### Sequential operation-report number prefix
+    
+    Every newly generated operation report must begin with a monotonically increasing numeric prefix followed by `-`.
+    
+    Sequence authority when this rule was adopted:
+    
+    ```text
+    Last historical report number: 444
+    First report under this rule: 445
+    ```
+    
+    After 445, increment by exactly one for every new report (`446-...`, `447-...`, etc.). Recovery attempts consume their own next number; never reuse a previous report number. After Report447 the next report is Report448.
+    
+    ### Stable backup retention = exactly two
+    
+    Hosting must retain exactly the two newest restore-ready stable backups after cleanup. Before deleting older backups:
+    
+    1. Inventory the canonical Laravel `backup_runs` authority and canonical backup directory.
+    2. Verify candidate backups with `php artisan app:backup-verify`.
+    3. If fewer than two restore-ready backups exist, create and verify replacement manual backup(s) first.
+    4. Only after two verified backups are proven may older canonical backup rows/directories and known legacy release snapshots be removed.
+    5. Never delete either selected stable backup during the same cleanup.
+    6. Backup cleanup may mutate backup metadata only; it must not modify business records.
+    
+    Do not retain 7 daily + 4 weekly backups merely because older default configuration allowed it. Owner policy is two stable backups total unless explicitly changed later. Every future housekeeping/release batch must verify the retention state and remove only newly accumulated superseded backups after proving the two keepers.
+    
+    ### Operation reports: GitHub is the historical archive, hosting is an active workspace
+    
+    The production hosting checkout must not accumulate historical operation reports.
+    
+    - Keep locally only the current report and, when required for state binding/recovery, the immediate predecessor report.
+    - Before removing a report not otherwise present on GitHub, checkpoint it to GitHub first.
+    - Historical reports may be removed from the hosting working tree after GitHub authority is proven.
+    - Large report-history cleanup must create a dedicated Git archive tag/commit before deletion so evidence remains recoverable.
+    - Never delete the current uncheckpointed report or a predecessor that an active recovery still binds by SHA-256.
+    
+    ### Contract smokes must not depend on disposable historical fixtures
+    
+    Read-only contract and health smokes must validate current contracts and immutability, not require a historical test record to exist forever. Total Product Purge contract validation must not fail merely because historical Product ID 19 was legitimately removed later. A fixture may be inspected when present, but its absence is not itself a contract failure.
+    
+    ### Laravel -> Mobile feature parity is mandatory
+    
+    This is a permanent project-owner rule from **2026-09-19**.
+    
+    Every functional Laravel/CMS feature change must be carried through to the Mobile application where that capability is user-facing or consumed by Mobile. A backend feature is not considered fully closed merely because the Laravel implementation passes.
+    
+    For every applicable Laravel feature change, the implementation/release chain must explicitly account for:
+    
+    1. Laravel route/service/model/database behavior and permissions.
+    2. Canonical OpenAPI changes across exactly the three active copies when the API surface changes.
+    3. Mobile API client/types/query-key/validator parity in the same backend/API batch whenever Mobile consumes the contract.
+    4. Mobile UX/workspace parity in the same batch or in an explicitly named immediately-following batch that remains part of the same feature acceptance chain.
+    5. Regression guards proving that Product Variants remain decommissioned and existing permission/business authorities are reused instead of duplicated.
+    
+    Do not create a parallel Mobile business rule to compensate for missing Laravel authority. Do not create a parallel Laravel endpoint tree when an existing canonical feature namespace can be extended safely. Infrastructure-only backend work that has no Mobile-visible or Mobile-consumed behavior may be documented as not applicable, but that exception must be explicit in the operation report.
+    
+    A feature that intentionally splits backend/API work and Mobile UI work across consecutive batches remains **in progress** until the Mobile parity batch passes.
+    
+    ### Git scope authority uses machine-stable manifests
+    
+    This is a permanent operational rule from **2026-09-19**, adopted after Reports451-454 demonstrated that human-readable Git status rendering is not a safe machine authority for exact scope decisions.
+    
+    Do not parse `git status --short` to decide whether an allowlist passes. It may apply rename detection or collapse untracked directories and therefore render a valid file set differently from the semantic file set.
+    
+    For automated scope authority use these exact sources:
+    
+    1. Staged paths: `git diff --cached --name-only --no-renames` and, when status letters are required, `git diff --cached --name-status --no-renames`.
+    2. Tracked unstaged paths: `git diff --name-only --no-renames`.
+    3. Untracked paths: `git ls-files --others --exclude-standard`.
+    4. Normalize each list with stable sorting and compare it against an explicit expected manifest.
+    5. `git status --short` may still be printed for human diagnostics, but it must never be the pass/fail authority for exact path scope.
+    
+    Do not broaden cleanup to compensate for a manifest mismatch. Fail before mutation unless every unexpected path is classified explicitly.
+    
+    ### Immutable operation-report whitespace evidence
+    
+    Operation reports archive raw terminal evidence and must preserve their bytes. Do not rewrite or trim historical report lines merely to satisfy whitespace style checks.
+    
+    Before every commit, still execute `git diff --cached --check`. The normal rule remains RC=0 for source, configuration, specifications, `AGENTS.md`, and ordinary documentation.
+    
+    A non-zero result is permitted only for a dedicated evidence-only archival commit when all of the following are true:
+    
+    1. The staged manifest is exact and every staged addition/modification is under `docs/operations/`; a deliberate rotation deletion under the same directory is also allowed.
+    2. The full `git diff --cached --check` output is captured in the current operation report.
+    3. `git diff --cached --check -- . ':(exclude)docs/operations/**'` returns RC=0.
+    4. No product source, configuration, spec, `AGENTS.md`, generated contract, or other non-report path is staged in that commit.
+    5. The report files are committed byte-for-byte; do not normalize historical terminal whitespace.
+    
+    This exception is for immutable operation-report evidence only and must never be used to waive whitespace errors in product/source or authority documentation commits.
+    
+    ---
+    
+    ## 27. Updating this file
+    
+    Update `AGENTS.md` whenever a newly proven hosting/release rule becomes permanent.
+    
+    When updating:
+    
+    1. Base the rule on verified evidence from an operation report or reproducible environment behavior.
+    2. State the failure pattern and the approved replacement pattern.
+    3. Avoid hardcoding transient OTA group IDs or one-time report filenames as permanent rules.
+    4. Keep stable runtime/tool/path authorities explicit.
+    5. Commit the documentation change separately when practical.
+    
+    This file is intended to remain the first operational reference for future Ald1n CMS & Mobile work.
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///home/icaffeco/ald1n-b632-pin-qa-wgnDXV/repo/apps/mobile/current/scripts/release25/validator-pin-recovery.test.mjs:14:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: legacy direct submit remains disabled and guarded
+ok 8 - legacy direct submit remains disabled and guarded
+  ---
+  duration_ms: 0.414196
+  type: 'test'
+  ...
+# Subtest: TypeScript status only tests syntax failures, no inherited release assertion failure
+ok 9 - TypeScript status only tests syntax failures, no inherited release assertion failure
+  ---
+  duration_ms: 0.244797
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 8
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 292.946938
+
+```
+
+## Final status
+
+BATCH632_RELEASE25_PIN_RECOVERY=FAIL
+
+AUDITED_COMMAND_RC=1
+
+TEE_RC=0
+
+RECOVERY_PR=5_DRAFT
+EAS_PIN_UPGRADE=NO
+PRODUCTION_MUTATIONS=NONE
