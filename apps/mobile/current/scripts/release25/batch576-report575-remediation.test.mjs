@@ -24,8 +24,19 @@ test('P1: real signature crypto regressions run after JDK17 before Android SDK',
   assert.equal((preflight.match(/node --test /g) || []).length, 1, 'single fail-fast test invocation');
 });
 
-test('P2: current pointer records exact audit source without pretending remote versionCode is known', () => {
-  const pre = pointer.split('## Archived Build23/Build24 historical snapshot')[0];
+test('P2: current Workspace V2 pointer is authoritative; old Build25 audit source remains historical', () => {
+  const archiveMarker = '## Historical Build25 pre-OTA snapshot — NOT CURRENT AUTHORITY';
+  const current = pointer.split(archiveMarker)[0];
+  assert.ok(current.startsWith('# CURRENT AUTHORITY — Workspace V2 production OTA / Batch632'));
+  assert.ok(current.includes('Build25 appVersion `1.0.0`, versionCode `25`'));
+  assert.ok(current.includes('52850d185d2c26d0a72a26d64520528714fe2f01'));
+  assert.ok(current.includes('27dd4b5d-63b3-4902-9b0b-5f289076f0e6'));
+  assert.ok(current.includes('Canonical EAS CLI is `24.8.0`'));
+  assert.ok(!current.includes('EAS_CLI=eas-cli@24.7.0'));
+
+  const pre = pointer.split(archiveMarker)[1]
+    ?.split('## Archived Build23/Build24 historical snapshot')[0]
+    ?.trimStart() ?? '';
   assert.ok(pre.startsWith('# Ald1n Operations - CURRENT Build25 Authority (2026-10-09)'));
   assert.ok(pre.includes('7c4e4ef435b46a65bc0e0db57dd74509a62a5e89'));
   assert.ok(pre.includes('b5b942e645d28d3ed5f248eaae4180ebe9a54ee6'));
