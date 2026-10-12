@@ -8,6 +8,7 @@
 - Canonical EAS CLI is `24.8.0` in eas.json and current AGENTS.md; CLI `24.12.1` was advertised as newer but not verified compatible, so not approved for upgrade.
 - Production CMS host last observed checkout `b5b942e6...` with 97 dirty/untracked entries. Not verified equal to GitHub; do not run destructive sync.
 - Order #134, archived notification deep links, hosting parity, 320px/a11y and broad device QA: follow-on scoped gates, NOT implicitly PASS.
+- Batch632 Order #134 source candidate is **DRAFT PR #4** (branch `audit/batch632-order-notification-route-recovery-20261012`, HEAD `25d29162c01938b7a58abe6914fee403beb72879`): real-source PHP routing tests RED→GREEN, combined 14/14 PASS; five-file CMS-only scope. **NOT merged, NOT deployed, no production resolution attested.** Full Laravel/static/Android/HTTP gates remain.
 - Canonical closure report: `docs/operations/632-WORKSPACE-V2-BUILD25-PRODUCTION-OTA-CLOSURE-20261012.md`.
 - Batch632 layout source parity: GitHub commit `8064ff9a1bba1cb74856f2e3732094dcfe524d84`, host/source SHA-256 `324dbae89961d3b48d8cacf062a15060d3af380a681027c7b25feb0d717b5737` (cmp PASS). Laravel anonymous x-icon, isolated Blade compile and compiled-PHP syntax PASS; Workspace V2 tests 52/52 PASS. Full authenticated HTTP render and global host/source parity remain unverified.
 - No new Android build, Google Play submit, production CMS mutation or OTA republish is authorized by Batch632 documentation.
