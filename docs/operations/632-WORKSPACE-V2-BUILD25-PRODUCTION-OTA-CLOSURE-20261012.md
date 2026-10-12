@@ -1,0 +1,49 @@
+# Batch632 — Workspace V2 Build25 production OTA closure and toolchain/UX reconciliation
+Date: 2026-10-12
+Scope: documentation and read-only GitHub source audit. No EAS, Play, CMS production or Android native mutations in this batch.
+
+## Authority
+- GitHub main at entry: 52850d185d2c26d0a72a26d64520528714fe2f01.
+- Build25: appVersion 1.0.0; versionCode 25; runtimeVersion 1.0.0-build17; Android production channel.
+- Current EAS project: @ald1n/ald1n-mobile, ID d43b3866-6838-4217-a23e-3dc7f2cc76cc.
+- Published UAT Android group: 8f27e122-317b-4db1-93a6-9bb95653de26, source 52850d185d2c26d0a72a26d64520528714fe2f01; exact-group verified.
+- Production republish on 2026-10-12T00:55:37.578Z: group 27dd4b5d-63b3-4902-9b0b-5f289076f0e6, update 01a12d9b-a56a-75e0-bd8d-be25ed4acb4a, source 52850d185d2c26d0a72a26d64520528714fe2f01, Android runtime 1.0.0-build17, production branch. The owner ran eas update:view and returned matching exact-group JSON.
+- Previous production group for recovery assessment: 3488c7cc-ac63-472d-bd7c-27e5abc677bd (Google Sign-In).
+- Source checks: TypeScript PASS; Mobile validator 0 FAIL; Workspace V2 targeted tests 52/52; expo install --check PASS; Android Metro/Hermes export PASS.
+- Physical Android UAT: owner explicitly confirmed PASS in conversation; no independent device matrix or runtime telemetry supplied. Preserve this evidence distinction.
+- Production OTA release status: PUBLISHED_AND_EXACT_GROUP_VERIFIED. End-user uptake across every device is not directly measured.
+
+## EAS CLI and dependency safety
+- Active hosting eas.json was observed at eas-cli 24.8.0; GitHub eas.json was updated to 24.8.0 in commit 52850d185d2c26d0a72a26d64520528714fe2f01; owner successfully executed eas whoami, project:info, candidate publish, republish and update:view with CLI 24.8.0.
+- Canonical AGENTS.md historically pinned 24.7.0; aligned to 24.8.0 in Batch632. npm-exec via explicit CloudLinux Node/npm paths remains required.
+- Host Node observed v22.23.3, npm 10.9.9. Expo SDK 57 and RN 0.86.3. Expo documents SDK57 Node >=22.13.x and RN 0.86. Do not arbitrarily upgrade native dependencies or change runtimeVersion.
+- EAS CLI advertised 24.12.1 as available on 2026-10-12, but its compatibility and release-controller behavior have not been proven on this host. LATEST_AVAILABLE is not VERIFIED_COMPATIBLE; use isolated smoke/negative tests before changing this pin.
+- No global npm installation, package/lockfile modification or production build authorized by this documentation-only work.
+
+## UX source audit
+- Notification inbox code routes through resolveBusinessNotificationNavigation; push bridge routes through resolvePushNotificationNavigation and handles cold-start responses. These are code-presence findings only, not device verification.
+- Admin Order detail validates positive numeric ID, gates orders.manage, uses API detail query and ErrorState retry, and renders OrderBuyerCard using shipping recipient snapshots. It has no special explicit #134 exception. A missing/deleted/archived/unauthorized #134 requires live API status/role/session evidence before patching code.
+- Mobile 320px, large text, landscape, screen reader, offline/timeout, role-restricted actions, unsaved drafts and notification deep links need an explicit device-by-device QA matrix. Source regression tests cannot substitute for full hardware coverage.
+
+## Hosting vs GitHub CMS audit — pending live parity attestation
+- Last operator observation: server root checkout HEAD b5b942e645d28d3ed5f248eaae4180ebe9a54ee6 versus GitHub main 52850d185d2c26d0a72a26d64520528714fe2f01, and 97 dirty/untracked entries, including tracked Blade/CSS files and historical docs.
+- This means server production CMS presentation cannot be declared byte-identical to current GitHub main. Do not run blind git pull/reset/stash, auto-sync Web assets, or redeploy until a scoped manifest/diff and CMS acceptance prove parity.
+- Direct server filesystem/read-only host verification was unavailable in this assistant session. No CMS live UI or server API claims are made.
+
+## Follow-on gated scopes
+1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
+2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
+3. Read-only hosting/GitHub manifest parity and rendered CMS smoke tests; preserve all production drift.
+4. 320px/large font/a11y/access roles/offline draft preservation and Android API device matrix, with signed QA receipts.
+5. Android v1.5.0 version convergence is a separate explicitly gated future source/build task, not implicitly started here.
+
+## Output statuses
+OTA_CLOSED=YES
+PRODUCTION_GROUP_VERIFIED=YES
+PHYSICAL_UAT=OWNER_ATTESTED_PASS
+CANONICAL_EAS_CLI=24.8.0
+LATEST_CLI_UPGRADE=HOLD_UNTIL_COMPATIBILITY_AUDIT
+ORDER_134=HOLD_UNTIL_REPRODUCTION
+CMS_HOST_GITHUB_PARITY=UNATTESTED
+WIDE_DEVICE_QA=PARTIAL
+PRODUCTION_MUTATION_IN_BATCH632=NO
