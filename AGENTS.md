@@ -117,16 +117,18 @@ Approved pattern:
 
 Do **not** require or probe for a physical/global `eas` binary as a hard prerequisite.
 
-Canonical EAS CLI version:
+Canonical EAS CLI version for the current server and checked-in eas.json (verified 2026-10-12):
 
 ```text
-eas-cli@24.7.0
+eas-cli@24.8.0
 ```
+
+A newer release (24.12.1 was advertised by EAS CLI on 2026-10-12) is **not** automatically approved: run isolated read-only compatibility probes and negative/fail-closed regression tests before changing this pin. Do not install globally or alter production as part of a tools audit.
 
 Approved invocation:
 
 ```bash
-EAS_SPEC="eas-cli@24.7.0"
+EAS_SPEC="eas-cli@24.8.0"
 "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas --version
 ```
 
@@ -153,7 +155,7 @@ Do not execute project-scoped EAS commands from the monorepo root.
 
 Known historical failure prevented by this rule: `eas update:list` failed when launched from the monorepo root even though authentication worked.
 
-### Command-specific flag policy for eas-cli@24.7.0
+### Command-specific flag policy for eas-cli@24.8.0
 
 The flags are not uniform across EAS subcommands. Use the behavior proven on this hosting, not a blanket flag template.
 
@@ -205,6 +207,15 @@ Recommended safe sequence:
 If an EAS collection query is temporarily unavailable but exact-group authority works, do not destroy a valid candidate or republish blindly.
 
 ---
+
+### Workspace V2 Build25 OTA release authority (2026-10-12)
+
+- Android Build25: versionName 1.0.0, versionCode 25, runtimeVersion 1.0.0-build17, production channel, package com.ald1n.mobile.
+- Workspace V2 source SHA: 52850d185d2c26d0a72a26d64520528714fe2f01. Candidate group: 8f27e122-317b-4db1-93a6-9bb95653de26 on workspace-v2-uat-20261012.
+- Verified production republish group: 27dd4b5d-63b3-4902-9b0b-5f289076f0e6; Android update 01a12d9b-a56a-75e0-bd8d-be25ed4acb4a. Exact group re-read matched source SHA/runtime/production branch.
+- Prior production group / rollback candidate: 3488c7cc-ac63-472d-bd7c-27e5abc677bd (Google Sign-In fix). Re-attest state before any rollback. No automatic rollback.
+- Owner confirmed physical Android UAT in conversation; exact device matrix/telemetry not independently documented. Release technically closed, no new build, versionCode increase, or Play submit.
+- Operations report: docs/operations/632-WORKSPACE-V2-BUILD25-PRODUCTION-OTA-CLOSURE-20261012.md.
 
 ## 7. State-aware recovery — never repeat successful work
 
@@ -631,7 +642,7 @@ A new batch should answer these **before touching source**:
 [ ] Is the known .htaccess drift still exactly the known hash/diff?
 [ ] Is my temp directory outside the Git worktree?
 [ ] Am I using canonical Node/npm paths?
-[ ] If EAS is needed, am I using npm exec eas-cli@24.7.0?
+[ ] If EAS is needed, am I using npm exec eas-cli@24.8.0?
 [ ] Will every project-scoped EAS command run from apps/mobile/current?
 [ ] Does the script avoid python3, /dev/fd, and process substitution?
 [ ] Can any expected RC=1 be accidentally trapped by set -e/ERR?
@@ -758,7 +769,7 @@ Use quarantine/backup before deleting uncertain runtime artifacts.
 These failures have already happened and are now encoded as permanent guards:
 
 1. **Project EAS command from monorepo root** -> collection query failed. Run from Mobile root.
-2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@24.7.0`.
+2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@24.8.0`.
 3. **Local repo one documentation commit behind GitHub** -> preflight mismatch. Verify ancestry/delta and `git merge --ff-only` when safe.
 4. **Temp directory created inside repo** -> checkpoint detected its own temp files as contamination. Temp/lock outside worktree.
 5. **Broad grep for `FAIL`** -> false failure on `Ukupno FAIL: 0`. Parse exact failure semantics.
