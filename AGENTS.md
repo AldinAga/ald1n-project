@@ -6,7 +6,7 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 **Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.
 
-Last consolidated: **2026-09-19**.
+Last consolidated: **2026-10-12** (including permanent operator script/report path policy).
 
 ---
 
@@ -49,6 +49,49 @@ Mobile: Expo SDK 57 / React Native 0.86 / TypeScript
 ```
 
 Do not change these identities incidentally inside maintenance, bugfix, documentation, or OTA batches.
+
+---
+
+## 1A. Mandatory operator batch artifacts (project-owner policy, 2026-10-12)
+
+**Permanent rule for EVERY Ald1n CMS/Mobile chat, batch, sub-batch, recovery, QA, CLI/version audit, and agent/operator handoff. Read and enforce it before providing, uploading, generating or running ANY batch execution commands. No implicit exceptions.**
+
+### Operator-delivered and executable scripts — one location ONLY
+
+```text
+/home/icaffeco/ald1n-project/incoming
+```
+
+- All new or revised operator-facing scripts delivered for manual execution on this hosting (e.g. `.sh`, `.php`, `.mjs`, `.js`, or helper files that are part of that operator batch) must be uploaded/placed in **this exact directory** before execution.
+- Every copy/paste execution command MUST refer to `/home/icaffeco/ald1n-project/incoming/<script-name>`, never `$HOME/<script-name>`, a root-level stray script, or an ad-hoc script in the CMS/Mobile source.
+- Inspect and verify the script's content, expected SHA-256 and canonical location before running. If it is missing, report HOLD; do not silently fall back to a legacy copy at another path.
+- The root `/incoming/` is intentionally Git-ignored: do NOT change `.gitignore`, force-add runtime scripts or perform a broad git sync as a workaround. Tracked application source/test scripts within their actual packages are a different category and must **not** be moved out of their source locations; this policy governs delivered operator-execution artifacts.
+
+### Batch-generated reports and terminal logs — one location ONLY
+
+```text
+/home/icaffeco/ald1n-project/docs/operations
+```
+
+- Every newly generated post-execution batch report, smoke/QA receipt, full terminal log, failure report, and compatibility-lab result MUST be **created at this exact directory**. Do not save batch reports/logs to `$HOME`, `/tmp`, `incoming`, or unrelated app directories.
+- Preserve the existing sequential numeric report prefix rule in section 26: first resolve the highest report number from current GitHub `main` AND any local `docs/operations` reports, then assign the next unused number, without overwriting or reusing old reports. Distinguish **Batch number** from **Report sequence number**.
+- A report must capture the exact source SHA/branch, script name and SHA-256, controls executed, real return codes, PASS/FAIL/HOLD gates, mutation status, and any limitations. Terminal output must be visible LIVE and recorded in that report (`tee`; preserve the audited command's RC, not `tee`'s RC).
+- For read-only QA, only write the designated operation report into the project working tree. Temporary extraction, npm cache, lock and scratch artifacts go outside the repository as required by section 9 and must not be used as a report destination.
+- The GitHub historical report/archive and local current/predecessor retention rules of section 26 remain in force: checkpoint report evidence to GitHub before pruning archived local copies. Never delete uncheckpointed reports.
+- If canonical `incoming` or `docs/operations` is unavailable, or the report sequence cannot be established safely, fail CLOSED and explain the blocker; do not invent a different destination.
+
+### Canonical operator invocation (applies to Batch632 and future batches)
+
+```bash
+ROOT=/home/icaffeco/ald1n-project
+SCRIPT="$ROOT/incoming/<batch-script>.sh"
+test -f "$SCRIPT" || { echo "HOLD: missing canonical batch script: $SCRIPT"; exit 2; }
+# Verify the exact advertised SHA-256 BEFORE running.
+# The script must write its numbered terminal report to "$ROOT/docs/operations".
+bash "$SCRIPT"
+```
+
+Do not retroactively move or rewrite completed production source, release archives or historic reports to implement this path policy. This is a delivery/execution/output rule for current and future batches.
 
 ---
 
