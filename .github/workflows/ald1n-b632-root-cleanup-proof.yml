@@ -1,0 +1,64 @@
+name: Ald1n Batch632 - obsolete-root cleanup proof (no build)
+on:
+  push:
+    branches:
+      - audit/batch632-cleanup-proof-20261012
+permissions:
+  contents: read
+jobs:
+  cleanup-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+    steps:
+      - name: Checkout exact cleanup PR6 source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 0cfa34aeef0adc59389457d2be0fbf44cdf7d396
+          persist-credentials: false
+      - name: Verify cleanup diff and no application source references
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "0cfa34aeef0adc59389457d2be0fbf44cdf7d396"
+          test ! -e ".mobile-v0.9.0-release-metadata-batch7.lock"
+          test ! -e "PROJECT-STATUS.md"
+          test -f AGENTS.md
+          test -f docs/operations/000-LATEST.md
+          test -f apps/cms/current/bin/static-check.php
+          test -f apps/mobile/current/package.json
+          if git grep -n -F -e '.mobile-v0.9.0-release-metadata-batch7.lock' -e 'PROJECT-STATUS.md' -- apps packages .github; then
+            echo "FAIL: root cleanup candidate is referenced in application/tooling"
+            exit 1
+          fi
+          printf '%s\n' 'PASS: EXACT_CLEANUP_AND_NO_LIVE_REFERENCES'
+      - name: Node 22 for Mobile source smoke
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Ephemeral dependency install
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Mobile source typecheck and validator
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: CLEANUP_SOURCE_MOBILE_VALIDATOR'
+      - name: Source and artifact immutability
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: CLEANUP_SOURCE_IMMUTABLE'
