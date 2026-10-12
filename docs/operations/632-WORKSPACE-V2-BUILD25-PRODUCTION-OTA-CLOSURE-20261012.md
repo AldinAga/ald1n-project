@@ -25,10 +25,32 @@ Scope: documentation and read-only GitHub source audit. No EAS, Play, CMS produc
 - Admin Order detail validates positive numeric ID, gates orders.manage, uses API detail query and ErrorState retry, and renders OrderBuyerCard using shipping recipient snapshots. It has no special explicit #134 exception. A missing/deleted/archived/unauthorized #134 requires live API status/role/session evidence before patching code.
 - Mobile 320px, large text, landscape, screen reader, offline/timeout, role-restricted actions, unsaved drafts and notification deep links need an explicit device-by-device QA matrix. Source regression tests cannot substitute for full hardware coverage.
 
-## Hosting vs GitHub CMS audit — pending live parity attestation
+## Hosting vs GitHub CMS audit — initial baseline before scoped layout correction
 - Last operator observation: server root checkout HEAD b5b942e645d28d3ed5f248eaae4180ebe9a54ee6 versus GitHub main 52850d185d2c26d0a72a26d64520528714fe2f01, and 97 dirty/untracked entries, including tracked Blade/CSS files and historical docs.
 - This means server production CMS presentation cannot be declared byte-identical to current GitHub main. Do not run blind git pull/reset/stash, auto-sync Web assets, or redeploy until a scoped manifest/diff and CMS acceptance prove parity.
 - Direct server filesystem/read-only host verification was unavailable in this assistant session. No CMS live UI or server API claims are made.
+
+## Batch632 follow-up — verified CMS layout source parity and isolated Blade compile (2026-10-12)
+- Operator read-only audit compared seven named CMS presentation files against the isolated checkout at source 52850d185d2c26d0a72a26d64520528714fe2f01: six MATCH; only resources/views/layouts/app.blade.php differed. The only observed diff was a module-visibility <style> element outside the HTML doctype in GitHub but inside <head> on the active host; CSS rules were identical.
+- GitHub-only layout correction commit: 8064ff9a1bba1cb74856f2e3732094dcfe524d84. Moved the unchanged module-visibility style into <head>; no PHP/business/CSS-rule modifications. Production hosting file was not changed.
+- Owner re-fetched GitHub main into the isolated checkout and compared git show origin/main:apps/cms/current/resources/views/layouts/app.blade.php against the active host using sha256sum and cmp. Both SHA-256 values identical: 324dbae89961d3b48d8cacf062a15060d3af380a681027c7b25feb0d717b5737. Explicit cmp PASS; php -l on source PASS.
+- Isolated workspace-v2 test discovery re-run correctly: seven test files, 52 tests, 52 pass, 0 fail. Earlier shell-glob runner returned TAP 0/0 and was a false PASS; it must not be reused as evidence.
+- First standalone compiler attempt failed with Illuminate\\Contracts\\Container\\BindingResolutionException (Illuminate\\Contracts\\View\\Factory not instantiable) because the hand-built compiler lacked a View Factory. This was a test-harness setup issue, not evidence of a Blade production regression.
+- Corrected standalone smoke script SHA-256: d3ca3dbe5a30812447a812cf2e1fec5e020e16008d0798d4517fc5ca0f6bf2b6; executed by owner against the existing Laravel vendor without loading production .env, booting production app, connecting database or mutating production source. Its output: CSS in HEAD count=1 PASS; SOURCE_SHA256 above; anonymous x-icon component resolved PASS; compiled template PHP parser PASS; Blade compileString and component compilation PASS. Independent php -l on compiled layout: No syntax errors detected.
+- Scope distinction: byte parity is attested for the corrected layout file, with six other specified files matching in the earlier comparison. A complete repository/production CMS parity audit and a real authenticated HTTP render were **not** performed. Do not claim HTTP/render PASS from Blade compile alone.
+- GitHub main at documented layout-fix check: 8064ff9a1bba1cb74856f2e3732094dcfe524d84. Operations documentation commits after this check do not imply EAS/Play/OTA or hosting runtime deployment.
+
+Scoped gates:
+CMS_LAYOUT_SOURCE_PARITY=PASS
+CMS_LAYOUT_SHA256=324dbae89961d3b48d8cacf062a15060d3af380a681027c7b25feb0d717b5737
+CMS_LAYOUT_CSS_POSITION=PASS
+CMS_BLADE_COMPONENT_RESOLUTION=PASS
+CMS_BLADE_COMPILE=PASS
+CMS_COMPILED_PHP_LINT=PASS
+WORKSPACE_V2_TESTS=52_OF_52_PASS
+CMS_FULL_HOST_GITHUB_PARITY=UNATTESTED
+CMS_AUTHENTICATED_HTTP_RENDER=NOT_RUN
+PRODUCTION_MUTATION_FOR_LAYOUT_CORRECTION=NO
 
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
@@ -45,5 +67,8 @@ CANONICAL_EAS_CLI=24.8.0
 LATEST_CLI_UPGRADE=HOLD_UNTIL_COMPATIBILITY_AUDIT
 ORDER_134=HOLD_UNTIL_REPRODUCTION
 CMS_HOST_GITHUB_PARITY=UNATTESTED
+CMS_LAYOUT_SHA256_PARITY=PASS
+CMS_BLADE_COMPILE=PASS
+CMS_HTTP_RENDER=NOT_RUN
 WIDE_DEVICE_QA=PARTIAL
 PRODUCTION_MUTATION_IN_BATCH632=NO
