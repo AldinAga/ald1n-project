@@ -55,6 +55,9 @@ final class OperationalNotificationService
             'url' => $recipient->hasRole('admin', 'superadmin')
                 ? route('admin.orders.show', $order)
                 : route('orders.show', $order),
+            'route' => $recipient->hasRole('admin', 'superadmin')
+                ? '/admin/orders/'.$order->id
+                : '/orders/'.$order->id,
             'action_label' => 'Otvori porudžbinu',
             'icon' => 'orders',
             'severity' => 'info',
