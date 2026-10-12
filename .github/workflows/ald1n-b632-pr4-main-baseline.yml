@@ -125,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          ./vendor/bin/phpunit --no-ansi -c phpunit.mysql.xml --filter 'MobileApiFoundationTest|MobilePushPhase3BTest' > "$RUNNER_TEMP/baseline-phpunit.txt" 2>&1
+          ./vendor/bin/phpunit --colors=never -c phpunit.mysql.xml --filter 'MobileApiFoundationTest|MobilePushPhase3BTest' > "$RUNNER_TEMP/baseline-phpunit.txt" 2>&1
           rc=$?
           cat "$RUNNER_TEMP/baseline-phpunit.txt"
           printf 'BASELINE_PHPUNIT_RC=%s\n' "$rc"
