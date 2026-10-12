@@ -375,6 +375,30 @@ BATCH645_BACKUP_RESTORE=OWNER_DEFERRED
 BATCH645_PRODUCTION_MUTATIONS=NONE
 
 
+## Report645 Batch645 live Order134 read-only conclusion (2026-10-13)
+- Owner-hosted canonical script `incoming/ald1n-b645-order134-readonly-diagnosis-v1.sh` original SHA256 `61051fe6690b67bd298c0f6d7ec7859471ac7ebacfadbe4943fb41136332186c` produced `645-BATCH645-LIVE-ORDER134-READONLY-DIAG-20261013-013543.md`, executed 2026-10-13T01:35:43+0200. Original raw report SHA256 `7f13558d9061d10b8eb45c46d0df1191cc9a5fa6d2d982a365b6d2cb41a657ac`, Git blob `7f6659ab9539e872a88dbb707ef8ee868ea892c6`, 2920 bytes. Archived **byte-for-byte** in GitHub main `docs/operations/645-BATCH645-LIVE-ORDER134-READONLY-DIAG-20261013-013543.md`, commit `82e96623454ba12fdb0aad772c802a50c026c9fa`.
+- Original remote main `3de8c4c8cc23d3b7528ac5beaf57bf3d125d2f44`, PR4 draft SHA `25d29162c01938b7a58abe6914fee403beb72879`, exact Report644 Git blob preflight PASS. Hosting Order/Access/controllers/API route source blobs matched current main; NotificationResource and OperationalNotificationService matched **main, NOT PR4 candidate**. This proves code-file parity, not an authorized PR4 deployment. PR4 remains Draft, unmerged, undeployed.
+- Actual LIVE production MySQL: `B645_DB_READONLY_TXN=PASS`, Order 134 `FOUND` with status `CANCELLED`, `ARCHIVED=YES`, `PURGED=YES`. Buyer user row exists/active, role USER; supplier row exists/active, role SUPERADMIN; no admin assignee, 0 active ADMIN, 1 active SUPERADMIN. No customer name, contact information, values or tokens were collected.
+- `Order::resolveRouteBindingQuery` excludes archived rows from normal active order detail routes: **404 expected for Order134 regardless of role, even with correct admin route**. Purge status strengthens the terminal-history nature; do not restore/reopen an intentionally archived/purged order merely to make a notification clickable. This is a STATIC route-binding inference plus live SQL row data, NOT a performed authenticated HTTP request.
+- Production historical inbox records for Order134: total **12**, `ADMIN_LEGACY=2`, `ADMIN_EXPLICIT=0`, `USER_ROUTE=10`, other 0. Push records **2**, `ADMIN_EXPLICIT=0`, missing admin route 0. PR4 would fix historical admin route resolution but **cannot make purged Order134 detail render**. Do not claim PR4 is either in production or a complete resolution of this historical terminal record.
+- Host audit reported `B645_INBOX_AUDIT=PASS`, `B645_PUSH_AUDIT=PASS`, DB transaction `ROLLBACK=PASS`, audited RC0, `GIT_TRACKED_AND_STAGED_IMMUTABLE=PASS`, no database/source/staging/backup writes and no native build/OTA/Play/hosting deployment.
+- **Live authenticated HTTP 200/403/404 = HOLD**, because no approved role-scoped test sessions/tokens; GET via Sanctum/session may touch token/session/security records. Physical Android cold/warm push/deep-link UAT = HOLD. These must NOT be retroactively called PASS or emulated using production credentials.
+- Next independent scoped action: candidate-only Mobile 404/unavailable UX for both admin/customer order details with no disclosure of whether a protected order is archived, purged or unauthorized, and a safe list navigation CTA; tests in isolated CI, Draft PR only. Keep PR4 independent and Draft until source+Mobile acceptance. For positive authenticated 200 tests choose a real ACTIVE authorized order with owner approval rather than Order134; never silently reactivate or alter Order134.
+- Backup IDs 151/150 manifest+record verification PASS; owner-deferred isolated restore remains HOLD; third backup and 82 unarchived historical reports remain protected.
+
+REPORT645_READONLY_DB=PASS
+REPORT645_ORDER134_STATUS=CANCELLED
+REPORT645_ORDER134_ARCHIVED=YES
+REPORT645_ORDER134_PURGED=YES
+REPORT645_STANDARD_DETAIL_BINDING=EXPECTED_404_NOT_LIVE_HTTP_PROOF
+REPORT645_HISTORICAL_ADMIN_INBOX_LEGACY=2
+REPORT645_MAIN_CODE_ON_HOST=PASS
+REPORT645_PR4_CODE_DEPLOYED=NO
+REPORT645_LIVE_AUTH_HTTP=HOLD
+REPORT645_ANDROID_UAT=HOLD
+REPORT645_ARCHIVED_GITHUB=BYTE_EXACT
+REPORT645_PRODUCTION_MUTATIONS=NONE
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
