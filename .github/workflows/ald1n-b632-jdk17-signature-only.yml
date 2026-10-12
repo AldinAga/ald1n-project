@@ -1,4 +1,4 @@
-name: Ald1n Batch632 - full Release25 JDK17 audit (no build)
+name: Ald1n Batch632 - Release25 plus Mobile full source QA (no build)
 on:
   push:
     branches:
@@ -61,6 +61,23 @@ jobs:
           printf 'RELEASE25_TEST_FILES=%s\n' "$count"
           node --test scripts/release25/*.test.mjs
           printf '%s\n' 'PASS: BATCH632_RELEASE25_FULL_125_TESTS_JDK17'
+
+      - name: Install dependencies in disposable CI checkout only (no lifecycle scripts)
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: EPHEMERAL_DEPENDENCIES_ONLY'
+      - name: Mobile TypeScript and full validator
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: BATCH632_MOBILE_TYPESCRIPT'
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: BATCH632_MOBILE_VALIDATOR'
 
       - name: Verify no tracked source changed
         shell: bash
