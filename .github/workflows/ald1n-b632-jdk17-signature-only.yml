@@ -1,0 +1,61 @@
+name: Ald1n Batch632 - isolated JDK17 signature QA (no build)
+on:
+  push:
+    branches:
+      - audit/batch632-signature-jdk17-20261012
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b632-jdk17-signature-only
+  cancel-in-progress: false
+jobs:
+  real-signature:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: '1'
+      LC_ALL: C
+    steps:
+      - name: Checkout exact PR5 candidate source (not workflow commit)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 0efb11e91a557dd478d8501158076dd82871c2b8
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Node 22.16 audit version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Temurin JDK 17 (actual Java crypto binaries)
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify immutable source SHA and tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "0efb11e91a557dd478d8501158076dd82871c2b8"
+          printf 'SOURCE_SHA=%s\n' "$actual"
+          for tool in java jar keytool jarsigner zip unzip; do
+            command -v "$tool" >/dev/null 2>&1 || { printf 'HOLD_JDK_TOOL_MISSING=%s\n' "$tool"; exit 86; }
+          done
+          java -version
+          node --version
+          printf '%s\n' 'PASS: REAL_JDK17_AND_SOURCE_SHA'
+      - name: Verify signed AAB fixture with real jar keytool jarsigner
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/mobile/current
+          node --test scripts/release25/verify-signature.test.mjs
+          printf '%s\n' 'PASS: BATCH632_REAL_JDK17_SIGNATURE_SUITE'
+      - name: Verify no tracked source changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: SIGNATURE_QA_SOURCE_IMMUTABLE'
