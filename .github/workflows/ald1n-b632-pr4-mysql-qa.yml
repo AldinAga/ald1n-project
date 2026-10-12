@@ -1,0 +1,159 @@
+name: Ald1n Batch632 - PR4 isolated Laravel MySQL QA (no deploy)
+on:
+  push:
+    branches:
+      - audit/batch632-pr4-mysql-feature-20261012
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b632-pr4-mysql-qa
+  cancel-in-progress: false
+jobs:
+  laravel-order-route:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      APP_NAME: Ald1n-CI
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_URL: http://127.0.0.1
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_batch632_test
+      DB_USERNAME: ald1n_ci
+      DB_PASSWORD: only_ephemeral_batch632
+      TEST_DB_CONFIRM_DATABASE: ald1n_batch632_test
+      ALLOW_TEST_DATABASE_RESET: 'true'
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: ald1n_legacy_disabled
+      LEGACY_DB_USERNAME: legacy_not_configured
+      LEGACY_DB_PASSWORD: unused
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      LOG_CHANNEL: stderr
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ephemeral_root_batch632
+          MYSQL_DATABASE: ald1n_batch632_test
+          MYSQL_USER: ald1n_ci
+          MYSQL_PASSWORD: only_ephemeral_batch632
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pephemeral_root_batch632 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - name: Checkout exact PR4 candidate source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 25d29162c01938b7a58abe6914fee403beb72879
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify immutable candidate and exact source scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "25d29162c01938b7a58abe6914fee403beb72879"
+          for f in \
+            apps/cms/current/app/Http/Resources/Api/V1/NotificationResource.php \
+            apps/cms/current/app/Services/OperationalNotificationService.php \
+            apps/cms/current/tests/Feature/MobileApiFoundationTest.php \
+            apps/cms/current/tests/Feature/MobilePushPhase3BTest.php \
+            apps/cms/current/bin/notification-routing-smoke.php; do
+            test -s "$f"
+          done
+          printf '%s\n' 'PASS: PR4_EXACT_CANDIDATE_SOURCE'
+      - name: PHP 8.4 and Composer
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, xml, curl, pdo_mysql, mysqli, sqlite3, zip, intl, gd, bcmath, fileinfo
+      - name: Create ephemeral local app configuration (no production connection)
+        shell: bash
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          cat > .env <<'ENVEOF'
+          APP_NAME="Ald1n CI"
+          APP_ENV=testing
+          APP_DEBUG=false
+          APP_URL=http://127.0.0.1
+          APP_KEY=
+          DB_CONNECTION=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=ald1n_batch632_test
+          DB_USERNAME=ald1n_ci
+          DB_PASSWORD=only_ephemeral_batch632
+          LEGACY_DB_HOST=127.0.0.1
+          LEGACY_DB_DATABASE=ald1n_legacy_disabled
+          LEGACY_DB_USERNAME=legacy_not_configured
+          LEGACY_DB_PASSWORD=unused
+          MAIL_MAILER=array
+          QUEUE_CONNECTION=sync
+          CACHE_STORE=array
+          SESSION_DRIVER=array
+          TURNSTILE_ENABLED=false
+          MOBILE_PUSH_ENABLED=false
+          TEST_DB_CONFIRM_DATABASE=ald1n_batch632_test
+          ALLOW_TEST_DATABASE_RESET=true
+          ENVEOF
+          chmod 600 .env
+          test "$DB_DATABASE" = "ald1n_batch632_test"
+          test "$APP_ENV" = "testing"
+          printf '%s\n' 'PASS: EPHEMERAL_TEST_ONLY_DB_CONFIG'
+      - name: Composer install in disposable CI checkout
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-ansi
+          php artisan key:generate --force --no-interaction
+      - name: CI-only MySQL database doctor
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan --env=testing app:test-database-doctor
+          printf '%s\n' 'PASS: MYSQL_TEST_DB_GUARD'
+      - name: PHP lint plus actual source smoke 14 of 14
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in \
+            app/Http/Resources/Api/V1/NotificationResource.php \
+            app/Services/OperationalNotificationService.php \
+            tests/Feature/MobileApiFoundationTest.php \
+            tests/Feature/MobilePushPhase3BTest.php \
+            bin/notification-routing-smoke.php; do
+            php -l "$path"
+          done
+          php bin/notification-routing-smoke.php
+          printf '%s\n' 'PASS: BATCH632_PR4_ROUTING_SMOKE'
+      - name: Laravel real MySQL feature integration tests (only two classes)
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./vendor/bin/phpunit -c phpunit.mysql.xml --filter 'MobileApiFoundationTest|MobilePushPhase3BTest'
+          printf '%s\n' 'PASS: BATCH632_PR4_REAL_LARAVEL_MYSQL_FEATURES'
+      - name: Immutable source and no artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: BATCH632_PR4_SOURCE_IMMUTABLE'
