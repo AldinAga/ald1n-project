@@ -399,6 +399,26 @@ REPORT645_ANDROID_UAT=HOLD
 REPORT645_ARCHIVED_GITHUB=BYTE_EXACT
 REPORT645_PRODUCTION_MUTATIONS=NONE
 
+## Report646 Batch646 Mobile order 404 Draft PR7 source QA (2026-10-13)
+- Live-host Report645 archive is byte-identical (`docs/operations/645-BATCH645-LIVE-ORDER134-READONLY-DIAG-20261013-013543.md`, original SHA256 `7f13558d9061d10b8eb45c46d0df1191cc9a5fa6d2d982a365b6d2cb41a657ac`, Git blob `7f6659ab9539e872a88dbb707ef8ee868ea892c6`, archive commit `82e96623454ba12fdb0aad772c802a50c026c9fa`). Actual Order134 is **CANCELLED, ARCHIVED=YES, PURGED=YES**; normal order route 404 expected even with an admin deep-link route. Source on hosting matched main, **not PR4**. Historical inbox 12 (admin legacy 2, user 10), push 2; DB read-only PASS, no source/DB/HTTP/build/OTA/Play mutations.
+- Draft [PR7](https://github.com/AldinAga/ald1n-project/pull/7), source `feat/batch646-mobile-order-unavailable-ux-20261013` candidate exact HEAD `a08322a62d7a62a95464ba0345325a73ffc78af2`, **four Mobile-only files** (shared neutral unavailable screen, customer and admin order details, executable source regression). HTTP404 maps to a neutral not-available message with a list navigation action, preventing inference of archived vs purged vs unauthorized; 403/401/non-404 retain existing errors; no automatic retries on 404.
+- Isolated GitHub Actions CI [run 38323541320](https://github.com/AldinAga/ald1n-project/actions/runs/38323541320) audited exact PR7 candidate source, audit workflow-only commit `f079183e9992d9e3d3691d5a58827f30b09cb578`. Node22.16/JDK17: actual TSX source behavior **4/4 PASS**, TypeScript PASS, canonical Mobile validator `Ukupno FAIL: 0`, full existing Release25 signing/regression **125/125 PASS**, source immutability PASS, 0 uploaded artifacts, **no Android build/EAS/OTA/Play action**.
+- Audit receipt [Report646](https://github.com/AldinAga/ald1n-project/blob/main/docs/operations/646-BATCH646-MOBILE-ORDER-UNAVAILABLE-DRAFT-PR7-CI-20261013.md), GitHub commit `0b8999e689d17016c5ae69206c6d1f61a0f1df29`, Git blob `810f5c52a07dab5f1763981d38c4bb36625e357e`.
+- Both PR4 (backend historical route recovery head `25d29162c01938b7a58abe6914fee403beb72879`) and PR7 (neutral Mobile fallback) remain **DRAFT, unmerged, undeployed**. All real authenticated HTTP role/permission 200/403/404 testing on a separate nonpurged authorized order and physical Android notification cold/warm UAT remain HOLD. Do not create/restore an order, modify permissions, import a database, or make a production OTA/build to simulate success.
+- Owner deferred backup restore; backup IDs 151/150 retain first-party file and DB record PASS but restore-ready HOLD. Third backup and 82 unarchived local operations reports remain protected.
+
+REPORT645_LIVE_SQL_ORDER134_PURGED_ARCHIVED=PASS
+REPORT645_EXPECTED_STANDARD_ORDER_DETAIL=404_NOT_HTTP_ATTESTED
+REPORT646_PR7_SOURCE_BEHAVIOR=4_OF_4_PASS
+REPORT646_PR7_TYPESCRIPT=PASS
+REPORT646_PR7_VALIDATOR=FAIL_ZERO
+REPORT646_PR7_RELEASE25=125_OF_125_PASS
+REPORT646_CI_RUN=38323541320_SUCCESS
+REPORT646_PR4_AND_PR7=DRAFT_UNMERGED
+REPORT646_LIVE_HTTP=HOLD
+REPORT646_ANDROID_UAT=HOLD
+REPORT646_PRODUCTION_MUTATIONS=NONE
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
