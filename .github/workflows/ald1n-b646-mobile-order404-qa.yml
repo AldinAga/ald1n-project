@@ -1,0 +1,92 @@
+name: Ald1n Batch646 - exact Mobile 404 QA (no build)
+on:
+  push:
+    branches:
+      - audit/batch646-mobile-order-unavailable-ci-20261013
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b646-mobile-404-qa
+  cancel-in-progress: false
+jobs:
+  mobile-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact Draft PR7 candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: a08322a62d7a62a95464ba0345325a73ffc78af2
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Temurin JDK17 for existing release signature fixtures
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify source SHA and four-file scope against main parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "a08322a62d7a62a95464ba0345325a73ffc78af2"
+          for f in \
+            'apps/mobile/current/src/features/orders/order-unavailable-state.tsx' \
+            'apps/mobile/current/src/app/(app)/admin/orders/[id].tsx' \
+            'apps/mobile/current/src/app/(app)/order/[id].tsx' \
+            'apps/mobile/current/scripts/batch646-order-unavailable.test.mjs'; do
+            test -s "$f"
+          done
+          java -version
+          printf '%s\n' 'PASS: EXACT_PR7_CANDIDATE_4_FILES'
+      - name: Ephemeral npm CI without lifecycle scripts or remote build
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: EPHEMERAL_NODE_DEPENDENCIES'
+      - name: Batch646 behavior tests (compiled real TSX component)
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --test scripts/batch646-order-unavailable.test.mjs
+          printf '%s\n' 'PASS: BATCH646_ORDER_404_BEHAVIOR'
+      - name: TypeScript
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: BATCH646_TYPESCRIPT'
+      - name: Canonical Mobile validator
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: BATCH646_MOBILE_VALIDATOR'
+      - name: Full offline Release25 regression with real Java
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          count="$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)"
+          test "$count" -eq 15
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: BATCH646_RELEASE25_FULL'
+      - name: No tracked or untracked source mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: BATCH646_SOURCE_IMMUTABLE'
