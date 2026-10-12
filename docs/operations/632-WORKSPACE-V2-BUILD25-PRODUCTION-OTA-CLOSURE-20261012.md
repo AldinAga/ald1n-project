@@ -52,6 +52,21 @@ CMS_FULL_HOST_GITHUB_PARITY=UNATTESTED
 CMS_AUTHENTICATED_HTTP_RENDER=NOT_RUN
 PRODUCTION_MUTATION_FOR_LAYOUT_CORRECTION=NO
 
+## Batch632 continuation — Order #134 notification route candidate (source only)
+- Entry main source HEAD: 2309ec4b22db75abba3ea95efa0ffce5e6df4bb1.
+- Historical context: Order #134 previously produced a model-not-found response on notification tap. The source contains a demonstrable second cause independent of archival/ownership: old database notification rows with an admin web URL and no explicit mobile route are serialized by NotificationResource as /orders/{id}. Ordinary mobile order detail requires user ownership or assigned supplier; an admin-only notification can therefore produce an intentional 404.
+- TDD using real PHP source in isolated stubs: legacy route cases RED 6/8 => GREEN 8/8, new order inbox/push role matrix RED 0/6 => GREEN 6/6. Combined dependency-free real-source test: 14/14 PASS, exit 0. PHP lint PASS. Recovered historical route requires exact /admin/orders/{id} URL path and matching positive ID, honors explicit route and preserves customer fallback. Newly emitted notifications get role-appropriate route for both database and push.
+- Draft PR #4: https://github.com/AldinAga/ald1n-project/pull/4; branch audit/batch632-order-notification-route-recovery-20261012, HEAD 25d29162c01938b7a58abe6914fee403beb72879. Scope exactly five files: NotificationResource.php, OperationalNotificationService.php, MobileApiFoundationTest.php, MobilePushPhase3BTest.php, and bin/notification-routing-smoke.php.
+- Both modified production source PHP blobs verified byte-equal to locally GREEN-tested versions: Resource 58cb0c856964c47401bbe77908a6857b22b57bd5; Service c1301c941103abaac34d22a87695484dc8f6edc4; runner b996b50927b5f834f3a1e62a54a1ba67b5b58a21.
+- HOLD: Real Laravel Feature tests against a separately verified testing database, canonical CMS static-check, and actual authenticated Android/HTTP #134 behavior. Neither actual #134 archived/purged/ownership state nor physical push cold-start UAT is attested. Historical delivered push payloads cannot be retroactively repaired.
+- PR remains DRAFT, unmerged, and undeployed; no production/DB/build/OTA mutation. Do not declare Order #134 end-to-end fixed.
+
+ORDER134_SOURCE_ROUTE_TDD=14_OF_14_PASS
+ORDER134_LARAVEL_FEATURE=UNATTESTED
+ORDER134_LIVE_HTTP=UNATTESTED
+ORDER134_PROD_FIX=NOT_DEPLOYED
+ORDER134_PR=4_DRAFT
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
