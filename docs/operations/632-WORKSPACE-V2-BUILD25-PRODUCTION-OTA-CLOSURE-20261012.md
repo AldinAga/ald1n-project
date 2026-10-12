@@ -67,6 +67,22 @@ ORDER134_LIVE_HTTP=UNATTESTED
 ORDER134_PROD_FIX=NOT_DEPLOYED
 ORDER134_PR=4_DRAFT
 
+## Batch632 owner-mandated script and report location contract (2026-10-12)
+
+- Permanent cross-chat GitHub authority: root AGENTS.md, section 1A; newly delivered operator scripts go ONLY under `/home/icaffeco/ald1n-project/incoming`; new post-execution reports/full logs and QA receipts go ONLY under `/home/icaffeco/ald1n-project/docs/operations`.
+- No script execution or report storage under `$HOME/<filename>` or arbitrary `/tmp` paths. Temporary extract/npm cache remains outside the Git worktree and is removed after tests. The Git-ignored `/incoming/` remains Git-ignored (do not force-add or remove the ignore rule). Existing tracked app source/test scripts stay in their canonical package directories.
+- Both Batch632 operator scripts were revised to enforce their canonical invocation directory and automatically reserve the next sequential report prefix after inspecting current GitHub main and local operations report filenames. Their full terminal output and final real RC are recorded in the new numbered `.md` report.
+- `incoming/ald1n-b632-pr4-readonly-gates-v2.sh` expected SHA-256 `d42c70df4463d620503a6f34abdd1d79666290390dab7b6d20819a3f502ee382`. Scope: exact isolated PR4 candidate, five PHP syntax checks, actual-source 14-case routing smoke, canonical CMS static-check. DB-backed Laravel/Android gates remain HOLD.
+- `incoming/ald1n-b632-cli-compat-lab-v2.sh` expected SHA-256 `ff88d25a3cdc178c8e05ae026399225eee2f5cd4391428a042a05daefce879be`. Scope: read-only npm latest CLI, isolated help/runtime checks, release25 tests, source immutability. It does not change EAS pin or publish an update.
+- Created/revised scripts pass local Bash syntax (`bash -n`). Their execution on the CloudLinux host and final PASS/HOLD outcomes are NOT yet attested. The operator must upload each script into incoming, verify SHA-256, then run by absolute canonical path. Do not reuse the earlier scripts previously suggested under HOME.
+- No changes to production CMS, database, Google Play, native build, active EAS CLI pin or production OTA.
+
+BATCH632_SCRIPT_LOCATION_RULE=GITHUB_AGENTS_PERMANENT
+BATCH632_SCRIPT_DIR=/home/icaffeco/ald1n-project/incoming
+BATCH632_REPORT_DIR=/home/icaffeco/ald1n-project/docs/operations
+BATCH632_PR4_V2_EXECUTION=NOT_RUN_ON_HOST
+BATCH632_CLI_V2_EXECUTION=NOT_RUN_ON_HOST
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
