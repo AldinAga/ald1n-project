@@ -274,6 +274,27 @@ BATCH632_BACKUP_DELETE=HOLD
 BATCH632_PRODUCTION_SOURCE_MUTATION=NONE
 
 
+## Batch632 Report642 first-party file integrity success and Report643 database-authority gate (2026-10-12)
+- Owner supplied `642-BATCH632-RESTORE-CANDIDATE-VERIFY-PORTABLE-RECOVERY-20261012-145920.md`, canonical `incoming/ald1n-b632-backup-verify-archive-gate-v2.sh` SHA-256 `55dcd88a10421a065e09b4dcac2006036685c468b21d6607962f99fb961264f8`, executed 2026-10-12T14:59:20+02:00. Original report SHA-256 `790b5975ab924dca00952eecf5280afdea4b2f69038753688a3cd431782936cb`, 2343 bytes. It was archived **byte-exact** in GitHub main `docs/operations/642-BATCH632-RESTORE-CANDIDATE-VERIFY-PORTABLE-RECOVERY-20261012-145920.md`, commit `3b03d65c0075b00d175fbdfbdc193553db018c6f`, verified Git blob `38faa6fac4f7e3ac259b3e2234aad42c5542fe56`.
+- Report642 PASSED immutable Report641 predecessor SHA/blob gates and historical operations protection: 82 unarchived reports **PRESERVED**, five local untracked ops reports identical to GitHub main at its snapshot, no missing-path differences/nonregular files, no file deletion. Both original manifest-bearing candidates are the same as Report640 and pass current cached backup path/name fingerprints: directory-name hashes `a9fac671617cd18920d27c504651df29ca999b241db309badad2181da7d3f127` and `dcace268b5acf9d2a2c17225594f590c68b377b13b943602fa7956acca09ccb2`.
+- Two REAL Laravel `php artisan app:backup-verify --path=...` executions: candidate1 **RC0, PASS** and candidate2 **RC0, PASS**. Each passed database SQL SHA256, gzip readability, both SQL structure markers, configured private attachments, success completion, with zero age/version warnings. `BACKUP_FIRST_PARTY_MANIFEST_SQL_PASS_COUNT=2_OF_2`, audited command RC0, tee RC0; source/index unchanged, database business writes NONE, backups deleted NONE, release actions NONE.
+- These results prove **file/manifest/SQL integrity only**. Report642 explicitly states `BACKUP_RUNS_DB_AUTHORITY=NOT_QUERIED`, `BACKUP_ISOLATED_RESTORE_TRIAL=NOT_RUN`, and backup deletion PROHIBITED. Do NOT label two candidates restore-ready or remove the older third no-manifest backup based on Report642.
+- Prepared `/home/icaffeco/ald1n-project/incoming/ald1n-b632-backup-runs-authority-v1.sh`, SHA-256 `b89fbf458ad0ba3974b52e71ad9c43a51e44abaf5bab6d69c50f824e4c890528` for **Report643** (next sequential number, canonical `docs/operations`). It binds original Report642 SHA/Git blob, GitHub main ancestry, exact two backup directory-name hashes and cached runtime `BACKUP_PATH` hash. It bootstraps Laravel in a private temporary file outside the worktree, performs `SELECT` from `backup_runs` inside an actual MySQL `START TRANSACTION READ ONLY`, requires one distinct completed row and nonzero size for each expected candidate, and runs first-party `app:backup-verify --run=<id>` to verify both file integrity AND backup-run size metadata. No credential, private path or unfiltered Laravel output enters the numbered report. It preserves the 82 nearhived operations reports and existing staged/source index.
+- Report643 **local QA**: `bash -n` PASS; embedded PHP 8.4 syntax PASS; no forbidden descriptor syntax; isolated simulated PHP read-only authority fixtures **3/3 PASS** (two records accepted with NUL pairs, failed record rejected RC42, unexpected third manifest rejected RC36). These fixtures do NOT attest real production backup DB rows. Actual Report643 is NOT EXECUTED.
+- Neither script runs a database import, creates/prunes/deletes backups, runs a production migration, changes CMS, Git staging, Mobile Build25, OTA or Google Play. A dedicated isolated **test database restore** remains an independent later approval/gate; until then two restore-ready backup keepers remain HOLD, despite two valid file-integrity checks.
+- All 82 historical reports absent at the exact GitHub paths remain protected, pending security/provenance archival, and the older 1081h third backup directory remains protected.
+
+REPORT642_FIRST_PARTY_FILE_VERIFICATIONS=2_OF_2_PASS
+REPORT642_DB_AUTHORITY=NOT_QUERIED
+REPORT642_ISOLATED_RESTORE=NOT_RUN
+REPORT642_GITHUB_BYTE_ARCHIVE=PASS
+REPORT643_BACKUP_RUNS_AUDIT=PENDING_HOST_EXECUTION
+REPORT643_LOCAL_FIXTURE=3_OF_3_PASS
+BACKUP_RESTORE_READY_TWO_KEEPERS=HOLD
+REPORT642_SOURCE_MUTATIONS=NONE
+REPORT642_BACKUP_DELETIONS=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
