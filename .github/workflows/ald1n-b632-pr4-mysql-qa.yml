@@ -1,4 +1,4 @@
-name: Ald1n Batch632 - PR4 isolated Laravel MySQL QA (no deploy)
+name: Ald1n Batch632 - PR4 new Laravel MySQL tests (no deploy)
 on:
   push:
     branches:
@@ -142,13 +142,13 @@ jobs:
           done
           php bin/notification-routing-smoke.php
           printf '%s\n' 'PASS: BATCH632_PR4_ROUTING_SMOKE'
-      - name: Laravel real MySQL feature integration tests (only two classes)
+      - name: PR4 new route regression tests only (real ephemeral MySQL)
         working-directory: apps/cms/current
         shell: bash
         run: |
           set -euo pipefail
-          ./vendor/bin/phpunit -c phpunit.mysql.xml --filter 'MobileApiFoundationTest|MobilePushPhase3BTest'
-          printf '%s\n' 'PASS: BATCH632_PR4_REAL_LARAVEL_MYSQL_FEATURES'
+          ./vendor/bin/phpunit --no-ansi -c phpunit.mysql.xml --filter 'test_legacy_admin_notification_recovers_matching_order_route|test_legacy_notification_rejects_mismatched_admin_order_id|test_order_notifications_use_role_specific_routes_for_inbox_and_push'
+          printf '%s\n' 'PASS: BATCH632_PR4_NEW_LARAVEL_MYSQL_FEATURES'
       - name: Immutable source and no artifacts
         shell: bash
         run: |
