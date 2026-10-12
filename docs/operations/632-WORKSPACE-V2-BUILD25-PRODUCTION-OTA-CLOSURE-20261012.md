@@ -169,6 +169,26 @@ PR5_OTA=NONE
 PR5_PLAY_ACTION=NONE
 
 
+## Owner-authorized PR5 and PR6 merges; controlled hosting housekeeping (2026-10-12)
+- User expressly authorized source merge and cleanup of files proven unnecessary for continuing CMS/Mobile operation. Pre-merge main `d8f07a6b706a5ca314ee2d9a5aa0530b4d2c5c25`; PR5 head `0efb11e91a557dd478d8501158076dd82871c2b8`, scope exactly six Mobile source/test files. Previously verified exact-source CI `38236158464`: Release25 125/125 PASS, JDK17 signing 7/7 PASS, TypeScript PASS, validator `Ukupno FAIL: 0`, zero artifacts and source immutable.
+- **PR5 merged to GitHub main** using owner-approved SHA-guarded squash: `e461d6d2d6657faf764c5910bb2a0f5efb23e4db`, https://github.com/AldinAga/ald1n-project/pull/5. All six resulting main blobs separately checked byte-equal to reviewed PR5 source blobs. EAS 24.8.0 remains canonical; no native rebuild, EAS OTA, Google Play or production CMS deployment. Earlier `PR5_MERGED=NO` records in this report are historical pre-merge snapshots superseded by this section.
+- GitHub main inventory immediately after merge: ~1,837 tracked file blobs, 576 tracked `docs/operations` report/archive files (~39.6 MB), no committed vendor/node_modules/runtime cache or obvious *.bak/*.sql/*.zip junk. Those operations files are **retained**, not ordinary deletion targets. Fonts, package locks, three byte-identical OpenAPI copies, CMS source and release guards remain required. Hosting's previously observed ~97 dirty/untracked entries are *not re-attested in this session*; no broad host deletion is justified.
+- Two low-risk root-only debris items identified: `.mobile-v0.9.0-release-metadata-batch7.lock` (zero-byte obsolete lock) and `PROJECT-STATUS.md` (outdated Mobile v0.3/v0.4 state contradicting current Build25 v1.0.0 authority). Their content remains recoverable in Git history. Cleanup PR6 https://github.com/AldinAga/ald1n-project/pull/6 changed **only those two deletions**. Isolated audited exact candidate `0cfa34aeef0adc59389457d2be0fbf44cdf7d396` passed GitHub Actions run `38237326270`: no application/source-tooling references, TypeScript PASS, Mobile validator 0 FAIL, source immutability PASS, zero artifacts. **PR6 merged** with SHA-guarded squash `fde5aa9ec88c9824d603476ef130c9d6943e3d6a`. CMS code, media, secrets and numbered archives unchanged.
+- A separate **not-yet-executed** hosting housekeeping operator script is prepared strictly for `/home/icaffeco/ald1n-project/incoming/ald1n-b632-safe-host-housekeeping-v1.sh`, SHA-256 `021121aab64681c1ed205dcec21e7bb6e7992c5cebd5b6a3a9b3826f7cd3173d`, output expected `/home/icaffeco/ald1n-project/docs/operations/638-BATCH632-SAFE-HOST-HOUSEKEEPING-*.md` **only if GitHub and hosting latest report number still 637**. This script binds exact previous Report637 SHA256, verifies both merge SHAs are ancestors of fresh fetched main, checks byte-for-byte GitHub report archive and local SHA before deleting only untracked local copies of Reports633–636, and removes only exact-SHA known obsolete `incoming` Batch632 recovery scripts and an old standalone Blade smoke in HOME. It retains Report637, the still-relevant PR4 v2 QA script, tracked reports, unknown files, existing staged/unstaged app source, backups, environment secrets, CMS Laravel storage, database, uploads, EAS credentials and artifacts. No wildcard cleanup and no production source mutation.
+- Because hosting worktree inventory and restore-ready backup verification remain incomplete, **no additional deletions** are permitted: particularly no `git clean -fdx`, Laravel backup purge or cleanup of 97 unspecified host entries. Two verified backup retention points must be proven before any backup deletion.
+- Current activity is source merge plus source-repo cleanup; **production Build25 remains appVersion 1.0.0, versionCode25, runtimeVersion 1.0.0-build17, source of published OTA 52850d185d2c26d0a72a26d64520528714fe2f01, production profile/channel**. PR4 Order134 is still DRAFT and separate.
+
+BATCH632_PR5_MERGED=YES_E461D6D2
+BATCH632_PR6_CLEANUP_MERGED=YES_FDE5AA9E
+BATCH632_GITHUB_TRACKED_OBSOLETE_ROOT_FILES_REMOVED=2
+BATCH632_HOST_HOUSEKEEPING_V1=NOT_EXECUTED
+BATCH632_REPORT638=NOT_CREATED
+BATCH632_BACKUP_CLEANUP=HOLD_TWO_RESTORE_READY_VERIFICATIONS_REQUIRED
+BATCH632_PRODUCTION_DEPLOYMENT=NONE
+BATCH632_ANDROID_BUILD=NONE
+BATCH632_OTA_PUBLISH=NONE
+BATCH632_PLAY_SUBMISSION=NONE
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
