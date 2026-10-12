@@ -1,0 +1,148 @@
+name: Ald1n Batch632 - PR4 pristine main MySQL baseline
+on:
+  push:
+    branches:
+      - audit/batch632-pr4-main-baseline-20261012
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b632-pr4-main-baseline
+  cancel-in-progress: false
+jobs:
+  laravel-order-route:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      APP_NAME: Ald1n-CI
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_URL: http://127.0.0.1
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_batch632_test
+      DB_USERNAME: ald1n_ci
+      DB_PASSWORD: only_ephemeral_batch632
+      TEST_DB_CONFIRM_DATABASE: ald1n_batch632_test
+      ALLOW_TEST_DATABASE_RESET: 'true'
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: ald1n_legacy_disabled
+      LEGACY_DB_USERNAME: legacy_not_configured
+      LEGACY_DB_PASSWORD: unused
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      LOG_CHANNEL: stderr
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ephemeral_root_batch632
+          MYSQL_DATABASE: ald1n_batch632_test
+          MYSQL_USER: ald1n_ci
+          MYSQL_PASSWORD: only_ephemeral_batch632
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pephemeral_root_batch632 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - name: Checkout exact unpatched main baseline
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 64dedd1bd2df40024fedcbae6c2e9d1ffacfe485
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact pristine baseline source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "64dedd1bd2df40024fedcbae6c2e9d1ffacfe485"
+          test ! -e apps/cms/current/bin/notification-routing-smoke.php
+          printf '%s\n' 'PASS: BASELINE_EXACT_MAIN_SOURCE'
+      - name: PHP 8.4 and Composer
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, xml, curl, pdo_mysql, mysqli, sqlite3, zip, intl, gd, bcmath, fileinfo
+      - name: Create ephemeral local app configuration (no production connection)
+        shell: bash
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          cat > .env <<'ENVEOF'
+          APP_NAME="Ald1n CI"
+          APP_ENV=testing
+          APP_DEBUG=false
+          APP_URL=http://127.0.0.1
+          APP_KEY=
+          DB_CONNECTION=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=ald1n_batch632_test
+          DB_USERNAME=ald1n_ci
+          DB_PASSWORD=only_ephemeral_batch632
+          LEGACY_DB_HOST=127.0.0.1
+          LEGACY_DB_DATABASE=ald1n_legacy_disabled
+          LEGACY_DB_USERNAME=legacy_not_configured
+          LEGACY_DB_PASSWORD=unused
+          MAIL_MAILER=array
+          QUEUE_CONNECTION=sync
+          CACHE_STORE=array
+          SESSION_DRIVER=array
+          TURNSTILE_ENABLED=false
+          MOBILE_PUSH_ENABLED=false
+          TEST_DB_CONFIRM_DATABASE=ald1n_batch632_test
+          ALLOW_TEST_DATABASE_RESET=true
+          ENVEOF
+          chmod 600 .env
+          test "$DB_DATABASE" = "ald1n_batch632_test"
+          test "$APP_ENV" = "testing"
+          printf '%s\n' 'PASS: EPHEMERAL_TEST_ONLY_DB_CONFIG'
+      - name: Composer install in disposable CI checkout
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-ansi
+          php artisan key:generate --force --no-interaction
+      - name: CI-only MySQL database doctor
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan --env=testing app:test-database-doctor
+          printf '%s\n' 'PASS: MYSQL_TEST_DB_GUARD'
+      - name: Determine existing main baseline failures (eight unchanged tests)
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -u
+          ./vendor/bin/phpunit --no-ansi -c phpunit.mysql.xml --filter 'MobileApiFoundationTest|MobilePushPhase3BTest' > "$RUNNER_TEMP/baseline-phpunit.txt" 2>&1
+          rc=$?
+          cat "$RUNNER_TEMP/baseline-phpunit.txt"
+          printf 'BASELINE_PHPUNIT_RC=%s\n' "$rc"
+          test "$rc" -eq 1 || exit 1
+          grep -Eq 'Tests: 8, Assertions: [0-9]+, Failures: 3' "$RUNNER_TEMP/baseline-phpunit.txt" || exit 1
+          for name in \
+            test_mobile_device_can_be_registered_updated_listed_and_revoked \
+            test_re_registering_installation_replaces_old_session_and_device_revoke_removes_current_session \
+            test_notifications_can_be_listed_and_marked_as_read; do
+            grep -Fq "$name" "$RUNNER_TEMP/baseline-phpunit.txt" || exit 1
+          done
+          printf '%s\n' 'PASS: THREE_EXISTING_FAILURES_REPRODUCED_ON_UNPATCHED_MAIN'
+      - name: Immutable source and no artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: BATCH632_BASELINE_SOURCE_IMMUTABLE'
