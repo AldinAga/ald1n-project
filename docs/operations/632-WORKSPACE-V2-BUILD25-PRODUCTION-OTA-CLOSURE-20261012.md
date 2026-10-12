@@ -295,6 +295,26 @@ REPORT642_SOURCE_MUTATIONS=NONE
 REPORT642_BACKUP_DELETIONS=NONE
 
 
+## Batch632 Report643 backup_runs linkage PASS and gated isolated restore target (2026-10-12)
+- Owner provided original `643-BATCH632-BACKUP-RUNS-READONLY-AUTHORITY-20261012-151330.md`, executed 2026-10-12T15:13:30+02:00 using canonical `incoming/ald1n-b632-backup-runs-authority-v1.sh`, script SHA-256 `b89fbf458ad0ba3974b52e71ad9c43a51e44abaf5bab6d69c50f824e4c890528`. Original report byte SHA-256 `b87df4a76ec46eaed47604bf1c950e2c97a9be09ef0481d81c9f44448bac5235`, 2,285 bytes; archived byte-exact to GitHub main `docs/operations/643-BATCH632-BACKUP-RUNS-READONLY-AUTHORITY-20261012-151330.md`, commit `57ddccdaf30036fbc62552ccf2ff9fbf5eeb035a`, verified Git blob `4ca8270e55471b5c5d469549fd31d596f1755c81`.
+- Report643 original predecessor Report642 sha/blob verified; 82 still-unarchived local historical report files protected, with 6 other untracked ops files identical to GitHub main, 0 mismatches/nonregular. **Do not delete or automatically upload the 82 unreviewed files**; two Git-staged ops paths remain protected.
+- The CMS Laravel bootstrapped runtime, actual MySQL `START TRANSACTION READ ONLY` and `backup_runs` database authority all **PASS**. Candidate directory fingerprint `a9fac671617cd18920d27c504651df29ca999b241db309badad2181da7d3f127` linked uniquely to **completed backup_runs ID 151**, and fingerprint `dcace268b5acf9d2a2c17225594f590c68b377b13b943602fa7956acca09ccb2` to **completed ID 150**. Each first-party `php artisan app:backup-verify --run` succeeded RC0 with version, SQL SHA, gzip, two SQL markers, private attachments, record size and completion checks **PASS**, warnings=0. `BACKUP_TWO_COMPLETED_DB_ROWS_AND_RUN_VERIFICATIONS=PASS`. Original command RC0, tee RC0; zero CMS/Mobile source/staging, business database, backups, Build25, OTA or Google Play mutations.
+- **RESTORE_TO_ISOLATED_DB=NOT_RUN**. Report643 file/DB metadata proof does not demonstrate MySQL import or application recovery. Owner stable retention of *two newest restore-ready backups* therefore remains **HOLD** until at least both backup candidates undergo controlled isolated restore QA; old third no-manifest directory stays protected.
+- Next canonical script `/home/icaffeco/ald1n-project/incoming/ald1n-b632-isolated-restore-preflight-v1.sh`, SHA-256 `30a73ef3580313807828a5835c0ea1b7832a3e35fa603708b5ff010087f08149` creates next sequential **Report644** ONLY under `/home/icaffeco/ald1n-project/docs/operations` when exact archived predecessor and GitHub/local max 643 pass. It is a **read-only isolated MySQL test-target preflight**: requires an explicit target DB name containing `restore`, a dedicated private `$HOME/.ald1n-restore-test.cnf` credentials file (or explicit override path, owned by same user with owner-only permissions, outside repo), real target connectivity, zero existing tables, target-scoped grants, and runtime cached production + legacy schema/user identity disjointness. If not configured it records HOLD/RC2 with generic reason; never guesses a database name or credentials.
+- This preflight **never creates a database, imports a SQL dump, executes migrations, modifies production/legacy data, or creates/deletes/prunes backups**. It confirms target suitability for a later separately approved actual restore run, not recovery success itself. No raw config contents, MySQL credentials, names or paths are written to the numbered GitHub report; temporary sensitive output stays in a private ephemeral directory outside repo.
+- Local QA for Report644 preflight: `bash -n` PASS, static no-`/dev/fd`/process-substitution scan PASS, embedded PHP 8.4 `php -l` PASS, one valid fixture PASS and three negative fixtures correctly rejected (nonempty schema, production user reuse, global grants). Host Report644 not executed. No legacy maintenance `--apply`, `git clean`, or pruning until actual complete restore and prior 82-report archival gates.
+
+REPORT643_BACKUP_RUNS_READ_ONLY=PASS
+REPORT643_TWO_COMPLETED_ROWS=151_AND_150_VERIFIED
+REPORT643_LARAVEL_VERIFY_BY_RUN=2_OF_2_PASS
+REPORT643_GITHUB_BYTE_EXACT_ARCHIVE=PASS
+REPORT643_ISOLATED_RESTORE=NOT_RUN
+REPORT644_RESTORE_TARGET_PREFLIGHT=PENDING_HOST_EXECUTION
+REPORT644_LOCAL_QA=PASS_VALID_AND_THREE_NEGATIVE_CASES
+BATCH632_BACKUP_DELETE=HOLD
+BATCH632_PRODUCTION_SOURCE_MUTATION=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
