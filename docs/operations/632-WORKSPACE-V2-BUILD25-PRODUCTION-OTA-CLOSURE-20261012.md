@@ -210,6 +210,30 @@ BACKUP_RESTORE_READY_TWO_POINTS=HOLD
 PRODUCTION_SOURCE_MUTATION=NONE
 
 
+## Batch632 Report639 full-host inventory and Report640 archive parity plan (2026-10-12)
+- Owner executed `incoming/ald1n-b632-host-inventory-v1.sh` SHA-256 `6b06979341fbfea231b9771e325c666d6cfda278bd011c4f56ccc3c35c3be9d8` on 2026-10-12T13:00:06+02:00 and supplied `639-BATCH632-HOST-DRIFT-BACKUP-INVENTORY-20261012-130006.md`, raw SHA-256 `609240b229574ae0b78c607a892e3753bc8740c0633558afdd3b5dea74818879`. Read-only `BATCH632_HOST_INVENTORY=PASS`, audited RC0, tee RC0, SOURCE_MUTATIONS=0, DELETIONS=0, backup proof HOLD. The report bound predecessor Report638 and observed GitHub main `330b028072e92975ee511be37488c661c6ebf2e0`.
+- Report639 is now archived byte-exact in GitHub `docs/operations/639-BATCH632-HOST-DRIFT-BACKUP-INVENTORY-20261012-130006.md`, commit `7a7416c46936b3302b539217ddd0f332e453b898`, verified Git blob `c4f99800d5e288523b666276a40570cfd0f27bce` and 27,459 bytes. Preserve predecessor until properly handed off.
+- Scope distinction from Report638: Report638 counted only application-scoped paths (8 unstaged tracked, 0 staged, 1 untracked). Report639 counted the **entire repository** (10 unstaged tracked, 2 staged tracked, 89 untracked). Difference by itself does not show newly introduced production source drift; do not conflate counting scopes.
+- Full 10 unstaged tracked paths: seven CMS source presentation/CSS files have **exact byte-identical blob IDs to GitHub main**, one CMS `public/.htaccess` has the known allowed FILE SHA but diff SHA gate **pending**, and two OPERATIONS files require reconciliation: Report548 local file differs from main, Report549 is locally present but **absent in GitHub main**. Two Git-staged OPERATIONS paths are `docs/operations/000-LATEST.md` and Report549. Never reset, unstage, stash, sync or delete these as part of cleanup.
+- Of 89 reported untracked paths, three are specially protected Reports637/638/639; 86 further path+size entries split into **82 operations reports absent at those paths from GitHub main (~4.30 MB)**, **one CMS `bin/notifications-inbox-ux-smoke.php` which already exists on GitHub main**, and **three small `error_log-*.gz` files not on main**. Two of the 82 operations entries had intentionally redacted sensitive-looking path names. Report639 `path_sha256` fingerprints names, not file contents; source byte parity for these 86 files has NOT been attested. All remain protected. No blanket archival claim or safe-delete claim is authorized for them.
+- Backup default `apps/cms/current/storage/app/backups` directory count=0 and manifest count=0 **DO NOT prove zero backups**: runtime `BACKUP_PATH` is not attested and `backup_runs` database records were not queried. No restore-ready backup was verified. The two verified keeper rule therefore remains HOLD; do not run the older maintenance `--apply` script or any backup prune.
+- Next read-only hosting script `/home/icaffeco/ald1n-project/incoming/ald1n-b632-host-archive-backup-map-v1.sh`, SHA256 `6891312b8f1138c8e21fa642c1548e977bd612d56a4a3925bb2243af87b06f85`, validated with `bash -n` and isolated PHP 8.4 syntax/probe fixture. It binds Report639 SHA + exact Git blob and current GitHub main ancestry, and requires remote+local max report number 639 before creating **Report640** in `docs/operations`.
+- Report640 checks Git blob identity against GitHub main for every untracked regular file, differentiates missing/identical/different operations evidence, fingerprints backup-path config without exposing path or credentials and counts candidate manifest dirs. It separately fingerprints staged records, performs both known .htaccess file+diff SHA gates, and refuses any application/DB/backup mutation. The config reading is a **snapshot**, not Laravel runtime bootstrap/DB proof; backups must still pass two actual `app:backup-verify` and isolated restore policy gates before pruning.
+- This Batch632 report is canonical operations documentation (updated after Report639); previous rows recording Report639 NOT_EXECUTED reflect earlier chronological state, superseded by this new section. PR4 remains Draft and independent. PR5+PR6 merged; Build25 and production OTA untouched.
+
+REPORT639_HOST_INVENTORY=PASS
+REPORT639_GITHUB_RAW_ARCHIVE=BYTE_EXACT
+REPORT639_REPO_UNSTAGED_TRACKED=10
+REPORT639_REPO_STAGED_TRACKED=2
+REPORT639_REPO_UNTRACKED=89
+REPORT639_UNARCHIVED_OPS_REPORT_PATHS=82
+REPORT639_HTACCESS_DIFF_GATE=HOLD
+REPORT639_BACKUP_PATH_RUNTIME=UNATTESTED
+REPORT639_TWO_RESTORE_READY_BACKUPS=HOLD
+REPORT640_ARCHIVE_PARITY_AND_BACKUP_PATH=AWAITING_HOST_EXECUTION
+REPORT639_PRODUCTION_MUTATIONS=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
