@@ -108,6 +108,24 @@ REPORT635_PRODUCTION_MUTATIONS=NONE
 PR5_HEAD=bbfd4d2723a389eea7c465cf22ade610aeb60063
 PR5_RETEST=AWAITING_HOST_V4
 
+## Batch632 operator Report636 and current-pointer regression recovery (2026-10-12)
+- Owner uploaded canonical host Report636 `636-BATCH632-RELEASE25-PIN-RECOVERY-R635-20261012-120300.md`; byte SHA-256 `17af104f3f445f734a2c018750f47c151a92f4b3b0ddbf3d9edab14adb55cf51`; generated in `docs/operations` by `incoming/ald1n-b632-release25-pin-recovery-v4.sh`. Previous Report635 hash checked, candidate source `bbfd4d2723a389eea7c465cf22ade610aeb60063`, exact five-file scope + whitespace PASS, canonical EAS pin checks 13/13 PASS, Node syntax PASS, targeted two-file tests **9/9 PASS**, no production mutations.
+- Report636 JDK17 evidence: `java`, `jar`, `keytool`, `jarsigner` MISSING on host PATH; `zip` and `unzip` present. The true `verify-signature.test.mjs` suite was **not** executed. Its cryptographic/signer gate remains **HOLD**, not FAIL of signing logic and not PASS. No global JDK install or crypto mock is authorized by this report.
+- Report636 noncrypto release25 (14 files) **117/118 PASS, 1 FAIL** (audited RC 1). Single failure in `scripts/release25/batch576-report575-remediation.test.mjs` checks that `docs/operations/000-LATEST.md` begins with the historical `# Ald1n Operations - CURRENT Build25 Authority (2026-10-09)`. This header was intentionally moved into `## Historical Build25 pre-OTA snapshot — NOT CURRENT AUTHORITY` when Workspace V2 became current. The current leading title is `# CURRENT AUTHORITY — Workspace V2 production OTA / Batch632 (2026-10-12)`. The failure is a stale test expectation, not release state regression.
+- TDD for scoped fix: old first-header condition **RED** against GitHub index; new live/current header, Build25 versionCode25, deployed OTA source, production group, 24.8 pin and preserved historical Report575 facts independently inspected **GREEN** (read-only source contract). Existing draft PR5 branch received targeted test-only change `0efb11e91a557dd478d8501158076dd82871c2b8` (`batch576-report575-remediation.test.mjs` blob `b8f1ce392f0275b7ae78e7f8bfe9f4140313a13d`). This explicitly preserves historical 24.7/UNATTESTED records as history without making them current. **Do not modify `000-LATEST.md` to satisfy an obsolete assertion**.
+- Draft PR5 scope updated from five to exactly **six** Mobile source/test files, still no native/config/OTA/Play mutation. Host runner not yet re-run for this updated SHA. Script: `/home/icaffeco/ald1n-project/incoming/ald1n-b632-release25-pointer-recovery-v5.sh`, SHA-256 `f8d3f085dd1101454397b2c1ce3508e3a85d84fa21c1fc6cfd8621e8a9dc487a`; ties exact Report636 SHA, verifies six-file source diff and PIN_PARITY 13/13, runs targeted and complete noncrypto tests with 15-file full suite only if true JDK17 available; creates next sequential report in canonical `docs/operations`.
+- Release state immutable: Android Build25 version `1.0.0`, versionCode `25`, runtimeVersion `1.0.0-build17`, production channel/profile and OTA group unchanged. EAS CLI production pin remains 24.8.0; 24.12.1 unapproved. Draft PR4 Order134 remains independent and unmerged.
+- AGENTS.md permanent lessons expanded to reject historical-index-as-current assertions and false signing PASS when actual JDK17 is missing.
+- Uploaded Report633/634/635/636 historical raw byte GitHub archive status is not attested. Keep on-host report files until archived; never clean up this fresh evidence prematurely.
+
+REPORT636_PIN_PARITY=13_OF_13_PASS
+REPORT636_TARGETED_NODE=9_OF_9_PASS
+REPORT636_NONCRYPTO_RELEASE25=117_OF_118_FAIL_ONE_STALE_INDEX_CONTRACT
+REPORT636_JDK17_SIGNATURE=HOLD
+REPORT636_PRODUCTION_MUTATIONS=NONE
+PR5_SOURCE_HEAD=0efb11e91a557dd478d8501158076dd82871c2b8
+PR5_POST_FIX_HOST_GATES=PENDING
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
