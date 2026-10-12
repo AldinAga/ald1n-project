@@ -126,6 +126,26 @@ REPORT636_PRODUCTION_MUTATIONS=NONE
 PR5_SOURCE_HEAD=0efb11e91a557dd478d8501158076dd82871c2b8
 PR5_POST_FIX_HOST_GATES=PENDING
 
+## Batch632 Report637 and real JDK17 signature closure (2026-10-12)
+- Operator Report637 `637-BATCH632-RELEASE25-POINTER-RECOVERY-R636-20261012-121405.md`, immutable byte SHA-256 `010458e9515ef42401ac33e6053e67770983e87656986dc9890456e876014572`, script `incoming/ald1n-b632-release25-pointer-recovery-v5.sh` SHA `f8d3f085dd1101454397b2c1ce3508e3a85d84fa21c1fc6cfd8621e8a9dc487a`: exact PR5 source `0efb11e91a557dd478d8501158076dd82871c2b8`; six-file diff scope PASS; EAS pin parity 13/13 PASS; targeted Release25 pointer/pin 13/13 PASS; noncrypto 14 files **118/118 PASS**, Node syntax and source immutability PASS. Host lacked `java`, `jar`, `keytool`, `jarsigner`; real local signing suite was **HOLD** (audited command RC 2). No production mutations/EAS upgrade.
+- The JDK17 gate was completed WITHOUT installing tools on CloudLinux by a purpose-built audit-only GitHub Actions branch `audit/batch632-signature-jdk17-20261012`, **not PR5/main**. It uses `actions/setup-java` Temurin JDK17 and `actions/setup-node` Node 22.16, checks out exactly PR5 source SHA `0efb11e91a557dd478d8501158076dd82871c2b8`, and has no Gradle/Android SDK, EAS, Play, credential upload or artifact-upload step.
+- Real signing run `38235367810` (workflow commit `ca490f23111b5800654fa6febdace8beef46fce4`), https://github.com/AldinAga/ald1n-project/actions/runs/38235367810: **7/7 real Java signature tests PASS**, 0 FAIL, Temurin `17.0.20.1`, Node `22.16.0`, candidate source SHA verified, git immutability PASS, 0 artifacts.
+- Consolidated offline run `38235861342` (workflow commit `64439ed2c3119e1bf5a43735bf20f576ca7aa12d`), https://github.com/AldinAga/ald1n-project/actions/runs/38235861342: same exact candidate SHA, **15 Release25 test files, 125/125 PASS, 0 FAIL, 0 SKIPPED in ONE JDK17 runner**, plus standalone real signing 7/7 PASS, source immutability PASS, 0 artifacts, no native build/OTA/Play changes. This supersedes Report637's local JDK availability HOLD **for the source's Release25 signing/test gate only**; it does NOT imply Java was installed on the hosting or that a production signed AAB was freshly generated.
+- All five owner-supplied raw terminal reports **633, 634, 635, 636, 637** were archived under `docs/operations/` on GitHub `main` with verified byte-identical Git blob hashes, preserving original FAIL/HOLD results without rewriting history. Report637 blob `52b7e5223f475e0c7326c86b914ee9b035a938f2`. This fulfills their historical GitHub checkpoint; host-side cleanup still requires separate explicit safety/retention gates.
+- PR5 is still **DRAFT and unmerged**, head `0efb11e91a557dd478d8501158076dd82871c2b8`, changed files six. A final candidate-specific Mobile TypeScript and full project validator audit plus merge authorization remain separate; Release25 125/125 success does NOT authorize publishing, building, submitting to Play or changing EAS CLI 24.8.0. PR4 is independent and still Draft.
+- Production Build25 remains appVersion `1.0.0`, versionCode `25`, runtimeVersion `1.0.0-build17`, source of active OTA `52850d185d2c26d0a72a26d64520528714fe2f01`, production channel/profile unchanged. Production OTA group `27dd4b5d-63b3-4902-9b0b-5f289076f0e6` unchanged. No production hosting file, database, EAS OTA, native build or Google Play mutation in these audits.
+
+REPORT637_LOCAL_NONCRYPTO=118_OF_118_PASS
+REPORT637_LOCAL_JDK17=HOLD_TOOLS_NOT_ON_HOST
+GITHUB_RUN_38235367810_JDK17_SIGNING=7_OF_7_PASS
+GITHUB_RUN_38235861342_RELEASE25=125_OF_125_PASS
+REPORTS_633_TO_637_GITHUB_BYTE_ARCHIVE=PASS
+PR5_RELEASE25_SOURCE_TESTS=PASS
+PR5_TYPECHECK_AND_VALIDATOR=PENDING
+PR5_MERGE_AND_RELEASE=NOT_AUTHORIZED
+PRODUCTION_MUTATIONS=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
