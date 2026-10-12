@@ -331,6 +331,28 @@ PR4_MERGE_DEPLOY=NOT_AUTHORIZED
 PRODUCTION_MUTATION=NONE
 
 
+## Batch632 Report644 PR4 isolated MySQL regression QA (2026-10-12)
+- Independent from the owner-deferred backup restore (original Report644 restore-preflight script not executed). Next numbered source QA report `docs/operations/644-BATCH632-PR4-ISOLATED-LARAVEL-MYSQL-BASELINE-20261012.md`, commit `f916565074a46fd5643dc4d870fba0f4126c1446`, Git blob `8dd931754e332e9ef81f3fd194dc8bb9eff6af83`. Source anchor PR4 `25d29162c01938b7a58abe6914fee403beb72879`, main baseline `64dedd1bd2df40024fedcbae6c2e9d1ffacfe485`, PR4 exactly five CMS file scope with zero overlap against newer main changes.
+- GitHub Actions source-only CI, ephemeral Ubuntu 24.04, PHP 8.4.26 and MySQL 8.0.46 `ald1n_batch632_test` isolated schema. Canonical `app:test-database-doctor` confirmed test-only DB; no production credentials/schema, migration, deployment or Android build/OTA/Play use. PR4 source verified immutable in runner.
+- Broad two-class feature run `38256868139` https://github.com/AldinAga/ald1n-project/actions/runs/38256868139: PHP lint five PR4 candidate files PASS, actual-source routing 14/14 PASS, MySQL feature suite **11 tests, 8 pass, 3 fail**. Failure methods are existing MobileApiFoundation cases for push device token conflict, old personal access token still present after device session switch, and missing notification read flag.
+- Targeted only three new PR4 MySQL regressions: GitHub Actions `38257422989`, https://github.com/AldinAga/ald1n-project/actions/runs/38257422989, **3/3 PASS, 12 assertions**, candidate exact SHA; no source mutation, 0 exported artifacts.
+- Explicit unpatched main baseline: GitHub Actions `38257664993`, https://github.com/AldinAga/ald1n-project/actions/runs/38257664993, pristine main SHA `64dedd1bd2df40024fedcbae6c2e9d1ffacfe485`: **8 original tests, 5 pass, 3 fail with EXACT SAME three method names**, PHPUnit RC1. CI job marked success only because its purpose and gate were reproduction of these three known failures, NOT because all baseline tests passed. Confirms those three failures predate PR4; any patch requires a separate scoped recovery.
+- Intermediate retry using unsupported PHPUnit12 `--no-ansi` failed as audit harness incompatibility; test-run CLI replaced it with `--colors=never`, no CMS production source changes. GitHub audit workflow changes live only on separate throwaway audit branches, not `main` or PR4 source.
+- **PR4 remains DRAFT, open, unmerged, undeployed**, body annotated with exact CI evidence. Real Order134 archived/existence/user-role/assignment permission state, authenticated API 200 vs 403/404, and physical Android cold/warm-start inbox/push behavior remain HOLD. Broad MySQL Laravel suite remains non-green despite three new tests succeeding.
+- Next gated task is read-only live Order134 data/HTTP route diagnosis with PII-redaction (not the deferred backup restore). Do not run live database migrations, revoke users, send push, build, OTA publish, or submit Play. Keep two backup IDs 151/150 protected and third no-manifest backup protected until independent restore is ever authorized.
+
+REPORT644_PR4_TARGETED_MYSQL=3_OF_3_PASS
+REPORT644_PR4_SOURCE_SMOKE=14_OF_14_PASS
+REPORT644_PR4_OLDER_FEATURE_TESTS=3_KNOWN_FAIL
+REPORT644_UNPATCHED_MAIN_BASELINE=THREE_SAME_FAIL_CONFIRMED
+REPORT644_PR4_FULL_FEATURE_SUITE=HOLD
+REPORT644_PR4_LIVE_ORDER134_AUTH_HTTP=HOLD
+REPORT644_PR4_ANDROID_UAT=HOLD
+REPORT644_PR4_MERGE=NO
+REPORT644_BACKUP_RESTORE=OWNER_DEFERRED
+REPORT644_PRODUCTION_MUTATIONS=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
