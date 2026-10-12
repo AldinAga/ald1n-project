@@ -234,6 +234,27 @@ REPORT640_ARCHIVE_PARITY_AND_BACKUP_PATH=AWAITING_HOST_EXECUTION
 REPORT639_PRODUCTION_MUTATIONS=NONE
 
 
+## Batch632 Report640 actual host results and Report641 keeper evidence (2026-10-12)
+- Owner-hosted `incoming/ald1n-b632-host-archive-backup-map-v1.sh` SHA-256 `6891312b8f1138c8e21fa642c1548e977bd612d56a4a3925bb2243af87b06f85` produced original `640-BATCH632-ARCHIVE-PARITY-BACKUP-CONFIG-20261012-132203.md` at 2026-10-12T13:22:03+02:00. Original report SHA-256 `3e0134b4d8174782ecd30751a1b202fdcb43d0a3883e851fb89bf7f5813d4ef9`, original Git blob `85136f32acedd24df0684dda4f01858a6373945a`, 20,493 bytes. It was archived **byte-exact** to GitHub main in commit `9273703685eebdde4a3980e321909f915a29965b`.
+- Report640 preflight binds GitHub main `838039fb58cf2cd59232470029d1401063f24e9d` and local/GitHub Report639; observed full repo 10 unstaged tracked, 2 staged tracked, 90 untracked (the new report adds one vs previous). Seven CSS/Blade host blobs match GitHub main exactly; CMS `public/.htaccess` differs intentionally but BOTH prior-approved file SHA and diff SHA gates **PASS**. Report548 content differs from main, Report549 is host-local and absent main, and `docs/operations/000-LATEST.md` plus Report549 have staged content; all are protected from reset/stash/cleanup.
+- 82 untracked operations report paths are **absent** on GitHub main, 2 existing untracked operations files match GitHub blobs, 0 match a GitHub path with different content, and the untracked CMS `notifications-inbox-ux-smoke.php` exactly matches GitHub main. Three gzipped error logs and current/predecessor reports stay protected. **The 82 reports are NOT archived, NOT deleted; two sensitive-looking names were deliberately redacted in the report.** Do not upload these 82 without reviewing content/security and verifying their original exact blobs on an isolated GitHub archive branch.
+- Report640 safely read the Laravel cached config path (not the bootstrapped runtime nor database). It found 3 backup directories: two with manifest (age ~10h and ~14h) and one 1081h old without manifest. Actual cached path SHA-256 `e5db5be6bbac72458e0877bd1ba0676aec4c99d7a7fecb9aaf2290390ca1d1c3`, and two candidate **directory-name** fingerprints `a9fac671617cd18920d27c504651df29ca999b241db309badad2181da7d3f127` / `dcace268b5acf9d2a2c17225594f590c68b377b13b943602fa7956acca09ccb2`. These are existence-only observations. `backup_runs` records, actual `app:backup-verify`, and isolated restore are still NOT run. No backup is yet considered restore-ready; do not delete the third older folder or change retention.
+- Prepared canonical operator `incoming/ald1n-b632-backup-verify-archive-gate-v1.sh`, SHA-256 `c1b3dba55b1f214f98999d3939f30b13d2057df8cd66b864a1b1676635fd81f4`. It binds original Report640 SHA/blob and GitHub archive commit, checks exact cached backup path and two directory fingerprints, executes **two first-party `php artisan app:backup-verify --path=...` checks** with per-command RC and sanitized output flags only (no plaintext backup paths or raw database content in report), and rechecks Git index/application path-set immutability. The first-party verifier `BackupService::safeBasePath` calls `ensureDirectoryExists`, so the operator script requires the directory ALREADY exists before starting; it does not create a backup. Raw paths only exist in a private auto-erased temporary scratch space outside repo. It does not query `backup_runs`, run an isolated restore, create/prune backups, delete a report, stage Git files or change prod source/OTA/Play.
+- Report641 sequence requires local+GitHub number 640 and predecessor exact content, then creates `641-BATCH632-RESTORE-CANDIDATE-VERIFY-ARCHIVE-GATE-*.md` **only** under `docs/operations`. Script passed `bash -n` and standalone PHP 8.4 fixture test for two expected manifests, plus fail-closed rejection of unexpected extra manifest. On production execution status remains **PENDING**. Even if both checks PASS, backup DB authority and actual restore rehearsal remain HOLD until separately attested.
+- Existing `scripts/maintenance/ald1n-project-residual-cleanup.sh --apply` must NOT be used (outdated keep counts, unsafe archival path). User-approved cleanup scope never authorizes `git clean -fdx` or deletion of missing GitHub evidence. Order134 PR4 remains draft; Build25/OTA still unchanged.
+
+REPORT640_SOURCE_INVENTORY=PASS
+REPORT640_HOST_HTACCESS_SHA_AND_DIFF=PASS
+REPORT640_UNARCHIVED_OPS_PATHS=82_PROTECTED
+REPORT640_BACKUP_MANIFEST_CANDIDATES=2_OF_3_DIRECTORIES
+REPORT640_FIRST_PARTY_VERIFY=NOT_RUN
+REPORT640_BACKUP_RUNS_DB=UNATTESTED
+REPORT640_BACKUP_RESTORE=UNATTESTED
+REPORT640_GITHUB_BYTE_EXACT_ARCHIVE=PASS
+REPORT641_FIRST_PARTY_BACKUP_QA=PENDING_HOST_RUN
+REPORT640_PRODUCTION_MUTATIONS=NONE
+
+
 ## Follow-on gated scopes
 1. Separate isolated CLI upgrade compatibility lab: npm view on live host; read-only eas version/whoami/project:info/build:list/update:view; fail-closed release25 controller negative tests; no auto pin bump.
 2. #134 + notification cold-start / archived-order end-to-end QA with permission matrix and HTTP codes, first reproduce; patch only proven defect.
