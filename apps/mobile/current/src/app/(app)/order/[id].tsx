@@ -9,6 +9,7 @@ import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Glyph } from '@/components/ui/glyph';
 import { Pill } from '@/components/ui/pill';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
+import { isOrderUnavailable, OrderUnavailableState } from '@/features/orders/order-unavailable-state';
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
@@ -86,6 +87,7 @@ export default function OrderDetailScreen() {
     queryKey: ['order', orderId],
     queryFn: () => api.orders.detail(orderId),
     enabled: allowed && validOrderId,
+    retry: (failureCount, error) => !isOrderUnavailable(error) && failureCount < 3,
   });
 
   const postCreateQuery = useQuery({
@@ -143,6 +145,7 @@ export default function OrderDetailScreen() {
   if (!allowed) return <UnavailableState title="Porudžbina nije dostupna" />;
   if (!validOrderId) return <ErrorState error={new Error('Neispravan identifikator porudžbine.')} />;
   if (query.isLoading) return <LoadingState label="Učitavanje porudžbine…" />;
+  if (query.isError && isOrderUnavailable(query.error)) return <OrderUnavailableState audience="user" />;
   if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
   const order = query.data;

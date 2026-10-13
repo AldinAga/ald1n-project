@@ -15,6 +15,7 @@ import { AdminOrderActions } from '@/features/admin/orders-admin-actions';
 import { AdminOrderDocuments } from '@/features/admin/order-documents-admin';
 import { AdminOrderArchiveActions } from '@/features/admin/order-archive-admin';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
+import { isOrderUnavailable, OrderUnavailableState } from '@/features/orders/order-unavailable-state';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import {
   apiAdminOrders,
@@ -118,6 +119,7 @@ export default function AdminOrdersDetailScreen() {
     queryKey: adminQueryKeys.adminOrder(orderId),
     queryFn: () => apiAdminOrders.detail(orderId),
     enabled: allowed && validId,
+    retry: (failureCount, error) => !isOrderUnavailable(error) && failureCount < 3,
   });
 
   if (!allowed) {
@@ -130,6 +132,10 @@ export default function AdminOrdersDetailScreen() {
 
   if (query.isLoading) {
     return <LoadingState label="Ucitavanje administratorskog detalja..." />;
+  }
+
+  if (query.isError && isOrderUnavailable(query.error)) {
+    return <OrderUnavailableState audience="admin" />;
   }
 
   if (query.isError || !query.data) {
