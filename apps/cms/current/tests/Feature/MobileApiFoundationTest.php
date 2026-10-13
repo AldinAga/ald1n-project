@@ -160,6 +160,40 @@ final class MobileApiFoundationTest extends TestCase
             ->assertJsonPath('data.unread', 0);
     }
 
+    public function test_legacy_admin_notification_recovers_matching_order_route(): void
+    {
+        $user = $this->admin();
+        Sanctum::actingAs($user, ['*']);
+        $user->notifyNow(new OperationalNotification([
+            'event' => 'order.assigned',
+            'title' => 'Dodeljena porudžbina',
+            'order_id' => 134,
+            'url' => 'https://cms.example.test/admin/orders/134?tab=history',
+        ]));
+
+        $this->getJson('/api/v1/notifications')
+            ->assertOk()
+            ->assertJsonPath('data.0.route', '/admin/orders/134')
+            ->assertJsonPath('data.0.target.type', 'order')
+            ->assertJsonPath('data.0.target.id', 134);
+    }
+
+    public function test_legacy_notification_rejects_mismatched_admin_order_id(): void
+    {
+        $user = $this->admin();
+        Sanctum::actingAs($user, ['*']);
+        $user->notifyNow(new OperationalNotification([
+            'event' => 'order.assigned',
+            'title' => 'Dodeljena porudžbina',
+            'order_id' => 134,
+            'url' => 'https://cms.example.test/admin/orders/999',
+        ]));
+
+        $this->getJson('/api/v1/notifications')
+            ->assertOk()
+            ->assertJsonPath('data.0.route', '/orders/134');
+    }
+
     public function test_profile_and_notification_preferences_can_be_updated(): void
     {
         $user = $this->admin();
