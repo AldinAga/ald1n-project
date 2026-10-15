@@ -103,6 +103,7 @@ test('screen renders policy with role-aware routes, accessibility, and no Home c
   assert.match(navSource, /buildBottomNavItems\(/);
   assert.match(navSource, /activeBottomNavKey\(/);
   assert.match(navSource, /disabled=\{!item\.enabled\}/);
+  assert.match(navSource, /pathname !== item\.route\) router\.replace\(item\.route\)/);
   assert.match(navSource, /accessibilityState=\{\{ selected: focused, disabled: !item\.enabled \}\}/);
   assert.match(navSource, /\{center \? null : \(/);
   assert.match(navSource, /adjustsFontSizeToFit/);
