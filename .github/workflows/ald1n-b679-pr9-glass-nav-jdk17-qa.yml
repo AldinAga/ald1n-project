@@ -19,7 +19,7 @@ jobs:
       - name: Checkout exact PR9 application source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 9431f949be5daee73302e610101a989e142729ff
+          ref: cf9cdaf761f5ffc84743da55dde74f349859fd4d
           fetch-depth: 0
           persist-credentials: false
       - name: Node 22.16
@@ -35,11 +35,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "9431f949be5daee73302e610101a989e142729ff"
+          test "$(git rev-parse HEAD)" = "cf9cdaf761f5ffc84743da55dde74f349859fd4d"
           git merge-base --is-ancestor a6750925754bbfdb4fa634f7198ec677d0f137ab HEAD
           printf '%s\n' \
             'apps/mobile/current/src/components/layout/app-bottom-nav.tsx' \
-            'apps/mobile/current/src/app/(app)/_layout.tsx' \
             'apps/mobile/current/scripts/validate-project.mjs' \
             'apps/mobile/current/scripts/release25/batch664-floating-bottom-nav.test.mjs' \
             | LC_ALL=C sort > "$RUNNER_TEMP/expected"
