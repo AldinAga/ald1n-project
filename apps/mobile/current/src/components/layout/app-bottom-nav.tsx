@@ -57,7 +57,7 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
         accessibilityState={{ selected: focused, disabled: !item.enabled }}
         disabled={!item.enabled}
         key={item.key}
-        onPress={() => { if (item.enabled && !focused) router.replace(item.route); }}
+        onPress={() => { if (item.enabled && pathname !== item.route) router.replace(item.route); }}
         style={({ pressed }) => [
           styles.item,
           rail ? styles.railItem : null,
