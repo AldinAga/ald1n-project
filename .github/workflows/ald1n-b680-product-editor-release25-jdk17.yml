@@ -1,0 +1,93 @@
+name: Ald1n Batch680 - exact Product Editor UX2 Release25 JDK17 QA
+on:
+  push:
+    branches:
+      - audit/batch680-product-editor-release25-jdk17-20261015
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b680-product-editor-qa
+  cancel-in-progress: false
+jobs:
+  exact-product-editor-mobile-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact PR10 application source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 3324cade15076f6894f19a33c9dc5e85dc82e9fa
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pin Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Real Temurin Java17 for Release25 signature tests
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Exact source SHA, five-file UX scope and no native drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "3324cade15076f6894f19a33c9dc5e85dc82e9fa"
+          git merge-base --is-ancestor 6f9259149c6e968c2159b7ec649250da81205ed6 HEAD
+          cat > "$RUNNER_TEMP/expected.txt" <<'EOF'
+          apps/mobile/current/src/components/layout/screen.tsx
+          apps/mobile/current/src/app/(app)/admin/catalog/create.tsx
+          apps/mobile/current/src/app/(app)/admin/catalog/[id].tsx
+          apps/mobile/current/src/features/admin/product-editor-workspace.tsx
+          apps/mobile/current/scripts/release25/batch680-product-editor-workspaces.test.mjs
+          EOF
+          LC_ALL=C sort "$RUNNER_TEMP/expected.txt" -o "$RUNNER_TEMP/expected.txt"
+          git diff --name-only --no-renames 6f9259149c6e968c2159b7ec649250da81205ed6 HEAD | LC_ALL=C sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+          git diff --check 6f9259149c6e968c2159b7ec649250da81205ed6 HEAD
+          for tool in java jar keytool jarsigner zip unzip; do command -v "$tool"; done
+          java -version
+          test "$(node -p "require('./apps/mobile/current/package.json').version")" = "1.0.0"
+          grep -Fq '1.0.0-build17' apps/mobile/current/app.config.js
+          grep -Fq '"version": "24.8.0"' apps/mobile/current/eas.json
+          printf '%s\n' 'PASS: B680_EXACT_SOURCE_NO_NATIVE_DRIFT'
+      - name: Pin npm graph without running lifecycle scripts
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: B680_NPM_CI'
+      - name: TypeScript
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: B680_TYPESCRIPT'
+      - name: Canonical Mobile validator
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: B680_MOBILE_VALIDATOR'
+      - name: Full Release25 (17 test files) with JDK17 and Product Editor
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)" -eq 17
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: B680_FULL_RELEASE25_JDK17'
+      - name: No mutation after quality gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: B680_SOURCE_IMMUTABLE'
