@@ -681,17 +681,33 @@ const tabs = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/_layout.tsx')
 assert(tabs.includes('focused') && tabs.includes('primaryContainer'), 'Bottom navigation ima Material 3 tonalni aktivni indikator.');
 // MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_VALIDATOR_BATCH48
 const appBottomNav = fs.readFileSync(path.join(root, 'src/components/layout/app-bottom-nav.tsx'), 'utf8');
+const bottomNavRolePolicy = fs.readFileSync(
+  path.join(root, 'src/components/layout/app-bottom-nav-policy.ts'),
+  'utf8'
+);
+const bottomNavSlotKeys = ['catalog', 'orders', 'home', 'secondary', 'account'];
+const bottomNavFiveStableSlots = bottomNavSlotKeys.every((key, index) => {
+  const position = bottomNavRolePolicy.indexOf(`key: '${key}'`);
+  return position >= 0 && (
+    index === 0 || position > bottomNavRolePolicy.indexOf(`key: '${bottomNavSlotKeys[index - 1]}'`)
+  );
+});
+
 assert(
-  appBottomNav.includes('MOBILE_V1_0_BOTTOM_TAB_ACTIVE_STATE_POLISH_BATCH48')
-    && appBottomNav.includes('!center && focused ? styles.itemActive : null')
+  appBottomNav.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
+    && appBottomNav.includes("const BAR_COLOR = '#292929'")
+    && appBottomNav.includes('backgroundColor: BAR_COLOR')
+    && appBottomNav.includes('backgroundColor: theme.primary')
     && appBottomNav.includes('center && focused ? styles.homeCircleActive : null')
-    && appBottomNav.includes('backgroundColor: theme.primaryContainer')
-    && appBottomNav.includes('borderColor: theme.primary')
-    && appBottomNav.includes('(focused ? theme.onPrimary : theme.onPrimaryContainer)')
-    && appBottomNav.includes('(focused ? theme.onPrimaryContainer : theme.muted)')
-    && appBottomNav.includes('color: theme.onPrimaryContainer')
-    && !appBottomNav.includes('focused ? styles.iconWrapActive : null'),
-  'v1.0 Bottom navigation aktivni TAB koristi puni tonalni pill indikator za ikonicu i naziv.',
+    && appBottomNav.includes('!center && focused ? (rail ? styles.railItemActive : styles.itemActive) : null')
+    && appBottomNav.includes('disabled={!item.enabled}')
+    && appBottomNav.includes('activeBottomNavKey(pathname, roleSlug)')
+    && appBottomNav.includes('buildBottomNavItems({')
+    && bottomNavRolePolicy.includes("route: admin ? '/admin/orders' : '/orders'")
+    && bottomNavRolePolicy.includes("label: 'Administracija'")
+    && bottomNavRolePolicy.includes("label: 'Notifikacije'")
+    && bottomNavFiveStableSlots,
+  'Batch664 active bottom nav preserves dark floating bar, theme-colored Home, five slots, role-aware destinations and capability gates.',
 );
 assert(
   tabs.includes('backgroundColor: themeColors.danger') &&
@@ -2466,14 +2482,13 @@ assert(
   const appShellBuild18 = readText('src/app/(app)/_layout.tsx');
   const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
   assert(
-    tabs.includes("display: 'none'")
-      && canonicalAppNavigation497(appShellBuild18)
-      && bottomNavBuild18.includes("label: 'Katalog'")
-      && bottomNavBuild18.includes("label: 'Porudžbine'")
-      && bottomNavBuild18.includes("label: 'Početna'")
-      && bottomNavBuild18.includes("label: 'Nalog'"),
-    'Build18 koristi jedan canonical AppBottomNav i drži interni Expo Tabs bar skrivenim.'
-  );
+  tabs.includes("display: 'none'")
+    && canonicalAppNavigation497(appShellBuild18)
+    && bottomNavBuild18.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
+    && bottomNavBuild18.includes('buildBottomNavItems({')
+    && bottomNavFiveStableSlots,
+  'Build18 uses one canonical AppBottomNav shell, hidden legacy Tabs and five role-aware bottom-nav slots.',
+);
   assert(
     !home.includes("title: 'Otvori katalog'")
       && !home.includes("title: 'Moje porudžbine'")
@@ -2574,16 +2589,16 @@ assert(
 );
 assert(
   batch50BottomNavV2.includes('MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2')
-    && batch50BottomNavV2.includes('MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV')
-    && batch50BottomNavV2.includes("label: 'Katalog'")
-    && batch50BottomNavV2.includes("label: 'Porudžbine'")
-    && batch50BottomNavV2.includes("label: 'Početna'")
-    && batch50BottomNavV2.includes('center: true')
-    && batch50BottomNavV2.includes('transform: [{ translateY: -17 }]')
-    && batch50BottomNavV2.includes("label: 'Obaveštenja'")
-    && batch50BottomNavV2.includes("label: 'Nalog'")
-    && !batch50BottomNavV2.includes("key: 'admin'"),
-  'v1.0 Batch50 V2 + Batch518B bottom nav drži centralnu Početnu i pet stabilnih tabova za sve uloge.',
+    && batch50BottomNavV2.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
+    && bottomNavFiveStableSlots
+    && bottomNavRolePolicy.includes("key: 'home', label: 'Početna'")
+    && bottomNavRolePolicy.includes('center: true')
+    && bottomNavRolePolicy.includes("label: 'Administracija'")
+    && bottomNavRolePolicy.includes("label: 'Notifikacije'")
+    && batch50BottomNavV2.includes('transform: [{ translateY: -20 }]')
+    && batch50BottomNavV2.includes('backgroundColor: theme.primary')
+    && batch50BottomNavV2.includes('{center ? null : ('),
+  'Batch664 preserves centered brand-color Home, fixed five-slot navigation and role-specific fourth action.',
 );
 assert(
   batch50PageHeaderV2.includes('MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2')
@@ -2596,11 +2611,12 @@ assert(
   'v1.0 Batch50 V2 header desno koristi notification bell+badge umesto profila, a Nalog ostaje u bottom nav-u.',
 );
 assert(
-  batch50BottomNavV2.includes("pathname.startsWith('/admin/catalog/')")
-    && batch50BottomNavV2.includes("pathname === '/admin'")
-    && batch50BottomNavV2.includes("!pathname.startsWith('/admin/catalog/')")
-    && !batch50BottomNavV2.includes("return 'admin';"),
-  'v1.0 Batch50 V2 + Batch518B čuva Katalog context za admin/catalog, a ostali Admin ekrani koriste Početna context bez Admin taba.',
+  bottomNavRolePolicy.includes("matches(pathname, '/admin/catalog')")
+    && bottomNavRolePolicy.includes("matches(pathname, '/admin/orders')")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) ? null : 'secondary';")
+    && bottomNavRolePolicy.indexOf("matches(pathname, '/admin/orders')") < bottomNavRolePolicy.indexOf("if (matches(pathname, '/admin'))"),
+  'Batch664 keeps admin/catalog in Catalog, admin/orders in Orders, and Admin in the role-aware secondary tab.',
 );
 
 // MOBILE_V1_0_ADMIN_CATALOG_DICTIONARIES_BATCH22
@@ -4415,8 +4431,23 @@ assert(
   const b518bOrder = fs.readFileSync(path.join(root, 'src/app/(app)/order/[id].tsx'), 'utf8');
   const b518bAdminOrder = fs.readFileSync(path.join(root, 'src/app/(app)/admin/orders/[id].tsx'), 'utf8');
   const b518bItems = b518bNav.slice(b518bNav.indexOf('const items: NavItem[]'), b518bNav.indexOf('if (keyboardVisible'));
-  assert(b518bNav.includes('MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV') && !b518bItems.includes("key: 'admin'") && b518bItems.includes("key: 'notifications'") && b518bItems.includes("key: 'home'") && b518bItems.includes("key: 'catalog'") && b518bItems.includes("key: 'orders'") && b518bItems.includes("key: 'account'"), 'Batch518B bottom nav ostaje pet stabilnih tabova za sve uloge.');
-  assert(b518bNav.includes("pathname.startsWith('/after-sales')") && b518bNav.includes("pathname.startsWith('/warranties')") && b518bNav.includes("pathname.startsWith('/commissions')") && b518bNav.includes("pathname.startsWith('/portal/messages')") && !b518bNav.includes("return 'admin';"), 'Batch518B aktivnosti i Admin zadržavaju Početna kontekst bez dodatnog taba.');
+  assert(
+  b518bNav.includes('MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV')
+    && b518bNav.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
+    && b518bNav.includes('buildBottomNavItems({')
+    && bottomNavFiveStableSlots
+    && !bottomNavRolePolicy.includes("key: 'admin'"),
+  'Batch664 retains exactly five stable navigation slots for all roles without adding a sixth Admin tab.',
+);
+  assert(
+  ['/after-sales', '/warranties', '/commissions', '/portal/messages'].every(
+    (route) => bottomNavRolePolicy.includes(`matches(pathname, '${route}')`)
+  )
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("return 'home';")
+    && bottomNavFiveStableSlots,
+  'Batch664 preserves Home context for personal activities and Admin context for authorized admin screens.',
+);
   assert(b518bHome.includes("adminAllowed ? { title: 'Administracija'") && !b518bHome.includes('adminAllowed && !isSuperAdmin'), 'Batch518B Početna izlaže Administraciju svim dozvoljenim admin ulogama.');
   assert(b518bOrder.includes('MOBILE_BATCH518B_CUSTOMER_ORDER_NEXT_STEP') && b518bOrder.includes('Sledeći korak') && b518bOrder.includes('Pošalji potvrdu uplate') && b518bOrder.includes('Uredi porudžbinu') && b518bOrder.includes('Pokreni reklamaciju, povrat ili servis'), 'Batch518B customer order detalj izlaže contextual Sledeći korak.');
   assert(b518bAdminOrder.includes('MOBILE_BATCH518B_ADMIN_ORDER_NEXT_STEP') && b518bAdminOrder.includes('Evidentiraj slanje') && b518bAdminOrder.includes('Potvrdi isporuku') && b518bAdminOrder.includes('setWorkspace(nextStep.workspace)'), 'Batch518B Admin order detalj izlaže contextual Sledeći korak i workspace continuation.');
