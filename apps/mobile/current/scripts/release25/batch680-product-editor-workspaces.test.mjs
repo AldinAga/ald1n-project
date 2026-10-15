@@ -41,46 +41,46 @@ test('workspace keys and error-to-section mapping are deterministic', () => {
 test('both editors keep hidden sections mounted so draft values survive workspace switches', () => {
   for (const [name, source] of [['create', create], ['edit', edit]]) {
     assert.match(source, /activeWorkspace, setActiveWorkspace/);
-    assert.match(source, /topAccessory=\\{/);
-    assert.match(source, /bottomAccessory=\\{/);
+    assert.match(source, /topAccessory=\{/);
+    assert.match(source, /bottomAccessory=\{/);
     assert.match(source, /<ProductEditorWorkspaceNav/);
     assert.match(source, /<ProductEditorSaveDock/);
-    assert.match(source, /workspaceHidden: \\{ display: 'none' \\}/);
+    assert.match(source, /workspaceHidden: \{ display: 'none' \}/);
     for (const key of ['identity', 'specifications', 'commercial', 'description', 'images']) {
       assert.ok(source.includes("activeWorkspace !== '" + key + "' ? styles.workspaceHidden : null"), name + ': ' + key);
     }
-    assert.match(source, /setActiveWorkspace\\(productEditorWorkspaceForError\\(firstErrorField\\)\\)/);
-    assert.match(source, /onSaveDraft=\\{\\(\\) => submit\\(true\\)\\}/);
-    assert.match(source, /onSave=\\{\\(\\) => submit\\(false\\)\\}/);
+    assert.match(source, /setActiveWorkspace\(productEditorWorkspaceForError\(firstErrorField\)\)/);
+    assert.match(source, /onSaveDraft=\{\(\) => submit\(true\)\}/);
+    assert.match(source, /onSave=\{\(\) => submit\(false\)\}/);
   }
-  assert.match(edit, /activeWorkspace === 'advanced' \\? styles.section : styles.workspaceHidden/);
-  assert.match(edit, /bottomAccessory=\\{!product.is_archived/);
+  assert.match(edit, /activeWorkspace === 'advanced' \? styles.section : styles.workspaceHidden/);
+  assert.match(edit, /bottomAccessory=\{!product.is_archived/);
   assert.match(create, /saveLabel="Kreiraj artikal"/);
   assert.match(edit, /saveLabel="Sačuvaj izmene"/);
 });
 
 test('Screen pins nav and save outside scroll while remaining optional for all other screens', () => {
-  assert.match(screen, /topAccessory\\?: ReactNode/);
-  assert.match(screen, /bottomAccessory\\?: ReactNode/);
-  assert.equal((screen.match(/\\{topAccessory\\}/g) ?? []).length, 2);
-  assert.equal((screen.match(/\\{bottomAccessory\\}/g) ?? []).length, 2);
-  assert.ok(screen.indexOf('      {topAccessory}\\n      <ScrollView') > 0);
-  assert.ok(screen.indexOf('      </ScrollView>\\n      {bottomAccessory}') > 0);
-  assert.match(shared, /Keyboard.addListener\\('keyboardDidShow'/);
-  assert.match(shared, /Keyboard.addListener\\('keyboardDidHide'/);
+  assert.match(screen, /topAccessory\?: ReactNode/);
+  assert.match(screen, /bottomAccessory\?: ReactNode/);
+  assert.equal((screen.match(/\{topAccessory\}/g) ?? []).length, 2);
+  assert.equal((screen.match(/\{bottomAccessory\}/g) ?? []).length, 2);
+  assert.ok(screen.indexOf('      {topAccessory}\n      <ScrollView') > 0);
+  assert.ok(screen.indexOf('      </ScrollView>\n      {bottomAccessory}') > 0);
+  assert.match(shared, /Keyboard.addListener\('keyboardDidShow'/);
+  assert.match(shared, /Keyboard.addListener\('keyboardDidHide'/);
   assert.match(shared, /width >= 600/);
-  assert.match(shared, /Math.max\\(insets.bottom, 0\\) \\+ 76/);
+  assert.match(shared, /Math.max\(insets.bottom, 0\) \+ 76/);
 });
 
 test('business API, Direct Sale, archive and image manager remain in their canonical screens', () => {
-  assert.match(create, /api.admin.catalog.createProduct\\(input, idempotencyKey\\)/);
+  assert.match(create, /api.admin.catalog.createProduct\(input, idempotencyKey\)/);
   assert.match(create, /DraftProductImageManager/);
   assert.match(create, /submitInFlightRef/);
-  assert.match(edit, /apiAdminCatalog.update\\(productId, input\\)/);
+  assert.match(edit, /apiAdminCatalog.update\(productId, input\)/);
   assert.match(edit, /RemoteProductImageManager/);
   assert.match(edit, /CatalogAdvancedProductActions/);
   assert.match(edit, /ProductDeletionAdmin/);
   assert.match(edit, /Evidentiraj prodaju/);
   assert.match(edit, /Arhiviraj artikal/);
-  assert.doesNotMatch(shared, /Product Variants|product_variant_id|fetch\\(/);
+  assert.doesNotMatch(shared, /Product Variants|product_variant_id|fetch\(/);
 });
