@@ -695,8 +695,11 @@ const bottomNavFiveStableSlots = bottomNavSlotKeys.every((key, index) => {
 
 assert(
   appBottomNav.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
-    && appBottomNav.includes("const BAR_COLOR = '#292929'")
-    && appBottomNav.includes('backgroundColor: BAR_COLOR')
+    && appBottomNav.includes("const LIGHT_GLASS = 'rgba(225,229,232,0.78)'")
+    && appBottomNav.includes("const DARK_GLASS = 'rgba(48,54,60,0.76)'")
+    && appBottomNav.includes('backgroundColor: isDark ? DARK_GLASS : LIGHT_GLASS')
+    && appBottomNav.includes('minHeight: 54')
+    && !appBottomNav.includes("const BAR_COLOR =")
     && appBottomNav.includes('backgroundColor: theme.primary')
     && appBottomNav.includes('center && focused ? styles.homeCircleActive : null')
     && appBottomNav.includes('!center && focused ? (rail ? styles.railItemActive : styles.itemActive) : null')
@@ -707,7 +710,15 @@ assert(
     && bottomNavRolePolicy.includes("label: 'Administracija'")
     && bottomNavRolePolicy.includes("label: 'Notifikacije'")
     && bottomNavFiveStableSlots,
-  'Batch664 active bottom nav preserves dark floating bar, theme-colored Home, five slots, role-aware destinations and capability gates.',
+  'Batch678 compact translucent bottom nav preserves theme-colored Home, five slots, role-aware destinations and capability gates.',
+);
+assert(
+  androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+    && appBottomNav.includes("position: 'absolute'")
+    && appBottomNav.includes('pointerEvents="box-none"')
+    && appBottomNav.includes("backgroundColor: 'transparent'")
+    && appBottomNav.includes('minHeight: 48'),
+  'Batch678 overlays a touch-safe compact glass bar above scrolling content without covering the rail.',
 );
 assert(
   tabs.includes('backgroundColor: themeColors.danger') &&
@@ -2595,10 +2606,10 @@ assert(
     && bottomNavRolePolicy.includes('center: true')
     && bottomNavRolePolicy.includes("label: 'Administracija'")
     && bottomNavRolePolicy.includes("label: 'Notifikacije'")
-    && batch50BottomNavV2.includes('transform: [{ translateY: -20 }]')
+    && batch50BottomNavV2.includes('transform: [{ translateY: -9 }]')
     && batch50BottomNavV2.includes('backgroundColor: theme.primary')
     && batch50BottomNavV2.includes('{center ? null : ('),
-  'Batch664 preserves centered brand-color Home, fixed five-slot navigation and role-specific fourth action.',
+  'Batch678 retains centered brand-color Home, fixed five-slot navigation and role-specific fourth action.',
 );
 assert(
   batch50PageHeaderV2.includes('MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2')

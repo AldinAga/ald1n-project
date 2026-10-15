@@ -3,6 +3,7 @@
 // MOBILE_V1_0_CENTER_HOME_ROLE_AWARE_NAV_BATCH50_V2
 // MOBILE_BATCH518B_STABLE_FIVE_TAB_NAV
 // MOBILE_BATCH664_FLOATING_BOTTOM_NAV
+// MOBILE_BATCH678_COMPACT_TRANSLUCENT_BOTTOM_NAV
 import { useEffect, useMemo, useState } from 'react';
 import { router, usePathname } from 'expo-router';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,18 +15,17 @@ import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
-const BAR_COLOR = '#292929';
-const BAR_TEXT = '#F5F5F5';
-const BAR_MUTED = '#D6D6D6';
+const LIGHT_GLASS = 'rgba(225,229,232,0.78)';
+const DARK_GLASS = 'rgba(48,54,60,0.76)';
 
 export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rail' }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const { colors: theme } = useAppTheme();
+  const { colors: theme, isDark } = useAppTheme();
   const { bootstrap, hasFeature, can } = useAuth();
   const unread = useNotificationUnread();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const roleSlug = bootstrap?.user.role?.slug;
   const active = activeBottomNavKey(pathname, roleSlug);
   const rail = variant === 'rail';
@@ -76,12 +76,12 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
         >
           <Glyph
             name={item.glyph}
-            size={center ? 28 : 22}
+            size={center ? 24 : 20}
             color={center
               ? theme.onPrimary
               : rail
                 ? (focused ? theme.primary : theme.muted)
-                : (focused ? BAR_TEXT : BAR_MUTED)}
+                : (focused ? theme.ink : theme.muted)}
           />
           {item.enabled && item.badge ? (
             <View style={[styles.badge, focused ? styles.badgeActive : null]}>
@@ -122,7 +122,7 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
         : [
             styles.safeFrame,
             {
-              paddingBottom: Math.max(insets.bottom, spacing.sm),
+              paddingBottom: Math.max(insets.bottom, spacing.xs),
               paddingLeft: Math.max(insets.left, spacing.md),
               paddingRight: Math.max(insets.right, spacing.md),
             },
@@ -144,12 +144,16 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
   );
 }
 
-function createStyles(theme: AppColors) {
+function createStyles(theme: AppColors, isDark: boolean) {
   return StyleSheet.create({
     safeFrame: {
-      flexShrink: 0,
-      backgroundColor: theme.background,
-      paddingTop: 24,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+      backgroundColor: 'transparent',
+      paddingTop: 12,
     },
     railFrame: {
       width: 104,
@@ -176,25 +180,28 @@ function createStyles(theme: AppColors) {
       backgroundColor: theme.surface,
     },
     bar: {
-      minHeight: 76,
+      minHeight: 54,
       flexDirection: 'row',
-      alignItems: 'stretch',
+      alignItems: 'center',
       justifyContent: 'space-around',
       gap: 1,
       paddingHorizontal: spacing.xs,
-      paddingVertical: spacing.sm,
-      borderRadius: 32,
-      backgroundColor: BAR_COLOR,
+      paddingVertical: 2,
+      borderRadius: 24,
+      backgroundColor: isDark ? DARK_GLASS : LIGHT_GLASS,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: isDark ? 'rgba(232,239,244,0.17)' : 'rgba(78,88,98,0.22)',
       overflow: 'visible',
-      elevation: 12,
+      elevation: 5,
       shadowColor: theme.black,
-      shadowOpacity: 0.24,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: -5 },
+      shadowOpacity: 0.10,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 2 },
     },
     item: {
       flex: 1,
       minWidth: 0,
+      minHeight: 48,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 2,
@@ -209,26 +216,26 @@ function createStyles(theme: AppColors) {
       paddingHorizontal: spacing.xs,
       paddingVertical: spacing.sm,
     },
-    itemActive: { backgroundColor: 'rgba(255,255,255,0.09)' },
+    itemActive: { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.34)' },
     railItemActive: {
       backgroundColor: theme.primaryContainer,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.primary,
     },
-    homeItem: { transform: [{ translateY: -20 }], overflow: 'visible' },
+    homeItem: { transform: [{ translateY: -9 }], overflow: 'visible' },
     homeCircle: {
-      width: 70,
-      height: 70,
-      minWidth: 70,
-      borderRadius: 35,
+      width: 52,
+      height: 52,
+      minWidth: 52,
+      borderRadius: 26,
       backgroundColor: theme.primary,
-      borderWidth: 5,
+      borderWidth: 3,
       borderColor: theme.background,
-      elevation: 13,
+      elevation: 7,
       shadowColor: theme.primary,
-      shadowOpacity: 0.32,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.20,
+      shadowRadius: 9,
+      shadowOffset: { width: 0, height: 3 },
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -237,7 +244,7 @@ function createStyles(theme: AppColors) {
     pressed: { opacity: 0.72 },
     iconWrap: {
       minWidth: 48,
-      height: 30,
+      height: 24,
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
@@ -245,13 +252,13 @@ function createStyles(theme: AppColors) {
     label: {
       ...typography.small,
       maxWidth: '100%',
-      color: BAR_MUTED,
+      color: theme.muted,
       fontSize: 10,
-      lineHeight: 14,
+      lineHeight: 12,
       fontWeight: '600',
       textAlign: 'center',
     },
-    labelActive: { color: BAR_TEXT, fontWeight: '800' },
+    labelActive: { color: theme.ink, fontWeight: '800' },
     labelRail: { color: theme.muted },
     labelRailActive: { color: theme.primary, fontWeight: '800' },
     badge: {
@@ -266,9 +273,9 @@ function createStyles(theme: AppColors) {
       justifyContent: 'center',
       backgroundColor: theme.danger,
       borderWidth: 2,
-      borderColor: BAR_COLOR,
+      borderColor: theme.surface,
     },
-    badgeActive: { borderColor: BAR_COLOR },
+    badgeActive: { borderColor: theme.surface },
     badgeText: { color: theme.onDanger, fontSize: 9, lineHeight: 10, fontWeight: '900' },
   });
 }
