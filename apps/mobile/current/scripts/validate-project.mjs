@@ -713,9 +713,9 @@ assert(
   'Batch678 compact translucent bottom nav preserves theme-colored Home, five slots, role-aware destinations and capability gates.',
 );
 assert(
-  androidNativeLayout497.includes('styles.bottomNavOverlay')
-    && androidNativeLayout497.includes("position: 'absolute'")
-    && androidNativeLayout497.includes('pointerEvents="box-none"')
+  androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+    && appBottomNav.includes("position: 'absolute'")
+    && appBottomNav.includes('pointerEvents="box-none"')
     && appBottomNav.includes("backgroundColor: 'transparent'")
     && appBottomNav.includes('minHeight: 48'),
   'Batch678 overlays a touch-safe compact glass bar above scrolling content without covering the rail.',

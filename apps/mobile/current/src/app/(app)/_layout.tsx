@@ -59,11 +59,7 @@ export default function AppLayout() {
           }}
         />
       </View>
-      {!useNavigationRail ? (
-        <View pointerEvents="box-none" style={styles.bottomNavOverlay}>
-          <AppBottomNav variant="bottom" />
-        </View>
-      ) : null}
+      {!useNavigationRail ? <AppBottomNav variant="bottom" /> : null}
     </View>
   );
 }
@@ -76,14 +72,6 @@ function createStyles(theme: AppColors) {
     },
     shellRail: {
       flexDirection: 'row',
-    },
-    // Draw the compact glass bar over scrolling content, not in a separate opaque row.
-    bottomNavOverlay: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 10,
     },
     stack: {
       flex: 1,

@@ -147,7 +147,11 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
 function createStyles(theme: AppColors, isDark: boolean) {
   return StyleSheet.create({
     safeFrame: {
-      flexShrink: 0,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
       backgroundColor: 'transparent',
       paddingTop: 12,
     },
