@@ -4,6 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
+import { ProductEditorWorkspaceNav, ProductEditorSaveDock, productEditorWorkspaceForError, type ProductEditorWorkspace } from '@/features/admin/product-editor-workspace';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -156,6 +157,7 @@ export default function AdminCatalogEditScreen() {
   const [storageRows, setStorageRows] = useState<Record<string, StorageRow[]>> ({});
   const [errors, setErrors] = useState<Record<string, string>> ({});
   const [submitError, setSubmitError] = useState<string | null> (null);
+  const [activeWorkspace, setActiveWorkspace] = useState<ProductEditorWorkspace>('identity');
 
   const optionsQuery = useQuery({
     queryKey: ['admin-catalog-create-options'],
@@ -242,7 +244,10 @@ export default function AdminCatalogEditScreen() {
       });
     },
     onError: (error) => {
-      setErrors(serverFieldErrors(error));
+      const nextErrors = serverFieldErrors(error);
+      setErrors(nextErrors);
+      const firstErrorField = Object.keys(nextErrors)[0];
+      if (firstErrorField) setActiveWorkspace(productEditorWorkspaceForError(firstErrorField));
       setSubmitError(apiMessage(error, 'Artikal trenutno nije moguće izmeniti.'));
       feedback.notify({
         tone: 'warning',
@@ -281,6 +286,7 @@ export default function AdminCatalogEditScreen() {
   if (hydratedId !== product.id) return <LoadingState label="Priprema edit forme…" />;
 
   const changeType = (value: string) => {
+    if (!value) setActiveWorkspace('identity');
     setProductTypeId(value);
     setBrandId('');
     setLineId('');
@@ -374,6 +380,8 @@ export default function AdminCatalogEditScreen() {
     setErrors(nextErrors);
     setSubmitError(null);
     if (Object.keys(nextErrors).length > 0 || (!saveDraft && (price === null || stock === null || threshold === null))) {
+      const firstErrorField = Object.keys(nextErrors)[0];
+      if (firstErrorField) setActiveWorkspace(productEditorWorkspaceForError(firstErrorField));
       feedback.notify({ tone: 'warning', title: 'Dopuni obavezna polja', message: 'Sve izmene ostaju u formi.' });
       return;
     }
@@ -434,7 +442,26 @@ export default function AdminCatalogEditScreen() {
   };
 
   return (
-    <Screen contentStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <Screen
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      topAccessory={
+        <ProductEditorWorkspaceNav
+          active={activeWorkspace}
+          onChange={setActiveWorkspace}
+          hasSpecifications={Boolean(selectedType)}
+          showAdvanced
+        />
+      }
+      bottomAccessory={!product.is_archived ? (
+        <ProductEditorSaveDock
+          saving={saveMutation.isPending}
+          onSaveDraft={() => submit(true)}
+          onSave={() => submit(false)}
+          saveLabel="Sačuvaj izmene"
+        />
+      ) : null}
+    >
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
         <Text style={styles.back}>‹ Katalog artikala</Text>
       </Pressable>
@@ -462,7 +489,7 @@ export default function AdminCatalogEditScreen() {
         </Card>
       ) : null}
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'identity' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Identitet artikla</Text>
         <SelectSheet
           label="Tip artikla"
@@ -494,7 +521,7 @@ export default function AdminCatalogEditScreen() {
       </View>
 
       {selectedType ? (
-        <View style={styles.section}>
+        <View style={[styles.section, activeWorkspace !== 'specifications' ? styles.workspaceHidden : null]}>
           <Text style={styles.sectionTitle}>Specifikacije · {selectedType.name}</Text>
 
           {storageFields.map((field) => {
@@ -598,7 +625,7 @@ export default function AdminCatalogEditScreen() {
         </View>
       ) : null}
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'commercial' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Cena i lager</Text>
         <TextField label="Prodajna cena" value={priceAmount} onChangeText={setPriceAmount} keyboardType="decimal-pad" disabled={product.is_archived} error={errors.price_amount} />
         <SelectSheet label="Valuta" value={currency} disabled={product.is_archived} options={[{ value: 'EUR', label: 'EUR' }, { value: 'RSD', label: 'RSD' }]} onChange={(value) => setCurrency(value === 'RSD' ? 'RSD' : 'EUR')} />
@@ -609,13 +636,13 @@ export default function AdminCatalogEditScreen() {
         <SelectSheet label="Status" value={status} disabled={product.is_archived} options={[{ value: 'draft', label: 'Nacrt' }, { value: 'active', label: 'Aktivan' }, { value: 'inactive', label: 'Neaktivan' }]} onChange={(value) => setStatus(value === 'active' || value === 'draft' ? value : 'inactive')} />
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'description' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Opis</Text>
         <TextField label="Opis" value={description} onChangeText={setDescription} multiline disabled={product.is_archived} error={errors.description} />
         <TextField label="Interne napomene" value={notes} onChangeText={setNotes} multiline disabled={product.is_archived} error={errors.notes} />
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'images' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Fotografije artikla</Text>
         <RemoteProductImageManager
           productId={product.id}
@@ -629,6 +656,8 @@ export default function AdminCatalogEditScreen() {
         />
       </View>
 
+      <View style={activeWorkspace === 'advanced' ? styles.section : styles.workspaceHidden}>
+      <Text style={styles.help}>Sačuvaj izmene pre prodaje, arhive ili naprednih akcija.</Text>
       {/* MOBILE_V0_8_SUPERADMIN_DIRECT_SALE_BATCH10 */}
       {isSuperAdmin && !product.is_archived ? (
         <Card style={styles.directSaleCard}>
@@ -652,8 +681,6 @@ export default function AdminCatalogEditScreen() {
 
       {!product.is_archived ? (
         <View style={styles.section}>
-          <Button variant="secondary" loading={saveMutation.isPending} onPress={() => submit(true)}>Sačuvaj kao nacrt</Button>
-          <Button loading={saveMutation.isPending} onPress={() => submit(false)}>Sačuvaj izmene</Button>
           {product.capabilities.archive ? (
             <Button variant="danger" loading={archiveMutation.isPending} onPress={() => archiveMutation.mutate()}>
               Arhiviraj artikal
@@ -669,6 +696,7 @@ export default function AdminCatalogEditScreen() {
           router.replace('/admin/catalog' as Href);
         }}
       />
+      </View>
 
     </Screen>
   );
@@ -683,6 +711,7 @@ function createStyles(theme: AppColors) {
     title: { ...typography.h1, color: theme.ink },
     copy: { ...typography.body, color: theme.muted },
     section: { gap: spacing.md },
+    workspaceHidden: { display: 'none' },
     sectionTitle: { ...typography.h3, color: theme.ink },
     help: { ...typography.body, color: theme.muted },
     errorCard: { gap: spacing.sm, borderColor: theme.danger },
