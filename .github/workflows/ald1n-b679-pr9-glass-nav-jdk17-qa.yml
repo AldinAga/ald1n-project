@@ -1,0 +1,91 @@
+name: Ald1n Batch679 - PR9 compact glass navigation CI (audit only)
+on:
+  push:
+    branches:
+      - audit/batch679-pr9-glass-nav-jdk17-ci-20261015
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b679-pr9-visual-qa
+  cancel-in-progress: false
+jobs:
+  exact-source-mobile-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact PR9 application source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 9431f949be5daee73302e610101a989e142729ff
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Temurin JDK17 for existing Release25 signature tests
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Exact source, visual-only scope, no native drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "9431f949be5daee73302e610101a989e142729ff"
+          git merge-base --is-ancestor a6750925754bbfdb4fa634f7198ec677d0f137ab HEAD
+          printf '%s\n' \
+            'apps/mobile/current/src/components/layout/app-bottom-nav.tsx' \
+            'apps/mobile/current/src/app/(app)/_layout.tsx' \
+            'apps/mobile/current/scripts/validate-project.mjs' \
+            'apps/mobile/current/scripts/release25/batch664-floating-bottom-nav.test.mjs' \
+            | LC_ALL=C sort > "$RUNNER_TEMP/expected"
+          git diff --name-only --no-renames a6750925754bbfdb4fa634f7198ec677d0f137ab HEAD | LC_ALL=C sort > "$RUNNER_TEMP/actual"
+          diff -u "$RUNNER_TEMP/expected" "$RUNNER_TEMP/actual"
+          git diff --check a6750925754bbfdb4fa634f7198ec677d0f137ab HEAD
+          for tool in java jar keytool jarsigner zip unzip; do command -v "$tool"; done
+          java -version
+          test "$(node -p "require('./apps/mobile/current/package.json').version")" = "1.0.0"
+          grep -Fq '1.0.0-build17' apps/mobile/current/app.config.js
+          grep -Fq '"version": "24.8.0"' apps/mobile/current/eas.json
+          printf '%s\n' 'PASS: EXACT_PR9_SOURCE_VISUAL_ONLY_NO_NATIVE_CHANGE'
+      - name: Install JS dependencies without lifecycle scripts
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: B679_NPM_CI'
+      - name: TypeScript
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: B679_TYPESCRIPT'
+      - name: Canonical mobile validator
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: B679_MOBILE_VALIDATOR'
+      - name: Full Release25 with real JDK17 and compact nav regressions
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          test "$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)" -eq 16
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: B679_FULL_RELEASE25_JDK17'
+      - name: Source remains unchanged after QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: B679_IMMUTABLE_PR9_SOURCE'
