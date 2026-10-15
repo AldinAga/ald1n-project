@@ -1,0 +1,96 @@
+name: Ald1n Batch668 - exact PR8 navigation Release25 JDK17 (audit only)
+on:
+  push:
+    branches:
+      - audit/batch668-pr8-nav-jdk17-20261015
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b668-pr8-nav-release25-jdk17
+  cancel-in-progress: false
+jobs:
+  exact-pr8-mobile-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout immutable PR8 source (not CI workflow commit)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 4c7e0ad0a2f10a3c7411cec7fb4bdf0fe971daa8
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pin Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Real Temurin JDK17 for signature tests
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Exact source SHA, scoped diff and Build25 no-native gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE=4c7e0ad0a2f10a3c7411cec7fb4bdf0fe971daa8
+          BASE=0efb3d78c40b40021dd80d6b092ba16228fb3957
+          test "$(git rev-parse HEAD)" = "$SOURCE"
+          test "$(git merge-base "$BASE" "$SOURCE")" = "$BASE"
+          cat > "$RUNNER_TEMP/b668-scope-expected.txt" <<'EOF'
+          apps/mobile/current/scripts/release25/batch664-floating-bottom-nav.test.mjs
+          apps/mobile/current/scripts/validate-project.mjs
+          apps/mobile/current/src/components/layout/app-bottom-nav-policy.ts
+          apps/mobile/current/src/components/layout/app-bottom-nav.tsx
+          EOF
+          git diff --name-only --no-renames "$BASE" "$SOURCE" | LC_ALL=C sort > "$RUNNER_TEMP/b668-scope-actual.txt"
+          LC_ALL=C sort "$RUNNER_TEMP/b668-scope-expected.txt" -o "$RUNNER_TEMP/b668-scope-expected.txt"
+          diff -u "$RUNNER_TEMP/b668-scope-expected.txt" "$RUNNER_TEMP/b668-scope-actual.txt"
+          git diff --check "$BASE" "$SOURCE"
+          test "$(node -p "require('./apps/mobile/current/package.json').version")" = '1.0.0'
+          grep -Fq 'eas-cli@24.8.0' apps/mobile/current/package.json
+          EXPO_PUBLIC_APP_ENV=production node -e "const c=require('./apps/mobile/current/app.config.js')({config:{}});if(c.runtimeVersion!=='1.0.0-build17'||c.version!=='1.0.0'||c.android.package!=='com.ald1n.mobile'||c.extra.apiUrl!=='https://cms.ald1n.com/api/v1')process.exit(2)"
+          node -e "const e=require('./apps/mobile/current/eas.json');if(e.cli.version!=='24.8.0'||e.build.production.channel!=='production')process.exit(2)"
+          for tool in java jar keytool jarsigner zip unzip; do command -v "$tool"; done
+          java -version
+          printf '%s\n' 'PASS: EXACT_PR8_FOUR_FILES_AND_JDK17_NO_NATIVE_DRIFT'
+      - name: Ephemeral npm CI (no lifecycle scripts, no build)
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: EPHEMERAL_NPM_CI'
+      - name: Canonical Mobile validator
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: MOBILE_VALIDATOR'
+      - name: TypeScript
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: TYPESCRIPT'
+      - name: Full Release25 with real JDK17 and nine new navigation tests
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)"
+          test "$count" -eq 16
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: FULL_RELEASE25_WITH_JDK17'
+      - name: No tracked or untracked source mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: IMMUTABLE_PR8_SOURCE'
