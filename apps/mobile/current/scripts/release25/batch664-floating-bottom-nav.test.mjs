@@ -107,7 +107,7 @@ test('screen renders policy with role-aware routes, accessibility, and no Home c
   assert.match(navSource, /accessibilityState=\{\{ selected: focused, disabled: !item\.enabled \}\}/);
   assert.match(navSource, /\{center \? null : \(/);
   assert.match(navSource, /adjustsFontSizeToFit/);
-  assert.match(navSource, /backgroundColor: BAR_COLOR/);
+  assert.match(navSource, /backgroundColor: isDark \? DARK_GLASS : LIGHT_GLASS/);
   assert.match(navSource, /backgroundColor: theme\.primary/);
 });
 
@@ -118,4 +118,22 @@ test('navigation is a fixed shell sibling of Stack; Home inherits Ald1n brand th
   assert.match(paletteSource, /"primary": "#C45116"/);
   assert.match(paletteSource, /"primary": "#FF8A3D"/);
   assert.doesNotMatch(navSource, /#FF0050|#FF0048|#593B7A/);
+});
+
+test('Batch678 glass navigation is compact, translucent and overlaid above scrolling pages', () => {
+  assert.match(navSource, /const LIGHT_GLASS = 'rgba\\(225,229,232,0\\.78\\)'/);
+  assert.match(navSource, /const DARK_GLASS = 'rgba\\(48,54,60,0\\.76\\)'/);
+  assert.match(navSource, /backgroundColor: isDark \\? DARK_GLASS : LIGHT_GLASS/);
+  assert.doesNotMatch(navSource, /BAR_COLOR|#292929/);
+  assert.match(navSource, /safeFrame: \\{[\\s\\S]*?backgroundColor: 'transparent'/);
+  assert.match(navSource, /bar: \\{\\s*minHeight: 54/);
+  assert.match(navSource, /item: \\{[\\s\\S]*?minHeight: 48/);
+  assert.match(navSource, /homeItem: \\{ transform: \\[\\{ translateY: -9 \\}\\]/);
+  assert.match(navSource, /homeCircle: \\{\\s*width: 52,\\s*height: 52/);
+  assert.match(navSource, /backgroundColor: theme\\.primary/);
+  assert.match(navSource, /color=\\{center\\s*\\? theme\\.onPrimary/);
+  assert.match(navSource, /pressed \\? styles\\.pressed : null/);
+  assert.match(shellSource, /<View pointerEvents="box-none" style=\\{styles\\.bottomNavOverlay\\}>/);
+  assert.match(shellSource, /bottomNavOverlay: \\{\\s*position: 'absolute',\\s*bottom: 0/);
+  assert.ok(shellSource.indexOf('<Stack') < shellSource.lastIndexOf('<AppBottomNav variant="bottom"'));
 });
