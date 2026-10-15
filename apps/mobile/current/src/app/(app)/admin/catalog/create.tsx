@@ -4,6 +4,7 @@ import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
+import { ProductEditorWorkspaceNav, ProductEditorSaveDock, productEditorWorkspaceForError, type ProductEditorWorkspace } from '@/features/admin/product-editor-workspace';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -156,6 +157,7 @@ export default function AdminCatalogCreateScreen() {
   const [images, setImages] = useState<DraftProductImage[]> ([]);
   const [errors, setErrors] = useState<Record<string, string>> ({});
   const [submitError, setSubmitError] = useState<string | null> (null);
+  const [activeWorkspace, setActiveWorkspace] = useState<ProductEditorWorkspace>('identity');
   // MOBILE_BUILD16_PRODUCT_CREATE_SINGLE_FLIGHT_IDEMPOTENCY_BATCH134
   const submitInFlightRef = useRef(false);
   const createAttemptRef = useRef<{ fingerprint: string; key: string } | null> (null);
@@ -246,7 +248,10 @@ export default function AdminCatalogCreateScreen() {
       });
     },
     onError: (error) => {
-      setErrors(serverFieldErrors(error));
+      const nextErrors = serverFieldErrors(error);
+      setErrors(nextErrors);
+      const firstErrorField = Object.keys(nextErrors)[0];
+      if (firstErrorField) setActiveWorkspace(productEditorWorkspaceForError(firstErrorField));
       setSubmitError(apiMessage(error, 'Artikal trenutno nije moguće kreirati.'));
       feedback.notify({
         tone: 'warning',
@@ -291,6 +296,7 @@ export default function AdminCatalogCreateScreen() {
   const imageUploadEnabled = canManageImages && options.capabilities.image_upload;
 
   const changeType = (value: string) => {
+    if (!value) setActiveWorkspace('identity');
     setProductTypeId(value);
     setBrandId('');
     setLineId('');
@@ -444,6 +450,8 @@ export default function AdminCatalogCreateScreen() {
     setErrors(nextErrors);
     setSubmitError(null);
     if (Object.keys(nextErrors).length > 0 || (!saveDraft && (price === null || stock === null || threshold === null))) {
+      const firstErrorField = Object.keys(nextErrors)[0];
+      if (firstErrorField) setActiveWorkspace(productEditorWorkspaceForError(firstErrorField));
       feedback.notify({
         tone: 'warning',
         title: 'Dopuni obavezna polja',
@@ -524,7 +532,25 @@ export default function AdminCatalogCreateScreen() {
   };
 
   return (
-    <Screen contentStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <Screen
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      topAccessory={
+        <ProductEditorWorkspaceNav
+          active={activeWorkspace}
+          onChange={setActiveWorkspace}
+          hasSpecifications={Boolean(selectedType)}
+        />
+      }
+      bottomAccessory={
+        <ProductEditorSaveDock
+          saving={mutation.isPending}
+          onSaveDraft={() => submit(true)}
+          onSave={() => submit(false)}
+          saveLabel="Kreiraj artikal"
+        />
+      }
+    >
       <Pressable accessibilityRole="button" onPress={() => router.back()}>
         <Text style={styles.back}>‹ Nazad</Text>
       </Pressable>
@@ -551,7 +577,7 @@ export default function AdminCatalogCreateScreen() {
         </Card>
       ) : null}
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'identity' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Identitet artikla</Text>
         <SelectSheet
           label="Tip artikla"
@@ -605,7 +631,7 @@ export default function AdminCatalogCreateScreen() {
       </View>
 
       {selectedType ? (
-        <View style={styles.section}>
+        <View style={[styles.section, activeWorkspace !== 'specifications' ? styles.workspaceHidden : null]}>
           <Text style={styles.sectionTitle}>Specifikacije · {selectedType.name}</Text>
           {specificationFields.length === 0 ? (
             <Text style={styles.help}>Ovaj tip nema aktivna specifikaciona polja.</Text>
@@ -758,7 +784,7 @@ export default function AdminCatalogCreateScreen() {
         </View>
       ) : null}
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'commercial' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Cena i status</Text>
         <TextField
           label="Prodajna cena"
@@ -805,7 +831,7 @@ export default function AdminCatalogCreateScreen() {
         />
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'description' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Opis</Text>
         <TextField
           label="Opis"
@@ -828,7 +854,7 @@ export default function AdminCatalogCreateScreen() {
         />
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'commercial' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Lager</Text>
         <TextField
           label="Početno stanje"
@@ -846,7 +872,7 @@ export default function AdminCatalogCreateScreen() {
         />
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, activeWorkspace !== 'images' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Fotografije</Text>
         <DraftProductImageManager
           images={images}
@@ -864,12 +890,6 @@ export default function AdminCatalogCreateScreen() {
             : 'Čuvam artikal…'}
         </Text>
       ) : null}
-      <Button variant="secondary" onPress={() => submit(true)} loading={mutation.isPending}>
-        Sačuvaj kao nacrt
-      </Button>
-      <Button onPress={() => submit(false)} loading={mutation.isPending}>
-        Kreiraj artikal
-      </Button>
     </Screen>
   );
 }
@@ -889,6 +909,7 @@ function createStyles(theme: AppColors) {
     errorTitle: { ...typography.label, color: theme.danger },
     errorCopy: { ...typography.small, color: theme.ink },
     section: { gap: spacing.md },
+    workspaceHidden: { display: 'none' },
     sectionTitle: { ...typography.h2, color: theme.ink, marginTop: spacing.sm },
     help: { ...typography.small, color: theme.muted },
     specField: { gap: spacing.sm },

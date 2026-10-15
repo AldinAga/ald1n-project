@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from 'react';
+import type { PropsWithChildren, ReactNode } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -15,12 +15,16 @@ import { useAppTheme } from '@/theme/app-theme';
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  topAccessory?: ReactNode;
+  bottomAccessory?: ReactNode;
 } & ScrollViewProps>;
 
 export function Screen({
   children,
   scroll = true,
   contentStyle,
+  topAccessory,
+  bottomAccessory,
   ...props
 }: ScreenProps) {
   const { colors: themeColors } = useAppTheme();
@@ -38,6 +42,7 @@ export function Screen({
         style={safeStyle}
         edges={['top', 'left', 'right']}
       >
+        {topAccessory}
         <View
           style={[
             styles.content,
@@ -47,6 +52,7 @@ export function Screen({
         >
           {children}
         </View>
+        {bottomAccessory}
       </SafeAreaView>
     );
   }
@@ -56,6 +62,7 @@ export function Screen({
       style={safeStyle}
       edges={['top', 'left', 'right']}
     >
+      {topAccessory}
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -67,6 +74,7 @@ export function Screen({
       >
         {children}
       </ScrollView>
+      {bottomAccessory}
     </SafeAreaView>
   );
 }
