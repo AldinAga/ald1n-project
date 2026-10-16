@@ -1,0 +1,90 @@
+name: Ald1n Batch683 - npm warning ownership and safe update availability (read-only)
+on:
+  push:
+    branches:
+      - audit/batch683-npm-deprecated-origin-20261016
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b683-npm-provenance-readonly
+  cancel-in-progress: false
+jobs:
+  lockfile-and-eas-transitive-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact current main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 6a02eec0d2a800de7db1996adfdc2fd0e69d0cac
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16 (same CI lineage)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Verify immutable production and main identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "6a02eec0d2a800de7db1996adfdc2fd0e69d0cac"
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const j=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          if (j.cli.version!=='25.0.0'||p.version!=='1.0.0'||j.build.production.channel!=='production') process.exit(2);
+          const lock=JSON.parse(fs.readFileSync('apps/mobile/current/package-lock.json','utf8'));
+          for(const [key, info] of Object.entries(lock.packages)){
+            if(key.endsWith('/xcode'))console.log('ALD1N_LOCK_XCODE='+info.version+' '+JSON.stringify(info.dependencies||{}));
+            if(key.endsWith('/uuid'))console.log('ALD1N_LOCK_UUID='+info.version+' '+(info.deprecated||''));
+          }
+          console.log('PASS: SOURCE_LOCKFILE_READONLY');
+          NODE
+      - name: Inspect current npm registry releases without installing in Ald1n
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in xcode@latest xcode@3.0.1 eas-cli@25.0.0 glob@latest rimraf@latest uuid@latest; do
+            echo "REGISTRY_SPEC=$spec"
+            npm view "$spec" version dependencies.uuid --json || exit 1
+          done
+          echo 'PASS: REGISTRY_READONLY_METADATA'
+      - name: Resolve EAS CLI25 in private runner temp (no npm override, no source mutation)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ald1n-b683-eas25"
+          echo '{"private":true,"name":"ald1n-eas25-provenance-audit","version":"0.0.0"}' > "$RUNNER_TEMP/ald1n-b683-eas25/package.json"
+          npm install --prefix "$RUNNER_TEMP/ald1n-b683-eas25" --ignore-scripts --no-fund --no-audit --save-exact eas-cli@25.0.0
+          node - "$RUNNER_TEMP/ald1n-b683-eas25/package-lock.json" <<'NODE'
+          const fs=require('node:fs');
+          const data=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          for(const [key,info] of Object.entries(data.packages||{})){
+            if(/\/(inflight|rimraf|glob|uuid)$/.test(key)){
+              if(info.deprecated || (/\/uuid$/.test(key) && parseInt(info.version,10)<=10)){
+                console.log('EAS25_DEPRECATED='+JSON.stringify({path:key,version:info.version,reason:info.deprecated||null}));
+              }
+            }
+          }
+          console.log('PASS: EAS25_TRANSITIVE_DEPENDENCY_PROVENANCE');
+          NODE
+          (
+            cd "$RUNNER_TEMP/ald1n-b683-eas25"
+            for dep in inflight rimraf glob uuid; do
+              echo "DEPENDENCY_CHAIN_START=$dep"
+              npm explain "$dep" > "$RUNNER_TEMP/b683-$dep-chain.txt" 2>&1 || true
+              grep -E '^(inflight|rimraf|glob|uuid)@|^  (inflight|rimraf|glob|uuid)|node_modules/|from ' "$RUNNER_TEMP/b683-$dep-chain.txt" | head -n 70 || true
+              echo "DEPENDENCY_CHAIN_END=$dep"
+            done
+          )
+      - name: Read-only audit leaves repo exactly unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          echo 'PASS: B683_NO_REPOSITORY_OR_PRODUCTION_MUTATION'
