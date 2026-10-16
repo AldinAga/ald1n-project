@@ -111,7 +111,7 @@ final class CustomerPortalDashboardTest extends TestCase
             'subtotal_rsd' => 10000,
             'paid_total_rsd' => 0,
             'payment_method' => 'bank_transfer',
-            'payment_status' => 'unpaid',
+            'payment_status' => 'pending',
             'payment_state' => 'unpaid',
         ]);
     }
