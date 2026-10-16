@@ -52,7 +52,8 @@ test('five optional EAS build scripts are pinned to canonical node/npm, no lates
   'build:ios:development':['ios','development']
  };
  for(const [key,[platform,profile]] of Object.entries(targets)){
-  assert.equal(pkg.scripts[key],`${node} ${npm} exec --yes --package=eas-cli@25.0.0 -- eas build --platform ${platform} --profile ${profile}`,key);
+  const iosGuard = platform === 'ios' ? `node scripts/ios-release-readiness.mjs --profile ${profile} && ` : '';
+  assert.equal(pkg.scripts[key],`${iosGuard}${node} ${npm} exec --yes --package=eas-cli@25.0.0 -- eas build --platform ${platform} --profile ${profile}`,key);
  }
  assert.equal(pkg.scripts['build:android:production'],'node scripts/build25-release-controller.mjs');
  assert.equal(pkg.scripts['submit:android:production'],'node scripts/submit-android-production.mjs');
