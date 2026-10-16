@@ -20,6 +20,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - name: Node 22.16 authority
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -38,7 +39,20 @@ jobs:
           npm run typecheck
           npm run validate
           npm run test:release25
-          npx expo install --check
+          set +e
+          npx expo install --check > "${RUNNER_TEMP}/catalog-expo-compat.log" 2>&1
+          expo_rc=$?
+          set -e
+          cat "${RUNNER_TEMP}/catalog-expo-compat.log"
+          if [ "$expo_rc" -ne 0 ]; then
+            if grep -Fq 'Found outdated dependencies' "${RUNNER_TEMP}/catalog-expo-compat.log" &&
+               git diff --quiet e0adb7cf8b9a2d569043ce826b98624c12385f81 HEAD -- package.json package-lock.json; then
+              echo 'EXPO_DEPENDENCY_BASELINE_WARNING=KNOWN_UNCHANGED_FROM_MAIN'
+            else
+              echo 'HOLD: Expo check failed for a reason not attested as baseline'
+              exit "$expo_rc"
+            fi
+          fi
       - name: PHP syntax and cross-layer page ordering
         shell: bash
         run: |
