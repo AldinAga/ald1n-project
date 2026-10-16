@@ -52,14 +52,14 @@ test('five optional EAS build scripts are pinned to canonical node/npm, no lates
   'build:ios:development':['ios','development']
  };
  for(const [key,[platform,profile]] of Object.entries(targets)){
-  assert.equal(pkg.scripts[key],`${node} ${npm} exec --yes --package=eas-cli@24.8.0 -- eas build --platform ${platform} --profile ${profile}`,key);
+  assert.equal(pkg.scripts[key],`${node} ${npm} exec --yes --package=eas-cli@25.0.0 -- eas build --platform ${platform} --profile ${profile}`,key);
  }
  assert.equal(pkg.scripts['build:android:production'],'node scripts/build25-release-controller.mjs');
  assert.equal(pkg.scripts['submit:android:production'],'node scripts/submit-android-production.mjs');
  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@latest'));
- assert.equal(eas.cli.version,'24.8.0');
- marker(helper,"const EAS_CLI_VERSION = '24.8.0'");
- marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'24.8.0\'")');
+ assert.equal(eas.cli.version,'25.0.0');
+ marker(helper,"const EAS_CLI_VERSION = '25.0.0'");
+ marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'25.0.0\'")');
 });
 test('production build and legacy submit remain explicitly fail closed',()=>{
  marker(controller,'BUILD25_BLOCKED: Direct production CLI not enabled');

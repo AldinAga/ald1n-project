@@ -1,3 +1,16 @@
+# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)
+
+- Latest verified Android production OTA source **904c1db0f4213ff2e3eea3757869f86556d55378**, merged PR #10. CLI-only config/docs commits after this source SHA do **not** imply a new OTA.
+- Production Android OTA group **37ae8af0-b950-4549-8476-c960e1350866**, update **01a1436c-40d0-7f00-a22d-460d74dcf12c**, independently exact-group and GraphQL latest verified (Report682, 2026-10-16). Isolated candidate group **1156d58f-af30-4a7c-a4c2-91ccfb9385ab**, Android update **01a1436b-b502-7efc-8803-fc208a18219c** (Report681).
+- Build25 appVersion **1.0.0**, versionCode **25**, runtimeVersion **1.0.0-build17**, Android `com.ald1n.mobile`, EAS profile/channel `production`. No new native build, OTA or Google Play action for CLI pin migration.
+- Last source QA for production Product Editor: full Release25 **140/140 PASS** under real JDK17, TypeScript PASS, Mobile validator 0 FAIL; [CI 38746486532](https://github.com/AldinAga/ald1n-project/actions/runs/38746486532).
+- Canonical EAS CLI is `25.0.0` for the updated `eas.json` and `AGENTS.md`; [read-only Node22.16 CLI25 compatibility CI 38862601089](https://github.com/AldinAga/ald1n-project/actions/runs/38862601089) PASS. **Authenticated exact-group CLI25 host smoke remains a separate read-only activation gate before any future CLI25 production mutation.** Do not globally install EAS CLI.
+- Android physical Google Play UAT of Product Create/Edit (two cold starts, editor sections, retention, validation jump, idempotent saves) and compact navigation appearance remains **HOLD_PENDING_PHYSICAL_PLAY_DEVICE**. CLI or OTA test evidence is not physical UAT.
+- Host checkout last reported `b5b942e645d28d3ed5f248eaae4180ebe9a54ee6` is stale and dirty: do not run destructive reset, checkout, pull or clean. Reports681/682 were uploaded by the owner from canonical `docs/operations`; preserve their evidence and archive through normal SHA/sequence gates.
+- Liquid Glass is the LAST planned project phase, after functional QA and first iOS build.
+
+## Historical Workspace V2 production OTA / Batch632 — NOT CURRENT AUTHORITY
+
 # CURRENT AUTHORITY — Workspace V2 production OTA / Batch632 (2026-10-12)
 
 - GitHub main source deployed as OTA: `52850d185d2c26d0a72a26d64520528714fe2f01`. For current main HEAD reverify live GitHub refs; later documentation commits do not imply a new OTA.

@@ -26,13 +26,19 @@ test('P1: real signature crypto regressions run after JDK17 before Android SDK',
 
 test('P2: current Workspace V2 pointer is authoritative; old Build25 audit source remains historical', () => {
   const archiveMarker = '## Historical Build25 pre-OTA snapshot — NOT CURRENT AUTHORITY';
-  const current = pointer.split(archiveMarker)[0];
-  assert.ok(current.startsWith('# CURRENT AUTHORITY — Workspace V2 production OTA / Batch632'));
-  assert.ok(current.includes('Build25 appVersion `1.0.0`, versionCode `25`'));
-  assert.ok(current.includes('52850d185d2c26d0a72a26d64520528714fe2f01'));
-  assert.ok(current.includes('27dd4b5d-63b3-4902-9b0b-5f289076f0e6'));
-  assert.ok(current.includes('Canonical EAS CLI is `24.8.0`'));
+  const workspaceMarker = '## Historical Workspace V2 production OTA / Batch632 — NOT CURRENT AUTHORITY';
+  const current = pointer.split(workspaceMarker)[0];
+  const historicalWorkspace = pointer.split(workspaceMarker)[1]?.split(archiveMarker)[0] ?? '';
+  assert.ok(current.startsWith('# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)'));
+  assert.ok(current.includes('Build25 appVersion **1.0.0**, versionCode **25**'));
+  assert.ok(current.includes('904c1db0f4213ff2e3eea3757869f86556d55378'));
+  assert.ok(current.includes('37ae8af0-b950-4549-8476-c960e1350866'));
+  assert.ok(current.includes('Canonical EAS CLI is `25.0.0`'));
+  assert.ok(current.includes('HOLD_PENDING_PHYSICAL_PLAY_DEVICE'));
   assert.ok(!current.includes('EAS_CLI=eas-cli@24.7.0'));
+  assert.ok(historicalWorkspace.includes('52850d185d2c26d0a72a26d64520528714fe2f01'));
+  assert.ok(historicalWorkspace.includes('27dd4b5d-63b3-4902-9b0b-5f289076f0e6'));
+  assert.ok(historicalWorkspace.includes('Canonical EAS CLI is `24.8.0`'));
 
   const pre = pointer.split(archiveMarker)[1]
     ?.split('## Archived Build23/Build24 historical snapshot')[0]
