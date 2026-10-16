@@ -95,7 +95,7 @@ final class PasswordResetService
             }
 
             $user = User::query()->lockForUpdate()->find($reset->user_id);
-            if ($user === null) {
+            if ($user === null || $user->retired_at !== null || $user->status === 'blocked') {
                 return false;
             }
 
