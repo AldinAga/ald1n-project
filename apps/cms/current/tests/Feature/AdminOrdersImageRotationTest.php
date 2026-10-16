@@ -100,19 +100,32 @@ final class AdminOrdersImageRotationTest extends TestCase
         $customer = $this->user('optional-customer', 'user');
         $order = $this->order($admin, $customer, 'ORD-OPTIONAL-0001');
 
-        foreach ([
+        // Simulate missing optional tables without issuing destructive MySQL DDL.
+        // Referenced tables have live foreign keys and dropping them breaks the
+        // shared isolated test schema (and could never run on production).
+        $missing = [
             'order_ips_qr', 'audit_logs', 'order_documents', 'order_payments',
             'order_internal_notes', 'order_assignments', 'commission_status_history',
-        ] as $table) {
-            Schema::dropIfExists($table);
+        ];
+        $realSchema = Schema::getFacadeRoot();
+        Schema::partialMock()->shouldReceive('hasTable')->andReturnUsing(
+            static fn (string $table): bool => !in_array($table, $missing, true)
+                && $realSchema->hasTable($table),
+        );
+
+        try {
+            $this->actingAs($admin)
+                ->get('/admin/orders/'.$order->id)
+                ->assertOk()
+                ->assertSee('data-order-detail-ready="1"', false)
+                ->assertSee('Napomena sistema')
+                ->assertDontSee('Server Error');
+        } finally {
+            Schema::swap($realSchema);
         }
 
-        $this->actingAs($admin)
-            ->get('/admin/orders/'.$order->id)
-            ->assertOk()
-            ->assertSee('data-order-detail-ready="1"', false)
-            ->assertSee('Napomena sistema')
-            ->assertDontSee('Server Error');
+        self::assertTrue(Schema::hasTable('order_documents'));
+        self::assertTrue(Schema::hasTable('order_payments'));
     }
 
 
