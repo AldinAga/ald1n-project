@@ -490,6 +490,81 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
             ->assertDontSee($target->username);
     }
 
+    public function test_retired_marker_blocks_login_google_reset_invites_and_permissions_even_if_status_drifts(): void
+    {
+        $actor = $this->user('drift-root', 'superadmin');
+        $target = $this->user('drift-target');
+        app(UserRetirementService::class)->retire($target, $actor);
+
+        // Simulate an out-of-band status correction. The irreversible marker
+        // must remain authoritative for every authentication path.
+        $target->fresh()->forceFill(['status' => 'active'])->save();
+        $target = $target->fresh();
+        $target->clearResolvedAccessCache();
+
+        self::assertNotNull($target->retired_at);
+        self::assertSame([], $target->permissionSlugs());
+
+        $this->postJson('/api/v1/auth/token', [
+            'login' => $target->email,
+            'password' => 'Secret123!',
+            'device_name' => 'android-retired-drift',
+        ])->assertUnprocessable();
+
+        $reset = app(\App\Services\PasswordResetService::class);
+        $reset->sendResetLink($target->email);
+        self::assertSame(0, DB::table('password_reset_tokens')->where('user_id', $target->id)->count());
+
+        DB::table('password_reset_tokens')->insert([
+            'user_id' => $target->id, 'token_hash' => hash('sha256', 'qa-retired-reset'),
+            'expires_at' => now()->addHour(), 'created_at' => now(),
+        ]);
+        self::assertFalse($reset->tokenIsValid('qa-retired-reset'));
+        self::assertFalse($reset->resetPassword('qa-retired-reset', 'NewSecret123!'));
+
+        $activate = app(\App\Services\CustomerActivationService::class);
+        $this->assertRetiredInviteBlocked($activate, $target);
+        DB::table('user_activation_tokens')->insert([
+            'user_id' => $target->id, 'token_hash' => hash('sha256', 'qa-retired-invite'),
+            'expires_at' => now()->addHour(), 'created_at' => now(),
+        ]);
+        self::assertFalse($activate->tokenIsValid('qa-retired-invite'));
+        self::assertNull($activate->activate('qa-retired-invite', 'NewSecret123!'));
+
+        try {
+            app(\App\Services\GoogleAuthService::class)->resolve([
+                'sub' => 'qa-retired-google-subject',
+                'email' => $target->email,
+                'email_verified' => true,
+                'hd' => null,
+                'name' => 'QA retired',
+                'given_name' => 'QA',
+                'family_name' => 'Retired',
+            ]);
+            self::fail('Google auth must not restore a retired account.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            self::assertArrayHasKey('google', $e->errors());
+        }
+
+        $this->actingAs($target)->get('/orders')->assertRedirect(route('login'));
+        $this->app['auth']->forgetGuards();
+        Sanctum::actingAs($target, ['*']);
+        $this->getJson('/api/v1/me')->assertForbidden();
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'active']);
+        self::assertNotNull($target->fresh()?->retired_at);
+    }
+
+    private function assertRetiredInviteBlocked(\App\Services\CustomerActivationService $service, User $target): void
+    {
+        try {
+            $service->invite($target);
+            self::fail('Retired account must not receive an invitation.');
+        } catch (HttpException $e) {
+            self::assertSame(422, $e->getStatusCode());
+        }
+    }
+
     private function assertRetireStatus(int $expected, User $target, User $actor): void
     {
         try {
