@@ -103,7 +103,7 @@ jobs:
               files="tests/Feature/AdminProductManagementTest.php tests/Feature/CatalogAccessTest.php tests/Feature/CatalogDetailPageTest.php tests/Feature/InventoryAdjustmentTest.php tests/Feature/ProductImageManagementTest.php tests/Feature/ProductionOrderInventoryTest.php tests/Feature/SmartProductManagementTest.php"
               ;;
             orders-finance)
-              files="tests/Feature/ManagementReportsProfitabilityTest.php tests/Feature/OrderAmendmentTest.php tests/Feature/OrderDeliveryWorkflowTest.php tests/Feature/OrderEmailsIpsWarrantyTest.php tests/Feature/PaymentsAdvancedInventoryTest.php tests/Feature/ReceivablesCollectionTest.php tests/Feature/ReportsDocumentsSupplierTest.php"
+              files="tests/Feature/AdminOrdersImageRotationTest.php tests/Feature/OperationalOrdersCommissionsTest.php tests/Feature/ManagementReportsProfitabilityTest.php tests/Feature/OrderAmendmentTest.php tests/Feature/OrderDeliveryWorkflowTest.php tests/Feature/OrderEmailsIpsWarrantyTest.php tests/Feature/PaymentsAdvancedInventoryTest.php tests/Feature/ReceivablesCollectionTest.php tests/Feature/ReportsDocumentsSupplierTest.php"
               ;;
             aftersales-operations)
               files="tests/Feature/AfterSalesActionExecutionTest.php tests/Feature/AfterSalesWorkflowTest.php tests/Feature/FieldOperationsWorkflowTest.php tests/Feature/OperationalAutomationTest.php tests/Feature/ServicePartsWorkflowTest.php tests/Feature/WarrantiesPreventiveMaintenanceTest.php"
