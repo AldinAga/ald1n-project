@@ -127,7 +127,7 @@ final class GoogleAuthService
 
     private function maybeActivatePending(User $user): void
     {
-        if ($user->status !== 'pending') {
+        if ($user->status !== 'pending' || $user->retired_at !== null) {
             return;
         }
         if (!(bool) config('mobile.google_auth.registration_enabled', false)
