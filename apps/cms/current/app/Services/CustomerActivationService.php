@@ -66,7 +66,7 @@ final class CustomerActivationService
             ->where('token_hash', hash('sha256', $plainToken))
             ->whereNull('accepted_at')
             ->where('expires_at', '>', now())
-            ->whereHas('user', static fn ($query) => $query->where('status', '!=', 'blocked'))
+            ->whereHas('user', static fn ($query) => $query->where('status', '!=', 'blocked')->whereNull('retired_at'))
             ->exists();
     }
 
