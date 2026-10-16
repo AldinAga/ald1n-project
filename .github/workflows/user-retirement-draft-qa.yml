@@ -13,7 +13,30 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+      - name: Ephemeral PR16 merge with exact verified main - NO REMOTE WRITE
+        shell: bash
+        env:
+          PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+          PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+          PINNED_PR_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_PR_HEAD"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_MAIN"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PINNED_MAIN"
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          # Preserve merged Batch687 catalog and production webroot baseline.
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/app/Services/CatalogQueryService.php
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/public/.htaccess
+          # A release uses a committed source, not this uncommitted CI merge.
+          printf 'MAIN_INTEGRATION_NO_CONFLICT=PASS\\n'
+          printf 'BATCH687_CATALOG_BLOB_RETAINED=PASS\\n'
+          printf 'WEBROOT_MAIN_BLOB_RETAINED=PASS\\n'
+          printf 'GIT_REMOTE_MUTATIONS=ZERO\\n'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.16.0'
@@ -90,7 +113,30 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+      - name: Ephemeral PR16 merge with exact verified main - NO REMOTE WRITE
+        shell: bash
+        env:
+          PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+          PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+          PINNED_PR_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_PR_HEAD"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_MAIN"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PINNED_MAIN"
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          # Preserve merged Batch687 catalog and production webroot baseline.
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/app/Services/CatalogQueryService.php
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/public/.htaccess
+          # A release uses a committed source, not this uncommitted CI merge.
+          printf 'MAIN_INTEGRATION_NO_CONFLICT=PASS\\n'
+          printf 'BATCH687_CATALOG_BLOB_RETAINED=PASS\\n'
+          printf 'WEBROOT_MAIN_BLOB_RETAINED=PASS\\n'
+          printf 'GIT_REMOTE_MUTATIONS=ZERO\\n'
       - name: PHP 8.4 with real MySQL PDO
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
@@ -177,6 +223,7 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/cms/current
+          php bin/static-check.php
           php bin/php-lint.php
           php bin/autoload-check.php
           php artisan route:list > /dev/null
