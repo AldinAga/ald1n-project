@@ -193,7 +193,7 @@ final class AdminOrdersImageRotationTest extends TestCase
             ->assertSee('Postojeće slike')
             ->assertSee('↶ 90°')
             ->assertSee('↷ 90°')
-            ->assertSee('Legacy · pri rotaciji se pravi lokalna kopija');
+            ->assertSee('Legacy · rotacija pravi lokalnu kopiju');
     }
 
 
