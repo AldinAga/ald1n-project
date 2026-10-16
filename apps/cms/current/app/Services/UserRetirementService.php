@@ -15,8 +15,11 @@ use Illuminate\Support\Facades\DB;
  */
 final class UserRetirementService
 {
-    public function __construct(private readonly AuditLogger $audit)
-    {
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly UserRetirementRelationPolicy $relations,
+        private readonly UserRetirementWorkTransferService $work,
+    ) {
     }
 
     /**
@@ -30,6 +33,9 @@ final class UserRetirementService
         abort_if((int) $actor->getKey() === (int) $target->getKey(), 422);
         abort_if($target->hasRole('superadmin'), 422);
 
+        // Verify EVERY known foreign key and non-FK actor field, never rely
+        // on a partial preview or a stale production schema.
+        $schema = $this->relations->verifySchema();
         $id = (int) $target->getKey();
 
         return [
@@ -38,11 +44,15 @@ final class UserRetirementService
             'warranties' => (int) DB::table('product_warranties')->where('user_id', $id)->count(),
             'conversations' => (int) DB::table('portal_conversations')->where('user_id', $id)->count(),
             'assignments' => (int) DB::table('order_assignments')->where('new_supplier_user_id', $id)->count(),
+            // History above remains linked to the original user permanently.
+            ...$this->work->counts($id),
+            'foreign_keys' => $schema['foreign_keys'],
+            'unconstrained_history' => $schema['unconstrained_history'],
         ];
     }
 
     /**
-     * @return array{orders:int,recipient_id:int,mode:string}
+     * @return array<string,int|string>
      */
     public function retire(User $target, User $actor): array
     {
@@ -62,13 +72,10 @@ final class UserRetirementService
             abort_if($locked->retired_at !== null, 422, 'Nalog je već trajno deaktiviran.');
             abort_if($locked->status === 'blocked', 422, 'Nalog je već blokiran. Potrebna je zasebna provera.');
 
-            // Temporary fail-closed gate until every non-order business relationship
-            // has a separately tested retention/reassignment policy. Never allow
-            // 'retired' to suggest complete deletion of a user with unreviewed links.
+            // 121 FK + 7 unconstrained columns are classified and schema-checked.
+            // Commission ownership, warranties, conversations, assignments and
+            // audit actors are historical. They remain on this retained user row.
             $impact = $this->impact($locked, $recipient);
-            foreach (['commissions', 'warranties', 'conversations', 'assignments'] as $relation) {
-                abort_if($impact[$relation] > 0, 422, 'Korisnik ima povezane poslovne evidencije: '.$relation);
-            }
 
             // A business entity is never deleted by cascading FK effects because
             // the user record survives. Keep original attribution in an append-only
@@ -109,8 +116,12 @@ final class UserRetirementService
                 abort_if($affected !== $orders, 409, 'Prenos porudžbina nije potpun.');
             }
 
-            // Block login immediately while preserving all historic foreign keys,
-            // original commission recipients, audit actors and warranty ownership.
+            // Move ONLY active operational assignments and append durable audit
+            // records in this same transaction; terminal assignment history stays.
+            $transfers = $this->work->transfer($locked, $recipient, $impact);
+
+            // Block login immediately while retaining the original user row,
+            // financial ownership, warranties, CRM and historical actor IDs.
             $locked->forceFill(['status' => 'blocked', 'retired_at' => now(), 'remember_token' => null])->save();
             DB::table('user_login_sessions')
                 ->where('user_id', (int) $locked->getKey())
@@ -130,6 +141,26 @@ final class UserRetirementService
                 ]);
             $locked->tokens()->delete();
 
+            // Revoke outstanding one-use recovery/activation credentials.
+            // Accepted invitations remain historic evidence.
+            DB::table('user_activation_tokens')->where('user_id', (int) $locked->getKey())
+                ->whereNull('accepted_at')->delete();
+            DB::table('password_reset_tokens')->where('user_id', (int) $locked->getKey())
+                ->whereNull('used_at')->delete();
+            DB::table('restore_credentials')->where('user_id', (int) $locked->getKey())->delete();
+
+            // Prevent queued pushes to the retired identity. Retain outbox
+            // rows as evidence of an attempted notification.
+            DB::table('mobile_push_outbox')
+                ->where('user_id', (int) $locked->getKey())
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'failed',
+                    'failed_at' => now(),
+                    'last_error' => 'Nalog je trajno deaktiviran; push nije poslat.',
+                    'updated_at' => now(),
+                ]);
+
             $this->audit->log(
                 'user.retired',
                 'Korisnik',
@@ -140,6 +171,13 @@ final class UserRetirementService
                     'mode' => 'non_destructive_retirement',
                     'transferred_orders' => $orders,
                     'recipient_user_id' => (int) $recipient->getKey(),
+                    'preserved_commissions' => $impact['commissions'],
+                    'preserved_warranties' => $impact['warranties'],
+                    'preserved_conversations' => $impact['conversations'],
+                    'preserved_order_assignments' => $impact['assignments'],
+                    'schema_foreign_keys' => $impact['foreign_keys'],
+                    'schema_unconstrained_history' => $impact['unconstrained_history'],
+                    'active_work_transfers' => $transfers,
                 ],
                 user: $actor,
             );
@@ -148,6 +186,7 @@ final class UserRetirementService
                 'orders' => $orders,
                 'recipient_id' => (int) $recipient->getKey(),
                 'mode' => 'non_destructive_retirement',
+                ...$transfers,
             ];
         }, 5);
     }
