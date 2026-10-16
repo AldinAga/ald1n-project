@@ -25,6 +25,18 @@
       },
       "autoIncrement": true
     },
+    "ios-simulator": {
+      "distribution": "internal",
+      "channel": "preview",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
