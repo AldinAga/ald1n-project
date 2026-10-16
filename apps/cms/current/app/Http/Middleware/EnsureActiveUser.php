@@ -20,7 +20,7 @@ final class EnsureActiveUser
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if ($user === null || $user->status !== 'active') {
+        if ($user === null || $user->status !== 'active' || $user->retired_at !== null) {
             $this->securityEvents->log('account.inactive_access', 'warning', $request, ['user_id' => $user?->getAuthIdentifier()]);
             if ($request->is('api/*') || $request->expectsJson()) {
                 return ApiErrorResponse::make($request, 'Nalog nije aktivan.', 'account_inactive', 403);
