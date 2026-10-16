@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -22,6 +23,7 @@ import { EmptyState, ErrorState, LoadingState, UnavailableState } from '@/compon
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCart } from '@/features/cart/cart-provider';
+import { catalogProductsFromPages, nextCatalogPage } from '@/features/catalog/catalog-pagination';
 import { api } from '@/lib/api/endpoints';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import type { CatalogFilters, Product, Taxonomy } from '@/types/api';
@@ -66,11 +68,18 @@ export default function CatalogScreen() {
     [brandId, categoryId, lineId, search, sort, stock, typeId],
   );
 
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey: ['products', productParams],
-    queryFn: () => api.catalog.products(productParams),
+    queryFn: ({ pageParam }) => api.catalog.products({ ...productParams, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: nextCatalogPage,
     enabled: allowed,
   });
+  const products = useMemo(() => catalogProductsFromPages(query.data?.pages ?? []), [query.data?.pages]);
+  const loadNextPage = useCallback(() => {
+    if (!query.hasNextPage || query.isFetching || query.isRefetching) return;
+    void query.fetchNextPage();
+  }, [query.hasNextPage, query.isFetching, query.isRefetching, query.fetchNextPage]);
 
   // MOBILE_BUILD16_CATALOG_FOCUS_FRESHNESS_BATCH134
   const refetchProducts = query.refetch;
@@ -112,20 +121,22 @@ export default function CatalogScreen() {
 
   if (!allowed) return <UnavailableState title="Katalog nije dostupan" />;
   if (query.isLoading) return <LoadingState label="Učitavanje kataloga…" />;
-  if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+  if (query.isError && !query.data) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
-  const total = query.data?.meta?.total ?? query.data?.data.length ?? 0;
+  const total = query.data?.pages[0]?.meta?.total ?? products.length;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         key={`catalog-${catalogColumns}`}
-        data={query.data?.data ?? []}
+        data={products}
         keyExtractor={catalogKeyExtractor}
         renderItem={renderProduct}
         numColumns={catalogColumns}
         columnWrapperStyle={catalogColumns > 1 ? styles.catalogRow : undefined}
         ItemSeparatorComponent={CatalogSeparator}
+        onEndReached={loadNextPage}
+        onEndReachedThreshold={0.5}
         initialNumToRender={7}
         maxToRenderPerBatch={7}
         windowSize={5}
@@ -248,6 +259,20 @@ export default function CatalogScreen() {
             title="Nema proizvoda"
             message="Promeni pretragu ili filtere kataloga."
           />
+        )}
+        ListFooterComponent={(
+          <View style={styles.paginationFooter}>
+            {query.isFetchingNextPage ? (
+              <ActivityIndicator color={themeColors.primary} accessibilityLabel="Učitavanje sledećih artikala" />
+            ) : query.isFetchNextPageError ? (
+              <Pressable accessibilityRole="button" onPress={() => void query.fetchNextPage()}>
+                <Text style={styles.paginationRetry}>Učitavanje nije uspelo — pokušaj ponovo</Text>
+              </Pressable>
+            ) : null}
+            {products.length > 0 ? (
+              <Text style={styles.paginationLabel}>Prikazano {products.length} od {total} artikala</Text>
+            ) : null}
+          </View>
         )}
       />
     </SafeAreaView>
@@ -424,6 +449,9 @@ function createStyles(theme: AppColors) {
     catalogRow: {
       gap: spacing.md,
     },
+    paginationFooter: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
+    paginationRetry: { ...typography.label, color: theme.primary, textAlign: 'center' },
+    paginationLabel: { ...typography.small, color: theme.muted, textAlign: 'center' },
     catalogGridItem: {
       flex: 1,
       minWidth: 0,
