@@ -122,6 +122,13 @@ export type UserRetirementImpact = {
   warranties: number;
   conversations: number;
   assignments: number;
+  supplier_orders: number;
+  after_sales_cases: number;
+  after_sales_actions: number;
+  portal_assignments: number;
+  receivable_cases: number;
+  foreign_keys: number;
+  unconstrained_history: number;
 };
 
 export type UserRetirementPreview = {
@@ -132,7 +139,7 @@ export type UserRetirementPreview = {
 
 export type UserRetirementResult = {
   message: string;
-  data: { orders: number; recipient_id: number; mode: 'non_destructive_retirement' };
+  data: { orders: number; recipient_id: number; mode: 'non_destructive_retirement' } & Pick<UserRetirementImpact, 'supplier_orders' | 'after_sales_cases' | 'after_sales_actions' | 'portal_assignments' | 'receivable_cases'>;
 };
 
 export const apiAdminUsers = {
