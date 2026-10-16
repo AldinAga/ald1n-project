@@ -146,7 +146,7 @@ final class GoogleAuthService
 
     private function assertUsableStatus(User $user): void
     {
-        if (!in_array((string) $user->status, ['active', 'pending'], true)) {
+        if ($user->retired_at !== null || !in_array((string) $user->status, ['active', 'pending'], true)) {
             throw ValidationException::withMessages([
                 'google' => ['CMS nalog nije aktivan. Obrati se administratoru.'],
             ]);
