@@ -86,7 +86,7 @@ final class User extends Authenticatable implements PasskeyUser
     public function permissionSlugs(): array
     {
         try {
-            if ($this->status !== 'active') {
+            if ($this->status !== 'active' || $this->retired_at !== null) {
                 return [];
             }
 
