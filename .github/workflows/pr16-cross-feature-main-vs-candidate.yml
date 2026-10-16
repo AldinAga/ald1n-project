@@ -138,7 +138,7 @@ jobs:
           echo "BROAD_SUITE_SCOPE=$TEST_SCOPE"
           echo "BROAD_SUITE_FILES=$(printf '%s\n' "$files" | wc -w | tr -d ' ')"
           set +e
-          php artisan test -c phpunit.mysql.xml $files --stop-on-failure --no-ansi
+          php artisan test -c phpunit.mysql.xml $files --no-ansi --log-junit "$RUNNER_TEMP/$TEST_SCOPE-$RUN_SOURCE.junit.xml"
           result=$?
           set -e
           echo "BROAD_SUITE_RC=$result"
@@ -152,3 +152,13 @@ jobs:
             echo '| Production mutation | ZERO |'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$result"
+
+
+      - name: Preserve full PHPUnit comparison report even on suite failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr16-comparison-${{ matrix.source }}-${{ matrix.scope }}-${{ github.sha }}
+          path: ${{ runner.temp }}/*.junit.xml
+          if-no-files-found: warn
+          retention-days: 7
