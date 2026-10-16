@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\AdminUserService;
 use App\Services\UserRetirementService;
+use App\Services\UserRetirementRelationPolicy;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -139,7 +140,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         self::assertSame(0, DB::table('audit_logs')->where('action', 'user.retired')->count());
     }
 
-    public function test_commission_ownership_blocks_retirement_without_mutating_evidence(): void
+    public function test_commission_ownership_remains_immutable_after_retirement(): void
     {
         $actor = $this->user('commission-admin', 'superadmin');
         $target = $this->user('commission-target');
@@ -151,13 +152,14 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         self::assertSame(1, app(UserRetirementService::class)->impact($target, $actor)['commissions']);
-        $this->assertRetireStatus(422, $target, $actor);
-        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'active', 'retired_at' => null]);
+        app(UserRetirementService::class)->retire($target, $actor);
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        self::assertNotNull($target->fresh()?->retired_at);
         $this->assertDatabaseHas('order_commissions', ['user_id' => $target->id, 'order_id' => $order, 'status' => 'paid']);
         self::assertSame(0, DB::table('portal_order_link_history')->count());
     }
 
-    public function test_conversation_and_assignment_ownership_are_fail_closed(): void
+    public function test_customer_conversation_and_historical_assignments_survive_retirement(): void
     {
         $actor = $this->user('linked-admin', 'superadmin');
         $target = $this->user('linked-target');
@@ -177,7 +179,8 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         $impact = app(UserRetirementService::class)->impact($target, $actor);
         self::assertSame(1, $impact['conversations']);
         self::assertSame(1, $impact['assignments']);
-        $this->assertRetireStatus(422, $target, $actor);
+        app(UserRetirementService::class)->retire($target, $actor);
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
         $this->assertDatabaseHas('portal_conversations', ['id' => $thread, 'user_id' => $target->id]);
         $this->assertDatabaseHas('order_assignments', ['id' => $assignment, 'new_supplier_user_id' => $target->id]);
     }
@@ -274,7 +277,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         $this->assertDatabaseHas('user_groups', ['id' => 1, 'created_by' => $target->id]);
     }
 
-    public function test_warranty_with_cascade_fk_blocks_removal_without_data_loss(): void
+    public function test_warranty_with_cascade_fk_remains_owned_by_retired_customer(): void
     {
         $actor = $this->user('warranty-root', 'superadmin');
         $target = $this->user('warranty-target');
@@ -299,8 +302,9 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         ]);
 
         self::assertSame(1, app(UserRetirementService::class)->impact($target, $actor)['warranties']);
-        $this->assertRetireStatus(422, $target, $actor);
-        $this->assertDatabaseHas('users', ['id' => $target->id, 'retired_at' => null, 'status' => 'active']);
+        app(UserRetirementService::class)->retire($target, $actor);
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        self::assertNotNull($target->fresh()?->retired_at);
         $this->assertDatabaseHas('product_warranties', [
             'id' => $warranty, 'user_id' => $target->id, 'status' => 'active',
         ]);
@@ -330,7 +334,12 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         ] as $required) {
             self::assertContains($required, $keys, 'Schema FK inventory must retain '.$required);
         }
-        self::assertGreaterThan(60, count($keys), 'Verify the full migrated FK network is present in isolated CI.');
+        self::assertCount(121, $keys, 'Must classify all migrated 121 user-FK references.');
+        $policy = app(UserRetirementRelationPolicy::class);
+        $report = $policy->verifySchema();
+        self::assertSame(121, $report['foreign_keys']);
+        self::assertSame(7, $report['unconstrained_history']);
+        self::assertCount(121, UserRetirementRelationPolicy::USER_FKS);
     }
 
     private function assertRetireStatus(int $expected, User $target, User $actor): void
