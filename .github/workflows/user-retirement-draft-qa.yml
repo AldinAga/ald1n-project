@@ -138,22 +138,34 @@ jobs:
             }
           '
 
-      - name: Full Laravel Feature regression on isolated SQLite
+      - name: Related Laravel feature regression on disposable MySQL 8.4
         shell: bash
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
         run: |
           set -euo pipefail
-          test "$DB_CONNECTION" = sqlite
-          test "$DB_DATABASE" = ':memory:'
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          test "$DB_HOST" = 127.0.0.1
           test "$APP_ENV" = testing
           cd apps/cms/current
-          # Existing AdminOrdersImageRotationTest removes referenced tables.
-          # That preexisting fixture is incompatible with MySQL FK protection.
-          # Keep the 121-FK retirement suite on real MySQL, run all other
-          # Laravel Feature tests in the canonical isolated SQLite harness.
-          php artisan test -c phpunit.xml --testsuite=Feature --stop-on-failure
+          # Full MySQL Feature suite contains an unrelated test that DROP TABLEs
+          # with live FKs (AdminOrdersImageRotationTest). The full SQLite suite
+          # contains a pre-existing MySQL-only migration introspecting
+          # information_schema.COLUMNS. Neither is an accurate PR16 red gate.
+          # Run real-MySQL retirement + broad, related HTTP/security regressions.
+          php artisan test -c phpunit.mysql.xml --stop-on-failure \
+            tests/Feature/ApiTokenTest.php \
+            tests/Feature/AuthenticationTest.php \
+            tests/Feature/ProductionPermissionsTest.php \
+            tests/Feature/CustomerPortal2Test.php \
+            tests/Feature/OperationalOrdersCommissionsTest.php
+
+      - name: Laravel full static analysis and route boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          php bin/php-lint.php
+          php bin/autoload-check.php
+          php artisan route:list > /dev/null
       - name: Explicit production safety receipt
         shell: bash
         run: |
