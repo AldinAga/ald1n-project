@@ -81,7 +81,7 @@ export default function AdminUsersDetailScreen() {
       feedback.notify({
         tone: 'success',
         title: 'Nalog je deaktiviran',
-        message: `Preneto porudžbina: ${result.data.orders}. Istorija ostaje sačuvana.`,
+        message: `Preneto porudžbina: ${result.data.orders}; aktivnih zaduženja: ${result.data.supplier_orders + result.data.after_sales_cases + result.data.after_sales_actions + result.data.portal_assignments + result.data.receivable_cases}. Istorija je sačuvana.`,
       });
       router.replace('/admin/users' as Href);
     },
@@ -202,6 +202,15 @@ export default function AdminUsersDetailScreen() {
                     {' · '}Garancije: {retirementPreview.data.data.warranties}
                     {' · '}Razgovori: {retirementPreview.data.data.conversations}
                     {' · '}Dodeljivanja: {retirementPreview.data.data.assignments}
+                    {' · '}Provereno relacija: {retirementPreview.data.data.foreign_keys} FK + {retirementPreview.data.data.unconstrained_history} istorijskih kolona
+                  </Text>
+                  <Text style={styles.copy}>
+                    Prenos aktivnih zaduženja: dobavljačke porudžbine {retirementPreview.data.data.supplier_orders},
+                    reklamacije {retirementPreview.data.data.after_sales_cases},
+                    postprodajne radnje {retirementPreview.data.data.after_sales_actions},
+                    razgovori {retirementPreview.data.data.portal_assignments},
+                    potraživanja {retirementPreview.data.data.receivable_cases}.
+                    Provizije, garancije i istorijske dodele ostaju na originalnom korisniku.
                   </Text>
                   <Text style={styles.copy}>Za potvrdu upiši OBRISI (velikim slovima):</Text>
                   <TextInput
@@ -215,17 +224,17 @@ export default function AdminUsersDetailScreen() {
                   />
                   <Pressable
                     accessibilityRole="button"
-                    disabled={retirementConfirmation !== 'OBRISI' || retirementMutation.isPending
-                      || Object.entries(retirementPreview.data.data).some(([key, count]) => key !== 'orders' && count > 0)}
+                    disabled={retirementConfirmation !== 'OBRISI' || retirementMutation.isPending || retirementPreview.isFetching}
                     onPress={() => retirementMutation.mutate()}
                   >
                     <Text style={styles.dangerAction}>
                       {retirementMutation.isPending ? 'Deaktivacija u toku…' : 'Potvrdi deaktivaciju naloga'}
                     </Text>
                   </Pressable>
-                  {Object.entries(retirementPreview.data.data).some(([key, count]) => key !== 'orders' && count > 0) ? (
-                    <Text style={styles.copy}>Nalog ima dodatne poslovne relacije. Laravel blokira uklanjanje.</Text>
-                  ) : null}
+                  <Text style={styles.copy}>
+                    Nema fizičkog brisanja. Server ponovo proverava svih 121 FK, 7 istorijskih kolona
+                    i prenose pre izvršavanja. Ako se šema ili zaduženja promene, operacija se zaustavlja.
+                  </Text>
                 </>
               ) : null}
             </>
