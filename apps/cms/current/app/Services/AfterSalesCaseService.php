@@ -65,7 +65,7 @@ final class AfterSalesCaseService
                 $assignedTo = $this->resolveInitialAssignee($lockedOrder);
 
                 $case = AfterSalesCase::query()->create([
-                    'case_number' => 'PENDING-'.Str::uuid(),
+                    'case_number' => 'P-'.Str::uuid(),
                     'order_id' => $lockedOrder->id,
                     'opened_by' => $actor->id,
                     'assigned_to' => $assignedTo !== null ? (int) $assignedTo : null,
