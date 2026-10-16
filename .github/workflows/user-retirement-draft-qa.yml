@@ -138,12 +138,15 @@ jobs:
             }
           '
 
-      - name: Full Laravel Feature regression on isolated in-memory SQLite
+      - name: Full Laravel Feature regression on disposable MySQL 8.4
         shell: bash
         run: |
           set -euo pipefail
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          test "$DB_HOST" = 127.0.0.1
+          test "$APP_ENV" = testing
           cd apps/cms/current
-          DB_CONNECTION=sqlite DB_DATABASE=':memory:' php artisan test -c phpunit.xml --testsuite=Feature --stop-on-failure
+          php artisan test -c phpunit.mysql.xml --testsuite=Feature --stop-on-failure
       - name: Explicit production safety receipt
         shell: bash
         run: |
