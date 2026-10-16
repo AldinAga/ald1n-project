@@ -166,6 +166,11 @@ final class CatalogQueryService
             default => $query->orderByDesc('created_at'),
         };
 
+        // Stable cursor boundaries for page-number pagination. Without an ID
+        // tiebreaker, equal updated_at/price/name values can omit or duplicate
+        // products when moving from page 1 to page 2.
+        $query->orderByDesc('id');
+
         if ($all) {
             $items = $query->get();
             $count = $items->count();
