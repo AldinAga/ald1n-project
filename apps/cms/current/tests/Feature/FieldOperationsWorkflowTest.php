@@ -41,6 +41,7 @@ final class FieldOperationsWorkflowTest extends TestCase
                 'action_type' => 'service_visit',
                 'inventory_handling' => 'none',
                 'assigned_to' => $admin->id,
+                'scheduled_at' => now()->addDays(2)->format('Y-m-d\\TH:i'),
                 'public_note' => $note,
                 'items' => [$caseItem->id => ['selected' => '1', 'quantity' => 1, 'disposition' => 'none']],
             ])->assertRedirect()->assertSessionHas('status');
