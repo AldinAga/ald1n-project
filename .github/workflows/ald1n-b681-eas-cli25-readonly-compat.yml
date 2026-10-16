@@ -1,0 +1,90 @@
+name: Ald1n Batch681 - EAS CLI 25 read-only compatibility (no build or OTA)
+on:
+  push:
+    branches:
+      - audit/batch681-eas-cli25-compat-20261016
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b681-eas25-readonly
+  cancel-in-progress: false
+jobs:
+  eas25-cli-help-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout current production source (not audit workflow commit)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 904c1db0f4213ff2e3eea3757869f86556d55378
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Source and existing EAS authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "904c1db0f4213ff2e3eea3757869f86556d55378"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const eas=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          const pkg=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          if(eas.cli.version!=='24.8.0'||eas.cli.appVersionSource!=='remote'||pkg.version!=='1.0.0') process.exit(1);
+          if(eas.build.production.channel!=='production'||!eas.build.production.autoIncrement) process.exit(2);
+          NODE
+          printf '%s\n' 'PASS: SOURCE_AND_REMOTE_VERSION_UNCHANGED'
+      - name: EAS 25.0.0 read-only offline CLI compatibility
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          original="$RUNNER_TEMP/b681-eas-original.json"
+          cp eas.json "$original"
+          restore() { cp "$original" eas.json; }
+          trap restore EXIT
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p='eas.json';
+          const json=JSON.parse(fs.readFileSync(p,'utf8'));
+          if(json.cli.version!=='24.8.0') process.exit(2);
+          json.cli.version='25.0.0';
+          fs.writeFileSync(p,JSON.stringify(json,null,2)+'\n');
+          NODE
+          run() { npm exec --yes --package=eas-cli@25.0.0 -- eas "$@"; }
+          version="$(run --version)"
+          printf 'EAS25_VERSION_OUTPUT=%s\n' "$version"
+          printf '%s\n' "$version" | grep -E '^eas-cli/25\.0\.0([[:space:]]|$)'
+          run update:view --help > "$RUNNER_TEMP/update-view.txt"
+          run update:list --help > "$RUNNER_TEMP/update-list.txt"
+          run update --help > "$RUNNER_TEMP/update.txt"
+          run update:republish --help > "$RUNNER_TEMP/update-republish.txt"
+          run channel:view --help > "$RUNNER_TEMP/channel-view.txt"
+          run project:info --help > "$RUNNER_TEMP/project-info.txt"
+          run build:version:get --help > "$RUNNER_TEMP/build-version-get.txt"
+          run build --help > "$RUNNER_TEMP/build.txt"
+          run submit --help > "$RUNNER_TEMP/submit.txt"
+          grep -Fq -- '--json' "$RUNNER_TEMP/update-view.txt"
+          grep -Fq -- '--json' "$RUNNER_TEMP/update.txt"
+          grep -Fq -- '--branch' "$RUNNER_TEMP/update.txt"
+          grep -Fq -- '--environment' "$RUNNER_TEMP/update.txt"
+          grep -Fq -- '--group' "$RUNNER_TEMP/update-republish.txt"
+          grep -Fq -- '--destination-channel' "$RUNNER_TEMP/update-republish.txt"
+          grep -Fq -- '--json' "$RUNNER_TEMP/update-republish.txt"
+          grep -Fq -- '--platform' "$RUNNER_TEMP/build-version-get.txt"
+          grep -Fq -- '--json' "$RUNNER_TEMP/build-version-get.txt"
+          printf '%s\n' 'PASS: EAS25_CLI_PIN_AND_READONLY_COMMAND_FLAG_CONTRACTS'
+      - name: No repository mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "904c1db0f4213ff2e3eea3757869f86556d55378"
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: EAS25_READONLY_SOURCE_IMMUTABLE'
