@@ -59,6 +59,7 @@ final class UserRetirementService
 
             $locked = User::query()->lockForUpdate()->findOrFail((int) $target->getKey());
             abort_if($locked->hasRole('superadmin'), 422, 'SuperAdministrator nalog se ne briše ovim postupkom.');
+            abort_if($locked->retired_at !== null, 422, 'Nalog je već trajno deaktiviran.');
             abort_if($locked->status === 'blocked', 422, 'Nalog je već blokiran. Potrebna je zasebna provera.');
 
             // Temporary fail-closed gate until every non-order business relationship
