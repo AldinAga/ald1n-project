@@ -90,7 +90,7 @@ final class CustomerActivationService
             }
 
             $user = User::query()->lockForUpdate()->find($token->user_id);
-            if ($user === null || $user->status === 'blocked') {
+            if ($user === null || $user->status === 'blocked' || $user->retired_at !== null) {
                 return null;
             }
 
