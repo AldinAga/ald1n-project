@@ -95,6 +95,23 @@ Do not retroactively move or rewrite completed production source, release archiv
 
 ---
 
+## 1B. Immutable CloudLinux/Unlimited.rs execution profile (owner re-confirmed 2026-10-16)
+
+This is an entrypoint rule for EVERY NEW Ald1n chat and operator batch, not an optional reminder.
+
+- Hosting: **Unlimited.rs CloudLinux/cPanel**, restricted shared hosting. Canonical project: `/home/icaffeco/ald1n-project`, Laravel `apps/cms/current`, Expo mobile `apps/mobile/current`.
+- Node: CloudLinux **Node.js 22** environment `/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node`; npm CLI `/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js`. Always check these exact executables before use. Do not assume shell `node`/`npm` are resolved. No global npm upgrade (`npm install -g`) and no generic `expo install --fix`; never upgrade npm solely because it prints a notice.
+- EAS CLI: pinned `eas-cli@25.0.0` invoked through the canonical Node22/npm exec, subject to the separately approved authenticated production release gates. A CI PASS is not permission to publish OTA, build, or Play submission.
+- JDK: JDK **17** is mandatory for native/signature regression tests; on this host `java`, `jar`, `jarsigner`, and `keytool` may be absent from PATH entirely. Check executable availability and real smoke functionality. If unavailable, a verified portable Temurin JDK17 may be installed in private `$HOME/.ald1n-toolchains` with SHA-256 verification, non-root, no global environment edits. Never bypass failed signature tests.
+- **Hard banned shell features** on this host: process substitution `<( ... )` / `>( ... )`, reliance on `/dev/fd`, `python3`, and bash fd relay tricks. The 2026-10-16 Batch687 V3 failed at `/dev/fd/63` because its author used `done < <(find ...)` and `exec > >(tee ...)` despite the existing section 10 ban. All future executable scripts MUST pass a static scan for these constructs before delivery, plus `bash -n`.
+- Reporting: scripts exclusively under `incoming/`; logs/reports exclusively under `docs/operations/`, sequential prefix determined from GitHub `main` **and** local reports. For terminal logs, use a real named FIFO or normal files with explicit exit-code capture; no fd substitution.
+- Preserve dirty/stale host Git trees; source of truth is latest remote `main` and current operations. No blind `git pull`/`reset`/`clean`, automatic overwrite or production rollout. Remote docs-only advancement after an approved application commit must be distinguished from application drift, never silently ignored.
+- For CloudLinux-related failures, prefer **one consolidated host audit/recovery batch**, record actual observed versions, paths, RCs and blockers. Do not chain speculative workaround batches.
+- Production Android baseline until re-attested: app 1.0.0, versionCode 25, runtime 1.0.0-build17, production channel, com.ald1n.mobile. The latest OTA group and deployed source must always be reverified before mutation. iOS stays deferred by owner.
+- The user expects these rules to be retrieved from GitHub `AGENTS.md` at the **start** of every new Ald1n project chat/batch, together with `docs/operations/000-LATEST.md` and recent reports.
+
+---
+
 ## 2. Permanent product rules
 
 These are not optional cleanup targets or legacy TODOs.
