@@ -192,10 +192,14 @@ final class UserRetirementRelationPolicy
                     ->on('r.CONSTRAINT_NAME', '=', 'k.CONSTRAINT_NAME')
                     ->on('r.TABLE_NAME', '=', 'k.TABLE_NAME');
             })
+            ->join('information_schema.TABLES as t', static function ($join): void {
+                $join->on('t.TABLE_SCHEMA', '=', 'k.TABLE_SCHEMA')
+                    ->on('t.TABLE_NAME', '=', 'k.TABLE_NAME');
+            })
             ->where('k.TABLE_SCHEMA', DB::getDatabaseName())
             ->where('k.REFERENCED_TABLE_NAME', 'users')
             ->where('k.REFERENCED_COLUMN_NAME', 'id')
-            ->get(['k.TABLE_NAME', 'k.COLUMN_NAME', 'r.DELETE_RULE']);
+            ->get(['k.TABLE_NAME', 'k.COLUMN_NAME', 'r.DELETE_RULE', 't.ENGINE']);
 
         $actual = [];
         foreach ($constraints as $constraint) {
