@@ -202,9 +202,18 @@ final class UserRetirementRelationPolicy
             ->get(['k.TABLE_NAME', 'k.COLUMN_NAME', 'r.DELETE_RULE', 't.ENGINE']);
 
         $actual = [];
+        $unsupportedEngines = [];
         foreach ($constraints as $constraint) {
             $key = (string) $constraint->TABLE_NAME.'.'.(string) $constraint->COLUMN_NAME;
-            $actual[$key] = self::canonicalMysqlDeleteRule((string) $constraint->DELETE_RULE, (string) $constraint->ENGINE);
+            $engine = (string) $constraint->ENGINE;
+            if (strtoupper(trim($engine)) !== 'INNODB') {
+                $unsupportedEngines[$key] = $engine;
+            }
+            $actual[$key] = self::canonicalMysqlDeleteRule((string) $constraint->DELETE_RULE, $engine);
+        }
+        if ($unsupportedEngines !== []) {
+            Log::critical('User retirement FK engine gate mismatch', ['foreign_key_engines' => $unsupportedEngines]);
+            abort(503, 'Nepodrzan MySQL engine stranih kljuceva.');
         }
 
         $expected = [];
