@@ -64,9 +64,14 @@ final class AfterSalesWorkflowTest extends TestCase
         Storage::disk('local')->assertExists($case->attachments->first()->path);
 
         $attachment = AfterSalesAttachment::query()->sole();
-        $this->actingAs($customer)->get('/after-sales/attachments/'.$attachment->id)
-            ->assertOk()
-            ->assertHeader('Cache-Control', 'private, no-store, max-age=0');
+        $privateAttachment = $this->actingAs($customer)->get('/after-sales/attachments/'.$attachment->id);
+        $privateAttachment->assertOk();
+        // Symfony normalizes Cache-Control directive order; all three protections
+        // must exist independently of the transport's canonical order.
+        self::assertEqualsCanonicalizing(
+            ['private', 'no-store', 'max-age=0'],
+            array_map('trim', explode(',', (string) $privateAttachment->headers->get('Cache-Control'))),
+        );
         $this->actingAs($admin)->get('/after-sales/attachments/'.$attachment->id)->assertOk();
         $this->actingAs($otherCustomer)->get('/after-sales/attachments/'.$attachment->id)->assertNotFound();
 
