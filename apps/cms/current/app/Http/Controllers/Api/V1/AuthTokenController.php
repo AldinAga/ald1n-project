@@ -31,7 +31,7 @@ final class AuthTokenController extends Controller
         $hash = (string) ($user?->password_hash ?: self::DUMMY_HASH);
         $validPassword = password_verify((string) $request->input('password'), $hash);
 
-        if ($user === null || $user->status !== 'active' || !$validPassword) {
+        if ($user === null || $user->status !== 'active' || $user->retired_at !== null || !$validPassword) {
             throw ValidationException::withMessages(['login' => ['Pogrešni podaci ili nalog nije aktivan.']]);
         }
 

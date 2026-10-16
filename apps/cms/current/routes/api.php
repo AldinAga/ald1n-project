@@ -224,6 +224,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::post('/users', [AdminUserController::class, 'store'])->middleware('throttle:admin-write')->name('users.store');
                     Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->name('users.show');
                     Route::put('/users/{user}', [AdminUserController::class, 'update'])->whereNumber('user')->middleware('throttle:admin-write')->name('users.update');
+                    Route::get('/users/{user}/retirement', [AdminUserController::class, 'retirementPreview'])->whereNumber('user')->name('users.retirement.preview');
+                    Route::post('/users/{user}/retirement', [AdminUserController::class, 'retire'])->whereNumber('user')->middleware('throttle:admin-write')->name('users.retirement.store');
 
                     // MOBILE_V1_0_USER_GROUPS_PARITY_BATCH34
                     Route::get('/user-groups', [AdminUserGroupController::class, 'index'])->name('user-groups.index');

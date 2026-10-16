@@ -19,6 +19,7 @@ final class CustomerActivationService
 
     public function invite(User $user, ?User $actor = null): UserActivationToken
     {
+        abort_if($user->retired_at !== null, 422, 'Trajno deaktiviranom nalogu nije moguće poslati novu pozivnicu.');
         if (!Schema::hasTable('user_activation_tokens')) {
             throw new RuntimeException('Tabela user_activation_tokens nije dostupna. Pokrenite migracije.');
         }
@@ -65,7 +66,7 @@ final class CustomerActivationService
             ->where('token_hash', hash('sha256', $plainToken))
             ->whereNull('accepted_at')
             ->where('expires_at', '>', now())
-            ->whereHas('user', static fn ($query) => $query->where('status', '!=', 'blocked'))
+            ->whereHas('user', static fn ($query) => $query->where('status', '!=', 'blocked')->whereNull('retired_at'))
             ->exists();
     }
 
@@ -89,7 +90,7 @@ final class CustomerActivationService
             }
 
             $user = User::query()->lockForUpdate()->find($token->user_id);
-            if ($user === null || $user->status === 'blocked') {
+            if ($user === null || $user->status === 'blocked' || $user->retired_at !== null) {
                 return null;
             }
 
