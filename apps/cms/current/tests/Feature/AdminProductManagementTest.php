@@ -32,7 +32,7 @@ final class AdminProductManagementTest extends TestCase
         ]);
         $product = Product::query()->firstOrFail();
         $response->assertRedirect('/admin/catalog/'.$product->id.'/edit');
-        self::assertStringStartsWith('LENOVO-THINKPAD-T14', $product->sku);
+        self::assertMatchesRegularExpression('/^LENOVO-[0-9]{6}$/', $product->sku);
         self::assertTrue($product->categories()->whereKey($category->id)->exists());
         self::assertTrue(AuditLog::query()->where('action','product.created')->exists());
     }
