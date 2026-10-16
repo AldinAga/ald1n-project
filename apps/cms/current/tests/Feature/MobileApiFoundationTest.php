@@ -153,13 +153,11 @@ final class MobileApiFoundationTest extends TestCase
             ->assertJsonPath('data.0.read', false);
         $notificationId = (string) $list->json('data.0.id');
 
-        $readResponse = $this->postJson('/api/v1/notifications/'.$notificationId.'/read')
-            ->assertOk();
-        self::assertSame(
-            true,
-            $readResponse->json('data.read'),
-            'Read-notification API response: '.json_encode($readResponse->json(), JSON_UNESCAPED_UNICODE),
-        );
+        // The collection endpoint is wrapped in "data"; the single-item
+        // controller returns the resource JSON directly.
+        $this->postJson('/api/v1/notifications/'.$notificationId.'/read')
+            ->assertOk()
+            ->assertJsonPath('read', true);
 
         $this->postJson('/api/v1/notifications/read-all')
             ->assertOk()
