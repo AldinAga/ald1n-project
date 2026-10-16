@@ -38,8 +38,9 @@ export function assessIosReadiness({
 }) {
   const blockers = [];
   const requireGate = (passed, code) => { if (!passed) blockers.push(code); };
-  const supported = ['preview', 'production', 'development'].includes(profile);
-  const expectedBundleId = supported ? 'com.ald1n.mobile' + (profile === 'production' ? '' : '.' + profile) : null;
+  const supported = ['preview', 'production', 'development', 'ios-simulator'].includes(profile);
+  const effectiveAppEnv = profile === 'ios-simulator' ? 'preview' : profile;
+  const expectedBundleId = supported ? 'com.ald1n.mobile' + (effectiveAppEnv === 'production' ? '' : '.' + effectiveAppEnv) : null;
   const declaredProfile = eas?.build?.[profile];
   const appBundleId = appConfig?.ios?.bundleIdentifier ?? null;
   const selectedFile = appConfig?.ios?.googleServicesFile ?? null;
@@ -59,8 +60,12 @@ export function assessIosReadiness({
 
   requireGate(supported, 'IOS_UNKNOWN_BUILD_PROFILE');
   requireGate(Boolean(declaredProfile), 'IOS_EAS_PROFILE_MISSING');
-  requireGate(declaredProfile?.channel === profile, 'IOS_EAS_CHANNEL_PROFILE_MISMATCH');
-  requireGate(declaredProfile?.env?.EXPO_PUBLIC_APP_ENV === profile, 'IOS_EAS_APP_ENV_MISMATCH');
+  requireGate(declaredProfile?.channel === effectiveAppEnv, 'IOS_EAS_CHANNEL_PROFILE_MISMATCH');
+  requireGate(declaredProfile?.env?.EXPO_PUBLIC_APP_ENV === effectiveAppEnv, 'IOS_EAS_APP_ENV_MISMATCH');
+  if (profile === 'ios-simulator') {
+    requireGate(declaredProfile?.ios?.simulator === true && declaredProfile?.distribution === 'internal', 'IOS_SIMULATOR_ONLY_PROFILE_REQUIRED');
+    requireGate(declaredProfile?.autoIncrement === false && declaredProfile?.developmentClient !== true, 'IOS_SIMULATOR_VERSION_AND_CLIENT_GUARD');
+  }
   requireGate(declaredProfile?.env?.EXPO_PUBLIC_API_URL === EXPECTED_API, 'IOS_EAS_API_MISMATCH');
   requireGate(eas?.cli?.version === '25.0.0' && eas?.cli?.appVersionSource === 'remote', 'IOS_EAS_CLI_VERSION_AUTHORITY');
   requireGate(pkg?.version === '1.0.0' && pkg?.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'IOS_APP_OR_NATIVE_AUTH_VERSION_DRIFT');
@@ -68,7 +73,7 @@ export function assessIosReadiness({
   requireGate(appConfig?.extra?.apiUrl === EXPECTED_API && appConfig?.extra?.googleAuthConfigured === true, 'IOS_GOOGLE_API_CONFIG_MISMATCH');
   requireGate(appBundleId === expectedBundleId, 'IOS_APP_BUNDLE_ID_MISMATCH');
 
-  if (profile === 'preview') {
+  if (effectiveAppEnv === 'preview') {
     requireGate(selectedFile === PREVIEW_FILE, 'IOS_PREVIEW_FILE_SELECTION_DRIFT');
   } else {
     requireGate(Boolean(selectedFile), 'IOS_GOOGLE_FILE_VARIABLE_REQUIRED');
@@ -84,7 +89,7 @@ export function assessIosReadiness({
   requireGate(Boolean(projectId && appId), 'IOS_GOOGLE_FIREBASE_IDENTITY_INCOMPLETE');
   requireGate(plugin?.[1]?.iosGoogleServicesFile === selectedFile && Boolean(selectedFile), 'IOS_NATIVE_GOOGLE_PLUGIN_MISSING');
 
-  if (profile !== 'preview') {
+  if (effectiveAppEnv !== 'preview') {
     // A renamed preview plist is NOT production credentials.
     requireGate(Boolean(clientId && clientId !== plistString(previewPlist, 'CLIENT_ID')), 'IOS_GOOGLE_CLIENT_REUSED_FROM_PREVIEW');
     requireGate(Boolean(appId && appId !== plistString(previewPlist, 'GOOGLE_APP_ID')), 'IOS_GOOGLE_APP_REUSED_FROM_PREVIEW');
@@ -94,6 +99,8 @@ export function assessIosReadiness({
   return Object.freeze({
     status: blockers.length === 0 ? 'PASS_CONFIG_ONLY' : 'HOLD',
     profile,
+    effectiveAppEnv,
+    buildTarget: profile === 'ios-simulator' ? 'IOS_SIMULATOR_ONLY' : 'IOS_DEVICE',
     expectedBundleId,
     appBundleId,
     googlePlistBundleId: plistBundleId,
@@ -102,6 +109,7 @@ export function assessIosReadiness({
     easCli: eas?.cli?.version ?? null,
     signing: 'NOT_ATTESTED',
     nativeBuild: 'NOT_STARTED',
+    simulatorBuild: 'NOT_STARTED',
     physicalIosUat: 'NOT_PERFORMED',
     firebaseRegistration: 'NOT_INDEPENDENTLY_VERIFIED',
     easFileEnvironment: 'NOT_INDEPENDENTLY_VERIFIED',
@@ -112,7 +120,7 @@ export function assessIosReadiness({
 }
 
 export function inspectIosReadiness(profile, root = DEFAULT_ROOT) {
-  if (!['preview', 'production', 'development'].includes(profile)) {
+  if (!['preview', 'production', 'development', 'ios-simulator'].includes(profile)) {
     return { ok: false, status: 'HOLD', profile, blockers: ['IOS_UNKNOWN_BUILD_PROFILE'] };
   }
   const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
