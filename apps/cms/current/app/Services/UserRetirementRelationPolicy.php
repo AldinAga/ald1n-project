@@ -165,11 +165,11 @@ final class UserRetirementRelationPolicy
      * across migrated hosts. Normalize only this equivalence. Never
      * normalize CASCADE, SET NULL, or unknown actions into RESTRICT.
      */
-    public static function canonicalMysqlDeleteRule(string $rule): string
+    public static function canonicalMysqlDeleteRule(string $rule, string $engine): string
     {
         $rule = strtoupper(trim($rule));
 
-        return $rule === 'NO ACTION' ? 'RESTRICT' : $rule;
+        return strtoupper(trim($engine)) === 'INNODB' && $rule === 'NO ACTION' ? 'RESTRICT' : $rule;
     }
 
     /**
@@ -200,12 +200,12 @@ final class UserRetirementRelationPolicy
         $actual = [];
         foreach ($constraints as $constraint) {
             $key = (string) $constraint->TABLE_NAME.'.'.(string) $constraint->COLUMN_NAME;
-            $actual[$key] = self::canonicalMysqlDeleteRule((string) $constraint->DELETE_RULE);
+            $actual[$key] = self::canonicalMysqlDeleteRule((string) $constraint->DELETE_RULE, (string) $constraint->ENGINE);
         }
 
         $expected = [];
         foreach (self::USER_FKS as $key => $policy) {
-            $expected[$key] = self::canonicalMysqlDeleteRule($policy[1]);
+            $expected[$key] = self::canonicalMysqlDeleteRule($policy[1], 'InnoDB');
         }
         ksort($expected);
         ksort($actual);
