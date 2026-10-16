@@ -83,7 +83,7 @@ final class UserRetirementService
 
             // Block login immediately while preserving all historic foreign keys,
             // original commission recipients, audit actors and warranty ownership.
-            $locked->forceFill(['status' => 'blocked'])->save();
+            $locked->forceFill(['status' => 'blocked', 'retired_at' => now(), 'remember_token' => null])->save();
             $locked->tokens()->delete();
             DB::table('user_login_sessions')->where('user_id', (int) $locked->getKey())
                 ->whereNull('revoked_at')->update(['revoked_at' => now()]);
