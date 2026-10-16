@@ -86,11 +86,13 @@ final class OrderDeliveryWorkflowTest extends TestCase
         $this->actingAs($admin)->get('/orders/'.$order->id.'/delivery-proof')->assertOk();
         $this->actingAs($otherAdmin)->get('/orders/'.$order->id.'/delivery-proof')->assertNotFound();
 
-        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', [
+        $issueResponse = $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', [
             'document_type' => 'delivery_note',
-        ])->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('status');
-
+        ]);
         $document = OrderDocument::query()->where('document_type', 'delivery_note')->sole();
+        $issueResponse
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('orders.documents.show', ['order' => $order->id, 'document' => $document->id]));
         self::assertStringStartsWith('OTP-', (string) $document->document_number);
         self::assertSame('Milan Kupac', $document->delivery_recipient_snapshot);
         self::assertSame('own_transport', $document->delivery_method_snapshot);
