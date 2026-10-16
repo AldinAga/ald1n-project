@@ -1,0 +1,158 @@
+name: Ald1n Batch686 - exact preview iOS Simulator first build gates (NO BUILD)
+on:
+  push:
+    branches:
+      - audit/batch686-ios-simulator-native-prep-jdk17-20261016
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b686-ios-simulator-first-build-prep
+  cancel-in-progress: false
+jobs:
+  mobile-ios:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact reviewed source for application (NOT CI workflow SHA)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 21f03e096756fa5cd5c737603c6fc73f2e475b31
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: JDK17 for real Release25 signature tests
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Exact source and 7-file non-production change allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "21f03e096756fa5cd5c737603c6fc73f2e475b31"
+          git merge-base --is-ancestor 87213e96a6747b780b9bef36fbb1723fca81784c HEAD
+          cat > "$RUNNER_TEMP/b686-expected" <<'EOF'
+          AGENTS.md
+          apps/mobile/current/docs/IOS-FIRST-BUILD-READINESS.md
+          apps/mobile/current/eas.json
+          apps/mobile/current/package.json
+          apps/mobile/current/scripts/ios-release-readiness.mjs
+          apps/mobile/current/scripts/release25/batch686-ios-simulator-preview.test.mjs
+          docs/operations/000-LATEST.md
+          EOF
+          LC_ALL=C sort "$RUNNER_TEMP/b686-expected" -o "$RUNNER_TEMP/b686-expected"
+          git diff --name-only --no-renames 87213e96a6747b780b9bef36fbb1723fca81784c HEAD | LC_ALL=C sort > "$RUNNER_TEMP/b686-actual"
+          diff -u "$RUNNER_TEMP/b686-expected" "$RUNNER_TEMP/b686-actual"
+          git diff --check 87213e96a6747b780b9bef36fbb1723fca81784c HEAD
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const pkg=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          const eas=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          if(eas.cli.version!=='25.0.0' || pkg.version!=='1.0.0' || pkg.dependencies.expo!=='~57.0.27')process.exit(1);
+          if(eas.build['ios-simulator'].ios.simulator!==true || eas.build['ios-simulator'].autoIncrement!==false)process.exit(2);
+          if(eas.build['ios-simulator'].channel!=='preview'||eas.build['ios-simulator'].env.EXPO_PUBLIC_APP_ENV!=='preview')process.exit(3);
+          if(eas.build.production.channel!=='production'||eas.build.production.autoIncrement!==true)process.exit(4);
+          if(pkg.scripts['build:android:production']!=='node scripts/build25-release-controller.mjs')process.exit(5);
+          NODE
+          java -version
+          echo 'PASS: B686_EXACT_SOURCE_NO_NATIVE_OR_PRODUCTION_CHANGE'
+      - name: npm ci unchanged lockfile
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          echo 'PASS: B686_NPM_CI'
+      - name: TypeScript and canonical Mobile validator
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          node scripts/validate-project.mjs
+          echo 'PASS: B686_TYPECHECK_VALIDATOR'
+      - name: Config-only iOS preview and simulator PASS, production remains HOLD
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -u ALD1N_IOS_GOOGLE_SERVICES_FILE node scripts/ios-release-readiness.mjs --profile preview > "$RUNNER_TEMP/ios-preview.json"
+          env -u ALD1N_IOS_GOOGLE_SERVICES_FILE node scripts/ios-release-readiness.mjs --profile ios-simulator > "$RUNNER_TEMP/ios-simulator.json"
+          node - "$RUNNER_TEMP/ios-preview.json" "$RUNNER_TEMP/ios-simulator.json" <<'NODE'
+          const fs=require('node:fs');
+          const a=JSON.parse(fs.readFileSync(process.argv[2],'utf8')),b=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+          if(!a.ok||!b.ok||a.status!=='PASS_CONFIG_ONLY'||b.status!=='PASS_CONFIG_ONLY')process.exit(1);
+          if(a.expectedBundleId!=='com.ald1n.mobile.preview'||b.expectedBundleId!==a.expectedBundleId||b.buildTarget!=='IOS_SIMULATOR_ONLY')process.exit(2);
+          if(b.nativeBuild!=='NOT_STARTED'||b.signing!=='NOT_ATTESTED'||b.productionMutation!=='NONE')process.exit(3);
+          console.log('PASS: B686_PREVIEW_AND_SIMULATOR_CONFIG_ONLY');
+          NODE
+          set +e
+          env -u ALD1N_IOS_GOOGLE_SERVICES_FILE node scripts/ios-release-readiness.mjs --profile production > "$RUNNER_TEMP/ios-production.json"
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          node - "$RUNNER_TEMP/ios-production.json" <<'NODE'
+          const fs=require('node:fs'),r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(r.ok||r.status!=='HOLD'||!r.blockers.includes('IOS_GOOGLE_FILE_VARIABLE_REQUIRED'))process.exit(1);
+          console.log('PASS: B686_PRODUCTION_FIREBASE_STILL_DEFERRED_AND_BLOCKED');
+          NODE
+      - name: Pin CLI25 build argument compatibility (HELP ONLY; no EAS remote build)
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build --help > "$RUNNER_TEMP/b686-eas-build-help"
+          grep -Fq -- '--json' "$RUNNER_TEMP/b686-eas-build-help"
+          grep -Fq -- '--profile' "$RUNNER_TEMP/b686-eas-build-help"
+          grep -Fq -- '--[no-]wait' "$RUNNER_TEMP/b686-eas-build-help"
+          echo 'PASS: B686_PINNED_EAS_BUILD_HELP_ONLY'
+      - name: Full Release25 native-independent regression gate
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find scripts/release25 -maxdepth 1 -type f -name '*.test.mjs' | wc -l)" -eq 20
+          node --test scripts/release25/*.test.mjs
+          echo 'PASS: B686_RELEASE25_JDK17_FULL'
+      - name: No tracked or untracked workspace mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          echo 'PASS: B686_SOURCE_IMMUTABLE'
+  cms-and-openapi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Checkout reviewed PR source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 21f03e096756fa5cd5c737603c6fc73f2e475b31
+          fetch-depth: 0
+          persist-credentials: false
+      - name: True PHP 8.4 runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql
+          coverage: none
+      - name: Canonical Laravel static plus 3-way API byte parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r 'if(PHP_MAJOR_VERSION!==8||PHP_MINOR_VERSION!==4)exit(2);'
+          (cd apps/cms/current && php bin/static-check.php)
+          cmp apps/cms/current/docs/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp apps/cms/current/docs/openapi.yaml packages/api-contract/openapi.yaml
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          echo 'PASS: B686_PHP84_STATIC_AND_OPENAPI_PARITY'
