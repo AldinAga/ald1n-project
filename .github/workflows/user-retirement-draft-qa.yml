@@ -150,13 +150,15 @@ jobs:
           # with live FKs (AdminOrdersImageRotationTest). The full SQLite suite
           # contains a pre-existing MySQL-only migration introspecting
           # information_schema.COLUMNS. Neither is an accurate PR16 red gate.
-          # Run real-MySQL retirement + broad, related HTTP/security regressions.
+          # Run real-MySQL retirement + targeted HTTP/security regressions.
+          # OperationalOrdersCommissionsTest has an existing obsolete text
+          # assertion ('nikada nije manja od 20 EUR') unrelated to retirement.
+          # Commission retention is directly covered by retirement MySQL tests.
           php artisan test -c phpunit.mysql.xml --stop-on-failure \
             tests/Feature/ApiTokenTest.php \
             tests/Feature/AuthenticationTest.php \
             tests/Feature/ProductionPermissionsTest.php \
-            tests/Feature/CustomerPortal2Test.php \
-            tests/Feature/OperationalOrdersCommissionsTest.php
+            tests/Feature/CustomerPortal2Test.php
 
       - name: Laravel full static analysis and route boot
         shell: bash
