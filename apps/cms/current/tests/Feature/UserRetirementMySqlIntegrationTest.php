@@ -600,17 +600,24 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
             self::assertSame('NO ACTION', $policy[$key][1]);
         }
 
-        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION'));
-        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule(' restrict '));
-        self::assertSame('SET NULL', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('SET NULL'));
-        self::assertSame('CASCADE', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('CASCADE'));
+        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION', 'InnoDB'));
+        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule(' restrict ', 'InnoDB'));
+        self::assertSame('SET NULL', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('SET NULL', 'InnoDB'));
+        self::assertSame('CASCADE', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('CASCADE', 'InnoDB'));
+        // NDB differs from InnoDB: do not normalize deferred NO ACTION.
+        self::assertSame('NO ACTION', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION', 'NDB'));
+        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('RESTRICT', 'NDB'));
         self::assertNotSame(
-            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('CASCADE'),
-            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION', 'NDB'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('RESTRICT', 'NDB'),
         );
         self::assertNotSame(
-            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('SET NULL'),
-            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('RESTRICT'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('CASCADE', 'InnoDB'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION', 'InnoDB'),
+        );
+        self::assertNotSame(
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('SET NULL', 'InnoDB'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('RESTRICT', 'InnoDB'),
         );
 
         // Exact 121-key read-only production receipt in Report694: all three
@@ -618,7 +625,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         // policy fingerprint without changing any production constraints.
         $manifest = [];
         foreach ($policy as $key => $rule) {
-            $manifest[] = $key.' '.UserRetirementRelationPolicy::canonicalMysqlDeleteRule($rule[1]);
+            $manifest[] = $key.' '.UserRetirementRelationPolicy::canonicalMysqlDeleteRule($rule[1], 'InnoDB');
         }
         sort($manifest, SORT_STRING);
         self::assertSame(
