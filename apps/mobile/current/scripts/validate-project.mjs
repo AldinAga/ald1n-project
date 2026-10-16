@@ -2105,9 +2105,11 @@ const iosGoogleConfigPlistV06 = fs.existsSync(iosGoogleConfigPlistPathV06)
 
 assert(
   iosGoogleConfigAppV06.includes("const IOS_GOOGLE_SERVICES_FILE = './GoogleService-Info.plist';")
-    && iosGoogleConfigAppV06.includes("googleServicesFile: IOS_GOOGLE_SERVICES_FILE")
-    && iosGoogleConfigAppV06.includes("iosGoogleServicesFile: IOS_GOOGLE_SERVICES_FILE"),
-  'iOS Google Sign-In koristi canonical GoogleService-Info.plist kroz Expo i Nitro config plugin.',
+    && iosGoogleConfigAppV06.includes("APP_ENV === 'preview'")
+    && iosGoogleConfigAppV06.includes("process.env.ALD1N_IOS_GOOGLE_SERVICES_FILE")
+    && iosGoogleConfigAppV06.includes("googleServicesFile: IOS_GOOGLE_SERVICES_PATH")
+    && iosGoogleConfigAppV06.includes("iosGoogleServicesFile: IOS_GOOGLE_SERVICES_PATH"),
+  'iOS Google Sign-In bira preview plist samo za preview, a production/development zahtevaju poseban EAS file env.',
 );
 
 assert(

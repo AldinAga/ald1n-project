@@ -1,6 +1,5 @@
-// BATCH684_IOS_RELEASE_READINESS
-// Read-only, fail-closed Google OAuth and Expo profile preflight.
-// Checks config, not Apple signing, actual native binaries or physical iOS behavior.
+// BATCH685_IOS_FIREBASE_PROFILE_SPLIT
+// Read-only, fail-closed OAuth and profile preflight: never print OAuth IDs or raw plist.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -10,6 +9,8 @@ const require = createRequire(import.meta.url);
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GOOGLE_SUFFIX = '.apps.googleusercontent.com';
 const EXPECTED_API = 'https://cms.ald1n.com/api/v1';
+const PREVIEW_FILE = './GoogleService-Info.plist';
+const EXTERNAL_FILE_ENV = 'ALD1N_IOS_GOOGLE_SERVICES_FILE';
 
 function plistString(plist, key) {
   if (typeof plist !== 'string' || !/^[A-Z_]+$/.test(key)) return null;
@@ -18,16 +19,35 @@ function plistString(plist, key) {
   return values.length === 1 ? values[0][1].trim() : null;
 }
 
-export function assessIosReadiness({ profile, appConfig, eas, pkg, plist, googleAuthSource, filesPresent = true }) {
+function externalFile(pathValue, root) {
+  if (!pathValue || !path.isAbsolute(pathValue)) return false;
+  try {
+    const realFile = fs.realpathSync(pathValue);
+    const realRoot = fs.realpathSync(root);
+    const relative = path.relative(realRoot, realFile);
+    return fs.statSync(realFile).isFile()
+      && (relative === '..' || relative.startsWith('..' + path.sep));
+  } catch {
+    return false;
+  }
+}
+
+export function assessIosReadiness({
+  profile, appConfig, eas, pkg, plist, previewPlist,
+  googleAuthSource, filesPresent = true, root = DEFAULT_ROOT,
+}) {
   const blockers = [];
   const requireGate = (passed, code) => { if (!passed) blockers.push(code); };
   const supported = ['preview', 'production', 'development'].includes(profile);
   const expectedBundleId = supported ? 'com.ald1n.mobile' + (profile === 'production' ? '' : '.' + profile) : null;
   const declaredProfile = eas?.build?.[profile];
   const appBundleId = appConfig?.ios?.bundleIdentifier ?? null;
+  const selectedFile = appConfig?.ios?.googleServicesFile ?? null;
   const plistBundleId = plistString(plist, 'BUNDLE_ID');
   const clientId = plistString(plist, 'CLIENT_ID');
   const reversed = plistString(plist, 'REVERSED_CLIENT_ID');
+  const appId = plistString(plist, 'GOOGLE_APP_ID');
+  const projectId = plistString(plist, 'PROJECT_ID');
   const webId = plistString(plist, 'WEB_CLIENT_ID');
   const webSourceId = googleAuthSource?.match(/webClientId:\s*'([^']+)'/)?.[1] ?? null;
   const expectedReversed = clientId?.endsWith(GOOGLE_SUFFIX)
@@ -47,11 +67,29 @@ export function assessIosReadiness({ profile, appConfig, eas, pkg, plist, google
   requireGate(appConfig?.version === '1.0.0' && appConfig?.runtimeVersion === '1.0.0-build17', 'IOS_APP_RUNTIME_MISMATCH');
   requireGate(appConfig?.extra?.apiUrl === EXPECTED_API && appConfig?.extra?.googleAuthConfigured === true, 'IOS_GOOGLE_API_CONFIG_MISMATCH');
   requireGate(appBundleId === expectedBundleId, 'IOS_APP_BUNDLE_ID_MISMATCH');
-  requireGate(filesPresent && appConfig?.ios?.googleServicesFile === './GoogleService-Info.plist', 'IOS_GOOGLE_PLIST_MISSING');
+
+  if (profile === 'preview') {
+    requireGate(selectedFile === PREVIEW_FILE, 'IOS_PREVIEW_FILE_SELECTION_DRIFT');
+  } else {
+    requireGate(Boolean(selectedFile), 'IOS_GOOGLE_FILE_VARIABLE_REQUIRED');
+    // EAS File environment variables resolve to absolute paths OUTSIDE the source tree.
+    // Reject checked-in preview, relative spoofing, and symlinks back inside the repo.
+    requireGate(externalFile(selectedFile, root), 'IOS_EXTERNAL_GOOGLE_PLIST_REQUIRED');
+  }
+
+  requireGate(filesPresent && Boolean(selectedFile), 'IOS_GOOGLE_PLIST_MISSING');
   requireGate(plistBundleId === expectedBundleId, 'IOS_GOOGLE_BUNDLE_ID_MISMATCH');
   requireGate(Boolean(clientId?.endsWith(GOOGLE_SUFFIX)) && reversed === expectedReversed, 'IOS_GOOGLE_REVERSED_CLIENT_ID_MISMATCH');
   requireGate(Boolean(webId?.endsWith(GOOGLE_SUFFIX)) && webId === webSourceId, 'IOS_GOOGLE_WEB_CLIENT_ID_MISMATCH');
-  requireGate(plugin?.[1]?.iosGoogleServicesFile === './GoogleService-Info.plist', 'IOS_NATIVE_GOOGLE_PLUGIN_MISSING');
+  requireGate(Boolean(projectId && appId), 'IOS_GOOGLE_FIREBASE_IDENTITY_INCOMPLETE');
+  requireGate(plugin?.[1]?.iosGoogleServicesFile === selectedFile && Boolean(selectedFile), 'IOS_NATIVE_GOOGLE_PLUGIN_MISSING');
+
+  if (profile !== 'preview') {
+    // A renamed preview plist is NOT production credentials.
+    requireGate(Boolean(clientId && clientId !== plistString(previewPlist, 'CLIENT_ID')), 'IOS_GOOGLE_CLIENT_REUSED_FROM_PREVIEW');
+    requireGate(Boolean(appId && appId !== plistString(previewPlist, 'GOOGLE_APP_ID')), 'IOS_GOOGLE_APP_REUSED_FROM_PREVIEW');
+    requireGate(Boolean(projectId && projectId === plistString(previewPlist, 'PROJECT_ID')), 'IOS_GOOGLE_FIREBASE_PROJECT_MISMATCH');
+  }
 
   return Object.freeze({
     status: blockers.length === 0 ? 'PASS_CONFIG_ONLY' : 'HOLD',
@@ -65,6 +103,8 @@ export function assessIosReadiness({ profile, appConfig, eas, pkg, plist, google
     signing: 'NOT_ATTESTED',
     nativeBuild: 'NOT_STARTED',
     physicalIosUat: 'NOT_PERFORMED',
+    firebaseRegistration: 'NOT_INDEPENDENTLY_VERIFIED',
+    easFileEnvironment: 'NOT_INDEPENDENTLY_VERIFIED',
     productionMutation: 'NONE',
     blockers: [...new Set(blockers)],
     ok: blockers.length === 0,
@@ -78,12 +118,9 @@ export function inspectIosReadiness(profile, root = DEFAULT_ROOT) {
   const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
   const eas = JSON.parse(read('eas.json'));
   const pkg = JSON.parse(read('package.json'));
-  const plistPath = path.join(root, 'GoogleService-Info.plist');
-  const filesPresent = fs.existsSync(plistPath) && fs.existsSync(path.join(root, 'google-services.json'));
-  const plist = fs.existsSync(plistPath) ? read('GoogleService-Info.plist') : '';
+  const previewPlist = read('GoogleService-Info.plist');
   const googleAuthSource = read('src/features/auth/google-auth.ts');
-
-  // EAS profile env is injected during a cloud build, but not during a local npm-script preflight.
+  const rootAndroidServicesPresent = fs.existsSync(path.join(root, 'google-services.json'));
   const profileEnv = eas?.build?.[profile]?.env?.EXPO_PUBLIC_APP_ENV ?? profile;
   const originalEnv = process.env.EXPO_PUBLIC_APP_ENV;
   const configPath = require.resolve(path.join(root, 'app.config.js'));
@@ -92,7 +129,17 @@ export function inspectIosReadiness(profile, root = DEFAULT_ROOT) {
     delete require.cache[configPath];
     const makeAppConfig = require(configPath);
     const appConfig = makeAppConfig({ config: {} });
-    return assessIosReadiness({ profile, appConfig, eas, pkg, plist, googleAuthSource, filesPresent });
+    const selectedFile = appConfig?.ios?.googleServicesFile;
+    const resolved = selectedFile && (
+      path.isAbsolute(selectedFile) ? selectedFile : path.resolve(root, selectedFile)
+    );
+    const filesPresent = Boolean(resolved && fs.existsSync(resolved)
+      && fs.statSync(resolved).isFile() && rootAndroidServicesPresent);
+    const plist = filesPresent ? fs.readFileSync(resolved, 'utf8') : '';
+    return assessIosReadiness({
+      profile, appConfig, eas, pkg, plist, previewPlist,
+      googleAuthSource, filesPresent, root,
+    });
   } finally {
     delete require.cache[configPath];
     if (originalEnv === undefined) delete process.env.EXPO_PUBLIC_APP_ENV;
@@ -105,11 +152,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const profile = args[0] === '--profile' && args.length === 2 ? args[1] : '';
   try {
     const result = inspectIosReadiness(profile);
-    // OAuth secrets/IDs are intentionally never printed. Only public app bundle identifiers.
+    // Never log OAuth/Firebase client IDs, secret file path, contents, tokens or signing data.
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     process.exitCode = result.ok ? 0 : 2;
   } catch (error) {
-    process.stderr.write('IOS_PREFLIGHT_HOLD: unable to inspect trusted configuration (' + (error?.code || 'CONFIG_UNREADABLE') + ')\n');
+    process.stderr.write('IOS_PREFLIGHT_HOLD: cannot inspect trusted config (' + (error?.code || 'CONFIG_UNREADABLE') + ')\n');
     process.exitCode = 2;
   }
 }
