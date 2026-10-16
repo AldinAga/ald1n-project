@@ -86,6 +86,9 @@ final class UserController extends Controller
     public function show(Request $request, User $user): JsonResponse
     {
         $actor = $this->actor($request);
+        // A retired identity is audit-only: never leak it back into
+        // operational Android detail screens through a cached deep link.
+        abort_if($user->retired_at !== null, 404);
         $user->load(['role', 'group']);
 
         return $this->jsonNoStore([
