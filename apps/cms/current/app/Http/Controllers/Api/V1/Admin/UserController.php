@@ -185,7 +185,7 @@ final class UserController extends Controller
             'create' => $actor->can('system.manage_users'),
             'update' => $actor->can('system.manage_users'),
             'password_management' => $actor->can('system.manage_users'),
-            'delete' => false,
+            'delete' => $actor->status === 'active' && $actor->hasRole('superadmin'),
         ];
     }
 
