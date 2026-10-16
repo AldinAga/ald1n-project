@@ -15,7 +15,7 @@ test('retirement UI and typed API parse', () => {
 });
 
 test('retirement requires server impact, active superadmin, target check and literal confirmation', () => {
-  assert.match(screen, /bootstrap\?\.user\.role === 'superadmin'/);
+  assert.ok(screen.includes("bootstrap?.user.role?.slug === 'superadmin'"));
   assert.match(screen, /bootstrap\.user\.id !== user\.id/);
   assert.match(screen, /user\.role\?\.slug !== 'superadmin'/);
   assert.match(screen, /retirementPreview\.data/);
