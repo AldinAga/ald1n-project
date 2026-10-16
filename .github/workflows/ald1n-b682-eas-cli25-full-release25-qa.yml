@@ -1,0 +1,114 @@
+name: Ald1n Batch682 - exact-source EAS CLI25 pin convergence and Release25/JDK17
+on:
+  push:
+    branches:
+      - audit/batch682-eas-cli25-full-release25-20261016
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b682-eascli25-immutable-release-qa
+  cancel-in-progress: false
+jobs:
+  exact-cli25-project-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact PR11 project source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 9e19e7e71abe0d8b104ae65a0cd0c22f892fab35
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Real Temurin JDK17 for Release25 crypto regressions
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Immutable SHA, ten-file tooling scope, no native or runtime change
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "9e19e7e71abe0d8b104ae65a0cd0c22f892fab35"
+          git merge-base --is-ancestor 904c1db0f4213ff2e3eea3757869f86556d55378 HEAD
+          cat > "$RUNNER_TEMP/b682-expected.txt" <<'EOF'
+          AGENTS.md
+          docs/operations/000-LATEST.md
+          apps/mobile/current/eas.json
+          apps/mobile/current/package.json
+          apps/mobile/current/scripts/submit-android-production.mjs
+          apps/mobile/current/scripts/validate-project.mjs
+          apps/mobile/current/scripts/release25/validator-pin-recovery.test.mjs
+          apps/mobile/current/scripts/release25/deep-offline-contract.test.mjs
+          apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs
+          apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs
+          EOF
+          LC_ALL=C sort "$RUNNER_TEMP/b682-expected.txt" -o "$RUNNER_TEMP/b682-expected.txt"
+          git diff --name-only --no-renames 904c1db0f4213ff2e3eea3757869f86556d55378 HEAD | LC_ALL=C sort > "$RUNNER_TEMP/b682-actual.txt"
+          diff -u "$RUNNER_TEMP/b682-expected.txt" "$RUNNER_TEMP/b682-actual.txt"
+          git diff --check 904c1db0f4213ff2e3eea3757869f86556d55378 HEAD
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const pkg=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          const eas=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          if(eas.cli.version!=='25.0.0'||eas.cli.appVersionSource!=='remote')process.exit(1);
+          if(pkg.version!=='1.0.0'||pkg.dependencies.expo!=='~57.0.27')process.exit(2);
+          if(eas.build.production.channel!=='production'||!eas.build.production.autoIncrement)process.exit(3);
+          NODE
+          for tool in java jar keytool jarsigner zip unzip; do command -v "$tool"; done
+          java -version
+          printf '%s\n' 'PASS: B682_EXACT_SOURCE_TOOLING_ONLY_AND_REAL_JDK17'
+      - name: Immutable install of existing Expo SDK57 dependency graph
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: B682_NPM_CI_NO_LOCK_DRIFT'
+      - name: TypeScript
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: B682_TYPESCRIPT'
+      - name: Canonical Mobile validator
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: B682_VALIDATOR'
+      - name: Full Release25 suite on real Java17 (18 test files)
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          test "$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)" -eq 18
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: B682_ALL_RELEASE25_JDK17'
+      - name: Project-scoped pinned EAS25 offline smoke
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          out="$(npm exec --yes --package=eas-cli@25.0.0 -- eas --version)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -E '^eas-cli/25\.0\.0([[:space:]]|$)'
+          npm exec --yes --package=eas-cli@25.0.0 -- eas update:view --help > "$RUNNER_TEMP/b682-update-view-help.txt"
+          grep -Fq -- '--json' "$RUNNER_TEMP/b682-update-view-help.txt"
+          printf '%s\n' 'PASS: B682_EAS25_PINNED_PROJECT_CLI_SMOKE'
+      - name: Source unchanged by CI and CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: B682_NO_SOURCE_MUTATION'
