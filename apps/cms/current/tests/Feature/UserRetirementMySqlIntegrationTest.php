@@ -237,6 +237,9 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.mode', 'non_destructive_retirement');
         $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        $this->getJson('/api/v1/admin/users/'.$target->id)->assertNotFound();
+        $this->getJson('/api/v1/admin/users')->assertOk()
+            ->assertJsonMissing(['username' => $target->username]);
     }
 
     public function test_auth_token_is_invalid_after_retirement(): void
