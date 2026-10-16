@@ -1,0 +1,147 @@
+name: Ald1n Batch685 - exact iOS Firebase profile split (NO native build or OTA)
+on:
+  push:
+    branches:
+      - audit/batch685-ios-firebase-profile-jdk17-php84-20261016
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b685-ios-profile-split-qa
+  cancel-in-progress: false
+jobs:
+  mobile-ios:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Checkout exact PR14 reviewed source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e79c9f1ab15368b9249f552520efc068d18c328f
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Real JDK17 for existing Release25 signature tests
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: SHA, six-file scope and unchanged Android-native build graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "e79c9f1ab15368b9249f552520efc068d18c328f"
+          git merge-base --is-ancestor ac3519d38ec6e82ef6e2bb153d34fbbe198660d5 HEAD
+          cat > "$RUNNER_TEMP/b685-expected" <<'EOF'
+          AGENTS.md
+          apps/mobile/current/app.config.js
+          apps/mobile/current/docs/IOS-FIRST-BUILD-READINESS.md
+          apps/mobile/current/scripts/ios-release-readiness.mjs
+          apps/mobile/current/scripts/release25/batch684-ios-readiness.test.mjs
+          apps/mobile/current/scripts/validate-project.mjs
+          EOF
+          LC_ALL=C sort "$RUNNER_TEMP/b685-expected" -o "$RUNNER_TEMP/b685-expected"
+          git diff --name-only --no-renames ac3519d38ec6e82ef6e2bb153d34fbbe198660d5 HEAD | LC_ALL=C sort > "$RUNNER_TEMP/b685-actual"
+          diff -u "$RUNNER_TEMP/b685-expected" "$RUNNER_TEMP/b685-actual"
+          git diff --check ac3519d38ec6e82ef6e2bb153d34fbbe198660d5 HEAD
+          for tool in java jar keytool jarsigner zip unzip; do command -v "$tool"; done
+          java -version
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const eas=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          const pkg=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          if (eas.cli.version!=='25.0.0' || pkg.version!=='1.0.0' || pkg.dependencies.expo!=='~57.0.27')process.exit(2);
+          if (eas.build.production.channel!=='production' || pkg.scripts['build:android:production']!=='node scripts/build25-release-controller.mjs') process.exit(2);
+          NODE
+          echo 'PASS: B685_EXACT_SOURCE_SIX_FILE_SCOPE_NO_DEPENDENCY_CHANGE'
+      - name: Canonical NPM lockfile install without scripts
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          echo 'PASS: B685_NPM_CI'
+      - name: TypeScript and canonical Mobile validator
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          node scripts/validate-project.mjs
+          echo 'PASS: B685_TYPESCRIPT_AND_VALIDATOR'
+      - name: iOS preview real config PASS, production without credentials expected HOLD
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -u ALD1N_IOS_GOOGLE_SERVICES_FILE node scripts/ios-release-readiness.mjs --profile preview > "$RUNNER_TEMP/b685-preview"
+          node - "$RUNNER_TEMP/b685-preview" <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if (!r.ok||r.status!=='PASS_CONFIG_ONLY'||r.expectedBundleId!=='com.ald1n.mobile.preview'||r.nativeBuild!=='NOT_STARTED')process.exit(2);
+          console.log('PASS: B685_IOS_PREVIEW_ONLY');
+          NODE
+          set +e
+          env -u ALD1N_IOS_GOOGLE_SERVICES_FILE node scripts/ios-release-readiness.mjs --profile production > "$RUNNER_TEMP/b685-production"
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          node - "$RUNNER_TEMP/b685-production" <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if (r.ok||r.status!=='HOLD'||!r.blockers.includes('IOS_GOOGLE_FILE_VARIABLE_REQUIRED')||r.productionMutation!=='NONE')process.exit(3);
+          console.log('PASS: B685_IOS_PRODUCTION_FAIL_CLOSED_NO_SECRETS');
+          NODE
+      - name: Complete Release25 suite incl synthetic Firebase spoof negative tests
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)" -eq 19
+          node --test scripts/release25/*.test.mjs
+          echo 'PASS: B685_ALL_RELEASE25_JDK17'
+      - name: Ensure CI did not change repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          echo 'PASS: B685_MOBILE_NO_REPO_MUTATION'
+  cms-and-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Checkout exact PR14 source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e79c9f1ab15368b9249f552520efc068d18c328f
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Actual PHP 8.4 (not substitute)
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql
+          coverage: none
+      - name: Canonical CMS static and OpenAPI byte parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r 'if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4) exit(2);'
+          cd apps/cms/current
+          php bin/static-check.php
+          cd ../../..
+          cmp apps/cms/current/docs/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp apps/cms/current/docs/openapi.yaml packages/api-contract/openapi.yaml
+          echo 'PASS: B685_CMS_PHP84_AND_API_PARITY'
+      - name: Immutable source after CMS gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          echo 'PASS: B685_CMS_NO_REPO_MUTATION'
