@@ -3,6 +3,13 @@ on:
   push:
     branches:
       - fix/catalog-infinite-scroll-20261016
+      - main
+    paths:
+      - 'apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx'
+      - 'apps/mobile/current/src/features/catalog/catalog-pagination.ts'
+      - 'apps/mobile/current/scripts/release25/catalog-infinite-scroll.test.mjs'
+      - 'apps/cms/current/app/Services/CatalogQueryService.php'
+      - '.github/workflows/catalog-pagination-hotfix-qa.yml'
 permissions:
   contents: read
 jobs:
@@ -63,6 +70,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.ref_name }}" = fix/catalog-infinite-scroll-20261016
+          case "${{ github.ref_name }}" in fix/catalog-infinite-scroll-20261016|main) ;; *) exit 31 ;; esac
           git diff --exit-code
           printf 'NO_BUILD_NO_OTA_NO_PLAY_NO_DB_MUTATION=PASS\n'
