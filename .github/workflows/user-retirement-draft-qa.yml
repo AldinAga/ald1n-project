@@ -29,6 +29,18 @@ jobs:
           npm run typecheck
           npm run validate
           npm run test:release25
+      - name: Canonical OpenAPI parity and retirement contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp apps/cms/current/docs/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp apps/cms/current/docs/openapi.yaml packages/api-contract/openapi.yaml
+          grep -Fq '  /api/v1/admin/users/{user}/retirement:' apps/cms/current/docs/openapi.yaml
+          grep -Fq '    AdminUserRetirementPreviewResponse:' apps/cms/current/docs/openapi.yaml
+          grep -Fq '    AdminUserRetirementResultResponse:' apps/cms/current/docs/openapi.yaml
+          grep -Fq 'confirmation: { type: string, const: OBRISI }' apps/cms/current/docs/openapi.yaml
+          grep -Fq 'foreign_keys: { type: integer, const: 121 }' apps/cms/current/docs/openapi.yaml
+          printf 'PR16_OPENAPI_3_WAY_PARITY=PASS\\n'
       - name: Laravel PHP syntax only - no production data
         run: |
           set -euo pipefail
