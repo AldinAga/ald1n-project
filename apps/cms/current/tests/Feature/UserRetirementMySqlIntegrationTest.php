@@ -9,7 +9,6 @@ use App\Services\AdminUserService;
 use App\Services\UserRetirementService;
 use App\Services\UserRetirementRelationPolicy;
 use Database\Seeders\CoreAccessSeeder;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -128,8 +127,8 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         try {
             app(UserRetirementService::class)->retire($target, $actor);
             self::fail('Unique (user_id, idempotency_key_hash) collision must abort.');
-        } catch (QueryException $e) {
-            self::assertNotSame('', $e->getMessage());
+        } catch (HttpException $e) {
+            self::assertSame(409, $e->getStatusCode());
         }
 
         $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'active', 'retired_at' => null]);
