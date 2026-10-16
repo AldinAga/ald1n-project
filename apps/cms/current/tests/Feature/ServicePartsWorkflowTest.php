@@ -155,6 +155,7 @@ final class ServicePartsWorkflowTest extends TestCase
         ]);
         $this->actingAs($admin)->post('/admin/after-sales/'.$case->id.'/actions', [
             'action_type' => 'service_visit', 'assigned_to' => $admin->id,
+            'scheduled_at' => now()->addHours(3)->format('Y-m-d\\TH:i'),
             'items' => [$caseItem->id => ['selected' => '1', 'quantity' => 1, 'disposition' => 'repair']],
         ])->assertRedirect()->assertSessionHasNoErrors();
         $workOrder = AfterSalesAction::query()->with('workOrder')->sole()->workOrder;
