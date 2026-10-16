@@ -37,7 +37,7 @@ final class UserController extends Controller
         ]);
 
         $perPage = (int) ($validated['per_page'] ?? 20);
-        $query = User::query()->with(['role', 'group'])->latest('id');
+        $query = User::query()->whereNull('retired_at')->with(['role', 'group'])->latest('id');
 
         $search = trim((string) ($validated['q'] ?? ''));
         if ($search !== '') {
