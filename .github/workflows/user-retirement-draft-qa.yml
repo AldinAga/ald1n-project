@@ -233,3 +233,117 @@ jobs:
           set -euo pipefail
           echo 'REMOTE_PRODUCTION_MUTATIONS=ZERO'
           echo 'OTA_BUILD_PLAY_ACTIONS=ZERO'
+
+
+  immutable-source-candidate:
+    name: Freeze audited main and PR16 as an isolated source artifact
+    needs: [retirement, mysql-integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+      PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+      PINNED_PR: \${{ github.sha }}
+    steps:
+      - name: Fetch exact PR16 source; never access dirty hosting checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: \${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Create deterministic local merge commit and check source integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_PR"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_PR"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PINNED_MAIN"
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/app/Services/CatalogQueryService.php
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/public/.htaccess
+          GIT_AUTHOR_DATE='2026-10-16T00:00:00+00:00' \
+          GIT_COMMITTER_DATE='2026-10-16T00:00:00+00:00' \
+          git -c user.name='Ald1n Release QA' -c user.email='release-qa@invalid.example' \
+            commit -m 'PR16 isolated source candidate from pinned main; NO PRODUCTION RELEASE'
+          MERGE_COMMIT="$(git rev-parse HEAD)"
+          MERGED_TREE="$(git rev-parse 'HEAD^{tree}')"
+          test "$(git rev-parse HEAD^1)" = "$PINNED_PR"
+          test "$(git rev-parse HEAD^2)" = "$PINNED_MAIN"
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse "$PINNED_MAIN:apps/cms/current/app/Services/CatalogQueryService.php")" = \
+            "$(git rev-parse "HEAD:apps/cms/current/app/Services/CatalogQueryService.php")"
+          test "$(git rev-parse "$PINNED_MAIN:apps/cms/current/public/.htaccess")" = \
+            "$(git rev-parse "HEAD:apps/cms/current/public/.htaccess")"
+          OUT="$RUNNER_TEMP/pr16-immutable-candidate"
+          mkdir -p "$OUT"
+          PACKAGE=pr16-merged-source.tar.gz
+          git archive --format=tar "$MERGE_COMMIT" | gzip -n -9 > "$OUT/$PACKAGE"
+          tar -tzf "$OUT/$PACKAGE" > "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/cms/current/app/Services/CatalogQueryService.php' "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/cms/current/public/.htaccess' "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/cms/current/app/Services/UserRetirementService.php' "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/mobile/current/src/features/admin/users-admin-api.ts' "$OUT/source-file-list.txt"
+          if grep -E '(^|/)\.env($|\.)' "$OUT/source-file-list.txt" | grep -Ev '\.example$'; then
+            echo 'HOLD: archive contains tracked non-example environment file'
+            exit 31
+          fi
+          FILE_COUNT="$(wc -l < "$OUT/source-file-list.txt" | tr -d ' ')"
+          test "$FILE_COUNT" -ge 1800
+          ARCHIVE_SHA="$(sha256sum "$OUT/$PACKAGE" | cut -d ' ' -f1)"
+          (
+            cd "$OUT"
+            printf '%s  %s\n' "$ARCHIVE_SHA" "$PACKAGE" > SOURCE-SHA256.txt
+            sha256sum -c SOURCE-SHA256.txt
+          )
+          cat > "$OUT/RELEASE-CANDIDATE-MANIFEST.txt" <<EOF
+          ALD1N_PR16_CANDIDATE=ISOLATED_NOT_RELEASED
+          PINNED_MAIN=$PINNED_MAIN
+          PINNED_PR16=$PINNED_PR
+          MERGE_COMMIT=$MERGE_COMMIT
+          MERGE_TREE=$MERGED_TREE
+          ARCHIVE_FILE=$PACKAGE
+          ARCHIVE_SHA256=$ARCHIVE_SHA
+          SOURCE_PATH_COUNT=$FILE_COUNT
+          SOURCE_ARCHIVE_INCLUDES_LIVE_HTACCESS_OVERRIDE=NO
+          HOST_STATUS=STALE_DIRTY_PRESERVE_4_UNIQUE_OVERRIDES
+          ARCHIVE_IS_NOT_AN_OPERATOR_DEPLOY_SCRIPT=YES
+          MYSQL_QA=PASSED_BY_REQUIRED_JOB
+          ANDROID_QA=PASSED_BY_REQUIRED_JOB
+          CMS_PRODUCTION_DEPLOY=NO
+          DB_MIGRATION=NO
+          USER_RETIREMENT=NO
+          EAS_OTA_BUILD_PLAY=NO
+          RELEASE_AUTHORIZATION=HOLD
+          EOF
+          {
+            echo '### Isolated PR16 candidate - NOT a production release'
+            echo
+            echo "| Main | $PINNED_MAIN |"
+            echo "| PR16 | $PINNED_PR |"
+            echo "| Isolated merge commit | $MERGE_COMMIT |"
+            echo "| Merged Git tree | $MERGED_TREE |"
+            echo "| Archive SHA256 | $ARCHIVE_SHA |"
+            echo "| Source paths | $FILE_COUNT |"
+            echo '| Host local overrides | Preserve four unique host files |'
+            echo '| Production actions | Zero |'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "LOCAL_MERGE_COMMIT=$MERGE_COMMIT"
+          echo "LOCAL_MERGE_TREE=$MERGED_TREE"
+          echo "SOURCE_ARCHIVE_SHA256=$ARCHIVE_SHA"
+          echo "SOURCE_PATH_COUNT=$FILE_COUNT"
+          echo 'SOURCE_CANDIDATE_GATE=PASS_ISOLATED_ARTIFACT_ONLY'
+          echo 'PRODUCTION_MUTATIONS=ZERO'
+      - name: Upload CI-only immutable artifact; do not deploy
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr16-immutable-source-\${{ github.sha }}
+          path: |
+            \${{ runner.temp }}/pr16-immutable-candidate/*.tar.gz
+            \${{ runner.temp }}/pr16-immutable-candidate/SOURCE-SHA256.txt
+            \${{ runner.temp }}/pr16-immutable-candidate/RELEASE-CANDIDATE-MANIFEST.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
