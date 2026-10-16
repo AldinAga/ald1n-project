@@ -240,16 +240,20 @@ final class ReportsDocumentsSupplierTest extends TestCase
         self::assertSame('order_confirmation', OrderDocument::query()->sole()->document_type);
     }
 
-    public function test_reports_page_returns_controlled_warning_when_reports_schema_is_incomplete(): void
+    public function test_management_reports_do_not_mutate_order_document_schema_or_rows(): void
     {
         $admin = $this->user('reports-fallback-admin', 'admin');
-        Schema::dropIfExists('order_documents');
+        self::assertTrue(Schema::hasTable('order_documents'));
+        $before = \App\Models\OrderDocument::query()->count();
 
-        $response = $this->actingAs($admin)->get('/admin/reports');
+        // Management reports no longer use the deprecated reports-doctor fallback.
+        // Never drop a referenced table in a transaction-backed MySQL test.
+        $this->actingAs($admin)->get('/admin/reports')
+            ->assertOk()
+            ->assertSee('Izveštaji i profitabilnost');
 
-        $response->assertOk()
-            ->assertSee('Izveštaji trenutno nisu spremni.')
-            ->assertSee('app:reports-doctor --repair');
+        self::assertTrue(Schema::hasTable('order_documents'));
+        self::assertSame($before, \App\Models\OrderDocument::query()->count());
     }
 
     public function test_assigned_admin_reports_only_include_assigned_orders_and_export_pdf_csv(): void
@@ -265,8 +269,8 @@ final class ReportsDocumentsSupplierTest extends TestCase
 
         $page = $this->actingAs($firstAdmin)->get('/admin/reports');
         $page->assertOk()
-            ->assertSee('reports-page-ready', false)
-            ->assertSee('Izveštaji, izvoz i fakturisanje');
+            ->assertSee('Izveštaji i profitabilnost')
+            ->assertSee('Operativni izvozi');
         self::assertSame(1, app(OrderReportService::class)->summary($firstAdmin, [])['orders_count']);
 
         $csv = $this->actingAs($firstAdmin)->get('/admin/reports/orders.csv');

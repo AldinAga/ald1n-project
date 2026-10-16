@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 final class SettingsService
@@ -243,6 +244,11 @@ final class SettingsService
     /** @return array<string,string> */
     private function raw(): array
     {
+        // During incomplete migrations or a missing settings table, render the
+        // secure configured defaults instead of failing the whole CMS layout.
+        if (!Schema::hasTable('settings')) {
+            return [];
+        }
         /** @var array<string,string> $settings */
         $settings = Cache::remember(self::CACHE_KEY, now()->addMinutes(10), static function (): array {
             $rows = Setting::query()->pluck('setting_value', 'setting_key')->all();

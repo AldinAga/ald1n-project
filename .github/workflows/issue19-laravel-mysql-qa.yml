@@ -1,0 +1,181 @@
+name: Issue19 Laravel MySQL baseline repair
+on:
+  push:
+    branches:
+      - fix/issue19-laravel-mysql-baseline-20261016
+permissions:
+  contents: read
+jobs:
+  mysql-cross-feature:
+    name: "issue19 / ${{ matrix.scope }} / disposable MySQL 8.4"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        scope: [catalog-inventory, orders-finance, aftersales-operations, portal-system]
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: pr16-ci-only
+          MYSQL_DATABASE: ald1n_retirement_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -ppr16-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PIN_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+      PIN_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+      PIN_PR: ${{ github.sha }}
+      RUN_SOURCE: issue19-branch
+      TEST_SCOPE: ${{ matrix.scope }}
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: root
+      DB_PASSWORD: pr16-ci-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: "false"
+      PULSE_ENABLED: "false"
+      TELESCOPE_ENABLED: "false"
+    steps:
+      - name: Exact source checkout in ephemeral runner
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check isolated Issue19 branch exact-source and main ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PIN_PR"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PIN_MAIN"
+          git merge-base --is-ancestor "$PIN_MAIN" HEAD
+          test -z "$(git status --porcelain)"
+          echo 'ISSUE19_SOURCE=EXACT_GITHUB_SHA'
+          echo 'LIVE_HOST_MUTATIONS=ZERO'
+      - name: PHP8.4 isolated PDO MySQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install exact-source Laravel dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Guard ephemeral DB and compare broad Laravel suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          test "$DB_HOST" = 127.0.0.1
+          test "$APP_ENV" = testing
+          php -r '
+            $pdo = new PDO(
+              "mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci",
+              "root", "pr16-ci-only", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            if ($pdo->query("SELECT DATABASE()")->fetchColumn() !== "ald1n_retirement_ci") {
+              fwrite(STDERR, "HOLD: not disposable MySQL\n"); exit(31);
+            }
+            echo "DISPOSABLE_MYSQL_IDENTITY=PASS\n";
+          '
+          cd apps/cms/current
+          case "$TEST_SCOPE" in
+            catalog-inventory)
+              files="tests/Feature/AdminProductManagementTest.php tests/Feature/CatalogAccessTest.php tests/Feature/CatalogDetailPageTest.php tests/Feature/InventoryAdjustmentTest.php tests/Feature/ProductImageManagementTest.php tests/Feature/ProductionOrderInventoryTest.php tests/Feature/SmartProductManagementTest.php"
+              ;;
+            orders-finance)
+              files="tests/Feature/AdminOrdersImageRotationTest.php tests/Feature/OperationalOrdersCommissionsTest.php tests/Feature/ManagementReportsProfitabilityTest.php tests/Feature/OrderAmendmentTest.php tests/Feature/OrderDeliveryWorkflowTest.php tests/Feature/OrderEmailsIpsWarrantyTest.php tests/Feature/PaymentsAdvancedInventoryTest.php tests/Feature/ReceivablesCollectionTest.php tests/Feature/ReportsDocumentsSupplierTest.php"
+              ;;
+            aftersales-operations)
+              files="tests/Feature/AfterSalesActionExecutionTest.php tests/Feature/AfterSalesWorkflowTest.php tests/Feature/FieldOperationsWorkflowTest.php tests/Feature/OperationalAutomationTest.php tests/Feature/ServicePartsWorkflowTest.php tests/Feature/WarrantiesPreventiveMaintenanceTest.php"
+              ;;
+            portal-system)
+              files="tests/Feature/CustomerPortalDashboardTest.php tests/Feature/DashboardLegacyDesignTest.php tests/Feature/InventoryWorkspaceUiTest.php tests/Feature/LoginDashboardFallbackTest.php tests/Feature/MobileApiFoundationTest.php tests/Feature/MobilePushPhase3BTest.php tests/Feature/MySqlTestDatabaseSafetyTest.php tests/Feature/PasswordResetTest.php tests/Feature/ProductVariantsWorkflowTest.php tests/Feature/ReleaseCheckCommandTest.php tests/Feature/SecurityHealthBackupTest.php tests/Feature/SystemAdministrationTest.php"
+              ;;
+            *)
+              echo 'HOLD: invalid feature scope'
+              exit 31
+              ;;
+          esac
+          for f in $files; do
+            test -f "$f" || { echo "HOLD: missing test $f"; exit 31; }
+          done
+          echo "BROAD_SUITE_SOURCE=$RUN_SOURCE"
+          echo "BROAD_SUITE_SCOPE=$TEST_SCOPE"
+          echo "BROAD_SUITE_FILES=$(printf '%s\n' "$files" | wc -w | tr -d ' ')"
+          set +e
+          php artisan test -c phpunit.mysql.xml $files --no-ansi --log-junit "$RUNNER_TEMP/$TEST_SCOPE-$RUN_SOURCE.junit.xml"
+          result=$?
+          set -e
+          echo "BROAD_SUITE_RC=$result"
+          {
+            echo '### PR16 cross-feature MySQL comparison'
+            echo
+            echo "| Source | $RUN_SOURCE |"
+            echo "| Scope | $TEST_SCOPE |"
+            echo "| PHPUnit RC | $result |"
+            echo '| Database | Disposable MySQL 8.4 |'
+            echo '| Production mutation | ZERO |'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+
+
+      - name: Preserve full PHPUnit comparison report even on suite failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue19-phpunit-${{ matrix.scope }}-${{ github.sha }}
+          path: ${{ runner.temp }}/*.junit.xml
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  cms-static:
+    name: Issue19 PHP8.4 CMS full static, syntax, routes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Exact issue19 source checkout, no GitHub writes
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Configure PHP8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Complete CMS static gate on exact branch source
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+          php bin/static-check.php
+          php bin/php-lint.php
+          php bin/autoload-check.php
+          php artisan route:list > /dev/null
+          echo 'ISSUE19_CMS_STATIC=PASS'
+          echo 'PRODUCTION_MUTATIONS=ZERO'

@@ -104,6 +104,7 @@ final class MobileApiFoundationTest extends TestCase
             ])
             ->assertCreated();
 
+        $this->app['auth']->forgetGuards();
         $newToken = $user->createToken('Pixel current', ['*'], now()->addDays(30));
         $newTokenId = (int) $newToken->accessToken->getKey();
         $registration = $this->withToken($newToken->plainTextToken)
@@ -121,6 +122,7 @@ final class MobileApiFoundationTest extends TestCase
             'revoked_at' => null,
         ]);
 
+        $this->app['auth']->forgetGuards();
         $this->withToken($newToken->plainTextToken)
             ->deleteJson('/api/v1/devices/'.(int) $registration->json('data.id'))
             ->assertNoContent();
@@ -151,9 +153,11 @@ final class MobileApiFoundationTest extends TestCase
             ->assertJsonPath('data.0.read', false);
         $notificationId = (string) $list->json('data.0.id');
 
+        // The collection endpoint is wrapped in "data"; the single-item
+        // controller returns the resource JSON directly.
         $this->postJson('/api/v1/notifications/'.$notificationId.'/read')
             ->assertOk()
-            ->assertJsonPath('data.read', true);
+            ->assertJsonPath('read', true);
 
         $this->postJson('/api/v1/notifications/read-all')
             ->assertOk()

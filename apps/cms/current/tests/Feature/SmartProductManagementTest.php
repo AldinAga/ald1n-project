@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Brand;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductLine;
 use App\Models\ProductType;
@@ -15,6 +16,7 @@ use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class SmartProductManagementTest extends TestCase
@@ -71,6 +73,7 @@ final class SmartProductManagementTest extends TestCase
             'status' => 'active',
             'completeness_percent' => 100,
             'name_is_manual' => true,
+            'created_by' => $admin->id,
         ]);
 
         $response = $this->actingAs($admin)->post('/admin/catalog/'.$source->id.'/clone', [
@@ -115,6 +118,7 @@ final class SmartProductManagementTest extends TestCase
             'status' => 'draft',
             'completeness_percent' => 0,
             'name_is_manual' => true,
+            'created_by' => $admin->id,
         ]);
 
         $this->actingAs($admin)->post('/admin/catalog/bulk', [
@@ -141,7 +145,9 @@ final class SmartProductManagementTest extends TestCase
         ]);
         $brand = Brand::query()->create(['name' => 'HP', 'slug' => 'hp', 'status' => 'active']);
         $line = ProductLine::query()->create(['brand_id' => $brand->id, 'name' => 'EliteBook', 'slug' => 'elitebook', 'status' => 'active']);
+        $category = Category::query()->create(['name' => 'Laptop', 'slug' => 'laptop', 'status' => 'active']);
         $type = ProductType::query()->create([
+            'category_id' => $category->id,
             'name' => 'Laptop',
             'slug' => 'laptop',
             'status' => 'active',
@@ -151,22 +157,25 @@ final class SmartProductManagementTest extends TestCase
             'default_product_status' => 'draft',
             'required_core_fields_json' => ['brand', 'line', 'description', 'price'],
         ]);
-        $cpu = SpecificationField::query()->create([
-            'name' => 'Procesor',
-            'slug' => 'procesor',
-            'data_type' => 'select',
-            'filter_type' => 'select',
-            'status' => 'active',
-            'detail_input_enabled' => true,
-            'detail_label' => 'Tačan model procesora',
-        ]);
-        SpecificationOption::query()->create([
-            'field_id' => $cpu->id,
-            'label' => 'Intel Core i5',
-            'value' => 'Intel Core i5',
-            'status' => 'active',
-            'sort_order' => 10,
-        ]);
+        // Migration 2026_07_31_000027 seeds the shared processor specification.
+        // Tests must reuse it instead of violating the unique slug constraint.
+        DB::table('brand_product_type')->insert(['brand_id' => $brand->id, 'product_type_id' => $type->id]);
+        DB::table('product_line_product_type')->insert(['product_line_id' => $line->id, 'product_type_id' => $type->id]);
+        $cpu = SpecificationField::query()->firstOrCreate(
+            ['slug' => 'procesor'],
+            [
+                'name' => 'Procesor',
+                'data_type' => 'select',
+                'filter_type' => 'select',
+                'status' => 'active',
+                'detail_input_enabled' => true,
+                'detail_label' => 'Tačan model procesora',
+            ],
+        );
+        SpecificationOption::query()->firstOrCreate(
+            ['field_id' => $cpu->id, 'value' => 'Intel Core i5'],
+            ['label' => 'Intel Core i5', 'status' => 'active', 'sort_order' => 10],
+        );
         $type->fields()->attach($cpu->id, [
             'is_required' => true,
             'is_filterable' => true,

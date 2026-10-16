@@ -53,7 +53,7 @@ final class ProductBulkService
                 throw ValidationException::withMessages(['product_ids' => 'Bulk izmena je dozvoljena samo nad artiklima koje ste kreirali.']);
             }
             foreach ($products as $product) {
-                DB::transaction(function () use ($product, $data, $user, &$updated): void {
+                DB::transaction(function () use ($product, $data, $user, $ids, &$updated): void {
                     $locked = Product::query()->with(['categories', 'specificationValues', 'type.fields'])->lockForUpdate()->findOrFail($product->id);
                     if (!$this->catalogAccess->canManage($locked, $user)) {
                         throw ValidationException::withMessages(['product_ids' => 'Nemate dozvolu za izmenu jednog od izabranih artikala.']);

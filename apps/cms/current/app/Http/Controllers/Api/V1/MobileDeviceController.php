@@ -226,8 +226,14 @@ final class MobileDeviceController extends Controller
     private function throwPushTokenCollision(QueryException $exception): void
     {
         $sqlState = (string) ($exception->errorInfo[0] ?? '');
-        $message = strtolower($exception->getMessage());
-        if (in_array($sqlState, ['23000', '23505'], true) && str_contains($message, 'push_token_hash')) {
+        $nativeCode = (int) ($exception->errorInfo[1] ?? 0);
+        // Only the native database error is authoritative. The formatted
+        // Laravel exception also contains the INSERT statement, so searching
+        // its text for "push_token_hash" mislabels unrelated FK failures.
+        $nativeMessage = strtolower((string) ($exception->errorInfo[2] ?? ''));
+        if ($sqlState === '23000'
+            && $nativeCode === 1062
+            && str_contains($nativeMessage, 'mobile_devices_push_token_hash_unique')) {
             throw ValidationException::withMessages([
                 'push_token' => ['Push token je istovremeno registrovan na drugoj instalaciji. Ponovite registraciju.'],
             ]);
@@ -236,9 +242,25 @@ final class MobileDeviceController extends Controller
 
     private function currentTokenId(Request $request): ?int
     {
-        $token = $request->user()?->currentAccessToken();
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+        if (!$token instanceof PersonalAccessToken || !$token->exists) {
+            // Sanctum's test actingAs() may supply a synthetic access token
+            // without a corresponding personal_access_tokens row. Do not
+            // violate the device FK or attach a device to an unrelated token.
+            return null;
+        }
 
-        return $token instanceof Model ? (int) $token->getKey() : null;
+        $id = (int) $token->getKey();
+        if ($id <= 0 || !$user instanceof User) {
+            return null;
+        }
+
+        return PersonalAccessToken::query()
+            ->whereKey($id)
+            ->where('tokenable_type', $user->getMorphClass())
+            ->where('tokenable_id', $user->getAuthIdentifier())
+            ->exists() ? $id : null;
     }
 
     private function currentTokenName(Request $request): ?string
