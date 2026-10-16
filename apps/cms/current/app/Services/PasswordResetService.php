@@ -29,7 +29,7 @@ final class PasswordResetService
             ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
 
-        if ($user === null) {
+        if ($user === null || $user->retired_at !== null || $user->status === 'blocked') {
             return;
         }
 
