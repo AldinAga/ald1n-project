@@ -89,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/cms/current
-          composer install --no-interaction --prefer-dist --no-progress --no-audit
+          composer install --no-interaction --prefer-dist --no-progress
           cp .env.example .env
           php artisan key:generate --force
       - name: Enforce ephemeral database identity and run MySQL integration
