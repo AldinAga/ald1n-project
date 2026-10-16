@@ -116,7 +116,32 @@ export type AdminUserMutationResponse = {
   reauthenticate: boolean;
 };
 
+export type UserRetirementImpact = {
+  orders: number;
+  commissions: number;
+  warranties: number;
+  conversations: number;
+  assignments: number;
+};
+
+export type UserRetirementPreview = {
+  data: UserRetirementImpact;
+  target_user_id: number;
+  mode: 'non_destructive_retirement';
+};
+
+export type UserRetirementResult = {
+  message: string;
+  data: { orders: number; recipient_id: number; mode: 'non_destructive_retirement' };
+};
+
 export const apiAdminUsers = {
+  retirementPreview: (userId: number) =>
+    apiRequest<UserRetirementPreview>(`admin/users/${userId}/retirement`),
+  retire: (userId: number, confirmation: 'OBRISI') =>
+    apiRequest<UserRetirementResult>(`admin/users/${userId}/retirement`, {
+      method: 'POST', body: { confirmation },
+    }),
   list: (params: AdminUserListParams = {}) =>
     apiRequest<AdminUserListResponse> (`admin/users${queryString(params)}`),
   options: () => apiRequest<AdminUserOptionsResponse> ('admin/users/options'),
