@@ -42,6 +42,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         $seller = $this->user('transfer-seller');
         $first = $this->order($target, 'TR-1');
         $second = $this->order($target, 'TR-2');
+        DB::table('orders')->where('id', $second)->update(['archived_at' => now(), 'archived_by' => $target->id]);
 
         DB::table('order_commissions')->insert([
             'order_id' => $first,
@@ -78,6 +79,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         self::assertNotNull($target->fresh()?->retired_at);
         self::assertSame(2, DB::table('orders')->where('user_id', $actor->id)->whereIn('id', [$first, $second])->count());
         self::assertSame(0, DB::table('orders')->where('user_id', $target->id)->count());
+        $this->assertDatabaseHas('orders', ['id' => $second, 'user_id' => $actor->id, 'archived_by' => $target->id]);
         self::assertSame('50.00', (string) DB::table('order_commissions')->where('order_id', $first)->value('total_eur'));
         self::assertSame((int) $seller->id, (int) DB::table('order_commissions')->where('order_id', $first)->value('user_id'));
         $this->assertDatabaseHas('products', ['id' => $productId, 'created_by' => $target->id]);
@@ -247,6 +249,88 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->getJson('/api/v1/me')->assertUnauthorized();
+    }
+
+    public function test_cascade_foreign_keys_and_unconstrained_actor_ids_are_preserved(): void
+    {
+        $actor = $this->user('fk-root', 'superadmin');
+        $target = $this->user('fk-target');
+        $product = $this->product($target, 'FK-P');
+        $note = DB::table('customer_crm_notes')->insertGetId([
+            'user_id' => $target->id, 'author_user_id' => $actor->id,
+            'body' => 'Originalna interna CRM evidencija',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // user_groups.created_by has no FK and must not be normalized to a new actor.
+        DB::table('user_groups')->where('id', 1)->update(['created_by' => $target->id]);
+
+        app(UserRetirementService::class)->retire($target, $actor);
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        $this->assertDatabaseHas('products', ['id' => $product, 'created_by' => $target->id]);
+        $this->assertDatabaseHas('customer_crm_notes', [
+            'id' => $note, 'user_id' => $target->id, 'author_user_id' => $actor->id,
+        ]);
+        $this->assertDatabaseHas('user_groups', ['id' => 1, 'created_by' => $target->id]);
+    }
+
+    public function test_warranty_with_cascade_fk_blocks_removal_without_data_loss(): void
+    {
+        $actor = $this->user('warranty-root', 'superadmin');
+        $target = $this->user('warranty-target');
+        $buyer = $this->user('warranty-buyer');
+        $product = $this->product($actor, 'WR-P');
+        $order = $this->order($buyer, 'WR-1');
+        $item = DB::table('order_items')->insertGetId([
+            'order_id' => $order, 'product_id' => $product,
+            'product_sku' => 'WR-P', 'product_name' => 'QA garantovani artikal',
+            'quantity' => 1, 'unit_price_original' => '1000.00',
+            'original_currency' => 'RSD', 'unit_price_rsd' => '1000.00',
+            'line_total_rsd' => '1000.00',
+        ]);
+        $warranty = DB::table('product_warranties')->insertGetId([
+            'warranty_number' => 'QA-WR-001', 'order_id' => $order,
+            'order_item_id' => $item, 'product_id' => $product,
+            'user_id' => $target->id, 'starts_at' => '2026-10-01',
+            'expires_at' => '2028-10-01', 'duration_months' => 24,
+            'customer_name_snapshot' => 'QA Kupac',
+            'product_name_snapshot' => 'QA garantovani artikal',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        self::assertSame(1, app(UserRetirementService::class)->impact($target, $actor)['warranties']);
+        $this->assertRetireStatus(422, $target, $actor);
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'retired_at' => null, 'status' => 'active']);
+        $this->assertDatabaseHas('product_warranties', [
+            'id' => $warranty, 'user_id' => $target->id, 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('order_items', ['id' => $item, 'order_id' => $order]);
+    }
+
+    public function test_mysql_fk_inventory_keeps_business_references_even_when_cascade_is_declared(): void
+    {
+        $keys = DB::table('information_schema.KEY_COLUMN_USAGE')
+            ->where('TABLE_SCHEMA', DB::getDatabaseName())
+            ->where('REFERENCED_TABLE_NAME', 'users')
+            ->where('REFERENCED_COLUMN_NAME', 'id')
+            ->get(['TABLE_NAME', 'COLUMN_NAME'])
+            ->map(static fn ($key): string => $key->TABLE_NAME.'.'.$key->COLUMN_NAME)
+            ->all();
+        foreach ([
+            'orders.user_id',
+            'order_commissions.user_id',
+            'product_warranties.user_id',
+            'portal_conversations.user_id',
+            'customer_crm_notes.user_id',
+            'order_assignments.new_supplier_user_id',
+            'products.created_by',
+            'audit_logs.user_id',
+            'mobile_devices.user_id',
+            'user_login_sessions.user_id',
+        ] as $required) {
+            self::assertContains($required, $keys, 'Schema FK inventory must retain '.$required);
+        }
+        self::assertGreaterThan(60, count($keys), 'Verify the full migrated FK network is present in isolated CI.');
     }
 
     private function assertRetireStatus(int $expected, User $target, User $actor): void
