@@ -24,7 +24,7 @@ final class UserRetirementWorkTransferService
         'supplier_orders' => [
             'table' => 'orders',
             'column' => 'supplier_user_id',
-            'terminal' => ['completed', 'cancelled'],
+            'terminal' => ['cancelled'],
         ],
         'after_sales_cases' => [
             'table' => 'after_sales_cases',
@@ -57,10 +57,15 @@ final class UserRetirementWorkTransferService
     {
         $counts = [];
         foreach (self::WORK as $name => $policy) {
-            $counts[$name] = (int) DB::table($policy['table'])
+            $query = DB::table($policy['table'])
                 ->where($policy['column'], $targetId)
-                ->whereNotIn('status', $policy['terminal'])
-                ->count();
+                ->whereNotIn('status', $policy['terminal']);
+            if ($name === 'supplier_orders') {
+                // Order completion is tracked by completed_at; the legacy
+                // MySQL order status enum may not contain 'completed'.
+                $query->whereNull('completed_at');
+            }
+            $counts[$name] = (int) $query->count();
         }
 
         return $counts;
@@ -84,12 +89,13 @@ final class UserRetirementWorkTransferService
             $column = $policy['column'];
             $terminal = $policy['terminal'];
 
-            $ids = DB::table($table)
+            $selection = DB::table($table)
                 ->where($column, $targetId)
-                ->whereNotIn('status', $terminal)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->pluck('id');
+                ->whereNotIn('status', $terminal);
+            if ($name === 'supplier_orders') {
+                $selection->whereNull('completed_at');
+            }
+            $ids = $selection->orderBy('id')->lockForUpdate()->pluck('id');
 
             abort_if(
                 $ids->count() !== (int) ($preview[$name] ?? -1),
@@ -131,11 +137,14 @@ final class UserRetirementWorkTransferService
                     $after['supplier_name_snapshot'] = $updates['supplier_name_snapshot'];
                 }
 
-                $affected = DB::table($table)
+                $update = DB::table($table)
                     ->where('id', (int) $recordId)
                     ->where($column, $targetId)
-                    ->whereNotIn('status', $terminal)
-                    ->update($updates);
+                    ->whereNotIn('status', $terminal);
+                if ($name === 'supplier_orders') {
+                    $update->whereNull('completed_at');
+                }
+                $affected = $update->update($updates);
 
                 abort_unless($affected === 1, 409, 'Zaduženje nije preneto. Sve promene su poništene.');
 
