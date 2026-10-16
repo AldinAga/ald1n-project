@@ -51,7 +51,7 @@ export type AdminUserCapabilities = {
   create: boolean;
   update: boolean;
   password_management: boolean;
-  delete: false;
+  delete: boolean;
 };
 
 export type AdminUserPagination = {
