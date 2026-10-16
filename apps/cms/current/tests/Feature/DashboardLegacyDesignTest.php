@@ -52,7 +52,7 @@ final class DashboardLegacyDesignTest extends TestCase
         $response->assertSee('data-build16-shell="1"', false);
         $response->assertSee('data-icon-family="phosphor"', false);
         $response->assertSee('phosphor-regular.svg', false);
-        $response->assertSee('Upravljanje porudžbinama');
+        $response->assertSee('Porudžbine');
         $response->assertSee('Administracija');
     }
 
