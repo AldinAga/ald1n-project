@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Safe first-stage user retirement. Never physically deletes a user or business record.
  *
- * Deliberately not routed yet: controller/UI integration requires an approved deletion
- * preview, end-to-end tests and the target-specific relational impact gate.
+ * Preview and write paths share this service. Release remains gated on MySQL
+ * integration tests and complete relationship classification before merge.
  */
 final class UserRetirementService
 {
@@ -70,25 +70,65 @@ final class UserRetirementService
                 abort_if($impact[$relation] > 0, 422, 'Korisnik ima povezane poslovne evidencije: '.$relation);
             }
 
-            // A business entity must never be deleted by a cascading FK side effect.
-            // Refuse until *all* user-owned records and historical relationships
-            // have been inspected and approved. This is a reversible account
-            // retirement, not physical deletion.
-            $orders = $impact['orders'];
+            // A business entity is never deleted by cascading FK effects because
+            // the user record survives. Keep original attribution in an append-only
+            // owner-link history before reassigning the operational order owner.
+            // Lock each source order; rollback includes histories if a later step fails.
+            $orderIds = DB::table('orders')
+                ->where('user_id', (int) $locked->getKey())
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->pluck('id');
+
+            $orders = $orderIds->count();
+            abort_if($orders !== $impact['orders'], 409, 'Lista porudžbina se promenila. Ponovite pregled.');
+
             if ($orders > 0) {
-                DB::table('orders')
+                $at = now();
+                foreach ($orderIds->chunk(300) as $chunk) {
+                    $rows = [];
+                    foreach ($chunk as $orderId) {
+                        $rows[] = [
+                            'order_id' => (int) $orderId,
+                            'from_user_id' => (int) $locked->getKey(),
+                            'to_user_id' => (int) $recipient->getKey(),
+                            'changed_by' => (int) $recipient->getKey(),
+                            'reason' => 'Bezbedno povlačenje korisničkog naloga (user.retired)',
+                            'created_at' => $at,
+                        ];
+                    }
+
+                    DB::table('portal_order_link_history')->insert($rows);
+                }
+
+                // DB uniqueness/FK failures MUST abort the entire transaction.
+                $affected = DB::table('orders')
                     ->where('user_id', (int) $locked->getKey())
+                    ->whereIn('id', $orderIds->all())
                     ->update(['user_id' => (int) $recipient->getKey()]);
+                abort_if($affected !== $orders, 409, 'Prenos porudžbina nije potpun.');
             }
 
             // Block login immediately while preserving all historic foreign keys,
             // original commission recipients, audit actors and warranty ownership.
             $locked->forceFill(['status' => 'blocked', 'retired_at' => now(), 'remember_token' => null])->save();
+            DB::table('user_login_sessions')
+                ->where('user_id', (int) $locked->getKey())
+                ->whereNull('revoked_at')
+                ->whereNull('logged_out_at')
+                ->update(['revoked_at' => now(), 'revoked_by' => (int) $recipient->getKey()]);
+            // Preserve device records for security history; neutralize every push
+            // destination and revoke device access before deleting bearer tokens.
+            DB::table('mobile_devices')
+                ->where('user_id', (int) $locked->getKey())
+                ->update([
+                    'revoked_at' => now(),
+                    'notifications_enabled' => false,
+                    'push_token' => null,
+                    'push_token_hash' => null,
+                    'updated_at' => now(),
+                ]);
             $locked->tokens()->delete();
-            DB::table('user_login_sessions')->where('user_id', (int) $locked->getKey())
-                ->whereNull('revoked_at')->update(['revoked_at' => now()]);
-            DB::table('mobile_devices')->where('user_id', (int) $locked->getKey())
-                ->delete();
 
             $this->audit->log(
                 'user.retired',
