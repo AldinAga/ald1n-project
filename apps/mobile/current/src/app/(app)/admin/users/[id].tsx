@@ -169,7 +169,7 @@ export default function AdminUsersDetailScreen() {
       <Text style={styles.copy}>
         Izmena koristi centralni Laravel User Manager. Nova lozinka opoziva sve postojeće API tokene korisnika.
       </Text>
-      {bootstrap?.user.role === 'superadmin'
+      {bootstrap?.user.role?.slug === 'superadmin'
         && bootstrap.user.id !== user.id
         && user.role?.slug !== 'superadmin'
         && user.status !== 'blocked' ? (
