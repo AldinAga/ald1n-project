@@ -39,7 +39,7 @@ final class LoginDashboardFallbackTest extends TestCase
         $this->actingAs($user)
             ->get('/')
             ->assertOk()
-            ->assertSee('Dobro došao')
+            ->assertSee('Ald1n CMS')
             ->assertSee('Svi dostupni moduli na jednom mestu');
     }
 
@@ -70,7 +70,7 @@ final class LoginDashboardFallbackTest extends TestCase
         $this->actingAs($user)
             ->get('/')
             ->assertOk()
-            ->assertSee('Dobro došao')
+            ->assertSee('Ald1n CMS')
             ->assertSee('Nije podešen');
     }
 
@@ -85,7 +85,7 @@ final class LoginDashboardFallbackTest extends TestCase
         $this->actingAs($user)
             ->get('/')
             ->assertOk()
-            ->assertSee('Dobro došao')
+            ->assertSee('Ald1n CMS')
             ->assertSee('Korisnik');
     }
 
