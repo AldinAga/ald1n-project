@@ -20,7 +20,10 @@ test('retirement requires server impact, active superadmin, target check and lit
   assert.match(screen, /user\.role\?\.slug !== 'superadmin'/);
   assert.match(screen, /retirementPreview\.data/);
   assert.match(screen, /retirementConfirmation !== 'OBRISI'/);
-  assert.match(screen, /key !== 'orders' && count > 0/);
+  assert.match(screen, /retirementPreview\.data\.data\.foreign_keys/);
+  assert.match(screen, /retirementPreview\.data\.data\.unconstrained_history/);
+  assert.match(screen, /retirementPreview\.data\.data\.supplier_orders/);
+  assert.doesNotMatch(screen, /key !== 'orders' && count > 0/);
   assert.match(screen, /retirementMutation\.isPending/);
   assert.match(screen, /invalidateQueries/);
 });
