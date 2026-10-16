@@ -110,10 +110,14 @@ final class UserRetirementService
                 }
 
                 // DB uniqueness/FK failures MUST abort the entire transaction.
-                $affected = DB::table('orders')
-                    ->where('user_id', (int) $locked->getKey())
-                    ->whereIn('id', $orderIds->all())
-                    ->update(['user_id' => (int) $recipient->getKey()]);
+                try {
+                    $affected = DB::table('orders')
+                        ->where('user_id', (int) $locked->getKey())
+                        ->whereIn('id', $orderIds->all())
+                        ->update(['user_id' => (int) $recipient->getKey()]);
+                } catch (\Illuminate\Database\UniqueConstraintViolationException $exception) {
+                    abort(409, 'Prenos nije bezbedan zbog konflikta ključa porudžbine. Nijedan podatak nije izmenjen.');
+                }
                 abort_if($affected !== $orders, 409, 'Prenos porudžbina nije potpun.');
             }
 
