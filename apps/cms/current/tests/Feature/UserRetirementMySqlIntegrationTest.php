@@ -586,6 +586,59 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         }
     }
 
+    public function test_innodb_no_action_restrict_equivalence_matches_real_host_manifest_without_hiding_drift(): void
+    {
+        $policy = UserRetirementRelationPolicy::USER_FKS;
+        self::assertCount(121, $policy);
+
+        $knownAliases = [
+            'orders.user_id',
+            'order_commissions.user_id',
+            'products.created_by',
+        ];
+        foreach ($knownAliases as $key) {
+            self::assertSame('NO ACTION', $policy[$key][1]);
+        }
+
+        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION'));
+        self::assertSame('RESTRICT', UserRetirementRelationPolicy::canonicalMysqlDeleteRule(' restrict '));
+        self::assertSame('SET NULL', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('SET NULL'));
+        self::assertSame('CASCADE', UserRetirementRelationPolicy::canonicalMysqlDeleteRule('CASCADE'));
+        self::assertNotSame(
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('CASCADE'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('NO ACTION'),
+        );
+        self::assertNotSame(
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('SET NULL'),
+            UserRetirementRelationPolicy::canonicalMysqlDeleteRule('RESTRICT'),
+        );
+
+        // Exact 121-key read-only production receipt in Report694: all three
+        // aliases were RESTRICT; everything else matched. Pin the normalized
+        // policy fingerprint without changing any production constraints.
+        $manifest = [];
+        foreach ($policy as $key => $rule) {
+            $manifest[] = $key.' '.UserRetirementRelationPolicy::canonicalMysqlDeleteRule($rule[1]);
+        }
+        sort($manifest, SORT_STRING);
+        self::assertSame(
+            'ee452183cf5585a14efcaf1e311c9f7b37dd2c8f90dbb9bd3b17eabcac3bac07',
+            hash('sha256', implode("\n", $manifest)."\n"),
+        );
+
+        // A destructive CASCADE drift must remain rejected after alias
+        // normalization (never blanket-normalize the schema).
+        $changed = $manifest;
+        $position = array_search('orders.user_id RESTRICT', $changed, true);
+        self::assertNotFalse($position);
+        $changed[$position] = 'orders.user_id CASCADE';
+        sort($changed, SORT_STRING);
+        self::assertNotSame(
+            hash('sha256', implode("\n", $manifest)."\n"),
+            hash('sha256', implode("\n", $changed)."\n"),
+        );
+    }
+
     private function assertRetireStatus(int $expected, User $target, User $actor): void
     {
         try {
