@@ -90,7 +90,7 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
         $order = Order::query()->sole();
 
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'processing', 'note' => 'Obrada je počela.'])->assertRedirect();
-        $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'confirmed', 'note' => 'Porudžbina je potvrđena.'])->assertRedirect();
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'confirmed', 'note' => 'Porudžbina je potvrđena.', 'order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh())])->assertRedirect();
         $courierId = (int) \App\Models\CourierService::query()->where('slug', 'post-express')->value('id');
         self::assertGreaterThan(0, $courierId);
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/shipment', [
