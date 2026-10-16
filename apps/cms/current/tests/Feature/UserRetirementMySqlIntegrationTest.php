@@ -554,6 +554,25 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         self::assertNotNull($target->fresh()?->retired_at);
     }
 
+    public function test_rollback_refuses_to_erase_retired_identity_marker(): void
+    {
+        $actor = $this->user('rollback-root', 'superadmin');
+        $target = $this->user('rollback-target');
+        app(UserRetirementService::class)->retire($target, $actor);
+
+        $migration = require database_path('migrations/2026_10_16_160000_add_retired_at_to_users_table.php');
+        try {
+            $migration->down();
+            self::fail('Rollback must never erase an existing retired_at marker.');
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString('Rollback HOLD', $e->getMessage());
+        }
+
+        self::assertTrue(\Illuminate\Support\Facades\Schema::hasColumn('users', 'retired_at'));
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        self::assertNotNull($target->fresh()?->retired_at);
+    }
+
     private function assertRetiredInviteBlocked(\App\Services\CustomerActivationService $service, User $target): void
     {
         try {
