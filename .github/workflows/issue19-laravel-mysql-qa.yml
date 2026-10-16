@@ -147,3 +147,35 @@ jobs:
           path: ${{ runner.temp }}/*.junit.xml
           if-no-files-found: warn
           retention-days: 7
+
+
+  cms-static:
+    name: Issue19 PHP8.4 CMS full static, syntax, routes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Exact issue19 source checkout, no GitHub writes
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Configure PHP8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Complete CMS static gate on exact branch source
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+          php bin/static-check.php
+          php bin/php-lint.php
+          php bin/autoload-check.php
+          php artisan route:list > /dev/null
+          echo 'ISSUE19_CMS_STATIC=PASS'
+          echo 'PRODUCTION_MUTATIONS=ZERO'
