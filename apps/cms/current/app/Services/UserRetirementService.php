@@ -29,7 +29,7 @@ final class UserRetirementService
      */
     public function impact(User $target, User $actor): array
     {
-        abort_unless($actor->status === 'active' && $actor->hasRole('superadmin'), 403);
+        abort_unless($actor->status === 'active' && $actor->retired_at === null && $actor->hasRole('superadmin'), 403);
         abort_if((int) $actor->getKey() === (int) $target->getKey(), 422);
         abort_if($target->hasRole('superadmin'), 422);
 
@@ -56,13 +56,14 @@ final class UserRetirementService
      */
     public function retire(User $target, User $actor): array
     {
-        abort_unless($actor->status === 'active' && $actor->hasRole('superadmin'), 403);
+        abort_unless($actor->status === 'active' && $actor->retired_at === null && $actor->hasRole('superadmin'), 403);
         abort_if((int) $actor->getKey() === (int) $target->getKey(), 422, 'Ne možete obrisati sopstveni nalog.');
 
         return DB::transaction(function () use ($target, $actor): array {
             $recipient = User::query()
                 ->whereKey((int) $actor->getKey())
                 ->where('status', 'active')
+                ->whereNull('retired_at')
                 ->lockForUpdate()
                 ->firstOrFail();
             abort_unless($recipient->hasRole('superadmin'), 403);
