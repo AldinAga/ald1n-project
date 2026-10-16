@@ -1,0 +1,54 @@
+name: Ald1n catalog pagination hotfix source QA
+on:
+  push:
+    branches:
+      - fix/catalog-infinite-scroll-20261016
+permissions:
+  contents: read
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+    steps:
+      - name: Checkout exact source SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Node 22.16 authority
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Native signature test prerequisites (JDK 17)
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: NPM installation and exact-source checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/mobile/current
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+          npx expo install --check
+      - name: PHP syntax and cross-layer page ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/cms/current/app/Services/CatalogQueryService.php
+          grep -Fq "orderByDesc('id')" apps/cms/current/app/Services/CatalogQueryService.php
+      - name: Explicit release safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.ref_name }}" = fix/catalog-infinite-scroll-20261016
+          git diff --exit-code
+          printf 'NO_BUILD_NO_OTA_NO_PLAY_NO_DB_MUTATION=PASS\n'
