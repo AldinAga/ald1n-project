@@ -53,6 +53,7 @@ final class AfterSalesWorkflowTest extends TestCase
             'attachments' => [UploadedFile::fake()->image('ostecenje.jpg', 900, 700)],
         ]);
 
+        $response->assertRedirect()->assertSessionHasNoErrors();
         $case = AfterSalesCase::query()->with(['items', 'attachments'])->sole();
         $response->assertRedirect('/after-sales/'.$case->id)->assertSessionHas('status');
         self::assertStringStartsWith('PS-', $case->case_number);
