@@ -166,7 +166,7 @@ Canonical pinned EAS CLI version for new repository operations (read-only GitHub
 eas-cli@25.0.0
 ```
 
-Upgrade from 24.8.0 to **25.0.0**: exact-source Node 22.16 read-only compatibility [CI 38862601089](https://github.com/AldinAga/ald1n-project/actions/runs/38862601089) PASS (CLI version and Update, republish, channel, project, build and submit help/flag contracts). Upstream [v25.0.0 release notes](https://github.com/expo/eas-cli/releases/tag/v25.0.0) list simulator-preview link sharing as the published breaking change. **Authenticated production exact-group read on hosting with CLI 25 remains a separate read-only activation gate before any future EAS mutation.** Do not install globally, run builds/OTA or modify production as part of this upgrade. Future versions require their own isolated compatibility and fail-closed tests.
+Upgrade from 24.8.0 to **25.0.0**: exact-source Node 22.16 read-only compatibility [CI 38862601089](https://github.com/AldinAga/ald1n-project/actions/runs/38862601089) PASS (CLI version and Update, republish, channel, project, build and submit help/flag contracts). Upstream [v25.0.0 release notes](https://github.com/expo/eas-cli/releases/tag/v25.0.0) list simulator-preview link sharing as the published breaking change. **Authenticated production exact-group read on hosting with CLI 25: PASS** (owner-executed Report683, 2026-10-16; source `6a02eec0d2a800de7db1996adfdc2fd0e69d0cac`, exact production group `37ae8af0-b950-4549-8476-c960e1350866`, no mutation). The production channel/latest GraphQL mapping was **not** rechecked by Report683 and remains a separate gate for every future EAS publish. Do not install globally, run builds/OTA or modify production as part of this upgrade. Future versions require their own isolated compatibility and fail-closed tests.
 
 Approved invocation:
 
@@ -206,6 +206,15 @@ The flags are not uniform across EAS subcommands. Use the behavior proven on thi
 - CLI25 help confirms Update/list/channel flag availability, but collection queries are **not** standalone release authority: earlier collection reads failed even under CLI24.8.0. Use exact-group `update:view` and authenticated basic channel/latest GraphQL, and fail closed on ambiguity.
 - `eas update ... --environment production --json --non-interactive` and `eas update:republish ... --json --non-interactive` were production-proven under **CLI24.8.0** in Report682. **CLI25 has only read-only compatibility PASS so far**; its first production mutation requires separate release gates and exact-group verification. Expo export warnings about `CI=1` do not prove success/failure; judge real RC and returned update JSON.
 - Do not globally install a newer EAS CLI merely because the CLI prints an upgrade notice. Test a new major version through the same pinned npm-exec mechanism in a dedicated read-only compatibility audit first; only then change the canonical pin in this file.
+
+---
+
+### iOS profile credential safety (Batch684, 2026-10-16)
+
+- Before any `npm run build:ios:preview` or `npm run build:ios:production`, execute the project-pinned **read-only** preflight `node scripts/ios-release-readiness.mjs --profile PROFILE` (now in the checked-in iOS build wrappers). No iOS build is authorized merely by a config-only PASS.
+- The currently tracked `GoogleService-Info.plist` belongs to iOS **preview** `com.ald1n.mobile.preview`; production iOS bundle `com.ald1n.mobile` requires a distinct matching Firebase iOS OAuth plist. Fail CLOSED rather than relabeling a preview plist or starting a production signing/build operation.
+- `PASS_CONFIG_ONLY` is not evidence of Apple Developer credentials, provisioning, TestFlight delivery, real device login, or notification entitlement. Keep Apple signing and device UAT as separately attested gates. Do not change Build25 Android runtime, native dependencies or production OTA to fix iOS credentials.
+- Liquid Glass remains the final project phase, after functional UAT and the first iOS build.
 
 ---
 
