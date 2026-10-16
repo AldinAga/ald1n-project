@@ -13,7 +13,18 @@ const EAS_PROJECT_ID =
 const GOOGLE_SERVICES_FILE = './google-services.json';
 const hasGoogleServicesFile = fs.existsSync(path.join(__dirname, 'google-services.json'));
 const IOS_GOOGLE_SERVICES_FILE = './GoogleService-Info.plist';
-const hasIosGoogleServicesFile = fs.existsSync(path.join(__dirname, 'GoogleService-Info.plist'));
+// MOBILE_BATCH685_IOS_FIREBASE_PROFILE_SPLIT:
+// Preview uses the tracked Firebase preview app. Production/development may only
+// use a separately supplied EAS file variable; never silently reuse preview OAuth.
+const IOS_GOOGLE_SERVICES_PATH = APP_ENV === 'preview'
+  ? IOS_GOOGLE_SERVICES_FILE
+  : (process.env.ALD1N_IOS_GOOGLE_SERVICES_FILE?.trim() || null);
+const hasIosGoogleServicesFile = Boolean(
+  IOS_GOOGLE_SERVICES_PATH
+  && fs.existsSync(path.isAbsolute(IOS_GOOGLE_SERVICES_PATH)
+    ? IOS_GOOGLE_SERVICES_PATH
+    : path.join(__dirname, IOS_GOOGLE_SERVICES_PATH)),
+);
 // MOBILE_IOS_GOOGLE_NATIVE_CONFIG_V06
 
 const isProduction = APP_ENV === 'production';
@@ -54,7 +65,7 @@ module.exports = ({ config }) => {
       bundleIdentifier: `com.ald1n.mobile${suffix}`,
       icon: './assets/icon-ios.png',
       // MOBILE_V0_6_IOS_OPAQUE_ICON_V1
-      ...(hasIosGoogleServicesFile ? { googleServicesFile: IOS_GOOGLE_SERVICES_FILE } : {}),
+      ...(hasIosGoogleServicesFile ? { googleServicesFile: IOS_GOOGLE_SERVICES_PATH } : {}),
       buildNumber: '1',
       infoPlist: {
         ...((config.ios && config.ios.infoPlist) || {}),
@@ -148,7 +159,7 @@ module.exports = ({ config }) => {
             'react-native-nitro-google-signin',
             {
               androidGoogleServicesFile: GOOGLE_SERVICES_FILE,
-              ...(hasIosGoogleServicesFile ? { iosGoogleServicesFile: IOS_GOOGLE_SERVICES_FILE } : {}),
+              ...(hasIosGoogleServicesFile ? { iosGoogleServicesFile: IOS_GOOGLE_SERVICES_PATH } : {}),
             },
           ]]
         : []),
