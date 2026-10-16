@@ -242,9 +242,25 @@ final class MobileDeviceController extends Controller
 
     private function currentTokenId(Request $request): ?int
     {
-        $token = $request->user()?->currentAccessToken();
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+        if (!$token instanceof PersonalAccessToken || !$token->exists) {
+            // Sanctum's test actingAs() may supply a synthetic access token
+            // without a corresponding personal_access_tokens row. Do not
+            // violate the device FK or attach a device to an unrelated token.
+            return null;
+        }
 
-        return $token instanceof Model ? (int) $token->getKey() : null;
+        $id = (int) $token->getKey();
+        if ($id <= 0 || !$user instanceof User) {
+            return null;
+        }
+
+        return PersonalAccessToken::query()
+            ->whereKey($id)
+            ->where('tokenable_type', $user->getMorphClass())
+            ->where('tokenable_id', $user->getAuthIdentifier())
+            ->exists() ? $id : null;
     }
 
     private function currentTokenName(Request $request): ?string
