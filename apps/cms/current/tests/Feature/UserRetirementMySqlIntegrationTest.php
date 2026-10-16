@@ -464,6 +464,32 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         self::assertNotNull(DB::table('mobile_push_outbox')->where('id', $outbox)->value('failed_at'));
     }
 
+    public function test_web_cms_preview_confirmation_and_users_list_hide_retired_identity(): void
+    {
+        $root = $this->user('web-root', 'superadmin');
+        $admin = $this->user('web-admin', 'admin');
+        $target = $this->user('web-target');
+
+        $preview = route('admin.users.retirement.preview', ['user' => $target->id]);
+        $submit = route('admin.users.retirement.store', ['user' => $target->id]);
+
+        $this->actingAs($admin)->get($preview)->assertForbidden();
+        $this->actingAs($root)->get($preview)
+            ->assertOk()
+            ->assertSeeText('Bezbedno uklanjanje naloga')
+            ->assertSeeText('OBRISI');
+        $this->actingAs($root)->post($submit, ['confirmation' => 'obrisi'])
+            ->assertSessionHasErrors('confirmation');
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'active']);
+
+        $this->actingAs($root)->post($submit, ['confirmation' => 'OBRISI'])
+            ->assertRedirect(route('admin.users.index'));
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        $this->actingAs($root)->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertDontSee($target->username);
+    }
+
     private function assertRetireStatus(int $expected, User $target, User $actor): void
     {
         try {
