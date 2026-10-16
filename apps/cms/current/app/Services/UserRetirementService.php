@@ -20,6 +20,28 @@ final class UserRetirementService
     }
 
     /**
+     * Read-only impact preview. Counts are computed again inside the write transaction.
+     *
+     * @return array<string,int>
+     */
+    public function impact(User $target, User $actor): array
+    {
+        abort_unless($actor->status === 'active' && $actor->hasRole('superadmin'), 403);
+        abort_if((int) $actor->getKey() === (int) $target->getKey(), 422);
+        abort_if($target->hasRole('superadmin'), 422);
+
+        $id = (int) $target->getKey();
+
+        return [
+            'orders' => (int) DB::table('orders')->where('user_id', $id)->count(),
+            'commissions' => (int) DB::table('order_commissions')->where('user_id', $id)->count(),
+            'warranties' => (int) DB::table('product_warranties')->where('user_id', $id)->count(),
+            'conversations' => (int) DB::table('portal_conversations')->where('user_id', $id)->count(),
+            'assignments' => (int) DB::table('order_assignments')->where('new_supplier_user_id', $id)->count(),
+        ];
+    }
+
+    /**
      * @return array{orders:int,recipient_id:int,mode:string}
      */
     public function retire(User $target, User $actor): array
@@ -39,7 +61,15 @@ final class UserRetirementService
             abort_if($locked->hasRole('superadmin'), 422, 'SuperAdministrator nalog se ne briše ovim postupkom.');
             abort_if($locked->status === 'blocked', 422, 'Nalog je već blokiran. Potrebna je zasebna provera.');
 
-            $orders = (int) DB::table('orders')->where('user_id', (int) $locked->getKey())->count();
+            // Temporary fail-closed gate until every non-order business relationship
+            // has a separately tested retention/reassignment policy. Never allow
+            // 'retired' to suggest complete deletion of a user with unreviewed links.
+            $impact = $this->impact($locked, $recipient);
+            foreach (['commissions', 'warranties', 'conversations', 'assignments'] as $relation) {
+                abort_if($impact[$relation] > 0, 422, 'Korisnik ima povezane poslovne evidencije: '.$relation);
+            }
+
+            $orders = $impact['orders'];
             if ($orders > 0) {
                 DB::table('orders')
                     ->where('user_id', (int) $locked->getKey())
