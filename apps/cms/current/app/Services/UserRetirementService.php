@@ -69,6 +69,10 @@ final class UserRetirementService
                 abort_if($impact[$relation] > 0, 422, 'Korisnik ima povezane poslovne evidencije: '.$relation);
             }
 
+            // A business entity must never be deleted by a cascading FK side effect.
+            // Refuse until *all* user-owned records and historical relationships
+            // have been inspected and approved. This is a reversible account
+            // retirement, not physical deletion.
             $orders = $impact['orders'];
             if ($orders > 0) {
                 DB::table('orders')
@@ -80,6 +84,10 @@ final class UserRetirementService
             // original commission recipients, audit actors and warranty ownership.
             $locked->forceFill(['status' => 'blocked'])->save();
             $locked->tokens()->delete();
+            DB::table('user_login_sessions')->where('user_id', (int) $locked->getKey())
+                ->whereNull('revoked_at')->update(['revoked_at' => now()]);
+            DB::table('mobile_devices')->where('user_id', (int) $locked->getKey())
+                ->delete();
 
             $this->audit->log(
                 'user.retired',
