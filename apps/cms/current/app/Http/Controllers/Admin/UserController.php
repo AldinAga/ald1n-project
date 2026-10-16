@@ -20,7 +20,7 @@ final class UserController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = User::query()->with(['role', 'group'])->latest('id');
+        $query = User::query()->whereNull('retired_at')->with(['role', 'group'])->latest('id');
         if ($search = trim((string) $request->query('q'))) {
             $query->where(static function ($q) use ($search): void {
                 $q->where('username', 'like', '%'.$search.'%')
