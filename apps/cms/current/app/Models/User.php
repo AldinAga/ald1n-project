@@ -42,6 +42,7 @@ final class User extends Authenticatable implements PasskeyUser
             'password_changed_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'portal_activated_at' => 'datetime',
+            'retired_at' => 'datetime',
         ];
     }
 
