@@ -358,7 +358,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
             'accepted_by' => $target->id, 'accepted_at' => now(),
         ]);
         DB::table('orders')->where('id', $finishedOrder)->update([
-            'status' => 'completed', 'supplier_user_id' => $target->id,
+            'status' => 'shipped', 'completed_at' => now(), 'supplier_user_id' => $target->id,
         ]);
         $openCase = DB::table('after_sales_cases')->insertGetId([
             'case_number' => 'QA-RCASE-1', 'order_id' => $openOrder,
