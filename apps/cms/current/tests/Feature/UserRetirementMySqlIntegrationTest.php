@@ -342,6 +342,128 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         self::assertCount(121, UserRetirementRelationPolicy::USER_FKS);
     }
 
+    public function test_all_five_active_work_queues_reassign_and_terminal_history_is_preserved(): void
+    {
+        $actor = $this->user('work-root', 'superadmin');
+        $target = $this->user('work-old-assignee', 'admin');
+        $buyer = $this->user('work-buyer');
+        $openOrder = $this->order($buyer, 'ACTIVE-WORK-1');
+        $finishedOrder = $this->order($buyer, 'FINISHED-WORK-1');
+        $receivableOpenOrder = $this->order($buyer, 'RECEIVABLE-WORK-1');
+        $receivableClosedOrder = $this->order($buyer, 'RECEIVABLE-WORK-2');
+        DB::table('orders')->where('id', $openOrder)->update([
+            'source_system' => 'laravel',
+            'supplier_user_id' => $target->id,
+            'supplier_name_snapshot' => 'Originalni dobavljač',
+            'accepted_by' => $target->id, 'accepted_at' => now(),
+        ]);
+        DB::table('orders')->where('id', $finishedOrder)->update([
+            'status' => 'completed', 'supplier_user_id' => $target->id,
+        ]);
+        $openCase = DB::table('after_sales_cases')->insertGetId([
+            'case_number' => 'QA-RCASE-1', 'order_id' => $openOrder,
+            'opened_by' => $buyer->id, 'assigned_to' => $target->id,
+            'case_type' => 'complaint', 'status' => 'open',
+            'subject' => 'Reklamacija za prenos', 'description' => 'QA opis',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $closedCase = DB::table('after_sales_cases')->insertGetId([
+            'case_number' => 'QA-RCASE-2', 'order_id' => $finishedOrder,
+            'opened_by' => $buyer->id, 'assigned_to' => $target->id,
+            'case_type' => 'complaint', 'status' => 'closed',
+            'subject' => 'Zatvorena reklamacija', 'description' => 'QA opis',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $openAction = DB::table('after_sales_actions')->insertGetId([
+            'action_number' => 'QA-RACTION-1', 'after_sales_case_id' => $openCase,
+            'action_type' => 'repair', 'status' => 'planned',
+            'assigned_to' => $target->id, 'created_by' => $buyer->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $doneAction = DB::table('after_sales_actions')->insertGetId([
+            'action_number' => 'QA-RACTION-2', 'after_sales_case_id' => $closedCase,
+            'action_type' => 'repair', 'status' => 'completed',
+            'assigned_to' => $target->id, 'created_by' => $buyer->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $openConversation = DB::table('portal_conversations')->insertGetId([
+            'user_id' => $buyer->id, 'order_id' => $openOrder,
+            'assigned_to' => $target->id, 'status' => 'waiting_staff',
+            'subject' => 'Aktivna poruka',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $closedConversation = DB::table('portal_conversations')->insertGetId([
+            'user_id' => $buyer->id, 'order_id' => $finishedOrder,
+            'assigned_to' => $target->id, 'status' => 'closed',
+            'subject' => 'Zatvorena poruka',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $openReceivable = DB::table('receivable_cases')->insertGetId([
+            'case_number' => 'QA-RREC-1', 'order_id' => $receivableOpenOrder,
+            'status' => 'monitoring', 'assigned_to' => $target->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $closedReceivable = DB::table('receivable_cases')->insertGetId([
+            'case_number' => 'QA-RREC-2', 'order_id' => $receivableClosedOrder,
+            'status' => 'closed', 'assigned_to' => $target->id,
+            'closed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $impact = app(UserRetirementService::class)->impact($target, $actor);
+        foreach (['supplier_orders', 'after_sales_cases', 'after_sales_actions', 'portal_assignments', 'receivable_cases'] as $work) {
+            self::assertSame(1, $impact[$work], $work);
+        }
+        $result = app(UserRetirementService::class)->retire($target, $actor);
+        foreach (['supplier_orders', 'after_sales_cases', 'after_sales_actions', 'portal_assignments', 'receivable_cases'] as $work) {
+            self::assertSame(1, $result[$work], $work);
+        }
+        $this->assertDatabaseHas('orders', [
+            'id' => $openOrder, 'supplier_user_id' => $actor->id,
+            'supplier_name_snapshot' => $actor->displayName(), 'accepted_by' => null,
+        ]);
+        $this->assertDatabaseHas('order_assignments', [
+            'order_id' => $openOrder, 'old_supplier_user_id' => $target->id,
+            'new_supplier_user_id' => $actor->id, 'changed_by' => $actor->id,
+        ]);
+        $this->assertDatabaseHas('after_sales_cases', ['id' => $openCase, 'assigned_to' => $actor->id]);
+        $this->assertDatabaseHas('after_sales_actions', ['id' => $openAction, 'assigned_to' => $actor->id]);
+        $this->assertDatabaseHas('portal_conversations', ['id' => $openConversation, 'assigned_to' => $actor->id]);
+        $this->assertDatabaseHas('receivable_cases', ['id' => $openReceivable, 'assigned_to' => $actor->id]);
+        $this->assertDatabaseHas('orders', ['id' => $finishedOrder, 'supplier_user_id' => $target->id]);
+        $this->assertDatabaseHas('after_sales_cases', ['id' => $closedCase, 'assigned_to' => $target->id]);
+        $this->assertDatabaseHas('after_sales_actions', ['id' => $doneAction, 'assigned_to' => $target->id]);
+        $this->assertDatabaseHas('portal_conversations', ['id' => $closedConversation, 'assigned_to' => $target->id]);
+        $this->assertDatabaseHas('receivable_cases', ['id' => $closedReceivable, 'assigned_to' => $target->id]);
+        self::assertSame(5, DB::table('audit_logs')->where('action', 'user.retirement.assignment_transferred')->count());
+        self::assertSame(1, DB::table('audit_logs')->where('action', 'user.retired')->count());
+    }
+
+    public function test_pending_access_credentials_and_unsent_pushes_are_disabled_without_losing_history(): void
+    {
+        $actor = $this->user('access-root', 'superadmin');
+        $target = $this->user('access-target');
+        DB::table('password_reset_tokens')->insert([
+            'user_id' => $target->id, 'token_hash' => hash('sha256', 'test-reset'),
+            'expires_at' => now()->addHour(), 'created_at' => now(),
+        ]);
+        DB::table('user_activation_tokens')->insert([
+            'user_id' => $target->id, 'token_hash' => hash('sha256', 'test-invite'),
+            'expires_at' => now()->addHour(), 'created_at' => now(),
+        ]);
+        $outbox = DB::table('mobile_push_outbox')->insertGetId([
+            'user_id' => $target->id, 'title' => 'Test poruka',
+            'message' => 'Test iz CI', 'status' => 'pending',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        app(UserRetirementService::class)->retire($target, $actor);
+        self::assertSame(0, DB::table('password_reset_tokens')->where('user_id', $target->id)->count());
+        self::assertSame(0, DB::table('user_activation_tokens')->where('user_id', $target->id)->count());
+        $this->assertDatabaseHas('mobile_push_outbox', [
+            'id' => $outbox, 'user_id' => $target->id, 'status' => 'failed',
+        ]);
+        self::assertNotNull(DB::table('mobile_push_outbox')->where('id', $outbox)->value('failed_at'));
+    }
+
     private function assertRetireStatus(int $expected, User $target, User $actor): void
     {
         try {
