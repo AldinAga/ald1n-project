@@ -100,6 +100,7 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
             'recipient_name' => $order->shipping_full_name,
             'recipient_phone' => $order->shipping_phone,
             'tracking_number' => 'TRACK-716',
+            'order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh()),
         ])->assertRedirect();
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', ['document_type' => 'invoice'])->assertRedirect();
 
