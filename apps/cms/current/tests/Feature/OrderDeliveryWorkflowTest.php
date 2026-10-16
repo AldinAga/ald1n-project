@@ -88,7 +88,7 @@ final class OrderDeliveryWorkflowTest extends TestCase
 
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', [
             'document_type' => 'delivery_note',
-        ])->assertRedirect()->assertSessionHas('status');
+        ])->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('status');
 
         $document = OrderDocument::query()->where('document_type', 'delivery_note')->sole();
         self::assertStringStartsWith('OTP-', (string) $document->document_number);
