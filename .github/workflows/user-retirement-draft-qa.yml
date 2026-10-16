@@ -245,12 +245,12 @@ jobs:
     env:
       PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
       PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
-      PINNED_PR: \${{ github.sha }}
+      PINNED_PR: ${{ github.sha }}
     steps:
       - name: Fetch exact PR16 source; never access dirty hosting checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Create deterministic local merge commit and check source integrity
@@ -339,11 +339,11 @@ jobs:
       - name: Upload CI-only immutable artifact; do not deploy
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: pr16-immutable-source-\${{ github.sha }}
+          name: pr16-immutable-source-${{ github.sha }}
           path: |
-            \${{ runner.temp }}/pr16-immutable-candidate/*.tar.gz
-            \${{ runner.temp }}/pr16-immutable-candidate/SOURCE-SHA256.txt
-            \${{ runner.temp }}/pr16-immutable-candidate/RELEASE-CANDIDATE-MANIFEST.txt
+            ${{ runner.temp }}/pr16-immutable-candidate/*.tar.gz
+            ${{ runner.temp }}/pr16-immutable-candidate/SOURCE-SHA256.txt
+            ${{ runner.temp }}/pr16-immutable-candidate/RELEASE-CANDIDATE-MANIFEST.txt
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
