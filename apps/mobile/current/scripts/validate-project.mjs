@@ -160,7 +160,7 @@ assert(
     && productionSubmitHelper505R.includes("'--id', buildId")
     && productionSubmitHelper505R.includes("'--non-interactive'")
     && productionSubmitHelper505R.includes("'--wait'")
-    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '24.8.0'")
+    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '25.0.0'")
     && productionSubmitHelper505R.includes("const EXPECTED_PACKAGE = 'com.ald1n.mobile'"),
   'Production Android submit zahteva explicitni Build ID, production profil i pinovani EAS CLI.',
 );
