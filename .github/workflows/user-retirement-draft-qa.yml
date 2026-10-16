@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: PHP 8.4 with real MySQL PDO
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
