@@ -1,0 +1,160 @@
+name: Ald1n Batch684 - final functional parity and iOS readiness (NO build/OTA)
+on:
+  push:
+    branches:
+      - audit/batch684-ios-qa-php84-jdk17-20261016
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-b684-ios-functional-qa
+  cancel-in-progress: false
+jobs:
+  mobile-ios-source-qa:
+    name: Exact-source Mobile and iOS config readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact PR13 source, not CI workflow commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 000c5e9b4067f4f22a077e620e75172901a3b20b
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Real JDK17 for existing Release25 signature regressions
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Exact-source SHA and seven-file scope with no native changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "000c5e9b4067f4f22a077e620e75172901a3b20b"
+          git merge-base --is-ancestor 6a02eec0d2a800de7db1996adfdc2fd0e69d0cac HEAD
+          cat > "$RUNNER_TEMP/b684-expected.txt" <<'EOF'
+          AGENTS.md
+          docs/operations/000-LATEST.md
+          apps/mobile/current/package.json
+          apps/mobile/current/scripts/ios-release-readiness.mjs
+          apps/mobile/current/scripts/release25/batch684-ios-readiness.test.mjs
+          apps/mobile/current/scripts/release25/deep-offline-contract.test.mjs
+          apps/mobile/current/docs/IOS-FIRST-BUILD-READINESS.md
+          EOF
+          LC_ALL=C sort "$RUNNER_TEMP/b684-expected.txt" -o "$RUNNER_TEMP/b684-expected.txt"
+          git diff --name-only --no-renames 6a02eec0d2a800de7db1996adfdc2fd0e69d0cac HEAD | LC_ALL=C sort > "$RUNNER_TEMP/b684-actual.txt"
+          diff -u "$RUNNER_TEMP/b684-expected.txt" "$RUNNER_TEMP/b684-actual.txt"
+          git diff --check 6a02eec0d2a800de7db1996adfdc2fd0e69d0cac HEAD
+          test "$(node -p "require('./apps/mobile/current/eas.json').cli.version")" = "25.0.0"
+          grep -Fq "runtimeVersion: '1.0.0-build17'" apps/mobile/current/app.config.js
+          for tool in java jar keytool jarsigner zip unzip; do command -v "$tool"; done
+          java -version
+          printf '%s\n' 'PASS: B684_EXACT_SCOPE_JS_PREBUILD_ONLY'
+      - name: Install existing SDK57 dependency graph (no lifecycle scripts)
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          printf '%s\n' 'PASS: B684_NPM_CI'
+      - name: TypeScript
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          printf '%s\n' 'PASS: B684_TYPESCRIPT'
+      - name: Canonical Mobile validator
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/validate-project.mjs
+          printf '%s\n' 'PASS: B684_VALIDATOR'
+      - name: Real iOS preview must pass config, production must HOLD before build
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/ios-release-readiness.mjs --profile preview > "$RUNNER_TEMP/ios-preview.json"
+          node - "$RUNNER_TEMP/ios-preview.json" <<'NODE'
+          const fs=require('node:fs');
+          const v=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!v.ok || v.status!=='PASS_CONFIG_ONLY'||v.expectedBundleId!=='com.ald1n.mobile.preview'||v.signing!=='NOT_ATTESTED'||v.nativeBuild!=='NOT_STARTED')process.exit(1);
+          console.log('PASS: IOS_PREVIEW_CONFIG_ONLY_NO_BUILD');
+          NODE
+          set +e
+          node scripts/ios-release-readiness.mjs --profile production > "$RUNNER_TEMP/ios-production.json"
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          node - "$RUNNER_TEMP/ios-production.json" <<'NODE'
+          const fs=require('node:fs');
+          const v=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(v.ok || v.status!=='HOLD'||v.expectedBundleId!=='com.ald1n.mobile'||!v.blockers.includes('IOS_GOOGLE_BUNDLE_ID_MISMATCH')||v.productionMutation!=='NONE')process.exit(2);
+          console.log('PASS: IOS_PRODUCTION_EXPECTED_HOLD_GOOGLE_BUNDLE_MISMATCH');
+          NODE
+      - name: Full Release25 with real JDK17 and iOS negative tests (19 test files)
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          test "$(find scripts/release25 -maxdepth 1 -name '*.test.mjs' -type f | wc -l)" -eq 19
+          node --test scripts/release25/*.test.mjs
+          printf '%s\n' 'PASS: B684_FULL_RELEASE25_JDK17'
+      - name: No source or worktree mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: B684_SOURCE_IMMUTABLE'
+  cms-contract-qa:
+    name: Canonical Laravel PHP8.4 static and OpenAPI parity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Checkout exact PR13 source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 000c5e9b4067f4f22a077e620e75172901a3b20b
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup actual PHP 8.4 (not a PHP 8.3 substitute)
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql
+          coverage: none
+      - name: Run canonical CMS static gate
+        shell: bash
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -v
+          php -r 'if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4) exit(2);'
+          php bin/static-check.php
+          printf '%s\n' 'PASS: B684_CMS_CANONICAL_PHP84_STATIC'
+      - name: Canonical three-way OpenAPI byte parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp apps/cms/current/docs/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp apps/cms/current/docs/openapi.yaml packages/api-contract/openapi.yaml
+          printf '%s\n' 'PASS: B684_OPENAPI_THREE_WAY_BYTE_PARITY'
+      - name: Ensure source unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "000c5e9b4067f4f22a077e620e75172901a3b20b"
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          printf '%s\n' 'PASS: B684_CMS_SOURCE_IMMUTABLE'
