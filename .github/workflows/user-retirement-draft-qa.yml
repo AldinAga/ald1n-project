@@ -36,3 +36,84 @@ jobs:
           php -l apps/cms/current/app/Http/Controllers/Admin/UserController.php
           php -l apps/cms/current/app/Http/Controllers/Api/V1/Admin/UserController.php
           php -l apps/cms/current/tests/Feature/UserRetirementSafetyContractTest.php
+          php -l apps/cms/current/tests/Feature/UserRetirementMySqlIntegrationTest.php
+          php -l apps/cms/current/database/migrations/2026_10_16_160000_add_retired_at_to_users_table.php
+
+  mysql-integration:
+    name: Disposable MySQL 8.4 transactional retirement tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-retirement-only
+          MYSQL_DATABASE: ald1n_retirement_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pci-retirement-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: root
+      DB_PASSWORD: ci-retirement-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: "false"
+      PULSE_ENABLED: "false"
+      TELESCOPE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: \${{ github.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 with real MySQL PDO
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install Laravel dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress --no-audit
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Enforce ephemeral database identity and run MySQL integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          test "$DB_HOST" = 127.0.0.1
+          test "$APP_ENV" = testing
+          php -r '
+            $pdo = new PDO(
+              "mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci",
+              "root", "ci-retirement-only", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            if ($pdo->query("SELECT DATABASE()")->fetchColumn() !== "ald1n_retirement_ci") {
+              fwrite(STDERR, "HOLD: not disposable MySQL database\n"); exit(31);
+            }
+            echo "DISPOSABLE_MYSQL_IDENTITY=PASS\n";
+          '
+          cd apps/cms/current
+          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --stop-on-failure
+      - name: Explicit production safety receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'REMOTE_PRODUCTION_MUTATIONS=ZERO'
+          echo 'OTA_BUILD_PLAY_ACTIONS=ZERO'
