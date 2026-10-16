@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
@@ -83,7 +83,7 @@ export default function AdminUsersDetailScreen() {
         title: 'Nalog je deaktiviran',
         message: `Preneto porudžbina: ${result.data.orders}. Istorija ostaje sačuvana.`,
       });
-      router.replace('/admin/users' as never);
+      router.replace('/admin/users' as Href);
     },
     onError: (error) => {
       feedback.notify({
@@ -169,7 +169,7 @@ export default function AdminUsersDetailScreen() {
       <Text style={styles.copy}>
         Izmena koristi centralni Laravel User Manager. Nova lozinka opoziva sve postojeće API tokene korisnika.
       </Text>
-      {bootstrap?.user.role?.slug === 'superadmin'
+      {bootstrap?.user.role === 'superadmin'
         && bootstrap.user.id !== user.id
         && user.role?.slug !== 'superadmin'
         && user.status !== 'blocked' ? (
@@ -252,6 +252,6 @@ function createStyles(theme: AppColors) {
     copy: { ...typography.body, color: theme.muted },
     retirement: { gap: spacing.md, paddingVertical: spacing.lg },
     dangerAction: { ...typography.label, color: theme.danger, paddingVertical: spacing.sm },
-    confirmInput: { ...typography.body, color: theme.ink, borderWidth: 1, borderColor: theme.border, padding: spacing.md },
+    confirmInput: { ...typography.body, color: theme.ink, borderWidth: 1, borderColor: theme.line, padding: spacing.md },
   });
 }
