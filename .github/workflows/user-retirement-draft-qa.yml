@@ -110,6 +110,7 @@ jobs:
             echo "DISPOSABLE_MYSQL_IDENTITY=PASS\n";
           '
           cd apps/cms/current
+          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --stop-on-failure
           # Full migrated MySQL FK inventory (schema only, no user data).
           php -r '
             $pdo = new PDO(
@@ -123,16 +124,18 @@ jobs:
                AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
                AND r.TABLE_NAME=k.TABLE_NAME
               WHERE k.TABLE_SCHEMA=DATABASE()
-                AND k.REFERENCED_TABLE_NAME=\x27users\x27
-                AND k.REFERENCED_COLUMN_NAME=\x27id\x27
+                AND k.REFERENCED_TABLE_NAME=?
+                AND k.REFERENCED_COLUMN_NAME=?
               ORDER BY k.TABLE_NAME,k.COLUMN_NAME";
-            $items = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(["users", "id"]);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             echo "RETIREMENT_FK_COUNT=".count($items)."\n";
             foreach ($items as $item) {
               echo "RETIREMENT_FK ".$item["TABLE_NAME"].".".$item["COLUMN_NAME"]." ".$item["DELETE_RULE"]."\n";
             }
           '
-          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --stop-on-failure
+
       - name: Explicit production safety receipt
         shell: bash
         run: |
