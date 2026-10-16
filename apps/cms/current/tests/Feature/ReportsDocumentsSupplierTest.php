@@ -265,8 +265,8 @@ final class ReportsDocumentsSupplierTest extends TestCase
 
         $page = $this->actingAs($firstAdmin)->get('/admin/reports');
         $page->assertOk()
-            ->assertSee('reports-page-ready', false)
-            ->assertSee('Izveštaji, izvoz i fakturisanje');
+            ->assertSee('Izveštaji i profitabilnost')
+            ->assertSee('Operativni izvozi');
         self::assertSame(1, app(OrderReportService::class)->summary($firstAdmin, [])['orders_count']);
 
         $csv = $this->actingAs($firstAdmin)->get('/admin/reports/orders.csv');
