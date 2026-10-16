@@ -231,7 +231,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
         $this->product($admin, 'SUMMARY-ITEM', 0, 1000);
 
         $this->actingAs($admin)->get('/admin/inventory')->assertOk()->assertSee('Ulaz robe, popis i stanje lagera');
-        $this->actingAs($admin)->get('/admin/reports')->assertOk()->assertSee('Uplate i naplata')->assertSee('Lager');
+        $this->actingAs($admin)->get('/admin/reports')->assertOk()->assertSee('Izveštaji i profitabilnost')->assertSee('Lager i kapital');
     }
 
     private function user(string $username, string $role): User
