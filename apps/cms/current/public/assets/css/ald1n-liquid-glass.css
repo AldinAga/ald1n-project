@@ -334,6 +334,7 @@ body {
     visibility: visible !important;
     flex: 0 0 auto;
     min-width: 76px;
+    min-height: 44px;
     max-width: none;
   }
 
@@ -341,9 +342,9 @@ body {
     display: inline-grid !important;
     visibility: visible !important;
     place-items: center;
-    flex: 0 0 42px;
-    width: 42px;
-    height: 42px;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -405,11 +406,11 @@ body {
   .site-header[data-build16-shell="1"] .header-quick-actions > .header-product-search-toggle,
   .site-header[data-build16-shell="1"] .header-quick-actions > .mobile-menu-toggle,
   .site-header[data-build16-shell="1"] .header-quick-actions > .header-cart-button {
-    flex: 0 0 40px;
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .site-header[data-build16-shell="1"] .header-quick-actions > .mobile-menu-toggle {
@@ -449,10 +450,10 @@ body {
   .site-header[data-build16-shell="1"] .header-quick-actions > .header-product-search-toggle,
   .site-header[data-build16-shell="1"] .header-quick-actions > .mobile-menu-toggle,
   .site-header[data-build16-shell="1"] .header-quick-actions > .header-cart-button {
-    flex-basis: 36px;
-    min-width: 36px;
-    width: 36px;
-    height: 40px;
+    flex-basis: 44px;
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -553,9 +554,10 @@ body {
 .order-archive-purge-dismiss {
   display: grid;
   place-items: center;
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   color: var(--ald-muted);
   border: 1px solid var(--ald-border);
   border-radius: 12px;
