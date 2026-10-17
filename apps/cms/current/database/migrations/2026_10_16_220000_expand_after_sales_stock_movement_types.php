@@ -110,6 +110,27 @@ return new class extends Migration
         }
         $sql .= ' COMMENT '.$quote->quote($comment);
 
-        DB::statement($sql);
+        // MySQL may otherwise silently fall back to a table copy when ENUM
+        // storage width changes or a host-specific definition is incompatible.
+        // Instant DDL permits concurrent DML; LOCK=NONE is invalid with INSTANT.
+        $sql .= ', ALGORITHM=INSTANT';
+
+        // The server default lock_wait_timeout can be one year. Stop this
+        // migration quickly when a long transaction holds an MDL lock, then
+        // restore the original session setting regardless of ALTER outcome.
+        $session = DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS seconds');
+        $rawTimeout = (string) ($session->seconds ?? '');
+        if ($rawTimeout === '' || !ctype_digit($rawTimeout) || (int) $rawTimeout < 1) {
+            throw new RuntimeException('Cannot establish safe MySQL metadata lock timeout.');
+        }
+
+        DB::statement('SET SESSION lock_wait_timeout = 5');
+        try {
+            if (!DB::statement($sql)) {
+                throw new RuntimeException('Instant stock movement enum DDL did not succeed.');
+            }
+        } finally {
+            DB::statement('SET SESSION lock_wait_timeout = '.(int) $rawTimeout);
+        }
     }
 };
