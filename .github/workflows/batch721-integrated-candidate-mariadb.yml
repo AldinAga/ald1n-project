@@ -1,0 +1,95 @@
+name: Batch721 integrated candidate MariaDB QA
+on:
+  push:
+    branches:
+      - audit/b720-integrated-release-candidate-20261017
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mariadb-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_retirement_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pisolated-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: root
+      DB_PASSWORD: isolated-ci-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Checkout exact integration candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify source ancestry and immutable boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d HEAD
+          git merge-base --is-ancestor 6f8791552be4a1568ee8f2f38cd20233ccea6d2f HEAD
+          git merge-base --is-ancestor 0ccf871451ee7efeebbb257282c2615d8eab172e HEAD
+          git diff --quiet bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d -- apps/cms/current/public/.htaccess
+          test -z "$(git status --porcelain)"
+          echo EXACT_INTEGRATED_SOURCE=PASS
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install dependencies in ephemeral runner
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Attest disposable MariaDB identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci","root","isolated-ci-only",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]); if($p->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci" || !preg_match("/^10\\.11\\.19-MariaDB/i",$p->query("SELECT VERSION()")->fetchColumn())) exit(31); echo "DISPOSABLE_MARIADB=PASS\\n";'
+      - name: Retirement HTTP/MySQL integration
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --no-ansi
+      - name: MariaDB ENUM migration compatibility
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php tests/Integration/StockMovementEnumMariaDbSafetyProbe.php
+      - name: Results do not deploy production
+        if: always()
+        run: |
+          echo "PRODUCTION_DEPLOYMENT=NO"
+          echo "PRODUCTION_DATABASE_MUTATIONS=ZERO"
