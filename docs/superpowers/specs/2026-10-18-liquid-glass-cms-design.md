@@ -1,6 +1,6 @@
 # Ald1n CMS Liquid Glass — Design Specification
 
-**Status:** Owner-approved visual direction and four-batch scope; written design awaiting owner review.
+**Status:** Owner-confirmed four-batch scope; revised neutral/glass palette direction 2026-10-18. The implementation plan still requires owner review before source changes.
 **Date:** 2026-10-18
 **Source baseline:** `ecfeb8e55a4af44467069bbcea578c1b95ccc528` (merged PR #27, CMS release Reports742–744).
 **Precondition:** Report745 / Batch738 PASS: fresh Laravel backup ID 158 verified, previous keeper 157 verified, stable retention exactly two, conservative Deep Cleanup completed. No further cleanup required to begin this UI work.
@@ -12,7 +12,24 @@ Modernize the **existing Laravel web CMS** into a premium, restrained "Liquid Gl
 
 Target: authenticated CMS shell and common presentation components, archived-order irreversible-action workflow, product-create/edit sticky bottom actions. Leave the business domain, permissions, API contracts, database schema, batch state, background jobs and build/OTA state untouched.
 
-Preserve Ald1n's actual brand palette from `packages/design-tokens/ald1n-operator.json` (light primary `#C45116`, dark primary `#FF8A3D`, associated text/surface/danger tokens). Do **not** substitute Numanović's separate purple furniture brand identity.
+**Owner override (2026-10-18):** There is **no requirement** to preserve the former orange Ald1n UI palette. Use muted, low-saturation graphite / smoky blue-gray surfaces and soft taupe-bronze UI accents; ambient glows or "mrlje" must be subdued, soft-edged, and non-saturated. Keep semantic success/warning/danger colors distinguishable and maintain accessible contrast. This applies to CMS visual styling only: do not modify official brand assets or substitute the unrelated Numanović furniture brand.
+
+## Updated color direction — approved 2026-10-18
+
+The subdued Liquid Glass concept replaces the previous requirement to retain the existing orange CMS primary color. Use a **non-generated** CSS overlay for palette overrides; preserve the generated token file and avoid touching the existing theme preference/JS controller.
+
+| CSS role | Dark | Light |
+|---|---|---|
+| Background | `#13181C` | `#F3F5F6` |
+| Elevated surface | `#1B2329` | `#FCFDFE` |
+| Surface muted | `#232D34` | `#EEF1F3` |
+| Text | `#E9EEF1` | `#24313A` |
+| Muted text | `#B6C2C9` | `#52606A` |
+| Hairline border | `#36434C` | `#CBD3D9` |
+| Primary accent | `#BFA590` | `#68584D` |
+| Primary on-color | `#172027` | `#FFFFFF` |
+
+The initial static contrast checks for accent vs background and muted text vs surface exceed WCAG AA text contrast on this selected palette. Recheck rendered colors and states in browser screenshots; these checks alone cannot establish whole-UI accessibility. Keep ambient glows to low-opacity **gray-blue and taupe**, without saturated orange/blue/red radiating blobs or distracting gradients. A flat calm fallback is fully acceptable.
 
 ## Architecture
 
@@ -27,7 +44,7 @@ The authenticated shell `apps/cms/current/resources/views/layouts/app.blade.php`
 ## Visual language
 
 - Appearance: restrained frosted surface, subtle specular highlight and a thin contrasting hairline border; content must remain readable on both themes.
-- Hierarchy: a low-noise app background, elevated app shell and navigation, clear page headings, cohesive filter/table/panel grouping; primary buttons prominently orange, secondary controls quieter, irreversible controls consistently danger-coded.
+- Hierarchy: a low-noise app background, elevated app shell and navigation, clear page headings, cohesive filter/table/panel grouping; primary buttons use a high-contrast **muted neutral-warm accent**, secondary controls quieter, irreversible controls consistently danger-coded.
 - Radius/spacing: reuse token system with coherent 12–20px surfaces; avoid wrapping buttons simply to fill an arbitrary width.
 - Typography: current sans/system stack; no remote font loading, no font binaries and no drastic spacing changes to existing forms.
 - Accessibility: visible focus outline, text contrast, >=44px touch targets where applicable, keyboard-accessible actions, no color-only status meaning, no horizontal overflow at 320px.
@@ -81,5 +98,5 @@ Each batch is an **implementation unit**, not an opportunity for exploratory hos
 ## Explicitly out of scope
 
 - Full rework of all bespoke CMS pages, Laravel services, authorization, app data model, business deletes, new page navigation architecture or rewriting the CSS build pipeline.
-- Branding changes, Mobile Expo Liquid Glass, Android/iOS release, OAuth and payments changes.
+- Changes to official logo/brand assets, Mobile Expo Liquid Glass, Android/iOS release, OAuth and payments changes.
 - Removing backup #158/#157 or cleaning unknown directories/reports until archived and authorized.
