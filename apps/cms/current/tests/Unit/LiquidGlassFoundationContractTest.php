@@ -151,6 +151,28 @@ final class LiquidGlassFoundationContractTest extends TestCase
         );
     }
 
+    public function test_editor_sticky_actions_use_scoped_glass_layout_and_mobile_safe_area(): void
+    {
+        $css = $this->css();
+        foreach ([
+            '.liquid-glass-product-editor-form > .product-editor-action-bar',
+            '.product-editor-action-secondary',
+            '.product-editor-action-direct',
+            '.product-editor-action-draft',
+            '.product-editor-action-primary',
+            'env(safe-area-inset-bottom)',
+            'scroll-margin-bottom:',
+            '@media (max-width: 720px)',
+            '@media (max-width: 390px)',
+        ] as $required) {
+            self::assertStringContainsString($required, $css);
+        }
+        self::assertMatchesRegularExpression(
+            '/\.product-editor-action-primary\s*\{[^}]*width:\s*auto;/s',
+            $css
+        );
+    }
+
     public function test_mobile_has_no_global_horizontal_or_sticky_overflow_policy(): void
     {
         $css = $this->css();
