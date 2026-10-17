@@ -96,7 +96,7 @@ jobs:
           php artisan test -c phpunit.mysql.xml tests/Feature/DashboardLegacyDesignTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/ArchivedOrdersLiquidGlassTest.php --no-ansi
           php bin/static-check.php
-          echo 'BATCH1_LIQUID_GLASS_QA=PASS'
+          echo 'LIQUID_GLASS_CMS_QA=PASS'
       - name: Confirm no production access required
         if: always()
         shell: bash
