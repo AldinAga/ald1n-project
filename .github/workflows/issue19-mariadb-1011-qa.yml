@@ -1,0 +1,87 @@
+name: Issue19 MariaDB 10.11.19 exact-family ENUM safety
+on:
+  push:
+    branches:
+      - audit/issue19-mariadb1011-parity-20261017
+permissions:
+  contents: read
+jobs:
+  mariadb-enum:
+    name: Real MariaDB 10.11.19 ENUM migration compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_issue19_mariadb_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pisolated-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PIN_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+      PIN_PR21: c210e91e587fc00d87b0c729f7b4ed1572b48bbc
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      ALD1N_DISPOSABLE_CI: mariadb-10.11.19-only
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_issue19_mariadb_ci
+      DB_USERNAME: root
+      DB_PASSWORD: isolated-ci-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pin source and refuse live host paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PIN_MAIN"
+          git merge-base --is-ancestor "$PIN_PR21" HEAD
+          test -z "$(git status --porcelain)"
+          echo SOURCE_GUARD=PASS_EXACT_GITHUB_SHA
+          echo PRODUCTION_MUTATIONS=ZERO
+      - name: Setup PHP8.4 with PDO MySQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install exact locked Laravel dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Execute real MariaDB migration regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_issue19_mariadb_ci
+          test "$ALD1N_DISPOSABLE_CI" = mariadb-10.11.19-only
+          cd apps/cms/current
+          php -l tests/Integration/StockMovementEnumMariaDbSafetyProbe.php
+          php -l database/migrations/2026_10_16_220000_expand_after_sales_stock_movement_types.php
+          php tests/Integration/StockMovementEnumMariaDbSafetyProbe.php 2>&1 | tee "$RUNNER_TEMP/mariadb-enum-proof.log"
+          grep -Fxq 'MARIADB_SAFETY_GATE=PASS_20_ASSERTIONS' "$RUNNER_TEMP/mariadb-enum-proof.log"
+          echo MARIADB_101119_ENUM_PARITY=PASS
