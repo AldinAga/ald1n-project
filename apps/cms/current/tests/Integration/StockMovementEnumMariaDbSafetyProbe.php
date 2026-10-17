@@ -158,6 +158,8 @@ try {
 
     // 5) Nullable/NULL default variants must retain their exact metadata.
     $makeTable($original, 'utf8mb4_unicode_ci', true, null, 'nullable-column');
+    $rawNullable = $column();
+    echo 'MARIADB_NULLABLE_DEFAULT_METADATA='.json_encode(['php_type' => get_debug_type($rawNullable->COLUMN_DEFAULT), 'value' => $rawNullable->COLUMN_DEFAULT, 'nullable' => $rawNullable->IS_NULLABLE], JSON_THROW_ON_ERROR)."\n";
     $migration->up();
     $meta = $column();
     $assert((string) $meta->IS_NULLABLE === 'YES' && $meta->COLUMN_DEFAULT === null
