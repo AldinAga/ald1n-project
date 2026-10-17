@@ -141,6 +141,16 @@ final class LiquidGlassFoundationContractTest extends TestCase
         self::assertStringContainsString('min-height: 44px;', $css);
     }
 
+    public function test_authenticated_search_is_persistent_and_no_disabled_cart_visual_remains(): void
+    {
+        $css = $this->css();
+        self::assertDoesNotMatchRegularExpression('/\.header-cart-unavailable/', $css);
+        self::assertMatchesRegularExpression(
+            '/\.header-quick-actions\s*>\s*\.header-product-search-toggle\s*\{[^}]*display:\s*inline-grid\s*!important;/s',
+            $css
+        );
+    }
+
     public function test_mobile_has_no_global_horizontal_or_sticky_overflow_policy(): void
     {
         $css = $this->css();
