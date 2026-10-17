@@ -91,8 +91,10 @@ jobs:
           test "$DB_DATABASE" = ald1n_liquid_ci
           php -l tests/Unit/LiquidGlassFoundationContractTest.php
           php -l tests/Feature/DashboardLegacyDesignTest.php
+          php -l tests/Feature/ArchivedOrdersLiquidGlassTest.php
           php artisan test tests/Unit/LiquidGlassFoundationContractTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/DashboardLegacyDesignTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/ArchivedOrdersLiquidGlassTest.php --no-ansi
           php bin/static-check.php
           echo 'BATCH1_LIQUID_GLASS_QA=PASS'
       - name: Confirm no production access required
