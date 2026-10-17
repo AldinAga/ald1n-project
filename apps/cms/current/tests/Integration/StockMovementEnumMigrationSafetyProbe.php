@@ -82,6 +82,7 @@ $enums = static function (object $meta): array {
     return $matches[1];
 };
 
+$exitCode = 0;
 try {
     // 1) The production six-member baseline, except with a diagnostic comment
     // and a column-specific collation to prove MODIFY preserves both attributes.
@@ -139,6 +140,15 @@ try {
         && (string) $meta->COLUMN_COMMENT === 'nullable-column', 'nullable_metadata');
 
     echo 'MIGRATION_SAFETY_GATE=PASS_'.$passes.'_ASSERTIONS' . "\n";
+} catch (Throwable $error) {
+    fwrite(STDERR, 'ENUM_PROBE_EXCEPTION='.$error->getMessage()."\n");
+    $exitCode = 1;
 } finally {
-    DB::statement('DROP TABLE IF EXISTS `stock_movements`');
+    try {
+        DB::statement('DROP TABLE IF EXISTS `stock_movements`');
+    } catch (Throwable $cleanupError) {
+        fwrite(STDERR, 'ENUM_PROBE_CLEANUP_FAILURE='.$cleanupError->getMessage()."\n");
+        $exitCode = 1;
+    }
 }
+exit($exitCode);

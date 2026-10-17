@@ -84,5 +84,7 @@ jobs:
           cd apps/cms/current
           php -l tests/Integration/StockMovementEnumMigrationSafetyProbe.php
           php -l database/migrations/2026_10_16_220000_expand_after_sales_stock_movement_types.php
-          php tests/Integration/StockMovementEnumMigrationSafetyProbe.php
+          php tests/Integration/StockMovementEnumMigrationSafetyProbe.php 2>&1 | tee "$RUNNER_TEMP/enum-migration-test.log"
+          test "${PIPESTATUS[0]}" -eq 0
+          grep -Eq "^MIGRATION_SAFETY_GATE=PASS_[0-9]+_ASSERTIONS$" "$RUNNER_TEMP/enum-migration-test.log"
           echo ENUM_MIGRATION_MYSQL84=PASS
