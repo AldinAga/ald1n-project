@@ -56,6 +56,28 @@ final class DashboardLegacyDesignTest extends TestCase
         $response->assertSee('Administracija');
     }
 
+    public function test_authenticated_dashboard_loads_liquid_glass_after_generated_css(): void
+    {
+        $html = $this->actingAs($this->superAdmin())->get('/')->assertOk()->getContent();
+
+        self::assertIsString($html);
+        $generatedOffset = strpos($html, 'assets/css/ald1n-ui-v2.css');
+        $glassOffset = strpos($html, 'assets/css/ald1n-liquid-glass.css');
+
+        self::assertNotFalse($generatedOffset);
+        self::assertNotFalse($glassOffset);
+        self::assertGreaterThan($generatedOffset, $glassOffset);
+
+        foreach ([
+            'data-theme-toggle',
+            'data-mobile-menu-toggle',
+            'data-header-product-search-toggle',
+            'data-build16-shell',
+        ] as $marker) {
+            self::assertStringContainsString($marker, $html);
+        }
+    }
+
     private function superAdmin(): User
     {
         return User::query()->create([
