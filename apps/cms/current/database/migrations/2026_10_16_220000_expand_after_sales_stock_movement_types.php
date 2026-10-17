@@ -13,20 +13,26 @@ return new class extends Migration
     public function up(): void
     {
         if (!in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
-            // SQLite stores Laravel enums as text and does not need MySQL ENUM DDL.
+            // SQLite does not need MySQL ENUM DDL.
             return;
         }
 
-        [$definition, $nullable, $default] = $this->currentDefinition();
-
+        [$definition, $nullable, $default, $charset, $collation, $comment] = $this->currentDefinition();
+        $changed = false;
         foreach (self::TYPES as $value) {
             if (!str_contains($definition, "'".$value."'")) {
-                // Preserve every existing member, including values added on old hosts.
+                // Append, never reorder or remove legacy/host-specific members.
                 $definition = substr($definition, 0, -1).",'".$value."')";
+                $changed = true;
             }
         }
 
-        $this->applyDefinition($definition, $nullable, $default);
+        // Already compatible hosts must not incur an unnecessary table ALTER.
+        if (!$changed) {
+            return;
+        }
+
+        $this->applyDefinition($definition, $nullable, $default, $charset, $collation, $comment);
     }
 
     public function down(): void
@@ -35,20 +41,14 @@ return new class extends Migration
             return;
         }
 
-        // Financial/inventory history must never be truncated by rollback.
-        if (DB::table('stock_movements')->whereIn('movement_type', self::TYPES)->exists()) {
-            throw new RuntimeException('Cannot shrink stock movement enum while after-sales history exists.');
-        }
-
-        [$definition, $nullable, $default] = $this->currentDefinition();
-        foreach (self::TYPES as $value) {
-            $definition = str_replace(",'".$value."'", '', $definition);
-        }
-
-        $this->applyDefinition($definition, $nullable, $default);
+        // Laravel migration history does not record which ENUM values already
+        // existed. Dropping even unused values could erase a host's schema
+        // contract. A reverse operation requires separate provenance and an
+        // explicitly reviewed/manual backup-backed DDL plan.
+        throw new RuntimeException('Cannot automatically roll back stock movement enum without original enum provenance.');
     }
 
-    /** @return array{string,string,?string} */
+    /** @return array{string,string,?string,string,string,string} */
     private function currentDefinition(): array
     {
         if (!Schema::hasTable('stock_movements')) {
@@ -59,7 +59,10 @@ return new class extends Migration
             ->where('TABLE_SCHEMA', DB::getDatabaseName())
             ->where('TABLE_NAME', 'stock_movements')
             ->where('COLUMN_NAME', 'movement_type')
-            ->first(['COLUMN_TYPE', 'IS_NULLABLE', 'COLUMN_DEFAULT']);
+            ->first([
+                'COLUMN_TYPE', 'IS_NULLABLE', 'COLUMN_DEFAULT',
+                'CHARACTER_SET_NAME', 'COLLATION_NAME', 'COLUMN_COMMENT', 'EXTRA',
+            ]);
 
         if ($row === null) {
             throw new RuntimeException('stock_movements.movement_type is missing.');
@@ -70,19 +73,42 @@ return new class extends Migration
             throw new RuntimeException('Unsupported stock movement type; expected a MySQL enum.');
         }
 
-        $nullable = strtoupper((string) $row->IS_NULLABLE) === 'YES' ? 'NULL' : 'NOT NULL';
+        $nullability = strtoupper((string) $row->IS_NULLABLE);
+        if (!in_array($nullability, ['YES', 'NO'], true)) {
+            throw new RuntimeException('Unexpected stock movement column nullability.');
+        }
+        $nullable = $nullability === 'YES' ? 'NULL' : 'NOT NULL';
         $default = $row->COLUMN_DEFAULT === null ? null : (string) $row->COLUMN_DEFAULT;
+        $charset = (string) $row->CHARACTER_SET_NAME;
+        $collation = (string) $row->COLLATION_NAME;
+        $comment = (string) $row->COLUMN_COMMENT;
 
-        return [$definition, $nullable, $default];
+        // These are server-supplied SQL identifiers, not data literals. Accept
+        // only known-safe identifier syntax; refuse unrecognised metadata.
+        if (!preg_match('/\A[A-Za-z0-9_]+\z/', $charset)
+            || !preg_match('/\A[A-Za-z0-9_]+\z/', $collation)
+            || (string) $row->EXTRA !== '') {
+            throw new RuntimeException('Unexpected stock movement column attributes; refuse ALTER.');
+        }
+
+        return [$definition, $nullable, $default, $charset, $collation, $comment];
     }
 
-    private function applyDefinition(string $definition, string $nullable, ?string $default): void
-    {
-        $sql = 'ALTER TABLE `stock_movements` MODIFY COLUMN `movement_type` '.$definition.' '.$nullable;
+    private function applyDefinition(
+        string $definition,
+        string $nullable,
+        ?string $default,
+        string $charset,
+        string $collation,
+        string $comment,
+    ): void {
+        $quote = DB::connection()->getPdo();
+        $sql = 'ALTER TABLE `stock_movements` MODIFY COLUMN `movement_type` '.$definition
+            .' CHARACTER SET '.$charset.' COLLATE '.$collation.' '.$nullable;
         if ($default !== null) {
-            // PDO quotes the existing server-defined default; no user input enters DDL.
-            $sql .= ' DEFAULT '.DB::connection()->getPdo()->quote($default);
+            $sql .= ' DEFAULT '.$quote->quote($default);
         }
+        $sql .= ' COMMENT '.$quote->quote($comment);
 
         DB::statement($sql);
     }
