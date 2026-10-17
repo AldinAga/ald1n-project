@@ -156,7 +156,7 @@
         const opener = event.target.closest('[data-order-purge-open]');
         if (opener) {
             const dialog = document.getElementById(opener.getAttribute('aria-controls'));
-            if (!(dialog instanceof HTMLDialogElement) || typeof dialog.showModal !== 'function' || dialog.open) return;
+            if (!dialog || typeof dialog.showModal !== 'function' || dialog.open) return;
 
             dialog.addEventListener('close', () => {
                 dialog.querySelector('form')?.reset();
