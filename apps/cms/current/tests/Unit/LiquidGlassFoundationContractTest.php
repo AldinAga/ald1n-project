@@ -133,6 +133,14 @@ final class LiquidGlassFoundationContractTest extends TestCase
         self::assertStringContainsString('env(safe-area-inset-bottom)', $css);
     }
 
+    public function test_small_mobile_header_and_modal_close_preserve_44px_touch_targets(): void
+    {
+        $css = $this->css();
+        self::assertStringContainsString('flex-basis: 44px;', $css);
+        self::assertStringContainsString('flex: 0 0 44px;', $css);
+        self::assertStringContainsString('min-height: 44px;', $css);
+    }
+
     public function test_mobile_has_no_global_horizontal_or_sticky_overflow_policy(): void
     {
         $css = $this->css();
