@@ -82,12 +82,31 @@ $enums = static function (object $meta): array {
     return $matches[1];
 };
 
+// Observe actual SQL statements emitted by the real production migration.
+$latestAlter = null;
+$timeoutAssignments = [];
+DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $query) use (&$latestAlter, &$timeoutAssignments): void {
+    $sql = trim($query->sql);
+    if (str_starts_with(strtoupper($sql), 'ALTER TABLE `STOCK_MOVEMENTS`')) {
+        $latestAlter = strtoupper($sql);
+    }
+    if (preg_match('/^SET SESSION lock_wait_timeout\\s*=\\s*(\\d+)$/i', $sql, $matches)) {
+        $timeoutAssignments[] = (int) $matches[1];
+    }
+});
+
 $exitCode = 0;
 try {
     // 1) The production six-member baseline, except with a diagnostic comment
     // and a column-specific collation to prove MODIFY preserves both attributes.
     $makeTable($original, 'utf8mb4_unicode_ci', false, null, 'audit/legacy-comment');
+    $originalTimeout = (int) DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS v')->v;
     $migration->up();
+    $assert($latestAlter !== null && str_contains($latestAlter, 'ALGORITHM=INSTANT')
+        && !str_contains($latestAlter, 'LOCK=NONE'), 'instant_algorithm_required');
+    $assert(in_array(5, $timeoutAssignments, true), 'bounded_metadata_lock_wait');
+    $assert((int) DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS v')->v === $originalTimeout
+        && end($timeoutAssignments) === $originalTimeout, 'session_timeout_restored');
     $meta = $column();
     $assert($enums($meta) === array_merge($original, $required), 'prod_members_append_only');
     $assert((string) $meta->IS_NULLABLE === 'NO' && $meta->COLUMN_DEFAULT === null, 'prod_null_default');
@@ -139,6 +158,26 @@ try {
     $assert((string) $meta->IS_NULLABLE === 'YES' && $meta->COLUMN_DEFAULT === null
         && (string) $meta->COLUMN_COMMENT === 'nullable-column', 'nullable_metadata');
 
+    // 6) Adding the two required enum values to a host with 254 pre-existing
+    // values would increase ENUM storage width (1 -> 2 bytes), requiring a table
+    // copy. The migration must reject the change, never silently downgrade.
+    $tooWide = array_map(static fn (int $n): string => 'legacy_'.str_pad((string) $n, 3, '0', STR_PAD_LEFT),
+        range(1, 254));
+    $makeTable($tooWide, 'utf8mb4_unicode_ci', false, 'legacy_001', 'width-boundary');
+    DB::insert('INSERT INTO stock_movements (`movement_type`) VALUES (?)', ['legacy_254']);
+    $originalWideType = (string) $column()->COLUMN_TYPE;
+    $rejected = false;
+    try {
+        $migration->up();
+    } catch (\Illuminate\Database\QueryException $error) {
+        $rejected = true;
+    }
+    $assert($rejected, 'enum_copy_fallback_rejected');
+    $assert((string) $column()->COLUMN_TYPE === $originalWideType
+        && (string) DB::table('stock_movements')->value('movement_type') === 'legacy_254',
+        'enum_copy_rejection_preserves_data');
+
+    $assert($passes === 17, 'assertion_count_guard');
     echo 'MIGRATION_SAFETY_GATE=PASS_'.$passes.'_ASSERTIONS' . "\n";
 } catch (Throwable $error) {
     fwrite(STDERR, 'ENUM_PROBE_EXCEPTION='.$error->getMessage()."\n");
