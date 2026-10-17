@@ -79,6 +79,18 @@ return new class extends Migration
         }
         $nullable = $nullability === 'YES' ? 'NULL' : 'NOT NULL';
         $default = $row->COLUMN_DEFAULT === null ? null : (string) $row->COLUMN_DEFAULT;
+
+        // MariaDB 10.2.7+ quotes string literal COLUMN_DEFAULT values in
+        // information_schema (e.g. 'purchase'). MySQL returns purchase.
+        // Decode only the known-safe ENUM identifier form; refuse expressions
+        // or unexpected escaping rather than changing the effective default.
+        $serverVersion = (string) (DB::selectOne('SELECT VERSION() AS server_version')->server_version ?? '');
+        if ($default !== null && str_contains(strtolower($serverVersion), 'mariadb')) {
+            if (preg_match("/\\A'([A-Za-z0-9_]+)'\\z/", $default, $literal) !== 1) {
+                throw new RuntimeException('Unexpected MariaDB stock movement enum default; refuse ALTER.');
+            }
+            $default = $literal[1];
+        }
         $charset = (string) $row->CHARACTER_SET_NAME;
         $collation = (string) $row->COLLATION_NAME;
         $comment = (string) $row->COLUMN_COMMENT;
