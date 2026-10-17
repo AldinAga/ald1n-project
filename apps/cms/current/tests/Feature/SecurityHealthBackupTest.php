@@ -47,8 +47,8 @@ final class SecurityHealthBackupTest extends TestCase
         $this->actingAs($this->superadmin())
             ->get('/admin/settings/system-health')
             ->assertOk()
-            ->assertSee('System Health &amp; Backup', false)
-            ->assertSee('Runtime direktorijumi');
+            ->assertSee('System Health & Backup', false)
+            ->assertSee('Privatni backup');
     }
 
     public function test_permission_denial_creates_security_event(): void

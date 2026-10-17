@@ -166,6 +166,9 @@
 
             <article class="panel access-control-user-card" data-access-user="{{ $user->id }}">
                 <div class="access-control-user-head">
+                    @if(auth()->user()?->hasRole('superadmin') && (int) auth()->id() !== (int) $user->id && $roleSlug !== 'superadmin' && $status !== 'blocked')
+                        <a class="button button-ghost" href="{{ route('admin.users.retirement.preview', $user) }}">Ukloni korisnika</a>
+                    @endif
                     <div class="access-control-user-identity">
                         <strong>{{ $user->displayName() }}</strong>
                         <small>{{ $user->username }} · {{ $user->email }}</small>

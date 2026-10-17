@@ -425,6 +425,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
             Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
             Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+            Route::get('/users/{user}/retirement', [AdminUserController::class, 'retirementPreview'])->whereNumber('user')->name('users.retirement.preview');
+            Route::post('/users/{user}/retirement', [AdminUserController::class, 'retire'])->whereNumber('user')->middleware('throttle:admin-write')->name('users.retirement.store');
             Route::get('/customer-portal', [AdminCustomerPortalController::class, 'index'])->name('customer-portal.index');
             Route::post('/customer-portal/users', [AdminCustomerPortalController::class, 'store'])->middleware('throttle:admin-write')->name('customer-portal.users.store');
             Route::get('/customer-portal/users/{user}', [AdminCustomerPortalController::class, 'show'])->whereNumber('user')->name('customer-portal.users.show');

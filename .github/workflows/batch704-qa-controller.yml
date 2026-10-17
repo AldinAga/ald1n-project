@@ -1,0 +1,112 @@
+name: Batch704 all-QA wait / automatic repair intake / production HOLD
+on:
+  push:
+    branches:
+      - audit/batch704-release-orchestrator-20261017
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: batch704-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  qa-wait:
+    name: QA controller — verify all 14 exact-head jobs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    outputs:
+      qa_result: ${{ steps.watch.outputs.qa_result }}
+      qa_receipt: ${{ steps.watch.outputs.qa_receipt }}
+    steps:
+      - name: Checkout exact isolated source (no repository writes)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify production remains out of scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = 'bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d'
+          git merge-base --is-ancestor 'aab218a07017f1be11f5386559b054afe7fb796e' HEAD
+          test -z "$(git status --porcelain)"
+          echo 'EXACT_SOURCE=PASS'
+          echo 'PRODUCTION_MUTATIONS=ZERO'
+      - name: Setup Node 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Run local state-machine regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/batch704/controller.mjs
+          node --test scripts/batch704/controller.test.mjs
+      - name: Wait for exact same-commit CI on both DB engines
+        id: watch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/batch704/controller.mjs --watch
+      - name: Save numbered report as an Actions artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: batch704-qa-receipt-${{ github.sha }}
+          path: docs/operations/*-BATCH704-QA-WATCH-*.md
+          if-no-files-found: warn
+          retention-days: 30
+
+  repair-batch:
+    name: Auto-create Batch705 repair intake when QA fails
+    needs: [qa-wait]
+    if: ${{ always() && needs.qa-wait.outputs.qa_result != 'pass' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Open or reuse a uniquely identified repair issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/batch704/controller.mjs --repair-issue
+      - name: Clearly mark failed QA as FAILED
+        run: |
+          echo 'QA_FAIL=TRUE; REPAIR_BATCH_ISSUE_OPENED=YES; PRODUCTION_DEPLOYED=NO'
+          exit 1
+
+  release-decision:
+    name: Production authorization — mandatory independent gates
+    needs: [qa-wait]
+    if: ${{ needs.qa-wait.outputs.qa_result == 'pass' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Fail closed on absent release authority (NO deploy capability)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/batch704/controller.mjs --release-gate

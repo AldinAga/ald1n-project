@@ -51,7 +51,7 @@ export type AdminUserCapabilities = {
   create: boolean;
   update: boolean;
   password_management: boolean;
-  delete: false;
+  delete: boolean;
 };
 
 export type AdminUserPagination = {
@@ -116,7 +116,39 @@ export type AdminUserMutationResponse = {
   reauthenticate: boolean;
 };
 
+export type UserRetirementImpact = {
+  orders: number;
+  commissions: number;
+  warranties: number;
+  conversations: number;
+  assignments: number;
+  supplier_orders: number;
+  after_sales_cases: number;
+  after_sales_actions: number;
+  portal_assignments: number;
+  receivable_cases: number;
+  foreign_keys: number;
+  unconstrained_history: number;
+};
+
+export type UserRetirementPreview = {
+  data: UserRetirementImpact;
+  target_user_id: number;
+  mode: 'non_destructive_retirement';
+};
+
+export type UserRetirementResult = {
+  message: string;
+  data: { orders: number; recipient_id: number; mode: 'non_destructive_retirement' } & Pick<UserRetirementImpact, 'supplier_orders' | 'after_sales_cases' | 'after_sales_actions' | 'portal_assignments' | 'receivable_cases'>;
+};
+
 export const apiAdminUsers = {
+  retirementPreview: (userId: number) =>
+    apiRequest<UserRetirementPreview>(`admin/users/${userId}/retirement`),
+  retire: (userId: number, confirmation: 'OBRISI') =>
+    apiRequest<UserRetirementResult>(`admin/users/${userId}/retirement`, {
+      method: 'POST', body: { confirmation },
+    }),
   list: (params: AdminUserListParams = {}) =>
     apiRequest<AdminUserListResponse> (`admin/users${queryString(params)}`),
   options: () => apiRequest<AdminUserOptionsResponse> ('admin/users/options'),

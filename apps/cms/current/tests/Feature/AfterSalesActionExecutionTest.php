@@ -57,6 +57,7 @@ final class AfterSalesActionExecutionTest extends TestCase
         self::assertSame('completed', $action->fresh()->status);
         self::assertSame(3, (int) $product->fresh()->stock_quantity);
         self::assertSame(1, StockMovement::query()->where('source', 'after_sales_action')->count());
+        self::assertSame('after_sales_replacement', StockMovement::query()->where('source', 'after_sales_action')->value('movement_type'));
 
         $this->actingAs($admin)->post('/admin/field-operations/'.$workOrder->id.'/complete', [
             'completion_result' => 'Ponovljen zahtev ne menja lager.',

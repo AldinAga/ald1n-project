@@ -206,8 +206,8 @@ final class PaymentsAdvancedInventoryTest extends TestCase
             'items' => [['product_id' => $product->id, 'quantity' => 3, 'unit_cost_rsd' => 700]],
         ];
 
-        $this->actingAs($admin)->post('/admin/inventory/receipts', $receiptPayload)->assertRedirect('/admin/inventory');
-        $this->actingAs($admin)->post('/admin/inventory/receipts', $receiptPayload)->assertRedirect('/admin/inventory');
+        $this->actingAs($admin)->post('/admin/inventory/receipts', $receiptPayload)->assertRedirect('/admin/inventory?mode=receive&limit=50');
+        $this->actingAs($admin)->post('/admin/inventory/receipts', $receiptPayload)->assertRedirect('/admin/inventory?mode=receive&limit=50');
 
         self::assertSame(8, $product->fresh()->stock_quantity);
         self::assertSame(1, StockReceipt::query()->count());
@@ -218,7 +218,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
             'counted_on' => now()->format('Y-m-d'),
             'scope_label' => 'Glavni magacin',
             'items' => [['product_id' => $product->id, 'counted_quantity' => 6]],
-        ])->assertRedirect('/admin/inventory');
+        ])->assertRedirect('/admin/inventory?mode=count&limit=50');
 
         self::assertSame(6, $product->fresh()->stock_quantity);
         self::assertSame(-2, InventoryCount::query()->sole()->total_variance);
@@ -231,7 +231,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
         $this->product($admin, 'SUMMARY-ITEM', 0, 1000);
 
         $this->actingAs($admin)->get('/admin/inventory')->assertOk()->assertSee('Ulaz robe, popis i stanje lagera');
-        $this->actingAs($admin)->get('/admin/reports')->assertOk()->assertSee('Uplate i naplata')->assertSee('Lager');
+        $this->actingAs($admin)->get('/admin/reports')->assertOk()->assertSee('Izveštaji i profitabilnost')->assertSee('Lager i kapital');
     }
 
     private function user(string $username, string $role): User

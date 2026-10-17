@@ -3996,6 +3996,47 @@ paths:
         '404': { description: Korisnik nije pronađen }
         '422': { description: Validacija ili last-SuperAdmin guard nije prošao }
 
+  /api/v1/admin/users/{user}/retirement:
+    parameters:
+      - { name: user, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      tags: [Admin]
+      summary: Bezbedno povlacenje korisnika — pregled posledica
+      description: "Samo aktivni SuperAdministrator. Ne brise fizicki korisnika ni istorijske provizije, garancije, audit zapise ili dodele. Tacno 121 FK i 7 istorijskih kolona mora odgovarati verifikovanoj MySQL semi."
+      operationId: previewAdminUserRetirement
+      responses:
+        '200':
+          description: Broj istorijskih evidencija i aktivnih zaduzenja za prenos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserRetirementPreviewResponse' }
+        '403': { description: Samo aktivni SuperAdministrator. }
+        '404': { description: Nepostojeci korisnik. }
+        '422': { description: Zabranjena samodeaktivacija ili uklanjanje SuperAdministratora. }
+        '503': { description: Nepodudaranje MySQL relacione seme — operacija nije dostupna. }
+    post:
+      tags: [Admin]
+      summary: Trajno deaktiviranje naloga sa sacuvanom istorijom
+      description: "Nepovratno postavlja retired_at i status blocked, cuva korisnicki red i 121 FK, prenosi operativno vlasnistvo porudzbina i pet vrsta aktivnih zaduzenja na aktivnog SuperAdministratora uz transakciju i audit. Povlaci Sanctum tokene, sesije i push destinacije."
+      operationId: retireAdminUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserRetirementConfirmation' }
+      responses:
+        '200':
+          description: Nalog deaktiviran i aktivna zaduzenja preneta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserRetirementResultResponse' }
+        '403': { description: Samo aktivni SuperAdministrator. }
+        '404': { description: Nepostojeci korisnik. }
+        '409': { description: Aktivna zaduzenja su promenjena ili se idempotency kljucevi porudzbina sudaraju; transakcija ponistena. }
+        '422': { description: Nedostaje tacna potvrda OBRISI ili je nalog zasticen, blokiran ili vec povucen. }
+        '429': { description: Previse pokusaja promene. }
+        '503': { description: Nepodudaranje MySQL FK/istorijske seme; nijedna promena nije izvrsena. }
+
   # MOBILE_V1_0_SET_01_MODULE_SETTINGS_PARITY_BATCH30
   /api/v1/admin/settings/modules:
     get:
@@ -5225,7 +5266,7 @@ components:
         create: { type: boolean }
         update: { type: boolean }
         password_management: { type: boolean }
-        delete: { type: boolean, const: false }
+        delete: { type: boolean, description: Dostupno samo za aktivnog SuperAdministratora kao bezbedno povlacenje, nikada fizicko DELETE. }
     AdminUserInputBase:
       type: object
       required: [role_id, username, email, status]
@@ -5276,6 +5317,57 @@ components:
         data: { $ref: '#/components/schemas/AdminUser' }
         password_changed: { type: boolean }
         reauthenticate: { type: boolean }
+    AdminUserRetirementImpact:
+      type: object
+      additionalProperties: false
+      required: [orders, commissions, warranties, conversations, assignments, supplier_orders, after_sales_cases, after_sales_actions, portal_assignments, receivable_cases, foreign_keys, unconstrained_history]
+      properties:
+        orders: { type: integer, minimum: 0, description: Porudzbine cije se operativno vlasnistvo prenosi uz append-only istoriju. }
+        commissions: { type: integer, minimum: 0, description: Finansijska pripadnost ostaje nepromenjena. }
+        warranties: { type: integer, minimum: 0, description: Garancije ostaju vezane za originalnog korisnika. }
+        conversations: { type: integer, minimum: 0, description: Korisnicki razgovori ostaju istorijski sacuvani. }
+        assignments: { type: integer, minimum: 0, description: Istorija dobavljackih dodela ostaje sacuvana. }
+        supplier_orders: { type: integer, minimum: 0 }
+        after_sales_cases: { type: integer, minimum: 0 }
+        after_sales_actions: { type: integer, minimum: 0 }
+        portal_assignments: { type: integer, minimum: 0 }
+        receivable_cases: { type: integer, minimum: 0 }
+        foreign_keys: { type: integer, const: 121 }
+        unconstrained_history: { type: integer, const: 7 }
+    AdminUserRetirementPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [data, target_user_id, mode]
+      properties:
+        data: { $ref: '#/components/schemas/AdminUserRetirementImpact' }
+        target_user_id: { type: integer, minimum: 1 }
+        mode: { type: string, const: non_destructive_retirement }
+    AdminUserRetirementConfirmation:
+      type: object
+      additionalProperties: false
+      required: [confirmation]
+      properties:
+        confirmation: { type: string, const: OBRISI }
+    AdminUserRetirementResult:
+      type: object
+      additionalProperties: false
+      required: [orders, recipient_id, mode, supplier_orders, after_sales_cases, after_sales_actions, portal_assignments, receivable_cases]
+      properties:
+        orders: { type: integer, minimum: 0 }
+        recipient_id: { type: integer, minimum: 1 }
+        mode: { type: string, const: non_destructive_retirement }
+        supplier_orders: { type: integer, minimum: 0 }
+        after_sales_cases: { type: integer, minimum: 0 }
+        after_sales_actions: { type: integer, minimum: 0 }
+        portal_assignments: { type: integer, minimum: 0 }
+        receivable_cases: { type: integer, minimum: 0 }
+    AdminUserRetirementResultResponse:
+      type: object
+      additionalProperties: false
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { $ref: '#/components/schemas/AdminUserRetirementResult' }
     AdminCourierService:
       type: object
       required: [id, name, tracking_url, sort_order, is_active, is_default]
