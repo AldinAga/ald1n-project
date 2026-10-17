@@ -47,6 +47,7 @@
     @if($siteFaviconUrl)<link rel="icon" href="{{ $siteFaviconUrl }}">@endif
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ @filemtime(public_path('assets/css/app.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-v2.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-v2.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-liquid-glass.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-liquid-glass.css')) ?: config('app.version') }}">
     @stack('styles')
     <script>
         (() => {
