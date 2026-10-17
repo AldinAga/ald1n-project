@@ -140,6 +140,7 @@ final class LiquidGlassFoundationContractTest extends TestCase
         self::assertStringContainsString('min-width: 0;', $css);
         self::assertStringNotContainsString('body { overflow: hidden', $css);
         self::assertStringNotContainsString('.product-editor-action-bar', $css);
-        self::assertStringNotContainsString('.order-archive-purge', $css);
+        // Batch 2 owns only the isolated archive modal; the editor remains Batch 3.
+        self::assertStringContainsString('.order-archive-purge-dialog:not([open])', $css);
     }
 }
