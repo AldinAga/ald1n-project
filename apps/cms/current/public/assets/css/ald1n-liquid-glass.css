@@ -2,3 +2,311 @@
  * Loaded after app.css and generated ald1n-ui-v2.css.
  * Batch 1: shared foundation only; no route, form or domain changes.
  */
+
+/* Theme variables are resolved by the pre-existing html[data-theme] control. */
+html[data-theme="dark"] {
+  --ald-background: #13181C;
+  --ald-surface: #1B2329;
+  --ald-surface-muted: #232D34;
+  --ald-surface-container: #232D34;
+  --ald-surface-container-high: #29343B;
+  --ald-text: #E9EEF1;
+  --ald-muted: #B6C2C9;
+  --ald-border: #36434C;
+  --ald-outline: #748590;
+  --ald-primary: #BFA590;
+  --ald-primary-strong: #D2BCA9;
+  --ald-on-primary: #172027;
+  --ald-primary-container: #34302E;
+  --ald-on-primary-container: #EADDD2;
+  --ald-secondary-container: #293239;
+  --ald-accent: var(--ald-primary);
+  --ald-accent-soft: #34302E;
+  --lg-ambient-cool: rgba(135, 154, 165, 0.045);
+  --lg-ambient-warm: rgba(171, 155, 142, 0.034);
+  --lg-hairline: rgba(210, 224, 230, 0.11);
+  --lg-shadow: 0 18px 42px rgba(3, 7, 10, 0.16);
+}
+
+html[data-theme="light"] {
+  --ald-background: #F3F5F6;
+  --ald-surface: #FCFDFE;
+  --ald-surface-muted: #EEF1F3;
+  --ald-surface-container: #EEF1F3;
+  --ald-surface-container-high: #E3E8EB;
+  --ald-text: #24313A;
+  --ald-muted: #52606A;
+  --ald-border: #CBD3D9;
+  --ald-outline: #70818C;
+  --ald-primary: #68584D;
+  --ald-primary-strong: #54463D;
+  --ald-on-primary: #FFFFFF;
+  --ald-primary-container: #E8E2DC;
+  --ald-on-primary-container: #41372F;
+  --ald-secondary-container: #E9EEF0;
+  --ald-accent: var(--ald-primary);
+  --ald-accent-soft: #E8E2DC;
+  --lg-ambient-cool: rgba(122, 141, 152, 0.044);
+  --lg-ambient-warm: rgba(166, 148, 136, 0.032);
+  --lg-hairline: rgba(77, 95, 107, 0.13);
+  --lg-shadow: 0 16px 38px rgba(34, 48, 58, 0.075);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 66% 45% at 88% -10%, var(--lg-ambient-cool), transparent 82%),
+    radial-gradient(ellipse 62% 52% at -10% 112%, var(--lg-ambient-warm), transparent 86%),
+    var(--ald-background);
+}
+
+/* Shell: depth stays at the edges, not across readable content. */
+.site-header {
+  background: color-mix(in srgb, var(--ald-surface) 94%, transparent);
+  border-bottom: 1px solid var(--lg-hairline);
+  -webkit-backdrop-filter: blur(12px) saturate(105%);
+  backdrop-filter: blur(12px) saturate(105%);
+  box-shadow: 0 6px 25px rgba(7, 12, 16, 0.10);
+}
+
+.header-primary-row {
+  border-color: var(--lg-hairline);
+}
+
+.header-secondary-row {
+  background: color-mix(in srgb, var(--ald-surface) 96%, transparent);
+  border-top-color: var(--lg-hairline);
+}
+
+.page-shell,
+.page-shell > * {
+  min-width: 0;
+}
+
+.page-heading h1 {
+  letter-spacing: -0.025em;
+}
+
+.header-secondary-row .main-nav > a.active,
+.header-secondary-row .nav-dropdown > summary.active {
+  background: var(--ald-primary-container);
+  color: var(--ald-on-primary-container);
+  box-shadow: inset 0 -2px 0 var(--ald-primary);
+}
+
+.nav-dropdown-menu,
+.header-product-search-dialog {
+  background: color-mix(in srgb, var(--ald-surface) 96%, transparent);
+  border: 1px solid var(--ald-border);
+  -webkit-backdrop-filter: blur(12px) saturate(105%);
+  backdrop-filter: blur(12px) saturate(105%);
+  box-shadow: var(--lg-shadow);
+}
+
+.nav-dropdown-menu {
+  border-radius: 18px;
+}
+
+.header-product-search-dialog {
+  border-radius: 22px;
+}
+
+.header-product-search-head {
+  border-bottom-color: var(--lg-hairline);
+}
+
+.user-chip,
+.rate-badge,
+.theme-mode-button,
+.notification-header-button,
+.icon-button {
+  border-color: var(--ald-border);
+  background: color-mix(in srgb, var(--ald-surface-container) 84%, var(--ald-surface) 16%);
+  box-shadow: inset 0 1px 0 var(--lg-hairline);
+}
+
+.panel,
+.hero-panel,
+.filter-panel,
+.dashboard-panel,
+.dashboard-kpi-card,
+.dashboard-module-card,
+.portal-panel,
+.admin-table-wrap,
+.table-wrap,
+.account-card,
+.notification-card {
+  background: color-mix(in srgb, var(--ald-surface) 97%, transparent);
+  border-color: var(--ald-border);
+  box-shadow: var(--lg-shadow), inset 0 1px 0 var(--lg-hairline);
+}
+
+.modern-dashboard-hero {
+  background: linear-gradient(135deg, var(--ald-surface), color-mix(in srgb, var(--ald-surface) 96%, var(--ald-surface-container) 4%));
+}
+
+/* A browser without blur receives an opaque and equally usable surface. */
+@supports not (backdrop-filter: blur(1px)) {
+  .site-header,
+  .header-secondary-row,
+  .nav-dropdown-menu,
+  .header-product-search-dialog {
+    background: var(--ald-surface);
+  }
+}
+
+/* Shared buttons: muted, precise, readable. Destructive semantics are untouched. */
+.button,
+.button-secondary,
+.button-ghost,
+.icon-button {
+  border-radius: 13px;
+  border-color: var(--ald-border);
+}
+
+.button-primary {
+  color: var(--ald-on-primary);
+  background: var(--ald-primary);
+  border-color: var(--ald-primary);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--ald-primary) 15%, transparent);
+}
+
+.button-primary:hover,
+.button-primary:focus-visible {
+  color: var(--ald-on-primary);
+  background: var(--ald-primary-strong);
+  border-color: var(--ald-primary-strong);
+}
+
+.button-secondary,
+.button-ghost {
+  color: var(--ald-text);
+  background: var(--ald-surface-container);
+  box-shadow: inset 0 1px 0 var(--lg-hairline);
+}
+
+.button-ghost:hover,
+.button-secondary:hover {
+  color: var(--ald-primary);
+  border-color: var(--ald-outline);
+  background: var(--ald-surface-container-high);
+}
+
+/* Controls remain opaque: glass belongs on surrounding surfaces. */
+.page-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]), select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--ald-text);
+  background: var(--ald-surface-muted);
+  border-color: var(--ald-border);
+  border-radius: 12px;
+}
+
+.page-shell :is(input, select, textarea):focus-visible,
+.button:focus-visible,
+.icon-button:focus-visible,
+.nav-dropdown > summary:focus-visible,
+.header-product-search-result:focus-visible {
+  outline: 2px solid var(--ald-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ald-primary) 14%, transparent);
+}
+
+.admin-table-wrap,
+.table-wrap,
+.admin-table {
+  background: var(--ald-surface);
+  border-color: var(--ald-border);
+}
+
+.admin-table th {
+  color: var(--ald-muted);
+  background: var(--ald-surface-container);
+}
+
+.admin-table td {
+  color: var(--ald-text);
+  border-bottom-color: var(--ald-border);
+}
+
+/* Scale density without clipping menus or turning all containers into scrollports. */
+@media (max-width: 760px) {
+  .page-shell,
+  .page-shell > *,
+  .panel,
+  .filter-panel,
+  .admin-table-wrap,
+  .table-wrap {
+    min-width: 0;
+  }
+
+  .panel,
+  .dashboard-panel,
+  .portal-panel {
+    border-radius: 17px;
+  }
+
+  .button,
+  .icon-button,
+  .theme-mode-button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 390px) {
+  .page-heading h1 {
+    overflow-wrap: anywhere;
+  }
+
+  .page-shell {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body {
+    background: var(--ald-background);
+  }
+
+  .site-header,
+  .header-secondary-row,
+  .nav-dropdown-menu,
+  .header-product-search-dialog,
+  .panel,
+  .hero-panel,
+  .filter-panel,
+  .dashboard-panel,
+  .admin-table-wrap,
+  .table-wrap {
+    background: var(--ald-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .icon-button,
+  .nav-dropdown-menu,
+  .dashboard-kpi-card {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .button,
+  .icon-button,
+  .site-header,
+  .panel,
+  .admin-table-wrap,
+  .table-wrap {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .button-primary {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+}
