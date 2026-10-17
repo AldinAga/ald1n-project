@@ -54,6 +54,16 @@ The authenticated shell `apps/cms/current/resources/views/layouts/app.blade.php`
 
 **EUR/RSD exchange-rate indicator and Korpa icon MUST remain visible in the authenticated header at every responsive breakpoint, including 1250/1024/768/620/390/320 px and while the mobile menu is closed.** No display:none, conditional hiding, clipped/overflowed toolbar or move to the hamburger menu for these two controls. Preserve live rate value and the existing sync button for authorized users (read-only rate for others). Preserve cart badge count for users with orders.create. For authenticated roles lacking orders.create, render an always-visible **non-interactive cart icon with an accessible label** instead of exposing an unauthorized cart link; permission middleware stays intact. Optional header controls may collapse at very narrow widths while global search and hamburger remain accessible. This owner override supersedes earlier optional compact-header behavior and is part of Batch 2, not a fifth batch. Verify in actual responsive browser review.
 
+## Owner header override — 2026-10-18, Batch 3 (supersedes Batch 2 cart placeholder)
+
+The authenticated header MUST retain the three controls **Pretraga, EUR/RSD kurs, Korpa** at their existing physical/DOM positions and relative sequence, at desktop, tablet and narrow/mobile widths **with the hamburger closed**. Do not relocate the search, exchange rate or cart into the mobile menu, swap their order, or hide them with responsive CSS. Preserve the existing header layout grouping: rate first, cart next if authorized, global search in its current place, hamburger last on mobile. Existing optional alerts/account/theme controls may collapse only at the breakpoint needed for space.
+
+**Correction to previous Batch 2 policy:** Korpa is **not rendered at all** for a user without `orders.create`: no link, icon, disabled placeholder or badge. Maintain the existing `@can('orders.create')` guard around the real cart and preserve cart permission middleware. This correction takes priority over the earlier “visible non-clickable cart icon” instruction.
+
+Header global search remains a visible focusable button for authenticated users in its original slot; its API and result permissions remain enforced server-side. Authorized admins retain clickable EUR/RSD sync; other authenticated users see the read-only currency indicator. Do not introduce a new secondary search control or duplicate rate/cart.
+
+Responsive visual acceptance must confirm the rate, cart (authorized only), and search in the original positions at 1440/1250/1024/768/620/390/**320px**, under both light and dark themes. Auto theme and open/closed menu must not change the rule. **Only actual browser screenshots or computed layout inspection can complete the physical-visibility gate**; PHPUnit source/DOM tests alone are not proof that controls fit without clipping.
+
 ## Required screen A — archived orders / destructive action
 
 **Source:** `apps/cms/current/resources/views/admin/orders/archived.blade.php`.
