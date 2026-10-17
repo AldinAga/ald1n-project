@@ -6,6 +6,7 @@ on:
       - audit/issue19-enum-migration-gate-20261017
       - audit/issue19-mariadb1011-parity-20261017
       - audit/batch704-release-orchestrator-20261017
+      - audit/batch705-release-readiness-20261017
 permissions:
   contents: read
 jobs:
