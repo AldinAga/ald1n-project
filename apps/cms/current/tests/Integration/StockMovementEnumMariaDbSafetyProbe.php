@@ -96,6 +96,7 @@ DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $query) us
     }
 });
 
+$blocker = null;
 $exitCode = 0;
 try {
     // 1) The production six-member baseline, except with a diagnostic comment
@@ -189,12 +190,53 @@ try {
         && (string) DB::table('stock_movements')->value('movement_type') === 'legacy_254',
         'enum_copy_rejection_preserves_data');
 
-    $assert($passes === 21, 'assertion_count_guard');
+    // Real concurrent metadata-lock regression on disposable MariaDB only.
+    // Transaction A holds the table's shared MDL, so ALTER in transaction B
+    // must time out (1205) in about five seconds, restore its session setting,
+    // and leave both schema and rows untouched.
+    $makeTable($original, 'utf8mb4_unicode_ci', false, null, 'lock-contention');
+    DB::insert('INSERT INTO stock_movements (movement_type) VALUES (?)', ['sale']);
+    $beforeLock = (string) $column()->COLUMN_TYPE;
+    $blocker = new PDO('mysql:host=127.0.0.1;port=3306;dbname=ald1n_issue19_mariadb_ci',
+        (string) getenv('DB_USERNAME'), (string) getenv('DB_PASSWORD'),
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $blocker->beginTransaction();
+    $blocker->query('SELECT movement_type FROM stock_movements LIMIT 1')->fetchAll();
+    $beforeWait = microtime(true);
+    $timedOut = false;
+    try {
+        $migration->up();
+    } catch (\Illuminate\Database\QueryException $error) {
+        $timedOut = (int) ($error->errorInfo[1] ?? 0) === 1205;
+    }
+    $waitSeconds = microtime(true) - $beforeWait;
+    $assert($timedOut && $waitSeconds >= 4 && $waitSeconds < 25,
+        'mariadb_real_mdl_wait_expires_without_alter');
+    $assert((int) DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS v')->v === $originalTimeout,
+        'lock_timeout_restored_after_mdl_error');
+    $blocker->rollBack();
+    $blocker = null;
+    $assert((string) $column()->COLUMN_TYPE === $beforeLock
+        && (string) DB::table('stock_movements')->value('movement_type') === 'sale',
+        'metadata_lock_rejection_keeps_rows_and_schema');
+    $migration->up();
+    $assert($enums($column()) === array_merge($original, $required),
+        'migration_retry_succeeds_after_lock_release');
+
+    $assert($passes === 25, 'assertion_count_guard');
     echo 'MARIADB_SAFETY_GATE=PASS_'.$passes.'_ASSERTIONS' . "\n";
 } catch (Throwable $error) {
     fwrite(STDERR, 'ENUM_PROBE_EXCEPTION='.$error->getMessage()."\n");
     $exitCode = 1;
 } finally {
+    if ($blocker instanceof PDO && $blocker->inTransaction()) {
+        try {
+            $blocker->rollBack();
+        } catch (Throwable $error) {
+            fwrite(STDERR, 'MARIADB_BLOCKER_CLEANUP_FAILURE='.$error->getMessage()."\n");
+            $exitCode = 1;
+        }
+    }
     try {
         DB::statement('DROP TABLE IF EXISTS `stock_movements`');
     } catch (Throwable $cleanupError) {
