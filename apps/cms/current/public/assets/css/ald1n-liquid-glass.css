@@ -313,11 +313,6 @@ body {
 
 
 /* BATCH2_ARCHIVE_HEADER: owner-mandated persistent EUR/RSD + cart. */
-.header-cart-unavailable {
-  cursor: default;
-  opacity: 0.72;
-}
-
 @media (max-width: 1250px) {
   .site-header[data-build16-shell="1"] .header-primary-row {
     min-width: 0;
@@ -345,6 +340,16 @@ body {
     flex: 0 0 44px;
     width: 44px;
     height: 44px;
+  }
+
+  /* Search stays in its original header slot, never inside the menu. */
+  .site-header[data-build16-shell="1"] .header-quick-actions > .header-product-search-toggle {
+    display: inline-grid !important;
+    visibility: visible !important;
+    place-items: center;
+    flex: 0 0 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
