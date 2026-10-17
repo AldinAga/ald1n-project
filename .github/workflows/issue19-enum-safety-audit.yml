@@ -1,0 +1,90 @@
+name: Issue19 MySQL ENUM migration safety isolated audit
+on:
+  push:
+    branches:
+      - audit/issue19-enum-migration-gate-20261017
+permissions:
+  contents: read
+jobs:
+  enum-safety:
+    name: Disposable MySQL 8.4 ENUM metadata and rollback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: enum-ci-only
+          MYSQL_DATABASE: ald1n_issue19_enum_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -penum-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PIN_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+      PIN_PR20: f3cf3045fa3c0dd052c21aae0200147f8702c2dc
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_issue19_enum_ci
+      DB_USERNAME: root
+      DB_PASSWORD: enum-ci-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Checkout exact immutable candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Source authority and dirty checkout isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PIN_MAIN"
+          git merge-base --is-ancestor "$PIN_MAIN" HEAD
+          git merge-base --is-ancestor "$PIN_PR20" HEAD
+          test -z "$(git status --porcelain)"
+          echo SOURCE_ISOLATION=PASS_EXACT_GITHUB_HEAD
+          echo PRODUCTION_MUTATIONS=ZERO
+      - name: Setup PHP 8.4 and MySQL driver
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install exact composer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Execute REAL MySQL 8.4 migration regression (no mocks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_issue19_enum_ci
+          test "$DB_HOST" = 127.0.0.1
+          test "$APP_ENV" = testing
+          cd apps/cms/current
+          php -l tests/Integration/StockMovementEnumMigrationSafetyProbe.php
+          php -l database/migrations/2026_10_16_220000_expand_after_sales_stock_movement_types.php
+          php tests/Integration/StockMovementEnumMigrationSafetyProbe.php 2>&1 | tee "$RUNNER_TEMP/enum-migration-test.log"
+          test "${PIPESTATUS[0]}" -eq 0
+          grep -Fxq "MIGRATION_SAFETY_GATE=PASS_18_ASSERTIONS" "$RUNNER_TEMP/enum-migration-test.log"
+          echo ENUM_MIGRATION_MYSQL84=PASS
