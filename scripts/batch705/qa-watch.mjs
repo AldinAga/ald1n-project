@@ -17,6 +17,17 @@ export function makeRepairTicket({sha,branch,failures,runs}) {
   };
 }
 
+export function repairSources(qa,stageResult,runId) {
+  const fails=[...(qa?.failures||[])];
+  const runs=[...(qa?.runs||[])];
+  if (stageResult!=='success') {
+    fails.push(`Offline stage-preview did not pass (${stageResult||'missing'})`);
+    if(Number.isSafeInteger(runId)&&runId>0) runs.push({id:runId,file:'batch705-release-preview.yml/stage-preview',conclusion:stageResult||'missing'});
+  }
+  if(qa?.status!=='pass') fails.push(`Exact QA watcher result=${qa?.status||'missing'}`);
+  return {failed:qa?.status!=='pass'||stageResult!=='success',failures:fails,runs};
+}
+
 export function gateReceipt(qa,stage,blockers) {
   return {
     source:'Batch705 exact-source release preview',
@@ -92,8 +103,9 @@ async function repair() {
   const {sha,branch}=identity();
   let qa;
   try{qa=await observe(sha,branch);}catch(e){qa={status:'fail',failures:[e.message],runs:[]};}
-  if(qa.status==='pass') throw new Error('Cannot create repair ticket for QA PASS');
-  const issue=makeRepairTicket({sha,branch,failures:qa.failures,runs:qa.runs});
+  const failure=repairSources(qa,process.env.STAGE_RESULT,Number(process.env.GITHUB_RUN_ID));
+  if(!failure.failed) throw new Error('Cannot create repair ticket when QA and offline stage both PASS');
+  const issue=makeRepairTicket({sha,branch,failures:failure.failures,runs:failure.runs});
   const active=await api('issues?state=all&per_page=100');
   const existing=active.find(x=>x.title===issue.title);
   const submitted=existing||await api('issues',{method:'POST',body:issue});

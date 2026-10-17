@@ -16,3 +16,8 @@ test('candidate archive is never uploaded as an installable package',()=>{
   assert.match(workflow,/path: \$\{\{ env\.PREVIEW_DIR \}\}/);
   assert.doesNotMatch(workflow,/path: .*ald1n-not-for-production\.tar\.gz/);
 });
+
+test('stage failure triggers Batch706 repair intake even if 14 QA jobs are green',()=>{
+ assert.match(workflow,/needs: \[qa-wait, stage-preview\]/);
+ assert.match(workflow,/needs\.stage-preview\.result != 'success'/);
+});

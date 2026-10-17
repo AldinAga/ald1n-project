@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EXPECTED_QA} from '../batch704/controller.mjs';
-import {classifyExactRuns,makeRepairTicket,gateReceipt} from './qa-watch.mjs';
+import {classifyExactRuns,makeRepairTicket,gateReceipt,repairSources} from './qa-watch.mjs';
 const SHA='d'.repeat(40),BRANCH='audit/batch705-release-readiness-20261017';
 function fixtures(){
  const runs=EXPECTED_QA.map((s,i)=>({id:100+i,head_sha:SHA,head_branch:BRANCH,event:'push',path:`.github/workflows/${s.file}@${BRANCH}`,status:'completed',conclusion:'success'}));
@@ -34,4 +34,14 @@ test('release receipt distinguishes verified QA from manual production HOLD',()=
  const r=gateReceipt({status:'pass',jobs:14}, {ok:true,count:123}, ['review missing']);
  assert.equal(r.qa_verified_jobs,14);assert.equal(r.production_authorized,false);
  assert.deepEqual(r.blockers,['review missing']);
+});
+
+test('a failed staging preview creates Batch706 evidence even when all 14 QA jobs PASS',()=>{
+ const result=repairSources({status:'pass',failures:[],runs:[]},'failure',612);
+ assert.equal(result.failed,true);
+ assert.match(result.failures.join(' '),/offline stage/i);
+ assert.equal(result.runs.at(-1).id,612);
+});
+test('neither stage nor QA success opens a repair issue',()=>{
+ assert.equal(repairSources({status:'pass',failures:[],runs:[]},'success',612).failed,false);
 });

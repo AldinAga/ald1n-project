@@ -108,8 +108,8 @@ jobs:
 
   repair-intake:
     name: On QA FAIL open targeted Batch706 issue
-    needs: [qa-wait]
-    if: ${{ always() && needs.qa-wait.outputs.qa_result != 'pass' }}
+    needs: [qa-wait, stage-preview]
+    if: ${{ always() && (needs.qa-wait.outputs.qa_result != 'pass' || needs.stage-preview.result != 'success') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -126,6 +126,7 @@ jobs:
       - name: Record RED evidence, never fabricate an untested repair
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STAGE_RESULT: ${{ needs.stage-preview.result }}
         run: node scripts/batch705/qa-watch.mjs --repair
       - name: Mark CI as blocked by failed QA
         run: |
