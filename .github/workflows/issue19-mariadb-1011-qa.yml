@@ -99,7 +99,7 @@ jobs:
         image: mariadb:10.11.19
         env:
           MARIADB_ROOT_PASSWORD: isolated-ci-only
-          MARIADB_DATABASE: ald1n_issue19_mariadb_ci
+          MARIADB_DATABASE: ald1n_retirement_ci
         ports:
           - 3306:3306
         options: >-
@@ -121,7 +121,7 @@ jobs:
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
       DB_PORT: "3306"
-      DB_DATABASE: ald1n_issue19_mariadb_ci
+      DB_DATABASE: ald1n_retirement_ci
       DB_USERNAME: root
       DB_PASSWORD: isolated-ci-only
       SESSION_DRIVER: array
@@ -177,15 +177,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$DB_DATABASE" = ald1n_issue19_mariadb_ci
+          test "$DB_DATABASE" = ald1n_retirement_ci
           test "$DB_HOST" = 127.0.0.1
           test "$APP_ENV" = testing
           php -r '
             $pdo = new PDO(
-              "mysql:host=127.0.0.1;port=3306;dbname=ald1n_issue19_mariadb_ci",
+              "mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci",
               "root", "isolated-ci-only", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
-            if ($pdo->query("SELECT DATABASE()")->fetchColumn() !== "ald1n_issue19_mariadb_ci"
+            if ($pdo->query("SELECT DATABASE()")->fetchColumn() !== "ald1n_retirement_ci"
                 || !preg_match("/^10\\.11\\.19-MariaDB/i", (string) $pdo->query("SELECT VERSION()")->fetchColumn())) {
               fwrite(STDERR, "HOLD: not disposable MySQL\n"); exit(31);
             }
