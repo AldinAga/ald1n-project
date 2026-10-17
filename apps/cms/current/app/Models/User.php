@@ -42,6 +42,7 @@ final class User extends Authenticatable implements PasskeyUser
             'password_changed_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'portal_activated_at' => 'datetime',
+            'retired_at' => 'datetime',
         ];
     }
 
@@ -85,7 +86,7 @@ final class User extends Authenticatable implements PasskeyUser
     public function permissionSlugs(): array
     {
         try {
-            if ($this->status !== 'active') {
+            if ($this->status !== 'active' || $this->retired_at !== null) {
                 return [];
             }
 

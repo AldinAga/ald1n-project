@@ -61,6 +61,7 @@ final class AdminUserService
                 ->lockForUpdate()
                 ->findOrFail((int) $target->getKey());
 
+            abort_if($locked->retired_at !== null, 422, 'Trajno uklonjen nalog ne može ponovo da se aktivira niti uređuje.');
             $before = $locked->toArray();
             $newRole = Role::query()->findOrFail((int) $data['role_id']);
             $nextStatus = (string) $data['status'];
