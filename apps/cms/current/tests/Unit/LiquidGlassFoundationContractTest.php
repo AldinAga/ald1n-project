@@ -1,0 +1,124 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+final class LiquidGlassFoundationContractTest extends TestCase
+{
+    private function css(): string
+    {
+        $path = dirname(__DIR__, 2).'/public/assets/css/ald1n-liquid-glass.css';
+        self::assertFileExists($path);
+        $value = file_get_contents($path);
+        self::assertIsString($value);
+        return $value;
+    }
+
+    public function test_dark_and_light_muted_token_palette_is_defined(): void
+    {
+        $css = $this->css();
+        foreach ([
+            'html[data-theme="dark"]', 'html[data-theme="light"]',
+            '--ald-background: #13181C;', '--ald-background: #F3F5F6;',
+            '--ald-surface: #1B2329;', '--ald-surface: #FCFDFE;',
+            '--ald-text: #E9EEF1;', '--ald-text: #24313A;',
+            '--ald-primary: #BFA590;', '--ald-primary: #68584D;',
+        ] as $required) {
+            self::assertStringContainsString($required, $css);
+        }
+    }
+
+    public function test_no_semantic_danger_or_success_token_is_repurposed(): void
+    {
+        $css = $this->css();
+        self::assertStringNotContainsString('--ald-danger:', $css);
+        self::assertStringNotContainsString('--ald-success:', $css);
+        self::assertStringNotContainsString('--ald-warning:', $css);
+    }
+
+    public function test_ambient_is_low_chroma_and_non_animated(): void
+    {
+        $css = $this->css();
+        foreach (['cool', 'warm'] as $name) {
+            $pattern = '/--lg-ambient-'.$name.'\s*:\s*rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0(?:\.\d+)?)\s*\)/';
+            self::assertMatchesRegularExpression($pattern, $css);
+            preg_match($pattern, $css, $matches);
+            self::assertLessThanOrEqual(0.06, (float) $matches[1]);
+        }
+        self::assertStringNotContainsString('@keyframes', $css);
+    }
+
+    public function test_shell_targets_existing_header_nav_and_search_selectors(): void
+    {
+        $css = $this->css();
+        foreach ([
+            '.site-header', '.header-primary-row', '.header-secondary-row',
+            '.nav-dropdown-menu', '.header-product-search-dialog',
+            '.user-chip', '.rate-badge', '.page-shell',
+        ] as $selector) {
+            self::assertStringContainsString($selector, $css);
+        }
+    }
+
+    public function test_glass_surfaces_have_opaque_fallback(): void
+    {
+        $css = $this->css();
+        self::assertStringContainsString('@supports not', $css);
+        self::assertStringContainsString('backdrop-filter', $css);
+        self::assertStringContainsString('background: var(--ald-surface);', $css);
+        self::assertStringNotContainsString('z-index: 9999', $css);
+    }
+
+    public function test_preserves_navigation_and_control_markers(): void
+    {
+        $path = dirname(__DIR__, 2).'/resources/views/layouts/app.blade.php';
+        self::assertFileExists($path);
+        $layout = file_get_contents($path);
+        self::assertIsString($layout);
+        foreach ([
+            'data-mobile-menu-toggle', 'data-theme-toggle',
+            'data-header-product-search-toggle', 'data-exchange-rate-sync',
+            'role="dialog"',
+        ] as $marker) {
+            self::assertStringContainsString($marker, $layout);
+        }
+    }
+
+    public function test_common_controls_and_table_surfaces_have_focus_treatment(): void
+    {
+        $css = $this->css();
+        foreach ([
+            '.button', '.button-primary', '.button-secondary', '.button-ghost',
+            '.icon-button', 'input', 'textarea', 'select',
+            '.admin-table-wrap', ':focus-visible',
+        ] as $selector) {
+            self::assertStringContainsString($selector, $css);
+        }
+    }
+
+    public function test_accessibility_fallbacks_exist(): void
+    {
+        $css = $this->css();
+        foreach ([
+            '@media (prefers-reduced-motion: reduce)',
+            '@media (prefers-reduced-transparency: reduce)',
+            '@media (forced-colors: active)',
+            '@supports not',
+        ] as $required) {
+            self::assertStringContainsString($required, $css);
+        }
+    }
+
+    public function test_mobile_has_no_global_horizontal_or_sticky_overflow_policy(): void
+    {
+        $css = $this->css();
+        self::assertStringContainsString('@media (max-width: 760px)', $css);
+        self::assertStringContainsString('min-width: 0;', $css);
+        self::assertStringNotContainsString('body { overflow: hidden', $css);
+        self::assertStringNotContainsString('.product-editor-action-bar', $css);
+        self::assertStringNotContainsString('.order-archive-purge', $css);
+    }
+}
