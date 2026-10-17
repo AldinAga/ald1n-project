@@ -90,6 +90,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci","root","isolated-ci-only",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]); if(!preg_match("/^10\\.11\\.19-MariaDB/",(string)$p->query("SELECT VERSION()")->fetchColumn())) exit(31); $p->exec("CREATE DATABASE IF NOT EXISTS ald1n_issue19_mariadb_ci");'
+          export DB_DATABASE=ald1n_issue19_mariadb_ci
+          export ALD1N_DISPOSABLE_CI=mariadb-10.11.19-only
           php tests/Integration/StockMovementEnumMariaDbSafetyProbe.php
       - name: Results do not deploy production
         if: always()
