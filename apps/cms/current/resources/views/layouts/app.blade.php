@@ -141,10 +141,6 @@
                 <x-icon name="cart" size="21" />
                 @if($headerCartCount > 0)<span class="header-cart-count">{{ min(99, $headerCartCount) }}</span>@endif
             </a>
-            @else
-            <span class="header-cart-button icon-button header-cart-unavailable" role="img" aria-label="Korpa nije dostupna za ovu ulogu" title="Korpa nije dostupna za ovu ulogu" aria-disabled="true">
-                <x-icon name="cart" size="21" />
-            </span>
             @endcan
             <span data-module-visibility="{{ $moduleVisibility->enabled('notifications') ? '1' : '0' }}">
 @can('notifications.view')
@@ -162,11 +158,9 @@
                 <span>{{ $headerInitial }}</span>
                 <div><strong>{{ $headerDisplayName }}</strong><small>{{ $headerRoleName }}</small></div>
             </a>
-            @canany(['catalog.view','orders.manage','orders.view_own','system.manage_users','warranties.manage','warranties.view_own','after_sales.manage','after_sales.view_own','stock.view','reports.view','commissions.manage','commissions.view_own','notifications.view'])
             <button class="header-product-search-toggle icon-button" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-label="Globalna pretraga" title="Globalna pretraga">
                 <x-icon name="search" size="19" />
             </button>
-            @endcan
             <button class="mobile-menu-toggle icon-button" type="button" data-mobile-menu-toggle aria-controls="siteHeaderMenu" aria-expanded="false" aria-label="Otvori glavni meni">
                 <span></span><span></span><span></span>
             </button>
