@@ -78,6 +78,37 @@ final class DashboardLegacyDesignTest extends TestCase
         }
     }
 
+    public function test_exchange_rate_and_cart_are_persistent_in_superadmin_header(): void
+    {
+        $html = $this->actingAs($this->superAdmin())->get('/')->assertOk()->getContent();
+        self::assertIsString($html);
+        self::assertStringContainsString('header-rate-persistent', $html);
+        self::assertStringContainsString('EUR/RSD', $html);
+        self::assertStringContainsString('data-exchange-rate-sync', $html);
+        self::assertStringContainsString('class="header-cart-button icon-button"', $html);
+        self::assertStringContainsString('href="'.route('cart.index').'"', $html);
+        self::assertStringContainsString('Korpa · ', $html);
+    }
+
+    public function test_cart_icon_stays_visible_but_is_not_a_link_for_user_without_order_permission(): void
+    {
+        $user = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
+            'username' => 'liquid-header-no-cart',
+            'email' => 'liquid-header-no-cart@example.test',
+            'password_hash' => Hash::make('Secret123!'),
+            'first_name' => 'Korisnik',
+            'status' => 'active',
+        ]);
+
+        $html = $this->actingAs($user)->get('/')->assertOk()->getContent();
+        self::assertIsString($html);
+        self::assertStringContainsString('header-rate-persistent', $html);
+        self::assertStringContainsString('EUR/RSD', $html);
+        self::assertStringContainsString('Korpa nije dostupna za ovu ulogu', $html);
+        self::assertStringNotContainsString('href="'.route('cart.index').'"', $html);
+    }
+
     private function superAdmin(): User
     {
         return User::query()->create([
