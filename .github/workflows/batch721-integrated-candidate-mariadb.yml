@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - audit/b720-integrated-release-candidate-20261017
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 permissions:
   contents: read
