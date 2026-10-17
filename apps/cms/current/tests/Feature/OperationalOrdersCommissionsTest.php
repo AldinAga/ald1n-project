@@ -39,7 +39,7 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->get('/commissions')
             ->assertOk()
             ->assertSee('Moje provizije')
-            ->assertSee('nikada nije manja od 20 EUR')
+            ->assertSee('Podrazumevana provizija je 10% vrednosti artikla po komadu.')
             ->assertDontSee('maksimum');
 
         $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [

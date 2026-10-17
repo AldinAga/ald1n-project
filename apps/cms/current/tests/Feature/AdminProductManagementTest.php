@@ -8,12 +8,14 @@ use App\Models\AuditLog;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductType;
 use App\Models\Role;
 use App\Models\StockMovement;
 use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class AdminProductManagementTest extends TestCase
@@ -26,13 +28,15 @@ final class AdminProductManagementTest extends TestCase
         $admin = $this->admin();
         $brand = Brand::query()->create(['name'=>'Lenovo','slug'=>'lenovo','status'=>'active']);
         $category = Category::query()->create(['name'=>'Laptopovi','slug'=>'laptopovi','status'=>'active']);
+        $type = ProductType::query()->create(['category_id' => $category->id, 'name' => 'Laptopovi', 'slug' => 'laptopovi', 'status' => 'active']);
+        DB::table('brand_product_type')->insert(['brand_id' => $brand->id, 'product_type_id' => $type->id]);
         $response = $this->actingAs($admin)->post('/admin/catalog', [
-            'brand_id'=>$brand->id,'name'=>'ThinkPad T14','price_amount'=>'999.99','price_currency'=>'EUR',
+            'brand_id'=>$brand->id,'product_type_id'=>$type->id,'name'=>'ThinkPad T14','price_amount'=>'999.99','price_currency'=>'EUR',
             'description'=>'Test opis','stock_quantity'=>5,'low_stock_threshold'=>1,'status'=>'active','category_ids'=>[$category->id],
         ]);
         $product = Product::query()->firstOrFail();
         $response->assertRedirect('/admin/catalog/'.$product->id.'/edit');
-        self::assertStringStartsWith('LENOVO-THINKPAD-T14', $product->sku);
+        self::assertMatchesRegularExpression('/^LENOVO-[0-9]{6}$/', $product->sku);
         self::assertTrue($product->categories()->whereKey($category->id)->exists());
         self::assertTrue(AuditLog::query()->where('action','product.created')->exists());
     }

@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\AdminUserService;
+use App\Services\UserRetirementService;
 use DateTimeInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ final class UserController extends Controller
         ]);
 
         $perPage = (int) ($validated['per_page'] ?? 20);
-        $query = User::query()->with(['role', 'group'])->latest('id');
+        $query = User::query()->whereNull('retired_at')->with(['role', 'group'])->latest('id');
 
         $search = trim((string) ($validated['q'] ?? ''));
         if ($search !== '') {
@@ -85,6 +86,9 @@ final class UserController extends Controller
     public function show(Request $request, User $user): JsonResponse
     {
         $actor = $this->actor($request);
+        // A retired identity is audit-only: never leak it back into
+        // operational Android detail screens through a cached deep link.
+        abort_if($user->retired_at !== null, 404);
         $user->load(['role', 'group']);
 
         return $this->jsonNoStore([
@@ -119,6 +123,26 @@ final class UserController extends Controller
             'data' => $this->present($result['user'], $this->activeSuperAdminCount()),
             'password_changed' => $result['password_changed'],
             'reauthenticate' => $result['reauthenticate'],
+        ]);
+    }
+
+    public function retirementPreview(Request $request, User $user, UserRetirementService $retirement): JsonResponse
+    {
+        return $this->jsonNoStore([
+            'data' => $retirement->impact($user, $this->actor($request)),
+            'target_user_id' => (int) $user->getKey(),
+            'mode' => 'non_destructive_retirement',
+        ]);
+    }
+
+    public function retire(Request $request, User $user, UserRetirementService $retirement): JsonResponse
+    {
+        $actor = $this->actor($request);
+        $request->validate(['confirmation' => ['required', 'in:OBRISI']]);
+        $result = $retirement->retire($user, $actor);
+        return $this->jsonNoStore([
+            'message' => 'Nalog je deaktiviran i porudžbine su prenete.',
+            'data' => $result,
         ]);
     }
 
@@ -164,7 +188,7 @@ final class UserController extends Controller
             'create' => $actor->can('system.manage_users'),
             'update' => $actor->can('system.manage_users'),
             'password_management' => $actor->can('system.manage_users'),
-            'delete' => false,
+            'delete' => $actor->status === 'active' && $actor->hasRole('superadmin'),
         ];
     }
 

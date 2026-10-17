@@ -89,8 +89,8 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
         $this->actingAs($customer)->post('/orders', $this->orderPayload($product, $admin, 'email-events-order-1'))->assertRedirect();
         $order = Order::query()->sole();
 
-        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/status', ['status' => 'processing', 'note' => 'Obrada je počela.'])->assertRedirect();
-        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/status', ['status' => 'confirmed', 'note' => 'Porudžbina je potvrđena.'])->assertRedirect();
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'processing', 'note' => 'Obrada je počela.'])->assertRedirect();
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'confirmed', 'note' => 'Porudžbina je potvrđena.', 'order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh())])->assertRedirect();
         $courierId = (int) \App\Models\CourierService::query()->where('slug', 'post-express')->value('id');
         self::assertGreaterThan(0, $courierId);
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/shipment', [
@@ -100,6 +100,7 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
             'recipient_name' => $order->shipping_full_name,
             'recipient_phone' => $order->shipping_phone,
             'tracking_number' => 'TRACK-716',
+            'order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh()),
         ])->assertRedirect();
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', ['document_type' => 'invoice'])->assertRedirect();
 

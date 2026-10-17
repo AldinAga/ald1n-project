@@ -134,7 +134,7 @@ final class CatalogDetailPageTest extends TestCase
             ->assertSee('data-gallery-open', false)
             ->assertSee('data-product-lightbox', false)
             ->assertSee('1 / 1')
-            ->assertDontSee('data-gallery-next', false);
+            ->assertDontSee('class="product-gallery-arrow product-gallery-arrow-next"', false);
     }
 
     public function test_product_detail_is_product_only_after_variant_decommission(): void

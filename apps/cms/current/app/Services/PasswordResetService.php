@@ -29,7 +29,7 @@ final class PasswordResetService
             ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
 
-        if ($user === null) {
+        if ($user === null || $user->retired_at !== null || $user->status === 'blocked') {
             return;
         }
 
@@ -68,10 +68,13 @@ final class PasswordResetService
             return false;
         }
 
-        return DB::table('password_reset_tokens')
-            ->where('token_hash', hash('sha256', $plainToken))
-            ->whereNull('used_at')
-            ->where('expires_at', '>', now())
+        return DB::table('password_reset_tokens as reset')
+            ->join('users as owner', 'owner.id', '=', 'reset.user_id')
+            ->where('reset.token_hash', hash('sha256', $plainToken))
+            ->whereNull('reset.used_at')
+            ->where('reset.expires_at', '>', now())
+            ->where('owner.status', '!=', 'blocked')
+            ->whereNull('owner.retired_at')
             ->exists();
     }
 
@@ -95,7 +98,7 @@ final class PasswordResetService
             }
 
             $user = User::query()->lockForUpdate()->find($reset->user_id);
-            if ($user === null) {
+            if ($user === null || $user->retired_at !== null || $user->status === 'blocked') {
                 return false;
             }
 

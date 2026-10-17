@@ -1,0 +1,39 @@
+name: Batch709 independent-review handoff and dry-run CloudLinux cutover
+on:
+  push:
+    branches:
+      - audit/batch709-release-contract-20261017
+permissions:
+  contents: read
+jobs:
+  release-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Verify exact base and immutable source chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = 'bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d'
+          git merge-base --is-ancestor '2701959df7d7e4f085b10d596387c610b9e54863' HEAD
+          test -z "$(git status --porcelain)"
+          echo SOURCE_AUTHORITY=PASS_PINNED_PR24_CHAIN
+      - name: Exercise 17 dry-run contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/batch709/cutover-contract.mjs
+          node --test scripts/batch709/cutover-contract.test.mjs
+          echo DRY_RUN_RELEASE_GATES=PASS_CODE_ONLY
+          echo INDEPENDENT_APPROVAL=NOT_ATTESTED
+          echo PRODUCTION_DEPLOYMENT=NO
+          echo RESTORE_DRILL=OWNER_DEFERRED_NOT_RUN

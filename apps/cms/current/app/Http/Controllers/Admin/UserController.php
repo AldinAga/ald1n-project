@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\AdminUserService;
+use App\Services\UserRetirementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,7 +20,7 @@ final class UserController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = User::query()->with(['role', 'group'])->latest('id');
+        $query = User::query()->whereNull('retired_at')->with(['role', 'group'])->latest('id');
         if ($search = trim((string) $request->query('q'))) {
             $query->where(static function ($q) use ($search): void {
                 $q->where('username', 'like', '%'.$search.'%')
@@ -54,5 +55,20 @@ final class UserController extends Controller
         $users->update($user, $request->validated(), $request->user());
 
         return back()->with('status', 'Korisnik je izmenjen.');
+    }
+    public function retirementPreview(Request $request, User $user, UserRetirementService $retirement): View
+    {
+        return view('admin.users.retirement-preview', [
+            'target' => $user,
+            'impact' => $retirement->impact($user, $request->user()),
+        ]);
+    }
+
+    public function retire(Request $request, User $user, UserRetirementService $retirement): RedirectResponse
+    {
+        $validated = $request->validate(['confirmation' => ['required', 'in:OBRISI']]);
+        $retirement->retire($user, $request->user());
+        return redirect()->route('admin.users.index')
+            ->with('status', 'Nalog je deaktiviran; porudžbine su prenete na SuperAdministratora.');
     }
 }

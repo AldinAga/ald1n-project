@@ -1,0 +1,349 @@
+name: User retirement draft safe QA
+on:
+  push:
+    branches:
+      - feature/user-retirement-batch2-20261016
+permissions:
+  contents: read
+jobs:
+  retirement:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Ephemeral PR16 merge with exact verified main - NO REMOTE WRITE
+        shell: bash
+        env:
+          PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+          PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+          PINNED_PR_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_PR_HEAD"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_MAIN"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PINNED_MAIN"
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          # Preserve merged Batch687 catalog and production webroot baseline.
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/app/Services/CatalogQueryService.php
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/public/.htaccess
+          # A release uses a committed source, not this uncommitted CI merge.
+          printf 'MAIN_INTEGRATION_NO_CONFLICT=PASS\\n'
+          printf 'BATCH687_CATALOG_BLOB_RETAINED=PASS\\n'
+          printf 'WEBROOT_MAIN_BLOB_RETAINED=PASS\\n'
+          printf 'GIT_REMOTE_MUTATIONS=ZERO\\n'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android types, validation, full regression
+        run: |
+          set -euo pipefail
+          cd apps/mobile/current
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - name: Canonical OpenAPI parity and retirement contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp apps/cms/current/docs/openapi.yaml apps/mobile/current/docs/openapi.yaml
+          cmp apps/cms/current/docs/openapi.yaml packages/api-contract/openapi.yaml
+          grep -Fq '  /api/v1/admin/users/{user}/retirement:' apps/cms/current/docs/openapi.yaml
+          grep -Fq '    AdminUserRetirementPreviewResponse:' apps/cms/current/docs/openapi.yaml
+          grep -Fq '    AdminUserRetirementResultResponse:' apps/cms/current/docs/openapi.yaml
+          grep -Fq 'confirmation: { type: string, const: OBRISI }' apps/cms/current/docs/openapi.yaml
+          grep -Fq 'foreign_keys: { type: integer, const: 121 }' apps/cms/current/docs/openapi.yaml
+          printf 'PR16_OPENAPI_3_WAY_PARITY=PASS\\n'
+      - name: Laravel PHP syntax only - no production data
+        run: |
+          set -euo pipefail
+          php -l apps/cms/current/app/Services/UserRetirementService.php
+          php -l apps/cms/current/app/Services/UserRetirementRelationPolicy.php
+          php -l apps/cms/current/app/Services/UserRetirementWorkTransferService.php
+          php -l apps/cms/current/app/Http/Controllers/Admin/UserController.php
+          php -l apps/cms/current/app/Http/Controllers/Api/V1/Admin/UserController.php
+          php -l apps/cms/current/tests/Feature/UserRetirementSafetyContractTest.php
+          php -l apps/cms/current/tests/Feature/UserRetirementMySqlIntegrationTest.php
+          php -l apps/cms/current/database/migrations/2026_10_16_160000_add_retired_at_to_users_table.php
+
+  mysql-integration:
+    name: Disposable MySQL 8.4 transactional retirement tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-retirement-only
+          MYSQL_DATABASE: ald1n_retirement_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pci-retirement-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: root
+      DB_PASSWORD: ci-retirement-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: "false"
+      PULSE_ENABLED: "false"
+      TELESCOPE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Ephemeral PR16 merge with exact verified main - NO REMOTE WRITE
+        shell: bash
+        env:
+          PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+          PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+          PINNED_PR_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_PR_HEAD"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_MAIN"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PINNED_MAIN"
+          test "$(git rev-parse HEAD)" = "$PINNED_PR_HEAD"
+          # Preserve merged Batch687 catalog and production webroot baseline.
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/app/Services/CatalogQueryService.php
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/public/.htaccess
+          # A release uses a committed source, not this uncommitted CI merge.
+          printf 'MAIN_INTEGRATION_NO_CONFLICT=PASS\\n'
+          printf 'BATCH687_CATALOG_BLOB_RETAINED=PASS\\n'
+          printf 'WEBROOT_MAIN_BLOB_RETAINED=PASS\\n'
+          printf 'GIT_REMOTE_MUTATIONS=ZERO\\n'
+      - name: PHP 8.4 with real MySQL PDO
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, pdo_sqlite, sqlite3, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install Laravel dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Enforce ephemeral database identity and run MySQL integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          test "$DB_HOST" = 127.0.0.1
+          test "$APP_ENV" = testing
+          php -r '
+            $pdo = new PDO(
+              "mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci",
+              "root", "ci-retirement-only", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            if ($pdo->query("SELECT DATABASE()")->fetchColumn() !== "ald1n_retirement_ci") {
+              fwrite(STDERR, "HOLD: not disposable MySQL database\n"); exit(31);
+            }
+            echo "DISPOSABLE_MYSQL_IDENTITY=PASS\n";
+          '
+          cd apps/cms/current
+          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --stop-on-failure
+          # Full migrated MySQL FK inventory (schema only, no user data).
+          php -r '
+            $pdo = new PDO(
+              "mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci",
+              "root", "ci-retirement-only", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            $sql = "SELECT k.TABLE_NAME, k.COLUMN_NAME, r.DELETE_RULE
+              FROM information_schema.KEY_COLUMN_USAGE k
+              JOIN information_schema.REFERENTIAL_CONSTRAINTS r
+                ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA
+               AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
+               AND r.TABLE_NAME=k.TABLE_NAME
+              WHERE k.TABLE_SCHEMA=DATABASE()
+                AND k.REFERENCED_TABLE_NAME=?
+                AND k.REFERENCED_COLUMN_NAME=?
+              ORDER BY k.TABLE_NAME,k.COLUMN_NAME";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(["users", "id"]);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo "RETIREMENT_FK_COUNT=".count($items)."\n";
+            foreach ($items as $item) {
+              echo "RETIREMENT_FK ".$item["TABLE_NAME"].".".$item["COLUMN_NAME"]." ".$item["DELETE_RULE"]."\n";
+            }
+          '
+
+      - name: Related Laravel feature regression on disposable MySQL 8.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          test "$DB_HOST" = 127.0.0.1
+          test "$APP_ENV" = testing
+          cd apps/cms/current
+          # Full MySQL Feature suite contains an unrelated test that DROP TABLEs
+          # with live FKs (AdminOrdersImageRotationTest). The full SQLite suite
+          # contains a pre-existing MySQL-only migration introspecting
+          # information_schema.COLUMNS. Neither is an accurate PR16 red gate.
+          # Run real-MySQL retirement + targeted HTTP/security regressions.
+          # OperationalOrdersCommissionsTest has an existing obsolete text
+          # assertion ('nikada nije manja od 20 EUR') unrelated to retirement.
+          # Commission retention is directly covered by retirement MySQL tests.
+          php artisan test -c phpunit.mysql.xml --stop-on-failure \
+            tests/Feature/ApiTokenTest.php \
+            tests/Feature/AuthenticationTest.php \
+            tests/Feature/ProductionPermissionsTest.php \
+            tests/Feature/CustomerPortal2Test.php
+
+      - name: Laravel full static analysis and route boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/cms/current
+          php bin/static-check.php
+          php bin/php-lint.php
+          php bin/autoload-check.php
+          php artisan route:list > /dev/null
+      - name: Explicit production safety receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'REMOTE_PRODUCTION_MUTATIONS=ZERO'
+          echo 'OTA_BUILD_PLAY_ACTIONS=ZERO'
+
+
+  immutable-source-candidate:
+    name: Freeze audited main and PR16 as an isolated source artifact
+    needs: [retirement, mysql-integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      PINNED_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+      PINNED_BASE: e0adb7cf8b9a2d569043ce826b98624c12385f81
+      PINNED_PR: ${{ github.sha }}
+    steps:
+      - name: Fetch exact PR16 source; never access dirty hosting checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Create deterministic local merge commit and check source integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_PR"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_MAIN"
+          git merge-base --is-ancestor "$PINNED_BASE" "$PINNED_PR"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PINNED_MAIN"
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/app/Services/CatalogQueryService.php
+          git diff --quiet "$PINNED_MAIN" -- apps/cms/current/public/.htaccess
+          GIT_AUTHOR_DATE='2026-10-16T00:00:00+00:00' \
+          GIT_COMMITTER_DATE='2026-10-16T00:00:00+00:00' \
+          git -c user.name='Ald1n Release QA' -c user.email='release-qa@invalid.example' \
+            commit -m 'PR16 isolated source candidate from pinned main; NO PRODUCTION RELEASE'
+          MERGE_COMMIT="$(git rev-parse HEAD)"
+          MERGED_TREE="$(git rev-parse 'HEAD^{tree}')"
+          test "$(git rev-parse HEAD^1)" = "$PINNED_PR"
+          test "$(git rev-parse HEAD^2)" = "$PINNED_MAIN"
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse "$PINNED_MAIN:apps/cms/current/app/Services/CatalogQueryService.php")" = \
+            "$(git rev-parse "HEAD:apps/cms/current/app/Services/CatalogQueryService.php")"
+          test "$(git rev-parse "$PINNED_MAIN:apps/cms/current/public/.htaccess")" = \
+            "$(git rev-parse "HEAD:apps/cms/current/public/.htaccess")"
+          OUT="$RUNNER_TEMP/pr16-immutable-candidate"
+          mkdir -p "$OUT"
+          PACKAGE=pr16-merged-source.tar.gz
+          git archive --format=tar "$MERGE_COMMIT" | gzip -n -9 > "$OUT/$PACKAGE"
+          tar -tzf "$OUT/$PACKAGE" > "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/cms/current/app/Services/CatalogQueryService.php' "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/cms/current/public/.htaccess' "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/cms/current/app/Services/UserRetirementService.php' "$OUT/source-file-list.txt"
+          grep -Fxq 'apps/mobile/current/src/features/admin/users-admin-api.ts' "$OUT/source-file-list.txt"
+          if grep -E '(^|/)\.env($|\.)' "$OUT/source-file-list.txt" | grep -Ev '\.example$'; then
+            echo 'HOLD: archive contains tracked non-example environment file'
+            exit 31
+          fi
+          FILE_COUNT="$(wc -l < "$OUT/source-file-list.txt" | tr -d ' ')"
+          test "$FILE_COUNT" -ge 1800
+          ARCHIVE_SHA="$(sha256sum "$OUT/$PACKAGE" | cut -d ' ' -f1)"
+          (
+            cd "$OUT"
+            printf '%s  %s\n' "$ARCHIVE_SHA" "$PACKAGE" > SOURCE-SHA256.txt
+            sha256sum -c SOURCE-SHA256.txt
+          )
+          cat > "$OUT/RELEASE-CANDIDATE-MANIFEST.txt" <<EOF
+          ALD1N_PR16_CANDIDATE=ISOLATED_NOT_RELEASED
+          PINNED_MAIN=$PINNED_MAIN
+          PINNED_PR16=$PINNED_PR
+          MERGE_COMMIT=$MERGE_COMMIT
+          MERGE_TREE=$MERGED_TREE
+          ARCHIVE_FILE=$PACKAGE
+          ARCHIVE_SHA256=$ARCHIVE_SHA
+          SOURCE_PATH_COUNT=$FILE_COUNT
+          SOURCE_ARCHIVE_INCLUDES_LIVE_HTACCESS_OVERRIDE=NO
+          HOST_STATUS=STALE_DIRTY_PRESERVE_4_UNIQUE_OVERRIDES
+          ARCHIVE_IS_NOT_AN_OPERATOR_DEPLOY_SCRIPT=YES
+          MYSQL_QA=PASSED_BY_REQUIRED_JOB
+          ANDROID_QA=PASSED_BY_REQUIRED_JOB
+          CMS_PRODUCTION_DEPLOY=NO
+          DB_MIGRATION=NO
+          USER_RETIREMENT=NO
+          EAS_OTA_BUILD_PLAY=NO
+          RELEASE_AUTHORIZATION=HOLD
+          EOF
+          {
+            echo '### Isolated PR16 candidate - NOT a production release'
+            echo
+            echo "| Main | $PINNED_MAIN |"
+            echo "| PR16 | $PINNED_PR |"
+            echo "| Isolated merge commit | $MERGE_COMMIT |"
+            echo "| Merged Git tree | $MERGED_TREE |"
+            echo "| Archive SHA256 | $ARCHIVE_SHA |"
+            echo "| Source paths | $FILE_COUNT |"
+            echo '| Host local overrides | Preserve four unique host files |'
+            echo '| Production actions | Zero |'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "LOCAL_MERGE_COMMIT=$MERGE_COMMIT"
+          echo "LOCAL_MERGE_TREE=$MERGED_TREE"
+          echo "SOURCE_ARCHIVE_SHA256=$ARCHIVE_SHA"
+          echo "SOURCE_PATH_COUNT=$FILE_COUNT"
+          echo 'SOURCE_CANDIDATE_GATE=PASS_ISOLATED_ARTIFACT_ONLY'
+          echo 'PRODUCTION_MUTATIONS=ZERO'
+      - name: Upload CI-only immutable artifact; do not deploy
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr16-immutable-source-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/pr16-immutable-candidate/*.tar.gz
+            ${{ runner.temp }}/pr16-immutable-candidate/SOURCE-SHA256.txt
+            ${{ runner.temp }}/pr16-immutable-candidate/RELEASE-CANDIDATE-MANIFEST.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

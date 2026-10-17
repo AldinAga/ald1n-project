@@ -1,0 +1,157 @@
+name: Batch705 exact-QA and offline release package preview (production HOLD)
+on:
+  push:
+    branches:
+      - audit/batch705-release-readiness-20261017
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: batch705-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  stage-preview:
+    name: Offline dry-run package and protection rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Local behavioral tests first (no live environment)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/batch705/release-proof.mjs
+          node --check scripts/batch705/qa-watch.mjs
+          node --test scripts/batch705/*.test.mjs
+      - name: Verify exact source and merge PR16 only in ephemeral CI
+        shell: bash
+        env:
+          PIN_MAIN: bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d
+          PIN_PR16: 0ccf871451ee7efeebbb257282c2615d8eab172e
+          PIN_PR23: d80ad94e6fadb9f8bffc177d23e1a63c843fd26d
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$PIN_MAIN"
+          git merge-base --is-ancestor "$PIN_PR23" HEAD
+          test -z "$(git status --porcelain)"
+          git -c user.name='Ald1n CI' -c user.email='ci@invalid.example' merge --no-commit --no-ff "$PIN_PR16"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --quiet "$PIN_MAIN" -- apps/cms/current/public/.htaccess
+          echo "SOURCE_TREE=$(git write-tree)" >> "$GITHUB_ENV"
+          echo 'EPHEMERAL_MERGE_ONLY=PASS'
+          echo 'PRODUCTION_HOST_ACCESS=NO'
+      - name: Build strictly offline source stage and SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/ald1n-stage"
+          ARCHIVE="$RUNNER_TEMP/ald1n-not-for-production.tar.gz"
+          mkdir -p "$STAGE"
+          git archive --format=tar "$SOURCE_TREE" apps/cms/current apps/mobile/current packages/api-contract | tar -xf - -C "$STAGE"
+          test -f "$STAGE/apps/cms/current/public/.htaccess"
+          rm -f -- "$STAGE/apps/cms/current/public/.htaccess"
+          # Strip every .env-prefixed fixture from the ephemeral stage, not the Git source.
+          find "$STAGE" -type f -name '.env*' -delete
+          # Tracked preview Firebase files do not belong in a release candidate.
+          find "$STAGE/apps/mobile/current" -type f \( -name 'GoogleService-Info.plist' -o -name 'google-services.json' \) -delete
+          test ! -e "$STAGE/apps/cms/current/public/.htaccess"
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -czf "$ARCHIVE" -C "$STAGE" apps/cms/current apps/mobile/current packages/api-contract
+          mkdir -p "$RUNNER_TEMP/batch705-preview"
+          node scripts/batch705/release-proof.mjs --stage "$STAGE" "$GITHUB_SHA" "$SOURCE_TREE" "$(sha256sum "$ARCHIVE" | awk '{print $1}')" "$(stat -c %s "$ARCHIVE")" > "$RUNNER_TEMP/batch705-preview/preview.json"
+          find "$STAGE" -type f -print | sed "s#^$STAGE/##" | LC_ALL=C sort > "$RUNNER_TEMP/batch705-preview/file-list.txt"
+          sha256sum "$ARCHIVE" | awk '{print $1}' > "$RUNNER_TEMP/batch705-preview/archive-sha256.txt"
+          node --input-type=module -e "import fs from 'node:fs';const a=JSON.parse(fs.readFileSync(process.argv[1]));if(a.archive.deployable!==false||a.release.authorized!==false||!a.stage.protected_htaccess_excluded)process.exit(2);console.log('STAGE_MANIFEST=PASS_OFFLINE_NOT_DEPLOYABLE FILES='+a.stage.file_count);" "$RUNNER_TEMP/batch705-preview/preview.json"
+          echo "PREVIEW_DIR=$RUNNER_TEMP/batch705-preview" >> "$GITHUB_ENV"
+      - name: Upload preview manifest only, never production package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: batch705-release-preview-${{ github.sha }}
+          path: ${{ env.PREVIEW_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  qa-wait:
+    name: Wait for 14 exact-source QA jobs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    outputs:
+      qa_result: ${{ steps.watch.outputs.qa_result }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Exact SHA QA watcher
+        id: watch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/batch705/qa-watch.mjs --watch
+      - name: Upload numbered QA report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: batch705-qa-receipt-${{ github.sha }}
+          path: docs/operations/705-BATCH705-QA-*.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  repair-intake:
+    name: On QA FAIL open targeted Batch706 issue
+    needs: [qa-wait, stage-preview]
+    if: ${{ always() && (needs.qa-wait.outputs.qa_result != 'pass' || needs.stage-preview.result != 'success') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Record RED evidence, never fabricate an untested repair
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STAGE_RESULT: ${{ needs.stage-preview.result }}
+        run: node scripts/batch705/qa-watch.mjs --repair
+      - name: Mark CI as blocked by failed QA
+        run: |
+          echo 'QA_FAIL=YES PRODUCTION_DEPLOYED=NO'
+          exit 1
+
+  release-decision:
+    name: Production release authorization remains HOLD
+    needs: [qa-wait, stage-preview]
+    if: ${{ needs.qa-wait.outputs.qa_result == 'pass' && needs.stage-preview.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Explain HOLD - release needs independent attestation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "import {evaluateReleaseGate} from './scripts/batch705/release-proof.mjs';const r=evaluateReleaseGate({qa:'pass',staging:true,reviews:false,backup:false,restore:false,mdl:false,host:false});console.log('QA_RESULT=PASS');console.log('PRODUCTION_AUTHORIZED=NO');for(const blocker of r.blockers)console.log('RELEASE_HOLD='+blocker);if(r.authorized!==false)process.exit(2);"
+          echo 'NO_LIVE_DEPLOYMENT=YES'
+          exit 3
