@@ -6,6 +6,7 @@ import {
   assessReleaseAuthority,
   makeRepairIssue,
   reportNumber,
+  releaseReceipt,
 } from './controller.mjs';
 
 const sha = 'c'.repeat(40);
@@ -84,4 +85,11 @@ test('repair issue carries provenance but no secrets or fabricated fix',()=>{
 test('report number obeys highest numeric prefix and never reuses 703',()=>{
   assert.equal(reportNumber(['703-a.md','646-b.md','000-LATEST.md']),704);
   assert.equal(reportNumber(['703-a.md','704-c.md']),705);
+});
+
+test('production HOLD receipt retains actual verified job count',()=>{
+  const value=releaseReceipt({status:'pass',jobs:14,runs:[{file:'x',id:7}]},'c'.repeat(40),'audit/batch704-release-orchestrator-20261017',['review HOLD']);
+  assert.equal(value.jobs,14);
+  assert.equal(value.status,'pass');
+  assert.deepEqual(value.blockers,['review HOLD']);
 });
