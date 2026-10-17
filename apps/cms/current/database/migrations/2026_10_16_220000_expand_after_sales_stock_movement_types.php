@@ -86,10 +86,15 @@ return new class extends Migration
         // or unexpected escaping rather than changing the effective default.
         $serverVersion = (string) (DB::selectOne('SELECT VERSION() AS server_version')->server_version ?? '');
         if ($default !== null && str_contains(strtolower($serverVersion), 'mariadb')) {
-            if (preg_match("/\\A'([A-Za-z0-9_]+)'\\z/", $default, $literal) !== 1) {
+            if ($nullable === 'NULL' && strtoupper($default) === 'NULL') {
+                // MariaDB reports SQL NULL as the text NULL in COLUMN_DEFAULT.
+                // A quoted 'NULL' remains a distinct literal ENUM value.
+                $default = null;
+            } elseif (preg_match("/\\A'([A-Za-z0-9_]+)'\\z/", $default, $literal) === 1) {
+                $default = $literal[1];
+            } else {
                 throw new RuntimeException('Unexpected MariaDB stock movement enum default; refuse ALTER.');
             }
-            $default = $literal[1];
         }
         $charset = (string) $row->CHARACTER_SET_NAME;
         $collation = (string) $row->COLLATION_NAME;

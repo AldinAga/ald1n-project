@@ -83,5 +83,5 @@ jobs:
           php -l tests/Integration/StockMovementEnumMariaDbSafetyProbe.php
           php -l database/migrations/2026_10_16_220000_expand_after_sales_stock_movement_types.php
           php tests/Integration/StockMovementEnumMariaDbSafetyProbe.php 2>&1 | tee "$RUNNER_TEMP/mariadb-enum-proof.log"
-          grep -Fxq 'MARIADB_SAFETY_GATE=PASS_20_ASSERTIONS' "$RUNNER_TEMP/mariadb-enum-proof.log"
+          grep -Fxq 'MARIADB_SAFETY_GATE=PASS_22_ASSERTIONS' "$RUNNER_TEMP/mariadb-enum-proof.log"
           echo MARIADB_101119_ENUM_PARITY=PASS

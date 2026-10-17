@@ -159,11 +159,16 @@ try {
     // 5) Nullable/NULL default variants must retain their exact metadata.
     $makeTable($original, 'utf8mb4_unicode_ci', true, null, 'nullable-column');
     $rawNullable = $column();
-    echo 'MARIADB_NULLABLE_DEFAULT_METADATA='.json_encode(['php_type' => get_debug_type($rawNullable->COLUMN_DEFAULT), 'value' => $rawNullable->COLUMN_DEFAULT, 'nullable' => $rawNullable->IS_NULLABLE], JSON_THROW_ON_ERROR)."\n";
+    $assert($rawNullable->COLUMN_DEFAULT === 'NULL' && (string) $rawNullable->IS_NULLABLE === 'YES',
+        'mariadb_unquoted_sql_null_metadata');
     $migration->up();
     $meta = $column();
-    $assert((string) $meta->IS_NULLABLE === 'YES' && $meta->COLUMN_DEFAULT === null
+    $assert((string) $meta->IS_NULLABLE === 'YES'
+        && (string) $meta->COLUMN_DEFAULT === (string) $rawNullable->COLUMN_DEFAULT
         && (string) $meta->COLUMN_COMMENT === 'nullable-column', 'nullable_metadata');
+    DB::statement('INSERT INTO stock_movements (id) VALUES (NULL)');
+    $assert(DB::table('stock_movements')->value('movement_type') === null,
+        'mariadb_nullable_default_insert_is_sql_null');
 
     // 6) Adding the two required enum values to a host with 254 pre-existing
     // values would increase ENUM storage width (1 -> 2 bytes), requiring a table
@@ -184,7 +189,7 @@ try {
         && (string) DB::table('stock_movements')->value('movement_type') === 'legacy_254',
         'enum_copy_rejection_preserves_data');
 
-    $assert($passes === 19, 'assertion_count_guard');
+    $assert($passes === 21, 'assertion_count_guard');
     echo 'MARIADB_SAFETY_GATE=PASS_'.$passes.'_ASSERTIONS' . "\n";
 } catch (Throwable $error) {
     fwrite(STDERR, 'ENUM_PROBE_EXCEPTION='.$error->getMessage()."\n");
