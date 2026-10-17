@@ -10,6 +10,7 @@ on:
     paths:
       - '.github/workflows/liquid-glass-cms-qa.yml'
       - 'apps/cms/current/public/assets/css/ald1n-liquid-glass.css'
+      - 'apps/cms/current/public/assets/js/ux-runtime.js'
       - 'apps/cms/current/resources/views/**'
       - 'apps/cms/current/tests/**'
 
@@ -92,9 +93,12 @@ jobs:
           php -l tests/Unit/LiquidGlassFoundationContractTest.php
           php -l tests/Feature/DashboardLegacyDesignTest.php
           php -l tests/Feature/ArchivedOrdersLiquidGlassTest.php
+          php -l tests/Feature/ProductEditorLiquidGlassTest.php
           php artisan test tests/Unit/LiquidGlassFoundationContractTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/DashboardLegacyDesignTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/ArchivedOrdersLiquidGlassTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/ProductEditorLiquidGlassTest.php --no-ansi
+          node --check public/assets/js/ux-runtime.js
           php bin/static-check.php
           echo 'LIQUID_GLASS_CMS_QA=PASS'
       - name: Confirm no production access required
