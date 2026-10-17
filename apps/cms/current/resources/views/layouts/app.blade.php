@@ -119,7 +119,7 @@
         <div class="header-quick-actions">
             @can('system.manage_settings')
             <button
-                class="rate-badge rate-badge-sync {{ $exchangeRateIsStale ? 'is-stale' : '' }}"
+                class="rate-badge header-rate-persistent rate-badge-sync {{ $exchangeRateIsStale ? 'is-stale' : '' }}"
                 type="button"
                 data-exchange-rate-sync
                 data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
@@ -130,7 +130,7 @@
                 <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
             </button>
             @else
-            <span class="rate-badge {{ $exchangeRateIsStale ? 'is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
+            <span class="rate-badge header-rate-persistent {{ $exchangeRateIsStale ? 'is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
                 <small>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</small>
                 <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
             </span>
@@ -141,6 +141,10 @@
                 <x-icon name="cart" size="21" />
                 @if($headerCartCount > 0)<span class="header-cart-count">{{ min(99, $headerCartCount) }}</span>@endif
             </a>
+            @else
+            <span class="header-cart-button icon-button header-cart-unavailable" role="img" aria-label="Korpa nije dostupna za ovu ulogu" title="Korpa nije dostupna za ovu ulogu" aria-disabled="true">
+                <x-icon name="cart" size="21" />
+            </span>
             @endcan
             <span data-module-visibility="{{ $moduleVisibility->enabled('notifications') ? '1' : '0' }}">
 @can('notifications.view')
