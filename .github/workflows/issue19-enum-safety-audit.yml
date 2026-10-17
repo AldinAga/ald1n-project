@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - audit/issue19-enum-migration-gate-20261017
+      - audit/issue19-mariadb1011-parity-20261017
 permissions:
   contents: read
 jobs:
