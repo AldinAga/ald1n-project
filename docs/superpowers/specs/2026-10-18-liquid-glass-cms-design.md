@@ -50,6 +50,10 @@ The authenticated shell `apps/cms/current/resources/views/layouts/app.blade.php`
 - Accessibility: visible focus outline, text contrast, >=44px touch targets where applicable, keyboard-accessible actions, no color-only status meaning, no horizontal overflow at 320px.
 - Responsiveness: desktop 1440px, tablet 1024px/768px, phone 390px/320px. Respect `env(safe-area-inset-bottom)`, keyboard resize and content padding beneath sticky UI.
 
+## Owner mandatory header invariant — 2026-10-18, Batch 2
+
+**EUR/RSD exchange-rate indicator and Korpa icon MUST remain visible in the authenticated header at every responsive breakpoint, including 1250/1024/768/620/390/320 px and while the mobile menu is closed.** No display:none, conditional hiding, clipped/overflowed toolbar or move to the hamburger menu for these two controls. Preserve live rate value and the existing sync button for authorized users (read-only rate for others). Preserve cart badge count for users with orders.create. For authenticated roles lacking orders.create, render an always-visible **non-interactive cart icon with an accessible label** instead of exposing an unauthorized cart link; permission middleware stays intact. Optional header controls may collapse at very narrow widths while global search and hamburger remain accessible. This owner override supersedes earlier optional compact-header behavior and is part of Batch 2, not a fifth batch. Verify in actual responsive browser review.
+
 ## Required screen A — archived orders / destructive action
 
 **Source:** `apps/cms/current/resources/views/admin/orders/archived.blade.php`.
