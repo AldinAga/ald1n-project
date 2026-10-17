@@ -32,7 +32,9 @@ final class ArchivedOrdersLiquidGlassTest extends TestCase
         self::assertIsString($html);
 
         $tableEnd = strpos($html, '</table>');
-        $dialogStart = strpos($html, '<dialog ');
+        $dialogStart = preg_match('/<dialog\\b/', $html, $dialogMatch, PREG_OFFSET_CAPTURE) === 1
+            ? $dialogMatch[0][1]
+            : false;
         self::assertNotFalse($tableEnd);
         self::assertNotFalse($dialogStart);
         self::assertGreaterThan($tableEnd, $dialogStart);
