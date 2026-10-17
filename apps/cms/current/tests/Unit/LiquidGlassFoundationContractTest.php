@@ -112,6 +112,27 @@ final class LiquidGlassFoundationContractTest extends TestCase
         }
     }
 
+    public function test_header_never_hides_rate_or_cart_at_tablet_and_phone_breakpoints(): void
+    {
+        $css = $this->css();
+        self::assertStringContainsString('@media (max-width: 1250px)', $css);
+        self::assertStringContainsString('.header-rate-persistent', $css);
+        self::assertStringContainsString('.header-cart-button', $css);
+        self::assertStringContainsString('display: inline-flex !important;', $css);
+        self::assertStringContainsString('display: inline-grid !important;', $css);
+        self::assertStringContainsString('@media (max-width: 390px)', $css);
+    }
+
+    public function test_order_archive_dialog_surfaces_and_accessible_responsive_controls_are_scoped(): void
+    {
+        $css = $this->css();
+        self::assertStringContainsString('.order-archive-purge-dialog', $css);
+        self::assertStringContainsString('.order-archive-purge-dialog::backdrop', $css);
+        self::assertStringContainsString('.order-archive-purge-fields', $css);
+        self::assertStringContainsString('.order-archive-purge-footer', $css);
+        self::assertStringContainsString('env(safe-area-inset-bottom)', $css);
+    }
+
     public function test_mobile_has_no_global_horizontal_or_sticky_overflow_policy(): void
     {
         $css = $this->css();
