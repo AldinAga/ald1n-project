@@ -29,7 +29,7 @@ jobs:
           set -euo pipefail
           node --check scripts/batch705/release-proof.mjs
           node --check scripts/batch705/qa-watch.mjs
-          node --test scripts/batch705/release-proof.test.mjs scripts/batch705/qa-watch.test.mjs
+          node --test scripts/batch705/*.test.mjs
       - name: Verify exact source and merge PR16 only in ephemeral CI
         shell: bash
         env:
@@ -58,6 +58,8 @@ jobs:
           git archive --format=tar "$SOURCE_TREE" apps/cms/current apps/mobile/current packages/api-contract | tar -xf - -C "$STAGE"
           test -f "$STAGE/apps/cms/current/public/.htaccess"
           rm -f -- "$STAGE/apps/cms/current/public/.htaccess"
+          # Strip every .env-prefixed fixture from the ephemeral stage, not the Git source.
+          find "$STAGE" -type f -name '.env*' -delete
           # Tracked preview Firebase files do not belong in a release candidate.
           find "$STAGE/apps/mobile/current" -type f \( -name 'GoogleService-Info.plist' -o -name 'google-services.json' \) -delete
           test ! -e "$STAGE/apps/cms/current/public/.htaccess"
