@@ -171,6 +171,16 @@ final class ManagementReportService
             ->selectRaw('SUM(line_total_rsd) as revenue')
             ->groupBy('brand_label')->get()->all();
 
+        return self::summarizeDashboardBrandRows($rows);
+    }
+
+    /**
+     * Deterministic aggregation reducer, separately testable from the scoped SQL query.
+     * @param array<int,object> $rows
+     * @return array<string,mixed>
+     */
+    public static function summarizeDashboardBrandRows(array $rows): array
+    {
         $build = static function (string $key) use ($rows): array {
             $positive = [];
             foreach ($rows as $row) {
