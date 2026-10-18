@@ -1232,3 +1232,36 @@ body {
 @media (prefers-reduced-transparency:reduce) {
   .catalog-filter-drawer { background: var(--ald-surface); -webkit-backdrop-filter:none; backdrop-filter:none; }
 }
+
+
+/* Liquid Glass 2.0 R3 merge-finalization: preserve canonical sticky header.
+   Glass is optical decoration, not a replacement for underlying navigation. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+html[data-theme="dark"] .site-header.lg-host,
+html[data-theme="light"] .site-header.lg-host {
+  --lg-tint: color-mix(in srgb, var(--ald-surface) 73%, transparent);
+  background: transparent !important;
+}
+html[data-theme="dark"] .header-product-search-dialog.lg-host,
+html[data-theme="dark"] .nav-dropdown-menu.lg-host,
+html[data-theme="light"] .header-product-search-dialog.lg-host,
+html[data-theme="light"] .nav-dropdown-menu.lg-host {
+  --lg-tint: color-mix(in srgb, var(--ald-surface) 76%, transparent);
+  background: transparent;
+}
+.page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host {
+  --lg-tint: color-mix(in srgb, var(--ald-surface) 82%, transparent);
+  background: transparent;
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .site-header.lg-host,
+  .header-product-search-dialog.lg-host,
+  .nav-dropdown-menu.lg-host,
+  .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host {
+    background: var(--ald-surface) !important;
+  }
+}
