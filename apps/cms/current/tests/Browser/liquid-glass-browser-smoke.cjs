@@ -375,11 +375,27 @@ async function dashboardD1Smoke(page, persona, mode) {
   const names = await page.locator('[data-dashboard-d1-kpi]').evaluateAll(nodes=>nodes.map(n=>n.dataset.dashboardD1Kpi));
   check(names.join(',') === 'revenue,gross,net,receivables,purchase,sale',
     'D1_SIX_KPI_ORDER', label+': '+names.join(','));
-  check(await page.locator('[data-dashboard-period="30d"]').count() === 1,
-    'D1_DEFAULT_30D', label);
+  check(await page.locator('[data-dashboard-period="default"]').count() === 1,
+    'D1_DEFAULT_MTD', label);
+  check((await page.locator('[data-dashboard-d1-kpi="revenue"]').count()) === 1,
+    'D1_DEFAULT_REVENUE_KPI', label);
+  const defaultChip = page.locator('.dashboard-d1-period-chip[aria-current="page"]');
+  check(await defaultChip.count() === 1 && (await defaultChip.innerText()).trim() === 'Default',
+    'D1_DEFAULT_CHIP_ACTIVE', label);
   check(await page.locator('.dashboard-d1-date-form input[type="date"]').count() === 2,
     'D1_CUSTOM_DATE_INPUTS', label);
+  const defaultFrom = await page.locator('.dashboard-d1-date-form input[name="date_from"]').inputValue();
+  const defaultTo = await page.locator('.dashboard-d1-date-form input[name="date_to"]').inputValue();
+  check(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(defaultTo) && defaultFrom === defaultTo.slice(0, 7) + '-01',
+    'D1_DEFAULT_MONTH_START_TO_TODAY', label+': '+defaultFrom+' to '+defaultTo);
 
+  await navigate(page,'/?period=30d','D1_30D_GET');
+  check(await page.locator('[data-dashboard-period="30d"]').count() === 1
+    && (await page.locator('.dashboard-d1-period-chip[aria-current="page"]').innerText()).trim() === '30 dana',
+    'D1_ROLLING_30D_SELECTED', label);
+  await navigate(page,'/?period=default','D1_EXPLICIT_DEFAULT_GET');
+  check(await page.locator('[data-dashboard-period="default"]').count() === 1,
+    'D1_EXPLICIT_DEFAULT_SELECTED', label);
   await navigate(page,'/?period=7d','D1_7D_GET');
   check(await page.locator('[data-dashboard-period="7d"]').count() === 1,
     'D1_7D_SELECTED', label);

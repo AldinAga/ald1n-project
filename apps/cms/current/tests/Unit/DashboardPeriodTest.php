@@ -15,11 +15,35 @@ final class DashboardPeriodTest extends TestCase
         return CarbonImmutable::parse('2026-10-18', 'Europe/Belgrade');
     }
 
-    public function test_default_and_thirty_days_include_today(): void
+    public function test_default_is_month_to_date_and_selected_when_period_is_omitted(): void
     {
-        $expected = ['period' => '30d', 'date_from' => '2026-09-19', 'date_to' => '2026-10-18', 'error' => null];
+        $expected = ['period' => 'default', 'date_from' => '2026-10-01', 'date_to' => '2026-10-18', 'error' => null];
         self::assertSame($expected, DashboardPeriod::resolve([], $this->today()));
-        self::assertSame($expected, DashboardPeriod::resolve(['period' => '30d'], $this->today()));
+        self::assertSame($expected, DashboardPeriod::resolve(['period' => 'default'], $this->today()));
+    }
+
+    public function test_default_rolls_forward_on_the_first_day_of_each_month(): void
+    {
+        foreach ([
+            ['2026-01-01', '2026-01-01'],
+            ['2026-02-28', '2026-02-01'],
+            ['2024-02-29', '2024-02-01'],
+            ['2026-11-01', '2026-11-01'],
+        ] as [$date, $expectedFrom]) {
+            $result = DashboardPeriod::resolve([], CarbonImmutable::parse($date, 'Europe/Belgrade'));
+            self::assertSame('default', $result['period']);
+            self::assertSame($expectedFrom, $result['date_from']);
+            self::assertSame($date, $result['date_to']);
+            self::assertNull($result['error']);
+        }
+    }
+
+    public function test_thirty_days_remains_a_rolling_inclusive_preset(): void
+    {
+        self::assertSame(
+            ['period' => '30d', 'date_from' => '2026-09-19', 'date_to' => '2026-10-18', 'error' => null],
+            DashboardPeriod::resolve(['period' => '30d'], $this->today()),
+        );
     }
 
     public function test_seven_day_preset_is_inclusive(): void
@@ -52,7 +76,7 @@ final class DashboardPeriodTest extends TestCase
             $result = DashboardPeriod::resolve($query, $this->today());
             self::assertNotEmpty($result['error'], json_encode($query));
             self::assertSame('2026-10-18', $result['date_to']);
-            self::assertSame('2026-09-19', $result['date_from']);
+            self::assertSame('2026-10-01', $result['date_from']);
         }
     }
 
@@ -64,5 +88,13 @@ final class DashboardPeriodTest extends TestCase
         self::assertSame('7d', $result['period']);
         self::assertNull($result['error']);
         self::assertSame('2026-10-12', $result['date_from']);
+
+        $month = DashboardPeriod::resolve([
+            'period' => 'default', 'date_from' => 'not-a-date', 'date_to' => ['invalid'],
+        ], $this->today());
+        self::assertSame(
+            ['period' => 'default', 'date_from' => '2026-10-01', 'date_to' => '2026-10-18', 'error' => null],
+            $month,
+        );
     }
 }
