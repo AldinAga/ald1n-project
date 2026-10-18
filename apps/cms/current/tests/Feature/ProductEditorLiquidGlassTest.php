@@ -105,6 +105,7 @@ final class ProductEditorLiquidGlassTest extends TestCase
         return Product::query()->create([
             'sku' => 'LG-PRODUCT-'.strtoupper($status),
             'name' => 'Liquid Glass Test Artikal',
+            'description' => 'Testni artikal za isključivo izolovanu proveru izgleda forme.',
             'slug' => 'liquid-glass-test-'.strtolower($status),
             'status' => $status,
             'price_amount' => 250,
