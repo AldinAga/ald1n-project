@@ -1,332 +1,40 @@
 ---
 name: ecc-react-native-patterns
-description: "Review Ald1n Expo SDK 57 / RN 0.86 navigation, components, storage and API integration using adapted ECC React Native patterns. Use for Android mobile feature work and code review without unapproved native builds."
+description: "Develop and review Ald1n Expo SDK57 React Native0.86 components, Expo Router navigation, API clients and Android native integration. Use for React Native feature changes, mobile QA and native module review with CloudLinux and OTA safety gates."
 ---
 
-## Ald1n safety overlay (higher precedence than the ECC example commands)
+# ECC React Native patterns — Ald1n safe edition
 
-Derived from [affaan-m/ECC](https://github.com/affaan-m/ECC/blob/76aaa77df6adc5b889e689007bf99b9a4f74af34/skills/react-native-patterns/SKILL.md) at pinned SHA `76aaa77df6adc5b889e689007bf99b9a4f74af34` (MIT). Always read the current Ald1n `AGENTS.md` and `docs/operations/000-LATEST.md` before operating. Existing project rules override this skill. **All upstream commands below are illustrative only.** Do not execute commands that write production database, change caches/build state, install dependencies on CloudLinux, run migrations, open deploy channels, or rewrite the hosting checkout without a separately authorized, SHA-verified operator batch. Use disposable CI for verification and report unknown evidence as HOLD. Never auto-install third-party hooks/MCP servers.
+ECC original: [react-native-patterns](https://github.com/affaan-m/ECC/blob/76aaa77df6adc5b889e689007bf99b9a4f74af34/skills/react-native-patterns/SKILL.md), MIT. Reuse the **architecture patterns**, not default upstream package-install/SDK-upgrade actions.
 
----
+## Non-negotiable Ald1n entry gate
 
+First read current remote `main`, root `AGENTS.md`, `docs/operations/000-LATEST.md`, newest numbered operation report and [the strict CloudLinux contract](../../../docs/ECC-CLOUDLINUX-CONTRACT.md). The Ald1n instructions have precedence over all upstream ECC guidance. Report exact source SHA; do not treat a previous CI PASS as proof for new code.
 
-# React Native / Expo Patterns
+**Host rules:** CloudLinux/Unlimited.rs restricted shell, canonical `/home/icaffeco/ald1n-project`. Host operator scripts and copy/paste commands must use `incoming/` only, with checked SHA-256 and `bash -n`; operation receipts exclusively `docs/operations/`, numbered using highest host + GitHub reports. Ban host process substitution, `/dev/fd`, `python3`, generic dependency upgrades, forced Git cleanup, migrations/caches and unreconciled writes. Preserve dirty production checkout, secrets, .env/.htaccess, storage and backups. All production/app-build/OTA/Play mutations require independent user approval.
 
-Practical patterns for building production React Native apps with Expo. Covers navigation, state, data fetching, lists, styling, and native APIs. Pairs with the `rules/react-native/` ruleset: rules say *what* to enforce, this skill shows *how*.
+**Current release state:** owner Report749 verified Liquid Glass 2.0 source and HTTP login preflight; **deployment remains HOLD**. ECC docs changes do not authorize deployment and must not silently move the pinned release source.
 
-Libraries named below (NativeWind, Zustand/Jotai, TanStack Query) are common, well-established options shown for illustration — the patterns matter more than the specific package, and any equivalent works. Zod is used for validation to stay consistent with ECC's existing `typescript/` rules.
+## Preserve the existing app
 
-These patterns assume the managed Expo workflow (Expo Router, EAS, `expo-*` modules) on the New Architecture (the default in recent Expo SDKs, mandatory from SDK 55+). They do NOT assume the browser DOM — React Native has no `<div>`, no URL bar, and no web data-fetching defaults.
+- Fixed until re-attested: Expo SDK **57**, RN **0.86**, package `com.ald1n.mobile`, Expo project `ald1n/ald1n-mobile`. Most recent documented production Build25: app `1.0.0`, `versionCode=25`, `runtimeVersion=1.0.0-build17`, EAS profile/channel `production`. Do not bump any field in a normal feature or ECC batch.
+- Respect canonical Expo Router routes and role constraints; never re-add removed Product Variants. Preserve Direct Sale, installments, product image behavior, commission, order/archive logic and available mobile back-navigation.
+- Use thin routes delegating to typed screen components, validate route params and API responses, keep server state separate from UI/form state, handle loading/error/empty and secure token storage, use virtualized lists for large catalog screens. Prefer existing project dependencies and patterns.
+- Do not invent parallel mobile business rules. Any Laravel API change needs three matching OpenAPI copies, mobile client/types/query keys/validator parity and user-facing UX parity unless explicitly infrastructure-only.
+- Do not use browser DOM/CSS conventions in React Native. UI experiment components remain disconnected until separately proved and approved.
 
-## When to Activate
+## Exact-source QA
 
-Use this skill when:
+1. Identify existing native binary/runtime/OTA source and precise changed paths; determine whether changes are JS-only or need a native binary.
+2. With **Node 22** and the pinned npm CLI, perform project `typecheck`, `scripts/validate-project.mjs` (require `Ukupno FAIL: 0`), native/Release25 tests when relevant, and three-copy OpenAPI parity in **disposable CI**. Host scripts must check absolute Node/npm executables before invocation; never assume PATH.
+3. Native packages must prove real RN **0.86 + Expo57** autolink/prebuild + JDK17/Gradle compilation in an isolated Android environment, plus actual device behavior/performance/fallback before application wiring; unrelated test jobs are not native proof. Android v1.4 Liquid Glass PR #32 is separate from CMS deployment.
+4. Build is justified only by verified native/config/runtime delta. For compatible JS/TS changes prefer guarded OTA but only with **separate release authorization**; neither this skill nor passing CI publishes OTA, signs APK, uploads Play or updates the runtime.
+5. EAS uses pinned `eas-cli@25.0.0` through canonical Node/npm and from `apps/mobile/current`. No generic dependency fixer or global npm upgrade.
+6. Report exact branch SHA, tests, runtime requirements, `NATIVE_BUILD_REQUIRED`, `BUILD_CREATED=NO`, `OTA_PUBLISHED=NO`, `GOOGLE_PLAY_ACTION=NO` unless separately proven by approved release evidence.
 
-- Building or editing React Native / Expo screens, components, or navigation
-- Setting up routing with Expo Router (file-based `app/` directory)
-- Deciding where state belongs (server cache vs client store vs route params vs form)
-- Wiring data fetching with TanStack Query and validating responses with Zod
-- Rendering long or heavy lists
-- Choosing or applying a styling approach (NativeWind or StyleSheet)
-- Accessing native device APIs (camera, location, notifications) or secure storage
-- Reviewing RN code for mobile-specific issues
+## ECC design principles retained
 
-Do NOT use the web/React-DOM patterns here — URL-as-state, `<div>`, and SWR-for-browser do not apply to React Native.
-
-## Core Concepts
-
-### Project structure (Expo Router)
-
-File-based routing under `app/`. Keep route files thin: they read and validate params, then delegate to a screen component that lives in `components/` or `features/`.
-
-```
-app/
-  _layout.tsx          # root stack
-  (tabs)/
-    _layout.tsx        # tab navigator
-    index.tsx          # Home
-  user/[id].tsx        # dynamic route
-components/
-features/
-  user/UserProfile.tsx
-```
-
-### Navigation: validate route params
-
-Deep links and dynamic routes deliver untrusted strings. Validate them with Zod before use.
-
-```tsx
-// app/user/[id].tsx
-import { useLocalSearchParams, router } from 'expo-router'
-import { z } from 'zod'
-import { UserProfile } from '@/features/user/UserProfile'
-
-const Params = z.object({ id: z.string().uuid() })
-
-export default function UserRoute() {
-  const parsed = Params.safeParse(useLocalSearchParams())
-  if (!parsed.success) {
-    router.replace('/not-found')
-    return null
-  }
-  return <UserProfile userId={parsed.data.id} />
-}
-```
-
-### State: keep concerns separate
-
-Do not duplicate server data into a client store. Each concern has its own home.
-
-| Concern | Common choices |
-|---------|------|
-| Server state (remote data) | a server-cache library (TanStack Query, SWR) |
-| Client/UI state | a lightweight store (Zustand, Jotai) or Context |
-| Route/navigation state | Expo Router params |
-| Form state | a form library (e.g. React Hook Form) + schema validation |
-| Secrets / tokens | `expo-secure-store` |
-| Non-secret persistence | `AsyncStorage` / MMKV |
-
-Prefer local `useState` until state genuinely needs sharing.
-
-### Data fetching: a cache library + Zod
-
-Use a server-cache library (TanStack Query, SWR) instead of fetch-in-`useEffect`. Validate at the boundary and infer types from the schema. Handle loading, error, and empty states explicitly. (Example uses TanStack Query.)
-
-```tsx
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { z } from 'zod'
-
-const User = z.object({ id: z.string(), email: z.string().email() })
-type User = z.infer<typeof User>
-
-export function useUser(id: string) {
-  return useQuery({
-    queryKey: ['user', id],
-    queryFn: async (): Promise<User> => User.parse(await api.getUser(id)),
-  })
-}
-
-export function useUpdateEmail(id: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (email: string) => api.updateEmail(id, email),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['user', id] }),
-  })
-}
-```
-
-### Lists: virtualize, never map a big array in a ScrollView
-
-```tsx
-import { FlatList } from 'react-native'
-
-<FlatList
-  data={items}
-  keyExtractor={(item) => item.id}
-  renderItem={renderItem}          // memoized
-  initialNumToRender={10}
-  windowSize={5}
-/>
-```
-
-Use `FlashList` (Shopify) for large or heterogeneous lists.
-
-### Styling: pick one system
-
-`StyleSheet.create()` is the framework-native option; utility-class libraries (e.g. NativeWind) are a common alternative. Choose one and stay consistent. Never build style objects inline in JSX on hot paths.
-
-```tsx
-// NativeWind
-<View className="p-4 rounded-2xl bg-white">
-  <Text className="text-base font-semibold">Hello</Text>
-</View>
-
-// StyleSheet
-const styles = StyleSheet.create({ card: { padding: 16, borderRadius: 16, backgroundColor: '#fff' } })
-<View style={styles.card}>...</View>
-```
-
-### Native APIs: wrap in hooks, clean up effects
-
-Keep Expo SDK calls and subscriptions inside `use*` hooks, not in JSX. Always clean up.
-
-```tsx
-import { useEffect, useState } from 'react'
-import * as Location from 'expo-location'
-
-type LocationState =
-  | { status: 'loading' }
-  | { status: 'denied' }
-  | { status: 'granted'; coords: Location.LocationObjectCoords }
-
-export function useCurrentLocation() {
-  // Track status, not just coords — so the UI can tell "still loading" apart
-  // from "permission denied" and show an actionable message.
-  const [state, setState] = useState<LocationState>({ status: 'loading' })
-
-  useEffect(() => {
-    let active = true
-    ;(async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync()
-      if (status !== 'granted') {
-        if (active) setState({ status: 'denied' })
-        return
-      }
-      const pos = await Location.getCurrentPositionAsync({})
-      if (active) setState({ status: 'granted', coords: pos.coords })
-    })()
-    return () => { active = false }   // ignore stale result after unmount
-  }, [])
-
-  return state
-}
-```
-
-### Secure storage for tokens
-
-```tsx
-import * as SecureStore from 'expo-secure-store'
-
-await SecureStore.setItemAsync('auth_token', token)   // Keychain / Keystore
-const token = await SecureStore.getItemAsync('auth_token')
-```
-
-## Code Examples
-
-### A full screen: route → query → list → states
-
-```tsx
-// app/(tabs)/orders.tsx
-import { memo, useCallback } from 'react'
-import { FlatList, Text, View } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
-import { z } from 'zod'
-
-const OrderSchema = z.object({ id: z.string(), total: z.number(), status: z.string() })
-const OrdersSchema = z.array(OrderSchema)
-type Order = z.infer<typeof OrderSchema>
-
-function useOrders() {
-  return useQuery({
-    queryKey: ['orders'],
-    queryFn: async () => OrdersSchema.parse(await api.listOrders()),
-  })
-}
-
-// Memoized so its reference is stable across renders (see the lists guidance).
-const OrderRow = memo(function OrderRow({ item }: { item: Order }) {
-  return (
-    <View className="px-4 py-3 border-b border-neutral-200">
-      <Text className="font-medium">#{item.id}</Text>
-      <Text className="text-neutral-500">{item.status} · ${item.total}</Text>
-    </View>
-  )
-})
-
-export default function OrdersScreen() {
-  const { data, isLoading, isError, refetch, isRefetching } = useOrders()
-  const renderItem = useCallback(({ item }: { item: Order }) => <OrderRow item={item} />, [])
-
-  if (isLoading) return <Centered><Text>Loading…</Text></Centered>
-  if (isError) return <Centered><Text accessibilityRole="alert">Could not load orders.</Text></Centered>
-  if (!data?.length) return <Centered><Text>No orders yet.</Text></Centered>
-
-  return (
-    <FlatList
-      data={data}
-      keyExtractor={(o) => o.id}
-      onRefresh={refetch}
-      refreshing={isRefetching}
-      renderItem={renderItem}
-    />
-  )
-}
-```
-
-### A form: React Hook Form + Zod resolver
-
-```tsx
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { TextInput, Button, Text } from 'react-native'
-
-const Schema = z.object({ email: z.string().email('Invalid email') })
-type FormValues = z.infer<typeof Schema>
-
-export function EmailForm({ onSubmit }: { onSubmit: (v: FormValues) => void }) {
-  const { control, handleSubmit, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(Schema),
-    defaultValues: { email: '' },
-  })
-
-  return (
-    <>
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <TextInput
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            accessibilityLabel="Email address"
-          />
-        )}
-      />
-      {errors.email && <Text accessibilityRole="alert">{errors.email.message}</Text>}
-      <Button title="Save" onPress={handleSubmit(onSubmit)} />
-    </>
-  )
-}
-```
-
-## Anti-Patterns
-
-```tsx
-// WRONG: large array mapped inside a ScrollView (no virtualization, janky, high memory)
-<ScrollView>{items.map((i) => <Row key={i.id} item={i} />)}</ScrollView>
-// RIGHT: FlatList / FlashList
-
-// WRONG: server data copied into a client store (two sources of truth, stale data)
-const useStore = create((set) => ({ users: [], setUsers: (u) => set({ users: u }) }))
-useEffect(() => { getUsers().then(setUsers) }, [])
-// RIGHT: useQuery owns server state; derive what you need
-
-// WRONG: tokens in AsyncStorage (not encrypted)
-await AsyncStorage.setItem('auth_token', token)
-// RIGHT: expo-secure-store
-
-// WRONG: trusting deep-link params
-const { id } = useLocalSearchParams(); fetchUser(id)
-// RIGHT: validate with Zod before use
-
-// WRONG: inline style object recreated every render on a hot path
-<View style={{ padding: 16, backgroundColor: '#fff' }} />
-// RIGHT: StyleSheet.create at module scope, or NativeWind className
-
-// WRONG: real secret shipped in the bundle
-const STRIPE_SECRET = 'sk_live_...'
-// RIGHT: keep privileged calls server-side; ship only public keys protected by backend rules
-```
-
-## Best Practices
-
-- Keep route files thin; put logic in screen components and `use*` hooks.
-- Validate every external input (API responses, route params, push payloads) with Zod.
-- Let TanStack Query own server state; keep client stores small.
-- Always render loading, error, and empty states — never just a spinner with no fallback.
-- Virtualize lists; memoize `renderItem`; provide a stable `keyExtractor`.
-- Use `react-native-reanimated` for animation (UI thread); avoid heavy work on the JS thread.
-- Store tokens in `expo-secure-store`; never trust the client for authorization.
-- Respect safe areas, Dynamic Type, and accessibility roles/labels from the start.
-- Confirm New Architecture compatibility for every native dependency before release.
-
-## Related Skills
-
-- `frontend-patterns` — React/Next.js (web) patterns; useful for shared React concepts, but DOM-specific.
-- `coding-standards` — TypeScript/JavaScript idioms that apply to RN code.
-- `tdd-workflow`, `e2e-testing` — testing process (use Jest + React Native Testing Library, Maestro/Detox for RN).
-- `security-review` — general security checklist that complements the RN bundle/secret guidance above.
+- Keep navigation explicit and permission-safe.
+- Validate untrusted deep links and network payloads.
+- Use predictable caching and cancellation, avoid duplicate mutation requests.
+- Prefer measured performance and native accessibility over speculative visual improvements.
