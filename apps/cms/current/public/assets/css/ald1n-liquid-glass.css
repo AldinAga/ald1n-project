@@ -1503,7 +1503,7 @@ html[data-theme="light"] {
   --ald-primary-container: #EAE4FF;
   --ald-on-primary-container: #452B9B;
   --ald-secondary-container: #E5EEFF;
-  --ald-accent: var(--lg5-violet);
+  --ald-accent: var(--lg5-violet-700);
   --ald-accent-soft: #EEE9FF;
   --lg2-shell: #F5F8FF;
   --lg2-edge: rgba(112,148,221,.32);
@@ -1681,17 +1681,17 @@ html[data-theme="light"] .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-c
   border-color: color-mix(in srgb,var(--lg5-blue) 36%,transparent);
 }
 .build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-green {
-  color: var(--lg5-teal);
+  color: var(--lg5-positive-ink);
   background: color-mix(in srgb,var(--lg5-teal) 17%,transparent);
   border-color: color-mix(in srgb,var(--lg5-teal) 36%,transparent);
 }
 .build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-amber {
-  color: var(--lg5-amber);
+  color: var(--lg5-warning-ink);
   background: color-mix(in srgb,var(--lg5-amber) 17%,transparent);
   border-color: color-mix(in srgb,var(--lg5-amber) 36%,transparent);
 }
 .build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-red {
-  color: var(--lg5-rose);
+  color: var(--lg5-error-ink);
   background: color-mix(in srgb,var(--lg5-rose) 17%,transparent);
   border-color: color-mix(in srgb,var(--lg5-rose) 36%,transparent);
 }
@@ -1731,6 +1731,8 @@ html[data-theme="light"] .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-c
 
 /* Transparent materials must never override user accessibility preferences. */
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  html[data-theme="dark"] body,
+  html[data-theme="light"] body { background: var(--ald-background) !important; }
   .page-shell:has(.dashboard-kpi-card)::before { content: none !important; }
   html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card),
   html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) { background: none !important; }
