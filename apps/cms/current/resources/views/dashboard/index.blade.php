@@ -270,13 +270,22 @@
                 @can('reports.view')<a href="{{ route('admin.reports.index') }}">Detaljan izveštaj <x-icon name="arrow-right" size="15" /></a>@endcan
             </div>
             @if(($reportStats['ready'] ?? false) && $trend->isNotEmpty())
-                <div class="dashboard-chart" role="img" aria-label="Trend prihoda po danima">
+                @php($trendScale = max(1, ...$trend->flatMap(static fn ($point) => [abs((float) ($point['revenue_rsd'] ?? 0)), abs((float) ($point['gross_profit_rsd'] ?? 0))])->all()))
+                <div class="dashboard-chart dashboard-d3-trend" role="group" aria-label="Trend prihoda i bruto dobiti">
                     @foreach($trend as $point)
-                        @php($height = max(4, round(((float) $point['revenue_rsd'] / $trendMax) * 100)))
-                        <div class="dashboard-chart-column" title="{{ $point['period'] }}: {{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }} RSD"><span class="dashboard-chart-bar" style="height:{{ $height }}%"></span><small>{{ substr((string) $point['period'], -5) }}</small></div>
+                        @php($revenueHeight = max(0, min(100, round(abs((float) $point['revenue_rsd']) / $trendScale * 100))))
+                        @php($grossHeight = max(0, min(100, round(abs((float) $point['gross_profit_rsd']) / $trendScale * 100))))
+                        <div class="dashboard-chart-column dashboard-d3-trend-column" title="{{ $point['period'] }}: prihod {{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }} RSD; bruto dobit {{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }} RSD">
+                            <div class="dashboard-d3-trend-bars">
+                                <span class="dashboard-chart-bar dashboard-d3-revenue" style="height:{{ $revenueHeight }}%"></span>
+                                <span class="dashboard-chart-bar dashboard-d3-gross" style="height:{{ $grossHeight }}%"></span>
+                            </div>
+                            <small>{{ substr((string) $point['period'], -5) }}</small>
+                        </div>
                     @endforeach
                 </div>
-                <div class="dashboard-chart-legend"><span><i class="legend-revenue"></i>Prihod</span><strong>Maksimum: {{ number_format($trendMax, 2, ',', '.') }} RSD</strong></div>
+                <div class="dashboard-chart-legend"><span><i class="legend-revenue"></i>Prihod</span><span><i class="dashboard-d3-gross-key"></i>Bruto dobit</span><strong>Skala: {{ number_format($trendScale, 2, ',', '.') }} RSD</strong></div>
+                <details class="dashboard-d3-trend-data"><summary>Tačne vrednosti po periodima</summary><table><thead><tr><th>Period</th><th>Prihod (RSD)</th><th>Bruto dobit (RSD)</th></tr></thead><tbody>@foreach($trend as $point)<tr><th>{{ $point['period'] }}</th><td>{{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }}</td><td>{{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }}</td></tr>@endforeach</tbody></table></details>
             @else
                 <div class="dashboard-empty"><x-icon name="chart" size="34" /><h3>Trend će biti prikazan kada postoje završene porudžbine</h3><p>Upravljački izveštaji koriste finansijske snapshot podatke iz porudžbina.</p>@can('reports.view')<a class="button button-ghost button-small" href="{{ route('admin.reports.index') }}">Proveri izveštaje</a>@endcan</div>
             @endif
