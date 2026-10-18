@@ -1,110 +1,31 @@
 ---
 name: ecc-browser-qa
-description: "Guide authenticated Ald1n CMS Chromium visual regression checks using ECC browser QA patterns. Use for CMS frontend changes, Liquid Glass, responsive screenshots and accessibility checks."
+description: "Test Ald1n CMS Blade and Liquid Glass interfaces with authenticated Chromium screenshots, role and theme checks, accessibility and regression guards. Use after CMS UI changes, responsive CSS changes or before approved CMS deployment, without affecting production data."
 ---
 
-## Ald1n safety overlay (higher precedence than the ECC example commands)
+# ECC browser QA — Ald1n safe edition
 
-Derived from [affaan-m/ECC](https://github.com/affaan-m/ECC/blob/76aaa77df6adc5b889e689007bf99b9a4f74af34/skills/browser-qa/SKILL.md) at pinned SHA `76aaa77df6adc5b889e689007bf99b9a4f74af34` (MIT). Always read the current Ald1n `AGENTS.md` and `docs/operations/000-LATEST.md` before operating. Existing project rules override this skill. **All upstream commands below are illustrative only.** Do not execute commands that write production database, change caches/build state, install dependencies on CloudLinux, run migrations, open deploy channels, or rewrite the hosting checkout without a separately authorized, SHA-verified operator batch. Use disposable CI for verification and report unknown evidence as HOLD. Never auto-install third-party hooks/MCP servers.
+ECC original: [browser-qa](https://github.com/affaan-m/ECC/blob/76aaa77df6adc5b889e689007bf99b9a4f74af34/skills/browser-qa/SKILL.md), MIT. Use a disposable local/browser CI environment; real production browser interaction requires explicit read-only owner-approved scope.
 
----
+## Non-negotiable Ald1n entry gate
 
+First read current remote `main`, root `AGENTS.md`, `docs/operations/000-LATEST.md`, newest numbered operation report and [the strict CloudLinux contract](../../../docs/ECC-CLOUDLINUX-CONTRACT.md). The Ald1n instructions have precedence over all upstream ECC guidance. Report exact source SHA; do not treat a previous CI PASS as proof for new code.
 
-# Browser QA — Automated Visual Testing & Interaction
+**Host rules:** CloudLinux/Unlimited.rs restricted shell, canonical `/home/icaffeco/ald1n-project`. Host operator scripts and copy/paste commands must use `incoming/` only, with checked SHA-256 and `bash -n`; operation receipts exclusively `docs/operations/`, numbered using highest host + GitHub reports. Ban host process substitution, `/dev/fd`, `python3`, generic dependency upgrades, forced Git cleanup, migrations/caches and unreconciled writes. Preserve dirty production checkout, secrets, .env/.htaccess, storage and backups. All production/app-build/OTA/Play mutations require independent user approval.
 
-## When to Use
+**Current release state:** owner Report749 verified Liquid Glass 2.0 source and HTTP login preflight; **deployment remains HOLD**. ECC docs changes do not authorize deployment and must not silently move the pinned release source.
 
-- After deploying a feature to staging/preview
-- When you need to verify UI behavior across pages
-- Before shipping — confirm layouts, forms, interactions actually work
-- When reviewing PRs that touch frontend code
-- Accessibility audits and responsive testing
+## Required browser evidence
 
-## How It Works
+1. Record exact branch SHA, target URL and environment authority (`ISOLATED_BROWSER_ONLY` vs authenticated production). Do not claim production UAT from a local preview.
+2. Reuse the existing Chromium browser harness from `apps/cms/current/tests/Browser/` when applicable. At minimum cover width **1440, 1024, 768, 390, 320** where page supports it, with `dark`, `light`, `auto`, and authorized SuperAdmin vs restricted user. Record precisely which combinations executed.
+3. Capture actual PNG screenshots or artifact IDs; compare header/menu/cart/search positioning, RSD/EUR interactive control, archive and product editor affordances, responsive overflow, keyboard focus, accessibility, dark/light contrast, forced/reduced transparency behavior, console and HTTP errors.
+4. For Liquid Glass, test CSS and JS initialization rather than inferring refraction from opacity. Assert SVG glass renderer/layer when supported, fallback without SVG, sticky header and input interaction; check actual generated screenshots manually for legibility and layering artifacts.
+5. All database-backed flows in CI use disposable fixtures, not live orders/customers. Never delete, create or edit production business data during a visual acceptance run.
+6. Fail exact-source QA on missing image, JS error, actionable UI regression or incomplete role coverage. Report screenshot artifact location, link, viewport matrix, failure count, and source commit. A browser PASS does not authorize deployment.
 
-Uses the browser automation MCP (claude-in-chrome, Playwright, or Puppeteer) to interact with live pages like a real user.
+## ECC design principles retained
 
-### Safety first — blast radius (run read-only by default)
-
-Browser QA drives real auth and real user journeys, so treat the blast radius explicitly.
-Default to **read-only**: never run a **mutating** journey (checkout, payment, delete,
-mass-update) against a production URL — require an explicit opt-in **and** a staging/preview
-URL. Use seeded **test credentials**, never real production logins, and **redact**
-credentials/tokens/PII before saving any screenshot.
-
-### Phase 1: Smoke Test
-```
-1. Navigate to target URL
-2. Check for console errors (filter noise: analytics, third-party)
-3. Verify no 4xx/5xx in network requests
-4. Screenshot above-the-fold on desktop + mobile viewport
-5. Check Core Web Vitals: LCP < 2.5s, CLS < 0.1, INP < 200ms
-   (INP replaced FID in March 2024; thresholds per web.dev)
-```
-
-### Phase 2: Interaction Test
-```
-1. Click every nav link — verify no dead links
-2. Submit forms with valid data — verify success state
-3. Submit forms with invalid data — verify error state
-4. Test auth flow: login → protected page → logout (test creds only, never prod)
-5. Test critical user journeys (checkout, onboarding, search)
-   — read-only by default; only exercise mutating journeys against staging
-     with explicit opt-in (see "Safety first" above)
-```
-
-### Phase 3: Visual Regression
-```
-1. Screenshot key pages at 3 breakpoints (375px, 768px, 1440px)
-2. Compare against committed baseline screenshots
-   — no baseline ⇒ report INCONCLUSIVE, never a silent PASS
-3. Flag layout shifts > 5px, missing elements, overflow
-4. Check dark mode if applicable
-```
-
-### Phase 4: Accessibility
-```
-1. Run axe-core or equivalent on each page
-2. Flag WCAG 2.2 AA violations (contrast, labels, focus order)
-3. Verify keyboard navigation works end-to-end
-4. Check screen reader landmarks
-```
-
-> Note: axe-core automatically covers roughly 30–40% of WCAG. A clean run is **necessary,
-> not sufficient** — keyboard nav, focus order, and a screen-reader pass still need a manual
-> check. Don't report "accessible" from an automated pass alone.
-
-## Output Format
-
-```markdown
-## QA Report — [URL] — [timestamp]
-
-### Smoke Test
-- Console errors: 0 critical, 2 warnings (analytics noise)
-- Network: all 200/304, no failures
-- Core Web Vitals: LCP 1.2s ✓, CLS 0.02 ✓, INP 89ms ✓
-
-### Interactions
-- [✓] Nav links: 12/12 working
-- [✗] Contact form: missing error state for invalid email
-- [✓] Auth flow: login/logout working
-
-### Visual
-- [✗] Hero section overflows on 375px viewport
-- [✓] Dark mode: all pages consistent
-
-### Accessibility
-- 2 AA violations: missing alt text on hero image, low contrast on footer links
-
-### Verdict: SHIP WITH FIXES (2 issues, 0 blockers)
-# verdict ∈ SHIP / SHIP WITH FIXES / DO NOT SHIP; use INCONCLUSIVE if no visual baseline
-```
-
-## Integration
-
-Works with any browser MCP:
-- `mChild__claude-in-chrome__*` tools (preferred — uses your actual Chrome)
-- Playwright via `mcp__browserbase__*`
-- Direct Puppeteer scripts
-
-Pair with `/canary-watch` for post-deploy monitoring.
+- Focus on user-visible changes rather than decorative snapshots only.
+- Capture reproducible failure conditions and narrow regression cases.
+- Use human screenshot review for real visual acceptance; automation alone is not aesthetic approval.
