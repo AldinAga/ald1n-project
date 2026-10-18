@@ -68,34 +68,13 @@
                                 </form>
 
                                 @if($canPurge)
-                                    <details class="danger-zone order-archive-purge" data-order-permanent-delete>
-                                        <summary>Trajno obriši porudžbinu</summary>
-                                        <div class="danger-zone-body">
-                                            <p><strong>Ova radnja nema normalan restore.</strong> Porudžbina će nestati iz operativnih i arhivskih prikaza, pretrage, brojača, API-ja i mobilne aplikacije.</p>
-                                            <p class="muted">Ne radi se naivni hard-delete: finansijska, pravna, dokumentaciona, garancijska i audit istorija potrebna za integritet ostaje interno sačuvana.</p>
-
-                                            <form method="post" action="{{ route('admin.orders.purge', ['orderId' => $order->id]) }}" class="form-grid">
-                                                @csrf
-                                                @method('DELETE')
-
-                                                <label class="full-span">
-                                                    <span>Razlog trajnog uklanjanja</span>
-                                                    <textarea name="purge_reason" rows="3" maxlength="1000" required placeholder="Zašto porudžbina više ne sme biti dostupna u operativnom sistemu?"></textarea>
-                                                </label>
-
-                                                <label class="full-span">
-                                                    <span>Za potvrdu upiši tačan broj porudžbine: {{ $order->order_number }}</span>
-                                                    <input name="confirmation" maxlength="100" autocomplete="off" required placeholder="{{ $order->order_number }}">
-                                                </label>
-
-                                                <div class="full-span">
-                                                    <button class="button button-danger" type="submit" data-confirm="Trajno ukloniti porudžbinu {{ $order->order_number }} iz operativnog sistema? Ovu radnju nije moguće poništiti kroz normalan CMS tok.">
-                                                        Trajno obriši porudžbinu
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </details>
+                                    <button
+                                        class="button button-small button-ghost order-archive-danger-trigger"
+                                        type="button"
+                                        data-order-purge-open="{{ $order->id }}"
+                                        aria-controls="orderPurgeDialog-{{ $order->id }}"
+                                        aria-haspopup="dialog"
+                                    >Trajno obriši porudžbinu</button>
                                 @endif
                             </div>
                         </td>
@@ -107,8 +86,89 @@
         </table>
     </div>
 
+    {{-- The confirmation dialogs live outside the scrollable six-column table. --}}
+    @if($canPurge)
+        @foreach($orders as $order)
+            <dialog
+                class="danger-zone order-archive-purge order-archive-purge-dialog"
+                id="orderPurgeDialog-{{ $order->id }}"
+                data-order-permanent-delete="1"
+                aria-labelledby="order-purge-title-{{ $order->id }}"
+                aria-describedby="order-purge-warning-{{ $order->id }}"
+            >
+                <div class="order-archive-purge-content">
+                    <header class="order-archive-purge-heading">
+                        <div>
+                            <span class="order-archive-danger-eyebrow">Zona trajnog uklanjanja</span>
+                            <h2 id="order-purge-title-{{ $order->id }}">Trajno obriši porudžbinu</h2>
+                            <p class="order-archive-purge-number">{{ $order->order_number }}</p>
+                        </div>
+                        <button class="order-archive-purge-dismiss" type="button" data-order-purge-close aria-label="Zatvori dijalog za porudžbinu {{ $order->order_number }}">×</button>
+                    </header>
+                    <div class="order-archive-purge-warning">
+                        <strong id="order-purge-warning-{{ $order->id }}">Ova radnja nema normalan restore.</strong>
+                        <p>Porudžbina će nestati iz operativnih i arhivskih prikaza, pretrage, brojača, API-ja i mobilne aplikacije.</p>
+                    </div>
+                    <p class="order-archive-purge-retention">Finansijska, pravna, dokumentaciona, garancijska i audit istorija potrebna za integritet ostaje interno sačuvana. Ne radi se naivni hard-delete.</p>
+
+                    <form method="post" action="{{ route('admin.orders.purge', ['orderId' => $order->id]) }}" class="order-archive-purge-form">
+                        @csrf
+                        @method('DELETE')
+
+                        <div class="order-archive-purge-fields">
+                            <div class="order-archive-purge-field">
+                                <label for="order-purge-reason-{{ $order->id }}">Razlog trajnog uklanjanja</label>
+                                <textarea id="order-purge-reason-{{ $order->id }}" name="purge_reason" rows="3" minlength="5" maxlength="1000" required placeholder="Zašto porudžbina više ne sme biti dostupna u operativnom sistemu?"></textarea>
+                            </div>
+                            <div class="order-archive-purge-field">
+                                <label for="order-purge-confirmation-{{ $order->id }}">Za potvrdu upiši tačan broj porudžbine: {{ $order->order_number }}</label>
+                                <input id="order-purge-confirmation-{{ $order->id }}" name="confirmation" maxlength="100" autocomplete="off" spellcheck="false" required placeholder="{{ $order->order_number }}">
+                            </div>
+                        </div>
+
+                        <div class="order-archive-purge-footer">
+                            <button class="button button-ghost" type="button" data-order-purge-close>Odustani</button>
+                            <button class="button button-danger" type="submit" data-confirm="Trajno ukloniti porudžbinu {{ $order->order_number }} iz operativnog sistema? Ovu radnju nije moguće poništiti kroz normalan CMS tok.">
+                                Trajno obriši porudžbinu
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </dialog>
+        @endforeach
+    @endif
+
     <div class="pagination-wrap">{{ $orders->links() }}</div>
 </div>
 
 
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const archive = document.querySelector('[data-order-archive-center="1"]');
+    if (!archive) return;
+
+    archive.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return;
+
+        const opener = event.target.closest('[data-order-purge-open]');
+        if (opener) {
+            const dialog = document.getElementById(opener.getAttribute('aria-controls'));
+            if (!dialog || typeof dialog.showModal !== 'function' || dialog.open) return;
+
+            dialog.addEventListener('close', () => {
+                dialog.querySelector('form')?.reset();
+                if (opener.isConnected) opener.focus();
+            }, {once: true});
+            dialog.showModal();
+            return;
+        }
+
+        const closeButton = event.target.closest('[data-order-purge-close]');
+        if (closeButton) closeButton.closest('dialog')?.close();
+    });
+})();
+</script>
+@endpush

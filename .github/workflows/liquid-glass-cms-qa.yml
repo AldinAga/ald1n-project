@@ -1,0 +1,233 @@
+name: Liquid Glass CMS isolated PHPUnit and static QA
+
+on:
+  push:
+    branches:
+      - design/liquid-glass-cms-20261018
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/liquid-glass-cms-qa.yml'
+      - 'apps/cms/current/public/assets/css/ald1n-liquid-glass.css'
+      - 'apps/cms/current/public/assets/js/ux-runtime.js'
+      - 'apps/cms/current/resources/views/**'
+      - 'apps/cms/current/tests/**'
+
+permissions:
+  contents: read
+
+jobs:
+  liquid-glass-cms:
+    name: Disposable Laravel 13 / PHP 8.4 / MariaDB 10.11.19
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: liquid-glass-ci-only
+          MARIADB_DATABASE: ald1n_liquid_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pliquid-glass-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_liquid_ci
+      DB_USERNAME: root
+      DB_PASSWORD: liquid-glass-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Checkout isolated PR source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install isolated CMS dependencies
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_CONNECTION" = mysql
+          test "$DB_DATABASE" = ald1n_liquid_ci
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Verify untouched generated theme assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="$(git merge-base HEAD origin/main)"
+          git diff --quiet "$BASE_SHA" HEAD -- apps/cms/current/public/assets/css/ald1n-ui-v2.css packages/design-tokens/ald1n-operator.json
+          test -f apps/cms/current/public/assets/css/ald1n-liquid-glass.css
+          echo 'GENERATED_THEME_UNCHANGED=PASS'
+      - name: Execute real PHPUnit and canonical static gate
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_CONNECTION" = mysql
+          test "$DB_DATABASE" = ald1n_liquid_ci
+          php -l tests/Unit/LiquidGlassFoundationContractTest.php
+          php -l tests/Feature/DashboardLegacyDesignTest.php
+          php -l tests/Feature/ArchivedOrdersLiquidGlassTest.php
+          php -l tests/Feature/ProductEditorLiquidGlassTest.php
+          php artisan test tests/Unit/LiquidGlassFoundationContractTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/DashboardLegacyDesignTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/ArchivedOrdersLiquidGlassTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/ProductEditorLiquidGlassTest.php --no-ansi
+          node --check public/assets/js/ux-runtime.js
+          php bin/static-check.php
+          echo 'LIQUID_GLASS_CMS_QA=PASS'
+      - name: Confirm no production access required
+        if: always()
+        shell: bash
+        run: |
+          echo 'PRODUCTION_SOURCE_MUTATION=NO'
+          echo 'PRODUCTION_DB_MUTATION=NO'
+          echo 'OTA=NO'
+          echo 'NATIVE_BUILD=NO'
+          echo 'GOOGLE_PLAY=NO'
+
+
+  visual-browser-qa:
+    name: Authenticated Chromium / 7 viewports / dark light auto
+    needs: liquid-glass-cms
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: liquid-glass-ci-only
+          MARIADB_DATABASE: ald1n_liquid_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pliquid-glass-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_URL: http://127.0.0.1:8123
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_liquid_ci
+      DB_USERNAME: root
+      DB_PASSWORD: liquid-glass-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: file
+      # This isolated localhost HTTP server must not inherit production-only cookies.
+      SESSION_SECURE_COOKIE: 'false'
+      SESSION_DOMAIN: ''
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+      LIQUID_GLASS_VISUAL_CI: '1'
+      LIQUID_GLASS_BASE_URL: http://127.0.0.1:8123
+    steps:
+      - name: Checkout exact isolated source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up isolated PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Set up Node 22 for browser tests only
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install isolated Laravel dependencies
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_CONNECTION" = mysql
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_liquid_ci
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+          php -l tests/Browser/seed-liquid-glass-preview.php
+          node --check tests/Browser/liquid-glass-browser-smoke.cjs
+      - name: Install disposable Chromium runner outside repository
+        shell: bash
+        env:
+          PLAYWRIGHT_NODE_ROOT: ${{ runner.temp }}/ald1n-liquid-playwright
+        run: |
+          set -euo pipefail
+          mkdir -p "$PLAYWRIGHT_NODE_ROOT"
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Run real authenticated responsive browser smoke
+        shell: bash
+        working-directory: apps/cms/current
+        env:
+          LIQUID_GLASS_FIXTURES_PATH: ${{ runner.temp }}/ald1n-liquid-browser-fixtures.json
+          LIQUID_GLASS_ARTIFACT_DIR: ${{ runner.temp }}/ald1n-liquid-visual-artifacts
+          PLAYWRIGHT_NODE_ROOT: ${{ runner.temp }}/ald1n-liquid-playwright
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_CONNECTION" = mysql
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_liquid_ci
+          test "$LIQUID_GLASS_BASE_URL" = http://127.0.0.1:8123
+          test "$SESSION_SECURE_COOKIE" = false
+          test -z "$SESSION_DOMAIN"
+          mkdir -p "$LIQUID_GLASS_ARTIFACT_DIR"
+          php artisan migrate:fresh --force --no-ansi
+          php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php tests/Browser/seed-liquid-glass-preview.php
+          php artisan serve --host=127.0.0.1 --port=8123 > "$RUNNER_TEMP/ald1n-liquid-php-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8123/login; then READY=1; break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          test "$READY" = 1 || { echo "FAIL: isolated Laravel browser server not ready"; tail -n 60 "$RUNNER_TEMP/ald1n-liquid-php-server.log"; exit 1; }
+          node tests/Browser/liquid-glass-browser-smoke.cjs
+      - name: Save real Chromium screenshots and measured layout
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: liquid-glass-browser-${{ github.sha }}
+          path: ${{ runner.temp }}/ald1n-liquid-visual-artifacts/
+          if-no-files-found: warn
+          retention-days: 14

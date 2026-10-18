@@ -47,6 +47,7 @@
     @if($siteFaviconUrl)<link rel="icon" href="{{ $siteFaviconUrl }}">@endif
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ @filemtime(public_path('assets/css/app.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-v2.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-v2.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-liquid-glass.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-liquid-glass.css')) ?: config('app.version') }}">
     @stack('styles')
     <script>
         (() => {
@@ -118,7 +119,7 @@
         <div class="header-quick-actions">
             @can('system.manage_settings')
             <button
-                class="rate-badge rate-badge-sync {{ $exchangeRateIsStale ? 'is-stale' : '' }}"
+                class="rate-badge header-rate-persistent rate-badge-sync {{ $exchangeRateIsStale ? 'is-stale' : '' }}"
                 type="button"
                 data-exchange-rate-sync
                 data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
@@ -129,7 +130,7 @@
                 <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
             </button>
             @else
-            <span class="rate-badge {{ $exchangeRateIsStale ? 'is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
+            <span class="rate-badge header-rate-persistent {{ $exchangeRateIsStale ? 'is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
                 <small>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</small>
                 <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
             </span>
@@ -157,11 +158,9 @@
                 <span>{{ $headerInitial }}</span>
                 <div><strong>{{ $headerDisplayName }}</strong><small>{{ $headerRoleName }}</small></div>
             </a>
-            @canany(['catalog.view','orders.manage','orders.view_own','system.manage_users','warranties.manage','warranties.view_own','after_sales.manage','after_sales.view_own','stock.view','reports.view','commissions.manage','commissions.view_own','notifications.view'])
             <button class="header-product-search-toggle icon-button" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-label="Globalna pretraga" title="Globalna pretraga">
                 <x-icon name="search" size="19" />
             </button>
-            @endcan
             <button class="mobile-menu-toggle icon-button" type="button" data-mobile-menu-toggle aria-controls="siteHeaderMenu" aria-expanded="false" aria-label="Otvori glavni meni">
                 <span></span><span></span><span></span>
             </button>

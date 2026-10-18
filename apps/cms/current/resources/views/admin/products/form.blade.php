@@ -125,6 +125,7 @@
 @endif
 <form
         id="product-editor-form"
+        class="liquid-glass-product-editor-form"
         method="post"
         enctype="multipart/form-data" data-ux-sticky-actions
         action="{{ $product->exists ? route('admin.products.update',$product) : route('admin.products.store') }}"
@@ -494,15 +495,17 @@
                 <span>{{ $product->exists ? 'Sve izmene na ovoj stranici čuvaju se jednim klikom.' : 'Sačuvaj novi artikal kada završiš unos.' }}</span>
             </div>
             <div class="product-editor-action-buttons">
-                @if($product->exists && auth()->user()?->hasRole('superadmin'))
-                    @if($product->deleted_at === null && in_array((string) $product->status, ['active', 'inactive'], true))
-                        <a class="button button-secondary" href="{{ route('catalog.show', ['slug' => $product->slug]) }}#direct-sale-title">Direktna prodaja</a>
-                    @else
-                        <span class="product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
+                <div class="product-editor-action-secondary">
+                    @if($product->exists && auth()->user()?->hasRole('superadmin'))
+                        @if($product->deleted_at === null && in_array((string) $product->status, ['active', 'inactive'], true))
+                            <a class="button button-ghost product-editor-action-direct" href="{{ route('catalog.show', ['slug' => $product->slug]) }}#direct-sale-title">Direktna prodaja</a>
+                        @else
+                            <span class="product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
+                        @endif
                     @endif
-                @endif
-                <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
-                <button class="button button-primary button-large" type="submit" data-product-save-primary>
+                    <button class="button button-secondary product-editor-action-draft" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
+                </div>
+                <button class="button button-primary product-editor-action-primary" type="submit" data-product-save-primary>
                     {{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}
                 </button>
             </div>

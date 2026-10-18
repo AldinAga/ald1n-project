@@ -149,7 +149,7 @@
         if (document.querySelector('[data-ux-action-dock]')) return;
 
         const forms = Array.from(document.querySelectorAll('form')).filter((candidate) => candidate.matches('[data-ux-sticky-actions]') || candidate.querySelector('.admin-form-grid, .after-sales-create-grid'));
-        const form = forms.find((candidate) => candidate.scrollHeight > window.innerHeight * 1.15 && findPrimarySubmit(candidate));
+        const form = forms.find((candidate) => !candidate.querySelector('[data-product-editor-action-bar]') && candidate.scrollHeight > window.innerHeight * 1.15 && findPrimarySubmit(candidate));
         if (!form) return;
 
         const submit = findPrimarySubmit(form);
