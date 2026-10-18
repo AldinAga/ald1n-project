@@ -83,7 +83,21 @@ async function login(browser, persona, mode) {
   await page.locator('input[name="login"]').fill(credential.login);
   await page.locator('input[name="password"]').fill(credential.password);
   await page.locator('.auth-login-submit').click();
-  await page.waitForURL((url) => url.origin === baseUrl && url.pathname === '/', { timeout: 25000 });
+  try {
+    await page.waitForURL((url) => url.origin === baseUrl && url.pathname === '/', { timeout: 8500 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      page_path: window.location.pathname,
+      title: document.title,
+      visible_alerts: [...document.querySelectorAll('.alert,.field-error')]
+        .filter((element) => getComputedStyle(element).display !== 'none')
+        .map((element) => (element.textContent || '').trim().slice(0, 280)).slice(0, 4),
+      has_csrf_input: !!document.querySelector('form.auth-login-form input[name="_token"]'),
+      auth_form_visible: !!document.querySelector('.auth-login-form'),
+    }));
+    await snapshot(page, 'login-failure-'+persona+'-'+mode);
+    throw new Error('LOGIN_REDIRECT_FAILED '+persona+'/'+mode+' '+JSON.stringify(diagnostic)+' '+error.message);
+  }
   await page.locator('.site-header').waitFor({ state: 'visible', timeout: 15000 });
   return { ctx, page };
 }
