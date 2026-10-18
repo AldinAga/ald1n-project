@@ -171,7 +171,7 @@ async function headerGeometry(page, persona, mode, width) {
       const layer = glass?.querySelector(':scope > .lg-layer');
       const paint = layer ? getComputedStyle(layer) : null;
       const rgba = paint?.backgroundColor || '';
-      const match = rgba.match(/^rgba?\\([^)]*,\\s*(0(?:\\.\\d+)?|1(?:\\.0+)?)\\)$/i);
+      const match = rgba.match(/^rgba?\([^)]*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\)$/i);
       return {
         shellBackdrop: shell ? getComputedStyle(shell).backgroundImage : 'none',
         glassSurface: glass ? getComputedStyle(glass).backgroundColor : 'missing',
