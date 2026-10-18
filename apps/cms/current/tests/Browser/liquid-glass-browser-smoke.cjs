@@ -358,6 +358,14 @@ async function dashboardD1Smoke(page, persona, mode) {
   }
   await page.setViewportSize({width:390,height:844});
   await navigate(page,fixture.paths.dashboard,'D1_DASHBOARD');
+  if (persona === 'superadmin') {
+    const positions = await page.evaluate(() => ({
+      hero: document.querySelector('.dashboard-d1-shell .modern-dashboard-hero')?.getBoundingClientRect().top,
+      focus: document.querySelector('.dashboard-d1-priorities')?.getBoundingClientRect().top,
+    }));
+    check(Number.isFinite(positions.hero) && Number.isFinite(positions.focus) && positions.hero < positions.focus,
+      'D1_MOBILE_HERO_BEFORE_FOCUS', label+': '+JSON.stringify(positions));
+  }
   const count = await page.locator('[data-dashboard-d1-kpi]').count();
   if (persona !== 'superadmin') {
     check(count === 0, 'D1_RBAC_NO_SUPERADMIN_KPI', label+': '+count);
