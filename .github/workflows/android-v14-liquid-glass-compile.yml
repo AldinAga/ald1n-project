@@ -42,7 +42,10 @@ jobs:
           set -euo pipefail
           test "${CI}" = 1
           npm ci --no-audit --no-fund
-          npm install --no-save --package-lock=false --ignore-scripts react-native-android-liquid-glass@0.2.1
+          # Modify ONLY the disposable CI checkout so native autolinking can see the package.
+          # No package.json/lock changes are committed to the application branch.
+          npm install --save-exact --ignore-scripts --no-audit --no-fund react-native-android-liquid-glass@0.2.1
+          node -e "const p=require('./package.json'); if(p.dependencies?.['react-native-android-liquid-glass']!=='0.2.1') process.exit(31)"
           node -e "const p=require('./node_modules/react-native-android-liquid-glass/package.json'); if(p.version!=='0.2.1') process.exit(1)"
       - name: Materialize isolated navigation PoC
         working-directory: apps/mobile/current
@@ -63,7 +66,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace | tee "$RUNNER_TEMP/ald1n-v14-native-gradle.log"
+          grep -F ':react-native-android-liquid-glass:' "$RUNNER_TEMP/ald1n-v14-native-gradle.log" >/dev/null || {
+            echo 'HOLD: native glass module was not autolinked or compiled'
+            exit 31
+          }
           test -f app/build/outputs/apk/debug/app-debug.apk
           echo 'NATIVE_LIQUID_GLASS_COMPILE=PASS'
       - name: No production release
