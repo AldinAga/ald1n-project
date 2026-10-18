@@ -173,6 +173,21 @@ final class LiquidGlassFoundationContractTest extends TestCase
         );
     }
 
+    public function test_product_editor_native_sticky_bar_blocks_duplicate_mobile_ux_dock(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $js = file_get_contents($root.'/public/assets/js/ux-runtime.js');
+        $view = file_get_contents($root.'/resources/views/admin/products/form.blade.php');
+        self::assertIsString($js);
+        self::assertIsString($view);
+        self::assertStringContainsString('const createMobileActionDock = () => {', $js);
+        self::assertStringContainsString("!candidate.querySelector('[data-product-editor-action-bar]')", $js);
+        self::assertStringContainsString('data-ux-sticky-actions', $view);
+        self::assertStringContainsString('data-product-editor-action-bar', $view);
+        self::assertStringContainsString('protectUnsavedChanges();', $js);
+        self::assertStringContainsString('addKeyboardSave();', $js);
+    }
+
     public function test_mobile_has_no_global_horizontal_or_sticky_overflow_policy(): void
     {
         $css = $this->css();
