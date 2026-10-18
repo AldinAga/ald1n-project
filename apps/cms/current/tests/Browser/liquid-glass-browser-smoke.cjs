@@ -222,6 +222,16 @@ async function archiveSmoke(page, mode, width) {
   const b = await dialog.boundingBox();
   check(b && b.x >= -1 && b.x+b.width <= width+1 && b.y >= -1,
     'ARCHIVE_DIALOG_IN_VIEW', mode + '/' + width + ': ' + JSON.stringify(b));
+  const retention = await dialog.locator('.order-archive-purge-retention').evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return { left: rect.left, right: rect.right, marginLeft: style.marginLeft, marginRight: style.marginRight };
+  });
+  check(
+    b && retention.left >= b.x + 12 && retention.right <= b.x + b.width - 12,
+    'ARCHIVE_RETENTION_TEXT_INSET',
+    mode + '/' + width + ': modal=' + JSON.stringify(b) + ' paragraph=' + JSON.stringify(retention)
+  );
   if (mode !== 'auto' && (width === 1440 || width === 320)) await snapshot(page, mode+'-'+width+'-archive-danger-zone');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(110);
