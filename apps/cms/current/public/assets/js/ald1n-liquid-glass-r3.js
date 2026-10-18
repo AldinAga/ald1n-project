@@ -6,6 +6,7 @@ import { createLiquidGlass } from './vendor/liquid-glass-web/liquid-glass.js';
 const reduced = window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
 const forced = window.matchMedia('(forced-colors: active)').matches;
 const selected = [
+  ['.site-header', { radius: 0, refraction: 48, blur: 6, light: 24 }],
   ['.header-product-search-dialog', { radius: 22, refraction: 65, blur: 8, light: 22 }],
   ['.nav-dropdown-menu', { radius: 18, refraction: 66, blur: 9, light: 24 }],
   ['.modern-dashboard-hero', { radius: 20, refraction: 42, blur: 7, light: 19 }],
@@ -17,7 +18,7 @@ function upgrade() {
   for (const [selector, options] of selected) {
     for (const node of document.querySelectorAll(selector)) {
       if (live.has(node) || node.clientWidth === 0 || node.clientHeight === 0) continue;
-      try { live.set(node, createLiquidGlass(node, { ...options, pointer: false, resolution: 0.5 })); }
+      try { live.set(node, createLiquidGlass(node, { ...options, pointer: false, resolution: node.matches('.site-header') ? 0.35 : 0.5 })); }
       catch (error) { console.warn('[Ald1n Liquid Glass] Enhancement skipped', selector, error); }
     }
   }
