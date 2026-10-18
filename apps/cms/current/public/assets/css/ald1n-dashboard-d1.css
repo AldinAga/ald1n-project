@@ -305,3 +305,124 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
     backdrop-filter: none;
   }
 }
+
+
+/* D1 FIRST FOLD FIX — regression proven on real 1440x900 and 390px Chromium.
+   The old global .dashboard-priority-panel {order:-1} leaked into the new
+   top-level grid on mobile; reset that order in the D1 scope only. */
+.page-shell:has(.dashboard-d1-shell) {
+  margin-top: 17px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities {
+  order: 0;
+}
+.dashboard-d1-shell .dashboard-welcome > p {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dashboard-d1-shell .modern-dashboard-hero.build16-home-hero {
+  padding-block: 14px;
+}
+.dashboard-d1-shell .dashboard-d1-period {
+  gap: 6px;
+  padding-block: 12px;
+}
+.dashboard-d1-shell .dashboard-d1-period-heading small {
+  display: none;
+}
+.dashboard-d1-shell .dashboard-d1-custom-range summary {
+  min-height: 28px;
+  padding: 0;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  min-height: 0;
+  padding: 10px 14px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading {
+  display: flex;
+  flex: 0 0 auto;
+  margin: 0;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading .eyebrow,
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading p,
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-priority-count {
+  display: none;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading h2 {
+  margin: 0;
+  font-size: .87rem;
+  line-height: 1.3;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-priority-list {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--lg5-positive-ink, var(--ald-success));
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state strong {
+  margin: 0;
+  font-size: .84rem;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state span {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  /* Seven quick actions must not make the entire first mobile screen a hero. */
+  .dashboard-d1-shell .dashboard-quick-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  .dashboard-d1-shell .dashboard-quick-actions .button {
+    display: inline-flex;
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 39px;
+  }
+  .dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading h2 {
+    font-size: .8rem;
+  }
+}
