@@ -1456,15 +1456,6 @@ html[data-theme="dark"] {
   --ald-secondary-container: #24335C;
   --ald-accent: var(--lg5-violet);
   --ald-accent-soft: #30235F;
-  --ald-success: var(--lg5-teal);
-  --ald-success-soft: #17493F;
-  --ald-warning: var(--lg5-amber);
-  --ald-warning-soft: #4A331C;
-  --ald-danger: var(--lg5-rose);
-  --ald-on-danger: #09142B;
-  --ald-danger-soft: #4F263D;
-  --ald-info: var(--lg5-cyan);
-  --ald-info-soft: #143B59;
   --lg2-shell: #101C3B;
   --lg2-edge: rgba(140,171,252,.34);
   --lg2-highlight: rgba(248,252,255,.21);
@@ -1474,6 +1465,9 @@ html[data-theme="dark"] {
   --lg5-panel-tint: rgba(17,31,65,.63);
   --lg5-panel-edge: rgba(131,167,247,.30);
   --lg5-sheen: rgba(240,249,255,.40);
+  --lg5-positive-ink: #16CAA7;
+  --lg5-warning-ink: #FFBB62;
+  --lg5-error-ink: #FF658E;
   --lg5-disabled-bg: #293857;
   --lg5-disabled-ink: #A6B2CE;
   --bg: var(--ald-background);
@@ -1511,15 +1505,6 @@ html[data-theme="light"] {
   --ald-secondary-container: #E5EEFF;
   --ald-accent: var(--lg5-violet);
   --ald-accent-soft: #EEE9FF;
-  --ald-success: #087C65;
-  --ald-success-soft: #D8F9EE;
-  --ald-warning: #8A5310;
-  --ald-warning-soft: #FFF0D7;
-  --ald-danger: #B9345C;
-  --ald-on-danger: #FFFFFF;
-  --ald-danger-soft: #FFE5ED;
-  --ald-info: #155DC3;
-  --ald-info-soft: #E0F2FF;
   --lg2-shell: #F5F8FF;
   --lg2-edge: rgba(112,148,221,.32);
   --lg2-highlight: rgba(255,255,255,.93);
@@ -1529,6 +1514,9 @@ html[data-theme="light"] {
   --lg5-panel-tint: rgba(252,253,255,.70);
   --lg5-panel-edge: rgba(128,159,219,.34);
   --lg5-sheen: rgba(255,255,255,.85);
+  --lg5-positive-ink: #087C65;
+  --lg5-warning-ink: #8A5310;
+  --lg5-error-ink: #B9345C;
   --lg5-disabled-bg: #E1E6F1;
   --lg5-disabled-ink: #727F99;
   --bg: var(--ald-background);
@@ -1708,7 +1696,7 @@ html[data-theme="light"] .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-c
   border-color: color-mix(in srgb,var(--lg5-rose) 36%,transparent);
 }
 .build16-home-shell .dashboard-priority-count {
-  color: var(--ald-warning);
+  color: var(--lg5-warning-ink);
   border-color: color-mix(in srgb,var(--lg5-amber) 36%,var(--lg5-panel-edge));
   background: color-mix(in srgb,var(--lg5-amber) 12%,var(--lg5-panel-tint));
 }
