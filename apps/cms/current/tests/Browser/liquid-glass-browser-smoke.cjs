@@ -416,6 +416,53 @@ async function dashboardD1Smoke(page, persona, mode) {
   await navigate(page,fixture.paths.dashboard,'D1_RESTORE_DASHBOARD');
 }
 
+async function retirementPreviewSmoke(page, persona, mode, width) {
+  const label = persona + '/' + mode + '/' + width;
+  await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
+  const url = fixture.paths.retirement_preview;
+  check(typeof url === 'string' && /^\/admin\/users\/[0-9]+\/retirement$/.test(url),
+    'RETIREMENT_DISPOSABLE_PREVIEW_URL', label);
+  if (persona !== 'superadmin') {
+    const response = await page.goto(baseUrl + url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    check(response && response.status() === 403, 'RETIREMENT_NON_SUPERADMIN_FORBIDDEN', label);
+    check(await page.locator('input[name="confirmation"]').count() === 0,
+      'RETIREMENT_NON_SUPERADMIN_NO_FORM', label);
+    return;
+  }
+  await navigate(page, url, 'RETIREMENT_SUPERADMIN_PREVIEW');
+  check(await page.getByRole('heading', { name: 'Bezbedno uklanjanje naloga' }).count() === 1,
+    'RETIREMENT_PREVIEW_HEADING', label);
+  check(await page.getByRole('heading', { name: 'Istorija koja ostaje nepromenjena' }).count() === 1,
+    'RETIREMENT_PRESERVED_HISTORY', label);
+  check(await page.getByRole('heading', { name: 'Aktivna zaduženja koja se prenose na SuperAdministratora' }).count() === 1,
+    'RETIREMENT_ACTIVE_WORK_TRANSFER', label);
+  check((await page.locator('p[role="status"]').innerText()).includes('121 stranih ključeva')
+    && (await page.locator('p[role="status"]').innerText()).includes('7 istorijskih kolona'),
+    'RETIREMENT_EXACT_SCHEMA_PREVIEW', label);
+  const confirm = page.locator('input[name="confirmation"]');
+  const form = page.locator('form[action$="/retirement"]');
+  check(await form.count() === 1 && await confirm.count() === 1,
+    'RETIREMENT_ONE_CONFIRMATION_FORM', label);
+  check(await confirm.getAttribute('required') !== null
+    && await confirm.getAttribute('pattern') === 'OBRISI',
+    'RETIREMENT_EXACT_CONFIRMATION_CONTRACT', label);
+  await confirm.fill('obrisi');
+  check(!(await confirm.evaluate(el => el.checkValidity())),
+    'RETIREMENT_LOWERCASE_REJECTED', label);
+  await confirm.fill('OBRISI');
+  check(await confirm.evaluate(el => el.checkValidity()),
+    'RETIREMENT_EXACT_PHRASE_ACCEPTED_NO_SUBMIT', label);
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth,
+  }));
+  check(dimensions.content <= width + 2,
+    'RETIREMENT_NO_HORIZONTAL_OVERFLOW', label + ': ' + JSON.stringify(dimensions));
+  if (mode !== 'auto' && [1440, 320].includes(width))
+    await snapshot(page, 'retirement-preview-' + mode + '-' + width);
+  // Deliberately NEVER click submit or issue POST. Production data is never used.
+}
+
 async function main() {
   const browser = await chromium.launch({ headless:true, args:['--disable-dev-shm-usage'] });
   try {
@@ -430,6 +477,11 @@ async function main() {
             }
           }
           await dashboardD1Smoke(page,persona,mode);
+          for (const width of persona === 'superadmin' ? [1440, 390, 320] : [320]) {
+            await retirementPreviewSmoke(page,persona,mode,width);
+          }
+          // Follow-on Liquid Glass optics smoke must always start on Dashboard.
+          await navigate(page, fixture.paths.dashboard, 'RETIREMENT_UAT_RESTORE_DASHBOARD');
           if (persona==='superadmin') {
             for (const width of [1440,320]) {
               await searchAndMenu(page,persona+'/'+mode+'/'+width,width);
@@ -467,6 +519,7 @@ async function main() {
   for (const e of pageErrors) check(false,'BROWSER_JAVASCRIPT_EXCEPTION',e);
   const summary={
     authority:'ISOLATED_BROWSER_ONLY',
+    user_retirement_preview:'AUTHENTICATED_GET_ONLY_NO_POST_NO_REAL_USERS',
     source_sha:process.env.GITHUB_SHA||'UNVERIFIED',
     base_url:baseUrl,
     viewports:WIDTHS,

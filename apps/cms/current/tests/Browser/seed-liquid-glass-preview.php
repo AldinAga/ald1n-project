@@ -100,6 +100,7 @@ $payload = [
         'product_create' => parse_url(route('admin.products.create'), PHP_URL_PATH),
         'product_edit' => parse_url(route('admin.products.edit', $product), PHP_URL_PATH),
         'archived_orders' => parse_url(route('admin.orders.archived'), PHP_URL_PATH),
+        'retirement_preview' => parse_url(route('admin.users.retirement.preview', $user), PHP_URL_PATH),
     ],
     'test_order' => $order->order_number,
 ];
