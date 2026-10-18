@@ -1569,7 +1569,9 @@ html[data-theme="light"] body {
 /* Exactly 60% of reference aurora paint: 40% softer background blobs. */
 .page-shell:has(.dashboard-kpi-card) {
   isolation: isolate;
-  background: none;
+  background:
+    radial-gradient(ellipse 54% 28% at 16% 14%,rgba(40,124,255,.075),transparent 77%),
+    radial-gradient(ellipse 44% 31% at 84% 74%,rgba(136,91,255,.06),transparent 80%);
 }
 html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,
 html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
