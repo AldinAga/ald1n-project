@@ -1,0 +1,71 @@
+name: CMS Dashboard D1-D3 integration QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/ald1n-dashboard-integration-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-mariadb:
+    name: PHP 8.4 / MariaDB 10.11 isolated dashboard tests
+    runs-on: ubuntu-24.04
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    defaults:
+      run:
+        working-directory: apps/cms/current
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, dom, curl, fileinfo, openssl, tokenizer, xml
+          coverage: none
+      - name: Validate runtime
+        run: |
+          php -v
+          php -m | grep -i pdo_mysql
+          php -r '$db=new PDO("mysql:host=127.0.0.1;dbname=ald1n_test","ald1n_test","ald1n_test"); echo $db->query("select version()")->fetchColumn(),PHP_EOL;'
+      - name: Install pinned Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Targeted Dashboard unit and feature tests on MariaDB
+        run: |
+          php artisan test -c phpunit.mysql.xml tests/Unit/DashboardBrandMixTest.php
+          php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php
+          php artisan test -c phpunit.mysql.xml tests/Feature/DashboardD1Test.php
+          php artisan test -c phpunit.mysql.xml tests/Feature/DashboardD2Test.php
+          php artisan test -c phpunit.mysql.xml tests/Feature/DashboardD3Test.php
+      - name: Canonical static gate
+        run: php bin/static-check.php
