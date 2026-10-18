@@ -15,3 +15,11 @@ Source under `LiquidGlassV14NavigationPrototype.tsx.example` is intentionally **
 - No app version, versionCode, runtimeVersion, OTA, Play, or production build changes are part of this spike.
 
 This is an implementation prototype and compatibility investigation, **not** a passed native compile or production-ready integration.
+
+## Actual isolated CI failure (run 39130859433)
+
+- Module autolinking was observed: `react-native-android-liquid-glass` Gradle codegen/resources/manifest tasks executed.
+- The full app debug APK stopped at `:app:processDebugGoogleServices` **before** module Kotlin compilation, because the existing tracked Google Services JSON does not contain the development client `com.ald1n.mobile.development`.
+- Do **not** change app identity, reuse a different Firebase client, manufacture credentials or bypass the check to claim a usable APK.
+- Next isolated CI compiles only `:react-native-android-liquid-glass:compileDebugKotlin` under actual Expo57/RN0.86 toolchain. `NATIVE_LIQUID_GLASS_MODULE_COMPILE=PASS` is *module compatibility evidence only*. `APP_DEBUG_APK=HOLD_FIREBASE_DEVELOPMENT_CLIENT_MISSING` persists until an authorized development Firebase client exists and full application QA is run.
+- No version/versionCode/runtimeVersion updates, EAS, APK distribution, OTA or Play changes.
