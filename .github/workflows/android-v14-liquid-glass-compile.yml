@@ -34,7 +34,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Set up Android SDK
-        uses: android-actions/setup-android@4c85f50db61ecec01d8f8a1e3ca7a7c21f0fc75c
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
       - name: Install locked Expo dependencies and isolated candidate
         working-directory: apps/mobile/current
         shell: bash
