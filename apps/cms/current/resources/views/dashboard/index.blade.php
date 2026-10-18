@@ -134,6 +134,7 @@
             <small>Finansijski pokazatelji i grafikon prate izabrane datume. Lager i potraživanja prikazuju trenutno stanje.</small>
         </div>
         <div class="dashboard-d1-period-presets" aria-label="Brzi izbor perioda">
+            <a class="dashboard-d1-period-chip" href="{{ url('/').'?period=default' }}" title="Od 1. u tekućem mesecu do danas" @if($dashboardPeriod['period'] === 'default') aria-current="page" @endif>Default</a>
             <a class="dashboard-d1-period-chip" href="{{ url('/').'?period=7d' }}" @if($dashboardPeriod['period'] === '7d') aria-current="page" @endif>7 dana</a>
             <a class="dashboard-d1-period-chip" href="{{ url('/').'?period=30d' }}" @if($dashboardPeriod['period'] === '30d') aria-current="page" @endif>30 dana</a>
         </div>
