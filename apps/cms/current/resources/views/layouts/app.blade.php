@@ -48,6 +48,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ @filemtime(public_path('assets/css/app.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-v2.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-v2.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-liquid-glass.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-liquid-glass.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/vendor/liquid-glass-web.css') }}?v={{ @filemtime(public_path('assets/css/vendor/liquid-glass-web.css')) ?: config('app.version') }}">
     @stack('styles')
     <script>
         (() => {
@@ -1111,6 +1112,7 @@ const loadProductSearch = async (term) => {
 </script>
 <script src="{{ asset('assets/js/cart-ui.js') }}?v={{ @filemtime(public_path('assets/js/cart-ui.js')) ?: config('app.version') }}" defer></script>
 <script src="{{ asset('assets/js/ux-runtime.js') }}?v={{ config('app.version') }}" defer></script>
+<script type="module" src="{{ asset('assets/js/ald1n-liquid-glass-r3.js') }}?v={{ @filemtime(public_path('assets/js/ald1n-liquid-glass-r3.js')) ?: config('app.version') }}"></script>
 @stack('scripts')
 </body>
 </html>
