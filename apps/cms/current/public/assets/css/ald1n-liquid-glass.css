@@ -986,3 +986,178 @@ body {
     box-shadow: none;
   }
 }
+
+
+/* =============================================================
+   Liquid Glass 2.0 / R1 — visible premium shell redesign.
+   Isolated preview branch. No domain logic or DOM reordering.
+   ============================================================= */
+html[data-theme="dark"] {
+  --lg2-shell: #18252e;
+  --lg2-edge: rgba(207, 226, 237, .22);
+  --lg2-highlight: rgba(245, 252, 255, .12);
+  --lg2-glow: rgba(105, 147, 175, .15);
+  --lg2-ink-shadow: rgba(0, 7, 12, .32);
+}
+html[data-theme="light"] {
+  --lg2-shell: #ffffff;
+  --lg2-edge: rgba(91, 120, 137, .24);
+  --lg2-highlight: rgba(255,255,255,.94);
+  --lg2-glow: rgba(93, 127, 148, .12);
+  --lg2-ink-shadow: rgba(30, 54, 70, .12);
+}
+/* Ambient areas deliberately sit BEHIND content and cannot intercept taps. */
+body {
+  background:
+    radial-gradient(ellipse 55% 35% at 74% 2%, var(--lg2-glow), transparent 78%),
+    radial-gradient(ellipse 42% 55% at 5% 80%, var(--lg-ambient-warm), transparent 84%),
+    var(--ald-background);
+  background-attachment: fixed;
+}
+.site-header {
+  position: relative;
+  background: linear-gradient(140deg,
+    color-mix(in srgb,var(--lg2-shell) 88%,transparent),
+    color-mix(in srgb,var(--ald-surface-container) 93%,transparent)) !important;
+  border-bottom: 1px solid var(--lg2-edge);
+  box-shadow: 0 14px 42px var(--lg2-ink-shadow), inset 0 1px 0 var(--lg2-highlight);
+  -webkit-backdrop-filter: blur(20px) saturate(138%);
+  backdrop-filter: blur(20px) saturate(138%);
+}
+.site-header .header-primary-row {
+  min-height: 74px;
+  padding-block: 12px;
+}
+.site-header .header-secondary-row {
+  background: color-mix(in srgb,var(--ald-surface-container) 66%,transparent);
+  border-top: 1px solid var(--lg2-edge);
+  box-shadow: inset 0 1px 0 var(--lg2-highlight);
+  padding-block: 8px;
+}
+.site-header .brand,
+.site-header .header-brand-name {
+  letter-spacing: -.025em;
+}
+.site-header .header-quick-actions > :is(button,a,.icon-button, .header-rate-persistent) {
+  border-radius: 14px;
+  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.site-header .header-quick-actions > :is(button,a,.icon-button):hover {
+  box-shadow: 0 5px 16px var(--lg2-ink-shadow);
+  transform: translateY(-1px);
+}
+.page-shell {
+  position: relative;
+  padding-top: clamp(20px, 2.2vw, 34px);
+  padding-bottom: 52px;
+}
+.page-heading {
+  position: relative;
+  padding-block: clamp(8px, 1.2vw, 18px);
+  margin-bottom: clamp(18px, 2vw, 28px);
+}
+.page-heading h1 {
+  font-size: clamp(1.65rem, 2.5vw, 2.55rem);
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -.045em;
+}
+.page-heading .eyebrow {
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .13em;
+}
+.page-shell :is(.panel,.portal-panel,.dashboard-kpi-card,.modern-dashboard-hero) {
+  border: 1px solid var(--lg2-edge);
+  border-radius: 20px;
+  background: linear-gradient(150deg,
+    color-mix(in srgb,var(--ald-surface) 97%,white 3%) 0%,
+    var(--ald-surface) 65%,
+    color-mix(in srgb,var(--ald-surface-container) 65%,var(--ald-surface)) 100%);
+  box-shadow: 0 18px 44px var(--lg2-ink-shadow), inset 0 1px 0 var(--lg2-highlight);
+}
+.page-shell :is(.dashboard-kpi-card,.modern-dashboard-hero) {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.page-shell :is(.dashboard-kpi-card,.modern-dashboard-hero)::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+  top: -95px;
+  right: -75px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle,var(--lg2-glow),transparent 72%);
+}
+.page-shell .dashboard-kpi-card {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+@media (hover: hover) {
+  .page-shell .dashboard-kpi-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb,var(--ald-primary) 38%,var(--lg2-edge));
+    box-shadow: 0 25px 55px var(--lg2-ink-shadow), inset 0 1px 0 var(--lg2-highlight);
+  }
+}
+.page-shell :is(.table-wrap,.admin-table-wrap) {
+  border: 1px solid var(--lg2-edge);
+  border-radius: 18px;
+  background: var(--ald-surface);
+  box-shadow: 0 16px 38px var(--lg2-ink-shadow);
+}
+.page-shell :is(.admin-table,.table-wrap table) thead th {
+  background: var(--ald-surface-container);
+  border-bottom: 1px solid var(--lg2-edge);
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .065em;
+}
+.page-shell :is(.admin-table,.table-wrap table) tbody tr:hover td {
+  background: color-mix(in srgb,var(--ald-primary) 5%,var(--ald-surface));
+}
+.page-shell :is(.button-primary,.button-secondary,.button-ghost) {
+  border-radius: 12px;
+}
+.page-shell .button-primary {
+  box-shadow: 0 8px 22px color-mix(in srgb,var(--ald-primary) 22%,transparent);
+}
+.nav-dropdown-menu,.header-product-search-dialog {
+  border: 1px solid var(--lg2-edge);
+  border-radius: 18px;
+  box-shadow: 0 24px 58px var(--lg2-ink-shadow), inset 0 1px 0 var(--lg2-highlight);
+  -webkit-backdrop-filter: blur(24px) saturate(136%);
+  backdrop-filter: blur(24px) saturate(136%);
+}
+:where(button,a,input,select,textarea,[tabindex]):focus-visible {
+  outline: 3px solid var(--ald-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 768px) {
+  .site-header .header-primary-row { min-height: 62px; padding-block: 7px; }
+  .site-header .header-secondary-row { padding-block: 5px; }
+  .page-shell { padding-top: 14px; padding-bottom: 24px; }
+  .page-heading { padding-block: 6px; }
+  .page-shell :is(.panel,.portal-panel,.dashboard-kpi-card,.modern-dashboard-hero) { border-radius: 16px; }
+  /* Header original controls, order, permissions and layout untouched. */
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-shell .dashboard-kpi-card,
+  .site-header .header-quick-actions > :is(button,a,.icon-button) { transition: none; transform: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .site-header,.nav-dropdown-menu,.header-product-search-dialog {
+    background: var(--ald-surface) !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .site-header,.page-shell :is(.panel,.portal-panel,.dashboard-kpi-card) {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+}
