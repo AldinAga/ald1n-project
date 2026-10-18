@@ -725,3 +725,264 @@ body {
     border-color: CanvasText;
   }
 }
+
+
+/* BATCH3_EDITOR_STICKY: one existing product form, one restrained action surface. */
+.liquid-glass-product-editor-form {
+  min-width: 0;
+  padding-bottom: clamp(24px, 4vh, 52px);
+}
+
+.liquid-glass-product-editor-form > .product-editor-action-bar {
+  position: sticky;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 24;
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(0, max-content);
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 13px 16px;
+  border: 1px solid var(--ald-border);
+  border-radius: 18px;
+  color: var(--ald-text);
+  background: var(--ald-surface);
+  box-shadow: 0 15px 34px rgba(7, 13, 18, 0.14), inset 0 1px 0 var(--lg-hairline);
+  -webkit-backdrop-filter: blur(10px) saturate(103%);
+  backdrop-filter: blur(10px) saturate(103%);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    background: color-mix(in srgb, var(--ald-surface) 96%, transparent);
+  }
+}
+
+.liquid-glass-product-editor-form .product-editor-action-copy {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-copy strong {
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 800;
+  color: var(--ald-text);
+}
+
+.liquid-glass-product-editor-form .product-editor-action-copy span {
+  max-width: 58ch;
+  line-height: 1.45;
+  color: var(--ald-muted);
+  overflow-wrap: anywhere;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+  min-width: 0;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-buttons .button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  max-width: 100%;
+  padding-inline: 16px;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-primary {
+  width: auto;
+  min-width: 156px;
+  padding-inline: 21px;
+  border-radius: 13px;
+  font-weight: 850;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-draft {
+  font-weight: 730;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-direct {
+  color: var(--ald-muted);
+  background: var(--ald-surface);
+  border-color: var(--ald-border);
+  box-shadow: none;
+}
+
+.liquid-glass-product-editor-form .product-editor-action-direct:hover {
+  color: var(--ald-primary);
+  border-color: var(--ald-primary);
+  background: var(--ald-surface-container);
+}
+
+.liquid-glass-product-editor-form .product-direct-sale-note {
+  max-width: 265px;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.liquid-glass-product-editor-form :is(input:not([type="hidden"]), textarea, select, .field-error, [aria-invalid="true"]) {
+  scroll-margin-top: 112px;
+  scroll-margin-bottom: clamp(140px, 25vh, 250px);
+}
+
+/* The bar is kept at the end of the original form, never a second fixed dock. */
+@media (max-width: 1080px) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-buttons {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-secondary {
+    justify-content: flex-start;
+  }
+
+  .liquid-glass-product-editor-form .product-direct-sale-note {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 11px 12px calc(12px + env(safe-area-inset-bottom));
+    border-radius: 16px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-copy {
+    gap: 2px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-copy strong {
+    font-size: 13px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-copy span {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-primary {
+    order: -1;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-secondary > .button {
+    flex: 1 1 135px;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .liquid-glass-product-editor-form .product-direct-sale-note {
+    flex: 1 1 100%;
+    text-align: left;
+  }
+}
+
+@media (max-width: 390px) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    gap: 9px;
+    padding-inline: 9px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-secondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-secondary > .button {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .liquid-glass-product-editor-form .product-editor-action-draft:only-child,
+  .liquid-glass-product-editor-form .product-direct-sale-note {
+    grid-column: 1 / -1;
+  }
+}
+
+/* While typing on a small phone, keep the keyboard and validation fields clear.
+   The normal sticky behavior returns immediately after focus leaves the fields. */
+@supports selector(:has(*)) {
+  @media (max-width: 720px) {
+    .liquid-glass-product-editor-form:has(:is(input, textarea, select):focus) > .product-editor-action-bar {
+      position: static;
+    }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    background: var(--ald-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    background: var(--ald-surface);
+  }
+}
+
+@media (forced-colors: active) {
+  .liquid-glass-product-editor-form > .product-editor-action-bar {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
