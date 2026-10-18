@@ -70,6 +70,21 @@ final class DashboardController extends Controller
         $receivableStats = $this->receivableStats($user, $access);
         $dashboardPeriod = DashboardPeriod::resolve($request->query(), CarbonImmutable::today('Europe/Belgrade'));
         $reportStats = $this->reportStats($user, $access, $reports, $dashboardPeriod);
+        $dashboardBrandMix = null;
+        if ($user->hasRole('superadmin') && ($access['reports_view'] ?? false)
+            && $dashboardPeriod['error'] === null && ($reportStats['ready'] ?? false)) {
+            try {
+                $filters = $reports->normalizeFilters([
+                    'date_from' => $dashboardPeriod['date_from'],
+                    'date_to' => $dashboardPeriod['date_to'],
+                    'scope' => 'completed',
+                    'group_by' => 'brand',
+                ]);
+                $dashboardBrandMix = $reports->dashboardBrandMix($user, $filters);
+            } catch (Throwable $exception) {
+                $this->reportDashboardWarning('dashboard_brand_mix', $exception);
+            }
+        }
         // Live receivables are deliberately independent of the reporting date range.
         $dashboardOutstandingNow = $user->hasRole('superadmin')
             ? $this->currentOutstanding($user)
@@ -110,6 +125,7 @@ final class DashboardController extends Controller
             'receivableStats' => $receivableStats,
             'reportStats' => $reportStats,
             'dashboardPeriod' => $dashboardPeriod,
+            'dashboardBrandMix' => $dashboardBrandMix,
             'dashboardOutstandingNow' => $dashboardOutstandingNow,
             'inventoryValuation' => $inventoryValuation,
             'recentOrders' => $recentOrders,
