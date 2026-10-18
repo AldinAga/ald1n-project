@@ -17,6 +17,8 @@ use App\Models\User;
 use App\Services\CustomerPortalService;
 use App\Services\ManagementReportService;
 use App\Services\SettingsService;
+use App\Support\DashboardPeriod;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -66,7 +68,12 @@ final class DashboardController extends Controller
         $servicePartsStats = $this->servicePartsStats($access);
         $warrantyStats = $this->warrantyStats($user, $access);
         $receivableStats = $this->receivableStats($user, $access);
-        $reportStats = $this->reportStats($user, $access, $reports);
+        $dashboardPeriod = DashboardPeriod::resolve($request->query(), CarbonImmutable::today('Europe/Belgrade'));
+        $reportStats = $this->reportStats($user, $access, $reports, $dashboardPeriod);
+        // Live receivables are deliberately independent of the reporting date range.
+        $dashboardOutstandingNow = $user->hasRole('superadmin')
+            ? $this->currentOutstanding($user)
+            : null;
         // MOBILE_V0_8_SUPERADMIN_INVENTORY_VALUATION_BATCH3
         $inventoryValuation = null;
         if ($user->hasRole('superadmin')) {
@@ -102,6 +109,8 @@ final class DashboardController extends Controller
             'warrantyStats' => $warrantyStats,
             'receivableStats' => $receivableStats,
             'reportStats' => $reportStats,
+            'dashboardPeriod' => $dashboardPeriod,
+            'dashboardOutstandingNow' => $dashboardOutstandingNow,
             'inventoryValuation' => $inventoryValuation,
             'recentOrders' => $recentOrders,
             'priorityActions' => $priorityActions,
@@ -167,33 +176,77 @@ final class DashboardController extends Controller
         }
     }
 
-    /** @param array<string,bool> $access @return array<string,mixed> */
-    private function reportStats(User $user, array $access, ManagementReportService $reports): array
+    /**
+     * @param array<string,bool> $access
+     * @param array{period:string,date_from:string,date_to:string,error:?string} $dashboardPeriod
+     * @return array<string,mixed>
+     */
+    private function reportStats(User $user, array $access, ManagementReportService $reports, array $dashboardPeriod): array
     {
+        $periodLabel = CarbonImmutable::parse($dashboardPeriod['date_from'])->format('d.m.Y')
+            .' – '.CarbonImmutable::parse($dashboardPeriod['date_to'])->format('d.m.Y');
+
         $fallback = [
             'ready' => false,
-            'period_label' => now()->startOfMonth()->format('d.m.Y').' – '.now()->format('d.m.Y'),
-            'summary' => ['revenue_rsd' => 0.0, 'gross_profit_rsd' => 0.0, 'net_contribution_rsd' => 0.0, 'gross_margin_percent' => 0.0, 'cost_coverage_percent' => 0.0, 'orders_count' => 0, 'outstanding_rsd' => 0.0],
+            'period_label' => $periodLabel,
+            'summary' => [],
             'trend' => [],
         ];
-        if (!($access['reports_view'] ?? false)) return $fallback;
+        // Never show a financial snapshot against an invalid selected period.
+        if (!($access['reports_view'] ?? false) || $dashboardPeriod['error'] !== null) {
+            return $fallback;
+        }
+
         try {
-            if ($reports->readinessIssues() !== []) return $fallback;
+            if ($reports->readinessIssues() !== []) {
+                return $fallback;
+            }
             $filters = $reports->normalizeFilters([
-                'date_from' => now()->startOfMonth()->format('Y-m-d'),
-                'date_to' => now()->format('Y-m-d'),
+                'date_from' => $dashboardPeriod['date_from'],
+                'date_to' => $dashboardPeriod['date_to'],
                 'scope' => 'completed',
                 'group_by' => 'brand',
             ]);
             return [
                 'ready' => true,
-                'period_label' => now()->startOfMonth()->format('d.m.Y').' – '.now()->format('d.m.Y'),
+                'period_label' => $periodLabel,
                 'summary' => $reports->summary($user, $filters),
                 'trend' => $reports->trend($user, $filters),
             ];
         } catch (Throwable $exception) {
             $this->reportDashboardWarning('management_report_stats', $exception);
             return $fallback;
+        }
+    }
+
+    /**
+     * The current open receivable balance is NOT a completed-order period
+     * metric. The management reporting source of truth is Laravel orders;
+     * archived, purged, cancelled and fully-paid rows do not contribute.
+     */
+    private function currentOutstanding(User $user): ?float
+    {
+        if (!$user->hasRole('superadmin')) {
+            return null;
+        }
+        try {
+            if (!$this->tableHasColumns('orders', [
+                'source_system', 'status', 'archived_at', 'purged_at',
+                'subtotal_rsd', 'paid_total_rsd',
+            ])) {
+                return null;
+            }
+            $balance = Order::query()->operational()
+                ->whereNull('purged_at')
+                ->where('source_system', 'laravel')
+                ->where('status', '!=', 'cancelled')
+                ->selectRaw('COALESCE(SUM(GREATEST(0, subtotal_rsd - COALESCE(paid_total_rsd,0))),0) as open_balance')
+                ->value('open_balance');
+
+            return round((float) $balance, 2);
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('current_outstanding', $exception);
+            return null;
         }
     }
 
