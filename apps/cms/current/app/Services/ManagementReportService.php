@@ -150,6 +150,55 @@ final class ManagementReportService
         ];
     }
 
+    /**
+     * All-brand source-of-truth aggregation. Do not use segments(): its LIMIT 30
+     * and revenue ordering would corrupt unit rankings and denominators.
+     *
+     * @param array<string,mixed> $filters
+     * @return array{revenue:array<string,mixed>,units:array<string,mixed>}
+     */
+    public function dashboardBrandMix(User $user, array $filters): array
+    {
+        $ids = $this->orderIds($user, $filters);
+        $query = DB::table('order_items as ri')
+            ->joinSub(clone $ids, 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'ri.order_id'));
+        $this->applyItemFilters($query, $filters, 'ri');
+        $source = $query->select(['ri.quantity', 'ri.line_total_rsd'])
+            ->selectRaw("COALESCE(NULLIF(TRIM(ri.brand_name_snapshot),''),'Bez podatka') as brand_label");
+        $rows = DB::query()->fromSub($source, 'brand_sales')
+            ->selectRaw('brand_label as label')
+            ->selectRaw('SUM(quantity) as units')
+            ->selectRaw('SUM(line_total_rsd) as revenue')
+            ->groupBy('brand_label')->get()->all();
+
+        $build = static function (string $key) use ($rows): array {
+            $positive = [];
+            foreach ($rows as $row) {
+                $amount = (float) $row->{$key};
+                if ($amount > 0) {
+                    $positive[] = ['label' => (string) $row->label, 'value' => round($amount, 2)];
+                }
+            }
+            usort($positive, static fn (array $a, array $b): int =>
+                ($b['value'] <=> $a['value']) ?: strcmp($a['label'], $b['label']));
+            $total = array_sum(array_column($positive, 'value'));
+            if ($total <= 0) {
+                return ['total' => 0, 'slices' => []];
+            }
+            $top = array_slice($positive, 0, 5);
+            $other = array_sum(array_column(array_slice($positive, 5), 'value'));
+            if ($other > 0) {
+                $top[] = ['label' => 'Ostali', 'value' => round($other, 2)];
+            }
+            foreach ($top as &$row) {
+                $row['percent'] = round($row['value'] / $total * 100, 1);
+            }
+            unset($row);
+            return ['total' => round($total, 2), 'slices' => $top];
+        };
+        return ['revenue' => $build('revenue'), 'units' => $build('units')];
+    }
+
     /** @param array<string,mixed> $filters @return list<array<string,mixed>> */
     public function segments(User $user, array $filters, string $group): array
     {
