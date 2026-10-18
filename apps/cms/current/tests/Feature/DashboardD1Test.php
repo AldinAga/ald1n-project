@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Order;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
@@ -63,6 +64,35 @@ final class DashboardD1Test extends TestCase
         self::assertStringNotContainsString('data-dashboard-d1-kpi=', (string) $html);
         self::assertStringNotContainsString('Vrednost po nabavnoj ceni', (string) $html);
         self::assertStringNotContainsString('Vrednost po prodajnoj ceni', (string) $html);
+    }
+
+    public function test_open_receivables_exclude_archived_cancelled_paid_and_legacy_orders(): void
+    {
+        $admin = $this->person('superadmin');
+        $base = [
+            'source_system' => 'laravel', 'user_id' => $admin->id,
+            'status' => 'processing', 'shipping_full_name' => 'CI kupac',
+            'shipping_address' => 'CI adresa 1', 'shipping_city' => 'Test',
+            'shipping_postal_code' => '11000', 'shipping_phone' => '0600000000',
+            'subtotal_rsd' => 1000, 'paid_total_rsd' => 200,
+        ];
+        foreach ([
+            ['order_number' => 'D1-ACTIVE-001'],
+            ['order_number' => 'D1-ARCHIVED-002', 'archived_at' => now()->subDay()],
+            ['order_number' => 'D1-CANCELLED-003', 'status' => 'cancelled'],
+            ['order_number' => 'D1-PAID-004', 'paid_total_rsd' => 1000],
+            ['order_number' => 'D1-LEGACY-005', 'source_system' => 'legacy'],
+        ] as $row) {
+            Order::query()->create(array_replace($base, $row));
+        }
+
+        foreach (['/?period=7d', '/?period=30d'] as $url) {
+            $html = (string) $this->actingAs($admin)->get($url)->assertOk()->getContent();
+            self::assertMatchesRegularExpression(
+                '/data-dashboard-d1-kpi="receivables".{0,1600}800,00 RSD/s',
+                $html,
+            );
+        }
     }
 
     private function person(string $role): User
