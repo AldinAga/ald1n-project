@@ -105,6 +105,7 @@ async function login(browser, persona, mode) {
 async function headerGeometry(page, persona, mode, width) {
   await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
   await page.waitForTimeout(75);
+  await page.waitForFunction(() => document.querySelector('.site-header')?.getAttribute('data-lg-renderer') === 'svg', null, { timeout: 8000 });
   const state = await page.evaluate(() => {
     const selectors = {
       rate: '.site-header .header-rate-persistent',
@@ -137,6 +138,9 @@ async function headerGeometry(page, persona, mode, width) {
       elements: all,
       domOrder,
       hasDisabledCart: !!document.querySelector('.header-cart-unavailable'),
+      headerPosition: getComputedStyle(document.querySelector('.site-header')).position,
+      headerGlass: document.querySelector('.site-header')?.getAttribute('data-lg-renderer'),
+      glassLayerPresent: !!document.querySelector('.site-header > .lg-layer'),
     };
   });
   const tag = persona + '/' + mode + '/' + width;
@@ -155,6 +159,8 @@ async function headerGeometry(page, persona, mode, width) {
   } else {
     check(state.elements.cart === null && !state.hasDisabledCart, 'HEADER_NO_CART_FOR_USER', tag);
   }
+  check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
+  check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
   check(state.htmlWidth <= width + 2, 'HEADER_NO_PAGE_X_OVERFLOW',
     tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
   check(state.themeMode === mode, 'THEME_MODE', tag + ': ' + state.themeMode);
@@ -189,6 +195,8 @@ async function searchAndMenu(page, label, width) {
   const searchInput = layer.locator('[data-header-product-search-input]');
   check(await searchInput.isVisible(), 'SEARCH_DIALOG_INPUT', label);
   const dialog = layer.locator('.header-product-search-dialog');
+  await page.waitForFunction(() => document.querySelector('.header-product-search-dialog')?.getAttribute('data-lg-renderer') === 'svg', null, { timeout: 8000 });
+  check(await dialog.locator(':scope > .lg-layer').count() === 1, 'SEARCH_REAL_GLASS_LAYER', label);
   const b = await dialog.boundingBox();
   check(b && b.x >= -1 && b.x+b.width <= width+1, 'SEARCH_DIALOG_IN_VIEW', label);
   await page.keyboard.press('Escape');
