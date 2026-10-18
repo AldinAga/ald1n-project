@@ -1,185 +1,38 @@
 ---
 name: ecc-laravel-verification
-description: "Review and verify Ald1n Laravel 13 CMS changes using ECC Laravel verification guidance, disposable CI and project-specific AGENTS.md release gates. Use for CMS code review, Laravel test analysis and merge readiness."
+description: "Review and verify Laravel CMS features on Ald1n CloudLinux using ECC-informed disposable PHPUnit, static, MariaDB and browser gates. Use for Laravel 13 PHP 8.4 changes, PHP QA, API parity, bugfixes and pre-merge readiness, never for unsanctioned production maintenance."
 ---
 
-## Ald1n safety overlay (higher precedence than the ECC example commands)
+# ECC Laravel verification — Ald1n safe edition
 
-Derived from [affaan-m/ECC](https://github.com/affaan-m/ECC/blob/76aaa77df6adc5b889e689007bf99b9a4f74af34/skills/laravel-verification/SKILL.md) at pinned SHA `76aaa77df6adc5b889e689007bf99b9a4f74af34` (MIT). Always read the current Ald1n `AGENTS.md` and `docs/operations/000-LATEST.md` before operating. Existing project rules override this skill. **All upstream commands below are illustrative only.** Do not execute commands that write production database, change caches/build state, install dependencies on CloudLinux, run migrations, open deploy channels, or rewrite the hosting checkout without a separately authorized, SHA-verified operator batch. Use disposable CI for verification and report unknown evidence as HOLD. Never auto-install third-party hooks/MCP servers.
+ECC original: [laravel-verification](https://github.com/affaan-m/ECC/blob/76aaa77df6adc5b889e689007bf99b9a4f74af34/skills/laravel-verification/SKILL.md), MIT. This replaces upstream generic runnable deployment examples with host-safe verification.
 
----
+## Non-negotiable Ald1n entry gate
 
+First read current remote `main`, root `AGENTS.md`, `docs/operations/000-LATEST.md`, newest numbered operation report and [the strict CloudLinux contract](../../../docs/ECC-CLOUDLINUX-CONTRACT.md). The Ald1n instructions have precedence over all upstream ECC guidance. Report exact source SHA; do not treat a previous CI PASS as proof for new code.
 
-# Laravel Verification Loop
+**Host rules:** CloudLinux/Unlimited.rs restricted shell, canonical `/home/icaffeco/ald1n-project`. Host operator scripts and copy/paste commands must use `incoming/` only, with checked SHA-256 and `bash -n`; operation receipts exclusively `docs/operations/`, numbered using highest host + GitHub reports. Ban host process substitution, `/dev/fd`, `python3`, generic dependency upgrades, forced Git cleanup, migrations/caches and unreconciled writes. Preserve dirty production checkout, secrets, .env/.htaccess, storage and backups. All production/app-build/OTA/Play mutations require independent user approval.
 
-Run before PRs, after major changes, and pre-deploy.
+**Current release state:** owner Report749 verified Liquid Glass 2.0 source and HTTP login preflight; **deployment remains HOLD**. ECC docs changes do not authorize deployment and must not silently move the pinned release source.
 
-## When to Use
+## Execution: isolated source QA, never arbitrary production maintenance
 
-- Before opening a pull request for a Laravel project
-- After major refactors or dependency upgrades
-- Pre-deployment verification for staging or production
-- Running full lint -> test -> security -> deploy readiness pipeline
+1. Record the exact branch/commit and changed-path allowlist. Compare `main` and the latest relevant operations report; account for stale/dirty hosting checkout.
+2. On a **disposable CI checkout**, verify PHP `8.4`, Laravel `13`, Composer lock integrity, then run the existing canonical CMS static gate: `php bin/static-check.php`. Expected signature: `Ukupno: 983, neuspešno: 0`. Do not substitute PHP lint.
+3. On the same exact commit, run the **relevant** existing Laravel tests. Only use a disposable DB fixture; MariaDB 10.11.19 is the production-compatible family. Capture exact tests/assertions and failures; a successful generic MySQL test is insufficient to approve MariaDB ENUM/DDL.
+4. For HTTP/Blade/API changes use authenticated role-aware browser/HTTP checks and the user-facing parity matrix. Preserve archive visibility rules, Direct Sale, decommissioned variants and the three identical OpenAPI copies.
+5. Run Composer audit and checks on a disposable CI runner if needed and record results; **do not** install/update Composer dependencies on production while verifying.
+6. For migrations/schema work require a separate owner-authorized batch, version-matched MariaDB 10.11.19 validation, lock-visibility and rollback/backup evidence. Lack of privileged metadata-lock visibility is HOLD. This generic verification skill provides **no authority** to run migrations on production.
+7. For production-readiness, review existing caches, scheduler and queue state through explicitly approved *read-only* operator scripts. Never mutate Laravel cache, config, routes or queue state from this skill.
+8. For behavior changes: RED test, minimal fix, GREEN test, broader exact-source gates; commit only reviewed allowlisted paths.
 
-## How It Works
+## Evidence and outcome
 
-- Run phases sequentially from environment checks through deployment readiness so each layer builds on the last.
-- Environment and Composer checks gate everything else; stop immediately if they fail.
-- Linting/static analysis should be clean before running full tests and coverage.
-- Security and migration reviews happen after tests so you verify behavior before data or release steps.
-- Build/deploy readiness and queue/scheduler checks are final gates; any failure blocks release.
+Report `SOURCE_COMMIT`, test names/counts, static gate, disposable DB family, `WEB_BROWSER_QA`, `OPENAPI_PARITY`, roles, `BATCH_RESULT`, `FAILED_STAGE`, `MUTATION_SCOPE`, next gate. `PASS_SOURCE_QA` is **not** proof of deployment or live database change. No silent production work.
 
-## Phase 1: Environment Checks
+## ECC design principles retained
 
-```bash
-php -v
-composer --version
-php artisan --version
-```
-
-- Verify `.env` is present and required keys exist
-- Confirm `APP_DEBUG=false` for production environments
-- Confirm `APP_ENV` matches the target deployment (`production`, `staging`)
-
-If using Laravel Sail locally:
-
-```bash
-./vendor/bin/sail php -v
-./vendor/bin/sail artisan --version
-```
-
-## Phase 1.5: Composer and Autoload
-
-```bash
-composer validate
-composer dump-autoload -o
-```
-
-## Phase 2: Linting and Static Analysis
-
-```bash
-vendor/bin/pint --test
-vendor/bin/phpstan analyse
-```
-
-If your project uses Psalm instead of PHPStan:
-
-```bash
-vendor/bin/psalm
-```
-
-## Phase 3: Tests and Coverage
-
-```bash
-php artisan test
-```
-
-Coverage (CI):
-
-```bash
-XDEBUG_MODE=coverage php artisan test --coverage
-```
-
-CI example (format -> static analysis -> tests):
-
-```bash
-vendor/bin/pint --test
-vendor/bin/phpstan analyse
-XDEBUG_MODE=coverage php artisan test --coverage
-```
-
-## Phase 4: Security and Dependency Checks
-
-```bash
-composer audit
-```
-
-## Phase 5: Database and Migrations
-
-```bash
-php artisan migrate --pretend
-php artisan migrate:status
-```
-
-- Review destructive migrations carefully
-- Ensure migration filenames follow `Y_m_d_His_*` (e.g., `2025_03_14_154210_create_orders_table.php`) and describe the change clearly
-- Ensure rollbacks are possible
-- Verify `down()` methods and avoid irreversible data loss without explicit backups
-
-## Phase 6: Build and Deployment Readiness
-
-```bash
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
-
-- Ensure cache warmups succeed in production configuration
-- Verify queue workers and scheduler are configured
-- Confirm `storage/` and `bootstrap/cache/` are writable in the target environment
-
-## Phase 7: Queue and Scheduler Checks
-
-```bash
-php artisan schedule:list
-php artisan queue:failed
-```
-
-If Horizon is used:
-
-```bash
-php artisan horizon:status
-```
-
-If `queue:monitor` is available, use it to check backlog without processing jobs:
-
-```bash
-php artisan queue:monitor default --max=100
-```
-
-Active verification (staging only): dispatch a no-op job to a dedicated queue and run a single worker to process it (ensure a non-`sync` queue connection is configured).
-
-```bash
-php artisan tinker --execute="dispatch((new App\\Jobs\\QueueHealthcheck())->onQueue('healthcheck'))"
-php artisan queue:work --once --queue=healthcheck
-```
-
-Verify the job produced the expected side effect (log entry, healthcheck table row, or metric).
-
-Only run this on non-production environments where processing a test job is safe.
-
-## Examples
-
-Minimal flow:
-
-```bash
-php -v
-composer --version
-php artisan --version
-composer validate
-vendor/bin/pint --test
-vendor/bin/phpstan analyse
-php artisan test
-composer audit
-php artisan migrate --pretend
-php artisan config:cache
-php artisan queue:failed
-```
-
-CI-style pipeline:
-
-```bash
-composer validate
-composer dump-autoload -o
-vendor/bin/pint --test
-vendor/bin/phpstan analyse
-XDEBUG_MODE=coverage php artisan test --coverage
-composer audit
-php artisan migrate --pretend
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan schedule:list
-```
+- Check environmental assumptions before deeper verification.
+- Verify business behavior before claiming coverage.
+- Review input validation, authorization, session integrity and migration safety.
+- Keep build artifacts and logs outside the production Git worktree.
