@@ -349,6 +349,13 @@ async function editorSmoke(page, mode, width, screen) {
 
 async function dashboardD1Smoke(page, persona, mode) {
   const label = persona + '/' + mode;
+  if (persona === 'superadmin') {
+    await page.setViewportSize({width:1440,height:900});
+    await navigate(page,fixture.paths.dashboard,'D1_DESKTOP_FOLD');
+    const last = await page.locator('[data-dashboard-d1-kpi="sale"]').boundingBox();
+    check(!!last && last.y + last.height <= 900,
+      'D1_ALL_SIX_ABOVE_DESKTOP_FOLD',label+': '+JSON.stringify(last));
+  }
   await page.setViewportSize({width:390,height:844});
   await navigate(page,fixture.paths.dashboard,'D1_DASHBOARD');
   const count = await page.locator('[data-dashboard-d1-kpi]').count();
