@@ -1,0 +1,101 @@
+name: CMS user retirement current-main safety QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/cms-user-retirement-current-main-qa.yml'
+      - 'apps/cms/current/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retirement-database:
+    name: Retirement PHP 8.4 / ${{ matrix.engine }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: MySQL 8.4
+            image: mysql:8.4
+          - engine: MariaDB 10.11.19
+            image: mariadb:10.11.19
+    services:
+      test-db:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: retirement-ci-only
+          MYSQL_DATABASE: ald1n_retirement_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pretirement-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=18
+    defaults:
+      run:
+        working-directory: apps/cms/current
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: root
+      DB_PASSWORD: retirement-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Exact PR merge candidate source checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Isolated PHP 8.4 and PDO MySQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Verify disposable database identity
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          php -r '$pdo=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci","root","retirement-ci-only",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);if($pdo->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci"){exit(31);}echo "RETIREMENT_ISOLATED_DATABASE=PASS",PHP_EOL;echo "DB_ENGINE=",$pdo->query("SELECT VERSION()")->fetchColumn(),PHP_EOL;'
+      - name: Install pinned Laravel dependencies
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-ansi
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Real database retirement transactional and HTTP regression
+        run: |
+          set -euo pipefail
+          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --stop-on-failure
+          php artisan test -c phpunit.mysql.xml tests/Feature/UserRetirementSafetyContractTest.php --stop-on-failure
+          php artisan test -c phpunit.mysql.xml --stop-on-failure \
+            tests/Feature/ApiTokenTest.php \
+            tests/Feature/AuthenticationTest.php \
+            tests/Feature/ProductionPermissionsTest.php \
+            tests/Feature/CustomerPortal2Test.php
+      - name: Canonical CMS static gate and route boot
+        run: |
+          set -euo pipefail
+          php bin/static-check.php
+          php artisan route:list --no-ansi >/dev/null
+      - name: No production mutation receipt
+        run: |
+          echo RETIREMENT_PRODUCTION_DB_WRITES=NONE
+          echo RETIREMENT_PRODUCTION_MIGRATIONS=NONE
+          echo RETIREMENT_ANDROID_OTA_BUILD_PLAY=NONE
