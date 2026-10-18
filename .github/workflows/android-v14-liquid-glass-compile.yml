@@ -33,8 +33,16 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+      - name: Prepare preinstalled Android SDK (same pattern as native-528 CI)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" --version
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
       - name: Install locked Expo dependencies and isolated candidate
         working-directory: apps/mobile/current
         shell: bash
