@@ -170,15 +170,51 @@
 <section class="dashboard-kpi-grid dashboard-kpi-grid--d1" data-dashboard-d1-grid aria-label="Šest glavnih poslovnih pokazatelja">
     <a data-dashboard-d1-kpi="revenue" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
         <span class="dashboard-kpi-icon tone-blue"><x-icon name="chart" /></span>
-        <div><small>Prihod</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['revenue_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>{{ $reportStats['period_label'] }} · Završene porudžbine</span></div>
+        <div><small>Prihod</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['revenue_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>{{ $reportStats['period_label'] }} · Završene porudžbine</span>@if(($reportStats['ready'] ?? false) && is_array($reportStats['comparison'] ?? null))
+            @php($delta = $reportStats['comparison']['metrics']['revenue_rsd'] ?? null)
+            @if(is_array($delta))
+                <span class="dashboard-d2-delta" data-dashboard-d2-delta="revenue">
+                    @if($delta['percent_change'] !== null)
+                        {{ (float) $delta['absolute_change'] > 0 ? '+' : '' }}{{ number_format((float) $delta['percent_change'], 1, ',', '.') }}% u odnosu na prethodni period
+                    @else
+                        Nema uporedivog procenta (prethodni period: 0 RSD)
+                    @endif
+                </span>
+            @endif
+        @endif
+        </div>
     </a>
     <a data-dashboard-d1-kpi="gross" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
         <span class="dashboard-kpi-icon tone-green"><x-icon name="money" /></span>
-        <div><small>Bruto dobit</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['gross_profit_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>@if($reportStats['ready'] ?? false)Marža {{ number_format((float) ($reportSummary['gross_margin_percent'] ?? 0), 1, ',', '.') }}% · Pokrivenost {{ number_format((float) ($reportSummary['cost_coverage_percent'] ?? 0), 1, ',', '.') }}%@else Izveštaj trenutno nije dostupan @endif</span></div>
+        <div><small>Bruto dobit</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['gross_profit_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>@if($reportStats['ready'] ?? false)Marža {{ number_format((float) ($reportSummary['gross_margin_percent'] ?? 0), 1, ',', '.') }}% · Pokrivenost {{ number_format((float) ($reportSummary['cost_coverage_percent'] ?? 0), 1, ',', '.') }}%@else Izveštaj trenutno nije dostupan @endif</span>@if(($reportStats['ready'] ?? false) && is_array($reportStats['comparison'] ?? null))
+            @php($delta = $reportStats['comparison']['metrics']['gross_profit_rsd'] ?? null)
+            @if(is_array($delta))
+                <span class="dashboard-d2-delta" data-dashboard-d2-delta="gross">
+                    @if($delta['percent_change'] !== null)
+                        {{ (float) $delta['absolute_change'] > 0 ? '+' : '' }}{{ number_format((float) $delta['percent_change'], 1, ',', '.') }}% u odnosu na prethodni period
+                    @else
+                        Nema uporedivog procenta (prethodni period: 0 RSD)
+                    @endif
+                </span>
+            @endif
+        @endif
+        </div>
     </a>
     <a data-dashboard-d1-kpi="net" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
         <span class="dashboard-kpi-icon tone-primary"><x-icon name="wallet" /></span>
-        <div><small>Neto doprinos</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['net_contribution_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>Izabrani period · Posle provizija i troškova</span></div>
+        <div><small>Neto doprinos</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['net_contribution_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>Izabrani period · Posle provizija i troškova</span>@if(($reportStats['ready'] ?? false) && is_array($reportStats['comparison'] ?? null))
+            @php($delta = $reportStats['comparison']['metrics']['net_contribution_rsd'] ?? null)
+            @if(is_array($delta))
+                <span class="dashboard-d2-delta" data-dashboard-d2-delta="net">
+                    @if($delta['percent_change'] !== null)
+                        {{ (float) $delta['absolute_change'] > 0 ? '+' : '' }}{{ number_format((float) $delta['percent_change'], 1, ',', '.') }}% u odnosu na prethodni period
+                    @else
+                        Nema uporedivog procenta (prethodni period: 0 RSD)
+                    @endif
+                </span>
+            @endif
+        @endif
+        </div>
     </a>
     <a data-dashboard-d1-kpi="receivables" class="dashboard-kpi-card" href="{{ route('admin.receivables.index') }}">
         <span class="dashboard-kpi-icon tone-red"><x-icon name="receipt" /></span>
