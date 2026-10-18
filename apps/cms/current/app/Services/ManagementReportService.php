@@ -175,8 +175,8 @@ final class ManagementReportService
             $positive = [];
             foreach ($rows as $row) {
                 $amount = (float) $row->{$key};
-                if ($amount > 0) {
-                    $positive[] = ['label' => (string) $row->label, 'value' => round($amount, 2)];
+                if ($amount > 0 && is_finite($amount)) {
+                    $positive[] = ['label' => (string) $row->label, 'value' => $amount];
                 }
             }
             usort($positive, static fn (array $a, array $b): int =>
@@ -188,13 +188,25 @@ final class ManagementReportService
             $top = array_slice($positive, 0, 5);
             $other = array_sum(array_column(array_slice($positive, 5), 'value'));
             if ($other > 0) {
-                $top[] = ['label' => 'Ostali', 'value' => round($other, 2)];
+                $top[] = ['label' => 'Ostali', 'value' => $other];
             }
-            foreach ($top as &$row) {
+            $palette = ['#287CFF', '#885BFF', '#20CAFF', '#16CAA7', '#FFBB62', '#FF658E'];
+            $cursor = 0.0;
+            $stops = [];
+            foreach ($top as $index => &$row) {
                 $row['percent'] = round($row['value'] / $total * 100, 1);
+                $from = $cursor / $total * 100;
+                $cursor += $row['value'];
+                $to = $index === count($top) - 1 ? 100.0 : ($cursor / $total * 100);
+                $stops[] = $palette[$index % count($palette)].' '.number_format($from, 6, '.', '').'% '.number_format($to, 6, '.', '').'%';
+                $row['value'] = round($row['value'], 2);
             }
             unset($row);
-            return ['total' => round($total, 2), 'slices' => $top];
+            return [
+                'total' => round($total, 2),
+                'slices' => $top,
+                'gradient' => 'conic-gradient('.implode(', ', $stops).')',
+            ];
         };
         return ['revenue' => $build('revenue'), 'units' => $build('units')];
     }
