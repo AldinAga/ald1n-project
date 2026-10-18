@@ -455,3 +455,15 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
 .dashboard-d3-panel [hidden] {display:none !important;}
 @media(max-width:720px){.dashboard-d3-chart{grid-template-columns:minmax(0,1fr);justify-items:center;gap:16px}.dashboard-d3-legend{width:100%}.dashboard-d3-legend li{grid-template-columns:12px minmax(0,1fr) auto;}.dashboard-d3-legend li small{grid-column:2 / -1;justify-self:end}}
 @media(forced-colors:active){.dashboard-d3-donut{display:none}.dashboard-d3-legend i{border:1px solid CanvasText}}
+
+.dashboard-d3-trend-column .dashboard-d3-trend-bars{display:flex;align-items:flex-end;justify-content:center;gap:4px;height:100%;width:100%}
+.dashboard-d3-trend-column .dashboard-d3-trend-bars .dashboard-chart-bar{position:static;display:block;flex:1;max-width:19px;min-height:0;border-radius:5px 5px 0 0}
+.dashboard-d3-trend-column .dashboard-d3-revenue{background:#287CFF}
+.dashboard-d3-trend-column .dashboard-d3-gross{background:#16CAA7}
+.dashboard-d3-gross-key{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:50%;background:#16CAA7}
+.dashboard-d3-trend-data{margin-top:12px;color:var(--ald-text)}
+.dashboard-d3-trend-data summary{cursor:pointer;font-size:.82rem;text-decoration:underline}
+.dashboard-d3-trend-data table{width:100%;margin-top:10px;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums}
+.dashboard-d3-trend-data th,.dashboard-d3-trend-data td{padding:7px 5px;border-bottom:1px solid var(--ald-border);text-align:right}
+.dashboard-d3-trend-data th:first-child{text-align:left}
+.dashboard-d3-trend-data:focus-within{outline-offset:4px}
