@@ -1,6 +1,9 @@
 @inject('moduleVisibility', 'App\Services\ModuleVisibilityService')
 @extends('layouts.app')
 @section('title', 'Početna')
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/css/ald1n-dashboard-d1.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-dashboard-d1.css')) ?: config('app.version') }}">
+@endpush
 @section('content')
     {{-- Safe module visibility: CSS-only dashboard hiding; no wrappers around existing Blade markup. --}}
     <style>
@@ -55,7 +58,7 @@
 @endphp
 
 {{-- BUILD16_HOME_REDESIGN_BATCH125 --}}
-<div class="build16-home-shell" data-build16-home-redesign="1">
+<div class="build16-home-shell{{ $user->hasRole('superadmin') ? ' dashboard-d1-shell' : '' }}" data-build16-home-redesign="1">
 <section class="modern-dashboard-hero build16-home-hero" data-universal-dashboard-ready="1">
     <div class="dashboard-welcome">
         <span class="dashboard-date">Ald1n CMS · {{ now()->translatedFormat('l, d. F Y.') }}</span>
@@ -122,22 +125,75 @@
     @endif
 </section>
 
-@if($user->hasRole('superadmin') && is_array($inventoryValuation))
-<section class="dashboard-kpi-grid" data-superadmin-inventory-valuation-v0-8="1">
-    <a class="dashboard-kpi-card" href="{{ route('admin.products.purchase-costs') }}">
-        <span class="dashboard-kpi-icon tone-primary"><x-icon name="boxes" /></span>
-        <div><small>Vrednost po nabavnoj ceni</small><strong>{{ number_format((float) ($inventoryValuation['purchase_value_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ (int) ($inventoryValuation['missing_cost_total_items'] ?? 0) }} artikala bez nabavne cene</span></div>
-    </a>
-    <a class="dashboard-kpi-card" href="{{ route('admin.inventory.index') }}">
-        <span class="dashboard-kpi-icon tone-blue"><x-icon name="money" /></span>
-        <div><small>Vrednost po prodajnoj ceni</small><strong>{{ number_format((float) ($inventoryValuation['sale_value_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>Trenutna prodajna vrednost lagera</span></div>
-    </a>
-    <a class="dashboard-kpi-card" href="{{ route('admin.inventory.index') }}">
-        <span class="dashboard-kpi-icon tone-green"><x-icon name="chart" /></span>
-        <div><small>Ukupna očekivana zarada</small><strong>{{ number_format((float) ($inventoryValuation['expected_profit_rsd'] ?? 0), 2, ',', '.') }} RSD</strong><span>{{ ($inventoryValuation['valuation_complete'] ?? false) ? 'Kompletna valuacija trenutnog lagera' : 'Privremena procena — dopunite nedostajuće nabavne cene ili kurs' }}</span></div>
-    </a>
+@if($user->hasRole('superadmin'))
+<section class="dashboard-d1-period" data-dashboard-period="{{ $dashboardPeriod['period'] }}" aria-label="Period upravljačkih izveštaja">
+    <div class="dashboard-d1-period-heading">
+        <div>
+            <span class="eyebrow">Poslovni pregled</span>
+            <strong>Izaberite vremenski period</strong>
+            <small>Finansijski pokazatelji i grafikon prate izabrane datume. Lager i potraživanja prikazuju trenutno stanje.</small>
+        </div>
+        <div class="dashboard-d1-period-presets" aria-label="Brzi izbor perioda">
+            <a class="dashboard-d1-period-chip" href="{{ url('/').'?period=7d' }}" @if($dashboardPeriod['period'] === '7d') aria-current="page" @endif>7 dana</a>
+            <a class="dashboard-d1-period-chip" href="{{ url('/').'?period=30d' }}" @if($dashboardPeriod['period'] === '30d') aria-current="page" @endif>30 dana</a>
+        </div>
+    </div>
+    <details class="dashboard-d1-custom-range" @if($dashboardPeriod['period'] === 'custom') open @endif>
+        <summary><x-icon name="calendar" size="16" /> Prilagođeno · Odabir iz kalendara</summary>
+        <form method="get" action="{{ url('/') }}" class="dashboard-d1-date-form">
+            <input type="hidden" name="period" value="custom">
+            <label>Datum od <input type="date" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}" aria-label="Datum od"></label>
+            <label>Datum do <input type="date" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}" aria-label="Datum do"></label>
+            <button type="submit" class="button button-primary">Primeni period</button>
+        </form>
+    </details>
+    @if($dashboardPeriod['error'] !== null)
+        <p class="dashboard-d1-period-error" data-dashboard-period-error role="alert">{{ $dashboardPeriod['error'] }}</p>
+    @else
+        <small class="dashboard-d1-period-label">Prikaz za period {{ $reportStats['period_label'] }} · Završene porudžbine</small>
+    @endif
+</section>
+
+@if($hasBusinessDashboard)
+<section class="panel dashboard-panel dashboard-priority-panel dashboard-d1-priorities" aria-labelledby="d1-priority-heading">
+    <div class="dashboard-panel-heading"><div><span class="eyebrow">Fokus danas</span><h2 id="d1-priority-heading">Prioritetne aktivnosti</h2><p>Operativne stavke koje zahtevaju reakciju.</p></div><span class="dashboard-priority-count">{{ count($priorityActions) }}</span></div>
+    <div class="dashboard-priority-list">
+        @forelse($priorityActions as $item)
+            <a href="{{ $item['url'] }}" class="dashboard-priority-item priority-{{ $item['tone'] }}"><span class="priority-icon"><x-icon name="{{ $item['icon'] }}" /></span><div><strong>{{ $item['title'] }}</strong><small>{{ $item['description'] }}</small></div><b>{{ is_float($item['count']) ? number_format($item['count'], 0, ',', '.') : $item['count'] }}</b><x-icon name="arrow-right" size="16" /></a>
+        @empty
+            <div class="dashboard-clear-state"><x-icon name="check-circle" size="34" /><strong>Nema kritičnih aktivnosti</strong><span>Operativne obaveze su trenutno pod kontrolom.</span></div>
+        @endforelse
+    </div>
 </section>
 @endif
+
+<section class="dashboard-kpi-grid dashboard-kpi-grid--d1" data-dashboard-d1-grid aria-label="Šest glavnih poslovnih pokazatelja">
+    <a data-dashboard-d1-kpi="revenue" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
+        <span class="dashboard-kpi-icon tone-blue"><x-icon name="chart" /></span>
+        <div><small>Prihod</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['revenue_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>{{ $reportStats['period_label'] }} · Završene porudžbine</span></div>
+    </a>
+    <a data-dashboard-d1-kpi="gross" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
+        <span class="dashboard-kpi-icon tone-green"><x-icon name="money" /></span>
+        <div><small>Bruto dobit</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['gross_profit_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>@if($reportStats['ready'] ?? false)Marža {{ number_format((float) ($reportSummary['gross_margin_percent'] ?? 0), 1, ',', '.') }}% · Pokrivenost {{ number_format((float) ($reportSummary['cost_coverage_percent'] ?? 0), 1, ',', '.') }}%@else Izveštaj trenutno nije dostupan @endif</span></div>
+    </a>
+    <a data-dashboard-d1-kpi="net" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
+        <span class="dashboard-kpi-icon tone-primary"><x-icon name="wallet" /></span>
+        <div><small>Neto doprinos</small><strong>@if($reportStats['ready'] ?? false){{ number_format((float) ($reportSummary['net_contribution_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>Izabrani period · Posle provizija i troškova</span></div>
+    </a>
+    <a data-dashboard-d1-kpi="receivables" class="dashboard-kpi-card" href="{{ route('admin.receivables.index') }}">
+        <span class="dashboard-kpi-icon tone-red"><x-icon name="receipt" /></span>
+        <div><small>Potraživanja</small><strong>@if($dashboardOutstandingNow !== null){{ number_format((float) $dashboardOutstandingNow, 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>Trenutno otvoreno · Nezavisno od perioda</span></div>
+    </a>
+    <a data-dashboard-d1-kpi="purchase" class="dashboard-kpi-card" href="{{ route('admin.products.purchase-costs') }}">
+        <span class="dashboard-kpi-icon tone-amber"><x-icon name="boxes" /></span>
+        <div><small>Vrednost po nabavnoj ceni</small><strong>@if(is_array($inventoryValuation)){{ number_format((float) ($inventoryValuation['purchase_value_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>Stanje sada @if(is_array($inventoryValuation) && (int) ($inventoryValuation['missing_cost_total_items'] ?? 0) > 0) · {{ (int) $inventoryValuation['missing_cost_total_items'] }} bez nabavne cene @endif</span></div>
+    </a>
+    <a data-dashboard-d1-kpi="sale" class="dashboard-kpi-card" href="{{ route('admin.inventory.index') }}">
+        <span class="dashboard-kpi-icon tone-cyan"><x-icon name="money" /></span>
+        <div><small>Vrednost po prodajnoj ceni</small><strong>@if(is_array($inventoryValuation)){{ number_format((float) ($inventoryValuation['sale_value_rsd'] ?? 0), 2, ',', '.') }} RSD @else Nije dostupno @endif</strong><span>Stanje sada @if(is_array($inventoryValuation) && (int) ($inventoryValuation['missing_sale_value_items'] ?? 0) > 0) · {{ (int) $inventoryValuation['missing_sale_value_items'] }} bez prodajne cene ili kursa @endif</span></div>
+    </a>
+</section>
+@else
 <section class="dashboard-kpi-grid">
     @if($customerFocused)
         <a class="dashboard-kpi-card" href="{{ route('orders.index') }}">
@@ -168,6 +224,7 @@
         <a class="dashboard-kpi-card" href="{{ $orderIndex }}"><span class="dashboard-kpi-icon tone-green"><x-icon name="money" /></span><div><small>Vrednost porudžbina</small><strong>{{ number_format((float) $orderStats['value_rsd'], 2, ',', '.') }} RSD</strong><span>Bez otkazanih</span></div></a>
     @endif
 </section>
+@endif
 
 @if($hasBusinessDashboard)
     <div class="dashboard-main-grid">
@@ -189,6 +246,7 @@
             @endif
         </section>
 
+        @unless($user->hasRole('superadmin'))
         <section class="panel dashboard-panel dashboard-priority-panel">
             <div class="dashboard-panel-heading"><div><span class="eyebrow">Fokus danas</span><h2>Prioritetne aktivnosti</h2><p>Operativne stavke koje trenutno zahtevaju reakciju.</p></div><span class="dashboard-priority-count">{{ count($priorityActions) }}</span></div>
             <div class="dashboard-priority-list">
@@ -199,6 +257,7 @@
                 @endforelse
             </div>
         </section>
+        @endunless
     </div>
 
     <div class="dashboard-secondary-grid">
@@ -232,7 +291,12 @@
 @endif
 
 <section class="dashboard-operations-section">
-    <div class="dashboard-section-title"><div><span class="eyebrow">Administracija</span><h2>Svi dostupni moduli na jednom mestu</h2></div></div>
+    @if($user->hasRole('superadmin'))
+        <details class="dashboard-d1-modules">
+            <summary><span><span class="eyebrow">Administracija</span><strong>Svi dostupni moduli na jednom mestu</strong></span><x-icon name="chevron-down" /></summary>
+    @else
+        <div class="dashboard-section-title"><div><span class="eyebrow">Administracija</span><h2>Svi dostupni moduli na jednom mestu</h2></div></div>
+    @endif
     <div class="dashboard-module-grid">
         @if($access['orders_manage'] || $access['orders_view_own'])
             <a class="dashboard-module-card" href="{{ $orderIndex }}"><span class="module-icon tone-blue"><x-icon name="orders" /></span><div><strong>Porudžbine</strong><small>{{ $orderStats['new'] }} novih · {{ $orderStats['processing'] }} u obradi · {{ $orderStats['shipped'] }} poslato</small></div><x-icon name="arrow-right" /></a>
@@ -263,6 +327,7 @@
             <a class="dashboard-module-card" href="{{ route('account.show') }}"><span class="module-icon tone-green"><x-icon name="settings" /></span><div><strong>Moj nalog</strong><small>Profil, lozinka, sesije i obaveštenja</small></div><x-icon name="arrow-right" /></a>
         @endif
     </div>
+    @if($user->hasRole('superadmin'))</details>@endif
 </section>
 </div>
 @endsection
