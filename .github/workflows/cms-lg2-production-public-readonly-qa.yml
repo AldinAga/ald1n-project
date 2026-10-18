@@ -1,0 +1,71 @@
+name: CMS Liquid Glass 2.0 production public QA
+on:
+  push:
+    branches:
+      - qa/cms-lg2-production-public-20261018
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-readonly-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      LG2_PUBLIC_QA_RUN: '1'
+      LG2_EXPECTED_MAIN: 'e8c5cfdacd1da503142e8e29a8ba5fd017776224'
+    steps:
+      - name: Checkout isolated QA source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify current production source pin before browser execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse origin/main)" = "$LG2_EXPECTED_MAIN" || {
+            echo 'HOLD: GitHub main advanced; release source must be re-attested'
+            exit 31
+          }
+          echo 'LG2_RELEASE_MAIN_PIN=PASS'
+      - name: Set up Node 22 on disposable GitHub runner
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install disposable Playwright Chromium
+        shell: bash
+        env:
+          PLAYWRIGHT_NODE_ROOT: ${{ runner.temp }}/ald1n-lg2-playwright
+        run: |
+          set -euo pipefail
+          mkdir -p "$PLAYWRIGHT_NODE_ROOT"
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium
+      - name: GET-only live public asset and login Chromium QA
+        shell: bash
+        env:
+          PLAYWRIGHT_NODE_ROOT: ${{ runner.temp }}/ald1n-lg2-playwright
+          LG2_PUBLIC_QA_ARTIFACT_DIR: ${{ runner.temp }}/ald1n-lg2-public-qa
+        run: |
+          set -euo pipefail
+          node --check apps/cms/current/tests/Browser/liquid-glass-production-public-readonly.cjs
+          node apps/cms/current/tests/Browser/liquid-glass-production-public-readonly.cjs
+      - name: Upload non-sensitive browser screenshots and JSON evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ald1n-lg2-production-public-qa
+          path: ${{ runner.temp }}/ald1n-lg2-public-qa/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Declare unfulfilled authenticated acceptance gate
+        if: always()
+        run: |
+          echo 'AUTHENTICATED_UAT=HOLD_OWNER_LOGIN_REQUIRED'
+          echo 'PRODUCTION_HTTP_METHOD=GET_ONLY'
+          echo 'CMS_SOURCE_MUTATION=NO'
+          echo 'DB_MUTATION=NO'
+          echo 'ANDROID_MUTATION=NO'
+          echo 'OTA=NO'
+          echo 'GOOGLE_PLAY=NO'
