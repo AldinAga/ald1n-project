@@ -437,3 +437,21 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
   color: var(--ald-text);
   overflow-wrap: anywhere;
 }
+
+/* D3: chart is CSS-only, accessible data remain in adjacent semantic list. */
+.dashboard-d3-panel {min-width:0;padding:18px;}
+.dashboard-d3-switch {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px;}
+.dashboard-d3-switch button {cursor:pointer;padding:9px 14px;border-radius:12px;border:1px solid var(--ald-border);color:var(--ald-text);background:var(--ald-surface-container);}
+.dashboard-d3-switch button[aria-pressed="true"] {background:var(--lg5-violet-700);color:#fff;border-color:var(--lg5-violet-700);}
+.dashboard-d3-switch button:focus-visible {outline:3px solid var(--lg5-cyan);outline-offset:3px;}
+.dashboard-d3-chart {display:grid;grid-template-columns:minmax(140px,220px) minmax(0,1fr);align-items:center;gap:24px;}
+.dashboard-d3-donut {width:100%;max-width:220px;aspect-ratio:1;border-radius:50%;background:var(--d3-fill);mask:radial-gradient(farthest-side,transparent 56%,#000 57%);}
+.dashboard-d3-legend {list-style:none;display:grid;gap:8px;padding:0;margin:0;min-width:0;}
+.dashboard-d3-legend li {display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;align-items:center;gap:9px;min-width:0;font-size:.83rem;color:var(--ald-text);}
+.dashboard-d3-legend i {width:12px;height:12px;border-radius:50%;background:var(--d3-color);}
+.dashboard-d3-legend li span {overflow-wrap:anywhere;}
+.dashboard-d3-legend li strong {font-variant-numeric:tabular-nums;}
+.dashboard-d3-legend li small {color:var(--ald-muted);}
+.dashboard-d3-panel [hidden] {display:none !important;}
+@media(max-width:720px){.dashboard-d3-chart{grid-template-columns:minmax(0,1fr);justify-items:center;gap:16px}.dashboard-d3-legend{width:100%}.dashboard-d3-legend li{grid-template-columns:12px minmax(0,1fr) auto;}.dashboard-d3-legend li small{grid-column:2 / -1;justify-self:end}}
+@media(forced-colors:active){.dashboard-d3-donut{display:none}.dashboard-d3-legend i{border:1px solid CanvasText}}
