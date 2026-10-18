@@ -191,6 +191,7 @@ final class DashboardController extends Controller
             'period_label' => $periodLabel,
             'summary' => [],
             'trend' => [],
+            'comparison' => null,
         ];
         // Never show a financial snapshot against an invalid selected period.
         if (!($access['reports_view'] ?? false) || $dashboardPeriod['error'] !== null) {
@@ -207,11 +208,14 @@ final class DashboardController extends Controller
                 'scope' => 'completed',
                 'group_by' => 'brand',
             ]);
+            $summary = $reports->summary($user, $filters);
+            $comparison = $reports->comparison($user, $filters, $summary);
             return [
                 'ready' => true,
                 'period_label' => $periodLabel,
-                'summary' => $reports->summary($user, $filters),
+                'summary' => $summary,
                 'trend' => $reports->trend($user, $filters),
+                'comparison' => $comparison,
             ];
         } catch (Throwable $exception) {
             $this->reportDashboardWarning('management_report_stats', $exception);

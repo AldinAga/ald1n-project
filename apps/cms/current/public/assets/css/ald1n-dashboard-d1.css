@@ -426,3 +426,14 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
     font-size: .8rem;
   }
 }
+
+/* D2 comparison labels remain readable inside the six KPI cards. */
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-d2-delta {
+  display: block;
+  margin-top: 3px;
+  font-size: .78rem;
+  line-height: 1.5;
+  font-weight: 650;
+  color: var(--ald-text);
+  overflow-wrap: anywhere;
+}
