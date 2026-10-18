@@ -386,7 +386,7 @@ async function dashboardD1Smoke(page, persona, mode) {
     'D1_CUSTOM_DATE_INPUTS', label);
   const defaultFrom = await page.locator('.dashboard-d1-date-form input[name="date_from"]').inputValue();
   const defaultTo = await page.locator('.dashboard-d1-date-form input[name="date_to"]').inputValue();
-  check(/^\\d{4}-\\d{2}-\\d{2}$/.test(defaultTo) && defaultFrom === defaultTo.slice(0, 7) + '-01',
+  check(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(defaultTo) && defaultFrom === defaultTo.slice(0, 7) + '-01',
     'D1_DEFAULT_MONTH_START_TO_TODAY', label+': '+defaultFrom+' to '+defaultTo);
 
   await navigate(page,'/?period=30d','D1_30D_GET');
