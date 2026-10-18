@@ -38,6 +38,8 @@ if (
     || config('database.default') !== 'mysql'
     || config('database.connections.mysql.host') !== '127.0.0.1'
     || config('database.connections.mysql.database') !== 'ald1n_liquid_ci'
+    || config('session.secure') !== false
+    || (string) config('session.domain') !== ''
 ) {
     fwrite(STDERR, "HOLD: resolved Laravel configuration is not the disposable CI DB.\n");
     exit(3);
