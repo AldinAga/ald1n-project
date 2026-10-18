@@ -141,6 +141,37 @@ async function headerGeometry(page, persona, mode, width) {
       headerPosition: getComputedStyle(document.querySelector('.site-header')).position,
       headerGlass: document.querySelector('.site-header')?.getAttribute('data-lg-renderer'),
       glassLayerPresent: !!document.querySelector('.site-header > .lg-layer'),
+      r5: (() => {
+        const st = getComputedStyle(document.documentElement);
+        const shell = document.querySelector('.page-shell');
+        const aurora = shell ? getComputedStyle(shell, '::before') : null;
+        const palette = Object.fromEntries(['blue','violet','cyan','teal','amber','rose'].map(k =>
+          [k, st.getPropertyValue('--lg5-'+k).trim().toUpperCase()]
+        ));
+        const color = (name) => st.getPropertyValue(name).trim().toUpperCase();
+        function luminosity(hex) {
+          if (!/^#[0-9A-F]{6}$/.test(hex)) return null;
+          const rgb=hex.slice(1).match(/../g).map(n=>parseInt(n,16)/255).map(v=>
+            v <= 0.04045 ? v / 12.92 : Math.pow((v+0.055)/1.055,2.4)
+          );
+          return rgb[0]*0.2126 + rgb[1]*0.7152 + rgb[2]*0.0722;
+        }
+        function contrast(a,b){
+          const x=luminosity(a),y=luminosity(b);
+          return x===null||y===null ? 0 : (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
+        }
+        return {
+          palette,
+          bloomOpacity: aurora?.opacity || null,
+          bloomImage: aurora?.backgroundImage || 'none',
+          textContrast: contrast(color('--ald-text'),color('--ald-surface')),
+          primaryContrast: contrast(color('--ald-on-primary'),color('--ald-primary')),
+          selectedAccent: document.querySelector('.dashboard-kpi-card:has(.tone-primary)')
+            ? getComputedStyle(document.querySelector('.dashboard-kpi-card:has(.tone-primary)'))
+              .getPropertyValue('--lg5-card-accent').trim().toUpperCase()
+            : null,
+        };
+      })(),
     };
   });
   const tag = persona + '/' + mode + '/' + width;
@@ -161,13 +192,49 @@ async function headerGeometry(page, persona, mode, width) {
   }
   check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
   check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
+  // R4 optical regression: SVG initialization alone does not prove visible glass.
+  // The lens must have a textured background to refract, translucent tint, and
+  // an actual CSS backdrop filter referencing the registered SVG displacement.
+  if (persona === 'superadmin') {
+    const optics = await page.evaluate(() => {
+      const shell = document.querySelector('.page-shell');
+      const glass = document.querySelector('.dashboard-kpi-card.lg-host');
+      const layer = glass?.querySelector(':scope > .lg-layer');
+      const paint = layer ? getComputedStyle(layer) : null;
+      const rgba = paint?.backgroundColor || '';
+      const match = rgba.match(/^rgba?\([^)]*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\)$/i);
+      return {
+        shellBackdrop: shell ? getComputedStyle(shell).backgroundImage : 'none',
+        glassSurface: glass ? getComputedStyle(glass).backgroundColor : 'missing',
+        tintAlpha: match ? Number(match[1]) : null,
+        filter: paint?.backdropFilter || 'none',
+        renderer: glass?.getAttribute('data-lg-renderer') || 'none',
+      };
+    });
+    check(optics.shellBackdrop.includes('radial-gradient'), 'R4_COLORED_BACKGROUND_TO_REFRACT', tag+': '+optics.shellBackdrop.slice(0,100));
+    check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);
+    check(optics.tintAlpha !== null && optics.tintAlpha <= 0.65, 'R4_TRANSLUCENT_GLASS_TINT', tag+': '+JSON.stringify(optics));
+  }
   check(state.htmlWidth <= width + 2, 'HEADER_NO_PAGE_X_OVERFLOW',
     tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
   check(state.themeMode === mode, 'THEME_MODE', tag + ': ' + state.themeMode);
   if (mode !== 'auto') check(state.docTheme === mode, 'THEME_RESOLVED', tag + ': ' + state.docTheme);
-  const bg = (mode === 'dark') ? '#13181C' : '#F3F5F6';
-  check(state.themeBackground.toUpperCase() === bg.toUpperCase(), 'THEME_MUTED_TOKEN',
+  const bg = state.docTheme === 'dark' ? '#09142B' : '#F2F6FF';
+  check(state.themeBackground.toUpperCase() === bg, 'R5_THEME_BACKGROUND',
     tag + ': ' + state.themeBackground);
+  for (const [name,expected] of Object.entries({
+    blue:'#287CFF',violet:'#885BFF',cyan:'#20CAFF',teal:'#16CAA7',amber:'#FFBB62',rose:'#FF658E'
+  })) check(state.r5.palette[name] === expected, 'R5_FUNCTIONAL_COLOR_'+name.toUpperCase(), tag+': '+state.r5.palette[name]);
+  if (persona === 'superadmin') {
+    check(state.r5.bloomOpacity === '0.6' && state.r5.bloomImage.includes('radial-gradient'),
+      'R5_AMBIENT_BLOBS_40_PERCENT_REDUCTION', tag+': '+JSON.stringify(state.r5).slice(0,340));
+    check(state.r5.selectedAccent === '#885BFF', 'R5_KPI_VIOLET_SEMANTIC_ROLE',
+      tag+': '+state.r5.selectedAccent);
+  }
+  check(state.r5.textContrast >= 4.5, 'R5_WCAG_AA_SURFACE_TEXT',
+    tag+': '+state.r5.textContrast.toFixed(2));
+  check(state.r5.primaryContrast >= 4.5, 'R5_WCAG_AA_PRIMARY_ACTION',
+    tag+': '+state.r5.primaryContrast.toFixed(2));
 
   const keys = shouldCart ? ['rate', 'cart', 'search'] : ['rate', 'search'];
   for (let i=0; i<keys.length; i++) {
