@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - feature/android-v14-liquid-glass-poc-20261018
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/android-v14-liquid-glass-compile.yml'
+      - 'apps/mobile/current/experiments/liquid-glass-v14/**'
   workflow_dispatch:
 permissions:
   contents: read
