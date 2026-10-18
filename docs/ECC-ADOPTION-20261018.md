@@ -20,7 +20,7 @@
 | `.codex/agents/docs-researcher.toml` | Read-only documentation checker | ECC `docs-researcher` |
 | `.codex/config.toml` | Project-local multi-agent role mapping | Adapted from ECC Codex reference |
 
-The three vendored ECC skill texts are pinned to the upstream commit, with a clearly marked Ald1n safety preface. **No automatic hook, third-party installer, MCP server, secret access, package manager or CLI mutation was imported.** Agents request read-only sandboxes. This integration does not guarantee that any specific chat client loads them automatically; clients must support local skill and agent discovery.
+The three ECC-inspired skills are **actively rewritten** for Ald1n CloudLinux (not merely prefixed with a warning). Upstream provenance is pinned at the cited commit; generic runnable migration/cache/installation examples have been removed. **No automatic hook, third-party installer, MCP server, secret access, package manager or CLI mutation was imported.** Agents request read-only sandboxes. This integration does not guarantee that any specific chat client loads them automatically; clients must support local skill and agent discovery.
 
 ## Optional: full ECC on a developer workstation running compatible Codex CLI
 
@@ -49,7 +49,20 @@ For ChatGPT skill-library users, the standalone `ald1n-ecc-engineering` skill ca
 - Change the running CMS, Android APK, PHP routes, migrations or webroot.
 - Install 311 ECC skills globally or claim the full ECC native plugin was installed.
 - Enable unreviewed third-party hooks or MCP agents on the server.
-- Imply that the outstanding Liquid Glass 2.0 preflight checksum problem is resolved on the CloudLinux host; it must be verified using the exact operator script bytes.
+- Claim that a passed preflight deploys the CMS. Owner-supplied **Report749** verifies SHA-256, seven CMS file sources and HTTP 200; it records `PREFLIGHT=PASS_SOURCE_AND_RUNTIME_GATES`, **`RELEASE=HOLD_AWAITING_SEPARATE_OWNER_DEPLOY_AUTHORIZATION`**. No production deploy has been authorized.
+- Merge this ECC branch while the CMS release kit is pinned to main `e8c5cfdacd1da503142e8e29a8ba5fd017776224`; that would move main and invalidate its exact-SHA gate. Keep PR #33 isolated until release authority is resolved or a separate docs-only-source delta is formally accepted.
+
+## Enforced CloudLinux compatibility (not optional)
+
+Read **[docs/ECC-CLOUDLINUX-CONTRACT.md](ECC-CLOUDLINUX-CONTRACT.md)** before every development or operator batch.
+
+- Canonical scripts: `/home/icaffeco/ald1n-project/incoming/`; canonical numbered reports: `/home/icaffeco/ald1n-project/docs/operations/`.
+- Fail closed when a script, prior report fingerprint, permitted scope, expected SHA-256, real toolchain or rollback evidence is missing.
+- CloudLinux lacks reliable shell process substitution, `/dev/fd`, `python3` and standard Node/npm/JDK PATH; rely on explicit paths and installed toolchain proofs.
+- Keep production MariaDB 10.11.19, Laravel 13/PHP 8.4, Expo SDK57/RN0.86, pinned EAS CLI25 and production Build25 identity intact.
+- Existing backend/Mobile parity, canonical 983-check CMS static gate, OpenAPI triple parity and owner-gated build/OTA remain mandatory.
+- `scripts/ecc/cloudlinux-guardrails.mjs` and its Node built-in self-tests run in disposable GitHub Actions `.github/workflows/ecc-cloudlinux-policy.yml`. Their PASS means only **instruction/config compliance**, not application/runtime acceptance.
+- ECC's full plugin/hook/MCP installers are **not** included; the three local Codex roles request read-only sandbox access.
 
 ## ECC update policy
 
