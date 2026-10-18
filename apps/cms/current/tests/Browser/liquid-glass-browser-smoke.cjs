@@ -480,6 +480,8 @@ async function main() {
           for (const width of persona === 'superadmin' ? [1440, 390, 320] : [320]) {
             await retirementPreviewSmoke(page,persona,mode,width);
           }
+          // Follow-on Liquid Glass optics smoke must always start on Dashboard.
+          await navigate(page, fixture.paths.dashboard, 'RETIREMENT_UAT_RESTORE_DASHBOARD');
           if (persona==='superadmin') {
             for (const width of [1440,320]) {
               await searchAndMenu(page,persona+'/'+mode+'/'+width,width);
