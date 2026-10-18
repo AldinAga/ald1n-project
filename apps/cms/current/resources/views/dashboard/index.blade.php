@@ -282,6 +282,33 @@
             @endif
         </section>
 
+        @if($user->hasRole('superadmin') && is_array($dashboardBrandMix))
+        <section class="panel dashboard-panel dashboard-d3-panel" data-dashboard-d3="1">
+            <div class="dashboard-panel-heading"><div><span class="eyebrow">Udeo prodaje</span><h2>Najprodavaniji brendovi</h2><p>{{ $reportStats['period_label'] }}</p></div></div>
+            <div class="dashboard-d3-switch" role="group" aria-label="Merilo rangiranja">
+                <button type="button" data-d3-mode="revenue" aria-pressed="true">Promet (RSD)</button>
+                <button type="button" data-d3-mode="units" aria-pressed="false">Komadi</button>
+            </div>
+            @foreach(['revenue' => 'Promet (RSD)', 'units' => 'Komadi'] as $metric => $metricLabel)
+                @php($mix = $dashboardBrandMix[$metric] ?? ['total' => 0, 'slices' => []])
+                <div data-d3-view="{{ $metric }}" @if($metric !== 'revenue') hidden @endif>
+                    @if(!empty($mix['slices']))
+                        <div class="dashboard-d3-chart" role="group" aria-label="Udeo prodaje po brendovima: {{ $metricLabel }}">
+                            <div class="dashboard-d3-donut" aria-hidden="true" style="--d3-fill: conic-gradient(@foreach($mix['slices'] as $idx => $slice){{ ['#287CFF','#885BFF','#20CAFF','#16CAA7','#FFBB62','#FF658E'][$idx % 6] }} {{ array_sum(array_column(array_slice($mix['slices'], 0, $idx), 'value')) / max(0.01, (float) $mix['total']) * 100 }}% {{ (array_sum(array_column(array_slice($mix['slices'], 0, $idx), 'value')) + $slice['value']) / max(0.01, (float) $mix['total']) * 100 }}%@if(!$loop->last),@endif @endforeach)"></div>
+                            <ol class="dashboard-d3-legend">
+                                @foreach($mix['slices'] as $idx => $slice)
+                                <li><i style="--d3-color:{{ ['#287CFF','#885BFF','#20CAFF','#16CAA7','#FFBB62','#FF658E'][$idx % 6] }}"></i><span>{{ $slice['label'] }}</span><strong>{{ number_format((float) $slice['value'], $metric === 'units' ? 0 : 2, ',', '.') }}{{ $metric === 'revenue' ? ' RSD' : '' }}</strong><small>{{ number_format((float) $slice['percent'], 1, ',', '.') }}%</small></li>
+                                @endforeach
+                            </ol>
+                        </div>
+                    @else
+                        <div class="dashboard-empty compact"><p>Nema prodaje u izabranom periodu.</p></div>
+                    @endif
+                </div>
+            @endforeach
+        </section>
+        @endif
+
         @unless($user->hasRole('superadmin'))
         <section class="panel dashboard-panel dashboard-priority-panel">
             <div class="dashboard-panel-heading"><div><span class="eyebrow">Fokus danas</span><h2>Prioritetne aktivnosti</h2><p>Operativne stavke koje trenutno zahtevaju reakciju.</p></div><span class="dashboard-priority-count">{{ count($priorityActions) }}</span></div>
@@ -367,3 +394,23 @@
 </section>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-dashboard-d3]').forEach(function (panel) {
+    panel.querySelectorAll('[data-d3-mode]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var mode = button.getAttribute('data-d3-mode');
+        panel.querySelectorAll('[data-d3-mode]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === button));
+        });
+        panel.querySelectorAll('[data-d3-view]').forEach(function (view) {
+          view.hidden = view.getAttribute('data-d3-view') !== mode;
+        });
+      });
+    });
+  });
+});
+</script>
+@endpush
