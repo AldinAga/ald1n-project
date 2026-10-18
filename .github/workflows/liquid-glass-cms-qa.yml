@@ -142,6 +142,9 @@ jobs:
       DB_PASSWORD: liquid-glass-ci-only
       CACHE_STORE: array
       SESSION_DRIVER: file
+      # This isolated localhost HTTP server must not inherit production-only cookies.
+      SESSION_SECURE_COOKIE: 'false'
+      SESSION_DOMAIN: ''
       QUEUE_CONNECTION: sync
       MAIL_MAILER: array
       TURNSTILE_ENABLED: 'false'
@@ -203,6 +206,8 @@ jobs:
           test "$DB_HOST" = 127.0.0.1
           test "$DB_DATABASE" = ald1n_liquid_ci
           test "$LIQUID_GLASS_BASE_URL" = http://127.0.0.1:8123
+          test "$SESSION_SECURE_COOKIE" = false
+          test -z "$SESSION_DOMAIN"
           mkdir -p "$LIQUID_GLASS_ARTIFACT_DIR"
           php artisan migrate:fresh --force --no-ansi
           php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
