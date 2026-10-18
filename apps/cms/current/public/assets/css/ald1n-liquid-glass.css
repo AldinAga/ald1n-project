@@ -1565,7 +1565,7 @@ html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,
 html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
   content: "";
   position: absolute;
-  inset: -16px -2.5vw -32px;
+  inset: -16px 0 -32px; /* keep blooms inside page-shell; no document overflow */
   z-index: 0;
   pointer-events: none;
   opacity: var(--lg5-bloom-opacity);
