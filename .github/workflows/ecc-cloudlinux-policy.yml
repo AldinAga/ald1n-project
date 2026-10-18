@@ -11,7 +11,7 @@ on:
       - '.codex/**'
       - 'docs/ECC-*.md'
       - 'scripts/ecc/**'
-      - 'docs/operations/750-ECC-CLOUDLINUX-ADOPTION-20261018.md'
+      - 'docs/reviews/ecc-cloudlinux-ci-20261018.md'
       - '.github/workflows/ecc-cloudlinux-policy.yml'
   workflow_dispatch:
 permissions:
@@ -40,7 +40,7 @@ jobs:
           git diff --name-only --no-renames origin/main...HEAD > "$RUNNER_TEMP/ecc-changed-paths.txt"
           while IFS= read -r path; do
             case "$path" in
-              .agents/skills/*|.codex/config.toml|.codex/agents/*|docs/ECC-*.md|docs/third-party/ECC-MIT-LICENSE.txt|docs/operations/750-ECC-CLOUDLINUX-ADOPTION-20261018.md|scripts/ecc/*|.github/workflows/ecc-cloudlinux-policy.yml)
+              .agents/skills/*|.codex/config.toml|.codex/agents/*|docs/ECC-*.md|docs/third-party/ECC-MIT-LICENSE.txt|docs/reviews/ecc-cloudlinux-ci-20261018.md|scripts/ecc/*|.github/workflows/ecc-cloudlinux-policy.yml)
                 ;;
               *)
                 echo "FAIL: unexpected modified path in ECC-only PR: $path"
