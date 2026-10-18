@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - design/liquid-glass-cms-20261018
+      - design/liquid-glass-2-r1-20261018
   pull_request:
     branches:
       - main
