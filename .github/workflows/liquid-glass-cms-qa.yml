@@ -99,6 +99,8 @@ jobs:
           php artisan test -c phpunit.mysql.xml tests/Feature/DashboardLegacyDesignTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/ArchivedOrdersLiquidGlassTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/ProductEditorLiquidGlassTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/DashboardD1Test.php --no-ansi
           node --check public/assets/js/ux-runtime.js
           php bin/static-check.php
           echo 'LIQUID_GLASS_CMS_QA=PASS'

@@ -347,6 +347,59 @@ async function editorSmoke(page, mode, width, screen) {
   if (mode !== 'auto' && (width===1440 || width===320)) await snapshot(page, mode+'-'+width+'-'+screen+'-sticky-actions');
 }
 
+async function dashboardD1Smoke(page, persona, mode) {
+  const label = persona + '/' + mode;
+  if (persona === 'superadmin') {
+    await page.setViewportSize({width:1440,height:900});
+    await navigate(page,fixture.paths.dashboard,'D1_DESKTOP_FOLD');
+    const last = await page.locator('[data-dashboard-d1-kpi="sale"]').boundingBox();
+    check(!!last && last.y + last.height <= 900,
+      'D1_ALL_SIX_ABOVE_DESKTOP_FOLD',label+': '+JSON.stringify(last));
+  }
+  await page.setViewportSize({width:390,height:844});
+  await navigate(page,fixture.paths.dashboard,'D1_DASHBOARD');
+  if (persona === 'superadmin') {
+    const positions = await page.evaluate(() => ({
+      hero: document.querySelector('.dashboard-d1-shell .modern-dashboard-hero')?.getBoundingClientRect().top,
+      focus: document.querySelector('.dashboard-d1-priorities')?.getBoundingClientRect().top,
+    }));
+    check(Number.isFinite(positions.hero) && Number.isFinite(positions.focus) && positions.hero < positions.focus,
+      'D1_MOBILE_HERO_BEFORE_FOCUS', label+': '+JSON.stringify(positions));
+  }
+  const count = await page.locator('[data-dashboard-d1-kpi]').count();
+  if (persona !== 'superadmin') {
+    check(count === 0, 'D1_RBAC_NO_SUPERADMIN_KPI', label+': '+count);
+    return;
+  }
+  check(count === 6, 'D1_SIX_KPI', label+': '+count);
+  const names = await page.locator('[data-dashboard-d1-kpi]').evaluateAll(nodes=>nodes.map(n=>n.dataset.dashboardD1Kpi));
+  check(names.join(',') === 'revenue,gross,net,receivables,purchase,sale',
+    'D1_SIX_KPI_ORDER', label+': '+names.join(','));
+  check(await page.locator('[data-dashboard-period="30d"]').count() === 1,
+    'D1_DEFAULT_30D', label);
+  check(await page.locator('.dashboard-d1-date-form input[type="date"]').count() === 2,
+    'D1_CUSTOM_DATE_INPUTS', label);
+
+  await navigate(page,'/?period=7d','D1_7D_GET');
+  check(await page.locator('[data-dashboard-period="7d"]').count() === 1,
+    'D1_7D_SELECTED', label);
+  check(await page.locator('.dashboard-d1-period-label').count() === 1,
+    'D1_7D_PERIOD_LABEL', label);
+  await navigate(page,'/?period=custom&date_from=2026-09-01&date_to=2026-09-30','D1_CUSTOM_GET');
+  check(await page.locator('[data-dashboard-period="custom"] input[name="date_from"]').inputValue() === '2026-09-01',
+    'D1_CUSTOM_DATE_FROM',label);
+  check(await page.locator('[data-dashboard-period="custom"] input[name="date_to"]').inputValue() === '2026-09-30',
+    'D1_CUSTOM_DATE_TO',label);
+  await navigate(page,'/?period=custom&date_from=2026-02-30&date_to=2026-03-01','D1_INVALID_GET');
+  check(await page.locator('[data-dashboard-period-error][role="alert"]').count() === 1,
+    'D1_INVALID_VISIBLE_ERROR', label);
+  check((await page.locator('[data-dashboard-d1-kpi="revenue"] strong').innerText()).includes('Nije dostupno'),
+    'D1_INVALID_NOT_A_FINANCIAL_ZERO',label);
+  const width=await page.evaluate(()=>document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check(width <= 1, 'D1_390_NO_OVERFLOW',label+': '+width);
+  await navigate(page,fixture.paths.dashboard,'D1_RESTORE_DASHBOARD');
+}
+
 async function main() {
   const browser = await chromium.launch({ headless:true, args:['--disable-dev-shm-usage'] });
   try {
@@ -360,6 +413,7 @@ async function main() {
               await snapshot(page,mode+'-'+width+'-'+persona+'-dashboard');
             }
           }
+          await dashboardD1Smoke(page,persona,mode);
           if (persona==='superadmin') {
             for (const width of [1440,320]) {
               await searchAndMenu(page,persona+'/'+mode+'/'+width,width);

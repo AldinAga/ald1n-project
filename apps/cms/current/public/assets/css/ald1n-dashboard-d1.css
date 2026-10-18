@@ -1,0 +1,469 @@
+/* Ald1n CMS Dashboard D1 — scoped layout on top of approved Liquid Glass R5.
+   No body/header/global token rewrites, no changes to existing refraction. */
+.build16-home-shell.dashboard-d1-shell {
+  gap: clamp(14px, 1.65vw, 22px);
+}
+.dashboard-d1-shell .modern-dashboard-hero.build16-home-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 285px);
+  gap: 16px;
+  padding: 18px clamp(16px, 2.1vw, 25px);
+}
+.dashboard-d1-shell .dashboard-welcome h1 {
+  margin: 5px 0 4px;
+  font-size: clamp(1.45rem, 2.1vw, 1.95rem);
+}
+.dashboard-d1-shell .dashboard-welcome > p {
+  line-height: 1.4;
+  font-size: .87rem;
+  max-width: 660px;
+}
+.dashboard-d1-shell .dashboard-quick-actions {
+  margin-top: 12px;
+  gap: 7px;
+}
+.dashboard-d1-shell .dashboard-quick-actions .button {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: .83rem;
+}
+.dashboard-d1-shell .modern-dashboard-hero .dashboard-rate-widget {
+  padding: 13px;
+}
+
+.dashboard-d1-shell .dashboard-d1-period {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+  padding: 16px clamp(14px, 2vw, 22px);
+  border-radius: 20px;
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  background: var(--lg5-panel-tint, var(--ald-surface));
+  -webkit-backdrop-filter: blur(15px) saturate(124%);
+  backdrop-filter: blur(15px) saturate(124%);
+  box-shadow: 0 13px 37px var(--lg2-ink-shadow), inset 0 1px 0 var(--lg5-sheen);
+}
+.dashboard-d1-shell .dashboard-d1-period-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.dashboard-d1-shell .dashboard-d1-period-heading > div:first-child {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 340px;
+  min-width: 0;
+}
+.dashboard-d1-shell .dashboard-d1-period-heading strong {
+  color: var(--ald-text);
+  font-size: 1rem;
+}
+.dashboard-d1-shell .dashboard-d1-period-heading small,
+.dashboard-d1-shell .dashboard-d1-period-label {
+  color: var(--ald-muted);
+  font-size: .81rem;
+  line-height: 1.4;
+}
+.dashboard-d1-shell .dashboard-d1-period-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.dashboard-d1-shell .dashboard-d1-period-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: 12px;
+  color: var(--ald-text);
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  background: var(--ald-surface-container);
+  font-size: .87rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color .15s, border-color .15s;
+}
+.dashboard-d1-shell .dashboard-d1-period-chip:hover {
+  border-color: var(--lg5-violet);
+  background: var(--ald-accent-soft);
+  color: var(--ald-text);
+}
+.dashboard-d1-shell .dashboard-d1-period-chip[aria-current="page"] {
+  color: #fff;
+  border-color: var(--lg5-violet);
+  background: linear-gradient(115deg, var(--lg5-blue-700), var(--lg5-violet-700));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--lg5-violet) 23%, transparent);
+}
+.dashboard-d1-shell .dashboard-d1-custom-range summary {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  min-height: 38px;
+  padding: 5px 0;
+  font-size: .89rem;
+  font-weight: 700;
+  color: var(--ald-text);
+}
+.dashboard-d1-shell .dashboard-d1-custom-range[open] summary { color: var(--ald-primary-strong); }
+.dashboard-d1-shell .dashboard-d1-date-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding-top: 5px;
+}
+.dashboard-d1-shell .dashboard-d1-date-form label {
+  display: grid;
+  gap: 5px;
+  min-width: 175px;
+  color: var(--ald-muted);
+  font-size: .83rem;
+}
+.dashboard-d1-shell .dashboard-d1-date-form input {
+  min-height: 43px;
+  width: 100%;
+  color: var(--ald-text);
+  border: 1px solid var(--ald-border);
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: var(--ald-surface-container);
+}
+.dashboard-d1-shell .dashboard-d1-date-form .button { min-height: 43px; }
+.dashboard-d1-shell .dashboard-d1-period-error {
+  margin: 0;
+  color: var(--ald-danger);
+  font-weight: 700;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: var(--ald-danger-soft);
+}
+.dashboard-d1-shell .dashboard-d1-kpi-period-text { color: var(--ald-muted); }
+
+.dashboard-d1-shell .dashboard-d1-priorities {
+  min-width: 0;
+  padding: 15px clamp(14px, 1.7vw, 20px);
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-panel-heading {
+  margin-bottom: 10px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-item {
+  min-width: 0;
+  height: 100%;
+  padding: 10px;
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ald-surface-container) 50%, transparent);
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-item + .dashboard-priority-item {
+  border-top: 1px solid var(--lg5-panel-edge, var(--ald-border));
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-item div { min-width: 0; }
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-item :is(strong,small) {
+  overflow-wrap: anywhere;
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-clear-state {
+  grid-column: 1 / -1;
+}
+
+.build16-home-shell.dashboard-d1-shell .dashboard-kpi-grid--d1 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: clamp(14px, 1.5vw, 20px);
+  min-width: 0;
+  min-height: 142px;
+  overflow-wrap: anywhere;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card small {
+  display: block;
+  font-size: .85rem;
+  font-weight: 800;
+  letter-spacing: .012em;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card strong {
+  display: block;
+  color: var(--ald-text);
+  font-size: clamp(1.1rem, 1.47vw, 1.5rem);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.018em;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card span:not(.dashboard-kpi-icon) {
+  font-size: .78rem;
+  line-height: 1.45;
+  color: var(--ald-muted);
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-icon {
+  flex: 0 0 auto;
+}
+.dashboard-d1-shell .dashboard-kpi-card[data-dashboard-d1-kpi="purchase"] {
+  --lg5-card-accent: var(--lg5-amber);
+}
+.dashboard-d1-shell .dashboard-kpi-card[data-dashboard-d1-kpi="sale"] {
+  --lg5-card-accent: var(--lg5-cyan);
+}
+.dashboard-d1-shell .dashboard-kpi-icon.tone-cyan {
+  color: var(--lg5-cyan);
+  background: color-mix(in srgb, var(--lg5-cyan) 17%, transparent);
+  border-color: color-mix(in srgb, var(--lg5-cyan) 36%, transparent);
+}
+html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-icon.tone-cyan {
+  color: #076B93;
+}
+html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-blue {
+  color: #165DCB;
+}
+html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber {
+  color: var(--lg5-warning-ink);
+}
+.build16-home-shell.dashboard-d1-shell .dashboard-main-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.dashboard-d1-shell .dashboard-trend-panel .dashboard-chart { min-width: 0; }
+
+.dashboard-d1-shell .dashboard-d1-modules {
+  padding: 0;
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  border-radius: 16px;
+}
+.dashboard-d1-shell .dashboard-d1-modules > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 17px 20px;
+  list-style: none;
+}
+.dashboard-d1-shell .dashboard-d1-modules > summary::-webkit-details-marker { display: none; }
+.dashboard-d1-shell .dashboard-d1-modules > summary span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.dashboard-d1-shell .dashboard-d1-modules > summary strong {
+  color: var(--ald-text);
+  font-size: 1.02rem;
+}
+.dashboard-d1-shell .dashboard-d1-modules[open] > summary { border-bottom: 1px solid var(--lg5-panel-edge, var(--ald-border)); }
+.dashboard-d1-shell .dashboard-d1-modules .dashboard-module-grid { padding: 12px; }
+
+@media (max-width: 1130px) {
+  .build16-home-shell.dashboard-d1-shell .dashboard-kpi-grid--d1 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .dashboard-d1-shell .modern-dashboard-hero.build16-home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+  .dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-d1-shell .dashboard-d1-period-heading { display: block; }
+  .dashboard-d1-shell .dashboard-d1-period-presets { margin-top: 12px; }
+  .dashboard-d1-shell .dashboard-d1-date-form label { flex: 1 1 100%; }
+  .dashboard-d1-shell .dashboard-d1-date-form .button { width: 100%; }
+}
+@media (max-width: 590px) {
+  .build16-home-shell.dashboard-d1-shell .dashboard-kpi-grid--d1 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card { min-height: 120px; }
+  .dashboard-d1-shell .dashboard-d1-period-chip { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-d1-shell :is(.dashboard-kpi-card,.dashboard-d1-period-chip) { transition: none !important; }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .dashboard-d1-shell .dashboard-d1-period {
+    background: var(--ald-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+
+/* D1 FIRST FOLD FIX — regression proven on real 1440x900 and 390px Chromium.
+   The old global .dashboard-priority-panel {order:-1} leaked into the new
+   top-level grid on mobile; reset that order in the D1 scope only. */
+.page-shell:has(.dashboard-d1-shell) {
+  margin-top: 17px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities {
+  order: 0;
+}
+.dashboard-d1-shell .dashboard-welcome > p {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dashboard-d1-shell .modern-dashboard-hero.build16-home-hero {
+  padding-block: 14px;
+}
+.dashboard-d1-shell .dashboard-d1-period {
+  gap: 6px;
+  padding-block: 12px;
+}
+.dashboard-d1-shell .dashboard-d1-period-heading small {
+  display: none;
+}
+.dashboard-d1-shell .dashboard-d1-custom-range summary {
+  min-height: 28px;
+  padding: 0;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  min-height: 0;
+  padding: 10px 14px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading {
+  display: flex;
+  flex: 0 0 auto;
+  margin: 0;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading .eyebrow,
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading p,
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-priority-count {
+  display: none;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading h2 {
+  margin: 0;
+  font-size: .87rem;
+  line-height: 1.3;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-priority-list {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--lg5-positive-ink, var(--ald-success));
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state strong {
+  margin: 0;
+  font-size: .84rem;
+}
+.dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-clear-state span {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  /* Seven quick actions must not make the entire first mobile screen a hero. */
+  .dashboard-d1-shell .dashboard-quick-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  .dashboard-d1-shell .dashboard-quick-actions .button {
+    display: inline-flex;
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 39px;
+  }
+  .dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .dashboard-d1-shell .dashboard-d1-priorities:has(.dashboard-clear-state) .dashboard-panel-heading h2 {
+    font-size: .8rem;
+  }
+}
+
+/* D2 comparison labels remain readable inside the six KPI cards. */
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-d2-delta {
+  display: block;
+  margin-top: 3px;
+  font-size: .78rem;
+  line-height: 1.5;
+  font-weight: 650;
+  color: var(--ald-text);
+  overflow-wrap: anywhere;
+}
+
+/* D3: chart is CSS-only, accessible data remain in adjacent semantic list. */
+.dashboard-d3-panel {min-width:0;padding:18px;}
+.dashboard-d3-switch {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px;}
+.dashboard-d3-switch button {cursor:pointer;padding:9px 14px;border-radius:12px;border:1px solid var(--ald-border);color:var(--ald-text);background:var(--ald-surface-container);}
+.dashboard-d3-switch button[aria-pressed="true"] {background:var(--lg5-violet-700);color:#fff;border-color:var(--lg5-violet-700);}
+.dashboard-d3-switch button:focus-visible {outline:3px solid var(--lg5-cyan);outline-offset:3px;}
+.dashboard-d3-chart {display:grid;grid-template-columns:minmax(140px,220px) minmax(0,1fr);align-items:center;gap:24px;}
+.dashboard-d3-donut {width:100%;max-width:220px;aspect-ratio:1;border-radius:50%;background:var(--d3-fill);mask:radial-gradient(farthest-side,transparent 56%,#000 57%);}
+.dashboard-d3-legend {list-style:none;display:grid;gap:8px;padding:0;margin:0;min-width:0;}
+.dashboard-d3-legend li {display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;align-items:center;gap:9px;min-width:0;font-size:.83rem;color:var(--ald-text);}
+.dashboard-d3-legend i {width:12px;height:12px;border-radius:50%;background:var(--d3-color);}
+.dashboard-d3-legend li span {overflow-wrap:anywhere;}
+.dashboard-d3-legend li strong {font-variant-numeric:tabular-nums;}
+.dashboard-d3-legend li small {color:var(--ald-muted);}
+.dashboard-d3-panel [hidden] {display:none !important;}
+@media(max-width:720px){.dashboard-d3-chart{grid-template-columns:minmax(0,1fr);justify-items:center;gap:16px}.dashboard-d3-legend{width:100%}.dashboard-d3-legend li{grid-template-columns:12px minmax(0,1fr) auto;}.dashboard-d3-legend li small{grid-column:2 / -1;justify-self:end}}
+@media(forced-colors:active){.dashboard-d3-donut{display:none}.dashboard-d3-legend i{border:1px solid CanvasText}}
+
+.dashboard-d3-trend-column .dashboard-d3-trend-bars{display:flex;align-items:flex-end;justify-content:center;gap:4px;height:100%;width:100%}
+.dashboard-d3-trend-column .dashboard-d3-trend-bars .dashboard-chart-bar{position:static;display:block;flex:1;max-width:19px;min-height:0;border-radius:5px 5px 0 0}
+.dashboard-d3-trend-column .dashboard-d3-revenue{background:#287CFF}
+.dashboard-d3-trend-column .dashboard-d3-gross{background:#16CAA7}
+.dashboard-d3-gross-key{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:50%;background:#16CAA7}
+.dashboard-d3-trend-data{margin-top:12px;color:var(--ald-text)}
+.dashboard-d3-trend-data summary{cursor:pointer;font-size:.82rem;text-decoration:underline}
+.dashboard-d3-trend-data table{width:100%;margin-top:10px;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums}
+.dashboard-d3-trend-data th,.dashboard-d3-trend-data td{padding:7px 5px;border-bottom:1px solid var(--ald-border);text-align:right}
+.dashboard-d3-trend-data th:first-child{text-align:left}
+.dashboard-d3-trend-data:focus-within{outline-offset:4px}

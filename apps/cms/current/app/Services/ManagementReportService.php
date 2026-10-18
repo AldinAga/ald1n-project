@@ -150,6 +150,77 @@ final class ManagementReportService
         ];
     }
 
+    /**
+     * All-brand source-of-truth aggregation. Do not use segments(): its LIMIT 30
+     * and revenue ordering would corrupt unit rankings and denominators.
+     *
+     * @param array<string,mixed> $filters
+     * @return array{revenue:array<string,mixed>,units:array<string,mixed>}
+     */
+    public function dashboardBrandMix(User $user, array $filters): array
+    {
+        $ids = $this->orderIds($user, $filters);
+        $query = DB::table('order_items as ri')
+            ->joinSub(clone $ids, 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'ri.order_id'));
+        $this->applyItemFilters($query, $filters, 'ri');
+        $source = $query->select(['ri.quantity', 'ri.line_total_rsd'])
+            ->selectRaw("COALESCE(NULLIF(TRIM(ri.brand_name_snapshot),''),'Bez podatka') as brand_label");
+        $rows = DB::query()->fromSub($source, 'brand_sales')
+            ->selectRaw('brand_label as label')
+            ->selectRaw('SUM(quantity) as units')
+            ->selectRaw('SUM(line_total_rsd) as revenue')
+            ->groupBy('brand_label')->get()->all();
+
+        return self::summarizeDashboardBrandRows($rows);
+    }
+
+    /**
+     * Deterministic aggregation reducer, separately testable from the scoped SQL query.
+     * @param array<int,object> $rows
+     * @return array<string,mixed>
+     */
+    public static function summarizeDashboardBrandRows(array $rows): array
+    {
+        $build = static function (string $key) use ($rows): array {
+            $positive = [];
+            foreach ($rows as $row) {
+                $amount = (float) $row->{$key};
+                if ($amount > 0 && is_finite($amount)) {
+                    $positive[] = ['label' => (string) $row->label, 'value' => $amount];
+                }
+            }
+            usort($positive, static fn (array $a, array $b): int =>
+                ($b['value'] <=> $a['value']) ?: strcmp($a['label'], $b['label']));
+            $total = array_sum(array_column($positive, 'value'));
+            if ($total <= 0) {
+                return ['total' => 0, 'slices' => []];
+            }
+            $top = array_slice($positive, 0, 5);
+            $other = array_sum(array_column(array_slice($positive, 5), 'value'));
+            if ($other > 0) {
+                $top[] = ['label' => 'Ostali', 'value' => $other];
+            }
+            $palette = ['#287CFF', '#885BFF', '#20CAFF', '#16CAA7', '#FFBB62', '#FF658E'];
+            $cursor = 0.0;
+            $stops = [];
+            foreach ($top as $index => &$row) {
+                $row['percent'] = round($row['value'] / $total * 100, 1);
+                $from = $cursor / $total * 100;
+                $cursor += $row['value'];
+                $to = $index === count($top) - 1 ? 100.0 : ($cursor / $total * 100);
+                $stops[] = $palette[$index % count($palette)].' '.number_format($from, 6, '.', '').'% '.number_format($to, 6, '.', '').'%';
+                $row['value'] = round($row['value'], 2);
+            }
+            unset($row);
+            return [
+                'total' => round($total, 2),
+                'slices' => $top,
+                'gradient' => 'conic-gradient('.implode(', ', $stops).')',
+            ];
+        };
+        return ['revenue' => $build('revenue'), 'units' => $build('units')];
+    }
+
     /** @param array<string,mixed> $filters @return list<array<string,mixed>> */
     public function segments(User $user, array $filters, string $group): array
     {
