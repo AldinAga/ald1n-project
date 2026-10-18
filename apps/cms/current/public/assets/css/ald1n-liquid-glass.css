@@ -1386,3 +1386,395 @@ html[data-theme="light"] :is(.nav-dropdown-menu, .header-product-search-dialog).
     background: var(--ald-surface) !important;
   }
 }
+
+
+/* ================================================================
+   R5 VIBRANT DUAL-THEME — approved Liquid Glass visual language.
+   Storefront UI-inspired semantic palette; no React/Vue dependencies.
+   Mockups are color/depth references, not changes to CMS architecture.
+   Aurora blooms: 0.60 opacity = 40% below the reference intensity.
+   All effects are paint-only, pointer-neutral and non-animated.
+   ================================================================ */
+html[data-theme="dark"], html[data-theme="light"] {
+  /* Six exact owner-approved anchor colors. */
+  --lg5-blue: #287CFF;
+  --lg5-violet: #885BFF;
+  --lg5-cyan: #20CAFF;
+  --lg5-teal: #16CAA7;
+  --lg5-amber: #FFBB62;
+  --lg5-rose: #FF658E;
+  /* Token families: lighter tint / mid / anchor / hover / deep shade. */
+  --lg5-blue-100: color-mix(in srgb,var(--lg5-blue) 16%,white);
+  --lg5-blue-300: color-mix(in srgb,var(--lg5-blue) 53%,white);
+  --lg5-blue-500: var(--lg5-blue);
+  --lg5-blue-700: color-mix(in srgb,var(--lg5-blue) 72%,#092854);
+  --lg5-blue-900: color-mix(in srgb,var(--lg5-blue) 25%,#09152D);
+  --lg5-violet-100: color-mix(in srgb,var(--lg5-violet) 16%,white);
+  --lg5-violet-300: color-mix(in srgb,var(--lg5-violet) 53%,white);
+  --lg5-violet-500: var(--lg5-violet);
+  --lg5-violet-700: color-mix(in srgb,var(--lg5-violet) 72%,#351265);
+  --lg5-violet-900: color-mix(in srgb,var(--lg5-violet) 25%,#160D39);
+  --lg5-cyan-100: color-mix(in srgb,var(--lg5-cyan) 16%,white);
+  --lg5-cyan-300: color-mix(in srgb,var(--lg5-cyan) 53%,white);
+  --lg5-cyan-500: var(--lg5-cyan);
+  --lg5-cyan-700: color-mix(in srgb,var(--lg5-cyan) 72%,#06395A);
+  --lg5-cyan-900: color-mix(in srgb,var(--lg5-cyan) 25%,#071F30);
+  --lg5-teal-100: color-mix(in srgb,var(--lg5-teal) 16%,white);
+  --lg5-teal-300: color-mix(in srgb,var(--lg5-teal) 53%,white);
+  --lg5-teal-500: var(--lg5-teal);
+  --lg5-teal-700: color-mix(in srgb,var(--lg5-teal) 72%,#07553F);
+  --lg5-teal-900: color-mix(in srgb,var(--lg5-teal) 25%,#06332C);
+  --lg5-amber-100: color-mix(in srgb,var(--lg5-amber) 16%,white);
+  --lg5-amber-300: color-mix(in srgb,var(--lg5-amber) 53%,white);
+  --lg5-amber-500: var(--lg5-amber);
+  --lg5-amber-700: color-mix(in srgb,var(--lg5-amber) 72%,#6D3B0D);
+  --lg5-amber-900: color-mix(in srgb,var(--lg5-amber) 25%,#3C2716);
+  --lg5-rose-100: color-mix(in srgb,var(--lg5-rose) 16%,white);
+  --lg5-rose-300: color-mix(in srgb,var(--lg5-rose) 53%,white);
+  --lg5-rose-500: var(--lg5-rose);
+  --lg5-rose-700: color-mix(in srgb,var(--lg5-rose) 72%,#7F204B);
+  --lg5-rose-900: color-mix(in srgb,var(--lg5-rose) 25%,#3A1229);
+  --lg5-bloom-opacity: .6;
+  --lg5-focus: var(--lg5-blue);
+  color-scheme: normal;
+}
+html[data-theme="dark"] {
+  --ald-background: #09142B;
+  --ald-surface: #142140;
+  --ald-surface-muted: #182849;
+  --ald-surface-container: #1C2C50;
+  --ald-surface-container-high: #24375F;
+  --ald-text: #F4F7FF;
+  --ald-muted: #BAC8E6;
+  --ald-border: #405783;
+  --ald-outline: #A0B6EA;
+  --ald-primary: #287CFF;
+  --ald-primary-strong: #63A2FF;
+  --ald-on-primary: #09142B;
+  --ald-primary-container: #352773;
+  --ald-on-primary-container: #FAF6FF;
+  --ald-secondary-container: #24335C;
+  --ald-accent: var(--lg5-violet);
+  --ald-accent-soft: #30235F;
+  --ald-success: var(--lg5-teal);
+  --ald-success-soft: #17493F;
+  --ald-warning: var(--lg5-amber);
+  --ald-warning-soft: #4A331C;
+  --ald-danger: var(--lg5-rose);
+  --ald-on-danger: #09142B;
+  --ald-danger-soft: #4F263D;
+  --ald-info: var(--lg5-cyan);
+  --ald-info-soft: #143B59;
+  --lg2-shell: #101C3B;
+  --lg2-edge: rgba(140,171,252,.34);
+  --lg2-highlight: rgba(248,252,255,.21);
+  --lg2-glow: rgba(136,91,255,.28);
+  --lg2-ink-shadow: rgba(2,7,30,.39);
+  --lg5-glass-tint: rgba(12,25,57,.40);
+  --lg5-panel-tint: rgba(17,31,65,.63);
+  --lg5-panel-edge: rgba(131,167,247,.30);
+  --lg5-sheen: rgba(240,249,255,.40);
+  --lg5-disabled-bg: #293857;
+  --lg5-disabled-ink: #A6B2CE;
+  --bg: var(--ald-background);
+  --panel: var(--ald-surface);
+  --panel-2: var(--ald-surface-muted);
+  --text: var(--ald-text);
+  --muted: var(--ald-muted);
+  --line: var(--ald-border);
+  --primary: var(--ald-primary);
+  --primary-2: var(--ald-primary-strong);
+  --violet: var(--lg5-violet);
+  --green: var(--lg5-teal);
+  --amber: var(--lg5-amber);
+  --red: var(--lg5-rose);
+  --header: rgba(13,25,55,.55);
+  color-scheme: dark;
+}
+html[data-theme="light"] {
+  --ald-background: #F2F6FF;
+  --ald-surface: #FBFCFF;
+  --ald-surface-muted: #EDF3FF;
+  --ald-surface-container: #E8F0FE;
+  --ald-surface-container-high: #DFE9FC;
+  --ald-text: #142047;
+  --ald-muted: #52628B;
+  --ald-border: #C5D3F1;
+  --ald-outline: #6381BA;
+  /* #287CFF remains the identity anchor; a darker action shade
+     keeps white button text at >= 4.5:1 WCAG contrast. */
+  --ald-primary: #165DCB;
+  --ald-primary-strong: #104EAD;
+  --ald-on-primary: #FFFFFF;
+  --ald-primary-container: #EAE4FF;
+  --ald-on-primary-container: #452B9B;
+  --ald-secondary-container: #E5EEFF;
+  --ald-accent: var(--lg5-violet);
+  --ald-accent-soft: #EEE9FF;
+  --ald-success: #087C65;
+  --ald-success-soft: #D8F9EE;
+  --ald-warning: #8A5310;
+  --ald-warning-soft: #FFF0D7;
+  --ald-danger: #B9345C;
+  --ald-on-danger: #FFFFFF;
+  --ald-danger-soft: #FFE5ED;
+  --ald-info: #155DC3;
+  --ald-info-soft: #E0F2FF;
+  --lg2-shell: #F5F8FF;
+  --lg2-edge: rgba(112,148,221,.32);
+  --lg2-highlight: rgba(255,255,255,.93);
+  --lg2-glow: rgba(136,91,255,.19);
+  --lg2-ink-shadow: rgba(45,69,125,.14);
+  --lg5-glass-tint: rgba(252,253,255,.54);
+  --lg5-panel-tint: rgba(252,253,255,.70);
+  --lg5-panel-edge: rgba(128,159,219,.34);
+  --lg5-sheen: rgba(255,255,255,.85);
+  --lg5-disabled-bg: #E1E6F1;
+  --lg5-disabled-ink: #727F99;
+  --bg: var(--ald-background);
+  --panel: var(--ald-surface);
+  --panel-2: var(--ald-surface-muted);
+  --text: var(--ald-text);
+  --muted: var(--ald-muted);
+  --line: var(--ald-border);
+  --primary: var(--ald-primary);
+  --primary-2: var(--ald-primary-strong);
+  --violet: var(--lg5-violet);
+  --green: var(--ald-success);
+  --amber: var(--ald-warning);
+  --red: var(--ald-danger);
+  --header: rgba(250,252,255,.62);
+  color-scheme: light;
+}
+
+/* Rich background is NOT a background image file: safe CSS paint only.
+   No new scrolling contexts and no interactive overlays. */
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(ellipse 52% 44% at -9% 82%,rgba(40,124,255,.19),transparent 83%),
+    radial-gradient(ellipse 38% 32% at 88% -8%,rgba(136,91,255,.18),transparent 80%),
+    radial-gradient(ellipse 37% 26% at 105% 69%,rgba(255,101,142,.11),transparent 83%),
+    #09142B;
+  background-attachment: fixed;
+}
+html[data-theme="light"] body {
+  background:
+    radial-gradient(ellipse 52% 44% at -9% 82%,rgba(40,124,255,.11),transparent 83%),
+    radial-gradient(ellipse 38% 32% at 88% -8%,rgba(136,91,255,.10),transparent 80%),
+    radial-gradient(ellipse 37% 26% at 105% 69%,rgba(255,101,142,.075),transparent 83%),
+    #F2F6FF;
+  background-attachment: fixed;
+}
+
+/* Exactly 60% of reference aurora paint: 40% softer background blobs. */
+.page-shell:has(.dashboard-kpi-card) {
+  isolation: isolate;
+  background: none;
+}
+html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,
+html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
+  content: "";
+  position: absolute;
+  inset: -16px -2.5vw -32px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--lg5-bloom-opacity);
+  filter: blur(30px);
+  background:
+    radial-gradient(ellipse 41% 26% at 9% 13%,rgba(40,124,255,.42),transparent 76%),
+    radial-gradient(ellipse 44% 31% at 88% 15%,rgba(136,91,255,.38),transparent 77%),
+    radial-gradient(ellipse 32% 24% at 92% 77%,rgba(255,101,142,.28),transparent 74%),
+    radial-gradient(ellipse 43% 27% at 17% 90%,rgba(32,202,255,.33),transparent 74%);
+}
+html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
+  background:
+    radial-gradient(ellipse 43% 29% at 8% 16%,rgba(40,124,255,.33),transparent 76%),
+    radial-gradient(ellipse 42% 31% at 88% 14%,rgba(136,91,255,.28),transparent 77%),
+    radial-gradient(ellipse 37% 25% at 92% 76%,rgba(255,101,142,.23),transparent 74%),
+    radial-gradient(ellipse 44% 27% at 18% 91%,rgba(32,202,255,.28),transparent 74%);
+}
+.page-shell:has(.dashboard-kpi-card) > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Header and navigation stay in their existing positions with original RBAC.
+   Only the glass paint, active state and interaction feedback are enhanced. */
+.site-header { border-bottom:1px solid var(--lg5-panel-edge); }
+html[data-theme="dark"] .site-header.lg-host,
+html[data-theme="light"] .site-header.lg-host {
+  --lg-tint: var(--lg5-glass-tint);
+  background: transparent !important;
+  box-shadow: 0 16px 45px var(--lg2-ink-shadow),
+              inset 0 1px 0 var(--lg5-sheen);
+}
+.site-header .header-secondary-row {
+  border-color: var(--lg5-panel-edge);
+  background: color-mix(in srgb,var(--lg5-panel-tint) 68%,transparent);
+}
+.site-header .header-secondary-row :is(.main-nav > a.active,.nav-dropdown > summary.active) {
+  background: linear-gradient(110deg,var(--lg5-blue-700),var(--lg5-violet-700));
+  color: #FFFFFF;
+  border: 1px solid color-mix(in srgb,var(--lg5-violet) 48%,transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb,var(--lg5-cyan) 20%,transparent),
+              0 8px 23px color-mix(in srgb,var(--lg5-violet) 22%,transparent);
+}
+html[data-theme="dark"] :is(.nav-dropdown-menu,.header-product-search-dialog).lg-host,
+html[data-theme="light"] :is(.nav-dropdown-menu,.header-product-search-dialog).lg-host {
+  --lg-tint: var(--lg5-glass-tint);
+  background: transparent !important;
+  border-color: var(--lg5-panel-edge);
+  box-shadow: 0 24px 52px var(--lg2-ink-shadow),inset 0 1px 0 var(--lg5-sheen);
+}
+
+/* Real refractive lenses: lens-layer CSS is vendored and not modified. */
+html[data-theme="dark"] .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host,
+html[data-theme="light"] .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host {
+  --lg-tint: var(--lg5-glass-tint);
+  background: transparent !important;
+  border: 1px solid var(--lg5-panel-edge);
+  box-shadow: 0 19px 44px var(--lg2-ink-shadow),
+              inset 0 1px 0 var(--lg5-sheen);
+}
+.page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host > .lg-layer {
+  box-shadow: inset 0 1px 0 var(--lg5-sheen),
+              inset 0 -1px 0 color-mix(in srgb,var(--lg5-cyan) 14%,transparent),
+              0 12px 35px var(--lg2-ink-shadow);
+}
+.page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host > .lg-sheen {
+  opacity: .35;
+  background: radial-gradient(ellipse at 10% 0%,var(--lg5-sheen),transparent 65%);
+}
+
+/* Dashboard panels remain actual Blade panels; no invented screens/widgets.
+   Existing live charts and real order metrics retain their data sources. */
+.build16-home-shell :is(.dashboard-panel,.dashboard-module-card,.dashboard-rate-widget) {
+  background: var(--lg5-panel-tint);
+  border-color: var(--lg5-panel-edge);
+  -webkit-backdrop-filter: blur(15px) saturate(124%);
+  backdrop-filter: blur(15px) saturate(124%);
+  box-shadow: 0 17px 42px var(--lg2-ink-shadow), inset 0 1px 0 var(--lg5-sheen);
+}
+.build16-home-shell .dashboard-trend-panel {
+  background:
+    radial-gradient(ellipse 46% 48% at 98% 99%,color-mix(in srgb,var(--lg5-cyan) 12%,transparent),transparent 77%),
+    var(--lg5-panel-tint);
+}
+.build16-home-shell .modern-dashboard-hero .dashboard-rate-widget {
+  border-radius: 17px;
+}
+.build16-home-shell .dashboard-kpi-card {
+  --lg5-card-accent: var(--lg5-blue);
+  --lg5-card-glow: color-mix(in srgb,var(--lg5-card-accent) 25%,transparent);
+  border-color: color-mix(in srgb,var(--lg5-card-accent) 34%,var(--lg5-panel-edge)) !important;
+  box-shadow: 0 18px 42px var(--lg2-ink-shadow),
+              0 0 18px color-mix(in srgb,var(--lg5-card-accent) 14%,transparent),
+              inset 0 1px 0 var(--lg5-sheen) !important;
+}
+.build16-home-shell .dashboard-kpi-card:has(.tone-primary) { --lg5-card-accent: var(--lg5-violet); }
+.build16-home-shell .dashboard-kpi-card:has(.tone-blue) { --lg5-card-accent: var(--lg5-blue); }
+.build16-home-shell .dashboard-kpi-card:has(.tone-green) { --lg5-card-accent: var(--lg5-teal); }
+.build16-home-shell .dashboard-kpi-card:has(.tone-amber) { --lg5-card-accent: var(--lg5-amber); }
+.build16-home-shell .dashboard-kpi-card:has(.tone-red) { --lg5-card-accent: var(--lg5-rose); }
+.build16-home-shell .dashboard-kpi-card::before {
+  background: radial-gradient(circle,var(--lg5-card-glow),transparent 74%);
+  opacity: .6;
+}
+.build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-primary {
+  color: var(--lg5-violet);
+  background: color-mix(in srgb,var(--lg5-violet) 17%,transparent);
+  border-color: color-mix(in srgb,var(--lg5-violet) 36%,transparent);
+}
+.build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-blue {
+  color: var(--lg5-blue);
+  background: color-mix(in srgb,var(--lg5-blue) 17%,transparent);
+  border-color: color-mix(in srgb,var(--lg5-blue) 36%,transparent);
+}
+.build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-green {
+  color: var(--lg5-teal);
+  background: color-mix(in srgb,var(--lg5-teal) 17%,transparent);
+  border-color: color-mix(in srgb,var(--lg5-teal) 36%,transparent);
+}
+.build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-amber {
+  color: var(--lg5-amber);
+  background: color-mix(in srgb,var(--lg5-amber) 17%,transparent);
+  border-color: color-mix(in srgb,var(--lg5-amber) 36%,transparent);
+}
+.build16-home-shell :is(.dashboard-kpi-icon,.module-icon).tone-red {
+  color: var(--lg5-rose);
+  background: color-mix(in srgb,var(--lg5-rose) 17%,transparent);
+  border-color: color-mix(in srgb,var(--lg5-rose) 36%,transparent);
+}
+.build16-home-shell .dashboard-priority-count {
+  color: var(--ald-warning);
+  border-color: color-mix(in srgb,var(--lg5-amber) 36%,var(--lg5-panel-edge));
+  background: color-mix(in srgb,var(--lg5-amber) 12%,var(--lg5-panel-tint));
+}
+
+/* Functional states. Brand anchors stay exact; legibility uses semantic shades. */
+.page-shell .button-primary,
+.site-header .button-primary {
+  color: var(--ald-on-primary);
+  background: var(--ald-primary);
+  border-color: var(--lg5-blue);
+  box-shadow: 0 5px 18px color-mix(in srgb,var(--lg5-blue) 22%,transparent);
+}
+.page-shell .button-primary:hover,
+.site-header .button-primary:hover {
+  color: var(--ald-on-primary);
+  background: var(--ald-primary-strong);
+  box-shadow: 0 9px 26px color-mix(in srgb,var(--lg5-blue) 30%,transparent);
+}
+:where(.site-header,.page-shell) :is(button,a,input,select,textarea,[tabindex]):focus-visible {
+  outline: 3px solid var(--lg5-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px color-mix(in srgb,var(--lg5-focus) 23%,transparent);
+}
+:where(.site-header,.page-shell) :is(button,.button,[role="button"]):disabled,
+:where(.site-header,.page-shell) :is(button,.button,[role="button"])[aria-disabled="true"] {
+  color: var(--lg5-disabled-ink);
+  background: var(--lg5-disabled-bg);
+  opacity: .62;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Transparent materials must never override user accessibility preferences. */
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .page-shell:has(.dashboard-kpi-card)::before { content: none !important; }
+  html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card),
+  html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) { background: none !important; }
+  .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host,
+  .build16-home-shell :is(.dashboard-panel,.dashboard-module-card,.dashboard-rate-widget),
+  .site-header.lg-host,
+  :is(.nav-dropdown-menu,.header-product-search-dialog).lg-host {
+    background: var(--ald-surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-card).lg-host > .lg-sheen {
+    opacity: 0 !important;
+  }
+}
+@media (forced-colors: active) {
+  :where(.site-header,.page-shell) :is(button,a,input,select,textarea,[tabindex]):focus-visible {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
+  .build16-home-shell :is(.dashboard-kpi-card,.dashboard-panel,.dashboard-module-card) {
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .build16-home-shell .dashboard-kpi-card {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .build16-home-shell :is(.dashboard-panel,.dashboard-module-card,.dashboard-rate-widget) {
+    background: var(--ald-surface) !important;
+  }
+}
