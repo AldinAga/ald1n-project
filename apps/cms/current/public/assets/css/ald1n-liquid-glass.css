@@ -591,7 +591,7 @@ body {
   line-height: 1.58;
 }
 
-.order-archive-purge-retention {
+.order-archive-purge-dialog .order-archive-purge-retention {
   margin: 0 24px 19px;
   font-size: 13px;
   color: var(--ald-muted);
@@ -690,7 +690,7 @@ body {
     padding: 12px 13px;
   }
 
-  .order-archive-purge-retention {
+  .order-archive-purge-dialog .order-archive-purge-retention {
     margin: 0 17px 16px;
   }
 
