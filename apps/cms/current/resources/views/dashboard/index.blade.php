@@ -303,7 +303,7 @@
                 <div data-d3-view="{{ $metric }}" @if($metric !== 'revenue') hidden @endif>
                     @if(!empty($mix['slices']))
                         <div class="dashboard-d3-chart" role="group" aria-label="Udeo prodaje po brendovima: {{ $metricLabel }}">
-                            <div class="dashboard-d3-donut" aria-hidden="true" style="--d3-fill: conic-gradient(@foreach($mix['slices'] as $idx => $slice){{ ['#287CFF','#885BFF','#20CAFF','#16CAA7','#FFBB62','#FF658E'][$idx % 6] }} {{ array_sum(array_column(array_slice($mix['slices'], 0, $idx), 'value')) / max(0.01, (float) $mix['total']) * 100 }}% {{ (array_sum(array_column(array_slice($mix['slices'], 0, $idx), 'value')) + $slice['value']) / max(0.01, (float) $mix['total']) * 100 }}%@if(!$loop->last),@endif @endforeach)"></div>
+                            <div class="dashboard-d3-donut" aria-hidden="true" style="--d3-fill: {{ $mix['gradient'] ?? 'none' }}"></div>
                             <ol class="dashboard-d3-legend">
                                 @foreach($mix['slices'] as $idx => $slice)
                                 <li><i style="--d3-color:{{ ['#287CFF','#885BFF','#20CAFF','#16CAA7','#FFBB62','#FF658E'][$idx % 6] }}"></i><span>{{ $slice['label'] }}</span><strong>{{ number_format((float) $slice['value'], $metric === 'units' ? 0 : 2, ',', '.') }}{{ $metric === 'revenue' ? ' RSD' : '' }}</strong><small>{{ number_format((float) $slice['percent'], 1, ',', '.') }}%</small></li>
