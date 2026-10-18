@@ -10,7 +10,7 @@ use DateTimeZone;
 
 /**
  * Pure, strict dashboard GET period resolver; never normalizes invalid input
- * into apparently valid finance data. Defaults to 30 inclusive calendar days.
+ * into apparently valid finance data. Defaults to current month-to-date.
  */
 final class DashboardPeriod
 {
@@ -19,14 +19,18 @@ final class DashboardPeriod
     {
         $today = $today->setTimezone('Europe/Belgrade')->startOfDay();
         $fallback = [
-            'period' => '30d',
-            'date_from' => $today->subDays(29)->toDateString(),
+            'period' => 'default',
+            'date_from' => $today->startOfMonth()->toDateString(),
             'date_to' => $today->toDateString(),
             'error' => null,
         ];
-        $mode = $query['period'] ?? '30d';
-        if (!is_string($mode) || !in_array($mode, ['7d', '30d', 'custom'], true)) {
+        $mode = $query['period'] ?? 'default';
+        if (!is_string($mode) || !in_array($mode, ['default', '7d', '30d', 'custom'], true)) {
             return array_replace($fallback, ['error' => 'Izaberite važeći vremenski period.']);
+        }
+
+        if ($mode === 'default') {
+            return $fallback;
         }
 
         if ($mode === '7d' || $mode === '30d') {
