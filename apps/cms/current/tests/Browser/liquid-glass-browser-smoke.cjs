@@ -161,6 +161,29 @@ async function headerGeometry(page, persona, mode, width) {
   }
   check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
   check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
+  // R4 optical regression: SVG initialization alone does not prove visible glass.
+  // The lens must have a textured background to refract, translucent tint, and
+  // an actual CSS backdrop filter referencing the registered SVG displacement.
+  if (persona === 'superadmin') {
+    const optics = await page.evaluate(() => {
+      const shell = document.querySelector('.page-shell');
+      const glass = document.querySelector('.dashboard-kpi-card.lg-host');
+      const layer = glass?.querySelector(':scope > .lg-layer');
+      const paint = layer ? getComputedStyle(layer) : null;
+      const rgba = paint?.backgroundColor || '';
+      const match = rgba.match(/^rgba?\\([^)]*,\\s*(0(?:\\.\\d+)?|1(?:\\.0+)?)\\)$/i);
+      return {
+        shellBackdrop: shell ? getComputedStyle(shell).backgroundImage : 'none',
+        glassSurface: glass ? getComputedStyle(glass).backgroundColor : 'missing',
+        tintAlpha: match ? Number(match[1]) : null,
+        filter: paint?.backdropFilter || 'none',
+        renderer: glass?.getAttribute('data-lg-renderer') || 'none',
+      };
+    });
+    check(optics.shellBackdrop.includes('radial-gradient'), 'R4_COLORED_BACKGROUND_TO_REFRACT', tag+': '+optics.shellBackdrop.slice(0,100));
+    check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);
+    check(optics.tintAlpha !== null && optics.tintAlpha <= 0.65, 'R4_TRANSLUCENT_GLASS_TINT', tag+': '+JSON.stringify(optics));
+  }
   check(state.htmlWidth <= width + 2, 'HEADER_NO_PAGE_X_OVERFLOW',
     tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
   check(state.themeMode === mode, 'THEME_MODE', tag + ': ' + state.themeMode);
