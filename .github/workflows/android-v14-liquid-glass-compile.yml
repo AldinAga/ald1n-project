@@ -1,4 +1,4 @@
-name: Android v1.4 isolated Liquid Glass native compile
+name: Android v1.4 Liquid Glass native module compile (isolated)
 on:
   push:
     branches:
@@ -69,18 +69,20 @@ jobs:
           set -euo pipefail
           npx expo prebuild --platform android --no-install
           test -d android
-      - name: Compile disposable Android APK
+      - name: Compile isolated Android Liquid Glass Kotlin module (no Firebase app variant)
         working-directory: apps/mobile/current/android
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace | tee "$RUNNER_TEMP/ald1n-v14-native-gradle.log"
-          grep -F ':react-native-android-liquid-glass:' "$RUNNER_TEMP/ald1n-v14-native-gradle.log" >/dev/null || {
-            echo 'HOLD: native glass module was not autolinked or compiled'
+          # The tracked Firebase JSON has no client for com.ald1n.mobile.development.
+          # Do not fabricate credentials, rewrite the package ID, or falsely report APK PASS.
+          ./gradlew :react-native-android-liquid-glass:compileDebugKotlin --no-daemon --stacktrace | tee "$RUNNER_TEMP/ald1n-v14-module-gradle.log"
+          grep -F ':react-native-android-liquid-glass:compileDebugKotlin' "$RUNNER_TEMP/ald1n-v14-module-gradle.log" >/dev/null || {
+            echo 'FAIL: Liquid Glass native Kotlin task was not executed'
             exit 31
           }
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          echo 'NATIVE_LIQUID_GLASS_COMPILE=PASS'
+          echo 'NATIVE_LIQUID_GLASS_MODULE_COMPILE=PASS'
+          echo 'APP_DEBUG_APK=HOLD_FIREBASE_DEVELOPMENT_CLIENT_MISSING'
       - name: No production release
         if: always()
         run: |
