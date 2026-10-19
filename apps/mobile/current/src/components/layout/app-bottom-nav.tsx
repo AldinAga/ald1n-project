@@ -240,7 +240,11 @@ function createStyles(theme: AppColors, isDark: boolean) {
       shadowOpacity: 0.04,
     },
     glassReflection: {
-      ...StyleSheet.absoluteFillObject,
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
       borderRadius: 24,
       overflow: 'hidden',
     },
