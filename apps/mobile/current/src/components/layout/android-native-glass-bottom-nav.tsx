@@ -19,9 +19,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { resolveAndroidGlassMaterial } from './android-glass-material-policy';
 import { AppBottomNav } from './app-bottom-nav';
+import { useAppTheme } from '@/theme/app-theme';
 
 export function AndroidNativeGlassBottomNav() {
   const insets = useSafeAreaInsets();
+  const { isDark } = useAppTheme();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   // Fail CLOSED while determining OS accessibility support.
   const [reduceTransparency, setReduceTransparency] = useState(true);
@@ -87,6 +89,7 @@ export function AndroidNativeGlassBottomNav() {
       style={[styles.nativeGlass, frame]}
       cornerRadius={24}
       material="regular"
+      overLight={!isDark}
       refractionHeight={42}
       bevelWidth={12}
       dispersionStrength={0.06}
