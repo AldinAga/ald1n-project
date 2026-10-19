@@ -2,6 +2,10 @@
 
 @section('title', 'Korisnici i pristup')
 
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/css/ald1n-user-retirement-action.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-user-retirement-action.css')) ?: config('app.version') }}">
+@endpush
+
 @section('content')
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Pristup i ovlašćenja'])
 @include('admin.access-control.partials.workspace-style')
@@ -167,7 +171,7 @@
             <article class="panel access-control-user-card" data-access-user="{{ $user->id }}">
                 <div class="access-control-user-head">
                     @if(auth()->user()?->hasRole('superadmin') && (int) auth()->id() !== (int) $user->id && $roleSlug !== 'superadmin' && $status !== 'blocked')
-                        <a class="button button-ghost" href="{{ route('admin.users.retirement.preview', $user) }}">Ukloni korisnika</a>
+                        <a class="button button-ghost access-control-user-retire-link" href="{{ route('admin.users.retirement.preview', $user) }}">Ukloni korisnika</a>
                     @endif
                     <div class="access-control-user-identity">
                         <strong>{{ $user->displayName() }}</strong>
