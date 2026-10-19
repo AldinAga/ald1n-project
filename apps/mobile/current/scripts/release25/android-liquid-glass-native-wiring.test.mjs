@@ -83,6 +83,8 @@ test('native transient failure and incapable pipeline fall back, not crash or fo
 });
 
 test('native capture is live over scrolling content but bounded for jank/battery', () => {
+  assert.match(host, /overLight=\{!isDark\}/);
+  assert.match(host, /useAppTheme\(\)/);
   assert.match(host, /enableDynamicBackground/);
   assert.match(host, /paused=\{!foreground\}/);
   assert.match(host, /globalDownsampleFactor=\{0\.5\}/);
