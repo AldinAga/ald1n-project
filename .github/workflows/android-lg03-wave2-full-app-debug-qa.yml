@@ -1,0 +1,125 @@
+name: Android LG-03 Wave 2 - native full-app compile (isolated)
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/android-lg03-wave2-full-app-debug-qa.yml'
+      - 'apps/mobile/current/docs/ANDROID-LIQUID-GLASS-LG03.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-native-full-app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Setup JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare hosted Android SDK matching isolated Kotlin PASS
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" --version
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Verify genuine Firebase production package before compilation
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const config=require('./app.config.js')({config:{}});
+          const services=JSON.parse(fs.readFileSync('google-services.json','utf8'));
+          const clients=(services.client||[]).map(c=>c.client_info?.android_client_info?.package_name);
+          if(process.env.EXPO_PUBLIC_APP_ENV!=='production')process.exit(31);
+          if(config.android?.package!=='com.ald1n.mobile')process.exit(32);
+          if(config.runtimeVersion!=='1.0.0-build17')process.exit(33);
+          if(!clients.includes('com.ald1n.mobile'))process.exit(34);
+          const deps=require('./package.json').dependencies||{};
+          if(deps['react-native-android-liquid-glass']||deps['expo-blur'])process.exit(35);
+          console.log('REAL_TRACKED_FIREBASE_PACKAGE_MATCH=PASS');
+          console.log('CI_PACKAGE_DEBUG_ID=com.ald1n.mobile');
+          console.log('TRACKED_BUILD25_APP_RUNTIME_UNCHANGED=PASS');
+          NODE
+      - name: Install locked Expo source and ephemeral verified native glass candidate
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          # This modifies ONLY this disposable GitHub Actions worktree.
+          # No native dependency or lockfile changes are committed to main.
+          npm install --save-exact --ignore-scripts --no-audit --no-fund react-native-android-liquid-glass@0.2.1
+          node - <<'NODE'
+          const p=require('./package.json');
+          const n=require('./node_modules/react-native-android-liquid-glass/package.json');
+          if(p.dependencies?.['react-native-android-liquid-glass']!=='0.2.1'||n.version!=='0.2.1') process.exit(41);
+          console.log('EXACT_ISOLATED_NATIVE_GLASS_VERSION=0.2.1_PASS');
+          NODE
+          npx tsc --noEmit
+      - name: Generate Android native app under authentic debug package identity
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          test -d android
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const gradle=fs.readFileSync('android/app/build.gradle','utf8');
+          if(!gradle.includes('com.ald1n.mobile'))process.exit(51);
+          console.log('PREBUILD_ANDROID_PRODUCTION_PACKAGE_ID=PASS');
+          NODE
+      - name: Reuse proven Kotlin module compilation as prerequisite
+        working-directory: apps/mobile/current/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :react-native-android-liquid-glass:compileDebugKotlin --no-daemon --stacktrace
+          echo 'NATIVE_GLASS_KOTLIN_COMPILATION=PASS'
+      - name: Build complete disposable application DEBUG APK (no EAS, no distribution)
+        working-directory: apps/mobile/current/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          apk='app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$apk"
+          sdk="$ANDROID_HOME"
+          aapt="$sdk/build-tools/36.0.0/aapt"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -F "package: name='com.ald1n.mobile'" >/dev/null
+          echo 'ANDROID_LG_NATIVE_FULL_DEBUG_APK_COMPILE=PASS_CI_ONLY'
+          echo 'DEBUG_APK_UPLOAD=NO'
+      - name: Strict no-release statement
+        if: always()
+        shell: bash
+        run: |
+          echo 'RELEASE_BUILD=NONE'
+          echo 'EAS_BUILD=NONE'
+          echo 'OTA=NONE'
+          echo 'PLAY=NONE'
+          echo 'APP_VERSION_MUTATION=NONE'
+          echo 'RUNTIME_VERSION_MUTATION=NONE'
+          echo 'PRODUCTION_API_AND_DB_MUTATIONS=NONE'
