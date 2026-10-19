@@ -1,0 +1,74 @@
+name: Android LG-03 Wave 1 (isolated Build25-safe source QA)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mobile/current/src/components/layout/android-glass-material-policy.ts'
+      - 'apps/mobile/current/src/components/layout/app-bottom-nav.tsx'
+      - 'apps/mobile/current/scripts/release25/android-liquid-glass-wave1.test.mjs'
+      - 'apps/mobile/current/docs/ANDROID-LIQUID-GLASS-LG03.md'
+      - '.github/workflows/android-lg03-wave1-source-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wave1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: production
+    steps:
+      - name: Checkout exact PR
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked mobile dependencies
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Native baseline and forbidden-release drift
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const p=require('./package.json');
+          const c=require('fs').readFileSync('./app.config.js','utf8');
+          const e=require('./eas.json');
+          if(p.version!=='1.0.0'||p.dependencies.expo!=='~57.0.27'||p.dependencies['react-native']!=='0.86.3')process.exit(31);
+          if(p.dependencies['expo-blur']||p.dependencies['react-native-android-liquid-glass'])process.exit(32);
+          if(!c.includes("runtimeVersion: '1.0.0-build17'"))process.exit(33);
+          if(e.build?.production?.channel!=='production')process.exit(34);
+          console.log('BUILD25_NATIVE_RUNTIME_DEPENDENCIES_UNTOUCHED=PASS');
+          NODE
+      - name: TypeScript and canonical mobile static validation
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+      - name: All Release25 source regression tests including Android LG-03
+        working-directory: apps/mobile/current
+        run: npm run test:release25
+      - name: Build25-compatible Android JS bundle export (never publish)
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg03-wave1-android-export"
+          test -d "$RUNNER_TEMP/ald1n-lg03-wave1-android-export"
+          echo "ANDROID_JS_BUNDLE_EXPORT=PASS_NO_PUBLISH"
+      - name: No release or backend operations
+        if: always()
+        run: |
+          echo 'APK_NATIVE_BUILD=NONE'
+          echo 'EAS_BUILD=NONE'
+          echo 'OTA=NONE'
+          echo 'GOOGLE_PLAY=NONE'
+          echo 'PRODUCTION_DB_MUTATION=NONE'
