@@ -224,6 +224,52 @@ assert(
 );
 
 // MOBILE_BUILD22_CANONICAL_NAVIGATION_AST_497_V3
+// LG-03 native routing is a strict alternative to the former bottom-only
+// AppBottomNav shell. Do not weaken the legacy canonicalAppNavigation497 path.
+function canonicalAppNavigationLg03(source) {
+  const file = ts.createSourceFile('lg03-shell.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  if (file.parseDiagnostics.length) return false;
+  const imports = file.statements.filter((node) => ts.isImportDeclaration(node)
+    && ts.isStringLiteral(node.moduleSpecifier)
+    && ['@/components/layout/app-bottom-nav',
+      '@/components/layout/android-native-glass-bottom-nav'].includes(node.moduleSpecifier.text));
+  if (imports.length !== 2) return false;
+  const navVariants = [];
+  let nativeTags = 0;
+  let stackTags = 0;
+  function walk(node) {
+    if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+      const tag = node.tagName.getText(file);
+      if (tag === 'AppBottomNav') {
+        const variant = node.attributes.properties.find((p) =>
+          ts.isJsxAttribute(p) && p.name.text === 'variant');
+        navVariants.push(variant && ts.isJsxAttribute(variant)
+          && variant.initializer && ts.isStringLiteral(variant.initializer)
+          ? variant.initializer.text : '?');
+      }
+      if (tag === 'AndroidNativeGlassBottomNav') nativeTags++;
+      if (tag === 'Stack') stackTags++;
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(file);
+  if (navVariants.length !== 2 || nativeTags !== 1 || stackTags !== 1
+    || navVariants[0] !== 'rail' || navVariants[1] !== 'bottom') return false;
+  const glassPath = path.join(root, 'src/components/layout/android-native-glass-bottom-nav.tsx');
+  if (!fs.existsSync(glassPath)) return false;
+  const nativeSource = fs.readFileSync(glassPath, 'utf8');
+  return source.includes('collapsable={false}')
+    && source.indexOf('<Stack') < source.indexOf('<AndroidNativeGlassBottomNav />')
+    && source.includes('Platform.OS === ' + "'android'")
+    && source.includes(': <AppBottomNav variant="bottom" />')
+    && source.includes('<AppBottomNav variant="rail" />')
+    && source.includes('!useNavigationRail ? (')
+    && nativeSource.includes('return (')
+    && nativeSource.includes('<LiquidGlassAndroidView')
+    && nativeSource.includes('<AppBottomNav variant="native-content" />')
+    && nativeSource.includes('if (!nativeSupported) return <AppBottomNav variant="bottom" />');
+}
+
 function canonicalAppNavigation497(source) {
   const file = ts.createSourceFile('app-shell.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   if (file.parseDiagnostics.length) return false;
@@ -713,7 +759,8 @@ assert(
   'Batch678 compact translucent bottom nav preserves theme-colored Home, five slots, role-aware destinations and capability gates.',
 );
 assert(
-  androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+  (androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+    || canonicalAppNavigationLg03(androidNativeLayout497))
     && appBottomNav.includes("position: 'absolute'")
     && appBottomNav.includes('pointerEvents="box-none"')
     && appBottomNav.includes("backgroundColor: 'transparent'")
@@ -2496,7 +2543,8 @@ assert(
   const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
   assert(
   tabs.includes("display: 'none'")
-    && canonicalAppNavigation497(appShellBuild18)
+    && (canonicalAppNavigation497(appShellBuild18)
+      || canonicalAppNavigationLg03(appShellBuild18))
     && bottomNavBuild18.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
     && bottomNavBuild18.includes('buildBottomNavItems({')
     && bottomNavFiveStableSlots,
