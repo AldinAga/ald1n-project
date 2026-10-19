@@ -1,0 +1,72 @@
+name: Ald1n ECC CloudLinux policy QA
+on:
+  push:
+    branches:
+      - integration/ecc-guided-agents-20261018
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.agents/skills/**'
+      - '.codex/**'
+      - 'docs/ECC-*.md'
+      - 'scripts/ecc/**'
+      - 'docs/reviews/ecc-cloudlinux-ci-20261018.md'
+      - '.github/workflows/ecc-cloudlinux-policy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ecc-cloudlinux-guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: '1'
+    steps:
+      - name: Checkout triggering source only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Node 22 exact CI environment
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Verify source and bounded ECC-only diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --name-only --no-renames origin/main...HEAD > "$RUNNER_TEMP/ecc-changed-paths.txt"
+          while IFS= read -r path; do
+            case "$path" in
+              .agents/skills/*|.codex/config.toml|.codex/agents/*|docs/ECC-*.md|docs/third-party/ECC-MIT-LICENSE.txt|docs/reviews/ecc-cloudlinux-ci-20261018.md|scripts/ecc/*|.github/workflows/ecc-cloudlinux-policy.yml)
+                ;;
+              *)
+                echo "FAIL: unexpected modified path in ECC-only PR: $path"
+                exit 31
+                ;;
+            esac
+          done < "$RUNNER_TEMP/ecc-changed-paths.txt"
+          echo "ECC_EXACT_SOURCE_SCOPE=PASS"
+      - name: Syntax and self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/ecc/cloudlinux-guardrails.mjs
+          node --check scripts/ecc/cloudlinux-guardrails.test.mjs
+          node --test scripts/ecc/cloudlinux-guardrails.test.mjs
+      - name: Check checked-in skills and roles against CloudLinux contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ecc/cloudlinux-guardrails.mjs
+      - name: Confirm no runtime mutation
+        if: always()
+        shell: bash
+        run: |
+          echo 'CMS_DEPLOYMENT=NO'
+          echo 'PRODUCTION_DB_MUTATION=NO'
+          echo 'ANDROID_BUILD=NO'
+          echo 'OTA=NO'
+          echo 'GOOGLE_PLAY=NO'
