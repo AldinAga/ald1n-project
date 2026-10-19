@@ -443,7 +443,9 @@ async function retirementUserCardLayoutSmoke(page, mode, width) {
   const {head,identity,badges,action}=state;
   check(!!head && !!identity && !!badges && !!action, 'RETIREMENT_HEADER_THREE_PARTS', label);
   if (!head || !identity || !badges || !action) return;
-  check(state.label === 'Ukloni korisnika' && /^\/admin\/users\/[0-9]+\/retirement$/.test(state.href),
+  const previewUrl = new URL(state.href, baseUrl);
+  check(state.label === 'Ukloni korisnika' && previewUrl.origin === baseUrl
+    && /^\/admin\/users\/[0-9]+\/retirement$/.test(previewUrl.pathname),
     'RETIREMENT_ACTION_IS_SAFE_PREVIEW_LINK', label);
   check(action.width <= 240 && action.height >= 34 && action.left >= head.left-1 && action.right <= head.right+1,
     'RETIREMENT_ACTION_COMPACT_AND_IN_BOUNDS', label + ': ' + JSON.stringify(state).slice(0,650));
