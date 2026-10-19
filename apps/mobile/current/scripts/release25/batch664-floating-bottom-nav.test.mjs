@@ -136,6 +136,8 @@ test('Batch678 glass navigation is compact, translucent and overlaid above scrol
   assert.match(navSource, /safeFrame: \{\s*position: 'absolute',\s*bottom: 0/);
   assert.match(navSource, /pointerEvents="box-none"/);
   assert.doesNotMatch(shellSource, /bottomNavOverlay/);
-  assert.match(shellSource, /!useNavigationRail \? <AppBottomNav variant="bottom" \/> : null/);
+  assert.match(shellSource, /!useNavigationRail \? \([\s\S]*?Platform\.OS === 'android'/);
+  assert.match(shellSource, /<AndroidNativeGlassBottomNav \/>/);
+  assert.match(shellSource, /: <AppBottomNav variant="bottom" \/>/);
   assert.ok(shellSource.indexOf('<Stack') < shellSource.lastIndexOf('<AppBottomNav variant="bottom"'));
 });
