@@ -6046,3 +6046,36 @@ html[data-theme="light"] .auth-glass-card {
     transform: none;
   }
 }
+
+/* CMS_USER_RETIREMENT_CARD_ACTION_LAYOUT_V1
+ * Two-column user header contains three direct children when SuperAdmin
+ * sees the non-destructive retirement preview link. Explicit grid placement
+ * prevents the first link from consuming the flexible identity column.
+ */
+.access-control-user-head > .access-control-user-identity {
+  grid-column: 1;
+  grid-row: 1;
+}
+.access-control-user-head > .access-control-user-badges {
+  grid-column: 2;
+  grid-row: 1;
+}
+.access-control-user-head > .button {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .access-control-user-head > .access-control-user-badges {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .access-control-user-head > .button {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
+  }
+}
