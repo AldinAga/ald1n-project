@@ -1,0 +1,92 @@
+name: Android v1.4 Liquid Glass native module compile (isolated)
+on:
+  push:
+    branches:
+      - feature/android-v14-liquid-glass-poc-20261018
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/android-v14-liquid-glass-compile.yml'
+      - 'apps/mobile/current/experiments/liquid-glass-v14/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout disposable source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare preinstalled Android SDK (same pattern as native-528 CI)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" --version
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Install locked Expo dependencies and isolated candidate
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${CI}" = 1
+          npm ci --no-audit --no-fund
+          # Modify ONLY the disposable CI checkout so native autolinking can see the package.
+          # No package.json/lock changes are committed to the application branch.
+          npm install --save-exact --ignore-scripts --no-audit --no-fund react-native-android-liquid-glass@0.2.1
+          node -e "const p=require('./package.json'); if(p.dependencies?.['react-native-android-liquid-glass']!=='0.2.1') process.exit(31)"
+          node -e "const p=require('./node_modules/react-native-android-liquid-glass/package.json'); if(p.version!=='0.2.1') process.exit(1)"
+      - name: Materialize isolated navigation PoC
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp experiments/liquid-glass-v14/LiquidGlassV14NavigationPrototype.tsx.example experiments/liquid-glass-v14/LiquidGlassV14NavigationPrototype.tsx
+          npx tsc --noEmit
+      - name: Generate disposable Android native project
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          test -d android
+      - name: Compile isolated Android Liquid Glass Kotlin module (no Firebase app variant)
+        working-directory: apps/mobile/current/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The tracked Firebase JSON has no client for com.ald1n.mobile.development.
+          # Do not fabricate credentials, rewrite the package ID, or falsely report APK PASS.
+          ./gradlew :react-native-android-liquid-glass:compileDebugKotlin --no-daemon --stacktrace | tee "$RUNNER_TEMP/ald1n-v14-module-gradle.log"
+          grep -F ':react-native-android-liquid-glass:compileDebugKotlin' "$RUNNER_TEMP/ald1n-v14-module-gradle.log" >/dev/null || {
+            echo 'FAIL: Liquid Glass native Kotlin task was not executed'
+            exit 31
+          }
+          echo 'NATIVE_LIQUID_GLASS_MODULE_COMPILE=PASS'
+          echo 'APP_DEBUG_APK=HOLD_FIREBASE_DEVELOPMENT_CLIENT_MISSING'
+      - name: No production release
+        if: always()
+        run: |
+          echo 'PRODUCTION_BUILD=NO'
+          echo 'EAS_BUILD=NO'
+          echo 'OTA=NO'
+          echo 'PLAY_UPLOAD=NO'
