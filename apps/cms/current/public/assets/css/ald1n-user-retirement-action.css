@@ -1,0 +1,39 @@
+/* CMS USER RETIREMENT CARD ACTION V1
+ * Page-specific additive style: the shared generated design system is untouched.
+ * The SuperAdmin retirement preview link is the third child in a two-column
+ * user card header. Explicit placement restores a compact non-destructive CTA.
+ */
+.access-control-user-head > .access-control-user-identity {
+  grid-column: 1;
+  grid-row: 1;
+}
+.access-control-user-head > .access-control-user-badges {
+  grid-column: 2;
+  grid-row: 1;
+}
+.access-control-user-head > .access-control-user-retire-link {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  max-width: 100%;
+  min-height: 40px;
+  white-space: normal;
+  text-align: center;
+  border-color: color-mix(in srgb, #b42318 42%, var(--line));
+  background: color-mix(in srgb, var(--panel-2) 92%, #b42318 8%);
+}
+.access-control-user-head > .access-control-user-retire-link:hover,
+.access-control-user-head > .access-control-user-retire-link:focus-visible {
+  border-color: color-mix(in srgb, #b42318 72%, var(--line));
+}
+@media (max-width: 600px) {
+  .access-control-user-head > .access-control-user-badges {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .access-control-user-head > .access-control-user-retire-link {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
+  }
+}
