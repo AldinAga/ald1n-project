@@ -6,11 +6,12 @@
 // MOBILE_BATCH678_COMPACT_TRANSLUCENT_BOTTOM_NAV
 import { useEffect, useMemo, useState } from 'react';
 import { router, usePathname } from 'expo-router';
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph } from '@/components/ui/glyph';
 import { activeBottomNavKey, buildBottomNavItems } from './app-bottom-nav-policy';
+import { androidGlassChrome, resolveAndroidGlassMaterial } from './android-glass-material-policy';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
@@ -25,10 +26,29 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
   const { bootstrap, hasFeature, can } = useAuth();
   const unread = useNotificationUnread();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [reduceTransparency, setReduceTransparency] = useState(false);
+  const glassMode = resolveAndroidGlassMaterial({
+    platform: Platform.OS,
+    androidApiLevel: Platform.OS === 'android' ? Number(Platform.Version) : undefined,
+    reduceTransparency,
+  });
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const roleSlug = bootstrap?.user.role?.slug;
   const active = activeBottomNavKey(pathname, roleSlug);
   const rail = variant === 'rail';
+
+  useEffect(() => {
+    let mounted = true;
+    // RN accessibility preference is optional across Android vendors.
+    if (typeof AccessibilityInfo.isReduceTransparencyEnabled !== 'function') return;
+    void AccessibilityInfo.isReduceTransparencyEnabled()
+      .then((enabled) => { if (mounted) setReduceTransparency(Boolean(enabled)); })
+      .catch(() => { /* Opaque fallback is still available by API level. */ });
+    const listener = AccessibilityInfo.addEventListener('reduceTransparencyChanged', (enabled) => {
+      if (mounted) setReduceTransparency(Boolean(enabled));
+    });
+    return () => { mounted = false; listener.remove(); };
+  }, []);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -138,13 +158,28 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
           {navItems}
         </ScrollView>
       ) : (
-        <View style={styles.bar}>{navItems}</View>
+        <View style={[styles.bar, glassMode === 'solid' ? styles.barSolid : null]}>
+          {Platform.OS === 'android' && glassMode === 'translucent' ? (
+            <View
+              pointerEvents="none"
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              style={styles.glassReflection}
+            >
+              <View style={styles.glassSpecular} />
+              <View style={styles.glassTopRim} />
+              <View style={styles.glassBottomRim} />
+            </View>
+          ) : null}
+          {navItems}
+        </View>
       )}
     </View>
   );
 }
 
 function createStyles(theme: AppColors, isDark: boolean) {
+  const chrome = androidGlassChrome(isDark);
   return StyleSheet.create({
     safeFrame: {
       position: 'absolute',
@@ -198,6 +233,43 @@ function createStyles(theme: AppColors, isDark: boolean) {
       shadowRadius: 10,
       shadowOffset: { width: 0, height: 2 },
     },
+    barSolid: {
+      backgroundColor: theme.surface,
+      borderColor: theme.line,
+      elevation: 2,
+      shadowOpacity: 0.04,
+    },
+    glassReflection: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: 24,
+      overflow: 'hidden',
+    },
+    glassSpecular: {
+      position: 'absolute',
+      top: 1,
+      left: 12,
+      right: 12,
+      height: 19,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+      backgroundColor: chrome.specular,
+    },
+    glassTopRim: {
+      position: 'absolute',
+      top: 1,
+      left: 13,
+      right: 13,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: chrome.topRim,
+    },
+    glassBottomRim: {
+      position: 'absolute',
+      bottom: 1,
+      left: 16,
+      right: 16,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: chrome.bottomRim,
+    },
     item: {
       flex: 1,
       minWidth: 0,
@@ -216,7 +288,11 @@ function createStyles(theme: AppColors, isDark: boolean) {
       paddingHorizontal: spacing.xs,
       paddingVertical: spacing.sm,
     },
-    itemActive: { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.34)' },
+    itemActive: {
+      backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.34)',
+      borderWidth: Platform.OS === 'android' ? StyleSheet.hairlineWidth : 0,
+      borderColor: chrome.activeRim,
+    },
     railItemActive: {
       backgroundColor: theme.primaryContainer,
       borderWidth: StyleSheet.hairlineWidth,
