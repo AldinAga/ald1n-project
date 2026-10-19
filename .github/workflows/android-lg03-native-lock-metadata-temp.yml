@@ -1,5 +1,8 @@
 name: Android LG-03 native lock metadata (disposable)
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - feature/android-lg03-wave2-native-navigation-candidate-20261020
