@@ -199,6 +199,7 @@ export default function AdminCatalogEditScreen() {
   const product = detailQuery.data?.data;
   const options = optionsQuery.data;
   const selectedType = options?.types.find((type) => String(type.id) === productTypeId);
+  const isLaptopCharger = selectedType?.name === 'Punjači za laptopove';
   const specificationFields = selectedType?.fields ?? [];
   const storageFields = specificationFields.filter((field) => field.storage_repeater?.enabled);
   const storageDerivedFieldIds = new Set(
@@ -509,10 +510,10 @@ export default function AdminCatalogEditScreen() {
           onChange={(value) => { setBrandId(value); setLineId(''); }}
         />
         <SelectSheet
-          label="Linija"
+          label={isLaptopCharger ? 'Tip priključka' : 'Linija'}
           value={lineId}
           disabled={product.is_archived || !productTypeId || !brandId}
-          options={[{ value: '', label: 'Bez linije' }, ...lineOptions]}
+          options={[{ value: '', label: isLaptopCharger ? 'Bez tipa priključka' : 'Bez linije' }, ...lineOptions]}
           onChange={setLineId}
         />
         <TextField label="SKU" value={sku} onChangeText={setSku} error={errors.sku} disabled={product.is_archived} autoCapitalize="characters" />
