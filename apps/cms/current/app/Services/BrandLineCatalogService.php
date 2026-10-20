@@ -301,6 +301,8 @@ final class BrandLineCatalogService
     private function typeGroup(string $typeName, ?string $categoryName): ?string
     {
         $text = Str::lower(Str::ascii(trim($typeName.' '.($categoryName ?? ''))));
+        // Charger connector choices are NOT laptop model families even though the title contains 'laptop'.
+        if ($this->containsAny($text, ['punjac', 'charger', 'power adapter'])) return null;
         if ($this->containsAny($text, ['laptop', 'notebook', 'prenosni', 'portable'])) return 'laptop';
         if ($this->containsAny($text, ['ssd', 'solid state'])) return 'ssd';
         if ($this->containsAny($text, ['hdd', 'hard disk', 'harddisk'])) return 'hdd';
