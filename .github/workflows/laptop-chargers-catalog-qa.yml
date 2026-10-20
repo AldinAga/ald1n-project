@@ -1,0 +1,78 @@
+name: Laptop charger catalog isolated data/brand-source QA (NO RELEASE)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/cms/current/database/migrations/2026_10_20_150000_add_laptop_chargers_catalog_data.php'
+      - 'apps/cms/current/tests/Feature/LaptopChargerCatalogTest.php'
+      - '.github/workflows/laptop-chargers-catalog-qa.yml'
+permissions:
+  contents: read
+jobs:
+  real-db-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: charger-test-only
+          MARIADB_DATABASE: ald1n_chargers_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pcharger-test-only"
+          --health-interval=10s --health-timeout=5s --health-retries=16
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_chargers_ci
+      DB_USERNAME: root
+      DB_PASSWORD: charger-test-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: apps/cms/current
+    steps:
+      - name: Exact PR code checkout, read-only token
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 on isolated MariaDB 10.11.19
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install dependency lock, disposable testing database only
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = 'ald1n_chargers_ci'
+          composer install --no-interaction --prefer-dist --no-progress --no-ansi
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Real idempotency, brand-only, connector and watt field tests
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_10_20_150000_add_laptop_chargers_catalog_data.php
+          php -l tests/Feature/LaptopChargerCatalogTest.php
+          php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargerCatalogTest.php --no-ansi
+          php bin/static-check.php
+          echo 'LAPTOP_CHARGER_CATALOG_ISOLATED_QA=PASS'
+      - name: Explicit no-deploy / no-native / no-OTA gate
+        if: always()
+        run: |
+          echo 'PRODUCTION_DB_WRITES=NONE'
+          echo 'PRODUCTION_MIGRATIONS=NONE'
+          echo 'EAS_BUILD=NONE'
+          echo 'GOOGLE_PLAY_AND_OTA=NONE'
