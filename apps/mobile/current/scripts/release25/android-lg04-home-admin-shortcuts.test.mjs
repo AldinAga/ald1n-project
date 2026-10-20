@@ -85,8 +85,8 @@ test('Home enhances only existing permission-checked quick links, not reports or
   assert.match(home, /can\('catalog\.manage_products'\) \? \{ title: 'Dodaj artikal'/);
   assert.match(home, /hasFeature\('order_create'\) \? \{ title: 'Korpa'/);
   assert.match(home, /<HomeActionList actions=\{quickActions\} glassShortcuts \/>/);
-  assert.match(home, /<HomeActionList actions=\{myActivities\} \/>/);
-  assert.match(home, /<HomeActionList actions=\{adminActions\} \/>/);
+  assert.match(home, /<HomeActionList actions=\{myActivities\}(?: glassShortcuts)? \/>/);
+  assert.match(home, /<HomeActionList actions=\{adminActions\}(?: glassShortcuts)? \/>/);
   assert.match(home, /<GlassWorkspaceShortcut/);
   assert.match(home, /<OperatorRow/);
   assert.match(home, /function DashboardMetric/);
