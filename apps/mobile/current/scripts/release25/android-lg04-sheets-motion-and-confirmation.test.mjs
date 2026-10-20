@@ -45,7 +45,7 @@ test('select sheet animates only its native Modal and never removes opaque optio
   assert.match(select,/backgroundColor: theme\.surfaceContainer/);
   assert.match(select,/maxHeight: '84%'/);
   assert.match(select,/style=\{styles\.sheet\}/);
-  assert.match(select,/style=\{styles\.options\}/);
+  assert.match(select,/contentContainerStyle=\{styles\.options\}/);
   assert.match(select,/<ScrollView/);
   assert.doesNotMatch(select,/enableDynamicBackground/);
   assert.doesNotMatch(select,/Animated\.timing|Animated\.spring/);
