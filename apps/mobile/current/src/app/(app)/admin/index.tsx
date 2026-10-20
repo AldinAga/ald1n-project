@@ -8,6 +8,7 @@ import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { ErrorState, LoadingState, UnavailableState } from '@/components/ui/states';
 import { OperatorRow } from '@/components/ui/operator-row';
+import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
 import { apiAdmin, type AdminModuleKey } from '@/features/admin/admin-api';
@@ -107,7 +108,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
       <Card style={styles.adminGroupCard}>
         <Text style={styles.sectionTitle}>Globalna pretraga</Text>
         <Text style={styles.heroCopy}>Artikli, porudžbine, korisnici, garancije, reklamacije i prečice kroz jedan permission-aware ekran.</Text>
-        <OperatorRow title="Pretraži sve module" copy="Permission-aware pretraga kroz poslovne domene." glyph="search" onPress={() => router.push('/admin/search' as Href)} />
+        <GlassWorkspaceShortcut title="Pretraži sve module" copy="Permission-aware pretraga kroz poslovne domene." glyph="search" onPress={() => router.push('/admin/search' as Href)} />
       </Card>
 
             {/* MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C */}

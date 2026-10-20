@@ -7,6 +7,7 @@ import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
 import { OperatorRow } from '@/components/ui/operator-row';
+import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';
 import { LoadingState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
@@ -246,7 +247,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>{quickActions.length} dostupno</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={quickActions} />
+            <HomeActionList actions={quickActions} glassShortcuts />
           </View>
         </>
       ) : null}
@@ -280,12 +281,20 @@ export default function HomeScreen() {
   );
 }
 
-function HomeActionList({ actions }: { actions: HomeAction[] }) {
+function HomeActionList({ actions, glassShortcuts = false }: { actions: HomeAction[]; glassShortcuts?: boolean }) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.operatorList}>
-      {actions.map((action, index) => (
+      {actions.map((action, index) => glassShortcuts ? (
+        <GlassWorkspaceShortcut
+          key={action.title}
+          title={action.title}
+          copy={action.copy}
+          glyph={action.glyph}
+          onPress={() => router.push(action.route)}
+        />
+      ) : (
         <OperatorRow
           key={action.title}
           title={action.title}
