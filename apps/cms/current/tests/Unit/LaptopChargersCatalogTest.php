@@ -25,6 +25,6 @@ final class LaptopChargersCatalogTest extends TestCase
         $method = new ReflectionMethod(BrandLineCatalogService::class, 'typeGroup');
         self::assertSame('laptop_charger', $method->invoke($service, 'Punjači za laptopove', 'Punjači za laptopove'));
         self::assertSame('laptop', $method->invoke($service, 'Laptopovi', 'Laptopovi'));
-        self::assertSame('psu', $method->invoke($service, 'Napajanja', 'Napajanja'));
+        self::assertSame('psu', $method->invoke($service, 'Napajanje', 'Napajanje'));
     }
 }
