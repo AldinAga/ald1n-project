@@ -69,7 +69,16 @@ export function GlassHeaderAction({
       if (mounted) setReduceMotion(Boolean(enabled));
     });
     const app = AppState.addEventListener('change', (state) => {
-      if (mounted) setForeground(state === 'active');
+      if (!mounted) return;
+      setForeground(state === 'active');
+      // Contrast may change while Settings is foregrounded. Re-evaluate on
+      // return instead of leaving a now-unreadable transparent glass control.
+      if (state === 'active' && Platform.OS === 'android'
+        && typeof AccessibilityInfo.isHighTextContrastEnabled === 'function') {
+        void AccessibilityInfo.isHighTextContrastEnabled()
+          .then((enabled) => { if (mounted) setHighTextContrast(Boolean(enabled)); })
+          .catch(() => { if (mounted) setHighTextContrast(true); });
+      }
     });
     return () => {
       mounted = false;
