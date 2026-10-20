@@ -1,0 +1,87 @@
+name: CMS laptop chargers catalog — isolated source QA, NO RELEASE
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/cms/current/database/migrations/2026_10_20_210000_add_laptop_chargers_catalog.php'
+      - 'apps/cms/current/tests/Feature/LaptopChargersCatalogTest.php'
+      - 'apps/cms/current/app/Services/BrandLineCatalogService.php'
+      - '.github/workflows/cms-laptop-charger-catalog-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  dictionary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 34
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_chargers_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=15
+    defaults:
+      run:
+        working-directory: apps/cms/current
+    env:
+      APP_ENV: testing
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Exact-source checkout no write credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 with MariaDB and SQLite
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, pdo_sqlite, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install locked Laravel dependencies
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-ansi
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Real dictionary behavior and existing catalog regressions
+        env:
+          TEST_DATABASE: ${{ matrix.database }}
+          DB_CONNECTION: ${{ matrix.database == 'mariadb' && 'mysql' || 'sqlite' }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_DATABASE: ${{ matrix.database == 'mariadb' && 'ald1n_chargers_ci' || ':memory:' }}
+          DB_USERNAME: root
+          DB_PASSWORD: isolated-ci-only
+        run: |
+          set -euo pipefail
+          if [ "$TEST_DATABASE" = mariadb ]; then
+            php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargersCatalogTest.php tests/Feature/AdminProductManagementTest.php --stop-on-failure
+          else
+            php artisan test tests/Feature/LaptopChargersCatalogTest.php tests/Feature/AdminProductManagementTest.php --stop-on-failure
+          fi
+      - name: PHP static, no deployments or Android EAS builds
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_10_20_210000_add_laptop_chargers_catalog.php
+          php -l app/Services/BrandLineCatalogService.php
+          php -l tests/Feature/LaptopChargersCatalogTest.php
+          php bin/static-check.php
+          echo 'MARIADB_10_11_ISOLATED_QA=PASS'
+          echo 'PRODUCTION_CMS_DATABASE=UNCHANGED'
+          echo 'ANDROID_EAS_BUILD_OTA_GOOGLE_PLAY=NONE'
