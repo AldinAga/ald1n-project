@@ -13,10 +13,8 @@ jobs:
   dictionary:
     runs-on: ubuntu-24.04
     timeout-minutes: 34
-    strategy:
-      fail-fast: false
-      matrix:
-        database: [sqlite, mariadb]
+    # MariaDB 10.11.19 is canonical. Existing unrelated SQLite fixture
+    # cannot run MySQL INFORMATION_SCHEMA migration 2026_08_10_000102.
     services:
       mariadb:
         image: mariadb:10.11.19
@@ -61,20 +59,15 @@ jobs:
           php artisan key:generate --force --no-interaction
       - name: Real dictionary behavior and existing catalog regressions
         env:
-          TEST_DATABASE: ${{ matrix.database }}
-          DB_CONNECTION: ${{ matrix.database == 'mariadb' && 'mysql' || 'sqlite' }}
+          DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
           DB_PORT: '3306'
-          DB_DATABASE: ${{ matrix.database == 'mariadb' && 'ald1n_chargers_ci' || ':memory:' }}
+          DB_DATABASE: ald1n_chargers_ci
           DB_USERNAME: root
           DB_PASSWORD: isolated-ci-only
         run: |
           set -euo pipefail
-          if [ "$TEST_DATABASE" = mariadb ]; then
-            php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargersCatalogTest.php tests/Feature/AdminProductManagementTest.php --stop-on-failure
-          else
-            php artisan test tests/Feature/LaptopChargersCatalogTest.php tests/Feature/AdminProductManagementTest.php --stop-on-failure
-          fi
+          php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargersCatalogTest.php tests/Feature/AdminProductManagementTest.php --stop-on-failure
       - name: PHP static, no deployments or Android EAS builds
         run: |
           set -euo pipefail
