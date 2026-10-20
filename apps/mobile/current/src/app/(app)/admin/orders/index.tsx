@@ -8,6 +8,7 @@ import { Screen } from '@/components/layout/screen';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Pill } from '@/components/ui/pill';
 import { DateTimeField } from '@/components/ui/date-time-field';
 import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
 import { SelectSheet } from '@/components/ui/select-sheet';
@@ -204,17 +205,14 @@ export default function AdminOrdersIndexScreen() {
       </Pressable>
 
       <PageHeader
-        title="Porudzbine admin"
+        title="Porudžbine"
         eyebrow="Admin · Prodaja"
         name={bootstrap?.user.name}
       />
 
       <Card style={styles.workspaceCard}>
         <View style={styles.sectionHead}>
-          <View>
-            <Text style={styles.sectionTitle}>Radni prostor porudžbina</Text>
-            <Text style={styles.muted}>Odvoji pregled, listu, filtere, pažnju i arhivu bez promene server workflow-a.</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Porudžbine</Text>
           <Text style={styles.muted}>{response.pagination.total} ukupno</Text>
         </View>
         <FilterBar>
@@ -233,24 +231,28 @@ export default function AdminOrdersIndexScreen() {
         <>
           <Card style={styles.overviewCard}>
             <Text style={styles.sectionTitle}>Operativni pregled</Text>
-            <Text style={styles.copy}>
-              Ukupno porudžbina u trenutnom server filteru: {response.pagination.total}. Strana {response.pagination.current_page} od {Math.max(response.pagination.last_page, 1)}.
-            </Text>
-            <Text style={styles.copy}>
-              Detail capability={String(response.capabilities.detail)} · workflow_mutations={String(response.capabilities.workflow_mutations)}
-            </Text>
-            <View style={styles.actionsRow}>
-              <Button onPress={() => setWorkspace('orders')}>Otvori porudžbine</Button>
-              <Button variant="secondary" onPress={() => setWorkspace('filters')}>Filteri</Button>
-              <Button variant="secondary" onPress={() => setWorkspace('attention')}>Pažnja</Button>
-              <Button variant="secondary" onPress={() => setWorkspace('archive')}>Arhiva</Button>
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{response.pagination.total}</Text>
+                <Text style={styles.summaryLabel}>Porudžbine</Text>
+              </View>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{response.pagination.current_page} / {Math.max(response.pagination.last_page, 1)}</Text>
+                <Text style={styles.summaryLabel}>Strana</Text>
+              </View>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{response.attention.unaccepted ?? 0}</Text>
+                <Text style={styles.summaryLabel}>Nepreuzete</Text>
+              </View>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{response.attention.overdue ?? 0}</Text>
+                <Text style={styles.summaryLabel}>Probili rok</Text>
+              </View>
             </View>
-          </Card>
-          <Card style={styles.overviewCard}>
-            <Text style={styles.sectionTitle}>Potrebna pažnja</Text>
-            {response.filter_options.attention.length > 0 ? response.filter_options.attention.map((key) => (
-              <Text key={key} style={styles.copy}>{attentionLabel(key)}: {response.attention[key] ?? 0}</Text>
-            )) : <Text style={styles.copy}>Server trenutno ne vraća kategorije za pažnju.</Text>}
+            <View style={styles.actionsRow}>
+              <Button onPress={() => setWorkspace('orders')}>Otvori listu</Button>
+              <Button variant="secondary" onPress={() => setWorkspace('filters')}>Podesi filtere</Button>
+            </View>
           </Card>
         </>
       ) : null}
@@ -258,7 +260,7 @@ export default function AdminOrdersIndexScreen() {
       {workspace === 'attention' ? (
         <Card style={styles.attentionCard}>
           <Text style={styles.sectionTitle}>Potrebna pažnja</Text>
-          <Text style={styles.copy}>Izaberi postojeći server attention filter, zatim otvori odgovarajuće porudžbine.</Text>
+          <Text style={styles.muted}>Izaberi grupu kojoj je potrebna pažnja.</Text>
           {response.filter_options.attention.length > 0 ? (
             <>
               <FilterBar activeCount={draftAttention ? 1 : 0} onClear={() => setDraftAttention('')}>
@@ -371,9 +373,7 @@ export default function AdminOrdersIndexScreen() {
       {workspace === 'archive' ? (
         <Card style={styles.readOnlyCard}>
           <Text style={styles.sectionTitle}>Arhiva porudžbina</Text>
-          <Text style={styles.copy}>
-            Arhiviranje i vraćanje ostaju u postojećem kontrolisanom server workflow-u. Ovaj ekran samo vodi na postojeću arhivu.
-          </Text>
+          <Text style={styles.muted}>Pregled izdvojenih porudžbina.</Text>
           <Button variant="secondary" onPress={() => router.push('/admin/orders/archived' as Href)}>
             Otvori arhivirane porudžbine
           </Button>
@@ -393,26 +393,45 @@ function OrderCard({
   styles: ReturnType<typeof createStyles>;
 }) {
   const content = (
-    <Card style={styles.card}>
+    <Card style={styles.orderCard}>
       <View style={styles.rowBetween}>
-        <Text style={styles.cardTitle}>{item.order_number || `Porudzbina #${item.id}`}</Text>
-        <Text style={styles.status}>{statusLabel(item.status, item.is_completed)}</Text>
+        <Text style={styles.cardTitle}>{item.order_number || `Porudžbina #${item.id}`}</Text>
+        <Pill tone={item.is_completed || item.status === 'completed' ? 'success' : item.status === 'cancelled' ? 'danger' : 'neutral'}>
+          {statusLabel(item.status, item.is_completed)}
+        </Pill>
       </View>
-      <Text style={styles.body}>{item.customer.name || 'Kupac nije dostupan'}</Text>
-      <Text style={styles.muted}>
-        {item.supplier?.name ? `Odgovorno lice: ${item.supplier.name}` : 'Odgovorno lice nije dodeljeno'}
-      </Text>
+      <Text style={styles.customerName}>{item.customer.name || 'Kupac nije dostupan'}</Text>
+      <View style={styles.itemPanel}>
+        <Text style={styles.itemLabel}>Artikal</Text>
+        <Text style={styles.itemName} numberOfLines={3}>{item.item_summary?.name ?? 'Naziv artikla nije dostupan'}</Text>
+        {(item.item_summary?.additional_count ?? 0) > 0 ? (
+          <Text style={styles.itemAdditional}>+ {item.item_summary?.additional_count} dodatnih stavki</Text>
+        ) : null}
+      </View>
       <View style={styles.metaGrid}>
-        <Text style={styles.meta}>Placanje: {paymentLabel(item.payment_status)}</Text>
-        <Text style={styles.meta}>Izvor: {sourceLabel(item.source_system)}</Text>
-        <Text style={styles.meta}>Lager: {item.inventory_state ?? '-'}</Text>
-        <Text style={styles.meta}>Kreirana: {formatDateTime(item.created_at)}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.meta}>Plaćanje</Text>
+          <Text style={styles.metaValue}>{paymentLabel(item.payment_status)}</Text>
+        </View>
+        {item.supplier?.name ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>Odgovorno lice</Text>
+            <Text style={styles.metaValue}>{item.supplier.name}</Text>
+          </View>
+        ) : null}
+        {item.tracking_number ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>Praćenje</Text>
+            <Text style={styles.metaValue}>{item.tracking_number}</Text>
+          </View>
+        ) : null}
       </View>
-      <Text style={styles.total}>{formatMoney(item.subtotal_rsd)}</Text>
-      {item.tracking_number ? <Text style={styles.muted}>Tracking: {item.tracking_number}</Text> : null}
+      <View style={styles.orderFooter}>
+        <Text style={styles.createdAt}>{formatDateTime(item.created_at)}</Text>
+        <Text style={styles.total}>{formatMoney(item.subtotal_rsd)}</Text>
+      </View>
     </Card>
   );
-
   if (!canOpen) return content;
 
   return (
@@ -430,11 +449,15 @@ function OrderCard({
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    content: { paddingBottom: 140, gap: spacing.lg },
+    content: { paddingBottom: 200, gap: spacing.lg },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     copy: { ...typography.body, color: theme.muted },
-    workspaceCard: { gap: spacing.md, borderColor: theme.primary },
+    workspaceCard: { gap: spacing.md },
     overviewCard: { gap: spacing.md },
+    summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    summaryTile: { width: '47%', flexGrow: 1, minWidth: 118, padding: spacing.md, gap: spacing.xs, borderRadius: 12, backgroundColor: theme.surfaceMuted },
+    summaryValue: { ...typography.h3, color: theme.ink, fontWeight: '800' },
+    summaryLabel: { ...typography.small, color: theme.muted },
     attentionCard: { gap: spacing.md },
     filtersCard: { gap: spacing.md },
     sectionHead: {
@@ -445,13 +468,23 @@ function createStyles(theme: AppColors) {
     },
     sectionTitle: { ...typography.h3, color: theme.ink },
     card: { gap: spacing.sm },
+    orderCard: { gap: spacing.md, borderColor: theme.line },
     cardTitle: { ...typography.label, color: theme.ink, flex: 1 },
     body: { ...typography.body, color: theme.ink },
+    customerName: { ...typography.body, color: theme.ink, fontWeight: '700' },
+    itemPanel: { paddingVertical: spacing.sm, gap: 4, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
+    itemLabel: { ...typography.small, color: theme.muted },
+    itemName: { ...typography.body, color: theme.ink, fontWeight: '600' },
+    itemAdditional: { ...typography.small, color: theme.primary, fontWeight: '700' },
+    metaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
+    metaValue: { ...typography.small, color: theme.ink, flexShrink: 1, textAlign: 'right' },
+    orderFooter: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: spacing.sm },
+    createdAt: { ...typography.small, color: theme.muted },
     muted: { ...typography.small, color: theme.muted },
     status: { ...typography.label, color: theme.primary },
     metaGrid: { gap: 4 },
     meta: { ...typography.small, color: theme.muted },
-    total: { ...typography.h3, color: theme.ink },
+    total: { ...typography.h3, color: theme.ink, textAlign: 'right' },
     rowBetween: {
       flexDirection: 'row',
       alignItems: 'flex-start',

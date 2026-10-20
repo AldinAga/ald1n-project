@@ -260,7 +260,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>{myActivities.length} dostupno</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={myActivities} />
+            <HomeActionList actions={myActivities} glassShortcuts variant="soft" />
           </View>
         </>
       ) : null}
@@ -273,7 +273,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>Radni prostor</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={adminActions} />
+            <HomeActionList actions={adminActions} glassShortcuts variant="soft" />
           </View>
         </>
       ) : null}
@@ -281,7 +281,7 @@ export default function HomeScreen() {
   );
 }
 
-function HomeActionList({ actions, glassShortcuts = false }: { actions: HomeAction[]; glassShortcuts?: boolean }) {
+function HomeActionList({ actions, glassShortcuts = false, variant = 'primary' }: { actions: HomeAction[]; glassShortcuts?: boolean; variant?: 'primary' | 'soft' }) {
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -292,6 +292,7 @@ function HomeActionList({ actions, glassShortcuts = false }: { actions: HomeActi
           title={action.title}
           copy={action.copy}
           glyph={action.glyph}
+          variant={variant}
           onPress={() => router.push(action.route)}
         />
       ) : (

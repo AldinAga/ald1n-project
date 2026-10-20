@@ -1,0 +1,62 @@
+name: Android LG04 Wave5 - Home Admin Orders source QA (NO EAS)
+on:
+  push:
+    branches:
+      - feature/android-lg04-wave5-navigation-orders-polish-20261020
+  pull_request:
+    branches:
+      - feature/android-lg04-wave4-home-admin-shortcuts-20261020
+permissions:
+  contents: read
+jobs:
+  mobile-and-php-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact PR head read-only checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: npm ci pinned lockfile
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: New Wave5 UX RED or GREEN
+        working-directory: apps/mobile/current
+        run: node --test scripts/release25/android-lg04-wave5-navigation-orders-polish.test.mjs
+      - name: TypeScript, validator and all Release25
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - name: PHP 8.4 for readonly order item contract
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Laravel readonly snapshot order test + static checks
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+          php -l app/Services/OrderIndexService.php
+          php -l app/Http/Controllers/Api/V1/Admin/OrderController.php
+          php artisan test tests/Unit/AdminOrderItemSummaryTest.php --no-ansi
+          php bin/static-check.php
+      - name: No EAS, OTA, Play or production mutation
+        if: always()
+        run: |
+          echo 'EAS_BUILD_REQUESTS=0'
+          echo 'OTA_PUBLICATIONS=0'
+          echo 'GOOGLE_PLAY_SUBMISSIONS=0'
+          echo 'PRODUCTION_DB_MUTATIONS=0'

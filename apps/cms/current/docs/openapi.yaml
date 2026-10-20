@@ -2510,7 +2510,27 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200': { description: Admin order list and server-driven filters. }
+        '200':
+          description: Authorized admin order list with immutable product-name snapshot summaries, filters and pagination.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        item_summary:
+                          type: object
+                          required: [name, additional_count, count]
+                          properties:
+                            name:
+                              type: [string, 'null']
+                              description: First available immutable order-item name, falling back to SKU. Null for missing snapshots.
+                            additional_count: { type: integer, minimum: 0 }
+                            count: { type: integer, minimum: 0 }
         '401': { description: Authentication required. }
         '403': { description: orders.manage permission required. }
   /api/v1/admin/orders/{order}:

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\User;
 use App\Services\OrderAccessService;
 use App\Services\OrderDetailPresenter;
@@ -146,6 +147,18 @@ final class OrderController extends Controller
     {
         $customer = $order->relationLoaded('user') ? $order->getRelation('user') : null;
         $supplier = $order->relationLoaded('supplier') ? $order->getRelation('supplier') : null;
+        $items = $order->relationLoaded('items') ? $order->getRelation('items') : collect();
+        $firstItem = $items->first(static fn (mixed $row): bool =>
+            $row instanceof OrderItem
+            && (trim((string) $row->getAttribute('product_name')) !== ''
+                || trim((string) $row->getAttribute('product_sku')) !== '')
+        );
+        $primaryName = $firstItem instanceof OrderItem
+            ? trim((string) $firstItem->getAttribute('product_name'))
+            : '';
+        if ($primaryName === '' && $firstItem instanceof OrderItem) {
+            $primaryName = trim((string) $firstItem->getAttribute('product_sku'));
+        }
 
         return [
             'id' => (int) $order->getKey(),
@@ -158,6 +171,11 @@ final class OrderController extends Controller
             'payment_state' => $this->nullableString($order->getAttribute('payment_state')),
             'inventory_state' => $this->nullableString($order->getAttribute('inventory_state')),
             'subtotal_rsd' => (float) ($order->getAttribute('subtotal_rsd') ?? 0),
+            'item_summary' => [
+                'name' => $primaryName !== '' ? $primaryName : null,
+                'additional_count' => max(0, $items->count() - 1),
+                'count' => $items->count(),
+            ],
             'customer' => [
                 'name' => $customer instanceof User
                     ? $customer->displayName()

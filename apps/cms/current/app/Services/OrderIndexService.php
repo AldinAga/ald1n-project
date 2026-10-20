@@ -57,7 +57,13 @@ final class OrderIndexService
      */
     public function paginate(User $actor, array $filters, OrderAccessService $access, int $perPage = 40): LengthAwarePaginator
     {
-        $relations = ['user'];
+        $relations = [
+            'user',
+            // Load immutable order-item snapshots once per page (no N+1 per card).
+            'items' => static fn ($query) => $query
+                ->select(['id', 'order_id', 'product_name', 'product_sku'])
+                ->orderBy('id'),
+        ];
         if (Schema::hasColumn('orders', 'supplier_user_id')) {
             $relations[] = 'supplier';
         }
