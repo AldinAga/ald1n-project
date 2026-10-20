@@ -1023,7 +1023,8 @@ const build16CmsCssBatch132 = fs.readFileSync(
 
 assert(
   build16AdminHubBatch132.includes('MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132')
-    && build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+    && (build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+      || build16AdminHubBatch132.includes("import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';"))
     && !build16AdminHubBatch132.includes("import { Button } from '@/components/ui/button';")
     && !build16AdminHubBatch132.includes('<Button variant="secondary"')
     && build16AdminHubBatch132.includes('title="Porudžbine"')
@@ -1035,7 +1036,7 @@ assert(
     && build16AdminHubBatch132.includes('const moduleEnabled = (key: AdminModuleKey) => foundation.modules.some')
     && build16AdminHubBatch132.includes('inventory_valuation')
     && build16AdminHubBatch132.includes('MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C'),
-  'Build16 Admin Hub koristi OperatorRow grupisane akcije i čuva permission/module/inventory/global-search authority bez button-zoo obrasca.'
+  'Build16 Admin Hub koristi OperatorRow ili LG04 GlassWorkspaceShortcut navigacione akcije, čuva permission/module/inventory/global-search authority bez button-zoo obrasca.'
 );
 
 assert(
@@ -3612,7 +3613,7 @@ const ordersListUxBatch93 = fs.readFileSync(
 assert(
   ordersListUxBatch93.includes('MOBILE_V1_0_ADMIN_ORDERS_LIST_UX_REORGANIZATION_BATCH93')
     && ordersListUxBatch93.includes("type OrdersListWorkspace = 'overview' | 'orders' | 'filters' | 'attention' | 'archive'")
-    && ordersListUxBatch93.includes('Radni prostor porudžbina')
+    && ordersListUxBatch93.includes('Operativni pregled')
     && ordersListUxBatch93.includes("label: 'Pregled'")
     && ordersListUxBatch93.includes("label: 'Porudžbine'")
     && ordersListUxBatch93.includes("label: 'Filteri'")
@@ -3639,7 +3640,9 @@ assert(
     && ordersListUxBatch93.includes('next.attention = draftAttention')
     && ordersListUxBatch93.includes('draftTo < draftFrom')
     && ordersListUxBatch93.includes('response.capabilities.detail')
-    && ordersListUxBatch93.includes('response.capabilities.workflow_mutations')
+    && ordersListUxBatch93.includes('response.attention.unaccepted')
+    && ordersListUxBatch93.includes('response.attention.overdue')
+    && !ordersListUxBatch93.includes('Detail capability=')
     && ordersListUxBatch93.includes("pathname: '/admin/orders/[id]'")
     && ordersListUxBatch93.includes("router.push('/admin/orders/archived' as Href)")
     && ordersListUxBatch93.includes('setApplied((current) => ({ ...current, page }))'),
