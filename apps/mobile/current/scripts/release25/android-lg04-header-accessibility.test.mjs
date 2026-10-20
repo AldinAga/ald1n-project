@@ -109,4 +109,20 @@ test('LG-03 native bottom bar and Build26 Android runtime cannot regress from a 
   assert.equal(eas.build['lg03-play-testing'].channel,'lg03-play-testing');
   assert.equal(eas.build['lg03-play-testing'].android.buildType,'app-bundle');
   assert.equal(eas.build.production.channel,'production');
+  assert.equal(eas.submit['lg03-play-testing'].android.track, 'beta');
+  assert.equal(eas.submit['lg03-play-testing'].android.releaseStatus, 'completed');
+  assert.equal(eas.submit.production.android.track, 'production');
 });
+
+test('LG-04 documented device matrix does not impose arbitrary new exclusions',()=>{
+  const spec=read('../../docs/ANDROID-LG04-DEVICE-COMPATIBILITY.md');
+  assert.match(spec,/API 24–32/);
+  assert.match(spec,/API 33\+/);
+  assert.match(spec,/minSdk API24/);
+  assert.match(spec,/neprozirn/i);
+  assert.match(spec,/48 × 48 dp/);
+  assert.match(spec,/Nema novog minSdk/);
+  assert.match(spec,/RAM\/SoC/);
+  assert.match(spec,/beta/);
+});
+
