@@ -443,6 +443,7 @@ export default function AdminCatalogEditScreen() {
 
   return (
     <Screen
+      keyboardAware
       contentStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       topAccessory={
