@@ -1,0 +1,88 @@
+name: Android LG-04 Wave1 - readable glass header QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - feature/android-lg04-wave1-readable-header-glass-20261020
+  pull_request:
+    branches:
+      - feature/android-lg03-wave2-native-navigation-candidate-20261020
+      - main
+    paths:
+      - 'apps/mobile/current/src/components/layout/page-header.tsx'
+      - 'apps/mobile/current/src/components/layout/glass-header-action.tsx'
+      - 'apps/mobile/current/src/components/layout/glass-header-policy.ts'
+      - 'apps/mobile/current/scripts/release25/android-lg04-header-accessibility.test.mjs'
+      - 'apps/mobile/current/scripts/validate-project.mjs'
+      - 'apps/mobile/current/docs/ANDROID-LG04-DEVICE-COMPATIBILITY.md'
+      - 'apps/mobile/current/docs/ANDROID-LG04-NEXT-PLAY-OPEN-TESTING-AUTOSUBMIT.md'
+      - 'apps/mobile/current/eas.json'
+      - '.github/workflows/android-lg04-wave1-header-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-and-android-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact head checkout without persisting token
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install pinned npm native baseline
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Compare native/runtime authority and Play beta-only submission gate
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const p=require('./package.json');
+          const lock=require('./package-lock.json');
+          const e=require('./eas.json');
+          const app=require('fs').readFileSync('./app.config.js','utf8');
+          if(p.version!=='1.0.0'||p.dependencies.expo!=='~57.0.27'||p.dependencies['react-native']!=='0.86.3')process.exit(71);
+          if(p.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(72);
+          if(lock.packages['node_modules/react-native-android-liquid-glass']?.version!=='0.2.1')process.exit(73);
+          if(!app.includes("1.0.0-lg03-play-testing1"))process.exit(74);
+          if(e.build['lg03-play-testing']?.android?.buildType!=='app-bundle'||e.build['lg03-play-testing']?.channel!=='lg03-play-testing')process.exit(75);
+          if(e.submit['lg03-play-testing']?.android?.track!=='beta'||e.submit['lg03-play-testing']?.android?.releaseStatus!=='completed')process.exit(76);
+          if(e.submit.production.android.track!=='production'||e.build.production.channel!=='production')process.exit(77);
+          console.log('LG04_NATIVE_BUILD26_COMPATIBLE=PASS_SOURCE_ONLY');
+          console.log('LG04_SUBMIT_TARGET=GOOGLE_PLAY_BETA_ONLY_NOT_EXECUTED');
+          NODE
+      - name: TypeScript and canonical validator
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+      - name: Complete Release25 suite, including LG04 a11y + motion + Play beta guards
+        working-directory: apps/mobile/current
+        run: npm run test:release25
+      - name: Export matching Android runtime JS bundle only
+        working-directory: apps/mobile/current
+        env:
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+          ALD1N_LG03_PLAY_TESTING: '1'
+          EAS_BUILD_PROFILE: lg03-play-testing
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg04-header-android-js"
+          test -d "$RUNNER_TEMP/ald1n-lg04-header-android-js"
+          echo 'LG04_ANDROID_JS_EXPORT=PASS_NO_OTA'
+      - name: No production/Play mutation
+        if: always()
+        run: |
+          echo 'EAS_BUILD=NONE'
+          echo 'EAS_AUTO_SUBMIT=NONE'
+          echo 'OTA=NONE'
+          echo 'PLAY_TRACK_CHANGE=NONE'
+          echo 'PRODUCTION_MAIN_MUTATION=NONE'
