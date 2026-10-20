@@ -148,7 +148,11 @@ final class OrderController extends Controller
         $customer = $order->relationLoaded('user') ? $order->getRelation('user') : null;
         $supplier = $order->relationLoaded('supplier') ? $order->getRelation('supplier') : null;
         $items = $order->relationLoaded('items') ? $order->getRelation('items') : collect();
-        $firstItem = $items->first();
+        $firstItem = $items->first(static fn (mixed $row): bool =>
+            $row instanceof OrderItem
+            && (trim((string) $row->getAttribute('product_name')) !== ''
+                || trim((string) $row->getAttribute('product_sku')) !== '')
+        );
         $primaryName = $firstItem instanceof OrderItem
             ? trim((string) $firstItem->getAttribute('product_name'))
             : '';
