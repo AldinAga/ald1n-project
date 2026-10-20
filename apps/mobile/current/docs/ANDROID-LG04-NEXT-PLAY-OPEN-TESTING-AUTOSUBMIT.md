@@ -51,6 +51,7 @@ LG-04 — provera Liquid Glass interfejsa
 • Uređeniji globalni header sa diskretnim staklastim komandama i animacijama na dodir.
 • Veća čitljivost naslova i jasniji indikatori notifikacija.
 • Preglednija pretraga i filteri kataloga, uz diskretno otvaranje panela bez animiranja cena ili proizvoda.
+• Čitljiviji paneli za izbor i potvrdu akcija, sa pristupačnom animacijom i jasno odvojenim upozorenjima.
 • Efekti su opcioni na podržanim Android 13+ uređajima; drugi uređaji zadržavaju čitljivu klasičnu navigaciju.
 • Poštovana podešavanja smanjenog kretanja i povećanog kontrasta.
 
