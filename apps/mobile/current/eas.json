@@ -25,6 +25,19 @@
       },
       "autoIncrement": true
     },
+    "lg03-native-uat": {
+      "distribution": "internal",
+      "channel": "lg03-native-uat",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_LG03_NATIVE_UAT": "1"
+      },
+      "autoIncrement": false
+    },
     "ios-simulator": {
       "distribution": "internal",
       "channel": "preview",
