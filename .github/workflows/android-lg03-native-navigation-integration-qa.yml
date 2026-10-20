@@ -73,6 +73,12 @@ jobs:
   full-android-debug:
     runs-on: ubuntu-24.04
     timeout-minutes: 85
+    # CI-only physical-UAT candidate: same registered package as internal
+    # preview, distinct runtime and profile. NOT an EAS build.
+    env:
+      EXPO_PUBLIC_APP_ENV: preview
+      ALD1N_LG03_NATIVE_UAT: '1'
+      EAS_BUILD_PROFILE: lg03-native-uat
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -95,7 +101,20 @@ jobs:
       - name: npm ci with committed native dependency and lock
         working-directory: apps/mobile/current
         run: npm ci --no-audit --no-fund
-      - name: Expo prebuild real registered Firebase package in disposable CI
+      - name: Verify isolated preview identity + runtime before native generation
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const c=require('./app.config.js')({config:{}});
+          const f=require('./google-services.json');
+          const pkgs=(f.client||[]).map(x=>x.client_info?.android_client_info?.package_name);
+          if(c.android.package!=='com.ald1n.mobile.preview'
+            || c.runtimeVersion!=='1.0.0-lg03-native-uat1'
+            || !pkgs.includes('com.ald1n.mobile.preview'))process.exit(71);
+          console.log('LG03_ISOLATED_PREVIEW_FIREBASE_RUNTIME=PASS');
+          NODE
+      - name: Expo prebuild real registered PREVIEW Firebase package in disposable CI
         working-directory: apps/mobile/current
         run: |
           set -euo pipefail
@@ -110,8 +129,8 @@ jobs:
           test -s "$apk"
           aapt="$ANDROID_HOME/build-tools/36.0.0/aapt"
           test -x "$aapt"
-          "$aapt" dump badging "$apk" | grep -F "package: name='com.ald1n.mobile'" >/dev/null
-          echo 'ANDROID_LG03_NATIVE_WIRED_APP_DEBUG_APK=PASS_CI_ONLY'
+          "$aapt" dump badging "$apk" | grep -F "package: name='com.ald1n.mobile.preview'" >/dev/null
+          echo 'ANDROID_LG03_NATIVE_PREVIEW_PACKAGE_DEBUG_APK=PASS_CI_ONLY'
           echo 'APK_ARTIFACT_UPLOAD=NO'
   absolutely-no-release:
     if: always()
