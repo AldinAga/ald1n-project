@@ -389,24 +389,29 @@ function OrderCard({
   canOpen: boolean;
   styles: ReturnType<typeof createStyles>;
 }) {
+  const status = statusLabel(item.status, item.is_completed);
+  const statusTone = item.is_completed || item.status === 'completed'
+    ? 'success' : item.status === 'cancelled' ? 'danger' : item.status === 'new' ? 'warning' : 'primary';
+  const name = item.primary_item_name?.trim() || 'Naziv artikla nije evidentiran';
+  const extra = Math.max(0, item.additional_items_count ?? 0);
   const content = (
     <Card style={styles.card}>
       <View style={styles.rowBetween}>
-        <Text style={styles.cardTitle}>{item.order_number || `Porudzbina #${item.id}`}</Text>
-        <Text style={styles.status}>{statusLabel(item.status, item.is_completed)}</Text>
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.order_number || 'Porudžbina #' + item.id}</Text>
+        <Pill tone={statusTone}>{status}</Pill>
       </View>
       <Text style={styles.body}>{item.customer.name || 'Kupac nije dostupan'}</Text>
-      <Text style={styles.muted}>
-        {item.supplier?.name ? `Odgovorno lice: ${item.supplier.name}` : 'Odgovorno lice nije dodeljeno'}
-      </Text>
+      <View style={styles.productBlock}>
+        <Text style={styles.productLabel}>Artikal</Text>
+        <Text style={styles.productName}>{name}{extra > 0 ? ' +' + extra + (extra === 1 ? ' stavka' : ' stavke') : ''}</Text>
+      </View>
       <View style={styles.metaGrid}>
-        <Text style={styles.meta}>Placanje: {paymentLabel(item.payment_status)}</Text>
-        <Text style={styles.meta}>Izvor: {sourceLabel(item.source_system)}</Text>
-        <Text style={styles.meta}>Lager: {item.inventory_state ?? '-'}</Text>
+        <Text style={styles.meta}>Plaćanje: {paymentLabel(item.payment_status)}</Text>
         <Text style={styles.meta}>Kreirana: {formatDateTime(item.created_at)}</Text>
+        {item.supplier?.name ? <Text style={styles.meta}>Odgovorno lice: {item.supplier.name}</Text> : null}
       </View>
       <Text style={styles.total}>{formatMoney(item.subtotal_rsd)}</Text>
-      {item.tracking_number ? <Text style={styles.muted}>Tracking: {item.tracking_number}</Text> : null}
+      {item.tracking_number ? <Text style={styles.muted}>Praćenje: {item.tracking_number}</Text> : null}
     </Card>
   );
 
@@ -415,6 +420,7 @@ function OrderCard({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={'Otvori porudžbinu ' + item.order_number + '; artikal ' + name}
       onPress={() => router.push({
         pathname: '/admin/orders/[id]',
         params: { id: String(item.id) },
@@ -427,11 +433,14 @@ function OrderCard({
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    content: { paddingBottom: 140, gap: spacing.lg },
+    content: { paddingBottom: 220, gap: spacing.lg },
     back: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     copy: { ...typography.body, color: theme.muted },
     workspaceCard: { gap: spacing.md, borderColor: theme.primary },
     overviewCard: { gap: spacing.md },
+    summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.sm, rowGap: spacing.sm },
+    summaryTile: { flexGrow: 1, flexBasis: '46%', minWidth: 0, padding: spacing.md, borderRadius: 12, backgroundColor: theme.surfaceMuted, gap: spacing.xs },
+    summaryValue: { ...typography.h2, color: theme.ink, fontVariant: ['tabular-nums'] },
     attentionCard: { gap: spacing.md },
     filtersCard: { gap: spacing.md },
     sectionHead: {
@@ -442,8 +451,11 @@ function createStyles(theme: AppColors) {
     },
     sectionTitle: { ...typography.h3, color: theme.ink },
     card: { gap: spacing.sm },
-    cardTitle: { ...typography.label, color: theme.ink, flex: 1 },
-    body: { ...typography.body, color: theme.ink },
+    cardTitle: { ...typography.label, color: theme.ink, flex: 1, minWidth: 0, flexShrink: 1 },
+    body: { ...typography.body, color: theme.ink, fontWeight: '700' },
+    productBlock: { gap: 2, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
+    productLabel: { ...typography.small, color: theme.muted },
+    productName: { ...typography.body, color: theme.ink, fontWeight: '600', flexShrink: 1, minWidth: 0 },
     muted: { ...typography.small, color: theme.muted },
     status: { ...typography.label, color: theme.primary },
     metaGrid: { gap: 4 },
