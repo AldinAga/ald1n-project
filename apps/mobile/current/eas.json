@@ -38,6 +38,19 @@
       },
       "autoIncrement": false
     },
+    "lg03-play-testing": {
+      "distribution": "store",
+      "channel": "lg03-play-testing",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_LG03_PLAY_TESTING": "1"
+      },
+      "autoIncrement": true
+    },
     "ios-simulator": {
       "distribution": "internal",
       "channel": "preview",
