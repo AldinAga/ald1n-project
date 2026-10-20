@@ -104,8 +104,8 @@ test('Admin uses the same safe shortcut for search, while access, query and sear
   assert.match(admin, /onChangeText=\{setAdminSearch\}/);
   assert.match(admin, /accessibilityLabel="Pretraga administracije"/);
   assert.match(admin, /backgroundColor: theme\.surfaceMuted/);
-  assert.match(admin, /<OperatorRow title="Porudžbine"/);
-  assert.match(admin, /<OperatorRow title="Artikli"/);
+  assert.match(admin, /<GlassWorkspaceShortcut title="Porudžbine"/);
+  assert.match(admin, /<GlassWorkspaceShortcut title="Artikli"/);
   assert.match(admin, /inventoryValuation\.purchase_value_rsd/);
   assert.match(admin, /inventoryValuation\.sale_value_rsd/);
   assert.doesNotMatch(admin, /LiquidGlassAndroidView/);
