@@ -1014,6 +1014,8 @@ assert(
 const build16AdminHubBatch132 = fs.readFileSync(path.join(root, 'src/app/(app)/admin/index.tsx'), 'utf8');
 const build16SharedStatesBatch132 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
 const build16PageHeaderBatch132 = fs.readFileSync(path.join(root, 'src/components/layout/page-header.tsx'), 'utf8');
+const lg04GlassHeaderAction = fs.readFileSync(path.join(root, 'src/components/layout/glass-header-action.tsx'), 'utf8');
+const lg04GlassPolicy = fs.readFileSync(path.join(root, 'src/components/layout/glass-header-policy.ts'), 'utf8');
 const build16CmsCssBatch132 = fs.readFileSync(
   path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'),
   'utf8'
@@ -1050,7 +1052,20 @@ assert(
 
 assert(
   build16PageHeaderBatch132.includes('MOBILE_BUILD16_PAGE_HEADER_FINAL_BATCH132')
-    && build16PageHeaderBatch132.includes('notificationButton:')
+    && (
+      build16PageHeaderBatch132.includes('notificationButton:')
+      || (
+        build16PageHeaderBatch132.includes('<GlassHeaderAction')
+        && build16PageHeaderBatch132.includes('collapsable={false}')
+        && lg04GlassHeaderAction.includes('LiquidGlassAndroidView')
+        && lg04GlassHeaderAction.includes('minHeight: 48')
+        && lg04GlassHeaderAction.includes('accessibilityRole="button"')
+        && lg04GlassHeaderAction.includes('isReduceMotionEnabled')
+        && lg04GlassHeaderAction.includes('isHighTextContrastEnabled')
+        && lg04GlassHeaderAction.includes('enableDynamicBackground={false}')
+        && lg04GlassPolicy.includes('pipelineFailed')
+      )
+    )
     && build16PageHeaderBatch132.includes('borderRadius: radii.lg')
     && build16PageHeaderBatch132.includes('useNotificationUnread')
     && build16PageHeaderBatch132.includes("router.push('/notifications')")

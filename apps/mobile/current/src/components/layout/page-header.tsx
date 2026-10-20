@@ -2,9 +2,10 @@
 // MOBILE_V1_0_HEADER_NOTIFICATIONS_BATCH50_V2
 // MOBILE_BUILD16_PAGE_HEADER_FINAL_BATCH132
 import { router, usePathname } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/ui/glyph';
+import { GlassHeaderAction } from './glass-header-action';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
@@ -32,7 +33,7 @@ export function PageHeader({
   const notificationsVisible = hasFeature('notifications');
 
   return (
-    <View style={styles.root}>
+    <View collapsable={false} style={styles.root}>
       <View style={styles.leading}>
         <Image
           accessibilityIgnoresInvertColors
@@ -46,22 +47,15 @@ export function PageHeader({
         </View>
       </View>
 
-      <View style={styles.actions}>
+      <View collapsable={false} style={styles.actions}>
         {onRefresh ? (
-          <Pressable
+          <GlassHeaderAction
             accessibilityLabel="Osveži"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: refreshing }}
             disabled={refreshing}
             onPress={onRefresh}
-            style={({ pressed }) => [
-              styles.iconButton,
-              refreshing ? styles.disabled : null,
-              pressed ? styles.pressed : null,
-            ]}
           >
             <Glyph name="refresh" size={21} color={theme.ink} />
-          </Pressable>
+          </GlassHeaderAction>
         ) : null}
 
         {notificationsVisible ? <PageHeaderNotificationButton pathname={pathname} /> : null}
@@ -76,37 +70,37 @@ function PageHeaderNotificationButton({ pathname }: { pathname: string }) {
   const styles = createStyles(theme);
 
   return (
-    <Pressable
+    <GlassHeaderAction
       accessibilityLabel={unread > 0 ? 'Obaveštenja, ' + String(unread) + ' nepročitanih' : 'Obaveštenja'}
-      accessibilityRole="button"
-      accessibilityState={{ selected: pathname === '/notifications' }}
+      selected={pathname === '/notifications'}
       onPress={() => {
         if (pathname !== '/notifications') router.push('/notifications');
       }}
-      style={({ pressed }) => [
-        styles.notificationButton,
-        pathname === '/notifications' ? styles.notificationButtonActive : null,
-        pressed ? styles.pressed : null,
-      ]}
     >
       <Glyph name="bell" size={23} color={pathname === '/notifications' ? theme.onPrimaryContainer : theme.ink} />
       {unread > 0 ? (
-        <View style={styles.badge}>
+        <View style={styles.badge} pointerEvents="none">
           <Text style={styles.badgeText}>{unread > 99 ? '99+' : String(unread)}</Text>
         </View>
       ) : null}
-    </Pressable>
+    </GlassHeaderAction>
   );
 }
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
     root: {
-      minHeight: 66,
+      minHeight: 72,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      backgroundColor: theme.surfaceContainer,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
     },
     leading: {
       flex: 1,
@@ -126,30 +120,6 @@ function createStyles(theme: AppColors) {
     },
     title: { ...typography.h2, color: theme.ink, fontWeight: '800' },
     actions: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    iconButton: {
-      width: 42,
-      height: 42,
-      borderRadius: radii.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.surfaceContainer,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.line,
-    },
-    notificationButton: {
-      width: 46,
-      height: 46,
-      borderRadius: radii.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.surfaceContainer,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.line,
-    },
-    notificationButtonActive: {
-      backgroundColor: theme.primaryContainer,
-      borderColor: theme.primary,
-    },
     badge: {
       position: 'absolute',
       right: -1,
@@ -165,7 +135,5 @@ function createStyles(theme: AppColors) {
       borderColor: theme.background,
     },
     badgeText: { color: theme.onDanger, fontSize: 9, lineHeight: 10, fontWeight: '900' },
-    disabled: { opacity: 0.45 },
-    pressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
   });
 }
