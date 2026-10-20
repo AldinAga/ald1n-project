@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { useAppFeedback } from '@/components/ui/app-feedback';
 import { Button } from '@/components/ui/button';
+import { Pill } from '@/components/ui/pill';
 import { Card } from '@/components/ui/card';
 import { DateTimeField } from '@/components/ui/date-time-field';
 import { FilterBar, FilterChip } from '@/components/ui/filter-bar';
@@ -204,17 +205,14 @@ export default function AdminOrdersIndexScreen() {
       </Pressable>
 
       <PageHeader
-        title="Porudzbine admin"
+        title="Porudžbine"
         eyebrow="Admin · Prodaja"
         name={bootstrap?.user.name}
       />
 
       <Card style={styles.workspaceCard}>
         <View style={styles.sectionHead}>
-          <View>
-            <Text style={styles.sectionTitle}>Radni prostor porudžbina</Text>
-            <Text style={styles.muted}>Odvoji pregled, listu, filtere, pažnju i arhivu bez promene server workflow-a.</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Radni prostor porudžbina</Text>
           <Text style={styles.muted}>{response.pagination.total} ukupno</Text>
         </View>
         <FilterBar>
@@ -230,29 +228,31 @@ export default function AdminOrdersIndexScreen() {
       </Card>
 
       {workspace === 'overview' ? (
-        <>
-          <Card style={styles.overviewCard}>
-            <Text style={styles.sectionTitle}>Operativni pregled</Text>
-            <Text style={styles.copy}>
-              Ukupno porudžbina u trenutnom server filteru: {response.pagination.total}. Strana {response.pagination.current_page} od {Math.max(response.pagination.last_page, 1)}.
-            </Text>
-            <Text style={styles.copy}>
-              Detail capability={String(response.capabilities.detail)} · workflow_mutations={String(response.capabilities.workflow_mutations)}
-            </Text>
-            <View style={styles.actionsRow}>
-              <Button onPress={() => setWorkspace('orders')}>Otvori porudžbine</Button>
-              <Button variant="secondary" onPress={() => setWorkspace('filters')}>Filteri</Button>
-              <Button variant="secondary" onPress={() => setWorkspace('attention')}>Pažnja</Button>
-              <Button variant="secondary" onPress={() => setWorkspace('archive')}>Arhiva</Button>
+        <Card style={styles.overviewCard}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Pregled</Text>
+            <Text style={styles.muted}>Strana {response.pagination.current_page} / {Math.max(response.pagination.last_page, 1)}</Text>
+          </View>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryTile}>
+              <Text style={styles.muted}>Ukupno porudžbina</Text>
+              <Text style={styles.summaryValue}>{response.pagination.total}</Text>
             </View>
-          </Card>
-          <Card style={styles.overviewCard}>
-            <Text style={styles.sectionTitle}>Potrebna pažnja</Text>
-            {response.filter_options.attention.length > 0 ? response.filter_options.attention.map((key) => (
-              <Text key={key} style={styles.copy}>{attentionLabel(key)}: {response.attention[key] ?? 0}</Text>
-            )) : <Text style={styles.copy}>Server trenutno ne vraća kategorije za pažnju.</Text>}
-          </Card>
-        </>
+            <View style={styles.summaryTile}>
+              <Text style={styles.muted}>Nepreuzete</Text>
+              <Text style={styles.summaryValue}>{response.attention.unaccepted ?? 0}</Text>
+            </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.muted}>Probili rok</Text>
+              <Text style={styles.summaryValue}>{response.attention.overdue ?? 0}</Text>
+            </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.muted}>Na strani</Text>
+              <Text style={styles.summaryValue}>{response.data.length}</Text>
+            </View>
+          </View>
+          <Button onPress={() => setWorkspace('orders')}>Otvori porudžbine</Button>
+        </Card>
       ) : null}
 
       {workspace === 'attention' ? (
@@ -273,7 +273,7 @@ export default function AdminOrdersIndexScreen() {
               </FilterBar>
               <Button onPress={applyFilters}>Prikaži porudžbine</Button>
             </>
-          ) : <Text style={styles.copy}>Server trenutno ne vraća kategorije za pažnju.</Text>}
+          ) : <Text style={styles.copy}>Nema stavki za pregled.</Text>}
         </Card>
       ) : null}
 
@@ -371,9 +371,6 @@ export default function AdminOrdersIndexScreen() {
       {workspace === 'archive' ? (
         <Card style={styles.readOnlyCard}>
           <Text style={styles.sectionTitle}>Arhiva porudžbina</Text>
-          <Text style={styles.copy}>
-            Arhiviranje i vraćanje ostaju u postojećem kontrolisanom server workflow-u. Ovaj ekran samo vodi na postojeću arhivu.
-          </Text>
           <Button variant="secondary" onPress={() => router.push('/admin/orders/archived' as Href)}>
             Otvori arhivirane porudžbine
           </Button>
