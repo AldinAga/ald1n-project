@@ -40,6 +40,25 @@ final class AdminOrderItemSummaryTest extends TestCase
         self::assertSame('Test Kupac', $result['customer']['name']);
     }
 
+    public function test_first_missing_snapshot_name_does_not_hide_next_valid_order_item(): void
+    {
+        $order = new Order();
+        $order->forceFill([
+            'id' => 152, 'order_number' => 'APC-TEST-152',
+            'source_system' => 'legacy', 'status' => 'new',
+            'shipping_full_name' => 'Gost',
+        ]);
+        $order->setRelation('items', new EloquentCollection([
+            (new OrderItem())->forceFill(['product_name' => '', 'product_sku' => '']),
+            (new OrderItem())->forceFill(['product_name' => 'Punjač HP 65W', 'product_sku' => 'HP-65W']),
+        ]));
+        $method = new ReflectionMethod(OrderController::class, 'presentListOrder');
+        $result = $method->invoke(new OrderController(), $order);
+        self::assertSame('Punjač HP 65W', $result['item_summary']['name']);
+        self::assertSame(1, $result['item_summary']['additional_count']);
+        self::assertSame(2, $result['item_summary']['count']);
+    }
+
     public function test_missing_relations_and_empty_snapshot_fail_to_honest_null_not_query(): void
     {
         $order = new Order();
