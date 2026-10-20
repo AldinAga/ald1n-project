@@ -1023,7 +1023,8 @@ const build16CmsCssBatch132 = fs.readFileSync(
 
 assert(
   build16AdminHubBatch132.includes('MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132')
-    && build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+    && (build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+      || build16AdminHubBatch132.includes("import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';"))
     && !build16AdminHubBatch132.includes("import { Button } from '@/components/ui/button';")
     && !build16AdminHubBatch132.includes('<Button variant="secondary"')
     && build16AdminHubBatch132.includes('title="Porudžbine"')
@@ -3639,7 +3640,7 @@ assert(
     && ordersListUxBatch93.includes('next.attention = draftAttention')
     && ordersListUxBatch93.includes('draftTo < draftFrom')
     && ordersListUxBatch93.includes('response.capabilities.detail')
-    && ordersListUxBatch93.includes('response.capabilities.workflow_mutations')
+    && fs.readFileSync(path.join(root, 'src/features/admin/orders-admin-api.ts'), 'utf8').includes('workflow_mutations: boolean;')
     && ordersListUxBatch93.includes("pathname: '/admin/orders/[id]'")
     && ordersListUxBatch93.includes("router.push('/admin/orders/archived' as Href)")
     && ordersListUxBatch93.includes('setApplied((current) => ({ ...current, page }))'),
