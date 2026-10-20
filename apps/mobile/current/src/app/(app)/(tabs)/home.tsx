@@ -260,7 +260,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>{myActivities.length} dostupno</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={myActivities} />
+            <HomeActionList actions={myActivities} glassShortcuts />
           </View>
         </>
       ) : null}
@@ -273,7 +273,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>Radni prostor</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={adminActions} />
+            <HomeActionList actions={adminActions} glassShortcuts />
           </View>
         </>
       ) : null}
