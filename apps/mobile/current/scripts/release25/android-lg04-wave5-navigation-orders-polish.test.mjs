@@ -64,9 +64,9 @@ test('Admin order overview is organized, removes technical prose and shows serve
 });
 
 test('Order list has snapshot product title and +N summary, readable status and payment', () => {
-  assert.match(api, /item_summary: \{ name: string \| null; additional_count: number; count: number \}/);
-  assert.match(orders, /item\.item_summary\.name/);
-  assert.match(orders, /item\.item_summary\.additional_count/);
+  assert.match(api, /item_summary\?: \{ name: string \| null; additional_count: number; count: number \}/);
+  assert.match(orders, /item\.item_summary\?\.name/);
+  assert.match(orders, /item\.item_summary\?\.additional_count/);
   assert.match(orders, /<Pill tone=/);
   assert.match(orders, /Artikal/);
   assert.match(orders, /Plaćanje/);

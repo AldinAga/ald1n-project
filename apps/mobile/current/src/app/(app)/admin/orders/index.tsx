@@ -403,9 +403,9 @@ function OrderCard({
       <Text style={styles.customerName}>{item.customer.name || 'Kupac nije dostupan'}</Text>
       <View style={styles.itemPanel}>
         <Text style={styles.itemLabel}>Artikal</Text>
-        <Text style={styles.itemName} numberOfLines={3}>{item.item_summary.name ?? 'Naziv artikla nije dostupan'}</Text>
-        {item.item_summary.additional_count > 0 ? (
-          <Text style={styles.itemAdditional}>+ {item.item_summary.additional_count} dodatnih stavki</Text>
+        <Text style={styles.itemName} numberOfLines={3}>{item.item_summary?.name ?? 'Naziv artikla nije dostupan'}</Text>
+        {(item.item_summary?.additional_count ?? 0) > 0 ? (
+          <Text style={styles.itemAdditional}>+ {item.item_summary?.additional_count} dodatnih stavki</Text>
         ) : null}
       </View>
       <View style={styles.metaGrid}>
