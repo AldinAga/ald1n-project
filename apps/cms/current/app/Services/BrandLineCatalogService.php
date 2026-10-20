@@ -16,6 +16,21 @@ final class BrandLineCatalogService
 
     /** @var array<string,array<string,list<string>>> */
     private const CATALOG = [
+        'laptop_charger' => [
+            'dell' => ['Debela igla (7,4 × 5,0 mm)', 'Tanka igla (4,5 × 3,0 mm)', 'USB-C PD'],
+            'hp' => ['Debela igla (7,4 × 5,0 mm)', 'Plava igla (4,5 × 3,0 mm)', 'USB-C PD'],
+            'lenovo' => ['Kocka / Slim Tip (11,0 × 4,5 mm)', 'Tanka igla (4,0 × 1,7 mm)', 'Okrugli (7,9 × 5,5 mm)', 'USB-C PD'],
+            'asus' => ['Okrugli (5,5 × 2,5 mm)', 'Tanki (4,0 × 1,35 mm)', 'TUF/ROG (6,0 × 3,7 mm)', 'USB-C PD'],
+            'acer' => ['Okrugli (5,5 × 1,7 mm)', 'Tanki (3,0 × 1,1 mm)', 'USB-C PD'],
+            'msi' => ['Okrugli (5,5 × 2,5 mm)', 'USB-C PD'],
+            'apple' => ['MagSafe 2', 'MagSafe 3', 'USB-C PD'],
+            'microsoft' => ['Surface Connect', 'USB-C PD'],
+            'huawei' => ['USB-C PD'],
+            'honor' => ['USB-C PD'],
+            'samsung' => ['USB-C PD'],
+            'toshiba' => ['Okrugli (5,5 × 2,5 mm)', 'USB-C PD'],
+            'dynabook' => ['Okrugli (5,5 × 2,5 mm)', 'USB-C PD'],
+        ],
         'laptop' => [
             'dell' => ['Latitude', 'Precision', 'Vostro', 'Inspiron', 'XPS', 'Alienware', 'G Series'],
             'hp' => ['EliteBook', 'ProBook', 'Pavilion', 'Envy', 'ZBook', 'Spectre', 'Victus', 'OMEN'],
@@ -168,6 +183,14 @@ final class BrandLineCatalogService
         'intel' => 'intel', 'amd' => 'amd',
     ];
 
+    /** @return list<string> */
+    public static function laptopChargerLines(string $brandName): array
+    {
+        $normalized = preg_replace('/[^a-z0-9]+/', '', Str::lower(Str::ascii(trim($brandName)))) ?: '';
+        $brandKey = self::BRAND_ALIASES[$normalized] ?? null;
+        return $brandKey !== null ? (self::CATALOG['laptop_charger'][$brandKey] ?? []) : [];
+    }
+
     /** @return array<string,mixed> */
     public function preview(): array
     {
@@ -301,6 +324,7 @@ final class BrandLineCatalogService
     private function typeGroup(string $typeName, ?string $categoryName): ?string
     {
         $text = Str::lower(Str::ascii(trim($typeName.' '.($categoryName ?? ''))));
+        if ($this->containsAny($text, ['punjac', 'charger', 'adapter']) && $this->containsAny($text, ['laptop', 'notebook', 'prenosni'])) return 'laptop_charger';
         if ($this->containsAny($text, ['laptop', 'notebook', 'prenosni', 'portable'])) return 'laptop';
         if ($this->containsAny($text, ['ssd', 'solid state'])) return 'ssd';
         if ($this->containsAny($text, ['hdd', 'hard disk', 'harddisk'])) return 'hdd';

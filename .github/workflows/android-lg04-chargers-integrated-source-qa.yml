@@ -1,0 +1,121 @@
+name: Android LG04 Wave5 + laptop chargers integrated source-only QA (NO EAS)
+on:
+  pull_request:
+    branches: [feature/android-lg04-wave5-navigation-orders-polish-20261020]
+permissions:
+  contents: read
+jobs:
+  cms-chargers-and-orders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: lg04-chargers-ci-only
+          MARIADB_DATABASE: ald1n_lg04_chargers_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -plg04-chargers-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=16
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_lg04_chargers_ci
+      DB_USERNAME: root
+      DB_PASSWORD: lg04-chargers-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Exact immutable integration PR HEAD, read-only token
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 test environment only
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install Laravel pinned dependencies and provision disposable DB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = 'ald1n_lg04_chargers_ci'
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan migrate:fresh --force --no-ansi
+      - name: Original charger provisioner and Wave5 order snapshot PHP tests
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php artisan test tests/Unit/LaptopChargersCatalogTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargersCatalogProvisioningTest.php --no-ansi
+          php artisan test tests/Unit/AdminOrderItemSummaryTest.php --no-ansi
+          if php artisan app:catalog-laptop-chargers --dry-run --no-interaction > "$RUNNER_TEMP/empty-chargers.log" 2>&1; then
+            echo 'FAIL_UNSEEDED_DB_BYPASSED_CHARGER_GATE'
+            exit 42
+          fi
+          grep -q 'HOLD_EXISTING_SNAGA_NAPAJANJA_W_FIELD_MISSING_OR_INVALID' "$RUNNER_TEMP/empty-chargers.log"
+          php bin/static-check.php
+          echo 'LG04_CHARGERS_MARIADB_AND_ORDERS=PASS_NO_PRODUCTION'
+  mobile-release25-and-android-js:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact immutable integration PR HEAD, read-only token
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Node 22, no EAS credentials
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: npm ci, no install --fix
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Integrated charger labels / LG04 Wave5 / TypeScript / canonical validator / Release25
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --test scripts/release25/android-lg04-chargers-integration.test.mjs
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+          echo 'LG04_WAVE5_AND_CHARGERS_MOBILE_SOURCE=PASS'
+      - name: Android JS bundle export ONLY (NO OTA / EAS BUILD)
+        working-directory: apps/mobile/current
+        env:
+          EXPO_PUBLIC_APP_ENV: preview
+          EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+          ALD1N_LG03_NATIVE_UAT: '1'
+          EAS_BUILD_PROFILE: lg03-native-uat
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/lg04-chargers-js-bundle"
+          test -d "$RUNNER_TEMP/lg04-chargers-js-bundle"
+          echo 'LG04_ANDROID_JS_EXPORT=PASS_NO_OTA'
+      - name: Explicit no release receipt
+        if: always()
+        run: |
+          echo 'EAS_BUILD_REQUESTS=ZERO'
+          echo 'EAS_AUTO_SUBMIT=ZERO'
+          echo 'OTA_PUBLICATIONS=ZERO'
+          echo 'GOOGLE_PLAY=ZERO'
+          echo 'PRODUCTION_DB_MUTATIONS=ZERO'
+          echo 'MAIN_MERGES=ZERO'
