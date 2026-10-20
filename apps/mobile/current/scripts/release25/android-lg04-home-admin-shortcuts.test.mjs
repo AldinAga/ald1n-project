@@ -85,8 +85,8 @@ test('Home enhances only existing permission-checked quick links, not reports or
   assert.match(home, /can\('catalog\.manage_products'\) \? \{ title: 'Dodaj artikal'/);
   assert.match(home, /hasFeature\('order_create'\) \? \{ title: 'Korpa'/);
   assert.match(home, /<HomeActionList actions=\{quickActions\} glassShortcuts \/>/);
-  assert.match(home, /<HomeActionList actions=\{myActivities\} \/>/);
-  assert.match(home, /<HomeActionList actions=\{adminActions\} \/>/);
+  assert.match(home, /<HomeActionList actions=\{myActivities\} glassShortcuts variant="soft" \/>/);
+  assert.match(home, /<HomeActionList actions=\{adminActions\} glassShortcuts variant="soft" \/>/);
   assert.match(home, /<GlassWorkspaceShortcut/);
   assert.match(home, /<OperatorRow/);
   assert.match(home, /function DashboardMetric/);
@@ -104,8 +104,8 @@ test('Admin uses the same safe shortcut for search, while access, query and sear
   assert.match(admin, /onChangeText=\{setAdminSearch\}/);
   assert.match(admin, /accessibilityLabel="Pretraga administracije"/);
   assert.match(admin, /backgroundColor: theme\.surfaceMuted/);
-  assert.match(admin, /<OperatorRow title="Porudžbine"/);
-  assert.match(admin, /<OperatorRow title="Artikli"/);
+  assert.match(admin, /<GlassWorkspaceShortcut title="Porudžbine"/);
+  assert.match(admin, /<GlassWorkspaceShortcut title="Artikli"/);
   assert.match(admin, /inventoryValuation\.purchase_value_rsd/);
   assert.match(admin, /inventoryValuation\.sale_value_rsd/);
   assert.doesNotMatch(admin, /LiquidGlassAndroidView/);
