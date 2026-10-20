@@ -57,7 +57,7 @@ final class OrderIndexService
      */
     public function paginate(User $actor, array $filters, OrderAccessService $access, int $perPage = 40): LengthAwarePaginator
     {
-        $relations = ['user'];
+        $relations = ['user', 'items:id,order_id,product_name'];
         if (Schema::hasColumn('orders', 'supplier_user_id')) {
             $relations[] = 'supplier';
         }
