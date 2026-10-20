@@ -40,6 +40,14 @@
 - Reduce Motion odmah prebacuje ulaz na statički prikaz i ukida animaciju pritiska. Nema intervala, animiranja cele liste, per-row native refrakcije ili nove native zavisnosti.
 - Kartice artikala, SKU, cene, iznosi, lager i sistem permissions/navigacije ostaju nepromenjeni.
 
+## LG-04 Wave 3 — modali za izbor i akcioni paneli
+
+- `SelectSheet` zadržava **neprozirno** telo i sve opcije sa jasnim natpisima, error porukama, invalid/disabled stanjima i minimum 56dp po izboru.
+- Samo kontrola zatvaranja izbornog panela dobija ograničeni 48dp native Glass efekat kada Android 13+ i podešavanja pristupačnosti to dozvoljavaju. Sadržaj formulara nikada nije providan. Native glass prikaz se vraća na potpuno neprozirnu kontrolu kada pipeline nije podržan.
+- `ActionSheet`, uključujući `ConfirmAction` za brisanje i druge kritične radnje, ostaje **bez native glass sloja preko upozorenja i potvrdnih dugmadi**. Namerno zadržati postojeću eksplicitnu potvrdu, disabled/busy i onSelect/onClose putanje.
+- Modal prelaz ostaje native `slide` samo kada sistem dozvoljava animacije; kada je `Reduce Motion` uključen ili preference nepoznate, koristi se `none` bez promene stvarne funkcije.
+- Pre slanja u Open testing fizički proveriti 320dp, uvećani font, čitljivost poruka, pozadinsko zatvaranje, Android Back, odabir jedne opcije i potvrdu/destruktivni tok bez dupliranja poslovnih zahteva.
+
 ## Minimalni fizički acceptance pre sledećeg Open testing auto-submit
 
 - Android 13+ realni uređaj: oba režima teme, akcije headera, touch 48dp, čitljivost naslova, otvorene/primljene notifikacije i unread badge 0/1/99+.

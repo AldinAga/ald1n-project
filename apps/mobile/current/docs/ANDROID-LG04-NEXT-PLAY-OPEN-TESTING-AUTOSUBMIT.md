@@ -1,6 +1,6 @@
 # Ald1n CMS — naredni Android LG-04 Open testing auto-submit
 
-**Status: PRIPREMA / NE IZVRŠAVATI SADA.** LG-04 Wave1 header kandidat nije dobio fizički Play test ni objedinjeni QA sa sledećom fazom Kataloga. Ovo NIJE produkcioni rollout.
+**Status: PRIPREMA / NE IZVRŠAVATI SADA.** LG-04 Wave1 Header i Wave2 Katalog imaju zaseban exact-source CI PASS; Wave3 Modali/akcioni paneli su nova Draft faza koja mora proći sopstveni CI i fizičku proveru. Nijedna LG-04 promena još nije objavljena na Play-u. Ovo NIJE produkcioni rollout.
 
 ## Traganje za release autoritetom
 
@@ -51,12 +51,13 @@ LG-04 — provera Liquid Glass interfejsa
 • Uređeniji globalni header sa diskretnim staklastim komandama i animacijama na dodir.
 • Veća čitljivost naslova i jasniji indikatori notifikacija.
 • Preglednija pretraga i filteri kataloga, uz diskretno otvaranje panela bez animiranja cena ili proizvoda.
+• Čitljiviji paneli za izbor i potvrdu akcija, sa pristupačnom animacijom i jasno odvojenim upozorenjima.
 • Efekti su opcioni na podržanim Android 13+ uređajima; drugi uređaji zadržavaju čitljivu klasičnu navigaciju.
 • Poštovana podešavanja smanjenog kretanja i povećanog kontrasta.
 
 Test izdanje: prijavite probleme sa prikazom, navigacijom ili performansama.
 
-**Do narednog release-a:** navesti i promene druge LG-04 faze ako je završena. Ne lažno obećavati adaptaciju grafike koja nije prošla realan UAT.
+**Do narednog release-a:** konačne napomene moraju odgovarati stvarno završenim LG-04 fazama i fizičkom UAT-u. Ne obećavati efekte ili modelsku kompatibilnost bez merenja.
 
 ## Release HOLD / prihvat
 
