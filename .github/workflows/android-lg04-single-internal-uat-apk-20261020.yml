@@ -106,7 +106,9 @@ jobs:
           set -euo pipefail
           npm run typecheck
           npm run validate
-          npm run test:release25
+          # The cross-profile regression suite must NOT inherit the UAT opt-in;
+          # keep preview/app profile in the later authenticated EAS build steps.
+          env -u EAS_BUILD_PROFILE -u ALD1N_LG03_NATIVE_UAT npm run test:release25
       - name: Authenticate to existing Expo project read-only
         working-directory: apps/mobile/current
         shell: bash
