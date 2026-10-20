@@ -27,6 +27,16 @@ const hasIosGoogleServicesFile = Boolean(
 );
 // MOBILE_IOS_GOOGLE_NATIVE_CONFIG_V06
 
+// Android LG-03 native integration is still DRAFT. Only the dedicated internal
+// UAT profile may opt in to its distinct runtime. Production remains Build25.
+const LG03_NATIVE_UAT_REQUESTED = process.env.ALD1N_LG03_NATIVE_UAT === '1';
+if (LG03_NATIVE_UAT_REQUESTED && APP_ENV !== 'preview') {
+  throw new Error('LG03_NATIVE_UAT_REQUIRES_REGISTERED_PREVIEW_APP');
+}
+if (process.env.EAS_BUILD_PROFILE === 'production') {
+  throw new Error('LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD');
+}
+
 const isProduction = APP_ENV === 'production';
 const suffix = isProduction ? '' : `.${APP_ENV}`;
 
@@ -58,6 +68,10 @@ module.exports = ({ config }) => {
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
     runtimeVersion: '1.0.0-build17',
+    // Dedicated native preview uses an incompatible-from-Build25 runtime.
+    ...(LG03_NATIVE_UAT_REQUESTED
+      ? { runtimeVersion: '1.0.0-lg03-native-uat1' }
+      : {}),
 
     ios: {
       ...(config.ios || {}),
