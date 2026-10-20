@@ -273,6 +273,7 @@ export default function AdminCatalogCreateScreen() {
 
   const options = optionsQuery.data;
   const selectedType = options.types.find((type) => String(type.id) === productTypeId);
+  const isLaptopCharger = selectedType?.name === 'Punjači za laptopove';
   const specificationFields = selectedType?.fields ?? [];
   const storageFields = specificationFields.filter((field) => field.storage_repeater?.enabled);
   const storageDerivedFieldIds = new Set(
@@ -608,11 +609,11 @@ export default function AdminCatalogCreateScreen() {
           }}
         />
         <SelectSheet
-          label="Linija"
+          label={isLaptopCharger ? 'Tip priključka' : 'Linija'}
           value={lineId}
-          placeholder={!productTypeId ? 'Prvo izaberi tip artikla' : brandId ? 'Bez linije' : 'Prvo izaberi brend'}
+          placeholder={!productTypeId ? 'Prvo izaberi tip artikla' : brandId ? (isLaptopCharger ? 'Izaberi priključak' : 'Bez linije') : 'Prvo izaberi brend'}
           disabled={!productTypeId || !brandId}
-          options={[{ value: '', label: 'Bez linije' }, ...lineOptions]}
+          options={[{ value: '', label: isLaptopCharger ? 'Bez tipa priključka' : 'Bez linije' }, ...lineOptions]}
           onChange={setLineId}
         />
         <TextField
