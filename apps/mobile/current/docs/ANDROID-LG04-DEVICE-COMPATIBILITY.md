@@ -32,6 +32,14 @@
 - Nema nove native zavisnosti, plugin-a ili runtime-a: nasleđuje već ugrađen `react-native-android-liquid-glass@0.2.1` iz Build26.
 - iOS/web i slabiji Android koriste solid kontrole; tablet rail i donji LG-03 meni nisu menjani.
 
+## LG-04 Wave 2 — katalog i filteri
+
+- Polje za pretragu ima najmanje 56dp, neproziran kontrastni background i jasan accessibility label.
+- Korpa/Filteri imaju min 48dp, brzi stock filteri min 44dp. Pregled aktivnih filtera i broja rezultata ostaje vidljiv u svim temama.
+- Otvaranje panela filtera koristi jednokratni 180ms native-driver ulaz (opacity + translateY), bez animiranja redova kataloga ili podataka. Filter panel sam je neproziran.
+- Reduce Motion odmah prebacuje ulaz na statički prikaz i ukida animaciju pritiska. Nema intervala, animiranja cele liste, per-row native refrakcije ili nove native zavisnosti.
+- Kartice artikala, SKU, cene, iznosi, lager i sistem permissions/navigacije ostaju nepromenjeni.
+
 ## Minimalni fizički acceptance pre sledećeg Open testing auto-submit
 
 - Android 13+ realni uređaj: oba režima teme, akcije headera, touch 48dp, čitljivost naslova, otvorene/primljene notifikacije i unread badge 0/1/99+.

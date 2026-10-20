@@ -1,0 +1,78 @@
+name: Android LG-04 Wave2 - readable catalog and motion QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - feature/android-lg04-wave2-catalog-controls-20261020
+  pull_request:
+    branches:
+      - feature/android-lg04-wave1-readable-header-glass-20261020
+      - main
+    paths:
+      - 'apps/mobile/current/src/app/(app)/(tabs)/catalog.tsx'
+      - 'apps/mobile/current/scripts/release25/android-lg04-catalog-motion-and-readability.test.mjs'
+      - 'apps/mobile/current/docs/ANDROID-LG04-DEVICE-COMPATIBILITY.md'
+      - 'apps/mobile/current/docs/ANDROID-LG04-NEXT-PLAY-OPEN-TESTING-AUTOSUBMIT.md'
+      - '.github/workflows/android-lg04-wave2-catalog-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  catalog-readability-and-android-export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact head checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Restore locked dependencies
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Native module and beta submission configuration remain exact
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const p=require('./package.json'),l=require('./package-lock.json'),e=require('./eas.json');
+          if(p.version!=='1.0.0'||p.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(71);
+          if(l.packages['node_modules/react-native-android-liquid-glass']?.version!=='0.2.1')process.exit(72);
+          if(e.build['lg03-play-testing']?.channel!=='lg03-play-testing')process.exit(73);
+          if(e.submit['lg03-play-testing']?.android?.track!=='beta')process.exit(74);
+          if(e.submit.production.android.track!=='production')process.exit(75);
+          console.log('LG04_CATALOG_NATIVE_AND_BETA_GATE=PASS');
+          NODE
+      - name: TypeScript + canonical mobile validator
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+      - name: All Release25 tests plus LG04 header/catalog
+        working-directory: apps/mobile/current
+        run: npm run test:release25
+      - name: Export Android test channel JS only (no OTA)
+        working-directory: apps/mobile/current
+        env:
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+          ALD1N_LG03_PLAY_TESTING: '1'
+          EAS_BUILD_PROFILE: lg03-play-testing
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg04-catalog-android-js"
+          test -d "$RUNNER_TEMP/ald1n-lg04-catalog-android-js"
+          echo 'LG04_CATALOG_ANDROID_JS_BUNDLE=PASS_NO_OTA'
+      - name: No releases
+        if: always()
+        run: |
+          echo 'EAS_BUILD=NONE'
+          echo 'AUTO_SUBMIT=NONE'
+          echo 'OTA=NONE'
+          echo 'PLAY=NONE'
+          echo 'PRODUCTION_DB=NONE'
