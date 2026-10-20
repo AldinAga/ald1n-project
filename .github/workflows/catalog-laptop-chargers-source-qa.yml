@@ -1,0 +1,126 @@
+name: Ald1n Laptop Charger Catalog - PHP 8.4 MariaDB/SQLite and Mobile source QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - feature/catalog-laptop-chargers-20261020
+  pull_request:
+    branches:
+      - feature/android-lg04-wave4-home-admin-shortcuts-20261020
+    paths:
+      - 'apps/cms/current/database/migrations/2026_10_20_154800_add_laptop_charger_catalog.php'
+      - 'apps/cms/current/tests/Feature/LaptopChargerCatalogTest.php'
+      - 'apps/cms/current/app/Services/BrandLineCatalogService.php'
+      - 'apps/mobile/current/src/app/(app)/admin/catalog/create.tsx'
+      - 'apps/mobile/current/src/app/(app)/admin/catalog/[id].tsx'
+      - '.github/workflows/catalog-laptop-chargers-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  cms-catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: charger-ci-only
+          MARIADB_DATABASE: ald1n_charger_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pcharger-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_charger_ci
+      DB_USERNAME: root
+      DB_PASSWORD: charger-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Exact source HEAD, read-only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Isolated PHP 8.4 for MariaDB 10.11.19
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Composer install, ephemeral database only
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test "$DB_CONNECTION" = mysql
+          test "$DB_DATABASE" = ald1n_charger_ci
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Charger catalog real PHP tests and canonical Laravel static
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l tests/Feature/LaptopChargerCatalogTest.php
+          php -l database/migrations/2026_10_20_154800_add_laptop_charger_catalog.php
+          php -l app/Services/BrandLineCatalogService.php
+          php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargerCatalogTest.php --no-ansi
+          php bin/static-check.php
+          echo 'LAPTOP_CHARGER_CATALOG_MARIADB_SOURCE_QA=PASS'
+  mobile-editor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 27
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Locked npm install
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript and mobile validator
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+      - name: Full Release25 source regression
+        working-directory: apps/mobile/current
+        run: npm run test:release25
+      - name: Android JavaScript export only, NO EAS BUILD and NO OTA
+        working-directory: apps/mobile/current
+        env:
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+          ALD1N_LG03_PLAY_TESTING: '1'
+          EAS_BUILD_PROFILE: lg03-play-testing
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-charger-android-js"
+          test -d "$RUNNER_TEMP/ald1n-charger-android-js"
+          echo 'CHARGER_ANDROID_JS_EXPORT=PASS_NO_EAS_NO_OTA'
+      - name: Report NO builds, OTA, Play, production DB mutation or merge
+        if: always()
+        run: |
+          echo 'EAS_APK_AAB_BUILD=NONE'
+          echo 'EAS_UPDATE=NONE'
+          echo 'GOOGLE_PLAY=NONE'
+          echo 'PRODUCTION_DB_MIGRATIONS=NONE'
