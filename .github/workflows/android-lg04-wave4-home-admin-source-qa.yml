@@ -1,0 +1,84 @@
+name: Android LG-04 Wave4 - accessible Home/Admin shortcuts QA (NO RELEASE)
+on:
+  pull_request:
+    branches:
+      - feature/android-lg04-wave3-accessible-action-sheets-20261020
+    paths:
+      - 'apps/mobile/current/src/components/workspaces/glass-workspace-shortcut.tsx'
+      - 'apps/mobile/current/src/app/(app)/(tabs)/home.tsx'
+      - 'apps/mobile/current/src/app/(app)/admin/index.tsx'
+      - 'apps/mobile/current/scripts/release25/android-lg04-home-admin-shortcuts.test.mjs'
+      - 'apps/mobile/current/docs/ANDROID-LG04-DEVICE-COMPATIBILITY.md'
+      - 'apps/mobile/current/docs/ANDROID-LG04-NEXT-PLAY-OPEN-TESTING-AUTOSUBMIT.md'
+      - '.github/workflows/android-lg04-wave4-home-admin-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-and-android-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 27
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact GitHub PR HEAD (no write token)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Locked npm install, no expo install --fix
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: LG04 Wave4 regression tests (RED then GREEN)
+        working-directory: apps/mobile/current
+        run: node --test scripts/release25/android-lg04-home-admin-shortcuts.test.mjs
+      - name: Build26 native parity and strictly Open testing release profile
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const pkg=require('./package.json'),lock=require('./package-lock.json'),eas=require('./eas.json');
+          const cfg=fs.readFileSync('app.config.js','utf8');
+          if(pkg.version!=='1.0.0'||pkg.dependencies.expo!=='~57.0.27'||pkg.dependencies['react-native']!=='0.86.3')process.exit(71);
+          if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(72);
+          if(lock.packages?.['node_modules/react-native-android-liquid-glass']?.version!=='0.2.1')process.exit(73);
+          if(!cfg.includes("1.0.0-lg03-play-testing1"))process.exit(74);
+          if(eas.build['lg03-play-testing']?.channel!=='lg03-play-testing')process.exit(75);
+          if(eas.submit['lg03-play-testing']?.android?.track!=='beta'||eas.submit.production?.android?.track!=='production')process.exit(76);
+          console.log('LG04_WAVE4_BUILD26_NATIVE_COMPATIBILITY=PASS');
+          console.log('LG04_PLAY_AUTO_SUBMIT=BETA_ONLY_NOT_EXECUTED');
+          NODE
+      - name: TypeScript and canonical mobile validator
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+      - name: Full Release25 regressions including all LG04 waves
+        working-directory: apps/mobile/current
+        run: npm run test:release25
+      - name: Android JS bundle, no OTA publication
+        working-directory: apps/mobile/current
+        env:
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+          ALD1N_LG03_PLAY_TESTING: '1'
+          EAS_BUILD_PROFILE: lg03-play-testing
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg04-wave4-android"
+          test -d "$RUNNER_TEMP/ald1n-lg04-wave4-android"
+          echo 'LG04_WAVE4_ANDROID_JS_BUNDLE=PASS_NO_OTA'
+      - name: Assert NO build, submit, Play, OTA or backend mutation
+        if: always()
+        run: |
+          echo 'EAS_BUILD=NONE'
+          echo 'EAS_AUTO_SUBMIT=NONE'
+          echo 'OTA=NONE'
+          echo 'GOOGLE_PLAY_PRODUCTION=UNCHANGED'
+          echo 'CMS_DB_MUTATION=NONE'

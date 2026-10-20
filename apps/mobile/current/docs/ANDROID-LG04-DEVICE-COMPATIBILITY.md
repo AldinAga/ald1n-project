@@ -75,3 +75,12 @@ Unapređen je globalni header sa diskretnim staklastim komandama i animacijama n
 - LG-04 source/QA mora imati sopstveni exact-head CI (TypeScript, validator, Release25, Android bundle, native-version parity), novi izveštaj i owner release acceptance.
 - EAS auto-submit zahteva stvarni Google Play service-account key vezan za Expo projekat. Ako nije konfigurisan, jasan HOLD umesto automatskog prebacivanja na production. Track mora biti samo `beta`, nikada `production`.
 - Sačekati odobrenje naredne Play testing verzije; ne pokretati novi AAB bez zatvorenih source/UI/Play gate-ova.
+
+## LG-04 Wave 4 — Početna i Administracija (Draft PR; release HOLD)
+
+- **Početna:** samo postojeće permission-aware prečice u odeljku Brze akcije (Dodaj artikal i Korpa kada su dozvoljeni) koriste po jednu 48dp native lens ikonicu. Njihov tekst, cela stavka i pozadinska kartica ostaju neprozirni. Moje aktivnosti, Administracija, Fokus danas, Dashboard i **KPI** nisu menjani.
+- **Administracija:** isključivo prečica „Pretraži sve module” dobija ograničenu glass ikonicu. Permission gate, postojeća globalna search ruta i posebno polje „Pretraži administraciju” ostaju netaknuti i potpuno neprozirni. Finansijske vrednosti i tabele bez staklastog efekta.
+- Jedan pristupačan pritisak po stavci, bez unutrašnjih/nested dugmadi. Aktivna površina najmanje 72dp visine; samo ikonica je 48 × 48 dp. Naslov i opis mogu se prelomiti na 320dp ili pri velikom fontu.
+- Reduce Motion ili nepoznata vrednost onemogućavaju transformaciju; Reduce Transparency, povećani kontrast i native pipeline problem koriste solid fallback. Native glass je opcioni Android API33+ dodatak.
+- **UAT pre narednog Open testing izdanja:** testirati 320/390dp, uvećani font, 48dp ikonice, single-tap navigaciju (brza prečica i globalna pretraga), permission ograničenja, Android 24–32 solid fallback, API33+ u obe teme, Reduce Motion/Transparency/High Contrast, povratak iz background-a, ANR/frame stutter; nijedna vrednost KPI-ja ne sme biti providna.
+- Wave4 je source-only Draft. Ne predstavlja fizički QA ili novo Play izdanje; bez migracija, novih native paketa, runtime promene ili zabrane uređaja.

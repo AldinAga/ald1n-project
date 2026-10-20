@@ -1,6 +1,6 @@
 # Ald1n CMS — naredni Android LG-04 Open testing auto-submit
 
-**Status: PRIPREMA / NE IZVRŠAVATI SADA.** LG-04 Wave1 Header i Wave2 Katalog imaju zaseban exact-source CI PASS; Wave3 Modali/akcioni paneli su nova Draft faza koja mora proći sopstveni CI i fizičku proveru. Nijedna LG-04 promena još nije objavljena na Play-u. Ovo NIJE produkcioni rollout.
+**Status: PRIPREMA / NE IZVRŠAVATI SADA.** Wave1 Header, Wave2 Katalog i Wave3 Modali/akcioni paneli imaju svoje exact-source CI PASS rezultate; Wave4 Početna/Administracija je zaseban Draft i čeka sopstveni CI i fizičku proveru. Nijedna LG-04 promena još nije objavljena na Play-u. Ovo NIJE produkcioni rollout.
 
 ## Traganje za release autoritetom
 
@@ -64,3 +64,9 @@ Test izdanje: prijavite probleme sa prikazom, navigacijom ili performansama.
 - Mora proći source CI i physical UAT, uključujući niže API-je i minimum 48dp touch, dark/light, visoki kontrast, nazive naslova i 30-sekundno skrolovanje.
 - Exact source SHA, EAS build UUID, versionCode, runtimeVersion, profil/kanal i artifact metadata navedeni u numerisanom reportu pod `docs/operations`; skripta za host mora biti u `incoming` i prethodno SHA-256 proverena.
 - EAS auto-submit je **jedna** autorizovana Play Open testing predaja `beta`, bez objavljivanja na production. Ne ponavljati submit ako je ishod nepoznat; čitati exact build/submission ID.
+
+## Wave4 dodatak za buduće Open testing napomene — HOLD do fizičkog QA
+
+**Brze akcije na Početnoj i prečica za globalnu pretragu Administracije** dobijaju diskretan, ograničen Liquid Glass naglasak na ikonicama. Kompletan tekst, KPI iznosi, cene, formulari i administratorski podaci ostaju potpuno čitljivi na neprozirnim površinama. Prečice i dalje poštuju prava korisnika. Prikaz ima klasičan fallback i poštuje Reduce Motion/Transparency i povećani kontrast. 
+
+Ovaj tekst se dodaje konačnim sr-RS Play testing napomenama isključivo ako Wave4 exact-head CI i fizički Android UAT prođu, a naredni `versionCode`, stvarni AAB, profil/kanal, runtime i source SHA budu potvrđeni iz EAS release autoriteta. Ne pokretati `--auto-submit`, OTA ili production objavu iz ovog PR-a.
