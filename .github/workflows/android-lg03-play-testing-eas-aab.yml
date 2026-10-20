@@ -68,7 +68,9 @@ jobs:
           NODE
           npm run typecheck
           npm run validate
-          npm run test:release25
+          # The full cross-profile suite exercises iOS, preview and prod fixtures;
+          # clear THIS testing opt-in only for those isolated fixture checks.
+          env -u EAS_BUILD_PROFILE -u ALD1N_LG03_PLAY_TESTING npm run test:release25
       - name: Dispatch ONE Expo EAS AAB from exact source (no Play submission)
         working-directory: apps/mobile/current
         shell: bash
