@@ -301,6 +301,8 @@ final class BrandLineCatalogService
     private function typeGroup(string $typeName, ?string $categoryName): ?string
     {
         $text = Str::lower(Str::ascii(trim($typeName.' '.($categoryName ?? ''))));
+        // Punjači za laptopove nisu laptop modeli; njihove tipske linije su DC/USB-C konektori.
+        if ($this->containsAny($text, ['punjac', 'laptop charger', 'notebook charger'])) return null;
         if ($this->containsAny($text, ['laptop', 'notebook', 'prenosni', 'portable'])) return 'laptop';
         if ($this->containsAny($text, ['ssd', 'solid state'])) return 'ssd';
         if ($this->containsAny($text, ['hdd', 'hard disk', 'harddisk'])) return 'hdd';
