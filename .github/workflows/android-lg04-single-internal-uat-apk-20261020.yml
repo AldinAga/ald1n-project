@@ -1,0 +1,271 @@
+name: Android LG04 Wave1-4 - ONE gated internal UAT APK (NO RELEASE)
+on:
+  push:
+    branches:
+      - ops/android-lg04-one-internal-uat-apk-20261020
+    paths:
+      - '.github/workflows/android-lg04-single-internal-uat-apk-20261020.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-lg04-20261020-one-internal-uat-apk
+  cancel-in-progress: false
+jobs:
+  exact-source-credential-preflight-and-one-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: preview
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+      ALD1N_LG03_NATIVE_UAT: '1'
+      EAS_BUILD_PROFILE: lg03-native-uat
+      SOURCE_SHA: d9f01923b3e01ccca5ba7a08a100d3dbfe2631a1
+    steps:
+      - name: Checkout immutable reviewed PR51 source (not automation commit)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: d9f01923b3e01ccca5ba7a08a100d3dbfe2631a1
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup canonical Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Exact-source GitHub lease and immutable one-shot trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'AldinAga/ald1n-project'
+          test "$GITHUB_REF_NAME" = 'ops/android-lg04-one-internal-uat-apk-20261020'
+          test "$GITHUB_EVENT_NAME" = 'push'
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          REMOTE_PR51=$(git ls-remote origin refs/heads/feature/android-lg04-wave4-home-admin-shortcuts-20261020 | cut -f1)
+          test "$REMOTE_PR51" = "$SOURCE_SHA"
+          echo 'LG04_SOURCE_SHA=d9f01923b3e01ccca5ba7a08a100d3dbfe2631a1'
+          echo 'LG04_SOURCE_LEASE=PASS'
+          echo 'ONE_UAT_APK_APPROVAL=2026-10-20_OWNER'
+      - name: Locked install, no source modifications or expo install --fix
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Fail-closed target config and native pin, local only
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const eas = require('./eas.json');
+          const p = require('./package.json');
+          const lock = require('./package-lock.json');
+          const config = require('./app.config.js')({ config: {} });
+          const google = JSON.parse(fs.readFileSync('./google-services.json','utf8'));
+          const prof = eas.build['lg03-native-uat'];
+          const expectedPackage = 'com.ald1n.mobile.preview';
+          const expectedRuntime = '1.0.0-lg03-native-uat1';
+          const hasPreviewFirebase = google.client.some(c => c.client_info?.android_client_info?.package_name === expectedPackage);
+          const valid = (
+            config.name === 'Ald1n CMS'
+            && config.owner === 'ald1n' && config.slug === 'ald1n-mobile'
+            && config.extra?.eas?.projectId === 'd43b3866-6838-4217-a23e-3dc7f2cc76cc'
+            && config.android?.package === expectedPackage
+            && config.runtimeVersion === expectedRuntime
+            && config.version === '1.0.0'
+            && config.extra?.apiUrl === 'https://cms.ald1n.com/api/v1'
+            && hasPreviewFirebase
+            && p.version === '1.0.0'
+            && p.dependencies.expo === '~57.0.27'
+            && p.dependencies['react-native'] === '0.86.3'
+            && p.dependencies['react-native-android-liquid-glass'] === '0.2.1'
+            && lock.packages?.['node_modules/react-native-android-liquid-glass']?.version === '0.2.1'
+            && eas.cli.version === '25.0.0' && eas.cli.appVersionSource === 'remote'
+            && prof?.distribution === 'internal'
+            && prof?.channel === 'lg03-native-uat'
+            && prof?.android?.buildType === 'apk'
+            && prof?.autoIncrement === false
+            && prof?.env?.EXPO_PUBLIC_APP_ENV === 'preview'
+            && prof?.env?.ALD1N_LG03_NATIVE_UAT === '1'
+            && prof?.env?.EXPO_PUBLIC_API_URL === 'https://cms.ald1n.com/api/v1'
+            && !prof.autoSubmit && !prof.submit && prof.android.withoutCredentials !== true
+            && eas.build.production?.channel === 'production'
+            && eas.submit.production?.android?.track === 'production'
+          );
+          if (!valid) { console.error('HOLD_EXACT_PREVIEW_APK_IDENTITY_OR_DEPENDENCY_DRIFT'); process.exit(71); }
+          console.log('LG04_PREVIEW_PACKAGE=com.ald1n.mobile.preview');
+          console.log('LG04_UAT_RUNTIME=1.0.0-lg03-native-uat1');
+          console.log('LG04_APP_VERSION=1.0.0');
+          console.log('LG04_APK_PROFILE_AND_CHANNEL=lg03-native-uat');
+          console.log('LG04_NATIVE_DEPENDENCY_LOCK=PASS');
+          console.log('LG04_NO_SUBMIT_OR_PRODUCTION_CONFIG=PASS');
+          NODE
+      - name: Canonical exact-source mobile TypeScript validator and full Release25
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - name: Authenticate to existing Expo project read-only
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo 'HOLD_EXPO_TOKEN_NOT_CONFIGURED_NO_BUILD'
+            exit 72
+          fi
+          npm exec --yes --package=eas-cli@25.0.0 -- eas --version
+          npm exec --yes --package=eas-cli@25.0.0 -- eas whoami
+          npm exec --yes --package=eas-cli@25.0.0 -- eas project:info > "$RUNNER_TEMP/ald1n-lg04-uat-project-info.txt"
+          echo 'EAS_AUTHENTICATED_PROJECT_READ=PASS'
+      - name: Verify PREVIEW Firebase signer and existing default EAS keystore - READ ONLY GraphQL
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const gql = `query LG04PreviewSigning($name: String!, $identifier: String) {
+            app {
+              byFullName(fullName: $name) {
+                id
+                fullName
+                androidAppCredentials(filter: { applicationIdentifier: $identifier, legacyOnly: false }) {
+                  applicationIdentifier
+                  isLegacy
+                  androidAppBuildCredentialsList {
+                    isDefault
+                    name
+                    androidKeystore { id sha1CertificateFingerprint sha256CertificateFingerprint }
+                  }
+                }
+              }
+            }
+          }`;
+          function hold(code) { console.error(code); process.exit(74); }
+          const access = process.env.EXPO_TOKEN;
+          if (!access) hold('HOLD_EXPO_TOKEN_MISSING_NO_BUILD');
+          const response = await fetch('https://api.expo.dev/graphql', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: `Bearer ${access}` },
+            body: JSON.stringify({
+              query: gql,
+              variables: { name: '@ald1n/ald1n-mobile', identifier: 'com.ald1n.mobile.preview' },
+            }),
+            signal: AbortSignal.timeout(20000),
+          }).catch(() => null);
+          if (!response?.ok) hold('HOLD_EXPO_SIGNING_QUERY_HTTP_UNAVAILABLE_NO_BUILD');
+          const result = await response.json().catch(() => null);
+          if (!result || result.errors?.length) hold('HOLD_EXPO_SIGNING_GRAPHQL_UNAVAILABLE_NO_BUILD');
+          const app = result.data?.app?.byFullName;
+          if (!app || app.id !== 'd43b3866-6838-4217-a23e-3dc7f2cc76cc'
+            || app.fullName !== '@ald1n/ald1n-mobile') {
+            hold('HOLD_EXPO_PROJECT_ID_MISMATCH_NO_BUILD');
+          }
+          const rows = (app.androidAppCredentials || []).filter(c =>
+            c.applicationIdentifier === 'com.ald1n.mobile.preview' && !c.isLegacy);
+          if (rows.length !== 1) hold('HOLD_PREVIEW_ANDROID_APP_CREDENTIALS_UNATTESTED_NO_BUILD');
+          const defaults = (rows[0].androidAppBuildCredentialsList || []).filter(c =>
+            c.isDefault && c.androidKeystore?.id && c.androidKeystore?.sha1CertificateFingerprint);
+          if (defaults.length !== 1) hold('HOLD_PREVIEW_DEFAULT_KEYSTORE_ABSENT_OR_AMBIGUOUS_NO_BUILD');
+          const clean = v => String(v || '').replace(/[^a-f0-9]/ig, '').toLowerCase();
+          const actualSha1 = clean(defaults[0].androidKeystore.sha1CertificateFingerprint);
+          const google = JSON.parse(readFileSync('./google-services.json', 'utf8'));
+          const preview = google.client.find(c => c.client_info?.android_client_info?.package_name === 'com.ald1n.mobile.preview');
+          const oauthSha1 = (preview?.oauth_client || [])
+            .filter(o => o.client_type === 1 && o.android_info?.package_name === 'com.ald1n.mobile.preview')
+            .map(o => clean(o.android_info?.certificate_hash));
+          if (!/^[a-f0-9]{40}$/.test(actualSha1) || !oauthSha1.includes(actualSha1)) {
+            hold('HOLD_PREVIEW_FIREBASE_OAUTH_SIGNER_SHA1_MISMATCH_NO_BUILD');
+          }
+          if (!defaults[0].androidKeystore.sha256CertificateFingerprint) {
+            hold('HOLD_PREVIEW_KEYSTORE_SHA256_UNATTESTED_NO_BUILD');
+          }
+          console.log('EXPO_PROJECT_AUTHORITY=PASS');
+          console.log('PREVIEW_DEFAULT_KEYSTORE_EXISTS=PASS');
+          console.log('PREVIEW_FIREBASE_OAUTH_SIGNER_SHA1=PASS');
+          console.log('SIGNING_MATERIAL_NOT_EXPORTED=PASS');
+          NODE
+      - name: Read-only EAS Android version and ensure NO duplicate source build exists
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build:version:get \
+            --platform android --profile lg03-native-uat --json --non-interactive \
+            > "$RUNNER_TEMP/lg04-uat-remote-version.json"
+          node -e "JSON.parse(require('node:fs').readFileSync(process.env.RUNNER_TEMP+'/lg04-uat-remote-version.json','utf8'))"
+          echo 'EAS_ANDROID_VERSION_REMOTE_READ=PASS_NO_INCREMENT'
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build:list \
+            --platform android --build-profile lg03-native-uat \
+            --git-commit-hash "$SOURCE_SHA" --limit 20 --json --non-interactive \
+            > "$RUNNER_TEMP/lg04-uat-previous-builds.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const raw = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/lg04-uat-previous-builds.json','utf8'));
+          const builds = Array.isArray(raw) ? raw : Array.isArray(raw?.builds) ? raw.builds : null;
+          if (!builds) { console.error('HOLD_UNEXPECTED_EAS_BUILD_LIST_RESPONSE_NO_BUILD'); process.exit(75); }
+          if (builds.length !== 0) { console.error('HOLD_EXISTING_UAT_BUILD_FOR_EXACT_SOURCE_NO_RETRY'); process.exit(76); }
+          console.log('ONE_BUILD_IDEMPOTENCY=PASS_NO_EXISTING_SOURCE_BUILDS');
+          NODE
+      - name: Execute exactly ONE frozen-credentials INTERNAL Android APK build (NO SUBMIT)
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo 'EAS_BUILD_DISPATCH_MAXIMUM=ONE'
+          echo 'EAS_BUILD_PROFILE=lg03-native-uat'
+          echo 'EAS_AUTO_SUBMIT=FORBIDDEN'
+          echo 'EAS_OTA=FORBIDDEN'
+          echo 'PLAY_PRODUCTION=UNCHANGED'
+          if ! npm exec --yes --package=eas-cli@25.0.0 -- eas build \
+            --platform android \
+            --profile lg03-native-uat \
+            --freeze-credentials \
+            --non-interactive \
+            --wait \
+            --json \
+            --message "LG04_WAVES1_4_INTERNAL_UAT_ONCE_20261020 source:$SOURCE_SHA run:$GITHUB_RUN_ID" \
+            > "$RUNNER_TEMP/ald1n-lg04-single-uat-result.json"; then
+            echo 'HOLD_SINGLE_EAS_BUILD_FAILED_OR_OUTCOME_UNKNOWN_NEVER_RETRY_BLINDLY'
+            exit 77
+          fi
+          node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/ald1n-lg04-single-uat-result.json','utf8'));
+          const build = Array.isArray(payload) ? payload.find(b => b.platform === 'ANDROID') : payload;
+          if (!build || !/^[0-9a-f-]{36}$/i.test(build.id || '')) {
+            console.error('HOLD_EAS_BUILD_METADATA_UNEXPECTED_DO_NOT_RESUBMIT');
+            process.exit(78);
+          }
+          console.log('ONE_EAS_APK_BUILD_ID='+build.id);
+          console.log('ONE_EAS_APK_BUILD_URL=https://expo.dev/accounts/ald1n/projects/ald1n-mobile/builds/'+build.id);
+          console.log('ONE_EAS_APK_BUILD_STATUS='+(build.status || 'VERIFY_VIA_BUILD_VIEW'));
+          console.log('ONE_EAS_APK_VERSION_CODE='+(build.appBuildVersion || 'READ_EXACT_BUILD_METADATA'));
+          console.log('ONE_EAS_APK_SOURCE_SHA='+process.env.SOURCE_SHA);
+          console.log('ONE_EAS_APK_PROFILE=lg03-native-uat');
+          console.log('ONE_EAS_APK_CHANNEL=lg03-native-uat');
+          console.log('ONE_EAS_APK_RUNTIME=1.0.0-lg03-native-uat1');
+          console.log('EAS_BUILD_DISPATCH_COUNT=ONE');
+          console.log('EAS_SUBMIT_AND_OTA_EXECUTED=NEVER');
+          NODE
+      - name: Immutable no-release summary on success or HOLD
+        if: always()
+        run: |
+          echo 'MAX_EAS_BUILD_REQUESTS_THIS_RUN=ONE'
+          echo 'NO_AUTO_SUBMIT_COMMAND=PASS'
+          echo 'NO_PLAY_RELEASE_COMMAND=PASS'
+          echo 'NO_EAS_UPDATE_COMMAND=PASS'
+          echo 'NO_CMS_OR_DB_COMMAND=PASS'
+          echo 'NO_MAIN_MERGE_COMMAND=PASS'
+          echo 'NEVER_RETRY_WITHOUT_EXACT_BUILD_LIST_AUDIT'
