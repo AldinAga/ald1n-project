@@ -1,6 +1,6 @@
 # Ald1n CMS — naredni Android LG-04 Open testing auto-submit
 
-**Status: PRIPREMA / NE IZVRŠAVATI SADA.** LG-04 Wave1 header kandidat nije dobio fizički Play test ni objedinjeni QA sa sledećom fazom Kataloga. Ovo NIJE produkcioni rollout.
+**Status: PRIPREMA / NE IZVRŠAVATI SADA.** LG-04 Wave1 Header i Wave2 Katalog imaju zaseban exact-source CI PASS; Wave3 Modali/akcioni paneli su nova Draft faza koja mora proći sopstveni CI i fizičku proveru. Nijedna LG-04 promena još nije objavljena na Play-u. Ovo NIJE produkcioni rollout.
 
 ## Traganje za release autoritetom
 
