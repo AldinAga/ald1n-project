@@ -1,0 +1,83 @@
+name: Laptop chargers source QA (NO DEPLOY OR EAS)
+on:
+  push:
+    branches: [feature/catalog-laptop-chargers-types-brands-watt-20261020]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: charger-ci-only
+          MARIADB_DATABASE: ald1n_charger_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pcharger-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_charger_ci
+      DB_USERNAME: root
+      DB_PASSWORD: charger-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Checkout isolated source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Disposable Laravel and MariaDB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+          php -r '$p=new PDO("mysql:host=127.0.0.1;dbname=ald1n_charger_ci","root","charger-ci-only"); if(!preg_match("/^10\\.11\\.19-MariaDB/i",$p->query("SELECT VERSION()")->fetchColumn())) exit(31);'
+          php artisan migrate:fresh --force --no-ansi
+      - name: Charger unit and isolated MariaDB acceptance
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l app/Services/BrandLineCatalogService.php
+          php -l app/Services/LaptopChargerCatalogProvisioner.php
+          php -l app/Console/Commands/CatalogLaptopChargersCommand.php
+          php artisan test tests/Unit/LaptopChargersCatalogTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargersCatalogProvisioningTest.php --no-ansi
+          if php artisan app:catalog-laptop-chargers --dry-run --no-interaction > "$RUNNER_TEMP/charger-empty-db.log" 2>&1; then
+            echo 'FAIL_EMPTY_DATABASE_BYPASSED_POWER_FIELD_GATE'
+            exit 41
+          fi
+          grep -q 'HOLD_EXISTING_SNAGA_NAPAJANJA_W_FIELD_MISSING_OR_INVALID' "$RUNNER_TEMP/charger-empty-db.log"
+          echo 'CLEAN_DB_FAIL_CLOSED_NO_REFERENCE_SEED=PASS'
+          php bin/static-check.php
+          echo 'LAPTOP_CHARGER_MARIADB_QA=PASS'
+      - name: No build or deploy
+        if: always()
+        run: |
+          echo 'PRODUCTION_DB_MUTATIONS=ZERO'
+          echo 'EAS_BUILDS=ZERO'
+          echo 'OTA=ZERO'
+          echo 'PLAY=ZERO'
