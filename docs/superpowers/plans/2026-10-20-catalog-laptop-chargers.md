@@ -1,0 +1,14 @@
+# Punjači za laptopove — isolated catalog follow-on (20 October 2026)
+
+**Owner-approved scope:** add charger product type/category, only laptop-enabled existing brand records, simple brand-specific connector choices via existing type-scoped product lines, reuse existing `snaga-napajanja` W field and require entry. No product variants, no new schema, no production deployment or DB mutation before separate gate. This plan is an internal implementation record, not a new approval request.
+
+**Base:** PR51 exact head `d9f01923b3e01ccca5ba7a08a100d3dbfe2631a1`. **Branch:** `feature/catalog-laptop-chargers-connector-taxonomy-20261020`. **UAT build:** existing Build b87de79a-6c42-4cdc-9291-bc48a0a22f18 is frozen. **No further EAS, OTA, Play, merge** until whole LG is finished and separately authorized.
+
+1. Test-first RED with real MariaDB 10.11.19 and latest Laravel 13, tests in `apps/cms/current/tests/Feature/LaptopChargerCatalogTest.php` and isolated CI `.github/workflows/catalog-laptop-chargers-source-qa.yml`.
+2. Create explicitly gated catalog apply/preview service and command. No auto-seed/migration; idempotent additive writes only when actor separately triggers `app:laptop-charger-catalog --apply --ack=ADD-LAPTOP-CHARGERS` after operational approvals. Missing existing watts field or laptop brand mappings is HOLD, not duplicate field creation.
+3. Prevent laptop model family enrichment from polluting charger connector choices. Keep connector map curated, <=10 per existing brand/type. Do not create new brands; require preexisting type-scoped brand-to-Laptopovi associations.
+4. Mobile create/edit labels read `product_type.slug === 'punjaci-za-laptopove'` and rename `Linija` to `Tip konektora`; existing backend selectors, validation and brand/line permissions remain authoritative.
+5. Green exact PR head: PHP 8.4 real MariaDB tests & static PHP, Node22 TypeScript, validator, Release25 and Android JS export (not an EAS build), Draft PR review.
+6. After all UI UX LG polish and separate release gate, only then plan deployment and a final EAS build.
+
+**Verified source references:** HP official https://www.hp.com/us-en/tech-takes/laptops/how-to/how-to-choose-right-charging-cord-hp-laptop.html; Dell official https://www.dell.com/en-us/shop/dell-130w-74mm-ac-adapter/apd/450-bfkz/pc-accessories and https://www.dell.com/en-us/shop/dell-45-mm-barrel-65-w-ac-adapter-with-2meter-power-cord-united-states/apd/492-bdbz/pc-accessories; Lenovo https://pcsupport.lenovo.com/sr/en/products/laptops-and-netbooks/thinkpad-l-series-laptops/thinkpad-l450/accessories/pd027204-thinkpad-65w-slim-ac-adapter-charger-slim-tip-overview-and-service-parts; regional KFD adapter maps https://blicshop.rs/kfd-65w-18-5v-20v-3-5a-max-univerzalni-adapter-za-laptop and https://bubamara-racunari.rs/blog/kako-izabrati-punjac-za-laptop/. USB-C is standard connector with PD negotiated watts; never assume all USB-C laptops support charging.

@@ -1,0 +1,114 @@
+name: Catalog laptop chargers - real isolated schema and mobile QA (NO RELEASE)
+on:
+  pull_request:
+    branches:
+      - feature/android-lg04-wave4-home-admin-shortcuts-20261020
+    paths:
+      - 'apps/cms/current/app/Services/LaptopChargerCatalogService.php'
+      - 'apps/cms/current/app/Services/BrandLineCatalogService.php'
+      - 'apps/cms/current/app/Console/Commands/LaptopChargerCatalogCommand.php'
+      - 'apps/cms/current/tests/Feature/LaptopChargerCatalogTest.php'
+      - 'apps/mobile/current/src/app/(app)/admin/catalog/create.tsx'
+      - 'apps/mobile/current/src/app/(app)/admin/catalog/[id].tsx'
+      - '.github/workflows/catalog-laptop-chargers-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  cms-chargers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: catalog-chargers-ci-only
+          MARIADB_DATABASE: ald1n_chargers_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pcatalog-chargers-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=16
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_chargers_ci
+      DB_USERNAME: root
+      DB_PASSWORD: catalog-chargers-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - name: Exact isolated PR head, read-only credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 and real MariaDB 10.11.19
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install locked Laravel dependencies
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-ansi
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Real schema tests and canonical static analysis
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l tests/Feature/LaptopChargerCatalogTest.php
+          php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargerCatalogTest.php --no-ansi
+          php bin/static-check.php
+          echo 'LAPTOP_CHARGER_MARIADB_AND_STATIC=PASS_NO_PRODUCTION_DB_MUTATION'
+      - name: No production mutation
+        if: always()
+        run: |
+          echo 'PRODUCTION_DB=UNCHANGED'
+          echo 'PRODUCTION_MIGRATE_OR_SEED=NONE'
+          echo 'EAS_BUILD=FORBIDDEN'
+          echo 'EAS_UPDATE=FORBIDDEN'
+          echo 'GOOGLE_PLAY=FORBIDDEN'
+  mobile-chargers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Exact isolated PR head, read-only credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Locked dependencies
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript, validator, existing LG QA, Android JS export (NO OTA)
+        working-directory: apps/mobile/current
+        env:
+          CI: '1'
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+          ALD1N_LG03_PLAY_TESTING: '1'
+          EAS_BUILD_PROFILE: lg03-play-testing
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          env -u EAS_BUILD_PROFILE -u ALD1N_LG03_PLAY_TESTING npm run test:release25
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-chargers-js-only"
+          test -d "$RUNNER_TEMP/ald1n-chargers-js-only"
+          echo 'MOBILE_CHARGER_SOURCE_QA=PASS_NO_BUILD_OR_OTA'
