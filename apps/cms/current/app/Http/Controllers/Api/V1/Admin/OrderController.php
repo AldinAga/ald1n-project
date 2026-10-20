@@ -146,6 +146,10 @@ final class OrderController extends Controller
     {
         $customer = $order->relationLoaded('user') ? $order->getRelation('user') : null;
         $supplier = $order->relationLoaded('supplier') ? $order->getRelation('supplier') : null;
+        // Snapshot names survive product archival or deletion; avoid per-card product lookups.
+        $items = $order->relationLoaded('items') ? $order->getRelation('items')->sortBy('id')->values() : collect();
+        $firstItem = $items->first();
+        $firstItemName = $firstItem !== null ? trim((string) $firstItem->product_name) : '';
 
         return [
             'id' => (int) $order->getKey(),
@@ -158,6 +162,8 @@ final class OrderController extends Controller
             'payment_state' => $this->nullableString($order->getAttribute('payment_state')),
             'inventory_state' => $this->nullableString($order->getAttribute('inventory_state')),
             'subtotal_rsd' => (float) ($order->getAttribute('subtotal_rsd') ?? 0),
+            'primary_item_name' => $firstItemName !== '' ? $firstItemName : null,
+            'additional_items_count' => max(0, $items->count() - 1),
             'customer' => [
                 'name' => $customer instanceof User
                     ? $customer->displayName()
