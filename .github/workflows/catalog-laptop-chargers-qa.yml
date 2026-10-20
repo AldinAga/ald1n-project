@@ -66,7 +66,12 @@ jobs:
           php -l app/Console/Commands/CatalogLaptopChargersCommand.php
           php artisan test tests/Unit/LaptopChargersCatalogTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/LaptopChargersCatalogProvisioningTest.php --no-ansi
-          php artisan app:catalog-laptop-chargers --dry-run --no-interaction
+          if php artisan app:catalog-laptop-chargers --dry-run --no-interaction > "$RUNNER_TEMP/charger-empty-db.log" 2>&1; then
+            echo 'FAIL_EMPTY_DATABASE_BYPASSED_POWER_FIELD_GATE'
+            exit 41
+          fi
+          grep -q 'HOLD_EXISTING_SNAGA_NAPAJANJA_W_FIELD_MISSING_OR_INVALID' "$RUNNER_TEMP/charger-empty-db.log"
+          echo 'CLEAN_DB_FAIL_CLOSED_NO_REFERENCE_SEED=PASS'
           php bin/static-check.php
           echo 'LAPTOP_CHARGER_MARIADB_QA=PASS'
       - name: No build or deploy
