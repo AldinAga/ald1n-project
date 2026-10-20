@@ -79,7 +79,7 @@ final class BrandLineCatalogService
             'gigabyte' => ['AORUS', 'Gaming OC', 'Windforce', 'Eagle'],
             'zotac' => ['AMP', 'Trinity', 'Twin Edge', 'Solid'],
             'palit' => ['GameRock', 'JetStream', 'GamingPro', 'Dual'],
-            'gainward' => ['Phantom', 'Phoenix', 'Ghost'],
+            'gainward' => ['Phantom', 'Phoenix', 'Panther', 'Python', 'Ghost', 'Pegasus'],
             'sapphire' => ['NITRO+', 'PULSE', 'PURE'],
             'powercolor' => ['Red Devil', 'Hellhound', 'Fighter'],
             'pny' => ['XLR8', 'VERTO'],
