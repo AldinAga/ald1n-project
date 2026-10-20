@@ -5,7 +5,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 // DML-only additions to existing type-scoped catalogue. No schema alteration,
 // no product/stock/order mutations and no product variants.
