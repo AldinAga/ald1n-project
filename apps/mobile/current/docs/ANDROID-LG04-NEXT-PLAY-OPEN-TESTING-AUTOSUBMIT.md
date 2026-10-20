@@ -57,7 +57,7 @@ LG-04 — provera Liquid Glass interfejsa
 
 Test izdanje: prijavite probleme sa prikazom, navigacijom ili performansama.
 
-**Do narednog release-a:** navesti i promene druge LG-04 faze ako je završena. Ne lažno obećavati adaptaciju grafike koja nije prošla realan UAT.
+**Do narednog release-a:** konačne napomene moraju odgovarati stvarno završenim LG-04 fazama i fizičkom UAT-u. Ne obećavati efekte ili modelsku kompatibilnost bez merenja.
 
 ## Release HOLD / prihvat
 
