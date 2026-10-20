@@ -1,0 +1,46 @@
+name: CMS Gainward GPU series - source QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - feat/cms-gainward-gpu-official-series-20261020
+  pull_request:
+    paths:
+      - '.github/workflows/cms-gainward-gpu-series-source-qa.yml'
+      - 'apps/cms/current/app/Services/BrandLineCatalogService.php'
+      - 'apps/cms/current/tests/Unit/GainwardGpuSeriesSourceTest.php'
+permissions:
+  contents: read
+jobs:
+  gainward-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: '1'
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install canonical Composer dependencies
+        working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Six-series regression, PHP syntax and CMS static checker
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l app/Services/BrandLineCatalogService.php
+          php -l tests/Unit/GainwardGpuSeriesSourceTest.php
+          php artisan test tests/Unit/GainwardGpuSeriesSourceTest.php --no-ansi
+          php bin/static-check.php
+      - name: No production mutations or mobile release
+        if: always()
+        run: |
+          echo 'SOURCE_ONLY=YES'
+          echo 'DATABASE_MUTATION=NONE EAS_BUILD=NONE OTA=NONE GOOGLE_PLAY=NONE'
