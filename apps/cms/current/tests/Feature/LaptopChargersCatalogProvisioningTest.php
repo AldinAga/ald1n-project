@@ -21,7 +21,7 @@ final class LaptopChargersCatalogProvisioningTest extends TestCase
             'created_at' => $now, 'updated_at' => $now,
         ]);
         $sourceType = DB::table('product_types')->insertGetId([
-            'name' => 'Laptopovi', 'slug' => 'qa-source-laptop-charger', 'category_id' => $sourceCategory,
+            'name' => 'Laptopovi', 'slug' => 'qa-source-laptop-tip', 'category_id' => $sourceCategory,
             'status' => 'active', 'created_at' => $now, 'updated_at' => $now,
         ]);
         $powerId = DB::table('specification_fields')->where('slug', 'snaga-napajanja')->value('id');
