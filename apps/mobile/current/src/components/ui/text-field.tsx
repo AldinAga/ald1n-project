@@ -1,9 +1,12 @@
 import {
   forwardRef,
+  useContext,
   type ComponentProps,
   type ComponentRef,
 } from 'react';
 import { Input, Text, YStack } from 'tamagui';
+
+import { KeyboardScrollContext } from '@/components/layout/keyboard-scroll-context';
 
 import { radii, spacing, typography } from '@/constants/theme';
 
@@ -22,12 +25,14 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
       label,
       error,
       style,
+      onFocus,
       placeholderTextColor = '$placeholderColor',
       selectionColor = '$brand',
       ...inputProps
     },
     ref,
   ) {
+    const revealFocusedInput = useContext(KeyboardScrollContext);
     return (
       <YStack gap={spacing.sm}>
         <Text
@@ -58,6 +63,11 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
           }}
           style={style}
           {...inputProps}
+          onFocus={(event) => {
+            onFocus?.(event);
+            const target = (event as { nativeEvent?: { target?: unknown } }).nativeEvent?.target;
+            if (typeof target === 'number') revealFocusedInput?.(target);
+          }}
           placeholderTextColor={placeholderTextColor}
           selectionColor={selectionColor}
         />
