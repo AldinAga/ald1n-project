@@ -976,7 +976,7 @@ const build16CmsCssBatch132 = fs.readFileSync(
 
 assert(
   build16AdminHubBatch132.includes('MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132')
-    && build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+    && (build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';") || build16AdminHubBatch132.includes("import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';"))
     && !build16AdminHubBatch132.includes("import { Button } from '@/components/ui/button';")
     && !build16AdminHubBatch132.includes('<Button variant="secondary"')
     && build16AdminHubBatch132.includes('title="Porudžbine"')
