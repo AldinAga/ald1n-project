@@ -125,7 +125,10 @@ export default function HomeScreen() {
         unread={unread}
         itemCount={itemCount}
         completedOrders={report?.summary.orders_count ?? null}
-        afterSalesOpen={report?.after_sales.open ?? null}
+        receivablesOpen={reportsAllowed && can('receivables.manage') ? report?.receivables.open_orders ?? null : null}
+        notificationsAllowed={hasFeature('notifications')}
+        cartAllowed={hasFeature('order_create')}
+        ordersRoute={can('orders.manage') ? '/admin/orders' : hasFeature('orders') ? '/orders' : null}
       />
 
       {reportsAllowed ? (
@@ -304,12 +307,18 @@ function HomeFocusPanel({
   unread,
   itemCount,
   completedOrders,
-  afterSalesOpen,
+  receivablesOpen,
+  notificationsAllowed,
+  cartAllowed,
+  ordersRoute,
 }: {
   unread: number;
   itemCount: number;
   completedOrders: number | null;
-  afterSalesOpen: number | null;
+  receivablesOpen: number | null;
+  notificationsAllowed: boolean;
+  cartAllowed: boolean;
+  ordersRoute: '/admin/orders' | '/orders' | null;
 }) {
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -319,40 +328,45 @@ function HomeFocusPanel({
     glyph: GlyphName;
     color: string;
     surface: string;
+    route: '/notifications' | '/cart' | '/orders' | '/admin/orders' | '/admin/receivables';
   }> = [
-    {
+    ...(notificationsAllowed ? [{
       label: 'Obaveštenja',
       value: String(unread),
       glyph: 'bell',
       color: themeColors.info,
       surface: themeColors.infoSoft,
-    },
-    {
+      route: '/notifications' as const,
+    }] : []),
+    ...(cartAllowed ? [{
       label: 'Korpa',
       value: String(itemCount),
       glyph: 'cart',
       color: themeColors.primary,
       surface: themeColors.primarySoft,
-    },
+      route: '/cart' as const,
+    }] : []),
   ];
 
-  if (completedOrders !== null) {
+  if (completedOrders !== null && ordersRoute) {
     signals.push({
       label: 'Završene porudžbine',
       value: String(completedOrders),
       glyph: 'orders',
       color: themeColors.success,
       surface: themeColors.successSoft,
+      route: ordersRoute,
     });
   }
 
-  if (afterSalesOpen !== null) {
+  if (receivablesOpen !== null) {
     signals.push({
-      label: 'Otvorena postprodaja',
-      value: String(afterSalesOpen),
-      glyph: 'service',
+      label: 'Otvorena potraživanja',
+      value: String(receivablesOpen),
+      glyph: 'report',
       color: themeColors.warning,
       surface: themeColors.warningSoft,
+      route: '/admin/receivables',
     });
   }
 
@@ -366,13 +380,19 @@ function HomeFocusPanel({
       </View>
       <View style={styles.focusGrid}>
         {signals.map((signal) => (
-          <View key={signal.label} style={styles.focusSignal}>
+          <Pressable
+            key={signal.label}
+            accessibilityRole="button"
+            accessibilityLabel={`${signal.label}: ${signal.value}. Otvori pregled.`}
+            onPress={() => router.push(signal.route)}
+            style={({ pressed }) => [styles.focusSignal, pressed && styles.pressed]}
+          >
             <View style={[styles.focusSignalIcon, { backgroundColor: signal.surface }]}>
               <Glyph name={signal.glyph} size={20} color={signal.color} />
             </View>
             <Text style={styles.focusSignalValue}>{signal.value}</Text>
             <Text style={styles.focusSignalLabel}>{signal.label}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
     </>
