@@ -131,6 +131,7 @@ These are not optional cleanup targets or legacy TODOs.
 - Deferred Direct Sale supports installments and final due date according to the existing server contract.
 - Commission remains visible in catalog/product detail where already implemented.
 - `Uredi artikal` remains the final admin action on product detail after Direct Sale.
+- **Warranty expiry opt-in (v1.5 source contract, not production activation):** `warranty_expiry_alerts` is **OFF** for new and existing users until explicit authenticated opt-in. It is independent of ordinary `warranty_updates`: turning on ordinary warranty updates never enables expiry; turning off ordinary updates must not suppress separately approved expiry. All delivery channels require strict `ProductWarranty::strictCustomerOwner()` equality through the immutable order-item -> order -> customer chain; mutable warranty user/assignee must never authorize receipt. Do not activate global/bulk expiry scheduler or broadcast as part of preference wiring. Proven RED [CI 39643629087](https://github.com/AldinAga/ald1n-project/actions/runs/39643629087) and GREEN [CI 39643826340](https://github.com/AldinAga/ald1n-project/actions/runs/39643826340). PR #78 / Android v1.5 remain release/deploy HOLD until independently gated.
 
 A batch that unexpectedly reintroduces Product Variants must fail.
 
