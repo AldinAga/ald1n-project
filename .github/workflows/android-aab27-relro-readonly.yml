@@ -1,0 +1,196 @@
+name: Existing AAB27 LOAD and GNU_RELRO audit (no build)
+
+on:
+  push:
+    branches:
+      - ops/cloudlinux-deploy-and-16kb-verifier-20261021
+    paths:
+      - .github/workflows/android-aab27-relro-readonly.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ald1n-existing-aab27-relro-readonly-20261021
+  cancel-in-progress: false
+
+jobs:
+  inspect-existing-aab27:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_APP_ENV: production
+      EAS_BUILD_PROFILE: production
+      ALD1N_V15_RELEASE_GATE: approved
+      AAB_SOURCE_SHA: deb98808afe2568ed06da1c684b9b51d60734b12
+      AAB_BUILD_ID: e3bf78a2-0410-4fe5-a279-e0af5624ca0d
+    steps:
+      - name: Checkout verifier under review
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: verifier
+          persist-credentials: false
+      - name: Checkout immutable existing AAB source for project metadata only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: deb98808afe2568ed06da1c684b9b51d60734b12
+          path: existing-aab-source
+          persist-credentials: false
+      - name: Setup pinned Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.23.3"
+      - name: Verify exact existing release source and install its locked dependencies
+        working-directory: existing-aab-source/apps/mobile/current
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$AAB_SOURCE_SHA"
+          node <<'NODE'
+          const eas=require('./eas.json');
+          const pkg=require('./package.json');
+          if(eas.cli.version!=='25.0.0'||eas.cli.appVersionSource!=='remote'
+            ||eas.build.production.env.ALD1N_V15_RELEASE_GATE!=='approved'
+            ||eas.build.production.android.buildType!=='app-bundle'
+            ||pkg.dependencies.expo!=='~57.0.27'||pkg.dependencies['react-native']!=='0.86.3'){
+            throw new Error('EXACT_EXISTING_RELEASE_CONFIG_MISMATCH');
+          }
+          console.log('EXACT_EXISTING_AAB_SOURCE=PASS');
+          NODE
+          npm ci --no-audit --no-fund
+      - name: Read existing EAS build metadata without exposing artifact URL
+        working-directory: existing-aab-source/apps/mobile/current
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$EXPO_TOKEN" || { echo EXISTING_EAS_AUTH_MISSING; exit 33; }
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build:view "$AAB_BUILD_ID" --json \
+            > "$RUNNER_TEMP/aab27-metadata.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const value=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/aab27-metadata.json','utf8'));
+          const build=Array.isArray(value)?value[0]:value;
+          if(build?.id!==process.env.AAB_BUILD_ID||build?.status!=='FINISHED'
+            ||build?.platform!=='ANDROID'||build?.appVersion!=='1.5.0'
+            ||Number(build?.appBuildVersion)!==27){
+            throw new Error('EXISTING_AAB27_METADATA_IDENTITY_MISMATCH');
+          }
+          if(build.gitCommitHash&&build.gitCommitHash!==process.env.AAB_SOURCE_SHA){
+            throw new Error('EXISTING_AAB27_SOURCE_SHA_MISMATCH');
+          }
+          const url=build.artifacts?.buildUrl||build.artifacts?.applicationArchiveUrl;
+          if(typeof url!=='string')throw new Error('EXISTING_AAB27_ARTIFACT_URL_MISSING');
+          let parsed;
+          try{parsed=new URL(url)}catch{throw new Error('EXISTING_AAB27_ARTIFACT_URL_INVALID')}
+          const host=parsed.hostname;
+          const allowedHost=host==='expo.dev'||host.endsWith('.expo.dev')
+            ||host==='storage.googleapis.com'||host.endsWith('.googleapis.com')
+            ||host.endsWith('.amazonaws.com');
+          if(parsed.protocol!=='https:'||parsed.username||parsed.password
+            ||(parsed.port&&parsed.port!=='443')||!allowedHost||!/[.]aab$/i.test(parsed.pathname)){
+            throw new Error('EXISTING_AAB27_ARTIFACT_ORIGIN_MISMATCH');
+          }
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/aab27-private-url',url,{mode:0o600,flag:'wx'});
+          console.log('EXACT_EAS_AAB27_ID_STATUS_VERSION=PASS');
+          console.log('EXISTING_ARTIFACT_ORIGIN=PASS');
+          NODE
+      - name: Verify known archive bytes and inspect every packaged 64-bit ELF
+        run: |
+          set -euo pipefail
+          umask 077
+          aab="$RUNNER_TEMP/aab27.aab"
+          artifact_url="$(cat "$RUNNER_TEMP/aab27-private-url")"
+          curl --fail --silent --show-error --location --retry 2 \
+            --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 360 \
+            --output "$aab" "$artifact_url"
+          unset artifact_url
+          test "$(stat -c%s "$aab")" = 76869000
+          test "$(sha256sum "$aab" | cut -d ' ' -f 1)" = f684779aa472366c359f28ee95c60648ee6739259de752e59d0f2b0e4fed36bf
+          echo EXISTING_AAB27_SIZE_AND_SHA256=PASS
+          parser_rc=0
+          node "$GITHUB_WORKSPACE/verifier/apps/mobile/current/scripts/release25/elf64-archive-verifier.mjs" \
+            "$aab" > "$RUNNER_TEMP/aab27-elf.json" || parser_rc=$?
+          PARSER_EXIT="$parser_rc" node <<'NODE'
+          const fs=require('node:fs');
+          const result=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/aab27-elf.json','utf8'));
+          // Synchronous, bounded diagnostics survive a later classification error.
+          // Full pretty-printed JSON can be truncated when a failing process exits.
+          const line=value=>fs.writeSync(1,JSON.stringify(value)+'\n');
+          const cut=value=>typeof value==='string'?value.slice(0,240):value;
+          const take=(values,limit)=>Array.isArray(values)?values.slice(0,limit):[];
+          const entries=Array.isArray(result.entries)?result.entries:[];
+          line({event:'AAB27_ELF_SUMMARY',parserExit:process.env.PARSER_EXIT,ok:result.ok,
+            checkedCount:result.checkedCount,entryCount:entries.length,errorCount:result.errors?.length,
+            omittedEntries:Math.max(0,entries.length-55)});
+          for(const entry of entries.slice(0,55)){
+            line({event:'AAB27_ELF',path:cut(entry.path),ok:entry.ok,abi:entry.abi,
+              loadCount:entry.loads?.length,alignments:take(entry.loads,16).map(segment=>segment.align),
+              relro:entry.relro?.status,
+              relroSegments:take(entry.relro?.segments,16).map(segment=>({index:segment.index,
+                end:segment.end,ok:segment.ok,reason:segment.reason,containingLoadIndex:segment.containingLoadIndex,
+                protectedStart:segment.protectedStart,protectedEnd:segment.protectedEnd})),
+              errorCodes:take(entry.errors,16).map(error=>cut(error.code))});
+            if(entry.ok!==true){
+              line({event:'AAB27_ELF_FAILURE_DETAIL',path:cut(entry.path),
+                loads:take(entry.loads,16).map(segment=>({index:segment.index,flags:segment.flags,
+                  vaddr:segment.vaddr,memorySize:segment.memorySize,align:segment.align})),
+                relroSegments:take(entry.relro?.segments,16),
+                errors:take(entry.errors,16).map(error=>({code:cut(error.code),segment:error.segment,
+                  message:cut(error.message)}))});
+            }
+          }
+          for(const error of take(result.errors,8)){
+            line({event:'AAB27_ARCHIVE_ERROR',code:cut(error.code),path:cut(error.path),message:cut(error.message)});
+          }
+          const known='base/lib/arm64-v8a/libnativegauss.so';
+          const fail=message=>{line({event:'AAB27_AUDIT_CLASSIFICATION',ok:false,reason:message});throw new Error(message)};
+          if(process.env.PARSER_EXIT!=='1'||result.schemaVersion!==1||result.ok!==false
+            ||result.pageSize!==16384||result.checkedCount!==55||result.entries?.length!==55){
+            fail('UNEXPECTED_ARCHIVE_OR_PARSER_RESULT');
+          }
+          if(new Set(result.entries.map(entry=>entry.path)).size!==55
+            ||result.errors?.length!==1||result.errors[0].code!=='ELF_INVALID'
+            ||result.errors[0].path!==known){
+            fail('ADDITIONAL_ARCHIVE_OR_LIBRARY_ERROR');
+          }
+          const original=result.entries.find(entry=>entry.path===known);
+          const others=result.entries.filter(entry=>entry.path!==known);
+          const originalLoadFailures=take(original?.errors,16).filter(error=>error.code==='LOAD_ALIGNMENT');
+          const originalOverlapFailures=take(original?.errors,16).filter(error=>error.code==='GNU_RELRO_WRITABLE_OVERLAP');
+          if(original?.ok!==false||original.abi!=='arm64-v8a'||!original.loads?.length
+            ||original.errors?.length!==4||originalLoadFailures.length!==3
+            ||originalLoadFailures.map(error=>error.segment).sort((a,b)=>a-b).join(',')!=='1,2,3'
+            ||originalOverlapFailures.length!==1||originalOverlapFailures[0].segment!==5
+            ||original.relro?.status!=='FAIL'
+            ||!original.relro.segments?.some(segment=>segment.index===5&&segment.reason==='WRITABLE_LOAD_OVERLAP'
+              &&segment.overlappingLoadIndex===3&&segment.protectedStart==='0x40000'&&segment.protectedEnd==='0x48000')
+            ||!original.loads.some(segment=>segment.align==='0x1000')){
+            fail('KNOWN_NATIVEGAUSS_4KB_AND_RELRO_DEFECTS_NOT_CONFIRMED');
+          }
+          if(others.length!==54||others.some(entry=>entry.ok!==true||entry.errors?.length!==0
+            ||!['arm64-v8a','x86_64'].includes(entry.abi)
+            ||!['PASS','ABSENT'].includes(entry.relro?.status))){
+            fail('OTHER_PACKAGED_ELF_LOAD_OR_RELRO_FAILURE');
+          }
+          fs.writeSync(1,'AAB27_64BIT_LIBRARIES_CHECKED=55\n'
+            +'AAB27_SIGNED_ELF_GATE=FAIL_KNOWN_NATIVEGAUSS_4KB\n'
+            +'AAB27_NATIVEGAUSS_RELRO_OVERLAPS_WRITABLE_LOAD=CONFIRMED\n'
+            +'OTHER54_ELF_LOAD_AND_RELRO=PASS\n'
+            +'NEW_SIGNED_NATIVE2_AAB=STILL_REQUIRED\n');
+          NODE
+      - name: Clear temporary artifact and metadata; record read-only scope
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/aab27-metadata.json" "$RUNNER_TEMP/aab27-private-url" \
+            "$RUNNER_TEMP/aab27.aab" "$RUNNER_TEMP/aab27-elf.json"
+          echo EXISTING_AAB27_ONLY=YES
+          echo NEW_EAS_BUILD=NONE
+          echo VERSION_CHANGE=NONE
+          echo NATIVE_COMPILATION=NOT_REPEATED
+          echo SIGNING_CHANGE=NONE
+          echo GOOGLE_PLAY=NONE
+          echo OTA=NONE
+          echo LARAVEL_DEPLOYMENT=NONE
