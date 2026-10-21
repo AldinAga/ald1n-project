@@ -1,0 +1,95 @@
+name: Android v1.5 AAB27 bundletool PAGE_ALIGNMENT read-only audit (NO BUILD)
+on:
+  push:
+    branches:
+      - ops/android-v15-aab27-bundletool-readonly-20261021
+    paths:
+      - .github/workflows/android-v15-aab27-bundletool-readonly-20261021.yml
+permissions:
+  contents: read
+jobs:
+  inspect-existing-aab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_APP_ENV: production
+      EAS_BUILD_PROFILE: production
+      ALD1N_V15_RELEASE_GATE: approved
+      BUILD_UUID: e3bf78a2-0410-4fe5-a279-e0af5624ca0d
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: deb98808afe2568ed06da1c684b9b51d60734b12
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install immutable JS dependencies for authenticated EAS metadata
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+      - name: Resolve original finished EAS artifact without logging the private URL
+        working-directory: apps/mobile/current
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$EXPO_TOKEN"
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build:view "$BUILD_UUID" --json > "$RUNNER_TEMP/exact27.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const d=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/exact27.json','utf8'));
+          const q=Array.isArray(d)?d[0]:d;
+          if(q.id!==process.env.BUILD_UUID||q.status!=='FINISHED'||q.platform!=='ANDROID'
+             ||q.appVersion!=='1.5.0'||Number(q.appBuildVersion)!==27)process.exit(51);
+          const u=q.artifacts?.buildUrl||q.artifacts?.applicationArchiveUrl;
+          if(typeof u!=='string'||!u.startsWith('https://'))process.exit(52);
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/artifact-url',u,{mode:0o600});
+          console.log('AAB27_EXACT_IDENTITY=PASS');
+          NODE
+      - name: Fetch official bundletool 1.18.2 pinned-release binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$RUNNER_TEMP/bundletool-all-1.18.2.jar"
+          curl --fail --silent --show-error --location --retry 2 --connect-timeout 15 --max-time 240 \
+            --output "$JAR" \
+            "https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar"
+          test "$(sha256sum "$JAR" | awk '{print $1}')" = "378b5434cd1378bef6b2bc527b8c7f0ff2584b273830335bce54d6d0813c8584"
+          java -jar "$JAR" version
+          echo 'BUNDLETOOL_1_18_2_PINNED_SHA256=PASS'
+      - name: Inspect exact previous signed AAB27 bundle PAGE_ALIGNMENT flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB="$RUNNER_TEMP/aab27.aab"
+          curl --fail --silent --show-error --location --retry 2 --connect-timeout 15 --max-time 300 \
+             --output "$AAB" "$(cat "$RUNNER_TEMP/artifact-url")"
+          test "$(sha256sum "$AAB" | awk '{print $1}')" = 'f684779aa472366c359f28ee95c60648ee6739259de752e59d0f2b0e4fed36bf'
+          java -jar "$RUNNER_TEMP/bundletool-all-1.18.2.jar" dump config --bundle "$AAB" > "$RUNNER_TEMP/aab27-config.txt"
+          grep -E 'PAGE_ALIGNMENT_|alignment' "$RUNNER_TEMP/aab27-config.txt" || {
+            echo 'HOLD_BUNDLETOOL_ALIGNMENT_NOT_EXPLICIT';exit 53;
+          }
+          if grep -q 'PAGE_ALIGNMENT_16K' "$RUNNER_TEMP/aab27-config.txt"; then
+            echo 'AAB27_BUNDLE_PAGE_ALIGNMENT=16K_ALREADY_PRESENT'
+          elif grep -q 'PAGE_ALIGNMENT_4K' "$RUNNER_TEMP/aab27-config.txt"; then
+            echo 'AAB27_BUNDLE_PAGE_ALIGNMENT=4K_SECOND_BLOCKER'
+          else
+            echo 'AAB27_BUNDLE_PAGE_ALIGNMENT=UNEXPECTED';exit 54
+          fi
+          echo 'AAB27_ELF_DEFECT_REMAINS_4K_NATIVEGAUSS=YES'
+          echo 'AAB27_ZIP_ALIGNMENT_READ_ONLY_AUDIT=FINISHED'
+      - name: No effects on original artifact or release
+        if: always()
+        run: |
+          echo 'NO_NEW_EAS_BUILD=YES'
+          echo 'NO_OTA=YES'
+          echo 'NO_PLAY_SUBMIT=YES'
+          echo 'NO_APP_VERSION_MUTATION=YES'
