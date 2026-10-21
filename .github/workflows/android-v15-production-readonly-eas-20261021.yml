@@ -1,0 +1,175 @@
+name: Android v1.5 exact-source EAS production authority READ-ONLY (NO BUILD)
+on:
+  push:
+    branches:
+      - ops/android-v15-production-readonly-eas-20261021
+    paths:
+      - '.github/workflows/android-v15-production-readonly-eas-20261021.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-android-v15-20261021-readonly-eas
+  cancel-in-progress: false
+jobs:
+  authenticated-read-only-remote-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      SOURCE_SHA: 5e5efa2a41e4baca86c724e149dac4c09c77f812
+    steps:
+      - name: Exact integrated source checkout (NO production mutation)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 5e5efa2a41e4baca86c724e149dac4c09c77f812
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify immutable source and fail-closed release configuration
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$GITHUB_REF_NAME" = 'ops/android-v15-production-readonly-eas-20261021'
+          node <<'NODE'
+          const fs = require('fs');
+          const c=fs.readFileSync('app.config.js','utf8');
+          const e=JSON.parse(fs.readFileSync('eas.json','utf8'));
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const pass=c.includes("version: '1.5.0'")
+            && c.includes("'1.5.0-native1'")
+            && c.includes('LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD')
+            && e.cli.version==='25.0.0'
+            && e.cli.appVersionSource==='remote'
+            && e.build.production.channel==='production'
+            && e.build.production.autoIncrement===true
+            && pkg.dependencies['react-native-android-liquid-glass']==='0.2.1';
+          if(!pass){ console.error('HOLD_V15_EXACT_SOURCE_CONFIG_DRIFT_NO_BUILD'); process.exit(21); }
+          console.log('V15_EXACT_SOURCE_STATIC_PROFILE_READ=PASS');
+          console.log('RELEASE_GATE_NOT_SET=PASS');
+          NODE
+      - name: Lockfile install before any Expo config-plugin read
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Existing Expo account and exact project identity - READ ONLY
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$EXPO_TOKEN" ]; then echo 'HOLD_EXPO_TOKEN_NOT_CONFIGURED_NO_BUILD'; exit 72; fi
+          npm exec --yes --package=eas-cli@25.0.0 -- eas --version
+          npm exec --yes --package=eas-cli@25.0.0 -- eas whoami
+          npm exec --yes --package=eas-cli@25.0.0 -- eas project:info > "$RUNNER_TEMP/ald1n-v15-project-info.txt"
+          if ! grep -Fq 'd43b3866-6838-4217-a23e-3dc7f2cc76cc' "$RUNNER_TEMP/ald1n-v15-project-info.txt"; then
+            echo 'HOLD_EXPO_PROJECT_ID_NOT_CONFIRMED_NO_BUILD'
+            exit 73
+          fi
+          echo 'EXPO_PROJECT_ID_AUTHENTICATED_READ=PASS'
+      - name: Read EAS production Android remote versionCode - NO AUTO INCREMENT
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! npm exec --yes --package=eas-cli@25.0.0 -- eas build:version:get \
+             --platform android --profile production --json --non-interactive \
+             > "$RUNNER_TEMP/v15-android-version.json"; then
+            echo 'HOLD_REMOTE_VERSION_GET_FAILED_NO_BUILD'
+            exit 74
+          fi
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/v15-android-version.json','utf8'));
+          const candidates=[
+            raw?.versionCode,
+            raw?.androidVersionCode,
+            raw?.android?.versionCode,
+            raw?.buildVersion?.versionCode,
+            raw?.buildVersion?.androidVersionCode,
+            raw?.android?.buildVersion,
+          ];
+          const value=candidates.find(v=>Number.isInteger(Number(v))&&Number(v)>0);
+          if(value===undefined){
+            console.error('HOLD_REMOTE_VERSION_RESPONSE_UNRECOGNIZED_NO_BUILD fields='+Object.keys(raw||{}).join(','));
+            process.exit(75);
+          }
+          const current=Number(value);
+          console.log('EAS_REMOTE_ANDROID_VERSION_CODE='+current);
+          console.log('PLAY_TESTING_KNOWN_CODE=26 (historical Issue52, NOT current Play attestation)');
+          if(current<26){
+            console.error('HOLD_REMOTE_VERSIONCODE_BELOW_KNOWN_PLAY_TESTING_26_NO_BUILD');
+            process.exit(76);
+          }
+          console.log('EAS_REMOTE_VERSIONCODE_READ=PASS_NO_AUTO_INCREMENT');
+          console.log('NEXT_BUILD_VERSION_CODE=UNATTESTED_UNTIL_ACTUAL_EAS_RESULT');
+          NODE
+      - name: Read original PROD Android EAS upload keystore - READ ONLY GraphQL
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const query=[
+            'query V15ProductionSigning($name: String!, $identifier: String) {',
+            ' app { byFullName(fullName: $name) {',
+            ' id fullName',
+            ' androidAppCredentials(filter: { applicationIdentifier: $identifier, legacyOnly: false }) {',
+            ' applicationIdentifier isLegacy',
+            ' androidAppBuildCredentialsList {',
+            ' isDefault androidKeystore { id sha1CertificateFingerprint sha256CertificateFingerprint }',
+            ' } } } } }',
+          ].join('\n');
+          function hold(code){ console.error(code); process.exit(77); }
+          const token=process.env.EXPO_TOKEN;
+          if(!token)hold('HOLD_EXPO_TOKEN_NOT_CONFIGURED_NO_BUILD');
+          const response=await fetch('https://api.expo.dev/graphql',{
+            method:'POST',
+            headers:{'content-type':'application/json',authorization:'Bearer '+token},
+            body:JSON.stringify({query,variables:{name:'@ald1n/ald1n-mobile',identifier:'com.ald1n.mobile'}}),
+            signal:AbortSignal.timeout(20000),
+          }).catch(()=>null);
+          if(!response?.ok)hold('HOLD_EXPO_PRODUCTION_SIGNING_READ_UNAVAILABLE_NO_BUILD');
+          const json=await response.json().catch(()=>null);
+          if(!json||json.errors?.length)hold('HOLD_EXPO_PRODUCTION_SIGNING_GRAPHQL_UNAVAILABLE_NO_BUILD');
+          const app=json.data?.app?.byFullName;
+          if(app?.id!=='d43b3866-6838-4217-a23e-3dc7f2cc76cc'||app?.fullName!=='@ald1n/ald1n-mobile')
+            hold('HOLD_EXPO_PROJECT_ID_MISMATCH_NO_BUILD');
+          const creds=(app.androidAppCredentials||[]).filter(x=>x.applicationIdentifier==='com.ald1n.mobile'&&!x.isLegacy);
+          if(creds.length!==1)hold('HOLD_PRODUCTION_ANDROID_APP_CREDENTIALS_MISSING_OR_AMBIGUOUS_NO_BUILD');
+          const defaults=(creds[0].androidAppBuildCredentialsList||[]).filter(x=>x.isDefault&&x.androidKeystore?.id);
+          if(defaults.length!==1||!defaults[0].androidKeystore.sha1CertificateFingerprint||!defaults[0].androidKeystore.sha256CertificateFingerprint)
+            hold('HOLD_PRODUCTION_DEFAULT_KEYSTORE_MISSING_OR_AMBIGUOUS_NO_BUILD');
+          const clean=v=>String(v||'').replace(/[^a-f0-9]/gi,'').toLowerCase();
+          const sha1=clean(defaults[0].androidKeystore.sha1CertificateFingerprint);
+          const g=JSON.parse(readFileSync('./google-services.json','utf8'));
+          const production=g.client.find(c=>c.client_info?.android_client_info?.package_name==='com.ald1n.mobile');
+          const clientSha1=(production?.oauth_client||[])
+            .filter(c=>c.client_type===1&&c.android_info?.package_name==='com.ald1n.mobile')
+            .map(c=>clean(c.android_info?.certificate_hash));
+          if(!/^[a-f0-9]{40}$/.test(sha1)||!clientSha1.includes(sha1))
+            hold('HOLD_PRODUCTION_FIREBASE_OAUTH_UPLOAD_SIGNER_MISMATCH_NO_BUILD');
+          console.log('EXPO_EXACT_PROJECT_ID=PASS');
+          console.log('PRODUCTION_DEFAULT_KEYSTORE_EXISTS=PASS_READ_ONLY');
+          console.log('PRODUCTION_FIREBASE_UPLOAD_SHA1_MATCH=PASS');
+          console.log('PRODUCTION_KEYSTORE_SHA256_PRESENT=PASS');
+          console.log('KEYSTORE_OR_SECRET_EXPORTED=NEVER');
+          NODE
+      - name: READ-ONLY audit footer
+        if: always()
+        run: |
+          echo 'SOURCE_ONLY_EXACT_SHA=5e5efa2a41e4baca86c724e149dac4c09c77f812'
+          echo 'NO_EAS_BUILD_DISPATCH=PASS'
+          echo 'NO_AUTO_INCREMENT=PASS'
+          echo 'NO_OTA_AND_PLAY_SUBMISSION=PASS'
+          echo 'NO_BACKEND_MIGRATION_OR_DEPLOY=PASS'
+          echo 'PRODUCTION_RELEASE_HOLD=UNCHANGED'
