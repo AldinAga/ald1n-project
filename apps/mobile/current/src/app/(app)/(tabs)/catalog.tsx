@@ -1,8 +1,10 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
   FlatList,
   Pressable,
   RefreshControl,
@@ -46,6 +48,58 @@ export default function CatalogScreen() {
   const [categoryId, setCategoryId] = useState('');
   const [sort, setSort] = useState('updated');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // LG-04 Wave 2: animate ONLY bounded filter chrome; products and operational
+  // data stay on fully opaque surfaces. Unknown preferences default to no motion.
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const filterScale = useRef(new Animated.Value(1)).current;
+  const filterReveal = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (mounted) setReduceMotion(Boolean(enabled)); })
+      .catch(() => { /* Unknown: static controls. */ });
+    const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      if (mounted) setReduceMotion(Boolean(enabled));
+    });
+    return () => { mounted = false; listener.remove(); };
+  }, []);
+
+  useEffect(() => {
+    filterScale.stopAnimation();
+    if (reduceMotion) filterScale.setValue(1);
+  }, [filterScale, reduceMotion]);
+
+  useEffect(() => {
+    filterReveal.stopAnimation();
+    if (!filtersOpen) {
+      filterReveal.setValue(0);
+      return;
+    }
+    if (reduceMotion) {
+      filterReveal.setValue(1);
+      return;
+    }
+    Animated.timing(filterReveal, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [filterReveal, filtersOpen, reduceMotion]);
+
+  const animateFilterPress = useCallback((pressed: boolean) => {
+    if (reduceMotion) {
+      filterScale.setValue(1);
+      return;
+    }
+    Animated.spring(filterScale, {
+      toValue: pressed ? 0.96 : 1,
+      stiffness: 370,
+      damping: 27,
+      mass: 0.75,
+      useNativeDriver: true,
+    }).start();
+  }, [filterScale, reduceMotion]);
 
   const filters = useQuery({
     queryKey: ['catalog-filters'],
@@ -173,23 +227,27 @@ export default function CatalogScreen() {
             <CatalogSearchInput value={search} onSubmit={submitSearch} />
 
             <View style={styles.commandRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded: filtersOpen }}
-                onPress={() => setFiltersOpen((current) => !current)}
-                style={({ pressed }) => [
-                  styles.filterButton,
-                  filtersOpen && styles.filterButtonActive,
-                  pressed && styles.controlPressed,
-                ]}
-              >
-                <Text style={filtersOpen ? styles.filterButtonTextActive : styles.filterButtonText}>
-                  Filteri
-                </Text>
-                {activeFilterCount > 0 ? (
-                  <Text style={styles.filterCount}>{activeFilterCount}</Text>
-                ) : null}
-              </Pressable>
+              <Animated.View style={{ transform: [{ scale: filterScale }] }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={activeFilterCount > 0 ? `Filteri, ${activeFilterCount} aktivnih` : 'Filteri'}
+                  accessibilityState={{ expanded: filtersOpen }}
+                  onPress={() => setFiltersOpen((current) => !current)}
+                  onPressIn={() => animateFilterPress(true)}
+                  onPressOut={() => animateFilterPress(false)}
+                  style={[
+                    styles.filterButton,
+                    filtersOpen && styles.filterButtonActive,
+                  ]}
+                >
+                  <Text style={filtersOpen ? styles.filterButtonTextActive : styles.filterButtonText}>
+                    Filteri
+                  </Text>
+                  {activeFilterCount > 0 ? (
+                    <Text style={styles.filterCount}>{activeFilterCount}</Text>
+                  ) : null}
+                </Pressable>
+              </Animated.View>
 
               <View style={styles.resultSummary}>
                 <Text style={styles.resultCount}>{total}</Text>
@@ -225,7 +283,15 @@ export default function CatalogScreen() {
             </ScrollView>
 
             {filtersOpen ? (
-              <CatalogFilterPanel
+              <Animated.View
+                style={{
+                  opacity: filterReveal,
+                  transform: [{
+                    translateY: filterReveal.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
+                  }],
+                }}
+              >
+                <CatalogFilterPanel
                 filters={filters.data}
                 brandId={brandId}
                 typeId={typeId}
@@ -243,7 +309,8 @@ export default function CatalogScreen() {
                 onCategoryChange={setCategoryId}
                 onSortChange={setSort}
                 onReset={resetFilters}
-              />
+                />
+              </Animated.View>
             ) : null}
 
             {search ? (
@@ -403,6 +470,7 @@ const CatalogSearchInput = memo(function CatalogSearchInput({
       <Glyph name="search" size={21} color={themeColors.muted} />
       <TextInput
         value={draft}
+        accessibilityLabel="Pretraga artikala po nazivu, SKU ili modelu"
         onChangeText={setDraft}
         onSubmitEditing={() => onSubmit(draft.trim())}
         placeholder="Naziv, SKU ili model…"
@@ -464,7 +532,7 @@ function createStyles(theme: AppColors) {
     },
     headerCopy: { flex: 1 },
     cartButton: {
-      minHeight: 42,
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
@@ -489,7 +557,7 @@ function createStyles(theme: AppColors) {
       overflow: 'hidden',
     },
     searchWrap: {
-      minHeight: 52,
+      minHeight: 56,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.md,
@@ -505,17 +573,22 @@ function createStyles(theme: AppColors) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.md,
+      padding: spacing.xs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surfaceContainer,
     },
     filterButton: {
-      minHeight: 40,
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
       paddingHorizontal: spacing.md,
       borderWidth: 1,
-      borderColor: theme.line,
+      borderColor: theme.outline,
       borderRadius: radii.md,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceContainerHigh,
     },
     filterButtonActive: {
       borderColor: theme.primary,
@@ -541,7 +614,7 @@ function createStyles(theme: AppColors) {
     resultLabel: { ...typography.small, color: theme.muted },
     stockFilters: { gap: spacing.sm, paddingRight: spacing.lg },
     stockFilter: {
-      minHeight: 36,
+      minHeight: 44,
       justifyContent: 'center',
       paddingHorizontal: spacing.md,
       borderWidth: 1,
