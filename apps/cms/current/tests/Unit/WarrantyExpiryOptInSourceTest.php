@@ -25,4 +25,14 @@ final class WarrantyExpiryOptInSourceTest extends TestCase
         self::assertStringContainsString("warranty_expiry_alerts", $api);
         self::assertStringContainsString("->default(false)", $migration);
     }
+
+    public function test_expiry_migration_must_fail_closed_on_unbounded_ddl(): void
+    {
+        $migration = file_get_contents(dirname(__DIR__, 2).'/database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php');
+        self::assertIsString($migration);
+        self::assertStringContainsString('ALGORITHM=INSTANT, LOCK=NONE', $migration);
+        self::assertStringContainsString('lock_wait_timeout', $migration);
+        self::assertStringContainsString('information_schema.TABLES', $migration);
+        self::assertStringContainsString('InnoDB', $migration);
+    }
 }
