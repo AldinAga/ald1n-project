@@ -761,7 +761,7 @@ assert(
 const operatorHome = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
 assert(
   operatorHome.includes('HomeActionList')
-    && operatorHome.includes('OperatorRow')
+    && (operatorHome.includes('OperatorRow') || operatorHome.includes('GlassWorkspaceShortcut'))
     && !operatorHome.includes('<Card style={styles.actionCard}>'),
   'Build16 Home akcije koriste jednu grupisanu operator površinu umesto card-per-row obrasca.'
 );
@@ -976,7 +976,7 @@ const build16CmsCssBatch132 = fs.readFileSync(
 
 assert(
   build16AdminHubBatch132.includes('MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132')
-    && build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+    && (build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';") || build16AdminHubBatch132.includes("import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';"))
     && !build16AdminHubBatch132.includes("import { Button } from '@/components/ui/button';")
     && !build16AdminHubBatch132.includes('<Button variant="secondary"')
     && build16AdminHubBatch132.includes('title="Porudžbine"')
