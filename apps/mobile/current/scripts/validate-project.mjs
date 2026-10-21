@@ -713,7 +713,9 @@ assert(
   'Batch678 compact translucent bottom nav preserves theme-colored Home, five slots, role-aware destinations and capability gates.',
 );
 assert(
-  androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+  (androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+    || (androidNativeLayout497.includes('<AndroidNativeGlassBottomNav />')
+      && androidNativeLayout497.includes('collapsable={false}')))
     && appBottomNav.includes("position: 'absolute'")
     && appBottomNav.includes('pointerEvents="box-none"')
     && appBottomNav.includes("backgroundColor: 'transparent'")
@@ -759,7 +761,7 @@ assert(
 const operatorHome = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
 assert(
   operatorHome.includes('HomeActionList')
-    && operatorHome.includes('OperatorRow')
+    && (operatorHome.includes('OperatorRow') || operatorHome.includes('GlassWorkspaceShortcut'))
     && !operatorHome.includes('<Card style={styles.actionCard}>'),
   'Build16 Home akcije koriste jednu grupisanu operator površinu umesto card-per-row obrasca.'
 );
@@ -974,7 +976,7 @@ const build16CmsCssBatch132 = fs.readFileSync(
 
 assert(
   build16AdminHubBatch132.includes('MOBILE_BUILD16_ADMIN_HUB_FINAL_BATCH132')
-    && build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';")
+    && (build16AdminHubBatch132.includes("import { OperatorRow } from '@/components/ui/operator-row';") || build16AdminHubBatch132.includes("import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';"))
     && !build16AdminHubBatch132.includes("import { Button } from '@/components/ui/button';")
     && !build16AdminHubBatch132.includes('<Button variant="secondary"')
     && build16AdminHubBatch132.includes('title="Porudžbine"')
@@ -1003,8 +1005,10 @@ assert(
 
 assert(
   build16PageHeaderBatch132.includes('MOBILE_BUILD16_PAGE_HEADER_FINAL_BATCH132')
-    && build16PageHeaderBatch132.includes('notificationButton:')
-    && build16PageHeaderBatch132.includes('borderRadius: radii.lg')
+    && (build16PageHeaderBatch132.includes('notificationButton:')
+      || build16PageHeaderBatch132.includes('PageHeaderNotificationButton'))
+    && (build16PageHeaderBatch132.includes('borderRadius: radii.lg')
+      || build16PageHeaderBatch132.includes('GlassHeaderAction'))
     && build16PageHeaderBatch132.includes('useNotificationUnread')
     && build16PageHeaderBatch132.includes("router.push('/notifications')")
     && build16PageHeaderBatch132.includes('borderRadius: radii.pill'),
@@ -1214,7 +1218,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '1.0.0'"), 'Expo app verzija je 1.0.0.');
+assert(appConfig.includes("version: '1.5.0'"), 'Expo app verzija je 1.5.0.');
 
 // MOBILE_BRANDING_ALD1N_CMS_V06
 const ald1nBrandSource = fs.readFileSync(path.join(root, 'assets/brand/ald1n-v2-logo.png'));
@@ -2496,7 +2500,11 @@ assert(
   const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
   assert(
   tabs.includes("display: 'none'")
-    && canonicalAppNavigation497(appShellBuild18)
+    && (canonicalAppNavigation497(appShellBuild18)
+      || (appShellBuild18.includes('<AndroidNativeGlassBottomNav />')
+        && appShellBuild18.includes('collapsable={false}')
+        && appShellBuild18.includes('<AppBottomNav variant="rail" />')
+        && appShellBuild18.includes('<AppBottomNav variant="bottom" />')))
     && bottomNavBuild18.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
     && bottomNavBuild18.includes('buildBottomNavItems({')
     && bottomNavFiveStableSlots,

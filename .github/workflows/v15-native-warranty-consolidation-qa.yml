@@ -1,0 +1,36 @@
+name: V1.5 native candidate warranty controls QA (NO BUILD)
+on:
+  push:
+    branches:
+      - release/v1-5-warranty-mobile-consolidation-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/src/app/(app)/notification-settings.tsx'
+      - 'apps/mobile/current/src/types/api.ts'
+      - '.github/workflows/v15-native-warranty-consolidation-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - if: always()
+        run: echo 'NO_EAS_BUILD_NO_OTA_NO_PLAY_NO_CMS_DEPLOY'
