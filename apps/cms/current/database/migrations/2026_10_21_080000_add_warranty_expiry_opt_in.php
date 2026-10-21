@@ -18,7 +18,7 @@ return new class extends Migration {
         }
 
         if (DB::connection()->getDriverName() === 'mysql') {
-            $this->instantAlter('ALTER TABLE `notification_preferences` ADD COLUMN `warranty_expiry_alerts` TINYINT(1) NOT NULL DEFAULT 0, ALGORITHM=INSTANT, LOCK=NONE');
+            $this->instantAlter('ALTER TABLE `notification_preferences` ADD COLUMN `warranty_expiry_alerts` TINYINT(1) NOT NULL DEFAULT 0, ALGORITHM=INSTANT, LOCK=NONE', 'ALTER TABLE `notification_preferences` ADD COLUMN `warranty_expiry_alerts` TINYINT(1) NOT NULL DEFAULT 0, ALGORITHM=INSTANT');
             return;
         }
 
@@ -41,7 +41,7 @@ return new class extends Migration {
         }
 
         if (DB::connection()->getDriverName() === 'mysql') {
-            $this->instantAlter('ALTER TABLE `notification_preferences` DROP COLUMN `warranty_expiry_alerts`, ALGORITHM=INSTANT, LOCK=NONE');
+            $this->instantAlter('ALTER TABLE `notification_preferences` DROP COLUMN `warranty_expiry_alerts`, ALGORITHM=INSTANT, LOCK=NONE', 'ALTER TABLE `notification_preferences` DROP COLUMN `warranty_expiry_alerts`, ALGORITHM=INSTANT');
             return;
         }
 
@@ -50,7 +50,7 @@ return new class extends Migration {
         });
     }
 
-    private function instantAlter(string $statement): void
+    private function instantAlter(string $mariaDbStatement, string $mysql84Statement): void
     {
         $table = DB::selectOne("SELECT ENGINE AS engine FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification_preferences'");
         if (strcasecmp((string) ($table->engine ?? ''), 'InnoDB') !== 0) {
@@ -60,6 +60,18 @@ return new class extends Migration {
         $original = (string) (DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS seconds')?->seconds ?? '');
         if (!preg_match('/^[0-9]{1,10}$/D', $original)) {
             throw new RuntimeException('Cannot safely read the existing lock_wait_timeout session setting.');
+        }
+
+        // MariaDB 10.11 permits LOCK=NONE with INSTANT; MySQL 8.4 rejects it
+        // (SQL 1221), supporting only the default locking clause for INSTANT.
+        // Both branches explicitly require INSTANT: never silently copy the table.
+        $version = (string) (DB::selectOne('SELECT VERSION() AS version')?->version ?? '');
+        if (preg_match('/^10\.11\.[0-9]+-MariaDB/', $version) === 1) {
+            $statement = $mariaDbStatement;
+        } elseif (preg_match('/^8\.4\.[0-9]+/', $version) === 1) {
+            $statement = $mysql84Statement;
+        } else {
+            throw new RuntimeException('Unsupported DB version for bounded INSTANT warranty expiry migration.');
         }
 
         try {
