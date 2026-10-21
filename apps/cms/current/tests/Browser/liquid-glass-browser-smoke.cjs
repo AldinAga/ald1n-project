@@ -193,7 +193,9 @@ async function headerGeometry(page, persona, mode, width) {
   check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
   check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
   // R4 optical regression: SVG initialization alone does not prove visible glass.
-  // The lens must have a textured background to refract, translucent tint, and
+  // The lens must have viewport-wide textured paint to refract (the narrow
+  // page-shell must remain transparent to avoid visible rectangular seams),
+  // translucent tint, and
   // an actual CSS backdrop filter referencing the registered SVG displacement.
   if (persona === 'superadmin') {
     const optics = await page.evaluate(() => {
@@ -204,6 +206,7 @@ async function headerGeometry(page, persona, mode, width) {
       const rgba = paint?.backgroundColor || '';
       const match = rgba.match(/^rgba?\([^)]*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\)$/i);
       return {
+        bodyBackdrop: getComputedStyle(document.body).backgroundImage,
         shellBackdrop: shell ? getComputedStyle(shell).backgroundImage : 'none',
         glassSurface: glass ? getComputedStyle(glass).backgroundColor : 'missing',
         tintAlpha: match ? Number(match[1]) : null,
@@ -211,7 +214,9 @@ async function headerGeometry(page, persona, mode, width) {
         renderer: glass?.getAttribute('data-lg-renderer') || 'none',
       };
     });
-    check(optics.shellBackdrop.includes('radial-gradient'), 'R4_COLORED_BACKGROUND_TO_REFRACT', tag+': '+optics.shellBackdrop.slice(0,100));
+    check(optics.bodyBackdrop.includes('radial-gradient') && optics.shellBackdrop === 'none',
+      'R4_VIEWPORT_BACKGROUND_TO_REFRACT_NO_RECTANGLE',
+      tag+': body='+optics.bodyBackdrop.slice(0,110)+' shell='+optics.shellBackdrop.slice(0,60));
     check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);
     check(optics.tintAlpha !== null && optics.tintAlpha <= 0.65, 'R4_TRANSLUCENT_GLASS_TINT', tag+': '+JSON.stringify(optics));
   }
