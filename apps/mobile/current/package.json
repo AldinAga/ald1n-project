@@ -60,6 +60,7 @@
     "react-dom": "19.2.3",
     "react-hook-form": "^7.62.0",
     "react-native": "0.86.3",
+    "react-native-android-liquid-glass": "0.2.1",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-nitro-google-signin": "1.0.2",
     "react-native-nitro-modules": "0.36.1",

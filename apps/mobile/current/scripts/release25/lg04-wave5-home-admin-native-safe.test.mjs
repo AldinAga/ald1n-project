@@ -21,7 +21,7 @@ test('Home and Admin use native-safe bounded icon treatments without changing pe
 });
 test('Native runtime and existing keyboard fix are preserved', () => {
   const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
-  assert.equal(manifest.dependencies['react-native-android-liquid-glass'], undefined);
+  assert.equal(manifest.dependencies['react-native-android-liquid-glass'], '0.2.1');
   const editor = read('app/(app)/admin/catalog/create.tsx');
   assert.match(editor, /keyboardAware/);
 });

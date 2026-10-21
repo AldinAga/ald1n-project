@@ -4,6 +4,7 @@ import { Redirect, Stack } from 'expo-router';
 import { Linking, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { AppBottomNav } from '@/components/layout/app-bottom-nav';
+import { AndroidNativeGlassBottomNav } from '@/components/layout/android-native-glass-bottom-nav';
 import { Button } from '@/components/ui/button';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { LoadingState } from '@/components/ui/states';
@@ -49,7 +50,10 @@ export default function AppLayout() {
   }
 
   return (
-    <View style={[styles.shell, useNavigationRail ? styles.shellRail : null]}>
+    <View
+      collapsable={false}
+      style={[styles.shell, useNavigationRail ? styles.shellRail : null]}
+    >
       {useNavigationRail ? <AppBottomNav variant="rail" /> : null}
       <View style={styles.stack}>
         <Stack
@@ -59,7 +63,14 @@ export default function AppLayout() {
           }}
         />
       </View>
-      {!useNavigationRail ? <AppBottomNav variant="bottom" /> : null}
+      {/* Native glass must be a direct sibling of Stack within this shell.
+          Never put it inside the old bar container or it will only capture
+          the bar's own flat backdrop instead of scrolling screen content. */}
+      {!useNavigationRail ? (
+        Platform.OS === 'android'
+          ? <AndroidNativeGlassBottomNav />
+          : <AppBottomNav variant="bottom" />
+      ) : null}
     </View>
   );
 }
