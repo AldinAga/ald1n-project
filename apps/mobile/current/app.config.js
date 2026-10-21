@@ -150,6 +150,8 @@ module.exports = ({ config }) => {
         './plugins/with-android-native-modernization',
         {
           optimizedResourceShrinking: true,
+          // 16KB-aligned nativegauss upstream JitPack AAR, audited v2.0.11.
+          liquidGlassVersion: 'v2.0.11',
         },
       ],
 
