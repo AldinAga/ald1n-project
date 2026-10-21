@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { inspectElf64, inspectArchive } from './elf64-archive-verifier.mjs';
+
+function elf({ align=0x4000n, relro=true, relroSize=0x4000n, machine=183 }={}) {
+  const b=Buffer.alloc(0x4000); b.set([0x7f,69,76,70,2,1,1]);
+  b.writeUInt16LE(3,16); b.writeUInt16LE(machine,18); b.writeUInt32LE(1,20);
+  b.writeBigUInt64LE(64n,32); b.writeUInt16LE(64,52); b.writeUInt16LE(56,54); b.writeUInt16LE(relro?2:1,56);
+  b.writeUInt32LE(1,64); b.writeUInt32LE(5,68); b.writeBigUInt64LE(0n,72); b.writeBigUInt64LE(0n,80);
+  b.writeBigUInt64LE(0x4000n,96); b.writeBigUInt64LE(0x4000n,104); b.writeBigUInt64LE(align,112);
+  if(relro){ b.writeUInt32LE(0x6474e552,120); b.writeBigUInt64LE(0n,128); b.writeBigUInt64LE(0n,136); b.writeBigUInt64LE(relroSize,152); b.writeBigUInt64LE(relroSize,160); b.writeBigUInt64LE(1n,168); }
+  return b;
+}
+function crc32(b){let n=0xffffffff;for(const v of b){n^=v;for(let i=0;i<8;i++)n=(n>>>1)^((n&1)?0xedb88320:0);}return(n^0xffffffff)>>>0;}
+// Actual ZIP bytes exercise unzip, duplicate names, CRC and Unix mode handling.
+function zip(entries){let offset=0;const locals=[],central=[];for(const e of entries){const name=Buffer.from(e.name),data=e.data??elf();const c=crc32(data);const h=Buffer.alloc(30);h.writeUInt32LE(0x04034b50);h.writeUInt16LE(20,4);h.writeUInt32LE(c,14);h.writeUInt32LE(data.length,18);h.writeUInt32LE(data.length,22);h.writeUInt16LE(name.length,26);locals.push(h,name,data);const d=Buffer.alloc(46);d.writeUInt32LE(0x02014b50);d.writeUInt16LE(0x0314,4);d.writeUInt16LE(20,6);d.writeUInt32LE(c,16);d.writeUInt32LE(data.length,20);d.writeUInt32LE(data.length,24);d.writeUInt16LE(name.length,28);d.writeUInt32LE(((e.mode??0o100644)*65536)>>>0,38);d.writeUInt32LE(offset,42);central.push(d,name);offset+=h.length+name.length+data.length;}const cd=Buffer.concat(central),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(entries.length,8);end.writeUInt16LE(entries.length,10);end.writeUInt32LE(cd.length,12);end.writeUInt32LE(offset,16);return Buffer.concat([...locals,cd,end]);}
+function archive(t,entries){const dir=mkdtempSync(path.join(tmpdir(),'elf64-test-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));const f=path.join(dir,'fixture.zip');writeFileSync(f,zip(entries));return f;}
+const good='base/lib/arm64-v8a/libnativegauss.so';
+test('aligned LOAD and RELRO pass with their actual values',()=>{const r=inspectElf64(elf(),'arm64-v8a');assert.equal(r.ok,true);assert.equal(r.relro.status,'PASS');assert.equal(r.loads[0].align,'0x4000');});
+test('4KB LOAD fails even if RELRO ends on a 16KB boundary',()=>{const r=inspectElf64(elf({align:4096n}),'arm64-v8a');assert.equal(r.ok,false);assert.ok(r.errors.some(x=>x.code==='LOAD_ALIGNMENT'));});
+test('aligned LOAD with 4KB RELRO endpoint fails',()=>{const r=inspectElf64(elf({relroSize:4096n}),'arm64-v8a');assert.equal(r.ok,false);assert.equal(r.relro.status,'FAIL');});
+test('missing RELRO is distinct and allowed',()=>{const r=inspectElf64(elf({relro:false}),'arm64-v8a');assert.equal(r.ok,true);assert.equal(r.relro.status,'ABSENT');});
+test('LOAD address/offset must be congruent',()=>{const b=elf();b.writeBigUInt64LE(1n,80);assert.equal(inspectElf64(b,'arm64-v8a').ok,false);});
+test('ABI machine mismatch fails',()=>assert.equal(inspectElf64(elf({machine:62}),'arm64-v8a').ok,false));
+test('truncated headers and program table fail closed',()=>{assert.equal(inspectElf64(Buffer.alloc(20),'arm64-v8a').ok,false);const b=elf();b.writeBigUInt64LE(0x3fffn,32);assert.equal(inspectElf64(b,'arm64-v8a').ok,false);});
+test('unsafe offsets and overflowing virtual ranges fail closed',()=>{const b=elf();b.writeBigUInt64LE(0xffffffffffffffffn,72);assert.equal(inspectElf64(b,'arm64-v8a').ok,false);const c=elf();c.writeBigUInt64LE(0xffffffffffffffffn,136);assert.equal(inspectElf64(c,'arm64-v8a').ok,false);});
+test('wrong class, endian, type, PH size and missing LOAD fail closed',()=>{for(const change of [b=>b[4]=1,b=>b[5]=2,b=>b.writeUInt16LE(2,16),b=>b.writeUInt16LE(55,54),b=>b.writeUInt32LE(0,64)]){const b=elf();change(b);assert.equal(inspectElf64(b,'arm64-v8a').ok,false);}});
+test('all64bit archive entries are checked in sorted order',t=>{const f=archive(t,[{name:'lib/x86_64/libz.so',data:elf({machine:62})},{name:good},{name:'lib/armeabi-v7a/ignored.so',data:Buffer.from('32bit')}]);const r=inspectArchive(f);assert.equal(r.ok,true);assert.equal(r.checkedCount,2);assert.deepEqual(r.entries.map(x=>x.path),[good,'lib/x86_64/libz.so']);});
+test('one invalid member makes the whole archive fail',t=>{const r=inspectArchive(archive(t,[{name:good},{name:'jni/x86_64/bad.so',data:elf({machine:62,relroSize:4096n})}]));assert.equal(r.ok,false);assert.equal(r.checkedCount,2);});
+test('duplicate archive names are rejected before extraction',t=>{const r=inspectArchive(archive(t,[{name:good},{name:good}]));assert.equal(r.ok,false);assert.ok(r.errors.some(x=>x.code==='DUPLICATE_ENTRY'));});
+test('symlink native library is rejected',t=>{const r=inspectArchive(archive(t,[{name:good,mode:0o120777,data:Buffer.from('elsewhere')}]));assert.equal(r.ok,false);assert.ok(r.errors.some(x=>x.code==='SYMLINK_ENTRY'));});
+test('archive with no64bit libraries is rejected',t=>assert.equal(inspectArchive(archive(t,[{name:'readme.txt',data:Buffer.from('text')}])).ok,false));
+test('corrupt CRC and malformed central directory are rejected',t=>{const f=archive(t,[{name:good}]);const b=zip([{name:good}]);b[30+Buffer.byteLength(good)+200]^=1;writeFileSync(f,b);assert.equal(inspectArchive(f).ok,false);writeFileSync(f,Buffer.from('notzip'));assert.equal(inspectArchive(f).ok,false);});
+test('unsafe paths, extraction globs and unsupported64bit paths are rejected',t=>{for(const name of ['../'+good,'lib/arm64-v8a/a[1].so','feature/lib/arm64-v8a/a.so'])assert.equal(inspectArchive(archive(t,[{name}])).ok,false);});
+test('CLI returns machine-readable JSON and nonzero for invalid input',t=>{const f=archive(t,[{name:good,data:elf({align:4096n})}]);const r=spawnSync(process.execPath,[fileURLToPath(new URL('./elf64-archive-verifier.mjs',import.meta.url)),f],{encoding:'utf8'});assert.equal(r.status,1);assert.equal(JSON.parse(r.stdout).ok,false);});

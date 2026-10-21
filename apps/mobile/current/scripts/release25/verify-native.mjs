@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {inspectElf64} from './elf64-archive-verifier.mjs';
 const fail=(reason,observed={})=>({ok:false,blockers:[reason],observed});
 const SHA256=/^[0-9a-f]{64}$/i;
 const XPATH={packageName:'/manifest/@package',appVersion:'/manifest/@android:versionName',versionCode:'/manifest/@android:versionCode',minSdk:'/manifest/uses-sdk/@android:minSdkVersion',targetSdk:'/manifest/uses-sdk/@android:targetSdkVersion'};
@@ -17,12 +18,17 @@ function parseElfAlignments(data){
  return list;
 }
 async function inspectNativeLib(entry,aab,runTool){
- const name=path.basename(entry);
+ const out=runTool('unzip',['-p',aab,entry],{encoding:null,maxBuffer:128*1024*1024,timeout:120000});
+ if(out?.error||out?.status!==0||!Buffer.isBuffer(out.stdout)||out.stdout.length<4||out.stdout.length>100*1024*1024)return {ok:false,loadAlignments:[]};
+ const abi=entry.split('/')[2];
+ if(abi==='arm64-v8a'||abi==='x86_64'){
+  const inspected=inspectElf64(out.stdout,abi);
+  return {...inspected,loadAlignments:inspected.loads.map(segment=>Number(BigInt(segment.align)))};
+ }
+ // Preserve the existing 32-bit PT_LOAD >=4KB readelf policy.
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'ald1n25-elf-'));
  try{
-  const out=runTool('unzip',['-p',aab,entry],{encoding:null,maxBuffer:128*1024*1024,timeout:120000});
-  if(out?.status!==0||!Buffer.isBuffer(out.stdout)||out.stdout.length<4||out.stdout.length>100*1024*1024)return {ok:false,loadAlignments:[]};
-  const bin=path.join(root,name);fs.writeFileSync(bin,out.stdout,{mode:0o600});
+  const bin=path.join(root,path.basename(entry));fs.writeFileSync(bin,out.stdout,{mode:0o600});
   const elf=runTool('readelf',['-lW',bin],{encoding:'utf8',maxBuffer:16*1024*1024,timeout:120000});
   if(elf?.status!==0)return {ok:false,loadAlignments:[]};
   return {ok:true,loadAlignments:parseElfAlignments(elf.stdout)};
@@ -51,6 +57,7 @@ export async function verifyNativeAab({sealedAabPath,expectedIdentity,expectedVe
  const libs=entries.filter(x=>x.endsWith('.so'));
  if(!libs.length)return fail('NO_NATIVE_LIBRARIES',observed);
  const byAbi=new Set(),abiByEntry=new Map();
+ observed.relroByEntry={};
  for(const entry of libs){
   if(entry.includes('\\')||entry.includes('..')||entry.startsWith('/'))return fail('UNSAFE_LIB_PATH',observed);
   const m=entry.match(/^[^/]+\/lib\/(arm64-v8a|armeabi-v7a|x86|x86_64)\/[^/]+\.so$/);
@@ -62,6 +69,12 @@ export async function verifyNativeAab({sealedAabPath,expectedIdentity,expectedVe
   let result;
   try{result=await libInspector(entry,sealedAabPath,runTool)}catch{return fail(`ELF_INSPECTION_FAILED:${entry}`,observed)}
   const minAlignment=MIN_ELF_LOAD_ALIGNMENT[abiByEntry.get(entry)];
+  if(minAlignment===16384){
+   const status=result?.relro?.status;
+   if(status===undefined)return fail(`ELF_RELRO_EVIDENCE_MISSING:${entry}`,observed);
+   if(status!=='PASS'&&status!=='ABSENT')return fail(`ELF_RELRO_NOT_16K:${entry}`,observed);
+   observed.relroByEntry[entry]=status;
+  }
   if(!result?.ok||!Array.isArray(result.loadAlignments)||!result.loadAlignments.length||result.loadAlignments.some(x=>!Number.isSafeInteger(x)||x<minAlignment||(BigInt(x)&(BigInt(x)-1n))!==0n))return fail(`ELF_NOT_${minAlignment===16384?'16K':'4K'}:${entry}`,observed);
  }
  observed.nativeLibCount=libs.length;observed.abiSet=[...byAbi].sort();

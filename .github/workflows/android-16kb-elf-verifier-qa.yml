@@ -1,0 +1,51 @@
+name: Android 16 KB ELF and RELRO verifier (no native build)
+
+on:
+  push:
+    branches:
+      - ops/cloudlinux-deploy-and-16kb-verifier-20261021
+      - main
+    paths:
+      - apps/mobile/current/scripts/release25/elf64-archive-verifier.mjs
+      - apps/mobile/current/scripts/release25/elf64-archive-verifier.test.mjs
+      - apps/mobile/current/scripts/release25/verify-native.mjs
+      - apps/mobile/current/scripts/release25/verify-native.test.mjs
+      - .github/workflows/android-16kb-elf-verifier-qa.yml
+
+permissions:
+  contents: read
+
+jobs:
+  focused-elf-verification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.23.3"
+      - name: Test only changed ELF and native artifact gates
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --test scripts/release25/elf64-archive-verifier.test.mjs scripts/release25/verify-native.test.mjs
+      - name: Check pinned upstream AAR bytes, LOAD and GNU_RELRO
+        run: |
+          set -euo pipefail
+          aar="$RUNNER_TEMP/liquidglass-v2.0.11.aar"
+          curl --fail --silent --show-error --location --retry 2 \
+            --connect-timeout 15 --max-time 90 --output "$aar" \
+            https://jitpack.io/com/github/QWEA0/liquidglass/v2.0.11/liquidglass-v2.0.11.aar
+          test "$(sha256sum "$aar" | cut -d ' ' -f 1)" = 8218f8075c3c447241f2a1e96d502fc48718c6d007e9e05347bb9669901f13a9
+          node apps/mobile/current/scripts/release25/elf64-archive-verifier.mjs "$aar"
+          echo PINNED_VENDOR_LOAD_AND_RELRO=PASS
+      - name: Record scope
+        if: always()
+        run: |
+          echo NATIVE_COMPILATION=NOT_REPEATED
+          echo EAS_BUILD=NONE
+          echo OTA=NONE
+          echo GOOGLE_PLAY=NONE
+          echo LARAVEL_DEPLOYMENT=NONE
