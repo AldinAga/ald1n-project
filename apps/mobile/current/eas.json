@@ -68,7 +68,12 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_V15_RELEASE_GATE": "approved"
+      },
+      "environment": "production",
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   },
