@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\NotificationPreference;
 use App\Models\Order;
 use App\Models\OrderCommission;
+use App\Models\ProductWarranty;
 use App\Models\User;
 use App\Notifications\OperationalNotification;
 use Illuminate\Support\Facades\Log;
@@ -91,7 +92,17 @@ final class OperationalNotificationService
             }
 
             $preference = $this->preference($recipient);
-            $category = $this->category((string) ($data['event'] ?? ''));
+            $event = (string) ($data['event'] ?? '');
+            $isWarrantyExpiry = str_contains($event, 'warranty') && (str_contains($event, 'expiry') || str_contains($event, 'expir'));
+            if ($isWarrantyExpiry) {
+                // Missing opt-in or immutable order ownership must fail closed.
+                if ($preference->warranty_expiry_alerts !== true) return;
+                $warrantyId = filter_var($data['warranty_id'] ?? null, FILTER_VALIDATE_INT);
+                $warranty = $warrantyId ? ProductWarranty::query()->find($warrantyId) : null;
+                if (!$warranty instanceof ProductWarranty || (int) ($warranty->strictCustomerOwner()?->id ?? 0) !== (int) $recipient->id) return;
+            }
+            // Expiry is a separate opt-in; ordinary warranty updates remain independently configurable.
+            $category = $isWarrantyExpiry ? 'warranty_expiry_alerts' : $this->category($event);
             if (!$this->categoryEnabled($preference, $category)) {
                 return;
             }
@@ -135,6 +146,7 @@ final class OperationalNotificationService
                 'document_updates' => true,
                 'after_sales_updates' => true,
                 'warranty_updates' => true,
+                'warranty_expiry_alerts' => false,
                 'service_updates' => true,
                 'receivable_updates' => true,
                 'commission_updates' => true,
@@ -151,6 +163,7 @@ final class OperationalNotificationService
                 'document_updates' => true,
                 'after_sales_updates' => true,
                 'warranty_updates' => true,
+                'warranty_expiry_alerts' => false,
                 'service_updates' => true,
                 'receivable_updates' => true,
                 'commission_updates' => true,

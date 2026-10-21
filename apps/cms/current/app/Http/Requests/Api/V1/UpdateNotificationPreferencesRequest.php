@@ -19,7 +19,7 @@ final class UpdateNotificationPreferencesRequest extends FormRequest
         $rules = [];
         foreach ([
             'in_app_enabled', 'email_enabled', 'push_enabled', 'order_updates', 'payment_alerts',
-            'document_updates', 'after_sales_updates', 'warranty_updates', 'service_updates',
+            'document_updates', 'after_sales_updates', 'warranty_updates', 'warranty_expiry_alerts', 'service_updates',
             'receivable_updates', 'commission_updates', 'stock_alerts', 'daily_digest',
         ] as $field) {
             $rules[$field] = ['sometimes', 'boolean'];

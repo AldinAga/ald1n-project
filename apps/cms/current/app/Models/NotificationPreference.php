@@ -11,7 +11,7 @@ final class NotificationPreference extends Model
 {
     protected $fillable = [
         'user_id', 'in_app_enabled', 'email_enabled', 'push_enabled', 'shipment_tracking_channel', 'order_updates', 'payment_alerts',
-        'document_updates', 'after_sales_updates', 'warranty_updates', 'service_updates', 'receivable_updates',
+        'document_updates', 'after_sales_updates', 'warranty_updates', 'warranty_expiry_alerts', 'service_updates', 'receivable_updates',
         'commission_updates', 'stock_alerts', 'daily_digest',
     ];
 
@@ -26,6 +26,7 @@ final class NotificationPreference extends Model
             'document_updates' => 'boolean',
             'after_sales_updates' => 'boolean',
             'warranty_updates' => 'boolean',
+            'warranty_expiry_alerts' => 'boolean',
             'service_updates' => 'boolean',
             'receivable_updates' => 'boolean',
             'commission_updates' => 'boolean',

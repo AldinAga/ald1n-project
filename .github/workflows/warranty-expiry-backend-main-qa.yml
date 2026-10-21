@@ -1,0 +1,100 @@
+name: Warranty expiry Laravel backend current-main QA (NO DEPLOY)
+on:
+  push:
+    branches:
+      - release/warranty-expiry-backend-current-main-20261021
+  pull_request:
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/warranty-expiry-backend-main-qa.yml'
+permissions:
+  contents: read
+jobs:
+  php-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          tools: composer:v2
+      - working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l app/Http/Requests/Api/V1/UpdateNotificationPreferencesRequest.php
+          php -l app/Http/Resources/Api/V1/NotificationPreferenceResource.php
+          php -l app/Models/NotificationPreference.php
+          php -l app/Services/OperationalNotificationService.php
+          php -l app/Services/UserNotificationPreferenceService.php
+          php -l database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php
+          php -l tests/Feature/WarrantyExpiryPreferenceApiTest.php
+          php artisan test tests/Unit/WarrantyExpiryOptInSourceTest.php --no-ansi
+          php bin/static-check.php
+      - if: always()
+        run: echo 'SOURCE_ONLY_NO_PROD_MIGRATION_NO_DEPLOY_NO_EAS_BUILD_NO_OTA_NO_PLAY'
+  mariadb-101119-warranty-guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_warranty_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pisolated-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_warranty_ci
+      DB_USERNAME: root
+      DB_PASSWORD: isolated-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          tools: composer:v2
+      - working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_warranty_ci","root","isolated-ci-only"); if(!preg_match("/^10\\.11\\.19-MariaDB/",(string)$p->query("SELECT VERSION()")->fetchColumn())) exit(35); echo "MARIADB_101119_IDENTITY=PASS\\n";'
+          php artisan test -c phpunit.mysql.xml tests/Feature/WarrantyExpiryDeliveryGuardTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/WarrantyExpiryPreferenceApiTest.php --no-ansi
+          php artisan migrate:fresh --force --no-interaction
+          php -l tests/Support/warranty-expiry-online-ddl-smoke.php
+          php tests/Support/warranty-expiry-online-ddl-smoke.php
+      - if: always()
+        run: echo 'DISPOSABLE_MARIADB_ONLY_NO_PRODUCTION_DB_MUTATION_NO_DEPLOY'

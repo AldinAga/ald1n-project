@@ -41,6 +41,7 @@ final class UserNotificationPreferenceService
             'document_updates' => true,
             'after_sales_updates' => true,
             'warranty_updates' => true,
+            'warranty_expiry_alerts' => false,
             'service_updates' => true,
             'receivable_updates' => true,
             'commission_updates' => true,

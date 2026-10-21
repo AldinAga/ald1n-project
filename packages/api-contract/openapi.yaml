@@ -6861,6 +6861,7 @@ components:
         document_updates: { type: boolean }
         after_sales_updates: { type: boolean }
         warranty_updates: { type: boolean }
+        warranty_expiry_alerts: { type: boolean, default: false, description: 'Separate opt-in for warranty expiry reminders, independent of general warranty updates' }
         service_updates: { type: boolean }
         receivable_updates: { type: boolean }
         commission_updates: { type: boolean }
