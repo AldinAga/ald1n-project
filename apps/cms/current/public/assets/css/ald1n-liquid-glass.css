@@ -1588,6 +1588,46 @@ html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
   z-index: 1;
 }
 
+/* Dashboard aurora full-bleed: viewport paint, never the 1200px content container.
+   Pure CSS gradients (no blur/filter animation or new stacking scroll context).
+   Preserves card positions, hit targets, KPI contrast and dashboard RBAC. */
+html[data-theme="dark"] body:has(.page-shell .dashboard-kpi-card) {
+  background:
+    radial-gradient(ellipse 65vw 65vh at 0% 37%, rgba(40,124,255,.25), transparent 88%),
+    radial-gradient(ellipse 64vw 64vh at 100% 39%, rgba(136,91,255,.24), transparent 87%),
+    radial-gradient(ellipse 72vw 85vh at 50% 72%, rgba(59,94,172,.11), transparent 90%),
+    #09142B;
+  background-attachment: fixed;
+}
+html[data-theme="light"] body:has(.page-shell .dashboard-kpi-card) {
+  background:
+    radial-gradient(ellipse 65vw 65vh at 0% 37%, rgba(40,124,255,.15), transparent 88%),
+    radial-gradient(ellipse 64vw 64vh at 100% 39%, rgba(136,91,255,.14), transparent 87%),
+    radial-gradient(ellipse 72vw 85vh at 50% 72%, rgba(59,94,172,.055), transparent 90%),
+    #F2F6FF;
+  background-attachment: fixed;
+}
+/* Remove narrow clipped blooms; viewport-width pseudo-element remains decorative. */
+html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,
+html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
+  left: 50%;
+  right: auto;
+  width: 100vw;
+  max-width: 100vw;
+  transform: translateX(-50%);
+  filter: none;
+  background:
+    radial-gradient(ellipse 61% 45% at 0% 21%, rgba(40,124,255,.22), transparent 90%),
+    radial-gradient(ellipse 58% 48% at 100% 23%, rgba(136,91,255,.20), transparent 90%),
+    radial-gradient(ellipse 67% 55% at 50% 78%, rgba(73,105,196,.09), transparent 88%);
+}
+@media (forced-colors: active), (prefers-reduced-transparency: reduce) {
+  html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,
+  html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
+    background: none;
+  }
+}
+
 /* Header and navigation stay in their existing positions with original RBAC.
    Only the glass paint, active state and interaction feedback are enhanced. */
 .site-header { border-bottom:1px solid var(--lg5-panel-edge); }
