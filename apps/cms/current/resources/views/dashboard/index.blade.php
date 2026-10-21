@@ -264,7 +264,7 @@
 @endif
 
 @if($hasBusinessDashboard)
-    <div class="dashboard-main-grid">
+    <div class="dashboard-main-grid{{ $user->hasRole('superadmin') && is_array($dashboardBrandMix) ? ' dashboard-main-grid--d3-pair' : '' }}">
         <section class="panel dashboard-panel dashboard-trend-panel">
             <div class="dashboard-panel-heading">
                 <div><span class="eyebrow">Finansijski puls</span><h2>Trend prodaje</h2><p>{{ $reportStats['period_label'] ?? 'Tekući mesec' }}</p></div>
@@ -285,7 +285,12 @@
                         </div>
                     @endforeach
                 </div>
-                <div class="dashboard-chart-legend"><span><i class="legend-revenue"></i>Prihod</span><span><i class="dashboard-d3-gross-key"></i>Bruto dobit</span><strong>Skala: {{ number_format($trendScale, 2, ',', '.') }} RSD</strong></div>
+                <div class="dashboard-chart-legend dashboard-d3-trend-legend" aria-label="Legenda trenda prodaje">
+                    <span title="Ukupan prihod od završenih porudžbina u izabranom periodu"><i class="legend-revenue" aria-hidden="true"></i>Prihod</span>
+                    <span title="Bruto dobit samo za stavke sa poznatom nabavnom cenom, pre ostalih troškova"><i class="dashboard-d3-gross-key" aria-hidden="true"></i>Bruto dobit</span>
+                    <strong title="Najviša vrednost na skali grafikona">Skala: {{ number_format($trendScale, 2, ',', '.') }} RSD</strong>
+                </div>
+                <p class="dashboard-d3-trend-explanation">Plavo: prihod završenih porudžbina. Zeleno: bruto dobit samo za stavke sa evidentiranom nabavnom cenom, pre provizija, povraćaja i troškova servisa.</p>
                 <details class="dashboard-d3-trend-data"><summary>Tačne vrednosti po periodima</summary><table><thead><tr><th>Period</th><th>Prihod (RSD)</th><th>Bruto dobit (RSD)</th></tr></thead><tbody>@foreach($trend as $point)<tr><th>{{ $point['period'] }}</th><td>{{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }}</td><td>{{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }}</td></tr>@endforeach</tbody></table></details>
             @else
                 <div class="dashboard-empty"><x-icon name="chart" size="34" /><h3>Trend će biti prikazan kada postoje završene porudžbine</h3><p>Upravljački izveštaji koriste finansijske snapshot podatke iz porudžbina.</p>@can('reports.view')<a class="button button-ghost button-small" href="{{ route('admin.reports.index') }}">Proveri izveštaje</a>@endcan</div>
