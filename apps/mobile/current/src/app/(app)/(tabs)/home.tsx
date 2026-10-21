@@ -246,7 +246,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>{quickActions.length} dostupno</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={quickActions} />
+            <HomeActionList actions={quickActions} variant="primary" />
           </View>
         </>
       ) : null}
@@ -259,7 +259,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>{myActivities.length} dostupno</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={myActivities} />
+            <HomeActionList actions={myActivities} variant="soft" />
           </View>
         </>
       ) : null}
@@ -272,7 +272,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionMeta}>Radni prostor</Text>
           </View>
           <View style={styles.actions}>
-            <HomeActionList actions={adminActions} />
+            <HomeActionList actions={adminActions} variant="soft" />
           </View>
         </>
       ) : null}
@@ -280,13 +280,14 @@ export default function HomeScreen() {
   );
 }
 
-function HomeActionList({ actions }: { actions: HomeAction[] }) {
+function HomeActionList({ actions, variant = 'standard' }: { actions: HomeAction[]; variant?: 'standard' | 'primary' | 'soft' }) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.operatorList}>
       {actions.map((action, index) => (
         <OperatorRow
+          variant={variant}
           key={action.title}
           title={action.title}
           copy={action.copy}
