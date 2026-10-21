@@ -148,9 +148,9 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
 
     private function admin(): User
     {
-        static $admin;
-        if ($admin instanceof User) return $admin;
-        $admin = User::query()->create([
+        $existing = User::query()->where('username', 'expiry-admin')->first();
+        if ($existing instanceof User) return $existing;
+        return User::query()->create([
             'role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id'),
             'username' => 'expiry-admin',
             'email' => 'expiry-admin@example.test',
@@ -158,7 +158,6 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
             'password_hash' => Hash::make('Secret123!'),
             'status' => 'active',
         ]);
-        return $admin;
     }
 
     private function product(?User $admin = null, string $sku = 'EXPIRY-ITEM'): Product
