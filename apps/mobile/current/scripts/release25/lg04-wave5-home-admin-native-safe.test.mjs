@@ -12,7 +12,7 @@ test('Home and Admin use native-safe bounded icon treatments without changing pe
   assert.match(home, /can\('catalog\.manage_products'\)/);
   assert.match(admin, /can\('orders\.manage'\)/);
   assert.match(admin, /can\('catalog\.manage_products'\)/);
-  assert.ok((admin.match(/<OperatorRow variant="soft"/g) ?? []).length >= 26);
+  assert.ok((admin.match(/<GlassWorkspaceShortcut variant="soft"/g) ?? []).length >= 26);
   assert.match(shortcut, /width: 48, height: 48/);
   assert.match(shortcut, /useReducedMotion\(/);
   assert.equal((shortcut.match(/<Pressable\b/g) ?? []).length, 1);
