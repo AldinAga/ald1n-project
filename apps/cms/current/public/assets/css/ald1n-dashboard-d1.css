@@ -467,3 +467,67 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
 .dashboard-d3-trend-data th,.dashboard-d3-trend-data td{padding:7px 5px;border-bottom:1px solid var(--ald-border);text-align:right}
 .dashboard-d3-trend-data th:first-child{text-align:left}
 .dashboard-d3-trend-data:focus-within{outline-offset:4px}
+
+/* D3 ANALYTICS PAIR — only when both SuperAdmin charts exist.
+   Previous D1 rule forces one wide column; give the paired charts a balanced row. */
+.dashboard-d1-shell .dashboard-d3-trend-legend {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 9px 18px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.dashboard-d1-shell .dashboard-d3-trend-legend > span { white-space: nowrap; }
+.dashboard-d1-shell .dashboard-d3-trend-legend > strong {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--ald-muted);
+  white-space: nowrap;
+}
+.dashboard-d1-shell .dashboard-d3-trend-legend .legend-revenue {
+  display: inline-block;
+  background: #287CFF;
+  flex: 0 0 10px;
+}
+.dashboard-d1-shell .dashboard-d3-trend-legend .dashboard-d3-gross-key {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  margin: 0;
+  border-radius: 3px;
+}
+.dashboard-d1-shell .dashboard-d3-trend-explanation {
+  margin: 11px 0 0;
+  color: var(--ald-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (min-width: 1181px) {
+  .build16-home-shell.dashboard-d1-shell .dashboard-main-grid--d3-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .dashboard-d1-shell .dashboard-main-grid--d3-pair > .dashboard-panel {
+    min-width: 0;
+    height: 100%;
+    padding: 20px;
+  }
+  .dashboard-d1-shell .dashboard-main-grid--d3-pair .dashboard-d3-chart {
+    grid-template-columns: minmax(120px, 176px) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .dashboard-d1-shell .dashboard-main-grid--d3-pair .dashboard-d3-donut {
+    max-width: 176px;
+  }
+  .dashboard-d1-shell .dashboard-main-grid--d3-pair .dashboard-d3-legend li {
+    grid-template-columns: 11px minmax(0, 1fr) auto auto;
+    gap: 6px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 1180px) {
+  .build16-home-shell.dashboard-d1-shell .dashboard-main-grid--d3-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
