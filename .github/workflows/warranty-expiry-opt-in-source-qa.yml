@@ -1,0 +1,53 @@
+name: Warranty expiry opt-in and owner scope (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/warranty-expiry-opt-in-owner-scope-20261021
+  pull_request:
+    paths:
+      - 'apps/cms/current/app/Services/OperationalNotificationService.php'
+      - 'apps/cms/current/app/Services/UserNotificationPreferenceService.php'
+      - 'apps/cms/current/database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php'
+      - 'apps/mobile/current/src/app/(app)/notification-settings.tsx'
+      - '.github/workflows/warranty-expiry-opt-in-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          tools: composer:v2
+      - working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l app/Services/OperationalNotificationService.php
+          php -l app/Services/UserNotificationPreferenceService.php
+          php -l database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php
+          php artisan test tests/Unit/WarrantyExpiryOptInSourceTest.php --no-ansi
+          php bin/static-check.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - working-directory: apps/mobile/current
+        run: |
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - if: always()
+        run: echo 'NO_PRODUCTION_MIGRATION NO_EAS NO_OTA NO_PLAY'
