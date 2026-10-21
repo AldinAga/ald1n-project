@@ -1,0 +1,37 @@
+name: Mobile Fokus danas navigation - source QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - fix/mobile-home-focus-tile-navigation-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/src/app/(app)/(tabs)/home.tsx'
+      - 'apps/mobile/current/scripts/release25/home-focus-navigation.test.mjs'
+      - '.github/workflows/mobile-home-focus-navigation-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --test scripts/release25/home-focus-navigation.test.mjs
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - if: always()
+        run: echo 'NO_BUILD=YES NO_OTA=YES NO_PLAY=YES'
