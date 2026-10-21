@@ -73,6 +73,12 @@
     }
   },
   "submit": {
+    "lg03-play-testing": {
+      "android": {
+        "track": "beta",
+        "releaseStatus": "completed"
+      }
+    },
     "production": {
       "android": {
         "track": "production",
