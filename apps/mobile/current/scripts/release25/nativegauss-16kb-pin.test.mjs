@@ -34,7 +34,7 @@ test('old 4KB pin, duplicates and unsupported root template fail closed', () => 
 });
 
 test('upstream AAR byte provenance and compiled native alignment are CI gates', () => {
-  const ci = fs.readFileSync(path.join(root, '../../.github/workflows/android-v15-nativegauss-16kb-qa.yml'), 'utf8');
+  const ci = fs.readFileSync(path.join(root, '../../../.github/workflows/android-v15-nativegauss-16kb-qa.yml'), 'utf8');
   assert.match(ci, /com\/github\/QWEA0\/liquidglass\/v2\.0\.11/);
   assert.match(ci, /8218f8075c3c447241f2a1e96d502fc48718c6d007e9e05347bb9669901f13a9/);
   assert.match(ci, /readelf -lW/);
