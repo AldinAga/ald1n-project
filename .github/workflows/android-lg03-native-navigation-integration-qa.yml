@@ -1,0 +1,147 @@
+name: Android LG-03 native navigation integration (DRAFT only)
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/android-lg03-native-navigation-integration-qa.yml'
+      - 'apps/mobile/current/src/components/layout/android-native-glass-bottom-nav.tsx'
+      - 'apps/mobile/current/src/components/layout/app-bottom-nav.tsx'
+      - 'apps/mobile/current/src/app/(app)/_layout.tsx'
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - 'apps/mobile/current/scripts/release25/**'
+      - 'apps/mobile/current/docs/ANDROID-LIQUID-GLASS-LG03.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+  EXPO_PUBLIC_APP_ENV: production
+  EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+jobs:
+  source-and-regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install committed exact native lock (no npm install --fix)
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Check exact source package, integrity and registered Firebase identity
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=require('./package.json');
+          const lock=require('./package-lock.json');
+          const config=require('./app.config.js')({config:{}});
+          const services=require('./google-services.json');
+          const clients=(services.client||[]).map(c=>c.client_info?.android_client_info?.package_name);
+          if(p.dependencies?.['react-native-android-liquid-glass']!=='0.2.1')process.exit(31);
+          const entry=lock.packages?.['node_modules/react-native-android-liquid-glass'];
+          if(entry?.version!=='0.2.1'||entry?.integrity!=='sha512-zcmlp4fvDxz62lleL3ua/uR2lo2SCc9ZhF7Gi682L+9wJueP3E2eUoXpEaCvfJ2c52p6fZ1tON45UwJFm2oRAg==')process.exit(32);
+          if(config.runtimeVersion!=='1.0.0-build17')process.exit(33);
+          if(p.version!=='1.0.0'||p.dependencies['react-native']!=='0.86.3')process.exit(34);
+          if(config.android?.package!=='com.ald1n.mobile'||!clients.includes(config.android.package))process.exit(35);
+          console.log('LG03_PINNED_NATIVE_DEP_LOCK_FIREBASE=PASS_DRAFT_ONLY');
+          console.log('BUILD25_RUNTIME_COMPATIBILITY=HOLD_NEW_NATIVE_MODULE');
+          NODE
+      - name: TypeScript
+        working-directory: apps/mobile/current
+        run: npm run typecheck
+      - name: Canonical Mobile validator
+        working-directory: apps/mobile/current
+        run: npm run validate
+      - name: All release25 tests including native direct-parent and fallback checks
+        working-directory: apps/mobile/current
+        run: npm run test:release25
+      - name: Build Android JS bundle without OTA publish
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg03-native-source-export"
+          test -d "$RUNNER_TEMP/ald1n-lg03-native-source-export"
+          echo 'ANDROID_NATIVE_GLASS_JS_BUNDLE=PASS_CI_ONLY'
+  full-android-debug:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    # CI-only physical-UAT candidate: same registered package as internal
+    # preview, distinct runtime and profile. NOT an EAS build.
+    env:
+      EXPO_PUBLIC_APP_ENV: preview
+      ALD1N_LG03_NATIVE_UAT: '1'
+      EAS_BUILD_PROFILE: lg03-native-uat
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK 36 and NDK
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: npm ci with committed native dependency and lock
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Verify isolated preview identity + runtime before native generation
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const c=require('./app.config.js')({config:{}});
+          const f=require('./google-services.json');
+          const pkgs=(f.client||[]).map(x=>x.client_info?.android_client_info?.package_name);
+          if(c.android.package!=='com.ald1n.mobile.preview'
+            || c.runtimeVersion!=='1.0.0-lg03-native-uat1'
+            || !pkgs.includes('com.ald1n.mobile.preview'))process.exit(71);
+          console.log('LG03_ISOLATED_PREVIEW_FIREBASE_RUNTIME=PASS');
+          NODE
+      - name: Expo prebuild real registered PREVIEW Firebase package in disposable CI
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          test -d android
+      - name: Compile actual candidate glass + app debug APK
+        working-directory: apps/mobile/current/android
+        run: |
+          set -euo pipefail
+          ./gradlew :react-native-android-liquid-glass:compileDebugKotlin :app:assembleDebug --no-daemon --stacktrace
+          apk='app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$apk"
+          aapt="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -F "package: name='com.ald1n.mobile.preview'" >/dev/null
+          echo 'ANDROID_LG03_NATIVE_PREVIEW_PACKAGE_DEBUG_APK=PASS_CI_ONLY'
+          echo 'APK_ARTIFACT_UPLOAD=NO'
+  absolutely-no-release:
+    if: always()
+    needs: [source-and-regressions, full-android-debug]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: No remote update, EAS, production build, Play or backend writes
+        run: |
+          echo 'DRAFT_NOT_MERGEABLE_WITH_BUILD25_RUNTIME'
+          echo 'NATIVE_PREVIEW_SIGNING=NOT_AUTHORIZED'
+          echo 'EAS_BUILD=NONE'
+          echo 'OTA=NONE'
+          echo 'PLAY_UPLOAD=NONE'
+          echo 'PRODUCTION_DB_MUTATION=NONE'

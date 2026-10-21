@@ -1,0 +1,114 @@
+name: Android LG-03 Play testing AAB - ONE EAS dispatch
+on:
+  push:
+    branches:
+      - feature/android-lg03-wave2-native-navigation-candidate-20261020
+    paths:
+      - '.github/workflows/android-lg03-play-testing-eas-aab.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-lg03-play-testing-eas-owner-once
+  cancel-in-progress: false
+jobs:
+  one-eas-aab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+      EAS_BUILD_PROFILE: lg03-play-testing
+      ALD1N_LG03_PLAY_TESTING: '1'
+    steps:
+      - name: Checkout immutable PR-47 build source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked native dependencies
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Exact source and store-testing artifact gates, then source tests
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/android-lg03-wave2-native-navigation-candidate-20261020'
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=require('./package.json');
+          const c=require('./app.config.js')({config:{}});
+          const eas=require('./eas.json');
+          const clients=(JSON.parse(fs.readFileSync('google-services.json','utf8')).client||[])
+            .map(x=>x.client_info?.android_client_info?.package_name);
+          const x=eas.build['lg03-play-testing'];
+          if(c.android.package!=='com.ald1n.mobile'
+            || !clients.includes('com.ald1n.mobile')
+            || c.runtimeVersion!=='1.0.0-lg03-play-testing1'
+            || c.version!=='1.0.0'
+            || x?.distribution!=='store'
+            || x?.android?.buildType!=='app-bundle'
+            || x?.channel!=='lg03-play-testing'
+            || x?.autoIncrement!==true
+            || eas.cli.appVersionSource!=='remote'
+            || eas.cli.version!=='25.0.0'
+            || p.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(51);
+          console.log('LG03_PLAY_STORE_AAB_PROFILE=PASS');
+          console.log('LG03_RUNTIME=1.0.0-lg03-play-testing1');
+          console.log('LG03_ANDROID_PACKAGE=com.ald1n.mobile');
+          console.log('LG03_PROFILE_CHANNEL=lg03-play-testing');
+          console.log('PLAY_SUBMISSION=OWNER_ONLY');
+          NODE
+          npm run typecheck
+          npm run validate
+          # The full cross-profile suite exercises iOS, preview and prod fixtures;
+          # clear THIS testing opt-in only for those isolated fixture checks.
+          env -u EAS_BUILD_PROFILE -u ALD1N_LG03_PLAY_TESTING npm run test:release25
+      - name: Dispatch ONE Expo EAS AAB from exact source (no Play submission)
+        working-directory: apps/mobile/current
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo 'HOLD_EXPO_TOKEN_NOT_CONFIGURED_FOR_GITHUB_ACTIONS'
+            echo 'NO_EAS_BUILD_REQUEST_WAS_SENT'
+            exit 2
+          fi
+          echo "LG03_EXACT_SOURCE_SHA=$GITHUB_SHA"
+          echo 'EAS_DISPATCH_PROFILE=lg03-play-testing'
+          echo 'PLAY_TRACK_UPLOAD=OWNER_ONLY'
+          # Uses existing Expo credentials without creating or changing keystores.
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build \
+            --platform android \
+            --profile lg03-play-testing \
+            --non-interactive \
+            --no-wait \
+            --freeze-credentials \
+            --json \
+            --message "Ald1n LG03 Play testing; source $GITHUB_SHA; GitHub $GITHUB_RUN_ID" \
+            > "$RUNNER_TEMP/ald1n-lg03-eas-build.json"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const doc=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/ald1n-lg03-eas-build.json','utf8'));
+          const b=Array.isArray(doc)?(doc.find(x=>x.platform==='ANDROID')||doc[0]):doc;
+          const id=b?.id;
+          if(typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id))process.exit(61);
+          if(b.platform && b.platform!=='ANDROID')process.exit(62);
+          console.log('LG03_EAS_BUILD_DISPATCHED=YES');
+          console.log('LG03_EAS_BUILD_ID='+id);
+          console.log('LG03_EAS_BUILD_URL=https://expo.dev/accounts/ald1n/projects/ald1n-mobile/builds/'+id);
+          console.log('LG03_STATUS_AT_DISPATCH='+(b.status||'PENDING'));
+          console.log('LG03_VERSION_CODE='+(b.appBuildVersion||'UNKNOWN_UNTIL_BUILD_METADATA'));
+          console.log('LG03_EXACT_SOURCE_SHA='+process.env.GITHUB_SHA);
+          console.log('LG03_AAB_ARTIFACT=WAIT_FOR_EAS_FINISHED');
+          console.log('LG03_GOOGLE_PLAY_UPLOAD=NOT_AUTOMATED');
+          NODE

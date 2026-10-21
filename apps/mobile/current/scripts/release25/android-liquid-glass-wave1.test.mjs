@@ -93,12 +93,13 @@ test('five destinations, keyboard dismissal, role access and home emphasis remai
   assert.match(navSource, /homeItem: \{ transform: \[\{ translateY: -9 \}\]/);
 });
 
-test('Build25 must remain native-dependency and runtime identical; no accidental OTA build crossing', () => {
+test('Wave1 fallback stays pure RN even while draft Wave2 pins a new binary dependency', () => {
   assert.equal(pkg.version, '1.0.0');
   assert.equal(pkg.dependencies.expo, '~57.0.27');
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['expo-blur'], undefined);
-  assert.equal(pkg.dependencies['react-native-android-liquid-glass'], undefined);
+  // This Draft branch adds the dependency intentionally and MUST NOT use Build25 OTA.
+  assert.equal(pkg.dependencies['react-native-android-liquid-glass'], '0.2.1');
   assert.match(appConfig, /runtimeVersion: '1\.0\.0-build17'/);
   assert.doesNotMatch(navSource, /from 'expo-blur'|from 'react-native-android-liquid-glass'/);
 });

@@ -1,6 +1,26 @@
 # Ald1n Mobile / Android Liquid Glass — LG-03
 
-Status: **Wave 1 isolated source candidate, not an OTA or production APK release**.
+Status: **Wave 1 merged PR #45 (source only); Wave 2 candidate PR #47 remains DRAFT / NOT OTA SAFE**.
+
+## Wave 2 native integration status (2026-10-19)
+
+- Prior exact-head PR #46 merged as a workflow-only compatibility receipt. CI run 39327323204 PASS: pinned Android Liquid Glass v0.2.1 Kotlin **and** complete Android app debug assemble (real com.ald1n.mobile package). No artifact was distributed, and no native module reached main.
+- Draft PR #47 pins react-native-android-liquid-glass@0.2.1 and actual npm SHA-512 in package-lock v3. **This dependency requires a new Android binary and new compatible runtimeVersion. It is NOT compatible with existing Build25 OTA.**
+- App shell adds a noncollapsible native parent shared by Stack and the LiquidGlassAndroidView. The native glass is returned directly from the Android bottom-navigation component and refracts the scrolling Stack sibling backdrop; wrapping it inside the old bar would capture a flat surface instead.
+- Five role-aware buttons render as children of the native glass, preserving labels, selected and disabled state, unread badges, orange raised Home and router.replace destinations. Tablet >=600dp remains the original rail; iOS remains the existing bottom nav.
+- Native refraction is only attempted on Android API33+ after reduced-transparency preferences have loaded. Older/unknown APIs, accessibility restrictions, keyboard focus, fatal errors and degraded pipeline use an opaque fallback. Android high-contrast system preferences use native accessibility auto behavior.
+- Dynamic backdrop capture is active only while the app is in the foreground, with native paused background state, downsample 0.5, disabled high-quality blur/dispersion/sensor highlights and disabled frame diagnostics.
+- Physical optical quality, frame time, heat, battery, scrolling contrast, 320dp and dark/light tests are NOT certified by a successful compile.
+
+### Mandatory release HOLD for PR #47
+
+1. Exact candidate Node22 npm ci, TypeScript, Release25 regressions, canonical validator, Android JS export, and complete JDK17/Android36 assembleDebug.
+2. Owner-authorized physical native preview build under legitimate Firebase identity, device screenshots and moving-content refraction proof, accessibility, keyboard, orientation and tablet rail.
+3. Performance acceptance with genuine frame-time samples and device thermal observations, especially repeated scrolling/navigation.
+4. A new versionCode and isolated runtimeVersion, exact source and EAS profile/channel, only with explicit owner production build authorization. Supply the production build command, app version, versionCode, runtimeVersion, source commit, profile/channel and Google Play release notes then.
+5. **NEVER** merge a live native import into the Build25-compatible main source before the compatible binary release is safely planned. No production build, OTA, Play, iOS or database mutation in this Draft phase.
+
+
 
 ## Exact source authority (2026-10-19)
 
