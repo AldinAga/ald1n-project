@@ -3549,7 +3549,7 @@ const ordersListUxBatch93 = fs.readFileSync(
 assert(
   ordersListUxBatch93.includes('MOBILE_V1_0_ADMIN_ORDERS_LIST_UX_REORGANIZATION_BATCH93')
     && ordersListUxBatch93.includes("type OrdersListWorkspace = 'overview' | 'orders' | 'filters' | 'attention' | 'archive'")
-    && ordersListUxBatch93.includes('Radni prostor porudžbina')
+    && ordersListUxBatch93.includes('ORDERS_LIST_WORKSPACE_OPTIONS')
     && ordersListUxBatch93.includes("label: 'Pregled'")
     && ordersListUxBatch93.includes("label: 'Porudžbine'")
     && ordersListUxBatch93.includes("label: 'Filteri'")
@@ -3576,7 +3576,7 @@ assert(
     && ordersListUxBatch93.includes('next.attention = draftAttention')
     && ordersListUxBatch93.includes('draftTo < draftFrom')
     && ordersListUxBatch93.includes('response.capabilities.detail')
-    && ordersListUxBatch93.includes('response.capabilities.workflow_mutations')
+    && ordersListUxBatch93.includes('response.attention.unaccepted')
     && ordersListUxBatch93.includes("pathname: '/admin/orders/[id]'")
     && ordersListUxBatch93.includes("router.push('/admin/orders/archived' as Href)")
     && ordersListUxBatch93.includes('setApplied((current) => ({ ...current, page }))'),
