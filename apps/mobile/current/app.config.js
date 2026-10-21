@@ -81,7 +81,7 @@ module.exports = ({ config }) => {
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
     runtimeVersion: '1.0.0-build17',
-    ...(process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? { runtimeVersion: '1.5.0-native1' } : {}),
+    ...(process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? { runtimeVersion: '1.5.0-native2' } : {}),
     // Dedicated native preview uses an incompatible-from-Build25 runtime.
     ...(LG03_NATIVE_UAT_REQUESTED
       ? { runtimeVersion: '1.0.0-lg03-native-uat1' }
@@ -150,6 +150,8 @@ module.exports = ({ config }) => {
         './plugins/with-android-native-modernization',
         {
           optimizedResourceShrinking: true,
+          // 16KB-aligned nativegauss upstream JitPack AAR, audited v2.0.11.
+          liquidGlassVersion: 'v2.0.11',
         },
       ],
 

@@ -1,0 +1,134 @@
+name: Android v1.5 16KB nativegauss source and compiler QA (NO EAS BUILD)
+on:
+  push:
+    branches:
+      - fix/android-v15-16kb-nativegauss-20261021
+    paths:
+      - apps/mobile/current/app.config.js
+      - apps/mobile/current/plugins/with-android-native-modernization.js
+      - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
+      - .github/workflows/android-v15-nativegauss-16kb-qa.yml
+permissions:
+  contents: read
+jobs:
+  native16kb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+      EAS_BUILD_PROFILE: production
+      ALD1N_V15_RELEASE_GATE: approved
+    steps:
+      - name: Checkout isolated source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup Node22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.16.0"
+      - name: JDK17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Confirm app runtime and production package identity
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node -v
+          npm -v
+          node <<'NODE'
+          const pkg=require('./package.json');
+          const eas=require('./eas.json');
+          const app=require('./app.config.js')({config:{}});
+          if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1'
+             ||eas.build.production.channel!=='production'
+             ||eas.build.production.android?.buildType!=='app-bundle'
+             ||app.version!=='1.5.0'||app.runtimeVersion!=='1.5.0-native2'
+             ||app.android?.package!=='com.ald1n.mobile'
+             ||app.extra?.eas?.projectId!=='d43b3866-6838-4217-a23e-3dc7f2cc76cc')
+             process.exit(41);
+          console.log('RELEASE_IDENTITY=PASS_APP_1.5.0_RUNTIME_native2_PROD_PACKAGE');
+          NODE
+      - name: Verify exact JitPack v2.0.11 AAR bytes and 16KB ELF
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAR="$RUNNER_TEMP/liquidglass-v2.0.11.aar"
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 5 \
+            --connect-timeout 20 --max-time 300 --output "$AAR" \
+            "https://jitpack.io/com/github/QWEA0/liquidglass/v2.0.11/liquidglass-v2.0.11.aar"
+          test "$(sha256sum "$AAR" | awk '{print $1}')" = '8218f8075c3c447241f2a1e96d502fc48718c6d007e9e05347bb9669901f13a9'
+          unzip -tqq "$AAR"
+          unzip -p "$AAR" jni/arm64-v8a/libnativegauss.so > "$RUNNER_TEMP/nativegauss.so"
+          readelf -lW "$RUNNER_TEMP/nativegauss.so" > "$RUNNER_TEMP/nativegauss-elf.txt"
+          node - "$RUNNER_TEMP/nativegauss-elf.txt" <<'NODE'
+          const fs=require('node:fs');
+          const s=fs.readFileSync(process.argv[2],'utf8');
+          const p=s.split('\n').filter(x=>/^\s*LOAD\s/.test(x)).map(x=>parseInt(x.trim().split(/\s+/).at(-1),16));
+          if(!p.length||!p.every(x=>Number.isInteger(x)&&x>=16384)){ console.error('HOLD_VENDOR_ELF_LOAD_LT_16KB');process.exit(42); }
+          console.log('PINNED_UPSTREAM_AAR_ELF_16KB=PASS');
+          NODE
+      - name: Install locked dependencies, source tests and validator
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          node --test scripts/release25/nativegauss-16kb-pin.test.mjs
+          npm run typecheck
+          npm run validate
+      - name: Prepare isolated Android SDK36 and NDK27
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Generate Android native app in disposable CI checkout only
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          test -f android/build.gradle
+          grep -Fq "rootProject.ext.liquidGlassVersion = 'v2.0.11'" android/build.gradle
+          grep -Fq 'ALD1N_NATIVEGAUSS_16KB_UPSTREAM_PIN_V1' android/build.gradle
+          echo 'ROOT_GRADLE_UPSTREAM_2011_PIN=PASS'
+      - name: Compile React Native Fabric bridge against updated upstream library
+        working-directory: apps/mobile/current/android
+        run: |
+          set -euo pipefail
+          ./gradlew :react-native-android-liquid-glass:compileDebugKotlin --no-daemon --stacktrace
+          echo 'LIQUID_GLASS_KOTLIN_BRIDGE_2011_COMPILES=PASS'
+      - name: Assemble complete disposable debug APK and validate native ELF and zip alignment
+        working-directory: apps/mobile/current/android
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          APK='app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          unzip -tqq "$APK"
+          unzip -p "$APK" lib/arm64-v8a/libnativegauss.so > "$RUNNER_TEMP/final-nativegauss.so"
+          readelf -lW "$RUNNER_TEMP/final-nativegauss.so" > "$RUNNER_TEMP/final-nativegauss-elf.txt"
+          node - "$RUNNER_TEMP/final-nativegauss-elf.txt" <<'NODE'
+          const fs=require('node:fs');
+          const s=fs.readFileSync(process.argv[2],'utf8');
+          const a=s.split('\n').filter(x=>/^\s*LOAD\s/.test(x)).map(x=>parseInt(x.trim().split(/\s+/).at(-1),16));
+          if(!a.length||!a.every(x=>Number.isInteger(x)&&x>=16384)){console.error('HOLD_APP_NATIVEGAUSS_LT_16KB');process.exit(44)}
+          console.log('COMPILED_APP_NATIVEGAUSS_ELF_16KB=PASS');
+          NODE
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          echo 'DEBUG_APK_16KB_ZIPALIGN=PASS_CI_ONLY'
+      - name: No release or production mutation
+        if: always()
+        run: |
+          echo 'NO_EAS_BUILD=YES'
+          echo 'NO_AUTO_INCREMENT=YES'
+          echo 'NO_OTA=YES'
+          echo 'NO_PLAY_SUBMIT=YES'
+          echo 'NO_LARAVEL_OR_DB_MUTATION=YES'
