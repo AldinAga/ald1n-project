@@ -158,11 +158,17 @@ jobs:
           }
           const original=result.entries.find(entry=>entry.path===known);
           const others=result.entries.filter(entry=>entry.path!==known);
+          const originalLoadFailures=take(original?.errors,16).filter(error=>error.code==='LOAD_ALIGNMENT');
+          const originalOverlapFailures=take(original?.errors,16).filter(error=>error.code==='GNU_RELRO_WRITABLE_OVERLAP');
           if(original?.ok!==false||original.abi!=='arm64-v8a'||!original.loads?.length
-            ||!original.errors?.some(error=>error.code==='LOAD_ALIGNMENT')
-            ||original.errors.some(error=>!['LOAD_ALIGNMENT','GNU_RELRO_ENDPOINT'].includes(error.code))
+            ||original.errors?.length!==4||originalLoadFailures.length!==3
+            ||originalLoadFailures.map(error=>error.segment).sort((a,b)=>a-b).join(',')!=='1,2,3'
+            ||originalOverlapFailures.length!==1||originalOverlapFailures[0].segment!==5
+            ||original.relro?.status!=='FAIL'
+            ||!original.relro.segments?.some(segment=>segment.index===5&&segment.reason==='WRITABLE_LOAD_OVERLAP'
+              &&segment.overlappingLoadIndex===3&&segment.protectedStart==='0x40000'&&segment.protectedEnd==='0x48000')
             ||!original.loads.some(segment=>segment.align==='0x1000')){
-            fail('KNOWN_NATIVEGAUSS_4KB_DEFECT_NOT_CONFIRMED');
+            fail('KNOWN_NATIVEGAUSS_4KB_AND_RELRO_DEFECTS_NOT_CONFIRMED');
           }
           if(others.length!==54||others.some(entry=>entry.ok!==true||entry.errors?.length!==0
             ||!['arm64-v8a','x86_64'].includes(entry.abi)
@@ -171,6 +177,7 @@ jobs:
           }
           fs.writeSync(1,'AAB27_64BIT_LIBRARIES_CHECKED=55\n'
             +'AAB27_SIGNED_ELF_GATE=FAIL_KNOWN_NATIVEGAUSS_4KB\n'
+            +'AAB27_NATIVEGAUSS_RELRO_OVERLAPS_WRITABLE_LOAD=CONFIRMED\n'
             +'OTHER54_ELF_LOAD_AND_RELRO=PASS\n'
             +'NEW_SIGNED_NATIVE2_AAB=STILL_REQUIRED\n');
           NODE

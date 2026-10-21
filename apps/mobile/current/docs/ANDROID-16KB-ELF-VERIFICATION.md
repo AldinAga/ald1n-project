@@ -16,10 +16,10 @@ x86_64 shared library in the archive:
   segment file ranges.
 - LOAD alignment is a power of two and at least `0x4000`; offsets and virtual
   addresses are congruent modulo that alignment.
-- Every present GNU_RELRO either ends on a 16 KB boundary, or occupies its
-  entire containing LOAD segment with no other writable LOAD overlapping the
-  rounded 16 KB protection range. The latter is Android's documented dedicated
-  LOAD exception. Missing GNU_RELRO is reported explicitly as `ABSENT`.
+- Every present GNU_RELRO either ends on a 16 KB boundary, or covers its entire
+  dedicated LOAD, including bounded linker padding, with no other writable LOAD
+  overlapping the rounded 16 KB protection range. Missing GNU_RELRO is reported
+  explicitly as `ABSENT`.
 - Duplicate ZIP members, symlinks, ambiguous paths, unsupported compression,
   corrupt CRC, unsafe integer fields and failed subprocesses are rejected.
 
@@ -33,6 +33,35 @@ is required; the standalone gate does not prescribe a full ABI set.
 Keep the archive immutable during inspection and independently verify its
 expected SHA-256 and signed-build identity. Input identity is checked again at
 the end. The parser extracts no members to disk.
+
+### Dedicated LOAD and linker padding
+
+For an unaligned RELRO endpoint, the parser requires the same raw virtual start
+as its LOAD and `RELRO MemSiz >= LOAD MemSiz`. A smaller RELRO range leaves a
+shared writable LOAD tail and is rejected. Extra RELRO padding must end no later
+than the LOAD's end rounded up to 16 KB. Every other nonempty writable LOAD is
+checked for intersection with the entire RELRO protection range, rounded down
+at the start and up at the end; program-header order does not affect the check.
+
+The receipt distinguishes `DEDICATED_LOAD` from `DEDICATED_LOAD_PADDED`, recording
+the containing LOAD index and protection endpoints. Aligned RELRO endpoints
+remain `END_ALIGNED`; their start must be associated with a LOAD, but full raw
+memory containment is not required because older linkers independently padded
+RELRO size. RELRO `FileSiz > MemSiz` is permitted when its file bounds are valid;
+LOAD still requires `FileSiz <= MemSiz`.
+
+This follows the [Android dedicated LOAD example](https://developer.android.com/guide/practices/page-sizes#check-the-relro-security-flag)
+and [AOSP linker RELRO handling](https://android.googlesource.com/platform/bionic/+/refs/heads/main/linker/linker_phdr.cpp),
+whose `_extend_gnu_relro_prot_end` uses the same virtual start and accepts RELRO
+memory size at least as large as its LOAD. The bounded page-padding check also
+accounts for [older LLD's independent RELRO size rounding](https://llvm.googlesource.com/lld/+/refs/heads/master/ELF/Writer.cpp).
+
+Focused fixtures preserve the four actual AAB27 AndroidX graphics/datastore
+layouts on arm64 and x86_64. Their RELRO endpoints (`0x6000` or `0x7000`) cover
+the complete LOAD plus padding inside its mapped `[0x4000, 0x8000)` page, while
+other writable LOADs remain outside that page. Those layouts are compliant;
+they are not additional native defects. Shared LOAD tails, padding beyond the
+mapped LOAD page and other writable data inside the protection range still fail.
 
 ## Package-level verification
 

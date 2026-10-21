@@ -45,7 +45,8 @@ export function inspectElf64(buffer,abi) {
     }
     requireThat(result.loads.length>0,'ELF_NO_LOAD','No LOAD segments');
     // Android permits an unaligned RELRO end when RELRO occupies an entire
-    // dedicated LOAD and page-rounded protection covers no other writable LOAD.
+    // dedicated LOAD (including bounded linker padding), and page-rounded
+    // protection covers no other writable LOAD.
     // Evaluate after parsing ALL headers so PH ordering cannot bypass overlap.
     for(const segment of result.relro.segments){
       const start=BigInt(segment.vaddr),end=BigInt(segment.end);
@@ -57,11 +58,17 @@ export function inspectElf64(buffer,abi) {
         segment.reason='NOT_CONTAINED';result.errors.push({code:'GNU_RELRO_NOT_CONTAINED',segment:segment.index,message:'GNU_RELRO start is not associated with a LOAD'});continue;
       }
       if(end%PAGE===0n){segment.ok=true;segment.reason='END_ALIGNED';segment.containingLoadIndex=containing[0].index;continue;}
-      const own=containing.find(load=>BigInt(load.vaddr)===start&&BigInt(load.memorySize)===BigInt(segment.memorySize));
+      // AOSP also permits RELRO memsz >= LOAD memsz: older lld may pad RELRO
+      // independently. Restrict extra padding to this LOAD's mapped 16KB page.
+      const own=containing.find(load=>BigInt(load.vaddr)===start&&BigInt(load.memorySize)<=BigInt(segment.memorySize));
       if(!own){
         segment.reason='SHARED_LOAD_UNALIGNED_END';result.errors.push({code:'GNU_RELRO_ENDPOINT',segment:segment.index,message:'Unaligned GNU_RELRO does not occupy an entire dedicated LOAD'});continue;
       }
       segment.containingLoadIndex=own.index;
+      const ownEnd=BigInt(own.vaddr)+BigInt(own.memorySize),mappedOwnEnd=(ownEnd+PAGE-1n)/PAGE*PAGE;
+      if(end>mappedOwnEnd){
+        segment.reason='PADDING_BEYOND_LOAD_PAGE';result.errors.push({code:'GNU_RELRO_PADDING_BOUNDS',segment:segment.index,message:'GNU_RELRO padding exceeds its LOAD mapped page'});continue;
+      }
       const protectedStart=start/PAGE*PAGE,protectedEnd=(end+PAGE-1n)/PAGE*PAGE;
       requireThat(protectedEnd<=MAX,'ELF_UNSAFE_INTEGER','RELRO page-rounded endpoint exceeds safe range');
       segment.protectedStart=hex(protectedStart);segment.protectedEnd=hex(protectedEnd);
@@ -71,7 +78,7 @@ export function inspectElf64(buffer,abi) {
         segment.reason='WRITABLE_LOAD_OVERLAP';segment.overlappingLoadIndex=overlap.index;
         result.errors.push({code:'GNU_RELRO_WRITABLE_OVERLAP',segment:segment.index,message:'Page-rounded RELRO protection overlaps another writable LOAD'});continue;
       }
-      segment.ok=true;segment.reason='DEDICATED_LOAD';
+      segment.ok=true;segment.reason=BigInt(segment.memorySize)>BigInt(own.memorySize)?'DEDICATED_LOAD_PADDED':'DEDICATED_LOAD';
     }
     if(result.relro.segments.length)result.relro.status=result.relro.segments.every(s=>s.ok)?'PASS':'FAIL';
     result.ok=result.errors.length===0;

@@ -89,3 +89,29 @@ test('aligned RELRO end allows linker padding up to containing LOAD mapped page 
  const b=dedicatedRelro();b.writeBigUInt64LE(0x3980n,64+2*56+40);
  const r=inspectElf64(b,'arm64-v8a');assert.equal(r.ok,true,JSON.stringify(r.errors));assert.equal(r.relro.segments[0].reason,'END_ALIGNED');
 });
+function paddedRelroLayout({start,loadSize,relroSize,next,nextSize=0x10n},abi='arm64-v8a'){
+ const b=dedicatedRelro();b.writeUInt16LE(abi==='arm64-v8a'?183:62,18);
+ const own=64+56,relro=64+2*56,last=64+3*56,offset=start%0x4000n;
+ for(const at of [own,relro]){b.writeBigUInt64LE(offset,at+8);b.writeBigUInt64LE(start,at+16);b.writeBigUInt64LE(0x100n,at+32);}
+ b.writeBigUInt64LE(loadSize,own+40);b.writeBigUInt64LE(relroSize,relro+40);
+ if(next===undefined)b.writeUInt16LE(3,56);
+ else {b.writeBigUInt64LE(next%0x4000n,last+8);b.writeBigUInt64LE(next,last+16);b.writeBigUInt64LE(nextSize,last+40);}
+ return b;
+}
+for(const [label,abi,layout] of [
+ ['arm64 graphics','arm64-v8a',{start:0x5c40n,loadSize:0x390n,relroSize:0x3c0n,next:0x9fd0n}],
+ ['arm64 datastore','arm64-v8a',{start:0x51c0n,loadSize:0x268n,relroSize:0xe40n,next:0x9428n,nextSize:1n}],
+ ['x86_64 graphics','x86_64',{start:0x5ec0n,loadSize:0x3a8n,relroSize:0x1140n,next:0xa268n}],
+ ['x86_64 datastore','x86_64',{start:0x4f20n,loadSize:0x228n,relroSize:0x10e0n}],
+])test('real '+label+' padded dedicated RELRO layout is compliant',()=>{
+ const r=inspectElf64(paddedRelroLayout(layout,abi),abi);assert.equal(r.ok,true,JSON.stringify(r.errors));
+ assert.equal(r.relro.segments[0].reason,'DEDICATED_LOAD_PADDED');assert.equal(r.relro.segments[0].containingLoadIndex,1);
+});
+test('unaligned dedicated RELRO padding beyond its LOAD mapped page fails',()=>{
+ const r=inspectElf64(paddedRelroLayout({start:0x5c40n,loadSize:0x390n,relroSize:0x23c1n}),'arm64-v8a');
+ assert.equal(r.ok,false);assert.ok(r.errors.some(e=>e.code==='GNU_RELRO_PADDING_BOUNDS'));
+});
+test('padded dedicated RELRO still rejects other writable data in protection page',()=>{
+ const r=inspectElf64(paddedRelroLayout({start:0x5c40n,loadSize:0x390n,relroSize:0x3c0n,next:0x7000n}),'arm64-v8a');
+ assert.equal(r.ok,false);assert.ok(r.errors.some(e=>e.code==='GNU_RELRO_WRITABLE_OVERLAP'));
+});
