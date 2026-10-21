@@ -34,6 +34,7 @@ jobs:
           php -l app/Services/OperationalNotificationService.php
           php -l app/Services/UserNotificationPreferenceService.php
           php -l database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php
+          php -l tests/Feature/WarrantyExpiryPreferenceApiTest.php
           php artisan test tests/Unit/WarrantyExpiryOptInSourceTest.php --no-ansi
           php bin/static-check.php
       - if: always()
@@ -91,6 +92,7 @@ jobs:
           set -euo pipefail
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_warranty_ci","root","isolated-ci-only"); if(!preg_match("/^10\\.11\\.19-MariaDB/",(string)$p->query("SELECT VERSION()")->fetchColumn())) exit(35); echo "MARIADB_101119_IDENTITY=PASS\\n";'
           php artisan test -c phpunit.mysql.xml tests/Feature/WarrantyExpiryDeliveryGuardTest.php --no-ansi
+          php artisan test -c phpunit.mysql.xml tests/Feature/WarrantyExpiryPreferenceApiTest.php --no-ansi
           php artisan migrate:fresh --force --no-interaction
           php -l tests/Support/warranty-expiry-online-ddl-smoke.php
           php tests/Support/warranty-expiry-online-ddl-smoke.php
