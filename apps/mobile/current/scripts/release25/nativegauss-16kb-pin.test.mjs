@@ -17,6 +17,8 @@ test('the production native bridge stays on Expo SDK57/RN0.86 and pins compatibl
   assert.equal(pkg.dependencies['react-native-android-liquid-glass'], '0.2.1');
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies.expo, '~57.0.27');
+  assert.match(configText, /runtimeVersion: '1\.5\.0-native2'/);
+  assert.doesNotMatch(configText, /runtimeVersion: '1\.5\.0-native1'/);
 });
 
 test('root Gradle pin occurs before subproject evaluation and is idempotent', () => {

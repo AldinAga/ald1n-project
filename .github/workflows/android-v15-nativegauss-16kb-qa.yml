@@ -49,11 +49,11 @@ jobs:
           if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1'
              ||eas.build.production.channel!=='production'
              ||eas.build.production.android?.buildType!=='app-bundle'
-             ||app.version!=='1.5.0'||app.runtimeVersion!=='1.5.0-native1'
+             ||app.version!=='1.5.0'||app.runtimeVersion!=='1.5.0-native2'
              ||app.android?.package!=='com.ald1n.mobile'
              ||app.extra?.eas?.projectId!=='d43b3866-6838-4217-a23e-3dc7f2cc76cc')
              process.exit(41);
-          console.log('RELEASE_IDENTITY=PASS_APP_1.5.0_RUNTIME_native1_PROD_PACKAGE');
+          console.log('RELEASE_IDENTITY=PASS_APP_1.5.0_RUNTIME_native2_PROD_PACKAGE');
           NODE
       - name: Verify exact JitPack v2.0.11 AAR bytes and 16KB ELF
         shell: bash
