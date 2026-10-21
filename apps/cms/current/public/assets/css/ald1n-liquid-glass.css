@@ -1810,3 +1810,97 @@ html[data-theme="light"] .page-shell :is(.modern-dashboard-hero,.dashboard-kpi-c
     background: var(--ald-surface) !important;
   }
 }
+
+/* CMS_VISUAL_SPACING_V1 — page substrate + catalog detail alignment.
+   Dashboard R4/R5 already paints viewport-wide aurora on body and ::before.
+   A second background on the max-width .page-shell caused sharp, rectangular
+   color bands at the container edges. Keep the container fully transparent. */
+html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card),
+html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) {
+  background: transparent;
+}
+
+/* The legacy .product-detail .detail-panel sticky top:166px must never
+   vertically offset the new Build16 gallery/summary pair on desktop.
+   Gallery and item information begin in the same grid row. */
+@media (min-width: 821px) {
+  .build16-product-detail-shell .product-detail.build16-product-detail-layout {
+    align-items: start;
+  }
+  .build16-product-detail-shell .product-detail.build16-product-detail-layout > .detail-panel.build16-product-summary {
+    position: static;
+    top: auto;
+    align-self: start;
+    margin-block-start: 0;
+    transform: none;
+  }
+}
+
+/* Give title, labels and item data breathing room without changing product
+   images, ordering, privileges, cart controls or mobile column behavior. */
+.build16-product-detail-shell .detail-panel.build16-product-summary {
+  padding: clamp(20px, 1.6vw, 26px);
+}
+.build16-product-detail-shell .build16-product-summary .tags {
+  gap: 8px;
+  margin-bottom: 15px;
+}
+.build16-product-detail-shell .build16-product-summary .tags > span {
+  padding: 6px 10px;
+  line-height: 1.3;
+}
+.build16-product-detail-shell .build16-product-summary > .eyebrow {
+  display: block;
+  margin: 0 0 7px;
+  line-height: 1.4;
+}
+.build16-product-detail-shell .build16-product-summary h1 {
+  margin: 0 0 12px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.build16-product-detail-shell .build16-product-summary .sku {
+  margin: 0;
+  line-height: 1.55;
+  font-size: .87rem;
+}
+.build16-product-detail-shell .build16-product-summary .catalog-detail-management {
+  margin-top: 18px;
+  padding-top: 16px;
+  gap: 10px;
+}
+.build16-product-detail-shell .build16-product-summary .build16-product-metrics {
+  margin: 22px 0 17px;
+}
+.build16-product-detail-shell .build16-product-summary .build16-product-metrics > div {
+  padding: 15px 16px;
+}
+.build16-product-detail-shell .build16-product-summary .build16-product-metrics small {
+  display: block;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.build16-product-detail-shell .build16-product-summary .build16-product-metrics strong {
+  display: block;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.build16-product-detail-shell .build16-product-summary .category-list {
+  gap: 8px;
+  margin-top: 16px;
+}
+.build16-product-detail-shell .build16-product-summary .build16-product-specifications {
+  margin-top: 19px;
+}
+.build16-product-detail-shell .build16-product-summary .build16-product-specifications :is(dt,dd) {
+  padding-block: 13px;
+  line-height: 1.5;
+}
+@media (max-width: 580px) {
+  .build16-product-detail-shell .detail-panel.build16-product-summary {
+    padding: 16px;
+  }
+  .build16-product-detail-shell .build16-product-summary .build16-product-metrics > div {
+    padding: 13px 15px;
+  }
+}

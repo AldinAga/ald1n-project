@@ -29,7 +29,7 @@ jobs:
       - working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          php artisan test tests/Unit/DashboardFullBleedAuroraTest.php --no-ansi
+          php artisan test tests/Unit/DashboardFullBleedAuroraTest.php tests/Unit/CmsVisualSpacingRegressionTest.php --no-ansi
           # DashboardD1-D3 integration uses MariaDB metadata and is covered by the existing MariaDB integration workflow.
           php bin/static-check.php
       - if: always()
