@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\MobilePushOutbox;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductWarranty;
@@ -77,6 +78,111 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
         Notification::fake();
         $this->sendExpiry($buyer, $warranty->id);
         Notification::assertNothingSent();
+    }
+
+
+    public function test_default_off_blocks_email_and_push_but_regular_warranty_updates_still_deliver(): void
+    {
+        [$buyer, , $warranty] = $this->makeWarranty('channels');
+        $buyer->notificationPreference()->updateOrCreate([], [
+            'in_app_enabled' => true,
+            'email_enabled' => true,
+            'push_enabled' => true,
+            'warranty_updates' => true,
+            'warranty_expiry_alerts' => false,
+        ]);
+        $buyer->mobileDevices()->create([
+            'installation_id' => 'e3fd1fb4-fb95-41f2-a9bc-bbedc50e27d6',
+            'platform' => 'android',
+            'push_provider' => 'expo',
+            'push_token_hash' => hash('sha256', 'warranty-channels-'.$buyer->id),
+            'notifications_enabled' => true,
+        ]);
+        config()->set('mobile.push.enabled', true);
+        config()->set('mobile.push.provider', 'expo');
+        Notification::fake();
+
+        // Positive control: delivery channels are live for ordinary warranty events.
+        app(OperationalNotificationService::class)->send($buyer, [
+            'event' => 'warranty.updated',
+            'title' => 'Garancija je ažurirana',
+            'message' => 'Test obaveštenje.',
+            '_in_app' => true,
+            '_email' => false,
+            '_push' => true,
+        ]);
+        Notification::assertSentTo($buyer, OperationalNotification::class, 1);
+        self::assertSame(1, MobilePushOutbox::query()->where('user_id', $buyer->id)->count());
+
+        // Negative control: the expiry opt-in must block all three channels.
+        app(OperationalNotificationService::class)->send($buyer, [
+            'event' => 'warranty.expiration_reminder',
+            'title' => 'Ističe garancija',
+            'message' => 'Test isteka.',
+            'warranty_id' => $warranty->id,
+            '_in_app' => true,
+            '_email' => true,
+            '_push' => true,
+        ]);
+        Notification::assertSentTo($buyer, OperationalNotification::class, 1);
+        self::assertSame(1, MobilePushOutbox::query()->where('user_id', $buyer->id)->count());
+    }
+
+    public function test_push_only_expiry_goes_to_opted_in_verified_buyer_not_other_user(): void
+    {
+        [$buyer, $other, $warranty] = $this->makeWarranty('pushowner');
+        foreach ([$buyer, $other] as $recipient) {
+            $recipient->notificationPreference()->updateOrCreate([], [
+                'in_app_enabled' => false,
+                'email_enabled' => false,
+                'push_enabled' => true,
+                'warranty_updates' => true,
+                'warranty_expiry_alerts' => true,
+            ]);
+            $recipient->mobileDevices()->create([
+                'installation_id' => '3dfb4e70-a138-4e0c-a8a7-'.str_pad((string) $recipient->id, 12, '0', STR_PAD_LEFT),
+                'platform' => 'android',
+                'push_provider' => 'expo',
+                'push_token_hash' => hash('sha256', 'warranty-pushowner-'.$recipient->id),
+                'notifications_enabled' => true,
+            ]);
+        }
+        config()->set('mobile.push.enabled', true);
+        config()->set('mobile.push.provider', 'expo');
+
+        foreach ([$other, $buyer] as $recipient) {
+            app(OperationalNotificationService::class)->send($recipient, [
+                'event' => 'warranty.expiry_reminder',
+                'title' => 'Ističe garancija',
+                'message' => 'Test isteka.',
+                'warranty_id' => $warranty->id,
+                '_in_app' => false,
+                '_email' => false,
+                '_push' => true,
+            ]);
+        }
+        self::assertSame(0, MobilePushOutbox::query()->where('user_id', $other->id)->count());
+        self::assertSame(1, MobilePushOutbox::query()->where('user_id', $buyer->id)->count());
+    }
+
+    public function test_general_warranty_preference_must_also_allow_opted_in_expiry(): void
+    {
+        [$buyer, , $warranty] = $this->makeWarranty('generaloff');
+        $buyer->notificationPreference()->updateOrCreate([], [
+            'in_app_enabled' => true,
+            'email_enabled' => false,
+            'push_enabled' => false,
+            'warranty_updates' => false,
+            'warranty_expiry_alerts' => true,
+        ]);
+        Notification::fake();
+
+        $this->sendExpiry($buyer, $warranty->id);
+        Notification::assertNothingSent();
+
+        $buyer->notificationPreference()->update(['warranty_updates' => true]);
+        $this->sendExpiry($buyer, $warranty->id);
+        Notification::assertSentTo($buyer, OperationalNotification::class, 1);
     }
 
     /** @return array{User, User, ProductWarranty} */
