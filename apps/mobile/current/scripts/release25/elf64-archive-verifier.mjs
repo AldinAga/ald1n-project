@@ -27,25 +27,52 @@ export function inspectElf64(buffer,abi) {
     requireThat(count>0&&count!==65535,'ELF_PROGRAM_COUNT','Missing or unsupported extended program headers');
     requireThat(phoff>=64n&&phoff<=MAX&&phoff+BigInt(count)*56n<=BigInt(buffer.length),'ELF_PROGRAM_BOUNDS','Program headers outside file');
     for(let i=0;i<count;i++) {
-      const at=Number(phoff)+i*56,type=buffer.readUInt32LE(at);
+      const at=Number(phoff)+i*56,type=buffer.readUInt32LE(at),flags=buffer.readUInt32LE(at+4);
       if(type!==1&&type!==0x6474e552)continue;
       const offset=buffer.readBigUInt64LE(at+8),vaddr=buffer.readBigUInt64LE(at+16),
         filesz=buffer.readBigUInt64LE(at+32),memsz=buffer.readBigUInt64LE(at+40),align=buffer.readBigUInt64LE(at+48);
       requireThat([offset,vaddr,filesz,memsz,align].every(n=>n<=MAX)&&offset+filesz<=MAX&&vaddr+memsz<=MAX,
         'ELF_UNSAFE_INTEGER','Segment integer or endpoint exceeds safe range');
-      requireThat(offset+filesz<=BigInt(buffer.length)&&filesz<=memsz,'ELF_SEGMENT_BOUNDS','Segment file bounds or memory size invalid');
+      requireThat(offset+filesz<=BigInt(buffer.length)&&(type!==1||filesz<=memsz),'ELF_SEGMENT_BOUNDS','Segment file bounds or LOAD memory size invalid');
       if(type===1) {
-        const segment={index:i,offset:hex(offset),vaddr:hex(vaddr),fileSize:hex(filesz),memorySize:hex(memsz),align:hex(align)};
+        const segment={index:i,flags,offset:hex(offset),vaddr:hex(vaddr),fileSize:hex(filesz),memorySize:hex(memsz),align:hex(align)};
         result.loads.push(segment);
         if(align<PAGE||(align&(align-1n))!==0n)result.errors.push({code:'LOAD_ALIGNMENT',segment:i,message:'LOAD p_align must be a power of two >=0x4000'});
         else if(offset%align!==vaddr%align)result.errors.push({code:'LOAD_CONGRUENCE',segment:i,message:'LOAD p_offset and p_vaddr are not congruent modulo p_align'});
       } else {
-        const end=vaddr+memsz,ok=end%PAGE===0n;
-        result.relro.segments.push({index:i,vaddr:hex(vaddr),memorySize:hex(memsz),end:hex(end),ok});
-        if(!ok)result.errors.push({code:'GNU_RELRO_ENDPOINT',segment:i,message:'GNU_RELRO (p_vaddr+p_memsz) is not 16KB aligned'});
+        result.relro.segments.push({index:i,vaddr:hex(vaddr),memorySize:hex(memsz),end:hex(vaddr+memsz),ok:false});
       }
     }
     requireThat(result.loads.length>0,'ELF_NO_LOAD','No LOAD segments');
+    // Android permits an unaligned RELRO end when RELRO occupies an entire
+    // dedicated LOAD and page-rounded protection covers no other writable LOAD.
+    // Evaluate after parsing ALL headers so PH ordering cannot bypass overlap.
+    for(const segment of result.relro.segments){
+      const start=BigInt(segment.vaddr),end=BigInt(segment.end);
+      // Associate by start: older lld independently page-pads RELRO p_memsz,
+      // which may exceed the raw LOAD size. Empty RELRO may use its endpoint.
+      const containing=result.loads.filter(load=>BigInt(load.vaddr)<=start
+        &&(start<BigInt(load.vaddr)+BigInt(load.memorySize)||(start===end&&start===BigInt(load.vaddr)+BigInt(load.memorySize))));
+      if(containing.length===0){
+        segment.reason='NOT_CONTAINED';result.errors.push({code:'GNU_RELRO_NOT_CONTAINED',segment:segment.index,message:'GNU_RELRO start is not associated with a LOAD'});continue;
+      }
+      if(end%PAGE===0n){segment.ok=true;segment.reason='END_ALIGNED';segment.containingLoadIndex=containing[0].index;continue;}
+      const own=containing.find(load=>BigInt(load.vaddr)===start&&BigInt(load.memorySize)===BigInt(segment.memorySize));
+      if(!own){
+        segment.reason='SHARED_LOAD_UNALIGNED_END';result.errors.push({code:'GNU_RELRO_ENDPOINT',segment:segment.index,message:'Unaligned GNU_RELRO does not occupy an entire dedicated LOAD'});continue;
+      }
+      segment.containingLoadIndex=own.index;
+      const protectedStart=start/PAGE*PAGE,protectedEnd=(end+PAGE-1n)/PAGE*PAGE;
+      requireThat(protectedEnd<=MAX,'ELF_UNSAFE_INTEGER','RELRO page-rounded endpoint exceeds safe range');
+      segment.protectedStart=hex(protectedStart);segment.protectedEnd=hex(protectedEnd);
+      const overlap=result.loads.find(load=>load.index!==own.index&&(load.flags&2)!==0&&BigInt(load.memorySize)>0n
+        &&BigInt(load.vaddr)<protectedEnd&&BigInt(load.vaddr)+BigInt(load.memorySize)>protectedStart);
+      if(overlap){
+        segment.reason='WRITABLE_LOAD_OVERLAP';segment.overlappingLoadIndex=overlap.index;
+        result.errors.push({code:'GNU_RELRO_WRITABLE_OVERLAP',segment:segment.index,message:'Page-rounded RELRO protection overlaps another writable LOAD'});continue;
+      }
+      segment.ok=true;segment.reason='DEDICATED_LOAD';
+    }
     if(result.relro.segments.length)result.relro.status=result.relro.segments.every(s=>s.ok)?'PASS':'FAIL';
     result.ok=result.errors.length===0;
   } catch(e) {result.errors.push({code:e.code??'ELF_PARSE',message:e.message});}

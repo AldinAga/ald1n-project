@@ -116,9 +116,37 @@ jobs:
           PARSER_EXIT="$parser_rc" node <<'NODE'
           const fs=require('node:fs');
           const result=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/aab27-elf.json','utf8'));
-          console.log(JSON.stringify(result,null,2));
+          // Synchronous, bounded diagnostics survive a later classification error.
+          // Full pretty-printed JSON can be truncated when a failing process exits.
+          const line=value=>fs.writeSync(1,JSON.stringify(value)+'\n');
+          const cut=value=>typeof value==='string'?value.slice(0,240):value;
+          const take=(values,limit)=>Array.isArray(values)?values.slice(0,limit):[];
+          const entries=Array.isArray(result.entries)?result.entries:[];
+          line({event:'AAB27_ELF_SUMMARY',parserExit:process.env.PARSER_EXIT,ok:result.ok,
+            checkedCount:result.checkedCount,entryCount:entries.length,errorCount:result.errors?.length,
+            omittedEntries:Math.max(0,entries.length-55)});
+          for(const entry of entries.slice(0,55)){
+            line({event:'AAB27_ELF',path:cut(entry.path),ok:entry.ok,abi:entry.abi,
+              loadCount:entry.loads?.length,alignments:take(entry.loads,16).map(segment=>segment.align),
+              relro:entry.relro?.status,
+              relroSegments:take(entry.relro?.segments,16).map(segment=>({index:segment.index,
+                end:segment.end,ok:segment.ok,reason:segment.reason,containingLoadIndex:segment.containingLoadIndex,
+                protectedStart:segment.protectedStart,protectedEnd:segment.protectedEnd})),
+              errorCodes:take(entry.errors,16).map(error=>cut(error.code))});
+            if(entry.ok!==true){
+              line({event:'AAB27_ELF_FAILURE_DETAIL',path:cut(entry.path),
+                loads:take(entry.loads,16).map(segment=>({index:segment.index,flags:segment.flags,
+                  vaddr:segment.vaddr,memorySize:segment.memorySize,align:segment.align})),
+                relroSegments:take(entry.relro?.segments,16),
+                errors:take(entry.errors,16).map(error=>({code:cut(error.code),segment:error.segment,
+                  message:cut(error.message)}))});
+            }
+          }
+          for(const error of take(result.errors,8)){
+            line({event:'AAB27_ARCHIVE_ERROR',code:cut(error.code),path:cut(error.path),message:cut(error.message)});
+          }
           const known='base/lib/arm64-v8a/libnativegauss.so';
-          const fail=message=>{throw new Error(message)};
+          const fail=message=>{line({event:'AAB27_AUDIT_CLASSIFICATION',ok:false,reason:message});throw new Error(message)};
           if(process.env.PARSER_EXIT!=='1'||result.schemaVersion!==1||result.ok!==false
             ||result.pageSize!==16384||result.checkedCount!==55||result.entries?.length!==55){
             fail('UNEXPECTED_ARCHIVE_OR_PARSER_RESULT');
@@ -141,10 +169,10 @@ jobs:
             ||!['PASS','ABSENT'].includes(entry.relro?.status))){
             fail('OTHER_PACKAGED_ELF_LOAD_OR_RELRO_FAILURE');
           }
-          console.log('AAB27_64BIT_LIBRARIES_CHECKED=55');
-          console.log('AAB27_SIGNED_ELF_GATE=FAIL_KNOWN_NATIVEGAUSS_4KB');
-          console.log('OTHER54_ELF_LOAD_AND_RELRO=PASS');
-          console.log('NEW_SIGNED_NATIVE2_AAB=STILL_REQUIRED');
+          fs.writeSync(1,'AAB27_64BIT_LIBRARIES_CHECKED=55\n'
+            +'AAB27_SIGNED_ELF_GATE=FAIL_KNOWN_NATIVEGAUSS_4KB\n'
+            +'OTHER54_ELF_LOAD_AND_RELRO=PASS\n'
+            +'NEW_SIGNED_NATIVE2_AAB=STILL_REQUIRED\n');
           NODE
       - name: Clear temporary artifact and metadata; record read-only scope
         if: always()

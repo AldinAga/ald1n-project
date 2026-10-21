@@ -16,8 +16,10 @@ x86_64 shared library in the archive:
   segment file ranges.
 - LOAD alignment is a power of two and at least `0x4000`; offsets and virtual
   addresses are congruent modulo that alignment.
-- Every present GNU_RELRO ends on a 16 KB boundary. Missing GNU_RELRO is reported
-  explicitly as `ABSENT`, which Android allows.
+- Every present GNU_RELRO either ends on a 16 KB boundary, or occupies its
+  entire containing LOAD segment with no other writable LOAD overlapping the
+  rounded 16 KB protection range. The latter is Android's documented dedicated
+  LOAD exception. Missing GNU_RELRO is reported explicitly as `ABSENT`.
 - Duplicate ZIP members, symlinks, ambiguous paths, unsupported compression,
   corrupt CRC, unsafe integer fields and failed subprocesses are rejected.
 

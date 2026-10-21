@@ -38,3 +38,54 @@ test('archive with no64bit libraries is rejected',t=>assert.equal(inspectArchive
 test('corrupt CRC and malformed central directory are rejected',t=>{const f=archive(t,[{name:good}]);const b=zip([{name:good}]);b[30+Buffer.byteLength(good)+200]^=1;writeFileSync(f,b);assert.equal(inspectArchive(f).ok,false);writeFileSync(f,Buffer.from('notzip'));assert.equal(inspectArchive(f).ok,false);});
 test('unsafe paths, extraction globs and unsupported64bit paths are rejected',t=>{for(const name of ['../'+good,'lib/arm64-v8a/a[1].so','feature/lib/arm64-v8a/a.so'])assert.equal(inspectArchive(archive(t,[{name}])).ok,false);});
 test('CLI returns machine-readable JSON and nonzero for invalid input',t=>{const f=archive(t,[{name:good,data:elf({align:4096n})}]);const r=spawnSync(process.execPath,[fileURLToPath(new URL('./elf64-archive-verifier.mjs',import.meta.url)),f],{encoding:'utf8'});assert.equal(r.status,1);assert.equal(JSON.parse(r.stdout).ok,false);});
+
+function dedicatedRelro(nextWritable=0x8000n){
+ const b=Buffer.alloc(0x10000);b.set(elf().subarray(0,64));b.writeUInt16LE(4,56);
+ const header=(i,type,flags,offset,vaddr,filesz,memsz,align)=>{const p=64+i*56;b.writeUInt32LE(type,p);b.writeUInt32LE(flags,p+4);for(const [at,n] of [[8,offset],[16,vaddr],[32,filesz],[40,memsz],[48,align]])b.writeBigUInt64LE(n,p+at);};
+ header(0,1,5,0n,0n,0x680n,0x680n,0x4000n);
+ header(1,1,6,0x680n,0x4680n,0x1d8n,0x980n,0x4000n);
+ header(2,0x6474e552,4,0x680n,0x4680n,0x1d8n,0x980n,1n);
+ header(3,1,6,nextWritable%0x4000n,nextWritable,0n,0x100n,0x4000n);
+ return b;
+}
+test('official dedicated RELRO LOAD passes despite unaligned endpoint',()=>{
+ const r=inspectElf64(dedicatedRelro(),'arm64-v8a');assert.equal(r.ok,true,JSON.stringify(r.errors));
+ assert.equal(r.relro.status,'PASS');assert.equal(r.relro.segments[0].reason,'DEDICATED_LOAD');assert.equal(r.relro.segments[0].containingLoadIndex,1);
+});
+test('dedicated RELRO rejects another writable LOAD inside rounded protection page',()=>{
+ const r=inspectElf64(dedicatedRelro(0x6000n),'arm64-v8a');assert.equal(r.ok,false);assert.equal(r.relro.status,'FAIL');
+ assert.ok(r.errors.some(e=>e.code==='GNU_RELRO_WRITABLE_OVERLAP'));
+});
+test('unaligned RELRO sharing a LOAD with writable tail still fails',()=>{
+ const b=dedicatedRelro();b.writeBigUInt64LE(0x1980n,64+56+40);
+ assert.equal(inspectElf64(b,'arm64-v8a').ok,false);
+});
+test('aligned RELRO may have FileSiz greater than MemSiz when file bounds are valid',()=>{
+ const b=Buffer.alloc(0x6000);b.set(elf());b.writeBigUInt64LE(0x6000n,96);b.writeBigUInt64LE(0x6000n,104);
+ b.writeBigUInt64LE(0x3000n,128);b.writeBigUInt64LE(0x3000n,136);b.writeBigUInt64LE(0x2000n,152);b.writeBigUInt64LE(0x1000n,160);
+ const r=inspectElf64(b,'arm64-v8a');assert.equal(r.ok,true,JSON.stringify(r.errors));
+});
+test('RELRO outside all LOAD memory ranges fails even when endpoint aligned',()=>{
+ const b=elf();b.writeBigUInt64LE(0x8000n,136);const r=inspectElf64(b,'arm64-v8a');assert.equal(r.ok,false);
+ assert.ok(r.errors.some(e=>e.code==='GNU_RELRO_NOT_CONTAINED'));
+});
+test('dedicated RELRO rejects preceding writable data on its rounded start page',()=>{
+ const r=inspectElf64(dedicatedRelro(0x4000n),'arm64-v8a');assert.equal(r.ok,false);
+ assert.ok(r.errors.some(e=>e.code==='GNU_RELRO_WRITABLE_OVERLAP'));
+});
+test('other read-only or empty writable LOAD does not create an overlap failure',()=>{
+ const readOnly=dedicatedRelro(0x6000n);readOnly.writeUInt32LE(4,64+3*56+4);
+ assert.equal(inspectElf64(readOnly,'arm64-v8a').ok,true);
+ const empty=dedicatedRelro(0x6000n);empty.writeBigUInt64LE(0n,64+3*56+40);
+ assert.equal(inspectElf64(empty,'arm64-v8a').ok,true);
+});
+test('dedicated exception retains LOAD size and RELRO file bounds checks',()=>{
+ const load=dedicatedRelro();load.writeBigUInt64LE(0x100n,64+56+40);
+ assert.ok(inspectElf64(load,'arm64-v8a').errors.some(e=>e.code==='ELF_SEGMENT_BOUNDS'));
+ const relro=dedicatedRelro();relro.writeBigUInt64LE(0x10000n,64+2*56+32);
+ assert.ok(inspectElf64(relro,'arm64-v8a').errors.some(e=>e.code==='ELF_SEGMENT_BOUNDS'));
+});
+test('aligned RELRO end allows linker padding up to containing LOAD mapped page end',()=>{
+ const b=dedicatedRelro();b.writeBigUInt64LE(0x3980n,64+2*56+40);
+ const r=inspectElf64(b,'arm64-v8a');assert.equal(r.ok,true,JSON.stringify(r.errors));assert.equal(r.relro.segments[0].reason,'END_ALIGNED');
+});
