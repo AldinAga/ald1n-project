@@ -21,12 +21,14 @@ export function OperatorRow({
   glyph,
   onPress,
   divider = false,
+  variant = 'standard',
 }: {
   title: string;
   copy?: string;
   glyph: GlyphName;
   onPress: () => void;
   divider?: boolean;
+  variant?: 'standard' | 'primary' | 'soft';
 }) {
   const { colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -58,8 +60,8 @@ export function OperatorRow({
         onPressIn={() => setPressed(true)}
         onPressOut={() => setPressed(false)}
       >
-        <View style={[styles.row, divider && styles.divider]}>
-          <View style={styles.icon}>
+        <View style={[styles.row, divider && styles.divider, variant === 'soft' && styles.softRow]}>
+          <View style={[styles.icon, variant !== 'standard' && styles.lgIcon, variant === 'soft' && styles.softIcon]}>
             <Glyph name={glyph} size={22} color={themeColors.primary} />
           </View>
           <View style={styles.copy}>
@@ -96,6 +98,9 @@ function createStyles(theme: AppColors) {
       justifyContent: 'center',
       backgroundColor: theme.primarySoft,
     },
+    lgIcon: { width: 48, height: 48, borderRadius: 16 },
+    softIcon: { backgroundColor: theme.surfaceContainerHigh, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
+    softRow: { backgroundColor: theme.surface },
     copy: { flex: 1, minWidth: 0 },
     title: {
       ...typography.body,

@@ -107,7 +107,7 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
       <Card style={styles.adminGroupCard}>
         <Text style={styles.sectionTitle}>Globalna pretraga</Text>
         <Text style={styles.heroCopy}>Artikli, porudžbine, korisnici, garancije, reklamacije i prečice kroz jedan permission-aware ekran.</Text>
-        <OperatorRow title="Pretraži sve module" copy="Permission-aware pretraga kroz poslovne domene." glyph="search" onPress={() => router.push('/admin/search' as Href)} />
+        <OperatorRow variant="soft" title="Pretraži sve module" copy="Permission-aware pretraga kroz poslovne domene." glyph="search" onPress={() => router.push('/admin/search' as Href)} />
       </Card>
 
             {/* MOBILE_V0_9_GROUPED_ADMIN_HUB_BATCH5C */}
@@ -130,11 +130,11 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Prodaja</Text>
           <View style={styles.quickActions}>
-            {can('orders.manage') && adminMatch('Porudžbine') ? <OperatorRow title="Porudžbine" glyph="orders" onPress={() => router.push('/admin/orders')} divider /> : null}
-            {isSuperAdmin && adminMatch('Direktna prodaja') ? <OperatorRow title="Direktna prodaja" glyph="cart" onPress={() => router.push('/admin/catalog' as Href)} divider /> : null}
-            {moduleEnabled('commissions') && can('commissions.manage') && adminMatch('Provizije') ? <OperatorRow title="Provizije" glyph="commission" onPress={() => router.push('/admin/commissions')} divider /> : null}
-            {moduleEnabled('receivables') && can('receivables.manage') && adminMatch('Potraživanja') ? <OperatorRow title="Potraživanja" glyph="report" onPress={() => router.push('/admin/receivables')} divider /> : null}
-            {can('orders.manage') && adminMatch('Isporuke') ? <OperatorRow title="Isporuke" glyph="orders" onPress={() => router.push('/admin/orders')} divider /> : null}
+            {can('orders.manage') && adminMatch('Porudžbine') ? <OperatorRow variant="soft" title="Porudžbine" glyph="orders" onPress={() => router.push('/admin/orders')} divider /> : null}
+            {isSuperAdmin && adminMatch('Direktna prodaja') ? <OperatorRow variant="soft" title="Direktna prodaja" glyph="cart" onPress={() => router.push('/admin/catalog' as Href)} divider /> : null}
+            {moduleEnabled('commissions') && can('commissions.manage') && adminMatch('Provizije') ? <OperatorRow variant="soft" title="Provizije" glyph="commission" onPress={() => router.push('/admin/commissions')} divider /> : null}
+            {moduleEnabled('receivables') && can('receivables.manage') && adminMatch('Potraživanja') ? <OperatorRow variant="soft" title="Potraživanja" glyph="report" onPress={() => router.push('/admin/receivables')} divider /> : null}
+            {can('orders.manage') && adminMatch('Isporuke') ? <OperatorRow variant="soft" title="Isporuke" glyph="orders" onPress={() => router.push('/admin/orders')} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -146,13 +146,13 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Katalog i lager</Text>
           <View style={styles.quickActions}>
-            {can('catalog.manage_products') && adminMatch('Artikli') ? <OperatorRow title="Artikli" glyph="catalog" onPress={() => router.push('/admin/catalog' as Href)} divider /> : null}
-            {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <OperatorRow title="Dodaj artikal" glyph="add" onPress={() => router.push('/admin/catalog/create')} divider /> : null}
-            {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <OperatorRow title="Nabavne cene" glyph="report" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)} divider /> : null}
-            {can('catalog.manage_products') && adminMatch('Masovne izmene') ? <OperatorRow title="Masovne izmene" glyph="admin" onPress={() => router.push('/admin/catalog/bulk' as Href)} divider /> : null}
-            {can('catalog.audit') && adminMatch('Kvalitet podataka') ? <OperatorRow title="Kvalitet podataka" glyph="info" onPress={() => router.push('/admin/catalog/data-quality' as Href)} divider /> : null}
-            {moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <OperatorRow title="Lager" glyph="box" onPress={() => router.push('/admin/inventory')} divider /> : null}
-            {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <OperatorRow title="Šifarnici" glyph="catalog" onPress={() => router.push('/admin/catalog/dictionaries' as Href)} divider /> : null}
+            {can('catalog.manage_products') && adminMatch('Artikli') ? <OperatorRow variant="soft" title="Artikli" glyph="catalog" onPress={() => router.push('/admin/catalog' as Href)} divider /> : null}
+            {can('catalog.manage_products') && adminMatch('Dodaj artikal') ? <OperatorRow variant="soft" title="Dodaj artikal" glyph="add" onPress={() => router.push('/admin/catalog/create')} divider /> : null}
+            {can('catalog.manage_products') && isSuperAdmin && adminMatch('Nabavne cene') ? <OperatorRow variant="soft" title="Nabavne cene" glyph="report" onPress={() => router.push('/admin/catalog/purchase-costs' as Href)} divider /> : null}
+            {can('catalog.manage_products') && adminMatch('Masovne izmene') ? <OperatorRow variant="soft" title="Masovne izmene" glyph="admin" onPress={() => router.push('/admin/catalog/bulk' as Href)} divider /> : null}
+            {can('catalog.audit') && adminMatch('Kvalitet podataka') ? <OperatorRow variant="soft" title="Kvalitet podataka" glyph="info" onPress={() => router.push('/admin/catalog/data-quality' as Href)} divider /> : null}
+            {moduleEnabled('inventory') && (can('stock.view') || can('stock.adjust') || can('inventory.receive') || can('inventory.count') || can('inventory.export')) && adminMatch('Lager') ? <OperatorRow variant="soft" title="Lager" glyph="box" onPress={() => router.push('/admin/inventory')} divider /> : null}
+            {can('catalog.manage_taxonomy') && (adminMatch('Šifarnici') || adminMatch('Brendovi') || adminMatch('Kategorije') || adminMatch('Linije proizvoda') || adminMatch('Tipovi proizvoda') || adminMatch('Specifikaciona polja')) ? <OperatorRow variant="soft" title="Šifarnici" glyph="catalog" onPress={() => router.push('/admin/catalog/dictionaries' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -164,10 +164,10 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Postprodaja</Text>
           <View style={styles.quickActions}>
-            {moduleEnabled('after_sales') && can('after_sales.manage') && adminMatch('Reklamacije') ? <OperatorRow title="Reklamacije" glyph="service" onPress={() => router.push('/admin/after-sales')} divider /> : null}
-            {moduleEnabled('warranties') && can('warranties.manage') && adminMatch('Garancije') ? <OperatorRow title="Garancije" glyph="warranty" onPress={() => router.push('/admin/warranties')} divider /> : null}
-            {moduleEnabled('field_operations') && can('field_operations.view') && adminMatch('Terenske operacije') ? <OperatorRow title="Terenske operacije" glyph="service" onPress={() => router.push('/admin/field-operations')} divider /> : null}
-            {moduleEnabled('service_parts') && (can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi') ? <OperatorRow title="Servisni delovi" glyph="box" onPress={() => router.push('/admin/service-parts')} divider /> : null}
+            {moduleEnabled('after_sales') && can('after_sales.manage') && adminMatch('Reklamacije') ? <OperatorRow variant="soft" title="Reklamacije" glyph="service" onPress={() => router.push('/admin/after-sales')} divider /> : null}
+            {moduleEnabled('warranties') && can('warranties.manage') && adminMatch('Garancije') ? <OperatorRow variant="soft" title="Garancije" glyph="warranty" onPress={() => router.push('/admin/warranties')} divider /> : null}
+            {moduleEnabled('field_operations') && can('field_operations.view') && adminMatch('Terenske operacije') ? <OperatorRow variant="soft" title="Terenske operacije" glyph="service" onPress={() => router.push('/admin/field-operations')} divider /> : null}
+            {moduleEnabled('service_parts') && (can('service_parts.view') || can('service_parts.manage') || can('service_parts.procurement')) && adminMatch('Servisni delovi') ? <OperatorRow variant="soft" title="Servisni delovi" glyph="box" onPress={() => router.push('/admin/service-parts')} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -178,9 +178,9 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Poslovanje</Text>
           <View style={styles.quickActions}>
-            {moduleEnabled('reports') && can('reports.view') && adminMatch('Izveštaji') ? <OperatorRow title="Izveštaji" glyph="report" onPress={() => router.push('/admin/reports')} divider /> : null}
-            {can('system.manage_settings') && adminMatch('EUR/RSD') ? <OperatorRow title="EUR/RSD" glyph="report" onPress={() => router.push('/admin/exchange-rate' as Href)} divider /> : null}
-            {isSuperAdmin && adminMatch('Kurirske službe') ? <OperatorRow title="Kurirske službe" glyph="service" onPress={() => router.push('/admin/couriers' as Href)} divider /> : null}
+            {moduleEnabled('reports') && can('reports.view') && adminMatch('Izveštaji') ? <OperatorRow variant="soft" title="Izveštaji" glyph="report" onPress={() => router.push('/admin/reports')} divider /> : null}
+            {can('system.manage_settings') && adminMatch('EUR/RSD') ? <OperatorRow variant="soft" title="EUR/RSD" glyph="report" onPress={() => router.push('/admin/exchange-rate' as Href)} divider /> : null}
+            {isSuperAdmin && adminMatch('Kurirske službe') ? <OperatorRow variant="soft" title="Kurirske službe" glyph="service" onPress={() => router.push('/admin/couriers' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -194,9 +194,9 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Korisnici</Text>
           <View style={styles.quickActions}>
-            {adminMatch('Upravljanje korisnicima') ? <OperatorRow title="Upravljanje korisnicima" glyph="account" onPress={() => router.push('/admin/users' as Href)} divider /> : null}
-            {adminMatch('Grupe pristupa') ? <OperatorRow title="Grupe pristupa" glyph="account" onPress={() => router.push('/admin/user-groups' as Href)} divider /> : null}
-            {moduleEnabled('customer_portal') && (adminMatch('Customer 360') || adminMatch('Customer Portal')) ? <OperatorRow title="Customer 360" glyph="messages" onPress={() => router.push('/admin/customer-portal' as Href)} divider /> : null}
+            {adminMatch('Upravljanje korisnicima') ? <OperatorRow variant="soft" title="Upravljanje korisnicima" glyph="account" onPress={() => router.push('/admin/users' as Href)} divider /> : null}
+            {adminMatch('Grupe pristupa') ? <OperatorRow variant="soft" title="Grupe pristupa" glyph="account" onPress={() => router.push('/admin/user-groups' as Href)} divider /> : null}
+            {moduleEnabled('customer_portal') && (adminMatch('Customer 360') || adminMatch('Customer Portal')) ? <OperatorRow variant="soft" title="Customer 360" glyph="messages" onPress={() => router.push('/admin/customer-portal' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
@@ -208,10 +208,10 @@ export default function AdminIndexScreen() {  const styles = useThemedStyles(cre
         <Card style={styles.adminGroupCard}>
           <Text style={styles.sectionTitle}>Sistem</Text>
           <View style={styles.quickActions}>
-            {moduleEnabled('system_health') && can('system.health') && adminMatch('System Health') ? <OperatorRow title="System Health" glyph="info" onPress={() => router.push('/admin/system-health')} divider /> : null}
-            {moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost') ? <OperatorRow title="Audit i bezbednost" glyph="lock" onPress={() => router.push('/admin/audit')} divider /> : null}
-            {can('system.manage_settings') && adminMatch('Sistemska podešavanja') ? <OperatorRow title="Sistemska podešavanja" glyph="admin" onPress={() => router.push('/admin/settings' as Href)} divider /> : null}
-            {isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema') ? <OperatorRow title="Moduli sistema" glyph="admin" onPress={() => router.push('/admin/settings/modules' as Href)} divider /> : null}
+            {moduleEnabled('system_health') && can('system.health') && adminMatch('System Health') ? <OperatorRow variant="soft" title="System Health" glyph="info" onPress={() => router.push('/admin/system-health')} divider /> : null}
+            {moduleEnabled('audit') && can('security.view') && adminMatch('Audit i bezbednost') ? <OperatorRow variant="soft" title="Audit i bezbednost" glyph="lock" onPress={() => router.push('/admin/audit')} divider /> : null}
+            {can('system.manage_settings') && adminMatch('Sistemska podešavanja') ? <OperatorRow variant="soft" title="Sistemska podešavanja" glyph="admin" onPress={() => router.push('/admin/settings' as Href)} divider /> : null}
+            {isSuperAdmin && can('system.manage_settings') && adminMatch('Moduli sistema') ? <OperatorRow variant="soft" title="Moduli sistema" glyph="admin" onPress={() => router.push('/admin/settings/modules' as Href)} divider /> : null}
           </View>
         </Card>
       ) : null}
