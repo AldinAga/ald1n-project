@@ -27,9 +27,10 @@ type Props = {
   glyph: GlyphName;
   onPress: () => void;
   variant?: 'primary' | 'soft';
+  divider?: boolean;
 };
 
-export function GlassWorkspaceShortcut({ title, copy, glyph, onPress, variant = 'primary' }: Props) {
+export function GlassWorkspaceShortcut({ title, copy, glyph, onPress, variant = 'primary', divider = false }: Props) {
   const { colors: theme, isDark } = useAppTheme();
   // Unknown OS accessibility settings must never result in glass or motion.
   const [reduceTransparency, setReduceTransparency] = useState(true);
@@ -170,7 +171,7 @@ export function GlassWorkspaceShortcut({ title, copy, glyph, onPress, variant = 
         onPress={onPress}
         onPressIn={() => animatePress(true)}
         onPressOut={() => animatePress(false)}
-        style={({ pressed }) => [styles.row, variant === 'soft' ? styles.softRow : null, pressed && !policy.animatePress ? styles.pressed : null]}
+        style={({ pressed }) => [styles.row, variant === 'soft' ? styles.softRow : null, divider ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line } : null, pressed && !policy.animatePress ? styles.pressed : null]}
       >
         {icon}
         {labels}
