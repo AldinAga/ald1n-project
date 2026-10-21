@@ -1,0 +1,59 @@
+name: Android v1.5 nativegauss v2.0.11 AAR 16KB preflight (READ ONLY)
+on:
+  push:
+    branches:
+      - ops/android-v15-nativegauss-upstream-aar-audit-20261021
+    paths:
+      - .github/workflows/android-v15-nativegauss-upstream-aar-audit.yml
+permissions:
+  contents: read
+jobs:
+  inspect-upstream:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Download immutable-coordinate upstream AAR and inspect ELF
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://jitpack.io/com/github/QWEA0/liquidglass/v2.0.11/liquidglass-v2.0.11.aar"
+          AAR="$RUNNER_TEMP/upstream-liquidglass-v2.0.11.aar"
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 5 \
+            --connect-timeout 20 --max-time 300 --output "$AAR" "$URL"
+          test "$(stat -c%s "$AAR")" -gt 20000 || { echo 'HOLD_UPSTREAM_AAR_TOO_SMALL'; exit 41; }
+          unzip -tqq "$AAR"
+          echo "UPSTREAM_COORDINATE=com.github.QWEA0:liquidglass:v2.0.11"
+          echo "AAR_SIZE_BYTES=$(stat -c%s "$AAR")"
+          echo "AAR_SHA256=$(sha256sum "$AAR" | awk '{print $1}')"
+          unzip -Z1 "$AAR" | grep -E '^jni/(arm64-v8a|x86_64)/[^/]+[.]so$' > "$RUNNER_TEMP/native-list" || {
+            echo 'HOLD_NO_UPSTREAM_NATIVE64'; exit 42;
+          }
+          bad=0
+          count=0
+          while IFS= read -r file; do
+            count=$((count+1))
+            unzip -p "$AAR" "$file" > "$RUNNER_TEMP/native.so"
+            readelf -lW "$RUNNER_TEMP/native.so" > "$RUNNER_TEMP/elf.txt"
+            result="$(node - "$RUNNER_TEMP/elf.txt" <<'NODE'
+          const fs=require('node:fs');
+          const s=fs.readFileSync(process.argv[2],'utf8');
+          const values=s.split('\n').filter(x=>/^\s*LOAD\s/.test(x))
+            .map(x=>x.trim().split(/\s+/).at(-1))
+            .map(x=>/^0x[0-9a-f]+$/i.test(x)?parseInt(x,16):0);
+          const value=values.length?Math.min(...values):0;
+          console.log((value>=16384?'PASS':'FAIL')+' MIN_LOAD_ALIGN=0x'+value.toString(16));
+          NODE
+            )"
+            echo "UPSTREAM_NATIVE64 $file $result"
+            case "$result" in PASS*) ;; *) bad=$((bad+1));; esac
+          done < "$RUNNER_TEMP/native-list"
+          echo "UPSTREAM_64BIT_TOTAL=$count"
+          echo "UPSTREAM_16KB_BAD_COUNT=$bad"
+          test "$bad" -eq 0 || { echo 'HOLD_UPSTREAM_V2011_INCOMPATIBLE_NO_DEPENDENCY_UPGRADE'; exit 43; }
+          echo 'UPSTREAM_V2011_ELF16KB=PASS_CANDIDATE_ONLY'
+      - name: Do not mutate EAS or Google Play
+        if: always()
+        run: |
+          echo 'NO_EAS_BUILD=YES'
+          echo 'NO_PLAY_SUBMIT=YES'
+          echo 'NO_SOURCE_MUTATION=YES'
