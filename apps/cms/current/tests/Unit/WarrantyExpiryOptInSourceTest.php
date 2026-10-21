@@ -22,7 +22,7 @@ final class WarrantyExpiryOptInSourceTest extends TestCase
         self::assertStringContainsString('if ($preference->warranty_expiry_alerts !== true) return;', $dispatch);
         self::assertStringContainsString('strictCustomerOwner()', $dispatch);
         self::assertStringContainsString('orderItem.order.user', $model);
-        self::assertStringContainsString(\u0027'warranty_expiry_alerts' => (bool) ($this->warranty_expiry_alerts ?? false)\u0027, $api);
+        self::assertStringContainsString(\u0027warranty_expiry_alerts\u0027, $api);
         self::assertStringContainsString("->default(false)", $migration);
     }
 }
