@@ -72,7 +72,7 @@ test('production build and legacy submit remain explicitly fail closed',()=>{
 test('production Android identity/API persist while v1.5 native runtime stays release-gated',()=>{
  marker(app,"runtimeVersion: '1.0.0-build17'");
  marker(app,"version: '1.5.0'");
- marker(app,"'1.5.0-native1'");
+ marker(app,"'1.5.0-native2'");
  marker(app,"ALD1N_V15_RELEASE_GATE === 'approved'");
  marker(app,"LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD");
  marker(app,'com.ald1n.mobile');
