@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           php artisan test tests/Unit/DashboardFullBleedAuroraTest.php --no-ansi
-          php artisan test tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php --no-ansi
+          # DashboardD1-D3 integration uses MariaDB metadata and is covered by the existing MariaDB integration workflow.
           php bin/static-check.php
       - if: always()
         run: echo 'SOURCE_ONLY=YES CMS_DEPLOY=NONE DATABASE_MUTATION=NONE EAS_BUILD=NONE OTA=NONE PLAY=NONE'
