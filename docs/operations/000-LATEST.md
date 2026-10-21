@@ -1,3 +1,11 @@
+# CURRENT RELEASE BLOCKER — Android 1.5 AAB27 16KB PLAY REJECTION (2026-10-21)
+
+- Actual production-signed `1.5.0 / versionCode 27 / runtime 1.5.0-native1` AAB was rejected by Google Play for lack of 16 KB page-size support. **Do not reupload or bypass** the error.
+- Actual AAB read-only [CI 39671783825](https://github.com/AldinAga/ald1n-project/actions/runs/39671783825): 55 64-bit ELF files, one 4KB native `arm64-v8a/libnativegauss.so`; all other 54 >=16KB.
+- Vendor replacement [CI 39672535294](https://github.com/AldinAga/ald1n-project/actions/runs/39672535294): exact JitPack upstream `com.github.QWEA0:liquidglass:v2.0.11` AAR SHA `8218f8075c3c447241f2a1e96d502fc48718c6d007e9e05347bb9669901f13a9` with `libnativegauss.so` 16KB ELF. Candidate [PR82](https://github.com/AldinAga/ald1n-project/pull/82) pins upstream through root Gradle and isolates OTA runtime as `1.5.0-native2`. PR82 QA is **not evidence of a newly signed production AAB**.
+- Existing source main at incident `259ab46406462fcb9d5e75ea432f110de16f5767` (CMS CSS merge PR81); v1.5 mobile code remains on separate candidate branch. Laravel host deployment remains unverified. Future Play bundle must pass signed AAB ELF + bundletool PAGE_ALIGNMENT_16K + generated APK zipalign + production & signing gates before release.
+
+---
 # CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)
 
 - Latest verified Android production OTA source **904c1db0f4213ff2e3eea3757869f86556d55378**, merged PR #10. CLI-only config/docs commits after this source SHA do **not** imply a new OTA.
