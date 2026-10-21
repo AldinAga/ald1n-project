@@ -1005,3 +1005,12 @@ When updating:
 5. Commit the documentation change separately when practical.
 
 This file is intended to remain the first operational reference for future Ald1n CMS & Mobile work.
+
+## 21. AAB27 signed binary 16KB page-size gate (2026-10-21)
+
+- Play rejected Android v1.5.0 versionCode 27 (EAS UUID `e3bf78a2-0410-4fe5-a279-e0af5624ca0d`, source `deb98808afe2568ed06da1c684b9b51d60734b12`, runtime `1.5.0-native1`) for 16KB memory-page incompatibility. Do NOT advise bypass via 'Ipak nastavi' or reuploading unchanged AAB27. Build FINISHED means signed, not Play eligible.
+- Read-only signed-artifact CI [39671783825](https://github.com/AldinAga/ald1n-project/actions/runs/39671783825) AAB SHA-256 `f684779aa472366c359f28ee95c60648ee6739259de752e59d0f2b0e4fed36bf`: 55 packaged 64-bit ELF libs checked. 54 have LOAD >= `0x4000`; one FAIL is `base/lib/arm64-v8a/libnativegauss.so` LOAD `0x1000`.
+- Source is transitively `com.github.QWEA0:liquidglass:v2.0.0`, through `react-native-android-liquid-glass@0.2.1`. Independently verified newer JitPack `v2.0.11` AAR SHA-256 `8218f8075c3c447241f2a1e96d502fc48718c6d007e9e05347bb9669901f13a9`, arm64 `libnativegauss.so` LOAD `0x4000` in [CI 39672535294](https://github.com/AldinAga/ald1n-project/actions/runs/39672535294). Pin `rootProject.ext.liquidGlassVersion` in root Android Gradle through existing Expo config plugin before RN Fabric bridge Gradle evaluation, not just app module. Do not make an unneeded Expo SDK/RN major upgrade.
+- Mandatory new AAB gate per [Android 16KB docs](https://developer.android.com/guide/practices/page-sizes): inspect all 64-bit native ELF `LOAD p_align>=0x4000` in actual signed AAB, check its bundle config for `PAGE_ALIGNMENT_16K`, generate APK with bundletool and run `zipalign -c -P 16 -v 4`, plus supported device 16KB physical/emulator smoke where available. Vendor AAR or source unit PASS alone is not Play compatibility.
+- Native replacement requires a different Expo `runtimeVersion` (candidate `1.5.0-native2`, old AAB27 `1.5.0-native1`), fresh authenticated EAS remote code attestation and strictly higher new `versionCode`, preserved signing, post-build bundle verification and an **independently authorized one-time build**. No automatic Play upload/rollout/OTA, no silent CloudLinux production mutation.
+- Source fix [PR82](https://github.com/AldinAga/ald1n-project/pull/82) is an isolated source PR until real compiler and binary checks pass. Do NOT claim new AAB produced from it without a confirmed final EAS UUID and artifact scan.
