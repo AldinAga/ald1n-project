@@ -119,6 +119,7 @@ export type NotificationPreferences = {
   document_updates: boolean;
   after_sales_updates: boolean;
   warranty_updates: boolean;
+  warranty_expiry_alerts?: boolean;
   service_updates: boolean;
   receivable_updates: boolean;
   commission_updates: boolean;
