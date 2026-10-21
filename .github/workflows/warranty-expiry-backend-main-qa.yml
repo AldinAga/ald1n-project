@@ -91,5 +91,8 @@ jobs:
           set -euo pipefail
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_warranty_ci","root","isolated-ci-only"); if(!preg_match("/^10\\.11\\.19-MariaDB/",(string)$p->query("SELECT VERSION()")->fetchColumn())) exit(35); echo "MARIADB_101119_IDENTITY=PASS\\n";'
           php artisan test -c phpunit.mysql.xml tests/Feature/WarrantyExpiryDeliveryGuardTest.php --no-ansi
+          php artisan migrate:fresh --force --no-interaction
+          php -l tests/Support/warranty-expiry-online-ddl-smoke.php
+          php tests/Support/warranty-expiry-online-ddl-smoke.php
       - if: always()
         run: echo 'DISPOSABLE_MARIADB_ONLY_NO_PRODUCTION_DB_MUTATION_NO_DEPLOY'
