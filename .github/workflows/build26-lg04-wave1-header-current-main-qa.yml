@@ -1,0 +1,39 @@
+name: Build26 LG04 Wave1 header current-main QA (NO BUILD)
+on:
+  push:
+    branches:
+      - feature/build26-lg04-wave1-header-main-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/src/components/layout/glass-header-action.tsx'
+      - 'apps/mobile/current/src/components/layout/glass-header-policy.ts'
+      - 'apps/mobile/current/src/components/layout/page-header.tsx'
+      - 'apps/mobile/current/scripts/release25/android-lg04-header-accessibility.test.mjs'
+      - '.github/workflows/build26-lg04-wave1-header-current-main-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --test scripts/release25/android-lg04-header-accessibility.test.mjs
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - if: always()
+        run: echo 'NO_BUILD_NO_OTA_NO_GOOGLE_PLAY'
