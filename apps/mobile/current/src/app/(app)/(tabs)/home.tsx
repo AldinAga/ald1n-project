@@ -333,7 +333,7 @@ function HomeFocusPanel({
     ...(notificationsAllowed ? [{
       label: 'Obaveštenja',
       value: String(unread),
-      glyph: 'bell',
+      glyph: 'bell' as const,
       color: themeColors.info,
       surface: themeColors.infoSoft,
       route: '/notifications' as const,
@@ -341,7 +341,7 @@ function HomeFocusPanel({
     ...(cartAllowed ? [{
       label: 'Korpa',
       value: String(itemCount),
-      glyph: 'cart',
+      glyph: 'cart' as const,
       color: themeColors.primary,
       surface: themeColors.primarySoft,
       route: '/cart' as const,
