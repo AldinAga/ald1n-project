@@ -44,14 +44,14 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
     public function test_only_immutable_order_item_customer_with_explicit_opt_in_may_receive_expiry(): void
     {
         [$buyer, $other, $warranty] = $this->makeWarranty('on');
-        $buyer->notificationPreference()->create([
+        $buyer->notificationPreference()->updateOrCreate([], [
             'in_app_enabled' => true,
             'email_enabled' => false,
             'push_enabled' => false,
             'warranty_updates' => true,
             'warranty_expiry_alerts' => true,
         ]);
-        $other->notificationPreference()->create([
+        $other->notificationPreference()->updateOrCreate([], [
             'in_app_enabled' => true,
             'email_enabled' => false,
             'push_enabled' => false,
