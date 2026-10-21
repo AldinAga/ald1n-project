@@ -1,0 +1,36 @@
+name: CMS dashboard full-bleed aurora source QA (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/cms-dashboard-full-bleed-aurora-20261021
+  pull_request:
+    paths:
+      - 'apps/cms/current/public/assets/css/ald1n-liquid-glass.css'
+      - 'apps/cms/current/tests/Unit/DashboardFullBleedAuroraTest.php'
+      - '.github/workflows/cms-dashboard-full-bleed-aurora-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          tools: composer:v2
+      - working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php artisan test tests/Unit/DashboardFullBleedAuroraTest.php --no-ansi
+          php artisan test tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php --no-ansi
+          php bin/static-check.php
+      - if: always()
+        run: echo 'SOURCE_ONLY=YES CMS_DEPLOY=NONE DATABASE_MUTATION=NONE EAS_BUILD=NONE OTA=NONE PLAY=NONE'
