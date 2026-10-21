@@ -531,3 +531,44 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* CMS_VISUAL_SPACING_V1 — balanced KPI cards and single priority.
+   Only the business dashboard D1 grid is affected; other user roles retain
+   their original cards. */
+.build16-home-shell.dashboard-d1-shell .dashboard-kpi-grid--d1 {
+  align-items: stretch;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 > .dashboard-kpi-card {
+  height: 100%;
+  min-height: 158px;
+  padding: 20px;
+  gap: 14px;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card small {
+  margin: 0 0 9px;
+  line-height: 1.35;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card strong {
+  margin: 0 0 10px;
+  line-height: 1.25;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card span:not(.dashboard-kpi-icon) {
+  line-height: 1.55;
+}
+.dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-d2-delta {
+  margin-top: 8px;
+}
+.dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-list > .dashboard-priority-item:only-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 590px) {
+  .dashboard-d1-shell .dashboard-kpi-grid--d1 > .dashboard-kpi-card {
+    min-height: 138px;
+    padding: 16px;
+  }
+}
