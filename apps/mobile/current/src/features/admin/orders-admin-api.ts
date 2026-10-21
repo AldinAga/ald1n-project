@@ -21,6 +21,7 @@ export type AdminOrderListItem = {
   payment_state: string | null;
   inventory_state: string | null;
   subtotal_rsd: number;
+  item_summary?: { name: string | null; additional_count: number; count: number };
   customer: { name: string };
   supplier: AdminOrdersUser | null;
   assigned_at: string | null;

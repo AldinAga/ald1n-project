@@ -1,0 +1,42 @@
+name: Mobile LG04 Wave5 orders current-main QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - feature/lg04-wave5-mobile-orders-main-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/src/app/(app)/admin/orders/index.tsx'
+      - 'apps/mobile/current/src/features/admin/orders-admin-api.ts'
+      - 'apps/mobile/current/scripts/release25/android-lg04-wave5-navigation-orders-polish.test.mjs'
+      - '.github/workflows/mobile-lg04-wave5-orders-current-main-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Reproducible dependencies
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Full current-main mobile gates and Wave5 orders
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - name: No release
+        if: always()
+        run: echo 'EAS_BUILD=NONE OTA=NONE GOOGLE_PLAY=NONE CMS_DEPLOY=NONE'
