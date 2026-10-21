@@ -26,6 +26,23 @@ final class WarrantyExpiryOptInSourceTest extends TestCase
         self::assertStringContainsString("->default(false)", $migration);
     }
 
+    public function test_openapi_mirrors_include_explicit_warranty_expiry_opt_in(): void
+    {
+        $cmsRoot = dirname(__DIR__, 2);
+        $repoRoot = dirname($cmsRoot, 3);
+        $canonical = file_get_contents($repoRoot.'/packages/api-contract/openapi.yaml');
+        $cms = file_get_contents($cmsRoot.'/docs/openapi.yaml');
+        $mobile = file_get_contents($repoRoot.'/apps/mobile/current/docs/openapi.yaml');
+        self::assertIsString($canonical);
+        self::assertSame($canonical, $cms);
+        self::assertSame($canonical, $mobile);
+        self::assertStringContainsString(
+            "warranty_expiry_alerts: { type: boolean, default: false",
+            $canonical,
+        );
+        self::assertSame(1, substr_count($canonical, 'warranty_expiry_alerts: { type: boolean'));
+    }
+
     public function test_expiry_migration_must_fail_closed_on_unbounded_ddl(): void
     {
         $migration = file_get_contents(dirname(__DIR__, 2).'/database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php');
