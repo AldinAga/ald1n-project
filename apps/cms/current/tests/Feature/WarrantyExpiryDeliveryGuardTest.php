@@ -165,7 +165,7 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
         self::assertSame(1, MobilePushOutbox::query()->where('user_id', $buyer->id)->count());
     }
 
-    public function test_general_warranty_preference_must_also_allow_opted_in_expiry(): void
+    public function test_expiry_consent_is_independent_of_general_warranty_updates(): void
     {
         [$buyer, , $warranty] = $this->makeWarranty('generaloff');
         $buyer->notificationPreference()->updateOrCreate([], [
@@ -177,12 +177,27 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
         ]);
         Notification::fake();
 
-        $this->sendExpiry($buyer, $warranty->id);
-        Notification::assertNothingSent();
-
-        $buyer->notificationPreference()->update(['warranty_updates' => true]);
+        // Explicit expiry consent and matching immutable owner suffice;
+        // disabling ordinary warranty updates must not suppress expiry.
         $this->sendExpiry($buyer, $warranty->id);
         Notification::assertSentTo($buyer, OperationalNotification::class, 1);
+
+        // General warranty category stays disabled independently.
+        Notification::fake();
+        app(OperationalNotificationService::class)->send($buyer, [
+            'event' => 'warranty.updated',
+            'title' => 'Ažurirana garancija',
+            'message' => 'Redovno garancijsko obaveštenje.',
+            '_in_app' => true,
+            '_email' => false,
+            '_push' => false,
+        ]);
+        Notification::assertNothingSent();
+
+        // Turning expiry consent OFF blocks expiry even while general updates remain OFF.
+        $buyer->notificationPreference()->update(['warranty_expiry_alerts' => false]);
+        $this->sendExpiry($buyer, $warranty->id);
+        Notification::assertNothingSent();
     }
 
     /** @return array{User, User, ProductWarranty} */
