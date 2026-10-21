@@ -46,7 +46,7 @@ if (process.env.EAS_BUILD_PROFILE === 'lg03-play-testing' && !LG03_PLAY_TESTING_
 if (LG03_NATIVE_UAT_REQUESTED && APP_ENV !== 'preview') {
   throw new Error('LG03_NATIVE_UAT_REQUIRES_REGISTERED_PREVIEW_APP');
 }
-if (process.env.EAS_BUILD_PROFILE === 'production') {
+if (process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE !== 'approved') {
   throw new Error('LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD');
 }
 
@@ -69,7 +69,7 @@ module.exports = ({ config }) => {
     slug: 'ald1n-mobile',
     owner: 'ald1n',
 
-    version: '1.0.0',
+    version: '1.5.0',
     icon: './assets/icon.png',
     scheme: 'ald1n',
     userInterfaceStyle: 'automatic',
@@ -81,6 +81,7 @@ module.exports = ({ config }) => {
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
     runtimeVersion: '1.0.0-build17',
+    ...(process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? { runtimeVersion: '1.5.0-native1' } : {}),
     // Dedicated native preview uses an incompatible-from-Build25 runtime.
     ...(LG03_NATIVE_UAT_REQUESTED
       ? { runtimeVersion: '1.0.0-lg03-native-uat1' }
