@@ -713,7 +713,9 @@ assert(
   'Batch678 compact translucent bottom nav preserves theme-colored Home, five slots, role-aware destinations and capability gates.',
 );
 assert(
-  androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+  (androidNativeLayout497.includes('!useNavigationRail ? <AppBottomNav variant="bottom" /> : null')
+    || (androidNativeLayout497.includes('<AndroidNativeGlassBottomNav />')
+      && androidNativeLayout497.includes('collapsable={false}')))
     && appBottomNav.includes("position: 'absolute'")
     && appBottomNav.includes('pointerEvents="box-none"')
     && appBottomNav.includes("backgroundColor: 'transparent'")
@@ -2496,7 +2498,11 @@ assert(
   const bottomNavBuild18 = readText('src/components/layout/app-bottom-nav.tsx');
   assert(
   tabs.includes("display: 'none'")
-    && canonicalAppNavigation497(appShellBuild18)
+    && (canonicalAppNavigation497(appShellBuild18)
+      || (appShellBuild18.includes('<AndroidNativeGlassBottomNav />')
+        && appShellBuild18.includes('collapsable={false}')
+        && appShellBuild18.includes('<AppBottomNav variant="rail" />')
+        && appShellBuild18.includes('<AppBottomNav variant="bottom" />')))
     && bottomNavBuild18.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
     && bottomNavBuild18.includes('buildBottomNavItems({')
     && bottomNavFiveStableSlots,
