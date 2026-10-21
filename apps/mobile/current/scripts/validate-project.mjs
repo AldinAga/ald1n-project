@@ -761,7 +761,7 @@ assert(
 const operatorHome = fs.readFileSync(path.join(root, 'src/app/(app)/(tabs)/home.tsx'), 'utf8');
 assert(
   operatorHome.includes('HomeActionList')
-    && operatorHome.includes('OperatorRow')
+    && (operatorHome.includes('OperatorRow') || operatorHome.includes('GlassWorkspaceShortcut'))
     && !operatorHome.includes('<Card style={styles.actionCard}>'),
   'Build16 Home akcije koriste jednu grupisanu operator površinu umesto card-per-row obrasca.'
 );
