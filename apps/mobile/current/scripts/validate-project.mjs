@@ -1218,7 +1218,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '1.0.0'"), 'Expo app verzija je 1.0.0.');
+assert(appConfig.includes("version: '1.5.0'"), 'Expo app verzija je 1.5.0.');
 
 // MOBILE_BRANDING_ALD1N_CMS_V06
 const ald1nBrandSource = fs.readFileSync(path.join(root, 'assets/brand/ald1n-v2-logo.png'));
