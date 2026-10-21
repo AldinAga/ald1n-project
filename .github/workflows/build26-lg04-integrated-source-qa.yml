@@ -17,7 +17,6 @@ jobs:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_APP_ENV: preview
-      ALD1N_LG03_NATIVE_UAT: '1'
     steps:
       - name: Exact commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -42,6 +41,8 @@ jobs:
           npm run validate
           npm run test:release25
       - name: Bundle-only Android export, no OTA
+        env:
+          ALD1N_LG03_NATIVE_UAT: '1'
         working-directory: apps/mobile/current
         run: |
           set -euo pipefail
