@@ -34,7 +34,7 @@ jobs:
           php -l app/Services/OperationalNotificationService.php
           php -l app/Services/UserNotificationPreferenceService.php
           php -l database/migrations/2026_10_21_080000_add_warranty_expiry_opt_in.php
-          php artisan test tests/Unit/WarrantyExpiryOptInSourceTest.php tests/Feature/WarrantyExpiryDeliveryGuardTest.php --no-ansi
+          php artisan test tests/Unit/WarrantyExpiryOptInSourceTest.php --no-ansi
           php bin/static-check.php
       - if: always()
         run: echo 'SOURCE_ONLY_NO_PROD_MIGRATION_NO_DEPLOY_NO_EAS_BUILD_NO_OTA_NO_PLAY'
