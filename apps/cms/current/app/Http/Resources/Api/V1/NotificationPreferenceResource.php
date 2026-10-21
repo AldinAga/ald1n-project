@@ -23,6 +23,7 @@ final class NotificationPreferenceResource extends JsonResource
             'document_updates' => (bool) $this->document_updates,
             'after_sales_updates' => (bool) $this->after_sales_updates,
             'warranty_updates' => (bool) $this->warranty_updates,
+            'warranty_expiry_alerts' => (bool) ($this->warranty_expiry_alerts ?? false),
             'service_updates' => (bool) $this->service_updates,
             'receivable_updates' => (bool) $this->receivable_updates,
             'commission_updates' => (bool) $this->commission_updates,
