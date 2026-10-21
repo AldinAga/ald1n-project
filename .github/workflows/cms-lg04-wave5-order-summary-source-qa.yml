@@ -1,0 +1,46 @@
+name: CMS LG04 Wave5 order summary - source QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - feature/lg04-wave5-order-summary-main-20261021
+  pull_request:
+    paths:
+      - 'apps/cms/current/app/Services/OrderIndexService.php'
+      - 'apps/cms/current/app/Http/Controllers/Api/V1/Admin/OrderController.php'
+      - 'apps/cms/current/tests/Unit/AdminOrderItemSummaryTest.php'
+      - '.github/workflows/cms-lg04-wave5-order-summary-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install pinned dependencies
+        working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Read-only order snapshot contract and static checks
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -l app/Services/OrderIndexService.php
+          php -l app/Http/Controllers/Api/V1/Admin/OrderController.php
+          php -l tests/Unit/AdminOrderItemSummaryTest.php
+          php artisan test tests/Unit/AdminOrderItemSummaryTest.php --no-ansi
+          php bin/static-check.php
+      - name: No deployment or mobile release
+        if: always()
+        run: |
+          echo 'CMS_DEPLOY=NONE DATABASE_MUTATION=NONE'
+          echo 'EAS_BUILD=NONE OTA=NONE GOOGLE_PLAY=NONE'
