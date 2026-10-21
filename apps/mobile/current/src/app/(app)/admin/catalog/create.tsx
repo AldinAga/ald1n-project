@@ -533,6 +533,7 @@ export default function AdminCatalogCreateScreen() {
 
   return (
     <Screen
+      keyboardAware
       contentStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       topAccessory={

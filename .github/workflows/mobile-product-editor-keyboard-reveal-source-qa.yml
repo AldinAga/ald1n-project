@@ -1,0 +1,52 @@
+name: Mobile Product Editor Android keyboard reveal - source QA (NO RELEASE)
+on:
+  push:
+    branches:
+      - fix/mobile-product-editor-android-keyboard-reveal-20261020
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-product-editor-keyboard-reveal-source-qa.yml'
+      - 'apps/mobile/current/src/components/layout/keyboard-scroll-context.ts'
+      - 'apps/mobile/current/src/components/layout/keyboard-visibility.ts'
+      - 'apps/mobile/current/src/components/layout/screen.tsx'
+      - 'apps/mobile/current/src/components/ui/text-field.tsx'
+      - 'apps/mobile/current/src/app/(app)/admin/catalog/create.tsx'
+      - 'apps/mobile/current/src/app/(app)/admin/catalog/[id].tsx'
+      - 'apps/mobile/current/scripts/release25/android-product-editor-keyboard-reveal.test.mjs'
+permissions:
+  contents: read
+jobs:
+  android-keyboard-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Use repository lockfile, no fixes/upgrades
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Keyboard visibility acceptance
+        working-directory: apps/mobile/current
+        run: node --test scripts/release25/android-product-editor-keyboard-reveal.test.mjs
+      - name: TypeScript, project validator, full Release25
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - name: Release and production gates remain closed
+        if: always()
+        run: |
+          echo 'SOURCE_ONLY=YES'
+          echo 'EAS_BUILD=NONE OTA=NONE GOOGLE_PLAY=NONE'
+          echo 'PRODUCTION_CMS_MUTATION=NONE'
