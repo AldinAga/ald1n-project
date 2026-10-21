@@ -1005,8 +1005,10 @@ assert(
 
 assert(
   build16PageHeaderBatch132.includes('MOBILE_BUILD16_PAGE_HEADER_FINAL_BATCH132')
-    && build16PageHeaderBatch132.includes('notificationButton:')
-    && build16PageHeaderBatch132.includes('borderRadius: radii.lg')
+    && (build16PageHeaderBatch132.includes('notificationButton:')
+      || build16PageHeaderBatch132.includes('PageHeaderNotificationButton'))
+    && (build16PageHeaderBatch132.includes('borderRadius: radii.lg')
+      || build16PageHeaderBatch132.includes('GlassHeaderAction'))
     && build16PageHeaderBatch132.includes('useNotificationUnread')
     && build16PageHeaderBatch132.includes("router.push('/notifications')")
     && build16PageHeaderBatch132.includes('borderRadius: radii.pill'),
