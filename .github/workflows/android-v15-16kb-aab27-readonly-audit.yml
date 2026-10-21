@@ -1,0 +1,137 @@
+name: Android v1.5 AAB27 16KB binary read-only audit (NO EAS BUILD)
+on:
+  push:
+    branches:
+      - ops/android-v15-16kb-aab27-audit-20261021
+    paths:
+      - .github/workflows/android-v15-16kb-aab27-readonly-audit.yml
+permissions:
+  contents: read
+concurrency:
+  group: ald1n-aab27-16kb-readonly-20261021
+  cancel-in-progress: false
+jobs:
+  analyze-existing-aab:
+    name: Inspect existing signed AAB 27 only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_APP_ENV: production
+      EAS_BUILD_PROFILE: production
+      ALD1N_V15_RELEASE_GATE: approved
+      AAB_SOURCE_SHA: deb98808afe2568ed06da1c684b9b51d60734b12
+      AAB_BUILD_ID: e3bf78a2-0410-4fe5-a279-e0af5624ca0d
+    steps:
+      - name: Checkout exact already-built immutable release source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: deb98808afe2568ed06da1c684b9b51d60734b12
+          persist-credentials: false
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Verify checkout identity and release
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$AAB_SOURCE_SHA"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const eas=JSON.parse(fs.readFileSync('eas.json','utf8'));
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+          if(eas.cli.version!=='25.0.0'||eas.cli.appVersionSource!=='remote'
+            ||eas.build.production.env.ALD1N_V15_RELEASE_GATE!=='approved'
+            ||eas.build.production.android.buildType!=='app-bundle'
+            ||pkg.dependencies.expo!=='~57.0.27'||pkg.dependencies['react-native']!=='0.86.3')process.exit(31);
+          console.log('EXACT_RELEASE_SOURCE=PASS');
+          console.log('EXISTING_BUILD_27_READ_ONLY=YES');
+          NODE
+      - name: Install pinned dependencies before project-scoped EAS metadata read
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: Fetch existing AAB artifact URL from EAS CLI25 without exposing URL
+        working-directory: apps/mobile/current
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$EXPO_TOKEN" || { echo 'HOLD_AUTH_MISSING'; exit 33; }
+          npm exec --yes --package=eas-cli@25.0.0 -- eas build:view "$AAB_BUILD_ID" --json \
+            > "$RUNNER_TEMP/aab27-metadata.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const v=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/aab27-metadata.json','utf8'));
+          const o=Array.isArray(v)?v[0]:v;
+          const err=m=>{console.error(m);process.exit(34)};
+          if(o?.id!==process.env.AAB_BUILD_ID||o?.status!=='FINISHED'
+            ||o?.platform!=='ANDROID'||o?.appVersion!=='1.5.0'
+            ||Number(o?.appBuildVersion)!==27)err('HOLD_EXACT_BUILD_METADATA_IDENTITY');
+          if(o?.gitCommitHash && o.gitCommitHash!==process.env.AAB_SOURCE_SHA)err('HOLD_AAB_SOURCE_SHA_MISMATCH');
+          const u=o?.artifacts?.buildUrl||o?.artifacts?.applicationArchiveUrl;
+          if(typeof u!=='string')err('HOLD_MISSING_AAB_ARTIFACT_URL');
+          const parsed=new URL(u);
+          if(parsed.protocol!=='https:'||!/(\.aab)(\?|$)/i.test(parsed.pathname+parsed.search)
+            ||!(parsed.hostname==='expo.dev'||parsed.hostname.endsWith('.expo.dev')||
+                 parsed.hostname==='storage.googleapis.com'||parsed.hostname.endsWith('.googleapis.com')||
+                 parsed.hostname.endsWith('.amazonaws.com')))err('HOLD_UNEXPECTED_EAS_ARTIFACT_ORIGIN');
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/aab27-private-url',u,{mode:0o600});
+          console.log('EXACT_EAS_AAB_ID=PASS');
+          console.log('AAB27_STATUS=FINISHED VERSIONCODE=27');
+          console.log('AAB_ARTIFACT_ORIGIN_ATTESTED=PASS');
+          NODE
+      - name: Download and inspect ELF load alignment for every 64-bit .so in existing AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB="$RUNNER_TEMP/ald1n-app27.aab"
+          ARTIFACT_URL="$(cat "$RUNNER_TEMP/aab27-private-url")"
+          curl --fail --silent --show-error --location --retry 2 --connect-timeout 15 --max-time 360 \
+            --output "$AAB" "$ARTIFACT_URL"
+          test "$(stat -c%s "$AAB")" -gt 1000000
+          unzip -tqq "$AAB"
+          echo "AAB27_SIZE_BYTES=$(stat -c%s "$AAB")"
+          echo "AAB27_SHA256=$(sha256sum "$AAB" | awk '{print $1}')"
+          command -v readelf
+          unzip -Z1 "$AAB" | grep -E '(^|/)lib/(arm64-v8a|x86_64)/[^/]+[.]so$' > "$RUNNER_TEMP/aab27-64bit-so-entries"
+          test -s "$RUNNER_TEMP/aab27-64bit-so-entries" || { echo 'HOLD_MISSING_ELF64'; exit 35; }
+          total=0
+          invalid=0
+          while IFS= read -r entry; do
+            total=$((total+1))
+            unzip -p "$AAB" "$entry" > "$RUNNER_TEMP/one-aab27.so"
+            readelf -lW "$RUNNER_TEMP/one-aab27.so" > "$RUNNER_TEMP/one-aab27-elf.txt" || {
+              echo "ELF_READ_ERROR $entry"; invalid=$((invalid+1)); continue;
+            }
+            result="$(node - "$RUNNER_TEMP/one-aab27-elf.txt" <<'NODE'
+          const fs=require('node:fs');
+          const x=fs.readFileSync(process.argv[2],'utf8');
+          const ls=x.split('\n').filter(z=>/^\s*LOAD\s/.test(z)).map(z=>z.trim().split(/\s+/).at(-1));
+          if(!ls.length){console.log('UNKNOWN_NO_LOAD');process.exit(0)}
+          const nums=ls.map(v=>/^0x[0-9a-f]+$/i.test(v)?parseInt(v,16):NaN);
+          if(nums.some(v=>!Number.isFinite(v))){console.log('UNKNOWN_ALIGNMENT');process.exit(0)}
+          const min=Math.min(...nums);
+          console.log((min>=16384?'ALIGNED':'UNALIGNED')+' MIN_LOAD_ALIGN=0x'+min.toString(16).toUpperCase());
+          NODE
+            )"
+            echo "ELF64 $entry $result"
+            case "$result" in ALIGNED*) ;; *) invalid=$((invalid+1));; esac
+          done < "$RUNNER_TEMP/aab27-64bit-so-entries"
+          echo "AAB27_64BIT_SO_TOTAL=$total"
+          echo "AAB27_16KB_UNALIGNED_COUNT=$invalid"
+          if [ "$invalid" -eq 0 ]; then
+            echo 'AAB27_ELF16K_GATE=PASS_NO_ELF_DEFECT_CHECK_BUNDLE_ZIP_ALIGNMENT'
+          else
+            echo 'AAB27_ELF16K_GATE=FAIL_NATIVE_DEPENDENCY_REALIGNMENT_REQUIRED'
+          fi
+      - name: Explicit no mutation assertion
+        if: always()
+        run: |
+          echo 'AUDIT_EXISTING_BUILD_ONLY=YES'
+          echo 'NO_NEW_EAS_BUILD=YES'
+          echo 'NO_OTA=YES'
+          echo 'NO_PLAY_SUBMISSION=YES'
+          echo 'NO_GITHUB_MAIN_MUTATION=YES'
+          echo 'NO_LARAVEL_MUTATION=YES'
