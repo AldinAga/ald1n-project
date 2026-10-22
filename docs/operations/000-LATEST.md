@@ -1,3 +1,12 @@
+# CURRENT SOURCE - B796 / PR88 merged, host activation pending (2026-10-22)
+
+- B796 R1/R3/R6 source `6f81f2bcfca1559dae92c39be323a1c827c31239` merged through PR88. Operator orders/no personal purchase flow, readable shared glass reflection, first buyer-panel courier/tracking. [Report797 QA and limitations](797-BATCH796-OPERATOR-MOTION-TRACKING-SOURCE-QA-20261022.md). Eight final PR workflows PASS; scoped PHPUnit70/377, auth Chromium54 measurements/40 screenshots/0fail, static983/983, delivery9/9. Generic full suite retains the same42 pre-existing problems; NOT an all-green full-suite claim.
+- **PRODUCTION B796 PENDING.** Execute only `incoming/ald1n-b796-laravel-operator-workspace-v1.sh`, with automatic integrity and both exact local Report793/795 bindings. 683-path closure, ten allowed runtime writes, owned maintenance/scheduler and rollback. Preserve dirty host Git/.htaccess. No DB migration, backup/prune, payment/warranty mutation, public checkout, Android build/OTA/Play action. Do not repeat B794/795.
+- **Owner decision RESOLVED:** warranty issuance begins after the FIRST confirmed positive incoming payment, including deposit/first installment and direct sales; never wait for paid-in-full or ask this again. R4/R5 implementation/production remains PENDING. Issuance is distinct from contractual validity; preserve delivery-based start, no shortened pre-delivery coverage, duplicate/history rewrite or mass backfill.
+- Ledger v1 unchanged: originalUI6/6=100%; CMS7/15=46.7%; program7/17=41.2%. M08/M09/M12 are SOURCE_QA_PASS/HOST_ACCEPTANCE_PENDING. No premature closure credit. Public `/katalog`/guest checkout still NOT activated.
+
+---
+
 # CURRENT AUTHORITY - Report795 accepted / expanded owner scope (2026-10-22)
 
 ## Laravel production
@@ -17,10 +26,10 @@
 ## Current progress and owner requirements
 
 - Canonical requirements and **17-milestone ledger v1**: [Report796](796-REPORT795-ACCEPTANCE-PROGRESS-AND-OWNER-REQUIREMENTS-20261022.md). **7/17 closed = 41.2%** for the expanded current program; **7/15 = 46.7%** for CMS scope; original UI **6/6 = 100%**. Equal-weight acceptance milestones, not time/effort or all historical project functionality. No closure credit for planning/partial source; preserve/version the denominator.
-- New pending work: operational user/customer orders instead of SuperAdministrator personal purchases; reusable readable glass animation; automatic warranty on confirmed incoming payment including direct sales; independent default-OFF expiry opt-in for selling user plus SuperAdministrator only; shipment number/courier/safe tracking action in the first buyer panel. See AGENTS section 30.
-- Warranty partial/deposit and pre-delivery-start semantics must be explicit before activation; preserve existing durations, valid opt-ins, ownership and certificates. No blanket reset, historical deletion, mass backfill or global notification activation.
+- R1/R3/R6 (operational orders, readable glass animation, first-panel tracking) now have merged source/QA but still await host activation. First-payment warranty issuance and independent default-OFF expiry for selling user plus SuperAdministrator (R4/R5) remain unimplemented. See AGENTS sections 30-31.
+- Owner decided issuance after the FIRST verified positive incoming payment, including deposits/first installment and direct sales; no paid-in-full condition. Implementation remains pending; preserve delivery-based contractual validity, durations, valid opt-ins, ownership and certificates. No blanket reset, historical deletion, mass backfill or global notification activation.
 - Public catalog target **https://cms.ald1n.com/katalog**; internal `/catalog` stays authenticated. Full-retail guest catalog/cart/checkout/protected follow-up remain **NOT implemented/activated**. The future URL is a design decision, not a claim it currently works.
-- Next implementation: role/UI/tracking corrections, payment/warranty/recipient tests, then the complete storefront. Android16KB stays a separate signed-artifact gate; actual SDK58 upgrade follows current work and Android compatibility. No new runtime changes or operator script in this documentation checkpoint.
+- R1/R3/R6 source/QA is now completed in B796 as described above; host activation/acceptance remains pending. Next implementation is first-payment warranty issuance and isolated expiry recipients (R4/R5), then the complete storefront. Android16KB and SDK58 remain separate gates. This source checkpoint is not a host receipt.
 
 ## Independent mobile gates - unchanged
 
