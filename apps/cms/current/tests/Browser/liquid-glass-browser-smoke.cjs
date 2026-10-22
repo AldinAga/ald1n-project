@@ -426,44 +426,54 @@ async function retirementUserCardLayoutSmoke(page, mode, width) {
   await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
   await navigate(page, '/admin/users', 'RETIREMENT_USER_LIST_GET');
   const state = await page.evaluate(() => {
-    const card = document.querySelector('.access-control-user-card:has(> .access-control-user-head > a[href$="/retirement"])');
+    const card = document.querySelector('.access-control-user-card:has(> .access-control-user-danger-zone > a[href$="/retirement"])');
     if (!card) return null;
     const head = card.querySelector('.access-control-user-head');
+    const danger = card.querySelector(':scope > .access-control-user-danger-zone');
     function rect(el) {
       if (!el) return null;
       const r=el.getBoundingClientRect();
       return { x:r.x, y:r.y, left:r.left, right:r.right, top:r.top, bottom:r.bottom, width:r.width, height:r.height };
     }
-    const identity = head.querySelector(':scope > .access-control-user-identity');
-    const badges = head.querySelector(':scope > .access-control-user-badges');
-    const action = head.querySelector(':scope > a[href$="/retirement"]');
+    const identity = head?.querySelector(':scope > .access-control-user-identity');
+    const badges = head?.querySelector(':scope > .access-control-user-badges');
+    const action = danger?.querySelector(':scope > a[href$="/retirement"]');
+    const edit = card.querySelector(':scope > .access-control-user-edit');
     return {
       head: rect(head), identity: rect(identity), badges: rect(badges), action: rect(action),
+      danger: rect(danger), edit: rect(edit),
+      actionOutsideForm: !!action && !action.closest('form'),
+      headerActions: head?.querySelectorAll('a[href$="/retirement"]').length ?? -1,
+      actionCount: card.querySelectorAll('a[href$="/retirement"]').length,
       label: action?.textContent.trim() || '', href: action?.getAttribute('href') || '',
       viewport:document.documentElement.clientWidth, scrollWidth:document.documentElement.scrollWidth,
     };
   });
   check(!!state, 'RETIREMENT_USER_CARD_WITH_ACTION', label);
   if (!state) return;
-  const {head,identity,badges,action}=state;
-  check(!!head && !!identity && !!badges && !!action, 'RETIREMENT_HEADER_THREE_PARTS', label);
-  if (!head || !identity || !badges || !action) return;
+  const {head,identity,badges,action,danger,edit}=state;
+  check(!!head && !!identity && !!badges && !!action && !!danger && !!edit, 'RETIREMENT_IDENTITY_AND_DANGER_ZONE_PRESENT', label);
+  if (!head || !identity || !badges || !action || !danger || !edit) return;
   const previewUrl = new URL(state.href, baseUrl);
   check(state.label === 'Ukloni korisnika' && previewUrl.origin === baseUrl
     && /^\/admin\/users\/[0-9]+\/retirement$/.test(previewUrl.pathname),
     'RETIREMENT_ACTION_IS_SAFE_PREVIEW_LINK', label);
-  check(action.width <= 240 && action.height >= 34 && action.left >= head.left-1 && action.right <= head.right+1,
-    'RETIREMENT_ACTION_COMPACT_AND_IN_BOUNDS', label + ': ' + JSON.stringify(state).slice(0,650));
+  check(state.actionCount === 1 && state.headerActions === 0 && state.actionOutsideForm,
+    'RETIREMENT_ONE_ACTION_SEPARATE_FROM_SAVE', label);
+  check(action.width <= 240 && action.height >= 34 && action.left >= danger.left-1 && action.right <= danger.right+1
+    && action.top >= danger.top-1 && action.bottom <= danger.bottom+1,
+    'RETIREMENT_ACTION_COMPACT_AND_IN_BOUNDS', label + ': ' + JSON.stringify(state).slice(0,900));
+  check(danger.top >= edit.bottom-1 && danger.top >= head.bottom-1,
+    'RETIREMENT_DANGER_ZONE_AFTER_EDITOR', label + ': ' + JSON.stringify(state).slice(0,900));
   if (width > 600) {
-    check(identity.left + 25 < badges.left && identity.top <= badges.bottom
-      && badges.top <= identity.bottom && action.top >= badges.bottom-1 && action.left >= badges.left-1,
-      'RETIREMENT_DESKTOP_IDENTITY_BADGES_ACTION_ORDER', label + ': ' + JSON.stringify(state).slice(0,650));
+    check(identity.left + 25 < badges.left && identity.top <= badges.bottom && badges.top <= identity.bottom,
+      'RETIREMENT_DESKTOP_IDENTITY_BADGES_ORDER', label + ': ' + JSON.stringify(state).slice(0,900));
   } else {
-    check(identity.top < badges.top && badges.top < action.top && action.left >= head.left-1,
-      'RETIREMENT_MOBILE_IDENTITY_BADGES_ACTION_STACK', label + ': ' + JSON.stringify(state).slice(0,650));
+    check(identity.top < badges.top && badges.bottom <= danger.top+1,
+      'RETIREMENT_MOBILE_IDENTITY_BADGES_DANGER_STACK', label + ': ' + JSON.stringify(state).slice(0,900));
   }
   check(state.scrollWidth <= state.viewport + 2,
-    'RETIREMENT_USER_LIST_NO_HORIZONTAL_OVERFLOW', label + ': ' + JSON.stringify(state).slice(0,650));
+    'RETIREMENT_USER_LIST_NO_HORIZONTAL_OVERFLOW', label + ': ' + JSON.stringify(state).slice(0,900));
   if (mode !== 'auto' && [1440,320].includes(width))
     await snapshot(page, 'retirement-user-list-' + mode + '-' + width);
   // Read-only UI smoke: DO NOT submit the linked confirmation form or change any users.
