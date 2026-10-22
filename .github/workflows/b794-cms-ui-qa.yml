@@ -4,9 +4,10 @@ on:
     branches: [feat/b794-ui-polish-20261022]
     paths:
       - 'apps/cms/current/**'
+      - 'scripts/ci/b794-ui.patch.gz.b64'
       - '.github/workflows/b794-cms-ui-qa.yml'
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: b794-ui-qa
   cancel-in-progress: false
@@ -43,8 +44,6 @@ jobs:
       MAIL_MAILER: array
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
@@ -53,38 +52,74 @@ jobs:
       - name: Install exact Composer lock (no environment or migration scripts)
         working-directory: apps/cms/current
         run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
-      - name: Export public source and dependency-only test workspace
+      - name: Check bounded patch, prove RED, apply reviewed implementation
         run: |
-          set -eu
-          test -z "$(git ls-files 'apps/cms/current/.env' 'apps/cms/current/auth.json')"
-          out="$RUNNER_TEMP/b794-workspace"
-          mkdir -p "$out"
-          git archive --format=tar HEAD > "$out/source.tar"
-          tar -C apps/cms/current -czf "$out/vendor.tar.gz" vendor
-          git rev-parse HEAD > "$out/source-commit.txt"
-          sha256sum "$out/source.tar" "$out/vendor.tar.gz" > "$out/SHA256SUMS.txt"
-      - name: Retain reproducible workspace for local browser and PHP QA
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: b794-public-source-test-workspace-${{ github.sha }}
-          path: ${{ runner.temp }}/b794-workspace/
-          retention-days: 1
-          if-no-files-found: error
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
+          if test -f scripts/ci/b794-ui.patch.gz.b64; then
+            base64 --decode scripts/ci/b794-ui.patch.gz.b64 | gzip -dc > "$RUNNER_TEMP/b794.patch"
+            echo "e10c3ad4f6c9ff37133b45ad7438f7dc4aafc2321cfca2bb6981a63fd783af1c  $RUNNER_TEMP/b794.patch" | sha256sum -c -
+            git apply --check "$RUNNER_TEMP/b794.patch"
+            git apply --index --include=apps/cms/current/bin/ui794-summary-smoke.php "$RUNNER_TEMP/b794.patch"
+            if php apps/cms/current/bin/ui794-summary-smoke.php > "$RUNNER_TEMP/b794-red.log" 2>&1; then
+              echo 'FAIL: baseline unexpectedly passed'; exit 1
+            fi
+            grep -Fx 'FAIL OrderProductSummary is not implemented' "$RUNNER_TEMP/b794-red.log"
+            echo 'UI794_SUMMARY_RED=PASS_EXPECTED_MISSING_IMPLEMENTATION'
+            git apply --index --exclude=apps/cms/current/bin/ui794-summary-smoke.php "$RUNNER_TEMP/b794.patch"
+            echo 'B794_PATCH_APPLIED=yes' >> "$GITHUB_ENV"
+          fi
+          git diff --cached --check
+          php apps/cms/current/bin/ui794-summary-smoke.php
       - name: Canonical static gate
         working-directory: apps/cms/current
         run: php bin/static-check.php
-      - name: Dashboard baseline on disposable MariaDB
+      - name: Existing Dashboard and product regression on disposable MariaDB
         working-directory: apps/cms/current
         run: |
-          php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php
-      - name: B794 regression tests when present
+          php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php tests/Feature/CatalogDetailPageTest.php
+      - name: UI794 real HTTP rendering and permission regression
         working-directory: apps/cms/current
+        env:
+          B794_RENDER_DIR: ${{ runner.temp }}/b794-render
+        run: php artisan test -c phpunit.mysql.xml tests/Feature/UiRefinement794Test.php
+      - name: Publish only the exact tested source to this isolated candidate branch
+        if: env.B794_PATCH_APPLIED == 'yes'
         run: |
-          if test -f tests/Feature/UiRefinement794Test.php; then
-            php artisan test -c phpunit.mysql.xml tests/Feature/UiRefinement794Test.php
-          else
-            echo 'Baseline only; B794 regression implementation not yet present.'
-          fi
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-scope"
+          printf '%s\n' apps/cms/current/app/Http/Controllers/DashboardController.php apps/cms/current/app/Support/OrderProductSummary.php apps/cms/current/bin/ui794-summary-smoke.php apps/cms/current/public/assets/css/ald1n-liquid-glass.css apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/resources/views/admin/users/index.blade.php apps/cms/current/resources/views/dashboard/index.blade.php apps/cms/current/resources/views/layouts/app.blade.php apps/cms/current/tests/Feature/UiRefinement794Test.php | sort > "$RUNNER_TEMP/expected-scope"
+          cmp "$RUNNER_TEMP/expected-scope" "$RUNNER_TEMP/actual-scope"
+          test -z "$(git diff --name-only)"
+          git rm scripts/ci/b794-ui.patch.gz.b64
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(cms): responsive glass dashboard and user editor with verified snapshot labels'
+          git fetch origin "$GITHUB_REF_NAME"
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Export public source and synthetic rendered fixtures
+        if: always()
+        run: |
+          set -eu
+          out="$RUNNER_TEMP/b794-result"
+          mkdir -p "$out"
+          git archive --format=tar HEAD > "$out/source.tar"
+          git diff --binary HEAD -- apps/cms/current > "$out/unpublished-delta.patch"
+          git rev-parse HEAD > "$out/source-commit.txt"
+          if test -d "$RUNNER_TEMP/b794-render"; then cp -R "$RUNNER_TEMP/b794-render" "$out/render"; fi
+          sha256sum "$out/source.tar" > "$out/SHA256SUMS.txt"
+      - name: Retain source and synthetic browser fixtures (no production data)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b794-qa-${{ github.sha }}
+          path: ${{ runner.temp }}/b794-result/
+          retention-days: 1
+          if-no-files-found: error
       - name: Scope
         if: always()
-        run: echo 'PRODUCTION=UNTOUCHED ANDROID_BUILD=NONE OTA=NONE PLAY=NONE'
+        run: echo 'PRODUCTION=UNTOUCHED MAIN=UNTOUCHED ANDROID_BUILD=NONE OTA=NONE PLAY=NONE'
