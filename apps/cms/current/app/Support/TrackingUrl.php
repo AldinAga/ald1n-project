@@ -20,7 +20,9 @@ final class TrackingUrl
         if (filter_var($host, FILTER_VALIDATE_IP)) {
             return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? $value : null;
         }
-        if (!str_contains($host, '.') || preg_match('/(?:^|\.)(localhost|local|internal)$/', $host)
+        if (filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) === false
+            || preg_match('/\.(?:[0-9]+|0x[0-9a-f]+)$/i', $host)
+            || !str_contains($host, '.') || preg_match('/(?:^|\.)(localhost|local|internal)$/', $host)
             || !preg_match('/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$/D', $host)) return null;
         return $value;
     }
