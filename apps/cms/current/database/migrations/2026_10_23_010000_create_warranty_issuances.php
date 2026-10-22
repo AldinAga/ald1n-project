@@ -21,6 +21,11 @@ return new class extends Migration
             }
             return;
         }
+        // Adding FKs obtains metadata locks on existing populated tables.
+        // Bound the session wait on MariaDB/CloudLinux and restore it on exit.
+        $oldTimeout = (int) DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS timeout_value')->timeout_value;
+        DB::statement('SET SESSION lock_wait_timeout = 5');
+        try {
         Schema::create('warranty_issuances', static function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('order_id');
@@ -40,6 +45,9 @@ return new class extends Migration
             $table->foreign('first_verified_payment_id')->references('id')->on('order_payments')->restrictOnDelete();
             $table->foreign('activated_warranty_id')->references('id')->on('product_warranties')->nullOnDelete();
         });
+        } finally {
+            DB::statement('SET SESSION lock_wait_timeout = '.max(1, $oldTimeout));
+        }
     }
 
     public function down(): void
