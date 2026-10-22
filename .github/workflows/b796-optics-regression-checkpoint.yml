@@ -1,0 +1,56 @@
+name: B796 bounded optical-layer correction
+on:
+  push:
+    branches: [feat/b796-operator-orders-glass-tracking-20261022]
+    paths: ['.github/workflows/b796-optics-regression-checkpoint.yml']
+permissions:
+  contents: write
+jobs:
+  checkpoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Preserve actual vendor layers without changing vendor files
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b796-operator-orders-glass-tracking-20261022
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('apps/cms/current/public/assets/css/ald1n-ui-refinement.css');s=p.read_text()
+          old='.page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card) > * { position: relative; z-index: 1; }'
+          new=old.replace('> * {','> :not(.lg-layer):not(.lg-sheen) {')
+          assert s.count(old)==1;s=s.replace(old,new);p.write_text(s)
+          p=Path('apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs');s=p.read_text()
+          old="        renderer: glass?.getAttribute('data-lg-renderer') || 'none',"
+          new=old+'''
+                  layerPosition: paint?.position || 'missing',
+                  layerPointerEvents: paint?.pointerEvents || 'missing',
+                  layerHeight: layer?.getBoundingClientRect().height || 0,
+                  layerOuterHeight: layer ? layer.getBoundingClientRect().height + parseFloat(paint.marginTop) + parseFloat(paint.marginBottom) : 0,
+                  hostClientHeight: glass?.clientHeight || 0,
+                  sheenPosition: glass?.querySelector(':scope > .lg-sheen') ? getComputedStyle(glass.querySelector(':scope > .lg-sheen')).position : 'missing',
+          '''.rstrip()
+          assert s.count(old)==1;s=s.replace(old,new)
+          old="    check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);"
+          new=old+'''
+              check(optics.layerPosition === 'absolute' && optics.sheenPosition === 'absolute'
+                && optics.layerPointerEvents === 'none' && optics.layerHeight > 0
+                && Math.abs(optics.layerOuterHeight - optics.hostClientHeight) <= 1,
+                'B796_VENDOR_OPTICAL_LAYER_NOT_COLLAPSED', tag+': '+JSON.stringify(optics));'''
+          assert s.count(old)==1;s=s.replace(old,new);p.write_text(s)
+          PY
+          node --check apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs
+          git add -- apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual"
+          printf '%s\n' apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs | sort > "$RUNNER_TEMP/expected"
+          cmp "$RUNNER_TEMP/actual" "$RUNNER_TEMP/expected"
+          git rm .github/workflows/b796-optics-regression-checkpoint.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(cms): keep vendor optical layers absolute and verify live geometry'
+          git fetch origin "$GITHUB_REF_NAME"
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          echo 'PRODUCTION=UNTOUCHED MAIN=UNTOUCHED NO_VENDOR_EDIT' >> "$GITHUB_STEP_SUMMARY"
