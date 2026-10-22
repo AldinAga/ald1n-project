@@ -52,6 +52,10 @@ final class WarrantyCertificatePdfService
         $durationLabel = trim(($months > 0 ? $months.' mes.' : '').($months > 0 && $days > 0 ? ' + ' : '').($days > 0 ? $days.' dana' : ''));
         $pdf->text(398, 330, $durationLabel !== '' ? $durationLabel : '—', 12, true, '#202735');
 
+        if (($data['pending_activation'] ?? false) === true) {
+            $pdf->text(36, 387, 'Izdat nakon prve potvrdene uplate. Vaznost pocinje evidentiranom isporukom.', 8, false, '#475467');
+        }
+
         $pdf->text(36, 403, 'Uslovi garancije', 11, true, '#202735');
         $pdf->roundedRect(36, 424, 523, 182, 10, '#ffffff', '#dce2ea');
         $pdf->wrappedText(52, 444, (string) (($data['terms'] ?? '') ?: 'Nisu uneti posebni uslovi garancije.'), 491, 9, 14, false, '#475467', 10);

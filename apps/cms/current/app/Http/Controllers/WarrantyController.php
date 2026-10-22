@@ -18,6 +18,7 @@ final class WarrantyController extends Controller
     public function index(Request $request): View
     {
         return view('warranties.index', [
+            'pendingCertificates' => app(\App\Services\WarrantyIssuancePresenter::class)->pending($request->user(), null),
             'warranties' => ProductWarranty::query()->with(['order', 'orderItem.order'])->ownedByOrderCustomer((int) $request->user()->id)->latest('id')->paginate(30),
         ]);
     }

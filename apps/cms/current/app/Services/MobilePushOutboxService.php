@@ -17,6 +17,9 @@ final class MobilePushOutboxService
             return 0;
         }
 
+        if (WarrantyExpiryPolicy::isExpiry($data['event'] ?? null)
+            && !app(WarrantyExpiryPolicy::class)->allowsChannel((int) $recipient->id, $data, 'push')) return 0;
+
         $devices = $recipient->mobileDevices()
             ->whereNull('revoked_at')
             ->where('notifications_enabled', true)
@@ -64,6 +67,7 @@ final class MobilePushOutboxService
             'order_number',
             'after_sales_case_id',
             'warranty_id',
+            'warranty_expires_on',
             'field_work_order_id',
             'commission_id',
         ] as $key) {

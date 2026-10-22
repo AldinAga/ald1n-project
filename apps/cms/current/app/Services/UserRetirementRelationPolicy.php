@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * 121-column, explicit MySQL relationship classification from verified
+ * 123-column, explicit MySQL relationship classification from verified
  * ephemeral MySQL 8.4 schema. Historical links are never rewritten.
  *
  * ANY added/dropped/altered FK or missing unconstrained actor field makes
@@ -137,6 +137,8 @@ final class UserRetirementRelationPolicy
         'user_login_sessions.revoked_by' => ['immutable_history', 'SET NULL'],
         'user_login_sessions.user_id' => ['access_record', 'CASCADE'],
         'users.approved_by' => ['immutable_history', 'SET NULL'],
+        'warranty_issuances.voided_by' => ['immutable_history', 'SET NULL'],
+        'warranty_expiry_deliveries.user_id' => ['immutable_history', 'CASCADE'],
         'warranty_maintenance_records.completed_by' => ['immutable_history', 'SET NULL'],
         'warranty_rules.created_by' => ['immutable_history', 'SET NULL'],
         'warranty_rules.updated_by' => ['immutable_history', 'SET NULL'],
@@ -223,7 +225,7 @@ final class UserRetirementRelationPolicy
         ksort($expected);
         ksort($actual);
 
-        if (count($expected) !== 121 || $actual !== $expected) {
+        if (count($expected) !== 123 || $actual !== $expected) {
             Log::critical('User retirement schema gate mismatch', [
                 'missing' => array_keys(array_diff_key($expected, $actual)),
                 'unknown' => array_keys(array_diff_key($actual, $expected)),

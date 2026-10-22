@@ -16,6 +16,18 @@ final class ExpoPushTransport
     public function send(MobilePushOutbox $row): array
     {
         $device = $row->device()->first();
+        $data = is_array($row->data_json) ? $row->data_json : [];
+        if (WarrantyExpiryPolicy::isExpiry($row->event) || WarrantyExpiryPolicy::isExpiry($data['event'] ?? null)) {
+            $policy = app(WarrantyExpiryPolicy::class);
+            if ($device === null || (int) $device->user_id !== (int) $row->user_id
+                || !$policy->allowsChannel((int) $row->user_id, $data, 'push')) {
+                return ['status'=>'error', 'error'=>'Warranty recipient consent or ownership changed.', 'error_code'=>'WarrantyRecipientIneligible'];
+            }
+            $resolved = $policy->resolve((int) $row->user_id, $data);
+            if (!$resolved) return ['status'=>'error', 'error'=>'Warranty recipient is no longer eligible.', 'error_code'=>'WarrantyRecipientIneligible'];
+            $canonical = $policy->canonicalData($resolved, $data);
+            $data['route'] = $canonical['route'];
+        }
         $token = trim((string) ($device?->push_token ?? ''));
         if ($device === null || !$device->isActive() || !$device->notifications_enabled || $device->push_provider !== 'expo' || $token === '') {
             return ['status' => 'error', 'error' => 'Push uređaj više nije aktivan ili nema Expo token.', 'error_code' => 'DeviceNotRegistered'];
@@ -32,7 +44,7 @@ final class ExpoPushTransport
             'sound' => 'default',
             'channelId' => 'business-updates',
             'priority' => 'high',
-            'data' => is_array($row->data_json) ? $row->data_json : [],
+            'data' => $data,
         ];
 
         try {

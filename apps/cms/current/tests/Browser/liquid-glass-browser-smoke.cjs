@@ -503,7 +503,7 @@ async function retirementPreviewSmoke(page, persona, mode, width) {
     'RETIREMENT_PRESERVED_HISTORY', label);
   check(await page.getByRole('heading', { name: 'Aktivna zaduženja koja se prenose na SuperAdministratora' }).count() === 1,
     'RETIREMENT_ACTIVE_WORK_TRANSFER', label);
-  check((await page.locator('p[role="status"]').innerText()).includes('121 stranih ključeva')
+  check((await page.locator('p[role="status"]').innerText()).includes('123 stranih ključeva')
     && (await page.locator('p[role="status"]').innerText()).includes('7 istorijskih kolona'),
     'RETIREMENT_EXACT_SCHEMA_PREVIEW', label);
   const confirm = page.locator('input[name="confirmation"]');

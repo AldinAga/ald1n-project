@@ -35,6 +35,7 @@ final class OrderDetailPresenter
         array $warnings,
     ): array {
         $detail = $this->base($order, $timeline, $ipsPayload, $warnings);
+        $detail['warranty_issuances'] = app(WarrantyIssuancePresenter::class)->forOrder($order, $actor);
         $id = $detail['order']['id'];
         $sourceSystem = $detail['order']['source_system'];
         $status = $detail['order']['status'];
@@ -181,6 +182,7 @@ final class OrderDetailPresenter
         array $warnings,
     ): array {
         $detail = $this->base($order, $timeline, $ipsPayload, $warnings);
+        $detail['warranty_issuances'] = app(WarrantyIssuancePresenter::class)->forOrder($order, $actor);
         $id = $detail['order']['id'];
         $status = $detail['order']['status'];
         $paymentState = $detail['order']['payment_state'];

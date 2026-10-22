@@ -336,12 +336,12 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
         ] as $required) {
             self::assertContains($required, $keys, 'Schema FK inventory must retain '.$required);
         }
-        self::assertCount(121, $keys, 'Must classify all migrated 121 user-FK references.');
+        self::assertCount(123, $keys, 'Must classify all migrated 123 user-FK references.');
         $policy = app(UserRetirementRelationPolicy::class);
         $report = $policy->verifySchema();
-        self::assertSame(121, $report['foreign_keys']);
+        self::assertSame(123, $report['foreign_keys']);
         self::assertSame(7, $report['unconstrained_history']);
-        self::assertCount(121, UserRetirementRelationPolicy::USER_FKS);
+        self::assertCount(123, UserRetirementRelationPolicy::USER_FKS);
     }
 
     public function test_all_five_active_work_queues_reassign_and_terminal_history_is_preserved(): void
@@ -589,7 +589,7 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
     public function test_innodb_no_action_restrict_equivalence_matches_real_host_manifest_without_hiding_drift(): void
     {
         $policy = UserRetirementRelationPolicy::USER_FKS;
-        self::assertCount(121, $policy);
+        self::assertCount(123, $policy);
 
         $knownAliases = [
             'orders.user_id',
@@ -628,10 +628,18 @@ final class UserRetirementMySqlIntegrationTest extends TestCase
             $manifest[] = $key.' '.UserRetirementRelationPolicy::canonicalMysqlDeleteRule($rule[1], 'InnoDB');
         }
         sort($manifest, SORT_STRING);
+        $legacyManifest = array_values(array_filter($manifest, static fn (string $line): bool =>
+            !str_starts_with($line, 'warranty_issuances.voided_by ')
+            && !str_starts_with($line, 'warranty_expiry_deliveries.user_id ')));
+        self::assertCount(121, $legacyManifest);
         self::assertSame(
             'ee452183cf5585a14efcaf1e311c9f7b37dd2c8f90dbb9bd3b17eabcac3bac07',
-            hash('sha256', implode("\n", $manifest)."\n"),
+            hash('sha256', implode("\n", $legacyManifest)."\n"),
         );
+        // The two additive B797 keys are classified, not mistaken for historical host evidence.
+        self::assertCount(123, $manifest);
+        self::assertSame('5e77d2e3ea390cf0f1e57c47a63a2273d77d4b63d6a440f304cc14ad3c23d48a',
+            hash('sha256', implode("\n", $manifest)."\n"));
 
         // A destructive CASCADE drift must remain rejected after alias
         // normalization (never blanket-normalize the schema).

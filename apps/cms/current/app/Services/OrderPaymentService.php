@@ -17,6 +17,7 @@ final class OrderPaymentService
 {
     public function __construct(
         private readonly DocumentNumberService $numbers,
+        private readonly WarrantyService $warranties,
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
         private readonly OrderFinancialStateService $financial,
@@ -132,6 +133,7 @@ final class OrderPaymentService
                 'verified_at' => now(),
             ]);
             $this->recalculateLocked($locked);
+            $this->warranties->issueForConfirmedPayment($payment, $actor);
             $this->audit->log('order.payment_recorded', 'Evidentirana '.($type === 'refund' ? 'refundacija' : 'uplata').' '.$payment->payment_number, $payment, after: ['amount_rsd' => $payment->amount_rsd, 'entry_type' => $type], user: $actor);
             return $payment;
         }, 5);
@@ -196,15 +198,16 @@ final class OrderPaymentService
     public function verify(OrderPayment $payment, User $actor): OrderPayment
     {
         $verified = DB::transaction(function () use ($payment, $actor): OrderPayment {
-            /** @var OrderPayment $locked */
-            $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
-            /** @var Order $order */
-            $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
+            // Match record/delivery lock order: order first, then its payment.
+            $orderId = (int) $payment->order_id; // The locked payment below revalidates the immutable parent.
+            $order = Order::query()->lockForUpdate()->findOrFail($orderId);
+            $locked = OrderPayment::query()->where('order_id', $order->id)->lockForUpdate()->findOrFail($payment->id);
             $this->assertOrderOpen($order, 'payment');
             if ($locked->status === 'verified') return $locked;
             if ($locked->status !== 'submitted') throw ValidationException::withMessages(['payment' => 'Samo poslata potvrda može biti verifikovana.']);
             $locked->update(['status' => 'verified', 'verified_by' => $actor->id, 'verified_at' => now(), 'rejected_by' => null, 'rejected_at' => null, 'rejection_reason' => null]);
             $this->recalculateLocked($order);
+            $this->warranties->issueForConfirmedPayment($locked, $actor);
             $this->audit->log('order.payment_verified', 'Verifikovana uplata '.$locked->payment_number, $locked, before: ['status' => 'submitted'], after: ['status' => 'verified'], user: $actor);
             return $locked;
         }, 5);
@@ -218,10 +221,10 @@ final class OrderPaymentService
     public function reject(OrderPayment $payment, string $reason, User $actor): OrderPayment
     {
         $rejected = DB::transaction(function () use ($payment, $reason, $actor): OrderPayment {
-            /** @var OrderPayment $locked */
-            $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
-            /** @var Order $order */
-            $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
+            // Match record/delivery lock order: order first, then its payment.
+            $orderId = (int) $payment->order_id; // The locked payment below revalidates the immutable parent.
+            $order = Order::query()->lockForUpdate()->findOrFail($orderId);
+            $locked = OrderPayment::query()->where('order_id', $order->id)->lockForUpdate()->findOrFail($payment->id);
             $this->assertOrderOpen($order, 'reason');
             if ($locked->status !== 'submitted') throw ValidationException::withMessages(['reason' => 'Samo poslata potvrda može biti odbijena.']);
             $locked->update(['status' => 'rejected', 'rejected_by' => $actor->id, 'rejected_at' => now(), 'rejection_reason' => trim($reason)]);
@@ -235,10 +238,10 @@ final class OrderPaymentService
     public function void(OrderPayment $payment, User $actor): OrderPayment
     {
         $voided = DB::transaction(function () use ($payment, $actor): OrderPayment {
-            /** @var OrderPayment $locked */
-            $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
-            /** @var Order $order */
-            $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
+            // Match record/delivery lock order: order first, then its payment.
+            $orderId = (int) $payment->order_id; // The locked payment below revalidates the immutable parent.
+            $order = Order::query()->lockForUpdate()->findOrFail($orderId);
+            $locked = OrderPayment::query()->where('order_id', $order->id)->lockForUpdate()->findOrFail($payment->id);
             $this->assertOrderOpen($order, 'payment');
             if ($locked->status === 'voided') return $locked;
             if ($locked->status !== 'verified') throw ValidationException::withMessages(['payment' => 'Samo verifikovana stavka može biti stornirana.']);

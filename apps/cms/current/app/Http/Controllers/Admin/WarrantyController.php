@@ -56,6 +56,7 @@ final class WarrantyController extends Controller
         }
 
         return view('admin.warranties.index', [
+            'pendingCertificates' => app(\App\Services\WarrantyIssuancePresenter::class)->pending($request->user(), $filters['q'] ?? null),
             'warranties' => $query->paginate(40)->withQueryString(),
             'rules' => WarrantyRule::query()->with(['category', 'product'])->orderByDesc('priority')->orderBy('name')->get(),
             'categories' => Category::query()->orderBy('name')->get(),

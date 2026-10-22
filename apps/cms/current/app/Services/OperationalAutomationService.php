@@ -521,26 +521,16 @@ final class OperationalAutomationService
                     'metadata_json' => ['warranty_id' => $warranty->id, 'warranty_number' => $warranty->warranty_number],
                 ]);
                 $alerts++;
-                if ($this->shouldNotify($alert, $force, $reminderHours)) {
-                    if ($customerOwner instanceof User) {
-                        $this->notifications->send($customerOwner, [
-                            'event' => 'warranty.expiring', 'warranty_id' => $warranty->id,
-                            'title' => $alert->title, 'message' => $message,
-                            'url' => route('warranties.show', $warranty), 'action_label' => 'Otvori garanciju',
-                            'icon' => 'shield', 'severity' => 'warning', 'alert_id' => $alert->id,
-                        ]);
-                        $notifications++;
-                    }
-                    foreach ($this->administrators()->filter(static fn (User $user): bool => $user->hasPermission('warranties.manage')) as $recipient) {
-                        $this->notifications->send($recipient, [
-                            'event' => 'warranty.expiring', 'title' => $alert->title, 'message' => $message,
-                            'url' => $alert->action_url, 'action_label' => 'Otvori garanciju', 'icon' => 'shield',
-                            'severity' => 'warning', 'alert_id' => $alert->id,
-                        ]);
-                        $notifications++;
-                    }
-                    $alert->update(['last_notified_at' => now()]);
+                $attempts = 0;
+                foreach (app(WarrantyExpiryPolicy::class)->recipients($warranty) as $recipient) {
+                    if (app(WarrantyExpiryDeliveryService::class)->send($recipient, [
+                        'event'=>'warranty.expiring', 'warranty_id'=>$warranty->id,
+                        'title'=>$alert->title, 'message'=>$message, 'action_label'=>'Otvori garanciju',
+                        'icon'=>'shield', 'severity'=>'warning', 'alert_id'=>$alert->id,
+                    ], $reminderHours)) { $notifications++; $attempts++; }
                 }
+                // This timestamp is audit only; it never authorizes or suppresses a recipient.
+                if ($attempts > 0) $alert->update(['last_notified_at'=>now()]);
                 $types['warranty_expiring'] = ($types['warranty_expiring'] ?? 0) + 1;
             }
 

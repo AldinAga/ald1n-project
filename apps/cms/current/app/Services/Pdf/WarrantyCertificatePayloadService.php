@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Pdf;
 
 use App\Models\ProductWarranty;
+use App\Models\WarrantyIssuance;
+use Illuminate\Support\Facades\Schema;
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -17,9 +19,28 @@ final class WarrantyCertificatePayloadService
     }
 
     /** @return array<string,mixed> */
+    public function pending(WarrantyIssuance $issuance): array
+    {
+        $projected = new ProductWarranty($issuance->snapshot_json);
+        $projected->forceFill(['warranty_number' => $issuance->warranty_number, 'created_at' => $issuance->issued_at]);
+        $projected->setRelation('order', $issuance->order);
+        return array_replace($this->build($projected), [
+            'starts_at' => 'Po isporuci', 'expires_at' => 'Po aktivaciji',
+            'pending_activation' => true, 'maintenance_text' => '',
+        ]);
+    }
+
+    /** @return array<string,mixed> */
     public function build(ProductWarranty $warranty): array
     {
         $warranty->loadMissing('order');
+        $issuedAt = $warranty->created_at;
+        if ($warranty->exists && Schema::hasTable('warranty_issuances')) {
+            $issuance = WarrantyIssuance::query()->validLineage()->where('activated_warranty_id', $warranty->id)
+                ->where('order_id', $warranty->order_id)->where('order_item_id', $warranty->order_item_id)
+                ->where('warranty_number', $warranty->warranty_number)->where('status', 'activated')->first();
+            $issuedAt = $issuance?->issued_at ?? $issuedAt;
+        }
 
         $configuration = $this->settings->all();
         $logoPath = trim((string) ($configuration['documents_logo_path'] ?? ''))
@@ -69,7 +90,7 @@ final class WarrantyCertificatePayloadService
             'terms' => $warranty->terms_snapshot,
             'maintenance_text' => $maintenanceText,
             'footer' => $configuration['documents_footer_note'] ?? '',
-            'issued_at' => $warranty->created_at?->format('d.m.Y H:i'),
+            'issued_at' => $issuedAt?->format('d.m.Y H:i'),
         ];
     }
 }

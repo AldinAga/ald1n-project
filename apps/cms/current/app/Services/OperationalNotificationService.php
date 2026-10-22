@@ -93,13 +93,10 @@ final class OperationalNotificationService
 
             $preference = $this->preference($recipient);
             $event = (string) ($data['event'] ?? '');
-            $isWarrantyExpiry = str_contains($event, 'warranty') && (str_contains($event, 'expiry') || str_contains($event, 'expir'));
+            $isWarrantyExpiry = WarrantyExpiryPolicy::isExpiry($event);
             if ($isWarrantyExpiry) {
-                // Missing opt-in or immutable order ownership must fail closed.
-                if ($preference->warranty_expiry_alerts !== true) return;
-                $warrantyId = filter_var($data['warranty_id'] ?? null, FILTER_VALIDATE_INT);
-                $warranty = $warrantyId ? ProductWarranty::query()->find($warrantyId) : null;
-                if (!$warranty instanceof ProductWarranty || (int) ($warranty->strictCustomerOwner()?->id ?? 0) !== (int) $recipient->id) return;
+                app(WarrantyExpiryDeliveryService::class)->send($recipient, $data);
+                return;
             }
             // Expiry is a separate opt-in; ordinary warranty updates remain independently configurable.
             $category = $isWarrantyExpiry ? 'warranty_expiry_alerts' : $this->category($event);

@@ -31,6 +31,7 @@
         'credit_note' => 'Storno dokument',
     ];
 @endphp
+@include('warranties.partials.issuances', ['issuedCertificates' => $detail['warranty_issuances'] ?? []])
 
 <div class="build16-order-detail-shell" data-order-user-detail-ready="1" data-build16-orders-detail="1">
     @if($warnings !== [])

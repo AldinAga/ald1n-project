@@ -13,11 +13,13 @@ final class OrderFinancialStateService
     private const TOLERANCE = 0.004;
 
     /** @return array{paid_total_rsd:float,payment_state:string,payment_status:string,payment_verified_at:mixed} */
-    public function derive(Order $order): array
+    public function derive(Order $order, bool $currentRead = false): array
     {
         $payments = OrderPayment::query()
             ->where('order_id', (int) $order->getKey())
             ->where('status', 'verified');
+        // A prior read in an outer REPEATABLE READ transaction must not hide a committed payment.
+        if ($currentRead) $payments->lockForUpdate();
 
         $net = (float) (clone $payments)
             ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
@@ -64,7 +66,7 @@ final class OrderFinancialStateService
 
     public function projectLocked(Order $order): Order
     {
-        $order->forceFill($this->derive($order));
+        $order->forceFill($this->derive($order, currentRead: true));
         if ($order->isDirty(['paid_total_rsd', 'payment_state', 'payment_status', 'payment_verified_at'])) {
             $order->save();
         }

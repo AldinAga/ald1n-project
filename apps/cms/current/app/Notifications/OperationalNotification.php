@@ -28,7 +28,18 @@ final class OperationalNotification extends Notification
             $channels[] = 'mail';
         }
 
+        if (\App\Services\WarrantyExpiryPolicy::isExpiry($this->data['event'] ?? null)) {
+            $channels = array_values(array_filter($channels, fn (string $channel): bool => $this->shouldSend($notifiable, $channel)));
+        }
         return $channels;
+    }
+
+    /** Laravel invokes this again immediately before a queued channel is dispatched. */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        if (!\App\Services\WarrantyExpiryPolicy::isExpiry($this->data['event'] ?? null)) return true;
+        return $notifiable instanceof \App\Models\User
+            && app(\App\Services\WarrantyExpiryPolicy::class)->allowsChannel((int) $notifiable->id, $this->data, $channel);
     }
 
     /** @return array<string,mixed> */

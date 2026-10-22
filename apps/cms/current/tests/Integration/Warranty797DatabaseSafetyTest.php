@@ -67,11 +67,25 @@ final class Warranty797DatabaseSafetyTest extends TestCase
         while (!is_file($dir.'/ready') && !is_file($dir.'/error') && microtime(true)<$until) usleep(20000);
         try {
             self::assertFileExists($dir.'/ready',is_file($dir.'/error')?file_get_contents($dir.'/error'):'Lock child did not start');
-            DB::statement('SET SESSION lock_wait_timeout = 13'); $started=microtime(true); $failure=null;
+            DB::statement('SET SESSION lock_wait_timeout = 13');
+            DB::statement('SET SESSION innodb_lock_wait_timeout = 17');
+            DB::listen(static function ($query): void {
+                if ($query->time > 500) fwrite(STDERR, 'B797_SLOW_SQL_MS='.$query->time.' SQL='.$query->sql."\n");
+            });
+            $started=microtime(true); $failure=null;
             try { $this->migration()->up(); } catch (\Throwable $e) { $failure=$e; }
             $elapsed=microtime(true)-$started;
-            self::assertNotNull($failure,'Expected a metadata-lock timeout');
-            self::assertStringContainsString('lock wait timeout',strtolower($failure->getMessage()));
+            fwrite(STDERR,'B797_DDL_WAIT_SECONDS='.$elapsed.' FAILURE='.($failure?->getMessage() ?? 'none')."\n");
+            self::assertSame(17,(int)DB::selectOne('SELECT @@SESSION.innodb_lock_wait_timeout AS value')->value);
+            // MariaDB permits an inline atomic CREATE under this parent lock; MySQL waits.
+            // Both outcomes must be fast and safe. Never weaken constraint assertions below.
+            if ($failure !== null) {
+                self::assertStringContainsString('lock wait timeout',strtolower($failure->getMessage()));
+                self::assertFalse(Schema::hasTable('warranty_issuances'),'Failed atomic CREATE must leave no partial ledger');
+            } else {
+                self::assertTrue(Schema::hasTable('warranty_issuances'));
+                $this->migration()->verifyTable('warranty_issuances');
+            }
             self::assertLessThan(12,$elapsed,'DDL must fail within its bounded wait');
             self::assertSame(13,(int)DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS value')->value);
         } finally { file_put_contents($dir.'/release','release'); pcntl_waitpid($pid,$status); }
@@ -91,7 +105,12 @@ final class Warranty797DatabaseSafetyTest extends TestCase
         foreach ([1,2] as $n) $payments[]=OrderPayment::query()->create(['order_id'=>$order->id,'payment_number'=>'UPL797-parallel-'.$n,
             'entry_type'=>'payment','status'=>'submitted','amount_rsd'=>1,'payment_method'=>'bank_transfer','paid_at'=>now(),'submitted_by'=>$seller->id])->id;
         $this->parallel(static function (int $worker) use ($payments,$admin): void {
-            app(OrderPaymentService::class)->verify(OrderPayment::query()->findOrFail($payments[$worker]),User::query()->findOrFail($admin->id));
+            DB::beginTransaction();
+            try {
+                DB::table('warranty_issuances')->count(); // Establish a snapshot before waiting for the order lock.
+                app(OrderPaymentService::class)->verify(OrderPayment::query()->findOrFail($payments[$worker]),User::query()->findOrFail($admin->id));
+                DB::commit();
+            } catch (\Throwable $e) { DB::rollBack(); throw $e; }
         });
         self::assertSame(2,OrderPayment::query()->where('order_id',$order->id)->where('status','verified')->count());
         self::assertSame(1,WarrantyIssuance::query()->where('order_id',$order->id)->count());
@@ -122,6 +141,49 @@ final class Warranty797DatabaseSafetyTest extends TestCase
         finally { DB::rollBack(); }
         self::assertSame(0,ProductWarranty::query()->count());
         Notification::assertNothingSent();
+    }
+
+    public function test_real_ledger_lock_times_out_without_dropping_tables(): void
+    {
+        $dir=sys_get_temp_dir().'/warranty797-owned-lock-'.bin2hex(random_bytes(6)); mkdir($dir,0700);
+        DB::disconnect(); $pid=pcntl_fork(); self::assertNotSame(-1,$pid);
+        if ($pid===0) {
+            try {
+                DB::purge(); DB::statement('LOCK TABLES warranty_issuances WRITE'); file_put_contents($dir.'/ready','ready');
+                $until=microtime(true)+20;
+                while (!is_file($dir.'/release') && microtime(true)<$until) usleep(20000);
+                DB::statement('UNLOCK TABLES'); DB::disconnect(); exit(0);
+            } catch (\Throwable $e) { file_put_contents($dir.'/error',$e::class.': '.$e->getMessage()); exit(1); }
+        }
+        DB::purge(); $until=microtime(true)+8;
+        while (!is_file($dir.'/ready') && !is_file($dir.'/error') && microtime(true)<$until) usleep(20000);
+        try {
+            self::assertFileExists($dir.'/ready');
+            DB::statement('SET SESSION lock_wait_timeout = 13'); DB::statement('SET SESSION innodb_lock_wait_timeout = 17');
+            $start=microtime(true); $failure=null;
+            try { $this->migration()->down(); } catch (\Throwable $e) { $failure=$e; }
+            self::assertNotNull($failure,'This read of a WRITE-locked ledger must fail closed');
+            self::assertStringContainsString('lock wait timeout',strtolower($failure->getMessage()));
+            self::assertLessThan(12,microtime(true)-$start);
+            self::assertSame(13,(int)DB::selectOne('SELECT @@SESSION.lock_wait_timeout AS value')->value);
+            self::assertSame(17,(int)DB::selectOne('SELECT @@SESSION.innodb_lock_wait_timeout AS value')->value);
+        } finally { file_put_contents($dir.'/release','release'); pcntl_waitpid($pid,$status); }
+        self::assertSame(0,pcntl_wexitstatus($status));
+        self::assertTrue(Schema::hasTable('warranty_issuances')); self::assertTrue(Schema::hasTable('warranty_expiry_deliveries'));
+        foreach (glob($dir.'/*')?:[] as $f) unlink($f); rmdir($dir);
+    }
+
+    public function test_preexisting_partial_ledger_is_rejected_without_repair_or_history_change(): void
+    {
+        $this->migration()->down();
+        DB::statement('CREATE TABLE warranty_issuances (id BIGINT UNSIGNED PRIMARY KEY) ENGINE=InnoDB');
+        DB::table('warranty_issuances')->insert(['id'=>77]);
+        try { $this->migration()->up(); self::fail('Unknown preexisting table must not be accepted'); }
+        catch (\RuntimeException $e) { self::assertStringContainsString('column count mismatch',$e->getMessage()); }
+        self::assertSame(1,DB::table('warranty_issuances')->count());
+        self::assertSame(77,(int)DB::table('warranty_issuances')->value('id'));
+        self::assertSame(1,count(Schema::getColumnListing('warranty_issuances')));
+        self::assertFalse(Schema::hasTable('warranty_expiry_deliveries'));
     }
 
     private function parallel(\Closure $operation): void
