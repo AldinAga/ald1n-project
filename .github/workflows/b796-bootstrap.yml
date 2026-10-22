@@ -1,0 +1,171 @@
+name: B796 isolated source verification
+on:
+  push:
+    branches: [feat/b796-operator-motion-tracking-20261022]
+    paths: ['scripts/ci/b796-candidate.patch.gz.b64', '.github/workflows/b796-bootstrap.yml']
+permissions:
+  contents: write
+concurrency:
+  group: b796-source-qa
+  cancel-in-progress: false
+jobs:
+  cms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Isolated source and immutable patch checks
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b796-operator-motion-tracking-20261022
+          test "$(git rev-parse HEAD:apps)" = ee1b6e06da8f3353b2eea484b574a467ab1e0134
+          mkdir -p "$RUNNER_TEMP/b796"
+          python - <<'PY'
+          import pathlib,base64,gzip,hashlib,os
+          raw=pathlib.Path('scripts/ci/b796-candidate.patch.gz.b64').read_text()
+          raw=raw.replace('ncrWlowr2idGeu4','ncrWLowr2idGeu4')
+          data=gzip.decompress(base64.b64decode(raw))
+          assert hashlib.sha256(data).hexdigest()=='91f8626befa239fa86a29167b748fa68e232e649a620af646bcd3f1ec730d96b'
+          pathlib.Path(os.environ['RUNNER_TEMP']+'/b796/candidate.patch').write_bytes(data)
+          PY
+          git apply --check "$RUNNER_TEMP/b796/candidate.patch"
+      - name: Exact dependencies in disposable database environment
+        working-directory: apps/cms/current
+        run: |
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Full pre-change baseline
+        working-directory: apps/cms/current
+        run: |
+          set +e
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b796/baseline.xml" > "$RUNNER_TEMP/b796/baseline.log" 2>&1
+          rc=$?
+          echo "$rc" > "$RUNNER_TEMP/b796/baseline.rc"
+          tail -n 65 "$RUNNER_TEMP/b796/baseline.log"
+          test -s "$RUNNER_TEMP/b796/baseline.xml"
+      - name: Watch the role regression fail on unchanged application
+        run: |
+          set -euo pipefail
+          git apply --include='apps/cms/current/tests/*' "$RUNNER_TEMP/b796/candidate.patch"
+          cd apps/cms/current
+          set +e
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Feature/OperatorWorkspace796Test.php --filter test_superadministrator_permissions_never_grant_personal_order_flow --log-junit "$RUNNER_TEMP/b796/red.xml" > "$RUNNER_TEMP/b796/red.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/b796/red.log"
+          test "$rc" = 1
+          grep -q 'Failed asserting that true is false' "$RUNNER_TEMP/b796/red.log"
+      - name: Apply bounded runtime changes and prove targeted regressions
+        run: |
+          set -euo pipefail
+          git apply --exclude='apps/cms/current/tests/*' "$RUNNER_TEMP/b796/candidate.patch"
+          git diff --check
+          cd apps/cms/current
+          php bin/static-check.php > "$RUNNER_TEMP/b796/static.log"
+          tail -n 3 "$RUNNER_TEMP/b796/static.log"
+          B796_RENDER_DIR="$RUNNER_TEMP/b796/render" vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Feature/OperatorWorkspace796Test.php --log-junit "$RUNNER_TEMP/b796/target.xml" | tee "$RUNNER_TEMP/b796/target.log"
+      - name: Full post-change suite and exact baseline comparison
+        working-directory: apps/cms/current
+        run: |
+          set +e
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b796/final.xml" > "$RUNNER_TEMP/b796/final.log" 2>&1
+          rc=$?
+          echo "$rc" > "$RUNNER_TEMP/b796/final.rc"
+          tail -n 100 "$RUNNER_TEMP/b796/final.log"
+          python - <<'PY'
+          import xml.etree.ElementTree as ET, pathlib,os,json
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'b796'
+          def problems(name):
+              t=ET.parse(root/name)
+              return {c.attrib.get('classname','')+'::'+c.attrib['name']+'::'+e.tag for c in t.iter('testcase') for e in c if e.tag in ('error','failure','warning')}
+          before=problems('baseline.xml'); after=problems('final.xml')
+          result={'baseline_problems':sorted(before),'final_problems':sorted(after),'new_problems':sorted(after-before),'fixed_problems':sorted(before-after)}
+          (root/'suite-comparison.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result,indent=2))
+          assert not after-before, 'New functional regression; do not publish source.'
+          PY
+      - name: Publish only tested application delta to isolated candidate branch
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b796-operator-motion-tracking-20261022
+          python - <<'PY'
+          import pathlib,subprocess
+          expected={
+          'apps/cms/current/app/Http/Controllers/DashboardController.php',
+          'apps/cms/current/app/Models/User.php',
+          'apps/cms/current/app/Providers/AppServiceProvider.php',
+          'apps/cms/current/app/Services/OrderDetailPresenter.php',
+          'apps/cms/current/app/Services/OrderService.php',
+          'apps/cms/current/app/Support/TrackingUrl.php',
+          'apps/cms/current/public/assets/css/ald1n-ui-refinement.css',
+          'apps/cms/current/resources/views/admin/orders/show.blade.php',
+          'apps/cms/current/resources/views/dashboard/index.blade.php',
+          'apps/cms/current/resources/views/dashboard/partials/operator-orders.blade.php',
+          'apps/cms/current/tests/Feature/OperatorWorkspace796Test.php'}
+          subprocess.run(['git','add','--',*sorted(expected)],check=True)
+          actual=set(subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines())
+          assert actual==expected,(actual,expected)
+          PY
+          git rm .github/workflows/b796-bootstrap.yml scripts/ci/b796-candidate.patch.gz.b64
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(cms): operator order context, readable glass motion and safe shipment preview'
+          git fetch origin "$GITHUB_REF_NAME"
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Export source and evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/b796"
+          git archive --format=tar HEAD > "$RUNNER_TEMP/b796/source.tar"
+          git diff --binary HEAD -- apps/cms/current > "$RUNNER_TEMP/b796/unpublished.patch"
+          git rev-parse HEAD > "$RUNNER_TEMP/b796/source-commit.txt"
+          echo 'PRODUCTION=UNTOUCHED ANDROID_BUILD=NONE OTA=NONE PLAY=NONE'
+      - name: Retain synthetic test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b796-qa-${{ github.sha }}
+          path: ${{ runner.temp }}/b796/
+          retention-days: 3
+          if-no-files-found: error
