@@ -63,6 +63,7 @@ jobs:
           pathlib.Path(os.environ['RUNNER_TEMP']+'/b796/candidate.patch').write_bytes(data)
           PY
           git apply --check "$RUNNER_TEMP/b796/candidate.patch"
+          git apply --check scripts/ci/b796-header-tests.patch
       - name: Exact dependencies in disposable database environment
         working-directory: apps/cms/current
         run: |
@@ -72,6 +73,7 @@ jobs:
           test ! -e .env
           install -m 600 /dev/null .env
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php artisan migrate:fresh --force --no-interaction
       - name: Full pre-change baseline
         working-directory: apps/cms/current
         run: |
@@ -97,11 +99,12 @@ jobs:
         run: |
           set -euo pipefail
           git apply --exclude='apps/cms/current/tests/*' "$RUNNER_TEMP/b796/candidate.patch"
+          git apply scripts/ci/b796-header-tests.patch
           git diff --check
           cd apps/cms/current
           php bin/static-check.php > "$RUNNER_TEMP/b796/static.log"
           tail -n 3 "$RUNNER_TEMP/b796/static.log"
-          B796_RENDER_DIR="$RUNNER_TEMP/b796/render" vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Feature/OperatorWorkspace796Test.php --log-junit "$RUNNER_TEMP/b796/target.xml" | tee "$RUNNER_TEMP/b796/target.log"
+          B796_RENDER_DIR="$RUNNER_TEMP/b796/render" vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Feature/OperatorWorkspace796Test.php tests/Feature/DashboardLegacyDesignTest.php --log-junit "$RUNNER_TEMP/b796/target.xml" | tee "$RUNNER_TEMP/b796/target.log"
       - name: Full post-change suite and exact baseline comparison
         working-directory: apps/cms/current
         run: |
@@ -139,12 +142,13 @@ jobs:
           'apps/cms/current/resources/views/admin/orders/show.blade.php',
           'apps/cms/current/resources/views/dashboard/index.blade.php',
           'apps/cms/current/resources/views/dashboard/partials/operator-orders.blade.php',
+          'apps/cms/current/tests/Feature/DashboardLegacyDesignTest.php',
           'apps/cms/current/tests/Feature/OperatorWorkspace796Test.php'}
           subprocess.run(['git','add','--',*sorted(expected)],check=True)
           actual=set(subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines())
           assert actual==expected,(actual,expected)
           PY
-          git rm .github/workflows/b796-bootstrap.yml scripts/ci/b796-candidate.patch.gz.b64
+          git rm .github/workflows/b796-bootstrap.yml scripts/ci/b796-candidate.patch.gz.b64 scripts/ci/b796-header-tests.patch
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
