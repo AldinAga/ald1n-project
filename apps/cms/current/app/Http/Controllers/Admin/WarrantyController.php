@@ -13,6 +13,8 @@ use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductWarranty;
+use App\Models\WarrantyIssuance;
+use Illuminate\Support\Facades\Schema;
 use App\Models\WarrantyMaintenanceRecord;
 use App\Models\WarrantyRule;
 use App\Services\AuditLogger;
@@ -57,6 +59,13 @@ final class WarrantyController extends Controller
 
         return view('admin.warranties.index', [
             'warranties' => $query->paginate(40)->withQueryString(),
+            'pendingIssuances' => Schema::hasTable('warranty_issuances')
+                ? WarrantyIssuance::query()->with('order')
+                    ->where('status', 'issued_pending_delivery')
+                    ->when(!$request->user()->hasRole('superadmin'),
+                        fn ($query) => $query->whereHas('order', fn ($orders) => $orders->where('supplier_user_id', $request->user()->id)))
+                    ->latest('id')->limit(50)->get()
+                : collect(),
             'rules' => WarrantyRule::query()->with(['category', 'product'])->orderByDesc('priority')->orderBy('name')->get(),
             'categories' => Category::query()->orderBy('name')->get(),
             'products' => Product::query()->whereNull('deleted_at')->orderBy('name')->limit(1000)->get(['id', 'sku', 'name']),
