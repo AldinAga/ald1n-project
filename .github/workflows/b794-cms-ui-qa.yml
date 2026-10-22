@@ -46,9 +46,13 @@ jobs:
           php-version: '8.4'
           extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml
           coverage: none
-      - name: Install exact Composer lock
+      - name: Install exact Composer lock and empty test-only environment file
         working-directory: apps/cms/current
-        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+        run: |
+          test "$APP_ENV" = testing
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
       - name: Apply bounded final corrections when present
         run: |
           set -euo pipefail
@@ -67,12 +71,12 @@ jobs:
         run: php bin/static-check.php
       - name: Existing Dashboard and catalog regression on disposable MariaDB
         working-directory: apps/cms/current
-        run: php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php tests/Feature/CatalogDetailPageTest.php
+        run: vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php tests/Feature/CatalogDetailPageTest.php
       - name: UI794 real HTTP rendering and permission regression
         working-directory: apps/cms/current
         env:
           B794_RENDER_DIR: ${{ runner.temp }}/b794-render
-        run: php artisan test -c phpunit.mysql.xml tests/Feature/UiRefinement794Test.php
+        run: vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Feature/UiRefinement794Test.php
       - name: Prepare synthetic isolated data for exact deployment render smoke
         working-directory: apps/cms/current
         run: |
@@ -81,15 +85,21 @@ jobs:
           require 'vendor/autoload.php';
           $app=require 'bootstrap/app.php';
           $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-          if (!$app->environment('testing') || config('database.connections.mysql.database') !== 'ald1n_test' || config('database.connections.mysql.host') !== '127.0.0.1') exit(90);
-          Illuminate\Support\Facades\Artisan::call('migrate:fresh',['--force'=>true]);
-          (new Database\Seeders\CoreAccessSeeder)->run();
-          foreach (['superadmin','user'] as $role) {
-            $u=App\Models\User::query()->create(['username'=>'render-'.$role,'email'=>'render-'.$role.'@example.test','password_hash'=>Illuminate\Support\Facades\Hash::make('TestOnly794!'),'status'=>'active','role_id'=>App\Models\Role::query()->where('slug',$role)->valueOrFail('id')]);
-            if ($role==='superadmin') $admin=$u;
+          try {
+            if (!$app->environment('testing') || config('database.connections.mysql.database') !== 'ald1n_test' || config('database.connections.mysql.host') !== '127.0.0.1') throw new RuntimeException('ISOLATION_REQUIRED');
+            if (Illuminate\Support\Facades\Artisan::call('migrate:fresh',['--force'=>true]) !== 0) throw new RuntimeException('MIGRATE_FIXTURE_FAILED');
+            (new Database\Seeders\CoreAccessSeeder)->run();
+            foreach (['superadmin','user'] as $role) {
+              $u=App\Models\User::query()->create(['username'=>'render-'.$role,'email'=>'render-'.$role.'@example.test','password_hash'=>Illuminate\Support\Facades\Hash::make('TestOnly794!'),'status'=>'active','role_id'=>App\Models\Role::query()->where('slug',$role)->valueOrFail('id')]);
+              if ($role==='superadmin') $admin=$u;
+            }
+            App\Models\Product::query()->create(['sku'=>'RENDER794','slug'=>'render794','name'=>'Synthetic render product','description'=>'Synthetic isolated test product.','price_amount'=>149,'price_currency'=>'EUR','stock_quantity'=>4,'status'=>'active','created_by'=>$admin->id]);
+            if (App\Models\Product::query()->publiclyVisible()->count() !== 1) throw new RuntimeException('FIXTURE_PRODUCT_NOT_VISIBLE');
+            echo "SYNTHETIC_RENDER_FIXTURE=READY\n";
+          } catch (Throwable $e) {
+            fwrite(STDERR, 'SYNTHETIC_FIXTURE_FAIL '.get_class($e).' '.$e->getMessage()."\n");
+            exit(1);
           }
-          App\Models\Product::query()->create(['sku'=>'RENDER794','slug'=>'render794','name'=>'Synthetic render product','price_amount'=>149,'price_currency'=>'EUR','stock_quantity'=>4,'status'=>'active','created_by'=>$admin->id]);
-          echo "SYNTHETIC_RENDER_FIXTURE=READY\n";
           PHP
       - name: Exact production render smoke under a read-only MariaDB transaction
         working-directory: apps/cms/current
