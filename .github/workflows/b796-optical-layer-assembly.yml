@@ -1,0 +1,65 @@
+name: B796 optical layer correction assembly
+on:
+  push:
+    branches: [feat/b796-operator-motion-tracking-20261022]
+    paths: ['.github/workflows/b796-optical-layer-assembly.yml']
+permissions:
+  contents: write
+jobs:
+  correction:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Apply two exact surface and regression hunks to isolated candidate
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b796-operator-motion-tracking-20261022
+          cat > "$RUNNER_TEMP/optical.patch" <<'PATCH'
+          --- a/apps/cms/current/public/assets/css/ald1n-ui-refinement.css
+          +++ b/apps/cms/current/public/assets/css/ald1n-ui-refinement.css
+          @@ -196,8 +196,8 @@
+             isolation: isolate;
+             overflow: hidden;
+           }
+          -.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card) > *,
+          -.ald1n-glass-interactive > * { position: relative; z-index: 1; }
+          +.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card) > :not(.lg-layer):not(.lg-sheen),
+          +.ald1n-glass-interactive > :not(.lg-layer):not(.lg-sheen) { position: relative; z-index: 1; }
+           .build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card)::after,
+           .ald1n-glass-interactive::after {
+             content: "";
+          --- a/apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs
+          +++ b/apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs
+          @@ -213,11 +213,14 @@
+                   tintAlpha: match ? Number(match[1]) : null,
+                   filter: paint?.backdropFilter || 'none',
+                   renderer: glass?.getAttribute('data-lg-renderer') || 'none',
+          +        layerPosition: layer ? getComputedStyle(layer).position : 'missing',
+          +        sheenPosition: glass?.querySelector(':scope > .lg-sheen') ? getComputedStyle(glass.querySelector(':scope > .lg-sheen')).position : 'missing',
+                 };
+               });
+               check(optics.bodyBackdrop.includes('radial-gradient') && optics.shellBackdrop === 'none',
+                 'R4_VIEWPORT_BACKGROUND_TO_REFRACT_NO_RECTANGLE',
+                 tag+': body='+optics.bodyBackdrop.slice(0,110)+' shell='+optics.shellBackdrop.slice(0,60));
+          +    check(optics.layerPosition === 'absolute' && optics.sheenPosition === 'absolute', 'GLASS_DECORATIVE_LAYERS_OUT_OF_FLOW', tag+': '+JSON.stringify(optics));
+               check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);
+               check(optics.tintAlpha !== null && optics.tintAlpha <= 0.65, 'R4_TRANSLUCENT_GLASS_TINT', tag+': '+JSON.stringify(optics));
+             }
+          PATCH
+          echo "9ae098b98688d93bb708b437b4f87cf52390fe7500f57d2ddf12cd27edaf7d86  $RUNNER_TEMP/optical.patch" | sha256sum -c -
+          git apply --check "$RUNNER_TEMP/optical.patch"
+          git apply --index "$RUNNER_TEMP/optical.patch"
+          printf '%s\n' apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs | sort > "$RUNNER_TEMP/expected"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual"
+          cmp "$RUNNER_TEMP/expected" "$RUNNER_TEMP/actual"
+          node --check apps/cms/current/tests/Browser/liquid-glass-browser-smoke.cjs
+          git rm .github/workflows/b796-optical-layer-assembly.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(cms): keep vendor glass layers out of normal flow and verify browser geometry'
+          git fetch origin "$GITHUB_REF_NAME"
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          echo 'PRODUCTION=UNTOUCHED FULL_PR_BROWSER_QA=STILL_REQUIRED'
