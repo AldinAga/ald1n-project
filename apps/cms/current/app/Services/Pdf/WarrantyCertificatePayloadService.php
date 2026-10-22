@@ -48,6 +48,10 @@ final class WarrantyCertificatePayloadService
             'logo_path' => $localLogo,
             'company_name' => ((string) ($configuration['documents_company_name'] ?? ''))
                 ?: (string) ($configuration['site_name'] ?? 'Ald1n'),
+            'company_address' => (string) ($configuration['documents_company_address'] ?? ''),
+            'company_city' => (string) ($configuration['documents_company_city'] ?? ''),
+            'company_phone' => (string) ($configuration['documents_company_phone'] ?? ''),
+            'company_email' => (string) ($configuration['documents_company_email'] ?? ''),
             'warranty_number' => $warranty->warranty_number,
             'order_number' => $warranty->order?->order_number,
             'customer_name' => $warranty->customer_name_snapshot,

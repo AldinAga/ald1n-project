@@ -55,8 +55,12 @@ final class SimplePdfWriter
         $lines = $this->wrap($text, $maxWidth, $size, $bold);
         if ($maxLines > 0 && count($lines) > $maxLines) {
             $lines = array_slice($lines, 0, $maxLines);
-            $last = rtrim((string) array_pop($lines), " .\t\n\r\0\x0B").'...';
-            $lines[] = $last;
+            $last = rtrim((string) array_pop($lines), " .\t\n\r\0\x0B");
+            preg_match_all('/\X/u', $last, $characters);
+            while ($characters[0] !== [] && $this->stringWidth(implode('', $characters[0]).'...', $size, $bold) > $maxWidth) {
+                array_pop($characters[0]);
+            }
+            $lines[] = implode('', $characters[0]).'...';
         }
         foreach ($lines as $line) {
             $this->text($x, $top, $line, $size, $bold, $color);
@@ -342,25 +346,45 @@ final class SimplePdfWriter
         return max(0.0, $units * $size / 1000);
     }
 
-    /** @return list<string> */
+    /**
+     * Measure with the same embedded font used to paint. Preserve paragraphs and
+     * split identifiers without spaces; no line may exceed its measured box.
+     * @return list<string>
+     */
     public function wrap(string $text, float $maxWidth, float $size, bool $bold = false): array
     {
-        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
-        if ($text === '') return [''];
-        $words = preg_split('/\s+/u', $text) ?: [$text];
-        $lines = [];
-        $line = '';
-        foreach ($words as $word) {
-            $candidate = $line === '' ? $word : $line.' '.$word;
-            if ($this->stringWidth($candidate, $size, $bold) <= $maxWidth || $line === '') {
-                $line = $candidate;
-                continue;
-            }
-            $lines[] = $line;
-            $line = $word;
+        if (!is_finite($maxWidth) || !is_finite($size) || $maxWidth <= 0 || $size <= 0) {
+            throw new \InvalidArgumentException('PDF text dimensions must be positive and finite.');
         }
-        if ($line !== '') $lines[] = $line;
-        return $lines;
+        $paragraphs = preg_split('/\R/u', trim($text)) ?: [''];
+        $lines = [];
+        foreach ($paragraphs as $paragraph) {
+            $words = preg_split('/\h+/u', trim($paragraph), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            if ($words === []) { $lines[] = ''; continue; }
+            $line = '';
+            foreach ($words as $word) {
+                if ($this->stringWidth($word, $size, $bold) > $maxWidth) {
+                    if ($line !== '') { $lines[] = $line; $line = ''; }
+                    preg_match_all('/\X/u', $word, $characters);
+                    foreach ($characters[0] as $character) {
+                        if ($this->stringWidth($character, $size, $bold) > $maxWidth) {
+                            throw new \InvalidArgumentException('PDF column is narrower than one glyph.');
+                        }
+                        if ($line !== '' && $this->stringWidth($line.$character, $size, $bold) > $maxWidth) {
+                            $lines[] = $line; $line = '';
+                        }
+                        $line .= $character;
+                    }
+                    continue;
+                }
+                $candidate = $line === '' ? $word : $line.' '.$word;
+                if ($line !== '' && $this->stringWidth($candidate, $size, $bold) > $maxWidth) {
+                    $lines[] = $line; $line = $word;
+                } else { $line = $candidate; }
+            }
+            if ($line !== '') $lines[] = $line;
+        }
+        return $lines !== [] ? $lines : [''];
     }
 
     public function output(): string
