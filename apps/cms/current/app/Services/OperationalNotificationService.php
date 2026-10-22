@@ -15,7 +15,7 @@ use Throwable;
 
 final class OperationalNotificationService
 {
-    public function __construct(private readonly MobilePushOutboxService $push) {}
+    public function __construct(private readonly MobilePushOutboxService $push, private readonly WarrantyExpiryRecipientPolicy $expiryPolicy) {}
     public function shipmentTracking(User $recipient, Order $order, string $trackingNumber, ?string $courierName, ?string $trackingUrl, ?string $shippedAt): void
     {
         $preference = $this->preference($recipient);
@@ -95,11 +95,10 @@ final class OperationalNotificationService
             $event = (string) ($data['event'] ?? '');
             $isWarrantyExpiry = str_contains($event, 'warranty') && (str_contains($event, 'expiry') || str_contains($event, 'expir'));
             if ($isWarrantyExpiry) {
-                // Missing opt-in or immutable order ownership must fail closed.
-                if ($preference->warranty_expiry_alerts !== true) return;
+                // Fail closed even when a caller passes channel overrides or an arbitrary warranty ID.
                 $warrantyId = filter_var($data['warranty_id'] ?? null, FILTER_VALIDATE_INT);
                 $warranty = $warrantyId ? ProductWarranty::query()->find($warrantyId) : null;
-                if (!$warranty instanceof ProductWarranty || (int) ($warranty->strictCustomerOwner()?->id ?? 0) !== (int) $recipient->id) return;
+                if (!$warranty instanceof ProductWarranty || !$this->expiryPolicy->allows($warranty, $recipient)) return;
             }
             // Expiry is a separate opt-in; ordinary warranty updates remain independently configurable.
             $category = $isWarrantyExpiry ? 'warranty_expiry_alerts' : $this->category($event);
@@ -110,6 +109,12 @@ final class OperationalNotificationService
             $data['_in_app'] = array_key_exists('_in_app', $data) ? (bool) $data['_in_app'] : (bool) $preference->in_app_enabled;
             $data['_email'] = array_key_exists('_email', $data) ? (bool) $data['_email'] : (bool) $preference->email_enabled;
             $data['_push'] = array_key_exists('_push', $data) ? (bool) $data['_push'] : (bool) ($preference->push_enabled ?? false);
+            if ($isWarrantyExpiry) {
+                // Per-channel preferences also apply when the scheduler explicitly supplies flags.
+                $data['_in_app'] = $data['_in_app'] && (bool) $preference->in_app_enabled;
+                $data['_email'] = $data['_email'] && (bool) $preference->email_enabled;
+                $data['_push'] = $data['_push'] && (bool) ($preference->push_enabled ?? false);
+            }
             if (!$data['_in_app'] && !$data['_email'] && !$data['_push']) {
                 return;
             }
