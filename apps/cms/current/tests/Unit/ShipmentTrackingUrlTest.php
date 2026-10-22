@@ -25,6 +25,7 @@ final class ShipmentTrackingUrlTest extends TestCase
             'https://localhost/', 'https://127.0.0.1/', 'https://[::1]/',
             'https://0177.0.0.1/', 'https://0x7f.0.0.1/', 'https://carrier.local/',
             'https://carrier.internal/', 'https://carrier.example.test/%0atrack',
+            'https://2130706433/', 'https://carrier.example.test/%7f',
             "https://carrier.example.test/\ntrack", 'https://carrier.example.test\\@invalid.test/',
         ] as $url) {
             self::assertNull(ShipmentTrackingUrl::safe($url), (string) $url);
