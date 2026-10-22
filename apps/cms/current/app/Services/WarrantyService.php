@@ -35,6 +35,15 @@ final class WarrantyService
             /** @var Order $locked */
             $locked = Order::query()->with(['items.product.categories', 'user', 'delivery'])->lockForUpdate()->findOrFail($order->id);
             if ($locked->completed_at === null && $locked->delivery === null) return collect();
+            // A post-activation order without a verified positive payment cannot
+            // obtain a newly issued commercial warranty merely by status change.
+            // Historical certificates are retained exactly as issued.
+            if (Schema::hasTable('warranty_issuances')
+                && !\App\Models\OrderPayment::query()->where('order_id', $locked->id)
+                    ->where('entry_type', 'payment')->where('status', 'verified')
+                    ->where('amount_rsd', '>', 0)->whereNotNull('verified_at')->exists()) {
+                return collect();
+            }
 
             $start = ($locked->delivery?->delivered_at ?? $locked->completed_at ?? now())->copy()->startOfDay();
             $created = collect();

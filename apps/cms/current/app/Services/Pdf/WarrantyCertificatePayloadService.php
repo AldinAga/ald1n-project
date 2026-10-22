@@ -83,6 +83,10 @@ final class WarrantyCertificatePayloadService
             }
         }
 
+        $issuanceDate = \Illuminate\Support\Facades\Schema::hasTable('warranty_issuances')
+            ? WarrantyIssuance::query()->where('order_item_id', $warranty->order_item_id)->value('issued_at')
+            : null;
+
         $maintenanceText = $warranty->maintenance_interval_months
             ? 'Preporučeni interval: svakih '.$warranty->maintenance_interval_months
                 .' meseci. Sledeći termin: '
@@ -118,9 +122,9 @@ final class WarrantyCertificatePayloadService
             'terms' => $warranty->terms_snapshot,
             'maintenance_text' => $maintenanceText,
             'footer' => $configuration['documents_footer_note'] ?? '',
-            'issued_at' => (WarrantyIssuance::query()->where('order_item_id', $warranty->order_item_id)->value('issued_at')
-                ? \Illuminate\Support\Carbon::parse(WarrantyIssuance::query()->where('order_item_id', $warranty->order_item_id)->value('issued_at'))->format('d.m.Y H:i')
-                : $warranty->created_at?->format('d.m.Y H:i')),
+            'issued_at' => $issuanceDate
+                ? \Illuminate\Support\Carbon::parse($issuanceDate)->format('d.m.Y H:i')
+                : $warranty->created_at?->format('d.m.Y H:i'),
         ];
     }
 }

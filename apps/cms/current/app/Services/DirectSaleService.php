@@ -156,7 +156,13 @@ final class DirectSaleService
         $this->reconciliation->reconcile($order);
 
         try {
-            $this->warranties->ensureForOrder($order->loadMissing('user'), $actor);
+            // A deferred direct sale with no received instalment must not issue
+            // coverage before the owner's first-confirmed-positive-payment gate.
+            if (\App\Models\OrderPayment::query()->where('order_id', $order->id)
+                ->where('entry_type', 'payment')->where('status', 'verified')
+                ->where('amount_rsd', '>', 0)->whereNotNull('verified_at')->exists()) {
+                $this->warranties->ensureForOrder($order->loadMissing('user'), $actor);
+            }
         } catch (Throwable $exception) {
             Log::warning('Direct sale warranty backfill failed', [
                 'order_id' => (int) $order->id,

@@ -90,6 +90,14 @@ final class WarrantyIssuanceService
                     'payment_id' => $payment->id, 'status' => 'issued_pending_delivery'], user: $actor);
             $created->push($issuance);
         }
+        // Direct sales are delivered immediately. First actual payment both
+        // issues and activates the frozen numbered document in the same transaction.
+        if ($created->isNotEmpty()) {
+            $order->loadMissing('delivery');
+            if ($order->delivery !== null || $order->completed_at !== null) {
+                $this->warranties->ensureForOrder($order, $actor);
+            }
+        }
         return $created;
     }
 }
