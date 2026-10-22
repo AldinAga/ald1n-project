@@ -1,0 +1,104 @@
+name: B794 source-only documentation checkpoint
+on:
+  push:
+    branches: [feat/b794-ui-polish-20261022]
+    paths: ['.github/workflows/b794-record-source-closure.yml']
+permissions:
+  contents: write
+jobs:
+  documentation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 71fb8a6a07375acefafa766a291643c9faa93585
+      - name: Append source authority without changing any production code or old evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = AldinAga/ald1n-project
+          test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
+          git fetch origin main
+          test "$(git rev-parse FETCH_HEAD)" = 71fb8a6a07375acefafa766a291643c9faa93585
+          test "$(git rev-parse HEAD:docs/operations/000-LATEST.md)" = c3dfa9da2940ab243dd4eca986c65b43e42b5172
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          ops=Path('docs/operations')
+          numbers=[int(m.group(1)) for p in ops.iterdir() if (m:=re.match(r'^(\d+)-',p.name))]
+          assert max(numbers) < 792, 'Remote operation sequence advanced'
+          report=ops/'792-BATCH794-UI-SOURCE-QA-AND-STOREFRONT-PLAN-20261022.md'
+          assert not report.exists()
+          body='''# Report792 - B794 UI source closure and public storefront plan
+
+          Date: 2026-10-22
+          BATCH794_SOURCE=MERGED_PR86
+          SOURCE_COMMIT=71fb8a6a07375acefafa766a291643c9faa93585
+          TESTED_PR_HEAD=70a54b0bb55a5cfc587374ebe103f18d246c973a
+          PRODUCTION_EXECUTION=PENDING
+          PUBLIC_STOREFRONT=PLANNED_NOT_IMPLEMENTED
+          ANDROID_BUILD_OTA_PLAY_ACTION=NONE
+
+          ## Implemented source scope
+          Six requested UI corrections: proven dashboard 100vw overflow removed without hiding document overflow; desktop period/priorities row and mobile stacking; recent orders show immutable item product names with order identifiers retained; glass quick-action/module links; product specification inset and gallery/summary stretch; grouped user editor with separate safe retirement preview action.
+
+          No price, commission, financial, order-lifecycle, permission or database-schema changes. The host package applies nine runtime files only, under a 681-path closure, preserving the successful Batch793 baseline and its completed warranty migration. Do not rerun completed deployment batches. Canonical operator basename is ald1n-b794-laravel-ui-refinement-v1.sh; it includes automatic integrity verification and owned rollback.
+
+          ## Verified evidence
+          PR86: https://github.com/AldinAga/ald1n-project/pull/86
+          All eight final PR workflows succeeded on the tested head: 39771790726, 39771790790, 39771790727, 39771790840, 39771790794, 39771790704, 39771790736, 39771790718.
+          B794 PHP8.4/MariaDB10.11.19: https://github.com/AldinAga/ald1n-project/actions/runs/39771790726
+          Authenticated Chromium and existing Liquid Glass tests: https://github.com/AldinAga/ald1n-project/actions/runs/39771790790
+          Canonical static 983/983; presenter 8/8 with real RED then GREEN; nine new feature tests plus existing regressions; 42 local headed Chromium viewport/theme/page combinations; nine delivery safety test groups. Fixtures are synthetic. Review was agent self-review, not independent human review.
+          Old tests requiring 100vw decoration or retirement in the header were changed to verify the requested corrected behavior; access-control, safe preview, confirmation and non-mutating browser checks remain enforced. Historical failed CI attempts remain visible.
+
+          ## Production boundary
+          No B794 host receipt exists yet. The next host report uses the fresh maximum of remote/local reports plus one. CLI authenticated read-only rendering does not attest PHP-FPM/OPcache or physical user acceptance. The host package temporarily pauses Scheduler and uses owned maintenance; no schema migration, DB-backup creation/pruning, Git reset/pull/clean, EAS, OTA or Play action.
+
+          ## Next distinct implementation: public retail storefront
+          Same Laravel app and domain; allowlisted active/public product fields; session cart; no registration required. Prices and stock are authoritative server-side; full retail total with zero commission deduction. Do not grant a guest internal privileges or reuse a privileged account as buyer. Existing stock/idempotency/payment/order lifecycle remains canonical.
+          Support only configured COD and bank-transfer methods initially; no invented card or SMS integration. Order confirmation and secure, expiring, revocable per-order access must cover status, shipment tracking, issued documents/payment instructions and cancellation only while permitted by existing lifecycle. Numeric order ID plus email is not sufficient authorization. Optional account linking requires verified identity. Reorder reprices and rechecks stock. Merchant shipping, tax and legal content must use actual configuration, not fabricated terms.
+          Guest pricing/IDOR/CSRF/rate-limit, concurrent stock, idempotency and lifecycle tests are mandatory before a separate activation package. This document is a plan, not evidence of implemented public checkout. Android 16 KB remediation remains separately gated; SDK58 remains deferred until native compatibility is closed.
+          '''
+          # Strip only indentation inserted by this workflow literal, never historical evidence.
+          body='\n'.join(line[10:] if line.startswith('          ') else line for line in body.splitlines())+'\n'
+          report.write_text(body, encoding='utf-8')
+          latest=ops/'000-LATEST.md'; old=latest.read_bytes()
+          header=('''# CURRENT SOURCE - B794 UI / PUBLIC STOREFRONT PLAN (2026-10-22)
+
+          - Six requested CMS UI corrections are merged through PR86 at `71fb8a6a07375acefafa766a291643c9faa93585`. All eight final PR checks passed. **B794 production execution is PENDING**; the latest verified host activation remains Report791 / Batch793 below.
+          - Source QA and full next-scope decisions: [Report792](792-BATCH794-UI-SOURCE-QA-AND-STOREFRONT-PLAN-20261022.md). Public catalog/cart/guest retail checkout and secure tracking are **planned, NOT implemented or activated** by B794.
+          - Execute only `incoming/ald1n-b794-laravel-ui-refinement-v1.sh`; automatic integrity, 681-path closure and nine allowed runtime writes. No migration, price/commission/order mutation, native build, OTA or Play action. Do not rerun the completed warranty migration or reset the dirty host Git tree.
+          - Recurring UI guard: reproduce root overflow with real scrollbar geometry and fix the source; never hide the whole document. Test the delivered script at its exact advertised basename. Use real authenticated/synthetic browser fixtures; preserve authorization while updating obsolete layout assertions.
+
+          ---
+
+          ''')
+          header='\n'.join(line[10:] if line.startswith('          ') else line for line in header.split('\n'))
+          latest.write_bytes(header.encode('utf-8')+old)
+          assert latest.read_bytes()[len(header.encode('utf-8')):] == old
+          agents=Path('AGENTS.md'); previous=agents.read_bytes()
+          addition='''
+
+          ## 29. UI794 delivery and browser regression guard (2026-10-22)
+
+          - Reproduce whole-document horizontal overflow with actual scrollbar/clientWidth geometry before changing CSS. Dashboard viewport paint belongs on body; a centered 100vw pseudo-element was proven to overflow when a classic vertical scrollbar is present. Do not hide document overflow as a substitute for a root-cause fix.
+          - Test delivered operator bytes under the exact advertised canonical basename, plus wrong-name and tamper negative cases, before delivery. File rename does not change the content hash; distinguish path validation from byte-integrity checks.
+          - Browser tests must follow approved UI semantics while retaining security coverage. Moving a retirement preview link to a separate danger zone requires new geometry checks, not removal of permission/confirmation/no-submit tests. Real public checkout is a separate business/security scope, not an incidental UI route-unlocking change.
+          '''
+          addition='\n'.join(line[10:] if line.startswith('          ') else line for line in addition.split('\n'))
+          agents.write_bytes(previous+addition.encode('utf-8'))
+          assert agents.read_bytes()[:len(previous)] == previous
+          PY
+          git add AGENTS.md docs/operations/000-LATEST.md docs/operations/792-BATCH794-UI-SOURCE-QA-AND-STOREFRONT-PLAN-20261022.md
+          test "$(git diff --cached --name-only | wc -l)" -eq 3
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(ops): checkpoint B794 tested source and public storefront scope'
+          git fetch origin main
+          test "$(git rev-parse FETCH_HEAD)" = 71fb8a6a07375acefafa766a291643c9faa93585
+          git push origin HEAD:refs/heads/main
+          git show --stat --oneline HEAD
+          echo 'DOCUMENTATION_ONLY=PASS PRODUCTION=UNTOUCHED PUBLIC_CHECKOUT=NOT_ACTIVATED'
