@@ -1,0 +1,96 @@
+name: B797 first-payment RED and baseline
+on:
+  push:
+    branches: ['feat/b797-first-payment-warranty-20261022']
+    paths: ['.github/workflows/b797-red.yml']
+permissions:
+  contents: read
+jobs:
+  red:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath,pcntl
+          coverage: none
+      - name: Check source and disposable database
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = ald1n_test
+          test "$DB_HOST" = 127.0.0.1
+          test ! -e apps/cms/current/.env
+          git diff --exit-code 9bf18d475cd603783c7c81c6a2001875aed3ccee HEAD -- apps/cms/current/app apps/cms/current/routes apps/cms/current/database apps/cms/current/resources apps/cms/current/composer.lock
+          mkdir -p "$RUNNER_TEMP/b797-red"
+          git rev-parse HEAD > "$RUNNER_TEMP/b797-red/source.txt"
+          cd apps/cms/current
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Observe two intended requirement failures before implementation
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          rc=0
+          vendor/bin/phpunit -c phpunit.mysql.xml tests/Feature/Warranty797RedTest.php --log-junit "$RUNNER_TEMP/b797-red/red.xml" > "$RUNNER_TEMP/b797-red/red.log" 2>&1 || rc=$?
+          cat "$RUNNER_TEMP/b797-red/red.log"
+          test "$rc" = 1
+          python - <<'PY'
+          import os,xml.etree.ElementTree as E
+          r=E.parse(os.environ['RUNNER_TEMP']+'/b797-red/red.xml')
+          failures=r.findall('.//testcase/failure'); errors=r.findall('.//testcase/error')
+          assert len(failures)==2 and len(errors)==0, (len(failures),len(errors))
+          print('B797_EXPECTED_RED=PASS two assertions, no setup error')
+          PY
+      - name: Entire unchanged configured suite baseline
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          mv tests/Feature/Warranty797RedTest.php "$RUNNER_TEMP/B797Red.php"
+          rc=0
+          vendor/bin/phpunit -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b797-red/baseline.xml" > "$RUNNER_TEMP/b797-red/baseline.log" 2>&1 || rc=$?
+          echo "BASELINE_RC=$rc" | tee "$RUNNER_TEMP/b797-red/baseline-rc.txt"
+          tail -15 "$RUNNER_TEMP/b797-red/baseline.log"
+          mv "$RUNNER_TEMP/B797Red.php" tests/Feature/Warranty797RedTest.php
+          php bin/static-check.php > "$RUNNER_TEMP/b797-red/static.log"
+      - name: Retain synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b797-red-${{ github.sha }}
+          path: ${{ runner.temp }}/b797-red/
+          retention-days: 7
+      - name: No production access
+        if: always()
+        run: echo 'PRODUCTION=NONE DATABASE=DISPOSABLE MAIL=array NATIVE_BUILD_OTA_PLAY=NONE'
