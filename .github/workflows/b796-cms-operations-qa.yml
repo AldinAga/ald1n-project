@@ -1,0 +1,79 @@
+name: B796 CMS operator and tracking regression
+on:
+  pull_request:
+    paths: ['apps/cms/current/**', '.github/workflows/b796-cms-operations-qa.yml']
+permissions:
+  contents: read
+concurrency:
+  group: b796-cms-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Exact dependencies in disposable environment
+        working-directory: apps/cms/current
+        run: |
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Static and behavioral gates
+        working-directory: apps/cms/current
+        env:
+          B796_RENDER_DIR: ${{ runner.temp }}/b796-render
+        run: |
+          set -euo pipefail
+          php bin/static-check.php
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Unit/TrackingUrl796Test.php tests/Feature/OperatorWorkspace796Test.php tests/Feature/DashboardLegacyDesignTest.php tests/Feature/CatalogDetailPageTest.php tests/Feature/ReceivablesCollectionTest.php tests/Feature/OrderEmailsIpsWarrantyTest.php tests/Feature/ProductionPermissionsTest.php tests/Feature/MobileApiFoundationTest.php --log-junit "$RUNNER_TEMP/b796-junit.xml"
+      - name: Retain synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b796-regression-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/b796-render/
+            ${{ runner.temp }}/b796-junit.xml
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Production boundary
+        if: always()
+        run: echo 'PRODUCTION=UNTOUCHED DB=DISPOSABLE_CI_ONLY WARRANTY_ACTIVATION=NONE ANDROID_BUILD_OTA_PLAY=NONE'
