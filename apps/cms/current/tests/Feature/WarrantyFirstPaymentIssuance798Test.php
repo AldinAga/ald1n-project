@@ -98,6 +98,42 @@ final class WarrantyFirstPaymentIssuance798Test extends TestCase
         self::assertSame(1, ProductWarranty::query()->count());
     }
 
+    public function test_deferred_direct_sale_already_delivered_waits_for_first_real_installment(): void
+    {
+        [$seller, $admin, $order] = $this->fixture('deferred-direct');
+        $order->update([
+            'sales_channel' => 'direct_sale', 'direct_sale_recorded_by' => $admin->id,
+            'payment_method' => 'deferred_payment',
+            'status' => 'shipped', 'completed_at' => now()->subDays(3),
+        ]);
+        OrderDelivery::query()->create([
+            'order_id' => $order->id, 'delivery_method' => 'own_transport',
+            'delivered_at' => now()->subDays(3), 'recipient_name' => 'Sinteticki Kupac',
+            'confirmed_by' => $admin->id,
+        ]);
+        self::assertCount(0, app(WarrantyService::class)->ensureForOrder($order->fresh(['user']), $admin));
+        self::assertSame(0, ProductWarranty::query()->count());
+
+        $first = app(OrderPaymentService::class)->record($order, [
+            'entry_type' => 'payment', 'amount_rsd' => 1000,
+            'payment_method' => 'cash', 'paid_at' => now()->toDateTimeString(),
+        ], $admin);
+        self::assertSame('verified', $first->status);
+        $issuance = WarrantyIssuance::query()->sole();
+        $warranty = ProductWarranty::query()->sole();
+        self::assertSame('activated', $issuance->status);
+        self::assertSame($issuance->warranty_number, $warranty->warranty_number);
+        self::assertSame($order->delivery->delivered_at->toDateString(), $warranty->starts_at->toDateString());
+        self::assertSame(1, ProductWarranty::query()->count());
+
+        app(OrderPaymentService::class)->record($order, [
+            'entry_type' => 'payment', 'amount_rsd' => 500,
+            'payment_method' => 'cash', 'paid_at' => now()->toDateTimeString(),
+        ], $admin);
+        self::assertSame(1, WarrantyIssuance::query()->count());
+        self::assertSame(1, ProductWarranty::query()->count());
+    }
+
     public function test_unverified_proof_zero_and_refund_do_not_issue(): void
     {
         [$seller, $admin, $order] = $this->fixture('unverified');
