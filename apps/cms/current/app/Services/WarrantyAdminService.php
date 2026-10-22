@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\WarrantyRule;
+use App\Support\WarrantyTerms;
 use Illuminate\Database\Eloquent\Builder;
 
 final class WarrantyAdminService
@@ -21,6 +22,7 @@ final class WarrantyAdminService
     public function createRule(User $actor, array $data): WarrantyRule
     {
         $attributes = $this->normalizeRuleData($data);
+        $attributes['terms'] = WarrantyTerms::forNewCertificate($attributes['terms'] ?? null);
         $attributes['created_by'] = $actor->id;
         $attributes['updated_by'] = $actor->id;
 
@@ -100,6 +102,9 @@ final class WarrantyAdminService
         }
 
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
+        if (array_key_exists('terms', $data)) {
+            $data['terms'] = WarrantyTerms::forNewCertificate($data['terms']);
+        }
 
         return $data;
     }

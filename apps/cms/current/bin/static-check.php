@@ -309,11 +309,12 @@ $completionMigration = (string) file_get_contents($root.'/database/migrations/20
 $documentSettingsController = (string) file_get_contents($root.'/app/Http/Controllers/Admin/DocumentSettingsController.php');
 $documentSettingsView = (string) file_get_contents($root.'/resources/views/admin/settings/documents.blade.php');
 $businessPdf = (string) file_get_contents($root.'/app/Services/Pdf/BusinessDocumentPdfService.php');
+$flowPdf = (string) file_get_contents($root.'/app/Services/Pdf/FlowPdfLayout.php');
 $adminOrderView = (string) file_get_contents($root.'/resources/views/admin/orders/show.blade.php');
 $adminOrderIndex = (string) file_get_contents($root.'/resources/views/admin/orders/index.blade.php');
 $check('beta7.7 migracija dodaje terminalno stanje porudžbine', str_contains($completionMigration, 'completed_at') && str_contains($completionMigration, 'completed_by') && str_contains($completionMigration, 'completion_note') && str_contains($completionMigration, 'orders_completion_state_index'));
 $check('beta7.7 PDF podešavanja imaju upload pregled i uklanjanje logotipa', str_contains($documentSettingsController, 'storePdfLogo') && str_contains($documentSettingsController, 'removeLogo') && str_contains($documentSettingsView, 'Logo na PDF dokumentima') && str_contains($web, "name('documents.logo.destroy')"));
-$check('beta7.7 PDF logo se ugrađuje kao lokalni JPEG', str_contains($documentSettingsController, 'imagejpeg') && str_contains($documentService, 'localLogoPath') && str_contains($businessPdf, 'imageJpeg'));
+$check('beta7.7 PDF logo se ugrađuje kao lokalni JPEG', str_contains($documentSettingsController, 'imagejpeg') && str_contains($documentService, 'localLogoPath') && (str_contains($businessPdf, 'new FlowPdfLayout') && str_contains($flowPdf, 'imageJpeg')));
 $check('beta7.7 PDF ne prikazuje subagent email kupca', str_contains($documentService, "'customer_email' => null") && !str_contains($businessPdf, "document['customer_email']") && str_contains($documentFeatureTest, 'assertStringNotContainsString($customer->email'));
 $check('beta7.7 kompletiranje COD porudžbine evidentira preostali saldo', str_contains($workflow, 'public function complete') && str_contains($workflow, "'payment_method' => 'cash_on_delivery'") && str_contains($workflow, "'completed_at' => now()") && str_contains($paymentFeatureTest, 'test_admin_can_complete_cod_order_and_lock_all_further_financial_actions'));
 $check('beta7.7 kompletirana porudžbina zaključava dalje izmene', str_contains($workflow, 'assertNotCompleted') && str_contains($paymentService, 'assertOrderOpen') && str_contains($adminOrderView, 'Porudžbina i isporuka su kompletirane'));

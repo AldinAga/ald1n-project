@@ -10,6 +10,7 @@ use App\Models\ProductWarranty;
 use App\Models\User;
 use App\Models\WarrantyMaintenanceRecord;
 use App\Models\WarrantyRule;
+use App\Support\WarrantyTerms;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -74,7 +75,7 @@ final class WarrantyService
                     'product_name_snapshot' => $item->product_name,
                     'quantity' => max(1, (int) $item->quantity),
                     'serial_numbers_json' => [],
-                    'terms_snapshot' => $rule->terms,
+                    'terms_snapshot' => WarrantyTerms::forNewCertificate($rule->terms),
                     'created_by' => $actor?->id,
                 ]);
 

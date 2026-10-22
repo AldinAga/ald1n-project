@@ -1,0 +1,86 @@
+name: B797 PDF layout and prospective warranty terms QA
+on:
+  pull_request:
+    paths: ['apps/cms/current/**', '.github/workflows/b797-pdf-qa.yml']
+permissions:
+  contents: read
+concurrency:
+  group: b797-pdf-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  pdf:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install exact isolated dependencies
+        working-directory: apps/cms/current
+        run: |
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Actual PDF and terms regressions
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pdf797-proof"
+          php bin/static-check.php > "$RUNNER_TEMP/pdf797-proof/static.txt"
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Unit/PdfLayout797Test.php tests/Unit/BusinessDocumentPdfServiceTest.php tests/Unit/CommissionReportPdfServiceTest.php tests/Unit/SimplePdfWriterSerbianLatinTest.php tests/Feature/WarrantyTerms797Test.php tests/Feature/OrderEmailsIpsWarrantyTest.php tests/Feature/ReceivablesCollectionTest.php tests/Feature/WarrantyExpiryDeliveryGuardTest.php tests/Feature/WarrantyExpiryPreferenceApiTest.php --log-junit "$RUNNER_TEMP/pdf797-proof/scoped.xml"
+          php bin/pdf797-layout-smoke.php "$RUNNER_TEMP/pdf797-proof/matrix"
+          php bin/warranty-pdf-smoke.php "$RUNNER_TEMP/pdf797-proof/warranty.pdf"
+          php bin/ips-qr-pdf-smoke.php "$RUNNER_TEMP/pdf797-proof/ips.pdf"
+          php bin/pdf-serbian-latin-smoke.php "$RUNNER_TEMP/pdf797-proof/serbian.pdf"
+      - name: Verify every PDF page against real rendered geometry and retained content
+        working-directory: apps/cms/current
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pdf797-venv"
+          "$RUNNER_TEMP/pdf797-venv/bin/pip" install --disable-pip-version-check PyMuPDF==1.26.7
+          "$RUNNER_TEMP/pdf797-venv/bin/python" tests/Tools/verify_pdf797_geometry.py "$RUNNER_TEMP/pdf797-proof/matrix"
+      - name: Retain synthetic QA only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pdf797-${{ github.sha }}
+          path: ${{ runner.temp }}/pdf797-proof/
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Production boundary
+        if: always()
+        run: echo 'PRODUCTION=UNTOUCHED DATABASE=DISPOSABLE_CI_ONLY NO_HISTORIC_REWRITE FIRST_PAYMENT_EXPIRY_CHANGE=NONE MOBILE_BUILD_OTA_PLAY=NONE'
