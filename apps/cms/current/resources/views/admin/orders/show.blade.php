@@ -185,6 +185,28 @@
                 </dd>
                 <dt>Napomena krajnjeg kupca</dt>
                 <dd class="order-buyer-note">{{ trim((string) ($order['customer_note'] ?? '')) ?: '—' }}</dd>
+                @if($permissions['buyer_tracking'] ?? false)
+                    @php
+                        $buyerTrackingNumber = trim((string) ($shipment['tracking_number'] ?? ''));
+                        if ($buyerTrackingNumber === '' || $buyerTrackingNumber === '—') $buyerTrackingNumber = trim((string) ($order['tracking_number'] ?? ''));
+                        if ($buyerTrackingNumber === '—') $buyerTrackingNumber = '';
+                        $buyerTrackingUrl = $shipment['tracking_url'] ?? null;
+                    @endphp
+                    <dt>Kurirska služba</dt><dd>{{ $shipment['courier_name'] ?? '—' }}</dd>
+                    <dt>Broj pošiljke</dt>
+                    <dd class="order-buyer-tracking" data-buyer-tracking>
+                        @if($buyerTrackingNumber !== '')
+                            <strong>{{ $buyerTrackingNumber }}</strong>
+                            @if($buyerTrackingUrl !== null)
+                                <a class="button button-ghost button-small" data-buyer-track-link href="{{ $buyerTrackingUrl }}" target="_blank" rel="noopener noreferrer">Prati pošiljku <x-icon name="arrow-right" size="15" /></a>
+                            @else
+                                <small>Link za praćenje nije podešen.</small>
+                            @endif
+                        @else
+                            <span>Pošiljka još nije evidentirana.</span>
+                        @endif
+                    </dd>
+                @endif
             </dl>
         </section>
 

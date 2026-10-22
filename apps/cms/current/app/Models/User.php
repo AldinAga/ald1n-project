@@ -75,8 +75,16 @@ final class User extends Authenticatable implements PasskeyUser
         }
     }
 
+    /** Personal purchasing is not an operator capability, even with wildcard permissions. */
+    public function isPersonalOrderRestricted(string $ability): bool
+    {
+        return $this->hasRole('superadmin')
+            && in_array($ability, ['orders.create', 'orders.view_own', 'orders.cancel_own'], true);
+    }
+
     public function hasPermission(string $permission): bool
     {
+        if ($this->isPersonalOrderRestricted($permission)) return false;
         $permissions = $this->permissionSlugs();
 
         return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
@@ -102,7 +110,8 @@ final class User extends Authenticatable implements PasskeyUser
                     $this->permissionSlugsResolved = true;
                 }
 
-                return array_keys($this->resolvedPermissionSlugs);
+                return array_values(array_filter(array_keys($this->resolvedPermissionSlugs),
+                    fn (string $ability): bool => !$this->isPersonalOrderRestricted($ability)));
             }
 
             if ($this->user_group_id === null) {
