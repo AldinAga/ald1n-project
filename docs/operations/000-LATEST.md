@@ -1,3 +1,12 @@
+# B796 source checkpoint / first-payment decision (2026-10-22)
+
+- R1/R3/R6 operator orders, readable shared Glass motion and first buyer-panel tracking are implemented through PR87. **B796 production execution remains PENDING**; the last verified production/acceptance authority is still B794/B795 below.
+- Owner confirmed warranty issuance after the FIRST confirmed positive incoming payment, including advance/first installment. Full settlement is not required. R4/R5 payment/recipient behavior is not activated by B796. See AGENTS section 31.
+- Full PHPUnit suite remains non-green on the unchanged baseline; retain exact baseline/candidate logs and failure names. Scoped behavior and baseline-relative regression gates must not be described as a globally green suite.
+- Progress ledger unchanged: 7/17 = 41.2%, CMS 7/15 = 46.7%, original UI 6/6 = 100%. Public /katalog storefront remains planned/not activated. Android16KB and SDK58 gates remain separate.
+
+---
+
 # CURRENT AUTHORITY - Report795 accepted / expanded owner scope (2026-10-22)
 
 ## Laravel production

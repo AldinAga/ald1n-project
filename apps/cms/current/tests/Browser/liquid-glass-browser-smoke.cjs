@@ -175,7 +175,7 @@ async function headerGeometry(page, persona, mode, width) {
     };
   });
   const tag = persona + '/' + mode + '/' + width;
-  const shouldCart = persona === 'superadmin';
+  const shouldCart = persona === 'buyer';
   const visible = (box) => box && box.display !== 'none' && box.visibility !== 'hidden'
     && box.width > 25 && box.height > 25 && box.left >= -1 && box.right <= width + 1
     && box.top >= -1 && box.bottom <= 200;
@@ -188,7 +188,7 @@ async function headerGeometry(page, persona, mode, width) {
     check(state.domOrder.rate < state.domOrder.cart && state.domOrder.cart < state.domOrder.search,
       'HEADER_ORIGINAL_ORDER', tag + ': ' + JSON.stringify(state.domOrder));
   } else {
-    check(state.elements.cart === null && !state.hasDisabledCart, 'HEADER_NO_CART_FOR_USER', tag);
+    check(state.elements.cart === null && !state.hasDisabledCart, 'HEADER_NO_PERSONAL_CART_FOR_NON_BUYER', tag);
   }
   check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
   check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
@@ -279,7 +279,7 @@ async function searchAndMenu(page, label, width) {
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_OPENS', label);
     const hdr = await headerGeometry(page, 'superadmin', label.split('/')[1] || 'dark', width);
-    check(hdr.elements.rate !== null && hdr.elements.cart !== null && hdr.elements.search !== null,
+    check(hdr.elements.rate !== null && hdr.elements.cart === null && hdr.elements.search !== null,
       'HEADER_CONTROLS_WITH_MENU', label);
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'false', 'HAMBURGER_CLOSES', label);
@@ -530,7 +530,7 @@ async function main() {
   const browser = await chromium.launch({ headless:true, args:['--disable-dev-shm-usage'] });
   try {
     for (const mode of MODES) {
-      for (const persona of ['superadmin','user']) {
+      for (const persona of ['superadmin','user','buyer']) {
         const {ctx,page}=await login(browser,persona,mode);
         try {
           for (const width of WIDTHS) {
@@ -561,8 +561,8 @@ async function main() {
           } else {
             await page.setViewportSize({width:320,height:780});
             await navigate(page,fixture.paths.dashboard,'USER_DASHBOARD');
-            check(await page.locator('.header-cart-button').count() === 0,'USER_CART_ABSENT_AFTER_NAV',mode);
-            if (mode!=='auto') await snapshot(page,mode+'-320-user-no-cart');
+            check(await page.locator('.header-cart-button').count() === (persona === 'buyer' ? 1 : 0),'ROLE_CART_AFTER_NAV',persona+'/'+mode);
+            if (mode!=='auto') await snapshot(page,mode+'-320-'+persona+'-cart-contract');
           }
         } catch(e) {
           check(false,'BROWSER_PERSONA_ERROR',persona+'/'+mode+': '+e.message);
@@ -591,7 +591,7 @@ async function main() {
     base_url:baseUrl,
     viewports:WIDTHS,
     modes:MODES,
-    personas:['superadmin','user'],
+    personas:['superadmin','user','buyer'],
     inspected_headers:samples.length,
     screenshot_count:screenshots.length,
     screenshots,
