@@ -1,3 +1,12 @@
+# CURRENT SOURCE - B794 UI / PUBLIC STOREFRONT PLAN (2026-10-22)
+
+- Six requested CMS UI corrections are merged through PR86 at `71fb8a6a07375acefafa766a291643c9faa93585`. All eight final PR checks passed. **B794 production execution is PENDING**; the latest verified host activation remains Report791 / Batch793 below.
+- Source QA and full next-scope decisions: [Report792](792-BATCH794-UI-SOURCE-QA-AND-STOREFRONT-PLAN-20261022.md). Public catalog/cart/guest retail checkout and secure tracking are **planned, NOT implemented or activated** by B794.
+- Execute only `incoming/ald1n-b794-laravel-ui-refinement-v1.sh`; automatic integrity, 681-path closure and nine allowed runtime writes. No migration, price/commission/order mutation, native build, OTA or Play action. Do not rerun the completed warranty migration or reset the dirty host Git tree.
+- Recurring UI guard: reproduce root overflow with real scrollbar geometry and fix the source; never hide the whole document. Test the delivered script at its exact advertised basename. Use real authenticated/synthetic browser fixtures; preserve authorization while updating obsolete layout assertions.
+
+---
+
 # CURRENT LARAVEL PRODUCTION ACTIVATION — REPORT791 / BATCH793 (2026-10-22)
 
 - **Laravel/CMS activation PASS on CloudLinux host** per owner-supplied canonical operation report `docs/operations/791-BATCH793-LARAVEL-BACKUP-RETENTION-RECOVERY-20261022-081204.md`, completed 2026-10-22. Batch793 self-integrity PASS, exact source target `f35021f12808246f5b320603d2aa607b8da90742` activated for the 12 approved CMS files; 677-path closure PASS. PHP 8.4 static checks **983/983 PASS** and `artisan app:deployment-check` PASS.

@@ -1021,3 +1021,10 @@ This file is intended to remain the first operational reference for future Ald1n
 - Owner requested **prepare for SDK 58 only AFTER current planned tasks**. First resolve the actual CloudLinux Laravel deployment, verify the Android 16 KB signed AAB fix / Google Play artifact state, and reconstruct the latest approved mobile source; do not assume the current `main` mobile v1.0.0 config represents the separately built Android v1.5 release branch.
 - Owner **reported manual Google Play publication**; do not call this independently verified and do not treat publication as evidence that AAB27's known 4 KB `libnativegauss.so` problem was fixed. Preserve section 21 signed-binary release gate.
 - Use an isolated exact-source SDK58 branch with the existing Node22/npm10, lockfile/validator, JDK17 and no-`expo install --fix` CloudLinux rules. Review RN0.88 Strict TypeScript, Expo Router navigation and native dependency compatibility; reserve a new runtimeVersion and new signed AAB for a separately authorized build. See `apps/mobile/current/docs/SDK58-UPGRADE-READINESS.md`.
+
+
+## 29. UI794 delivery and browser regression guard (2026-10-22)
+
+- Reproduce whole-document horizontal overflow with actual scrollbar/clientWidth geometry before changing CSS. Dashboard viewport paint belongs on body; a centered 100vw pseudo-element was proven to overflow when a classic vertical scrollbar is present. Do not hide document overflow as a substitute for a root-cause fix.
+- Test delivered operator bytes under the exact advertised canonical basename, plus wrong-name and tamper negative cases, before delivery. File rename does not change the content hash; distinguish path validation from byte-integrity checks.
+- Browser tests must follow approved UI semantics while retaining security coverage. Moving a retirement preview link to a separate danger zone requires new geometry checks, not removal of permission/confirmation/no-submit tests. Real public checkout is a separate business/security scope, not an incidental UI route-unlocking change.
