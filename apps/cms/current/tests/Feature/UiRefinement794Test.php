@@ -95,6 +95,11 @@ final class UiRefinement794Test extends TestCase
     public function test_desktop_command_row_preserves_period_filters_and_priorities(): void
     {
         $actor = $this->person('superadmin');
+        $demoOrder = $this->order($actor, 'DEMO-2026-00001');
+        $this->item($demoOrder, 'Dell OptiPlex 7040 Mini Tower');
+        $this->item($demoOrder, 'SSD 256 GB');
+        $this->item($demoOrder, 'Memorija 16 GB');
+        Product::query()->first()->update(['stock_quantity' => 0]);
         $response = $this->actingAs($actor)->get('/?period=custom&date_from=2026-10-01&date_to=2026-10-22')->assertOk();
         $response->assertSee('data-dashboard-command-row', false)
             ->assertSee('data-dashboard-period="custom"', false)
