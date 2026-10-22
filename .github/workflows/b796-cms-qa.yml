@@ -77,14 +77,14 @@ jobs:
         run: |
           set -o pipefail
           vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b796-result/targeted.xml" tests/Feature/OperatorWorkspace796Test.php 2>&1 | tee "$RUNNER_TEMP/b796-result/targeted.log"
-      - name: Entire suite comparison against exact baseline - report existing failures, reject new failures
+      - name: Entire suite comparison against complete exact baseline - reject new failures
         if: always() && steps.dependencies.outcome == 'success'
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/b796-result"
           base="$RUNNER_TEMP/b796-baseline"
           mkdir -p "$base"
-          git archive 66424df805c0740686b8f01b9978d4833ac1d8c4 apps/cms/current | tar -x -C "$base"
+          git archive 66424df805c0740686b8f01b9978d4833ac1d8c4 | tar -x -C "$base"
           cp -a apps/cms/current/vendor "$base/apps/cms/current/vendor"
           install -m 600 /dev/null "$base/apps/cms/current/.env"
           (
@@ -114,7 +114,7 @@ jobs:
           bn,b=read('baseline.xml'); cn,c=read('suite.xml')
           new=sorted(set(c)-set(b))
           changed=[k for k in set(b)&set(c) if b[k]['kind']!=c[k]['kind']]
-          result={'baseline_source':'66424df805c0740686b8f01b9978d4833ac1d8c4','baseline_tests':bn,'candidate_tests':cn,'baseline_rc':int((out/'baseline.rc').read_text()),'candidate_rc':int((out/'suite.rc').read_text()),'baseline_non_green':b,'candidate_non_green':c,'new_failures':new,'changed_failure_types':changed,'full_suite':'NON_GREEN_PREEXISTING' if c else 'PASS'}
+          result={'baseline_source':'66424df805c0740686b8f01b9978d4833ac1d8c4','baseline_scope':'complete_repository','baseline_tests':bn,'candidate_tests':cn,'baseline_rc':int((out/'baseline.rc').read_text()),'candidate_rc':int((out/'suite.rc').read_text()),'baseline_non_green':b,'candidate_non_green':c,'new_failures':new,'changed_failure_types':changed,'full_suite':'NON_GREEN_PREEXISTING' if c else 'PASS'}
           (out/'full-suite-comparison.json').write_text(json.dumps(result,indent=2))
           print('BASELINE_TESTS',bn,'CANDIDATE_TESTS',cn,'BASELINE_NON_GREEN',len(b),'CANDIDATE_NON_GREEN',len(c))
           for k in c: print('EXISTING_NON_GREEN' if k in b else 'NEW_FAILURE',k)
