@@ -98,8 +98,13 @@ final class OperatorWorkspace796Test extends TestCase
     public function test_superadmin_cannot_create_a_personal_order_through_the_domain_service(): void
     {
         $admin = $this->person('superadmin');
+        $product = $this->product($admin);
+        $payload = ['shipping_full_name'=>'Synthetic Buyer', 'shipping_address'=>'Test street 1',
+            'shipping_city'=>'Test', 'shipping_postal_code'=>'11000', 'shipping_phone'=>'0600000000',
+            'payment_method'=>'cash_on_delivery', 'supplier_user_id'=>$admin->id,
+            'items'=>[['product_id'=>$product->id, 'quantity'=>1]]];
         try {
-            app(OrderService::class)->create($admin, [], 'b796-personal-denied');
+            app(OrderService::class)->create($admin, $payload, 'b796-personal-denied');
             self::fail('Personal order creation must be rejected before idempotency or stock writes.');
         } catch (HttpException $e) {
             self::assertSame(403, $e->getStatusCode());
@@ -133,7 +138,7 @@ final class OperatorWorkspace796Test extends TestCase
         $admin = $this->person('superadmin');
         $user = $this->person('user');
         $direct = $this->order($admin, $admin, 'B796-DIRECT');
-        $direct->update(['sale_channel'=>'direct', 'user_id'=>null]);
+        $direct->update(['sales_channel'=>'direct', 'user_id'=>null]);
         $hidden = $this->order($user, $admin, 'B796-ARCHIVED');
         $hidden->update(['archived_at'=>now()]);
         $response = $this->actingAs($admin)->get('/')->assertOk();
@@ -224,7 +229,7 @@ final class OperatorWorkspace796Test extends TestCase
         $id = Product::query()->count()+1;
         return Product::query()->create([
             'sku'=>'B796-'.$id,'slug'=>'b796-'.$id,'name'=>'Synthetic laptop '.$id,
-            'price_amount'=>15000,'price_currency'=>'RSD','stock_quantity'=>5,'status'=>'active','created_by'=>$actor->id,
+            'description'=>'Synthetic fixture','price_amount'=>15000,'price_currency'=>'RSD','stock_quantity'=>5,'status'=>'active','created_by'=>$actor->id,
         ]);
     }
 
