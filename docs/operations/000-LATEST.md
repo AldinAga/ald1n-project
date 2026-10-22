@@ -1,4 +1,4 @@
-# CURRENT AUTHORITY - Batch794 deployed / Report793 (2026-10-22)
+# CURRENT AUTHORITY - Report795 accepted / expanded owner scope (2026-10-22)
 
 ## Laravel production
 
@@ -9,16 +9,18 @@
 - Host Git HEAD remains `b5b942e645d28d3ed5f248eaae4180ebe9a54ee6`, with protected dirty index/worktree. Deployment is a bounded runtime activation, not Git synchronization. No reset, pull, checkout, broad staging or cleanup is authorized.
 - Previous completed backend activation remains Report791 / Batch793, source `f35021f12808246f5b320603d2aa607b8da90742`. Warranty preference migration ran once; last attested 17 rows / 0 enabled. That historical row count is not a live inventory. Expiry remains opt-in; no global broadcast activation.
 
-## Remaining UI acceptance / Batch795
+## Closed UI acceptance / Report795
 
-- `WEB_FPM_SOURCE=NOT_INDEPENDENTLY_ATTESTED`; `UI_OWNER_ACCEPTANCE=PENDING`. CLI render and public HTTP200 are not proof of authenticated PHP-FPM/OPcache source bytes or physical appearance.
-- Prepared `incoming/ald1n-b795-ui-acceptance-readonly-v1.sh`: exact Report793 binding, fresh main/read-only source-byte checks, public CSS byte verification and six explicit owner visual checks. No Laravel bootstrap/database access, source edit, cache purge, maintenance, Scheduler, native build, OTA or Play action. Only Git fetch metadata, private scratch/lock and a new numbered report are written.
-- No response or skipped item stays PENDING; a reported visual problem is HOLD, not an automatic rollback. Actual Batch795 host execution is **not yet attested**. One invocation from `incoming/`; self-integrity checks are automatic. Report numbering uses fresh maximum across GitHub main and local reports.
+- **Batch795 PASS_OWNER_ACCEPTANCE**, exit 0, all six owner checks PASS, nine runtime files and both public CSS byte checks PASS. Report SHA-256 `e84ee86d200ce43e31eedfbb50f77b084fe6cc3ae990f438ae20b26c4e4a1cd0`, 2999 bytes. Do not repeat Batch795 or the already completed deployments. No source/database/maintenance/scheduler mutation.
+- `UI_OWNER_ACCEPTANCE=PASS_OWNER_ATTESTED`; `WEB_FPM_SOURCE=NOT_INDEPENDENTLY_ATTESTED`. Owner acceptance is not independent PHP-FPM/OPcache provenance. New scope does not revoke the six accepted UI requirements.
 
-## Next functional scope
+## Current progress and owner requirements
 
-- Public catalog, cart, guest full-retail checkout (no commission deduction) and protected order follow-up remain **planned, NOT implemented or activated**. [Report792 scope](792-BATCH794-UI-SOURCE-QA-AND-STOREFRONT-PLAN-20261022.md) remains the functional plan, not deployment evidence.
-- Implement the complete flow on isolated source, preserving canonical order/inventory/payment lifecycles and testing visibility, server-side price/stock, concurrency, idempotency, ownership, CSRF and per-order capabilities. No privileged guest account, numeric-ID/email-only access, invented merchant terms or production test orders.
+- Canonical requirements and **17-milestone ledger v1**: [Report796](796-REPORT795-ACCEPTANCE-PROGRESS-AND-OWNER-REQUIREMENTS-20261022.md). **7/17 closed = 41.2%** for the expanded current program; **7/15 = 46.7%** for CMS scope; original UI **6/6 = 100%**. Equal-weight acceptance milestones, not time/effort or all historical project functionality. No closure credit for planning/partial source; preserve/version the denominator.
+- New pending work: operational user/customer orders instead of SuperAdministrator personal purchases; reusable readable glass animation; automatic warranty on confirmed incoming payment including direct sales; independent default-OFF expiry opt-in for selling user plus SuperAdministrator only; shipment number/courier/safe tracking action in the first buyer panel. See AGENTS section 30.
+- Warranty partial/deposit and pre-delivery-start semantics must be explicit before activation; preserve existing durations, valid opt-ins, ownership and certificates. No blanket reset, historical deletion, mass backfill or global notification activation.
+- Public catalog target **https://cms.ald1n.com/katalog**; internal `/catalog` stays authenticated. Full-retail guest catalog/cart/checkout/protected follow-up remain **NOT implemented/activated**. The future URL is a design decision, not a claim it currently works.
+- Next implementation: role/UI/tracking corrections, payment/warranty/recipient tests, then the complete storefront. Android16KB stays a separate signed-artifact gate; actual SDK58 upgrade follows current work and Android compatibility. No new runtime changes or operator script in this documentation checkpoint.
 
 ## Independent mobile gates - unchanged
 
