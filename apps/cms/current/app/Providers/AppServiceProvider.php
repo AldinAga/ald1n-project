@@ -160,6 +160,8 @@ final class AppServiceProvider extends ServiceProvider
         });
 
         Gate::before(static function (User $user, string $ability): ?bool {
+            // A role-wide grant must not resurrect personal purchases for the operator.
+            if ($user->isPersonalOrderRestricted($ability)) return false;
             if ($user->hasRole('superadmin', 'admin')) {
                 return true;
             }

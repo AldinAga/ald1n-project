@@ -33,6 +33,7 @@ final class OrderService
     /** @param array<string,mixed> $data */
     public function create(User $user, array $data, string $idempotencyKey): Order
     {
+        abort_if($user->isPersonalOrderRestricted('orders.create'), 403, 'Koristite direktnu prodaju za prodaju krajnjem kupcu.');
         $data['items'] = $this->normalizeItems((array) ($data['items'] ?? []));
 
         /** @var Order $order */

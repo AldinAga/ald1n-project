@@ -282,6 +282,7 @@ final class DashboardController extends Controller
             } elseif (!$access['orders_manage']) {
                 $query->where('user_id', $user->id);
             }
+            $query->with('user:id,username,email,first_name,last_name');
             // Load immutable line-item snapshots once; never show renamed live products.
             $hasItemSnapshots = $this->tableHasColumns('order_items', ['id', 'order_id', 'product_name']);
             if ($hasItemSnapshots) {
@@ -293,6 +294,9 @@ final class DashboardController extends Controller
                     $order->relationLoaded('items') ? $order->items->pluck('product_name') : [],
                 );
                 return [
+                    'seller_name' => $order->user?->displayName() ?? '—',
+                    'buyer_name' => trim((string) $order->shipping_full_name) ?: '—',
+                    'is_direct_sale' => $order->sales_channel === 'direct_sale',
                     'product_name' => $summary['product_name'],
                     'other_products' => $summary['other_products'],
                     'number' => $order->order_number,

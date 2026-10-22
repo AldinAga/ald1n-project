@@ -188,3 +188,45 @@
   .build16-home-shell .dashboard-module-grid > .dashboard-module-card,
   .access-control-user-card { background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none; backdrop-filter: none; }
 }
+
+/* UI796: one surface-only reflection, independent of pointer JS and business state. */
+.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card),
+.ald1n-glass-interactive {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card) > :not(.lg-layer):not(.lg-sheen),
+.ald1n-glass-interactive > :not(.lg-layer):not(.lg-sheen) { position: relative; z-index: 1; }
+.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card)::after,
+.ald1n-glass-interactive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,.10) 44%, rgba(255,255,255,.18) 49%, transparent 70%);
+  opacity: 0;
+  transform: translateX(-110%);
+}
+@keyframes ald1n-glass-reflection {
+  0% { transform: translateX(-110%); opacity: 0; }
+  18% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card):hover::after,
+  .ald1n-glass-interactive:hover::after { animation: ald1n-glass-reflection 850ms ease-out 1; }
+}
+.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card):focus-visible::after,
+.ald1n-glass-interactive:focus-visible::after { animation: ald1n-glass-reflection 850ms ease-out 1; }
+.build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-grid > .dashboard-module-card, .dashboard-kpi-card):is(:hover, :active, :focus-visible) { transform: none; }
+.order-buyer-tracking { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.order-buyer-tracking strong { overflow-wrap: anywhere; }
+.order-buyer-tracking small { display: block; color: var(--ald-muted); }
+@media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .build16-home-shell :is(.dashboard-action-grid > a, .dashboard-module-card, .dashboard-kpi-card)::after,
+  .ald1n-glass-interactive::after { display: none; animation: none !important; }
+}

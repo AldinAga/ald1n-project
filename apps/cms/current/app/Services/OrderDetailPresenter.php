@@ -55,6 +55,7 @@ final class OrderDetailPresenter
             'reopen' => $actor->hasRole('superadmin') && $this->allows($actor, 'orders.reopen'),
             'after_sales_manage' => $this->allows($actor, 'after_sales.manage'),
             'archive' => $this->allows($actor, 'orders.manage'),
+            'buyer_tracking' => $actor->hasRole('superadmin'),
             'courier_settings' => $actor->hasRole('superadmin') && $this->allows($actor, 'system.manage_settings'),
         ];
         $detail['urls'] = array_replace($detail['urls'], [
@@ -413,7 +414,7 @@ final class OrderDetailPresenter
             'shipment_method' => $method,
             'shipment_method_label' => $this->shipmentMethodLabel($method),
             'courier_name' => $courierName !== '' ? $courierName : '—',
-            'tracking_url' => $trackingUrl !== '' ? $trackingUrl : null,
+            'tracking_url' => \App\Support\TrackingUrl::safe($trackingUrl),
             'shipped_at' => $this->date($shipment, 'shipped_at'),
             'recipient_name' => $this->text($shipment, 'recipient_name', 'Kupac'),
             'recipient_phone' => $this->text($shipment, 'recipient_phone', '—'),

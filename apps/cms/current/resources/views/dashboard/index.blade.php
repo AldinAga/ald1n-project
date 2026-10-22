@@ -69,9 +69,13 @@
                 : 'Poslovni pokazatelji, operativni prioriteti i lični korisnički centar objedinjeni su na jednoj početnoj strani.' }}
         </p>
         <div class="dashboard-quick-actions">
-            @can('orders.create')
-                <a class="button button-primary" href="{{ route('orders.create') }}"><x-icon name="plus-circle" /> Nova porudžbina</a>
-            @endcan
+            @if($user->hasRole('superadmin'))
+                <a class="button button-primary" href="{{ route('catalog.index') }}"><x-icon name="plus-circle" /> Direktna prodaja</a>
+            @else
+                @can('orders.create')
+                    <a class="button button-primary" href="{{ route('orders.create') }}"><x-icon name="plus-circle" /> Nova porudžbina</a>
+                @endcan
+            @endif
             @can('catalog.view')
                 <a class="button button-ghost" href="{{ route('catalog.index') }}"><x-icon name="grid" /> Katalog</a>
             @endcan
@@ -355,7 +359,11 @@
         <section class="panel dashboard-panel">
             <div class="dashboard-panel-heading"><div><span class="eyebrow">Radni tokovi</span><h2>Brze akcije</h2></div></div>
             <div class="dashboard-action-grid">
-                @can('orders.create')<a href="{{ route('orders.create') }}"><span class="tone-blue"><x-icon name="plus-circle" /></span><strong>Nova porudžbina</strong><small>Kreiraj i rezerviši lager</small></a>@endcan
+                @if($user->hasRole('superadmin'))
+                    <a href="{{ route('catalog.index') }}"><span class="tone-blue"><x-icon name="plus-circle" /></span><strong>Direktna prodaja</strong><small>Izaberi artikal i evidentiraj prodaju</small></a>
+                @else
+                    @can('orders.create')<a href="{{ route('orders.create') }}"><span class="tone-blue"><x-icon name="plus-circle" /></span><strong>Nova porudžbina</strong><small>Kreiraj i rezerviši lager</small></a>@endcan
+                @endif
                 @can('catalog.manage_products')<a href="{{ route('admin.products.create') }}"><span class="tone-primary"><x-icon name="cube" /></span><strong>Dodaj artikal</strong><small>Novi proizvod ili konfiguracija</small></a>@endcan
                 @can('catalog.manage_products')<a href="{{ route('admin.products.bulk') }}"><span class="tone-amber"><x-icon name="sliders" /></span><strong>Bulk izmena</strong><small>Masovna promena kataloga</small></a>@endcan
                 @can('receivables.manage')<a href="{{ route('admin.receivables.index') }}"><span class="tone-red"><x-icon name="wallet" /></span><strong>Potraživanja</strong><small>Aging i planovi otplate</small></a>@endcan
@@ -366,7 +374,9 @@
     </div>
 @endif
 
-@if($portalEnabled)
+@if($user->hasRole('superadmin') && $access['orders_manage'])
+    @include('dashboard.partials.operator-orders')
+@elseif($portalEnabled)
     @include('dashboard.partials.customer-center', ['portal' => $portal])
 @endif
 
