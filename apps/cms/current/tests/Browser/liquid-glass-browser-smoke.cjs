@@ -175,7 +175,8 @@ async function headerGeometry(page, persona, mode, width) {
     };
   });
   const tag = persona + '/' + mode + '/' + width;
-  const shouldCart = persona === 'superadmin';
+  // The operator is not a shopper; the separate buying fixture retains cart coverage.
+  const shouldCart = persona === 'buyer';
   const visible = (box) => box && box.display !== 'none' && box.visibility !== 'hidden'
     && box.width > 25 && box.height > 25 && box.left >= -1 && box.right <= width + 1
     && box.top >= -1 && box.bottom <= 200;
@@ -188,7 +189,7 @@ async function headerGeometry(page, persona, mode, width) {
     check(state.domOrder.rate < state.domOrder.cart && state.domOrder.cart < state.domOrder.search,
       'HEADER_ORIGINAL_ORDER', tag + ': ' + JSON.stringify(state.domOrder));
   } else {
-    check(state.elements.cart === null && !state.hasDisabledCart, 'HEADER_NO_CART_FOR_USER', tag);
+    check(state.elements.cart === null && !state.hasDisabledCart, 'HEADER_NO_CART_FOR_NON_BUYING_PERSONA', tag);
   }
   check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
   check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
@@ -279,8 +280,8 @@ async function searchAndMenu(page, label, width) {
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_OPENS', label);
     const hdr = await headerGeometry(page, 'superadmin', label.split('/')[1] || 'dark', width);
-    check(hdr.elements.rate !== null && hdr.elements.cart !== null && hdr.elements.search !== null,
-      'HEADER_CONTROLS_WITH_MENU', label);
+    check(hdr.elements.rate !== null && hdr.elements.cart === null && hdr.elements.search !== null,
+      'OPERATOR_HEADER_WITH_MENU_NO_PERSONAL_CART', label);
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'false', 'HAMBURGER_CLOSES', label);
   }
@@ -571,6 +572,17 @@ async function main() {
           await ctx.close();
         }
       }
+      const {ctx:buyerContext,page:buyerPage}=await login(browser,'buyer',mode);
+      try {
+        for (const width of [1440,390,320]) await headerGeometry(buyerPage,'buyer',mode,width);
+        await navigate(buyerPage,'/cart','BUYER_CART_PAGE');
+        check(await buyerPage.locator('.header-cart-button').count()===1,'BUYER_CART_PRESENT',mode);
+        if (mode!=='auto') await snapshot(buyerPage,'buyer-cart-'+mode);
+      } catch(e) {
+        check(false,'BROWSER_BUYER_ERROR',mode+': '+e.message);
+      } finally {
+        await buyerContext.close();
+      }
     }
   } finally {
     await browser.close();
@@ -591,7 +603,7 @@ async function main() {
     base_url:baseUrl,
     viewports:WIDTHS,
     modes:MODES,
-    personas:['superadmin','user'],
+    personas:['superadmin','user','buyer'],
     inspected_headers:samples.length,
     screenshot_count:screenshots.length,
     screenshots,
