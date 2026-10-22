@@ -1,0 +1,77 @@
+name: B798 first-payment warranty and isolated expiry CI (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/b798-warranty-qa.yml'
+permissions:
+  contents: read
+jobs:
+  mariadb-warranty:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install isolated exact Composer dependencies
+        working-directory: apps/cms/current
+        run: |
+          test "$APP_ENV" = testing
+          test "$DB_DATABASE" = ald1n_test
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Validate migration and first-payment/expiry workflow
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB")) exit(35);'
+          php -l database/migrations/2026_10_23_010000_create_warranty_issuances.php
+          php -l app/Services/WarrantyIssuanceService.php
+          php -l app/Services/WarrantyExpiryRecipientPolicy.php
+          php bin/static-check.php > "$RUNNER_TEMP/b798-static.log"
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning tests/Feature/WarrantyFirstPaymentIssuance798Test.php tests/Feature/WarrantyExpiryDeliveryGuardTest.php tests/Feature/WarrantyExpiryPreferenceApiTest.php tests/Feature/OrderEmailsIpsWarrantyTest.php tests/Feature/MobilePushPhase3BTest.php --log-junit "$RUNNER_TEMP/b798-scoped.xml"
+      - name: Preserve synthetic results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b798-warranty-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/b798-static.log
+            ${{ runner.temp }}/b798-scoped.xml
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Production boundary
+        if: always()
+        run: echo 'DISPOSABLE_CI_ONLY NO_PRODUCTION_PAYMENT_DB_MAIL_DEPLOY_MOBILE_OTA_PLAY_ACTION'
