@@ -138,7 +138,7 @@ final class OperatorWorkspace796Test extends TestCase
         $admin = $this->person('superadmin');
         $user = $this->person('user');
         $direct = $this->order($admin, $admin, 'B796-DIRECT');
-        $direct->update(['sales_channel'=>'direct', 'user_id'=>null]);
+        $direct->update(['sales_channel'=>'direct_sale', 'user_id'=>null]);
         $hidden = $this->order($user, $admin, 'B796-ARCHIVED');
         $hidden->update(['archived_at'=>now()]);
         $response = $this->actingAs($admin)->get('/')->assertOk();

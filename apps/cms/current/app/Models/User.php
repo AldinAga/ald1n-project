@@ -20,6 +20,9 @@ final class User extends Authenticatable implements PasskeyUser
 {
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable;
 
+    /** The operator role must never enter the personal purchase transport. */
+    public const PERSONAL_ORDER_ABILITIES = ['orders.create', 'orders.view_own', 'orders.cancel_own'];
+
     private bool $roleSlugResolved = false;
     private ?string $resolvedRoleSlug = null;
     private bool $permissionSlugsResolved = false;
@@ -77,6 +80,9 @@ final class User extends Authenticatable implements PasskeyUser
 
     public function hasPermission(string $permission): bool
     {
+        if ($this->hasRole('superadmin') && in_array($permission, self::PERSONAL_ORDER_ABILITIES, true)) {
+            return false;
+        }
         $permissions = $this->permissionSlugs();
 
         return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
@@ -102,7 +108,10 @@ final class User extends Authenticatable implements PasskeyUser
                     $this->permissionSlugsResolved = true;
                 }
 
-                return array_keys($this->resolvedPermissionSlugs);
+                $permissions = array_keys($this->resolvedPermissionSlugs);
+                return $this->hasRole('superadmin')
+                    ? array_values(array_diff($permissions, [...self::PERSONAL_ORDER_ABILITIES, '*']))
+                    : $permissions;
             }
 
             if ($this->user_group_id === null) {
@@ -125,7 +134,7 @@ final class User extends Authenticatable implements PasskeyUser
 
             return array_keys($this->resolvedPermissionSlugs);
         } catch (Throwable) {
-            return $this->hasRole('admin', 'superadmin') ? ['*'] : [];
+            return $this->hasRole('admin') ? ['*'] : [];
         }
     }
 
