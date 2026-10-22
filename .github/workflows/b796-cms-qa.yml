@@ -3,10 +3,12 @@ on:
   push:
     branches: [feat/b796-operator-orders-glass-tracking-20261022]
     paths: ['apps/cms/current/**', '.github/workflows/b796-cms-qa.yml']
+  pull_request:
+    paths: ['apps/cms/current/**', '.github/workflows/b796-cms-qa.yml']
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: b796-qa-${{ github.ref_name }}
+  group: b796-qa-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   cms:
@@ -43,6 +45,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
@@ -60,19 +63,10 @@ jobs:
           install -m 600 /dev/null .env
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           mkdir -p "$RUNNER_TEMP/b796-result"
-      - name: Author readable bounded candidate source
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF_NAME" = feat/b796-operator-orders-glass-tracking-20261022
-          if test -f scripts/ci/b796-author-source.py; then
-            python3 scripts/ci/b796-author-source.py
-            git add -- apps/cms/current/app/Models/User.php apps/cms/current/app/Providers/AppServiceProvider.php apps/cms/current/app/Services/OrderService.php apps/cms/current/app/Http/Controllers/DashboardController.php apps/cms/current/resources/views/dashboard/index.blade.php apps/cms/current/app/Services/OrderDetailPresenter.php apps/cms/current/app/Support/ShipmentTrackingUrl.php apps/cms/current/resources/views/admin/orders/show.blade.php apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/bin/operator796-link-smoke.php apps/cms/current/tests/Feature/OperatorWorkspace796Test.php
-            echo B796_SOURCE_AUTHORED=yes >> "$GITHUB_ENV"
-          fi
-          git diff --cached --check
       - name: Canonical static and pure URL gates
         working-directory: apps/cms/current
         run: |
+          set -euo pipefail
           php bin/static-check.php
           php bin/operator796-link-smoke.php
       - name: B796 behavior tests
@@ -130,24 +124,6 @@ jobs:
           assert result['baseline_rc'] in (0,1,2) and result['candidate_rc'] in (0,1,2), 'Unexpected process failure'
           print('BASELINE_RELATIVE_REGRESSION=PASS (not a global green suite)')
           PY
-      - name: Retain tested source on isolated feature branch only
-        if: success() && env.B796_SOURCE_AUTHORED == 'yes'
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF_NAME" = feat/b796-operator-orders-glass-tracking-20261022
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-scope"
-          printf '%s\n' apps/cms/current/app/Models/User.php apps/cms/current/app/Providers/AppServiceProvider.php apps/cms/current/app/Services/OrderService.php apps/cms/current/app/Http/Controllers/DashboardController.php apps/cms/current/resources/views/dashboard/index.blade.php apps/cms/current/app/Services/OrderDetailPresenter.php apps/cms/current/app/Support/ShipmentTrackingUrl.php apps/cms/current/resources/views/admin/orders/show.blade.php apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/bin/operator796-link-smoke.php apps/cms/current/tests/Feature/OperatorWorkspace796Test.php | sort > "$RUNNER_TEMP/expected-scope"
-          cmp "$RUNNER_TEMP/expected-scope" "$RUNNER_TEMP/actual-scope"
-          test -z "$(git diff --name-only)"
-          git rm scripts/ci/b796-author-source.py scripts/ci/b796-runtime.patch.gz.b64
-          git diff --cached --check
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(cms): operator-only orders, safe first-panel tracking and accessible glass animation'
-          git fetch origin "$GITHUB_REF_NAME"
-          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
-          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
-          echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
       - name: Retain source and synthetic evidence
         if: always()
         run: |
@@ -158,6 +134,7 @@ jobs:
           git diff --binary HEAD -- apps/cms/current > "$out/unpublished-delta.patch"
           git rev-parse HEAD > "$out/source-commit.txt"
           sha256sum "$out/source.tar" > "$out/SHA256SUMS.txt"
+          test ! -s "$out/unpublished-delta.patch"
           echo 'PRODUCTION=UNTOUCHED MAIN=UNTOUCHED NO_REAL_USER_DATA NO_BUILD_OTA_PLAY'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
