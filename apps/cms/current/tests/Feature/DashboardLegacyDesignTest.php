@@ -24,7 +24,6 @@ final class DashboardLegacyDesignTest extends TestCase
     public function test_superadmin_dashboard_uses_universal_visual_structure_and_metrics(): void
     {
         $response = $this->actingAs($this->superAdmin())->get('/')->assertOk();
-
         $response->assertSee('data-universal-dashboard-ready="1"', false);
         $response->assertSee('modern-dashboard-hero', false);
         $response->assertSee('dashboard-kpi-grid', false);
@@ -44,7 +43,6 @@ final class DashboardLegacyDesignTest extends TestCase
     public function test_authenticated_layout_has_two_row_desktop_header_and_mobile_hamburger(): void
     {
         $response = $this->actingAs($this->superAdmin())->get('/')->assertOk();
-
         $response->assertSee('header-primary-row', false);
         $response->assertSee('header-secondary-row', false);
         $response->assertSee('data-mobile-menu-toggle', false);
@@ -59,55 +57,54 @@ final class DashboardLegacyDesignTest extends TestCase
     public function test_authenticated_dashboard_loads_liquid_glass_after_generated_css(): void
     {
         $html = $this->actingAs($this->superAdmin())->get('/')->assertOk()->getContent();
-
         self::assertIsString($html);
         $generatedOffset = strpos($html, 'assets/css/ald1n-ui-v2.css');
         $glassOffset = strpos($html, 'assets/css/ald1n-liquid-glass.css');
-
         self::assertNotFalse($generatedOffset);
         self::assertNotFalse($glassOffset);
         self::assertGreaterThan($generatedOffset, $glassOffset);
-
-        foreach ([
-            'data-theme-toggle',
-            'data-mobile-menu-toggle',
-            'data-header-product-search-toggle',
-            'data-build16-shell',
-        ] as $marker) {
+        foreach (['data-theme-toggle', 'data-mobile-menu-toggle', 'data-header-product-search-toggle', 'data-build16-shell'] as $marker) {
             self::assertStringContainsString($marker, $html);
         }
     }
 
-    public function test_exchange_rate_and_cart_are_persistent_in_superadmin_header(): void
+    public function test_superadmin_header_keeps_rate_and_controls_but_has_no_personal_cart(): void
     {
         $html = $this->actingAs($this->superAdmin())->get('/')->assertOk()->getContent();
         self::assertIsString($html);
         self::assertStringContainsString('header-rate-persistent', $html);
         self::assertStringContainsString('EUR/RSD', $html);
         self::assertStringContainsString('data-exchange-rate-sync', $html);
-        self::assertStringContainsString('class="header-cart-button icon-button"', $html);
-        self::assertStringContainsString('href="'.route('cart.index').'"', $html);
-        self::assertStringContainsString('Korpa · ', $html);
+        self::assertStringContainsString('data-header-product-search-toggle', $html);
+        self::assertStringContainsString('data-mobile-menu-toggle', $html);
+        self::assertStringNotContainsString('class="header-cart-button icon-button"', $html);
+        self::assertStringNotContainsString('href="'.route('cart.index').'"', $html);
+        self::assertStringNotContainsString('Korpa · ', $html);
     }
 
     public function test_rate_cart_search_and_hamburger_keep_original_header_order(): void
     {
-        $html = $this->actingAs($this->superAdmin())->get('/')->assertOk()->getContent();
+        // Ordinary buying users retain the full previous cart/navigation contract.
+        $user = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
+            'user_group_id' => 1,
+            'username' => 'liquid-header-buyer',
+            'email' => 'liquid-header-buyer@example.test',
+            'password_hash' => Hash::make('Secret123!'),
+            'first_name' => 'Synthetic Buyer', 'status' => 'active',
+        ]);
+        $html = $this->actingAs($user)->get('/')->assertOk()->getContent();
         self::assertIsString($html);
         $begin = strpos($html, '<header class="site-header"');
         $end = strpos($html, '</header>', $begin ?: 0);
         self::assertNotFalse($begin);
         self::assertNotFalse($end);
         $header = substr($html, $begin, $end - $begin);
-
         $rate = strpos($header, 'header-rate-persistent');
         $cart = strpos($header, 'class="header-cart-button icon-button"');
         $search = strpos($header, 'data-header-product-search-toggle');
         $menu = strpos($header, 'data-mobile-menu-toggle');
-
-        foreach ([$rate, $cart, $search, $menu] as $offset) {
-            self::assertNotFalse($offset);
-        }
+        foreach ([$rate, $cart, $search, $menu] as $offset) self::assertNotFalse($offset);
         self::assertTrue($rate < $cart && $cart < $search && $search < $menu);
         self::assertSame(1, substr_count($header, 'class="header-cart-button icon-button"'));
         self::assertSame(1, substr_count($header, 'data-header-product-search-toggle'));
@@ -122,10 +119,8 @@ final class DashboardLegacyDesignTest extends TestCase
             'username' => 'liquid-header-no-cart',
             'email' => 'liquid-header-no-cart@example.test',
             'password_hash' => Hash::make('Secret123!'),
-            'first_name' => 'Korisnik',
-            'status' => 'active',
+            'first_name' => 'Korisnik', 'status' => 'active',
         ]);
-
         $html = $this->actingAs($user)->get('/')->assertOk()->getContent();
         self::assertIsString($html);
         self::assertStringContainsString('header-rate-persistent', $html);
@@ -149,8 +144,7 @@ final class DashboardLegacyDesignTest extends TestCase
             'username' => 'legacy-dashboard-admin',
             'email' => 'legacy-dashboard-admin@example.test',
             'password_hash' => Hash::make('Secret123!'),
-            'first_name' => 'Ald1n',
-            'status' => 'active',
+            'first_name' => 'Ald1n', 'status' => 'active',
         ]);
     }
 }
