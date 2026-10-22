@@ -25,6 +25,7 @@ final class Warranty797RedTest extends TestCase
         $this->seed(CoreAccessSeeder::class);
         $seller=$this->user('seller797','user'); $admin=$this->user('admin797','admin'); $super=$this->user('super797','superadmin');
         $p=Product::query()->create(['sku'=>'RED797','slug'=>'red797','name'=>'Synthetic laptop','price_amount'=>12000,
+            'description'=>'Synthetic test fixture.','low_stock_threshold'=>1,
             'price_currency'=>'RSD','stock_quantity'=>10,'status'=>'active','created_by'=>$admin->id]);
         $this->actingAs($seller)->post('/orders',['idempotency_key'=>'red797-order','supplier_user_id'=>$admin->id,
             'shipping_full_name'=>'Synthetic buyer','shipping_address'=>'Fixture','shipping_city'=>'Fixture',
