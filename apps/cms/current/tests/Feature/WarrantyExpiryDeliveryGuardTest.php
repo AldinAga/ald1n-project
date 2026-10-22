@@ -200,6 +200,89 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_expiry_opt_in_is_independent_for_originating_seller_and_superadministrator_only(): void
+    {
+        [$seller, $other, $warranty] = $this->makeWarranty('separate');
+        $super = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id'),
+            'username' => 'expiry-opted-superadmin',
+            'email' => 'expiry-opted-superadmin@example.test',
+            'first_name' => 'Operator',
+            'password_hash' => Hash::make('Secret123!'),
+            'status' => 'active',
+        ]);
+        $admin = $this->admin();
+        foreach ([$seller, $other, $super, $admin] as $user) {
+            $user->notificationPreference()->updateOrCreate([], [
+                'in_app_enabled' => true, 'email_enabled' => false, 'push_enabled' => false,
+                'warranty_expiry_alerts' => false, 'warranty_updates' => true,
+            ]);
+        }
+        $policy = app(\App\Services\WarrantyExpiryRecipientPolicy::class);
+        self::assertCount(0, $policy->recipients($warranty));
+
+        $super->notificationPreference()->update(['warranty_expiry_alerts' => true]);
+        self::assertSame([$super->id], $policy->recipients($warranty)->pluck('id')->all());
+
+        $seller->notificationPreference()->update(['warranty_expiry_alerts' => true]);
+        self::assertEqualsCanonicalizing([$seller->id, $super->id], $policy->recipients($warranty)->pluck('id')->all());
+
+        $other->notificationPreference()->update(['warranty_expiry_alerts' => true]);
+        $admin->notificationPreference()->update(['warranty_expiry_alerts' => true]);
+        Notification::fake();
+        foreach ([$seller, $super, $other, $admin] as $user) $this->sendExpiry($user, $warranty->id);
+        Notification::assertSentTo($seller, OperationalNotification::class, 1);
+        Notification::assertSentTo($super, OperationalNotification::class, 1);
+        Notification::assertNotSentTo($other, OperationalNotification::class);
+        Notification::assertNotSentTo($admin, OperationalNotification::class);
+
+        $super->notificationPreference()->update(['warranty_expiry_alerts' => false]);
+        Notification::fake();
+        $this->sendExpiry($super, $warranty->id);
+        Notification::assertNothingSent();
+
+        // A mismatched order-item/order link also blocks the SuperAdministrator exception.
+        $secondOrder = $this->createOrder($other, $admin, $this->product(), 'expiry-mismatched-valid-fk');
+        $warranty->update(['order_id' => $secondOrder->id]);
+        Notification::fake();
+        $this->sendExpiry($seller, $warranty->id);
+        $super->notificationPreference()->update(['warranty_expiry_alerts' => true]);
+        $this->sendExpiry($super, $warranty->id);
+        Notification::assertNothingSent();
+    }
+
+    public function test_expiry_push_queued_before_opt_out_is_blocked_at_dispatch(): void
+    {
+        [$seller, , $warranty] = $this->makeWarranty('revoke');
+        $seller->notificationPreference()->updateOrCreate([], [
+            'in_app_enabled' => false, 'email_enabled' => false,
+            'push_enabled' => true, 'warranty_expiry_alerts' => true,
+        ]);
+        $seller->mobileDevices()->create([
+            'installation_id' => '89a8d797-14a0-40ed-917e-10810cc16a91',
+            'platform' => 'android',
+            'push_provider' => 'expo',
+            'push_token_hash' => hash('sha256', 'warranty-revocation'),
+            'notifications_enabled' => true,
+        ]);
+        config()->set('mobile.push.enabled', true);
+        config()->set('mobile.push.provider', 'expo');
+        app(OperationalNotificationService::class)->send($seller, [
+            'event' => 'warranty.expiry_reminder', 'warranty_id' => $warranty->id,
+            'title' => 'Ističe', 'message' => 'Test red za odjavu',
+            '_in_app' => false, '_email' => false, '_push' => true,
+        ]);
+        $pending = MobilePushOutbox::query()->sole();
+        self::assertSame('pending', $pending->status);
+
+        $seller->notificationPreference()->update(['warranty_expiry_alerts' => false]);
+        \Illuminate\Support\Facades\Http::fake();
+        $result = app(\App\Services\MobilePushDispatcher::class)->dispatch(5);
+        self::assertSame(0, $result['sent']);
+        self::assertSame('failed', $pending->fresh()->status);
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
     /** @return array{User, User, ProductWarranty} */
     private function makeWarranty(string $key): array
     {

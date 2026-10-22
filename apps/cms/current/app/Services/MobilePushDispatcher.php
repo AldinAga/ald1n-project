@@ -6,13 +6,15 @@ namespace App\Services;
 
 use App\Models\MobileDevice;
 use App\Models\MobilePushOutbox;
+use App\Models\ProductWarranty;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class MobilePushDispatcher
 {
-    public function __construct(private readonly ExpoPushTransport $transport) {}
+    public function __construct(private readonly ExpoPushTransport $transport, private readonly WarrantyExpiryRecipientPolicy $expiryPolicy) {}
 
     /** @return array{processed:int,sent:int,retried:int,failed:int} */
     public function dispatch(int $limit = 100): array
@@ -45,6 +47,20 @@ final class MobilePushDispatcher
             $row->refresh();
             $result['processed']++;
             try {
+                // Re-check expiry consent at send time: a queued push cannot outlive opt-out.
+                $event = (string) ($row->event ?? '');
+                if (str_contains($event, 'warranty') && (str_contains($event, 'expiry') || str_contains($event, 'expir'))) {
+                    $user = User::query()->find($row->user_id);
+                    $warrantyId = filter_var($row->data_json['warranty_id'] ?? null, FILTER_VALIDATE_INT);
+                    $warranty = $warrantyId ? ProductWarranty::query()->find($warrantyId) : null;
+                    if (!$user instanceof User || !$warranty instanceof ProductWarranty
+                        || !$this->expiryPolicy->allows($warranty, $user)
+                        || !(bool) ($user->notificationPreference()->first()?->push_enabled ?? false)) {
+                        $this->fail($row, 'Opozvana saglasnost ili pristup garanciji pre push slanja.');
+                        $result['failed']++;
+                        continue;
+                    }
+                }
                 $outcome = $this->transport->send($row);
                 if ($outcome['status'] === 'ok') {
                     $row->forceFill([

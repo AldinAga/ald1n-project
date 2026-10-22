@@ -199,6 +199,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         Route::get('/warranties', [WarrantyController::class, 'index'])->name('warranties.index');
         Route::get('/warranties/{warranty}', [WarrantyController::class, 'show'])->whereNumber('warranty')->name('warranties.show');
     });
+    Route::get('/warranties/issued/{issuance}.pdf', [WarrantyController::class, 'pendingPdf'])
+        ->whereNumber('issuance')->name('warranties.issuances.pdf');
     Route::get('/warranties/{warranty}.pdf', [WarrantyController::class, 'pdf'])
         ->whereNumber('warranty')->name('warranties.pdf');
 

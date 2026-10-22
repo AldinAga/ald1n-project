@@ -27,6 +27,7 @@ final class OperationalAutomationService
         private readonly SettingsService $settings,
         private readonly OperationalNotificationService $notifications,
         private readonly ReceivablesService $receivables,
+        private readonly WarrantyExpiryRecipientPolicy $expiryPolicy,
     ) {}
 
     public function run(?User $actor = null, bool $force = false, bool $digest = false): AutomationRun
@@ -510,36 +511,35 @@ final class OperationalAutomationService
                 ->limit(1000)->get();
             $examined += $expiring->count();
             foreach ($expiring as $warranty) {
-                $customerOwner = $warranty->strictCustomerOwner();
-                $key = 'warranty_expiring:'.$warranty->id;
-                $seen[] = $key;
                 $message = sprintf('%s za %s ističe %s.', $warranty->warranty_number, $warranty->product_name_snapshot, $warranty->expires_at?->format('d.m.Y'));
-                $alert = $this->upsertAlert($key, [
-                    'type' => 'warranty_expiring', 'severity' => 'warning', 'order_id' => $warranty->order_id,
-                    'user_id' => $customerOwner?->id, 'title' => 'Garancija uskoro ističe', 'message' => $message,
-                    'action_url' => route('admin.warranties.show', $warranty),
-                    'metadata_json' => ['warranty_id' => $warranty->id, 'warranty_number' => $warranty->warranty_number],
-                ]);
-                $alerts++;
-                if ($this->shouldNotify($alert, $force, $reminderHours)) {
-                    if ($customerOwner instanceof User) {
-                        $this->notifications->send($customerOwner, [
+                // Persistent per-recipient alert keys prevent one person's opt-in from
+                // consuming another person's reminder window.
+                foreach ($this->expiryPolicy->recipients($warranty) as $recipient) {
+                    $key = 'warranty_expiring:'.$warranty->id.':'.$recipient->id;
+                    $seen[] = $key;
+                    $isSuperAdmin = $recipient->hasRole('superadmin');
+                    $url = $isSuperAdmin
+                        ? route('admin.warranties.show', $warranty)
+                        : route('warranties.show', $warranty);
+                    $alert = $this->upsertAlert($key, [
+                        'type' => 'warranty_expiring', 'severity' => 'warning', 'order_id' => $warranty->order_id,
+                        'user_id' => $recipient->id, 'title' => 'Garancija uskoro ističe', 'message' => $message,
+                        'action_url' => $url,
+                        'metadata_json' => ['warranty_id' => $warranty->id, 'warranty_number' => $warranty->warranty_number],
+                    ]);
+                    $alerts++;
+                    // Manual force must not duplicate an already delivered expiry reminder.
+                    if ($this->shouldNotify($alert, false, $reminderHours)) {
+                        $this->notifications->send($recipient, [
                             'event' => 'warranty.expiring', 'warranty_id' => $warranty->id,
                             'title' => $alert->title, 'message' => $message,
-                            'url' => route('warranties.show', $warranty), 'action_label' => 'Otvori garanciju',
+                            'url' => $url, 'action_label' => 'Otvori garanciju',
+                            'route' => $isSuperAdmin ? '/admin/warranties/'.$warranty->id : '/warranties/'.$warranty->id,
                             'icon' => 'shield', 'severity' => 'warning', 'alert_id' => $alert->id,
                         ]);
                         $notifications++;
+                        $alert->update(['last_notified_at' => now()]);
                     }
-                    foreach ($this->administrators()->filter(static fn (User $user): bool => $user->hasPermission('warranties.manage')) as $recipient) {
-                        $this->notifications->send($recipient, [
-                            'event' => 'warranty.expiring', 'title' => $alert->title, 'message' => $message,
-                            'url' => $alert->action_url, 'action_label' => 'Otvori garanciju', 'icon' => 'shield',
-                            'severity' => 'warning', 'alert_id' => $alert->id,
-                        ]);
-                        $notifications++;
-                    }
-                    $alert->update(['last_notified_at' => now()]);
                 }
                 $types['warranty_expiring'] = ($types['warranty_expiring'] ?? 0) + 1;
             }

@@ -44,6 +44,10 @@ final class WarrantyCertificatePdfService
             ['title' => 'VAŽI DO', 'fields' => [['text' => (string) (($data['expires_at'] ?? '') ?: 'Nije evidentirano'), 'bold' => true, 'size' => 11]]],
             ['title' => 'TRAJANJE', 'fields' => [['text' => $duration !== '' ? $duration : '—', 'bold' => true, 'size' => 11]]],
         ]);
+        if (trim((string) ($data['validity_note'] ?? '')) !== '') {
+            $layout->section('Status garancije');
+            $layout->paragraph((string) $data['validity_note']);
+        }
         $layout->section('Uslovi garancije');
         // An issued certificate retains its historical snapshot; no retroactive exclusions.
         $terms = trim((string) ($data['terms'] ?? ''));
