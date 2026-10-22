@@ -74,6 +74,7 @@ jobs:
           git diff --exit-code 9bf18d475cd603783c7c81c6a2001875aed3ccee HEAD -- apps/cms/current/app apps/cms/current/routes apps/cms/current/database apps/cms/current/resources apps/cms/current/composer.lock
           git apply --check "$RUNNER_TEMP/b797-source.patch"
           git apply "$RUNNER_TEMP/b797-source.patch"
+          python qa/b797-candidate/fix-fixtures.py
           git diff --check
           cd apps/cms/current
           install -m 600 /dev/null .env
