@@ -47,5 +47,11 @@ function b794_readonly_render(string $cms): void
 
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
     try { b794_readonly_render(dirname(__DIR__)); exit(0); }
-    catch (Throwable $error) { fwrite(STDERR, 'READONLY_RENDER=FAIL '.get_class($error).' '.$error->getMessage()."\n"); exit(1); }
+    catch (Throwable $error) {
+        $message = $error->getMessage();
+        $safe = preg_match('/\A(?:READONLY_RENDER_[A-Z_]+|RENDER_REQUIRES_[A-Z_]+)(?: [A-Za-z0-9_.-]+){0,2}\z/D', $message) === 1
+            ? $message : 'DETAILS_REDACTED fingerprint='.hash('sha256', $message);
+        fwrite(STDERR, 'READONLY_RENDER=FAIL '.get_class($error).' '.$safe."\n");
+        exit(1);
+    }
 }
