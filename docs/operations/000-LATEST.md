@@ -30,3 +30,7 @@ Android16KB needs the separately authorized, actually signed artifact and curren
 ## Preserved evidence and instructions
 
 [Previous latest, byte-identical Git blob6940302b66a115082a89d2d4149dc21fd1b776ce](history/000-LATEST-before-report801-20261023.md) retains all earlier report references, hashes, archive links, release identities and limitations. Its pending B797/B796 statements are superseded by the receipt states above. Existing AGENTS.md legal/PDF completeness rules remain in force; this is not a new legal-compliance opinion. Report802 records both successful deployment and the unresolved raw archival limitation.
+
+## Drive synchronization status
+
+Redacted Report802 was uploaded and metadata-verified on Drive, file ID `1RlE2TUrN9V1QqjDriimr-8VUjOFzxRyf`, 4364 bytes. Both the raw Report801 upload and replacement of the canonical Drive runbook were blocked by tool safety checks. Neither operation succeeded; the Drive plan was left unchanged. Those two canonical Drive files still contain the previous B797 source-only checkpoint, so use this current GitHub receipt record to resolve that dated PENDING status. Do not repackage blocked raw bytes, switch channels to bypass the block, or claim full synchronization. The block concerns archival/document synchronization, not the already successful CloudLinux deployment. AGENTS.md permanent guardrails were read and remain unchanged; its dated section32 host-PENDING statement is superseded by this owner receipt.
