@@ -2,10 +2,7 @@ name: B794 CMS UI isolated QA
 on:
   push:
     branches: [feat/b794-ui-polish-20261022]
-    paths:
-      - 'apps/cms/current/**'
-      - 'scripts/ci/b794-ui.patch.gz.b64'
-      - '.github/workflows/b794-cms-ui-qa.yml'
+    paths: ['apps/cms/current/**', '.github/workflows/b794-cms-ui-qa.yml']
 permissions:
   contents: write
 concurrency:
@@ -49,24 +46,18 @@ jobs:
           php-version: '8.4'
           extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml
           coverage: none
-      - name: Install exact Composer lock (no environment or migration scripts)
+      - name: Install exact Composer lock
         working-directory: apps/cms/current
         run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
-      - name: Check bounded patch, prove RED, apply reviewed implementation
+      - name: Apply bounded final corrections when present
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
-          if test -f scripts/ci/b794-ui.patch.gz.b64; then
-            base64 --decode scripts/ci/b794-ui.patch.gz.b64 | gzip -dc > "$RUNNER_TEMP/b794.patch"
-            echo "e10c3ad4f6c9ff37133b45ad7438f7dc4aafc2321cfca2bb6981a63fd783af1c  $RUNNER_TEMP/b794.patch" | sha256sum -c -
-            git apply --check "$RUNNER_TEMP/b794.patch"
-            git apply --index --include=apps/cms/current/bin/ui794-summary-smoke.php "$RUNNER_TEMP/b794.patch"
-            if php apps/cms/current/bin/ui794-summary-smoke.php > "$RUNNER_TEMP/b794-red.log" 2>&1; then
-              echo 'FAIL: baseline unexpectedly passed'; exit 1
-            fi
-            grep -Fx 'FAIL OrderProductSummary is not implemented' "$RUNNER_TEMP/b794-red.log"
-            echo 'UI794_SUMMARY_RED=PASS_EXPECTED_MISSING_IMPLEMENTATION'
-            git apply --index --exclude=apps/cms/current/bin/ui794-summary-smoke.php "$RUNNER_TEMP/b794.patch"
+          if test -f scripts/ci/b794-ui-final.patch.gz.b64; then
+            base64 --decode scripts/ci/b794-ui-final.patch.gz.b64 | gzip -dc > "$RUNNER_TEMP/b794-final.patch"
+            echo "bff5844562069069349cfd9d3755408cbb855d169948e4cf7e8f20b03c78a0cd  $RUNNER_TEMP/b794-final.patch" | sha256sum -c -
+            git apply --check "$RUNNER_TEMP/b794-final.patch"
+            git apply --index "$RUNNER_TEMP/b794-final.patch"
             echo 'B794_PATCH_APPLIED=yes' >> "$GITHUB_ENV"
           fi
           git diff --cached --check
@@ -74,37 +65,56 @@ jobs:
       - name: Canonical static gate
         working-directory: apps/cms/current
         run: php bin/static-check.php
-      - name: Existing Dashboard and product regression on disposable MariaDB
+      - name: Existing Dashboard and catalog regression on disposable MariaDB
         working-directory: apps/cms/current
-        run: |
-          php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php tests/Feature/CatalogDetailPageTest.php
+        run: php artisan test -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php tests/Feature/CatalogDetailPageTest.php
       - name: UI794 real HTTP rendering and permission regression
         working-directory: apps/cms/current
         env:
           B794_RENDER_DIR: ${{ runner.temp }}/b794-render
         run: php artisan test -c phpunit.mysql.xml tests/Feature/UiRefinement794Test.php
-      - name: Publish only the exact tested source to this isolated candidate branch
+      - name: Prepare synthetic isolated data for exact deployment render smoke
+        working-directory: apps/cms/current
+        run: |
+          php <<'PHP'
+          <?php
+          require 'vendor/autoload.php';
+          $app=require 'bootstrap/app.php';
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          if (!$app->environment('testing') || config('database.connections.mysql.database') !== 'ald1n_test' || config('database.connections.mysql.host') !== '127.0.0.1') exit(90);
+          Illuminate\Support\Facades\Artisan::call('migrate:fresh',['--force'=>true]);
+          (new Database\Seeders\CoreAccessSeeder)->run();
+          foreach (['superadmin','user'] as $role) {
+            $u=App\Models\User::query()->create(['username'=>'render-'.$role,'email'=>'render-'.$role.'@example.test','password_hash'=>Illuminate\Support\Facades\Hash::make('TestOnly794!'),'status'=>'active','role_id'=>App\Models\Role::query()->where('slug',$role)->valueOrFail('id')]);
+            if ($role==='superadmin') $admin=$u;
+          }
+          App\Models\Product::query()->create(['sku'=>'RENDER794','slug'=>'render794','name'=>'Synthetic render product','price_amount'=>149,'price_currency'=>'EUR','stock_quantity'=>4,'status'=>'active','created_by'=>$admin->id]);
+          echo "SYNTHETIC_RENDER_FIXTURE=READY\n";
+          PHP
+      - name: Exact production render smoke under a read-only MariaDB transaction
+        working-directory: apps/cms/current
+        run: php bin/ui794-render-smoke.php
+      - name: Publish exact tested final source to isolated candidate only
         if: env.B794_PATCH_APPLIED == 'yes'
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
           git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-scope"
-          printf '%s\n' apps/cms/current/app/Http/Controllers/DashboardController.php apps/cms/current/app/Support/OrderProductSummary.php apps/cms/current/bin/ui794-summary-smoke.php apps/cms/current/public/assets/css/ald1n-liquid-glass.css apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/resources/views/admin/users/index.blade.php apps/cms/current/resources/views/dashboard/index.blade.php apps/cms/current/resources/views/layouts/app.blade.php apps/cms/current/tests/Feature/UiRefinement794Test.php | sort > "$RUNNER_TEMP/expected-scope"
+          printf '%s\n' apps/cms/current/bin/ui794-render-smoke.php apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/tests/Feature/UiRefinement794Test.php | sort > "$RUNNER_TEMP/expected-scope"
           cmp "$RUNNER_TEMP/expected-scope" "$RUNNER_TEMP/actual-scope"
           test -z "$(git diff --name-only)"
-          git rm scripts/ci/b794-ui.patch.gz.b64
+          git rm scripts/ci/b794-ui-final.patch.gz.b64
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(cms): responsive glass dashboard and user editor with verified snapshot labels'
+          git commit -m 'fix(cms): correct legacy grid cascade and add verified read-only render smoke'
           git fetch origin "$GITHUB_REF_NAME"
           test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
           git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
           echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Export public source and synthetic rendered fixtures
+      - name: Export source and synthetic rendered fixtures
         if: always()
         run: |
-          set -eu
           out="$RUNNER_TEMP/b794-result"
           mkdir -p "$out"
           git archive --format=tar HEAD > "$out/source.tar"
@@ -112,7 +122,7 @@ jobs:
           git rev-parse HEAD > "$out/source-commit.txt"
           if test -d "$RUNNER_TEMP/b794-render"; then cp -R "$RUNNER_TEMP/b794-render" "$out/render"; fi
           sha256sum "$out/source.tar" > "$out/SHA256SUMS.txt"
-      - name: Retain source and synthetic browser fixtures (no production data)
+      - name: Retain source and synthetic browser fixtures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
