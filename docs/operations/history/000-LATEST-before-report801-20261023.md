@@ -1,0 +1,55 @@
+# CURRENT SOURCE - B797 PDFs/terms merged; host activation PENDING (2026-10-23)
+
+- PR90 source `126dd53eed17796733bc2a8b4cd7009d3a90ae41`, tested tree `3f5d51575187ec7f190882f69ec472757b8f424b`. [Report800](800-BATCH797-PDF-WARRANTY-TERMS-SOURCE-QA-20261023.md) is source/delivery evidence, NOT a host receipt. All eight final PR workflows PASS; scoped40tests337assertions, static983/983;20PDFs91pages7215spans/0geometry-content defects; delivery9/9 groups. Full suite382->396tests/43->42 inherited problems/0new, NOT globally green.
+- PDF generators now preserve full long product/SKU/serial/terms text and all report rows/segments using measured wrapping, dynamic panels, repeat headers and page breaks. Financial snapshots are unchanged. New-rule form and NEW blank warranty snapshots get cause-based default terms preserving consumer rights; issued/custom historical terms and dates are untouched. No automatic rewriting of old files or pre-agreed buyer terms; ten-day commercial labels cannot waive statutory conformity rights. Legal merchant policy/configuration remains separately reviewable.
+- **B797 PRODUCTION PENDING.** Only `incoming/ald1n-b797-laravel-pdf-warranty-terms-v1.sh`, script SHA256 `fb46729499bd1da0c95f3a42d1499430b903cd95dfb556fb09d00b1c728bd50f`, automatic integrity,686-path closure/13 allowed runtime writes, exact Reports798/799. Owned maintenance/Scheduler and rollback; synthetic private PDF smoke. No migration, historical/business/payment/expiry mutation, backup creation/prune, native/OTA/Play. Do not repeat completed B796; its first host receipt PASS and duplicate no-op are preserved below.
+- **Next R4/R5 is still pending:** issue warranties at FIRST confirmed positive payment (deposit/first installment/direct sales), not paid-in-full; preserve delivery-based validity and independent default-OFF recipient preferences. Public /katalog/guest checkout remains inactive. This PDF correction does not implement those business changes.
+- Ledgerv1 unchanged: originalUI6/6=100%,CMS7/15=46.7%,program7/17=41.2%. B796 M08/M09/M12 source+hostPASS/owneracceptancePENDING; PDF correction is an additional unscored item SOURCE_QA_PASS/HOST_PENDING. Do not convert merge or CLI rendering into owner/FPM acceptance. Expected next host report801 only if no newer remote/local report.
+
+---
+
+# CURRENT PRODUCTION - B796 deployed; accidental repeat was read-only (2026-10-22)
+
+- B796 R1/R3/R6 source `6f81f2bcfca1559dae92c39be323a1c827c31239` merged through PR88. Operator orders/no personal purchase flow, readable shared glass reflection, first buyer-panel courier/tracking. [Report797 QA and limitations](797-BATCH796-OPERATOR-MOTION-TRACKING-SOURCE-QA-20261022.md). Eight final PR workflows PASS; scoped PHPUnit70/377, auth Chromium54 measurements/40 screenshots/0fail, static983/983, delivery9/9. Generic full suite retains the same42 pre-existing problems; NOT an all-green full-suite claim.
+- **B796 PRODUCTION PASS / DO NOT RERUN.** Owner [Report798](https://drive.google.com/file/d/1TEPppt7hosbLWQoayFBJjI-86Z-9I2Y_/view) (SHA-256 `2b2536a7852000db202317b02f2878e75b985cf3e8a24d12ef1a0dbc46cf798d`, 69,429 bytes) executed the canonical B796 script once: ten approved runtime files applied, exact 683-path closure, static 983/983, read-only three-page render PASS; maintenance released, /login /up and both public CSS URLs HTTP200; Scheduler resumed PASS; `BATCH796_FINAL=PASS BATCH796_EXIT_RC=0`. Keep both the raw host report and its private Drive copy.
+- **ACCIDENTAL SECOND CLICK SAFE / NO OPERATION.** Owner [Report799](https://drive.google.com/file/d/1XMZsdBXEydFWp3wpk1zPwwxcIHLEYmCv/view) (SHA-256 `f84e9b0ff37d2eee25939e6798b6c283ecfb74ae94ed0e60e0ac472d628dc25b`, 63,859 bytes) confirms `RUNTIME_CLOSURE=PASS PATHS=683 CHANGED=0` and `BATCH796=PASS_ALREADY_APPLIED NO_MUTATION`, static 983/983, read-only render and /up HTTP200, `BATCH796_FINAL=PASS BATCH796_EXIT_RC=0`. Second invocation did NOT pause Scheduler, enter maintenance, rewrite source, or modify the database. It created only its local private state/report. **Do not run a third time, no rollback needed.**
+- B796 host acceptance is **PRODUCTION_PASS**, but `WEB_FPM_SOURCE=NOT_INDEPENDENTLY_ATTESTED` and owner post-deploy visual review is **PENDING**. M08/M09/M12 are `SOURCE_QA_PASS + PRODUCTION_PASS + OWNER_ACCEPTANCE_PENDING`: closure denominator remains unchanged (CMS 7/15, program 7/17). Do not claim independent PHP-FPM attestation or close visual milestones from shell evidence alone. Git HEAD/index and protected .htaccess were preserved. No warranty/payment/expiry, public checkout, Android/OTA/Play, schema/business or backup create/prune/restore occurred. Do not repeat B793/B794/B795/B796.
+- **Owner decision RESOLVED:** warranty issuance begins after the FIRST confirmed positive incoming payment, including deposit/first installment and direct sales; never wait for paid-in-full or ask this again. R4/R5 implementation/production remains PENDING. Issuance is distinct from contractual validity; preserve delivery-based start, no shortened pre-delivery coverage, duplicate/history rewrite or mass backfill.
+- Ledger v1 unchanged: originalUI6/6=100%; CMS7/15=46.7%; program7/17=41.2%. M08/M09/M12 are SOURCE_QA_PASS/HOST_ACCEPTANCE_PENDING. No premature closure credit. Public `/katalog`/guest checkout still NOT activated.
+
+---
+
+# CURRENT AUTHORITY - Report795 accepted / expanded owner scope (2026-10-22)
+
+## Laravel production
+
+- **Batch794 deployment PASS** according to the owner-supplied Report793, final exit code 0. Applied source `71fb8a6a07375acefafa766a291643c9faa93585` (PR86): nine UI runtime files under a verified 681-path closure. Certification and limitations: [Report794](794-BATCH794-PRODUCTION-CERTIFICATION-20261022.md).
+- Report793 filename: `793-BATCH794-LARAVEL-UI-REFINEMENT-20261022-115729.md`; SHA-256 `fec92bf8a6562fbd34d928714927c47eef783e8f0ba5cfa1352809485376ca11`, 68875 bytes. [Unchanged raw report on the owner's Drive](https://drive.google.com/file/d/1gmHORqItiF23BbSqx7jrxCYKA27pYLGH/view?usp=drivesdk). Keep its local copy: this checkpoint does not archive the raw bytes into Git or authorize pruning it.
+- PHP 8.4.26; summary smoke 8/8; canonical static **983/983, zero failed**; deployment-check RC0; dashboard/users/product CLI render PASS under read-only transaction. Maintenance released; `/login`, `/up` and both UI CSS URLs HTTP200; Scheduler resumed PASS.
+- **Do not rerun Batch794** or completed Batch793/warranty migration. No DB-schema/business mutation, DB-backup/prune, Mobile source write, native build, OTA or Play action occurred in Batch794.
+- Host Git HEAD remains `b5b942e645d28d3ed5f248eaae4180ebe9a54ee6`, with protected dirty index/worktree. Deployment is a bounded runtime activation, not Git synchronization. No reset, pull, checkout, broad staging or cleanup is authorized.
+- Previous completed backend activation remains Report791 / Batch793, source `f35021f12808246f5b320603d2aa607b8da90742`. Warranty preference migration ran once; last attested 17 rows / 0 enabled. That historical row count is not a live inventory. Expiry remains opt-in; no global broadcast activation.
+
+## Closed UI acceptance / Report795
+
+- **Batch795 PASS_OWNER_ACCEPTANCE**, exit 0, all six owner checks PASS, nine runtime files and both public CSS byte checks PASS. Report SHA-256 `e84ee86d200ce43e31eedfbb50f77b084fe6cc3ae990f438ae20b26c4e4a1cd0`, 2999 bytes. Do not repeat Batch795 or the already completed deployments. No source/database/maintenance/scheduler mutation.
+- `UI_OWNER_ACCEPTANCE=PASS_OWNER_ATTESTED`; `WEB_FPM_SOURCE=NOT_INDEPENDENTLY_ATTESTED`. Owner acceptance is not independent PHP-FPM/OPcache provenance. New scope does not revoke the six accepted UI requirements.
+
+## Current progress and owner requirements
+
+- Canonical requirements and **17-milestone ledger v1**: [Report796](796-REPORT795-ACCEPTANCE-PROGRESS-AND-OWNER-REQUIREMENTS-20261022.md). **7/17 closed = 41.2%** for the expanded current program; **7/15 = 46.7%** for CMS scope; original UI **6/6 = 100%**. Equal-weight acceptance milestones, not time/effort or all historical project functionality. No closure credit for planning/partial source; preserve/version the denominator.
+- R1/R3/R6 (operational orders, readable glass animation, first-panel tracking) now have merged source/QA but still await host activation. First-payment warranty issuance and independent default-OFF expiry for selling user plus SuperAdministrator (R4/R5) remain unimplemented. See AGENTS sections 30-31.
+- Owner decided issuance after the FIRST verified positive incoming payment, including deposits/first installment and direct sales; no paid-in-full condition. Implementation remains pending; preserve delivery-based contractual validity, durations, valid opt-ins, ownership and certificates. No blanket reset, historical deletion, mass backfill or global notification activation.
+- Public catalog target **https://cms.ald1n.com/katalog**; internal `/catalog` stays authenticated. Full-retail guest catalog/cart/checkout/protected follow-up remain **NOT implemented/activated**. The future URL is a design decision, not a claim it currently works.
+- R1/R3/R6 source/QA is now completed in B796 as described above; host activation/acceptance remains pending. Next implementation is first-payment warranty issuance and isolated expiry recipients (R4/R5), then the complete storefront. Android16KB and SDK58 remain separate gates. This source checkpoint is not a host receipt.
+
+## Independent mobile gates - unchanged
+
+- Android v1.5.0 AAB27 / runtime `1.5.0-native1` had a confirmed 16 KB rejection caused by `arm64-v8a/libnativegauss.so`. PR82/vendor AAR checks alone are not a new production-signed compatible AAB. Re-attest current candidate, signing/build/code and actual bundle ELF/RELRO/bundletool/zipalign gates before any separately authorized build or release. No unchanged AAB27 reupload or bypass.
+- Earlier verified Build25 OTA authority was app 1.0.0 / code25 / runtime `1.0.0-build17`, group `37ae8af0-b950-4549-8476-c960e1350866`, source `904c1db0f4213ff2e3eea3757869f86556d55378`. This is historical authority until fresh release attestation, not a claim about a newly built v1.5 artifact.
+- SDK58 upgrade remains owner-deferred until current planned work and Android native compatibility are closed. iOS production Firebase registration/File secret and physical iPhone/TestFlight work remain owner-deferred; do not repeatedly request or execute them.
+- Follow current `AGENTS.md`, the canonical Drive runbook and freshly retrieved main. Do not treat older identity/version blocks as current release approval.
+
+## Preserved earlier ledger
+
+The complete previous `000-LATEST.md` is preserved byte-for-byte in [history/000-LATEST-before-report793-20261022.md](history/000-LATEST-before-report793-20261022.md), original Git blob `6c6b673f70904b30612986814d96609c5d5b2670`. Its historical B794 PENDING section is superseded by Report793 and this page; other historical reports are not rewritten. No source or build-state change is part of this documentation checkpoint.
