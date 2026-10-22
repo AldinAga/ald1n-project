@@ -3,11 +3,13 @@ on:
   push:
     branches: [feat/b794-ui-polish-20261022]
     paths: ['apps/cms/current/**', '.github/workflows/b794-cms-ui-qa.yml']
+  pull_request:
+    paths: ['apps/cms/current/**', '.github/workflows/b794-cms-ui-qa.yml']
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: b794-ui-qa
-  cancel-in-progress: false
+  group: b794-ui-qa-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   cms:
     runs-on: ubuntu-24.04
@@ -41,6 +43,8 @@ jobs:
       MAIL_MAILER: array
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
@@ -53,22 +57,11 @@ jobs:
           test ! -e .env
           install -m 600 /dev/null .env
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
-      - name: Apply bounded final corrections when present
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
-          if test -f scripts/ci/b794-ui-final.patch.gz.b64; then
-            base64 --decode scripts/ci/b794-ui-final.patch.gz.b64 | gzip -dc > "$RUNNER_TEMP/b794-final.patch"
-            echo "bff5844562069069349cfd9d3755408cbb855d169948e4cf7e8f20b03c78a0cd  $RUNNER_TEMP/b794-final.patch" | sha256sum -c -
-            git apply --check "$RUNNER_TEMP/b794-final.patch"
-            git apply --index "$RUNNER_TEMP/b794-final.patch"
-            echo 'B794_PATCH_APPLIED=yes' >> "$GITHUB_ENV"
-          fi
-          git diff --cached --check
-          php apps/cms/current/bin/ui794-summary-smoke.php
-      - name: Canonical static gate
+      - name: Canonical static and snapshot presenter gates
         working-directory: apps/cms/current
-        run: php bin/static-check.php
+        run: |
+          php bin/static-check.php
+          php bin/ui794-summary-smoke.php
       - name: Existing Dashboard and catalog regression on disposable MariaDB
         working-directory: apps/cms/current
         run: vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Unit/DashboardPeriodTest.php tests/Unit/DashboardBrandMixTest.php tests/Feature/DashboardD1Test.php tests/Feature/DashboardD2Test.php tests/Feature/DashboardD3Test.php tests/Feature/CatalogDetailPageTest.php
@@ -77,7 +70,7 @@ jobs:
         env:
           B794_RENDER_DIR: ${{ runner.temp }}/b794-render
         run: vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml tests/Feature/UiRefinement794Test.php
-      - name: Prepare synthetic isolated data for exact deployment render smoke
+      - name: Prepare synthetic isolated data for deployment render smoke
         working-directory: apps/cms/current
         run: |
           php <<'PHP'
@@ -104,35 +97,17 @@ jobs:
       - name: Exact production render smoke under a read-only MariaDB transaction
         working-directory: apps/cms/current
         run: php bin/ui794-render-smoke.php
-      - name: Publish exact tested final source to isolated candidate only
-        if: env.B794_PATCH_APPLIED == 'yes'
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF_NAME" = feat/b794-ui-polish-20261022
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-scope"
-          printf '%s\n' apps/cms/current/bin/ui794-render-smoke.php apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/tests/Feature/UiRefinement794Test.php | sort > "$RUNNER_TEMP/expected-scope"
-          cmp "$RUNNER_TEMP/expected-scope" "$RUNNER_TEMP/actual-scope"
-          test -z "$(git diff --name-only)"
-          git rm scripts/ci/b794-ui-final.patch.gz.b64
-          git diff --cached --check
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(cms): correct legacy grid cascade and add verified read-only render smoke'
-          git fetch origin "$GITHUB_REF_NAME"
-          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
-          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
-          echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Export source and synthetic rendered fixtures
+      - name: Export only source and synthetic rendered fixtures
         if: always()
         run: |
+          set -eu
           out="$RUNNER_TEMP/b794-result"
           mkdir -p "$out"
           git archive --format=tar HEAD > "$out/source.tar"
-          git diff --binary HEAD -- apps/cms/current > "$out/unpublished-delta.patch"
           git rev-parse HEAD > "$out/source-commit.txt"
           if test -d "$RUNNER_TEMP/b794-render"; then cp -R "$RUNNER_TEMP/b794-render" "$out/render"; fi
           sha256sum "$out/source.tar" > "$out/SHA256SUMS.txt"
-      - name: Retain source and synthetic browser fixtures
+      - name: Retain synthetic browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
