@@ -213,11 +213,14 @@ async function headerGeometry(page, persona, mode, width) {
         tintAlpha: match ? Number(match[1]) : null,
         filter: paint?.backdropFilter || 'none',
         renderer: glass?.getAttribute('data-lg-renderer') || 'none',
+        layerPosition: layer ? getComputedStyle(layer).position : 'missing',
+        sheenPosition: glass?.querySelector(':scope > .lg-sheen') ? getComputedStyle(glass.querySelector(':scope > .lg-sheen')).position : 'missing',
       };
     });
     check(optics.bodyBackdrop.includes('radial-gradient') && optics.shellBackdrop === 'none',
       'R4_VIEWPORT_BACKGROUND_TO_REFRACT_NO_RECTANGLE',
       tag+': body='+optics.bodyBackdrop.slice(0,110)+' shell='+optics.shellBackdrop.slice(0,60));
+    check(optics.layerPosition === 'absolute' && optics.sheenPosition === 'absolute', 'GLASS_DECORATIVE_LAYERS_OUT_OF_FLOW', tag+': '+JSON.stringify(optics));
     check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);
     check(optics.tintAlpha !== null && optics.tintAlpha <= 0.65, 'R4_TRANSLUCENT_GLASS_TINT', tag+': '+JSON.stringify(optics));
   }
