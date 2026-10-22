@@ -1,0 +1,145 @@
+name: B796 operator workspace isolated QA
+on:
+  push:
+    branches: [feat/b796-operator-orders-glass-tracking-20261022]
+    paths: ['apps/cms/current/**', '.github/workflows/b796-cms-qa.yml']
+  pull_request:
+    paths: ['apps/cms/current/**', '.github/workflows/b796-cms-qa.yml']
+permissions:
+  contents: read
+concurrency:
+  group: b796-qa-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  cms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install exact test-only dependencies
+        id: dependencies
+        working-directory: apps/cms/current
+        run: |
+          set -eu
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          mkdir -p "$RUNNER_TEMP/b796-result"
+      - name: Canonical static and pure URL gates
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php bin/static-check.php
+          php bin/operator796-link-smoke.php
+      - name: B796 behavior tests
+        if: always() && steps.dependencies.outcome == 'success'
+        working-directory: apps/cms/current
+        env:
+          B796_RENDER_DIR: ${{ runner.temp }}/b796-result/render
+        run: |
+          set -o pipefail
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b796-result/targeted.xml" tests/Feature/OperatorWorkspace796Test.php 2>&1 | tee "$RUNNER_TEMP/b796-result/targeted.log"
+      - name: Entire suite comparison against complete exact baseline - reject new failures
+        if: always() && steps.dependencies.outcome == 'success'
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/b796-result"
+          base="$RUNNER_TEMP/b796-baseline"
+          mkdir -p "$base"
+          git archive 66424df805c0740686b8f01b9978d4833ac1d8c4 | tar -x -C "$base"
+          cp -a apps/cms/current/vendor "$base/apps/cms/current/vendor"
+          install -m 600 /dev/null "$base/apps/cms/current/.env"
+          (
+            cd "$base/apps/cms/current"
+            if vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --log-junit "$out/baseline.xml" > "$out/baseline.log" 2>&1; then rc=0; else rc=$?; fi
+            echo "$rc" > "$out/baseline.rc"
+          )
+          (
+            cd apps/cms/current
+            if vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --exclude-group=b796 --log-junit "$out/suite.xml" > "$out/suite.log" 2>&1; then rc=0; else rc=$?; fi
+            echo "$rc" > "$out/suite.rc"
+          )
+          python3 <<'PY'
+          from pathlib import Path
+          import os, json, xml.etree.ElementTree as ET
+          out=Path(os.environ['RUNNER_TEMP'])/'b796-result'
+          def read(name):
+              root=ET.parse(out/name).getroot()
+              cases=root.findall('.//testcase')
+              failed={}
+              for c in cases:
+                  for kind in ('error','failure'):
+                      e=c.find(kind)
+                      if e is not None:
+                          failed[c.attrib.get('class','')+'::'+c.attrib['name']]={'kind':kind,'detail':e.text or e.attrib.get('message','')}
+              return len(cases),failed
+          bn,b=read('baseline.xml'); cn,c=read('suite.xml')
+          new=sorted(set(c)-set(b))
+          changed=[k for k in set(b)&set(c) if b[k]['kind']!=c[k]['kind']]
+          result={'baseline_source':'66424df805c0740686b8f01b9978d4833ac1d8c4','baseline_scope':'complete_repository','baseline_tests':bn,'candidate_tests':cn,'baseline_rc':int((out/'baseline.rc').read_text()),'candidate_rc':int((out/'suite.rc').read_text()),'baseline_non_green':b,'candidate_non_green':c,'new_failures':new,'changed_failure_types':changed,'full_suite':'NON_GREEN_PREEXISTING' if c else 'PASS'}
+          (out/'full-suite-comparison.json').write_text(json.dumps(result,indent=2))
+          print('BASELINE_TESTS',bn,'CANDIDATE_TESTS',cn,'BASELINE_NON_GREEN',len(b),'CANDIDATE_NON_GREEN',len(c))
+          for k in c: print('EXISTING_NON_GREEN' if k in b else 'NEW_FAILURE',k)
+          print('NEW_FAILURES',new,'CHANGED_FAILURE_TYPES',changed,'FULL_SUITE',result['full_suite'])
+          assert bn>=347 and cn>=bn, 'Unexpected missing test coverage'
+          assert not new and not changed, 'New regressions must be fixed'
+          assert result['baseline_rc'] in (0,1,2) and result['candidate_rc'] in (0,1,2), 'Unexpected process failure'
+          print('BASELINE_RELATIVE_REGRESSION=PASS (not a global green suite)')
+          PY
+      - name: Retain source and synthetic evidence
+        if: always()
+        run: |
+          set -eu
+          out="$RUNNER_TEMP/b796-result"
+          mkdir -p "$out"
+          git archive --format=tar HEAD > "$out/source.tar"
+          git diff --binary HEAD -- apps/cms/current > "$out/unpublished-delta.patch"
+          git rev-parse HEAD > "$out/source-commit.txt"
+          sha256sum "$out/source.tar" > "$out/SHA256SUMS.txt"
+          test ! -s "$out/unpublished-delta.patch"
+          echo 'PRODUCTION=UNTOUCHED MAIN=UNTOUCHED NO_REAL_USER_DATA NO_BUILD_OTA_PLAY'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: b796-qa-${{ github.sha }}
+          path: ${{ runner.temp }}/b796-result/
+          retention-days: 3
+          if-no-files-found: error

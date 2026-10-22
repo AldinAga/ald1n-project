@@ -160,6 +160,9 @@ final class AppServiceProvider extends ServiceProvider
         });
 
         Gate::before(static function (User $user, string $ability): ?bool {
+            if ($user->hasRole('superadmin') && in_array($ability, User::PERSONAL_ORDER_ABILITIES, true)) {
+                return false;
+            }
             if ($user->hasRole('superadmin', 'admin')) {
                 return true;
             }

@@ -276,7 +276,7 @@ final class DashboardController extends Controller
         if (!$access['orders_manage'] && !$access['orders_view_own']) return [];
         try {
             if (!$this->tableHasColumns('orders', ['id', 'order_number', 'user_id', 'supplier_user_id', 'status', 'subtotal_rsd', 'paid_total_rsd', 'created_at', 'updated_at'])) return [];
-            $query = Order::query()->operational();
+            $query = Order::query()->operational()->with('user');
             if ($access['orders_manage'] && $user->hasRole('admin')) {
                 $query->where('supplier_user_id', $user->id);
             } elseif (!$access['orders_manage']) {
@@ -296,6 +296,8 @@ final class DashboardController extends Controller
                     'product_name' => $summary['product_name'],
                     'other_products' => $summary['other_products'],
                     'number' => $order->order_number,
+                    'seller_name' => (string) $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->user?->displayName() ?? 'Korisnik'),
+                    'buyer_name' => trim((string) $order->shipping_full_name) ?: 'Kupac',
                     'status' => $order->status,
                     'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Završena','cancelled'=>'Otkazana'][$order->status] ?? $order->status,
                     'total_rsd' => (float) $order->subtotal_rsd,

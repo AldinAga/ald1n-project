@@ -63,6 +63,15 @@ $user = User::query()->create([
     'status' => 'active',
 ]);
 
+$buyer = User::query()->create([
+    'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
+    'user_group_id' => 1,
+    'username' => 'liquid-browser-buyer',
+    'email' => 'liquid-browser-buyer@example.test',
+    'password_hash' => Hash::make($password),
+    'first_name' => 'Synthetic Buyer', 'status' => 'active',
+]);
+
 $product = Product::query()->create([
     'sku' => 'LG-VISUAL-SYNTHETIC-1',
     'name' => 'Liquid Glass testni artikal',
@@ -78,7 +87,7 @@ $product = Product::query()->create([
 
 $order = Order::query()->create([
     'order_number' => 'LG-CI-ARCHIVE-001',
-    'user_id' => $superAdmin->id,
+    'user_id' => $buyer->id,
     'status' => 'cancelled',
     'shipping_full_name' => 'Samo Test Kupac',
     'shipping_address' => 'Testna adresa 1',
@@ -95,6 +104,7 @@ $payload = [
     'sentinel' => 'ALD1N_LIQUID_GLASS_CI_SYNTHETIC_ONLY',
     'superadmin' => ['login' => $superAdmin->username, 'password' => $password],
     'user' => ['login' => $user->username, 'password' => $password],
+    'buyer' => ['login' => $buyer->username, 'password' => $password],
     'paths' => [
         'dashboard' => '/',
         'product_create' => parse_url(route('admin.products.create'), PHP_URL_PATH),
@@ -111,4 +121,4 @@ if (file_put_contents($dest, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PR
     exit(4);
 }
 chmod($dest, 0600);
-echo "LIQUID_GLASS_SYNTHETIC_FIXTURES=READY users=2 products=1 orders=1\n";
+echo "LIQUID_GLASS_SYNTHETIC_FIXTURES=READY users=3 products=1 orders=1\n";

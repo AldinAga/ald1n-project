@@ -91,7 +91,7 @@
             @endif
 
             @if(!empty($urls['confirmation']))
-                <a class="button button-ghost" target="_blank" rel="noopener" href="{{ $urls['confirmation'] }}">
+                <a class="button button-ghost" target="_blank" rel="noopener noreferrer" href="{{ $urls['confirmation'] }}">
                     <x-icon name="file-text" /> Potvrda PDF
                 </a>
             @endif
@@ -186,6 +186,28 @@
                 <dt>Napomena krajnjeg kupca</dt>
                 <dd class="order-buyer-note">{{ trim((string) ($order['customer_note'] ?? '')) ?: '—' }}</dd>
             </dl>
+
+            @if($permissions['buyer_tracking'] ?? false)
+                @php
+                    $buyerShipment = $detail['shipment'] ?? null;
+                    $buyerTrackingNumber = trim((string) ($buyerShipment['tracking_number'] ?? ''));
+                    $hasBuyerTracking = $buyerTrackingNumber !== '' && $buyerTrackingNumber !== '—';
+                @endphp
+                <div class="order-buyer-tracking">
+                    @if($hasBuyerTracking)
+                        <span class="eyebrow">Pošiljka</span>
+                        <dl class="detail-list">
+                            <dt>Kurirska služba</dt><dd>{{ $buyerShipment['courier_name'] }}</dd>
+                            <dt>Broj pošiljke</dt><dd><strong>{{ $buyerTrackingNumber }}</strong></dd>
+                        </dl>
+                        @if($buyerShipment['tracking_url'] ?? null)
+                            <a class="button button-ghost" data-buyer-shipment-tracking href="{{ $buyerShipment['tracking_url'] }}" target="_blank" rel="noopener noreferrer"><x-icon name="truck" /> Prati pošiljku</a>
+                        @endif
+                    @else
+                        <span data-buyer-shipment-empty>Broj pošiljke još nije evidentiran.</span>
+                    @endif
+                </div>
+            @endif
         </section>
 
     <section class="panel order-workspace-command" aria-labelledby="order-workspace-next-title">
@@ -296,8 +318,8 @@
                 <dt>Napomena o slanju</dt><dd>{{ $shipment['note'] ?? '—' }}</dd>
             </dl>
             <div class="header-button-row shipment-links">
-                @if(!empty($shipment['tracking_url']) && ($shipment['tracking_number'] ?? '—') !== '—')<a class="button button-ghost" target="_blank" rel="noopener" href="{{ $shipment['tracking_url'] }}">Prati pošiljku</a>@endif
-                @if(($shipment['has_proof'] ?? false) && !empty($urls['shipment_proof']))<a class="button button-ghost" target="_blank" rel="noopener" href="{{ $urls['shipment_proof'] }}">Otvori privatni dokaz slanja</a>@endif
+                @if(!empty($shipment['tracking_url']) && ($shipment['tracking_number'] ?? '—') !== '—')<a class="button button-ghost" target="_blank" rel="noopener noreferrer" href="{{ $shipment['tracking_url'] }}">Prati pošiljku</a>@endif
+                @if(($shipment['has_proof'] ?? false) && !empty($urls['shipment_proof']))<a class="button button-ghost" target="_blank" rel="noopener noreferrer" href="{{ $urls['shipment_proof'] }}">Otvori privatni dokaz slanja</a>@endif
             </div>
         </section>
     @elseif(($actions['shipment'] ?? false) && !empty($urls['shipment_store']))
@@ -310,7 +332,7 @@
                 <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
                 <div class="shipment-grid">
                     <label><span>Način isporuke</span><select name="shipment_method" data-shipment-method required><option value="courier" selected>Kurirska služba</option><option value="own_transport">Sopstveni prevoz</option><option value="other">Drugo</option></select></label>
-                    <label data-courier-field><span>Kurirska služba</span><select name="courier_service_id" data-courier-select required>@foreach($couriers as $courier)<option value="{{ $courier['id'] }}" data-tracking-url="{{ $courier['tracking_url'] }}" @selected($courier['is_default'] ?? false)>{{ $courier['name'] }}</option>@endforeach</select><a class="shipment-tracking-link" data-courier-tracking-link href="#" target="_blank" rel="noopener">Zvanična stranica za praćenje</a></label>
+                    <label data-courier-field><span>Kurirska služba</span><select name="courier_service_id" data-courier-select required>@foreach($couriers as $courier)<option value="{{ $courier['id'] }}" data-tracking-url="{{ $courier['tracking_url'] }}" @selected($courier['is_default'] ?? false)>{{ $courier['name'] }}</option>@endforeach</select><a class="shipment-tracking-link" data-courier-tracking-link href="#" target="_blank" rel="noopener noreferrer">Zvanična stranica za praćenje</a></label>
                     <label data-tracking-field><span>Broj za praćenje pošiljke</span><input name="tracking_number" maxlength="120" value="{{ $order['tracking_number'] ?? '' }}" data-tracking-input required></label>
                     <label><span>Datum i vreme slanja</span><input type="datetime-local" name="shipped_at" value="{{ $formDefaults['shipped_at'] ?? '' }}" required></label>
                     <label><span>Ime primaoca</span><input name="recipient_name" maxlength="190" value="{{ $formDefaults['recipient_name'] ?? ($order['shipping_full_name'] ?? '') }}" required></label>
@@ -339,7 +361,7 @@
                         <strong>{{ $delivery['delivery_method_label'] ?? 'Isporuka' }}</strong>
                         <span>{{ $delivery['delivered_at'] ?? '—' }} · primalac {{ $delivery['recipient_name'] ?? 'Kupac' }}</span>
                         @if($delivery['has_proof'] ?? false)
-                            <a class="button button-ghost button-small" target="_blank" rel="noopener" href="{{ $urls['delivery_proof'] ?? '#' }}">Dokaz isporuke</a>
+                            <a class="button button-ghost button-small" target="_blank" rel="noopener noreferrer" href="{{ $urls['delivery_proof'] ?? '#' }}">Dokaz isporuke</a>
                         @endif
                     </div>
                 @endif
@@ -542,7 +564,7 @@
                 @if(($permissions['manage_invoices'] ?? false) && !empty($urls['document_store']))
                     <div class="document-actions">
                         @if($activeDocumentsByType->has('proforma'))
-                            <a class="button button-ghost" target="_blank" rel="noopener" href="{{ $activeDocumentsByType->get('proforma')['show_url'] }}">
+                            <a class="button button-ghost" target="_blank" rel="noopener noreferrer" href="{{ $activeDocumentsByType->get('proforma')['show_url'] }}">
                                 <x-icon name="file-text" /> Otvori aktivni predračun
                             </a>
                         @else
@@ -556,7 +578,7 @@
                         @endif
 
                         @if($activeDocumentsByType->has('invoice'))
-                            <a class="button button-primary" target="_blank" rel="noopener" href="{{ $activeDocumentsByType->get('invoice')['show_url'] }}">
+                            <a class="button button-primary" target="_blank" rel="noopener noreferrer" href="{{ $activeDocumentsByType->get('invoice')['show_url'] }}">
                                 <x-icon name="receipt" /> Otvori aktivni račun
                             </a>
                         @else
@@ -571,7 +593,7 @@
 
                         @if(is_array($delivery))
                             @if($activeDocumentsByType->has('delivery_note'))
-                                <a class="button button-ghost" target="_blank" rel="noopener" href="{{ $activeDocumentsByType->get('delivery_note')['show_url'] }}">
+                                <a class="button button-ghost" target="_blank" rel="noopener noreferrer" href="{{ $activeDocumentsByType->get('delivery_note')['show_url'] }}">
                                     <x-icon name="truck" /> Otvori aktivnu otpremnicu
                                 </a>
                             @else
@@ -608,7 +630,7 @@
                                 {{ ($document['status'] ?? '') === 'cancelled' ? 'Storniran' : 'Aktivan' }}
                             </span>
                             @if(!empty($document['show_url']))
-                                <a class="button button-ghost button-small" target="_blank" rel="noopener" href="{{ $document['show_url'] }}">PDF</a>
+                                <a class="button button-ghost button-small" target="_blank" rel="noopener noreferrer" href="{{ $document['show_url'] }}">PDF</a>
                             @endif
                             @if(($document['can_cancel'] ?? false) && !empty($document['cancel_url']))
                                 <details class="document-cancel-details">
@@ -772,7 +794,7 @@
                         <dt>Napomena</dt><dd>{{ $delivery['note'] ?? '—' }}</dd>
                     </dl>
                     @if(($delivery['has_proof'] ?? false) && !empty($urls['delivery_proof']))
-                        <a class="button button-ghost" target="_blank" rel="noopener" href="{{ $urls['delivery_proof'] }}">Otvori privatni dokaz isporuke</a>
+                        <a class="button button-ghost" target="_blank" rel="noopener noreferrer" href="{{ $urls['delivery_proof'] }}">Otvori privatni dokaz isporuke</a>
                     @endif
                 </section>
             @endif

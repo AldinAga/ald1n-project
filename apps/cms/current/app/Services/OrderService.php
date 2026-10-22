@@ -33,6 +33,8 @@ final class OrderService
     /** @param array<string,mixed> $data */
     public function create(User $user, array $data, string $idempotencyKey): Order
     {
+        // Defence in depth: HTTP permissions are not the only caller of this service.
+        abort_if($user->hasRole('superadmin'), 403, 'SuperAdministrator koristi korisničke porudžbine ili direktnu prodaju.');
         $data['items'] = $this->normalizeItems((array) ($data['items'] ?? []));
 
         /** @var Order $order */

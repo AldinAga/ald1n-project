@@ -188,3 +188,41 @@
   .build16-home-shell .dashboard-module-grid > .dashboard-module-card,
   .access-control-user-card { background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none; backdrop-filter: none; }
 }
+
+
+/* B796: optical movement on the surface, not on text or layout. */
+.page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card) {
+  position: relative; isolation: isolate; overflow: hidden;
+}
+.page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card)::after {
+  content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
+  pointer-events: none; opacity: 0;
+  background-image: linear-gradient(115deg, transparent 36%, var(--lg5-sheen, rgba(255,255,255,.12)) 49%, transparent 62%);
+  background-size: 260% 100%; background-position: 100% 0;
+}
+.page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card) > :not(.lg-layer):not(.lg-sheen) { position: relative; z-index: 1; }
+.build16-home-shell .dashboard-action-grid > a:is(:hover, :active),
+.build16-home-shell .dashboard-module-grid > .dashboard-module-card:is(:hover, :active) { transform: none; }
+@keyframes ald1n-glass-sweep {
+  0% { background-position: 100% 0; opacity: 0; }
+  18% { opacity: .8; }
+  82% { opacity: .8; }
+  100% { background-position: 0 0; opacity: 0; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card):hover::after {
+    animation: ald1n-glass-sweep 700ms ease-out 1;
+  }
+}
+.page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card):focus-visible::after {
+  animation: ald1n-glass-sweep 700ms ease-out 1;
+}
+@media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .page-shell :is(.dashboard-action-grid > a, a.dashboard-module-card, a.portal-order-card, a.attention-card, a.dashboard-priority-item, a.dashboard-kpi-card)::after {
+    display: none; animation: none !important;
+  }
+}
+.build16-home-shell .dashboard-order-parties { display: block; margin-top: 5px; line-height: 1.5; color: var(--ald-muted); overflow-wrap: anywhere; }
+.order-workspace-customer .order-buyer-tracking { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ald-border); }
+.order-workspace-customer .order-buyer-tracking :is(strong, span) { overflow-wrap: anywhere; }
+.order-workspace-customer .order-buyer-tracking .button { margin-top: 12px; }

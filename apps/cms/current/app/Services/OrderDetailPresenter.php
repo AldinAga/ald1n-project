@@ -44,6 +44,7 @@ final class OrderDetailPresenter
 
         $detail['mode'] = 'admin';
         $detail['permissions'] = [
+            'buyer_tracking' => $actor->hasRole('superadmin'),
             'manage_invoices' => $this->allows($actor, 'invoices.manage'),
             'manage_payments' => $this->allows($actor, 'payments.manage'),
             'sale_price_correction' => $actor->hasRole('superadmin')
@@ -413,7 +414,7 @@ final class OrderDetailPresenter
             'shipment_method' => $method,
             'shipment_method_label' => $this->shipmentMethodLabel($method),
             'courier_name' => $courierName !== '' ? $courierName : '—',
-            'tracking_url' => $trackingUrl !== '' ? $trackingUrl : null,
+            'tracking_url' => \App\Support\ShipmentTrackingUrl::safe($trackingUrl),
             'shipped_at' => $this->date($shipment, 'shipped_at'),
             'recipient_name' => $this->text($shipment, 'recipient_name', 'Kupac'),
             'recipient_phone' => $this->text($shipment, 'recipient_phone', '—'),

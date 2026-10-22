@@ -27,6 +27,7 @@
         @endif
     </style>
 @php
+    $isSuperAdmin = $user->hasRole('superadmin');
     $orderIndex = $access['orders_manage'] ? route('admin.orders.index') : route('orders.index');
     $productIndex = route('catalog.index');
     $afterSalesIndex = $access['after_sales_manage'] ? route('admin.after-sales.index') : route('after-sales.index');
@@ -66,9 +67,12 @@
         <p>
             {{ $customerFocused
                 ? 'Porudžbine, dokumenti, uplate, garancije, podrška i podešavanja naloga objedinjeni su na početnoj strani.'
-                : 'Poslovni pokazatelji, operativni prioriteti i lični korisnički centar objedinjeni su na jednoj početnoj strani.' }}
+                : ($isSuperAdmin ? 'Poslovni pokazatelji, korisničke porudžbine i operativni prioriteti na jednom mestu.' : 'Poslovni pokazatelji, operativni prioriteti i lični korisnički centar objedinjeni su na jednoj početnoj strani.') }}
         </p>
         <div class="dashboard-quick-actions">
+            @if($isSuperAdmin)
+                <a class="button button-primary" href="{{ route('admin.orders.index') }}"><x-icon name="orders" /> Porudžbine korisnika</a>
+            @endif
             @can('orders.create')
                 <a class="button button-primary" href="{{ route('orders.create') }}"><x-icon name="plus-circle" /> Nova porudžbina</a>
             @endcan
@@ -341,11 +345,11 @@
     </div>
 
     <div class="dashboard-secondary-grid">
-        <section class="panel dashboard-panel">
-            <div class="dashboard-panel-heading"><div><span class="eyebrow">Najnovije promene</span><h2>Poslednje porudžbine</h2></div><a href="{{ $orderIndex }}">Prikaži sve <x-icon name="arrow-right" size="15" /></a></div>
+        <section class="panel dashboard-panel" @if($isSuperAdmin) data-operator-order-center="1" @endif>
+            <div class="dashboard-panel-heading"><div><span class="eyebrow">Najnovije promene</span><h2>{{ $isSuperAdmin ? 'Porudžbine korisnika' : 'Poslednje porudžbine' }}</h2></div><a href="{{ $orderIndex }}">Prikaži sve <x-icon name="arrow-right" size="15" /></a></div>
             <div class="dashboard-order-list">
                 @forelse($recentOrders as $order)
-                    <a href="{{ $order['url'] }}" class="dashboard-order-row"><div class="dashboard-order-product"><strong>{{ $order['product_name'] }}@if($order['other_products'] > 0)<span class="dashboard-order-extra" data-order-extra-products="{{ $order['other_products'] }}" aria-label="Još stavki: {{ $order['other_products'] }}"> + {{ $order['other_products'] }}</span>@endif</strong><small>{{ $order['number'] }} · {{ $order['updated_at']?->format('d.m.Y H:i') }}</small></div><span class="dashboard-order-status tone-{{ $statusTone($order['status']) }}">{{ $order['status_label'] }}</span><div class="dashboard-order-money"><strong>{{ number_format((float) $order['total_rsd'], 2, ',', '.') }} RSD</strong>@if($order['remaining_rsd'] > 0)<small>Preostalo {{ number_format((float) $order['remaining_rsd'], 2, ',', '.') }}</small>@else<small>Plaćeno / zatvoreno</small>@endif</div><x-icon name="arrow-right" size="16" /></a>
+                    <a href="{{ $order['url'] }}" class="dashboard-order-row"><div class="dashboard-order-product"><strong>{{ $order['product_name'] }}@if($order['other_products'] > 0)<span class="dashboard-order-extra" data-order-extra-products="{{ $order['other_products'] }}" aria-label="Još stavki: {{ $order['other_products'] }}"> + {{ $order['other_products'] }}</span>@endif</strong><small>{{ $order['number'] }} · {{ $order['updated_at']?->format('d.m.Y H:i') }}</small>@if($isSuperAdmin)<span class="dashboard-order-parties">Korisnik: {{ $order['seller_name'] }}<br>Kupac: {{ $order['buyer_name'] }}</span>@endif</div><span class="dashboard-order-status tone-{{ $statusTone($order['status']) }}">{{ $order['status_label'] }}</span><div class="dashboard-order-money"><strong>{{ number_format((float) $order['total_rsd'], 2, ',', '.') }} RSD</strong>@if($order['remaining_rsd'] > 0)<small>Preostalo {{ number_format((float) $order['remaining_rsd'], 2, ',', '.') }}</small>@else<small>Plaćeno / zatvoreno</small>@endif</div><x-icon name="arrow-right" size="16" /></a>
                 @empty
                     <div class="dashboard-empty compact"><p>Još nema porudžbina za prikaz.</p></div>
                 @endforelse
@@ -355,6 +359,7 @@
         <section class="panel dashboard-panel">
             <div class="dashboard-panel-heading"><div><span class="eyebrow">Radni tokovi</span><h2>Brze akcije</h2></div></div>
             <div class="dashboard-action-grid">
+                @if($isSuperAdmin)<a href="{{ route('admin.orders.index') }}"><span class="tone-blue"><x-icon name="orders" /></span><strong>Porudžbine korisnika</strong><small>Obrada, uplate i isporuka</small></a>@endif
                 @can('orders.create')<a href="{{ route('orders.create') }}"><span class="tone-blue"><x-icon name="plus-circle" /></span><strong>Nova porudžbina</strong><small>Kreiraj i rezerviši lager</small></a>@endcan
                 @can('catalog.manage_products')<a href="{{ route('admin.products.create') }}"><span class="tone-primary"><x-icon name="cube" /></span><strong>Dodaj artikal</strong><small>Novi proizvod ili konfiguracija</small></a>@endcan
                 @can('catalog.manage_products')<a href="{{ route('admin.products.bulk') }}"><span class="tone-amber"><x-icon name="sliders" /></span><strong>Bulk izmena</strong><small>Masovna promena kataloga</small></a>@endcan
