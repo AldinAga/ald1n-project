@@ -157,15 +157,24 @@ final class WarrantyFirstPaymentIssuance798Test extends TestCase
             'description' => 'Testni proizvod.', 'stock_quantity' => 10, 'status' => 'active',
             'created_by' => $admin->id,
         ]);
-        $this->actingAs($seller)->post('/orders', [
-            'idempotency_key' => 'pay798-'.$suffix,
-            'supplier_user_id' => $admin->id, 'shipping_full_name' => 'Sinteticki Kupac',
-            'shipping_address' => 'Test 1', 'shipping_city' => 'Beograd',
-            'shipping_postal_code' => '11000', 'shipping_phone' => '0601111222',
-            'payment_method' => 'bank_transfer',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
-        ])->assertRedirect();
-        return [$seller, $admin, Order::query()->latest('id')->firstOrFail()];
+        $order = Order::query()->create([
+            'source_system' => 'laravel', 'order_number' => 'APC-B798-'.$suffix,
+            'user_id' => $seller->id, 'supplier_user_id' => $admin->id,
+            'supplier_name_snapshot' => $admin->displayName(), 'supplier_role_snapshot' => 'Administrator',
+            'status' => 'new', 'inventory_state' => 'reserved',
+            'shipping_full_name' => 'Sinteticki Kupac', 'shipping_address' => 'Test 1',
+            'shipping_city' => 'Beograd', 'shipping_postal_code' => '11000',
+            'shipping_phone' => '0601111222', 'subtotal_rsd' => 12000,
+            'payment_method' => 'bank_transfer', 'payment_status' => 'pending',
+            'payment_state' => 'unpaid', 'paid_total_rsd' => 0,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id, 'product_sku' => $product->sku,
+            'product_name' => $product->name, 'quantity' => 1,
+            'unit_price_original' => 12000, 'original_currency' => 'RSD',
+            'unit_price_rsd' => 12000, 'line_total_rsd' => 12000,
+        ]);
+        return [$seller, $admin, $order];
     }
 
     private function newUser(string $name, string $role): User

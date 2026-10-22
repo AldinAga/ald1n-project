@@ -242,7 +242,8 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
         Notification::assertNothingSent();
 
         // A mismatched order-item/order link also blocks the SuperAdministrator exception.
-        $warranty->update(['order_id' => $warranty->order_id + 9999]);
+        $secondOrder = $this->createOrder($other, $admin, $this->product(), 'expiry-mismatched-valid-fk');
+        $warranty->update(['order_id' => $secondOrder->id]);
         Notification::fake();
         $this->sendExpiry($seller, $warranty->id);
         $super->notificationPreference()->update(['warranty_expiry_alerts' => true]);
@@ -266,7 +267,11 @@ final class WarrantyExpiryDeliveryGuardTest extends TestCase
         ]);
         config()->set('mobile.push.enabled', true);
         config()->set('mobile.push.provider', 'expo');
-        $this->sendExpiry($seller, $warranty->id);
+        app(OperationalNotificationService::class)->send($seller, [
+            'event' => 'warranty.expiry_reminder', 'warranty_id' => $warranty->id,
+            'title' => 'Ističe', 'message' => 'Test red za odjavu',
+            '_in_app' => false, '_email' => false, '_push' => true,
+        ]);
         $pending = MobilePushOutbox::query()->sole();
         self::assertSame('pending', $pending->status);
 
