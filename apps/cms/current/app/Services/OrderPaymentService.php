@@ -22,6 +22,7 @@ final class OrderPaymentService
         private readonly OrderFinancialStateService $financial,
         private readonly OrderEmailOutboxService $emails,
         private readonly OrderFinancialReconciliationService $reconciliation,
+        private readonly WarrantyIssuanceService $issuances,
     ) {}
 
     /** @param array<string,mixed> $data */
@@ -133,6 +134,9 @@ final class OrderPaymentService
             ]);
             $this->recalculateLocked($locked);
             $this->audit->log('order.payment_recorded', 'Evidentirana '.($type === 'refund' ? 'refundacija' : 'uplata').' '.$payment->payment_number, $payment, after: ['amount_rsd' => $payment->amount_rsd, 'entry_type' => $type], user: $actor);
+            // Same locked transaction: a confirmed first positive payment cannot commit
+            // without its unique numbered pre-delivery certificates.
+            $this->issuances->issueForVerifiedPaymentLocked($locked, $payment, $actor);
             return $payment;
         }, 5);
         $payment->loadMissing('order.user', 'order.supplier');
@@ -206,6 +210,7 @@ final class OrderPaymentService
             $locked->update(['status' => 'verified', 'verified_by' => $actor->id, 'verified_at' => now(), 'rejected_by' => null, 'rejected_at' => null, 'rejection_reason' => null]);
             $this->recalculateLocked($order);
             $this->audit->log('order.payment_verified', 'Verifikovana uplata '.$locked->payment_number, $locked, before: ['status' => 'submitted'], after: ['status' => 'verified'], user: $actor);
+            $this->issuances->issueForVerifiedPaymentLocked($order, $locked, $actor);
             return $locked;
         }, 5);
 

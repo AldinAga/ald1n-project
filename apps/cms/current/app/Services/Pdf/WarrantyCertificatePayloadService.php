@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Pdf;
 
 use App\Models\ProductWarranty;
+use App\Models\WarrantyIssuance;
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -14,6 +15,50 @@ final class WarrantyCertificatePayloadService
     public function __construct(
         private readonly SettingsService $settings,
     ) {
+    }
+
+    /** @return array<string,mixed> */
+    public function buildPending(WarrantyIssuance $issuance): array
+    {
+        $issuance->loadMissing('order');
+        $snapshot = (array) $issuance->snapshot_json;
+        $config = $this->settings->all();
+        $logoPath = trim((string) ($config['documents_logo_path'] ?? ''))
+            ?: trim((string) ($config['site_logo_light_path'] ?? ''));
+        $logo = null;
+        if ($logoPath !== '') {
+            try {
+                $candidate = Storage::disk('public')->path($logoPath);
+                if (is_file($candidate)) $logo = $candidate;
+            } catch (Throwable) { $logo = null; }
+        }
+        return [
+            'logo_path' => $logo,
+            'company_name' => (string) (($config['documents_company_name'] ?? '') ?: ($config['site_name'] ?? 'Ald1n')),
+            'company_address' => (string) ($config['documents_company_address'] ?? ''),
+            'company_city' => (string) ($config['documents_company_city'] ?? ''),
+            'company_phone' => (string) ($config['documents_company_phone'] ?? ''),
+            'company_email' => (string) ($config['documents_company_email'] ?? ''),
+            'warranty_number' => $issuance->warranty_number,
+            'order_number' => $issuance->order?->order_number,
+            'customer_name' => $snapshot['customer_name'] ?? 'Kupac',
+            'customer_address' => $snapshot['customer_address'] ?? '',
+            'customer_city' => trim((string) ($snapshot['customer_postal_code'] ?? '').' '.(string) ($snapshot['customer_city'] ?? '')),
+            'customer_phone' => $snapshot['customer_phone'] ?? '',
+            'product_name' => $snapshot['product_name'] ?? '',
+            'product_sku' => $snapshot['product_sku'] ?? '',
+            'quantity' => (int) ($snapshot['quantity'] ?? 1),
+            'serial_numbers' => [],
+            'starts_at' => 'Po isporuci',
+            'expires_at' => 'Po potvrdi isporuke',
+            'duration_months' => (int) ($snapshot['duration_months'] ?? 0),
+            'duration_days' => (int) ($snapshot['duration_days'] ?? 0),
+            'terms' => $snapshot['terms_snapshot'] ?? '',
+            'maintenance_text' => '',
+            'footer' => $config['documents_footer_note'] ?? '',
+            'issued_at' => $issuance->issued_at?->format('d.m.Y H:i'),
+            'validity_note' => 'Garantni list je izdat po prvoj potvrđenoj uplati. Garantni rok još ne teče: datum početka i isteka utvrđuju se na osnovu stvarne isporuke. Do tada ne postoji aktivan garantni rok.',
+        ];
     }
 
     /** @return array<string,mixed> */
@@ -73,7 +118,9 @@ final class WarrantyCertificatePayloadService
             'terms' => $warranty->terms_snapshot,
             'maintenance_text' => $maintenanceText,
             'footer' => $configuration['documents_footer_note'] ?? '',
-            'issued_at' => $warranty->created_at?->format('d.m.Y H:i'),
+            'issued_at' => (WarrantyIssuance::query()->where('order_item_id', $warranty->order_item_id)->value('issued_at')
+                ? \Illuminate\Support\Carbon::parse(WarrantyIssuance::query()->where('order_item_id', $warranty->order_item_id)->value('issued_at'))->format('d.m.Y H:i')
+                : $warranty->created_at?->format('d.m.Y H:i')),
         ];
     }
 }

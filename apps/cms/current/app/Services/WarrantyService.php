@@ -10,6 +10,7 @@ use App\Models\ProductWarranty;
 use App\Models\User;
 use App\Models\WarrantyMaintenanceRecord;
 use App\Models\WarrantyRule;
+use App\Models\WarrantyIssuance;
 use App\Support\WarrantyTerms;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -41,24 +42,34 @@ final class WarrantyService
             foreach ($locked->items as $item) {
                 if (ProductWarranty::query()->where('order_item_id', $item->id)->exists()) continue;
 
+                $issuance = Schema::hasTable('warranty_issuances')
+                    ? WarrantyIssuance::query()->where('order_item_id', $item->id)->lockForUpdate()->first()
+                    : null;
+                if ($issuance instanceof WarrantyIssuance
+                    && (string) $issuance->status !== 'issued_pending_delivery') {
+                    // Never quietly resurrect a voided or inconsistently activated certificate.
+                    continue;
+                }
+                $snapshot = $issuance instanceof WarrantyIssuance ? (array) $issuance->snapshot_json : [];
                 $rule = $this->resolveRule($item);
-                if (!$rule instanceof WarrantyRule) continue;
+                if (!$rule instanceof WarrantyRule && $issuance === null) continue;
 
-                $durationMonths = max(0, (int) $rule->duration_months);
-                $durationDays = max(0, (int) ($rule->duration_days ?? 0));
+                $durationMonths = max(0, (int) ($snapshot['duration_months'] ?? $rule?->duration_months ?? 0));
+                $durationDays = max(0, (int) ($snapshot['duration_days'] ?? $rule?->duration_days ?? 0));
                 if ($durationMonths === 0 && $durationDays === 0) continue;
                 $expires = $start->copy()->addMonthsNoOverflow($durationMonths)->addDays($durationDays);
-                $interval = $rule->maintenance_interval_months !== null ? max(1, (int) $rule->maintenance_interval_months) : null;
+                $rawInterval = $snapshot['maintenance_interval_months'] ?? ($issuance === null ? $rule?->maintenance_interval_months : null);
+                $interval = $rawInterval !== null ? max(1, (int) $rawInterval) : null;
                 $nextMaintenance = $interval !== null ? $start->copy()->addMonthsNoOverflow($interval) : null;
                 if ($nextMaintenance !== null && $nextMaintenance->gt($expires)) $nextMaintenance = null;
 
                 $warranty = ProductWarranty::query()->create([
-                    'warranty_number' => $this->numbers->next('warranty', (int) $start->format('Y')),
+                    'warranty_number' => $issuance?->warranty_number ?? $this->numbers->next('warranty', (int) $start->format('Y')),
                     'order_id' => $locked->id,
                     'order_item_id' => $item->id,
                     'product_id' => $item->product_id,
                     'user_id' => $locked->user_id,
-                    'warranty_rule_id' => $rule->id,
+                    'warranty_rule_id' => $snapshot['warranty_rule_id'] ?? $rule?->id,
                     'status' => 'active',
                     'starts_at' => $start->toDateString(),
                     'expires_at' => $expires->toDateString(),
@@ -66,18 +77,22 @@ final class WarrantyService
                     'duration_days' => $durationDays,
                     'maintenance_interval_months' => $interval,
                     'next_maintenance_at' => $nextMaintenance?->toDateString(),
-                    'customer_name_snapshot' => trim((string) $locked->shipping_full_name) ?: 'Kupac',
-                    'customer_address_snapshot' => $locked->shipping_address,
-                    'customer_city_snapshot' => $locked->shipping_city,
-                    'customer_postal_code_snapshot' => $locked->shipping_postal_code,
-                    'customer_phone_snapshot' => $locked->shipping_phone,
-                    'product_sku_snapshot' => $item->product_sku,
-                    'product_name_snapshot' => $item->product_name,
-                    'quantity' => max(1, (int) $item->quantity),
+                    'customer_name_snapshot' => $snapshot['customer_name'] ?? (trim((string) $locked->shipping_full_name) ?: 'Kupac'),
+                    'customer_address_snapshot' => $snapshot['customer_address'] ?? $locked->shipping_address,
+                    'customer_city_snapshot' => $snapshot['customer_city'] ?? $locked->shipping_city,
+                    'customer_postal_code_snapshot' => $snapshot['customer_postal_code'] ?? $locked->shipping_postal_code,
+                    'customer_phone_snapshot' => $snapshot['customer_phone'] ?? $locked->shipping_phone,
+                    'product_sku_snapshot' => $snapshot['product_sku'] ?? $item->product_sku,
+                    'product_name_snapshot' => $snapshot['product_name'] ?? $item->product_name,
+                    'quantity' => max(1, (int) ($snapshot['quantity'] ?? $item->quantity)),
                     'serial_numbers_json' => [],
-                    'terms_snapshot' => WarrantyTerms::forNewCertificate($rule->terms),
+                    'terms_snapshot' => $issuance !== null ? ($snapshot['terms_snapshot'] ?? null) : WarrantyTerms::forNewCertificate($rule->terms),
                     'created_by' => $actor?->id,
                 ]);
+
+                if ($issuance instanceof WarrantyIssuance) {
+                    $issuance->update(['status' => 'activated', 'activated_warranty_id' => $warranty->id]);
+                }
 
                 if ($nextMaintenance !== null) {
                     WarrantyMaintenanceRecord::query()->create([
@@ -159,6 +174,10 @@ final class WarrantyService
     public function voidForOrder(Order $order, User $actor, string $reason): int
     {
         if (!$this->ready()) return 0;
+        if (Schema::hasTable('warranty_issuances')) {
+            WarrantyIssuance::query()->where('order_id', $order->id)
+                ->where('status', 'issued_pending_delivery')->update(['status' => 'void']);
+        }
         $count = 0;
         foreach (ProductWarranty::query()->where('order_id', $order->id)->where('status', 'active')->get() as $warranty) {
             $this->void($warranty, $actor, $reason);
@@ -234,7 +253,7 @@ final class WarrantyService
         }, 5);
     }
 
-    private function resolveRule(OrderItem $item): ?WarrantyRule
+    public function resolveRule(OrderItem $item): ?WarrantyRule
     {
         $product = $item->product;
         if ($product !== null) {
