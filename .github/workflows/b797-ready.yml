@@ -1,0 +1,146 @@
+name: B797 release candidate proof
+on:
+  push:
+    branches: ['feat/b797-first-payment-warranty-20261022']
+    paths: ['.github/workflows/b797-ready.yml']
+permissions: {contents: read, actions: read}
+jobs:
+  qa:
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['mariadb:10.11.19', 'mysql:8.4']
+        kind: ['safety', 'regression', 'retirement']
+        include:
+          - kind: safety
+            database: ald1n_warranty797_ci
+          - kind: regression
+            database: ald1n_test
+          - kind: retirement
+            database: ald1n_retirement_ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    services:
+      db:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_DATABASE: ${{ matrix.database }}
+          MYSQL_USER: ald1n_test
+          MYSQL_PASSWORD: ald1n_test
+          MYSQL_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci_only --silent || mariadb-admin ping -h 127.0.0.1 -pci_only --silent"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ${{ matrix.database }}
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false, fetch-depth: 0}
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath,pcntl
+          coverage: none
+      - name: Exact isolated candidate
+        run: |
+          set -euo pipefail
+          test "$DB_HOST" = 127.0.0.1
+          test ! -e apps/cms/current/.env
+          mkdir -p "$RUNNER_TEMP/b797-qa"
+          python qa/b797-candidate/assemble.py
+          python qa/b797-candidate/final-fix.py
+          python qa/b797-candidate/atomic-proof.py
+          git diff --check
+          cd apps/cms/current
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Seven real schema and concurrency safety cases
+        if: matrix.kind == 'safety'
+        working-directory: apps/cms/current
+        run: |
+          vendor/bin/phpunit -c phpunit.mysql.xml tests/Integration/Warranty797DatabaseSafetyTest.php --log-junit "$RUNNER_TEMP/b797-qa/safety.xml" > "$RUNNER_TEMP/b797-qa/safety.log" 2>&1 || { cat "$RUNNER_TEMP/b797-qa/safety.log"; exit 1; }
+          cat "$RUNNER_TEMP/b797-qa/safety.log"
+      - name: Existing retirement regression
+        if: matrix.kind == 'retirement'
+        working-directory: apps/cms/current
+        run: |
+          vendor/bin/phpunit -c phpunit.mysql.xml tests/Feature/UserRetirementMySqlIntegrationTest.php --log-junit "$RUNNER_TEMP/b797-qa/retirement.xml" > "$RUNNER_TEMP/b797-qa/retirement.log" 2>&1 || { cat "$RUNNER_TEMP/b797-qa/retirement.log"; exit 1; }
+          cat "$RUNNER_TEMP/b797-qa/retirement.log"
+      - name: New behavior, document output and static checks
+        if: matrix.kind == 'regression'
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          B797_EVIDENCE_DIR="$RUNNER_TEMP/b797-qa" vendor/bin/phpunit -c phpunit.mysql.xml --filter 'Warranty797RedTest|FirstPaymentWarranty797Test|WarrantyExpiryIsolation797Test|WarrantyExpiryOptInSourceTest|Warranty797EndToEndTest' --log-junit "$RUNNER_TEMP/b797-qa/targeted.xml" > "$RUNNER_TEMP/b797-qa/targeted.log" 2>&1 || { cat "$RUNNER_TEMP/b797-qa/targeted.log"; exit 1; }
+          cat "$RUNNER_TEMP/b797-qa/targeted.log"
+          php bin/static-check.php > "$RUNNER_TEMP/b797-qa/static.log"
+      - name: Full configured suite with explicit unchanged baseline debt
+        if: matrix.kind == 'regression'
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          set -euo pipefail
+          gh api repos/AldinAga/ald1n-project/actions/artifacts/12458523622/zip > "$RUNNER_TEMP/baseline.zip"
+          echo "77e271d6f9bab0a229939f71c1d63238192d866d3cbbeea0b815a23c3371032a  $RUNNER_TEMP/baseline.zip" | sha256sum -c -
+          cd apps/cms/current
+          rc=0
+          vendor/bin/phpunit -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b797-qa/full.xml" > "$RUNNER_TEMP/b797-qa/full.log" 2>&1 || rc=$?
+          echo "FULL_SUITE_RC=$rc" | tee "$RUNNER_TEMP/b797-qa/full-rc.txt"
+          python - <<'PY'
+          from pathlib import Path
+          import os,zipfile,json,xml.etree.ElementTree as E
+          d=Path(os.environ['RUNNER_TEMP'])/'b797-qa'
+          (d/'baseline.xml').write_bytes(zipfile.ZipFile(os.environ['RUNNER_TEMP']+'/baseline.zip').read('baseline.xml'))
+          def problems(p):
+              return sorted({(t.attrib.get('classname'),t.attrib.get('name')) for t in E.parse(p).findall('.//testcase') if t.find('failure') is not None or t.find('error') is not None})
+          before=problems(d/'baseline.xml');after=problems(d/'full.xml');new=sorted(set(after)-set(before))
+          (d/'comparison.json').write_text(json.dumps({'baseline':before,'candidate':after,'new_failures':new},indent=2))
+          print('BASELINE_PROBLEMS',len(before),'CANDIDATE_PROBLEMS',len(after),'NEW',new)
+          assert not new
+          PY
+      - name: Retain exact source and synthetic evidence
+        if: always()
+        run: |
+          git diff --binary > "$RUNNER_TEMP/b797-qa/uncommitted.patch"
+          tar --exclude=vendor --exclude=.env --exclude=storage --exclude=bootstrap/cache -czf "$RUNNER_TEMP/b797-qa/cms-source.tar.gz" apps/cms/current
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: b797-ready-${{ strategy.job-index }}-${{ github.sha }}
+          path: ${{ runner.temp }}/b797-qa/
+          retention-days: 7
+  publish:
+    needs: qa
+    runs-on: ubuntu-24.04
+    permissions: {contents: write}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {fetch-depth: 0}
+      - name: Publish exact tested source to feature branch only
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/b797-first-payment-warranty-20261022
+          test "$(git ls-remote origin refs/heads/$GITHUB_REF_NAME | cut -f1)" = "$GITHUB_SHA"
+          python qa/b797-candidate/assemble.py
+          python qa/b797-candidate/final-fix.py
+          python qa/b797-candidate/atomic-proof.py
+          git add apps/cms/current/app apps/cms/current/database/migrations/2026_10_22_210000_create_warranty_issuance_and_expiry_delivery_ledgers.php apps/cms/current/resources/views apps/cms/current/routes/web.php apps/cms/current/tests
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(cms): first confirmed payment certificate and independent expiry recipients (B797)'
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
