@@ -2,7 +2,7 @@ name: B797 first-payment RED and baseline
 on:
   push:
     branches: ['feat/b797-first-payment-warranty-20261022']
-    paths: ['.github/workflows/b797-red.yml']
+    paths: ['.github/workflows/b797-red.yml', 'apps/cms/current/tests/Feature/Warranty797RedTest.php']
 permissions:
   contents: read
 jobs:
