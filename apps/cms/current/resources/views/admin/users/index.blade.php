@@ -170,10 +170,9 @@
 
             <article class="panel access-control-user-card" data-access-user="{{ $user->id }}">
                 <div class="access-control-user-head">
-                    @if(auth()->user()?->hasRole('superadmin') && (int) auth()->id() !== (int) $user->id && $roleSlug !== 'superadmin' && $status !== 'blocked')
-                        <a class="button button-ghost access-control-user-retire-link" href="{{ route('admin.users.retirement.preview', $user) }}">Ukloni korisnika</a>
-                    @endif
+                    <span class="access-control-user-avatar" aria-hidden="true">{{ $user->displayInitial() }}</span>
                     <div class="access-control-user-identity">
+                        <span class="access-control-identity-label">Korisnički nalog</span>
                         <strong>{{ $user->displayName() }}</strong>
                         <small>{{ $user->username }} · {{ $user->email }}</small>
                     </div>
@@ -230,7 +229,10 @@
                             @csrf
                             @method('put')
 
-                            <div class="access-control-field-grid">
+                            <div class="access-control-editor-sections" data-user-editor-sections>
+                                <fieldset class="access-control-editor-section access-control-editor-section--identity">
+                                    <legend>Osnovni podaci</legend>
+                                    <div class="access-control-field-grid">
                                 <label>
                                     <span>Korisničko ime</span>
                                     <input name="username" value="{{ $user->username }}" required autocomplete="off">
@@ -251,10 +253,11 @@
                                     <span>Prezime</span>
                                     <input name="last_name" value="{{ $user->last_name }}" autocomplete="off">
                                 </label>
-                                <label>
-                                    <span>Nova lozinka</span>
-                                    <input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="Ostavi prazno bez promene">
-                                </label>
+                                    </div>
+                                </fieldset>
+                                <fieldset class="access-control-editor-section access-control-editor-section--access">
+                                    <legend>Pristup i ovlašćenja</legend>
+                                    <div class="access-control-field-grid">
                                 <label>
                                     <span>Uloga</span>
                                     <select name="role_id" required>
@@ -280,6 +283,18 @@
                                         @endforeach
                                     </select>
                                 </label>
+                                    </div>
+                                </fieldset>
+                                <fieldset class="access-control-editor-section access-control-editor-section--security">
+                                    <legend>Bezbednost</legend>
+                                    <div class="access-control-field-grid">
+                                <label>
+                                    <span>Nova lozinka</span>
+                                    <input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="Ostavi prazno bez promene">
+                                </label>
+                                    </div>
+                                    <p class="access-control-help">Lozinka ostaje nepromenjena ako polje ostaviš prazno. Najmanje 12 znakova za novu lozinku.</p>
+                                </fieldset>
                             </div>
 
                             @if($roleSlug === 'superadmin')
@@ -288,12 +303,20 @@
                                 </div>
                             @endif
 
-                            <div class="access-control-actions access-control-actions-spaced">
+                            <div class="access-control-actions access-control-editor-save">
+                                <span class="access-control-save-note">Izmene se primenjuju tek nakon čuvanja.</span>
+                                <button class="button button-ghost" type="reset">Poništi unos</button>
                                 <button class="button button-primary" type="submit">Sačuvaj korisnika</button>
                             </div>
                         </form>
                     </div>
                 </details>
+                @if(auth()->user()?->hasRole('superadmin') && (int) auth()->id() !== (int) $user->id && $roleSlug !== 'superadmin' && $status !== 'blocked')
+                    <div class="access-control-user-danger-zone">
+                        <div><strong>Uklanjanje naloga</strong><small>Najpre pregled zavisnosti i postojeća bezbednosna provera.</small></div>
+                        <a class="button button-ghost access-control-user-retire-link" href="{{ route('admin.users.retirement.preview', $user) }}">Ukloni korisnika</a>
+                    </div>
+                @endif
             </article>
         @empty
             <div class="panel access-control-empty">Nema korisnika koji odgovaraju trenutnim filterima.</div>

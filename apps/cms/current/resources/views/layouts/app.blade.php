@@ -50,6 +50,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-liquid-glass.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-liquid-glass.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/vendor/liquid-glass-web.css') }}?v={{ @filemtime(public_path('assets/css/vendor/liquid-glass-web.css')) ?: config('app.version') }}">
     @stack('styles')
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-refinement.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-refinement.css')) ?: config('app.version') }}">
     <script>
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';

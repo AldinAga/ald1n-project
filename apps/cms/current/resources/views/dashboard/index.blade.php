@@ -126,6 +126,7 @@
 </section>
 
 @if($user->hasRole('superadmin'))
+<div class="dashboard-command-row" data-dashboard-command-row>
 <section class="dashboard-d1-period" data-dashboard-period="{{ $dashboardPeriod['period'] }}" aria-label="Period upravljačkih izveštaja">
     <div class="dashboard-d1-period-heading">
         <div>
@@ -167,6 +168,7 @@
     </div>
 </section>
 @endif
+</div>
 
 <section class="dashboard-kpi-grid dashboard-kpi-grid--d1" data-dashboard-d1-grid aria-label="Šest glavnih poslovnih pokazatelja">
     <a data-dashboard-d1-kpi="revenue" class="dashboard-kpi-card" href="{{ route('admin.reports.index') }}">
@@ -343,7 +345,7 @@
             <div class="dashboard-panel-heading"><div><span class="eyebrow">Najnovije promene</span><h2>Poslednje porudžbine</h2></div><a href="{{ $orderIndex }}">Prikaži sve <x-icon name="arrow-right" size="15" /></a></div>
             <div class="dashboard-order-list">
                 @forelse($recentOrders as $order)
-                    <a href="{{ $order['url'] }}" class="dashboard-order-row"><div><strong>{{ $order['number'] }}</strong><small>{{ $order['updated_at']?->format('d.m.Y H:i') }}</small></div><span class="dashboard-order-status tone-{{ $statusTone($order['status']) }}">{{ $order['status_label'] }}</span><div class="dashboard-order-money"><strong>{{ number_format((float) $order['total_rsd'], 2, ',', '.') }} RSD</strong>@if($order['remaining_rsd'] > 0)<small>Preostalo {{ number_format((float) $order['remaining_rsd'], 2, ',', '.') }}</small>@else<small>Plaćeno / zatvoreno</small>@endif</div><x-icon name="arrow-right" size="16" /></a>
+                    <a href="{{ $order['url'] }}" class="dashboard-order-row"><div class="dashboard-order-product"><strong>{{ $order['product_name'] }}@if($order['other_products'] > 0)<span class="dashboard-order-extra" data-order-extra-products="{{ $order['other_products'] }}" aria-label="Još stavki: {{ $order['other_products'] }}"> + {{ $order['other_products'] }}</span>@endif</strong><small>{{ $order['number'] }} · {{ $order['updated_at']?->format('d.m.Y H:i') }}</small></div><span class="dashboard-order-status tone-{{ $statusTone($order['status']) }}">{{ $order['status_label'] }}</span><div class="dashboard-order-money"><strong>{{ number_format((float) $order['total_rsd'], 2, ',', '.') }} RSD</strong>@if($order['remaining_rsd'] > 0)<small>Preostalo {{ number_format((float) $order['remaining_rsd'], 2, ',', '.') }}</small>@else<small>Plaćeno / zatvoreno</small>@endif</div><x-icon name="arrow-right" size="16" /></a>
                 @empty
                     <div class="dashboard-empty compact"><p>Još nema porudžbina za prikaz.</p></div>
                 @endforelse
