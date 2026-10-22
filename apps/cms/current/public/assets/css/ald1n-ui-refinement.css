@@ -1,0 +1,187 @@
+/* Ald1n UI794 - scoped layout refinements over the existing Liquid Glass tokens.
+   No global overflow suppression; no permission, pricing or workflow changes. */
+.build16-home-shell .dashboard-command-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+.build16-home-shell .dashboard-command-row > * { min-width: 0; margin: 0; }
+.build16-home-shell .dashboard-command-row .dashboard-priority-panel { order: initial; }
+.build16-home-shell .dashboard-command-row .dashboard-priority-list { grid-template-columns: minmax(0, 1fr); }
+.build16-home-shell .dashboard-command-row .dashboard-panel-heading { margin-bottom: 12px; }
+.build16-home-shell .dashboard-command-row .dashboard-panel-heading h2 { font-size: 1.1rem; }
+.build16-home-shell .dashboard-command-row .dashboard-panel-heading p { margin: 4px 0 0; font-size: .8rem; }
+.build16-home-shell .dashboard-command-row .dashboard-d1-period-heading > div:first-child { flex-basis: 230px; }
+.build16-home-shell .dashboard-command-row .dashboard-d1-period-heading { align-items: start; }
+.build16-home-shell .dashboard-command-row .dashboard-priority-item { min-width: 0; }
+.build16-home-shell .dashboard-command-row .dashboard-priority-item > div { min-width: 0; overflow-wrap: anywhere; }
+@media (min-width: 1200px) {
+  .build16-home-shell .dashboard-command-row { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: stretch; }
+  .build16-home-shell .dashboard-command-row .dashboard-d1-period { align-content: start; }
+}
+
+/* Snapshot label first; order number and time remain available on every row. */
+.build16-home-shell .dashboard-order-row { grid-template-columns: minmax(0, 1fr) auto minmax(115px, auto) 16px; }
+.build16-home-shell .dashboard-order-product { min-width: 0; }
+.build16-home-shell .dashboard-order-product strong,
+.build16-home-shell .dashboard-order-product small { white-space: normal; overflow-wrap: anywhere; }
+.build16-home-shell .dashboard-order-product strong { line-height: 1.4; }
+.build16-home-shell .dashboard-order-extra { color: var(--ald-muted); font-size: .8em; font-weight: 600; white-space: nowrap; }
+.build16-home-shell .dashboard-order-money { min-width: 0; }
+.build16-home-shell .dashboard-order-money strong { overflow-wrap: anywhere; }
+.build16-home-shell .dashboard-secondary-grid { align-items: start; }
+
+/* Individual tactile glass tiles, not a flat table of actions. */
+.build16-home-shell .dashboard-action-grid,
+.build16-home-shell .dashboard-module-grid {
+  gap: 12px;
+  padding: 2px;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+}
+.build16-home-shell .dashboard-action-grid > a,
+.build16-home-shell .dashboard-module-grid > .dashboard-module-card {
+  min-width: 0;
+  min-height: 88px;
+  padding: 16px;
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  border-radius: 16px;
+  background: linear-gradient(140deg, var(--lg5-sheen, rgba(255,255,255,.1)), transparent 60%), var(--lg5-panel-tint, var(--ald-surface));
+  box-shadow: inset 0 1px 0 var(--lg5-sheen, rgba(255,255,255,.16)), 0 8px 22px var(--lg2-ink-shadow, rgba(0,0,0,.1));
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  transition: border-color .16s, background-color .16s, transform .16s, box-shadow .16s;
+}
+.build16-home-shell .dashboard-action-grid > a:nth-child(n),
+.build16-home-shell .dashboard-module-grid > .dashboard-module-card:nth-child(n) { border: 1px solid var(--lg5-panel-edge, var(--ald-border)); }
+.build16-home-shell .dashboard-action-grid > a:hover,
+.build16-home-shell .dashboard-module-grid > .dashboard-module-card:hover {
+  border-color: var(--ald-primary);
+  background-color: var(--ald-primary-container);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--lg5-sheen), 0 12px 25px var(--lg2-ink-shadow, rgba(0,0,0,.14));
+}
+.build16-home-shell .dashboard-action-grid > a:active,
+.build16-home-shell .dashboard-module-grid > .dashboard-module-card:active { transform: translateY(0); }
+.build16-home-shell .dashboard-action-grid :is(strong, small),
+.build16-home-shell .dashboard-module-card > div { min-width: 0; overflow-wrap: anywhere; }
+.build16-home-shell .dashboard-action-grid > a > span:first-child,
+.build16-home-shell .dashboard-module-card .module-icon { border-radius: 13px; box-shadow: inset 0 1px 0 var(--lg5-sheen); }
+
+/* Preserve the gallery/lightbox structure; let the two desktop columns stretch. */
+.build16-product-detail-shell .build16-product-summary { min-width: 0; padding: clamp(18px, 2vw, 28px); }
+.build16-product-detail-shell .build16-product-specifications dt,
+.build16-product-detail-shell .build16-product-specifications dd { padding: 13px 16px; overflow-wrap: anywhere; line-height: 1.5; }
+.build16-product-detail-shell .build16-product-specifications dt { font-weight: 600; }
+.build16-product-detail-shell .build16-product-summary h1 { overflow-wrap: anywhere; }
+@media (min-width: 821px) {
+  .build16-product-detail-shell .build16-product-detail-layout { align-items: stretch; }
+  .build16-product-detail-shell .build16-product-summary,
+  .build16-product-detail-shell .build16-product-gallery { align-self: stretch; }
+}
+
+/* User identity and access editor: original form contract, clearer hierarchy. */
+.access-control-user-card {
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  border-radius: 22px;
+  background: linear-gradient(130deg, var(--lg5-sheen, rgba(255,255,255,.08)), transparent 55%), var(--lg5-panel-tint, var(--ald-surface));
+  box-shadow: 0 12px 32px var(--lg2-ink-shadow, rgba(0,0,0,.1)), inset 0 1px 0 var(--lg5-sheen);
+}
+.access-control-user-card .access-control-user-head {
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 24px;
+  align-items: center;
+}
+.access-control-user-card .access-control-user-avatar {
+  display: grid; place-items: center;
+  width: 56px; height: 56px;
+  border-radius: 18px;
+  color: var(--ald-on-primary-container, var(--ald-text));
+  background: linear-gradient(140deg, var(--ald-primary-container), var(--ald-surface-container));
+  border: 1px solid color-mix(in srgb, var(--ald-primary) 38%, var(--ald-border));
+  box-shadow: inset 0 1px 0 var(--lg5-sheen);
+  font-size: 1.4rem; font-weight: 800;
+}
+.access-control-user-card .access-control-identity-label { display: block; margin-bottom: 5px; color: var(--ald-muted); font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.access-control-user-card .access-control-user-identity strong { font-size: 1.25rem; overflow-wrap: anywhere; }
+.access-control-user-card .access-control-user-identity small { margin-top: 7px; line-height: 1.45; }
+.access-control-user-card .access-control-user-meta { margin: 0 24px; gap: 10px; border: 0; }
+.access-control-user-card .access-control-user-meta > div {
+  padding: 14px 16px;
+  border: 1px solid var(--lg5-panel-edge, var(--ald-border));
+  border-radius: 14px;
+  background: var(--lg5-panel-tint, var(--ald-surface));
+}
+.access-control-user-card .access-control-user-meta strong { margin-top: 7px; line-height: 1.45; }
+.access-control-user-card .access-control-effective { padding: 16px 24px; line-height: 1.65; }
+.access-control-user-card .access-control-user-edit > summary { padding: 18px 24px; }
+.access-control-user-card .access-control-user-edit > summary:focus-visible { outline: 2px solid var(--ald-primary); outline-offset: -4px; }
+.access-control-user-card .access-control-disclosure-body { padding: 4px 24px 22px; }
+.access-control-user-card .access-control-editor-sections { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; }
+.access-control-user-card .access-control-editor-section { min-width: 0; margin: 0; padding: 18px; border: 1px solid var(--ald-border); border-radius: 16px; background: var(--lg5-panel-tint, var(--ald-surface)); }
+.access-control-user-card .access-control-editor-section legend { padding: 0 8px; color: var(--ald-text); font-weight: 800; font-size: .87rem; }
+.access-control-user-card .access-control-editor-section--identity { grid-row: span 2; }
+.access-control-user-card .access-control-editor-section .access-control-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+.access-control-user-card .access-control-editor-section--access .access-control-field-grid,
+.access-control-user-card .access-control-editor-section--security .access-control-field-grid { grid-template-columns: minmax(0, 1fr); }
+.access-control-user-card .access-control-editor-section--identity label:nth-child(2) { grid-column: 1 / -1; }
+.access-control-user-card .access-control-form :is(input:not([type="hidden"]), select) {
+  display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 44px;
+  border: 1px solid var(--ald-border); border-radius: 12px;
+  padding: 10px 12px; color: var(--ald-text); background: var(--ald-surface-container, var(--panel-2));
+  box-shadow: inset 0 1px 2px var(--lg2-ink-shadow, rgba(0,0,0,.08));
+}
+.access-control-user-card .access-control-form :is(input, select):focus-visible { outline: 2px solid var(--ald-primary); outline-offset: 2px; }
+.access-control-user-card .access-control-editor-save { gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--ald-border); justify-content: flex-end; }
+.access-control-user-card .access-control-save-note { margin-right: auto; color: var(--ald-muted); font-size: .78rem; }
+.access-control-user-card .access-control-user-danger-zone { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 24px; border-top: 1px solid var(--ald-border); background: color-mix(in srgb, var(--ald-danger) 4%, transparent); }
+.access-control-user-card .access-control-user-danger-zone strong,
+.access-control-user-card .access-control-user-danger-zone small { display: block; }
+.access-control-user-card .access-control-user-danger-zone strong { font-size: .84rem; }
+.access-control-user-card .access-control-user-danger-zone small { margin-top: 4px; color: var(--ald-muted); font-size: .77rem; }
+.access-control-user-card .access-control-user-retire-link { position: static; margin: 0; color: var(--ald-danger); border-color: color-mix(in srgb, var(--ald-danger) 45%, var(--ald-border)); }
+:where(.build16-home-shell) :is(.dashboard-action-grid > a, .dashboard-module-card):focus-visible { outline: 2px solid var(--ald-primary); outline-offset: 3px; }
+@media (max-width: 820px) {
+  .access-control-user-card .access-control-user-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .access-control-user-card .access-control-editor-sections { grid-template-columns: minmax(0, 1fr); }
+  .access-control-user-card .access-control-editor-section--identity { grid-row: auto; }
+  .build16-home-shell .dashboard-order-row { grid-template-columns: minmax(0, 1fr) auto; gap: 9px 12px; }
+  .build16-home-shell .dashboard-order-money { grid-column: 1; text-align: left; }
+  .build16-home-shell .dashboard-order-row > svg { grid-column: 2; justify-self: end; }
+}
+@media (max-width: 540px) {
+  .access-control-user-card .access-control-user-head { grid-template-columns: 44px minmax(0, 1fr); padding: 18px; gap: 12px; }
+  .access-control-user-card .access-control-user-avatar { width: 44px; height: 44px; border-radius: 14px; }
+  .access-control-user-card .access-control-user-badges { grid-column: 2; justify-content: flex-start; }
+  .access-control-user-card .access-control-user-meta { margin-inline: 18px; }
+  .access-control-user-card .access-control-user-meta > div { padding: 12px; }
+  .access-control-user-card .access-control-effective,
+  .access-control-user-card .access-control-user-edit > summary,
+  .access-control-user-card .access-control-user-danger-zone { padding-inline: 18px; }
+  .access-control-user-card .access-control-disclosure-body { padding-inline: 18px; }
+  .access-control-user-card .access-control-editor-section { padding: 14px; }
+  .access-control-user-card .access-control-editor-section .access-control-field-grid { grid-template-columns: minmax(0, 1fr); }
+  .access-control-user-card .access-control-editor-section--identity label:nth-child(2) { grid-column: auto; }
+  .access-control-user-card .access-control-save-note { flex-basis: 100%; }
+  .build16-home-shell .dashboard-action-grid,
+  .build16-home-shell .dashboard-module-grid { grid-template-columns: minmax(0, 1fr); }
+  .build16-product-detail-shell .build16-product-specifications dt,
+  .build16-product-detail-shell .build16-product-specifications dd { padding: 11px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .build16-home-shell .dashboard-action-grid > a,
+  .build16-home-shell .dashboard-module-grid > .dashboard-module-card { transition: none; transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .build16-home-shell .dashboard-action-grid > a,
+  .build16-home-shell .dashboard-module-grid > .dashboard-module-card,
+  .access-control-user-card { background: var(--ald-surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+@media (forced-colors: active) {
+  .build16-home-shell .dashboard-action-grid > a,
+  .build16-home-shell .dashboard-module-grid > .dashboard-module-card,
+  .access-control-user-card { background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none; backdrop-filter: none; }
+}

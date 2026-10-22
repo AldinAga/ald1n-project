@@ -1607,19 +1607,12 @@ html[data-theme="light"] body:has(.page-shell .dashboard-kpi-card) {
     #F2F6FF;
   background-attachment: fixed;
 }
-/* Remove narrow clipped blooms; viewport-width pseudo-element remains decorative. */
+/* UI794: body already paints the full-bleed aurora. A centered 100vw
+   pseudo-element includes classic scrollbar width and overflows the document.
+   Remove the redundant decoration, not scrolling or focusable content. */
 html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,
 html[data-theme="light"] .page-shell:has(.dashboard-kpi-card)::before {
-  left: 50%;
-  right: auto;
-  width: 100vw;
-  max-width: 100vw;
-  transform: translateX(-50%);
-  filter: none;
-  background:
-    radial-gradient(ellipse 61% 45% at 0% 21%, rgba(40,124,255,.22), transparent 90%),
-    radial-gradient(ellipse 58% 48% at 100% 23%, rgba(136,91,255,.20), transparent 90%),
-    radial-gradient(ellipse 67% 55% at 50% 78%, rgba(73,105,196,.09), transparent 88%);
+  content: none;
 }
 @media (forced-colors: active), (prefers-reduced-transparency: reduce) {
   html[data-theme="dark"] .page-shell:has(.dashboard-kpi-card)::before,

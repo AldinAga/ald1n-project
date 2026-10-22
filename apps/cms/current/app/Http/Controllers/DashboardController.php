@@ -282,8 +282,19 @@ final class DashboardController extends Controller
             } elseif (!$access['orders_manage']) {
                 $query->where('user_id', $user->id);
             }
+            // Load immutable line-item snapshots once; never show renamed live products.
+            $hasItemSnapshots = $this->tableHasColumns('order_items', ['id', 'order_id', 'product_name']);
+            if ($hasItemSnapshots) {
+                $query->with(['items' => static fn ($items) => $items
+                    ->select(['id', 'order_id', 'product_name'])->orderBy('id')]);
+            }
             return $query->latest('updated_at')->limit(7)->get()->map(static function (Order $order) use ($access): array {
+                $summary = \App\Support\OrderProductSummary::fromNames(
+                    $order->relationLoaded('items') ? $order->items->pluck('product_name') : [],
+                );
                 return [
+                    'product_name' => $summary['product_name'],
+                    'other_products' => $summary['other_products'],
                     'number' => $order->order_number,
                     'status' => $order->status,
                     'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Završena','cancelled'=>'Otkazana'][$order->status] ?? $order->status,
