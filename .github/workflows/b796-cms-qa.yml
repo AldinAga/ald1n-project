@@ -1,0 +1,96 @@
+name: B796 operator workspace isolated QA
+on:
+  push:
+    branches: [feat/b796-operator-orders-glass-tracking-20261022]
+    paths: ['apps/cms/current/**', '.github/workflows/b796-cms-qa.yml']
+permissions:
+  contents: read
+concurrency:
+  group: b796-qa-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  cms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install exact test-only dependencies
+        id: dependencies
+        working-directory: apps/cms/current
+        run: |
+          set -eu
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          mkdir -p "$RUNNER_TEMP/b796-result"
+      - name: Canonical static gate
+        working-directory: apps/cms/current
+        run: php bin/static-check.php
+      - name: B796 behavior tests
+        if: always() && steps.dependencies.outcome == 'success'
+        working-directory: apps/cms/current
+        env:
+          B796_RENDER_DIR: ${{ runner.temp }}/b796-result/render
+        run: |
+          set -o pipefail
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b796-result/targeted.xml" tests/Feature/OperatorWorkspace796Test.php 2>&1 | tee "$RUNNER_TEMP/b796-result/targeted.log"
+      - name: Entire existing suite baseline excluding new group
+        if: always() && steps.dependencies.outcome == 'success'
+        working-directory: apps/cms/current
+        run: |
+          set -o pipefail
+          vendor/bin/phpunit --fail-on-warning -c phpunit.mysql.xml --exclude-group=b796 --log-junit "$RUNNER_TEMP/b796-result/suite.xml" 2>&1 | tee "$RUNNER_TEMP/b796-result/suite.log"
+      - name: Retain source and synthetic evidence
+        if: always()
+        run: |
+          set -eu
+          out="$RUNNER_TEMP/b796-result"
+          mkdir -p "$out"
+          git archive --format=tar HEAD > "$out/source.tar"
+          git rev-parse HEAD > "$out/source-commit.txt"
+          sha256sum "$out/source.tar" > "$out/SHA256SUMS.txt"
+          echo 'PRODUCTION=UNTOUCHED MAIN=UNTOUCHED NO_REAL_USER_DATA NO_BUILD_OTA_PLAY'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: b796-qa-${{ github.sha }}
+          path: ${{ runner.temp }}/b796-result/
+          retention-days: 3
+          if-no-files-found: error
