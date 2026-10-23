@@ -174,6 +174,7 @@ final class PublicRetailEndToEndTest extends TestCase
             'sku' => $sku, 'name' => $name, 'slug' => strtolower($sku),
             'status' => $status, 'stock_quantity' => $stock,
             'price_amount' => $price, 'price_currency' => 'RSD',
+            'created_by' => User::query()->where('username', 'guest-shop-operator')->valueOrFail('id'),
             'description' => 'Sintetički testni proizvod bez privatnih podataka.',
         ]);
     }
