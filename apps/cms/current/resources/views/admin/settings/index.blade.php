@@ -46,6 +46,12 @@
                     <span class="settings-hub-icon"><x-icon name="coins" /></span>
                     <span><strong>EUR/RSD kurs</strong><small>Automatski ili ručni kurs i centralna sinhronizacija.</small></span>
                 </a>
+                @if($settingsUser?->hasRole('superadmin'))
+                <a class="settings-hub-card" href="{{ route('admin.settings.public-retail.index') }}" data-settings-item data-settings-keywords="javni katalog maloprodaja prodavnica korpa uslovi besplatna dostava">
+                    <span class="settings-hub-icon"><x-icon name="shopping-bag" /></span>
+                    <span><strong>Javni katalog i poručivanje</strong><small>Odobrenja trgovca, uslovi kupovine i stvarni režim dostave.</small></span>
+                </a>
+                @endif
                 <a class="settings-hub-card" href="{{ route('admin.settings.bank-accounts.index') }}" data-settings-item data-settings-keywords="žiro racun račun banka uplata ips">
                     <span class="settings-hub-icon"><x-icon name="wallet" /></span>
                     <span><strong>Žiro računi</strong><small>Računi koji se koriste u poslovnim dokumentima i plaćanju.</small></span>
