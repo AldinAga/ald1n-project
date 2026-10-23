@@ -74,28 +74,28 @@ use Illuminate\Support\Facades\Route;
 
 // Isolated public retail namespace, OFF until complete checkout/post-order release gates.
 // Internal /catalog, /orders and /admin/* remain behind their existing auth/permission middleware.
-Route::prefix('')->name('public-shop.')->middleware('throttle:120,1')->group(function (): void {
-    Route::get('/katalog', [\App\Http\Controllers\PublicShopController::class, 'catalog'])->name('catalog');
+Route::name('public-shop.')->group(function (): void {
+    Route::get('/katalog', [\App\Http\Controllers\PublicShopController::class, 'catalog'])->middleware('throttle:public-shop-browse')->name('catalog');
     Route::get('/katalog/slika/{image}', [\App\Http\Controllers\PublicShopController::class, 'media'])
-        ->whereNumber('image')->name('media');
-    Route::get('/katalog/{slug}', [\App\Http\Controllers\PublicShopController::class, 'show'])->name('show');
-    Route::get('/korpa', [\App\Http\Controllers\PublicShopController::class, 'cart'])->name('cart');
+        ->whereNumber('image')->middleware('throttle:public-shop-images')->name('media');
+    Route::get('/katalog/{slug}', [\App\Http\Controllers\PublicShopController::class, 'show'])->middleware('throttle:public-shop-browse')->name('show');
+    Route::get('/korpa', [\App\Http\Controllers\PublicShopController::class, 'cart'])->middleware('throttle:public-shop-browse')->name('cart');
     Route::get('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'form'])
-        ->middleware('throttle:15,1')->name('checkout');
+        ->middleware('throttle:public-shop-browse')->name('checkout');
     Route::post('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'store'])
-        ->middleware('throttle:6,1')->name('checkout.submit');
+        ->middleware('throttle:public-shop-checkout')->name('checkout.submit');
     Route::get('/porudzbina/{token}', [\App\Http\Controllers\PublicOrderAccessController::class, 'show'])
-        ->where('token','[a-f0-9]{64}')->middleware('throttle:12,1')->name('order.show');
+        ->where('token','[a-f0-9]{64}')->middleware('throttle:public-shop-private')->name('order.show');
     Route::get('/porudzbina/{token}/dokument/{document}', [\App\Http\Controllers\PublicOrderAccessController::class, 'document'])
         ->where('token','[a-f0-9]{64}')->whereNumber('document')
-        ->middleware('throttle:12,1')->name('order.document');
+        ->middleware('throttle:public-shop-private')->name('order.document');
 
     Route::post('/korpa/dodaj/{product}', [\App\Http\Controllers\PublicShopController::class, 'add'])
-        ->whereNumber('product')->middleware('throttle:20,1')->name('cart.add');
+        ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.add');
     Route::patch('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'update'])
-        ->whereNumber('product')->middleware('throttle:20,1')->name('cart.update');
+        ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.update');
     Route::delete('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'remove'])
-        ->whereNumber('product')->middleware('throttle:20,1')->name('cart.remove');
+        ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.remove');
 });
 
 Route::middleware('guest')->group(function (): void {
