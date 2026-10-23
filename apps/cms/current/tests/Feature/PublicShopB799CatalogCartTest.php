@@ -22,6 +22,10 @@ final class PublicShopB799CatalogCartTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
+        // All scenarios reuse PHPUnit's same synthetic localhost. The actual
+        // throttle is still present in the web route; isolate stock-validation
+        // assertions from cumulative per-IP request budgets across test cases.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         config()->set('public_storefront.enabled', true);
         app(SettingsService::class)->putMany(['eur_rsd_rate'=>'117.78'], null);
     }
