@@ -1,3 +1,14 @@
+# CURRENT B799 SOURCE HEAD — PR93 M13–M15 implemented, release HOLD (2026-10-23)
+
+- Owner permanent autonomy rule committed to [AGENTS.md](../../AGENTS.md): agent works GitHub, CI and documentation without stage-by-stage narration; owner contacted for only genuinely required SSH execution, one preverified canonical `incoming/` script and automatically numbered report.
+- Existing [draft PR93](https://github.com/AldinAga/ald1n-project/pull/93) at source `89c19d50a4985aaa35d5d3f8cbc52ddcc4c418f4` moved **beyond** old Report806 M13/M14 checkpoint. M15 checkout/source code is present: real guest stock/order transaction without commissions, explicit readiness and payment methods, idempotency nonce, protected expiring/revocable order link, documents and synthetic browser tests. 14/14 exact-head GitHub check runs SUCCESS. This remains **source-only, draft, not merged, not deployed**. No production migrations or guest traffic enabled. See [Report807](807-BATCH799-M15-LATEST-SOURCE-AND-RELEASE-GATES-20261023.md).
+- Before merge/deploy, still prove independent concurrent last-unit/duplicate checkout contention, full admin/payment/shipment lifecycle, actual merchant terms and delivery/payment policy, strict security, exact-source CI and controlled CloudLinux backup/source/rollback gates. Do not infer concurrent safety from existing sequential tests. Do not repeat completed B798 or older batches.
+- Latest host authority remains owner Report804 / redacted Report805 **B798 PASS**, with no independent authenticated PHP-FPM or customer UAT; original ledger still 7/17 program and 7/15 CMS CLOSED. Current source branch and host checkout are different authority surfaces.
+- Competing [draft PR92](https://github.com/AldinAga/ald1n-project/pull/92) remains unmerged; do not mix its divergent implementation into PR93 without explicit diff and source proof. Android16KB real signed AAB and SDK58 remain gated, no EAS/OTA/Play operation.
+- Canonical Google Drive runbook retains a dated B797 PENDING checkpoint from an earlier blocked in-place write; do not bypass the block, claim synchronized text, or use that stale header to override current GitHub host certifications.
+
+---
+
 # ACTIVE SOURCE CANDIDATE — PR93 public catalog/cart source-only, checkout incomplete (2026-10-23)
 
 - **PRODUCTION UNCHANGED.** B798 Report804 remains current accepted production proof. GitHub [draft PR93](https://github.com/AldinAga/ald1n-project/pull/93), isolated branch `feat/b799-public-retail-catalog-cart-checkout` at `4be2ff7e568f26f34ca8d59ba3d268a5a80a29bf`, implements public /katalog product list, full-price details, strictly public image endpoint, and /korpa session cart/stock+rate-aware repricing behind default-OFF `PUBLIC_STOREFRONT_ENABLED`. NOT deployed or safe to activate yet.
