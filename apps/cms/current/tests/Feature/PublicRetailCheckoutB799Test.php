@@ -52,7 +52,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->product=Product::query()->create([
             'sku'=>'B799-CART-RETAIL','slug'=>'b799-cart-retail','name'=>'Laptop retail',
             'price_amount'=>12000,'price_currency'=>'RSD',
-            'stock_quantity'=>4,'purchase_price_rsd'=>5000,
+            'stock_quantity'=>4,'description'=>'Testni retail artikal','purchase_price_rsd'=>5000,
             'manual_commission_eur'=>250,
             'status'=>'active','created_by'=>$admin->id,
         ]);
