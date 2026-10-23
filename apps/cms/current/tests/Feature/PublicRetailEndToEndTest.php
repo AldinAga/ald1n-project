@@ -28,7 +28,8 @@ final class PublicRetailEndToEndTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
-        // Isolate request throttles between independent synthetic HTTP tests.
+        // Use the test-only array limiter: production intentionally uses a separate file limiter.
+        config()->set('cache.limiter', 'array');
         \Illuminate\Support\Facades\Cache::flush();
         config()->set('public_retail.enabled', true);
         config()->set('public_retail.email_receipt', false);
