@@ -62,7 +62,21 @@ async function checkPage(page,url,label){
       if(purchase===1){
         await page.screenshot({path:path.join(dir,'checkout.png'),animations:'disabled'});
       }
-      await page.getByRole('button',{name:'Potvrdi porudžbinu'}).click();
+      const [postResponse] = await Promise.all([
+        page.waitForResponse(response => response.url().endsWith('/porucivanje')
+            && response.request().method()==='POST',{timeout:20000}),
+        page.getByRole('button',{name:'Potvrdi porudžbinu'}).click(),
+      ]);
+      if(!/\/porudzbina\/[a-f0-9]{64}$/.test(new URL(page.url()).pathname)){
+        await page.screenshot({path:path.join(dir,'checkout-submit-diagnostic-'+purchase+'.png'),animations:'disabled'});
+        const message=await page.evaluate(() => [
+          ...document.querySelectorAll('[role="alert"],.shop-alert.error,li')
+        ].filter(el=>el.offsetParent!==null)
+         .map(el=>(el.textContent||'').trim().slice(0,160)).slice(0,5));
+        const urlPath=new URL(page.url()).pathname.replace(/[a-f0-9]{64}/g,'[REDACTED]');
+        throw new Error('CHECKOUT_DID_NOT_REDIRECT iteration='+purchase+
+          ' status='+postResponse.status()+' path='+urlPath+' messages='+JSON.stringify(message));
+      }
       await page.waitForURL(/\/porudzbina\/[a-f0-9]{64}$/,{timeout:15000});
       urls.push(page.url());
       const res=await page.reload({waitUntil:'networkidle'});
