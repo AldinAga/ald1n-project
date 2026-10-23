@@ -150,14 +150,14 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
 
         $this->actingAs($admin)->get('/admin/orders/'.$order->id)->assertOk();
-        $workflow=app(\\App\\Services\\OrderWorkflowService::class);
+        $workflow=app(\App\Services\OrderWorkflowService::class);
         $processing=$workflow->changeStatus($order->fresh(),'processing',$admin);
         self::assertSame('processing',$processing->status);
-        $token=app(\\App\\Services\\OrderVersionService::class)->token($processing);
+        $token=app(\App\Services\OrderVersionService::class)->token($processing);
         $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$token);
         self::assertSame('confirmed',$confirmed->status);
 
-        $document=app(\\App\\Services\\OrderDocumentService::class)
+        $document=app(\App\Services\OrderDocumentService::class)
             ->issue($confirmed,'order_confirmation',$admin);
         self::assertSame($order->id,$document->order_id);
         $this->get($location)->assertOk()->assertSee('Potvrđena');
