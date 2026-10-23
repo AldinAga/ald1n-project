@@ -1,3 +1,12 @@
+# CURRENT PRODUCTION - B798 PASS / owner Report804 (2026-10-23)
+
+- B798 HOST PASS EXIT0. Do not replay B798, B797 or earlier. Original owner Report804 SHA256 dcdba7223eed93b7897d8868d15630b37ef3c1521ed99d7bb2425a5ed37c97ab (77,029 bytes). Source c4a5f060cc00b5d1be0e4d8068309524a4b99c99. Redacted [Report805](805-BATCH798-PRODUCTION-CERTIFICATION-20261023.md). 690-path closure, 17 source writes, one additive empty warranty_issuances table, two existing backup verifications, static983/983, deployment check, PHP8.4.26 lint, CLI authenticated read-only render, origin-marked maintenance, HTTP200 restoration and Scheduler resume PASS.
+- R4 first verified positive deposit/payment issuance and R5 independent seller/SuperAdministrator expiry opt-in are deployed. Expiry default OFF. No historical payment or warranties rewritten; no real customer writes. Do not confuse host code deployment with actual customer UAT or independent WEB_FPM_SOURCE attestation (NOT_INDEPENDENTLY_ATTESTED). Git HEAD/index/.htaccess preserved.
+- Next independent scope M13-M15: full public retail catalog /katalog and detail, /korpa, /porucivanje guest full-retail no-commission checkout with secure per-order expiring/revocable follow-up. Keep authenticated /catalog intact. No partial public checkout activation, fake privileged guest, unaudited merchant shipping/legal assumptions. Then distinct signed real 16KB AAB M16 and SDK58 M17.
+- Fixed CLOSED acceptance ledger unchanged at 7/17 (41.2%), CMS7/15 (46.7%), original UI6/6; host PASS does not prove separate real customer acceptance. Source and host receipt gates of M10/M11 met. No extra diagnostic shell command for Report804.
+- Report805 redacted Drive archive ID 19qz2OnF-p2S5CXDCgKjEqoUeBojLVYhC. Raw Report804 stays with owner, not claimed published. Old canonical Drive runbook has a dated PENDING snapshot; earlier tool safety block means do not bypass in-place edit; GitHub current state supersedes dated entry.
+
+---
 # CURRENT SOURCE — B798 R4/R5 merged, CloudLinux activation PENDING (2026-10-23)
 
 - **Do not rerun B797, B796 or any earlier migration.** Owner Report801 certifies B797 PASS. New warranty business source through [PR91](https://github.com/AldinAga/ald1n-project/pull/91) merged at exact `c4a5f060cc00b5d1be0e4d8068309524a4b99c99`, CI 9/9 PASS, PHP8.4/MariaDB10.11.19 scoped24tests180assertions, static983/983. [Report803 source and operator QA](803-BATCH798-SOURCE-DELIVERY-CERTIFICATION-20261023.md) is NOT a production receipt.
