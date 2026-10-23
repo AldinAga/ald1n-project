@@ -16,6 +16,8 @@ final class PublicOrderCapabilityB799Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Test expiry and revocation, not cumulative per-IP throttling across the suite.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         config()->set('public_storefront.enabled',true);
     }
 
