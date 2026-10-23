@@ -1,3 +1,12 @@
+# CURRENT B799 REAL PARALLEL CHECKOUT QA — PR93 remains DRAFT and NOT DEPLOYED (2026-10-23)
+
+- **Source correction and SQL-barrier evidence:** [Report808](808-BATCH799-PARALLEL-CHECKOUT-SOURCE-QA-20261023.md), exact existing [PR93](https://github.com/AldinAga/ald1n-project/pull/93) source `6da19a7dfc551e3561c8ccb5c22c6b46b836b464`. Real separate-process concurrent MariaDB10.11.19 checkout: competing buyers for ONE last unit produce precisely one committed sale and one 422 rejection; two simultaneous same-nonce retries both return 302 and the SAME private receipt, one operational order. DB independently verifies stock, 0 commission, 0 payment proof. SQL wait barrier witnesses both requests blocked on actual row/unique-key locks before release.
+- **Corrected source** `PublicRetailCheckoutService` `firstOrCreate` race with atomic nonce upsert then `FOR UPDATE` current read. Added immutable purchase-payload replay and repeated admin cancellation/stock return PHP regressions: **28 scoped tests, 253 assertions PASS**. Chromium responsive widths 1440/768/390/320 and two original purchases also PASS.
+- **Release HOLD remains mandatory** until actual merchant/legal/privacy/free-shipping/payment evidence, full guest post-sale acceptance, independent production PHP-FPM source attestation, strict two-backup/host index/.htaccess gates, exact-head checks and controlled operator delivery. No buyer, production database/schema, EAS/OTA/Play, or host mutation, and **no owner SSH needed yet**. B798 owner Report804 remains latest production PASS; B799 source is not accepted production or a newly CLOSED milestone.
+- Current source is PR93 only; competing draft PR92 stays separate. Runbook's stale dated B797-PENDING header is superseded by redacted Reports805/806/807/808; do not bypass previously blocked raw Drive write.
+
+---
+
 # CURRENT B799 SOURCE HEAD — PR93 M13–M15 implemented, release HOLD (2026-10-23)
 
 - Owner permanent autonomy rule committed to [AGENTS.md](../../AGENTS.md): agent works GitHub, CI and documentation without stage-by-stage narration; owner contacted for only genuinely required SSH execution, one preverified canonical `incoming/` script and automatically numbered report.
