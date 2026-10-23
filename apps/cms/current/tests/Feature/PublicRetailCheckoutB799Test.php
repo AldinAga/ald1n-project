@@ -142,6 +142,30 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame(0,Order::query()->count());
     }
 
+    public function test_public_order_integrates_admin_processing_and_private_confirmation_pdf(): void
+    {
+        [$data]=$this->prepare();
+        $location=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
+        $order=Order::query()->sole();
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+
+        $this->actingAs($admin)->get('/admin/orders/'.$order->id)->assertOk();
+        $workflow=app(\\App\\Services\\OrderWorkflowService::class);
+        $processing=$workflow->changeStatus($order->fresh(),'processing',$admin);
+        self::assertSame('processing',$processing->status);
+        $token=app(\\App\\Services\\OrderVersionService::class)->token($processing);
+        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$token);
+        self::assertSame('confirmed',$confirmed->status);
+
+        $document=app(\\App\\Services\\OrderDocumentService::class)
+            ->issue($confirmed,'order_confirmation',$admin);
+        self::assertSame($order->id,$document->order_id);
+        $this->get($location)->assertOk()->assertSee('Potvrđena');
+        $this->get($location.'/dokument/'.$document->id)->assertOk()
+            ->assertHeader('Content-Type','application/pdf');
+        $this->get('/porudzbina/'.str_repeat('a',64).'/dokument/'.$document->id)->assertNotFound();
+    }
+
     public function test_bank_transfer_uses_only_configured_active_account_and_is_not_marked_paid(): void
     {
         $account=BankAccount::query()->create([
