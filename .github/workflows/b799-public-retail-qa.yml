@@ -33,6 +33,7 @@ jobs:
       DB_USERNAME: ald1n_test
       DB_PASSWORD: ald1n_test
       CACHE_STORE: array
+      CACHE_LIMITER: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       MAIL_MAILER: array
