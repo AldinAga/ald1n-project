@@ -11,18 +11,94 @@ if ($app->environment()!=='testing' || $db->getDriverName()!=='mysql'
     || !config('public_storefront.enabled') || !config('public_storefront.checkout_enabled')) {
     fwrite(STDERR,"B799_HOLD_DISPOSABLE_ENV_REQUIRED\n"); exit(3);
 }
+// All race tooling is hard-pinned to this disposable MariaDB 10.11 environment.
+$holdMode=null;
+$waiterMode=null;
+foreach ($argv as $argument) {
+    if (str_starts_with($argument,'--hold=')) $holdMode=substr($argument,7);
+    if (str_starts_with($argument,'--waiters=')) $waiterMode=substr($argument,10);
+}
+if ($holdMode!==null) {
+    $sku=match($holdMode) {
+        'lastunit'=>'B799-RACE-LASTUNIT',
+        'duplicate'=>'B799-RACE-DUPLICATE',
+        default=>throw new RuntimeException('B799_RACE_UNKNOWN_LOCK'),
+    };
+    $db->beginTransaction();
+    try {
+        $product=App\Models\Product::query()->where('sku',$sku)
+            ->lockForUpdate()->firstOrFail();
+        fwrite(STDOUT,"B799_LOCKED ".$holdMode."\n");
+        fflush(STDOUT);
+        $line=fgets(STDIN);
+        if (trim((string)$line)!=='RELEASE') {
+            throw new RuntimeException('B799_LOCK_RELEASE_NOT_RECEIVED');
+        }
+        $db->commit();
+        fwrite(STDOUT,"B799_RELEASED ".$holdMode."\n");
+        exit(0);
+    } catch (Throwable $e) {
+        $db->rollBack();
+        fwrite(STDERR,"B799_LOCK_ABORT ".$e::class."\n");
+        exit(11);
+    }
+}
+if ($waiterMode!==null) {
+    if (!in_array($waiterMode,['lastunit','duplicate'],true)) exit(12);
+    $seenProducts=0;
+    $seenAttemptInserts=0;
+    for ($i=0;$i<100;$i++) {
+        $processes=DB::select(
+            'SELECT INFO FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ?',
+            [config('database.connections.mysql.database'),
+                config('database.connections.mysql.username')]
+        );
+        $seenProducts=0;
+        $seenAttemptInserts=0;
+        foreach ($processes as $process) {
+            $info=strtolower((string)($process->INFO??''));
+            if (str_contains($info,'products') && str_contains($info,'for update')) {
+                $seenProducts++;
+            }
+            if (str_contains($info,'public_checkout_attempts')
+                && str_contains($info,'insert')) {
+                $seenAttemptInserts++;
+            }
+        }
+        if (($waiterMode==='lastunit' && $seenProducts>=2)
+            || ($waiterMode==='duplicate'
+                && $seenProducts>=1 && $seenAttemptInserts>=1)) {
+            echo "B799_PARALLEL_WAITER_BARRIER=PASS mode=".$waiterMode."\n";
+            exit(0);
+        }
+        usleep(100000);
+    }
+    fwrite(STDERR,"B799_PARALLEL_WAITER_BARRIER=FAIL mode=".$waiterMode
+        ." product_waits=".$seenProducts." duplicate_insert_waits=".$seenAttemptInserts."\n");
+    exit(13);
+}
 if(in_array('--verify',$argv,true)) {
     $orders=App\Models\Order::query()->where('sales_channel','public_retail')->get();
     $product=App\Models\Product::query()->where('sku','B799-VISUAL-CI')->firstOrFail();
-    $ok=$orders->count()===2 && $orders->every(
+    $last=App\Models\Product::query()->where('sku','B799-RACE-LASTUNIT')->firstOrFail();
+    $duplicate=App\Models\Product::query()->where('sku','B799-RACE-DUPLICATE')->firstOrFail();
+    $lastOrders=Illuminate\Support\Facades\DB::table('order_items')
+        ->where('product_sku','B799-RACE-LASTUNIT')->distinct()->count('order_id');
+    $duplicateOrders=Illuminate\Support\Facades\DB::table('order_items')
+        ->where('product_sku','B799-RACE-DUPLICATE')->distinct()->count('order_id');
+    $ok=$orders->count()===4 && $orders->every(
         fn($o)=>$o->user_id===null && $o->payment_state==='unpaid')
         && (int)$product->stock_quantity===6
+        && (int)$last->stock_quantity===0
+        && (int)$duplicate->stock_quantity===1
+        && $lastOrders===1 && $duplicateOrders===1
         && App\Models\OrderCommission::query()->count()===0
         && App\Models\OrderPayment::query()->count()===0
-        && App\Models\PublicOrderAccess::query()->count()===2
-        && App\Models\PublicCheckoutAttempt::query()->whereNotNull('terms_accepted_at')->count()===2;
+        && App\Models\StockMovement::query()->where('movement_type','sale')->count()===4
+        && App\Models\PublicOrderAccess::query()->count()===4
+        && App\Models\PublicCheckoutAttempt::query()->whereNotNull('terms_accepted_at')->count()===4;
     if(!$ok) {fwrite(STDERR,"B799_BROWSER_DB_POSTCHECK_FAIL\n");exit(4);}
-    echo "B799_BROWSER_DB_POSTCHECK=PASS ORDERS=2 STOCK=6 COMMISSIONS=0 PAYMENTS=0\n";exit(0);
+    echo "B799_BROWSER_DB_POSTCHECK=PASS ORDERS=4 VISUAL_STOCK=6 LAST_UNIT=0 DUPLICATE_STOCK=1 COMMISSIONS=0 PAYMENTS=0\n";exit(0);
 }
 if(App\Models\Product::query()->exists()||App\Models\Order::query()->exists()) {
     fwrite(STDERR,"HOLD_NONEMPTY_DISPOSABLE_DB\n");exit(5);
@@ -48,4 +124,17 @@ app(App\Services\SettingsService::class)->putMany([
     'documents_company_tax_id'=>'100000001',
     'eur_rsd_rate'=>'117.78',
 ],null);
+foreach ([
+    ['B799-RACE-LASTUNIT','b799-race-lastunit',1],
+    ['B799-RACE-DUPLICATE','b799-race-duplicate',2],
+] as [$sku,$slug,$stock]) {
+    App\Models\Product::query()->create([
+        'sku'=>$sku,'slug'=>$slug,'name'=>'Synthetic '.$sku,
+        'description'=>'Disposable parallel checkout fixture only',
+        'price_amount'=>7500,'price_currency'=>'RSD',
+        'stock_quantity'=>$stock,'status'=>'active',
+        'purchase_price_rsd'=>2500,'manual_commission_eur'=>500,
+        'created_by'=>$admin->id,
+    ]);
+}
 echo "B799_BROWSER_SYNTHETIC_FIXTURE=PASS\n";
