@@ -133,7 +133,7 @@ final class PublicRetailEndToEndTest extends TestCase
         self::assertSame(0, Order::query()->count());
         BankAccount::query()->create([
             'label' => 'Sintetički račun', 'recipient_name' => 'Sintetički trgovac',
-            'account_number' => '160-0000000000000-00', 'account_number_display' => '160-0000000000000-00',
+            'account_number' => '16000000000', 'account_number_display' => '160-0000-00',
             'is_active' => true,
         ]);
         $this->withSession([PublicRetailService::CART_KEY => [$product->id => 1], 'public_retail_checkout_key' => $key])
