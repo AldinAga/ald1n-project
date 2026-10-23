@@ -21,6 +21,9 @@
 </div>
 @endforeach
 </div><div class="shop-checkout-total"><p>Vrednost robe: <strong>{{ number_format($quote['total_rsd'],2,',','.') }} RSD</strong></p>
-<p>Korpa ne rezerviše lager. Poručivanje i uslovi dostave biće omogućeni tek nakon završne provere prodajnog toka.</p></div>
+<p>Korpa ne rezerviše lager; konačna cena i raspoloživost proveravaju se pre prihvatanja porudžbine.</p>
+@if(config('public_storefront.checkout_enabled') === true && count($quote['stale'])===0)
+<p><a class="shop-checkout-link" href="{{ route('public-shop.checkout') }}">Nastavi na poručivanje</a></p>
+@endif</div>
 @endif
 @endsection

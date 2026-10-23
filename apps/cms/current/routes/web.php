@@ -80,6 +80,10 @@ Route::prefix('')->name('public-shop.')->middleware('throttle:120,1')->group(fun
         ->whereNumber('image')->name('media');
     Route::get('/katalog/{slug}', [\App\Http\Controllers\PublicShopController::class, 'show'])->name('show');
     Route::get('/korpa', [\App\Http\Controllers\PublicShopController::class, 'cart'])->name('cart');
+    Route::get('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'form'])
+        ->middleware('throttle:15,1')->name('checkout');
+    Route::post('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'store'])
+        ->middleware('throttle:6,1')->name('checkout.submit');
     Route::get('/porudzbina/{token}', [\App\Http\Controllers\PublicOrderAccessController::class, 'show'])
         ->where('token','[a-f0-9]{64}')->middleware('throttle:12,1')->name('order.show');
     Route::get('/porudzbina/{token}/dokument/{document}', [\App\Http\Controllers\PublicOrderAccessController::class, 'document'])
