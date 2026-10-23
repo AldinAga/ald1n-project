@@ -67,7 +67,9 @@ final class PublicRetailCheckoutService
         $fingerprint=hash_hmac('sha256',
             json_encode($details,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),
             (string)config('app.key'));
-        $keyHash=hash_hmac('sha256',$request->session()->getId().'|'.$sessionKey,
+        // The signed random form nonce already uniquely identifies the checkout.
+        // A session driver may rotate its ID between requests; do not rebook stock.
+        $keyHash=hash_hmac('sha256',$sessionKey,
             (string)config('app.key'));
 
         $created=false;

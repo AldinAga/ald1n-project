@@ -31,7 +31,7 @@ final class PublicOrderCapabilityB799Test extends TestCase
         $this->get('/porudzbina/'.$token)->assertOk()
             ->assertSee($order->order_number)
             ->assertHeader('Referrer-Policy','no-referrer')
-            ->assertHeader('Cache-Control','private, no-store, max-age=0');
+            ->assertHeader('Cache-Control','max-age=0, no-store, private');
         $other=$this->order('public_retail','cap2');
         $this->get('/porudzbina/'.str_repeat('e',64))->assertNotFound();
         $this->get('/porudzbina/'.$other->id)->assertNotFound();
