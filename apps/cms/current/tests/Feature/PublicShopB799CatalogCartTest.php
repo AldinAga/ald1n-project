@@ -134,7 +134,17 @@ final class PublicShopB799CatalogCartTest extends TestCase
 
     private function createProduct(string $slug, string $name, array $overrides=[]): Product
     {
+        $creator = User::query()->firstOrCreate(
+            ['username'=>'b799-owner'],
+            [
+                'role_id'=>Role::query()->where('slug','superadmin')->valueOrFail('id'),
+                'email'=>'b799-owner@example.test',
+                'password_hash'=>Hash::make('PrivateSynthetic-Only123!'),
+                'status'=>'active',
+            ],
+        );
         return Product::query()->create(array_replace([
+            'created_by'=>$creator->id,
             'sku'=>strtoupper($slug),'slug'=>$slug,'name'=>$name,
             'price_amount'=>1000,'price_currency'=>'RSD',
             'description'=>'Javni opis', 'stock_quantity'=>3, 'status'=>'active',
