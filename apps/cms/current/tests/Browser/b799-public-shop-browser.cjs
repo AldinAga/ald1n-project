@@ -194,7 +194,7 @@ async function runRealRace(browser){
     }
     const ctx=await browser.newContext({viewport:{width:1440,height:900}});
     const page=await ctx.newPage();
-    await checkPage(page,'/katalog','catalog-start');
+    await checkPage(page,'/katalog/b799-browser-laptop','visual-synthetic-product-start');
     await page.getByRole('button',{name:'Dodaj u korpu'}).click();
     await page.waitForURL('**/korpa');
     assert((await page.locator('body').innerText()).includes('12.500,00 RSD'));
@@ -202,7 +202,7 @@ async function runRealRace(browser){
     const urls=[];
     for(let purchase=1;purchase<=2;purchase++){
       if(purchase===2){
-        await page.goto(base+'/katalog');
+        await page.goto(base+'/katalog/b799-browser-laptop');
         await page.getByRole('button',{name:'Dodaj u korpu'}).click();
         await page.waitForURL('**/korpa');
       }
