@@ -1,3 +1,12 @@
+# ACTIVE SOURCE CANDIDATE — PR93 public catalog/cart source-only, checkout incomplete (2026-10-23)
+
+- **PRODUCTION UNCHANGED.** B798 Report804 remains current accepted production proof. GitHub [draft PR93](https://github.com/AldinAga/ald1n-project/pull/93), isolated branch `feat/b799-public-retail-catalog-cart-checkout` at `4be2ff7e568f26f34ca8d59ba3d268a5a80a29bf`, implements public /katalog product list, full-price details, strictly public image endpoint, and /korpa session cart/stock+rate-aware repricing behind default-OFF `PUBLIC_STOREFRONT_ENABLED`. NOT deployed or safe to activate yet.
+- MariaDB 10.11.19/PHP8.4 exact [CI run39925140339](https://github.com/AldinAga/ald1n-project/actions/runs/39925140339) **PASS: 9 tests, 66 assertions**, canonical static **983/983**. [Report806](806-BATCH799-PUBLIC-STOREFRONT-M13-M14-SOURCE-QA-20261023.md), [Drive archive](https://drive.google.com/file/d/1kB5U013sPcNJcc8ndDelDJeEddwESeYl/view). This is SOURCE_QA, not PHP-FPM/source/prod acceptance.
+- **M15 STILL INCOMPLETE:** no authenticated production guest checkout, shipping/merchant terms readiness, anonymous buyer order identity, stock-reserving no-commission transaction, secure expiring/revocable order access and follow-up/document tracking yet. Do **not** merge/release PR93 or enable public routes until entire guest retail flow, source+MariaDB+browser acceptance, first-party backup and CloudLinux controlled rollback gates pass. Do not weaken internal /catalog, /orders or /admin/* access.
+- Do not rerun B798 or earlier. No SSH action for B799 at this source-only point. Ledger remains 7/17 program (41.2%) and 7/15 CMS (46.7%) CLOSED. Android16KB real signed release and SDK58 remain separate and unstarted.
+
+---
+
 # CURRENT PRODUCTION - B798 PASS / owner Report804 (2026-10-23)
 
 - B798 HOST PASS EXIT0. Do not replay B798, B797 or earlier. Original owner Report804 SHA256 dcdba7223eed93b7897d8868d15630b37ef3c1521ed99d7bb2425a5ed37c97ab (77,029 bytes). Source c4a5f060cc00b5d1be0e4d8068309524a4b99c99. Redacted [Report805](805-BATCH798-PRODUCTION-CERTIFICATION-20261023.md). 690-path closure, 17 source writes, one additive empty warranty_issuances table, two existing backup verifications, static983/983, deployment check, PHP8.4.26 lint, CLI authenticated read-only render, origin-marked maintenance, HTTP200 restoration and Scheduler resume PASS.
