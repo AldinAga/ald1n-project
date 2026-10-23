@@ -16,4 +16,6 @@ return [
     'shipping_fee_rsd' => env('PUBLIC_CHECKOUT_SHIPPING_FEE_RSD'),
     'shipping_description' => env('PUBLIC_CHECKOUT_SHIPPING_DESCRIPTION'),
     'payment_methods' => array_filter(explode(',', (string) env('PUBLIC_CHECKOUT_PAYMENT_METHODS', ''))),
+    'support_email' => env('PUBLIC_CHECKOUT_SUPPORT_EMAIL'),
+    'bank_account_id' => env('PUBLIC_CHECKOUT_BANK_ACCOUNT_ID'),
 ];
