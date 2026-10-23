@@ -28,6 +28,8 @@ final class PublicRetailEndToEndTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
+        // Isolate request throttles between independent synthetic HTTP tests.
+        \Illuminate\Support\Facades\Cache::flush();
         config()->set('public_retail.enabled', true);
         config()->set('public_retail.email_receipt', false);
     }
