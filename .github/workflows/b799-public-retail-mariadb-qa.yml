@@ -59,11 +59,15 @@ jobs:
           php -l app/Services/PublicCheckoutReadinessService.php
           php -l app/Services/PublicOrderAccessService.php
           php -l app/Http/Controllers/PublicOrderAccessController.php
+          php -l app/Http/Controllers/PublicCheckoutController.php
+          php -l app/Services/PublicRetailCheckoutService.php
+          php -l app/Models/PublicCheckoutAttempt.php
+          php -l database/migrations/2026_10_23_020100_create_public_checkout_attempts.php
           php -l app/Http/Controllers/Admin/PublicOrderAccessController.php
           php -l database/migrations/2026_10_23_020000_create_public_order_accesses.php
           php -l routes/web.php
           php bin/static-check.php
-          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning tests/Feature/PublicShopB799CatalogCartTest.php tests/Feature/PublicCheckoutReadinessB799Test.php tests/Feature/PublicOrderCapabilityB799Test.php tests/Feature/CatalogAccessTest.php
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning tests/Feature/PublicShopB799CatalogCartTest.php tests/Feature/PublicCheckoutReadinessB799Test.php tests/Feature/PublicOrderCapabilityB799Test.php tests/Feature/PublicRetailCheckoutB799Test.php tests/Feature/CatalogAccessTest.php
       - name: No production effect
         if: always()
         run: echo 'DISPOSABLE_MYSQL_SOURCE_ONLY NO_PRODUCTION_GUEST_CHECKOUT NO_DB_PROD NO_DEPLOY_NO_PLAY'
