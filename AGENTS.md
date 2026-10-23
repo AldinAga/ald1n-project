@@ -6,7 +6,19 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 **Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.
 
-Last consolidated: **2026-10-12** (including permanent operator script/report path policy).
+Last consolidated: **2026-10-23** (owner execution autonomy reaffirmed; older technical guardrails retained).
+
+---
+
+## 0. Owner execution autonomy and communication contract (permanent, 2026-10-23)
+
+**Do the work, do not narrate the work.** For every Ald1n development request, the agent independently reads fresh GitHub `main`, this file, `docs/operations/000-LATEST.md`, current operations evidence, and canonical Google Drive guidance; then performs available source edits, GitHub commits/PR work, CI testing, review, and documentation/Drive archiving **without asking the owner for routine approval or explaining each planned engineering stage**.
+
+- Deliver the completed, verified result, or one precise blocker/required operator action. Keep the owner-facing response compact; no extensive plans, status essays, tutorials, repeated historical summaries, or requests to choose obvious implementation steps.
+- **Involve the owner only when an action genuinely requires their SSH execution on CloudLinux** (or when an external privileged action cannot be performed using available authorized tools). In the ordinary SSH case deliver a tested, integrity-self-checking executable under the canonical `incoming/` path and **one copy/paste SSH invocation**, then request the automatically numbered `docs/operations` report. No separate checksum command.
+- Perform all GitHub source/branch/PR, CI, read-only analysis, project documents, and permissible Google Drive organization automatically before the SSH handoff. Preserve any tool safety blocks and never route around denied upload/edit operations.
+- This autonomy does **not** waive release gates: fail closed on unresolved evidence, protect the dirty production checkout, do not deploy, perform data-destructive work, publish OTA, run EAS native builds, or submit Google Play without applicable authorization. No fake PASS. Do not request owner involvement just to repeat completed work.
+- If a genuine required operator action is not yet prepared, continue available work first; report the exact blocker if and only if it remains at the end.
 
 ---
 
