@@ -94,7 +94,7 @@ final class PublicShopB799CatalogCartTest extends TestCase
     public function test_cart_rejects_invalid_stock_and_never_leaks_hidden_items(): void
     {
         $p=$this->createProduct('available-qty', 'Rasprodaje se', ['stock_quantity'=>1]);
-        $this->post('/korpa/dodaj/'.$p->id,['quantity'=>2])->assertSessionHasErrors('cart');
+        $this->postJson('/korpa/dodaj/'.$p->id,['quantity'=>2])->assertUnprocessable()->assertJsonValidationErrors('cart');
         $this->post('/korpa/dodaj/'.$p->id,['quantity'=>1])->assertRedirect();
         $p->update(['status'=>'archived']);
         $this->get('/korpa')->assertOk()->assertDontSee('Rasprodaje se')
