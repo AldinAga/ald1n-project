@@ -172,6 +172,25 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->get('/porudzbina/'.str_repeat('a',64).'/dokument/'.$document->id)->assertNotFound();
     }
 
+    public function test_private_guest_order_link_can_be_revoked_only_by_authorized_superadmin(): void
+    {
+        [$data]=$this->prepare();
+        $location=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
+        $order=Order::query()->sole();
+        $revoke='/admin/orders/'.$order->id.'/public-access/revoke';
+
+        $this->post($revoke)->assertRedirect('/login');
+        $this->get($location)->assertOk();
+
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+        $this->actingAs($admin)->post($revoke)->assertRedirect();
+        $this->get($location)->assertNotFound();
+        self::assertNotNull(PublicOrderAccess::query()->sole()->revoked_at);
+        // Repeated staff actions cannot reactivate the revoked capability.
+        $this->post($revoke)->assertRedirect();
+        $this->get($location)->assertNotFound();
+    }
+
     public function test_bank_transfer_uses_only_configured_active_account_and_is_not_marked_paid(): void
     {
         $account=BankAccount::query()->create([
