@@ -24,9 +24,17 @@ final class PublicCheckoutController extends Controller
             abort(409,'Korpa mora sadržati dostupne artikle pre poručivanja.');
         }
         $key=(string)$request->session()->get('ald1n.public_checkout.key','');
-        if (strlen($key)<32) {
+        $lastCompletedKey=(string)$request->session()->get('ald1n.public_checkout.last_key','');
+        // A completed purchase keeps the original nonce for duplicate POST replay,
+        // but visiting the checkout form with a NEW nonempty cart starts a new sale.
+        if (strlen($key)<32 || ($lastCompletedKey!=='' && hash_equals($lastCompletedKey,$key))) {
             $key=bin2hex(random_bytes(24));
             $request->session()->put('ald1n.public_checkout.key',$key);
+            $request->session()->forget([
+                'ald1n.public_checkout.last_key',
+                'ald1n.public_checkout.last_cart',
+                'ald1n.public_checkout.last_token',
+            ]);
         }
         return view('public-shop.checkout',[
             'ready'=>$ready,'quote'=>$quote,'checkoutKey'=>$key,
