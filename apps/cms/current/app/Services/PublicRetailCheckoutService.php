@@ -75,9 +75,23 @@ final class PublicRetailCheckoutService
         $created=false;
         $result=DB::transaction(function () use ($keyHash,$fingerprint,$cart,$details,
                 $method,$policies,$email,$name,&$created): array {
-            $attempt=PublicCheckoutAttempt::query()->firstOrCreate(
-                ['key_hash'=>$keyHash],['request_fingerprint'=>$fingerprint]);
-            $attempt=PublicCheckoutAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
+            // Atomic duplicate-key upsert is essential under MariaDB REPEATABLE READ:
+            // firstOrCreate() may perform a stale consistent read when two requests
+            // race on the same nonce. Preserve the FIRST immutable fingerprint and
+            // take a fresh current/locking read after the unique-key wait resolves.
+            $now=now();
+            DB::table('public_checkout_attempts')->upsert(
+                [[
+                    'key_hash'=>$keyHash,
+                    'request_fingerprint'=>$fingerprint,
+                    'created_at'=>$now,
+                    'updated_at'=>$now,
+                ]],
+                ['key_hash'],
+                ['key_hash']
+            );
+            $attempt=PublicCheckoutAttempt::query()->where('key_hash',$keyHash)
+                ->lockForUpdate()->firstOrFail();
             if (!hash_equals((string)$attempt->request_fingerprint,$fingerprint)) {
                 throw ValidationException::withMessages(['checkout'=>'Isti zahtev ne može promeniti sadržaj porudžbine.']);
             }
