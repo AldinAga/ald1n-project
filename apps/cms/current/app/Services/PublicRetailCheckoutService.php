@@ -197,8 +197,15 @@ final class PublicRetailCheckoutService
                 'created_at'=>now(),
             ]);
             $token=$this->access->issue($order,$email);
-            $attempt->update(['order_id'=>$order->id,
-                'receipt_token_ciphertext'=>Crypt::encryptString($token)]);
+            $attempt->update([
+                'order_id'=>$order->id,
+                'receipt_token_ciphertext'=>Crypt::encryptString($token),
+                'terms_url'=>$policies['terms_url'],
+                'privacy_url'=>$policies['privacy_url'],
+                'shipping_description'=>$policies['shipping_description'],
+                'shipping_fee_rsd'=>$policies['shipping_fee_rsd'],
+                'terms_accepted_at'=>now(),
+            ]);
             $created=true;
             return ['order'=>$order,'token'=>$token,'created'=>true];
         },5);

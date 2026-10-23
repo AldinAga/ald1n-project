@@ -14,7 +14,8 @@ return new class extends Migration
             throw new RuntimeException('PUBLIC_CHECKOUT_DEPENDENCIES_INCOMPLETE');
         }
         if (Schema::hasTable('public_checkout_attempts')) {
-            foreach (['key_hash','request_fingerprint','receipt_token_ciphertext','order_id'] as $column) {
+            foreach (['key_hash','request_fingerprint','receipt_token_ciphertext','order_id',
+                'terms_url','privacy_url','shipping_description','shipping_fee_rsd','terms_accepted_at'] as $column) {
                 if (!Schema::hasColumn('public_checkout_attempts',$column)) {
                     throw new RuntimeException('PUBLIC_CHECKOUT_PARTIAL_TABLE '.$column);
                 }
@@ -29,6 +30,13 @@ return new class extends Migration
                 $t->char('key_hash',64)->unique();
                 $t->char('request_fingerprint',64);
                 $t->text('receipt_token_ciphertext')->nullable();
+                // Immutable checkout evidence is kept separately from mutable
+                // site policy settings and from the shopper's receipt URL.
+                $t->string('terms_url',2048)->nullable();
+                $t->string('privacy_url',2048)->nullable();
+                $t->string('shipping_description',500)->nullable();
+                $t->decimal('shipping_fee_rsd',12,2)->nullable();
+                $t->dateTime('terms_accepted_at')->nullable();
                 $t->unsignedBigInteger('order_id')->nullable()->unique();
                 $t->timestamps();
                 $t->foreign('order_id')->references('id')->on('orders')->restrictOnDelete();

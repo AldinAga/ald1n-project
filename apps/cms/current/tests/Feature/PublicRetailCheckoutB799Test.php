@@ -84,6 +84,12 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame(0,OrderPayment::query()->count());
         self::assertSame(1,PublicOrderAccess::query()->count());
         self::assertSame(1,PublicCheckoutAttempt::query()->count());
+        $acceptance=PublicCheckoutAttempt::query()->sole();
+        self::assertNotNull($acceptance->terms_accepted_at);
+        self::assertSame('https://cms.ald1n.com/uslovi',$acceptance->terms_url);
+        self::assertSame('https://cms.ald1n.com/privatnost',$acceptance->privacy_url);
+        self::assertSame('Besplatna dostava na adresu.',$acceptance->shipping_description);
+        self::assertSame(0.0,(float)$acceptance->shipping_fee_rsd);
         $this->get($location)->assertOk()->assertSee('Laptop retail')
             ->assertDontSee('5000')->assertDontSee('250');
     }
