@@ -19,7 +19,7 @@ import { useAppTheme } from '@/theme/app-theme';
 const LIGHT_GLASS = 'rgba(225,229,232,0.78)';
 const DARK_GLASS = 'rgba(48,54,60,0.76)';
 
-export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rail' }) {
+export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rail' | 'native-content' }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { colors: theme, isDark } = useAppTheme();
@@ -127,6 +127,13 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
     );
   });
 
+  // Native variant contains ONLY controls: the LiquidGlassAndroidView must be a
+  // direct sibling of Stack under the app shell to capture the real backdrop.
+  // Never wrap native glass inside this content container.
+  if (variant === 'native-content') {
+    return <View style={styles.nativeContent}>{navItems}</View>;
+  }
+
   return (
     <View
       pointerEvents="box-none"
@@ -189,6 +196,17 @@ function createStyles(theme: AppColors, isDark: boolean) {
       zIndex: 10,
       backgroundColor: 'transparent',
       paddingTop: 12,
+    },
+    nativeContent: {
+      flex: 1,
+      minHeight: 70,
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      gap: 1,
+      paddingHorizontal: spacing.xs,
+      backgroundColor: 'transparent',
     },
     railFrame: {
       width: 104,

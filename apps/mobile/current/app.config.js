@@ -27,6 +27,29 @@ const hasIosGoogleServicesFile = Boolean(
 );
 // MOBILE_IOS_GOOGLE_NATIVE_CONFIG_V06
 
+// Android LG-03 native integration is still DRAFT. Only the dedicated internal
+// UAT profile may opt in to its distinct runtime. Production remains Build25.
+const LG03_NATIVE_UAT_REQUESTED = process.env.ALD1N_LG03_NATIVE_UAT === '1';
+// The owner requested one Google Play TESTING AAB: the same app package and
+// Firebase client as production, but an isolated channel and native runtime.
+const LG03_PLAY_TESTING_REQUESTED = process.env.ALD1N_LG03_PLAY_TESTING === '1';
+if (LG03_NATIVE_UAT_REQUESTED && LG03_PLAY_TESTING_REQUESTED) {
+  throw new Error('LG03_MUTUALLY_EXCLUSIVE_BUILD_TARGETS');
+}
+if (LG03_PLAY_TESTING_REQUESTED
+  && (APP_ENV !== 'production' || process.env.EAS_BUILD_PROFILE !== 'lg03-play-testing')) {
+  throw new Error('LG03_PLAY_TESTING_REQUIRES_EXACT_PROFILE_AND_REGISTERED_PACKAGE');
+}
+if (process.env.EAS_BUILD_PROFILE === 'lg03-play-testing' && !LG03_PLAY_TESTING_REQUESTED) {
+  throw new Error('LG03_PLAY_TESTING_OPT_IN_MISSING');
+}
+if (LG03_NATIVE_UAT_REQUESTED && APP_ENV !== 'preview') {
+  throw new Error('LG03_NATIVE_UAT_REQUIRES_REGISTERED_PREVIEW_APP');
+}
+if (process.env.EAS_BUILD_PROFILE === 'production') {
+  throw new Error('LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD');
+}
+
 const isProduction = APP_ENV === 'production';
 const suffix = isProduction ? '' : `.${APP_ENV}`;
 
@@ -58,6 +81,12 @@ module.exports = ({ config }) => {
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
     runtimeVersion: '1.0.0-build17',
+    // Dedicated native preview uses an incompatible-from-Build25 runtime.
+    ...(LG03_NATIVE_UAT_REQUESTED
+      ? { runtimeVersion: '1.0.0-lg03-native-uat1' }
+      : LG03_PLAY_TESTING_REQUESTED
+        ? { runtimeVersion: '1.0.0-lg03-play-testing1' }
+        : {}),
 
     ios: {
       ...(config.ios || {}),

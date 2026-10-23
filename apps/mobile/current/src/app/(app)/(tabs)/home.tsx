@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
-import { OperatorRow } from '@/components/ui/operator-row';
+import { GlassWorkspaceShortcut } from '@/components/workspaces/glass-workspace-shortcut';
 import { LoadingState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
@@ -283,19 +283,18 @@ export default function HomeScreen() {
   );
 }
 
-function HomeActionList({ actions, variant = 'standard' }: { actions: HomeAction[]; variant?: 'standard' | 'primary' | 'soft' }) {
+function HomeActionList({ actions, variant = 'primary' }: { actions: HomeAction[]; variant?: 'primary' | 'soft' }) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.operatorList}>
-      {actions.map((action, index) => (
-        <OperatorRow
+      {actions.map((action) => (
+        <GlassWorkspaceShortcut
           variant={variant}
           key={action.title}
           title={action.title}
           copy={action.copy}
           glyph={action.glyph}
-          divider={index < actions.length - 1}
           onPress={() => router.push(action.route)}
         />
       ))}
