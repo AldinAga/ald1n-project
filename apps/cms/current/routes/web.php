@@ -72,6 +72,22 @@ use App\Http\Controllers\FieldWorkOrderAttachmentController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
+// Isolated public retail namespace, OFF until complete checkout/post-order release gates.
+// Internal /catalog, /orders and /admin/* remain behind their existing auth/permission middleware.
+Route::prefix('')->name('public-shop.')->middleware('throttle:120,1')->group(function (): void {
+    Route::get('/katalog', [\App\Http\Controllers\PublicShopController::class, 'catalog'])->name('catalog');
+    Route::get('/katalog/slika/{image}', [\App\Http\Controllers\PublicShopController::class, 'media'])
+        ->whereNumber('image')->name('media');
+    Route::get('/katalog/{slug}', [\App\Http\Controllers\PublicShopController::class, 'show'])->name('show');
+    Route::get('/korpa', [\App\Http\Controllers\PublicShopController::class, 'cart'])->name('cart');
+    Route::post('/korpa/dodaj/{product}', [\App\Http\Controllers\PublicShopController::class, 'add'])
+        ->whereNumber('product')->middleware('throttle:20,1')->name('cart.add');
+    Route::patch('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'update'])
+        ->whereNumber('product')->middleware('throttle:20,1')->name('cart.update');
+    Route::delete('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'remove'])
+        ->whereNumber('product')->middleware('throttle:20,1')->name('cart.remove');
+});
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
