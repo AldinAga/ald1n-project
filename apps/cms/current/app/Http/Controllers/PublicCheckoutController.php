@@ -1,0 +1,102 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Services\OperationalNotificationService;
+use App\Services\PublicCartService;
+use App\Services\PublicCheckoutReadinessService;
+use App\Services\PublicRetailCheckoutService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\View\View;
+use Throwable;
+
+final class PublicCheckoutController extends Controller
+{
+    public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View
+    {
+        $ready=$policy->assertReady();
+        $quote=$cart->quote($request);
+        if (!$quote['items'] || $quote['stale']) {
+            abort(409,'Korpa mora sadržati dostupne artikle pre poručivanja.');
+        }
+        $key=(string)$request->session()->get('ald1n.public_checkout.key','');
+        if (strlen($key)<32) {
+            $key=bin2hex(random_bytes(24));
+            $request->session()->put('ald1n.public_checkout.key',$key);
+        }
+        return view('public-shop.checkout',[
+            'ready'=>$ready,'quote'=>$quote,'checkoutKey'=>$key,
+        ]);
+    }
+
+    public function store(
+        Request $request,
+        PublicRetailCheckoutService $checkout,
+        PublicCheckoutReadinessService $policy,
+        OperationalNotificationService $notifications,
+    ): RedirectResponse {
+        $policy->assertReady();
+        $validated=$request->validate([
+            'checkout_key'=>['required','string','size:48'],
+            'shipping_full_name'=>['required','string','max:190'],
+            'email'=>['required','email:rfc','max:254'],
+            'shipping_phone'=>['required','string','min:6','max:40'],
+            'shipping_address'=>['required','string','max:255'],
+            'shipping_city'=>['required','string','max:120'],
+            'shipping_postal_code'=>['required','string','max:20'],
+            'payment_method'=>['required','in:cash_on_delivery,bank_transfer'],
+            'customer_note'=>['nullable','string','max:2000'],
+            'accepted_terms'=>['accepted'],
+            'website'=>['nullable','size:0'],
+        ]);
+        $result=$checkout->place($request,$validated);
+        $order=$result['order'];
+        $token=$result['token'];
+        if ($result['created']) {
+            try {
+                $link=route('public-shop.order.show',['token'=>$token]);
+                $body="Vaša porudžbina ".$order->order_number." je primljena.\n"
+                    ."Ukupna vrednost artikala: ".number_format((float)$order->subtotal_rsd,2,',','.')." RSD.\n"
+                    ."Status: nova, plaćanje još nije potvrđeno.\n"
+                    ."Privatni link za pregled porudžbine, dokumenta i pošiljke:\n".$link."\n"
+                    ."Nemojte deliti ovu vezu. Ističe za 60 dana.\n";
+                if ($order->payment_method==='bank_transfer') {
+                    $body.="Podaci za uplatu: ".$order->bank_account_number_display_snapshot."\n"
+                        ."Primalac: ".$order->payment_recipient_name_snapshot."\n"
+                        ."Poziv na broj: ".$order->payment_reference_snapshot."\n"
+                        ."Uplatu potvrđuje prodavac, ne ova poruka.\n";
+                }
+                Mail::raw($body, static function ($mail) use($validated,$order): void {
+                    $mail->to(mb_strtolower(trim((string)$validated['email'])))
+                        ->subject('Potvrda porudžbine '.$order->order_number);
+                });
+            } catch (Throwable $e) {
+                // Never undo a committed sale or disclose bearer URLs in logs.
+                Log::warning('Public checkout confirmation email was not delivered.',[
+                    'order_id'=>$order->id,'exception'=>$e::class,
+                ]);
+            }
+            try {
+                $order->loadMissing('supplier');
+                if ($order->supplier !== null) {
+                    $notifications->order(
+                        $order->supplier,'order.created_for_supplier',
+                        'Nova javna porudžbina',
+                        'Primljena je javna porudžbina '.$order->order_number.'.',
+                        $order,['severity'=>'warning','url'=>route('admin.orders.show',$order)],
+                    );
+                }
+            } catch (Throwable $e) {
+                Log::warning('Public checkout operator notification failed.',[
+                    'order_id'=>$order->id,'exception'=>$e::class,
+                ]);
+            }
+        }
+        return redirect()->route('public-shop.order.show',['token'=>$token])
+            ->with('status','Porudžbina je primljena. Sačuvajte privatnu vezu za praćenje.');
+    }
+}
