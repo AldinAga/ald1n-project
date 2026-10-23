@@ -80,6 +80,12 @@ Route::prefix('')->name('public-shop.')->middleware('throttle:120,1')->group(fun
         ->whereNumber('image')->name('media');
     Route::get('/katalog/{slug}', [\App\Http\Controllers\PublicShopController::class, 'show'])->name('show');
     Route::get('/korpa', [\App\Http\Controllers\PublicShopController::class, 'cart'])->name('cart');
+    Route::get('/porudzbina/{token}', [\App\Http\Controllers\PublicOrderAccessController::class, 'show'])
+        ->where('token','[a-f0-9]{64}')->middleware('throttle:12,1')->name('order.show');
+    Route::get('/porudzbina/{token}/dokument/{document}', [\App\Http\Controllers\PublicOrderAccessController::class, 'document'])
+        ->where('token','[a-f0-9]{64}')->whereNumber('document')
+        ->middleware('throttle:12,1')->name('order.document');
+
     Route::post('/korpa/dodaj/{product}', [\App\Http\Controllers\PublicShopController::class, 'add'])
         ->whereNumber('product')->middleware('throttle:20,1')->name('cart.add');
     Route::patch('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'update'])
@@ -291,6 +297,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         Route::middleware('permission:orders.manage')->group(function (): void {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+            Route::post('/orders/{order}/public-access/revoke',
+                [\App\Http\Controllers\Admin\PublicOrderAccessController::class, 'revoke'])
+                ->whereNumber('order')->middleware('throttle:admin-write')
+                ->name('orders.public-access.revoke');
             Route::get('/orders/archived', [AdminOrderController::class, 'archived'])->name('orders.archived');
             Route::post('/orders/{order}/archive', [AdminOrderController::class, 'archive'])->whereNumber('order')->name('orders.archive');
             Route::post('/orders/archived/{orderId}/restore', [AdminOrderController::class, 'restore'])->whereNumber('orderId')->name('orders.restore');
