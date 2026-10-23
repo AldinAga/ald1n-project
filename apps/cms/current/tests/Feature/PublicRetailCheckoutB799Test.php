@@ -99,6 +99,28 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame(2,(int)$this->product->fresh()->stock_quantity);
     }
 
+    public function test_second_separate_checkout_rotates_nonce_and_can_create_a_new_order(): void
+    {
+        [$first]=$this->prepare();
+        $this->post('/porucivanje',$first)->assertRedirect();
+        self::assertSame(1,Order::query()->count());
+
+        // Repeated POST of the first purchase is idempotent (covered separately),
+        // but adding more articles must allow an entirely new checkout.
+        $this->post('/korpa/dodaj/'.$this->product->id,['quantity'=>1])
+            ->assertRedirect('/korpa');
+        $form=$this->get('/porucivanje')->assertOk();
+        preg_match('/name="checkout_key" value="([a-f0-9]{48})"/',$form->getContent(),$matches);
+        self::assertNotEmpty($matches[1]??null);
+        self::assertNotSame($first['checkout_key'],$matches[1]);
+        $second=array_replace($first,['checkout_key'=>$matches[1]]);
+        $this->post('/porucivanje',$second)->assertRedirect();
+        self::assertSame(2,Order::query()->count());
+        self::assertSame(2,StockMovement::query()->count());
+        self::assertSame(1,(int)$this->product->fresh()->stock_quantity);
+        self::assertSame(0,OrderCommission::query()->count());
+    }
+
     public function test_stock_changed_between_cart_and_checkout_rejects_without_partial_writes(): void
     {
         [$data]=$this->prepare();
