@@ -35,6 +35,44 @@ final class PublicRetailEndToEndTest extends TestCase
         config()->set('public_retail.email_receipt', false);
     }
 
+    public function test_only_superadmin_can_approve_real_merchant_details_and_shipping_policy(): void
+    {
+        $admin = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id'),
+            'username' => 'owner-terms', 'email' => 'owner-terms@example.test',
+            'first_name' => 'Owner', 'password_hash' => Hash::make('CIOnlySecret!'), 'status' => 'active',
+        ]);
+        $ordinary = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
+            'username' => 'other-terms', 'email' => 'other-terms@example.test',
+            'first_name' => 'Other', 'password_hash' => Hash::make('CIOnlySecret!'),
+            'status' => 'active',
+        ]);
+        $payload = [
+            'public_retail_terms_text' => str_repeat('Testna klauzula kupovine i isporuke. ', 4),
+            'public_retail_merchant_approved' => '1', 'public_retail_free_shipping_approved' => '1',
+            'approval_phrase' => 'POTVRDJUJEM',
+        ];
+        $this->actingAs($ordinary)->put(route('admin.settings.public-retail.update'), $payload)->assertForbidden();
+        self::assertSame('0', app(SettingsService::class)->get('public_retail_merchant_approved', '0'));
+        $this->actingAs($admin)->get(route('admin.settings.public-retail.index'))->assertOk();
+        $this->actingAs($admin)->put(route('admin.settings.public-retail.update'), $payload)->assertSessionHasErrors();
+        app(SettingsService::class)->putMany([
+            'documents_company_name' => 'Sinteticki trgovac doo',
+            'documents_company_address' => 'Test ulica 55',
+            'documents_company_city' => 'Beograd',
+            'documents_company_tax_id' => '100000000',
+            'documents_company_email' => 'test@example.test',
+            'documents_company_phone' => '011123456',
+        ], $admin->id);
+        $this->actingAs($admin)->put(route('admin.settings.public-retail.update'), $payload)->assertRedirect();
+        self::assertSame('1', app(SettingsService::class)->get('public_retail_merchant_approved', '0'));
+        $this->actingAs($admin)->put(route('admin.settings.public-retail.update'),
+            array_replace($payload, ['public_retail_merchant_approved' => '0',
+                'public_retail_free_shipping_approved' => '0', 'approval_phrase' => '']))->assertRedirect();
+        self::assertSame('0', app(SettingsService::class)->get('public_retail_merchant_approved', '0'));
+    }
+
     public function test_public_routes_are_default_closed_without_explicit_merchant_approval(): void
     {
         $this->get('/katalog')->assertNotFound();

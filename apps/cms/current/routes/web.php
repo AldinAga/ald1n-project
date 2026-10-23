@@ -475,6 +475,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::put('/order-emails', [OrderEmailSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('order-emails.update');
             Route::post('/order-emails/dispatch', [OrderEmailSettingsController::class, 'dispatch'])->middleware('throttle:admin-write')->name('order-emails.dispatch');
             Route::post('/order-emails/retry', [OrderEmailSettingsController::class, 'retry'])->middleware('throttle:admin-write')->name('order-emails.retry');
+            Route::get('/public-retail', [\App\Http\Controllers\Admin\PublicRetailSettingsController::class, 'index'])->name('public-retail.index');
+            Route::put('/public-retail', [\App\Http\Controllers\Admin\PublicRetailSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('public-retail.update');
             Route::get('/documents', [DocumentSettingsController::class, 'index'])->name('documents.index');
             Route::put('/documents', [DocumentSettingsController::class, 'update'])->name('documents.update');
             Route::delete('/documents/logo', [DocumentSettingsController::class, 'removeLogo'])->name('documents.logo.destroy');
