@@ -105,6 +105,48 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame(2,(int)$this->product->fresh()->stock_quantity);
     }
 
+    public function test_reused_checkout_nonce_cannot_change_buyer_payment_or_cart_after_commit(): void
+    {
+        [$data]=$this->prepare();
+        $this->post('/porucivanje',$data)->assertRedirect();
+
+        // Even a bearer form nonce may only replay the ORIGINAL immutable purchase.
+        $this->postJson('/porucivanje',array_replace($data,[
+            'shipping_address'=>'Synthetic changed address 99',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('checkout');
+
+        self::assertSame(1,Order::query()->count());
+        self::assertSame(1,PublicCheckoutAttempt::query()->count());
+        self::assertSame(1,PublicOrderAccess::query()->count());
+        self::assertSame(1,StockMovement::query()->count());
+        self::assertSame(2,(int)$this->product->fresh()->stock_quantity);
+        self::assertSame('Test 12',Order::query()->sole()->shipping_address);
+    }
+
+    public function test_admin_cancellation_of_guest_retail_order_restores_stock_once_without_commission(): void
+    {
+        [$data,$initialStock]=$this->prepare();
+        $privatePath=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
+        $order=Order::query()->sole();
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+        $workflow=app(\App\Services\OrderWorkflowService::class);
+
+        $cancelled=$workflow->changeStatus($order,'cancelled',$admin,'Synthetic buyer withdrawal.');
+        $workflow->changeStatus($cancelled,'cancelled',$admin,'Synthetic idempotent retry.');
+
+        $order->refresh();
+        self::assertSame('cancelled',$order->status);
+        self::assertSame('returned',$order->inventory_state);
+        self::assertSame($initialStock,(int)$this->product->fresh()->stock_quantity);
+        self::assertSame(1,StockMovement::query()->where('order_id',$order->id)
+            ->where('movement_type','sale')->count());
+        self::assertSame(1,StockMovement::query()->where('order_id',$order->id)
+            ->where('movement_type','cancelled_order')->count());
+        self::assertSame(0,OrderCommission::query()->count());
+        self::assertSame(0,OrderPayment::query()->count());
+        $this->get($privatePath)->assertOk()->assertSee($order->order_number);
+    }
+
     public function test_second_separate_checkout_rotates_nonce_and_can_create_a_new_order(): void
     {
         [$first]=$this->prepare();
