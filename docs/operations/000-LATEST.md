@@ -1,3 +1,13 @@
+# CURRENT SOURCE — B798 R4/R5 merged, CloudLinux activation PENDING (2026-10-23)
+
+- **Do not rerun B797, B796 or any earlier migration.** Owner Report801 certifies B797 PASS. New warranty business source through [PR91](https://github.com/AldinAga/ald1n-project/pull/91) merged at exact `c4a5f060cc00b5d1be0e4d8068309524a4b99c99`, CI 9/9 PASS, PHP8.4/MariaDB10.11.19 scoped24tests180assertions, static983/983. [Report803 source and operator QA](803-BATCH798-SOURCE-DELIVERY-CERTIFICATION-20261023.md) is NOT a production receipt.
+- **B798 only:** exact incoming script `ald1n-b798-laravel-first-payment-warranty-expiry-v1.sh` SHA256 `0cd2a59b548b5fcb64ba129382a313ebf8fe2494234dd0ebc56702adb0189b89`; 690-path runtime closure, 17 approved source writes/4 additions, one additive warranty_issuances table. Automatically verify first-party two fresh restore-ready backups plus identity recheck, source snapshot, guarded maintenance/Scheduler and rollback; preserve original Report801 (sha `e4c6cb7210f1f12263664fb52e9e3e4a8b304b3017bc90f915c0837aeacec53f`). Canonical [verified Drive script](https://drive.google.com/file/d/1HKgj608Gk2uKImrRttkZKZm55Id4gxM6/view) and [full QA](https://drive.google.com/file/d/1ZxMMkg813JSNCaFhFWaf2_x8FY_eOxYt/view). Production remains **PENDING**, no new payment/expiry mutation until host Batch798 PASS.
+- Business rule resolved: first confirmed positive payment including deposit/deferred direct sale creates unique pre-delivery certificate with NO fictitious coverage dates. Delivery activates same number and frozen terms. Expiry recipient is actual seller or active opted-in SuperAdministrator, independently OFF by default and rechecked at send time. No extra recipient, no old history backfill, no full-paid prerequisite, no guessed legal coverage.
+- Source delivery report number803 exists; if no later local/remote report, next HOST report is804, computed fresh by script. Do not conflate batch number with report number. Keep Git HEAD/index/.htaccess and unrelated files. No signed Android build, OTA/Play action, public /katalog activation or SDK58 upgrade. Progress ledger stays 7/17=41.2%, CMS7/15=46.7% until actual activation/acceptance proof.
+- Canonical Drive runbook may retain an older dated checkpoint because its prior in-place update was blocked; this newer GitHub source report supersedes that dated PENDING line, without bypassing a blocked Drive modification.
+
+---
+
 # CURRENT PRODUCTION - B797 PASS / Report801 (2026-10-23)
 
 ## Read first
