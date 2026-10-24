@@ -62,10 +62,12 @@ jobs:
           php -l tests/Feature/StorefrontNotificationOriginB806Test.php
           php -l app/Http/Controllers/PublicCheckoutController.php
           php -l app/Http/Middleware/SecurityHeaders.php
+          php -l tests/Support/B807HttpSeed.php
+          php -l tests/Support/B807HttpProbe.php
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           mkdir -p "$RUNNER_TEMP/b806-evidence/source"
           git rev-parse HEAD > "$RUNNER_TEMP/b806-evidence/source-head.txt"
-          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php "$RUNNER_TEMP/b806-evidence/source/"
+          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/.github/workflows/b806-storefront-security-qa.yml" "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md" "$RUNNER_TEMP/b806-evidence/"
       - name: Synthetic security checks with actual Laravel and MariaDB
@@ -74,6 +76,40 @@ jobs:
           set -euo pipefail
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b806-security-junit.xml" tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php > "$RUNNER_TEMP/b806-evidence/b806-security.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b806-evidence/b806-security.log"; exit 1; }
           tail -n 8 "$RUNNER_TEMP/b806-evidence/b806-security.log"
+      - name: B807 real HTTP CSRF, session, method and private rate gates
+        working-directory: apps/cms/current
+        env:
+          B807_ISOLATED: '1'
+          APP_URL: http://127.0.0.1:8873
+          SESSION_DRIVER: file
+          CACHE_STORE: file
+          SESSION_SECURE_COOKIE: 'false'
+          PUBLIC_STOREFRONT_ENABLED: 'true'
+          PUBLIC_CHECKOUT_ENABLED: 'true'
+          PUBLIC_CHECKOUT_TERMS_URL: https://cms.ald1n.com/uslovi
+          PUBLIC_CHECKOUT_PRIVACY_URL: https://cms.ald1n.com/privatnost
+          PUBLIC_CHECKOUT_SHIPPING_FEE_RSD: '0'
+          PUBLIC_CHECKOUT_SHIPPING_DESCRIPTION: Synthetic approved delivery only
+          PUBLIC_CHECKOUT_PAYMENT_METHODS: cash_on_delivery
+          PUBLIC_CHECKOUT_DELIVERY_METHODS: courier,own_transport,customer_pickup
+          PUBLIC_CHECKOUT_SUPPORT_EMAIL: support@example.test
+        run: |
+          set -euo pipefail
+          test "$B807_ISOLATED" = 1 && test "$APP_ENV" = testing && test "$DB_DATABASE" = ald1n_test
+          php tests/Support/B807HttpSeed.php "$RUNNER_TEMP/b806-evidence/b807-product-id.txt" > "$RUNNER_TEMP/b806-evidence/b807-seed.log" 2>&1 || { tail -n 12 "$RUNNER_TEMP/b806-evidence/b807-seed.log"; exit 1; }
+          php -S 127.0.0.1:8873 -t public public/index.php > "$RUNNER_TEMP/b806-evidence/b807-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8873/up >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1 || { echo B807_HTTP_SERVER_HOLD; tail -n 15 "$RUNNER_TEMP/b806-evidence/b807-server.log"; exit 1; }
+          export B807_SOURCE_SHA
+          B807_SOURCE_SHA=$(git rev-parse HEAD)
+          php tests/Support/B807HttpProbe.php "$RUNNER_TEMP/b806-evidence/b807-product-id.txt" "$RUNNER_TEMP/b806-evidence/b807-proof.json" > "$RUNNER_TEMP/b806-evidence/b807-probe.log" 2>&1 || { tail -n 18 "$RUNNER_TEMP/b806-evidence/b807-probe.log"; exit 1; }
+          tail -n 2 "$RUNNER_TEMP/b806-evidence/b807-probe.log"
       - name: Preserve synthetic evidence and exact changed source
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
