@@ -10,6 +10,16 @@ on:
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
+  pull_request:
+    branches:
+      - release/android-v15-production-aab-one-20261021
+    paths:
+      - apps/mobile/current/app.config.js
+      - apps/mobile/current/plugins/with-android-native-modernization.js
+      - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
+      - .github/workflows/android-v15-nativegauss-16kb-qa.yml
 permissions:
   contents: read
 jobs:
