@@ -11,6 +11,8 @@ on:
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
   pull_request:
     branches:
@@ -23,6 +25,8 @@ on:
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
 permissions:
   contents: read
@@ -101,6 +105,7 @@ jobs:
           node --test scripts/release25/nativegauss-16kb-pin.test.mjs
           node --test scripts/release25/verify-android16kb-apk.test.mjs
           node --test scripts/release25/verify-android16kb-aab.test.mjs
+          node --test scripts/release25/verify-android16kb-emulator.test.mjs
           npm run typecheck
           npm run validate
       - name: Prepare isolated Android SDK36 and NDK27
@@ -203,6 +208,25 @@ jobs:
           echo 'B832_DISPOSABLE_AAB_BUNDLE_CONFIG=PASS_16K'
           echo 'B832_BUNDLETOOL_DERIVED_APK_ALL_NATIVE_ELF_ZIPALIGN=PASS'
           echo 'SIGNING_IDENTITY=EPHEMERAL_LOCAL_CI_ONLY PLAY_RELEASE=NOT_AUTHORIZED'
+      - name: Prepare KVM for isolated Android 15 16KiB emulator
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+      - name: Offline 16KiB emulator install and app launch (DEBUG APK ONLY)
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          profile: pixel_7_pro
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/debug/app-debug.apk
+            echo 'ANDROID_15_16KB_EMULATOR_OFFLINE_LAUNCH=PASS_CI_DEBUG_ONLY'
       - name: No release or production mutation
         if: always()
         run: |
