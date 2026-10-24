@@ -34,8 +34,14 @@ final class PublicRetailCheckoutService
     {
         $policies=$this->readiness->assertReady();
         $actor=$request->user();
-        if ($actor!==null) abort_unless($actor->status==='active' && $actor->retired_at===null,403);
-        $buyerId=$actor?->hasRole('customer') ? (int)$actor->id : null;
+        // Do not launder a logged-in SuperAdmin/Admin/SubAgent identity into
+        // an anonymous retail order. Anonymous guests and true Kupac accounts
+        // are the only permitted origins; keep internal order flows separate.
+        if ($actor!==null) {
+            abort_unless($actor->status==='active' && $actor->retired_at===null
+                && $actor->hasRole('customer'),403);
+        }
+        $buyerId=$actor===null ? null : (int)$actor->id;
         $delivery=(string)($input['delivery_method']??'');
         if (!in_array($delivery,$policies['delivery_methods'],true)) {
             throw ValidationException::withMessages(['delivery_method'=>'Izaberi dozvoljeni nacin dostave.']);

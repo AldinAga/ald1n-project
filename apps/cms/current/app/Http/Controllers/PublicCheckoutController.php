@@ -16,8 +16,20 @@ use Throwable;
 
 final class PublicCheckoutController extends Controller
 {
+    private function requireRetailBuyer(Request $request): void
+    {
+        $actor=$request->user();
+        // Internal staff must use their own audited ordering workflow.
+        // A logged-in operator must never silently become an anonymous buyer.
+        if ($actor!==null) {
+            abort_unless($actor->status==='active' && $actor->retired_at===null
+                && $actor->hasRole('customer'),403);
+        }
+    }
+
     public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View
     {
+        $this->requireRetailBuyer($request);
         $ready=$policy->assertReady();
         $quote=$cart->quote($request);
         if (!$quote['items'] || $quote['stale']) {
@@ -47,6 +59,7 @@ final class PublicCheckoutController extends Controller
         PublicCheckoutReadinessService $policy,
         OperationalNotificationService $notifications,
     ): RedirectResponse {
+        $this->requireRetailBuyer($request);
         $policy->assertReady();
         $validated=$request->validate([
             'checkout_key'=>['required','string','size:48'],

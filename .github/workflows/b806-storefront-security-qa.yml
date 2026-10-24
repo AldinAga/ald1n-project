@@ -45,6 +45,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
@@ -64,17 +65,42 @@ jobs:
           php -l app/Http/Middleware/SecurityHeaders.php
           php -l tests/Support/B807HttpSeed.php
           php -l tests/Support/B807HttpProbe.php
+          php -l tests/Feature/StorefrontRoleBoundaryB808Test.php
+          php -l app/Services/PublicRetailCheckoutService.php
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           mkdir -p "$RUNNER_TEMP/b806-evidence/source"
           git rev-parse HEAD > "$RUNNER_TEMP/b806-evidence/source-head.txt"
-          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php "$RUNNER_TEMP/b806-evidence/source/"
+          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php tests/Feature/StorefrontRoleBoundaryB808Test.php app/Services/PublicRetailCheckoutService.php "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/.github/workflows/b806-storefront-security-qa.yml" "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md" "$RUNNER_TEMP/b806-evidence/"
+      - name: B808 expected RED - prove operator checkout authorization failed on predecessor
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          BASE=89e8f7cbfe5f0c610835187775acfb4d43ae9232
+          git merge-base --is-ancestor "$BASE" HEAD
+          mkdir -p "$RUNNER_TEMP/b806-evidence/b808-restore"
+          cp app/Http/Controllers/PublicCheckoutController.php "$RUNNER_TEMP/b806-evidence/b808-restore/controller.php"
+          cp app/Services/PublicRetailCheckoutService.php "$RUNNER_TEMP/b806-evidence/b808-restore/service.php"
+          restore_b808() {
+            cp "$RUNNER_TEMP/b806-evidence/b808-restore/controller.php" app/Http/Controllers/PublicCheckoutController.php
+            cp "$RUNNER_TEMP/b806-evidence/b808-restore/service.php" app/Services/PublicRetailCheckoutService.php
+          }
+          trap restore_b808 EXIT
+          git show "$BASE:apps/cms/current/app/Http/Controllers/PublicCheckoutController.php" > app/Http/Controllers/PublicCheckoutController.php
+          git show "$BASE:apps/cms/current/app/Services/PublicRetailCheckoutService.php" > app/Services/PublicRetailCheckoutService.php
+          code=0
+          vendor/bin/phpunit -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b806-evidence/b808-red-junit.xml" --filter test_operator_cannot_checkout_as_anonymous_buyer tests/Feature/StorefrontRoleBoundaryB808Test.php > "$RUNNER_TEMP/b806-evidence/b808-red.log" 2>&1 || code=$?
+          restore_b808
+          trap - EXIT
+          test "$code" -ne 0 || { echo B808_HOLD_MISSING_RED; exit 31; }
+          php -r '$xml=simplexml_load_file($argv[1]);$cases=$xml->xpath("//testcase")?:[];if(count($cases)!==3)exit(32);foreach($cases as $t){if(!isset($t->failure)||isset($t->error))exit(33);}' "$RUNNER_TEMP/b806-evidence/b808-red-junit.xml"
+          echo 'B808_RED=3_EXPECTED_ROLE_AUTH_FAILURES PASS_NO_FALSE_GREEN'
       - name: Synthetic security checks with actual Laravel and MariaDB
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b806-security-junit.xml" tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php > "$RUNNER_TEMP/b806-evidence/b806-security.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b806-evidence/b806-security.log"; exit 1; }
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b806-security-junit.xml" tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Feature/StorefrontRoleBoundaryB808Test.php > "$RUNNER_TEMP/b806-evidence/b806-security.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b806-evidence/b806-security.log"; exit 1; }
           tail -n 8 "$RUNNER_TEMP/b806-evidence/b806-security.log"
       - name: B807 real HTTP CSRF, session, method and private rate gates
         working-directory: apps/cms/current
