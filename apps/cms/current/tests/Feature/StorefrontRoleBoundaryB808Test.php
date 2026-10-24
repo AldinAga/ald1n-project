@@ -138,7 +138,12 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
         $document=OrderDocument::query()->create([
             'order_id'=>$orderB->id,'document_type'=>'invoice',
             'document_number'=>'B808-OTHER-ORDER-INVOICE',
-            'status'=>'issued','issued_at'=>now(),
+            'status'=>'issued','issued_at'=>now(),'currency'=>'RSD',
+            // Current MariaDB schema has non-null financial snapshot fields.
+            // Synthetic fixture only: do not weaken production constraints.
+            'subtotal_rsd'=>12000,'tax_rate_percent'=>0,
+            'tax_base_rsd'=>12000,'tax_amount_rsd'=>0,'total_rsd'=>12000,
+            'company_name'=>'Synthetic B808 Merchant',
             'customer_name'=>'Synthetic buyer B',
         ]);
         $this->get((string)$linkA)->assertOk()

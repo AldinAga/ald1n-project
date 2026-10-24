@@ -29,8 +29,10 @@ final class PublicCheckoutController extends Controller
 
     public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View
     {
-        $this->requireRetailBuyer($request);
+        // Preserve the storefront-wide OFF/404 contract for every visitor,
+        // then enforce buyer-only authorization while it is available.
         $ready=$policy->assertReady();
+        $this->requireRetailBuyer($request);
         $quote=$cart->quote($request);
         if (!$quote['items'] || $quote['stale']) {
             abort(409,'Korpa mora sadržati dostupne artikle pre poručivanja.');
@@ -59,8 +61,9 @@ final class PublicCheckoutController extends Controller
         PublicCheckoutReadinessService $policy,
         OperationalNotificationService $notifications,
     ): RedirectResponse {
-        $this->requireRetailBuyer($request);
+        // OFF must stay a uniform 404 even for authenticated operators.
         $policy->assertReady();
+        $this->requireRetailBuyer($request);
         $validated=$request->validate([
             'checkout_key'=>['required','string','size:48'],
             'merchant_policy_fingerprint'=>['required','regex:/^[a-f0-9]{64}$/D'],
