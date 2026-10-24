@@ -117,7 +117,7 @@ final class AuthenticatedSessionController extends Controller
         // A Kupac has no internal employee dashboard. Preserve intended
         // storefront navigation without changing staff login destinations.
         return $user->hasRole('customer')
-            ? redirect()->intended(route('public-shop.cart'))
+            ? new RedirectResponse(route('public-shop.cart',[],false))
             : redirect()->route('dashboard');
     }
 

@@ -96,7 +96,9 @@ final class PublicBuyerRegistrationController extends Controller
                 'registration'=>'Registracija trenutno nije dostupna. Pokušajte kasnije.',
             ]);
         }
-        return redirect()->route('public-shop.register')
+        // Do not echo an untrusted Host into the post-signup Location.
+        return (new RedirectResponse(route('public-shop.register',[],false)))
+            ->setSession($request->session())
             ->with('status',$generic);
     }
 }

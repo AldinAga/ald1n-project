@@ -104,8 +104,9 @@ final class StorefrontRegistrationOnlyB809Test extends TestCase
             'accepted_privacy'=>'1','role_id'=>$this->owner->role_id,
             'status'=>'active','user_group_id'=>1,
         ];
-        $this->withHeaders(['Host'=>'attacker.example.test'])
+        $response=$this->withHeaders(['Host'=>'attacker.example.test'])
             ->post('/registracija',$payload)->assertRedirect();
+        self::assertSame('/registracija',(string)$response->headers->get('Location'));
         $buyer=User::query()->where('email','newbuyer@example.test')->sole();
         self::assertTrue($buyer->hasRole('customer'));
         self::assertSame('pending',$buyer->status);
@@ -143,7 +144,7 @@ final class StorefrontRegistrationOnlyB809Test extends TestCase
             'password_confirmation'=>'SyntheticSecure123Ab!',
         ])->assertSessionHasErrors('token');
         $this->post('/login',['login'=>$buyer->email,'password'=>'SyntheticSecure123Ab!'])
-            ->assertRedirect(route('public-shop.cart'));
+            ->assertRedirect('/korpa');
         self::assertTrue(auth()->check());
         self::assertSame($buyer->id,auth()->id());
         $this->get('/catalog')->assertForbidden();
