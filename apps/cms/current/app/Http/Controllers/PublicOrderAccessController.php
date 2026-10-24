@@ -21,7 +21,9 @@ final class PublicOrderAccessController extends Controller
 
     private function guard(): void
     {
-        abort_unless(config('public_storefront.enabled') === true,404);
+        // A SuperAdmin emergency OFF must also close already-issued bearer links.
+        // The setting is read fresh by the shared storefront state service.
+        abort_unless(app(\App\Services\PublicStorefrontStateService::class)->isOpen(),404);
     }
 
     public function show(string $token): Response
