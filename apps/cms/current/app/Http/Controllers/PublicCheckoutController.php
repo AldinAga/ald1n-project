@@ -27,6 +27,28 @@ final class PublicCheckoutController extends Controller
         }
         abort_unless($actor->status==='active' && $actor->retired_at===null
             && $actor->hasRole('customer'),403);
+
+        // Public checkout is outside the internal tracked-session route
+        // group. It must enforce the same credential-rotation boundary, while
+        // retaining the storefront OFF/404 check that runs before this method.
+        $validSession=false;
+        try {
+            $validSession=app(\App\Services\PortalSessionService::class)
+                ->validateAndTouch($request,$actor);
+        } catch (Throwable $exception) {
+            Log::warning('Registered buyer session verification failed closed.',[
+                'user_id'=>$actor->getKey(),
+                'exception'=>$exception::class,
+            ]);
+        }
+        if (!$validSession) {
+            \Illuminate\Support\Facades\Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            throw new \Illuminate\Auth\AuthenticationException(
+                'Prijava je istekla. Prijavite se ponovo.', ['web'], route('login')
+            );
+        }
     }
 
     public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View
