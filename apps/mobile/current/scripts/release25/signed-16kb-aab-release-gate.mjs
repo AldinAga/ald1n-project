@@ -77,6 +77,65 @@ function command(program, args, options = {}) {
   if (r.error || r.status !== 0) hold('COMMAND_FAILED_' + path.basename(program).replace(/[^a-z0-9]/gi, '_').toUpperCase());
   return r.stdout;
 }
+/** Play delivery uses split/standalone APKs, not only the universal smoke APK.
+ * Inspect every packaged APK; native-free configuration splits are normal.
+ */
+export function selectDeliveredApks(names) {
+  if (!Array.isArray(names) || names.length > 8192) hold('APKS_INVALID_ENTRY_LIST');
+  const matches = names.filter(n => typeof n === 'string' && n.endsWith('.apk'));
+  if (!matches.length) hold('APKS_NO_APK_ENTRIES');
+  if (matches.length > 2048) hold('APKS_TOO_MANY_APK_ENTRIES');
+  if (new Set(matches).size !== matches.length) hold('APKS_DUPLICATE_APK_ENTRIES');
+  for (const name of matches) {
+    if (!/^[A-Za-z0-9._\/-]+\.apk$/.test(name) ||
+        name.split('/').some(segment => segment === '' || segment === '.' || segment === '..')) {
+      hold('APKS_UNSAFE_ENTRY_NAME');
+    }
+  }
+  if (matches.length === 1 && matches[0] === 'universal.apk') hold('DEFAULT_APKS_UNIVERSAL_ONLY');
+  return matches.sort();
+}
+
+/** Called only after bundletool produced the APKS file from the verified AAB.
+ * Executable checks are mandatory for each generated APK (including native-free).
+ * Do not treat signatures on locally derived APKs as Google Play signing proof.
+ */
+export function auditDeliveredApkSet(apksPath, zipalign, apksigner) {
+  command('unzip', ['-tqq', apksPath]);
+  const entries = selectDeliveredApks(command('unzip', ['-Z1', apksPath]).split(/\r?\n/).filter(Boolean));
+  const tmp = mkdtempSync(path.join(tmpdir(), 'ald1n-16kb-split-apks-'));
+  let nativeApks = 0;
+  let elfCount = 0;
+  try {
+    for (let i = 0; i < entries.length; i += 1) {
+      const apk = path.join(tmp, `${i}.apk`);
+      const fd = openSync(apk, 'wx', 0o600);
+      try { command('unzip', ['-p', apksPath, entries[i]], { encoding: null, stdio: ['ignore', fd, 'pipe'] }); }
+      finally { closeSync(fd); }
+      command('unzip', ['-tqq', apk]);
+      const members = command('unzip', ['-Z1', apk]).split(/\r?\n/).filter(Boolean);
+      if (members.some(name => /^lib\/(?:arm64-v8a|x86_64)\/[^/]+\.so$/.test(name))) {
+        const scan = auditApk(apk);
+        if (scan.status !== 'PASS_CI_DEBUG_APK_ELF_ONLY') hold('DELIVERED_APK_ELF_NOT_16KB');
+        nativeApks += 1;
+        elfCount += scan.checkedCount;
+      }
+      command(zipalign, ['-c', '-P', '16', '-v', '4', apk]);
+      command(apksigner, ['verify', apk]);
+    }
+    if (!nativeApks) hold('DEFAULT_APKS_WITHOUT_NATIVE64');
+    return {
+      status: 'PASS_DEFAULT_APK_SET_BINARY_ONLY',
+      apkCount: entries.length,
+      nativeApkCount: nativeApks,
+      checked64BitElf: elfCount,
+      derivedApkSignature: 'LOCAL_BUNDLETOOL_SIGNATURE_NOT_PLAY_SIGNER',
+      physical16kbUat: 'NOT_CHECKED',
+      googlePlayAcceptance: 'NOT_CHECKED'
+    };
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+}
+
 async function releaseGate(o) {
   const hash = await shaFile(o.aab);
   if (hash !== o['aab-sha256']) hold('AAB_SHA256_NOT_ATTESTED');
@@ -111,6 +170,11 @@ async function releaseGate(o) {
     if (derived.status !== 'PASS_CI_DEBUG_APK_ELF_ONLY') hold('DERIVED_APK_ELF_16KB');
     command(o.zipalign, ['-c', '-P', '16', '-v', '4', apk]);
     command(o.apksigner, ['verify', apk]);
+    // The universal APK omits unfused dynamic features. Check bundletool's
+    // actual default split/standalone delivery outputs as a separate gate.
+    const defaultApks = path.join(tmp, 'derived-default.apks');
+    jarArgs('build-apks', '--bundle=' + o.aab, '--output=' + defaultApks);
+    const delivery = auditDeliveredApkSet(defaultApks, o.zipalign, o.apksigner);
     return {
       status: 'PASS_SIGNED_AAB_BINARY_GATE_ONLY',
       appVersion: EXPECTED_VERSION,
@@ -123,6 +187,7 @@ async function releaseGate(o) {
       derivedApk64BitElfCount: derived.checkedCount,
       bundleConfig: 'PAGE_ALIGNMENT_16K',
       derivedApk: 'BUNDLETOOL_SAME_AAB_PROVENANCE_AND_ZIPALIGN_PASS',
+      defaultDeliveryApks: delivery,
       easBuildId: o['eas-build-id'],
       claimedSourceCommit: o['source-sha'],
       easSourceAndRuntimeProvenance: 'DECLARED_NOT_INDEPENDENTLY_VERIFIED',
