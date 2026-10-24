@@ -7,6 +7,7 @@
 <form class="shop-detail-content shop-checkout" method="post" action="{{ route('public-shop.checkout.submit') }}">
 @csrf
 <input type="hidden" name="checkout_key" value="{{ $checkoutKey }}">
+<input type="hidden" name="merchant_policy_fingerprint" value="{{ $ready['approval_digest'] }}">
 <div class="shop-hidden-hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
 <h2>Podaci kupca i dostava</h2>
 <label>Ime i prezime <input name="shipping_full_name" required maxlength="190" autocomplete="name" value="{{ old('shipping_full_name') }}"></label>
