@@ -1,0 +1,209 @@
+name: B806 storefront targeted security regression (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/b806-storefront-security-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b806-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  security-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install exact dependencies and verify isolated target
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_DATABASE" = ald1n_test
+          test "$DB_HOST" = 127.0.0.1
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php -l tests/Feature/StorefrontSecurityB806Test.php
+          php -l tests/Feature/StorefrontNotificationOriginB806Test.php
+          php -l app/Http/Controllers/PublicCheckoutController.php
+          php -l app/Http/Middleware/SecurityHeaders.php
+          php -l tests/Support/B807HttpSeed.php
+          php -l tests/Support/B807HttpProbe.php
+          php -l tests/Feature/StorefrontRoleBoundaryB808Test.php
+          php -l tests/Feature/PublicRegistrationMailSenderB810Test.php
+          php -l tests/Feature/StorefrontRegistrationOnlyB809Test.php
+          php -l tests/Feature/StorefrontRegisteredBuyerLifecycleB811Test.php
+          php -l tests/Feature/RetiredActiveLoginB813Test.php
+          php -l tests/Feature/CredentialWebSessionRevocationB814Test.php
+          php -l tests/Feature/PortalSessionCredentialBoundaryB815Test.php
+          php -l tests/Feature/SensitiveAuthResponsePrivacyB816Test.php
+          php -l app/Services/PortalSessionService.php
+          php -l app/Http/Middleware/EnsureTrackedPortalSession.php
+          php -l app/Services/PasswordResetService.php
+          php -l app/Services/CustomerActivationService.php
+          php -l app/Services/PublicRegistrationMailSenderService.php
+          php -l app/Notifications/CustomerPortalInvitationNotification.php
+          php -l app/Http/Controllers/Admin/PublicMerchantSettingsController.php
+          php -l app/Http/Controllers/PublicBuyerRegistrationController.php
+          php -l app/Services/PublicRetailCheckoutService.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          mkdir -p "$RUNNER_TEMP/b806-evidence/source"
+          git rev-parse HEAD > "$RUNNER_TEMP/b806-evidence/source-head.txt"
+          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php tests/Feature/StorefrontRoleBoundaryB808Test.php app/Services/PublicRetailCheckoutService.php tests/Feature/PublicRegistrationMailSenderB810Test.php tests/Feature/StorefrontRegistrationOnlyB809Test.php tests/Feature/StorefrontRegisteredBuyerLifecycleB811Test.php tests/Feature/RetiredActiveLoginB813Test.php tests/Feature/CredentialWebSessionRevocationB814Test.php tests/Feature/PortalSessionCredentialBoundaryB815Test.php tests/Feature/SensitiveAuthResponsePrivacyB816Test.php app/Services/PortalSessionService.php app/Http/Middleware/EnsureTrackedPortalSession.php app/Services/PasswordResetService.php app/Services/CustomerActivationService.php app/Services/PublicRegistrationMailSenderService.php app/Notifications/CustomerPortalInvitationNotification.php "$RUNNER_TEMP/b806-evidence/source/"
+          cp "$GITHUB_WORKSPACE/.github/workflows/b806-storefront-security-qa.yml" "$RUNNER_TEMP/b806-evidence/source/"
+          cp "$GITHUB_WORKSPACE/docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md" "$RUNNER_TEMP/b806-evidence/"
+      - name: B809 + B810 registered Kupac sender targeted MariaDB tests (independent of stale guest fixtures)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b810-sender-junit.xml" tests/Feature/PublicRegistrationMailSenderB810Test.php tests/Feature/StorefrontRegistrationOnlyB809Test.php > "$RUNNER_TEMP/b806-evidence/b810-sender.log" 2>&1 || { tail -n 70 "$RUNNER_TEMP/b806-evidence/b810-sender.log"; exit 1; }
+          tail -n 6 "$RUNNER_TEMP/b806-evidence/b810-sender.log"
+          echo 'B809_B810_REGISTERED_SENDER_TARGETED=PASS SOURCE_ONLY NO_PRODUCTION_MAIL'
+      - name: B811 registered buyer lifecycle MariaDB (new tests; historical guest fixtures unchanged)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b811-lifecycle-junit.xml" tests/Feature/StorefrontRegisteredBuyerLifecycleB811Test.php > "$RUNNER_TEMP/b806-evidence/b811-lifecycle.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/b806-evidence/b811-lifecycle.log"; exit 1; }
+          tail -n 8 "$RUNNER_TEMP/b806-evidence/b811-lifecycle.log"
+          echo 'B811_LIFECYCLE=PASS_SYNTHETIC_ONLY_RELEASE_STILL_HOLD'
+      - name: B813 retirement login boundary isolated PHP 8.4 MariaDB (RED expected before fix)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b813-retired-login-junit.xml" tests/Feature/RetiredActiveLoginB813Test.php > "$RUNNER_TEMP/b806-evidence/b813-retired-login.log" 2>&1 || { tail -n 85 "$RUNNER_TEMP/b806-evidence/b813-retired-login.log"; exit 1; }
+          tail -n 7 "$RUNNER_TEMP/b806-evidence/b813-retired-login.log"
+          echo 'B813_RETIRED_LOGIN=PASS_SYNTHETIC_NO_PRODUCTION'
+
+      - name: B814 web session revocation on credential reset and activation (MariaDB)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b814-session-revocation-junit.xml" tests/Feature/CredentialWebSessionRevocationB814Test.php > "$RUNNER_TEMP/b806-evidence/b814-session-revocation.log" 2>&1 || { tail -n 85 "$RUNNER_TEMP/b806-evidence/b814-session-revocation.log"; exit 1; }
+          tail -n 7 "$RUNNER_TEMP/b806-evidence/b814-session-revocation.log"
+          echo 'B814_CREDENTIAL_WEB_SESSION_REVOCATION=PASS_SYNTHETIC_NO_DEPLOY'
+
+      - name: B815 credential and missing-registry session boundary (PHP 8.4 MariaDB)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b815-portal-session-junit.xml" tests/Feature/PortalSessionCredentialBoundaryB815Test.php > "$RUNNER_TEMP/b806-evidence/b815-portal-session.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/b806-evidence/b815-portal-session.log"; exit 1; }
+          tail -n 8 "$RUNNER_TEMP/b806-evidence/b815-portal-session.log"
+          echo 'B815_PORTAL_SESSION_BOUNDARY=PASS_SYNTHETIC_RELEASE_STILL_HOLD'
+
+      - name: B816 sensitive authentication and registration response privacy (MariaDB)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b816-auth-privacy-junit.xml" tests/Feature/SensitiveAuthResponsePrivacyB816Test.php > "$RUNNER_TEMP/b806-evidence/b816-auth-privacy.log" 2>&1 || { tail -n 90 "$RUNNER_TEMP/b806-evidence/b816-auth-privacy.log"; exit 1; }
+          tail -n 8 "$RUNNER_TEMP/b806-evidence/b816-auth-privacy.log"
+          echo 'B816_AUTH_PRIVACY=PASS_SYNTHETIC_ONLY_RELEASE_HOLD'
+
+      - name: B808 expected RED - prove operator checkout authorization failed on predecessor
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          BASE=89e8f7cbfe5f0c610835187775acfb4d43ae9232
+          git merge-base --is-ancestor "$BASE" HEAD
+          mkdir -p "$RUNNER_TEMP/b806-evidence/b808-restore"
+          cp app/Http/Controllers/PublicCheckoutController.php "$RUNNER_TEMP/b806-evidence/b808-restore/controller.php"
+          cp app/Services/PublicRetailCheckoutService.php "$RUNNER_TEMP/b806-evidence/b808-restore/service.php"
+          restore_b808() {
+            cp "$RUNNER_TEMP/b806-evidence/b808-restore/controller.php" app/Http/Controllers/PublicCheckoutController.php
+            cp "$RUNNER_TEMP/b806-evidence/b808-restore/service.php" app/Services/PublicRetailCheckoutService.php
+          }
+          trap restore_b808 EXIT
+          git show "$BASE:apps/cms/current/app/Http/Controllers/PublicCheckoutController.php" > app/Http/Controllers/PublicCheckoutController.php
+          git show "$BASE:apps/cms/current/app/Services/PublicRetailCheckoutService.php" > app/Services/PublicRetailCheckoutService.php
+          code=0
+          vendor/bin/phpunit -c phpunit.mysql.xml --log-junit "$RUNNER_TEMP/b806-evidence/b808-red-junit.xml" --filter test_operator_cannot_checkout_as_anonymous_buyer tests/Feature/StorefrontRoleBoundaryB808Test.php > "$RUNNER_TEMP/b806-evidence/b808-red.log" 2>&1 || code=$?
+          restore_b808
+          trap - EXIT
+          test "$code" -ne 0 || { echo B808_HOLD_MISSING_RED; exit 31; }
+          php -r '$xml=simplexml_load_file($argv[1]);$cases=$xml->xpath("//testcase")?:[];if(count($cases)!==3)exit(32);foreach($cases as $t){if(!isset($t->failure)||isset($t->error))exit(33);}' "$RUNNER_TEMP/b806-evidence/b808-red-junit.xml"
+          echo 'B808_RED=3_EXPECTED_ROLE_AUTH_FAILURES PASS_NO_FALSE_GREEN'
+      - name: Synthetic security checks with actual Laravel and MariaDB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b806-security-junit.xml" tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Feature/StorefrontRoleBoundaryB808Test.php > "$RUNNER_TEMP/b806-evidence/b806-security.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b806-evidence/b806-security.log"; exit 1; }
+          tail -n 8 "$RUNNER_TEMP/b806-evidence/b806-security.log"
+      - name: B807 real HTTP CSRF, session, method and private rate gates
+        working-directory: apps/cms/current
+        env:
+          B807_ISOLATED: '1'
+          APP_URL: http://127.0.0.1:8873
+          SESSION_DRIVER: file
+          CACHE_STORE: file
+          SESSION_SECURE_COOKIE: 'false'
+          PUBLIC_STOREFRONT_ENABLED: 'true'
+          PUBLIC_CHECKOUT_ENABLED: 'true'
+          PUBLIC_CHECKOUT_TERMS_URL: https://cms.ald1n.com/uslovi
+          PUBLIC_CHECKOUT_PRIVACY_URL: https://cms.ald1n.com/privatnost
+          PUBLIC_CHECKOUT_SHIPPING_FEE_RSD: '0'
+          PUBLIC_CHECKOUT_SHIPPING_DESCRIPTION: Synthetic approved delivery only
+          PUBLIC_CHECKOUT_PAYMENT_METHODS: cash_on_delivery
+          PUBLIC_CHECKOUT_DELIVERY_METHODS: courier,own_transport,customer_pickup
+          PUBLIC_CHECKOUT_SUPPORT_EMAIL: support@example.test
+        run: |
+          set -euo pipefail
+          test "$B807_ISOLATED" = 1 && test "$APP_ENV" = testing && test "$DB_DATABASE" = ald1n_test
+          php tests/Support/B807HttpSeed.php "$RUNNER_TEMP/b806-evidence/b807-product-id.txt" > "$RUNNER_TEMP/b806-evidence/b807-seed.log" 2>&1 || { tail -n 12 "$RUNNER_TEMP/b806-evidence/b807-seed.log"; exit 1; }
+          php -S 127.0.0.1:8873 -t public public/index.php > "$RUNNER_TEMP/b806-evidence/b807-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8873/up >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1 || { echo B807_HTTP_SERVER_HOLD; tail -n 15 "$RUNNER_TEMP/b806-evidence/b807-server.log"; exit 1; }
+          export B807_SOURCE_SHA
+          B807_SOURCE_SHA=$(git rev-parse HEAD)
+          php tests/Support/B807HttpProbe.php "$RUNNER_TEMP/b806-evidence/b807-product-id.txt" "$RUNNER_TEMP/b806-evidence/b807-proof.json" > "$RUNNER_TEMP/b806-evidence/b807-probe.log" 2>&1 || { tail -n 18 "$RUNNER_TEMP/b806-evidence/b807-probe.log"; exit 1; }
+          tail -n 2 "$RUNNER_TEMP/b806-evidence/b807-probe.log"
+      - name: Preserve synthetic evidence and exact changed source
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b806-storefront-security-evidence
+          path: ${{ runner.temp }}/b806-evidence
+          retention-days: 3
+      - name: Boundary
+        if: always()
+        run: echo 'SYNTHETIC_CI_ONLY NO_PRODUCTION_ATTACK NO_CUSTOMER_MAIL NO_DEPLOY NO_CLEANUP'

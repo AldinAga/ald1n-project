@@ -14,6 +14,17 @@ use Throwable;
 
 final class PortalSessionService
 {
+    private const PASSWORD_PROOF_KEY = 'ald1n.portal.password_proof';
+
+    /** @return array{user_id:int,digest:string} */
+    private function passwordProof(User $user): array
+    {
+        return [
+            'user_id' => (int) $user->getKey(),
+            'digest' => hash('sha256', (string) $user->password_hash),
+        ];
+    }
+
     public function recordLogin(Request $request, User $user, bool $remembered): ?UserLoginSession
     {
         if (!$this->available()) {
@@ -25,7 +36,7 @@ final class PortalSessionService
             return null;
         }
 
-        return UserLoginSession::query()->updateOrCreate(
+        $loginSession = UserLoginSession::query()->updateOrCreate(
             ['session_hash' => $hash],
             [
                 'user_id' => $user->id,
@@ -40,17 +51,48 @@ final class PortalSessionService
                 'logged_out_at' => null,
             ],
         );
+
+        // A browser that changes its password must no longer satisfy the
+        // credential proof stored in its earlier Laravel session. Scope the
+        // proof to the principal so isolated cross-principal tests remain valid.
+        $request->session()->put(self::PASSWORD_PROOF_KEY, $this->passwordProof($user));
+
+        return $loginSession;
     }
 
     public function validateAndTouch(Request $request, User $user): bool
     {
+        // Use the current database credential/status, never a guard-cached user
+        // that could predate password recovery, account activation or retirement.
+        $current = User::query()->whereKey($user->getKey())
+            ->first(['id', 'password_hash', 'password_changed_at', 'status', 'retired_at']);
+        if (!$current instanceof User
+            || $current->status !== 'active'
+            || $current->retired_at !== null) {
+            return false;
+        }
+        $user = $current;
+
+        // Never turn a missing registry or missing session ID into approval.
         if (!$this->available()) {
-            return true;
+            return false;
         }
 
         $hash = $this->sessionHash($request);
         if ($hash === null) {
-            return true;
+            return false;
+        }
+
+        $proof = $request->session()->get(self::PASSWORD_PROOF_KEY);
+        $hasMatchingUserProof = is_array($proof)
+            && (int) ($proof['user_id'] ?? 0) === (int) $user->getKey();
+
+        if ($hasMatchingUserProof) {
+            $digest = $proof['digest'] ?? null;
+            if (!is_string($digest)
+                || !hash_equals($this->passwordProof($user)['digest'], $digest)) {
+                return false;
+            }
         }
 
         $session = UserLoginSession::query()
@@ -59,12 +101,30 @@ final class PortalSessionService
             ->first();
 
         if ($session === null) {
-            $this->recordLogin($request, $user, Auth::viaRemember());
-            return true;
+            // A missing row after a password reset must never resurrect the
+            // old authenticated browser. A valid remember cookie is different:
+            // Laravel itself verifies the *current* rotated remember token.
+            if (!$hasMatchingUserProof
+                && $user->password_changed_at !== null
+                && !Auth::viaRemember()) {
+                return false;
+            }
+            return $this->recordLogin($request, $user, Auth::viaRemember()) !== null;
         }
 
         if ($session->revoked_at !== null || $session->logged_out_at !== null) {
             return false;
+        }
+
+        if (!$hasMatchingUserProof) {
+            // Safely bootstrap pre-B815 sessions only if their recorded login
+            // is not older than the most recent credential rotation.
+            if ($user->password_changed_at !== null
+                && ($session->logged_in_at === null
+                    || $session->logged_in_at->lt($user->password_changed_at))) {
+                return false;
+            }
+            $request->session()->put(self::PASSWORD_PROOF_KEY, $this->passwordProof($user));
         }
 
         if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(2))) {

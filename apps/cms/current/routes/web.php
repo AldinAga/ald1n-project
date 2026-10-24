@@ -48,6 +48,7 @@ use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\TurnstileSettingsController;
 use App\Http\Controllers\Admin\SettingsHubController;
 use App\Http\Controllers\Admin\ModuleSettingsController;
+use App\Http\Controllers\Admin\PublicMerchantSettingsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\UserGroupController;
 use App\Http\Controllers\Admin\WarrantyController as AdminWarrantyController;
@@ -72,7 +73,42 @@ use App\Http\Controllers\FieldWorkOrderAttachmentController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
+// The public catalogue/cart remain browseable without sign-in; sale requires
+// an active registered Kupac. Registration uses verified-email activation.
+// Isolated public retail namespace, OFF until complete checkout/post-order release gates.
+// Internal /catalog, /orders and /admin/* remain behind their existing auth/permission middleware.
+Route::name('public-shop.')->group(function (): void {
+    Route::get('/katalog', [\App\Http\Controllers\PublicShopController::class, 'catalog'])->middleware('throttle:public-shop-browse')->name('catalog');
+    Route::get('/katalog/slika/{image}', [\App\Http\Controllers\PublicShopController::class, 'media'])
+        ->whereNumber('image')->middleware('throttle:public-shop-images')->name('media');
+    Route::get('/katalog/{slug}', [\App\Http\Controllers\PublicShopController::class, 'show'])->middleware('throttle:public-shop-browse')->name('show');
+    Route::get('/korpa', [\App\Http\Controllers\PublicShopController::class, 'cart'])->middleware('throttle:public-shop-browse')->name('cart');
+    Route::get('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'form'])
+        ->middleware('throttle:public-shop-browse')->name('checkout');
+    Route::post('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'store'])
+        ->middleware('throttle:public-shop-checkout')->name('checkout.submit');
+    Route::get('/porudzbina/{token}', [\App\Http\Controllers\PublicOrderAccessController::class, 'show'])
+        ->where('token','[a-f0-9]{64}')->middleware('throttle:public-shop-private')->name('order.show');
+    Route::get('/porudzbina/{token}/dokument/{document}', [\App\Http\Controllers\PublicOrderAccessController::class, 'document'])
+        ->where('token','[a-f0-9]{64}')->whereNumber('document')
+        ->middleware('throttle:public-shop-private')->name('order.document');
+    Route::get('/porudzbina/{token}/garancija/{issuance}', [\App\Http\Controllers\PublicOrderAccessController::class, 'warranty'])
+        ->where('token','[a-f0-9]{64}')->whereNumber('issuance')
+        ->middleware('throttle:public-shop-private')->name('order.warranty');
+
+    Route::post('/korpa/dodaj/{product}', [\App\Http\Controllers\PublicShopController::class, 'add'])
+        ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.add');
+    Route::patch('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'update'])
+        ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.update');
+    Route::delete('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'remove'])
+        ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.remove');
+});
+
 Route::middleware('guest')->group(function (): void {
+    Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
+        ->middleware('throttle:public-shop-browse')->name('public-shop.register');
+    Route::post('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'store'])
+        ->middleware('throttle:5,10')->name('public-shop.register.submit');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
     Route::get('/auth/google', [GoogleWebAuthController::class, 'redirect'])
@@ -275,6 +311,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         Route::middleware('permission:orders.manage')->group(function (): void {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+            Route::post('/orders/{order}/public-access/revoke',
+                [\App\Http\Controllers\Admin\PublicOrderAccessController::class, 'revoke'])
+                ->whereNumber('order')->middleware('throttle:admin-write')
+                ->name('orders.public-access.revoke');
             Route::get('/orders/archived', [AdminOrderController::class, 'archived'])->name('orders.archived');
             Route::post('/orders/{order}/archive', [AdminOrderController::class, 'archive'])->whereNumber('order')->name('orders.archive');
             Route::post('/orders/archived/{orderId}/restore', [AdminOrderController::class, 'restore'])->whereNumber('orderId')->name('orders.restore');
@@ -447,6 +487,12 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         Route::get('/settings', [SettingsHubController::class, 'index'])->name('settings.index');
 
         Route::prefix('settings')->name('settings.')->middleware('permission:system.manage_settings')->group(function (): void {
+            Route::get('/public-storefront', [PublicMerchantSettingsController::class, 'index'])
+                ->name('public-storefront.index');
+            Route::put('/public-storefront', [PublicMerchantSettingsController::class, 'update'])
+                ->middleware('throttle:admin-write')->name('public-storefront.update');
+            Route::put('/public-storefront/registration-sender', [PublicMerchantSettingsController::class, 'updateRegistrationSender'])
+                ->middleware('throttle:admin-write')->name('public-storefront.registration-sender');
             Route::get('/modules', [ModuleSettingsController::class, 'index'])->name('modules.index');
             Route::put('/modules', [ModuleSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('modules.update');
             Route::get('/automation', [AutomationController::class, 'index'])->middleware('permission:automation.manage')->name('automation.index');

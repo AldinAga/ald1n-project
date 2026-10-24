@@ -64,7 +64,7 @@ final class AuthenticatedSessionController extends Controller
         $hash = (string) ($user?->password_hash ?: self::DUMMY_HASH);
         $validPassword = password_verify((string) $request->input('password'), $hash);
 
-        if ($user === null || $user->status !== 'active' || !$validPassword) {
+        if ($user === null || $user->status !== 'active' || $user->retired_at !== null || !$validPassword) {
             $securityEvents->log('login.failed', 'warning', $request, ['login_hash' => hash('sha256', mb_strtolower($login)), 'user_found' => $user !== null]);
             return back()
                 ->withErrors(['login' => 'Pogrešni podaci ili nalog nije aktivan.'])
@@ -114,7 +114,11 @@ final class AuthenticatedSessionController extends Controller
         }
         $securityEvents->log('login.succeeded', 'info', $request, ['user_id' => $user->getKey()]);
 
-        return redirect()->route('dashboard');
+        // A Kupac has no internal employee dashboard. Preserve intended
+        // storefront navigation without changing staff login destinations.
+        return $user->hasRole('customer')
+            ? new RedirectResponse(route('public-shop.cart',[],false))
+            : redirect()->route('dashboard');
     }
 
     public function destroy(Request $request, PortalSessionService $portalSessions): RedirectResponse
