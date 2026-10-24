@@ -38,3 +38,9 @@ The pinned 368-row [B808 WSTG/ASVS register](STOREFRONT-WSTG42-ASVS500-L2-CENSUS
 ## Release boundaries
 
 Other blockers remain, including 48 untouched historical guest-positive failures, one B815 buyer OFF fixture failure whose attempted correction was safety-denied, exact-source full CI, 368-control assessment, legal merchant/payment/shipping approvals, real SMTP deliverability/SPF/DKIM/DMARC, FPM/OPcache, verified restore drill and owner buyer UAT. Do not retry or route around any denied fixture/packaging action. No SSH, migration, production write, storefront ON, Android/EAS/OTA/Play or inode cleanup.
+
+## Exact-head integration of the stronger login contract
+
+The first runtime GREEN `5e31333e9e2c7d48366b890e2e2ff3e88b969123` was target-PASS, but its full B803 regression reported **one additional mismatch** in the unrelated `SecurityHealthBackupTest::test_security_headers_and_request_id_are_present` assertion, which still expected the previous weaker `Referrer-Policy: same-origin` on `GET /login`. This was a test expectation conflicting with an intentional stricter security requirement, not evidence the new policy was broken.
+
+The existing assertion was **strengthened** at source `aafcba888807ab13d0c12109d423c27734f60741` to require `no-referrer`, private/no-store and noindex while preserving nosniff, SAMEORIGIN frame policy and request ID assertions. The test was not disabled, deleted or waived. No B799–B808 guest-positive fixture or safety-denied B815 buyer test was changed. Full exact-head CI and complete manual security assessment remain release gates.
