@@ -11,7 +11,10 @@ RED_CI=https://github.com/AldinAga/ald1n-project/actions/runs/40104013814
 GREEN_CI=https://github.com/AldinAga/ald1n-project/actions/runs/40104186654
 RED_SCOPED=4_TESTS_19_ASSERTIONS_2_FAILURES
 GREEN_SCOPED=4_TESTS_29_ASSERTIONS_0_FAILURES
-FULL_CI=HOLD_PENDING_EXACT_HEAD_FINAL
+EXACT_HEAD_CI=9_PASS_5_FAIL_OF_14
+B803_BASELINE=451_CASES_44_PROBLEMS
+B803_CANDIDATE=503_CASES_90_PROBLEMS
+B803_NEW_FAILURE_IDENTITIES=48
 PRODUCTION=B798_STOREFRONT_OFF_NO_CHANGES
 SSH_REQUIRED=NO
 FUNCTIONAL_ACCEPTANCE=7_OF_17_41.2_PERCENT
@@ -50,3 +53,17 @@ No B799–B808 historical guest test modifications, test skips, fixed CI suppres
 Unresolved: 48 old guest-positive regression identities from last B812 9/14 run, remaining OWASP WSTG4.2/ASVS5.0 L2 368-item security review, owner-approved merchant/legal terms and shipping/payment conditions, actual SMTP deliverability, FPM/OPcache proof, restore drill and real buyer UAT. Authenticated-only public checkout and registration rules remain mandatory. Final inode cleanup remains issue95, last phase.
 
 Accepted milestones unchanged: program 7/17=41.2%, CMS 7/15=46.7%, initial UI 6/6=100%. These are accepted production milestones, not total source-development progress.
+
+## Final exact-head CI and off-repository artifacts — 2026-10-24
+
+The exact PR93 source `0810136443151c3aa62d5429368d3c82df04aec8` completed **9/14 workflow PASS, 5/14 FAIL**. Full baseline/candidate comparator: [run40104186686](https://github.com/AldinAga/ald1n-project/actions/runs/40104186686), job 120902431062, `BASELINE_CASES=451 BASELINE_PROBLEMS=44`, `CANDIDATE_CASES=503 CANDIDATE_PROBLEMS=90`, `NEW_FAILURES=48 WHOLE_SUITE_GREEN=NO`. No additional new failure identities were introduced beyond those already listed in B812. The four B813 tests contribute four additional passing PHPUnit test cases; they DO NOT waive or replace the 48 failures.
+
+Both original GitHub Actions evidence ZIP files were now successfully uploaded to the owner's Google Drive and their metadata read back:
+- [B813 RED MariaDB JUnit and source](https://drive.google.com/file/d/1k6uFe39TlA9z5d02JupcczGKxdVVBkUD/view): workflow40104013814, artifact12563672403.
+- [B813 GREEN MariaDB JUnit and source](https://drive.google.com/file/d/1c8gPiIii587Fl783mRdwQBo74ODx1him/view): workflow40104186654, artifact12564530339.
+- [B813 source archive (Google Doc)](https://docs.google.com/document/d/11VLBhI5l86PUnH01cXE1UbeOlfvJzyTCyS5HL5wbE1s/edit).
+- [Report823 (Google Doc)](https://docs.google.com/document/d/1kR0ejC4zwKE9ojcKQOCmFG1zu9mFnmHcsyM_6_4Tu2E/edit).
+
+The previous B812 screenshots ZIP upload transport/type error has been resolved by passing the source connector file reference **file_id string** as the Drive upload `file_uri` argument. [B812 Chromium screenshots ZIP is now archived on Drive](https://drive.google.com/file/d/1-Y4eyttGbio00uixEW2CGH_8SeUarTu-/view) and verified by Drive metadata readback. This is a technical connector input fix for the already approved B812 artifact, NOT a bypass of the separately safety-denied B805 package. Any previously denied B805 payload remains prohibited.
+
+Production B798/storefront OFF and Draft PR93 are unchanged, release HOLD, no owner SSH. Functional acceptance program7/17=41.2%, CMS7/15=46.7%, UI6/6=100%.
