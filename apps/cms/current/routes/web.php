@@ -89,6 +89,9 @@ Route::name('public-shop.')->group(function (): void {
     Route::get('/porudzbina/{token}/dokument/{document}', [\App\Http\Controllers\PublicOrderAccessController::class, 'document'])
         ->where('token','[a-f0-9]{64}')->whereNumber('document')
         ->middleware('throttle:public-shop-private')->name('order.document');
+    Route::get('/porudzbina/{token}/garancija/{issuance}', [\App\Http\Controllers\PublicOrderAccessController::class, 'warranty'])
+        ->where('token','[a-f0-9]{64}')->whereNumber('issuance')
+        ->middleware('throttle:public-shop-private')->name('order.warranty');
 
     Route::post('/korpa/dodaj/{product}', [\App\Http\Controllers\PublicShopController::class, 'add'])
         ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.add');
