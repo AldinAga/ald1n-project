@@ -1,3 +1,9 @@
+# CURRENT B822 — test CI PR ancestry gate diagnosed; no execution, release HOLD
+
+2026-10-24: [Report830](830-BATCH822-CI-PR-ANCESTRY-GATE-20261024.md). Attempted test-only B821 verification against named storefront base; comparison unexpectedly contained 133 commits and 95 changed files, indicating unsuitable ancestry. Draft PR97 closed immediately **unmerged**; PR96 also closed. No GitHub workflow dispatch action available in connector and exact B821 commit has no observed run; two B821 tests and B820 11 cases remain NOT_RUN. No source/fixture bypass, patch or production/SSH changes. PR93 canonical Draft; B818 full 9/14, 49 inherited identities; production B798 public storefront OFF. Accepted program 7/17=41.2%, CMS 7/15=46.7%, UI6/6. Need verified exact source SHA/common ancestor and supported CI execution route before continuing test closure.
+
+---
+
 # CURRENT B821 — synthetic token/cache tests prepared; CI NOT RUN, release HOLD
 
 2026-10-24: [Report829](829-BATCH821-RECEIPT-TOKEN-PRIVACY-TEST-PREP-20261024.md). Two new isolated synthetic receipt negative regression cases committed on separate exact-B818-source branch `test/b821-receipt-privacy-negative-20261024` at `df9c0b363b19b996730513853b531f5d811cf2f3`. CI workflow lookup returned no runs; **NOT RUN / NOT PASS**. Draft PR96 incorrectly compared 95 files/133 historic commits against `main` and was **immediately CLOSED without merge**; never reopen/merge. PR93 implementation draft unchanged. B815 prior safety-denied correction untouched. B820 11-case matrix not executed. Production B798 storefront OFF; full B818 CI 9/14, 49 inherited failure identities. No SSH/deploy. Accepted overall 7/17=41.2%, CMS 7/15=46.7%, UI6/6.
