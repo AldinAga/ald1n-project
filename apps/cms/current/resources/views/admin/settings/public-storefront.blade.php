@@ -130,6 +130,9 @@
                         @checked(in_array('cash_on_delivery',$selectedMethods,true))> Plaćanje pouzećem</label>
                     <label><input type="checkbox" name="payment_methods[]" value="bank_transfer"
                         @checked(in_array('bank_transfer',$selectedMethods,true))> Bankovni transfer nakon provere uplate</label>
+                    <label><input type="checkbox" name="payment_methods[]" value="cash"
+                        @checked(in_array('cash',$selectedMethods,true))> Plaćanje pri ličnom preuzimanju/dostavi</label>
+                    <small class="muted">Nema odloženog plaćanja za Kupca. Izbor načina nije potvrda uplate.</small>
                 </div>
                 <div class="field">
                     <span>Dostupni načini dostave</span>
@@ -137,15 +140,6 @@
                     <label><input type="checkbox" name="delivery_methods[]" value="{{ $code }}"
                         @checked(in_array($code,(array)old('delivery_methods',$policy['deliveries']),true))> {{ $label }}</label>
                     @endforeach
-                </div>
-                <div class="field">
-                    <label><input type="checkbox" name="payment_methods[]" value="deferred_payment"
-                        @checked(in_array('deferred_payment',$selectedMethods,true))> Odloženo plaćanje</label>
-                    <label>Rok odloženog plaćanja (dana)
-                        <input type="number" min="1" max="365" name="deferred_payment_days"
-                            value="{{ old('deferred_payment_days',$policy['deferred_payment_days']) }}"></label>
-                    <label>Odobreni uslovi odloženog plaćanja
-                        <textarea name="deferred_payment_terms" maxlength="1000" rows="3">{{ old('deferred_payment_terms',$policy['deferred_payment_terms']) }}</textarea></label>
                 </div>
                 <label class="field">
                     <span>Aktivan žiro račun za bankovni transfer</span>

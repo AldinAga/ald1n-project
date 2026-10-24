@@ -19,6 +19,4 @@ return [
     'support_email' => env('PUBLIC_CHECKOUT_SUPPORT_EMAIL'),
     'bank_account_id' => env('PUBLIC_CHECKOUT_BANK_ACCOUNT_ID'),
     'delivery_methods' => array_filter(explode(',', (string) env('PUBLIC_CHECKOUT_DELIVERY_METHODS', 'courier,own_transport,customer_pickup'))),
-    'deferred_payment_days' => env('PUBLIC_CHECKOUT_DEFERRED_PAYMENT_DAYS'),
-    'deferred_payment_terms' => env('PUBLIC_CHECKOUT_DEFERRED_PAYMENT_TERMS'),
 ];

@@ -49,6 +49,12 @@ final class PublicRetailCheckoutService
         if (!in_array($method,$policies['methods'],true)) {
             throw ValidationException::withMessages(['payment_method'=>'Nedozvoljen način plaćanja.']);
         }
+        // In-person collection is distinct from a courier's COD service.
+        // It remains only an unpaid preference until the seller records funds.
+        if ($method==='cash' && !in_array($delivery,['customer_pickup','own_transport'],true)) {
+            throw ValidationException::withMessages(['payment_method'=>
+                'Placanje pri preuzimanju/dostavi je dostupno samo uz licno preuzimanje ili sopstvenu dostavu.']);
+        }
         $submittedKey=(string)($input['checkout_key'] ?? '');
         $sessionKey=(string)$request->session()->get('ald1n.public_checkout.key','');
         if (strlen($submittedKey)<32 || strlen($sessionKey)<32 || !hash_equals($sessionKey,$submittedKey)) {
@@ -162,8 +168,9 @@ final class PublicRetailCheckoutService
                 'customer_note'=>$details['note']!==''?$details['note']:null,
                 'payment_method'=>$method,'payment_status'=>'pending',
                 'payment_state'=>'unpaid','paid_total_rsd'=>0,
-                'payment_due_at'=>$method==='deferred_payment'
-                    ? today()->addDays($policies['deferred_payment_days'])->toDateString() : null,
+                // Retail buyers never receive deferred credit. Internal SubAgent
+                // and direct-sale deferred workflows are deliberately unchanged.
+                'payment_due_at'=>null,
                 'bank_account_id'=>$account?->id,
                 'bank_account_label_snapshot'=>$account?->label,
                 'bank_account_number_snapshot'=>$account?->account_number,

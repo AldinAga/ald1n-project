@@ -91,22 +91,15 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
         self::assertDatabaseCount('stock_movements',0);
     }
 
-    public function test_deferred_payment_requires_explicit_merchant_terms_and_preserves_unpaid_due_date(): void
+    public function test_public_deferred_payment_is_rejected_even_when_legacy_terms_are_present(): void
     {
         config()->set('public_storefront.payment_methods',['deferred_payment']);
         config()->set('public_storefront.deferred_payment_days','14');
-        config()->set('public_storefront.deferred_payment_terms','Synthetic explicit deferred conditions.');
-        $this->approve();
-        $this->actingAs($this->buyer);
-        [$data]=$this->form();
-        $data['payment_method']='deferred_payment';
-        $this->post('/porucivanje',$data+['delivery_method'=>'own_transport'])->assertRedirect();
-        $order=Order::query()->sole();
-        self::assertSame('deferred_payment',$order->payment_method);
-        self::assertSame('unpaid',$order->payment_state);
-        self::assertSame(today()->addDays(14)->toDateString(),$order->payment_due_at->toDateString());
+        config()->set('public_storefront.deferred_payment_terms','Synthetic legacy conditions.');
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['complete']);
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
+        self::assertDatabaseCount('orders',0);
         self::assertDatabaseCount('order_payments',0);
-        self::assertDatabaseCount('order_commissions',0);
     }
 
     public function test_duplicate_nonce_cannot_switch_delivery_or_buyer_identity(): void

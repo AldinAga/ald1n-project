@@ -48,8 +48,6 @@ final class PublicMerchantSettingsController extends Controller
             'payment_methods.*'=>[Rule::in(array_keys(\App\Support\PublicRetailOptions::PAYMENT))],
             'delivery_methods'=>['sometimes','array','max:4'],
             'delivery_methods.*'=>[Rule::in(array_keys(\App\Support\PublicRetailOptions::DELIVERY))],
-            'deferred_payment_days'=>['nullable','integer','min:1','max:365'],
-            'deferred_payment_terms'=>['nullable','string','max:1000'],
             'bank_account_id'=>['nullable','integer','min:1'],
             'merchant_approval'=>['nullable',Rule::in(['1'])],
         ]);
@@ -78,8 +76,6 @@ final class PublicMerchantSettingsController extends Controller
                 'public_checkout_shipping_description'=>trim((string)($data['shipping_description']??'')),
                 'public_checkout_payment_methods'=>implode(',',$methods),
                 'public_checkout_delivery_methods'=>implode(',',$deliveries),
-                'public_checkout_deferred_payment_days'=>(string)($data['deferred_payment_days']??''),
-                'public_checkout_deferred_payment_terms'=>trim((string)($data['deferred_payment_terms']??'')),
                 'public_checkout_support_email'=>trim((string)($data['support_email']??'')),
                 'public_checkout_bank_account_id'=>$account,
                 'public_checkout_approval_digest'=>'',

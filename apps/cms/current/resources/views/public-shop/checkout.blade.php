@@ -34,8 +34,8 @@
 {{ \App\Support\PublicRetailOptions::PAYMENT[$method] }}
 </label>
 @endforeach
-@if(in_array('deferred_payment',$ready['methods'],true))
-<p class="shop-muted">Odloženo plaćanje: rok {{ $ready['deferred_payment_days'] }} dana. {{ $ready['deferred_payment_terms'] }}</p>
+@if(in_array('cash',$ready['methods'],true))
+<p class="shop-muted">Plaćanje pri ličnom preuzimanju/dostavi bira se uz lično preuzimanje ili sopstvenu dostavu prodavca. Uplatu evidentira prodavac kada je primi.</p>
 @endif
 @if(in_array('bank_transfer',$ready['methods'],true) && $ready['bank_account'])
 <p class="shop-muted">Za uplatu na račun: {{ $ready['bank_account']->recipient_name }} · {{ $ready['bank_account']->account_number_display }}. Tačan poziv na broj stiže uz potvrdu porudžbine.</p>

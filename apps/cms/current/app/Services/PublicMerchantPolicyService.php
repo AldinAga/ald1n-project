@@ -18,7 +18,7 @@ final class PublicMerchantPolicyService
     private const STORED = [
         'terms_url','privacy_url','shipping_fee_rsd','shipping_description',
         'payment_methods','support_email','bank_account_id',
-        'delivery_methods','deferred_payment_days','deferred_payment_terms',
+        'delivery_methods',
     ];
 
     public function __construct(private readonly SettingsService $settings) {}
@@ -96,11 +96,9 @@ final class PublicMerchantPolicyService
         if ($p['deliveries']===[] || array_diff($p['deliveries'],array_keys(\App\Support\PublicRetailOptions::DELIVERY))!==[]) {
             $issues[]='Izaberi postojece nacine dostave dostupne kupcu.';
         }
-        if (in_array('deferred_payment',$p['methods'],true)) {
-            $days=filter_var($p['deferred_payment_days'],FILTER_VALIDATE_INT);
-            if (!$days || $days<1 || $days>365 || $p['deferred_payment_terms']==='') {
-                $issues[]='Odlozeno placanje zahteva izricit rok 1-365 dana i uslove trgovca.';
-            }
+        if (in_array('cash',$p['methods'],true)
+            && array_intersect($p['deliveries'],['customer_pickup','own_transport'])===[]) {
+            $issues[]='Placanje pri preuzimanju zahteva licno preuzimanje ili sopstvenu dostavu.';
         }
         $bank = null;
         if (in_array('bank_transfer', $p['methods'], true)) {

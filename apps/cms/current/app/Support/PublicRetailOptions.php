@@ -12,8 +12,8 @@ final class PublicRetailOptions
         'other'=>'Drugi dogovoreni način',
     ];
     public const PAYMENT = [
-        'cash_on_delivery'=>'Pouzećem',
+        'cash_on_delivery'=>'Pouzeće',
         'bank_transfer'=>'Uplata na račun',
-        'deferred_payment'=>'Odloženo plaćanje',
+        'cash'=>'Plaćanje pri ličnom preuzimanju/dostavi',
     ];
 }
