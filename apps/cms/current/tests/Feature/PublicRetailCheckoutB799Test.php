@@ -147,6 +147,132 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->get($privatePath)->assertOk()->assertSee($order->order_number);
     }
 
+    public function test_guest_retail_order_shipment_tracking_delivery_and_single_verified_cod_payment(): void
+    {
+        [$data,$initialStock]=$this->prepare();
+        $privatePath=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
+        $order=Order::query()->sole();
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+        $workflow=app(\App\Services\OrderWorkflowService::class);
+        $versions=app(\App\Services\OrderVersionService::class);
+
+        $processing=$workflow->changeStatus($order,'processing',$admin);
+        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$versions->token($processing));
+        $courier=\App\Models\CourierService::query()->create([
+            'name'=>'B800 Sinteticki Kurir','slug'=>'b800-synthetic-retail-courier',
+            'tracking_url'=>'https://tracking.example.test/order',
+            'is_active'=>true,'is_default'=>false,'sort_order'=>8,
+        ]);
+        $shipment=app(\App\Services\OrderShipmentService::class)->record(
+            $confirmed,$admin,[
+                'shipment_method'=>'courier','courier_service_id'=>$courier->id,
+                'shipped_at'=>now()->subMinute()->toDateTimeString(),
+                'recipient_name'=>'Sinteticki Kupac',
+                'tracking_number'=>'B800-CI-TRACK-111',
+            ],null,$versions->token($confirmed)
+        );
+        self::assertSame('B800-CI-TRACK-111',$shipment->tracking_number_snapshot);
+        self::assertSame('shipped',$order->fresh()->status);
+        self::assertSame('unpaid',$order->fresh()->payment_state);
+        self::assertSame(0,OrderPayment::query()->count(),
+            'Shipment must never imply a collected COD payment.');
+        $this->get($privatePath)->assertOk()
+            ->assertSee('B800-CI-TRACK-111')
+            ->assertSee('B800 Sinteticki Kurir')
+            ->assertSee('https://tracking.example.test/order')
+            ->assertHeader('Referrer-Policy','no-referrer')
+            ->assertHeader('Cache-Control','max-age=0, no-store, private');
+
+        $deliveredAt=now()->subMinute()->toDateTimeString();
+        $completed=$workflow->complete($order->fresh(),$admin,[
+            'delivery_method'=>'courier','delivered_at'=>$deliveredAt,
+            'recipient_name'=>'Sinteticki Kupac',
+            'delivery_reference'=>'B800-CI-TRACK-111',
+        ]);
+        self::assertNotNull($completed->completed_at);
+        self::assertSame('paid',$completed->payment_state);
+        self::assertSame(24000.0,(float)$completed->paid_total_rsd);
+        $payment=OrderPayment::query()->sole();
+        self::assertSame('verified',$payment->status);
+        self::assertSame('cash_on_delivery',$payment->payment_method);
+        self::assertSame(24000.0,(float)$payment->amount_rsd);
+
+        $workflow->complete($completed,$admin,[
+            'delivery_method'=>'courier','delivered_at'=>$deliveredAt,
+        ]);
+        self::assertSame(1,OrderPayment::query()->count(),'COD receipt must not repeat.');
+        self::assertSame(1,\App\Models\OrderDelivery::query()->count());
+        self::assertSame($initialStock-2,(int)$this->product->fresh()->stock_quantity);
+        self::assertSame(1,StockMovement::query()->where('order_id',$order->id)->count());
+        self::assertSame(0,OrderCommission::query()->count());
+
+        $note=app(\App\Services\OrderDocumentService::class)
+            ->issue($completed->fresh(),'delivery_note',$admin);
+        self::assertSame('issued',$note->status);
+        $this->get($privatePath.'/dokument/'.$note->id)->assertOk()
+            ->assertHeader('Content-Type','application/pdf');
+        $this->get('/porudzbina/'.str_repeat('b',64).'/dokument/'.$note->id)
+            ->assertNotFound();
+        $this->get($privatePath)->assertOk()
+            ->assertSee('Isporučeno')
+            ->assertSee($note->document_number);
+    }
+
+    public function test_unpaid_guest_bank_transfer_cannot_be_completed_or_fabricate_a_payment(): void
+    {
+        $account=BankAccount::query()->create([
+            'label'=>'Sinteticki B800 racun','recipient_name'=>'AP Computers Test',
+            'account_number'=>'160000000000000001',
+            'account_number_display'=>'160-0000000000000-01',
+            'is_active'=>true,
+        ]);
+        config()->set('public_storefront.payment_methods',['bank_transfer']);
+        config()->set('public_storefront.bank_account_id',$account->id);
+        [$data]=$this->prepare();
+        $data['payment_method']='bank_transfer';
+        $privatePath=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
+        $order=Order::query()->sole();
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+        $workflow=app(\App\Services\OrderWorkflowService::class);
+        $versions=app(\App\Services\OrderVersionService::class);
+        $processing=$workflow->changeStatus($order,'processing',$admin);
+        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$versions->token($processing));
+
+        try {
+            $workflow->complete($confirmed,$admin,[
+                'delivery_method'=>'own_transport',
+                'delivered_at'=>now()->subMinute()->toDateTimeString(),
+            ]);
+            self::fail('Unpaid transfer must not be completed automatically.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            self::assertArrayHasKey('completion',$e->errors());
+        }
+        self::assertNull($order->fresh()->completed_at);
+        self::assertSame('unpaid',$order->fresh()->payment_state);
+        self::assertSame(0,OrderPayment::query()->count());
+        self::assertSame(0,\App\Models\OrderDelivery::query()->count());
+
+        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/payments',[
+            'entry_type'=>'payment','amount_rsd'=>'24000.00',
+            'payment_method'=>'bank_transfer',
+            'paid_at'=>now()->toDateTimeString(),
+            'reference'=>'B800-SYNTHETIC-BANK-ACK',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $receipt=OrderPayment::query()->sole();
+        self::assertSame('verified',$receipt->status);
+        self::assertSame('paid',$order->fresh()->payment_state);
+        self::assertSame(24000.0,(float)$order->fresh()->paid_total_rsd);
+        $workflow->complete($order->fresh(),$admin,[
+            'delivery_method'=>'own_transport',
+            'delivered_at'=>now()->subMinute()->toDateTimeString(),
+        ]);
+        self::assertNotNull($order->fresh()->completed_at);
+        self::assertSame(1,OrderPayment::query()->count(),
+            'Verified transfer must not trigger a duplicate automatic COD entry.');
+        self::assertSame(0,OrderCommission::query()->count());
+        $this->get($privatePath)->assertOk()->assertSee('24.000,00');
+    }
+
     public function test_second_separate_checkout_rotates_nonce_and_can_create_a_new_order(): void
     {
         [$first]=$this->prepare();
