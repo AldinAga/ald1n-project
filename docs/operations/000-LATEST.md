@@ -1,3 +1,9 @@
+# CURRENT B824 — correct PR93 ancestor, 1-file test PR98 and actual CI started; release HOLD
+
+2026-10-24: [Report831](831-BATCH824-EXACT-PR93-BASE-CI-REOPEN-20261024.md). Found genuine PR93 head `feat/b799-public-retail-catalog-cart-checkout` at `fab3f4991fe5792e28e5a402dbf402617fb5c303`, correcting wrong ancestry used in closed PR96/97. New [Draft PR98](https://github.com/AldinAga/ald1n-project/pull/98) correctly compares **1 file / 1 commit** for B821 synthetic token/privacy regression at `df9c0b363b19b996730513853b531f5d811cf2f3`; GitHub started exact-SHA CI. Initial observed 10 workflows: 5 PASS / 3 FAIL / 2 in progress, not final; no confirmed new B821-case test execution yet. Existing legacy failures not hidden. Production B798/public storefront OFF, PR93 Draft, full release HOLD, no SSH/deploy. Accepted program 7/17=41.2%, CMS7/15=46.7%, UI6/6.
+
+---
+
 # CURRENT B822 — test CI PR ancestry gate diagnosed; no execution, release HOLD
 
 2026-10-24: [Report830](830-BATCH822-CI-PR-ANCESTRY-GATE-20261024.md). Attempted test-only B821 verification against named storefront base; comparison unexpectedly contained 133 commits and 95 changed files, indicating unsuitable ancestry. Draft PR97 closed immediately **unmerged**; PR96 also closed. No GitHub workflow dispatch action available in connector and exact B821 commit has no observed run; two B821 tests and B820 11 cases remain NOT_RUN. No source/fixture bypass, patch or production/SSH changes. PR93 canonical Draft; B818 full 9/14, 49 inherited identities; production B798 public storefront OFF. Accepted program 7/17=41.2%, CMS 7/15=46.7%, UI6/6. Need verified exact source SHA/common ancestor and supported CI execution route before continuing test closure.
