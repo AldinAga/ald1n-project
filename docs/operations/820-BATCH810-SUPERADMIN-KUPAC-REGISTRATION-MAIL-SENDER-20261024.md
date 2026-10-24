@@ -3,9 +3,9 @@
 DATE=2026-10-24
 KIND=SOURCE_ONLY_CONFIG_AND_SCOPED_MARIADB_QA
 PR=https://github.com/AldinAga/ald1n-project/pull/93
-SOURCE_HEAD=60de67cd83c0e86ed014588c0517986ba011cb16
+SOURCE_HEAD=c8730eaf90ee0dcbdb86185d3269f5808fd1b0eb
 PR_STATE=DRAFT_NOT_MERGED
-B810_TARGETED=PASS_6_TESTS_76_ASSERTIONS_NO_ERRORS_NO_FAILURES
+B809_B810_TARGETED=PASS_12_TESTS_160_ASSERTIONS_NO_ERRORS_NO_FAILURES
 EXACT_HEAD_OVERALL_CI=HOLD_B809_LEGACY_GUEST_FIXTURES
 PRODUCTION_MUTATIONS=0
 STOREFRONT=OFF_LAST_HOST_ATTESTED
@@ -36,3 +36,9 @@ https://drive.google.com/file/d/1eXdQlxgfEPwu1Z8Sl6desdtGaiVdqgLV/view
 Production remains unchanged B798, storefront OFF; owner Report815 B804 host source/backups already accepted. PR93 stays DRAFT, no deployment/SSH. Required: safely reconcile historic anonymous-only fixtures without evading the explicit blocked action, all exact-head CI, actual external registration mail delivery from chosen real mailbox, SuperAdmin merchant legal/privacy/shipping/payment approvals, full OWASP WSTG4.2/ASVS5.0.0 cumulative-L2 368-control applicability/test remediation and retest, restore drill, FPM/OPcache proof and buyer UAT. Android16KB and SDK58 retain separate gates. Final >400k-inode cleanup issue95 remains last phase, never delete now.
 
 Functional acceptance ledger unchanged: program7/17=41.2%, CMS7/15=46.7%, UI6/6=100%. B810 is real source implementation plus scoped PASS, not a production milestone.
+
+## B810 integrated registration and sender QA addendum — exact source c8730eaf90ee0dcbdb86185d3269f5808fd1b0eb
+
+A synthetic-only update to the NEW B809 registration test (not any safety-blocked B799–B808 historical fixture) configured an explicit SuperAdmin-approved synthetic sender as required by B810. The B806 grouped workflow then ran two isolated real PHP8.4/MariaDB10.11.19 suites: **12 tests / 160 assertions, zero errors, failures or skips**: six B809 customer signup/email activation and six B810 From identity, role/anti-spoof settings tests. Precise JUnit: B809 6/84 and B810 6/76.
+
+Final-source scoped run: 40100121787, artifact12562785496 SHA256 `b598c5edaa4144b4ef7e82f607d2e908d421f1a5b911bd6ec4649bcef31487c9`, 63149 bytes; [Drive ZIP](https://drive.google.com/file/d/1-rzffPZO1MbVO8OOyw9KQgzwt8sTnTT3/view) independently read back and local SHA256 verified. A subsequent B806 stage still fails because prior *guest-success* assumptions conflict with the owner's registered-only policy. **Do not report exact-head CI green, a complete pentest or SMTP delivery.** No production/SMTP/host or legacy test batch writes.
