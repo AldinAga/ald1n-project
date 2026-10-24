@@ -1,0 +1,320 @@
+{
+  "backup_helpers": {
+    "app/Console/Commands/BackupVerifyCommand.php": "515167f939a7f67be5222f4fe74eff54086af19e",
+    "app/Services/BackupService.php": "529c9108e8c488a3aecf785d0122b2249613629f"
+  },
+  "base": "c4a5f060cc00b5d1be0e4d8068309524a4b99c99",
+  "files": [
+    {
+      "bytes": 6289,
+      "candidate_blob": "40a453ee362bef49ba9bcddc2b2b975741f08057",
+      "candidate_sha256": "b5e4704173e3166338b7b340143a6b22d60ceaf0ce0ef9ab35a4f5c7c22aceb5",
+      "path": "app/Http/Controllers/Admin/PublicMerchantSettingsController.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 738,
+      "candidate_blob": "96d82011a812d0e6038b85117a7d855fa6d1fa49",
+      "candidate_sha256": "4b10a8a2628b63575c09ab37845f31798c695a3fe72ed9630af859adfa1ca577",
+      "path": "app/Http/Controllers/Admin/PublicOrderAccessController.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 842,
+      "candidate_blob": "910f763e2e9a213086715343b1cce7f8762c4bfe",
+      "candidate_sha256": "901b5d68ac7ce8958d83b3c1e24019dd790b6e45559322f258de480aa08d1492",
+      "path": "app/Http/Controllers/Admin/PublicStorefrontToggleController.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 6119,
+      "candidate_blob": "9a7ac18af8cdf4f69cbe847065ca879d1497134d",
+      "candidate_sha256": "45600c012fe9ffc6f064cf50ce8ea08c18a671b2967afbfbd61ce908c6f0ab63",
+      "path": "app/Http/Controllers/Api/V1/AuthTokenController.php",
+      "predecessor_blob": "33365418d2a739e5376e08824d34c087cbff6668"
+    },
+    {
+      "bytes": 3904,
+      "candidate_blob": "5074863cb24cfea6caa79f71edf4df5975a110fc",
+      "candidate_sha256": "531504ab0e042267ccc1d94524fadcf8db2c2f8aa62dbec3f0845e764bac9386",
+      "path": "app/Http/Controllers/Api/V1/GoogleAuthController.php",
+      "predecessor_blob": "87fd7dec05b57813dbad55c73edab7d08416db10"
+    },
+    {
+      "bytes": 6083,
+      "candidate_blob": "445edea1e3e2e38154bf91777bd37bf369ed2aec",
+      "candidate_sha256": "ff5c39d63a4665f7c34c10651d5429a6f07f55700667cad72a45f8454e7d69f2",
+      "path": "app/Http/Controllers/PublicCheckoutController.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 5799,
+      "candidate_blob": "f232e59b400badb1797843f367ec98c37b64992f",
+      "candidate_sha256": "ce0e3c0d5061ddbf2162ab8bb5babf751f68baed1b5dbcd59c2d4ef0324c0584",
+      "path": "app/Http/Controllers/PublicOrderAccessController.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 5010,
+      "candidate_blob": "5acb8bbd1669c9d8309961b9f5a35c61026933e8",
+      "candidate_sha256": "68cd449e27a366ee8ab3247649db798bceaa3c258bada6b5a9fb6e797de9c9cc",
+      "path": "app/Http/Controllers/PublicShopController.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1598,
+      "candidate_blob": "a8b41cc132514a507999823e98fdc70464f3434e",
+      "candidate_sha256": "85b47ba50c72960c9ced92042012922a21d45aca6fa9b770f5b076843a6a2e91",
+      "path": "app/Http/Middleware/EnsureActiveUser.php",
+      "predecessor_blob": "af161c6f5aa06a129dd8c0a1f9ac359727a24bd0"
+    },
+    {
+      "bytes": 1828,
+      "candidate_blob": "234010cf474577abca0832301bf3dc28543b35d4",
+      "candidate_sha256": "4ad3ed7738035e0406a67bac583da66d0256e513a14b3e3f6c19a2167f91faf0",
+      "path": "app/Http/Middleware/SecurityHeaders.php",
+      "predecessor_blob": "289a37a3a3463b7b6cd5465f395c4c9bbd049af7"
+    },
+    {
+      "bytes": 708,
+      "candidate_blob": "b89d4500f2ce821617cf2ae0fe24402a4f3e2152",
+      "candidate_sha256": "9df05f0102a48ef5ca4209748cd371a9713e2efcc92ed087e9d423e4b5ad7a45",
+      "path": "app/Models/PublicCheckoutAttempt.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 512,
+      "candidate_blob": "bd13ec71e213595d99465f21331e03c595e9dc92",
+      "candidate_sha256": "d91f68e492e7825cec89925fecea7a27e8df4d55d926dff39475fab915b2d458",
+      "path": "app/Models/PublicOrderAccess.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 8636,
+      "candidate_blob": "04ec5fe2f720c6563dc31d4832ff028d9f103ebb",
+      "candidate_sha256": "a415d3fe6ea819c6de99cd06c4dafe78198d59d997e789ea9074a03cab2402bf",
+      "path": "app/Models/User.php",
+      "predecessor_blob": "5fe941d99acbdcfca10a2074369ad3f9aae4e2a7"
+    },
+    {
+      "bytes": 18884,
+      "candidate_blob": "2ce94648ec5cec277c5f1315f6c7e510678b43bb",
+      "candidate_sha256": "60470a7c67bf970193132afea47362bd53dda88164e95189865496c65a7704cc",
+      "path": "app/Providers/AppServiceProvider.php",
+      "predecessor_blob": "c8d3e9b6b48abefb36d5aa3e45edfef5a3e36c8e"
+    },
+    {
+      "bytes": 1283,
+      "candidate_blob": "bca10698a716055484a38edd287e2eabbc2d7372",
+      "candidate_sha256": "ed082e02c18930105f64ba732ecac6cbf9fd36ceb7ad72a3c3cdb5b346b3f4b5",
+      "path": "app/Providers/PublicRetailAccessServiceProvider.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 4789,
+      "candidate_blob": "8aaaa081afc99307bcfd2d04bf3a5ac20bdfe946",
+      "candidate_sha256": "6e3aa79ef379904f0461c2a4643e2ab8c8faaf7be404011dcf19ead12ed197b3",
+      "path": "app/Services/AdminUserService.php",
+      "predecessor_blob": "e68870e023556c83ad2cc6348adc739d99a35894"
+    },
+    {
+      "bytes": 30364,
+      "candidate_blob": "91e19794dcb79ab9be3d5e410e4bf5fdcc76dee6",
+      "candidate_sha256": "13e30bbe2ac1ac2f2ae53e2dc0054e8252559d30d0a4a544b1c5dfb572364562",
+      "path": "app/Services/OrderWorkflowService.php",
+      "predecessor_blob": "2b6020acee127e83e77f1cfa49631953a4871c19"
+    },
+    {
+      "bytes": 2846,
+      "candidate_blob": "87237d51a372f200e511a7114ae80808d4ba6e2d",
+      "candidate_sha256": "999561657819544388d4b5227a28907092c4e4c4e8f67578bca49b29371df1b3",
+      "path": "app/Services/PublicCartService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1746,
+      "candidate_blob": "970f63a8b5f151d714bc219de1f0c200a8d2c130",
+      "candidate_sha256": "881cc768142d868684c4e640bd7971eeda4fa3b6c60cd5d33366d0a5370e7580",
+      "path": "app/Services/PublicCheckoutReadinessService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 7218,
+      "candidate_blob": "7d2967479c734fe3ffc1e16acb03872a34288209",
+      "candidate_sha256": "efb2ec05f41fa8f318cd1a73040d61d6e5c967b658806013d823a71e92807563",
+      "path": "app/Services/PublicMerchantPolicyService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 2688,
+      "candidate_blob": "ab9be3ae554cb02dfd7a2c8c289c81b81133d655",
+      "candidate_sha256": "ef74cb7cbd260288fdc621cf9e3d71de5d3206c7cf03eaa11df9cdb59cde2a9a",
+      "path": "app/Services/PublicOrderAccessService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 5290,
+      "candidate_blob": "f6ef2239939732018e5e5b723f9dae1b4641bf37",
+      "candidate_sha256": "96ef64d3a8c2d0562aa8e48ae83d10f6fc81d42c4b3fc9a2e18258ec86a6b44f",
+      "path": "app/Services/PublicRetailCatalogService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 14646,
+      "candidate_blob": "9339279fb30f5ecd222fa38c2ddd346d6fa23aa3",
+      "candidate_sha256": "2c14d33234def009b001c49da9a30c4bdbcf4e07ae401d3512f71d2b4794d9e6",
+      "path": "app/Services/PublicRetailCheckoutService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 934,
+      "candidate_blob": "cf09f58261eef8e83b42ef2d3a2fbccf8ee83909",
+      "candidate_sha256": "b21b59666e931b01d04a8527616e31aa6f7babf468a356c3707a407450abf8c4",
+      "path": "app/Services/PublicRetailPreferenceService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 2817,
+      "candidate_blob": "2e996ae427433632c73557cbf135a8dcecd14ad1",
+      "candidate_sha256": "beead151b2e7336c93e2ef28105e48205d06dc6fc64e4ba3435d927c08e36200",
+      "path": "app/Services/PublicStorefrontStateService.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 12129,
+      "candidate_blob": "320ff05d6dd397571a6fdfcc781f24fd4ea04608",
+      "candidate_sha256": "f133d5e6c8f8ec9c7e0b1231b9b8408e92625af6dd72078f5e730410a4e6983a",
+      "path": "app/Services/SettingsService.php",
+      "predecessor_blob": "c00bbd7e4872bb553491ed8996553164313ae4b0"
+    },
+    {
+      "bytes": 576,
+      "candidate_blob": "445d8b22eafa1dcbef618300a00283f0883340e7",
+      "candidate_sha256": "bb39abdef67467d6f318b93f74b7b2a402fda4895cdfbff41326151561e7496c",
+      "path": "app/Support/PublicRetailOptions.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 124,
+      "candidate_blob": "4163391beaba8d9e84f9733cf7eaa090654317f2",
+      "candidate_sha256": "27e74e9e72ba9883ff8b5c15867dc6a5174b9473b43b34595f6f49bc2e06eefb",
+      "path": "bootstrap/providers.php",
+      "predecessor_blob": "38b258d1855b5e767bde3df168106f468088472f"
+    },
+    {
+      "bytes": 1168,
+      "candidate_blob": "48ab46978c32e6884be4ca7dd1c239470f954a06",
+      "candidate_sha256": "0cfbc864a3d44822a9d14e80f6252e84eb208c9da5a25d5fe6989e4cad789818",
+      "path": "config/public_storefront.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1973,
+      "candidate_blob": "0e050bc794244dfdac90e9d1120192672a1278a1",
+      "candidate_sha256": "65611a9f7d670d475dff92aec98c5d29759ec5f92040cc259aa0a63e1362f95c",
+      "path": "database/migrations/2026_10_23_020000_create_public_order_accesses.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 2863,
+      "candidate_blob": "122dbea36e165a88166620117e82d10d37d57782",
+      "candidate_sha256": "3b33c38244bfad1d942c563af43b247d49fe02327c5a345253f5b5377bdc3a5a",
+      "path": "database/migrations/2026_10_23_020100_create_public_checkout_attempts.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1082,
+      "candidate_blob": "0b4051cbbd7df1805e92b673e3cc1d945c2832a2",
+      "candidate_sha256": "220924f8d736be9483a055ab4c8fee72f6d45e0fce20857980ebbb072976de8b",
+      "path": "database/migrations/2026_10_24_030000_add_retail_customer_role.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 12908,
+      "candidate_blob": "24ac1252da09eb1a3c956be58d7cb7736f0a5631",
+      "candidate_sha256": "64b4453f2697ee920ef77682dcebd504fef6ffc0169c4ab47fbf79cdbdd17bb5",
+      "path": "database/seeders/CoreAccessSeeder.php",
+      "predecessor_blob": "a98dce37f5432ba0efbf3628ab2b5ba265d7f6bb"
+    },
+    {
+      "bytes": 5635,
+      "candidate_blob": "2d5443c93a57ad2f91e8e76a592350178afac31e",
+      "candidate_sha256": "947b8a170a51ec47264945f646950b3cc1bff0965ca86eb04aac86261180e2a5",
+      "path": "public/assets/css/ald1n-public-storefront.css",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 15129,
+      "candidate_blob": "dd090d62248329081dd70075baba29232c100101",
+      "candidate_sha256": "ba8ec6f78abaee209b69abc84a067aab342ef8202d32c8800fa2d526da725e3f",
+      "path": "resources/views/admin/settings/index.blade.php",
+      "predecessor_blob": "f0ec423d74d18b4cff1355c9a84f9c2d94afb21c"
+    },
+    {
+      "bytes": 10016,
+      "candidate_blob": "4744207dfa7cfc0f20e91fa77175fefcc3d90aaf",
+      "candidate_sha256": "682c57417311e6d66c6187d59b6d670e08a3860ff3af80ad1e714324caaeb9d8",
+      "path": "resources/views/admin/settings/public-storefront.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1867,
+      "candidate_blob": "be20efad83c783124a8445591a5bc3f52fc429c4",
+      "candidate_sha256": "19445c11883c4a656346522d68b3fc281a97beaab17be2a33455ce51e7a7fd50",
+      "path": "resources/views/public-shop/cart.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 2501,
+      "candidate_blob": "74a334e6963c83c04fb22057aa62cae03f68f485",
+      "candidate_sha256": "21082b6693e4f9504b87b4ed08ac89285b55ce4c8a501b3eb145a84fa1d2d780",
+      "path": "resources/views/public-shop/catalog.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 4270,
+      "candidate_blob": "aa2ad31cdf55cae3513cf39b5aa46384e0ff3369",
+      "candidate_sha256": "dd9f26918d43c467e5318c15a0ba98653e17e374c88c7fcde1c8a526eceb894c",
+      "path": "resources/views/public-shop/checkout.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1557,
+      "candidate_blob": "e1a2e33c3cc3e005a3608dbee48a9d6cfc7e342b",
+      "candidate_sha256": "4b4100e4a5150e39dd4192f025374eac0a5e2f002983387024005ce075773d4d",
+      "path": "resources/views/public-shop/layout.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 2971,
+      "candidate_blob": "73890a9efe49d91ab9627b84d4d1f29bf2584327",
+      "candidate_sha256": "9b0a53ef313205e1933b6875fdd839c28ca598e6b4a3d69a70e35760479a71ff",
+      "path": "resources/views/public-shop/order.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 1408,
+      "candidate_blob": "452e82fb74d4b73f24f3f2e78ca9f154c0cea609",
+      "candidate_sha256": "5202746bc04585958663c867cbd227328611ba444bec74521a39a3d546fabb24",
+      "path": "resources/views/public-shop/show.blade.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 406,
+      "candidate_blob": "ad56c389d82ab51d68210bbff35ef545b0b04bee",
+      "candidate_sha256": "43bf3fa2a2778625eaa1e7778cb1931fb39f836681dcb68d19c184a6b8d5c5c3",
+      "path": "routes/public-retail-access.php",
+      "predecessor_blob": null
+    },
+    {
+      "bytes": 50196,
+      "candidate_blob": "e32c5d6bb7976e89eb88e82dba3832f652c08f93",
+      "candidate_sha256": "0924b7cae2e525cea105a250317265416fe8f1b87ecd8a7ef5c304561262f2ed",
+      "path": "routes/web.php",
+      "predecessor_blob": "66e6461a6be063c1ba0fb47db0cd480d5c97adc0"
+    }
+  ],
+  "head": "d4e9e2ba506e82d2f4b5ec639c6ce6b39748f34d",
+  "runtime_equals_predecessor_candidate": "08b85fc85303e3649a340f159d07ee5c8df795ff",
+  "scope": "Affected runtime paths only; no deployment and no full closure attestation."
+}
