@@ -33,6 +33,11 @@ final class PublicRetailCheckoutService
     public function place(Request $request, array $input): array
     {
         $policies=$this->readiness->assertReady();
+        $submittedPolicy=(string)($input['merchant_policy_fingerprint']??'');
+        if (strlen($submittedPolicy)!==64 || !hash_equals($policies['approval_digest'],$submittedPolicy)) {
+            throw ValidationException::withMessages(['checkout'=>
+                'Uslovi prodaje su promenjeni. Osveži poručivanje i proveri uslove.']);
+        }
         $method=(string)($input['payment_method'] ?? '');
         if (!in_array($method,$policies['methods'],true)) {
             throw ValidationException::withMessages(['payment_method'=>'Nedozvoljen način plaćanja.']);
@@ -218,6 +223,7 @@ final class PublicRetailCheckoutService
                 'privacy_url'=>$policies['privacy_url'],
                 'shipping_description'=>$policies['shipping_description'],
                 'shipping_fee_rsd'=>$policies['shipping_fee_rsd'],
+                'merchant_policy_digest'=>$policies['approval_digest'],
                 'terms_accepted_at'=>now(),
             ]);
             $created=true;
