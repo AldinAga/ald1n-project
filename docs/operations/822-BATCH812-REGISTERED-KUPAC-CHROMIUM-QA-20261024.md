@@ -1,4 +1,4 @@
-# Report822 — B812 registered Kupac Chromium acceptance (source-only, CI pending)
+# Report822 — B812 registered Kupac Chromium PASS, inherited CI failures / production HOLD
 
 DATE=2026-10-24
 BATCH=B812
@@ -7,8 +7,11 @@ PR=https://github.com/AldinAga/ald1n-project/pull/93
 SOURCE_HEAD=76be91d1fe434708dd5f4a47ea635bb59f1fbfd6
 LAST_ACCEPTED_PRODUCTION=B798_STOREFRONT_OFF
 B812_BROWSER_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40102331513
-B812_BROWSER_RESULT=PENDING_NO_PASS_CLAIM
-FULL_CI_RESULT=HOLD_PREVIOUS_GUEST_FIXTURES
+B812_BROWSER_RESULT=PASS_REGISTERED_REAL_CHROMIUM_AND_DB_POSTCHECK
+EXACT_HEAD_OVERALL_CI=9_OF_14_PASS_5_FAILED
+B803_BASELINE=451_CASES_44_PROBLEMS
+B803_CANDIDATE=499_CASES_90_PROBLEMS
+B803_NEW_FAILURE_IDENTITIES=48
 MERGE_AND_RELEASE=HOLD
 PRODUCTION_MUTATIONS=0
 OWNER_SSH_REQUIRED=NO
@@ -40,3 +43,30 @@ One nonessential proposed PHP test-postcheck numeric-comparison edit was denied 
 Historic B799/B802/B803/B806/B808 fixtures still assume anonymous successful checkout, which conflicts with B809 owner-mandated registered-only checkout. A previous attempt to alter those historical fixtures was safety-denied; do not repurpose the new B812 tests to waive or overwrite the old ones. Whole-CI and release remain HOLD, including 368 OWASP control items, actual SMTP/SPF/DKIM/DMARC delivery, merchant legal approvals, restore drill, FPM/OPcache attestation, buyer UAT, and production deployment controls. Do not switch storefront ON, merge PR93, run SSH scripts or create Android/OTA/Play artifacts. Final inode cleanup stays deferred to issue95.
 
 Functional acceptance: overall 7/17=41.2%, CMS 7/15=46.7%, initial UI 6/6=100%. B812 test engineering is not a new accepted production milestone.
+
+## Terminal exact-head B812 evidence — 2026-10-24
+
+FINAL_HEAD=76be91d1fe434708dd5f4a47ea635bb59f1fbfd6
+EXACT_HEAD_CI=9/14_PASS_5/14_FAIL
+B812_CHROMIUM_STEP=SUCCESS
+B812_REAL_DB_POSTCHECK=PASS_REGISTERED_ORDER_1_STOCK_DECREMENT_1_NO_COMMISSION_OR_PAYMENT
+B799_LEGACY_GUEST_CHROMIUM_STEP=FAIL_AS_EXPECTED
+B803_NEW_FAILURES=48_EXISTING_GUEST_ASSUMPTION_IDENTITIES
+NO_PRODUCTION_MUTATION=YES
+
+[GitHub Actions B812 exact-head Chromium](https://github.com/AldinAga/ald1n-project/actions/runs/40102331513), job 120897179632, shows:
+- PHP seed under disposable MariaDB 10.11.19 and array mail = PASS.
+- Registration/activation UI using synthetic token substitution, login, guest cart preservation, registered buyer checkout, receipt and replay = PASS.
+- Browser role gate = PASS, operator denied.
+- Database postcheck = PASS: one customer-linked order, one stock decrement, no commissions or payments.
+- B812 synthetic Chromium screenshots artifact **12563143389** (6 PNG screenshots: desktop/mobile catalog/registration, checkout, receipt), verified downloadable ZIP 3c436fa8fdf942e9741bd97da385ac83028bb766813032a97d46084b4b627c37. Screenshots are synthetic and are browser evidence, NOT owner physical-device UAT.
+- Original B799 browser stage remained enabled and independently FAILED awaiting the now-absent `Nastavi na poručivanje` link for a guest. No legacy fixture rewrites, skips or workarounds.
+
+[Full B803 comparison](https://github.com/AldinAga/ald1n-project/actions/runs/40102331597), job 120897000370, records `BASELINE_CASES=451 BASELINE_PROBLEMS=44`, `CANDIDATE_CASES=499 CANDIDATE_PROBLEMS=90`, `NEW_FAILURES=48 WHOLE_SUITE_GREEN=NO`. The same 48 old guest-assumption identities persist as B810/B811; B812 introduced **zero additional full PHPUnit cases** beyond the four previously green B811 cases. Exactly **nine of fourteen** exact-head workflows were successful, five failed on historical guest-role/checkout/browser/full-suite checks. This is source integration QA, **not** a green release.
+
+Drive Report822: https://docs.google.com/document/d/1Mp2ZpITwMuQo4ckinG6qooSVl7EOv6P-olSFYyaMisA/edit
+Drive source snapshot: https://docs.google.com/document/d/1WNI9wCo4XUrNh4xu9NxDvIm2TXytcocExGZawbcQEYQ/edit
+
+The attempted automatic direct ZIP-to-Drive artifact upload did not complete because the connector's file_uri validation requires a string while the source connector returned an object. No upload success is claimed; GitHub artifact remains authoritative and user-downloadable in the current conversation. The report and source snapshot DID save to Drive and were verified by readback.
+
+MERGE_RELEASE=HOLD. Preserve Draft PR93, current production B798 OFF, historical failures and pentest/merchant/SMTP/restore/FPM/UAT gates. Owner involvement unnecessary; no SSH.
