@@ -79,12 +79,47 @@ jobs:
           php -l tests/Browser/seed-public-shop-b799.php
           php tests/Support/check-checkout-concurrency-witness.php
           node --check tests/Browser/b799-public-shop-browser.cjs
+          php -l tests/Browser/seed-b812-registered-buyer.php
+          node --check tests/Browser/b812-registered-buyer-browser.cjs
       - name: Install disposable Chromium outside repository
         run: |
           set -euo pipefail
           mkdir -p "$PLAYWRIGHT_NODE_ROOT"
           npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1
           "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium
+      - name: B812 registered Kupac real Chromium, isolated from historical guest suite
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test "$MAIL_MAILER" = array
+          test "$B799_BROWSER_BASE_URL" = http://127.0.0.1:8124
+          php artisan migrate:fresh --force --no-ansi
+          php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php tests/Browser/seed-b812-registered-buyer.php --seed
+          php artisan serve --host=127.0.0.1 --port=8124 > "$RUNNER_TEMP/b812-server.log" 2>&1 &
+          B812_PID=$!
+          trap 'kill "$B812_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8124/registracija; then READY=1; break; fi
+            if ! kill -0 "$B812_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          test "$READY" = 1 || { echo 'B812_BROWSER_HTTP_BOOT_HOLD'; tail -n 15 "$RUNNER_TEMP/b812-server.log"; exit 5; }
+          node tests/Browser/b812-registered-buyer-browser.cjs
+          php tests/Browser/seed-b812-registered-buyer.php --verify
+          echo 'B812_REGISTERED_BROWSER=PASS_SYNTHETIC_NO_SMTP_NO_DEPLOY'
+      - name: Preserve B812 synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b812-registered-buyer-chromium
+          path: /tmp/b799-browser-screenshots/b812-*.png
+          retention-days: 3
+          if-no-files-found: warn
       - name: Exercise real localhost guest retail and responsive visuals
         working-directory: apps/cms/current
         run: |
