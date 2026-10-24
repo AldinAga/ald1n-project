@@ -253,7 +253,7 @@ final class PublicRetailCheckoutService
             DB::table('order_status_history')->insert([
                 'order_id'=>$order->id,
                 'old_status'=>null,'new_status'=>'new','changed_by'=>null,
-                'note'=>'Javna retail porudžbina bez registracije.',
+                'note'=>'Javna retail porudžbina registrovanog Kupca.',
                 'created_at'=>now(),
             ]);
             $token=$this->access->issue($order,$email);
