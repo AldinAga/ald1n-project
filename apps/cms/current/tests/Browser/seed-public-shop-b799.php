@@ -119,6 +119,7 @@ App\Models\Product::query()->create([
     'created_by'=>$admin->id,
 ]);
 app(App\Services\SettingsService::class)->putMany([
+    'public_storefront_open'=>'1',
     'documents_company_name'=>'Synthetic Merchant Test',
     'documents_company_address'=>'Synthetic 1, Beograd',
     'documents_company_city'=>'Beograd',

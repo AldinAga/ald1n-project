@@ -19,13 +19,24 @@
 <label>Poštanski broj <input name="shipping_postal_code" required maxlength="20" autocomplete="postal-code" value="{{ old('shipping_postal_code') }}"></label>
 </div>
 <label>Napomena (opciono) <textarea name="customer_note" maxlength="2000" rows="3">{{ old('customer_note') }}</textarea></label>
+<h2>Način dostave</h2>
+<label>Izaberi dostavu
+<select name="delivery_method" required>
+<option value="">Izaberi način dostave</option>
+@foreach($ready['delivery_methods'] as $method)
+<option value="{{ $method }}" @selected(old('delivery_method')===$method)>{{ \App\Support\PublicRetailOptions::DELIVERY[$method] }}</option>
+@endforeach
+</select></label>
 <h2>Plaćanje</h2>
 @foreach($ready['methods'] as $method)
 <label class="shop-choice">
 <input type="radio" name="payment_method" value="{{ $method }}" @checked(old('payment_method',$ready['methods'][0])===$method) required>
-{{ $method==='bank_transfer'?'Uplata na račun':'Pouzećem' }}
+{{ \App\Support\PublicRetailOptions::PAYMENT[$method] }}
 </label>
 @endforeach
+@if(in_array('deferred_payment',$ready['methods'],true))
+<p class="shop-muted">Odloženo plaćanje: rok {{ $ready['deferred_payment_days'] }} dana. {{ $ready['deferred_payment_terms'] }}</p>
+@endif
 @if(in_array('bank_transfer',$ready['methods'],true) && $ready['bank_account'])
 <p class="shop-muted">Za uplatu na račun: {{ $ready['bank_account']->recipient_name }} · {{ $ready['bank_account']->account_number_display }}. Tačan poziv na broj stiže uz potvrdu porudžbine.</p>
 @endif

@@ -23,7 +23,8 @@ final class PublicOrderAccessService
         }
         return DB::transaction(function () use ($order,$email): string {
             $locked=Order::query()->lockForUpdate()->findOrFail($order->id);
-            if ($locked->sales_channel!=='public_retail' || $locked->user_id!==null) {
+            if ($locked->sales_channel!=='public_retail'
+                || ($locked->user_id!==null && !$locked->user?->hasRole('customer'))) {
                 throw ValidationException::withMessages(['order'=>'Nevažeći javni prodajni tok.']);
             }
             if (PublicOrderAccess::query()->where('order_id',$locked->id)->exists()) {
@@ -48,7 +49,7 @@ final class PublicOrderAccessService
         abort_unless($access instanceof PublicOrderAccess,404);
         $order=Order::query()->whereKey($access->order_id)
             ->where('sales_channel','public_retail')
-            ->whereNull('user_id')->whereNull('purged_at')->first();
+            ->whereNull('purged_at')->first();
         abort_unless($order instanceof Order,404);
         return $order;
     }

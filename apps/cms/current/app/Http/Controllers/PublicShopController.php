@@ -17,7 +17,7 @@ final class PublicShopController extends Controller
 {
     private function guarded(): void
     {
-        abort_unless(config('public_storefront.enabled') === true, 404);
+        abort_unless(app(\App\Services\PublicStorefrontStateService::class)->isOpen(), 404);
     }
 
     public function catalog(Request $request, PublicRetailCatalogService $catalog): View

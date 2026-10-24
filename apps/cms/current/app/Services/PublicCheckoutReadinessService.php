@@ -14,11 +14,12 @@ final class PublicCheckoutReadinessService
 {
     public function __construct(private readonly PublicMerchantPolicyService $merchant) {}
 
-    /** @return array{methods:list<string>,shipping_fee_rsd:float,shipping_description:string,terms_url:string,privacy_url:string,support_email:string,approval_digest:string,bank_account:?BankAccount} */
+    /** @return array{methods:list<string>,delivery_methods:list<string>,deferred_payment_days:int,deferred_payment_terms:string,shipping_fee_rsd:float,shipping_description:string,terms_url:string,privacy_url:string,support_email:string,approval_digest:string,bank_account:?BankAccount} */
     public function assertReady(): array
     {
         abort_unless(config('public_storefront.enabled') === true
-            && config('public_storefront.checkout_enabled') === true, 404);
+            && config('public_storefront.checkout_enabled') === true
+            && app(PublicStorefrontStateService::class)->isOpen(), 404);
 
         $review=$this->merchant->review();
         if (!$review['complete'] || !$review['approved']) {
@@ -29,6 +30,9 @@ final class PublicCheckoutReadinessService
         $p=$review['policy'];
         return [
             'methods'=>$p['methods'],
+            'delivery_methods'=>$p['deliveries'],
+            'deferred_payment_days'=>(int)$p['deferred_payment_days'],
+            'deferred_payment_terms'=>$p['deferred_payment_terms'],
             'shipping_fee_rsd'=>0.0,
             'shipping_description'=>$p['shipping_description'],
             'terms_url'=>$p['terms_url'],

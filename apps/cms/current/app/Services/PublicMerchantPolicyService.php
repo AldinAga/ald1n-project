@@ -18,6 +18,7 @@ final class PublicMerchantPolicyService
     private const STORED = [
         'terms_url','privacy_url','shipping_fee_rsd','shipping_description',
         'payment_methods','support_email','bank_account_id',
+        'delivery_methods','deferred_payment_days','deferred_payment_terms',
     ];
 
     public function __construct(private readonly SettingsService $settings) {}
@@ -43,6 +44,8 @@ final class PublicMerchantPolicyService
             static fn (string $name): bool => $name !== ''
         )));
         sort($value['methods'], SORT_STRING);
+        $value['deliveries']=array_values(array_unique(array_filter(array_map('trim',explode(',',$value['delivery_methods'])))));
+        sort($value['deliveries'],SORT_STRING);
         $value['company_name'] = trim((string)$this->settings->get('documents_company_name',''));
         $value['company_address'] = trim((string)$this->settings->get('documents_company_address',''));
         $value['company_city'] = trim((string)$this->settings->get('documents_company_city',''));
@@ -58,7 +61,7 @@ final class PublicMerchantPolicyService
     public function fingerprint(?array $policy = null): string
     {
         $policy ??= $this->policy();
-        unset($policy['methods']);
+        unset($policy['methods'],$policy['deliveries']);
         return hash('sha256', json_encode($policy,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
@@ -87,8 +90,17 @@ final class PublicMerchantPolicyService
         if (!filter_var($p['support_email'], FILTER_VALIDATE_EMAIL)) {
             $issues[]='Unesi validan e-mail za podršku kupcima.';
         }
-        if ($p['methods'] === [] || array_diff($p['methods'], ['cash_on_delivery','bank_transfer']) !== []) {
-            $issues[]='Izaberi podržan način plaćanja (pouzećem ili bankovnim transferom).';
+        if ($p['methods'] === [] || array_diff($p['methods'], array_keys(\App\Support\PublicRetailOptions::PAYMENT)) !== []) {
+            $issues[]='Izaberi podržani način plaćanja.';
+        }
+        if ($p['deliveries']===[] || array_diff($p['deliveries'],array_keys(\App\Support\PublicRetailOptions::DELIVERY))!==[]) {
+            $issues[]='Izaberi postojece nacine dostave dostupne kupcu.';
+        }
+        if (in_array('deferred_payment',$p['methods'],true)) {
+            $days=filter_var($p['deferred_payment_days'],FILTER_VALIDATE_INT);
+            if (!$days || $days<1 || $days>365 || $p['deferred_payment_terms']==='') {
+                $issues[]='Odlozeno placanje zahteva izricit rok 1-365 dana i uslove trgovca.';
+            }
         }
         $bank = null;
         if (in_array('bank_transfer', $p['methods'], true)) {

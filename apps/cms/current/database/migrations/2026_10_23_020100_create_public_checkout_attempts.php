@@ -15,7 +15,7 @@ return new class extends Migration
         }
         if (Schema::hasTable('public_checkout_attempts')) {
             foreach (['key_hash','request_fingerprint','receipt_token_ciphertext','order_id',
-                'terms_url','privacy_url','shipping_description','shipping_fee_rsd','merchant_policy_digest','terms_accepted_at'] as $column) {
+                'terms_url','privacy_url','shipping_description','shipping_fee_rsd','merchant_policy_digest','delivery_method','customer_user_id','payment_due_at_snapshot','terms_accepted_at'] as $column) {
                 if (!Schema::hasColumn('public_checkout_attempts',$column)) {
                     throw new RuntimeException('PUBLIC_CHECKOUT_PARTIAL_TABLE '.$column);
                 }
@@ -37,6 +37,9 @@ return new class extends Migration
                 $t->string('shipping_description',500)->nullable();
                 $t->decimal('shipping_fee_rsd',12,2)->nullable();
                 $t->char('merchant_policy_digest',64)->nullable();
+                $t->string('delivery_method',32)->nullable();
+                $t->unsignedBigInteger('customer_user_id')->nullable();
+                $t->date('payment_due_at_snapshot')->nullable();
                 $t->dateTime('terms_accepted_at')->nullable();
                 $t->unsignedBigInteger('order_id')->nullable()->unique();
                 $t->timestamps();

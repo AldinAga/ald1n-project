@@ -128,6 +128,7 @@ final class PublicMerchantSettingsB801Test extends TestCase
         $this->actingAs($this->superadmin)
             ->put('/admin/settings/public-storefront',$this->data(['merchant_approval'=>'1']))
             ->assertRedirect()->assertSessionHasNoErrors();
+        app(SettingsService::class)->putMany(['public_storefront_open'=>'1'],null);
         config()->set('public_storefront.enabled',true);
         config()->set('public_storefront.checkout_enabled',true);
         $policy=app(PublicCheckoutReadinessService::class)->assertReady();
@@ -154,6 +155,7 @@ final class PublicMerchantSettingsB801Test extends TestCase
             'shipping_fee_rsd'=>'0',
             'shipping_description'=>'Synthetic agreement: collection included in retail price.',
             'payment_methods'=>['cash_on_delivery'],
+            'delivery_methods'=>['courier','own_transport','customer_pickup'],
             'support_email'=>'retail@example.test',
             'bank_account_id'=>'',
         ],$overrides);

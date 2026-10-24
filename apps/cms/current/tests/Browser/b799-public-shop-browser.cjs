@@ -61,6 +61,7 @@ async function prepareRaceCheckout(browserContext,origin,slug,buyer){
   })){
     await page.locator('input[name="'+name+'"]').fill(value);
   }
+  await page.locator('select[name="delivery_method"]').selectOption('courier');
   await page.locator('input[name="accepted_terms"]').check();
   const form=await page.locator('form.shop-checkout').evaluate(element =>
     Object.fromEntries(new FormData(element))
@@ -219,6 +220,7 @@ async function runRealRace(browser){
       for(const [name,value] of Object.entries(inputs)){
         await page.locator('input[name="'+name+'"]').fill(value);
       }
+      await page.locator('select[name="delivery_method"]').selectOption('courier');
       await page.locator('input[name="accepted_terms"]').check();
       if(purchase===1){
         await page.screenshot({path:path.join(dir,'checkout.png'),animations:'disabled'});

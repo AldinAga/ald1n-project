@@ -30,6 +30,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        app(\App\Services\SettingsService::class)->putMany(['public_storefront_open'=>'1'],null);
         $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         config()->set('public_storefront.enabled',true);
@@ -552,7 +553,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
             'email'=>'buyer@example.test','shipping_phone'=>'0601234567',
             'shipping_address'=>'Test 12','shipping_city'=>'Beograd',
             'shipping_postal_code'=>'11000',
-            'payment_method'=>'cash_on_delivery','accepted_terms'=>'1',
+            'payment_method'=>'cash_on_delivery','delivery_method'=>'courier','accepted_terms'=>'1',
         ],$stock];
     }
 }

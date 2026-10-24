@@ -108,6 +108,7 @@ final class SettingsService
         'automation_last_success_at' => '',
         // Public retail merchant policy is NOT consented to by default.
         // Saving a draft never flips the independent environment release flags.
+        'public_storefront_open' => '0',
         'public_checkout_terms_url' => '',
         'public_checkout_privacy_url' => '',
         'public_checkout_shipping_fee_rsd' => '',
@@ -115,6 +116,9 @@ final class SettingsService
         'public_checkout_payment_methods' => '',
         'public_checkout_support_email' => '',
         'public_checkout_bank_account_id' => '',
+        'public_checkout_delivery_methods' => '',
+        'public_checkout_deferred_payment_days' => '',
+        'public_checkout_deferred_payment_terms' => '',
         'public_checkout_approval_digest' => '',
         'public_checkout_approved_at' => '',
         'public_checkout_approved_by' => '',

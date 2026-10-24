@@ -13,10 +13,13 @@ final class CoreAccessSeeder extends Seeder
     public function run(): void
     {
         DB::table('roles')->upsert([
-            ['id' => 1, 'name' => 'Korisnik', 'slug' => 'user', 'created_at' => now()],
+            ['id' => 1, 'name' => 'SubAgent', 'slug' => 'user', 'created_at' => now()],
             ['id' => 2, 'name' => 'Administrator', 'slug' => 'admin', 'created_at' => now()],
             ['id' => 3, 'name' => 'SuperAdmin', 'slug' => 'superadmin', 'created_at' => now()],
         ], ['id'], ['name', 'slug']);
+
+        // Keep legacy role/user IDs and permissions. Retail buyers are a new role.
+        DB::table('roles')->updateOrInsert(['slug'=>'customer'], ['name'=>'Kupac']);
 
         DB::table('user_groups')->upsert([[
             'id' => 1, 'name' => 'Standardni korisnik', 'slug' => 'standardni-korisnik',

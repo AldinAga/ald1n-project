@@ -10,7 +10,7 @@ final class PublicCheckoutAttempt extends Model
 {
     protected $fillable=[
         'key_hash','request_fingerprint','receipt_token_ciphertext','order_id',
-        'terms_url','privacy_url','shipping_description','shipping_fee_rsd','merchant_policy_digest','terms_accepted_at',
+        'terms_url','privacy_url','shipping_description','shipping_fee_rsd','merchant_policy_digest','delivery_method','customer_user_id','payment_due_at_snapshot','terms_accepted_at',
     ];
     protected function casts(): array {
         return ['shipping_fee_rsd'=>'decimal:2','terms_accepted_at'=>'datetime'];

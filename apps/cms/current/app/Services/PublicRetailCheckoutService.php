@@ -33,6 +33,13 @@ final class PublicRetailCheckoutService
     public function place(Request $request, array $input): array
     {
         $policies=$this->readiness->assertReady();
+        $actor=$request->user();
+        if ($actor!==null) abort_unless($actor->status==='active' && $actor->retired_at===null,403);
+        $buyerId=$actor?->hasRole('customer') ? (int)$actor->id : null;
+        $delivery=(string)($input['delivery_method']??'');
+        if (!in_array($delivery,$policies['delivery_methods'],true)) {
+            throw ValidationException::withMessages(['delivery_method'=>'Izaberi dozvoljeni nacin dostave.']);
+        }
         $submittedPolicy=(string)($input['merchant_policy_fingerprint']??'');
         if (strlen($submittedPolicy)!==64 || !hash_equals($policies['approval_digest'],$submittedPolicy)) {
             throw ValidationException::withMessages(['checkout'=>
@@ -66,7 +73,7 @@ final class PublicRetailCheckoutService
             'postal'=>trim((string)$input['shipping_postal_code']),
             'phone'=>trim((string)$input['shipping_phone']),
             'note'=>trim((string)($input['customer_note']??'')),
-            'method'=>$method,'items'=>$cart,
+            'method'=>$method,'delivery_method'=>$delivery,'buyer_id'=>$buyerId,'items'=>$cart,
         ];
         // The fingerprint never persists PII in readable form.
         $fingerprint=hash_hmac('sha256',
@@ -79,7 +86,14 @@ final class PublicRetailCheckoutService
 
         $created=false;
         $result=DB::transaction(function () use ($keyHash,$fingerprint,$cart,$details,
-                $method,$policies,$email,$name,&$created): array {
+                $method,$policies,$email,$name,$buyerId,$delivery,&$created): array {
+            // Shared gate lock allows concurrent buyers, but serializes an OFF
+            // action against all committing checkouts. No stale settings cache.
+            abort_unless(app(PublicStorefrontStateService::class)->isOpen(true),404);
+            if ($buyerId!==null) {
+                $buyer=User::query()->whereKey($buyerId)->sharedLock()->firstOrFail();
+                abort_unless($buyer->status==='active' && $buyer->retired_at===null && $buyer->hasRole('customer'),403);
+            }
             // Atomic duplicate-key upsert is essential under MariaDB REPEATABLE READ:
             // firstOrCreate() may perform a stale consistent read when two requests
             // race on the same nonce. Preserve the FIRST immutable fingerprint and
@@ -132,7 +146,7 @@ final class PublicRetailCheckoutService
                 'order_number'=>'TMP-'.bin2hex(random_bytes(12)),
                 'idempotency_key_hash'=>$keyHash,
                 'request_fingerprint'=>$fingerprint,
-                'user_id'=>null,'supplier_user_id'=>$supplier->id,
+                'user_id'=>$buyerId,'supplier_user_id'=>$supplier->id,
                 'supplier_name_snapshot'=>$supplier->displayName(),
                 'supplier_email_snapshot'=>$supplier->email,
                 'supplier_phone_snapshot'=>$supplier->phone,
@@ -148,6 +162,8 @@ final class PublicRetailCheckoutService
                 'customer_note'=>$details['note']!==''?$details['note']:null,
                 'payment_method'=>$method,'payment_status'=>'pending',
                 'payment_state'=>'unpaid','paid_total_rsd'=>0,
+                'payment_due_at'=>$method==='deferred_payment'
+                    ? today()->addDays($policies['deferred_payment_days'])->toDateString() : null,
                 'bank_account_id'=>$account?->id,
                 'bank_account_label_snapshot'=>$account?->label,
                 'bank_account_number_snapshot'=>$account?->account_number,
@@ -224,6 +240,9 @@ final class PublicRetailCheckoutService
                 'shipping_description'=>$policies['shipping_description'],
                 'shipping_fee_rsd'=>$policies['shipping_fee_rsd'],
                 'merchant_policy_digest'=>$policies['approval_digest'],
+                'delivery_method'=>$delivery,
+                'customer_user_id'=>$buyerId,
+                'payment_due_at_snapshot'=>$order->payment_due_at?->toDateString(),
                 'terms_accepted_at'=>now(),
             ]);
             $created=true;

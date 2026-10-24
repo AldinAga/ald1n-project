@@ -26,6 +26,21 @@
     </div>
 @endif
 
+<section class="panel form-section" aria-labelledby="store-switch-title">
+    <h2 id="store-switch-title">Javna prodavnica ON / OFF</h2>
+    <p>Trenutno: <strong>{{ $storeOpen ? 'ON' : 'OFF' }}</strong>.
+        OFF zaustavlja nove kupovine; postojeće porudžbine i privatna dokumenta ostaju sačuvani.</p>
+    @if($storeRequestedOpen && !$storeOpen)<p class="muted">Tehnička dozvola trenutno blokira otvaranje.</p>@endif
+    <form method="post" action="{{ route('admin.settings.public-storefront.toggle') }}">
+        @csrf
+        <input type="hidden" name="enabled" value="{{ $storeRequestedOpen ? '0' : '1' }}">
+        <button type="submit" class="button button-primary" role="switch"
+            aria-checked="{{ $storeOpen ? 'true' : 'false' }}"
+            aria-label="Javna prodavnica ON / OFF">{{ $storeRequestedOpen ? 'OFF - Isključi prodavnicu' : 'ON - Uključi prodavnicu' }}</button>
+    </form>
+    <p class="muted">ON je moguć tek nakon tehničke pripreme i važeće potvrde uslova. Samo čuvanje uslova ne uključuje prodavnicu.</p>
+</section>
+
 <form method="post" action="{{ route('admin.settings.public-storefront.update') }}"
       class="admin-form-grid settings-primary-form">
     @csrf
@@ -106,7 +121,7 @@
                 </label>
                 <label class="field">
                     <span>Stvarna pravila dostave</span>
-                    <textarea name="shipping_description" rows="4" maxlength="1000"
+                    <textarea name="shipping_description" rows="4" maxlength="500"
                               placeholder="Rokovi, područja i druga relevantna pravila">{{ old('shipping_description',$policy['shipping_description']) }}</textarea>
                 </label>
                 <div class="field">
@@ -115,6 +130,22 @@
                         @checked(in_array('cash_on_delivery',$selectedMethods,true))> Plaćanje pouzećem</label>
                     <label><input type="checkbox" name="payment_methods[]" value="bank_transfer"
                         @checked(in_array('bank_transfer',$selectedMethods,true))> Bankovni transfer nakon provere uplate</label>
+                </div>
+                <div class="field">
+                    <span>Dostupni načini dostave</span>
+                    @foreach(\App\Support\PublicRetailOptions::DELIVERY as $code=>$label)
+                    <label><input type="checkbox" name="delivery_methods[]" value="{{ $code }}"
+                        @checked(in_array($code,(array)old('delivery_methods',$policy['deliveries']),true))> {{ $label }}</label>
+                    @endforeach
+                </div>
+                <div class="field">
+                    <label><input type="checkbox" name="payment_methods[]" value="deferred_payment"
+                        @checked(in_array('deferred_payment',$selectedMethods,true))> Odloženo plaćanje</label>
+                    <label>Rok odloženog plaćanja (dana)
+                        <input type="number" min="1" max="365" name="deferred_payment_days"
+                            value="{{ old('deferred_payment_days',$policy['deferred_payment_days']) }}"></label>
+                    <label>Odobreni uslovi odloženog plaćanja
+                        <textarea name="deferred_payment_terms" maxlength="1000" rows="3">{{ old('deferred_payment_terms',$policy['deferred_payment_terms']) }}</textarea></label>
                 </div>
                 <label class="field">
                     <span>Aktivan žiro račun za bankovni transfer</span>

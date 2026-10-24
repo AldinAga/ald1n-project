@@ -40,6 +40,7 @@ final class PublicOrderAccessController extends Controller
         }
         return response()->view('public-shop.order',[
             'order'=>$order,
+            'retailPreference'=>app(\App\Services\PublicRetailPreferenceService::class)->forOrder($order),
             'tracking'=>$shipment?->tracking_number_snapshot ?: $order->tracking_number,
             'courier'=>$shipment?->courier_name_snapshot,
             'courierUrl'=>$courierUrl,

@@ -22,6 +22,7 @@ final class PublicCheckoutReadinessB799Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        app(\App\Services\SettingsService::class)->putMany(['public_storefront_open'=>'1'],null);
         $this->seed(CoreAccessSeeder::class);
         User::query()->create([
             'role_id'=>Role::query()->where('slug','superadmin')->valueOrFail('id'),

@@ -15,7 +15,12 @@
 <nav aria-label="Javna navigacija">
 <a href="{{ route('public-shop.catalog') }}">Artikli</a>
 <a href="{{ route('public-shop.cart') }}">Korpa</a>
-<a href="{{ route('login') }}">Prijava za zaposlene</a>
+@if(auth()->user()?->hasRole('customer'))
+<span>{{ auth()->user()->displayName() }} · Kupac</span>
+<form method="post" action="{{ route('logout') }}">@csrf<button type="submit">Odjava</button></form>
+@else
+<a href="{{ route('login') }}">Prijava</a>
+@endif
 </nav></div></header>
 <main id="content" class="wrap">
 @if(session('status'))<div role="status" class="shop-alert">{{ session('status') }}</div>@endif

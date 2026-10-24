@@ -22,6 +22,11 @@
 </section>
 <section class="shop-detail-content">
 <h2>Dostava i pošiljka</h2>
+@if($retailPreference)
+<p>Izabrana dostava: <strong>{{ $retailPreference['delivery_label'] }}</strong></p>
+<p>Izabrano plaćanje: {{ $retailPreference['payment_label'] }}</p>
+@if($retailPreference['payment_due_at'])<p>Rok plaćanja: {{ $retailPreference['payment_due_at'] }}</p>@endif
+@endif
 <p>Primalac: {{ $order->shipping_full_name }}</p>
 <p>{{ $order->shipping_address }}, {{ $order->shipping_postal_code }} {{ $order->shipping_city }}</p>
 @if($courier)<p>Kurirska služba: {{ $courier }}</p>@endif

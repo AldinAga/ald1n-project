@@ -26,6 +26,8 @@ final class PublicMerchantSettingsController extends Controller
                 ->get(['id','label','recipient_name']),
             'catalogEnabled'=>config('public_storefront.enabled')===true,
             'checkoutEnabled'=>config('public_storefront.checkout_enabled')===true,
+            'storeRequestedOpen'=>app(\App\Services\PublicStorefrontStateService::class)->requestedOpen(),
+            'storeOpen'=>app(\App\Services\PublicStorefrontStateService::class)->isOpen(),
         ]);
     }
 
@@ -39,17 +41,23 @@ final class PublicMerchantSettingsController extends Controller
         $data=$request->validate([
             'terms_url'=>['nullable','string','url','max:500'],
             'privacy_url'=>['nullable','string','url','max:500'],
-            'shipping_description'=>['nullable','string','max:1000'],
+            'shipping_description'=>['nullable','string','max:500'],
             'shipping_fee_rsd'=>['nullable','regex:/^\d+(?:\.\d{1,2})?$/D'],
             'support_email'=>['nullable','email:rfc','max:254'],
-            'payment_methods'=>['sometimes','array','max:2'],
-            'payment_methods.*'=>[Rule::in(['cash_on_delivery','bank_transfer'])],
+            'payment_methods'=>['sometimes','array','max:3'],
+            'payment_methods.*'=>[Rule::in(array_keys(\App\Support\PublicRetailOptions::PAYMENT))],
+            'delivery_methods'=>['sometimes','array','max:4'],
+            'delivery_methods.*'=>[Rule::in(array_keys(\App\Support\PublicRetailOptions::DELIVERY))],
+            'deferred_payment_days'=>['nullable','integer','min:1','max:365'],
+            'deferred_payment_terms'=>['nullable','string','max:1000'],
             'bank_account_id'=>['nullable','integer','min:1'],
             'merchant_approval'=>['nullable',Rule::in(['1'])],
         ]);
         $methods=array_values(array_unique(array_map('strval',
             (array)($data['payment_methods']??[]))));
         sort($methods,SORT_STRING);
+        $deliveries=array_values(array_unique(array_map('strval',(array)($data['delivery_methods']??[]))));
+        sort($deliveries,SORT_STRING);
         $account=(string)($data['bank_account_id']??'');
         if ($account!=='' && !BankAccount::query()->whereKey((int)$account)
             ->where('is_active',true)->exists()) {
@@ -62,13 +70,16 @@ final class PublicMerchantSettingsController extends Controller
         // All data, attestation and revocation are one atomic DB write. A
         // partially saved policy cannot inherit the signature of old terms.
         try {
-        DB::transaction(function () use ($settings,$merchant,$data,$methods,$account,$owner): void {
+        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner): void {
             $values=[
                 'public_checkout_terms_url'=>trim((string)($data['terms_url']??'')),
                 'public_checkout_privacy_url'=>trim((string)($data['privacy_url']??'')),
                 'public_checkout_shipping_fee_rsd'=>trim((string)($data['shipping_fee_rsd']??'')),
                 'public_checkout_shipping_description'=>trim((string)($data['shipping_description']??'')),
                 'public_checkout_payment_methods'=>implode(',',$methods),
+                'public_checkout_delivery_methods'=>implode(',',$deliveries),
+                'public_checkout_deferred_payment_days'=>(string)($data['deferred_payment_days']??''),
+                'public_checkout_deferred_payment_terms'=>trim((string)($data['deferred_payment_terms']??'')),
                 'public_checkout_support_email'=>trim((string)($data['support_email']??'')),
                 'public_checkout_bank_account_id'=>$account,
                 'public_checkout_approval_digest'=>'',

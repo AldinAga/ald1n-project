@@ -21,6 +21,7 @@ final class PublicShopB799CatalogCartTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        app(\App\Services\SettingsService::class)->putMany(['public_storefront_open'=>'1'],null);
         $this->seed(CoreAccessSeeder::class);
         // All scenarios reuse PHPUnit's same synthetic localhost. The actual
         // throttle is still present in the web route; isolate stock-validation
