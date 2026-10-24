@@ -73,3 +73,68 @@ test('malformed individual ELF does not suppress other library checks', () => {
   assert.equal(result.failures.length, 1);
   assert.equal(result.status, 'HOLD');
 });
+
+// Exercise the actual ZIP extraction and CLI exit-status boundary, not only
+// the pure ELF parser. All fixtures live outside the repository and contain
+// synthetic bytes; no EAS, device, Play or production state is touched.
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const executable = fileURLToPath(new URL('./verify-android16kb-apk.mjs', import.meta.url));
+
+function runCliFixture(files, corrupt = false) {
+  const root = mkdtempSync(path.join(tmpdir(), 'ald1n-b831-16kb-'));
+  try {
+    const archive = path.join(root, 'synthetic.apk');
+    if (corrupt) writeFileSync(archive, Buffer.from('NOT_A_ZIP_ARCHIVE'));
+    else {
+      for (const [name, bytes] of Object.entries(files)) {
+        const target = path.join(root, name);
+        mkdirSync(path.dirname(target), { recursive: true });
+        writeFileSync(target, bytes);
+      }
+      const zipped = spawnSync('zip', ['-q', '-X', '-r', archive, ...new Set(Object.keys(files).map((f) => f.split('/')[0]))], { cwd: root, encoding: 'utf8' });
+      assert.equal(zipped.status, 0, zipped.stderr);
+    }
+    const result = spawnSync(process.execPath, [executable, archive], { encoding: 'utf8', timeout: 20000 });
+    assert.equal(result.error, undefined);
+    return { code: result.status, report: JSON.parse(result.stdout) };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('CLI reads a genuine ZIP with two aligned 64-bit ELFs and returns scoped CI PASS', () => {
+  const { code, report } = runCliFixture({ [arm]: sampleElf(), [x64]: sampleElf(16384n, 62) });
+  assert.equal(code, 0);
+  assert.equal(report.status, 'PASS_CI_DEBUG_APK_ELF_ONLY');
+  assert.equal(report.total64BitLibraries, 2);
+  assert.equal(report.checkedCount, 2);
+  assert.equal(report.signedAab, 'NOT_CHECKED');
+  assert.equal(report.playApproval, 'NOT_CHECKED');
+});
+
+test('CLI rejects ZIP containing legacy 4KB nativegauss even with a valid x86_64 ELF', () => {
+  const { code, report } = runCliFixture({ [arm]: sampleElf(4096n), [x64]: sampleElf(16384n, 62) });
+  assert.equal(code, 2);
+  assert.equal(report.status, 'HOLD');
+  assert.equal(report.checkedCount, 1);
+  assert.match(report.failures[0].code, /P_ALIGN_LT_16K/);
+});
+
+test('CLI fails closed on valid ZIP with no 64-bit native libraries', () => {
+  const { code, report } = runCliFixture({ 'assets/icon.png': Buffer.from('fixture') });
+  assert.equal(code, 2);
+  assert.equal(report.status, 'HOLD');
+  assert.equal(report.code, 'HOLD_NO_64BIT_NATIVE_LIBRARIES');
+});
+
+test('CLI fails closed for damaged or truncated APK ZIP bytes', () => {
+  const { code, report } = runCliFixture({}, true);
+  assert.equal(code, 2);
+  assert.equal(report.status, 'HOLD');
+  assert.equal(report.code, 'INVALID_OR_UNREADABLE_APK_ZIP');
+});
