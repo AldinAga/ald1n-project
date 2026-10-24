@@ -1,35 +1,20 @@
-# CURRENT B806 - targeted storefront security fixes PASS; full pentest and production rollout OPEN
+# CURRENT B807 — grouped real-HTTP security PASS; full pentest and rollout OPEN
 
-Updated:2026-10-24. Read root AGENTS.md, [operations supplement](AGENTS.md), this index, [Report816](816-BATCH806-STOREFRONT-SECURITY-PHASE1-20261024.md) and canonical Drive runbook before the next batch.
+Updated:2026-10-24. Authority: root AGENTS.md, operations [AGENTS supplement](AGENTS.md), [Report817](817-BATCH807-REAL-HTTP-SECURITY-GROUPED-QA-20261024.md), [penetration plan](../security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md) and original Drive runbook.
 
-## Source and verified work
+## Current source and security evidence
 
-- Existing [PR93](https://github.com/AldinAga/ald1n-project/pull/93) remains DRAFT, NOT MERGED, NOT DEPLOYED. Exact corrected source08d0f44366d7c83c94e83196a0a9965152e84363. B806 changes two runtime files only: PublicCheckoutController.php and SecurityHeaders.php.
-- Reproduced and patched two weakness families: request Host poisoning of receipt/operator links and missing explicit no-store on session cart/checkout. Fixed links use trusted APP_URL/relative redirect; session pages explicitly prohibit storage. These are synthetic application-level findings, not a claim of production exploitation.
-- Actual isolated PHP8.4.27/MariaDB10.11.19 security suite17tests/205assertions PASS. Initial RED16tests/4failures, then separate operator-origin RED17tests/1failure. All14 exact-source CI workflows completed SUCCESS. Full CMS comparison451baseline/44problems versus476candidate/42inherited problems,0new failed identities; whole legacy suite is NOT globally green. Evidence and all named legacy failures are in Report816/its archive.
-- Existing user-requested public payments remain exactly COD, bank transfer and payment at pickup/own delivery. No public deferred credit. SubAgent internal financial history, Kupac isolation and real SuperAdmin ON/OFF are preserved.
+- [PR93](https://github.com/AldinAga/ald1n-project/pull/93) remains DRAFT, NOT MERGED OR DEPLOYED, exact head `89e8f7cbfe5f0c610835187775acfb4d43ae9232`. B807 adds test-only PHP helpers and groups their real HTTP checks into B806 CI; application runtime files changed=0.
+- B807 localhost MariaDB/PHP HTTP **20/20 PASS**: missing/bad CSRF returns419; valid session/cart persists; anonymous SuperAdmin settings cannot be changed; unsafe GET cannot mutate cart; 30 nonexistent private capability requests404, next429 with Retry-After; private referrer and no-store checks; zero synthetic sales/payment/stock writes.
+- Existing targeted security17 PHPUnit tests/205 assertions PASS. **All14 exact-head CI workflows SUCCESS.** Full CMS comparison451 baseline cases/44 problems against476 candidate cases/42 inherited problems, **zero new failure identities**. The whole legacy suite is **NOT globally green**.
+- [Report817](817-BATCH807-REAL-HTTP-SECURITY-GROUPED-QA-20261024.md) contains direct immutable job/artifact IDs and Drive archive links. Full security inventory, scanner review, broader role/IDOR and infrastructure gates remain OPEN. No claim of independent penetration certification.
+- New owner rule: group routine tests in existing coherent jobs and summarize tool outputs; preserve every negative test, complete failure evidence and strict release checks. See operations AGENTS supplement. Avoid duplicating green checks or inflating CI job count.
 
-## Required penetration testing - NOT finished by17tests
+## Host and acceptance
 
-Follow [the mandatory security plan](../security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md) and [finding register](../security/STOREFRONT-SECURITY-FINDINGS-B806-20261024.md). Account for every applicable versioned WSTG4.2/ASVS5.0.0 Level2 item plus actual storefront business risks. Every confirmed finding must be patched and retested. NOT_RUN/BLOCKED/N/A are not PASS. No guarantee against all possible attacks.
+- Production remains owner-certified B798, source `c4a5f060cc00b5d1be0e4d8068309524a4b99c99`; storefront OFF as last independently host-attested. Original owner Report815 already PASS for B804 source44-path and two logical backups166/165. No restore drill, FPM/OPcache provenance or customer UAT yet; do NOT repeat earlier host work.
+- Original B805 local OFF-release package is stale after B806 application corrections. Only regenerate exact-source release materials after outstanding security and business gates. No production source/DB/settings mutation, SSH script, build/OTA/Play or inode deletion in B807.
+- **Acceptance progress: program7/17=41.2%; CMS7/15=46.7%; earlier UI6/6=100%.** These are accepted milestones M01-M07, not completed batch counts or estimated total engineering effort. B807 security work adds genuine evidence toward M13-M15 but not production acceptance.
+- Next: continue WSTG4.2/ASVS5.0.0 Level2 applicability census and selected role/business penetration tests in synthetic isolation, remediate and retest defects, then controlled OFF rollout and actual host/UAT acceptance. Final giant inode cleanup remains mandatory separately under issue95, not now.
 
-The broader item-level inventory, real HTTP CSRF/rate checks, full role/IDOR/input/business corpus, SAST/SCA/secrets, authenticated/anonymous DAST/manual assessment and approved infrastructure tests remain OPEN. Use isolated synthetic environments only. No destructive/live-production/third-party/load testing, real customer writes or emails. Author self-review is not independent security review. Public ON is blocked until complete applicable security and release requirements are satisfied.
-
-## Host evidence - do not repeat completed work
-
-- Production remains B798/owner Report804/805, sourcec4a5f060cc00b5d1be0e4d8068309524a4b99c99. Host HEADb5b942e645d28d3ed5f248eaae4180ebe9a54ee6,84dirty tracked paths, protected index/.htaccess/.env. Public storefront OFF as last attested.
-- Original owner [Report815](815-B804-EXACT-SOURCE-BACKUP-READINESS-20261024-104140.md) IS RECEIVED and B804 prerequisites PASS:44affected paths, backups166/165 logically verified, RC0, no production writes. Do NOT rerun B804 or earlier completed batches. Restore drill and FPM/OPcache/customer UAT were not performed.
-- Report813 was a safe stale-head HOLD, not deployment; do not rerun its obsolete patch. B805 remains incomplete LOCAL OFF-rollout preparation; its old44-file/721-path payload is invalidated by B806 runtime hashes. Regenerate and retest for the final approved source after security work, not blindly deploy the older package.
-- No new SSH command is needed for B806 source work. Current genuine next work is broader security coverage/remediation followed by final controlled OFF-rollout preparation. Merge, host mutation, public opening, native/EAS/OTA/Play and cleanup remain gated independently.
-
-## Honest progress display
-
-**Accepted program7/17=41.2%; accepted CMS7/15=46.7%; originalUI6/6=100%.** See [all17milestones and explanation](PROGRESS-LEDGER-EXPLAINED-20261024.md). The numerator counts backend M01 plus six accepted UI items M02-M07; it does not count batch executions. Every final status must also name actual work completed in that batch, source/CI state, deployment state and the next missing acceptance condition. Do not label41.2% as total historical development progress or invent another percentage from code/test count.
-
-Security is a mandatory gate for M13-M15; final large inode cleanup remains separately tracked in issue95 after all approved changes/acceptance. Do not silently change the17denominator or delete files now. >400000inodes remains an unmeasured owner estimate.
-
-## Documentation and preserved history
-
-New security/progress rules are saved in the operations AGENTS supplement and original canonical Drive runbook. New plan and progress explanation were archived on Drive. A specific previous B805 archive upload was safety-blocked: never repackage/retry it to bypass the block, and do not label all connectors read-only when other writes succeed.
-
-The prior index is preserved byte-identically in [archive/000-LATEST-PRE-B806-20261024.md](archive/000-LATEST-PRE-B806-20261024.md), blobe8a0842d77e317efb718c4f230da713fed579f63; older history remains in the pre-B804 archive. Newest evidenced status supersedes stale pending headers without deleting historical evidence.
+Previous index archived byte-identically as [archive/000-LATEST-PRE-B807-20261024.md](archive/000-LATEST-PRE-B807-20261024.md).
