@@ -184,6 +184,18 @@ final class PublicRetailCheckoutB799Test extends TestCase
             ->assertSee('https://tracking.example.test/order')
             ->assertHeader('Referrer-Policy','no-referrer')
             ->assertHeader('Cache-Control','max-age=0, no-store, private');
+        foreach ([
+            'https://127.0.0.1/internal',
+            'https://2130706433/internal',
+            'https://0177.0.0.1/internal',
+            'https://localhost/internal',
+            'http://tracking.example.test/order',
+        ] as $unsafeTrackingUrl) {
+            $shipment->update(['courier_tracking_url_snapshot'=>$unsafeTrackingUrl]);
+            $this->get($privatePath)->assertOk()->assertDontSee($unsafeTrackingUrl)
+                ->assertSee('B800-CI-TRACK-111');
+        }
+        $shipment->update(['courier_tracking_url_snapshot'=>'https://tracking.example.test/order']);
 
         $deliveredAt=now()->subMinute()->toDateTimeString();
         $completed=$workflow->complete($order->fresh(),$admin,[
