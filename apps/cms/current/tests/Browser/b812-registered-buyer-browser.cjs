@@ -101,6 +101,7 @@ function avoidInternalNumbers(text,label){
         page.getByRole('button',{name:'Pošalji registraciju'}).click(),
       ]);
       await page.waitForURL('**/registracija',{timeout:15000});
+      await page.waitForLoadState('networkidle');
       // A real pending Kupac and activation token must already exist.
       // The synthetic hash substitution is strictly a disposable CI mail stand-in.
       php('--mock-delivery');
@@ -191,7 +192,7 @@ function avoidInternalNumbers(text,label){
       await page.locator('input[name="login"]').fill('b812-staff@example.test');
       await page.locator('input[name="password"]').fill('B812-Owner-Only123!');
       await page.getByRole('button',{name:'Prijavi se'}).click();
-      await page.waitForURL('**/dashboard',{timeout:15000});
+      await page.waitForURL(base+'/',{timeout:15000});
       const denied=await page.goto(base+'/porucivanje',{waitUntil:'domcontentloaded'});
       assert.equal(denied.status(),403,'staff cannot checkout as registered Kupac');
       console.log('B812_ROLE_HTTP=PASS_STAFF_DENIED');
