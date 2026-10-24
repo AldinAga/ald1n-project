@@ -115,7 +115,7 @@ final class PublicMerchantPolicyService
 
     private function safeLegalUrl(string $url): bool
     {
-        if ($url === '' || preg_match('/[\x00-\x20\x7f\\]/', $url)
+        if ($url === '' || (preg_match('/[\x00-\x20\x7f]/', $url) || str_contains($url, '\\'))
             || !filter_var($url, FILTER_VALIDATE_URL)) return false;
         $parts=parse_url($url);
         if (!is_array($parts) || strtolower((string)($parts['scheme']??''))!=='https'
