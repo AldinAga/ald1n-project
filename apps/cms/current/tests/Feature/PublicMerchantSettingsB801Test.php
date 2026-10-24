@@ -94,6 +94,8 @@ final class PublicMerchantSettingsB801Test extends TestCase
             ['shipping_fee_rsd'=>'500'],
             ['terms_url'=>'https://127.0.0.1/fake'],
             ['terms_url'=>'https://0177.0.0.1/fake'],
+            ['terms_url'=>'https://127.0.0.1./fake'],
+            ['terms_url'=>'https://localhost./fake'],
             ['terms_url'=>'https://2130706433/fake'],
         ] as $invalid) {
             $payload=$this->data($invalid+['merchant_approval'=>'1']);
