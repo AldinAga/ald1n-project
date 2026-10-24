@@ -1,3 +1,9 @@
+# CURRENT B830 — Android v1.5 all-64-bit ELF debug APK CI gate integrated on PR82; signed AAB M16 HOLD
+
+2026-10-24: [Report833](833-BATCH830-ANDROID-16KB-ALL-ELF-PR82-20261024.md). PR82 exact head `2d40e40701b9d74452f532423feda4e419464d9b`: committed Node22 all-64-bit ELF verifier and 12 regression tests, wired into native compile+debug APK workflow. Locally **12/12 PASS**; synthetic 16KB APK CLI RC0, legacy 4KB APK RC2/HOLD. Newly observed exact-head PR workflows **3/3 PASS** (40130635895, 40130635997, 40130635972). Push-only native compile at new head NOT_YET_ATTESTED via connector, and new signed AAB not built. [Drive source ZIP](https://drive.google.com/file/d/1z7I2ZcGLZ3tHhiF2iip_7WCCkbdSSca3/view?usp=drivesdk). [Drive report](https://drive.google.com/file/d/1djUyWBT7rJnI0SnM25KV9UCNA4R5TuKA/view?usp=drivesdk). PR82 open/unmerged, PR93/98 Draft, public storefront OFF, production B798; no EAS/OTA/Play/SSH/deploy. Accepted program 7/17=41.2%, CMS7/15=46.7%, UI6/6. M16 release HOLD pending signed AAB, bundletool/zipalign and device/Play evidence.
+
+---
+
 # CURRENT B825 — exact JUnit identifies Cache-Control directive order mismatch; full CI HOLD
 
 2026-10-24: [Report832](832-BATCH825-JUNIT-HEADER-ORDER-EVIDENCE-20261024.md). Actual complete B803 run40125965473 baseline 451/44 problems, candidate 535/92, 50 additional failing identities (49 prior + one new B821). Original JUnit proves B821's only failure is strict string-order comparison: expected `private, no-store, max-age=0`, actual `max-age=0, no-store, private`; same security directives. First B821 invalid-token test PASS 10 assertions, second incomplete/FAIL. [Drive archived JUnit ZIP](https://drive.google.com/file/d/1KWEm8RBsxln0S4KIBl-kwT5ewajlPcyO/view?usp=drivesdk). Latest distinct workflows 5 PASS / 5 FAIL. Prior safety-denied changes untouched; no bypass. PR93 and PR98 Draft, production B798 OFF, no SSH/deploy. Accepted 7/17=41.2% overall, CMS7/15=46.7%, UI6/6.
