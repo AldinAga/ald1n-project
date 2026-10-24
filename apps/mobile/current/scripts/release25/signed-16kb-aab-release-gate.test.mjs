@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createHash, X509Certificate } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { extractSignerFingerprints, verifySignedJarOutput, parseBundleConfig, parseManifestValue, parseReleaseArgs, shaFile } from './signed-16kb-aab-release-gate.mjs';
+import { extractSignerFingerprints, verifySignedJarOutput, parseBundleConfig, parseManifestValue, parseReleaseArgs, shaFile, selectDeliveredApks, auditDeliveredApkSet } from './signed-16kb-aab-release-gate.mjs';
 
 const TEST_CERTIFICATE = `-----BEGIN CERTIFICATE-----
 MIIDHzCCAgegAwIBAgIUKJwqsiTT9fzQpiZmj3eisFhmlfUwDQYJKoZIhvcNAQEL
@@ -116,4 +116,114 @@ test('missing real signed AAB returns JSON HOLD and exit 2, never a false PASS',
   assert.equal(r.status,2);
   assert.equal(JSON.parse(r.stdout).status,'HOLD');
   assert.equal(JSON.parse(r.stdout).code,'HOLD_ARG_COUNT');
+});
+
+// B834 default split/standalone delivery tests (real synthetic nested APK-set ZIPs).
+function elf(align = 16384n) {
+  const b = Buffer.alloc(512);
+  b.set([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1], 0);
+  b.writeUInt16LE(3, 16);
+  b.writeUInt16LE(183, 18);
+  b.writeBigUInt64LE(64n, 32);
+  b.writeUInt16LE(56, 54);
+  b.writeUInt16LE(1, 56);
+  b.writeUInt32LE(1, 64);
+  b.writeBigUInt64LE(256n, 72);
+  b.writeBigUInt64LE(256n, 80);
+  b.writeBigUInt64LE(8n, 96);
+  b.writeBigUInt64LE(8n, 104);
+  b.writeBigUInt64LE(align, 112);
+  return b;
+}
+
+function makeZip(output, cwd, names) {
+  const r = spawnSync('zip', ['-q', '-X', '-r', output, ...names], { cwd, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+}
+
+function withApks(specs, action) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'ald1n-b834-default-apks-'));
+  try {
+    const root = path.join(dir, 'set');
+    mkdirSync(root);
+    for (const [i, spec] of specs.entries()) {
+      const sourceDir = path.join(dir, `source-${i}`);
+      mkdirSync(sourceDir);
+      for (const [relative, contents] of Object.entries(spec.files)) {
+        const destination = path.join(sourceDir, relative);
+        mkdirSync(path.dirname(destination), { recursive: true });
+        writeFileSync(destination, contents);
+      }
+      const apk = path.join(root, spec.name);
+      mkdirSync(path.dirname(apk), { recursive: true });
+      if (spec.corrupt) writeFileSync(apk, 'malformed APK that should be rejected');
+      else makeZip(apk, sourceDir, Object.keys(spec.files).map(n => n.split('/')[0]).filter((v, k, all) => all.indexOf(v) === k));
+    }
+    writeFileSync(path.join(root, 'toc.pb'), 'synthetic fixture');
+    const archive = path.join(dir, 'synthetic-default.apks');
+    makeZip(archive, root, [...new Set(specs.map(s => s.name.split('/')[0])), 'toc.pb']);
+    return action(archive);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+const goodNative = { 'lib/arm64-v8a/libnativegauss.so': elf(), 'assets/icon.txt': Buffer.from('ok') };
+const badNative = { 'lib/arm64-v8a/libnativegauss.so': elf(4096n) };
+const noNative = { 'assets/config.txt': Buffer.from('split-no-native-lib') };
+
+test('selects sorted default split and standalone APKs, excludes toc', () => {
+  assert.deepEqual(selectDeliveredApks(['toc.pb', 'splits/base-arm64_v8a.apk', 'standalones/standalone.apk', 'splits/base-master.apk']),
+    ['splits/base-arm64_v8a.apk', 'splits/base-master.apk', 'standalones/standalone.apk']);
+});
+test('universal-only APK set is insufficient as default Play delivery evidence', () => {
+  assert.throws(() => selectDeliveredApks(['universal.apk', 'toc.pb']), /DEFAULT_APKS_UNIVERSAL_ONLY/);
+});
+test('rejects duplicated APK ZIP entries', () => {
+  assert.throws(() => selectDeliveredApks(['splits/base.apk', 'splits/base.apk']), /APKS_DUPLICATE_APK_ENTRIES/);
+});
+test('rejects unsafe traversal and absolute APK entry names', () => {
+  assert.throws(() => selectDeliveredApks(['splits/../evil.apk']), /APKS_UNSAFE_ENTRY_NAME/);
+  assert.throws(() => selectDeliveredApks(['/tmp/evil.apk']), /APKS_UNSAFE_ENTRY_NAME/);
+});
+test('rejects missing or malformed APKS entry inventory', () => {
+  assert.throws(() => selectDeliveredApks(['toc.pb']), /APKS_NO_APK_ENTRIES/);
+  assert.throws(() => selectDeliveredApks(null), /APKS_INVALID_ENTRY_LIST/);
+});
+test('actual nested default APK set: native configuration split plus native-free split accepted with bounded evidence', () => {
+  withApks([{ name: 'splits/base-arm64_v8a.apk', files: goodNative }, { name: 'splits/base-master.apk', files: noNative }], file => {
+    const result = auditDeliveredApkSet(file, '/bin/true', '/bin/true');
+    assert.equal(result.status, 'PASS_DEFAULT_APK_SET_BINARY_ONLY');
+    assert.equal(result.apkCount, 2);
+    assert.equal(result.nativeApkCount, 1);
+    assert.equal(result.checked64BitElf, 1);
+    assert.equal(result.googlePlayAcceptance, 'NOT_CHECKED');
+    assert.match(result.derivedApkSignature, /NOT_PLAY_SIGNER/);
+  });
+});
+test('actual default APK set containing old 4KB nativegauss fails even with other split present', () => {
+  withApks([{ name: 'splits/base-arm64_v8a.apk', files: badNative }, { name: 'splits/base-master.apk', files: noNative }], file => {
+    assert.throws(() => auditDeliveredApkSet(file, '/bin/true', '/bin/true'), /DELIVERED_APK_ELF_NOT_16KB/);
+  });
+});
+test('all native-free splits refuse a misleading 16KB binary PASS', () => {
+  withApks([{ name: 'splits/base-master.apk', files: noNative }], file => {
+    assert.throws(() => auditDeliveredApkSet(file, '/bin/true', '/bin/true'), /DEFAULT_APKS_WITHOUT_NATIVE64/);
+  });
+});
+test('bad APK embedded within otherwise valid APKS fails closed', () => {
+  withApks([{ name: 'splits/base-arm64_v8a.apk', files: goodNative }, { name: 'splits/bad.apk', files: noNative, corrupt: true }], file => {
+    assert.throws(() => auditDeliveredApkSet(file, '/bin/true', '/bin/true'), /COMMAND_FAILED_UNZIP/);
+  });
+});
+test('real ZIP input with good native ABI fails if zipalign rejects a split', () => {
+  withApks([{ name: 'splits/base-arm64_v8a.apk', files: goodNative }], file => {
+    assert.throws(() => auditDeliveredApkSet(file, '/bin/false', '/bin/true'), /COMMAND_FAILED_FALSE/);
+  });
+});
+test('real ZIP input with good native ABI fails if apksigner rejects a split', () => {
+  withApks([{ name: 'splits/base-arm64_v8a.apk', files: goodNative }], file => {
+    assert.throws(() => auditDeliveredApkSet(file, '/bin/true', '/bin/false'), /COMMAND_FAILED_FALSE/);
+  });
+});
+test('rejects absent APKS before any successful claim', () => {
+  assert.throws(() => auditDeliveredApkSet('/file/does/not/exist.apks', '/bin/true', '/bin/true'), /COMMAND_FAILED_UNZIP/);
 });
