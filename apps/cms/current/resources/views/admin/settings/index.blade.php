@@ -51,6 +51,12 @@
                     <span><strong>Žiro računi</strong><small>Računi koji se koriste u poslovnim dokumentima i plaćanju.</small></span>
                 </a>
                 @if($settingsUser?->hasRole('superadmin'))
+                <a class="settings-hub-card" href="{{ route('admin.settings.public-storefront.index') }}" data-settings-item data-settings-keywords="javna prodavnica katalog korpa porucivanje uslovi trgovac privatnost dostava placanje webshop">
+                    <span class="settings-hub-icon"><x-icon name="shopping-bag" /></span>
+                    <span><strong>Javna prodavnica</strong><small>Odvojeno podešavanje uslova trgovca bez uključivanja javne prodaje.</small></span>
+                </a>
+                @endif
+                @if($settingsUser?->hasRole('superadmin'))
                 <a class="settings-hub-card" href="{{ route('admin.settings.couriers.index') }}" data-settings-item data-settings-keywords="kurir kurirske službe tracking praćenje pošiljka post express d express bex aks gls">
                     <span class="settings-hub-icon"><x-icon name="truck" /></span>
                     <span><strong>Kurirske službe</strong><small>Dodavanje kurira, redosled, podrazumevani kurir i zvanični tracking linkovi.</small></span>
