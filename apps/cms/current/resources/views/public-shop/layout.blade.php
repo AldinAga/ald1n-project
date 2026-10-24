@@ -7,6 +7,7 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>@yield('title', 'Katalog') · {{ config('app.name', 'Ald1n') }}</title>
 <link rel="stylesheet" href="{{ asset('assets/css/ald1n-public-storefront.css') }}">
+@stack('head')
 </head>
 <body class="public-retail">
 <a class="skip" href="#content">Preskoči navigaciju</a>
