@@ -1,3 +1,11 @@
+# CURRENT B812 — new registered Kupac Chromium source committed; exact-head QA pending
+
+Updated 2026-10-24. [Report822](822-BATCH812-REGISTERED-KUPAC-CHROMIUM-QA-20261024.md) tracks B812 real-browser integration at Draft [PR93](https://github.com/AldinAga/ald1n-project/pull/93), source `76be91d1fe434708dd5f4a47ea635bb59f1fbfd6`. [Exact-head Chromium workflow](https://github.com/AldinAga/ald1n-project/actions/runs/40102331513) was queued when recorded — **no B812 CI PASS claim**. B812 adds a separate disposable registered buyer browser/activation/checkout/replay/role scenario while retaining the failing historical guest-positive Chromium step. No production writes/merge/deploy/SMTP/SSH/Android/OTA/Play; storefront OFF. One optional test-postcheck edit was safety-blocked and NOT bypassed.
+
+**B811 is now verified:** B809+B810 12/160 PASS plus B811 4/91 PASS, exact run 40101779104, but its workflow as a whole FAILS on untouched old guest assumptions. All existing full-CI/security/merchant/backup/FPM/UAT gates remain HOLD. Accepted functional milestones remain **7/17=41.2% overall, 7/15=46.7% CMS, initial UI6/6=100%**.
+
+---
+
 # CURRENT B811 — new registered-buyer lifecycle QA committed; CI pending, production HOLD
 
 Updated 2026-10-24. [Report821](821-BATCH811-REGISTERED-BUYER-LIFECYCLE-QA-20261024.md) tracks the new B811 synthetic end-to-end tests and existing grouped MariaDB workflow addition on Draft [PR93](https://github.com/AldinAga/ald1n-project/pull/93), candidate `71e5c92364384ee189486671021e69fff2db036c`. [Exact-head B811 workflow](https://github.com/AldinAga/ald1n-project/actions/runs/40101779104) started; **B811 CI NOT YET VERIFIED; do not claim PASS**. Four new scenarios cover registration/activation/login/checkout, expired token/resend throttle, cross-account replay, and changed merchant policy. No historical guest fixtures rewritten; five old workflow failures and 48 guest-assumption test identities from B810 remain unresolved pending fresh results. No production writes, SMTP send, merge, SSH or storefront ON. Accepted program **7/17=41.2%**, CMS **7/15=46.7%**, original UI **6/6=100%**. B810 Report820 remains the previous fully reported exact-source QA authority.
