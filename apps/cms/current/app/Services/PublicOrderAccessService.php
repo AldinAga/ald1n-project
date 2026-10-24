@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\PublicOrderAccess;
+use App\Models\User;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -52,6 +53,24 @@ final class PublicOrderAccessService
             ->where('sales_channel','public_retail')
             ->whereNull('purged_at')->first();
         abort_unless($order instanceof Order,404);
+        // B809: a token for a registered Kupac purchase is not an anonymous
+        // login. Legacy null-user receipts remain read-only and capability
+        // bounded, but current buyer orders require the matching active account.
+        if ($order->user_id !== null) {
+            $actor=request()->user();
+            abort_unless($actor instanceof User
+                && (int)$actor->getKey()===(int)$order->user_id
+                && $actor->status==='active' && $actor->retired_at===null
+                && $actor->hasRole('customer'),404);
+            $tracked=false;
+            try {
+                $tracked=app(PortalSessionService::class)
+                    ->validateAndTouch(request(),$actor);
+            } catch (\Throwable) {
+                // A missing/invalid registry is never a bearer bypass.
+            }
+            abort_unless($tracked,404);
+        }
         return $order;
     }
 
