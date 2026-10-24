@@ -59,19 +59,20 @@ jobs:
           test "$DB_HOST" = 127.0.0.1
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l tests/Feature/StorefrontSecurityB806Test.php
+          php -l tests/Feature/StorefrontNotificationOriginB806Test.php
           php -l app/Http/Controllers/PublicCheckoutController.php
           php -l app/Http/Middleware/SecurityHeaders.php
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           mkdir -p "$RUNNER_TEMP/b806-evidence/source"
           git rev-parse HEAD > "$RUNNER_TEMP/b806-evidence/source-head.txt"
-          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php "$RUNNER_TEMP/b806-evidence/source/"
+          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/.github/workflows/b806-storefront-security-qa.yml" "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md" "$RUNNER_TEMP/b806-evidence/"
       - name: Synthetic security checks with actual Laravel and MariaDB
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b806-security-junit.xml" tests/Feature/StorefrontSecurityB806Test.php > "$RUNNER_TEMP/b806-evidence/b806-security.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b806-evidence/b806-security.log"; exit 1; }
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b806-security-junit.xml" tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php > "$RUNNER_TEMP/b806-evidence/b806-security.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b806-evidence/b806-security.log"; exit 1; }
           tail -n 8 "$RUNNER_TEMP/b806-evidence/b806-security.log"
       - name: Preserve synthetic evidence and exact changed source
         if: always()
