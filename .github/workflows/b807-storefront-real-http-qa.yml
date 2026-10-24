@@ -1,0 +1,114 @@
+name: B807 real HTTP storefront CSRF and rate controls (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/b807-storefront-real-http-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b807-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  real-http-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      B807_ISOLATED: '1'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_URL: http://127.0.0.1:8873
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      SESSION_SECURE_COOKIE: 'false'
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+      PUBLIC_STOREFRONT_ENABLED: 'true'
+      PUBLIC_CHECKOUT_ENABLED: 'true'
+      PUBLIC_CHECKOUT_TERMS_URL: https://cms.ald1n.com/uslovi
+      PUBLIC_CHECKOUT_PRIVACY_URL: https://cms.ald1n.com/privatnost
+      PUBLIC_CHECKOUT_SHIPPING_FEE_RSD: '0'
+      PUBLIC_CHECKOUT_SHIPPING_DESCRIPTION: Synthetic B807 approved delivery only
+      PUBLIC_CHECKOUT_PAYMENT_METHODS: cash_on_delivery
+      PUBLIC_CHECKOUT_DELIVERY_METHODS: courier,own_transport,customer_pickup
+      PUBLIC_CHECKOUT_SUPPORT_EMAIL: support@example.test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Isolated dependencies syntax and guardrails
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing && test "$B807_ISOLATED" = 1
+          test "$DB_DATABASE" = ald1n_test && test "$DB_HOST" = 127.0.0.1
+          test "$SESSION_DRIVER" = file && test "$CACHE_STORE" = file
+          test "$APP_URL" = http://127.0.0.1:8873
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php -l tests/Support/B807HttpSeed.php
+          php -l tests/Support/B807HttpProbe.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          mkdir -p "$RUNNER_TEMP/b807-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/b807-evidence/source-head.txt"
+      - name: Real HTTP CSRF session and private throttling
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php tests/Support/B807HttpSeed.php "$RUNNER_TEMP/b807-evidence/product-id.txt" > "$RUNNER_TEMP/b807-evidence/seed.log" 2>&1 || { tail -n 20 "$RUNNER_TEMP/b807-evidence/seed.log"; exit 1; }
+          php -S 127.0.0.1:8873 -t public public/index.php > "$RUNNER_TEMP/b807-evidence/http-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8873/up >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1 || { echo B807_HTTP_SERVER_HOLD; tail -n 15 "$RUNNER_TEMP/b807-evidence/http-server.log"; exit 1; }
+          export B807_SOURCE_SHA
+          B807_SOURCE_SHA=$(git rev-parse HEAD)
+          php tests/Support/B807HttpProbe.php "$RUNNER_TEMP/b807-evidence/product-id.txt" "$RUNNER_TEMP/b807-evidence/http-proof.json" > "$RUNNER_TEMP/b807-evidence/http-probe.log" 2>&1 || { tail -n 20 "$RUNNER_TEMP/b807-evidence/http-probe.log"; exit 1; }
+          tail -n 2 "$RUNNER_TEMP/b807-evidence/http-probe.log"
+          echo 'NO_PRODUCTION_WRITES=PASS NO_CUSTOMER_MAIL=PASS'
+      - name: Preserve compact synthetic evidence and reviewed test sources
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b807-real-http-security-evidence
+          path: |
+            ${{ github.workspace }}/apps/cms/current/tests/Support/B807HttpSeed.php
+            ${{ github.workspace }}/apps/cms/current/tests/Support/B807HttpProbe.php
+            ${{ github.workspace }}/.github/workflows/b807-storefront-real-http-qa.yml
+            ${{ runner.temp }}/b807-evidence/source-head.txt
+            ${{ runner.temp }}/b807-evidence/seed.log
+            ${{ runner.temp }}/b807-evidence/http-probe.log
+            ${{ runner.temp }}/b807-evidence/http-proof.json
+          retention-days: 3
+      - name: Production boundary
+        if: always()
+        run: echo 'LOCALHOST_ONLY SYNTHETIC_DB NO_PRODUCTION_ATTACK NO_CUSTOMER_MAIL NO_DEPLOY NO_OTA_NO_CLEANUP'
