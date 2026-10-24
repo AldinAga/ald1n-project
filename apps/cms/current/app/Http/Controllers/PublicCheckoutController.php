@@ -77,7 +77,10 @@ final class PublicCheckoutController extends Controller
         $token=$result['token'];
         if ($result['created']) {
             try {
-                $link=route('public-shop.order.show',['token'=>$token]);
+                // Mail links carry a private capability: never derive their origin
+                // from Host/Forwarded headers supplied by the requesting client.
+                $receiptPath=route('public-shop.order.show',['token'=>$token],false);
+                $link=rtrim((string)config('app.url'),'/').$receiptPath;
                 $body="Vaša porudžbina ".$order->order_number." je primljena.\n"
                     ."Ukupna vrednost artikala: ".number_format((float)$order->subtotal_rsd,2,',','.')." RSD.\n"
                     ."Status: nova, plaćanje još nije potvrđeno.\n"
@@ -115,7 +118,10 @@ final class PublicCheckoutController extends Controller
                 ]);
             }
         }
-        return redirect()->route('public-shop.order.show',['token'=>$token])
+        // Use an internally generated relative Location; Redirector::to()
+        // would turn it back into an absolute URL using the untrusted Host.
+        return (new RedirectResponse(route('public-shop.order.show',['token'=>$token],false)))
+            ->setSession($request->session())
             ->with('status','Porudžbina je primljena. Sačuvajte privatnu vezu za praćenje.');
     }
 }

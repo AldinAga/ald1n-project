@@ -22,6 +22,16 @@ final class SecurityHeaders
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
         $headers->set('Content-Security-Policy', "base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com");
 
+        // Session-specific carts and checkout forms contain CSRF tokens,
+        // purchase nonces and sometimes redisplayed buyer data. Revalidation
+        // alone (no-cache) still permits storage, so prohibit storage explicitly.
+        if ($request->routeIs('public-shop.cart', 'public-shop.cart.*',
+            'public-shop.checkout', 'public-shop.checkout.*')) {
+            $headers->set('Cache-Control', 'private, no-store, max-age=0');
+            $headers->set('Pragma', 'no-cache');
+            $headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        }
+
         // Guest order pages contain a bearer credential in the path.
         // Prevent any referrer exposure even to other same-origin routes.
         if ($request->routeIs('public-shop.order.*')) {
