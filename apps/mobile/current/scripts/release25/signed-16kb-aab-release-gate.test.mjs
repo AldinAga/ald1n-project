@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { extractSignerFingerprints, verifySignedJarOutput, parseBundleConfig, parseManifestValue, parseReleaseArgs, shaFile, selectDeliveredApks, auditDeliveredApkSet } from './signed-16kb-aab-release-gate.mjs';
+import { extractSignerFingerprints, verifySignedJarOutput, parseBundleConfig, parseManifestValue, parseReleaseArgs, shaFile, selectDeliveredApks, auditDeliveredApkSet, createEphemeralApkSigning } from './signed-16kb-aab-release-gate.mjs';
 
 const TEST_CERTIFICATE = `-----BEGIN CERTIFICATE-----
 MIIDHzCCAgegAwIBAgIUKJwqsiTT9fzQpiZmj3eisFhmlfUwDQYJKoZIhvcNAQEL
@@ -226,4 +226,26 @@ test('real ZIP input with good native ABI fails if apksigner rejects a split', (
 });
 test('rejects absent APKS before any successful claim', () => {
   assert.throws(() => auditDeliveredApkSet('/file/does/not/exist.apks', '/bin/true', '/bin/true'), /COMMAND_FAILED_UNZIP/);
+});
+
+// B834: The binary release gate must explicitly sign every locally generated
+// bundletool APK, while never confusing that temporary identity with Play.
+test('bundletool-derived APKs use a generated temporary signer, never the release AAB key', () => {
+  const invocations = [];
+  const result = createEphemeralApkSigning('/tmp/ald1n-ci-test-dir',
+    (program, args) => invocations.push({ program, args }), 'testonlypassword1234');
+  assert.equal(invocations.length, 1);
+  assert.equal(invocations[0].program, 'keytool');
+  assert.ok(invocations[0].args.includes('-genkeypair'));
+  assert.ok(invocations[0].args.includes('PKCS12'));
+  assert.ok(invocations[0].args.includes('3072'));
+  assert.ok(result.args.some(a => a.startsWith('--ks=')));
+  assert.ok(result.args.some(a => a === '--ks-pass=pass:testonlypassword1234'));
+  assert.match(result.role, /NOT_GOOGLE_PLAY/);
+});
+
+test('empty, short or unsafe temporary keystore password cannot pass release preflight', () => {
+  assert.throws(() => createEphemeralApkSigning('/tmp', () => {}, ''), /INVALID_EPHEMERAL_SIGNING_PASSWORD/);
+  assert.throws(() => createEphemeralApkSigning('/tmp', () => {}, 'short'), /INVALID_EPHEMERAL_SIGNING_PASSWORD/);
+  assert.throws(() => createEphemeralApkSigning('/tmp', () => {}, 'test\ninvalid_password'), /INVALID_EPHEMERAL_SIGNING_PASSWORD/);
 });
