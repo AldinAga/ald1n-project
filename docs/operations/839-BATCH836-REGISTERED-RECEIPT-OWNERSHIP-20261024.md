@@ -4,12 +4,12 @@ Date: 2026-10-24. SOURCE/CI-ONLY. Canonical GitHub authority before B836: `main`
 
 ## Actual product/security correction
 
-Draft storefront [PR #93](https://github.com/AldinAga/ald1n-project/pull/93) latest B836 head `4df1c609d8d7d816ec860d36a4d41c2ca23241a3`. Changed five files in this batch (three production source paths, one new regression test, one isolated CI workflow):
+Draft storefront [PR #93](https://github.com/AldinAga/ald1n-project/pull/93) verified B836 head `aaf4bc9a19d44d04e7c4ce042e2ec4a91e0323bb`. Changed five files in this batch (three production source paths, one new regression test, one isolated CI workflow):
 
-1. `apps/cms/current/app/Services/PublicOrderAccessService.php`: a registered Kupac order's private capability link now requires an authenticated actor whose user ID matches the order, active/non-retired customer role and a live `PortalSessionService::validateAndTouch` browser session. Anonymous, another user, staff, retired buyer and missing/revoked session are `404` for order, document and warranty. Historical `public_retail` records without a `user_id` retain their existing token-limited, revocable read path. A token cannot be used to create or modify an order.
+1. `apps/cms/current/app/Services/PublicOrderAccessService.php`: a registered Kupac order's private capability link now requires an authenticated actor whose user ID matches the order, active/non-retired customer role and a live `PortalSessionService::validateAndTouch` browser session. Anonymous visitors, other users, staff and retired buyers receive `404` for current registered-buyer order, document and warranty views. A real user logout closes the receipt. A missing registry table or a matching explicitly revoked current session fails closed; do not equate merely deleting a session row in the PHPUnit array-session fixture with a logout, because `validateAndTouch` may legitimately bootstrap a still-authenticated session. Historical `public_retail` records without a `user_id` retain their existing token-limited, revocable read path. A token cannot be used to create or modify an order.
 2. `apps/cms/current/app/Http/Controllers/PublicCheckoutController.php`: confirmation email and checkout success message explain same-account login for the private order link; trusted origin and existing checkout restrictions retained.
 3. `apps/cms/current/app/Services/PublicRetailCheckoutService.php`: newly created order history now says registered Kupac rather than `bez registracije`.
-4. `apps/cms/current/tests/Feature/PublicRegisteredReceiptBoundaryB836Test.php`: four PHP 8.4/MariaDB negative/positive tests for anonymous and cross-account denial, live buyer session and registry revocation, retired buyer. Standalone PHP syntax `PASS`.
+4. `apps/cms/current/tests/Feature/PublicRegisteredReceiptBoundaryB836Test.php`: four PHP 8.4/MariaDB tests for anonymous and cross-account denial, legitimate buyer login then real logout, and retired buyer. Test assertions were refined after two exact CI failures caused by fixture assumptions (hardcoded post-login redirect, and simulated session-row deletion/rotation); no denied test was touched. Standalone PHP syntax `PASS`.
 5. `.github/workflows/b836-registered-receipt-qa.yml`: new source-only PHP 8.4/MariaDB 10.11.19 integration workflow with synthetic data, exact PR checkout, JUnit evidence and no production effects.
 
 This is a distinct B809 registered-buyer product-access fix. Previously provider-denied `BuyerCheckoutSessionBoundaryB815Test.php` and legacy guest-positive fixtures have **not** been edited, deleted, skipped or bypassed. All historical global CI failures remain release HOLD and cannot be reclassified as PASS.
@@ -17,10 +17,10 @@ This is a distinct B809 registered-buyer product-access fix. Previously provider
 ## Exact evidence checkpoint
 
 - Test-file PHP syntax: **PASS**; CI YAML parse: **PASS**; ZIP integrity: **PASS**.
-- New isolated CI workflow: [run 40136427573](https://github.com/AldinAga/ald1n-project/actions/runs/40136427573), **QUEUED** at last verified checkpoint; no integration PASS asserted until executed.
+- New isolated scoped [GitHub CI run 40136917704](https://github.com/AldinAga/ald1n-project/actions/runs/40136917704), exact test commit `aaf4bc9a19d44d04e7c4ce042e2ec4a91e0323bb`: **PASS, 4 PHPUnit tests / 25 assertions / 0 failures**, PHP 8.4.27 and MariaDB 10.11.19, with an unmodified source checkout. GitHub job `121000271360`; log confirms `B836_REGISTERED_RECEIPT_SCOPED=PASS_ONLY_ALL_OTHER_CI_AND_RELEASE_GATES_STILL_REQUIRED`. This scoped pass is not a full PR93 CI pass.
 - Existing full PR93 checks still report historical B809-contradicting guest tests and other failures, so M13-M15 cannot close. PR93 remains draft/unmerged; PR98 remains a separate draft.
-- B835 Android source CI 58/58 PASS, full native/emulator [run 40135270378](https://github.com/AldinAga/ald1n-project/actions/runs/40135270378) **IN_PROGRESS** during `assembleDebug` at last checkpoint. No 16KB emulator/Play/signed-AAB PASS is inferred.
-- Google Drive source/test archive: [B836 ZIP](https://drive.google.com/file/d/17_ogetw2QipVgzW5mOoPwZ3mTOuozPat/view?usp=drivesdk), 5,692 bytes, SHA256 `a632f373468527f2090dd97b91b86437ce6ec9b3e91e8ca2204c281a92ecf92f`.
+- B835 Android source CI 58/58 PASS, full native/emulator [run 40135270378](https://github.com/AldinAga/ald1n-project/actions/runs/40135270378) **IN_PROGRESS** at the offline Android 15 16KB emulator smoke step at latest B836 report checkpoint; `Prepare KVM` was PASS. No emulator final PASS/Play/signed-production-AAB PASS is inferred.
+- Google Drive source/test archive: [B836 final v4 ZIP](https://drive.google.com/file/d/187wkGQ2i557-fKC3LVHk4UeqwTbfCin4/view?usp=drivesdk), **5,823 bytes**, SHA256 `b87ac7a11c8cd4743620968572ead7af970da45c03516c6750a49626357701c7`. Supersedes earlier v1/v3 archives.
 
 ## Release boundaries and progress
 
@@ -30,7 +30,7 @@ Acceptance ledger: **7/17 = 41.2% overall; 7/15 = 46.7% CMS; original UI 6/6 = 1
 
 ## Next unblocked gates
 
-1. Finish B836 isolated MariaDB CI, fixing any defect in the new implementation without modifying denied historical fixtures. Existing global failures remain explicit.
+1. B836 isolated MariaDB PASS is complete; keep PR93 DRAFT and correct only permitted distinct security issues without touching provider-denied historical fixture rewrites. Full storefront/global CI, explicit merchant/SMTP/OWASP security gates and release activation remain HOLD.
 2. Resolve B835 full-native emulator CI by its exact final log (do not assume it passed); inspect only verified errors, no duplicate native builds.
 3. After CI and authorized source/version/release gate, perform one signed EAS build and post-build checks. Do not auto-authorize native build or Play submit.
 
