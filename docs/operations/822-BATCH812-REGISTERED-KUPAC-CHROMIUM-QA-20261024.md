@@ -70,3 +70,10 @@ Drive source snapshot: https://docs.google.com/document/d/1WNI9wCo4XUrNh4xu9NxDv
 The attempted automatic direct ZIP-to-Drive artifact upload did not complete because the connector's file_uri validation requires a string while the source connector returned an object. No upload success is claimed; GitHub artifact remains authoritative and user-downloadable in the current conversation. The report and source snapshot DID save to Drive and were verified by readback.
 
 MERGE_RELEASE=HOLD. Preserve Draft PR93, current production B798 OFF, historical failures and pentest/merchant/SMTP/restore/FPM/UAT gates. Owner involvement unnecessary; no SSH.
+
+## B813 archival follow-up — original B812 evidence uploaded and verified
+
+The earlier B812 screenshot ZIP Drive upload failed because it passed a connector `file_uri` object to an upload argument that expected its string `file_id`. On 2026-10-24 the exact existing GitHub Actions artifact **12563143389** was downloaded without alteration and the proper connector file reference string was used. Google Drive **accepted the ZIP**, and independent Drive metadata readback verified its identity and MIME type:
+[B812 Chromium screenshots ZIP — Google Drive](https://drive.google.com/file/d/1-Y4eyttGbio00uixEW2CGH_8SeUarTu-/view).
+
+This closes the ZIP archival transport issue only. It does not change the B812 source, synthetic browser PASS, original guest fixture failure, production HOLD or the separately safety-denied B805 archive action. This later archival result supersedes the earlier statement that B812 ZIP had not yet been saved on Drive.
