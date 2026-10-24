@@ -28,7 +28,11 @@ final class SecurityHealthBackupTest extends TestCase
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
-            ->assertHeader('Referrer-Policy', 'same-origin')
+            // B816 strengthened the login privacy boundary: the old
+            // same-origin expectation is no longer the approved policy.
+            ->assertHeader('Referrer-Policy', 'no-referrer')
+            ->assertHeader('Cache-Control', 'private, no-store, max-age=0')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive')
             ->assertHeader('X-Request-ID');
     }
 
