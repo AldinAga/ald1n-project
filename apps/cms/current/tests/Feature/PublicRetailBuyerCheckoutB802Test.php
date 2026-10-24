@@ -65,8 +65,18 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
         self::assertDatabaseCount('order_payments',0);
         self::assertDatabaseCount('order_shipments',0);
         self::assertDatabaseCount('order_deliveries',0);
-        $this->get($response->headers->get('Location'))->assertOk()->assertSee('Lično preuzimanje');
+        $privateUrl=$response->headers->get('Location');
+        $this->get($privateUrl)->assertOk()->assertSee('Lično preuzimanje');
         $this->get('/catalog')->assertForbidden();
+        $this->actingAs($this->owner)->get('/admin/orders/'.$order->id)->assertOk()
+            ->assertSee('Lično preuzimanje');
+        self::assertNull($order->fresh()->customer_note,
+            'Operator display must not silently alter stored customer notes.');
+        $this->post('/admin/settings/public-storefront/toggle',['enabled'=>'0'])->assertRedirect();
+        $this->get('/katalog')->assertNotFound();
+        $this->get('/porucivanje')->assertNotFound();
+        $this->get($privateUrl)->assertOk();
+        self::assertDatabaseCount('orders',1);
     }
 
     public function test_missing_disabled_or_forged_delivery_method_does_not_create_an_order(): void
@@ -97,6 +107,33 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
         self::assertSame(today()->addDays(14)->toDateString(),$order->payment_due_at->toDateString());
         self::assertDatabaseCount('order_payments',0);
         self::assertDatabaseCount('order_commissions',0);
+    }
+
+    public function test_duplicate_nonce_cannot_switch_delivery_or_buyer_identity(): void
+    {
+        $this->actingAs($this->buyer);
+        [$data]=$this->form();
+        $payload=$data+['delivery_method'=>'customer_pickup'];
+        $this->post('/porucivanje',$payload)->assertRedirect();
+        $this->postJson('/porucivanje',array_replace($payload,['delivery_method'=>'courier']))
+            ->assertUnprocessable()->assertJsonValidationErrors('checkout');
+        $other=$this->actor('b802-other-buyer','customer');
+        $this->actingAs($other)->postJson('/porucivanje',$payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('checkout');
+        self::assertDatabaseCount('orders',1);
+        self::assertSame((int)$this->buyer->id,(int)Order::query()->sole()->user_id);
+        self::assertSame('customer_pickup',PublicCheckoutAttempt::query()->sole()->delivery_method);
+        self::assertSame(2,(int)$this->product->fresh()->stock_quantity);
+    }
+
+    public function test_deferred_terms_cannot_be_invented_by_checkout_or_missing_merchant_fields(): void
+    {
+        config()->set('public_storefront.payment_methods',['deferred_payment']);
+        config()->set('public_storefront.deferred_payment_days',null);
+        config()->set('public_storefront.deferred_payment_terms',null);
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['complete']);
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
+        self::assertDatabaseCount('orders',0);
     }
 
     private function form(): array

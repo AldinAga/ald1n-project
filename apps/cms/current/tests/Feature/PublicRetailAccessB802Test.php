@@ -83,7 +83,7 @@ final class PublicRetailAccessB802Test extends TestCase
         $customer=$this->actor('b802-api-buyer','customer',1);
         \Laravel\Sanctum\Sanctum::actingAs($customer,['*']);
         foreach (['/api/v1/bootstrap','/api/v1/global-search?q=test',
-            '/api/v1/admin/foundation','/api/v1/catalog'] as $path) {
+            '/api/v1/admin/foundation','/api/v1/products'] as $path) {
             $this->getJson($path)->assertForbidden();
         }
         self::assertSame([],$customer->permissionSlugs());
@@ -129,6 +129,7 @@ final class PublicRetailAccessB802Test extends TestCase
         $this->post('/admin/settings/public-storefront/toggle',['enabled'=>'0'])
             ->assertRedirect()->assertSessionHasNoErrors();
         self::assertFalse(app(\App\Services\PublicStorefrontStateService::class)->isOpen());
+        self::assertDatabaseHas('audit_logs',['action'=>'settings.public_storefront_toggled']);
     }
 
     private function actor(string $name,string $slug,?int $group=null): User
