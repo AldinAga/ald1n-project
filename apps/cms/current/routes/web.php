@@ -48,6 +48,7 @@ use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\TurnstileSettingsController;
 use App\Http\Controllers\Admin\SettingsHubController;
 use App\Http\Controllers\Admin\ModuleSettingsController;
+use App\Http\Controllers\Admin\PublicMerchantSettingsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\UserGroupController;
 use App\Http\Controllers\Admin\WarrantyController as AdminWarrantyController;
@@ -480,6 +481,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         Route::get('/settings', [SettingsHubController::class, 'index'])->name('settings.index');
 
         Route::prefix('settings')->name('settings.')->middleware('permission:system.manage_settings')->group(function (): void {
+            Route::get('/public-storefront', [PublicMerchantSettingsController::class, 'index'])
+                ->name('public-storefront.index');
+            Route::put('/public-storefront', [PublicMerchantSettingsController::class, 'update'])
+                ->middleware('throttle:admin-write')->name('public-storefront.update');
             Route::get('/modules', [ModuleSettingsController::class, 'index'])->name('modules.index');
             Route::put('/modules', [ModuleSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('modules.update');
             Route::get('/automation', [AutomationController::class, 'index'])->middleware('permission:automation.manage')->name('automation.index');
