@@ -1,20 +1,11 @@
-# CURRENT B807 — grouped real-HTTP security PASS; full pentest and rollout OPEN
+# CURRENT B808 — operator retail checkout authorization fixed; QA PASS; full pentest and production HOLD
 
-Updated:2026-10-24. Authority: root AGENTS.md, operations [AGENTS supplement](AGENTS.md), [Report817](817-BATCH807-REAL-HTTP-SECURITY-GROUPED-QA-20261024.md), [penetration plan](../security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md) and original Drive runbook.
+Updated: 2026-10-24. Source authority [PR93](https://github.com/AldinAga/ald1n-project/pull/93) still DRAFT, not merged/deployed, exact head fa05307efafc067bf13437fe0851543f6e594af8. Read root AGENTS.md, operations supplement, [Report818](818-BATCH808-STOREFRONT-ROLE-IDOR-OWASP-CENSUS-20261024.md), [finding](../security/STOREFRONT-SECURITY-FINDING-B808-20261024.md), [OWASP control register](../security/STOREFRONT-WSTG42-ASVS500-L2-CENSUS-B808.csv) and canonical Drive runbook.
 
-## Current source and security evidence
+- B808 repaired logged-in internal operator public checkout impersonation. SuperAdmin/Admin/SubAgent public GET+POST checkout and domain service deny403 when ON; global OFF404 remains for everyone. Customer Kupac and guest checkout preserved; private documents from another retail order and cancelled documents return404.
+- RED3 on exact predecessor verified; final grouped B806-B808 synthetic test24/324 PASS, B807 HTTP20/20 PASS, exact-source14/14 CI success. Full regression baseline451/44 inherited problems -> candidate483/42 inherited; ZERO NEW failures, whole legacy suite NOT green. Only2 runtime files changed, no migration.
+- Initial control catalog **115 WSTG4.2 +253 ASVS5.0.0 Level1/2 =368**, each applicability REVIEW_REQUIRED, status NOT_RUN until item-level testing. See verified [Drive copy](https://docs.google.com/document/d/1Yrh5NOf0UekBJFk4cPDcYluwGmGPC6jEmpea4bK-OH4/edit). Partial tests are not a completed full pentest.
+- Production remains B798, public OFF; Report815 earlier already passed B804 backup/source prerequisites; do not repeat. B805 deployment payload is stale, and public merchant/legal/privacy/shipping/real payment terms, full pentest, restore drill, PHP-FPM/OPcache source attestation and buyer UAT remain separate gates. No SSH/production/change/cleanup in B808.
+- Accepted program 7/17=41.2%, CMS7/15=46.7%, initial UI6/6=100%. Batch QA not counted as new final accepted functional milestone. Next B809: classify control census, continue synthetic IDOR/warranty/payment/input/DAST/SCA tests and patch/retest; no production attack. Final large inode cleanup issue95 stays deferred.
 
-- [PR93](https://github.com/AldinAga/ald1n-project/pull/93) remains DRAFT, NOT MERGED OR DEPLOYED, exact head `89e8f7cbfe5f0c610835187775acfb4d43ae9232`. B807 adds test-only PHP helpers and groups their real HTTP checks into B806 CI; application runtime files changed=0.
-- B807 localhost MariaDB/PHP HTTP **20/20 PASS**: missing/bad CSRF returns419; valid session/cart persists; anonymous SuperAdmin settings cannot be changed; unsafe GET cannot mutate cart; 30 nonexistent private capability requests404, next429 with Retry-After; private referrer and no-store checks; zero synthetic sales/payment/stock writes.
-- Existing targeted security17 PHPUnit tests/205 assertions PASS. **All14 exact-head CI workflows SUCCESS.** Full CMS comparison451 baseline cases/44 problems against476 candidate cases/42 inherited problems, **zero new failure identities**. The whole legacy suite is **NOT globally green**.
-- [Report817](817-BATCH807-REAL-HTTP-SECURITY-GROUPED-QA-20261024.md) contains direct immutable job/artifact IDs and Drive archive links. Full security inventory, scanner review, broader role/IDOR and infrastructure gates remain OPEN. No claim of independent penetration certification.
-- New owner rule: group routine tests in existing coherent jobs and summarize tool outputs; preserve every negative test, complete failure evidence and strict release checks. See operations AGENTS supplement. Avoid duplicating green checks or inflating CI job count.
-
-## Host and acceptance
-
-- Production remains owner-certified B798, source `c4a5f060cc00b5d1be0e4d8068309524a4b99c99`; storefront OFF as last independently host-attested. Original owner Report815 already PASS for B804 source44-path and two logical backups166/165. No restore drill, FPM/OPcache provenance or customer UAT yet; do NOT repeat earlier host work.
-- Original B805 local OFF-release package is stale after B806 application corrections. Only regenerate exact-source release materials after outstanding security and business gates. No production source/DB/settings mutation, SSH script, build/OTA/Play or inode deletion in B807.
-- **Acceptance progress: program7/17=41.2%; CMS7/15=46.7%; earlier UI6/6=100%.** These are accepted milestones M01-M07, not completed batch counts or estimated total engineering effort. B807 security work adds genuine evidence toward M13-M15 but not production acceptance.
-- Next: continue WSTG4.2/ASVS5.0.0 Level2 applicability census and selected role/business penetration tests in synthetic isolation, remediate and retest defects, then controlled OFF rollout and actual host/UAT acceptance. Final giant inode cleanup remains mandatory separately under issue95, not now.
-
-Previous index archived byte-identically as [archive/000-LATEST-PRE-B807-20261024.md](archive/000-LATEST-PRE-B807-20261024.md).
+Previous index byte-identical archive: [archive/000-LATEST-PRE-B808-20261024.md](archive/000-LATEST-PRE-B808-20261024.md).

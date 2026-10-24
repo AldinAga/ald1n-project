@@ -48,3 +48,9 @@ For every subsequent Ald1n batch, group related routine source/CI/security check
 - Present concise grouped tool summaries (PASS/FAIL/HOLD, exact commit, tested scope and gate) instead of pasting voluminous logs; record expanded diagnostics only as private, expiring CI evidence or canonical archival reports when truly necessary.
 - Use brief durable reports with paths/hashes and links to deeper artifacts; never drop failures, inherited regression identities, RED/GREEN evidence, security findings, restore/rollback or legal/merchant gates to make output look cleaner.
 - Stop rerunning already accepted batches. Continue on fresh PR head, preserve exact source and CI evidence; no new SSH operator handoff unless it is genuinely required and verified.
+
+## Permanent B808 retail identity and real-MariaDB fixture contract — 2026-10-24
+
+A logged-in SubAgent/user, Administrator or SuperAdministrator must NEVER be converted to anonymous buyer_id=null through public checkout. Public purchasing accepts real anonymous guest or active non-retired Kupac/customer only. Guard public GET checkout, POST checkout, AND domain checkout service. First honor OFF=>404 uniformly for all roles, then invalid authenticated role=>403 when ON. Do not weaken original internal sales, commissions or payment ledger. Verify with prior-source RED and current-source GREEN plus negative stock/money invariants and cross-order document 404.
+
+Real MariaDB order document fixtures must provide actual mandatory financial snapshots and use the canonical status 'cancelled', not invented enum 'void'; never loosen production schema to make a test pass. Passing targeted tests do not satisfy the full OWASP inventory or authorize production ON.
