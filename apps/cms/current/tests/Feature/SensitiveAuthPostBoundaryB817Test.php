@@ -40,8 +40,14 @@ final class SensitiveAuthPostBoundaryB817Test extends TestCase
         string $path, array $payload
     ): void {
         $response=$this->post($path,$payload);
-        self::assertContains($response->status(),[302,422],
-            'Invalid sensitive POST must be rejected, not processed');
+        // Storefront remains OFF unless SuperAdmin approves activation.
+        // Registration must return uniform 404 in that state; other invalid
+        // credential submissions use Laravel validation redirects.
+        if ($path === '/registracija') {
+            self::assertSame(404,$response->status());
+        } else {
+            self::assertContains($response->status(),[302,422]);
+        }
         self::assertSame('no-referrer',$response->headers->get('Referrer-Policy'));
         self::assertStringContainsString('no-store',
             (string)$response->headers->get('Cache-Control'));
