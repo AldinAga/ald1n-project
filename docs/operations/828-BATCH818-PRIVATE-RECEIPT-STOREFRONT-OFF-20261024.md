@@ -9,7 +9,7 @@ SOURCE_FIXED=fab3f4991fe5792e28e5a402dbf402617fb5c303
 RED_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40115578447
 GREEN_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40115830200
 RED_SCOPE=5_TESTS_20_ASSERTIONS_2_FAILURES
-GREEN_SCOPE=PENDING_NOT_ATTESTED
+GREEN_SCOPE=5_TESTS_27_ASSERTIONS_PASS
 FULL_EXACT_HEAD_CI=PENDING_RELEASE_HOLD
 PRODUCTION=B798_STOREFRONT_OFF_UNCHANGED
 PR_STATE=DRAFT_UNMERGED
@@ -44,3 +44,17 @@ The exact GREEN workflow was still running at report creation. **Do not claim PA
 All listed Drive objects uploaded and verified by readback. Pending: GREEN ZIP and full B803 comparator final result, neither may be inferred from targeted source edits.
 
 Accepted functional stages stay program7/17=41.2%, CMS7/15=46.7%, initial UI6/6=100%. B818 is security engineering, not a new production-accepted milestone.
+
+## B818 GREEN source-locked proof — 2026-10-24
+
+[Exact-source B818 GREEN run40115830200](https://github.com/AldinAga/ald1n-project/actions/runs/40115830200), job120936783757: **5 PHPUnit tests / 27 assertions PASS** under PHP8.4/MariaDB10.11.19. The two earlier RED receipt access failures became GREEN after the single controller guard change. Tests also confirm the independent static ENV OFF flag, existing receipt access when only new checkout is closed, persistent revocation across OFF/reopen, and unchanged order/access rows after emergency OFF. This does NOT attest successful real private PDF rendering, which requires separate authorized artifact-level testing.
+
+The historical B806 security job still fails separately (24 old tests, 88 assertions, 1 error, 23 failures), previously inherited guest assumptions. None of these tests were modified, skipped, replaced or masked. B815 buyer-OFF test fixture correction remains provider safety-DENIED and was not retried or bypassed.
+
+Drive evidence archived AND independently read back:
+- [B818 RED original PHP8.4 MariaDB ZIP](https://drive.google.com/file/d/1jR-pO_QjV0oqoKDgKA4LiyMBCfH3q8AJ/view).
+- [B818 GREEN original PHP8.4 MariaDB ZIP](https://drive.google.com/file/d/1LoCPfNdlXd-o-9z5Pv5U3VatO2VuRxLo/view).
+- [B818 RED source snapshot](https://docs.google.com/document/d/1HqGskE2wrqHjzDY0C0RrOFEBoxpRtPMCfJfvU-crHJQ/edit).
+- [B818 GREEN source snapshot](https://docs.google.com/document/d/18Q3lC-9dGW1RzIi3BdbmUHP9Qn536b_gT1d36KlmNs0/edit).
+
+**Full exact-head 14-workflow CI**: still running when this addendum was authored, so do not infer or claim full-green status. Production B798/public storefront OFF unchanged, Draft PR93 unmerged. No SSH or production build.
