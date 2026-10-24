@@ -4,7 +4,7 @@
  * PASS is BINARY-ONLY; it cannot prove the EAS source commit or physical-device/Play acceptance.
  */
 import { spawnSync } from 'node:child_process';
-import { createHash, X509Certificate } from 'node:crypto';
+import { createHash, randomBytes, X509Certificate } from 'node:crypto';
 import { createReadStream, existsSync, mkdtempSync, openSync, closeSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -77,6 +77,25 @@ function command(program, args, options = {}) {
   if (r.error || r.status !== 0) hold('COMMAND_FAILED_' + path.basename(program).replace(/[^a-z0-9]/gi, '_').toUpperCase());
   return r.stdout;
 }
+/** bundletool does not promise an APK signer unless one is supplied.  The
+ * original AAB signer is checked separately.  Derived APKs get a disposable,
+ * locally generated CI-only key, removed together with the temporary outputs.
+ */
+export function createEphemeralApkSigning(tmp, run = command, password = randomBytes(24).toString('hex')) {
+  if (!/^[0-9a-zA-Z]{12,100}$/.test(password)) hold('INVALID_EPHEMERAL_SIGNING_PASSWORD');
+  const ks = path.join(tmp, 'ald1n-ci-derived-apks.p12');
+  const alias = 'ald1n_ci_apk_audit_only';
+  run('keytool', ['-genkeypair', '-noprompt', '-storetype', 'PKCS12',
+    '-keystore', ks, '-storepass', password, '-keypass', password,
+    '-alias', alias, '-keyalg', 'RSA', '-keysize', '3072', '-validity', '1',
+    '-dname', 'CN=Ald1n Ephemeral CI Test Only, OU=Android QA, O=Ald1n, C=RS']);
+  return {
+    args: ['--ks=' + ks, '--ks-pass=pass:' + password,
+      '--ks-key-alias=' + alias, '--key-pass=pass:' + password],
+    role: 'EPHEMERAL_LOCAL_BUNDLETOOL_SIGNING_NOT_GOOGLE_PLAY'
+  };
+}
+
 /** Play delivery uses split/standalone APKs, not only the universal smoke APK.
  * Inspect every packaged APK; native-free configuration splits are normal.
  */
@@ -160,7 +179,8 @@ async function releaseGate(o) {
   try {
     const apks = path.join(tmp, 'derived.apks');
     const apk = path.join(tmp, 'derived.apk');
-    jarArgs('build-apks', '--bundle=' + o.aab, '--output=' + apks, '--mode=universal');
+    const debugSigning = createEphemeralApkSigning(tmp);
+    jarArgs('build-apks', '--bundle=' + o.aab, '--output=' + apks, '--mode=universal', ...debugSigning.args);
     command('unzip', ['-tqq', apks]);
     const fd = openSync(apk, 'wx', 0o600);
     try { command('unzip', ['-p', apks, 'universal.apk'], { encoding: null, stdio: ['ignore', fd, 'pipe'] }); }
@@ -173,7 +193,7 @@ async function releaseGate(o) {
     // The universal APK omits unfused dynamic features. Check bundletool's
     // actual default split/standalone delivery outputs as a separate gate.
     const defaultApks = path.join(tmp, 'derived-default.apks');
-    jarArgs('build-apks', '--bundle=' + o.aab, '--output=' + defaultApks);
+    jarArgs('build-apks', '--bundle=' + o.aab, '--output=' + defaultApks, ...debugSigning.args);
     const delivery = auditDeliveredApkSet(defaultApks, o.zipalign, o.apksigner);
     return {
       status: 'PASS_SIGNED_AAB_BINARY_GATE_ONLY',
@@ -188,6 +208,7 @@ async function releaseGate(o) {
       bundleConfig: 'PAGE_ALIGNMENT_16K',
       derivedApk: 'BUNDLETOOL_SAME_AAB_PROVENANCE_AND_ZIPALIGN_PASS',
       defaultDeliveryApks: delivery,
+      derivedApkSigning: debugSigning.role,
       easBuildId: o['eas-build-id'],
       claimedSourceCommit: o['source-sha'],
       easSourceAndRuntimeProvenance: 'DECLARED_NOT_INDEPENDENTLY_VERIFIED',
