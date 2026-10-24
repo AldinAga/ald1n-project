@@ -4,7 +4,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\BankAccount;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\PublicCheckoutReadinessService;
+use App\Services\PublicMerchantPolicyService;
+use Database\Seeders\CoreAccessSeeder;
+use Illuminate\Support\Facades\Hash;
 use App\Services\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +22,13 @@ final class PublicCheckoutReadinessB799Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(CoreAccessSeeder::class);
+        User::query()->create([
+            'role_id'=>Role::query()->where('slug','superadmin')->valueOrFail('id'),
+            'username'=>'b801-synthetic-merchant','email'=>'merchant@example.test',
+            'first_name'=>'Synthetic','password_hash'=>Hash::make('SyntheticOnly123!'),
+            'status'=>'active',
+        ]);
         config()->set('public_storefront.enabled', true);
         config()->set('public_storefront.checkout_enabled', true);
         $this->legalSettings();
@@ -26,6 +38,7 @@ final class PublicCheckoutReadinessB799Test extends TestCase
         config()->set('public_storefront.shipping_fee_rsd', '0');
         config()->set('public_storefront.support_email', 'prodaja@example.test');
         config()->set('public_storefront.payment_methods', ['cash_on_delivery']);
+        $this->approveMerchant();
     }
 
     public function test_checkout_remains_closed_even_when_catalog_is_public(): void
@@ -97,6 +110,7 @@ final class PublicCheckoutReadinessB799Test extends TestCase
             'is_active'=>true,
         ]);
         config()->set('public_storefront.bank_account_id', $account->id);
+        $this->approveMerchant();
         self::assertSame($account->id,app(PublicCheckoutReadinessService::class)
             ->assertReady()['bank_account']->id);
         $account->update(['is_active'=>false]);
@@ -104,11 +118,43 @@ final class PublicCheckoutReadinessB799Test extends TestCase
         app(PublicCheckoutReadinessService::class)->assertReady();
     }
 
+    public function test_missing_or_stale_superadmin_attestation_cannot_be_activated_by_flags(): void
+    {
+        app(SettingsService::class)->putMany(['public_checkout_approval_digest'=>''],null);
+        try {
+            app(PublicCheckoutReadinessService::class)->assertReady();
+            self::fail('A ready-looking policy without owner signature must be blocked.');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('checkout',$e->errors());
+        }
+        $this->approveMerchant();
+        app(SettingsService::class)->putMany(['documents_company_address'=>'Unapproved changed address'],null);
+        try {
+            app(PublicCheckoutReadinessService::class)->assertReady();
+            self::fail('Changed business identity must invalidate old signature.');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('checkout',$e->errors());
+        }
+    }
+
+    private function approveMerchant(): void
+    {
+        $owner=User::query()->where('username','b801-synthetic-merchant')->firstOrFail();
+        $review=app(PublicMerchantPolicyService::class)->review();
+        self::assertTrue($review['complete'],implode('; ',$review['issues']));
+        app(SettingsService::class)->putMany([
+            'public_checkout_approval_digest'=>$review['fingerprint'],
+            'public_checkout_approved_by'=>(string)$owner->id,
+            'public_checkout_approved_at'=>now()->toISOString(),
+        ],$owner->id);
+    }
+
     private function legalSettings(): void
     {
         app(SettingsService::class)->putMany([
             'documents_company_name'=>'AP Computers Test Trgovac',
             'documents_company_address'=>'Primer ulice 12, Beograd',
+            'documents_company_city'=>'Beograd',
             'documents_company_tax_id'=>'100200300',
         ], null);
     }
