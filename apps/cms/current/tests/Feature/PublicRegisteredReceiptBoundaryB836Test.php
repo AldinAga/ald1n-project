@@ -25,6 +25,7 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
+        config()->set('services.turnstile.enabled', false);
         config()->set('app.url', 'https://cms.ald1n.com');
         foreach ([
             'enabled' => true,
