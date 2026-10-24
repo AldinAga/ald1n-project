@@ -14,7 +14,7 @@ final class PublicCheckoutReadinessService
 {
     public function __construct(private readonly PublicMerchantPolicyService $merchant) {}
 
-    /** @return array{methods:list<string>,shipping_fee_rsd:float,shipping_description:string,terms_url:string,privacy_url:string,support_email:string,bank_account:?BankAccount} */
+    /** @return array{methods:list<string>,shipping_fee_rsd:float,shipping_description:string,terms_url:string,privacy_url:string,support_email:string,approval_digest:string,bank_account:?BankAccount} */
     public function assertReady(): array
     {
         abort_unless(config('public_storefront.enabled') === true
@@ -34,6 +34,7 @@ final class PublicCheckoutReadinessService
             'terms_url'=>$p['terms_url'],
             'privacy_url'=>$p['privacy_url'],
             'support_email'=>$p['support_email'],
+            'approval_digest'=>$review['fingerprint'],
             'bank_account'=>$review['bank_account'],
         ];
     }
