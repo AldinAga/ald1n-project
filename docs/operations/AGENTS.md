@@ -25,3 +25,17 @@ Report813 is HOLD_PR_HEAD_MOVED / RC2, not a deployment or completed backup gate
 Public Chromium concurrency QA must prove independent request nonces, different SQL connection IDs in consecutive snapshots, and unchanged exact stock/HTTP/idempotency outcomes. A second request may wait at checkout-attempt insertion instead of the product lock; do not mistake that different SQL stage for absence of simultaneous requests. Never remove the final one-sale, no-oversell or same-receipt assertions.
 
 The canonical Drive runbook now also contains these owner rules. Test PR94 remains separate from application PR93. Source-only QA is not permission to merge, deploy, activate retail, publish OTA or run a native build.
+
+## Mandatory storefront penetration testing and remediation - owner decision 2026-10-24
+
+Follow [the dedicated security plan](../security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md). Before public ON, enumerate every applicable test in pinned OWASP WSTG4.2 and ASVS5.0.0 Level2, plus actual application business/role/payment/capability risks and current relevant advisories. Track applicability, exact source, outcome, evidence and limitations per case. All confirmed findings must be fixed, patched and retested with regression coverage. Never equate an initial targeted suite or an automated scanner's clean exit with complete penetration testing or proof against every possible attack.
+
+Use disposable isolated CI/staging with synthetic data. No active production scans, third-party probes, load/DoS on shared hosting, real orders/payments/customer messages or private-data extraction. Infrastructure testing needs its own authorized target. NOT_RUN/BLOCKED/NOT_APPLICABLE are not PASS. Critical/high findings block release; unresolved lower findings stay visible and must not be omitted from the owner's completion criteria. Do not suppress findings to make a build green. Retain red/green test evidence and honest review independence.
+
+## Clarified progress display - acceptance is not batch throughput
+
+The original Report796 ledger is17 functional acceptance milestones: M01-M15 CMS, M16 signed Android16KB release, M17 SDK58. Closed7 means backend activation M01 and six owner-accepted UI requirements M02-M07. Hence7/17=41.2% and7/15=46.7%. This is NOT the development percentage of the entire historical application and a completed SSH batch does not automatically close one functional milestone.
+
+Every final response must also name what actually advanced in the current batch, source/CI status, deployed status and the precise remaining acceptance gate. Keep the numerator honest but do not hide real progress behind the unchanged41.2%. Use no invented weighted completion percentage. Security and cleanup are required gates/additional tasks, not a silent denominator change.
+
+Owner Report815 closes B804 prerequisites:44 affected paths and backups166/165 logically verified, RC0, no production writes, no restore drill/FPM/customer UAT. Do not rerun B804. B805 local rollout preparation remains incomplete and unshipped; any new application security fix invalidates its old exact-target manifest/payload and requires regeneration. A connector action appearing/disappearing is not proof user permissions changed. A provider safety denial is not a read-only connector and must never be bypassed, repackaged or rerouted.
