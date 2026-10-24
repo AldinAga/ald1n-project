@@ -84,7 +84,7 @@ run_audit() {
 
   local head status_count ht
   head=$(git -C "$ROOT" rev-parse --verify HEAD 2>/dev/null) || head=UNKNOWN
-  status_count=$(git -C "$ROOT" status --porcelain=v1 --untracked-files=no 2>/dev/null | wc -l | tr -d ' ') || status_count=UNKNOWN
+  status_count=$(GIT_OPTIONAL_LOCKS=0 git -C "$ROOT" -c core.fsmonitor=false status --porcelain=v1 --untracked-files=no 2>/dev/null | wc -l | tr -d ' ') || status_count=UNKNOWN
   printf 'HOST_GIT_HEAD=%s\nHOST_TRACKED_DIRTY_PATHS=%s\n' "$head" "$status_count"
   if [[ "$head" = UNKNOWN || "$status_count" = UNKNOWN ]]; then failures=$((failures+1)); fi
   if [[ -f "$CMS/public/.htaccess" ]]; then
