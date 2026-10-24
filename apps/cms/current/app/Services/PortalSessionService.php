@@ -14,6 +14,17 @@ use Throwable;
 
 final class PortalSessionService
 {
+    private const PASSWORD_PROOF_KEY = 'ald1n.portal.password_proof';
+
+    /** @return array{user_id:int,digest:string} */
+    private function passwordProof(User $user): array
+    {
+        return [
+            'user_id' => (int) $user->getKey(),
+            'digest' => hash('sha256', (string) $user->password_hash),
+        ];
+    }
+
     public function recordLogin(Request $request, User $user, bool $remembered): ?UserLoginSession
     {
         if (!$this->available()) {
