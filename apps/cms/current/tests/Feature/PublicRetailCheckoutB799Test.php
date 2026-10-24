@@ -14,6 +14,7 @@ use App\Models\Role;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\SettingsService;
+use App\Services\PublicMerchantPolicyService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -58,6 +59,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
             'status'=>'active','created_by'=>$admin->id,
         ]);
         Mail::fake();
+        $this->approveMerchant();
     }
 
     public function test_anonymous_checkout_creates_one_real_operational_order_with_no_commission(): void
@@ -262,6 +264,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         ]);
         config()->set('public_storefront.payment_methods',['bank_transfer']);
         config()->set('public_storefront.bank_account_id',$account->id);
+        $this->approveMerchant();
         [$data]=$this->prepare();
         $data['payment_method']='bank_transfer';
         $privatePath=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
@@ -468,6 +471,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         ]);
         config()->set('public_storefront.payment_methods',['bank_transfer']);
         config()->set('public_storefront.bank_account_id',$account->id);
+        $this->approveMerchant();
         [$data]=$this->prepare();
         $data['payment_method']='bank_transfer';
         $this->post('/porucivanje',$data)->assertRedirect();
@@ -477,6 +481,19 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('unpaid',$order->payment_state);
         self::assertSame(0,OrderPayment::query()->count());
         self::assertSame(0,OrderCommission::query()->count());
+    }
+
+    private function approveMerchant(): void
+    {
+        $merchant=app(PublicMerchantPolicyService::class);
+        $review=$merchant->review();
+        self::assertTrue($review['complete'],implode('; ',$review['issues']));
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+        app(SettingsService::class)->putMany([
+            'public_checkout_approval_digest'=>$review['fingerprint'],
+            'public_checkout_approved_at'=>now()->toISOString(),
+            'public_checkout_approved_by'=>(string)$admin->id,
+        ],$admin->id);
     }
 
     private function enableSyntheticWarrantyRule(): void
