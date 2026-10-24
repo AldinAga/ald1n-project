@@ -9,6 +9,8 @@ on:
       - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
   pull_request:
     branches:
@@ -19,6 +21,8 @@ on:
       - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
       - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
 permissions:
   contents: read
@@ -93,6 +97,7 @@ jobs:
           npm ci --no-audit --no-fund
           node --test scripts/release25/nativegauss-16kb-pin.test.mjs
           node --test scripts/release25/verify-android16kb-apk.test.mjs
+          node --test scripts/release25/verify-android16kb-aab.test.mjs
           npm run typecheck
           npm run validate
       - name: Prepare isolated Android SDK36 and NDK27
@@ -143,6 +148,43 @@ jobs:
           set -euo pipefail
           node scripts/release25/verify-android16kb-apk.mjs android/app/build/outputs/apk/debug/app-debug.apk
           echo 'ALL_64BIT_APK_NATIVE_ELF_16KB=PASS_CI_ONLY'
+      - name: Build disposable debug AAB and verify bundletool 16KiB delivery path
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          (
+            cd android
+            ./gradlew :app:bundleDebug --no-daemon --stacktrace
+          )
+          AAB="android/app/build/outputs/bundle/debug/app-debug.aab"
+          test -s "$AAB"
+          unzip -tqq "$AAB"
+          node scripts/release25/verify-android16kb-aab.mjs "$AAB"
+          JAR="$RUNNER_TEMP/bundletool-all-1.18.3.jar"
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 4 --connect-timeout 20 --max-time 300 \
+            --output "$JAR" "https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar"
+          test "$(sha256sum "$JAR" | awk '{print $1}')" = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
+          java -jar "$JAR" dump config --bundle="$AAB" > "$RUNNER_TEMP/b832-bundle-config.txt"
+          grep -Fq 'PAGE_ALIGNMENT_16K' "$RUNNER_TEMP/b832-bundle-config.txt"
+          if grep -Fq 'PAGE_ALIGNMENT_4K' "$RUNNER_TEMP/b832-bundle-config.txt"; then
+            echo 'HOLD_AAB_BUNDLE_CONFIG_4K'
+            exit 51
+          fi
+          APKS="$RUNNER_TEMP/b832-disposable-debug.apks"
+          java -jar "$JAR" build-apks --bundle="$AAB" --output="$APKS" --mode=universal
+          test -s "$APKS"
+          unzip -tqq "$APKS"
+          APK="$RUNNER_TEMP/b832-derived-universal.apk"
+          unzip -p "$APKS" universal.apk > "$APK"
+          test -s "$APK"
+          unzip -tqq "$APK"
+          node scripts/release25/verify-android16kb-apk.mjs "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
+          sha256sum "$AAB" "$APKS" "$APK"
+          echo 'B832_DISPOSABLE_AAB_BUNDLE_CONFIG=PASS_16K'
+          echo 'B832_BUNDLETOOL_DERIVED_APK_ALL_NATIVE_ELF_ZIPALIGN=PASS'
+          echo 'SIGNING_IDENTITY=DEBUG_ONLY PLAY_RELEASE=NOT_AUTHORIZED'
       - name: No release or production mutation
         if: always()
         run: |
