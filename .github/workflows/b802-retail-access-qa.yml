@@ -45,18 +45,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - name: Archive tracked text source for review only
-        run: |
-          set -euo pipefail
-          git rev-parse HEAD > "$RUNNER_TEMP/b802-source-head.txt"
-          git ls-files -z AGENTS.md apps/cms/current apps/mobile/current .github/workflows docs/operations | tar --null --exclude='*.ttf' --exclude='*.otf' --exclude='*.woff*' --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.webp' --exclude='*.pdf' --exclude='*.zip' --exclude='*.mp4' -czf "$RUNNER_TEMP/b802-source.tar.gz" --files-from=-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: b802-tracked-text-source
-          path: |
-            ${{ runner.temp }}/b802-source.tar.gz
-            ${{ runner.temp }}/b802-source-head.txt
-          retention-days: 1
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
@@ -70,7 +58,17 @@ jobs:
         run: |
           set -euo pipefail
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
-          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning tests/Feature/PublicRetailAccessB802Test.php
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b802-junit.xml" tests/Feature/PublicRetailAccessB802Test.php tests/Feature/PublicRetailBuyerCheckoutB802Test.php > "$RUNNER_TEMP/b802-tests.log" 2>&1 || { tail -n 30 "$RUNNER_TEMP/b802-tests.log"; exit 1; }
+          tail -n 8 "$RUNNER_TEMP/b802-tests.log"
+      - name: Keep synthetic test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b802-integration-evidence
+          path: |
+            ${{ runner.temp }}/b802-junit.xml
+            ${{ runner.temp }}/b802-tests.log
+          retention-days: 2
       - name: Production boundary
         if: always()
         run: echo 'SOURCE_ONLY NO_PRODUCTION_SOURCE_DB_MAIL_EAS_OTA_PLAY'
