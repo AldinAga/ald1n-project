@@ -125,8 +125,8 @@ final class PublicCheckoutController extends Controller
                     ."Ukupna vrednost artikala: ".number_format((float)$order->subtotal_rsd,2,',','.')." RSD.\n"
                     ."Status: nova, plaćanje još nije potvrđeno.\n"
                     ."Privatni link za pregled porudžbine, dokumenta i pošiljke:\n".$link."\n"
-                    ."Prijavite se na svoj potvrđeni nalog Kupca za pregled.\\n"
-                    ."Nemojte deliti ovu vezu. Ističe za 60 dana.\\n";
+                    ."Prijavite se na svoj potvrđeni nalog Kupca za pregled.\n"
+                    ."Nemojte deliti ovu vezu. Ističe za 60 dana.\n";
                 if ($order->payment_method==='bank_transfer') {
                     $body.="Podaci za uplatu: ".$order->bank_account_number_display_snapshot."\n"
                         ."Primalac: ".$order->payment_recipient_name_snapshot."\n"
