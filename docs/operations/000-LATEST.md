@@ -1,3 +1,9 @@
+# CURRENT B825 — exact JUnit identifies Cache-Control directive order mismatch; full CI HOLD
+
+2026-10-24: [Report832](832-BATCH825-JUNIT-HEADER-ORDER-EVIDENCE-20261024.md). Actual complete B803 run40125965473 baseline 451/44 problems, candidate 535/92, 50 additional failing identities (49 prior + one new B821). Original JUnit proves B821's only failure is strict string-order comparison: expected `private, no-store, max-age=0`, actual `max-age=0, no-store, private`; same security directives. First B821 invalid-token test PASS 10 assertions, second incomplete/FAIL. [Drive archived JUnit ZIP](https://drive.google.com/file/d/1KWEm8RBsxln0S4KIBl-kwT5ewajlPcyO/view?usp=drivesdk). Latest distinct workflows 5 PASS / 5 FAIL. Prior safety-denied changes untouched; no bypass. PR93 and PR98 Draft, production B798 OFF, no SSH/deploy. Accepted 7/17=41.2% overall, CMS7/15=46.7%, UI6/6.
+
+---
+
 # CURRENT B824 — correct PR93 ancestor, 1-file test PR98 and actual CI started; release HOLD
 
 2026-10-24: [Report831](831-BATCH824-EXACT-PR93-BASE-CI-REOPEN-20261024.md). Found genuine PR93 head `feat/b799-public-retail-catalog-cart-checkout` at `fab3f4991fe5792e28e5a402dbf402617fb5c303`, correcting wrong ancestry used in closed PR96/97. New [Draft PR98](https://github.com/AldinAga/ald1n-project/pull/98) correctly compares **1 file / 1 commit** for B821 synthetic token/privacy regression at `df9c0b363b19b996730513853b531f5d811cf2f3`; GitHub started exact-SHA CI. Initial observed 10 workflows: 5 PASS / 3 FAIL / 2 in progress, not final; no confirmed new B821-case test execution yet. Existing legacy failures not hidden. Production B798/public storefront OFF, PR93 Draft, full release HOLD, no SSH/deploy. Accepted program 7/17=41.2%, CMS7/15=46.7%, UI6/6.
