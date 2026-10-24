@@ -104,7 +104,7 @@ final class PublicMerchantPolicyService
         $at = trim((string)$this->settings->get('public_checkout_approved_at',''));
         $approved = $issues === [] && $digest !== '' && hash_equals($digest,$fingerprint)
             && $at !== '' && $by && $by > 0
-            && User::query()->whereKey($by)->where('status','active')
+            && User::query()->whereKey($by)->where('status','active')->whereNull('retired_at')
                 ->whereHas('role', static fn ($query) => $query->where('slug','superadmin'))
                 ->exists();
         return [
@@ -125,8 +125,9 @@ final class PublicMerchantPolicyService
         return $host !== '' && str_contains($host,'.')
             && filter_var($host,FILTER_VALIDATE_IP)===false
             && filter_var($host,FILTER_VALIDATE_DOMAIN,FILTER_FLAG_HOSTNAME)!==false
+            && !preg_match('/\.(?:[0-9]+|0x[0-9a-f]+)$/iD',$host)
             && !preg_match('/(?:^|\.)(?:localhost|local|internal)$/D',$host)
             && !(app()->environment('production')
-                && preg_match('/(?:^|\.)example\.(?:test|invalid)$/D',$host));
+                && preg_match('/\.(?:test|invalid|example|localhost)$/D',$host));
     }
 }
