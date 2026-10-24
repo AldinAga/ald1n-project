@@ -30,8 +30,8 @@ final class CredentialWebSessionRevocationB814Test extends TestCase
     public function test_staff_password_reset_revokes_all_tracked_web_sessions_and_api_tokens(): void
     {
         $owner=$this->person('b814-reset-staff','user');
-        $session1=$this->session($owner,'b814-staff-browser-a',false);
-        $session2=$this->session($owner,'b814-staff-browser-b',true);
+        $session1=$this->trackedSession($owner,'b814-staff-browser-a',false);
+        $session2=$this->trackedSession($owner,'b814-staff-browser-b',true);
         $owner->createToken('b814-old-api-access');
         $before=(string)$owner->remember_token;
 
@@ -51,7 +51,7 @@ final class CredentialWebSessionRevocationB814Test extends TestCase
     public function test_registered_customer_password_reset_revokes_old_web_session(): void
     {
         $buyer=$this->person('b814-reset-buyer','customer');
-        $session=$this->session($buyer,'b814-buyer-browser',false);
+        $session=$this->trackedSession($buyer,'b814-buyer-browser',false);
         $token=$this->passwordResetToken($buyer);
 
         self::assertTrue(app(PasswordResetService::class)->resetPassword(
@@ -65,7 +65,7 @@ final class CredentialWebSessionRevocationB814Test extends TestCase
     {
         $actor=$this->person('b814-inviting-owner','superadmin');
         $staff=$this->person('b814-invited-staff','user');
-        $session=$this->session($staff,'b814-invited-existing-browser',true);
+        $session=$this->trackedSession($staff,'b814-invited-existing-browser',true);
         $staff->createToken('b814-staff-activation-old-token');
 
         app(CustomerActivationService::class)->invite($staff,$actor);
@@ -92,7 +92,7 @@ final class CredentialWebSessionRevocationB814Test extends TestCase
     public function test_expired_password_reset_cannot_change_password_or_revoke_sessions(): void
     {
         $user=$this->person('b814-expired-reset','user');
-        $session=$this->session($user,'b814-expired-browser',false);
+        $session=$this->trackedSession($user,'b814-expired-browser',false);
         $before=(string)$user->password_hash;
         $token=$this->passwordResetToken($user);
         DB::table('password_reset_tokens')
@@ -118,7 +118,7 @@ final class CredentialWebSessionRevocationB814Test extends TestCase
         ]);
     }
 
-    private function session(User $user,string $key,bool $remembered): int
+    private function trackedSession(User $user,string $key,bool $remembered): int
     {
         return (int)UserLoginSession::query()->create([
             'user_id'=>$user->id,
