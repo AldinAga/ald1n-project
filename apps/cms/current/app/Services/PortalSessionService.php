@@ -36,7 +36,7 @@ final class PortalSessionService
             return null;
         }
 
-        return UserLoginSession::query()->updateOrCreate(
+        $loginSession = UserLoginSession::query()->updateOrCreate(
             ['session_hash' => $hash],
             [
                 'user_id' => $user->id,
@@ -51,17 +51,37 @@ final class PortalSessionService
                 'logged_out_at' => null,
             ],
         );
+
+        // A browser that changes its password must no longer satisfy the
+        // credential proof stored in its earlier Laravel session. Scope the
+        // proof to the principal so isolated cross-principal tests remain valid.
+        $request->session()->put(self::PASSWORD_PROOF_KEY, $this->passwordProof($user));
+
+        return $loginSession;
     }
 
     public function validateAndTouch(Request $request, User $user): bool
     {
+        // Never turn a missing registry or missing session ID into approval.
         if (!$this->available()) {
-            return true;
+            return false;
         }
 
         $hash = $this->sessionHash($request);
         if ($hash === null) {
-            return true;
+            return false;
+        }
+
+        $proof = $request->session()->get(self::PASSWORD_PROOF_KEY);
+        $hasMatchingUserProof = is_array($proof)
+            && (int) ($proof['user_id'] ?? 0) === (int) $user->getKey();
+
+        if ($hasMatchingUserProof) {
+            $digest = $proof['digest'] ?? null;
+            if (!is_string($digest)
+                || !hash_equals($this->passwordProof($user)['digest'], $digest)) {
+                return false;
+            }
         }
 
         $session = UserLoginSession::query()
@@ -70,12 +90,30 @@ final class PortalSessionService
             ->first();
 
         if ($session === null) {
-            $this->recordLogin($request, $user, Auth::viaRemember());
-            return true;
+            // A missing row after a password reset must never resurrect the
+            // old authenticated browser. A valid remember cookie is different:
+            // Laravel itself verifies the *current* rotated remember token.
+            if (!$hasMatchingUserProof
+                && $user->password_changed_at !== null
+                && !Auth::viaRemember()) {
+                return false;
+            }
+            return $this->recordLogin($request, $user, Auth::viaRemember()) !== null;
         }
 
         if ($session->revoked_at !== null || $session->logged_out_at !== null) {
             return false;
+        }
+
+        if (!$hasMatchingUserProof) {
+            // Safely bootstrap pre-B815 sessions only if their recorded login
+            // is not older than the most recent credential rotation.
+            if ($user->password_changed_at !== null
+                && ($session->logged_in_at === null
+                    || $session->logged_in_at->lt($user->password_changed_at))) {
+                return false;
+            }
+            $request->session()->put(self::PASSWORD_PROOF_KEY, $this->passwordProof($user));
         }
 
         if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(2))) {
