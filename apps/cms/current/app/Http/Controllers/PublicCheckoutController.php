@@ -109,7 +109,8 @@ final class PublicCheckoutController extends Controller
                         $order->supplier,'order.created_for_supplier',
                         'Nova javna porudžbina',
                         'Primljena je javna porudžbina '.$order->order_number.'.',
-                        $order,['severity'=>'warning','url'=>route('admin.orders.show',$order)],
+                        $order,['severity'=>'warning','url'=>rtrim((string)config('app.url'),'/')
+                            .route('admin.orders.show',$order,false)],
                     );
                 }
             } catch (Throwable $e) {
