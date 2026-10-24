@@ -7,6 +7,8 @@ on:
       - apps/mobile/current/app.config.js
       - apps/mobile/current/plugins/with-android-native-modernization.js
       - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
 permissions:
   contents: read
@@ -80,6 +82,7 @@ jobs:
           set -euo pipefail
           npm ci --no-audit --no-fund
           node --test scripts/release25/nativegauss-16kb-pin.test.mjs
+          node --test scripts/release25/verify-android16kb-apk.test.mjs
           npm run typecheck
           npm run validate
       - name: Prepare isolated Android SDK36 and NDK27
@@ -124,6 +127,12 @@ jobs:
           NODE
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
           echo 'DEBUG_APK_16KB_ZIPALIGN=PASS_CI_ONLY'
+      - name: Audit every 64-bit native ELF in the disposable debug APK
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/release25/verify-android16kb-apk.mjs android/app/build/outputs/apk/debug/app-debug.apk
+          echo 'ALL_64BIT_APK_NATIVE_ELF_16KB=PASS_CI_ONLY'
       - name: No release or production mutation
         if: always()
         run: |
