@@ -203,6 +203,14 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('activated',$issuance->status);
         self::assertSame($payment->id,$issuance->first_verified_payment_id);
         self::assertSame($issuance->warranty_number,$warranty->warranty_number);
+        $this->get($privatePath)->assertOk()->assertSee($issuance->warranty_number)
+            ->assertSee('Garantni listovi');
+        $this->get($privatePath.'/garancija/'.$issuance->id)->assertOk()
+            ->assertHeader('Content-Type','application/pdf')
+            ->assertHeader('Referrer-Policy','no-referrer')
+            ->assertHeader('Cache-Control','max-age=0, no-store, private');
+        $this->get('/porudzbina/'.str_repeat('f',64).'/garancija/'.$issuance->id)
+            ->assertNotFound();
         self::assertSame('Sinteticki B800 garantni uslovi.',$warranty->terms_snapshot);
         self::assertNull($warranty->user_id,
             'Guest buyer cannot acquire a fabricated internal login.');
@@ -282,6 +290,12 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('issued_pending_delivery',$pending->status);
         self::assertNull($pending->activated_warranty_id);
         self::assertSame(0,\App\Models\ProductWarranty::query()->count());
+        $this->get($privatePath)->assertOk()->assertSee($pending->warranty_number)
+            ->assertSee('Izdato');
+        $pendingPdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
+            ->assertHeader('Content-Type','application/pdf')
+            ->assertHeader('Cache-Control','max-age=0, no-store, private')->getContent();
+        self::assertStringStartsWith('%PDF-1.4',$pendingPdf);
         $workflow->complete($order->fresh(),$admin,[
             'delivery_method'=>'own_transport',
             'delivered_at'=>now()->subMinute()->toDateTimeString(),
@@ -293,6 +307,11 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('activated',$activated->status);
         self::assertSame($activated->warranty_number,
             \App\Models\ProductWarranty::query()->sole()->warranty_number);
+        $activePdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
+            ->assertHeader('Content-Type','application/pdf')->getContent();
+        self::assertStringStartsWith('%PDF-1.4',$activePdf);
+        self::assertNotSame($pendingPdf,$activePdf,
+            'An activated certificate must show real delivery dates, not pending placeholders.');
         self::assertSame(0,OrderCommission::query()->count());
         $this->get($privatePath)->assertOk()->assertSee('24.000,00');
     }
@@ -381,6 +400,50 @@ final class PublicRetailCheckoutB799Test extends TestCase
         // Repeated staff actions cannot reactivate the revoked capability.
         $this->post($revoke)->assertRedirect();
         $this->get($location)->assertNotFound();
+    }
+
+    public function test_guest_warranty_document_does_not_cross_orders_and_expires_or_revokes(): void
+    {
+        $this->enableSyntheticWarrantyRule();
+        [$data]=$this->prepare();
+        $privatePath=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
+        $order=Order::query()->sole();
+        $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
+        app(\App\Services\OrderPaymentService::class)->record($order,[
+            'entry_type'=>'payment','amount_rsd'=>1000,
+            'payment_method'=>'cash','paid_at'=>now()->toDateTimeString(),
+        ],$admin);
+        $pending=\App\Models\WarrantyIssuance::query()->sole();
+        $url=$privatePath.'/garancija/'.$pending->id;
+        $this->get($url)->assertOk()->assertHeader('Referrer-Policy','no-referrer');
+
+        $other=Order::query()->create([
+            'source_system'=>'laravel','sales_channel'=>'public_retail',
+            'order_number'=>'APC-B800-DIFFERENT-ORDER',
+            'user_id'=>null,'status'=>'new',
+            'shipping_full_name'=>'Drugi Sinteticki Kupac',
+            'shipping_address'=>'Test ulica 2','shipping_city'=>'Beograd',
+            'shipping_postal_code'=>'11000','shipping_phone'=>'0602222333',
+            'subtotal_rsd'=>1000,'payment_method'=>'cash_on_delivery',
+            'payment_status'=>'pending','payment_state'=>'unpaid',
+            'inventory_state'=>'reserved','paid_total_rsd'=>0,
+        ]);
+        $otherToken=app(\App\Services\PublicOrderAccessService::class)
+            ->issue($other,'other-buyer@example.test');
+        $this->get('/porudzbina/'.$otherToken.'/garancija/'.$pending->id)
+            ->assertNotFound('A valid token for another guest order cannot see this PDF.');
+
+        $capability=\App\Models\PublicOrderAccess::query()
+            ->where('order_id',$order->id)->sole();
+        $capability->update(['expires_at'=>now()->subSecond()]);
+        $this->get($url)->assertNotFound();
+        $capability->update(['expires_at'=>now()->addDays(2)]);
+        $this->get($url)->assertOk();
+        app(\App\Services\PublicOrderAccessService::class)->revoke($order);
+        $this->get($url)->assertNotFound();
+        $this->get($privatePath)->assertNotFound();
+        self::assertSame(1,\App\Models\WarrantyIssuance::query()->count(),
+            'Token denial does not delete or alter the historical issued certificate.');
     }
 
     public function test_bank_transfer_uses_only_configured_active_account_and_is_not_marked_paid(): void
