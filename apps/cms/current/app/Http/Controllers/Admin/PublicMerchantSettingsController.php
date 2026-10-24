@@ -61,6 +61,7 @@ final class PublicMerchantSettingsController extends Controller
 
         // All data, attestation and revocation are one atomic DB write. A
         // partially saved policy cannot inherit the signature of old terms.
+        try {
         DB::transaction(function () use ($settings,$merchant,$data,$methods,$account,$owner): void {
             $values=[
                 'public_checkout_terms_url'=>trim((string)($data['terms_url']??'')),
@@ -88,6 +89,13 @@ final class PublicMerchantSettingsController extends Controller
                 ],(int)$owner->id);
             }
         },5);
+        } finally {
+            // Merchant review reads through a 10-minute settings cache while
+            // the outer DB transaction is still open. Never leave uncommitted
+            // policy drafts cached after a failed attestation/rollback; after
+            // success force a fresh read of the new approval signature.
+            $settings->forgetCache();
+        }
         $after=$merchant->review();
         // Record whether a human actually attested to these EXACT terms, but
         // never write account numbers, legal text or secrets to audit metadata.
