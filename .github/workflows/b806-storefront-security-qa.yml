@@ -73,6 +73,7 @@ jobs:
           php -l tests/Feature/CredentialWebSessionRevocationB814Test.php
           php -l tests/Feature/PortalSessionCredentialBoundaryB815Test.php
           php -l tests/Feature/SensitiveAuthResponsePrivacyB816Test.php
+          php -l tests/Feature/SensitiveAuthPostBoundaryB817Test.php
           php -l app/Services/PortalSessionService.php
           php -l app/Http/Middleware/EnsureTrackedPortalSession.php
           php -l app/Services/PasswordResetService.php
@@ -85,7 +86,7 @@ jobs:
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           mkdir -p "$RUNNER_TEMP/b806-evidence/source"
           git rev-parse HEAD > "$RUNNER_TEMP/b806-evidence/source-head.txt"
-          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php tests/Feature/StorefrontRoleBoundaryB808Test.php app/Services/PublicRetailCheckoutService.php tests/Feature/PublicRegistrationMailSenderB810Test.php tests/Feature/StorefrontRegistrationOnlyB809Test.php tests/Feature/StorefrontRegisteredBuyerLifecycleB811Test.php tests/Feature/RetiredActiveLoginB813Test.php tests/Feature/CredentialWebSessionRevocationB814Test.php tests/Feature/PortalSessionCredentialBoundaryB815Test.php tests/Feature/SensitiveAuthResponsePrivacyB816Test.php app/Services/PortalSessionService.php app/Http/Middleware/EnsureTrackedPortalSession.php app/Services/PasswordResetService.php app/Services/CustomerActivationService.php app/Services/PublicRegistrationMailSenderService.php app/Notifications/CustomerPortalInvitationNotification.php "$RUNNER_TEMP/b806-evidence/source/"
+          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php tests/Feature/StorefrontRoleBoundaryB808Test.php app/Services/PublicRetailCheckoutService.php tests/Feature/PublicRegistrationMailSenderB810Test.php tests/Feature/StorefrontRegistrationOnlyB809Test.php tests/Feature/StorefrontRegisteredBuyerLifecycleB811Test.php tests/Feature/RetiredActiveLoginB813Test.php tests/Feature/CredentialWebSessionRevocationB814Test.php tests/Feature/PortalSessionCredentialBoundaryB815Test.php tests/Feature/SensitiveAuthResponsePrivacyB816Test.php tests/Feature/SensitiveAuthPostBoundaryB817Test.php app/Services/PortalSessionService.php app/Http/Middleware/EnsureTrackedPortalSession.php app/Services/PasswordResetService.php app/Services/CustomerActivationService.php app/Services/PublicRegistrationMailSenderService.php app/Notifications/CustomerPortalInvitationNotification.php "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/.github/workflows/b806-storefront-security-qa.yml" "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md" "$RUNNER_TEMP/b806-evidence/"
       - name: B809 + B810 registered Kupac sender targeted MariaDB tests (independent of stale guest fixtures)
@@ -133,6 +134,14 @@ jobs:
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b816-auth-privacy-junit.xml" tests/Feature/SensitiveAuthResponsePrivacyB816Test.php > "$RUNNER_TEMP/b806-evidence/b816-auth-privacy.log" 2>&1 || { tail -n 90 "$RUNNER_TEMP/b806-evidence/b816-auth-privacy.log"; exit 1; }
           tail -n 8 "$RUNNER_TEMP/b806-evidence/b816-auth-privacy.log"
           echo 'B816_AUTH_PRIVACY=PASS_SYNTHETIC_ONLY_RELEASE_HOLD'
+
+      - name: B817 invalid auth POST privacy and no-mutation MariaDB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b817-auth-post-privacy-junit.xml" tests/Feature/SensitiveAuthPostBoundaryB817Test.php > "$RUNNER_TEMP/b806-evidence/b817-auth-post-privacy.log" 2>&1 || { tail -n 90 "$RUNNER_TEMP/b806-evidence/b817-auth-post-privacy.log"; exit 1; }
+          tail -n 8 "$RUNNER_TEMP/b806-evidence/b817-auth-post-privacy.log"
+          echo 'B817_AUTH_POST_PRIVACY=PASS_SYNTHETIC_RELEASE_HOLD'
 
       - name: B808 expected RED - prove operator checkout authorization failed on predecessor
         working-directory: apps/cms/current
