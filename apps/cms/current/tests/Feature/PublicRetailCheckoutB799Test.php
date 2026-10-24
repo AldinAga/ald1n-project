@@ -42,6 +42,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         app(SettingsService::class)->putMany([
             'documents_company_name'=>'AP Computers Test',
             'documents_company_address'=>'Primer 1, Beograd',
+            'documents_company_city'=>'Beograd',
             'documents_company_tax_id'=>'123456789',
         ],null);
         $admin=User::query()->create([
@@ -149,6 +150,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
 
     public function test_guest_retail_order_shipment_tracking_delivery_and_single_verified_cod_payment(): void
     {
+        $this->enableSyntheticWarrantyRule();
         [$data,$initialStock]=$this->prepare();
         $privatePath=$this->post('/porucivanje',$data)->assertRedirect()->headers->get('Location');
         $order=Order::query()->sole();
@@ -196,11 +198,22 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('verified',$payment->status);
         self::assertSame('cash_on_delivery',$payment->payment_method);
         self::assertSame(24000.0,(float)$payment->amount_rsd);
+        $issuance=\App\Models\WarrantyIssuance::query()->sole();
+        $warranty=\App\Models\ProductWarranty::query()->sole();
+        self::assertSame('activated',$issuance->status);
+        self::assertSame($payment->id,$issuance->first_verified_payment_id);
+        self::assertSame($issuance->warranty_number,$warranty->warranty_number);
+        self::assertSame('Sinteticki B800 garantni uslovi.',$warranty->terms_snapshot);
+        self::assertNull($warranty->user_id,
+            'Guest buyer cannot acquire a fabricated internal login.');
+        self::assertSame(substr($deliveredAt,0,10),$warranty->starts_at->format('Y-m-d'));
 
         $workflow->complete($completed,$admin,[
             'delivery_method'=>'courier','delivered_at'=>$deliveredAt,
         ]);
         self::assertSame(1,OrderPayment::query()->count(),'COD receipt must not repeat.');
+        self::assertSame(1,\App\Models\WarrantyIssuance::query()->count());
+        self::assertSame(1,\App\Models\ProductWarranty::query()->count());
         self::assertSame(1,\App\Models\OrderDelivery::query()->count());
         self::assertSame($initialStock-2,(int)$this->product->fresh()->stock_quantity);
         self::assertSame(1,StockMovement::query()->where('order_id',$order->id)->count());
@@ -220,6 +233,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
 
     public function test_unpaid_guest_bank_transfer_cannot_be_completed_or_fabricate_a_payment(): void
     {
+        $this->enableSyntheticWarrantyRule();
         $account=BankAccount::query()->create([
             'label'=>'Sinteticki B800 racun','recipient_name'=>'AP Computers Test',
             'account_number'=>'160000000000000001',
@@ -251,6 +265,8 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('unpaid',$order->fresh()->payment_state);
         self::assertSame(0,OrderPayment::query()->count());
         self::assertSame(0,\App\Models\OrderDelivery::query()->count());
+        self::assertSame(0,\App\Models\WarrantyIssuance::query()->count());
+        self::assertSame(0,\App\Models\ProductWarranty::query()->count());
 
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/payments',[
             'entry_type'=>'payment','amount_rsd'=>'24000.00',
@@ -262,6 +278,10 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('verified',$receipt->status);
         self::assertSame('paid',$order->fresh()->payment_state);
         self::assertSame(24000.0,(float)$order->fresh()->paid_total_rsd);
+        $pending=\App\Models\WarrantyIssuance::query()->sole();
+        self::assertSame('issued_pending_delivery',$pending->status);
+        self::assertNull($pending->activated_warranty_id);
+        self::assertSame(0,\App\Models\ProductWarranty::query()->count());
         $workflow->complete($order->fresh(),$admin,[
             'delivery_method'=>'own_transport',
             'delivered_at'=>now()->subMinute()->toDateTimeString(),
@@ -269,6 +289,10 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertNotNull($order->fresh()->completed_at);
         self::assertSame(1,OrderPayment::query()->count(),
             'Verified transfer must not trigger a duplicate automatic COD entry.');
+        $activated=$pending->fresh();
+        self::assertSame('activated',$activated->status);
+        self::assertSame($activated->warranty_number,
+            \App\Models\ProductWarranty::query()->sole()->warranty_number);
         self::assertSame(0,OrderCommission::query()->count());
         $this->get($privatePath)->assertOk()->assertSee('24.000,00');
     }
@@ -378,6 +402,24 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('unpaid',$order->payment_state);
         self::assertSame(0,OrderPayment::query()->count());
         self::assertSame(0,OrderCommission::query()->count());
+    }
+
+    private function enableSyntheticWarrantyRule(): void
+    {
+        $rule=\App\Models\WarrantyRule::query()
+            ->where('scope_type','global')->orderByDesc('id')->first();
+        if ($rule !== null) {
+            $rule->update([
+                'is_active'=>true,'duration_months'=>12,'duration_days'=>10,
+                'priority'=>100,'terms'=>'Sinteticki B800 garantni uslovi.',
+            ]);
+        } else {
+            \App\Models\WarrantyRule::query()->create([
+                'name'=>'Sinteticki B800 garantni uslovi','scope_type'=>'global',
+                'is_active'=>true,'duration_months'=>12,'duration_days'=>10,
+                'priority'=>100,'terms'=>'Sinteticki B800 garantni uslovi.',
+            ]);
+        }
     }
 
     /** @return array{array<string,string>,int} */
