@@ -122,7 +122,7 @@ final class PublicMerchantPolicyService
             || isset($parts['user']) || isset($parts['pass'])
             || isset($parts['port'])) return false;
         $host=strtolower((string)($parts['host']??''));
-        return $host !== '' && str_contains($host,'.')
+        return $host !== '' && !str_ends_with($host,'.') && str_contains($host,'.')
             && filter_var($host,FILTER_VALIDATE_IP)===false
             && filter_var($host,FILTER_VALIDATE_DOMAIN,FILTER_FLAG_HOSTNAME)!==false
             && !preg_match('/\.(?:[0-9]+|0x[0-9a-f]+)$/iD',$host)
