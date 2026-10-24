@@ -111,6 +111,9 @@ final class CustomerActivationService
                 'remember_token' => Str::random(60),
             ])->save();
             $user->tokens()->delete();
+            // Activating an invited existing account rotates its credential:
+            // invalidate old tracked web sessions in this same transaction.
+            app(PortalSessionService::class)->revokeAll($user, $user);
 
             $token->forceFill(['accepted_at' => now()])->save();
             UserActivationToken::query()
