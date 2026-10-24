@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/ui/glyph';
+import { GlassHeaderAction } from '@/components/layout/glass-header-action';
+import { useSheetAnimationType } from '@/components/ui/sheet-motion-policy';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
 
@@ -33,6 +35,7 @@ export function SelectSheet({
   disabled = false,
 }: SelectSheetProps) {
   const [open, setOpen] = useState(false);
+  const animationType = useSheetAnimationType();
   const { colors: themeColors } = useAppTheme();
   const styles = createStyles(themeColors);
   const selected = options.find((option) => option.value === value);
@@ -42,6 +45,7 @@ export function SelectSheet({
       <Text style={styles.label}>{label}</Text>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={label + ': ' + (selected?.label ?? placeholder)}
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
         onPress={() => setOpen(true)}
@@ -65,20 +69,30 @@ export function SelectSheet({
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Modal
-        animationType="slide"
+        animationType={animationType}
         transparent
         visible={open}
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Zatvori izbor"
+            style={styles.backdrop}
+            onPress={() => setOpen(false)}
+          />
           <View style={styles.sheet}>
             <View style={styles.handle} />
-            <View style={styles.sheetHeader}>
+            <View collapsable={false} style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{label}</Text>
-              <Pressable accessibilityRole="button" onPress={() => setOpen(false)}>
-                <Text style={styles.close}>Zatvori</Text>
-              </Pressable>
+              {/* Optional native glass stays within a 48dp action; the option
+                  list and important form values are always opaque. */}
+              <GlassHeaderAction
+                accessibilityLabel={'Zatvori izbor: ' + label}
+                onPress={() => setOpen(false)}
+              >
+                <Glyph name="close" size={20} color={themeColors.ink} />
+              </GlassHeaderAction>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.options}>
               {options.map((option) => {
@@ -140,10 +154,12 @@ function createStyles(theme: AppColors) {
     modalRoot: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
     sheet: {
-      maxHeight: '78%',
+      maxHeight: '84%',
       backgroundColor: theme.surface,
       borderTopLeftRadius: radii.xxl,
       borderTopRightRadius: radii.xxl,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.outline,
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xxl,
     },
@@ -151,7 +167,7 @@ function createStyles(theme: AppColors) {
       width: 48,
       height: 5,
       borderRadius: radii.pill,
-      backgroundColor: theme.line,
+      backgroundColor: theme.primarySoft,
       alignSelf: 'center',
       marginTop: spacing.sm,
       marginBottom: spacing.lg,
@@ -164,7 +180,6 @@ function createStyles(theme: AppColors) {
       marginBottom: spacing.md,
     },
     sheetTitle: { ...typography.h2, color: theme.ink, flex: 1 },
-    close: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
     options: { gap: spacing.sm, paddingBottom: spacing.xl },
     option: {
       minHeight: 56,

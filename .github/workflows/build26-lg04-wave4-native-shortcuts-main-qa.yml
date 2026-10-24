@@ -1,0 +1,37 @@
+name: Build26 LG04 Wave4 true native Home Admin shortcuts QA (NO BUILD)
+on:
+  push:
+    branches:
+      - feature/build26-lg04-wave4-native-shortcuts-main-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/src/components/workspaces/glass-workspace-shortcut.tsx'
+      - 'apps/mobile/current/src/app/(app)/(tabs)/home.tsx'
+      - 'apps/mobile/current/src/app/(app)/admin/index.tsx'
+      - '.github/workflows/build26-lg04-wave4-native-shortcuts-main-qa.yml'
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - if: always()
+        run: echo 'NO_EAS_NO_OTA_NO_PLAY'
