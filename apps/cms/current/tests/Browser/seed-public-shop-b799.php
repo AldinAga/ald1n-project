@@ -14,6 +14,7 @@ if ($app->environment()!=='testing' || $db->getDriverName()!=='mysql'
 // All race tooling is hard-pinned to this disposable MariaDB 10.11 environment.
 $holdMode=null;
 $waiterMode=null;
+require_once dirname(__DIR__).'/Support/CheckoutConcurrencyWitness.php';
 foreach ($argv as $argument) {
     if (str_starts_with($argument,'--hold=')) $holdMode=substr($argument,7);
     if (str_starts_with($argument,'--waiters=')) $waiterMode=substr($argument,10);
@@ -45,30 +46,27 @@ if ($holdMode!==null) {
 }
 if ($waiterMode!==null) {
     if (!in_array($waiterMode,['lastunit','duplicate'],true)) exit(12);
-    $seenProducts=0;
-    $seenAttemptInserts=0;
+    $seenProducts=0;$seenAttemptInserts=0;
+    $previousIds=[];$stableSnapshots=0;
     for ($i=0;$i<100;$i++) {
         $processes=DB::select(
-            'SELECT INFO FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ?',
+            'SELECT ID, INFO FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ?',
             [config('database.connections.mysql.database'),
                 config('database.connections.mysql.username')]
         );
-        $seenProducts=0;
-        $seenAttemptInserts=0;
-        foreach ($processes as $process) {
-            $info=strtolower((string)($process->INFO??''));
-            if (str_contains($info,'products') && str_contains($info,'for update')) {
-                $seenProducts++;
-            }
-            if (str_contains($info,'public_checkout_attempts')
-                && str_contains($info,'insert')) {
-                $seenAttemptInserts++;
-            }
-        }
-        if (($waiterMode==='lastunit' && $seenProducts>=2)
-            || ($waiterMode==='duplicate'
-                && $seenProducts>=1 && $seenAttemptInserts>=1)) {
-            echo "B799_PARALLEL_WAITER_BARRIER=PASS mode=".$waiterMode."\n";
+        $witness=Tests\Support\CheckoutConcurrencyWitness::inspect($processes,$waiterMode);
+        $seenProducts=$witness['product_waits'];
+        $seenAttemptInserts=$witness['attempt_inserts'];
+        $ids=$witness['connection_ids'];
+        $stableSnapshots=$witness['ready']
+            ? ($ids===$previousIds ? $stableSnapshots+1 : 1) : 0;
+        $previousIds=$ids;
+        if ($stableSnapshots>=2) {
+            echo "B799_PARALLEL_WAITER_BARRIER=PASS mode=".$waiterMode
+                ." independent_connections=".count($ids)
+                ." stable_snapshots=".$stableSnapshots
+                ." product_waits=".$seenProducts
+                ." attempt_inserts=".$seenAttemptInserts."\n";
             exit(0);
         }
         usleep(100000);

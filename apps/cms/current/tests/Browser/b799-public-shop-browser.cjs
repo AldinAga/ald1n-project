@@ -106,6 +106,8 @@ async function confirmConcurrentWaiters(mode){
     cwd:process.cwd(),env:process.env,timeout:18000,maxBuffer:2048
   });
   assert(stdout.includes('B799_PARALLEL_WAITER_BARRIER=PASS mode='+mode));
+  assert(stdout.includes('stable_snapshots=2'),'two consecutive concurrent SQL witnesses');
+  console.log(stdout.trim());
 }
 async function postRetail(context,origin,form){
   const response=await context.request.post(origin+'/porucivanje',{
@@ -123,7 +125,8 @@ async function runRealRace(browser){
   const secondServer=await startIndependentServer();
   try {
     // Two genuinely separate HTTP processes and separate shopper sessions,
-    // both blocked on the same LAST remaining stock row BEFORE release.
+    // overlap while the LAST stock row is held. MariaDB may block the second
+    // distinct nonce at an earlier index stage; prove separate identities below.
     const ctxA=await browser.newContext();
     const ctxB=await browser.newContext();
     try {
@@ -131,6 +134,8 @@ async function runRealRace(browser){
         prepareRaceCheckout(ctxA,base,'b799-race-lastunit','LastA'),
         prepareRaceCheckout(ctxB,raceBase,'b799-race-lastunit','LastB'),
       ]);
+      assert.notEqual(formA.checkout_key,formB.checkout_key,'two buyers need independent checkout nonces');
+      assert.notEqual(formA.email,formB.email,'two buyers need distinct identities');
       const lock=await lockedProduct('lastunit');
       let outcomes;
       let barrierError;
