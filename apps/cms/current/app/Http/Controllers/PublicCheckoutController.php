@@ -50,6 +50,7 @@ final class PublicCheckoutController extends Controller
         $policy->assertReady();
         $validated=$request->validate([
             'checkout_key'=>['required','string','size:48'],
+            'merchant_policy_fingerprint'=>['required','regex:/^[a-f0-9]{64}$/D'],
             'shipping_full_name'=>['required','string','max:190'],
             'email'=>['required','email:rfc','max:254'],
             'shipping_phone'=>['required','string','min:6','max:40'],
@@ -61,6 +62,15 @@ final class PublicCheckoutController extends Controller
             'accepted_terms'=>['accepted'],
             'website'=>['nullable','size:0'],
         ]);
+        // An operator may have approved NEW terms since this customer
+        // opened the form. Never accept agreement to a stale policy.
+        $current=$policy->assertReady();
+        if (!hash_equals($current['approval_digest'],
+            (string)$validated['merchant_policy_fingerprint'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'checkout'=>'Uslovi prodaje ili dostave su promenjeni. Osveži poručivanje.',
+            ]);
+        }
         $result=$checkout->place($request,$validated);
         $order=$result['order'];
         $token=$result['token'];
