@@ -10,6 +10,8 @@ on:
       - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
       - apps/mobile/current/scripts/release25/signed-16kb-aab-release-gate.mjs
       - apps/mobile/current/scripts/release25/signed-16kb-aab-release-gate.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
       - .github/workflows/android-v15-signed-aab-gate-source-qa.yml
 permissions:
   contents: read
@@ -40,6 +42,7 @@ jobs:
           node --test \
             scripts/release25/verify-android16kb-apk.test.mjs \
             scripts/release25/verify-android16kb-aab.test.mjs \
-            scripts/release25/signed-16kb-aab-release-gate.test.mjs
+            scripts/release25/signed-16kb-aab-release-gate.test.mjs \
+            scripts/release25/verify-android16kb-emulator.test.mjs
           echo 'SIGNING_CERTIFICATE_AND_AAB=NOT_SUPPLIED_SOURCE_ONLY'
           echo 'NO_EAS_BUILD=YES NO_OTA=YES NO_PLAY_SUBMIT=YES NO_DEPLOY=YES'
