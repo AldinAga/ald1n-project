@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
-          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b802-junit.xml" tests/Feature/PublicRetailAccessB802Test.php tests/Feature/PublicRetailBuyerCheckoutB802Test.php > "$RUNNER_TEMP/b802-tests.log" 2>&1 || { tail -n 30 "$RUNNER_TEMP/b802-tests.log"; exit 1; }
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b802-junit.xml" tests/Feature/PublicRetailAccessB802Test.php tests/Feature/PublicRetailBuyerCheckoutB802Test.php tests/Feature/PublicRetailPaymentB803Test.php > "$RUNNER_TEMP/b802-tests.log" 2>&1 || { tail -n 30 "$RUNNER_TEMP/b802-tests.log"; exit 1; }
           tail -n 8 "$RUNNER_TEMP/b802-tests.log"
       - name: Keep synthetic test evidence
         if: always()
