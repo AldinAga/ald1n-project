@@ -67,6 +67,7 @@ jobs:
           php -l tests/Support/B807HttpProbe.php
           php -l tests/Feature/StorefrontRoleBoundaryB808Test.php
           php -l tests/Feature/PublicRegistrationMailSenderB810Test.php
+          php -l tests/Feature/StorefrontRegistrationOnlyB809Test.php
           php -l app/Services/PublicRegistrationMailSenderService.php
           php -l app/Notifications/CustomerPortalInvitationNotification.php
           php -l app/Http/Controllers/Admin/PublicMerchantSettingsController.php
@@ -75,16 +76,16 @@ jobs:
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           mkdir -p "$RUNNER_TEMP/b806-evidence/source"
           git rev-parse HEAD > "$RUNNER_TEMP/b806-evidence/source-head.txt"
-          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php tests/Feature/StorefrontRoleBoundaryB808Test.php app/Services/PublicRetailCheckoutService.php tests/Feature/PublicRegistrationMailSenderB810Test.php app/Services/PublicRegistrationMailSenderService.php app/Notifications/CustomerPortalInvitationNotification.php "$RUNNER_TEMP/b806-evidence/source/"
+          cp app/Http/Controllers/PublicCheckoutController.php app/Http/Middleware/SecurityHeaders.php tests/Feature/StorefrontSecurityB806Test.php tests/Feature/StorefrontNotificationOriginB806Test.php tests/Support/B807HttpSeed.php tests/Support/B807HttpProbe.php tests/Feature/StorefrontRoleBoundaryB808Test.php app/Services/PublicRetailCheckoutService.php tests/Feature/PublicRegistrationMailSenderB810Test.php tests/Feature/StorefrontRegistrationOnlyB809Test.php app/Services/PublicRegistrationMailSenderService.php app/Notifications/CustomerPortalInvitationNotification.php "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/.github/workflows/b806-storefront-security-qa.yml" "$RUNNER_TEMP/b806-evidence/source/"
           cp "$GITHUB_WORKSPACE/docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md" "$RUNNER_TEMP/b806-evidence/"
-      - name: B810 selected registration sender targeted MariaDB tests (independent of stale guest fixtures)
+      - name: B809 + B810 registered Kupac sender targeted MariaDB tests (independent of stale guest fixtures)
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b810-sender-junit.xml" tests/Feature/PublicRegistrationMailSenderB810Test.php > "$RUNNER_TEMP/b806-evidence/b810-sender.log" 2>&1 || { tail -n 70 "$RUNNER_TEMP/b806-evidence/b810-sender.log"; exit 1; }
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b806-evidence/b810-sender-junit.xml" tests/Feature/PublicRegistrationMailSenderB810Test.php tests/Feature/StorefrontRegistrationOnlyB809Test.php > "$RUNNER_TEMP/b806-evidence/b810-sender.log" 2>&1 || { tail -n 70 "$RUNNER_TEMP/b806-evidence/b810-sender.log"; exit 1; }
           tail -n 6 "$RUNNER_TEMP/b806-evidence/b810-sender.log"
-          echo 'B810_SENDER_TARGETED=PASS SOURCE_ONLY NO_PRODUCTION_MAIL'
+          echo 'B809_B810_REGISTERED_SENDER_TARGETED=PASS SOURCE_ONLY NO_PRODUCTION_MAIL'
       - name: B808 expected RED - prove operator checkout authorization failed on predecessor
         working-directory: apps/cms/current
         run: |

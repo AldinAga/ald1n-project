@@ -38,6 +38,18 @@ final class StorefrontRegistrationOnlyB809Test extends TestCase
             'support_email'=>'support@example.test',
         ] as $key=>$value) config()->set('public_storefront.'.$key,$value);
         $this->owner=$this->person('b809-owner','superadmin');
+        // B810 requires an explicitly SuperAdmin-attested activation sender
+        // before any public Kupac signup can send a one-time verification mail.
+        $from='registration@synthetic.example.test';
+        $senderName='Synthetic B809 Registration';
+        app(SettingsService::class)->putMany([
+            'public_registration_sender_address'=>$from,
+            'public_registration_sender_name'=>$senderName,
+            'public_registration_sender_digest'=>
+                \App\Services\PublicRegistrationMailSenderService::fingerprint($from,$senderName),
+            'public_registration_sender_approved_by'=>(string)$this->owner->id,
+            'public_registration_sender_approved_at'=>now()->toISOString(),
+        ],$this->owner->id);
         app(SettingsService::class)->putMany([
             'public_storefront_open'=>'1','documents_company_name'=>'Synthetic B809 Merchant',
             'documents_company_address'=>'Test 10','documents_company_city'=>'Beograd',
