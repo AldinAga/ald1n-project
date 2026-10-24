@@ -76,6 +76,10 @@ final class PublicMerchantSettingsB801Test extends TestCase
         self::assertSame((string)$this->superadmin->id,
             $settings->get('public_checkout_approved_by'));
         $this->get('/porucivanje')->assertNotFound('Approval must NOT expose public routes.');
+        $this->superadmin->update(['retired_at'=>now()]);
+        self::assertFalse($merchant->review()['approved'],
+            'Retired owner cannot silently authorize future guest sales.');
+        $this->superadmin->update(['retired_at'=>null]);
 
         $this->put('/admin/settings/public-storefront',$this->data())
             ->assertRedirect()->assertSessionHasNoErrors();
@@ -89,6 +93,8 @@ final class PublicMerchantSettingsB801Test extends TestCase
             ['payment_methods'=>['bank_transfer'],'bank_account_id'=>''],
             ['shipping_fee_rsd'=>'500'],
             ['terms_url'=>'https://127.0.0.1/fake'],
+            ['terms_url'=>'https://0177.0.0.1/fake'],
+            ['terms_url'=>'https://2130706433/fake'],
         ] as $invalid) {
             $payload=$this->data($invalid+['merchant_approval'=>'1']);
             $this->actingAs($this->superadmin)
