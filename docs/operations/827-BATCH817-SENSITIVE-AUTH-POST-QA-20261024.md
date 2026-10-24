@@ -3,9 +3,11 @@
 DATE=2026-10-24
 BATCH=B817
 PR=https://github.com/AldinAga/ald1n-project/pull/93
-EXACT_SOURCE=510c36791452167c7cf3dc901afaf74c4a701e39
-WORKFLOW=https://github.com/AldinAga/ald1n-project/actions/runs/40113002141
-SCOPED_CI=PENDING_UNVERIFIED
+RED_SOURCE=510c36791452167c7cf3dc901afaf74c4a701e39
+GREEN_SOURCE=ab91681052e782306f2aa2d371207db6eeb176a5
+RED_WORKFLOW=https://github.com/AldinAga/ald1n-project/actions/runs/40113002141
+GREEN_WORKFLOW=https://github.com/AldinAga/ald1n-project/actions/runs/40113258566
+SCOPED_CI=6_TESTS_40_ASSERTIONS_PASS
 FULL_CI=NOT_GREEN_RELEASE_HOLD
 PRODUCTION=B798_PUBLIC_STOREFRONT_OFF
 SSH_REQUIRED=NO
@@ -20,3 +22,8 @@ The exact-source run 40113002141 was started and not completed at report creatio
 
 Drive B817 exact source snapshot: https://docs.google.com/document/d/1iOXKqE9amTfa4O33-nB5erImyeTa4cQfXwmIKIPyJdo/edit
 Accepted program7/17=41.2%, CMS7/15=46.7%, original UI6/6=100%. No owner SSH needed and no production change.
+
+## Verified GREEN and limitations
+At exact candidate `ab91681052e782306f2aa2d371207db6eeb176a5`, targeted B817 PHP8.4 MariaDB tests PASS: **6 tests /40 assertions**. The first red run failed one new case because public registration intentionally returned 404 while storefront OFF, not a privacy bypass. The B817 test-only expected status was corrected to assert OFF/404; no application runtime changes. The original historic B806 suite still fails with 24 tests/88 assertions/1 error/23 failures on the same CI run. Source privacy checks alone are not a security certification or release approval.
+
+[Original B817 JUnit/source evidence ZIP verified on Google Drive](https://drive.google.com/file/d/1oz0M4PscYBDrljQwu682QZEWxIcQILt8/view). [Exact earlier source snapshot](https://docs.google.com/document/d/1iOXKqE9amTfa4O33-nB5erImyeTa4cQfXwmIKIPyJdo/edit) predates the minor test-only 404 expectation correction, so GitHub commit above is canonical. PR93 stays Draft; inherited 48 anonymous guest tests and the separate B815 buyer fixture safety denial stay HOLD, no bypass or release.
