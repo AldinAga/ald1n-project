@@ -42,3 +42,17 @@ Functional acceptance ledger unchanged: program7/17=41.2%, CMS7/15=46.7%, UI6/6=
 A synthetic-only update to the NEW B809 registration test (not any safety-blocked B799–B808 historical fixture) configured an explicit SuperAdmin-approved synthetic sender as required by B810. The B806 grouped workflow then ran two isolated real PHP8.4/MariaDB10.11.19 suites: **12 tests / 160 assertions, zero errors, failures or skips**: six B809 customer signup/email activation and six B810 From identity, role/anti-spoof settings tests. Precise JUnit: B809 6/84 and B810 6/76.
 
 Final-source scoped run: 40100121787, artifact12562785496 SHA256 `b598c5edaa4144b4ef7e82f607d2e908d421f1a5b911bd6ec4649bcef31487c9`, 63149 bytes; [Drive ZIP](https://drive.google.com/file/d/1-rzffPZO1MbVO8OOyw9KQgzwt8sTnTT3/view) independently read back and local SHA256 verified. A subsequent B806 stage still fails because prior *guest-success* assumptions conflict with the owner's registered-only policy. **Do not report exact-head CI green, a complete pentest or SMTP delivery.** No production/SMTP/host or legacy test batch writes.
+
+## B810 terminal exact-source CI gate — 2026-10-24
+
+FINAL_EXACT_HEAD_WORKFLOWS=9_OF_14_SUCCESS_5_FAILED
+BASELINE_FULL_CMS=451_CASES_44_PROBLEMS
+CANDIDATE_FULL_CMS=495_CASES_90_PROBLEMS
+DIFFERENTIAL_NEW_FAILURE_IDENTITIES=48
+B809_REGISTERED_ONLY_SUITE=PASS_6_TESTS_84_ASSERTIONS
+B810_SENDER_SUITE=PASS_6_TESTS_76_ASSERTIONS
+MERGE_RELEASE_GATE=HOLD
+
+Exact immutable full comparison workflow run **40100121840**, source `c8730eaf90ee0dcbdb86185d3269f5808fd1b0eb`: baseline 451 cases/44 problems, candidate 495/90, **48 new failing test identities** vs old main. All 48 are in seven old B799/B802/B803/B806/B808 test classes still expecting guest checkout or pre-registration inputs; no new B809 or B810 test identity failed. The historical tests still need authorized rework and new buyer-specific proofs, never deletion/waiver. The prior provider safety block is not bypassed.
+
+Full-suite evidence artifact12562930510 SHA256 `307d22d275ed97d7418818b4a4fd6437ce5e64df0e2d4fc70757932c726278bc`, 359169 bytes, [Drive ZIP](https://drive.google.com/file/d/1ebDgoUQ-LorBlEyNbJOxDJjZTKymKDfH/view), byte size and SHA256 independently verified. Five exact-head CI failures are old guest B799 retail, B802 access, B806 security, B799 Chromium and B803 full comparison; nine other workflows PASS. Release remains HOLD. No production scripts, SMTP changes, host writes or SSH.
