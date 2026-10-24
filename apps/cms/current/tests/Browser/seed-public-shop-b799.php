@@ -121,6 +121,7 @@ App\Models\Product::query()->create([
 app(App\Services\SettingsService::class)->putMany([
     'documents_company_name'=>'Synthetic Merchant Test',
     'documents_company_address'=>'Synthetic 1, Beograd',
+    'documents_company_city'=>'Beograd',
     'documents_company_tax_id'=>'100000001',
     'eur_rsd_rate'=>'117.78',
 ],null);
@@ -137,4 +138,15 @@ foreach ([
         'created_by'=>$admin->id,
     ]);
 }
+$merchant=app(App\Services\PublicMerchantPolicyService::class);
+$review=$merchant->review();
+if (!$review['complete']) {
+    fwrite(STDERR,"HOLD_B799_BROWSER_MERCHANT_CONFIGURATION\n");
+    exit(6);
+}
+app(App\Services\SettingsService::class)->putMany([
+    'public_checkout_approval_digest'=>$review['fingerprint'],
+    'public_checkout_approved_by'=>(string)$admin->id,
+    'public_checkout_approved_at'=>now()->toISOString(),
+],$admin->id);
 echo "B799_BROWSER_SYNTHETIC_FIXTURE=PASS\n";
