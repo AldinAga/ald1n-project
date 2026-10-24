@@ -1,39 +1,35 @@
-# CURRENT B804 - source QA recovered; exact-source backup prerequisite SSH next
+# CURRENT B806 - targeted storefront security fixes PASS; full pentest and production rollout OPEN
 
-Updated: 2026-10-24. Read root [AGENTS.md](../../AGENTS.md), the [operations supplement](AGENTS.md), this index, current reports and the canonical Google Drive runbook before proceeding.
+Updated:2026-10-24. Read root AGENTS.md, [operations supplement](AGENTS.md), this index, [Report816](816-BATCH806-STOREFRONT-SECURITY-PHASE1-20261024.md) and canonical Drive runbook before the next batch.
 
-## Current authority
+## Source and verified work
 
-- Application [PR93](https://github.com/AldinAga/ald1n-project/pull/93) remains **DRAFT, NOT MERGED, NOT DEPLOYED**. Exact source: `d4e9e2ba506e82d2f4b5ec639c6ce6b39748f34d`, tree `67e51b9112c93414277c5ca8eb5a8e57045318bc`, existing branch `feat/b799-public-retail-catalog-cart-checkout`.
-- [Report814](814-BATCH804-QA-RECOVERY-RELEASE-GATES-20261024.md) records **13/13 successful exact-head CI workflows**, scoped payment/access **20 tests / 211 assertions**, public Chromium with two independently witnessed concurrent checkout races, and complete baseline comparison. Full suite: 451 baseline cases/44 problems versus 459 candidate cases/42 inherited problems, **zero new failure identities**. This is not a wholly green legacy suite.
-- B804 corrects the concurrency test witness, not financial runtime behavior: independent nonces, distinct SQL connection IDs in two consecutive snapshots, unchanged302+422 last-unit and302+302 identical-receipt outcomes, independent DB stock assertions. Different SQL wait stages must not be confused with absence of concurrency.
-- Buyer payment choices are exactly **Pouzece, Uplata na racun, Placanje pri licnom preuzimanju/dostavi**. No public deferred credit; internal SubAgent/direct-sale credit unchanged. In-person selection stays unpaid until genuine operator-recorded collection and requires pickup/own delivery.
+- Existing [PR93](https://github.com/AldinAga/ald1n-project/pull/93) remains DRAFT, NOT MERGED, NOT DEPLOYED. Exact corrected source08d0f44366d7c83c94e83196a0a9965152e84363. B806 changes two runtime files only: PublicCheckoutController.php and SecurityHeaders.php.
+- Reproduced and patched two weakness families: request Host poisoning of receipt/operator links and missing explicit no-store on session cart/checkout. Fixed links use trusted APP_URL/relative redirect; session pages explicitly prohibit storage. These are synthetic application-level findings, not a claim of production exploitation.
+- Actual isolated PHP8.4.27/MariaDB10.11.19 security suite17tests/205assertions PASS. Initial RED16tests/4failures, then separate operator-origin RED17tests/1failure. All14 exact-source CI workflows completed SUCCESS. Full CMS comparison451baseline/44problems versus476candidate/42inherited problems,0new failed identities; whole legacy suite is NOT globally green. Evidence and all named legacy failures are in Report816/its archive.
+- Existing user-requested public payments remain exactly COD, bank transfer and payment at pickup/own delivery. No public deferred credit. SubAgent internal financial history, Kupac isolation and real SuperAdmin ON/OFF are preserved.
 
-## Actual host state - do not replay old work
+## Required penetration testing - NOT finished by17tests
 
-- Last accepted production deployment is **B798**, owner Report804 / [Report805](805-BATCH798-PRODUCTION-CERTIFICATION-20261023.md), runtime source `c4a5f060cc00b5d1be0e4d8068309524a4b99c99`. Host HEAD `b5b942e645d28d3ed5f248eaae4180ebe9a54ee6`, 84 dirty tracked paths, protected index and .htaccess. Public storefront source/tables not deployed, flags OFF as last attested by Report810.
-- [Report813](813-B803-SOURCE-PUBLISH-RELEASE-PREPARATION-20261024-095217.md) is **HOLD_PR_HEAD_MOVED, RC2**, not PASS. Its stale source patch must never be rerun. It did not finish backup gates or deploy anything. Working GitHub/Drive write actions were separately verified; do not require host SSH merely to publish source.
-- Do not replay B798, B800 or earlier accepted batches, merge competing PR92, or confuse connector test PR94 with application changes.
+Follow [the mandatory security plan](../security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md) and [finding register](../security/STOREFRONT-SECURITY-FINDINGS-B806-20261024.md). Account for every applicable versioned WSTG4.2/ASVS5.0.0 Level2 item plus actual storefront business risks. Every confirmed finding must be patched and retested. NOT_RUN/BLOCKED/N/A are not PASS. No guarantee against all possible attacks.
 
-## Next genuine operator step
+The broader item-level inventory, real HTTP CSRF/rate checks, full role/IDOR/input/business corpus, SAST/SCA/secrets, authenticated/anonymous DAST/manual assessment and approved infrastructure tests remain OPEN. Use isolated synthetic environments only. No destructive/live-production/third-party/load testing, real customer writes or emails. Author self-review is not independent security review. Public ON is blocked until complete applicable security and release requirements are satisfied.
 
-Run the prepared **B804 exact-source and two-backup prerequisites only**. Source artifacts are pinned at commit `1240fcd3ad9efe4ef341aa197d4b63635b27b02f` under tools/operator-source:
+## Host evidence - do not repeat completed work
 
-- `ald1n-b804-release-readiness-v1.sh`, SHA256 `be560e0490bd6336d91084e2c3c5c77e9de9781b8c79d3c1875c35c3a8a16597`.
-- PHP helper SHA256 `0b7ae942705806b1610f46201265bc71e5d324764e9f145e6dbc892bdcb03cb2`; manifest SHA256 `2d25f76fcf59235218458293aedc127dbadf8212e21fb45a5d2fdeaf95726108`.
+- Production remains B798/owner Report804/805, sourcec4a5f060cc00b5d1be0e4d8068309524a4b99c99. Host HEADb5b942e645d28d3ed5f248eaae4180ebe9a54ee6,84dirty tracked paths, protected index/.htaccess/.env. Public storefront OFF as last attested.
+- Original owner [Report815](815-B804-EXACT-SOURCE-BACKUP-READINESS-20261024-104140.md) IS RECEIVED and B804 prerequisites PASS:44affected paths, backups166/165 logically verified, RC0, no production writes. Do NOT rerun B804 or earlier completed batches. Restore drill and FPM/OPcache/customer UAT were not performed.
+- Report813 was a safe stale-head HOLD, not deployment; do not rerun its obsolete patch. B805 remains incomplete LOCAL OFF-rollout preparation; its old44-file/721-path payload is invalidated by B806 runtime hashes. Regenerate and retest for the final approved source after security work, not blindly deploy the older package.
+- No new SSH command is needed for B806 source work. Current genuine next work is broader security coverage/remediation followed by final controlled OFF-rollout preparation. Merge, host mutation, public opening, native/EAS/OTA/Play and cleanup remain gated independently.
 
-One self-checking SSH bootstrap installs only the three canonical incoming/ artifacts. It checks exact current PR head/CI, original Report813, 44 affected runtime paths and two distinct completed full backups through the existing unchanged first-party read-only verifier. Freshness preparation window is explicitly newest<=24h, second<=48h; restore drill is not performed. It preserves host HEAD/index/.htaccess/.env, creates only its numbered docs/operations report, and performs **no application, DB, configuration, backup-create/prune, migration, maintenance, checkout/pull/reset, dependency install or deployment**. Expected report815 only if fresh max(remote,local)+1 confirms that number.
+## Honest progress display
 
-After the returned evidence, resolve actual remaining gates and prepare a separate controlled OFF rollout. A read-only prerequisite PASS does not authorize public opening. True merchant policies, shipping/financial settings, backup/restore, FPM/OPcache and actual customer acceptance remain separate gates. No EAS/native/OTA/Google Play action.
+**Accepted program7/17=41.2%; accepted CMS7/15=46.7%; originalUI6/6=100%.** See [all17milestones and explanation](PROGRESS-LEDGER-EXPLAINED-20261024.md). The numerator counts backend M01 plus six accepted UI items M02-M07; it does not count batch executions. Every final status must also name actual work completed in that batch, source/CI state, deployment state and the next missing acceptance condition. Do not label41.2% as total historical development progress or invent another percentage from code/test count.
 
-## Mandatory progress and final cleanup - owner rule
+Security is a mandatory gate for M13-M15; final large inode cleanup remains separately tracked in issue95 after all approved changes/acceptance. Do not silently change the17denominator or delete files now. >400000inodes remains an unmeasured owner estimate.
 
-**Always show progress in every final Ald1n status:** program **7/17 = 41.2%**, CMS **7/15 = 46.7%**, original UI **6/6 = 100%**. Reverify before changing credit. These are accepted milestones, not code volume, estimated time or scoped test pass rate. Source QA alone adds no acceptance credit.
+## Documentation and preserved history
 
-**Mandatory large inode cleanup after all current changes and acceptance:** persistent [issue95](https://github.com/AldinAga/ald1n-project/issues/95). Owner estimate >400,000 files/inodes is not measured. Inventory first, approved path allowlist/dry-run, verified Drive archives, protect active runtime/dependencies/uploads/secrets and two stable backups, one safe SSH batch with before/after inode/byte/reduction evidence. No deletion now; do not silently add cleanup to the17-milestone denominator.
+New security/progress rules are saved in the operations AGENTS supplement and original canonical Drive runbook. New plan and progress explanation were archived on Drive. A specific previous B805 archive upload was safety-blocked: never repackage/retry it to bypass the block, and do not label all connectors read-only when other writes succeed.
 
-The canonical Drive runbook (original ID `10Lxe_reZ1csYOMK9ESjZ8NUmEglDpOMy`) now contains these new rules with all prior content preserved. Old dated B797/B800 checkpoints are historical, not current instructions to replay work.
-
-## Preserved history
-
-The previous full index is retained byte-for-byte in [archive/000-LATEST-PRE-B804-20261024.md](archive/000-LATEST-PRE-B804-20261024.md), original blob `e2b3218116629fbaae79db2b22eb3eb1f8cc923d`. No historical report or guardrail was deleted. Earlier checkpoints remain evidence of their dates; newest verified state above supersedes stale PENDING headers.
+The prior index is preserved byte-identically in [archive/000-LATEST-PRE-B806-20261024.md](archive/000-LATEST-PRE-B806-20261024.md), blobe8a0842d77e317efb718c4f230da713fed579f63; older history remains in the pre-B804 archive. Newest evidenced status supersedes stale pending headers without deleting historical evidence.
