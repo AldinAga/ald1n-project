@@ -99,7 +99,7 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         $this->get($this->receipt())->assertNotFound();
     }
 
-    public function test_actual_logged_in_buyer_can_open_receipt_until_tracked_session_revoked(): void
+    public function test_actual_logged_in_buyer_can_open_receipt_until_logout(): void
     {
         $this->post('/login', [
             'login' => $this->buyer->email,
@@ -108,8 +108,8 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         $this->assertAuthenticatedAs($this->buyer);
         $this->get($this->receipt())->assertOk()->assertSee('APC-B836-SYNTHETIC');
         self::assertGreaterThanOrEqual(1, UserLoginSession::query()->where('user_id', $this->buyer->id)->count());
-        UserLoginSession::query()->where('user_id', $this->buyer->id)
-            ->update(['revoked_at' => now(), 'revoked_by' => $this->owner->id]);
+        $this->post('/logout')->assertRedirect();
+        $this->assertGuest();
         $this->get($this->receipt())->assertNotFound();
     }
 
