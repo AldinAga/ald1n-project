@@ -45,7 +45,21 @@ final class SecurityHeaders
             $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        if ($request->routeIs('login', 'password.*', 'customer-activation.*', 'admin.settings.system-health.*', 'admin.settings.turnstile.*')) {
+        // Activation and password reset GET URLs contain one-time bearer
+        // secrets. Never send them as a Referrer, allow browser storage or
+        // expose the pages to search indexing. The same protection covers
+        // OAuth state/code callbacks and prospective buyer registration forms.
+        if ($request->routeIs('login', 'login.store', 'password.*',
+            'customer-activation.*', 'public-shop.register',
+            'public-shop.register.submit', 'auth.google.*')) {
+            $headers->set('Cache-Control', 'private, no-store, max-age=0');
+            $headers->set('Pragma', 'no-cache');
+            $headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+            $headers->set('Referrer-Policy', 'no-referrer');
+        }
+
+        // Keep the pre-existing settings-page cache protection unchanged.
+        if ($request->routeIs('admin.settings.system-health.*', 'admin.settings.turnstile.*')) {
             $headers->set('Cache-Control', 'no-store, private');
         }
 
