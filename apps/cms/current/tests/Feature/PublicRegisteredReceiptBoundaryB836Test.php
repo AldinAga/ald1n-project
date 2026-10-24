@@ -107,7 +107,9 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         ])->assertRedirect();
         $this->assertAuthenticatedAs($this->buyer);
         $this->get($this->receipt())->assertOk()->assertSee('APC-B836-SYNTHETIC');
-        UserLoginSession::query()->where('user_id', $this->buyer->id)->delete();
+        self::assertGreaterThanOrEqual(1, UserLoginSession::query()->where('user_id', $this->buyer->id)->count());
+        UserLoginSession::query()->where('user_id', $this->buyer->id)
+            ->update(['revoked_at' => now(), 'revoked_by' => $this->owner->id]);
         $this->get($this->receipt())->assertNotFound();
     }
 
