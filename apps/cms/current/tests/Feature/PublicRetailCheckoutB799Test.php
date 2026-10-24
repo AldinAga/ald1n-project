@@ -93,6 +93,10 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('https://cms.ald1n.com/privatnost',$acceptance->privacy_url);
         self::assertSame('Besplatna dostava na adresu.',$acceptance->shipping_description);
         self::assertSame(0.0,(float)$acceptance->shipping_fee_rsd);
+        self::assertSame(
+            app(PublicMerchantPolicyService::class)->fingerprint(),
+            $acceptance->merchant_policy_digest,
+            'Accepted terms must be bound to the exact signed merchant snapshot.');
         $this->get($location)->assertOk()->assertSee('Laptop retail')
             ->assertDontSee('5000')->assertDontSee('250');
     }
@@ -364,6 +368,22 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame(1,(int)$this->product->fresh()->stock_quantity);
     }
 
+    public function test_reapproved_policy_changes_after_checkout_form_cannot_reuse_old_consent(): void
+    {
+        [$submitted]=$this->prepare();
+        $firstDigest=$submitted['merchant_policy_fingerprint'];
+        config()->set('public_storefront.shipping_description',
+            'Synthetic changed delivery terms, requiring renewed shopper acceptance.');
+        $this->approveMerchant();
+        self::assertNotSame($firstDigest,app(PublicMerchantPolicyService::class)->fingerprint());
+        $this->postJson('/porucivanje',$submitted)
+            ->assertUnprocessable()->assertJsonValidationErrors('checkout');
+        self::assertSame(0,Order::query()->count());
+        self::assertSame(0,StockMovement::query()->count());
+        self::assertSame(0,PublicCheckoutAttempt::query()->count());
+        self::assertSame(4,(int)$this->product->fresh()->stock_quantity);
+    }
+
     public function test_unaccepted_terms_and_invalid_checkout_key_never_create_orders(): void
     {
         [$data]=$this->prepare();
@@ -522,8 +542,12 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $form=$this->get('/porucivanje')->assertOk();
         preg_match('/name="checkout_key" value="([a-f0-9]{48})"/',$form->getContent(),$matches);
         self::assertNotEmpty($matches[1]??null);
+        preg_match('/name="merchant_policy_fingerprint" value="([a-f0-9]{64})"/',
+            $form->getContent(),$policy);
+        self::assertNotEmpty($policy[1]??null);
         return [[
             'checkout_key'=>$matches[1],
+            'merchant_policy_fingerprint'=>$policy[1],
             'shipping_full_name'=>'Sintetički Kupac',
             'email'=>'buyer@example.test','shipping_phone'=>'0601234567',
             'shipping_address'=>'Test 12','shipping_city'=>'Beograd',
