@@ -26,7 +26,9 @@ final class CustomerPortalInvitationNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $url = route('customer-activation.show', ['token' => $this->token]);
+        // Activation bearer links must never inherit untrusted Host headers.
+        $url = rtrim((string) config('app.url'), '/')
+            .route('customer-activation.show', ['token' => $this->token], false);
         $mobileUrl = 'ald1n://activate-account?token='.rawurlencode($this->token);
         $name = method_exists($notifiable, 'displayName') ? $notifiable->displayName() : 'korisniče';
 

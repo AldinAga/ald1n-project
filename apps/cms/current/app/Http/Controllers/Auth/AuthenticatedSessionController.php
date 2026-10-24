@@ -114,7 +114,11 @@ final class AuthenticatedSessionController extends Controller
         }
         $securityEvents->log('login.succeeded', 'info', $request, ['user_id' => $user->getKey()]);
 
-        return redirect()->route('dashboard');
+        // A Kupac has no internal employee dashboard. Preserve intended
+        // storefront navigation without changing staff login destinations.
+        return $user->hasRole('customer')
+            ? redirect()->intended(route('public-shop.cart'))
+            : redirect()->route('dashboard');
     }
 
     public function destroy(Request $request, PortalSessionService $portalSessions): RedirectResponse

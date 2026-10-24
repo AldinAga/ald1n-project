@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Anonymous retail order uses real operational orders and inventory,
- * but never creates a guest User or a commission.
+ * Registered Kupac retail checkout uses real operational orders and stock.
+ * No anonymous sales, no staff identity laundering and no commission.
  */
 final class PublicRetailCheckoutService
 {
@@ -34,14 +34,18 @@ final class PublicRetailCheckoutService
     {
         $policies=$this->readiness->assertReady();
         $actor=$request->user();
-        // Do not launder a logged-in SuperAdmin/Admin/SubAgent identity into
-        // an anonymous retail order. Anonymous guests and true Kupac accounts
-        // are the only permitted origins; keep internal order flows separate.
-        if ($actor!==null) {
-            abort_unless($actor->status==='active' && $actor->retired_at===null
-                && $actor->hasRole('customer'),403);
+        // Domain guard independently blocks direct anonymous/internal callers.
+        // Controller/session authorization is never sufficient for stock writes.
+        abort_unless($actor instanceof User,401);
+        abort_unless($actor->status==='active' && $actor->retired_at===null
+            && $actor->hasRole('customer'),403);
+        $buyerId=(int)$actor->id;
+        $submittedEmail=mb_strtolower(trim((string)($input['email']??'')));
+        if (!hash_equals(mb_strtolower(trim((string)$actor->email)),$submittedEmail)) {
+            throw ValidationException::withMessages([
+                'email'=>'Koristi email adresu potvrđenu na svom nalogu Kupca.',
+            ]);
         }
-        $buyerId=$actor===null ? null : (int)$actor->id;
         $delivery=(string)($input['delivery_method']??'');
         if (!in_array($delivery,$policies['delivery_methods'],true)) {
             throw ValidationException::withMessages(['delivery_method'=>'Izaberi dozvoljeni nacin dostave.']);
@@ -102,9 +106,13 @@ final class PublicRetailCheckoutService
             // Shared gate lock allows concurrent buyers, but serializes an OFF
             // action against all committing checkouts. No stale settings cache.
             abort_unless(app(PublicStorefrontStateService::class)->isOpen(true),404);
-            if ($buyerId!==null) {
-                $buyer=User::query()->whereKey($buyerId)->sharedLock()->firstOrFail();
-                abort_unless($buyer->status==='active' && $buyer->retired_at===null && $buyer->hasRole('customer'),403);
+            // Recheck the real registered buyer under DB lock immediately
+            // before creating any attempt/order or decrementing inventory.
+            $buyer=User::query()->whereKey($buyerId)->sharedLock()->firstOrFail();
+            abort_unless($buyer->status==='active' && $buyer->retired_at===null
+                && $buyer->hasRole('customer'),403);
+            if (!hash_equals(mb_strtolower(trim((string)$buyer->email)),$email)) {
+                throw ValidationException::withMessages(['email'=>'Email adresa kupca je promenjena.']);
             }
             // Atomic duplicate-key upsert is essential under MariaDB REPEATABLE READ:
             // firstOrCreate() may perform a stale consistent read when two requests
@@ -128,6 +136,10 @@ final class PublicRetailCheckoutService
             }
             if ($attempt->order_id!==null) {
                 $order=Order::query()->findOrFail($attempt->order_id);
+                // The same nonce is NOT a license to retrieve someone else's
+                // private receipt after login or account reassignment.
+                abort_unless((int)$order->user_id===$buyerId
+                    && $order->sales_channel==='public_retail',403);
                 $cipher=(string)$attempt->receipt_token_ciphertext;
                 if ($cipher==='') throw ValidationException::withMessages(['checkout'=>'Kontaktiraj podršku za proveru ranije porudžbine.']);
                 return ['order'=>$order,'token'=>Crypt::decryptString($cipher),'created'=>false];

@@ -20,6 +20,7 @@
 <form method="post" action="{{ route('logout') }}">@csrf<button type="submit">Odjava</button></form>
 @else
 <a href="{{ route('login') }}">Prijava</a>
+<a href="{{ route('public-shop.register') }}">Registracija</a>
 @endif
 </nav></div></header>
 <main id="content" class="wrap">

@@ -19,12 +19,14 @@ final class PublicCheckoutController extends Controller
     private function requireRetailBuyer(Request $request): void
     {
         $actor=$request->user();
-        // Internal staff must use their own audited ordering workflow.
-        // A logged-in operator must never silently become an anonymous buyer.
-        if ($actor!==null) {
-            abort_unless($actor->status==='active' && $actor->retired_at===null
-                && $actor->hasRole('customer'),403);
+        // A public order is ONLY available to a signed-in, active Kupac.
+        // Never turn a missing identity or staff account into an anonymous sale.
+        if ($actor===null) {
+            throw new \Illuminate\Auth\AuthenticationException(
+                'Prijavi se ili registruj nalog Kupca pre poručivanja.', ['web'], route('login'));
         }
+        abort_unless($actor->status==='active' && $actor->retired_at===null
+            && $actor->hasRole('customer'),403);
     }
 
     public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View
@@ -108,8 +110,10 @@ final class PublicCheckoutController extends Controller
                         ."Poziv na broj: ".$order->payment_reference_snapshot."\n"
                         ."Uplatu potvrđuje prodavac, ne ova poruka.\n";
                 }
-                Mail::raw($body, static function ($mail) use($validated,$order): void {
-                    $mail->to(mb_strtolower(trim((string)$validated['email'])))
+                Mail::raw($body, static function ($mail) use($order): void {
+                    // Receipt destination is the authenticated buyer's
+                    // verified profile, never an arbitrary form-supplied email.
+                    $mail->to(mb_strtolower(trim((string)$order->user?->email)))
                         ->subject('Potvrda porudžbine '.$order->order_number);
                 });
             } catch (Throwable $e) {

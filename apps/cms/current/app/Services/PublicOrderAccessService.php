@@ -12,8 +12,8 @@ use Illuminate\Validation\ValidationException;
 final class PublicOrderAccessService
 {
     /**
-     * Called only after a successful committed-within-the-same-transaction
-     * anonymous retail checkout. Never persist or log plaintext bearer tokens.
+     * Issued for a real registered Kupac order within the order transaction.
+     * Never persist or log plaintext bearer tokens.
      */
     public function issue(Order $order, string $email): string
     {
@@ -24,7 +24,8 @@ final class PublicOrderAccessService
         return DB::transaction(function () use ($order,$email): string {
             $locked=Order::query()->lockForUpdate()->findOrFail($order->id);
             if ($locked->sales_channel!=='public_retail'
-                || ($locked->user_id!==null && !$locked->user?->hasRole('customer'))) {
+                || $locked->user_id===null || !$locked->user?->hasRole('customer')
+                || !hash_equals(mb_strtolower(trim((string)$locked->user?->email)),$email)) {
                 throw ValidationException::withMessages(['order'=>'Nevažeći javni prodajni tok.']);
             }
             if (PublicOrderAccess::query()->where('order_id',$locked->id)->exists()) {

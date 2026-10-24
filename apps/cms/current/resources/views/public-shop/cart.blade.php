@@ -23,7 +23,13 @@
 </div><div class="shop-checkout-total"><p>Vrednost robe: <strong>{{ number_format($quote['total_rsd'],2,',','.') }} RSD</strong></p>
 <p>Korpa ne rezerviše lager; konačna cena i raspoloživost proveravaju se pre prihvatanja porudžbine.</p>
 @if(config('public_storefront.checkout_enabled') === true && count($quote['stale'])===0)
+@if(auth()->user()?->hasRole('customer') && auth()->user()->status==='active' && auth()->user()->retired_at===null)
 <p><a class="shop-checkout-link" href="{{ route('public-shop.checkout') }}">Nastavi na poručivanje</a></p>
+@elseif(!auth()->check())
+<p>Za naručivanje je neophodan registrovan nalog Kupca.</p>
+<p><a class="shop-checkout-link" href="{{ route('login') }}">Prijavi se</a>
+ili <a href="{{ route('public-shop.register') }}">Registruj se</a>.</p>
+@endif
 @endif</div>
 @endif
 @endsection

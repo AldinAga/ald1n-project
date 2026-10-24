@@ -1,7 +1,7 @@
 @extends('public-shop.layout')
 @section('title','Poručivanje')
 @section('content')
-<section class="shop-hero"><span class="eyebrow">Bez registracije</span>
+<section class="shop-hero"><span class="eyebrow">Samo za registrovanog Kupca</span>
 <h1>Podaci za porudžbinu</h1><p>Konačna cena se računa iz aktuelnih prodajnih cena na serveru. Nema provizije.</p></section>
 <div class="shop-detail">
 <form class="shop-detail-content shop-checkout" method="post" action="{{ route('public-shop.checkout.submit') }}">
@@ -11,7 +11,8 @@
 <div class="shop-hidden-hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
 <h2>Podaci kupca i dostava</h2>
 <label>Ime i prezime <input name="shipping_full_name" required maxlength="190" autocomplete="name" value="{{ old('shipping_full_name') }}"></label>
-<label>Email za potvrdu i praćenje <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{ old('email') }}"></label>
+<label>Email registrovanog Kupca <input type="email" name="email" required maxlength="254" readonly value="{{ auth()->user()->email }}"></label>
+<p class="shop-muted">Potvrda porudžbine šalje se isključivo na email adresu povezanog naloga.</p>
 <label>Telefon <input name="shipping_phone" required maxlength="40" autocomplete="tel" value="{{ old('shipping_phone') }}"></label>
 <label>Adresa <input name="shipping_address" required maxlength="255" autocomplete="street-address" value="{{ old('shipping_address') }}"></label>
 <div class="shop-input-row">

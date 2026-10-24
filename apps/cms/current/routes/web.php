@@ -73,6 +73,8 @@ use App\Http\Controllers\FieldWorkOrderAttachmentController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
+// The public catalogue/cart remain browseable without sign-in; sale requires
+// an active registered Kupac. Registration uses verified-email activation.
 // Isolated public retail namespace, OFF until complete checkout/post-order release gates.
 // Internal /catalog, /orders and /admin/* remain behind their existing auth/permission middleware.
 Route::name('public-shop.')->group(function (): void {
@@ -103,6 +105,10 @@ Route::name('public-shop.')->group(function (): void {
 });
 
 Route::middleware('guest')->group(function (): void {
+    Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
+        ->middleware('throttle:public-shop-browse')->name('public-shop.register');
+    Route::post('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'store'])
+        ->middleware('throttle:5,10')->name('public-shop.register.submit');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
     Route::get('/auth/google', [GoogleWebAuthController::class, 'redirect'])
