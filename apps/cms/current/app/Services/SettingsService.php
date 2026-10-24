@@ -106,6 +106,18 @@ final class SettingsService
         'warranty_expiry_notice_days' => '30',
         'warranty_maintenance_notice_days' => '7',
         'automation_last_success_at' => '',
+        // Public retail merchant policy is NOT consented to by default.
+        // Saving a draft never flips the independent environment release flags.
+        'public_checkout_terms_url' => '',
+        'public_checkout_privacy_url' => '',
+        'public_checkout_shipping_fee_rsd' => '',
+        'public_checkout_shipping_description' => '',
+        'public_checkout_payment_methods' => '',
+        'public_checkout_support_email' => '',
+        'public_checkout_bank_account_id' => '',
+        'public_checkout_approval_digest' => '',
+        'public_checkout_approved_at' => '',
+        'public_checkout_approved_by' => '',
         'order_email_enabled' => '1',
         'order_email_creation_enabled' => '1',
         'order_email_updates_enabled' => '1',
