@@ -39,3 +39,12 @@ The original Report796 ledger is17 functional acceptance milestones: M01-M15 CMS
 Every final response must also name what actually advanced in the current batch, source/CI status, deployed status and the precise remaining acceptance gate. Keep the numerator honest but do not hide real progress behind the unchanged41.2%. Use no invented weighted completion percentage. Security and cleanup are required gates/additional tasks, not a silent denominator change.
 
 Owner Report815 closes B804 prerequisites:44 affected paths and backups166/165 logically verified, RC0, no production writes, no restore drill/FPM/customer UAT. Do not rerun B804. B805 local rollout preparation remains incomplete and unshipped; any new application security fix invalidates its old exact-target manifest/payload and requires regeneration. A connector action appearing/disappearing is not proof user permissions changed. A provider safety denial is not a read-only connector and must never be bypassed, repackaged or rerouted.
+
+## Compact batch communication and grouped routine QA - owner rule 2026-10-24
+
+For every subsequent Ald1n batch, group related routine source/CI/security checks in existing coherent jobs where practical, not a new standalone workflow for each small assertion. Preserve *every mandatory gate*; reduce duplicate runs, log noise, repeated long historical recaps, and tool output rather than removing coverage.
+
+- Show the owner only accepted-progress percentage and fraction, concrete changes/tests, production status, a real blocker or the one necessary SSH command. Avoid narrating plans when autonomous work can proceed.
+- Present concise grouped tool summaries (PASS/FAIL/HOLD, exact commit, tested scope and gate) instead of pasting voluminous logs; record expanded diagnostics only as private, expiring CI evidence or canonical archival reports when truly necessary.
+- Use brief durable reports with paths/hashes and links to deeper artifacts; never drop failures, inherited regression identities, RED/GREEN evidence, security findings, restore/rollback or legal/merchant gates to make output look cleaner.
+- Stop rerunning already accepted batches. Continue on fresh PR head, preserve exact source and CI evidence; no new SSH operator handoff unless it is genuinely required and verified.
