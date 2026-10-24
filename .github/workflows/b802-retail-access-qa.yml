@@ -1,0 +1,76 @@
+name: B802 retail role isolation and storefront switch (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/b802-retail-access-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b802-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  retail-access:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Archive tracked text source for review only
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > "$RUNNER_TEMP/b802-source-head.txt"
+          git ls-files -z AGENTS.md apps/cms/current apps/mobile/current .github/workflows docs/operations | tar --null --exclude='*.ttf' --exclude='*.otf' --exclude='*.woff*' --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.webp' --exclude='*.pdf' --exclude='*.zip' --exclude='*.mp4' -czf "$RUNNER_TEMP/b802-source.tar.gz" --files-from=-
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b802-tracked-text-source
+          path: |
+            ${{ runner.temp }}/b802-source.tar.gz
+            ${{ runner.temp }}/b802-source-head.txt
+          retention-days: 1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install exact dependencies
+        working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: B802 role and switch acceptance
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning tests/Feature/PublicRetailAccessB802Test.php
+      - name: Production boundary
+        if: always()
+        run: echo 'SOURCE_ONLY NO_PRODUCTION_SOURCE_DB_MAIL_EAS_OTA_PLAY'
