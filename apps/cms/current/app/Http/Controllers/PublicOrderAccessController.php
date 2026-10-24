@@ -30,10 +30,12 @@ final class PublicOrderAccessController extends Controller
         $order=$this->access->order($token);
         $order->load(['items','shipment','delivery','documents']);
         $shipment=$order->shipment;
-        $courierUrl=trim((string) ($shipment?->courier_tracking_url_snapshot ?? ''));
-        $host=parse_url($courierUrl);
-        if (!is_array($host) || ($host['scheme'] ?? '') !== 'https'
-            || !isset($host['host']) || isset($host['user']) || isset($host['pass'])) {
+        // Reuse the strict carrier URL guard already required in the admin
+        // orders workspace. Guest links must additionally use HTTPS: never
+        // surface localhost/private IP or browser-normalized numeric variants.
+        $courierUrl=\App\Support\TrackingUrl::safe(
+            $shipment?->courier_tracking_url_snapshot);
+        if ($courierUrl===null || !str_starts_with(strtolower($courierUrl),'https://')) {
             $courierUrl=null;
         }
         return response()->view('public-shop.order',[
