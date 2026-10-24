@@ -224,7 +224,9 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           disable-animations: true
           script: |
-            set -euo pipefail
+            # android-emulator-runner runs this callback under /bin/sh.
+            # POSIX set -eu retains fail-closed behavior without bash-only pipefail.
+            set -eu
             node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/debug/app-debug.apk
             echo 'ANDROID_15_16KB_EMULATOR_OFFLINE_LAUNCH=PASS_CI_DEBUG_ONLY'
       - name: No release or production mutation
