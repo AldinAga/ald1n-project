@@ -64,7 +64,7 @@ final class AuthenticatedSessionController extends Controller
         $hash = (string) ($user?->password_hash ?: self::DUMMY_HASH);
         $validPassword = password_verify((string) $request->input('password'), $hash);
 
-        if ($user === null || $user->status !== 'active' || !$validPassword) {
+        if ($user === null || $user->status !== 'active' || $user->retired_at !== null || !$validPassword) {
             $securityEvents->log('login.failed', 'warning', $request, ['login_hash' => hash('sha256', mb_strtolower($login)), 'user_found' => $user !== null]);
             return back()
                 ->withErrors(['login' => 'Pogrešni podaci ili nalog nije aktivan.'])
