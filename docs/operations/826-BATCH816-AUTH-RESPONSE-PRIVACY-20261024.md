@@ -5,14 +5,14 @@ BATCH=B816
 SCOPE=AUTH_TOKEN_REFERRER_CACHE_NO_INDEX
 BRANCH=feat/b799-public-retail-catalog-cart-checkout
 PR=https://github.com/AldinAga/ald1n-project/pull/93
-PR_EXACT_HEAD=5e31333e9e2c7d48366b890e2e2ff3e88b969123
+PR_EXACT_HEAD=aafcba888807ab13d0c12109d423c27734f60741
 RED_COMMIT=d8647211ae1bebbdb36757f7436ef0c363d385a5
 GREEN_COMMIT=5e31333e9e2c7d48366b890e2e2ff3e88b969123
 RED_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40110116447
 GREEN_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40110368273
 B816_RED=8_TESTS_17_ASSERTIONS_7_FAILURES
 B816_GREEN=8_TESTS_51_ASSERTIONS_PASS
-FULL_EXACT_HEAD_CI=PENDING_COMPARATOR_40110368286
+FULL_EXACT_HEAD_CI=PENDING_COMPARATOR_40110799327
 PRODUCTION_MUTATION=NONE
 STORE_B798=OFF
 MERGE=HOLD_DRAFT_PR93
@@ -47,3 +47,9 @@ No external OAuth token exchange, real passwords, production accounts, SMTP, pay
 - [Exact B816 PHP/test/workflow/security traceability source snapshot](https://docs.google.com/document/d/1nUhggcy6_bv82VQd_UTZPwO2cFsrcMWCrx1OBirxf2U/edit)
 
 Functional accepted milestones unchanged: program7/17=41.2%, CMS7/15=46.7%, initial UI6/6=100%. B816 source remediation is separate from production acceptance.
+
+## Stronger existing security regression — final commit integration
+
+The first B816 corrected runtime head 5e31333e9e2c7d48366b890e2e2ff3e88b969123 had a targeted 8/51 GREEN but exact-head B803 candidate522/92 problems and 50 new failure identities. Forty-eight were the old guest-positive fixtures, one was the pre-existing B815 safety-denied buyer OFF fixture, and one was `SecurityHealthBackupTest::test_security_headers_and_request_id_are_present`: it expected a weaker `same-origin` header at login. The existing security test was STRENGTHENED, not removed or waived, to require the newly approved `no-referrer`, `private, no-store` and `noindex` headers while retaining the existing nosniff, frame-policy and request-ID assertions. Final corrected PR93 source is `aafcba888807ab13d0c12109d423c27734f60741`; B816 scoped [CI](https://github.com/AldinAga/ald1n-project/actions/runs/40110799346) remained PASS. The final exact-head B803 comparison [run40110799327](https://github.com/AldinAga/ald1n-project/actions/runs/40110799327) is the authoritative global release gate; do not infer outcome from the prior run.
+
+[Final B816 exact-source snapshot on Drive](https://docs.google.com/document/d/1oSk2nVphbJo5nTTLY-SdbziBbkytE38L6gmxIljh4Y0/edit) and [final-target GREEN ZIP on Drive](https://drive.google.com/file/d/1_1fL9TCjPi1aSC2HWwicHZtVDbEyBgcl/view) were uploaded and read back. Previous RED and initial GREEN archives preserved. Prior safety-denied B815 buyer fixture remains unchanged/unwaived; production B798 OFF.
