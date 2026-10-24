@@ -26,6 +26,9 @@ on:
       - .github/workflows/android-v15-nativegauss-16kb-qa.yml
 permissions:
   contents: read
+concurrency:
+  group: android-v15-native16kb-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   native16kb:
     runs-on: ubuntu-24.04
@@ -170,8 +173,23 @@ jobs:
             echo 'HOLD_AAB_BUNDLE_CONFIG_4K'
             exit 51
           fi
+          # bundletool may generate an unsigned APK unless given an explicit
+          # local signer. Create a disposable TEST key: never use the EAS/Play key.
+          DERIVED_TEST_KEY="$RUNNER_TEMP/ald1n-b834-debug-validation.p12"
+          DERIVED_TEST_PASSWORD_FILE="$RUNNER_TEMP/ald1n-b834-debug-pass.txt"
+          openssl rand -hex 24 > "$DERIVED_TEST_PASSWORD_FILE"
+          chmod 600 "$DERIVED_TEST_PASSWORD_FILE"
+          keytool -genkeypair -noprompt -storetype PKCS12 \
+            -keystore "$DERIVED_TEST_KEY" \
+            -storepass "$(cat "$DERIVED_TEST_PASSWORD_FILE")" \
+            -keypass "$(cat "$DERIVED_TEST_PASSWORD_FILE")" \
+            -alias ald1n_ci_validation_only -keyalg RSA -keysize 3072 \
+            -validity 1 -dname "CN=Ald1n Ephemeral CI, OU=QA, O=Ald1n, C=RS" >/dev/null 2>&1
+          test -s "$DERIVED_TEST_KEY"
           APKS="$RUNNER_TEMP/b832-disposable-debug.apks"
-          java -jar "$JAR" build-apks --bundle="$AAB" --output="$APKS" --mode=universal
+          java -jar "$JAR" build-apks --bundle="$AAB" --output="$APKS" --mode=universal \
+            --ks="$DERIVED_TEST_KEY" --ks-pass="file:$DERIVED_TEST_PASSWORD_FILE" \
+            --ks-key-alias=ald1n_ci_validation_only --key-pass="file:$DERIVED_TEST_PASSWORD_FILE"
           test -s "$APKS"
           unzip -tqq "$APKS"
           APK="$RUNNER_TEMP/b832-derived-universal.apk"
@@ -184,7 +202,7 @@ jobs:
           sha256sum "$AAB" "$APKS" "$APK"
           echo 'B832_DISPOSABLE_AAB_BUNDLE_CONFIG=PASS_16K'
           echo 'B832_BUNDLETOOL_DERIVED_APK_ALL_NATIVE_ELF_ZIPALIGN=PASS'
-          echo 'SIGNING_IDENTITY=DEBUG_ONLY PLAY_RELEASE=NOT_AUTHORIZED'
+          echo 'SIGNING_IDENTITY=EPHEMERAL_LOCAL_CI_ONLY PLAY_RELEASE=NOT_AUTHORIZED'
       - name: No release or production mutation
         if: always()
         run: |
