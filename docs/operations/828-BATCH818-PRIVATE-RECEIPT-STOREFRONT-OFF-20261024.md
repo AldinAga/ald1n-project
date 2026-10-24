@@ -10,7 +10,11 @@ RED_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40115578447
 GREEN_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40115830200
 RED_SCOPE=5_TESTS_20_ASSERTIONS_2_FAILURES
 GREEN_SCOPE=5_TESTS_27_ASSERTIONS_PASS
-FULL_EXACT_HEAD_CI=PENDING_RELEASE_HOLD
+EXACT_HEAD_FULL_CI=9_PASS_5_FAIL_OF_14
+B803_BASELINE=451_CASES_44_PROBLEMS
+B803_CANDIDATE=533_CASES_91_PROBLEMS
+B803_NEW_FAILURE_IDENTITIES=49
+B818_NEW_FAILURE_IDENTITIES=0
 PRODUCTION=B798_STOREFRONT_OFF_UNCHANGED
 PR_STATE=DRAFT_UNMERGED
 OWNER_SSH=NOT_REQUIRED
@@ -58,3 +62,17 @@ Drive evidence archived AND independently read back:
 - [B818 GREEN source snapshot](https://docs.google.com/document/d/18Q3lC-9dGW1RzIi3BdbmUHP9Qn536b_gT1d36KlmNs0/edit).
 
 **Full exact-head 14-workflow CI**: still running when this addendum was authored, so do not infer or claim full-green status. Production B798/public storefront OFF unchanged, Draft PR93 unmerged. No SSH or production build.
+
+## Terminal exact-head comparator and release disposition — 2026-10-24
+
+Draft PR93 exact source `fab3f4991fe5792e28e5a402dbf402617fb5c303`: **all 14 workflows completed; 9 PASS, 5 FAIL**. [B803 full candidate-vs-main comparison run40115830268](https://github.com/AldinAga/ald1n-project/actions/runs/40115830268), job120936920271, conclusively records:
+- `BASELINE_CASES=451 BASELINE_PROBLEMS=44`.
+- `CANDIDATE_CASES=533 CANDIDATE_PROBLEMS=91`.
+- `NEW_FAILURES=49 WHOLE_SUITE_GREEN=NO`, same 48 historical B799/B802/B803/B806/B808 guest checkout assumption identities plus exactly one untouched **`BuyerCheckoutSessionBoundaryB815Test::test_storefront_off_remains_404_before_any_session_gate`** fixture error whose correction was previously safety-denied.
+- **B818 introduced 0 additional failure identities.** Five B818 scoped tests /27 assertions PASS on exact source; full suite is NOT green and no tests were disabled/waived.
+
+Five failing jobs remain B799 storefront, B802 role, B806 security, B799 historical Chromium, and B803 full comparator. Previously established B812 registered-buyer Chromium step remains a distinct scoped PASS, NOT full browser approval.
+
+[Original B803 exact-source evidence ZIP, JUnit and 49 failure identities archived to owner Google Drive](https://drive.google.com/file/d/1IpbOL4Pm0wnzZ9qrysM73mBMPS-1eaIW/view). This file was independently verified by Drive metadata readback. RED JUnit, GREEN JUnit, source snapshots and this report were also independently archived as above.
+
+**DO_NOT_MERGE=YES; DO_NOT_DEPLOY=YES; DO_NOT_ENABLE_STOREFRONT=YES; NO_OWNER_SSH.** Production remains unchanged B798/OFF. Owner may be involved later only when a validated necessary operator SSH batch is actually prepared. Accepted program 7/17=41.2% and CMS 7/15=46.7% unchanged. Next closing gate is honest resolution of historical guest-positive failures and previously safety-denied B815 fixture through an independently permitted review, followed by complete security/merchant/SMTP/restore/FPM/real-buyer UAT checks. No bypass attempted.
