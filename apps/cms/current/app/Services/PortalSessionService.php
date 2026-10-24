@@ -62,6 +62,17 @@ final class PortalSessionService
 
     public function validateAndTouch(Request $request, User $user): bool
     {
+        // Use the current database credential/status, never a guard-cached user
+        // that could predate password recovery, account activation or retirement.
+        $current = User::query()->whereKey($user->getKey())
+            ->first(['id', 'password_hash', 'password_changed_at', 'status', 'retired_at']);
+        if (!$current instanceof User
+            || $current->status !== 'active'
+            || $current->retired_at !== null) {
+            return false;
+        }
+        $user = $current;
+
         // Never turn a missing registry or missing session ID into approval.
         if (!$this->available()) {
             return false;
