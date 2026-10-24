@@ -13,7 +13,12 @@ GREEN_RUN=https://github.com/AldinAga/ald1n-project/actions/runs/40108095212
 B815_SCOPED_GREEN=5_TESTS_61_ASSERTIONS_PASS
 B812_REGISTERED_BROWSER=https://github.com/AldinAga/ald1n-project/actions/runs/40108095229
 EXACT_HEAD_FULL_CI=https://github.com/AldinAga/ald1n-project/actions/runs/40108095363
-FULL_CI=HOLD_PENDING_FINAL_LOGS
+EXACT_HEAD_CI=9_PASS_5_FAIL_OF_14
+B803_BASELINE=451_CASES_44_PROBLEMS
+B803_CANDIDATE=514_CASES_91_PROBLEMS
+B803_NEW_FAILURE_IDENTITIES=49
+B803_LEGACY_GUEST_IDENTITIES=48
+B803_B815_FIXTURE_FAILURE_IDENTITIES=1
 B815_BUYER_OFF_FIXTURE=OPEN_SAFETY_DENIED_EDIT
 PRODUCTION=B798_PUBLIC_OFF_NO_MUTATIONS
 PR93=DRAFT_UNMERGED
@@ -63,3 +68,18 @@ RESTORE_FPM_OPCACHE=NOT_ATTESTED
 REAL_BUYER_UAT=NOT_DONE
 ANDROID_16KB_SDK58=SEPARATE_FUTURE_GATES
 DEFER_INODE_CLEANUP=ISSUE95_FINAL_ONLY
+
+## Final exact-head B815 release evidence — 2026-10-24
+
+PR93 exact commit `b392583714b522bab6fa1fc4af042a9510787f92` has **14 workflows complete: 9 PASS, 5 FAIL**. [B803 complete baseline/candidate](https://github.com/AldinAga/ald1n-project/actions/runs/40108095363) job120913985105:
+- `BASELINE_CASES=451 BASELINE_PROBLEMS=44`.
+- `CANDIDATE_CASES=514 CANDIDATE_PROBLEMS=91`.
+- `NEW_FAILURES=49 WHOLE_SUITE_GREEN=NO`.
+- 48 failure identities are the unchanged historical B799–B808 anonymous guest-positive cases.
+- **One new failure is `Tests\\Feature\\BuyerCheckoutSessionBoundaryB815Test::test_storefront_off_remains_404_before_any_session_gate`**. Source inspection identifies unsupported fixture `SettingsService::put()`; attempt to correct was safety-DENIED. No workaround, edit retry, deletion, skipping or CI exclusion performed. This case must be corrected only by an independently authorized route that does not bypass the denial.
+
+B815 portal-session MariaDB target **5 tests/61 assertions PASS** [run40108095212](https://github.com/AldinAga/ald1n-project/actions/runs/40108095212). B809+B810 12/160, B811 4/91, B813 4/29, B814 4/25 all PASS within this exact run. B812 registered Kupac real Chromium step PASS [run40108095229](https://github.com/AldinAga/ald1n-project/actions/runs/40108095229); unchanged historical guest-positive Chromium step FAIL as expected. No real SMTP delivery.
+
+[Exact-head B803 JUnit/compare evidence archived on Drive](https://drive.google.com/file/d/1UC3VZUs5IwqJPaOgtQ6uszy6V7N66In5/view) (GitHub artifact12565029953), verified by Drive metadata readback. RED/intermediate/GREEN source and evidence ZIPs also archived to Drive per Report825 links.
+
+End state: **SOURCE HARDENING SCOPED PASS; GLOBAL CI / MERGE / PRODUCTION RELEASE HOLD**. Production B798/store OFF untouched; PR93 Draft; owner SSH unnecessary. All 17/15 acceptance milestones remain 7/17 and 7/15.
