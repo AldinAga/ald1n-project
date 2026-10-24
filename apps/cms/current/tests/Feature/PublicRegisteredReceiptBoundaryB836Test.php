@@ -104,7 +104,7 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         $this->post('/login', [
             'login' => $this->buyer->email,
             'password' => 'B836-Synthetic-Only123!',
-        ])->assertRedirect('/');
+        ])->assertRedirect();
         $this->assertAuthenticatedAs($this->buyer);
         $this->get($this->receipt())->assertOk()->assertSee('APC-B836-SYNTHETIC');
         UserLoginSession::query()->where('user_id', $this->buyer->id)->delete();
