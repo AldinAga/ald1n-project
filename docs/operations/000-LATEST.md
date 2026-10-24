@@ -1,3 +1,9 @@
+# CURRENT B821 — synthetic token/cache tests prepared; CI NOT RUN, release HOLD
+
+2026-10-24: [Report829](829-BATCH821-RECEIPT-TOKEN-PRIVACY-TEST-PREP-20261024.md). Two new isolated synthetic receipt negative regression cases committed on separate exact-B818-source branch `test/b821-receipt-privacy-negative-20261024` at `df9c0b363b19b996730513853b531f5d811cf2f3`. CI workflow lookup returned no runs; **NOT RUN / NOT PASS**. Draft PR96 incorrectly compared 95 files/133 historic commits against `main` and was **immediately CLOSED without merge**; never reopen/merge. PR93 implementation draft unchanged. B815 prior safety-denied correction untouched. B820 11-case matrix not executed. Production B798 storefront OFF; full B818 CI 9/14, 49 inherited failure identities. No SSH/deploy. Accepted overall 7/17=41.2%, CMS 7/15=46.7%, UI6/6.
+
+---
+
 # CURRENT B820 — source audit of media and private receipt boundaries; release HOLD
 
 2026-10-24: [B820 static audit and 11 negative test cases](../security/B820-PUBLIC-MEDIA-PRIVATE-RECEIPT-STATIC-AUDIT-20261024.md) on unmerged PR93 source `fab3f4991fe5792e28e5a402dbf402617fb5c303`. Verified exact source guards for public image path containment, MIME and visibility, shared private receipt/document/warranty ON gate, and transactional SuperAdmin OFF. Explicit operational caveat: previously cached **public product images** may remain visible for their advertised `max-age=3600` after emergency OFF; no private data exposure was established. None of the 11 planned negative tests was executed under B820. Source review only, no new CI PASS or app patch; complete WSTG/ASVS census, 49 inherited test identities, B815 safety denial and all existing release gates remain unresolved. Production B798 storefront OFF; PR93 Draft, no deploy/SSH/EAS/OTA/Play. Accepted program 7/17 (41.2%), CMS 7/15 (46.7%), UI 6/6.
