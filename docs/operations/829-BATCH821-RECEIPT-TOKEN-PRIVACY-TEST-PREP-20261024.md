@@ -1,0 +1,9 @@
+# B821 — synthetic private receipt token/cache regression prepared; CI not evidenced
+
+2026-10-24. Independent branch `test/b821-receipt-privacy-negative-20261024` at `df9c0b363b19b996730513853b531f5d811cf2f3`, based on precisely previously tested B818 implementation `fab3f4991fe5792e28e5a402dbf402617fb5c303`.
+
+Created `apps/cms/current/tests/Feature/PublicReceiptTokenPrivacyB821Test.php`: two synthetic RefreshDatabase cases assert malformed/unknown receipt bearer links return 404 without exposing the synthetic order, and successful receipt has private/no-store, noindex, no-referrer, nosniff headers and preserves DB rows. Kept existing B815 safety-denied fixture entirely unchanged. No application source modified.
+
+**Validation limitation:** GitHub commit workflow-run lookup returned an empty array for exact test commit; therefore **NOT_RUN / NO PASS**. A draft PR #96 was briefly opened to trigger CI, but GitHub comparison with `main` included 133 historical commits and 95 changed files from the unrelated PR93 source ancestor; this is NOT a test-only PR. PR96 was immediately **CLOSED unmerged**, without review, merge, deployment or bypass. Do not reopen or merge this PR. The branch/test can be reused ONLY after isolating a proper target/base and obtaining exact-source CI verification. PR93 remains canonical implementation draft and all production release gates still HOLD.
+
+B820 static audit's 11-case matrix is **not** executed. B821 two additional scoped cases also **not** executed. No production or SSH action. Production B798 storefront OFF; full recorded comparator 9/14 PASS, 5 FAIL and 49 preexisting failure identities with B815 denied fix unchanged. Accepted program 7/17 (41.2%), CMS 7/15 (46.7%), UI 6/6. Next: reroute no safety-denied edit; CI on exact candidate branch through existing approved testing mechanism and full WSTG/ASVS census.
