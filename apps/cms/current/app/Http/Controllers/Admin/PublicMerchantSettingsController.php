@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Services\AuditLogger;
 use App\Services\PublicMerchantPolicyService;
+use App\Services\PublicRegistrationMailSenderService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,11 +18,14 @@ use Illuminate\View\View;
 
 final class PublicMerchantSettingsController extends Controller
 {
-    public function index(Request $request, PublicMerchantPolicyService $merchant): View
+    public function index(Request $request, PublicMerchantPolicyService $merchant,
+        PublicRegistrationMailSenderService $registrationMail): View
     {
         $this->authorizeOwner($request);
         return view('admin.settings.public-storefront',[
             'review'=>$merchant->review(),
+            'registrationMail'=>$registrationMail->status(),
+            'systemMailFrom'=>(string)config('mail.from.address'),
             'bankAccounts'=>BankAccount::query()->where('is_active',true)->orderBy('label')
                 ->get(['id','label','recipient_name']),
             'catalogEnabled'=>config('public_storefront.enabled')===true,
@@ -29,6 +33,46 @@ final class PublicMerchantSettingsController extends Controller
             'storeRequestedOpen'=>app(\App\Services\PublicStorefrontStateService::class)->requestedOpen(),
             'storeOpen'=>app(\App\Services\PublicStorefrontStateService::class)->isOpen(),
         ]);
+    }
+
+    public function updateRegistrationSender(
+        Request $request, SettingsService $settings,
+        PublicRegistrationMailSenderService $senderService, AuditLogger $audit,
+    ): RedirectResponse {
+        $this->authorizeOwner($request);
+        $data=$request->validate([
+            'registration_from_email'=>['required','email:rfc','max:254'],
+            'registration_from_name'=>['required','string','max:100'],
+            'confirm_authorized_sender'=>['accepted'],
+        ]);
+        $address=PublicRegistrationMailSenderService::normalizeEmail(
+            (string)$data['registration_from_email']);
+        $name=trim((string)$data['registration_from_name']);
+        if (!PublicRegistrationMailSenderService::validAddress($address)) {
+            throw ValidationException::withMessages(['registration_from_email'=>
+                'Unesite validnu stvarnu email adresu ovlašćenog pošiljaoca.']);
+        }
+        if (!PublicRegistrationMailSenderService::validName($name)) {
+            throw ValidationException::withMessages(['registration_from_name'=>
+                'Naziv pošiljaoca ne sme sadržati kontrolne znakove.']);
+        }
+        $owner=$request->user();
+        $before=$senderService->status();
+        $digest=PublicRegistrationMailSenderService::fingerprint($address,$name);
+        $settings->putMany([
+            'public_registration_sender_address'=>$address,
+            'public_registration_sender_name'=>$name,
+            'public_registration_sender_digest'=>$digest,
+            'public_registration_sender_approved_by'=>(string)$owner->id,
+            'public_registration_sender_approved_at'=>now()->toISOString(),
+        ],(int)$owner->id);
+        $audit->log('settings.public_registration_sender_updated',
+            'SuperAdministrator je odredio pošiljaoca aktivacije Kupca.',
+            null,['configured'=>$before['approved']],
+            ['configured'=>true,'sender_digest'=>$digest],user:$owner,
+        );
+        return back()->with('status',
+            'Pošiljalac registracije Kupca je sačuvan. SMTP nalog i produkcioni prekidači nisu menjani.');
     }
 
     public function update(

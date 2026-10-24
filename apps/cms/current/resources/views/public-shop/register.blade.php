@@ -7,6 +7,9 @@
 <section class="shop-hero"><span class="eyebrow">Kupac</span><h1>Registracija naloga</h1>
 <p>Za poručivanje je obavezna registracija i aktivacija email adrese. Javni katalog možete pregledati i bez naloga.</p></section>
 <section class="shop-detail-content shop-checkout">
+@if(!$registrationSenderReady)
+<div class="shop-alert error" role="alert">Registracija trenutno nije dostupna. Kontaktirajte podršku; pošiljalac potvrda nije podešen.</div>
+@else
 <form method="post" action="{{ route('public-shop.register.submit') }}">@csrf
 <label>Ime <input name="first_name" required minlength="2" maxlength="100" autocomplete="given-name" value="{{ old('first_name') }}"></label>
 <label>Prezime <input name="last_name" required minlength="2" maxlength="100" autocomplete="family-name" value="{{ old('last_name') }}"></label>
@@ -19,5 +22,7 @@ Upoznat/a sam sa <a href="{{ config('public_storefront.privacy_url') }}" target=
 <button type="submit">Pošalji registraciju</button>
 <p class="shop-muted">Stiže jednokratni aktivacioni link. Lozinku postavljate tek nakon potvrde email adrese.</p>
 <p>Već imate nalog? <a href="{{ route('login') }}">Prijavite se.</a></p>
-</form></section>
+</form>
+@endif
+</section>
 @endsection

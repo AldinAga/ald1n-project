@@ -491,6 +491,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->name('public-storefront.index');
             Route::put('/public-storefront', [PublicMerchantSettingsController::class, 'update'])
                 ->middleware('throttle:admin-write')->name('public-storefront.update');
+            Route::put('/public-storefront/registration-sender', [PublicMerchantSettingsController::class, 'updateRegistrationSender'])
+                ->middleware('throttle:admin-write')->name('public-storefront.registration-sender');
             Route::get('/modules', [ModuleSettingsController::class, 'index'])->name('modules.index');
             Route::put('/modules', [ModuleSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('modules.update');
             Route::get('/automation', [AutomationController::class, 'index'])->middleware('permission:automation.manage')->name('automation.index');

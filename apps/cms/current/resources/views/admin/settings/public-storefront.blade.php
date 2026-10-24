@@ -41,6 +41,38 @@
     <p class="muted">ON je moguć tek nakon tehničke pripreme i važeće potvrde uslova. Samo čuvanje uslova ne uključuje prodavnicu.</p>
 </section>
 
+<section class="panel form-section" aria-labelledby="buyer-mail-title">
+    <div class="section-heading-row"><div>
+        <h2 id="buyer-mail-title">Email za potvrdu registracije Kupca</h2>
+        <p class="muted">Samo za samostalnu registraciju Kupca; potvrde porudžbina i interne pozivnice zadržavaju postojeća pravila.</p>
+    </div></div>
+    <p>Trenutni pošiljalac: <strong>{{ $registrationMail['approved'] ? $registrationMail['address'] : 'Nije odobren' }}</strong>
+        @if($registrationMail['approved']) — {{ $registrationMail['name'] }} @endif</p>
+    @if(!$registrationMail['transport_ready'])
+    <div class="alert alert-danger" role="alert">Produkcioni mail transport mora biti SMTP ili sendmail pre aktivacije registracije.</div>
+    @endif
+    <form method="post" action="{{ route('admin.settings.public-storefront.registration-sender') }}">
+        @csrf @method('put')
+        <div class="field-grid">
+            <label class="field"><span>Email adresa pošiljaoca</span>
+                <input type="email" name="registration_from_email" maxlength="254" required
+                    value="{{ old('registration_from_email',$registrationMail['address']) }}"
+                    placeholder="registracija@domen.rs" autocomplete="off"></label>
+            <label class="field"><span>Naziv pošiljaoca</span>
+                <input name="registration_from_name" maxlength="100" required
+                    value="{{ old('registration_from_name',$registrationMail['name']) }}"
+                    placeholder="AP Computers" autocomplete="off"></label>
+        </div>
+        <p class="muted">Sistemski MAIL_FROM_ADDRESS: {{ $systemMailFrom }} (informativno).
+            SMTP provajder mora dopuštati odabranu adresu. SPF/DKIM/DMARC i stvarnu dostavu treba proveriti
+            pre produkcionog ON. SMTP lozinka se ovde ne menja.</p>
+        <label class="field"><input type="checkbox" name="confirm_authorized_sender" value="1" required>
+            Potvrđujem da je pošiljalac pod našom kontrolom i autorizovan za postojeći SMTP provajder.</label>
+        <button class="button button-primary" type="submit">Sačuvaj pošiljaoca registracije</button>
+    </form>
+    <p class="muted">Ovim se ne uključuje javna prodavnica i ne šalje testni email.</p>
+</section>
+
 <form method="post" action="{{ route('admin.settings.public-storefront.update') }}"
       class="admin-form-grid settings-primary-form">
     @csrf

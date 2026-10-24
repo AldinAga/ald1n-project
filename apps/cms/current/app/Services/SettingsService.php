@@ -109,6 +109,12 @@ final class SettingsService
         // Public retail merchant policy is NOT consented to by default.
         // Saving a draft never flips the independent environment release flags.
         'public_storefront_open' => '0',
+        // Mail header identity is explicitly attested; no SMTP secret lives here.
+        'public_registration_sender_address' => '',
+        'public_registration_sender_name' => '',
+        'public_registration_sender_digest' => '',
+        'public_registration_sender_approved_by' => '',
+        'public_registration_sender_approved_at' => '',
         'public_checkout_terms_url' => '',
         'public_checkout_privacy_url' => '',
         'public_checkout_shipping_fee_rsd' => '',

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\CustomerActivationService;
 use App\Services\PublicStorefrontStateService;
+use App\Services\PublicRegistrationMailSenderService;
 use App\Services\TurnstileService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -27,19 +28,27 @@ final class PublicBuyerRegistrationController extends Controller
         abort_unless(app(PublicStorefrontStateService::class)->isOpen(),404);
     }
 
-    public function create(TurnstileService $turnstile): View
+    public function create(TurnstileService $turnstile, PublicRegistrationMailSenderService $sender): View
     {
         $this->gate();
         return view('public-shop.register',[
             'turnstileEnabled'=>$turnstile->enabled(),
             'turnstileSiteKey'=>$turnstile->siteKey(),
+            'registrationSenderReady'=>$sender->sender()!==null,
         ]);
     }
 
     public function store(Request $request, TurnstileService $turnstile,
-        CustomerActivationService $activations): RedirectResponse
+        CustomerActivationService $activations,
+        PublicRegistrationMailSenderService $registrationMail): RedirectResponse
     {
         $this->gate();
+        $sender=$registrationMail->sender();
+        if ($sender===null) {
+            // No orphan pending users if the activation mailbox is not approved.
+            throw ValidationException::withMessages(['registration'=>
+                'Registracija trenutno nije dostupna. Kontaktirajte podršku.']);
+        }
         $data=$request->validate([
             'first_name'=>['required','string','min:2','max:100'],
             'last_name'=>['required','string','min:2','max:100'],
@@ -83,7 +92,7 @@ final class PublicBuyerRegistrationController extends Controller
                 // Bound re-sends for pending accounts. No tokens to active/staff.
                 $recent=$buyer->activationTokens()->whereNull('accepted_at')
                     ->where('sent_at','>',now()->subMinutes(15))->exists();
-                if (!$recent) $activations->invite($buyer);
+                if (!$recent) $activations->invite($buyer, null, $sender);
             }
         } catch (UniqueConstraintViolationException) {
             // Concurrent same-email registration: generic response, no role override.

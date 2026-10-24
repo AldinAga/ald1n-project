@@ -15,6 +15,8 @@ final class CustomerPortalInvitationNotification extends Notification
     public function __construct(
         public readonly string $token,
         public readonly int $expiresInHours,
+        /** @var array{address:string,name:string}|null */
+        public readonly ?array $registrationSender = null,
     ) {
     }
 
@@ -32,8 +34,10 @@ final class CustomerPortalInvitationNotification extends Notification
         $mobileUrl = 'ald1n://activate-account?token='.rawurlencode($this->token);
         $name = method_exists($notifiable, 'displayName') ? $notifiable->displayName() : 'korisniče';
 
-        return (new MailMessage())
-            ->subject('Aktivirajte svoj korisnički portal')
+        $message=(new MailMessage())
+            ->subject($this->registrationSender!==null
+                ? 'Potvrdite registraciju Kupca'
+                : 'Aktivirajte svoj korisnički portal')
             ->greeting('Zdravo, '.$name)
             ->line('Za vas je pripremljen bezbedan pristup korisničkom portalu.')
             ->line('Na portalu možete pratiti porudžbine, dokumente, uplate, garancije, reklamacije, servisne termine i poruke.')
@@ -41,5 +45,11 @@ final class CustomerPortalInvitationNotification extends Notification
             ->line('[Otvori aktivaciju u Ald1n CMS mobilnoj aplikaciji]('.$mobileUrl.')')
             ->line('Link važi '.$this->expiresInHours.' sati, može se iskoristiti samo jednom i postaje nevažeći nakon aktivacije.')
             ->line('Ako ne očekujete ovaj poziv, ignorišite poruku ili kontaktirajte administratora.');
+        // Only self-registration uses the owner-approved From identity.
+        // Existing operator invitations retain the existing default sender.
+        if ($this->registrationSender!==null) {
+            $message->from($this->registrationSender['address'],$this->registrationSender['name']);
+        }
+        return $message;
     }
 }
