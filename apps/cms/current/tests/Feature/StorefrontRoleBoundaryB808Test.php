@@ -151,7 +151,8 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
         $this->get((string)$linkA.'/dokument/'.$document->id)->assertNotFound();
         $this->get('/porudzbina/'.$orderB->id.'/dokument/'.$document->id)->assertNotFound();
         $this->get((string)$linkB)->assertOk()->assertSee('B808-OTHER-ORDER-INVOICE');
-        $document->update(['status'=>'void']);
+        // Use the real document cancellation enum; revoked records must stay private.
+        $document->update(['status'=>'cancelled']);
         $this->get((string)$linkB)->assertOk()->assertDontSee('B808-OTHER-ORDER-INVOICE');
         $this->get((string)$linkB.'/dokument/'.$document->id)->assertNotFound();
         self::assertDatabaseCount('order_payments',0);
