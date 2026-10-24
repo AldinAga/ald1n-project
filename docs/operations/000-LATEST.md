@@ -1,3 +1,9 @@
+# CURRENT B811 — new registered-buyer lifecycle QA committed; CI pending, production HOLD
+
+Updated 2026-10-24. [Report821](821-BATCH811-REGISTERED-BUYER-LIFECYCLE-QA-20261024.md) tracks the new B811 synthetic end-to-end tests and existing grouped MariaDB workflow addition on Draft [PR93](https://github.com/AldinAga/ald1n-project/pull/93), candidate `71e5c92364384ee189486671021e69fff2db036c`. [Exact-head B811 workflow](https://github.com/AldinAga/ald1n-project/actions/runs/40101779104) started; **B811 CI NOT YET VERIFIED; do not claim PASS**. Four new scenarios cover registration/activation/login/checkout, expired token/resend throttle, cross-account replay, and changed merchant policy. No historical guest fixtures rewritten; five old workflow failures and 48 guest-assumption test identities from B810 remain unresolved pending fresh results. No production writes, SMTP send, merge, SSH or storefront ON. Accepted program **7/17=41.2%**, CMS **7/15=46.7%**, original UI **6/6=100%**. B810 Report820 remains the previous fully reported exact-source QA authority.
+
+---
+
 # CURRENT B810 — SuperAdmin mail sender for Kupac signup scoped PASS; B809 full CI and production HOLD
 
 Updated 2026-10-24. [Report820](820-BATCH810-SUPERADMIN-KUPAC-REGISTRATION-MAIL-SENDER-20261024.md) is the current scoped QA authority. Development [Draft PR93](https://github.com/AldinAga/ald1n-project/pull/93), exact head `c8730eaf90ee0dcbdb86185d3269f5808fd1b0eb`, NOT MERGED/DEPLOYED.
