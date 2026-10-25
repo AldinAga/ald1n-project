@@ -262,6 +262,33 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         self::assertDatabaseCount('public_order_accesses',1);
     }
 
+    /** B842 / SEC02: redirect destination must never adopt a hostile Host. */
+    public function test_anonymous_checkout_redirect_uses_canonical_login_origin(): void
+    {
+        $response=$this->withServerVariables([
+            'HTTP_HOST'=>'poison.example.test',
+            'SERVER_NAME'=>'poison.example.test',
+            'HTTPS'=>'on',
+        ])->get('/porucivanje');
+
+        $response->assertRedirect('https://cms.ald1n.com/login');
+        self::assertStringNotContainsString('poison.example.test',
+            (string)$response->headers->get('Location'));
+        self::assertDatabaseCount('orders',1);
+        self::assertDatabaseCount('public_checkout_attempts',0);
+    }
+
+    /** B842 negative control: API-style anonymous callers remain HTTP401. */
+    public function test_anonymous_json_checkout_is_http401_without_location(): void
+    {
+        $response=$this->withHeaders(['Accept'=>'application/json'])
+            ->get('/porucivanje');
+        $response->assertUnauthorized();
+        self::assertFalse($response->headers->has('Location'));
+        self::assertDatabaseCount('orders',1);
+        self::assertDatabaseCount('public_checkout_attempts',0);
+    }
+
     private function unissuedOrder(string $suffix): Order
     {
         $copy=$this->order->replicate();
