@@ -78,8 +78,9 @@ jobs:
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b905-junit.xml" \
-            tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php
-      - name: Strict original 9 unique JUnit cases and source SHA256
+            tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php \
+            tests/Unit/WarrantyExpiryOptInSourceTest.php
+      - name: Strict original 12 unique JUnit cases and source SHA256
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -87,13 +88,16 @@ jobs:
           import sys,xml.etree.ElementTree as ET
           cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
           ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
-          assert len(ids)==9 and len(set(ids))==9, 'HOLD_9_UNIQUE_B905_CASES'
-          assert all(c and n and c.endswith('WarrantyExpiryFreshEligibilityB905Test') for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
+          assert len(ids)==12 and len(set(ids))==12, 'HOLD_12_UNIQUE_B905_AND_ORIGINAL_M11_CASES'
+          assert sum(c.endswith('WarrantyExpiryFreshEligibilityB905Test') for c,n in ids if c)==9, 'HOLD_9_NEW_B905_CASES'
+          assert sum(c.endswith('WarrantyExpiryOptInSourceTest') for c,n in ids if c)==3, 'HOLD_3_ORIGINAL_M11_CASES'
+          assert all(c and n and (c.endswith('WarrantyExpiryFreshEligibilityB905Test') or c.endswith('WarrantyExpiryOptInSourceTest')) for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
           assert not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped','warning')), 'HOLD_FAILED_OR_SKIPPED_CASE'
-          print('B905_B906_LIVE_EXPIRY_POLICY_9_OF_9_REAL_MARIADB_PASS')
+          print('B905_B908_LIVE_EXPIRY_12_OF_12_MARIADB_UNIT_PASS')
           PY
           sha256sum app/Services/WarrantyExpiryRecipientPolicy.php \
             tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php \
+            tests/Unit/WarrantyExpiryOptInSourceTest.php \
             > "$RUNNER_TEMP/b905-source.sha256"
       - name: Preserve RED/GREEN original JUnit plus source
         if: always()
@@ -106,6 +110,7 @@ jobs:
             ${{ runner.temp }}/b905-changed.txt
             apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php
             apps/cms/current/tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php
+            apps/cms/current/tests/Unit/WarrantyExpiryOptInSourceTest.php
             .github/workflows/b905-warranty-expiry-live-eligibility-qa.yml
           retention-days: 7
       - name: No production operations
