@@ -1,0 +1,56 @@
+# Report854 — B883–B887: local-only auth/activation/password redirects, exact HTTP PASS and 627-case B803 release HOLD
+
+Date: 2026-10-25 Europe/Belgrade. **Source-only development and isolated real CI PASS; global full Laravel release HOLD.** No hosting SSH, no CloudLinux production code/DB/flags, no real SMTP/email, no external OAuth/Turnstile verification, no customer order/payment mutation, no EAS/OTA/Play, no merges or inode cleanup.
+
+## Authority, stacked source and release gates
+
+- Fresh intake: GitHub main `afb95de5852bd049d30ccede87a6785258f5daa0` (Report853); `AGENTS.md`, `docs/operations/000-LATEST.md` (still stale B832 due earlier provider-denied direct edit), canonical Google Drive `ALD1N-EXPO-CLOUDLINUX-UPDATE-RUNBOOK.md`, Reports851–853, public storefront WSTG/ASVS plan and open [Issue104](https://github.com/AldinAga/ald1n-project/issues/104). No denied workflow/fixture edit or alternative routing was attempted.
+- New [Draft PR105](https://github.com/AldinAga/ald1n-project/pull/105) branch `fix/b883-auth-local-redirects-20261025` on **immutable parent Draft PR103** commit `985c289e5d2dc1f8532af4ea6b87eb18ba630478`. Current exact child `601ea692dcfd34f922d7f6544089a622521b8a3b`, unmerged. Parent Draft PR102 and Draft PR100 Composer lock/CSP provenance unchanged.
+- Exactly **10 CMS paths** differ from parent: controllers `Auth/AuthenticatedSessionController.php`, `Auth/PasswordResetController.php`, `Auth/CustomerActivationController.php`; `Http/Middleware/SecurityHeaders.php`; requests `LoginRequest.php`, `ForgotPasswordRequest.php`, `ResetPasswordRequest.php`, new `CustomerActivationRequest.php` and `LocalAuthFormRequest.php`; one new `tests/Feature/AuthLocalRedirectB883Test.php`. Separate isolated workflow `.github/workflows/b883-auth-local-redirects-qa.yml` and method/lineage doc `docs/security/B883-B887-AUTH-REDIRECTS-56-IDENTITY-AUDIT.md`. Composer.lock, historical protected B805/B809/B815 test files, role/merchant/checkout/capability policy, database migrations and native Android source **unchanged**.
+
+## B883 — real credential redirect hardening (no request-origin reliance)
+
+- Source review proved previous login failures called Laravel `back()`, which follows the potentially client-controlled `Referer`; staff success/logout also used absolute route redirect generation. Source now uses **internally constructed relative Location** for wrong/blocked credentials and Turnstile errors `/login`, active staff login `/`, active buyer login `/korpa`, logout `/login`. Does not expose attempted credential or use spoofed Host/Forwarded headers to generate Location.
+- Preserve staff/customer authentication, status checks, tracked portal session, staff/dashboard destinations and Kupac-only checkout. `loginRedirect()` uses native `RedirectResponse(route('login',[],false))`, both `setSession` and `setRequest` before Laravel `onlyInput('login')`. Logout sensitive route now receives **private/no-store, no-referrer, noindex** SecurityHeaders alongside login/password/reset/activation. No separate denied HTTP CSRF probe.
+
+## B884–B885 — password and activation local navigation with exact existing validation
+
+- `PasswordResetController` no longer `back()` on unknown/known email generic success, Turnstile denial, or reset expired/invalid token; output is local `/forgot-password`, strict token form `/reset-password/{token}` only for exactly **80 ASCII alphanumeric** token, or local `/login` on successful reset. Mail notification behavior and one-time token mechanics remain unchanged, no real mail in CI. `ForgotPasswordRequest`, `ResetPasswordRequest` enforce local validation error redirects.
+- `CustomerActivationController` uses new `CustomerActivationRequest` retaining same required token/password confirmation+strong-password constraints. Any invalid/unknown token, failed Turnstile or invalid password redirects to strictly local `/activate-account/{80 ASCII alnum token}` or `/login`, never an arbitrary `Referer`, while preserving errors and success behavior. No activation/account/token issuance semantics modified.
+- Unexpected framework behavior discovered via RED CI: Laravel stock FormRequest `getRedirectUrl()` may absolutize even a trusted relative named route to canonical APP_URL. Added `LocalAuthFormRequest::failedValidation()` with native relative RedirectResponse for HTML, strict `/path` checks, safe old-input allowlist (`login/email/first_name/last_name/phone` only, no passwords or bearer tokens), and **delegate JSON requests to framework standard 422**. No blanket Laravel redirector override or global route/Host bypass.
+
+## B886 — deliberately preserved RED evidence, final 73-case exact source green
+
+- [First RED source CI #40213320653](https://github.com/AldinAga/ald1n-project/actions/runs/40213320653) `a54fa310ace9777fcd2ee4aa520981bb4cd5d1f2`: **71 PHPUnit tests, 10 failures**; discovered `onlyInput()` missing request context, FormRequest absolute Location and missing logout private headers. Fix application/validation code, not by dropping tests. [Raw first source/log evidence archived](https://drive.google.com/file/d/1YWkDrZjd1z6JpdY9qDMmcUXGANUm89n6/view?usp=drivesdk).
+- [Second CI #40213837492](https://github.com/AldinAga/ald1n-project/actions/runs/40213837492) at `1c7b0e3199a1e0bd8fe3ef6cfbc52ad697b01a59`: **73 PHPUnit, 785 assertions and no actual PHP failures**, but CI correctly **HOLD** because independent JUnit unique identity guard retained old `len(set(ids))!=71` while 73 expected. Parsed raw JUnit and checked **73 total, 73 unique, all 9 expected class counts**. [Unmodified second CI/JUnit and validator on Drive](https://drive.google.com/file/d/11LNlcWWf9MmsskAsVlxtWWqktB5GrLXc/view?usp=drivesdk).
+- Final validator fix only: derive total **and distinct JUnit identity count** from sum of explicit expected class counts **73**, still require exact `sum ==73`; any missing/extra/duplicate/skipped/error/warning stops pipeline, no PHP/test changes in final commit.
+- [**Final exact-source CI #40214113159**](https://github.com/AldinAga/ald1n-project/actions/runs/40214113159) at `601ea692dcfd34f922d7f6544089a622521b8a3b` **SUCCESS**: **73/73 real PHPUnit cases, 785 assertions, zero failed/errors/skips/warnings/duplicates**, exact 10 CMS changed-path / Composer lock / original forbidden fixtures checks PASS. **17 new hostile Referer/Host/Forwarded-Host/Origin HTTP tests** and 56 **unchanged** `AuthenticationTest` (6), `LoginDashboardFallbackTest` (5), `PasswordResetTest` (3), `RetiredActiveLoginB813Test` (4), `SensitiveAuthPostBoundaryB817Test` (6), `SensitiveAuthResponsePrivacyB816Test` (8), `PublicResponseHeadersB866Test` (11), `PublicNoScriptCspB872Test` (13). All on isolated synthetic PHP8.4/MariaDB10.11.19/array mail/disabled external Turnstile.
+- Original exact-source PHP/JUnit, per-class counts, SHA256, source files and CI scripts [archived in Google Drive](https://drive.google.com/file/d/1e3pBkHYyMtrsoFmXv2f5G394mm7EwiVk/view?usp=drivesdk). This is narrow **SEC02/SEC07/SEC22 partial security source+HTTP evidence only**, **not** all authentication/OAuth/TLS/browser/ASVS control PASS.
+
+## B887 — complete 627-case B803 baseline comparison (fail closed, exactly 56 inherited RED)
+
+- [**Current exact PR105 B803 full run #40214113299**](https://github.com/AldinAga/ald1n-project/actions/runs/40214113299) source `601ea692dcfd34f922d7f6544089a622521b8a3b`: immutable old runtime baseline **451 test identities / 44 failures+errors** (38 failures, 6 errors, four warnings); candidate **627 identities / 98 failures+errors** (89 failures, 9 errors). **56 NEW failed identities** versus production baseline, global B803 workflow **FAIL** by design. `NEW_FAILURES=56 WHOLE_SUITE_GREEN=NO`.
+- Compared **every one** of 56 current `NEW_FAILURE=` JUnit identities with previous PR103 run [#40211193029](https://github.com/AldinAga/ald1n-project/actions/runs/40211193029): exactly **56/56 same**, **zero added**, **zero removed**. The 17 new auth tests introduced no additional failed identity. No waiver/exclusion, fake green, source fixture amendment, or renamed case. [Full 451+627 raw JUnit, full logs and SHA artifact archived on Drive](https://drive.google.com/file/d/1JwaLWb7h-W0Yq1y26Q7ESujhsCpFSDQm/view?usp=drivesdk).
+- Inherited 56 symptom/class breakdown remains recorded in [Issue104](https://github.com/AldinAga/ald1n-project/issues/104) and B883 source documentation: 40 old 200→302, 9 200→403, 3 200→404, 3 ValidationException, 1 rejected B815 method test. Some older B799 guest-checkout fixtures **contradict owner's later registered-and-activated Kupac-only policy**; the safe action is NOT to relax buyer identity/tracked-session/merchant/payment/private bearer link boundaries. All 56 remain **explicit release HOLD** until each is properly reconciled without bypassing provider-denied B805/B809/B815 fixture edits. Original immutable baseline also has its own 44 problems.
+
+## Scope, production, Android and formal project progress
+
+- Full 368 OWASP WSTG4.2+ASVS5 L1+L2 items **UNASSESSED/NOT_RUN for independently completed per-item checks**, 0 independently complete PASS. No global CSP V3.4.3 PASS (auth/admin inline-JS + Turnstile nonce/hash still pending issue101), no actual external attacker/penetration test; source mitigation is narrower. No CloudLinux proxy/FPM, real SMTP sender, legal merchant, backups/restore, order acceptance or edge CDN validation conducted.
+- **Production public storefront OFF**, active CloudLinux B798 remains, no production migration/deploy, no store ON, no source merge, no owner SSH. Formal merchant/legal/SMTP/backup/FPM/UAT and original 56 B803 reconciliation gate remain mandatory before authenticated public release. Future scripts only under canonical approved `incoming/` and owner SSH if source/CI release gates actually pass; do not request SSH now.
+- Android PR82 16KiB ELF/debug AAB offline native tests technical PASS; signed EAS production AAB with confirmed **remote versionCode > rejected 27**, physical real-device Android 16KiB UAT and Google Play acceptance remain M16 **HOLD**; SDK58/M17 postponed. No production Android build invoked; no release notes produced.
+- Formal owner-accepted progress remains **7/17 = 41.2% overall, CMS 7/15=46.7%, initial UI6/6=100%**, not an estimate of total code readiness or test count. This batch fixed real auth redirect provenance, 17 new HTTP cases and two CI process bugs, but **zero additional production accepted milestones**. No SSH or owner action is needed now.
+- `docs/operations/000-LATEST.md` remains untouched because direct edit was safety-denied in earlier batch; Report854 and appended `AGENTS.md` are current authoritative operational handoff.
+
+SOURCE_PR105=601ea692dcfd34f922d7f6544089a622521b8a3b
+B883_SCOPED_REAL_HTTP=73_OF_73_PASS_785_ASSERTIONS
+B883_17_HOSTILE_ORIGIN_TESTS=PASS
+B887_B803_BASELINE=451_CASES_44_PROBLEMS
+B887_B803_CANDIDATE=627_CASES_98_PROBLEMS
+B887_HISTORICAL_NEW_FAILURES=56_UNWAIVED_SAME_IDENTITIES
+B887_ADDED_FAILURE_IDENTITIES=0
+OWASP_INDEPENDENT_COMPLETE_PASS=0_OF_368
+PRODUCTION_STOREFRONT=OFF
+ANDROID_M16=HOLD_EAS_SIGNED_PHYSICAL_GOOGLE_PLAY
+ACCEPTED_MILESTONES=7_OF_17_41_2_PERCENT
+PRODUCTION_MUTATED=NO
+OWNER_SSH_REQUIRED=NO
