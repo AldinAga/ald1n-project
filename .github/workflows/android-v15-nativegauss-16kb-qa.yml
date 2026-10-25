@@ -221,7 +221,8 @@ jobs:
           test -s "$TEST_APK"
           test -s "$DEBUG_APK"
           unzip -tqq "$TEST_APK"
-          unzip -Z1 "$TEST_APK" | grep -Fxq 'assets/index.android.bundle' || {
+          unzip -Z1 "$TEST_APK" > "$RUNNER_TEMP/b839-offline-apk-members.txt"
+          grep -Fxq 'assets/index.android.bundle' "$RUNNER_TEMP/b839-offline-apk-members.txt" || {
             echo 'HOLD_OFFLINE_TEST_APK_MISSING_EMBEDDED_JS'
             exit 67
           }
