@@ -85,7 +85,7 @@ final class WarrantyExpiryFreshEligibilityB905Test extends TestCase
         self::assertTrue($policy->allows($this->warranty,$this->seller));
         self::assertTrue($policy->allows($this->warranty,$this->admin));
         self::assertFalse($policy->allows($this->warranty,$this->other));
-        self::assertSameCanonicalizing(
+        self::assertEqualsCanonicalizing(
             [$this->seller->id,$this->admin->id],
             $policy->recipients($this->warranty)->pluck('id')->all()
         );
@@ -118,7 +118,7 @@ final class WarrantyExpiryFreshEligibilityB905Test extends TestCase
     {
         $policy=app(WarrantyExpiryRecipientPolicy::class);
         self::assertTrue($policy->allows($this->warranty,$this->seller));
-        User::query()->whereKey($this->seller->id)->update(['status'=>'inactive']);
+        User::query()->whereKey($this->seller->id)->update(['status'=>'pending']);
         self::assertFalse($policy->allows($this->warranty,$this->seller));
     }
 
