@@ -143,6 +143,32 @@ final class StorefrontHtmlOriginBoundaryB899Test extends TestCase
         self::assertDatabaseCount('orders',0);
     }
 
+    public function test_second_page_navigation_uses_relative_catalog_path_and_preserves_filters(): void
+    {
+        for ($i=1;$i<=21;$i++) {
+            Product::query()->create([
+                'sku'=>'B899-EXTRA-'.$i,
+                'slug'=>'b899-extra-'.$i,
+                'name'=>'B899 Additional Search Item '.$i,
+                'description'=>'Disposable pagination test only',
+                'price_amount'=>10000,
+                'price_currency'=>'RSD',
+                'stock_quantity'=>3,
+                'status'=>'active',
+                'created_by'=>$this->owner->id,
+            ]);
+        }
+        $html=$this->hostile()->get('/katalog?q=B899')->assertOk()->getContent();
+        self::assertIsString($html);
+        $this->assertOriginFree($html);
+        // An absolute app.url paginator leaves a first-party host embedded in
+        // otherwise origin-independent form/navigation links.
+        self::assertMatchesRegularExpression('~href="/katalog\?[^"]*page=2[^"]*"~',$html);
+        self::assertStringContainsString('q=B899',$html);
+        self::assertStringNotContainsString('https://cms.ald1n.com/katalog?',$html);
+        self::assertDatabaseCount('orders',0);
+    }
+
     public function test_catalog_dto_returns_relative_image_uri_not_host_derived_absolute_url(): void
     {
         $this->hostile()->get('/katalog')->assertOk();
