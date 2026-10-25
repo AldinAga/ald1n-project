@@ -83,6 +83,7 @@ jobs:
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --filter 'StorefrontCheckoutOriginB888Test|StorefrontLocalValidationB889Test' --log-junit "$RUNNER_TEMP/b888-junit.xml" tests/Feature
       - name: Exact B888 identity count, no skip and no hidden failures
+        working-directory: apps/cms/current
         run: |
           set -euo pipefail
           python3 - "$RUNNER_TEMP/b888-junit.xml" <<'PY'
