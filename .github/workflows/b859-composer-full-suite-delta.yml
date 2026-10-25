@@ -1,18 +1,19 @@
-name: B859 Composer locked dependency full-suite delta (NO DEPLOY)
+name: B871 Composer locked dependency full-suite delta (NO DEPLOY)
 on:
   pull_request:
     branches:
       - test/b845-b846-replay-negative-controls-20261025
     paths:
       - 'apps/cms/current/composer.lock'
-      - 'docs/security/tools/b859_dependency_lock_delta.py'
-      - 'docs/security/tools/test_b859_dependency_lock_delta.py'
+      - 'docs/security/tools/b871_dependency_lock_delta.py'
+      - 'docs/security/tools/test_b871_dependency_lock_delta.py'
       - 'docs/security/B859-B861-DEPENDENCY-REGRESSION-AND-M16.md'
+      - 'docs/security/B871-LOCK-ONLY-585-CASE-REBASE.md'
       - '.github/workflows/b859-composer-full-suite-delta.yml'
 permissions:
   contents: read
 concurrency:
-  group: b859-composer-full-${{ github.event.pull_request.number }}
+  group: b871-composer-full-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 jobs:
   full-dependency-delta:
@@ -62,36 +63,36 @@ jobs:
       - name: Offline adversarial test-identity differential controls
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s docs/security/tools -p 'test_b859_dependency_lock_delta.py' -v
+          python3 -m unittest discover -s docs/security/tools -p 'test_b871_dependency_lock_delta.py' -v
       - name: Verify prior source and after source differ solely by locked Composer packages
         run: |
           set -euo pipefail
-          BEFORE=6af1e49df4f96d8a7fb284b3f93cc7c90075c264
+          BEFORE=aaef34701e550875694481532b966c51bee4eb53
           test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           git cat-file -e "$BEFORE^{commit}"
           changes="$(git diff --name-only "$BEFORE" HEAD -- apps/cms/current)"
           test "$changes" = apps/cms/current/composer.lock
           test "$(git rev-parse "$BEFORE:apps/cms/current/composer.json")" = "$(git rev-parse HEAD:apps/cms/current/composer.json)"
-          mkdir -p "$RUNNER_TEMP/b859-before"
-          git archive "$BEFORE" apps/cms/current | tar -x -C "$RUNNER_TEMP/b859-before"
-          sha256sum "$RUNNER_TEMP/b859-before/apps/cms/current/composer.lock" apps/cms/current/composer.lock
-          test "$(sha256sum "$RUNNER_TEMP/b859-before/apps/cms/current/composer.lock" | awk '{print $1}')" != \
+          mkdir -p "$RUNNER_TEMP/b871-before"
+          git archive "$BEFORE" apps/cms/current | tar -x -C "$RUNNER_TEMP/b871-before"
+          sha256sum "$RUNNER_TEMP/b871-before/apps/cms/current/composer.lock" apps/cms/current/composer.lock
+          test "$(sha256sum "$RUNNER_TEMP/b871-before/apps/cms/current/composer.lock" | awk '{print $1}')" != \
                "$(sha256sum apps/cms/current/composer.lock | awk '{print $1}')"
-          echo "B859_PREPATCH_IMMUTABLE_SOURCE=$BEFORE"
-          echo "B859_PATCH_SOURCE=$(git rev-parse HEAD)"
-      - name: Run all 574 exact prepatch PHPUnit tests with real MariaDB (capture inherited FAIL)
+          echo "B871_PREPATCH_IMMUTABLE_SOURCE=$BEFORE"
+          echo "B871_PATCH_SOURCE=$(git rev-parse HEAD)"
+      - name: Run all 585 exact prepatch PHPUnit tests with real MariaDB (capture inherited FAIL)
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/b859-before/apps/cms/current"
+          cd "$RUNNER_TEMP/b871-before/apps/cms/current"
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           test -f phpunit.mysql.xml
           rc=0
           vendor/bin/phpunit -c phpunit.mysql.xml \
-            --log-junit "$RUNNER_TEMP/b859-before-junit.xml" \
-            > "$RUNNER_TEMP/b859-before-tests.log" 2>&1 || rc=$?
-          printf '%s\n' "$rc" > "$RUNNER_TEMP/b859-before-rc.txt"
-          test -s "$RUNNER_TEMP/b859-before-junit.xml"
-          tail -n 7 "$RUNNER_TEMP/b859-before-tests.log"
+            --log-junit "$RUNNER_TEMP/b871-before-junit.xml" \
+            > "$RUNNER_TEMP/b871-before-tests.log" 2>&1 || rc=$?
+          printf '%s\n' "$rc" > "$RUNNER_TEMP/b871-before-rc.txt"
+          test -s "$RUNNER_TEMP/b871-before-junit.xml"
+          tail -n 7 "$RUNNER_TEMP/b871-before-tests.log"
       - name: Run same full PHPUnit suite using patched locked packages (capture inherited FAIL)
         working-directory: apps/cms/current
         run: |
@@ -99,50 +100,51 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           rc=0
           vendor/bin/phpunit -c phpunit.mysql.xml \
-            --log-junit "$RUNNER_TEMP/b859-after-junit.xml" \
-            > "$RUNNER_TEMP/b859-after-tests.log" 2>&1 || rc=$?
-          printf '%s\n' "$rc" > "$RUNNER_TEMP/b859-after-rc.txt"
-          test -s "$RUNNER_TEMP/b859-after-junit.xml"
-          tail -n 7 "$RUNNER_TEMP/b859-after-tests.log"
+            --log-junit "$RUNNER_TEMP/b871-after-junit.xml" \
+            > "$RUNNER_TEMP/b871-after-tests.log" 2>&1 || rc=$?
+          printf '%s\n' "$rc" > "$RUNNER_TEMP/b871-after-rc.txt"
+          test -s "$RUNNER_TEMP/b871-after-junit.xml"
+          tail -n 7 "$RUNNER_TEMP/b871-after-tests.log"
       - name: Match every PHPUnit case identity and fail on even one new dependency regression
         run: |
           set -euo pipefail
-          BEFORE=6af1e49df4f96d8a7fb284b3f93cc7c90075c264
-          python3 docs/security/tools/b859_dependency_lock_delta.py \
-            --before-junit="$RUNNER_TEMP/b859-before-junit.xml" \
-            --after-junit="$RUNNER_TEMP/b859-after-junit.xml" \
+          BEFORE=aaef34701e550875694481532b966c51bee4eb53
+          python3 docs/security/tools/b871_dependency_lock_delta.py \
+            --before-junit="$RUNNER_TEMP/b871-before-junit.xml" \
+            --after-junit="$RUNNER_TEMP/b871-after-junit.xml" \
             --before-sha="$BEFORE" \
             --after-sha="$(git rev-parse HEAD)" \
-            --before-lock-sha256="$(sha256sum "$RUNNER_TEMP/b859-before/apps/cms/current/composer.lock" | awk '{print $1}')" \
+            --before-lock-sha256="$(sha256sum "$RUNNER_TEMP/b871-before/apps/cms/current/composer.lock" | awk '{print $1}')" \
             --after-lock-sha256="$(sha256sum apps/cms/current/composer.lock | awk '{print $1}')" \
-            --output="$RUNNER_TEMP/b859-delta.json"
-          test "$(jq -r .cases_before "$RUNNER_TEMP/b859-delta.json")" = 574
-          test "$(jq -r .cases_after "$RUNNER_TEMP/b859-delta.json")" = 574
-          test "$(jq -r .new_failure_count "$RUNNER_TEMP/b859-delta.json")" = 0
-          test "$(jq -r .new_warning_count "$RUNNER_TEMP/b859-delta.json")" = 0
-          test "$(jq -r .global_release "$RUNNER_TEMP/b859-delta.json")" = HOLD
-          test "$(jq -r .owasp_368_status "$RUNNER_TEMP/b859-delta.json")" = UNASSESSED_NOT_RUN
-          sha256sum "$RUNNER_TEMP/b859-before-junit.xml" "$RUNNER_TEMP/b859-after-junit.xml" "$RUNNER_TEMP/b859-delta.json"
+            --output="$RUNNER_TEMP/b871-delta.json"
+          test "$(jq -r .cases_before "$RUNNER_TEMP/b871-delta.json")" = 585
+          test "$(jq -r .cases_after "$RUNNER_TEMP/b871-delta.json")" = 585
+          test "$(jq -r .new_failure_count "$RUNNER_TEMP/b871-delta.json")" = 0
+          test "$(jq -r .new_warning_count "$RUNNER_TEMP/b871-delta.json")" = 0
+          test "$(jq -r .global_release "$RUNNER_TEMP/b871-delta.json")" = HOLD
+          test "$(jq -r .owasp_368_status "$RUNNER_TEMP/b871-delta.json")" = UNASSESSED_NOT_RUN
+          sha256sum "$RUNNER_TEMP/b871-before-junit.xml" "$RUNNER_TEMP/b871-after-junit.xml" "$RUNNER_TEMP/b871-delta.json"
       - name: Archive complete full-suite differential proof; never suppress JUnit failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: b859-full-574-case-dependency-delta
+          name: b871-full-585-case-dependency-delta
           path: |
-            ${{ runner.temp }}/b859-before-junit.xml
-            ${{ runner.temp }}/b859-after-junit.xml
-            ${{ runner.temp }}/b859-before-tests.log
-            ${{ runner.temp }}/b859-after-tests.log
-            ${{ runner.temp }}/b859-before-rc.txt
-            ${{ runner.temp }}/b859-after-rc.txt
-            ${{ runner.temp }}/b859-delta.json
+            ${{ runner.temp }}/b871-before-junit.xml
+            ${{ runner.temp }}/b871-after-junit.xml
+            ${{ runner.temp }}/b871-before-tests.log
+            ${{ runner.temp }}/b871-after-tests.log
+            ${{ runner.temp }}/b871-before-rc.txt
+            ${{ runner.temp }}/b871-after-rc.txt
+            ${{ runner.temp }}/b871-delta.json
             apps/cms/current/composer.lock
-            docs/security/tools/b859_dependency_lock_delta.py
-            docs/security/tools/test_b859_dependency_lock_delta.py
+            docs/security/tools/b871_dependency_lock_delta.py
+            docs/security/tools/test_b871_dependency_lock_delta.py
             docs/security/B859-B861-DEPENDENCY-REGRESSION-AND-M16.md
+            docs/security/B871-LOCK-ONLY-585-CASE-REBASE.md
             .github/workflows/b859-composer-full-suite-delta.yml
           if-no-files-found: ignore
           retention-days: 7
       - name: Immutable release boundary
         if: always()
-        run: echo 'B859_ONLY_DEPENDENCY_DELTA NO_GLOBAL_SUITE_PASS CLAIM NO_TEST_EXCLUSION NO_PRODUCTION NO_SSH NO_ANDROID_BUILD NO_MERGE'
+        run: echo 'B871_ONLY_DEPENDENCY_DELTA NO_GLOBAL_SUITE_PASS CLAIM NO_TEST_EXCLUSION NO_PRODUCTION NO_SSH NO_ANDROID_BUILD NO_MERGE'
