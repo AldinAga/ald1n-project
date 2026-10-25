@@ -21,6 +21,7 @@ ASVS_BLOB = "184cf3b04a8fe1809dbed8b6e73be7a6fbaf8689"
 WSTG_EXPECTED = 115
 ASVS_L1_EXPECTED = 70
 ASVS_L2_EXPECTED = 183
+ASVS_L3_EXPECTED = 92
 
 
 def git_blob_sha(payload: bytes) -> str:
@@ -86,7 +87,7 @@ def generate(wstg_bytes: bytes, asvs_bytes: bytes, target_commit: str) -> dict[s
 
     items_w = wstg_items(wstg_bytes.decode("utf-8-sig"))
     items_a, counts = asvs_l2_items(asvs_bytes.decode("utf-8-sig"))
-    if len(items_w) != WSTG_EXPECTED or counts != {1: ASVS_L1_EXPECTED, 2: ASVS_L2_EXPECTED, 3: 92}:
+    if len(items_w) != WSTG_EXPECTED or counts != {1: ASVS_L1_EXPECTED, 2: ASVS_L2_EXPECTED, 3: ASVS_L3_EXPECTED}:
         raise ValueError("HOLD_UPSTREAM_CHECKLIST_CENSUS_MISMATCH")
     if len(items_a) != ASVS_L1_EXPECTED + ASVS_L2_EXPECTED:
         raise ValueError("HOLD_ASVS_L2_COUNT_MISMATCH")
