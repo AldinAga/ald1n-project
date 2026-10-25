@@ -50,9 +50,13 @@ final class PublicCheckoutController extends Controller
             \Illuminate\Support\Facades\Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            throw new \Illuminate\Auth\AuthenticationException(
-                'Prijava je istekla. Prijavite se ponovo.', ['web'], route('login')
-            );
+            if ($request->expectsJson()) {
+                throw new \Illuminate\Auth\AuthenticationException(
+                    'Prijava je istekla. Prijavite se ponovo.', ['web'], '/login'
+                );
+            }
+            // Never generate an absolute Location from spoofable request Host.
+            return new RedirectResponse('/login');
         }
         return null;
     }
