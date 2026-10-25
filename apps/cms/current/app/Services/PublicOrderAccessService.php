@@ -24,9 +24,17 @@ final class PublicOrderAccessService
         }
         return DB::transaction(function () use ($order,$email): string {
             $locked=Order::query()->lockForUpdate()->findOrFail($order->id);
+            // Account validity must be enforced when issuing the capability,
+            // not just on subsequent reads. A direct service caller must not
+            // create a fresh private link for a retired/deactivated buyer or
+            // an order whose content has already been purged.
+            $buyer=$locked->user;
             if ($locked->sales_channel!=='public_retail'
-                || $locked->user_id===null || !$locked->user?->hasRole('customer')
-                || !hash_equals(mb_strtolower(trim((string)$locked->user?->email)),$email)) {
+                || $locked->purged_at!==null
+                || $locked->user_id===null || !($buyer instanceof User)
+                || $buyer->status!=='active' || $buyer->retired_at!==null
+                || !$buyer->hasRole('customer')
+                || !hash_equals(mb_strtolower(trim((string)$buyer->email)),$email)) {
                 throw ValidationException::withMessages(['order'=>'Nevažeći javni prodajni tok.']);
             }
             if (PublicOrderAccess::query()->where('order_id',$locked->id)->exists()) {
