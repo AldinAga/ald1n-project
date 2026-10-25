@@ -48,8 +48,16 @@ jobs:
       - name: Checkout isolated source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           fetch-depth: 0
+      - name: B853 verify immutable event source identity
+        run: |
+          set -euo pipefail
+          EXPECTED='${{ github.event.pull_request.head.sha || github.sha }}'
+          ACTUAL="$(git rev-parse HEAD)"
+          test "$ACTUAL" = "$EXPECTED"
+          echo "B853_EXACT_GITHUB_SOURCE_COMMIT=$ACTUAL"
       - name: Setup Node22
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:

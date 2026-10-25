@@ -26,7 +26,15 @@ jobs:
       - name: Checkout exact PR source (no retained credentials)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: B853 verify immutable event source identity
+        run: |
+          set -euo pipefail
+          EXPECTED='${{ github.event.pull_request.head.sha }}'
+          ACTUAL="$(git rev-parse HEAD)"
+          test "$ACTUAL" = "$EXPECTED"
+          echo "B853_EXACT_GITHUB_SOURCE_COMMIT=$ACTUAL"
       - name: Node22 toolchain
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
