@@ -29,6 +29,25 @@ final class PublicNoScriptCsp
     {
         $response = $next($request);
 
+        // B896: the public buyer registration layout has one audited
+        // external Turnstile script. Restrict executable script origin here
+        // without affecting the legacy CMS/guest layouts with inline JS.
+        // This is scoped response enforcement, not browser/ASVS acceptance.
+        if ($request->isMethod('GET')
+            && $request->routeIs('public-shop.register')
+            && $response->getStatusCode() === 200
+            && str_starts_with(strtolower((string) $response->headers->get('Content-Type')), 'text/html')) {
+            $response->headers->set('Content-Security-Policy',
+                "base-uri 'none'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; ".
+                "script-src https://challenges.cloudflare.com; ".
+                "script-src-elem https://challenges.cloudflare.com; ".
+                "script-src-attr 'none'; ".
+                "style-src 'self'; img-src 'self' data: https://challenges.cloudflare.com; ".
+                "font-src 'self' data:; connect-src 'self' https://challenges.cloudflare.com; ".
+                "frame-src https://challenges.cloudflare.com; worker-src 'none'; media-src 'none'");
+            return $response;
+        }
+
         if (!$request->isMethod('GET')
             || !$request->routeIs(...self::HTML_ROUTES)
             || $response->getStatusCode() !== 200
