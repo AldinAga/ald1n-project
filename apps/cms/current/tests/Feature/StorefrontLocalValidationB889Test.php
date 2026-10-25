@@ -83,7 +83,7 @@ final class StorefrontLocalValidationB889Test extends TestCase
     public function test_invalid_registered_buyer_checkout_html_stays_local_without_stock_or_order_write(): void
     {
         $this->loginBuyer();
-        $response=$this->hostile()->post('/porucivanje',[
+        $response=$this->hostileReferer()->post('/porucivanje',[
             'checkout_key'=>'INVALID_NONCE_B889',
             'merchant_policy_fingerprint'=>str_repeat('a',64),
             'email'=>$this->buyer->email,
@@ -98,7 +98,7 @@ final class StorefrontLocalValidationB889Test extends TestCase
     public function test_json_invalid_checkout_keeps_native_422_and_no_location(): void
     {
         $this->loginBuyer();
-        $response=$this->hostile()->postJson('/porucivanje',[
+        $response=$this->hostileReferer()->postJson('/porucivanje',[
             'checkout_key'=>'INVALID_NONCE_B889',
             'merchant_policy_fingerprint'=>str_repeat('a',64),
         ])->assertUnprocessable()->assertJsonValidationErrors('checkout_key');
@@ -136,6 +136,17 @@ final class StorefrontLocalValidationB889Test extends TestCase
             'login'=>$this->buyer->email,'password'=>'B889-Synthetic-Only123!',
         ])->assertRedirect('/korpa');
         $this->assertAuthenticatedAs($this->buyer);
+    }
+
+    private function hostileReferer(): static
+    {
+        // Keep the authenticated PHP session's request authority stable.
+        // Only the untrusted Referer/Origin is changed for this boundary.
+        $this->withHeaders([
+            'Referer'=>'https://attacker.synthetic.invalid/fake',
+            'Origin'=>'https://attacker.synthetic.invalid',
+        ]);
+        return $this;
     }
 
     private function hostile(): static
