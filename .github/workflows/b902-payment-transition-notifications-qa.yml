@@ -78,8 +78,9 @@ jobs:
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b902-junit.xml" \
-            tests/Feature/PaymentTransitionNotificationB902Test.php
-      - name: Strict 3 unique JUnit identities and source SHA256
+            tests/Feature/PaymentTransitionNotificationB902Test.php \
+            tests/Feature/WarrantyFirstPaymentIssuance798Test.php
+      - name: Strict 9 original unique JUnit identities with B798 warranty integration
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -87,13 +88,16 @@ jobs:
           import sys,xml.etree.ElementTree as ET
           cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
           ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
-          assert len(ids)==3 and len(set(ids))==3, 'HOLD_3_UNIQUE_B902_CASES'
-          assert all(c and n and c.endswith('PaymentTransitionNotificationB902Test') for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
+          assert len(ids)==9 and len(set(ids))==9, 'HOLD_9_UNIQUE_B902_B798_CASES'
+          assert sum(c.endswith('PaymentTransitionNotificationB902Test') for c,n in ids if c)==3, 'HOLD_B902_CASE_COUNT'
+          assert sum(c.endswith('WarrantyFirstPaymentIssuance798Test') for c,n in ids if c)==6, 'HOLD_EXISTING_B798_CASE_COUNT'
+          assert all(c and n and (c.endswith('PaymentTransitionNotificationB902Test') or c.endswith('WarrantyFirstPaymentIssuance798Test')) for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
           assert not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped','warning')), 'HOLD_FAILED_SKIPPED_CASE'
-          print('B902_PAYMENT_NOTIFICATION_3_OF_3_REAL_MARIADB_PASS')
+          print('B902_B798_PAYMENT_WARRANTY_9_OF_9_REAL_MARIADB_PASS')
           PY
           sha256sum app/Services/OrderPaymentService.php \
             tests/Feature/PaymentTransitionNotificationB902Test.php \
+            tests/Feature/WarrantyFirstPaymentIssuance798Test.php \
             > "$RUNNER_TEMP/b902-source.sha256"
       - name: Evidence and original source for RED/GREEN
         if: always()
@@ -106,6 +110,7 @@ jobs:
             ${{ runner.temp }}/b902-changed.txt
             apps/cms/current/app/Services/OrderPaymentService.php
             apps/cms/current/tests/Feature/PaymentTransitionNotificationB902Test.php
+            apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php
             .github/workflows/b902-payment-transition-notifications-qa.yml
           retention-days: 7
       - name: Production remains unchanged
