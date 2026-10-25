@@ -166,6 +166,67 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         self::assertDatabaseCount('orders', 1);
     }
 
+    /** B839: no capability may be minted for a buyer who became inactive. */
+    public function test_issue_rejects_inactive_registered_buyer_without_creating_token(): void
+    {
+        $unissued=$this->unissuedOrder('INACTIVE');
+        $this->buyer->forceFill(['status'=>'inactive'])->save();
+
+        try {
+            app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
+            self::fail('Inactive buyer must never receive a new private capability.');
+        } catch (\Illuminate\Validation\ValidationException) {
+            self::assertDatabaseCount('public_order_accesses',1);
+        }
+    }
+
+    /** B839: the same invariant holds for permanently retired accounts. */
+    public function test_issue_rejects_retired_registered_buyer_without_creating_token(): void
+    {
+        $unissued=$this->unissuedOrder('RETIRED');
+        $this->buyer->forceFill(['retired_at'=>now()])->save();
+
+        try {
+            app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
+            self::fail('Retired buyer must never receive a new private capability.');
+        } catch (\Illuminate\Validation\ValidationException) {
+            self::assertDatabaseCount('public_order_accesses',1);
+        }
+    }
+
+    /** B839: a purged order must not get a fresh unreadable private link. */
+    public function test_issue_rejects_purged_retail_order_without_creating_token(): void
+    {
+        $unissued=$this->unissuedOrder('PURGED');
+        $unissued->forceFill(['purged_at'=>now()])->save();
+
+        try {
+            app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
+            self::fail('Purged order must never receive a new private capability.');
+        } catch (\Illuminate\Validation\ValidationException) {
+            self::assertDatabaseCount('public_order_accesses',1);
+        }
+    }
+
+    /** B839: legitimate newly purchased items retain working private tracking. */
+    public function test_issue_allows_second_active_registered_order_and_denies_anonymous_read(): void
+    {
+        $unissued=$this->unissuedOrder('ACTIVE');
+        $token=app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
+
+        self::assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/D',$token);
+        self::assertDatabaseCount('public_order_accesses',2);
+        $this->get('/porudzbina/'.$token)->assertNotFound();
+    }
+
+    private function unissuedOrder(string $suffix): Order
+    {
+        $copy=$this->order->replicate();
+        $copy->order_number='APC-B839-'.$suffix;
+        $copy->saveOrFail();
+        return $copy;
+    }
+
     private function receipt(): string
     {
         return '/porudzbina/'.$this->token;
