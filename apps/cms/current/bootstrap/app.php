@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureRuntimeDirectories;
 use App\Http\Middleware\EnsureTrackedPortalSession;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\PublicNoScriptCsp;
+use App\Http\Middleware\PublicRetailValidationRedirect;
 use App\Http\Middleware\SecurityHeaders;
 use App\Support\ApiErrorResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureActiveUser::class,
             'tracked-session' => EnsureTrackedPortalSession::class,
             'permission' => RequirePermission::class,
+            'public-retail-errors' => PublicRetailValidationRedirect::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
