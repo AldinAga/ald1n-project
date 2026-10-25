@@ -152,9 +152,9 @@ final class StorefrontLocalValidationB889Test extends TestCase
         $session->migrate(true);
         $rotatedHash=hash('sha256',$session->getId());
         self::assertNotSame($oldHash,$rotatedHash);
-        $request=\\Illuminate\\Http\\Request::create('/porucivanje','GET');
+        $request=\Illuminate\Http\Request::create('/porucivanje','GET');
         $request->setLaravelSession($session);
-        self::assertTrue(app(\\App\\Services\\PortalSessionService::class)
+        self::assertTrue(app(\App\Services\PortalSessionService::class)
             ->validateAndTouch($request,$this->buyer));
         self::assertDatabaseCount('user_login_sessions',1);
         self::assertSame($first->id,UserLoginSession::query()->sole()->id);
