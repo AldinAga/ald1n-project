@@ -79,7 +79,7 @@ jobs:
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b905-junit.xml" \
             tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php
-      - name: Strict original 8 unique JUnit cases and source SHA256
+      - name: Strict original 9 unique JUnit cases and source SHA256
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -87,10 +87,10 @@ jobs:
           import sys,xml.etree.ElementTree as ET
           cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
           ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
-          assert len(ids)==8 and len(set(ids))==8, 'HOLD_8_UNIQUE_B905_CASES'
+          assert len(ids)==9 and len(set(ids))==9, 'HOLD_9_UNIQUE_B905_CASES'
           assert all(c and n and c.endswith('WarrantyExpiryFreshEligibilityB905Test') for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
           assert not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped','warning')), 'HOLD_FAILED_OR_SKIPPED_CASE'
-          print('B905_LIVE_EXPIRY_POLICY_8_OF_8_REAL_MARIADB_PASS')
+          print('B905_B906_LIVE_EXPIRY_POLICY_9_OF_9_REAL_MARIADB_PASS')
           PY
           sha256sum app/Services/WarrantyExpiryRecipientPolicy.php \
             tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php \
