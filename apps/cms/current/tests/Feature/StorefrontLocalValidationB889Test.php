@@ -156,14 +156,16 @@ final class StorefrontLocalValidationB889Test extends TestCase
         ])->assertRedirect('/korpa');
         $this->assertAuthenticatedAs($this->buyer);
 
-        // Laravel's feature client does not operate a browser cookie jar
-        // automatically. Carry the actual Set-Cookie value returned at
-        // login into subsequent HTTP calls so we test the SAME browser ID,
-        // not an unrelated new request with a cached Auth guard principal.
+        // Laravel feature tests auto-encrypt withCookie() values and omit
+        // cookies from JSON calls unless withCredentials() is set. The real
+        // encrypted Set-Cookie value MUST pass through unchanged, including
+        // for JSON, or later requests get a different session ID while
+        // the test's cached Auth guard wrongly retains the logged-in user.
+        $this->withCredentials();
         $sessionCookieSeen=false;
         foreach ($response->headers->getCookies() as $cookie) {
             if ($cookie->getName()!==(string)config('session.cookie')) continue;
-            $this->withCookie($cookie->getName(),$cookie->getValue());
+            $this->withUnencryptedCookie($cookie->getName(),$cookie->getValue());
             $sessionCookieSeen=true;
         }
         self::assertTrue($sessionCookieSeen,'B890_TEST_BROWSER_SESSION_COOKIE_MISSING');
