@@ -208,12 +208,41 @@ jobs:
           echo 'B832_DISPOSABLE_AAB_BUNDLE_CONFIG=PASS_16K'
           echo 'B832_BUNDLETOOL_DERIVED_APK_ALL_NATIVE_ELF_ZIPALIGN=PASS'
           echo 'SIGNING_IDENTITY=EPHEMERAL_LOCAL_CI_ONLY PLAY_RELEASE=NOT_AUTHORIZED'
+      - name: Build isolated self-contained 16KB test APK with embedded JS (LOCAL DEBUG SIGNER, NO EAS)
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          # Debug variants depend on Metro; the emulator is intentionally offline.
+          # Build only a disposable release-VARIANT APK with its JS asset inside.
+          # There are no production EAS credentials or signing services in CI.
+          (cd android && ./gradlew :app:assembleRelease --no-daemon --stacktrace)
+          TEST_APK='android/app/build/outputs/apk/release/app-release.apk'
+          DEBUG_APK='android/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$TEST_APK"
+          test -s "$DEBUG_APK"
+          unzip -tqq "$TEST_APK"
+          unzip -Z1 "$TEST_APK" | grep -Fxq 'assets/index.android.bundle' || {
+            echo 'HOLD_OFFLINE_TEST_APK_MISSING_EMBEDDED_JS'
+            exit 67
+          }
+          node scripts/release25/verify-android16kb-apk.mjs "$TEST_APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$TEST_APK"
+          SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          DEBUG_CERT="$("$SIGNER" verify --print-certs "$DEBUG_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          TEST_CERT="$("$SIGNER" verify --print-certs "$TEST_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          if [ -z "$DEBUG_CERT" ] || [ -z "$TEST_CERT" ] || [ "$DEBUG_CERT" != "$TEST_CERT" ]; then
+            echo 'HOLD_LOCAL_APK_SIGNER_NOT_THE_DEBUG_TEST_IDENTITY'
+            exit 68
+          fi
+          "$SIGNER" verify "$TEST_APK"
+          sha256sum "$TEST_APK" "$DEBUG_APK"
+          echo 'SELF_CONTAINED_JS_OFFLINE_APK=PASS_LOCAL_DEBUG_SIGNER_NO_EAS_NO_PLAY'
       - name: Prepare KVM for isolated Android 15 16KiB emulator
         run: |
           set -euo pipefail
           test -c /dev/kvm
           sudo chmod 666 /dev/kvm
-      - name: Offline 16KiB emulator install and app launch (DEBUG APK ONLY)
+      - name: Offline 16KiB emulator install and app launch (EMBEDDED-JS TEST APK ONLY)
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 35
@@ -227,7 +256,7 @@ jobs:
             # android-emulator-runner runs this callback under /bin/sh.
             # POSIX set -eu retains fail-closed behavior without bash-only pipefail.
             set -eu
-            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/debug/app-debug.apk
+            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/release/app-release.apk
             echo 'ANDROID_15_16KB_EMULATOR_OFFLINE_LAUNCH=PASS_CI_DEBUG_ONLY'
       - name: No release or production mutation
         if: always()
