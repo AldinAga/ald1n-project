@@ -94,7 +94,7 @@ jobs:
           import sys,xml.etree.ElementTree as ET
           cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
           ids=[(x.get('classname') or x.get('class'),x.get('name')) for x in cases]
-          assert len(ids)==6 and len(set(ids))==5, 'HOLD_EXPECT_6_DISTINCT_B899_CASES'
+          assert len(ids)==6 and len(set(ids))==6, 'HOLD_EXPECT_6_DISTINCT_B899_CASES'
           assert all(c and n and c.endswith('StorefrontHtmlOriginBoundaryB899Test') for c,n in ids), 'HOLD_UNKNOWN_TEST_ID'
           assert not any(x.find(t) is not None for x in cases for t in ('failure','error','skipped','warning')), 'HOLD_FAILED_OR_SKIPPED_TEST'
           print('B899_B901_PUBLIC_HTML_6_OF_6_PHP8_MARIADB_HTTP_PASS')
