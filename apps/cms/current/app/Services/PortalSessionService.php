@@ -65,7 +65,7 @@ final class PortalSessionService
         // Use the current database credential/status, never a guard-cached user
         // that could predate password recovery, account activation or retirement.
         $current = User::query()->whereKey($user->getKey())
-            ->first(['id', 'password_hash', 'password_changed_at', 'status', 'retired_at']);
+            ->first(['id', 'role_id', 'password_hash', 'password_changed_at', 'status', 'retired_at']);
         if (!$current instanceof User
             || $current->status !== 'active'
             || $current->retired_at !== null) {
@@ -101,6 +101,14 @@ final class PortalSessionService
             ->first();
 
         if ($session === null) {
+            // B890: for a signed-in Kupac, a missing tracked browser row is
+            // NOT permission to create a new checkout session. This covers
+            // revoked/deleted records as well as regenerated or mismatched
+            // session IDs. A genuine current remember-cookie authentication
+            // may still follow the existing separate Laravel viaRemember path.
+            if ($user->hasRole('customer') && !Auth::viaRemember()) {
+                return false;
+            }
             // A missing row after a password reset must never resurrect the
             // old authenticated browser. A valid remember cookie is different:
             // Laravel itself verifies the *current* rotated remember token.
