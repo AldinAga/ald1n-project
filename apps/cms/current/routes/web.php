@@ -86,7 +86,7 @@ Route::name('public-shop.')->group(function (): void {
     Route::get('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'form'])
         ->middleware('throttle:public-shop-browse')->name('checkout');
     Route::post('/porucivanje', [\App\Http\Controllers\PublicCheckoutController::class, 'store'])
-        ->middleware(['throttle:public-shop-checkout','public-retail-errors'])->name('checkout.submit');
+        ->middleware('throttle:public-shop-checkout')->name('checkout.submit');
     Route::get('/porudzbina/{token}', [\App\Http\Controllers\PublicOrderAccessController::class, 'show'])
         ->where('token','[a-f0-9]{64}')->middleware('throttle:public-shop-private')->name('order.show');
     Route::get('/porudzbina/{token}/dokument/{document}', [\App\Http\Controllers\PublicOrderAccessController::class, 'document'])
@@ -108,7 +108,7 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
         ->middleware('throttle:public-shop-browse')->name('public-shop.register');
     Route::post('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'store'])
-        ->middleware(['throttle:5,10','public-retail-errors'])->name('public-shop.register.submit');
+        ->middleware('throttle:5,10')->name('public-shop.register.submit');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
     Route::get('/auth/google', [GoogleWebAuthController::class, 'redirect'])
