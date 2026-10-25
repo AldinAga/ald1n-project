@@ -88,7 +88,7 @@ jobs:
           import sys,xml.etree.ElementTree as ET
           cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
           identities=[(n.get('classname') or n.get('class'), n.get('name')) for n in cases]
-          assert len(identities)==7 and len(set(identities))==5, 'HOLD_7_UNIQUE_CASES'
+          assert len(identities)==7 and len(set(identities))==7, 'HOLD_7_UNIQUE_CASES'
           assert all(c and m and c.endswith('PublicRegistrationScriptCspB896Test') for c,m in identities), 'HOLD_UNEXPECTED_IDENTITY'
           assert not any(n.find(tag) is not None for n in cases for tag in ('failure','error','skipped','warning')), 'HOLD_FAILED_SKIPPED_TESTS'
           print('B896_DISPOSABLE_REGISTRATION_CSP_7_OF_7_HTTP_PASS')
