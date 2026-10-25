@@ -155,6 +155,16 @@ final class WarrantyExpiryFreshEligibilityB905Test extends TestCase
         self::assertFalse(app(WarrantyExpiryRecipientPolicy::class)->allows($this->warranty,$this->admin));
     }
 
+    public function test_cached_active_warranty_cannot_outlive_a_real_void_transition(): void
+    {
+        $policy=app(WarrantyExpiryRecipientPolicy::class);
+        self::assertTrue($policy->allows($this->warranty,$this->seller));
+        ProductWarranty::query()->whereKey($this->warranty->id)->update(['status'=>'void']);
+        self::assertFalse($policy->allows($this->warranty,$this->seller),
+            'A stale active Eloquent warranty object must not authorize after an actual void.');
+        self::assertFalse($policy->allows($this->warranty,$this->admin));
+    }
+
     public function test_actual_notification_send_does_not_deliver_to_stale_demoted_superadmin(): void
     {
         $policy=app(WarrantyExpiryRecipientPolicy::class);
