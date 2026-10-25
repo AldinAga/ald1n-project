@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           php artisan migrate --force
-          php -r '$app=require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); App\Models\Setting::query()->updateOrCreate(["setting_key"=>"public_storefront_open"],["setting_value"=>"1","updated_by"=>null]); App\Models\Setting::query()->updateOrCreate(["setting_key"=>"turnstile_enabled"],["setting_value"=>"1","updated_by"=>null]);'
+          php -r 'require "vendor/autoload.php"; $app=require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); App\Models\Setting::query()->updateOrCreate(["setting_key"=>"public_storefront_open"],["setting_value"=>"1","updated_by"=>null]); App\Models\Setting::query()->updateOrCreate(["setting_key"=>"turnstile_enabled"],["setting_value"=>"1","updated_by"=>null]);'
           php artisan serve --host=127.0.0.1 --port=18789 > "$RUNNER_TEMP/b897-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
