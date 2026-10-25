@@ -1,5 +1,19 @@
 # B858 — secure PHP dependency refresh candidate (no production deployment)
 
+## B858 isolated remediation result (2026-10-25)
+
+**Initial verified isolated CI SUCCESS**: [GitHub Actions 40194083864](https://github.com/AldinAga/ald1n-project/actions/runs/40194083864). The controlled PHP 8.4 + MariaDB 10.11.19 Composer solver revised **51 locked packages** (including 5 vulnerable), followed by live `composer audit --locked`: **0 advisories, 0 abandoned packages**. The original 19 advisories remain a documented baseline finding, not ignored or waived. All **41 targeted PHPUnit tests / 398 assertions PASS** (B843 11/271, B836 15/78, B847 15/49).
+
+Pinned corrected versions: Laravel Framework **v13.38.0**, league/commonmark **2.10.4**, Guzzle **7.16.0** (kept in compatible 7.x, not major 8), league/flysystem **3.36.0**, Symfony http-foundation **v8.1.9**.
+
+The integrity-checked, lock-only CI commit `703e657e205ec906ef8e49455d3250b05779f084` was pushed **only to this Draft PR100 branch** after exact remote-head comparison, source diff allowlist and tests; no application source code or `composer.json` was modified. The new lockfile is Git blob `e945b577dbaebbe172ace98fa7776f115b19394d`, SHA-256 `498f133764970cf8250688a31c0c44f6459d433f89cd2577cf10df3b0b82c636`.
+
+[Full original CI source/audit/JUnit proof archived on Google Drive](https://drive.google.com/file/d/1kzSWSZ45Ihlc5aDdC9lX16-B-f5e02zd/view?usp=drivesdk) (48,689 bytes). Subsequent exact-head revalidation is separate from this pre-commit result. **Draft PR100 remains unmerged, full B803 baseline/candidate still failing 56 known identities, storefront OFF, production still vulnerable until a separately authorized patch deployment.** The 368 item security inventory is not deemed PASS.
+
+---
+
+
+
 2026-10-25. New **Draft PR stacked on Draft PR99**, not merged and never on `main` or the CloudLinux checkout. Source parent `6af1e49df4f96d8a7fb284b3f93cc7c90075c264`.
 
 ## Real SCA finding that motivates this branch
