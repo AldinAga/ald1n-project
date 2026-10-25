@@ -68,9 +68,15 @@ def inventory(raw: bytes, source_sha: str) -> dict:
                 raise ValueError("HOLD_UNEXPECTED_PUBLIC_METHOD_OR_URI_"+name)
             if not action.endswith("\\"+expected_action) and action!=expected_action:
                 raise ValueError("HOLD_UNEXPECTED_CONTROLLER_"+name)
-            if required_middleware not in middleware or "web" not in middleware:
+            # Laravel route:list --json expands aliases to framework class names.
+            # Accept only the literal alias or its exact resolved FQCN, never a suffix match.
+            alternatives = (required_middleware,
+                required_middleware.replace("throttle:",
+                    "Illuminate\\Routing\\Middleware\\ThrottleRequests:",1))
+            if "web" not in middleware or not any(m in middleware for m in alternatives):
                 raise ValueError("HOLD_PUBLIC_ROUTE_MIDDLEWARE_"+name)
-            if name.startswith("public-shop.register") and "guest" not in middleware:
+            if name.startswith("public-shop.register") and not any(m in middleware for m in (
+                "guest", "Illuminate\\Auth\\Middleware\\RedirectIfAuthenticated")):
                 raise ValueError("HOLD_SIGNUP_GUEST_BOUNDARY")
             visited[name]=True
         elif uri.split("/",1)[0] in PUBLIC_PREFIXES or (
