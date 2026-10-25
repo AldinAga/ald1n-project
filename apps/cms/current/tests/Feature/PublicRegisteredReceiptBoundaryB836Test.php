@@ -122,6 +122,50 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         self::assertNull(PublicOrderAccess::query()->sole()->revoked_at);
     }
 
+    /** B838: a real authenticated buyer cannot resurrect a revoked/expired capability. */
+    public function test_registered_buyer_receipt_revocation_and_expiry_are_enforced(): void
+    {
+        $this->post('/login', [
+            'login' => $this->buyer->email,
+            'password' => 'B836-Synthetic-Only123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($this->buyer);
+        $this->get($this->receipt())->assertOk();
+
+        $capability = PublicOrderAccess::query()->sole();
+        $capability->forceFill(['revoked_at' => now()])->save();
+        $this->get($this->receipt())->assertNotFound();
+
+        $capability->forceFill([
+            'revoked_at' => null,
+            'expires_at' => now()->subSecond(),
+        ])->save();
+        $this->get($this->receipt())->assertNotFound();
+        self::assertDatabaseCount('orders', 1);
+        self::assertDatabaseCount('public_order_accesses', 1);
+    }
+
+    /** B838: private receipt and document paths cannot survive SuperAdmin OFF. */
+    public function test_registered_buyer_private_receipt_respects_emergency_off_and_reopen(): void
+    {
+        $this->post('/login', [
+            'login' => $this->buyer->email,
+            'password' => 'B836-Synthetic-Only123!',
+        ])->assertRedirect();
+        $this->get($this->receipt())->assertOk();
+
+        app(PublicStorefrontStateService::class)->change(false, $this->owner);
+        self::assertFalse(app(PublicStorefrontStateService::class)->isOpen());
+        $this->get($this->receipt())->assertNotFound();
+        $this->get($this->receipt().'/dokument/1')->assertNotFound();
+        $this->get($this->receipt().'/garancija/1')->assertNotFound();
+
+        app(PublicStorefrontStateService::class)->change(true, $this->owner);
+        self::assertTrue(app(PublicStorefrontStateService::class)->isOpen());
+        $this->get($this->receipt())->assertOk();
+        self::assertDatabaseCount('orders', 1);
+    }
+
     private function receipt(): string
     {
         return '/porudzbina/'.$this->token;
