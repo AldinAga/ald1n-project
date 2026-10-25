@@ -1,0 +1,48 @@
+# Report852 — B872–B876: scoped no-script CSP, real Chromium and stable MariaDB customer role IDs
+
+Date: 2026-10-25 (Europe/Belgrade). Scope: **Draft source + isolated CI**, no hosting CloudLinux SSH, production database/schema, deployment, public storefront activation, EAS, OTA, Google Play or merge. **Global release HOLD.**
+
+## Fresh intake and source provenance
+
+- GitHub main at intake `b731acef462a90c87d922119dd0cc9a04bab281a` (Report851); reviewed root `AGENTS.md`, `docs/operations/000-LATEST.md` (stale B832 with previous direct edit safety-denied), canonical Google Drive `ALD1N-EXPO-CLOUDLINUX-UPDATE-RUNBOOK.md`, current Reports849–851, `docs/security/STOREFRONT-PENETRATION-TEST-PLAN-20261024.md`, open Draft PR93/99/100 and Android PR82.
+- New, separate [Draft PR102](https://github.com/AldinAga/ald1n-project/pull/102) base branch `fix/b858-laravel-composer-advisories-20261025`, exact parent `1f63318f1f1c2a76544c53d540f39dbb9307a56c`, final child source `5315d72a7b918f7a9f0104a820656d0a6920fe0d`. PR100 Composer B871 full **585×2 dependency-only PASS** remains immutable and is not misleadingly rerun after adding new child PHP tests/source.
+- Final source modifies precisely six CMS paths: `bootstrap/app.php`, new `app/Http/Middleware/PublicNoScriptCsp.php`, `database/seeders/CoreAccessSeeder.php`, new `tests/Feature/PublicNoScriptCspB872Test.php`, new `tests/Feature/CoreAccessRoleIdStabilityB876Test.php`, new `tests/Browser/b874-no-script-csp-browser.cjs`; plus dedicated workflow, docs and offline inventory. No previous B805/B809/B815 protected fixtures, skipped tests, altered merchant authorization, changed Composer lock, source merge or production code release.
+
+## B872: enforced scriptless CSP only on audited successful public HTML
+
+- The global `SecurityHeaders` baseline from B866 remains unchanged: `base-uri 'none'` but lacks `script-src`/strict `default-src` for legacy inline JavaScript. A new `PublicNoScriptCsp` response middleware on exact successful **GET 200 `text/html`** routes `public-shop.catalog`, `public-shop.show`, `public-shop.cart`, `public-shop.checkout`, `public-shop.order.show` adds **actual enforced** `default-src 'none'; script-src 'none'; script-src-elem 'none'; script-src-attr 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; style-src 'self'; img-src 'self' data:; form-action 'self'` and `X-Frame-Options: DENY`. Middleware order ensures global base headers apply first then this narrow policy overwrites.
+- Explicit non-targets: `public-shop.register` with Turnstile external script, login, password reset, activation, Google OAuth, Admin/CMS inline-JS views, 302 redirects, errors, JSON/API, media and PDF responses. These keep the baseline policy. Complete ASVS v5.0.0 L2 `v5.0.0-3.4.3` **NOT VERIFIED / NOT FULL PASS** outside these routes. [Issue #101](https://github.com/AldinAga/ald1n-project/issues/101) remains open for full nonce/hash CSP and authenticated browser UAT.
+- Blade `layout.blade.php` and five routed public views, plus first-party storefront CSS, contain no script, iframe, inline handler/style or external CSS import. The B873 fail-closed offline script inventory has **8/8 adversarial tests PASS**; it does not certify all OWASP items.
+
+## B874: actual isolated PHP and Chromium acceptance
+
+- Initial [B872–B875 CI #40208344992](https://github.com/AldinAga/ald1n-project/actions/runs/40208344992) on source `de24093161829614ac06877fdd067b8d920309f1` was **SUCCESS**: 65/65 real Laravel HTTP PHP tests, 763 assertions; 8 negative source-inventory controls, and real Chromium under `http://127.0.0.1:8124` with synthetic MariaDB 10.11.19 and array mail. Desktop 1440 and mobile 390 browser visited catalog/product/cart, loaded CSS, and **actually blocked** a harmless dynamically injected inline script; Chromium emitted CSP violation. Login/registration exempt and viewable. Initial JUnit parser had properly STOPPED on dotted `classname` evidence format; only parser normalization changed (not PHP tests/assertions/fixtures), producing this green immutable CI. [Source/JUnit/Chrome/screenshots Drive archive](https://drive.google.com/file/d/12sMzDBtRuzlkqbEDhtI4HGqAqR8ZBmKC/view?usp=drivesdk).
+- Final [B872–B876 exact-head CI #40209090924](https://github.com/AldinAga/ald1n-project/actions/runs/40209090924) **SUCCESS** at `5315d72a7b918f7a9f0104a820656d0a6920fe0d`: **68/68 real PHPUnit cases, 776 assertions**, including new **3/3** role ID invariants and 52 untouched B836/B847/B843/B866 tests, **8/8 source controls**, six Chromium viewport cases with real blocked inline script, no browser CSS/layout regression. Stored raw 68-case JUnit, source manifests/sha256, Chromium JSON and six screenshots as [Google Drive ZIP](https://drive.google.com/file/d/1Nx_rAxClIGNeEGryYyDDKk2RlmyJ7Qss/view?usp=drivesdk), verified **1,800,550 bytes**.
+
+## B876: full-suite-discovered MariaDB unsigned TINYINT overflow genuinely corrected
+
+- Critically, first complete B803 candidate comparison on same branch before the fix [#40208344978](https://github.com/AldinAga/ald1n-project/actions/runs/40208344978) produced immutable baseline **451 tests / 44 failed identities**, candidate **598 / 102 failed identities**, **60** new versus production baseline. Four additional new failures (relative to previous 56) belonged **exclusively to WarrantyTerms797Test**: `test_certificate_payload_uses_real_configured_issuer_contact`, `test_existing_custom_rule_text_is_preserved_exactly`, `test_rule_form_shows_default_but_does_not_rewrite_database_on_get`, `test_updating_other_rule_fields_does_not_replace_custom_terms`. Actual raw JUnit stack traces show **SQLSTATE[22003] numeric out-of-range `roles.id`** in `CoreAccessSeeder` `insert into roles(slug,name) values(customer,Kupac)`. [Original RED proof archive](https://drive.google.com/file/d/1JZhnTDKYCL5ntee6n2QmTswyI6sit32B/view?usp=drivesdk). This was an unrelated, underlying finite-ID seeding problem, not demonstrated CSP logic failure or warranty regression.
+- Original migration `2026_07_21_000001_create_access_tables.php` defines `roles.id` UNSIGNED TINYINT max255 and `users.role_id` UNSIGNED TINYINT FK. An `updateOrInsert` without customer PK consumed MariaDB AUTO_INCREMENT even as repeated `RefreshDatabase` transactions rolled back. Extra 13 scoped tests exposed this limit during 598-case execution.
+- Small source fix preserves existing `slug='customer'` role **primary key**, updating only `name`; if absent picks first free explicit `id` in 4..255, never overwriting custom role ID4, and fails `B876_ROLE_ID_SPACE_EXHAUSTED` if no ID remains. No existing user FK is reassigned, no role removed, no production migration. Added three new real DB regressions for repeated seed AUTO_INCREMENT stability, historic customer ID12/FK, and occupied ID4.
+- [B803 full exact-head retest #40209090923](https://github.com/AldinAga/ald1n-project/actions/runs/40209090923) on `5315d72a7b918f7a9f0104a820656d0a6920fe0d`: baseline still **451/44**, candidate now **601/98** (three extra B876 tests), **56 new failing identities**, *exactly the same 56 identities* as PR100 full B803 #40204443858. The four new SQLSTATE WarrantyTerms errors are gone, and an independent identity-set comparison of both CI run logs confirms **0 extra newly failing identities** relative to original pre-B872 source. This B803 run correctly remains **FAIL/GLOBAL RELEASE HOLD** because 56 genuinely unresolved historical identities are not waived. [Raw after full JUnit/logs Drive evidence](https://drive.google.com/file/d/1Ql9HsCx7BW4gUtgByPCyEsXxcv7lMpsu/view?usp=drivesdk).
+
+## Release/milestone status and next gates
+
+- Security register remains **368 OWASP WSTG4.2/ASVS5 L1+L2 items UNASSESSED/NOT_RUN, independently verified complete security PASS 0**. Five public no-script pages are *scoped tested*, not a complete ASVS or independent pentest certificate. Unmodified owner-mandated 56 B803 candidate regressions remain explicit HOLD, no provider-denied B805/B809/B815 fixture changes/rewrite/exclusion and no denied standalone HTTP CSRF probe workaround.
+- Public storefront still OFF in production; PR102 stays Draft stacked on PR100, no Laravel host files/DB mutated. Before ON: independently fix/review historical 56, complete applicable WSTG/ASVS isolated tests, enforce CSP on remaining auth/admin with actual browser/Turnstile compatibility, merchant legal terms/sender SMTP, backup/restore/FPM/owner UAT and authorized canonical `incoming/` rollout.
+- Android M16 native 16 KiB ELF/debug AAB/bundletool/offline-emulator technical CI completed earlier on PR82; production EAS-signed AAB, remote versionCode > Play-rejected 27, physical real-device 16KiB UAT and Google Play acceptance still HOLD; SDK58/M17 deferred. No EAS build/OTA/Play in this batch.
+- Formal fixed owner acceptance ledger **7/17=41.2% overall**, **7/15=46.7% CMS**, **6/6=100% original UI**. This increased engineering security verification and removed four actual full-suite regressions, but added **zero** production-accepted milestones. No user SSH required now.
+- `docs/operations/000-LATEST.md` remains intentionally unchanged due earlier provider safety denial; sequential Report852 and `AGENTS.md` addition are the current authority.
+
+SOURCE_PR102=5315d72a7b918f7a9f0104a820656d0a6920fe0d
+SCOPED_PHP=68_OF_68_PASS_776_ASSERTIONS
+SCOPED_NEGATIVE=8_OF_8_PASS
+BROWSER_CHROMIUM=PASS_6_REAL_SCRIPT_BLOCKS
+B876_FULL_SUITE_DELTA=4_NEW_INCIDENTAL_SQL_OVERFLOW_FAILURES_FIXED
+B803_LEGACY_NEW_FAILURE_IDENTITIES=56_UNWAIVED
+OWASP_INDEPENDENT_FULL_PASS=0_OF_368
+PUBLIC_STOREFRONT_PRODUCTION=OFF
+ANDROID_M16_ACCEPTANCE=HOLD_SIGNED_DEVICE_PLAY
+MILESTONES_ACCEPTED=7_OF_17
+PRODUCTION_MUTATED=NO
+OWNER_SSH_REQUIRED=NO
