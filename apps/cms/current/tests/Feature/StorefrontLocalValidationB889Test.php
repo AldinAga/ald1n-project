@@ -151,10 +151,22 @@ final class StorefrontLocalValidationB889Test extends TestCase
 
     private function loginBuyer(): void
     {
-        $this->post('/login',[
+        $response=$this->post('/login',[
             'login'=>$this->buyer->email,'password'=>'B889-Synthetic-Only123!',
         ])->assertRedirect('/korpa');
         $this->assertAuthenticatedAs($this->buyer);
+
+        // Laravel's feature client does not operate a browser cookie jar
+        // automatically. Carry the actual Set-Cookie value returned at
+        // login into subsequent HTTP calls so we test the SAME browser ID,
+        // not an unrelated new request with a cached Auth guard principal.
+        $sessionCookieSeen=false;
+        foreach ($response->headers->getCookies() as $cookie) {
+            if ($cookie->getName()!==(string)config('session.cookie')) continue;
+            $this->withCookie($cookie->getName(),$cookie->getValue());
+            $sessionCookieSeen=true;
+        }
+        self::assertTrue($sessionCookieSeen,'B890_TEST_BROWSER_SESSION_COOKIE_MISSING');
     }
 
     private function hostileReferer(): static
