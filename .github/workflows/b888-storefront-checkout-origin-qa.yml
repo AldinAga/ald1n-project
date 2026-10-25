@@ -56,8 +56,11 @@ jobs:
           printf '%s\n' \
             .github/workflows/b888-storefront-checkout-origin-qa.yml \
             apps/cms/current/app/Http/Controllers/PublicCheckoutController.php \
+            apps/cms/current/app/Http/Middleware/PublicRetailValidationRedirect.php \
+            apps/cms/current/bootstrap/app.php \
+            apps/cms/current/routes/web.php \
             apps/cms/current/tests/Feature/StorefrontCheckoutOriginB888Test.php \
-          apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php > "$RUNNER_TEMP/expected.txt"
+            apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php > "$RUNNER_TEMP/expected.txt"
           diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/changed.txt"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php apps/cms/current/tests/Feature/StorefrontSecurityB806Test.php)"
           git diff --check
@@ -74,6 +77,9 @@ jobs:
           install -m 600 /dev/null .env
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l app/Http/Controllers/PublicCheckoutController.php
+          php -l app/Http/Middleware/PublicRetailValidationRedirect.php
+          php -l bootstrap/app.php
+          php -l routes/web.php
           php -l tests/Feature/StorefrontCheckoutOriginB888Test.php
           php -l tests/Feature/StorefrontLocalValidationB889Test.php
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
