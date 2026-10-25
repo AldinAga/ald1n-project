@@ -64,17 +64,46 @@ jobs:
           test -z "$(git status --porcelain)"
           sha256sum apps/cms/current/composer.lock > "$RUNNER_TEMP/b858-original-lock.sha256"
           git hash-object apps/cms/current/composer.json > "$RUNNER_TEMP/b858-original-composer-json.blob"
-      - name: Resolve patched Composer packages in disposable CI only
+      - name: Audit existing lock first; update only for REAL advisories
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          composer update laravel/framework guzzlehttp/guzzle:^7.15.2 league/commonmark league/flysystem symfony/http-foundation \
-            --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-progress \
-            > "$RUNNER_TEMP/b858-resolver.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/b858-resolver.log"; exit 1; }
+          rc=0
+          composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/b858-pre-audit.json" 2> "$RUNNER_TEMP/b858-pre-audit.err" || rc=$?
+          printf '%s\n' "$rc" > "$RUNNER_TEMP/b858-pre-audit.rc"
+          test -s "$RUNNER_TEMP/b858-pre-audit.json"
+          python3 - "$RUNNER_TEMP" "$rc" "$(git rev-parse HEAD)" <<'PY'
+          import pathlib,sys
+          sys.path.insert(0,"../../../docs/security/tools")
+          from b857_composer_audit_gate import classify
+          tmp=pathlib.Path(sys.argv[1]);rc=int(sys.argv[2]);head=sys.argv[3]
+          result=classify((tmp/"b858-pre-audit.json").read_bytes(),head,
+                          pathlib.Path("composer.lock").read_bytes(),rc)
+          status=result["result"]
+          decision="clean" if status=="PASS_LOCKED_COMPOSER_AUDIT" else "needs_remediation"
+          (tmp/"b858-pre-audit-decision").write_text(decision+"\n")
+          print("B858_PRE_EXISTING_LOCK="+status+"_ACTION="+decision)
+          PY
+          decision="$(cat "$RUNNER_TEMP/b858-pre-audit-decision")"
+          if [ "$decision" = clean ]; then
+            echo 'B858_NO_VULNERABLE_LOCKED_PACKAGE_NO_SOLVER_UPDATE'
+            composer install --no-scripts --no-plugins --no-interaction --prefer-dist --no-progress \
+              > "$RUNNER_TEMP/b858-resolver.log" 2>&1 || {
+                tail -n 100 "$RUNNER_TEMP/b858-resolver.log"; exit 1;
+              }
+          else
+            test "$decision" = needs_remediation
+            composer update laravel/framework guzzlehttp/guzzle:^7.15.2 league/commonmark league/flysystem symfony/http-foundation \
+              --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-progress \
+              > "$RUNNER_TEMP/b858-resolver.log" 2>&1 || {
+                tail -n 100 "$RUNNER_TEMP/b858-resolver.log"; exit 1;
+              }
+          fi
           sha256sum composer.lock > "$RUNNER_TEMP/b858-updated-lock.sha256"
           test "$(git hash-object composer.json)" = "$(cat "$RUNNER_TEMP/b858-original-composer-json.blob")"
           changes="$(git diff --name-only)"
           if [ -n "$changes" ]; then test "$changes" = apps/cms/current/composer.lock; fi
+          if [ "$decision" = clean ]; then test -z "$changes"; fi
           git diff --check
           composer validate --no-check-publish --no-interaction
       - name: Require zero advisories and zero abandoned locked packages
@@ -117,6 +146,10 @@ jobs:
             apps/cms/current/composer.json
             apps/cms/current/composer.lock
             ${{ runner.temp }}/b858-original-lock.sha256
+            ${{ runner.temp }}/b858-pre-audit.json
+            ${{ runner.temp }}/b858-pre-audit.err
+            ${{ runner.temp }}/b858-pre-audit.rc
+            ${{ runner.temp }}/b858-pre-audit-decision
             ${{ runner.temp }}/b858-updated-lock.sha256
             ${{ runner.temp }}/b858-original-composer-json.blob
             ${{ runner.temp }}/b858-resolver.log
