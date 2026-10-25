@@ -97,7 +97,7 @@ test('a missing app PID is an app-lifecycle HOLD, not a generic ADB failure', as
 
 test('a missing app PID with its AndroidRuntime fatal is a precise crash HOLD', async () => fixture(async apk => {
   const { invoke } = mock({
-    'logcat -d -s AndroidRuntime:E': 'FATAL EXCEPTION: main\\nProcess: com.ald1n.mobile, PID: 33',
+    'logcat -d -s AndroidRuntime:E': 'FATAL EXCEPTION: main\nProcess: com.ald1n.mobile, PID: 33',
   });
   const pidofAbsent=(executable,args) => {
     if (args.includes('pidof')) throw new Error('HOLD_ADB_APP_PROCESS_EXIT_1');
