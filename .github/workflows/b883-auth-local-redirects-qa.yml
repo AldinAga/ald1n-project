@@ -133,7 +133,8 @@ jobs:
             'RetiredActiveLoginB813Test':4,'SensitiveAuthPostBoundaryB817Test':6,
             'SensitiveAuthResponsePrivacyB816Test':8,
             'PublicResponseHeadersB866Test':11,'PublicNoScriptCspB872Test':13}
-          if len(ids)!=73 or len(set(ids))!=71 or actual!=expected or any(not a or not b for a,b in ids):
+          expected_total=sum(expected.values())
+          if expected_total!=73 or len(ids)!=expected_total or len(set(ids))!=expected_total or actual!=expected or any(not a or not b for a,b in ids):
             raise SystemExit('HOLD_B883_MISSING_DUPLICATE_OR_CHANGED_CASES_'+str(actual))
           if any(c.find(e) is not None for c in cases for e in ('failure','error','skipped','warning')):
             raise SystemExit('HOLD_B883_FAILURE_ERROR_SKIPPED_OR_WARNING')
