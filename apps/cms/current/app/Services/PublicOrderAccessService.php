@@ -33,6 +33,7 @@ final class PublicOrderAccessService
                 || $locked->purged_at!==null
                 || $locked->user_id===null || !($buyer instanceof User)
                 || $buyer->status!=='active' || $buyer->retired_at!==null
+                || $buyer->email_verified_at===null || $buyer->portal_activated_at===null
                 || !$buyer->hasRole('customer')
                 || !hash_equals(mb_strtolower(trim((string)$buyer->email)),$email)) {
                 throw ValidationException::withMessages(['order'=>'Nevažeći javni prodajni tok.']);
@@ -69,6 +70,7 @@ final class PublicOrderAccessService
             abort_unless($actor instanceof User
                 && (int)$actor->getKey()===(int)$order->user_id
                 && $actor->status==='active' && $actor->retired_at===null
+                && $actor->email_verified_at!==null && $actor->portal_activated_at!==null
                 && $actor->hasRole('customer'),404);
             $tracked=false;
             try {
