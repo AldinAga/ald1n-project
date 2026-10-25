@@ -174,7 +174,9 @@ final class PublicCheckoutReplayIntegrityB843Test extends TestCase
     {
         [$data]=$this->firstCheckout();
         $this->buyer->forceFill(['status'=>'blocked'])->save();
-        $this->postJson('/porucivanje',$data)->assertForbidden();
+        // Laravel auth middleware revokes the blocked account before domain access:
+        // 401 is fail-closed and no receipt or second order may be issued.
+        $this->postJson('/porucivanje',$data)->assertUnauthorized();
         $this->assertOneSaleOnly();
     }
 
