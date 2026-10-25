@@ -86,6 +86,26 @@ test('successful install but dead process is HOLD', async () => fixture(async ap
   await assert.rejects(auditEmulator(apk, invoke, async()=>{}), /HOLD_APP_PROCESS_NOT_ALIVE/);
 }));
 
+test('a missing app PID is an app-lifecycle HOLD, not a generic ADB failure', async () => fixture(async apk => {
+  const { invoke } = mock();
+  const pidofAbsent=(executable,args) => {
+    if (args.includes('pidof')) throw new Error('HOLD_ADB_APP_PROCESS_EXIT_1');
+    return invoke(executable,args);
+  };
+  await assert.rejects(auditEmulator(apk,pidofAbsent,async()=>{}), /HOLD_APP_PROCESS_NOT_ALIVE/);
+}));
+
+test('a missing app PID with its AndroidRuntime fatal is a precise crash HOLD', async () => fixture(async apk => {
+  const { invoke } = mock({
+    'logcat -d -s AndroidRuntime:E': 'FATAL EXCEPTION: main\\nProcess: com.ald1n.mobile, PID: 33',
+  });
+  const pidofAbsent=(executable,args) => {
+    if (args.includes('pidof')) throw new Error('HOLD_ADB_APP_PROCESS_EXIT_1');
+    return invoke(executable,args);
+  };
+  await assert.rejects(auditEmulator(apk,pidofAbsent,async()=>{}), /HOLD_APP_ANDROID_RUNTIME_FATAL/);
+}));
+
 test('launcher failure is HOLD', async () => fixture(async apk => {
   const { invoke } = mock({ 'shell am start -W -n com.ald1n.mobile/.MainActivity': 'Error type 3' });
   await assert.rejects(auditEmulator(apk, invoke, async()=>{}), /HOLD_ANDROID_MAIN_ACTIVITY_NOT_STARTED/);
