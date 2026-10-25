@@ -33,7 +33,7 @@ final class PasswordResetController extends Controller
         );
 
         if (!$verified['success']) {
-            return back()
+            return $this->passwordRequestRedirect($request)
                 ->withErrors(['turnstile' => $verified['message']])
                 ->onlyInput('email');
         }
@@ -47,7 +47,15 @@ final class PasswordResetController extends Controller
             ]);
         }
 
-        return back()->with('status', 'Ako nalog sa tom e-mail adresom postoji, poslat je link za resetovanje lozinke.');
+        return $this->passwordRequestRedirect($request)
+            ->with('status', 'Ako nalog sa tom e-mail adresom postoji, poslat je link za resetovanje lozinke.');
+    }
+
+    private function passwordRequestRedirect(ForgotPasswordRequest $request): RedirectResponse
+    {
+        // B884: never use back()/untrusted Referer on sensitive email recovery.
+        return (new RedirectResponse(route('password.request', [], false)))
+            ->setSession($request->session());
     }
 
     public function create(string $token, PasswordResetService $passwords): View
@@ -66,13 +74,13 @@ final class PasswordResetController extends Controller
         );
 
         if (!$reset) {
-            return back()->withErrors([
-                'token' => 'Link za resetovanje nije važeći, već je iskorišćen ili je istekao.',
-            ]);
+            return (new RedirectResponse($request->localFormLocation()))
+                ->setSession($request->session())
+                ->withErrors(['token' => 'Link za resetovanje nije važeći, već je iskorišćen ili je istekao.']);
         }
 
-        return redirect()
-            ->route('login')
+        return (new RedirectResponse(route('login', [], false)))
+            ->setSession($request->session())
             ->with('status', 'Lozinka je uspešno promenjena. Sada se možete prijaviti.');
     }
 }

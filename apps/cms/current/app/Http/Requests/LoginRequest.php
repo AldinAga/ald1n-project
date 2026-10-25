@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 
-final class LoginRequest extends FormRequest
+final class LoginRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool { return true; }
+
+    /** Never follow caller-supplied Referer for rejected login validation. */
+    protected function getRedirectUrl(): string
+    {
+        return route('login', [], false);
+    }
     public function rules(): array
     {
         return [

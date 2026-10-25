@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 
-final class ForgotPasswordRequest extends FormRequest
+final class ForgotPasswordRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool
     {
@@ -19,6 +18,12 @@ final class ForgotPasswordRequest extends FormRequest
             'email' => ['required', 'email:rfc', 'max:190'],
             'cf-turnstile-response' => ['nullable', 'string', 'max:4096'],
         ];
+    }
+
+    /** Malformed email must not redirect to an attacker Referer. */
+    protected function getRedirectUrl(): string
+    {
+        return route('password.request', [], false);
     }
 
     public function messages(): array

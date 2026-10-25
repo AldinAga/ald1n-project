@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
-final class ResetPasswordRequest extends FormRequest
+final class ResetPasswordRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool
     {
@@ -20,6 +19,20 @@ final class ResetPasswordRequest extends FormRequest
             'token' => ['required', 'string', 'size:80'],
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
         ];
+    }
+
+    /** Strictly local form path, even with attacker supplied Referer/Host. */
+    public function localFormLocation(): string
+    {
+        $token = (string) $this->input('token', '');
+        return preg_match('/\\A[A-Za-z0-9]{80}\\z/D', $token) === 1
+            ? route('password.reset', ['token' => $token], false)
+            : route('password.request', [], false);
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->localFormLocation();
     }
 
     public function messages(): array

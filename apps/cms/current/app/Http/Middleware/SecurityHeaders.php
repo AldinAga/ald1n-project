@@ -53,7 +53,7 @@ final class SecurityHeaders
         // secrets. Never send them as a Referrer, allow browser storage or
         // expose the pages to search indexing. The same protection covers
         // OAuth state/code callbacks and prospective buyer registration forms.
-        if ($request->routeIs('login', 'login.store', 'password.*',
+        if ($request->routeIs('login', 'login.store', 'logout', 'password.*',
             'customer-activation.*', 'public-shop.register',
             'public-shop.register.submit', 'auth.google.*')) {
             $headers->set('Cache-Control', 'private, no-store, max-age=0');
