@@ -19,13 +19,22 @@ def classify(raw: bytes, source_sha: str, lockfile: bytes, audit_rc: int) -> dic
     if not isinstance(lock,dict) or "packages" not in lock or not isinstance(lock["packages"],list):
         raise ValueError("HOLD_INVALID_LOCKFILE")
     result=json.loads(raw)
-    if not isinstance(result,dict) or not isinstance(result.get("advisories"),dict):
+    if not isinstance(result,dict):
+        raise ValueError("HOLD_BAD_AUDIT_JSON")
+    # Composer 2.x renders empty advisory/abandoned collections as [] rather than {}.
+    # Accept only an EMPTY array as zero, never discard nonempty unknown records.
+    advisory_data=result.get("advisories")
+    if advisory_data==[]:
+        advisory_data={}
+    if not isinstance(advisory_data,dict):
         raise ValueError("HOLD_BAD_AUDIT_JSON")
     abandoned=result.get("abandoned",{})
-    if not isinstance(abandoned,(dict,list)):
+    if abandoned==[]:
+        abandoned={}
+    if not isinstance(abandoned,dict):
         raise ValueError("HOLD_BAD_ABANDONMENT_FORMAT")
     findings=[]
-    for package,items in result["advisories"].items():
+    for package,items in advisory_data.items():
         if not isinstance(package,str) or not isinstance(items,list):
             raise ValueError("HOLD_BAD_ADVISORY")
         for item in items:
