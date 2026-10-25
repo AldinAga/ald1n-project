@@ -68,7 +68,7 @@ jobs:
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          composer update laravel/framework guzzlehttp/guzzle league/commonmark league/flysystem symfony/http-foundation \
+          composer update laravel/framework guzzlehttp/guzzle:^7.15.2 league/commonmark league/flysystem symfony/http-foundation \
             --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-progress \
             > "$RUNNER_TEMP/b858-resolver.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/b858-resolver.log"; exit 1; }
           sha256sum composer.lock > "$RUNNER_TEMP/b858-updated-lock.sha256"
