@@ -89,7 +89,7 @@ final class PublicRetailCatalogService
             'currency' => (string) $product->price_currency,
             'price_rsd' => $unit,
             'can_buy' => $unit !== null && $unit > 0 && (int) $product->stock_quantity > 0,
-            'image' => $image ? route('public-shop.media', ['image' => $image->id]) : null,
+            'image' => $image ? route('public-shop.media', ['image' => $image->id], false) : null,
         ];
     }
 
