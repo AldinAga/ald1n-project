@@ -163,6 +163,7 @@ final class StorefrontMediaPathBoundaryB893Test extends TestCase
         ]);
         return Product::query()->create([
             'sku'=>strtoupper($slug),'slug'=>$slug,'name'=>'B893 Synthetic Product',
+            'description'=>'Disposable synthetic media fixture',
             'price_amount'=>12500,'price_currency'=>'RSD',
             'stock_quantity'=>4,'status'=>'active','created_by'=>$owner->id,
         ]);
