@@ -90,18 +90,36 @@ jobs:
           root=ET.parse(sys.argv[1]).getroot()
           tests=list(root.iter('testcase'))
           ids=[((n.get('classname') or n.get('class')),n.get('name')) for n in tests]
-          if len(tests)!=8 or len(ids)!=len(set(ids)) or any(not a or not b for a,b in ids):
-              raise SystemExit('HOLD_TEST_CASE_COUNT_OR_IDENTITIES_'+str(len(tests)))
+          from collections import Counter
+          actual=Counter((name or '').replace(chr(92),'.').split('.')[-1] for name,case in ids)
+          expected={'StorefrontCheckoutOriginB888Test':3,'StorefrontLocalValidationB889Test':5}
+          if len(tests)!=8 or len(ids)!=len(set(ids)) or any(not a or not b for a,b in ids) or actual!=expected:
+              raise SystemExit('HOLD_TEST_CASE_COUNT_OR_IDENTITIES_'+str(len(tests))+'_'+str(actual))
           if any(n.find(k) is not None for n in tests for k in ('failure','error','skipped','warning')):
               raise SystemExit('HOLD_NON_GREEN_CASES')
           print('B888_B889_B890_SCOPED_ORIGIN_8_OF_8_PASS')
           PY
+          sha256sum \
+            app/Http/Controllers/PublicCheckoutController.php \
+            app/Services/PortalSessionService.php \
+            bootstrap/app.php \
+            tests/Feature/StorefrontCheckoutOriginB888Test.php \
+            tests/Feature/StorefrontLocalValidationB889Test.php \
+            > "$RUNNER_TEMP/b890-source.sha256"
       - name: Archive synthetic test evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: b888-storefront-origin-junit
-          path: ${{ runner.temp }}/b888-junit.xml
+          path: |
+            ${{ runner.temp }}/b888-junit.xml
+            ${{ runner.temp }}/b890-source.sha256
+            apps/cms/current/app/Http/Controllers/PublicCheckoutController.php
+            apps/cms/current/app/Services/PortalSessionService.php
+            apps/cms/current/bootstrap/app.php
+            apps/cms/current/tests/Feature/StorefrontCheckoutOriginB888Test.php
+            apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php
+            .github/workflows/b888-storefront-checkout-origin-qa.yml
           retention-days: 7
       - name: Preserve release HOLD
         if: always()
