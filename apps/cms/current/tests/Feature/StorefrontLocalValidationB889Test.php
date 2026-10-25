@@ -109,8 +109,10 @@ final class StorefrontLocalValidationB889Test extends TestCase
     public function test_revoked_registered_buyer_html_session_fails_closed_with_relative_login(): void
     {
         $this->loginBuyer();
-        UserLoginSession::query()->where('user_id',$this->buyer->id)
+        self::assertSame(1,UserLoginSession::query()->where('user_id',$this->buyer->id)->count());
+        $revoked=UserLoginSession::query()->where('user_id',$this->buyer->id)
             ->whereNull('revoked_at')->update(['revoked_at'=>now()]);
+        self::assertSame(1,$revoked);
         $response=$this->hostile()->get('/porucivanje')->assertRedirect('/login');
         self::assertSame('/login',(string)$response->headers->get('Location'));
         $this->assertGuest();
