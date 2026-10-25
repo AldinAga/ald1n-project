@@ -35,7 +35,7 @@ final class StorefrontMediaPathBoundaryB893Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
         config()->set('public_storefront.enabled',true);
-        app(SettingsService::class)->put('public_storefront_open','1',null);
+        app(SettingsService::class)->putMany(['public_storefront_open'=>'1'],null);
         Storage::fake('public');
         $this->product=$this->product('b893-primary');
     }
