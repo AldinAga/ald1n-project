@@ -1,0 +1,118 @@
+name: B902 payment transition notification idempotence (NO DEPLOY)
+on:
+  pull_request:
+    branches: [fix/b899-storefront-html-link-origin-20261025]
+permissions:
+  contents: read
+jobs:
+  payment-idempotence:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Immutable HEAD/base and payment-only path allowlist
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          BASE=ccc4ca043a0f164aa6ee993af50ab18ee64daf4a
+          test "$(git merge-base "$BASE" HEAD)" = "$BASE"
+          git diff --name-only "$BASE" HEAD | sort > "$RUNNER_TEMP/b902-changed.txt"
+          printf '%s\n' \
+            .github/workflows/b902-payment-transition-notifications-qa.yml \
+            apps/cms/current/app/Services/OrderPaymentService.php \
+            apps/cms/current/tests/Feature/PaymentTransitionNotificationB902Test.php | sort > "$RUNNER_TEMP/b902-allowed.txt"
+          test -z "$(comm -23 "$RUNNER_TEMP/b902-changed.txt" "$RUNNER_TEMP/b902-allowed.txt")"
+          grep -Fx apps/cms/current/tests/Feature/PaymentTransitionNotificationB902Test.php "$RUNNER_TEMP/b902-changed.txt"
+          test -z "$(git diff --name-only "$BASE" HEAD -- \
+            apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php \
+            apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php \
+            apps/cms/current/tests/Feature/StorefrontSecurityB806Test.php)"
+          git diff --check
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Real PHP8.4/MariaDB payment transition side effects
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php -l tests/Feature/PaymentTransitionNotificationB902Test.php
+          php -l app/Services/OrderPaymentService.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b902-junit.xml" \
+            tests/Feature/PaymentTransitionNotificationB902Test.php \
+            tests/Feature/WarrantyFirstPaymentIssuance798Test.php
+      - name: Strict 9 original unique JUnit identities with B798 warranty integration
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/b902-junit.xml" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
+          ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
+          assert len(ids)==9 and len(set(ids))==9, 'HOLD_9_UNIQUE_B902_B798_CASES'
+          assert sum(c.endswith('PaymentTransitionNotificationB902Test') for c,n in ids if c)==3, 'HOLD_B902_CASE_COUNT'
+          assert sum(c.endswith('WarrantyFirstPaymentIssuance798Test') for c,n in ids if c)==6, 'HOLD_EXISTING_B798_CASE_COUNT'
+          assert all(c and n and (c.endswith('PaymentTransitionNotificationB902Test') or c.endswith('WarrantyFirstPaymentIssuance798Test')) for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
+          assert not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped','warning')), 'HOLD_FAILED_SKIPPED_CASE'
+          print('B902_B798_PAYMENT_WARRANTY_9_OF_9_REAL_MARIADB_PASS')
+          PY
+          sha256sum app/Services/OrderPaymentService.php \
+            tests/Feature/PaymentTransitionNotificationB902Test.php \
+            tests/Feature/WarrantyFirstPaymentIssuance798Test.php \
+            > "$RUNNER_TEMP/b902-source.sha256"
+      - name: Evidence and original source for RED/GREEN
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b902-payment-notification-evidence
+          path: |
+            ${{ runner.temp }}/b902-junit.xml
+            ${{ runner.temp }}/b902-source.sha256
+            ${{ runner.temp }}/b902-changed.txt
+            apps/cms/current/app/Services/OrderPaymentService.php
+            apps/cms/current/tests/Feature/PaymentTransitionNotificationB902Test.php
+            apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php
+            .github/workflows/b902-payment-transition-notifications-qa.yml
+          retention-days: 7
+      - name: Production remains unchanged
+        if: always()
+        run: echo B902_CI_SYNTHETIC_ONLY_NO_HOST_NO_EAS_NO_PLAY_NO_STOREFRONT_ON
