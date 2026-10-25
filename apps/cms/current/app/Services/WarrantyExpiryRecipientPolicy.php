@@ -18,25 +18,36 @@ final class WarrantyExpiryRecipientPolicy
 {
     public function allows(ProductWarranty $warranty, User $recipient): bool
     {
-        if ($warranty->status !== 'active' || $recipient->status !== 'active' || $recipient->retired_at !== null) {
-            return false;
-        }
-        $warranty->loadMissing('orderItem.order.user');
-        $item = $warranty->orderItem;
-        if (!$item instanceof OrderItem || (int) $item->order_id !== (int) $warranty->order_id) {
-            return false;
-        }
+        // B905-B907: always re-authorize against current database state.
+        // Caller-side Eloquent relations and cached User roles may predate
+        // recipient retirement/demotion, order cancellation or warranty void.
+        if (!$warranty->exists || !$recipient->exists) return false;
+
+        $currentWarranty = ProductWarranty::query()
+            ->with('orderItem.order.user')->find($warranty->getKey());
+        $currentRecipient = User::query()->with('role')->find($recipient->getKey());
+        if (!$currentWarranty instanceof ProductWarranty
+            || !$currentRecipient instanceof User
+            || $currentWarranty->status !== 'active'
+            || $currentRecipient->status !== 'active'
+            || $currentRecipient->retired_at !== null) return false;
+
+        $item = $currentWarranty->orderItem;
+        if (!$item instanceof OrderItem
+            || (int) $item->order_id !== (int) $currentWarranty->order_id
+            || (int) $item->product_id !== (int) $currentWarranty->product_id) return false;
+
         $order = $item->order;
-        if (!$order instanceof Order || (int) $order->id !== (int) $warranty->order_id
-            || (string) $order->status === 'cancelled') {
-            return false;
-        }
+        if (!$order instanceof Order
+            || (int) $order->id !== (int) $currentWarranty->order_id
+            || (string) $order->status === 'cancelled') return false;
+
         $sellerId = $order->user instanceof User ? (int) $order->user->id : null;
-        if (!$recipient->hasRole('superadmin') && $sellerId !== (int) $recipient->id) {
-            return false;
-        }
-        // Do not create new preference rows or enable consent through a read.
-        return $recipient->notificationPreference()->first()?->warranty_expiry_alerts === true;
+        if (!$currentRecipient->hasRole('superadmin') && $sellerId !== (int) $currentRecipient->id) return false;
+
+        // Only current individual expiry opt-in, not general warranty_updates.
+        return $currentRecipient->notificationPreference()
+            ->where('warranty_expiry_alerts', true)->exists();
     }
 
     /** @return Collection<int,User> */
