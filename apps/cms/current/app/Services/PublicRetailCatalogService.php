@@ -56,7 +56,12 @@ final class PublicRetailCatalogService
             default:
                 $query->orderByDesc('id');
         }
-        return $query->paginate(20)->withQueryString();
+        // B901: the paginator otherwise derives an absolute site origin.
+        // Internal page links and filter state must stay on the current origin,
+        // independent of Host/proxy headers and deploy-time APP_URL.
+        return $query->paginate(20)
+            ->withPath(route('public-shop.catalog', [], false))
+            ->withQueryString();
     }
 
     public function bySlug(string $slug): Product
@@ -89,7 +94,7 @@ final class PublicRetailCatalogService
             'currency' => (string) $product->price_currency,
             'price_rsd' => $unit,
             'can_buy' => $unit !== null && $unit > 0 && (int) $product->stock_quantity > 0,
-            'image' => $image ? route('public-shop.media', ['image' => $image->id]) : null,
+            'image' => $image ? route('public-shop.media', ['image' => $image->id], false) : null,
         ];
     }
 
