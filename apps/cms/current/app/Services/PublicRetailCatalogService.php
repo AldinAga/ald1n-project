@@ -56,7 +56,12 @@ final class PublicRetailCatalogService
             default:
                 $query->orderByDesc('id');
         }
-        return $query->paginate(20)->withQueryString();
+        // B901: the paginator otherwise derives an absolute site origin.
+        // Internal page links and filter state must stay on the current origin,
+        // independent of Host/proxy headers and deploy-time APP_URL.
+        return $query->paginate(20)
+            ->withPath(route('public-shop.catalog', [], false))
+            ->withQueryString();
     }
 
     public function bySlug(string $slug): Product
