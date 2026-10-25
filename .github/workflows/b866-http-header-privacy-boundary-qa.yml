@@ -1,0 +1,132 @@
+name: B866-B869 HTTP response privacy and CSP partial remediation (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/app/Http/Middleware/SecurityHeaders.php'
+      - 'apps/cms/current/tests/Feature/PublicResponseHeadersB866Test.php'
+      - 'docs/security/B866-B869-HTTP-PRIVACY-CSP-PARTIAL.md'
+      - '.github/workflows/b866-http-header-privacy-boundary-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b866-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  http-privacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - name: Exact PR source without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: PHP 8.4 runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Prove precise source gap and source-only patch
+        run: |
+          set -euo pipefail
+          BASE=d8142bb61edd0dd5737f065a1b1c53e5782bf942
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git cat-file -e "$BASE^{commit}"
+          git show "$BASE:apps/cms/current/app/Http/Middleware/SecurityHeaders.php" | grep -F "base-uri 'self'; frame-ancestors 'self';"
+          grep -F "base-uri 'none'; frame-ancestors 'self';" apps/cms/current/app/Http/Middleware/SecurityHeaders.php
+          test "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/app)" = apps/cms/current/app/Http/Middleware/SecurityHeaders.php
+          test "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/tests)" = apps/cms/current/tests/Feature/PublicResponseHeadersB866Test.php
+          git diff --check
+          if grep -RniE '<base[[:space:]>]' apps/cms/current/resources/views; then
+            echo 'HOLD_UNREVIEWED_HTML_BASE_TAG'; exit 1
+          fi
+          echo 'B866_ORIGINAL_BASE_SELF=SOURCE_GAP PATCHED_BASE_NONE=SOURCE_FIXED'
+      - name: Install locked Laravel and syntax check
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --no-scripts --prefer-dist --no-progress
+          php -l app/Http/Middleware/SecurityHeaders.php
+          php -l tests/Feature/PublicResponseHeadersB866Test.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+      - name: Real HTTP headers and three unchanged sensitive boundary suites
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --filter 'PublicResponseHeadersB866Test|PublicRegisteredReceiptBoundaryB836Test|PublicCatalogSurfaceSecurityB847Test|PublicCheckoutReplayIntegrityB843Test' \
+            --log-junit "$RUNNER_TEMP/b866-combined-junit.xml" tests/Feature \
+            > "$RUNNER_TEMP/b866-combined.log" 2>&1 || {
+              tail -n 140 "$RUNNER_TEMP/b866-combined.log"; exit 1;
+            }
+          tail -n 15 "$RUNNER_TEMP/b866-combined.log"
+      - name: Verify 52 unique exact case identities and zero negative outcomes
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/b866-combined-junit.xml" "$RUNNER_TEMP/b866-evidence.json" "$(git rev-parse HEAD)" <<'PY'
+          import hashlib,json,pathlib,sys,xml.etree.ElementTree as ET
+          raw=pathlib.Path(sys.argv[1]).read_bytes()
+          root=ET.fromstring(raw)
+          cases=list(root.iter('testcase'))
+          ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
+          if len(cases)!=52 or len(set(ids))!=52 or any(not a or not b for a,b in ids):
+              raise SystemExit('HOLD_B866_CASE_IDENTITY_OR_COUNT')
+          if any(c.find(x) is not None for c in cases for x in ('failure','error','skipped','warning')):
+              raise SystemExit('HOLD_B866_FAILURE_WARNING_OR_SKIP')
+          evidence={'source_sha':sys.argv[3],'junit_sha256':hashlib.sha256(raw).hexdigest(),
+              'scoped_cases':52,'scoped_outcome':'PASS_B866_B869_ONLY',
+              'full_asvs_v3_4_3':'NOT_PROVEN_SCRIPT_POLICY_INCOMPLETE',
+              'full_owasp_368_item_pass':0,'global_release':'HOLD',
+              'production_mutated':False}
+          pathlib.Path(sys.argv[2]).write_text(json.dumps(evidence,indent=2,sort_keys=True)+'\n')
+          print('B866_SCOPED_REAL_HTTP_SECURITY=52_OF_52_PASS')
+          print('B869_ASVS_V3_4_3_PARTIAL_ONLY_FULL_PENTEST_NOT_RUN')
+          PY
+          sha256sum "$RUNNER_TEMP/b866-combined-junit.xml" "$RUNNER_TEMP/b866-evidence.json"
+      - name: Archive immutable proof and source-only patch
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b866-b869-http-headers-boundary
+          path: |
+            ${{ runner.temp }}/b866-combined-junit.xml
+            ${{ runner.temp }}/b866-combined.log
+            ${{ runner.temp }}/b866-evidence.json
+            apps/cms/current/app/Http/Middleware/SecurityHeaders.php
+            apps/cms/current/tests/Feature/PublicResponseHeadersB866Test.php
+            docs/security/B866-B869-HTTP-PRIVACY-CSP-PARTIAL.md
+            .github/workflows/b866-http-header-privacy-boundary-qa.yml
+          if-no-files-found: ignore
+          retention-days: 9
+      - name: Boundary
+        if: always()
+        run: echo 'B866_B869_PARTIAL_ONLY_NO_FULL_ASVS_PASS_NO_CSRF_PROBE_NO_PRODUCTION_NO_EAS_NO_SSH_NO_MERGE'
