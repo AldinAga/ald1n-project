@@ -84,6 +84,9 @@ jobs:
             ${{ runner.temp }}/b843-replay.log
             ${{ runner.temp }}/b843-receipt-regressions-junit.xml
             ${{ runner.temp }}/b843-receipt-regressions.log
+            apps/cms/current/app/Services/PublicRetailCheckoutService.php
+            apps/cms/current/tests/Feature/PublicCheckoutReplayIntegrityB843Test.php
+            .github/workflows/b843-replay-integrity-qa.yml
           if-no-files-found: ignore
           retention-days: 2
       - name: Production boundary
