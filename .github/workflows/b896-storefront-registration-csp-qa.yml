@@ -8,7 +8,7 @@ jobs:
   registration-csp:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       mariadb:
         image: mariadb:10.11.19
@@ -96,6 +96,90 @@ jobs:
           sha256sum app/Http/Middleware/PublicNoScriptCsp.php \
             tests/Feature/PublicRegistrationScriptCspB896Test.php \
             > "$RUNNER_TEMP/b896-source.sha256"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Real Chromium and Firefox synthetic registration CSP enforcement (no third-party requests)
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php artisan migrate --force
+          php -r '$app=require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); App\Models\Setting::query()->updateOrCreate(["setting_key"=>"public_storefront_open"],["setting_value"=>"1","updated_by"=>null]); App\Models\Setting::query()->updateOrCreate(["setting_key"=>"turnstile_enabled"],["setting_value"=>"1","updated_by"=>null]);'
+          php artisan serve --host=127.0.0.1 --port=18789 > "$RUNNER_TEMP/b897-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          status=000
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18789/registracija || true)
+            test "$status" = 200 && break
+            sleep 0.5
+          done
+          test "$status" = 200
+          npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund playwright@1.57.0
+          npx --no-install playwright install --with-deps chromium firefox
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { writeFileSync } from 'node:fs';
+          import { chromium, firefox } from 'playwright';
+
+          const results = [];
+          for (const [name, engine] of [['chromium',chromium],['firefox',firefox]]) {
+            const browser = await engine.launch({headless:true});
+            try {
+              const context = await browser.newContext();
+              let offHostRequests=0;
+              let unauthorizedScriptRequests=0;
+              await context.route('**/*', async route => {
+                const url=route.request().url();
+                if (url === 'https://challenges.cloudflare.com/turnstile/v0/api.js') {
+                  return route.fulfill({
+                    status:200, contentType:'application/javascript',
+                    body:'window.__B897_CLOUDFLARE_FAKE_SCRIPT_LOADED__=true;',
+                  });
+                }
+                if (url.startsWith('http://127.0.0.1:18789/')) {
+                  if (url.endsWith('/b897-forbidden-self.js')) unauthorizedScriptRequests++;
+                  return route.continue();
+                }
+                offHostRequests++;
+                return route.abort();
+              });
+              const page=await context.newPage();
+              const response=await page.goto('http://127.0.0.1:18789/registracija',{waitUntil:'load'});
+              assert.equal(response.status(),200,name+'_REGISTRATION_HTTP');
+              const policy=response.headers()['content-security-policy'] ?? '';
+              assert.match(policy,/script-src https:\/\/challenges\.cloudflare\.com(?:;|$)/,name+'_CSP_VENDOR_ONLY');
+              assert.match(policy,/script-src-attr 'none'/,name+'_CSP_INLINE_HANDLERS_NONE');
+              await page.waitForFunction(() => window.__B897_CLOUDFLARE_FAKE_SCRIPT_LOADED__===true,null,{timeout:10000});
+              await page.evaluate(() => {
+                window.__B897_FORBIDDEN_INLINE__=false;
+                window.__B897_FORBIDDEN_SELF__=false;
+                const inline=document.createElement('script');
+                inline.textContent='window.__B897_FORBIDDEN_INLINE__=true';
+                document.body.append(inline);
+                const local=document.createElement('script');
+                local.src='/b897-forbidden-self.js';
+                document.body.append(local);
+              });
+              await page.waitForTimeout(400);
+              assert.equal(await page.evaluate(()=>window.__B897_FORBIDDEN_INLINE__),false,name+'_INLINE_SCRIPT_BLOCKED');
+              assert.equal(await page.evaluate(()=>window.__B897_FORBIDDEN_SELF__),false,name+'_NON_VENDOR_SCRIPT_BLOCKED');
+              assert.equal(unauthorizedScriptRequests,0,name+'_CSP_DENIED_UNAPPROVED_FIRST_PARTY_JS_FETCH');
+              // The app does not contact cms.ald1n.com or Cloudflare in CI.
+              // All external navigation/resources are synthetic or aborted.
+              results.push({browser:name,registrationHttp:200,turnstileFakeLoaded:true,
+                inlineScriptBlocked:true,unapprovedScriptBlocked:true,
+                sourcePolicyPresent:true,offHostRequestsAborted:offHostRequests});
+              await context.close();
+            } finally {
+              await browser.close();
+            }
+          }
+          writeFileSync(process.env.RUNNER_TEMP+'/b897-browser.json',
+            JSON.stringify({sourceOnly:true,syntheticTurnstile:true,results},null,2)+'\n');
+          assert.equal(results.length,2,'HOLD_BROWSER_COVERAGE');
+          console.log('B897_CHROMIUM_AND_FIREFOX_REAL_BROWSER_CSP_PASS_2_OF_2');
+          JS
       - name: Evidence, including intentional RED
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -104,6 +188,8 @@ jobs:
           path: |
             ${{ runner.temp }}/b896-junit.xml
             ${{ runner.temp }}/b896-source.sha256
+            ${{ runner.temp }}/b897-browser.json
+            ${{ runner.temp }}/b897-server.log
             apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php
             apps/cms/current/tests/Feature/PublicRegistrationScriptCspB896Test.php
             .github/workflows/b896-storefront-registration-csp-qa.yml
