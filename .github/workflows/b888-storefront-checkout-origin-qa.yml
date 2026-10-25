@@ -56,7 +56,6 @@ jobs:
           printf '%s\n' \
             .github/workflows/b888-storefront-checkout-origin-qa.yml \
             apps/cms/current/app/Http/Controllers/PublicCheckoutController.php \
-            apps/cms/current/app/Services/PortalSessionService.php \
             apps/cms/current/bootstrap/app.php \
             apps/cms/current/tests/Feature/StorefrontCheckoutOriginB888Test.php \
             apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php > "$RUNNER_TEMP/expected.txt"
@@ -76,7 +75,6 @@ jobs:
           install -m 600 /dev/null .env
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l app/Http/Controllers/PublicCheckoutController.php
-          php -l app/Services/PortalSessionService.php
           php -l bootstrap/app.php
           php -l tests/Feature/StorefrontCheckoutOriginB888Test.php
           php -l tests/Feature/StorefrontLocalValidationB889Test.php
