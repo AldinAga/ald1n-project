@@ -60,6 +60,9 @@ jobs:
           name: b844-owasp-security-initial-coverage
           path: |
             ${{ runner.temp }}/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json
+            docs/security/tools/build_b844_owasp_coverage.py
+            docs/security/tools/test_b844_owasp_coverage.py
+            .github/workflows/b844-owasp-item-census-qa.yml
           if-no-files-found: ignore
           retention-days: 7
       - name: Enforce no release mutation
