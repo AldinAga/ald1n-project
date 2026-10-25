@@ -1,7 +1,7 @@
 @extends('public-shop.layout')
 @section('title',$product['name'])
 @section('content')
-<p><a href="{{ route('public-shop.catalog') }}">← Nazad na katalog</a></p>
+<p><a href="{{ route('public-shop.catalog', [], false) }}">← Nazad na katalog</a></p>
 <div class="shop-detail">
 <div class="shop-detail-image">
 @if($product['image'])<img src="{{ $product['image'] }}" alt="{{ $product['name'] }}" loading="eager">@else<span class="no-image">Fotografija nije dostupna</span>@endif
@@ -13,7 +13,7 @@
 <div class="shop-price">{{ $product['price_original'] }} {{ $product['currency'] }}</div>
 <p>{{ $product['stock']>0 ? 'Dostupno' : 'Trenutno nema na lageru' }}</p>
 @if($product['can_buy'])
-<form class="shop-add-form" method="post" action="{{ route('public-shop.cart.add',$product['id']) }}">@csrf
+<form class="shop-add-form" method="post" action="{{ route('public-shop.cart.add',$product['id'],false) }}">@csrf
 <label>Količina <input type="number" name="quantity" value="1" min="1" max="{{ min(20,$product['stock']) }}" required></label>
 <button type="submit">Dodaj u korpu</button>
 </form>
