@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsureRuntimeDirectories;
 use App\Http\Middleware\EnsureTrackedPortalSession;
 use App\Http\Middleware\RequirePermission;
+use App\Http\Middleware\PublicNoScriptCsp;
 use App\Http\Middleware\SecurityHeaders;
 use App\Support\ApiErrorResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -31,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(EnsureRuntimeDirectories::class);
         $middleware->prepend(AttachRequestId::class);
+        // On response unwind, the global baseline applies first; the
+        // audited storefront-only no-script policy narrows it afterwards.
+        $middleware->append(PublicNoScriptCsp::class);
         $middleware->append(SecurityHeaders::class);
 
         $middleware->alias([

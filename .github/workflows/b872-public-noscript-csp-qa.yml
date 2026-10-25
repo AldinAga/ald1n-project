@@ -1,0 +1,235 @@
+name: B872-B876 public HTML CSP, stable role IDs and Chromium (NO DEPLOY)
+on:
+  pull_request:
+    branches:
+      - fix/b858-laravel-composer-advisories-20261025
+    paths:
+      - 'apps/cms/current/bootstrap/app.php'
+      - 'apps/cms/current/database/seeders/CoreAccessSeeder.php'
+      - 'apps/cms/current/tests/Feature/CoreAccessRoleIdStabilityB876Test.php'
+      - 'apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php'
+      - 'apps/cms/current/tests/Feature/PublicNoScriptCspB872Test.php'
+      - 'apps/cms/current/tests/Browser/b874-no-script-csp-browser.cjs'
+      - 'docs/security/tools/b873_public_blade_csp_inventory.py'
+      - 'docs/security/tools/test_b873_public_blade_csp_inventory.py'
+      - 'docs/security/B872-B875-PUBLIC-NOSCRIPT-CSP.md'
+      - 'docs/security/B876-ROLE-ID-STABILITY.md'
+      - '.github/workflows/b872-public-noscript-csp-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b872-noscript-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  public-noscript-real-http:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/b872-public-no-script-csp-20261025'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - name: Fetch exact child PR source with no persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact-source changed-path and protected-test identity gate
+        run: |
+          set -euo pipefail
+          BASE=1f63318f1f1c2a76544c53d540f39dbb9307a56c
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git cat-file -e "$BASE^{commit}"
+          diff -u \
+            <(printf '%s\n' \
+              apps/cms/current/bootstrap/app.php \
+              apps/cms/current/database/seeders/CoreAccessSeeder.php \
+              apps/cms/current/tests/Feature/CoreAccessRoleIdStabilityB876Test.php \
+              apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php \
+              apps/cms/current/tests/Feature/PublicNoScriptCspB872Test.php \
+              apps/cms/current/tests/Browser/b874-no-script-csp-browser.cjs | sort) \
+            <(git diff --name-only "$BASE" HEAD -- apps/cms/current | sort)
+          test "$(git rev-parse "$BASE:apps/cms/current/composer.lock")" = "$(git rev-parse HEAD:apps/cms/current/composer.lock)"
+          test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php apps/cms/current/tests/Feature/PortalSessionCredentialBoundaryB815Test.php)"
+          git diff --check
+          echo B872_B876_CMS_CHANGED_PATHS_EXACT=6_PROTECTED_SUITES_UNTOUCHED
+      - name: Pinned PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Source-only six-view inventory and eight negative controls
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s docs/security/tools -p 'test_b873_public_blade_csp_inventory.py' -v
+          python3 docs/security/tools/b873_public_blade_csp_inventory.py \
+            --views=apps/cms/current/resources/views/public-shop \
+            --css=apps/cms/current/public/assets/css/ald1n-public-storefront.css \
+            --out="$RUNNER_TEMP/b873-inventory.json"
+          test "$(jq -r .source_views "$RUNNER_TEMP/b873-inventory.json")" = 6
+          test "$(jq -r .complete_owasp_item_passes "$RUNNER_TEMP/b873-inventory.json")" = 0
+          sha256sum "$RUNNER_TEMP/b873-inventory.json"
+      - name: Locked Composer and PHP syntax on disposable MariaDB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php -l app/Http/Middleware/PublicNoScriptCsp.php
+          php -l bootstrap/app.php
+          php -l database/seeders/CoreAccessSeeder.php
+          php -l tests/Feature/CoreAccessRoleIdStabilityB876Test.php
+          php -l tests/Feature/PublicNoScriptCspB872Test.php
+          node --check tests/Browser/b874-no-script-csp-browser.cjs
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+      - name: Run new CSP cases plus four unchanged real HTTP suites
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --filter 'PublicNoScriptCspB872Test|PublicRegisteredReceiptBoundaryB836Test|PublicCatalogSurfaceSecurityB847Test|PublicCheckoutReplayIntegrityB843Test|PublicResponseHeadersB866Test|CoreAccessRoleIdStabilityB876Test' \
+            --log-junit "$RUNNER_TEMP/b872-combined-junit.xml" tests/Feature \
+            > "$RUNNER_TEMP/b872-combined.log" 2>&1 || {
+              tail -n 145 "$RUNNER_TEMP/b872-combined.log"; exit 1;
+            }
+          tail -n 13 "$RUNNER_TEMP/b872-combined.log"
+      - name: Assert 65 real HTTP cases unchanged in identity, failures and warnings
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP" "$(git rev-parse HEAD)" <<'PY'
+          import collections,hashlib,json,pathlib,sys,xml.etree.ElementTree as ET
+          directory=pathlib.Path(sys.argv[1])
+          raw=(directory/'b872-combined-junit.xml').read_bytes()
+          cases=list(ET.fromstring(raw).iter('testcase'))
+          ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
+          observed=collections.Counter((a or '').replace('\\','.').split('.')[-1] for a,b in ids)
+          expected={
+            'PublicNoScriptCspB872Test':13,
+            'PublicRegisteredReceiptBoundaryB836Test':15,
+            'PublicCatalogSurfaceSecurityB847Test':15,
+            'PublicCheckoutReplayIntegrityB843Test':11,
+            'PublicResponseHeadersB866Test':11,
+            'CoreAccessRoleIdStabilityB876Test':3,
+          }
+          if observed!=expected or len(cases)!=68 or len(set(ids))!=68:
+            raise SystemExit('HOLD_B872_CASE_IDENTITY_OR_COUNT_'+str(observed))
+          if any(not a or not b for a,b in ids):
+            raise SystemExit('HOLD_B872_EMPTY_CASE_IDENTITY')
+          if any(c.find(t) is not None for c in cases for t in ('failure','error','skipped','warning')):
+            raise SystemExit('HOLD_B872_FAILURE_WARNING_OR_SKIPPED')
+          receipt={'source_sha':sys.argv[2],'junit_sha256':hashlib.sha256(raw).hexdigest(),
+            'cases':68,'class_counts':dict(observed),'result':'PASS_SCOPED_LARAVEL_HTTP_ONLY',
+            'complete_asvs_v3_4_3':'NOT_PROVEN_OTHER_SURFACES',
+            'complete_owasp_passes':0,'global_release':'HOLD',
+            'production_mutated':False}
+          (directory/'b872-php-evidence.json').write_text(json.dumps(receipt,sort_keys=True,indent=2)+'\n')
+          print('B872_B876_REAL_HTTP=68_OF_68_SCOPED_PASS_ONLY')
+          PY
+          sha256sum "$RUNNER_TEMP/b872-combined-junit.xml" "$RUNNER_TEMP/b872-php-evidence.json"
+      - name: Install disposable Chromium outside repository
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/b872-playwright
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix /tmp/b872-playwright playwright@1.56.1
+          /tmp/b872-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Real localhost Chromium blocks inline injection and renders responsive CSS
+        working-directory: apps/cms/current
+        env:
+          APP_URL: http://127.0.0.1:8124
+          SESSION_DRIVER: file
+          SESSION_SECURE_COOKIE: 'false'
+          PUBLIC_STOREFRONT_ENABLED: 'true'
+          PUBLIC_CHECKOUT_ENABLED: 'true'
+          PUBLIC_CHECKOUT_TERMS_URL: https://example.test/synthetic-terms
+          PUBLIC_CHECKOUT_PRIVACY_URL: https://example.test/synthetic-privacy
+          PUBLIC_CHECKOUT_SHIPPING_DESCRIPTION: B874 synthetic delivery
+          PUBLIC_CHECKOUT_SHIPPING_FEE_RSD: '0'
+          PUBLIC_CHECKOUT_PAYMENT_METHODS: cash_on_delivery
+          PUBLIC_CHECKOUT_SUPPORT_EMAIL: synthetic-support@example.test
+          B874_BROWSER_BASE_URL: http://127.0.0.1:8124
+          PLAYWRIGHT_NODE_ROOT: /tmp/b872-playwright
+          B874_BROWSER_OUT: /tmp/b874-browser-artifacts
+        run: |
+          set -euo pipefail
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test "$MAIL_MAILER" = array
+          test "$APP_URL" = http://127.0.0.1:8124
+          php artisan migrate:fresh --force --no-ansi
+          php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php tests/Browser/seed-b812-registered-buyer.php --seed
+          php artisan serve --host=127.0.0.1 --port=8124 > "$RUNNER_TEMP/b874-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8124/katalog; then READY=1; break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          test "$READY" = 1 || {
+            echo B874_LOCALHOST_HTTP_BOOT_HOLD; tail -n 25 "$RUNNER_TEMP/b874-server.log"; exit 1;
+          }
+          node tests/Browser/b874-no-script-csp-browser.cjs
+          test "$(jq -r '.observed | length' /tmp/b874-browser-artifacts/b874-csp-browser-evidence.json)" = 7
+          test "$(jq -r .production_mutated /tmp/b874-browser-artifacts/b874-csp-browser-evidence.json)" = false
+          sha256sum /tmp/b874-browser-artifacts/b874-csp-browser-evidence.json
+      - name: Archive exact-source tests and screenshot proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b872-b875-public-noscript-isolated
+          path: |
+            ${{ runner.temp }}/b873-inventory.json
+            ${{ runner.temp }}/b872-combined-junit.xml
+            ${{ runner.temp }}/b872-combined.log
+            ${{ runner.temp }}/b872-php-evidence.json
+            ${{ runner.temp }}/b874-server.log
+            /tmp/b874-browser-artifacts/b874-csp-browser-evidence.json
+            /tmp/b874-browser-artifacts/b874-*.png
+            apps/cms/current/bootstrap/app.php
+            apps/cms/current/database/seeders/CoreAccessSeeder.php
+            apps/cms/current/tests/Feature/CoreAccessRoleIdStabilityB876Test.php
+            apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php
+            apps/cms/current/tests/Feature/PublicNoScriptCspB872Test.php
+            apps/cms/current/tests/Browser/b874-no-script-csp-browser.cjs
+            docs/security/tools/b873_public_blade_csp_inventory.py
+            docs/security/tools/test_b873_public_blade_csp_inventory.py
+            docs/security/B872-B875-PUBLIC-NOSCRIPT-CSP.md
+            docs/security/B876-ROLE-ID-STABILITY.md
+            .github/workflows/b872-public-noscript-csp-qa.yml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Final production safety boundary
+        if: always()
+        run: echo B872_SCOPED_NOSCRIPT_ONLY_OWASP368_NOT_ASSESSED_GLOBAL_CMS56_HOLD_NO_PROD_NO_SSH_NO_EAS_NO_OTA_NO_MERGE
