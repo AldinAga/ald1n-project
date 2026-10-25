@@ -170,7 +170,7 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
     public function test_issue_rejects_inactive_registered_buyer_without_creating_token(): void
     {
         $unissued=$this->unissuedOrder('INACTIVE');
-        $this->buyer->forceFill(['status'=>'inactive'])->save();
+        $this->buyer->forceFill(['status'=>'blocked'])->save();
 
         try {
             app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
