@@ -26,6 +26,7 @@ final class PublicCheckoutController extends Controller
                 'Prijavi se ili registruj nalog Kupca pre poručivanja.', ['web'], route('login'));
         }
         abort_unless($actor->status==='active' && $actor->retired_at===null
+            && $actor->email_verified_at!==null && $actor->portal_activated_at!==null
             && $actor->hasRole('customer'),403);
 
         // Public checkout is outside the internal tracked-session route
