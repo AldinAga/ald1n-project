@@ -46,8 +46,7 @@ final class WarrantyExpiryRecipientPolicy
         if (!$currentRecipient->hasRole('superadmin') && $sellerId !== (int) $currentRecipient->id) return false;
 
         // Only current individual expiry opt-in, not general warranty_updates.
-        return $currentRecipient->notificationPreference()
-            ->where('warranty_expiry_alerts', true)->exists();
+        return $currentRecipient->notificationPreference()->first()?->warranty_expiry_alerts === true;
     }
 
     /** @return Collection<int,User> */
