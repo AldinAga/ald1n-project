@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
 /**
  * B885: route-preserving local redirect on malformed activation POSTs.
  * Never use an untrusted Referer, Host, forwarded authority or token path.
  */
-final class CustomerActivationRequest extends FormRequest
+final class CustomerActivationRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool
     {

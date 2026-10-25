@@ -6,7 +6,7 @@ Date: 2026-10-25. **Stacked Draft** on PR103 exact source `985c289e5d2dc1f8532af
 
 A source review identified the exact `AuthenticatedSessionController` flow: rejected credentials and Turnstile call Laravel `back()`, which may follow an attacker-supplied `Referer`. Successful staff login and staff logout used `redirect()->route(...)`, which can create an absolute Location influenced by request authority if upstream host validation is incomplete. Public Kupac login was already relative. This is an **application source control weakness**; no exploitation of real production or third-party systems was performed or claimed.
 
-Use explicitly **relative named-route locations**: active staff login `/`, active buyer `/korpa`, invalid credentials / Turnstile / malformed `LoginRequest` `/login`, and logout `/login`. Preserve original field-specific error flashes and **only** the username/email old input, never flash the password; preserve the intended registered buyer role/activation/session controls. Add `LoginRequest::getRedirectUrl()` override so FormRequest validation errors never take their redirect from an arbitrary Referer.
+Use explicitly **relative named-route locations**: active staff login `/`, active buyer `/korpa`, invalid credentials / Turnstile / malformed `LoginRequest` `/login`, and logout `/login`. Preserve original field-specific error flashes and **only** the username/email old input, never flash the password; preserve the intended registered buyer role/activation/session controls. Add `LoginRequest::getRedirectUrl()` override so FormRequest validation errors never take their redirect from an arbitrary Referer. **B887 follow-up:** stock Laravel validation handler converts even an internally generated relative route to a canonical APP_URL absolute Location; all four sensitive FormRequests now extend `LocalAuthFormRequest`, which returns a native local RedirectResponse for HTML validation errors, explicitly preserves field errors and safe old-input fields, and delegates JSON requests to stock Laravel 422 handling. Sensitive tokens/passwords are never flashed.
 
 ## B884 — password request and password reset remain on same-origin relative forms
 
@@ -20,11 +20,17 @@ For reset POST, `ResetPasswordRequest::localFormLocation` returns only `/reset-p
 
 ## B886 — isolated real HTTP and original compatible authentication suites
 
-The new `AuthLocalRedirectB883Test.php` executes **15** real synthetic Laravel HTTP cases on disposable PHP8.4/MariaDB10.11.19 with fake email notifications, disabled external Turnstile and no production requests. Each adversarial POST uses hostile `Host`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Origin`, and **`Referer`** headers. Required outcomes: local exact Location, sensitive `no-referrer`/`private,no-store` headers, no plaintext credential flash, no unintended user/checkout writes, and authenticated staff/buyer behavior intact.
+The new `AuthLocalRedirectB883Test.php` executes **17** real synthetic Laravel HTTP cases on disposable PHP8.4/MariaDB10.11.19 with fake email notifications, disabled external Turnstile and no production requests. Each adversarial POST uses hostile `Host`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Origin`, and **`Referer`** headers. Required outcomes: local exact Location, sensitive `no-referrer`/`private,no-store` headers, no plaintext credential flash, no unintended user/checkout writes, and authenticated staff/buyer behavior intact.
 
-The same job re-runs these six existing tests sets unchanged: `AuthenticationTest` (6), `LoginDashboardFallbackTest` (5), `PasswordResetTest` (3), `RetiredActiveLoginB813Test` (4), `SensitiveAuthPostBoundaryB817Test` (6), `SensitiveAuthResponsePrivacyB816Test` (8) plus B866 (11) and B872 (13) for a total **71 expected case identities** (15 new + 56 existing). Every actual JUnit case identity must be present exactly once, with no skipped/warnings/failures/errors. Do not change historical B799/B805/B809/B815 guest/security fixtures or use denied standalone CSRF probing to make CI green. All calls synthetic/local only.
+The same job re-runs these six existing tests sets unchanged: `AuthenticationTest` (6), `LoginDashboardFallbackTest` (5), `PasswordResetTest` (3), `RetiredActiveLoginB813Test` (4), `SensitiveAuthPostBoundaryB817Test` (6), `SensitiveAuthResponsePrivacyB816Test` (8) plus B866 (11) and B872 (13) for a total **73 expected case identities** (17 new + 56 existing). Every actual JUnit case identity must be present exactly once, with no skipped/warnings/failures/errors. Do not change historical B799/B805/B809/B815 guest/security fixtures or use denied standalone CSRF probing to make CI green. All calls synthetic/local only.
 
 Real CI job, exact HEAD/source/JUnit and hash records must be obtained from completed GitHub Actions; **do not claim PASS before it succeeds**. An unchanged B803 full baseline-vs-current run is separately required, and global release remains HOLD until that run and all other approval gates pass.
+
+### First B883 exact-head CI: RED evidence, independently corrected
+
+The initial immutable [CI #40213320653](https://github.com/AldinAga/ald1n-project/actions/runs/40213320653) at `a54fa310ace9777fcd2ee4aa520981bb4cd5d1f2` ran **71 tests, 10 failures**. Root causes were **not** the old 56 production baseline: a manually constructed error response lacked RedirectResponse request context for Laravel's `onlyInput()` and threw HTTP500; Laravel FormRequest validation still absolutized safe APP_URL redirects (`https://cms.ald1n.com/login` instead of literal `/login`); logout lacked the stricter sensitive-route privacy headers. These are exact narrow new-implementation bugs, not grounds to rename, bypass, skip or relax tests.
+
+The correction adds `setRequest($request)` to the login errors flow, a new `LocalAuthFormRequest` for strictly relative validation errors while retaining JSON 422, and includes `logout` in the same private/no-referrer security-header scope. Two additional synthetic JSON validation tests explicitly check 422 remains intact. This expands the **allowed** CMS changed-path list from 8 to 10 and targeted expectation from 71 to 73. The old RED CI record is retained; only fresh exact-head CI can establish eventual scoped PASS. All three previous B805/B809/B815 forbidden fixture edits remain untouched.
 
 ## B887 — all 56 inherited B803 red cases explicitly retained, not bypassed
 
@@ -50,7 +56,7 @@ Observed symptoms are **40 expected HTTP 200 vs actual 302, 9 expected 200 vs 40
 All **368 OWASP WSTG4.2/ASVS5 L1/L2** items remain UNASSESSED/NOT_RUN for *independent complete per-item assessment*; this login/forgot/activation local-origin work is targeted partial security evidence only. Public shop remains OFF in CloudLinux. Android M16 signed production AAB/versionCode>27/real 16KB UAT/Play acceptance HOLD, SDK58 postponed. Formal accepted milestones **7/17=41.2%**, CMS **7/15=46.7%**, initial UI **6/6=100%**. **No SSH requested, no production mutation, no cleanup.**
 
 B883_BATCH_STATUS=IMPLEMENTED_PENDING_CI_EVIDENCE
-B883_EXPECTED_REAL_HTTP_IDENTITIES=71
+B883_EXPECTED_REAL_HTTP_IDENTITIES=73
 B803_HISTORICAL_NEW_RED=56_NO_WAIVER
 FULL_OWASP_COMPLETE_PASS=0_OF_368
 PRODUCTION_MUTATED=NO

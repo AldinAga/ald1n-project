@@ -141,7 +141,8 @@ final class AuthenticatedSessionController extends Controller
     private function loginRedirect(Request $request): RedirectResponse
     {
         return (new RedirectResponse(route('login',[],false)))
-            ->setSession($request->session());
+            ->setSession($request->session())
+            ->setRequest($request);
     }
 
     private function rehashPasswordIfNeeded(User $user, string $hash, string $plainPassword): void

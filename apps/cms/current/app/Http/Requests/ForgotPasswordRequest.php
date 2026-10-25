@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 
-final class ForgotPasswordRequest extends FormRequest
+final class ForgotPasswordRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool
     {

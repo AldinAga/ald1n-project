@@ -192,6 +192,24 @@ final class AuthLocalRedirectB883Test extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_json_login_validation_preserves_real_422_instead_of_html_redirect(): void
+    {
+        $response=$this->hostile()->postJson('/login',[
+            'login'=>'b883-json@example.test',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+        self::assertFalse($response->headers->has('Location'));
+        $this->assertGuest();
+    }
+
+    public function test_json_activation_validation_still_returns_real_422(): void
+    {
+        $response=$this->hostile()->postJson('/activate-account',[
+            'token'=>'invalid','password'=>'weak',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['token','password']);
+        self::assertFalse($response->headers->has('Location'));
+        $this->assertDatabaseCount('user_activation_tokens',0);
+    }
+
     private function hostile(): static
     {
         $this->withHeaders([
