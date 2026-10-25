@@ -38,13 +38,13 @@
 @if($documents->isNotEmpty())
 <h2>Dokumenta</h2>
 <ul>@foreach($documents as $doc)
-<li><a href="{{ route('public-shop.order.document',['token'=>$token,'document'=>$doc->id]) }}" rel="noreferrer">{{ $doc->document_number }} ({{ $doc->document_type }})</a></li>
+<li><a href="{{ route('public-shop.order.document',['token'=>$token,'document'=>$doc->id],false) }}" rel="noreferrer">{{ $doc->document_number }} ({{ $doc->document_type }})</a></li>
 @endforeach</ul>
 @endif
 @if($warranties->isNotEmpty())
 <h2>Garantni listovi</h2>
 <ul>@foreach($warranties as $issuance)
-<li><a href="{{ route('public-shop.order.warranty',['token'=>$token,'issuance'=>$issuance->id]) }}" rel="noreferrer">{{ $issuance->warranty_number }}</a>
+<li><a href="{{ route('public-shop.order.warranty',['token'=>$token,'issuance'=>$issuance->id],false) }}" rel="noreferrer">{{ $issuance->warranty_number }}</a>
 <span class="shop-muted">{{ $issuance->status==='issued_pending_delivery'?'Izdato — važenje počinje isporukom':'Aktivno' }}</span></li>
 @endforeach</ul>
 @endif
