@@ -9,6 +9,12 @@ use Illuminate\Foundation\Http\FormRequest;
 final class LoginRequest extends FormRequest
 {
     public function authorize(): bool { return true; }
+
+    /** Never follow caller-supplied Referer for rejected login validation. */
+    protected function getRedirectUrl(): string
+    {
+        return route('login', [], false);
+    }
     public function rules(): array
     {
         return [

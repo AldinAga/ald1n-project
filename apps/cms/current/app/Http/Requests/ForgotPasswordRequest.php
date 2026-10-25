@@ -21,6 +21,12 @@ final class ForgotPasswordRequest extends FormRequest
         ];
     }
 
+    /** Malformed email must not redirect to an attacker Referer. */
+    protected function getRedirectUrl(): string
+    {
+        return route('password.request', [], false);
+    }
+
     public function messages(): array
     {
         return [

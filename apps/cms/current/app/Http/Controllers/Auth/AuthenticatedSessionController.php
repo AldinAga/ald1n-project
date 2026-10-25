@@ -45,7 +45,7 @@ final class AuthenticatedSessionController extends Controller
 
         if (!$verified['success']) {
             $securityEvents->log('login.turnstile_failed', 'warning', $request, ['message' => $verified['message']]);
-            return back()->withErrors(['turnstile' => $verified['message']])->onlyInput('login');
+            return $this->loginRedirect($request)->withErrors(['turnstile' => $verified['message']])->onlyInput('login');
         }
 
         $login = trim((string) $request->string('login'));
@@ -66,7 +66,7 @@ final class AuthenticatedSessionController extends Controller
 
         if ($user === null || $user->status !== 'active' || $user->retired_at !== null || !$validPassword) {
             $securityEvents->log('login.failed', 'warning', $request, ['login_hash' => hash('sha256', mb_strtolower($login)), 'user_found' => $user !== null]);
-            return back()
+            return $this->loginRedirect($request)
                 ->withErrors(['login' => 'Pogrešni podaci ili nalog nije aktivan.'])
                 ->onlyInput('login');
         }
@@ -118,7 +118,7 @@ final class AuthenticatedSessionController extends Controller
         // storefront navigation without changing staff login destinations.
         return $user->hasRole('customer')
             ? new RedirectResponse(route('public-shop.cart',[],false))
-            : redirect()->route('dashboard');
+            : new RedirectResponse(route('dashboard',[],false));
     }
 
     public function destroy(Request $request, PortalSessionService $portalSessions): RedirectResponse
@@ -131,7 +131,17 @@ final class AuthenticatedSessionController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('login');
+        return new RedirectResponse(route('login',[],false));
+    }
+
+    /**
+     * B883: invalid credential/Turnstile POST must return to the trusted
+     * local form, never to caller-controlled Referer or request Host.
+     */
+    private function loginRedirect(Request $request): RedirectResponse
+    {
+        return (new RedirectResponse(route('login',[],false)))
+            ->setSession($request->session());
     }
 
     private function rehashPasswordIfNeeded(User $user, string $hash, string $plainPassword): void

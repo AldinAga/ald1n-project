@@ -1,0 +1,166 @@
+name: B883-B887 local-only auth redirects and 71 real HTTP tests (NO DEPLOY)
+on:
+  pull_request:
+    branches:
+      - fix/b877-public-media-and-cart-20261025
+    paths:
+      - 'apps/cms/current/app/Http/Controllers/Auth/AuthenticatedSessionController.php'
+      - 'apps/cms/current/app/Http/Controllers/Auth/PasswordResetController.php'
+      - 'apps/cms/current/app/Http/Controllers/Auth/CustomerActivationController.php'
+      - 'apps/cms/current/app/Http/Requests/LoginRequest.php'
+      - 'apps/cms/current/app/Http/Requests/ForgotPasswordRequest.php'
+      - 'apps/cms/current/app/Http/Requests/ResetPasswordRequest.php'
+      - 'apps/cms/current/app/Http/Requests/CustomerActivationRequest.php'
+      - 'apps/cms/current/tests/Feature/AuthLocalRedirectB883Test.php'
+      - 'docs/security/B883-B887-AUTH-REDIRECTS-56-IDENTITY-AUDIT.md'
+      - '.github/workflows/b883-auth-local-redirects-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b883-local-auth-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  local-auth-redirects:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/b883-auth-local-redirects-20261025'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact stacked parent, eight CMS changed paths and protected-fixture hold
+        run: |
+          set -euo pipefail
+          BASE=985c289e5d2dc1f8532af4ea6b87eb18ba630478
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git cat-file -e "$BASE^{commit}"
+          diff -u \
+            <(printf '%s\n' \
+              apps/cms/current/app/Http/Controllers/Auth/AuthenticatedSessionController.php \
+              apps/cms/current/app/Http/Controllers/Auth/PasswordResetController.php \
+              apps/cms/current/app/Http/Controllers/Auth/CustomerActivationController.php \
+              apps/cms/current/app/Http/Requests/LoginRequest.php \
+              apps/cms/current/app/Http/Requests/ForgotPasswordRequest.php \
+              apps/cms/current/app/Http/Requests/ResetPasswordRequest.php \
+              apps/cms/current/app/Http/Requests/CustomerActivationRequest.php \
+              apps/cms/current/tests/Feature/AuthLocalRedirectB883Test.php | sort) \
+            <(git diff --name-only "$BASE" HEAD -- apps/cms/current | sort)
+          test "$(git rev-parse "$BASE:apps/cms/current/composer.lock")" = "$(git rev-parse HEAD:apps/cms/current/composer.lock)"
+          test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php apps/cms/current/tests/Feature/StorefrontSecurityB806Test.php)"
+          ! grep -q 'return back()' apps/cms/current/app/Http/Controllers/Auth/{AuthenticatedSessionController,PasswordResetController,CustomerActivationController}.php
+          git diff --check
+          echo B883_AUTH_SOURCE_CHANGED_PATHS_EXACT=8_PROTECTED_SUITE_UNTOUCHED
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Locked Composer install and exact PHP syntax
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          for f in \
+            app/Http/Controllers/Auth/AuthenticatedSessionController.php \
+            app/Http/Controllers/Auth/PasswordResetController.php \
+            app/Http/Controllers/Auth/CustomerActivationController.php \
+            app/Http/Requests/LoginRequest.php \
+            app/Http/Requests/ForgotPasswordRequest.php \
+            app/Http/Requests/ResetPasswordRequest.php \
+            app/Http/Requests/CustomerActivationRequest.php \
+            tests/Feature/AuthLocalRedirectB883Test.php; do php -l "$f"; done
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+      - name: 15 hostile authority cases and six unchanged authentication suites plus CSP baselines
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --filter 'AuthLocalRedirectB883Test|AuthenticationTest|LoginDashboardFallbackTest|PasswordResetTest|RetiredActiveLoginB813Test|SensitiveAuthPostBoundaryB817Test|SensitiveAuthResponsePrivacyB816Test|PublicResponseHeadersB866Test|PublicNoScriptCspB872Test' \
+            --log-junit "$RUNNER_TEMP/b883-auth-junit.xml" tests/Feature \
+            > "$RUNNER_TEMP/b883-auth.log" 2>&1 || {
+              tail -n 145 "$RUNNER_TEMP/b883-auth.log"; exit 1;
+            }
+          tail -n 17 "$RUNNER_TEMP/b883-auth.log"
+      - name: Exactly 71 distinct case IDs and no failures, skipped, errors or warnings
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP" "$(git rev-parse HEAD)" <<'PY'
+          import collections,hashlib,json,pathlib,sys,xml.etree.ElementTree as ET
+          directory=pathlib.Path(sys.argv[1]); raw=(directory/'b883-auth-junit.xml').read_bytes()
+          cases=list(ET.fromstring(raw).iter('testcase'))
+          ids=[(x.get('classname') or x.get('class'),x.get('name')) for x in cases]
+          actual=collections.Counter((name or '').replace('\\','.').split('.')[-1] for name,case in ids)
+          expected={'AuthLocalRedirectB883Test':15,'AuthenticationTest':6,
+            'LoginDashboardFallbackTest':5,'PasswordResetTest':3,
+            'RetiredActiveLoginB813Test':4,'SensitiveAuthPostBoundaryB817Test':6,
+            'SensitiveAuthResponsePrivacyB816Test':8,
+            'PublicResponseHeadersB866Test':11,'PublicNoScriptCspB872Test':13}
+          if len(ids)!=71 or len(set(ids))!=71 or actual!=expected or any(not a or not b for a,b in ids):
+            raise SystemExit('HOLD_B883_MISSING_DUPLICATE_OR_CHANGED_CASES_'+str(actual))
+          if any(c.find(e) is not None for c in cases for e in ('failure','error','skipped','warning')):
+            raise SystemExit('HOLD_B883_FAILURE_ERROR_SKIPPED_OR_WARNING')
+          receipt={'source_sha':sys.argv[2],'junit_sha256':hashlib.sha256(raw).hexdigest(),
+            'total_cases':71,'class_counts':dict(actual),'result':'PASS_SCOPED_AUTH_LOCAL_REDIRECTS_ONLY',
+            'host_referrer':'HOSTILE_ORIGIN_NEVER_LOCATION',
+            'original_56_waived':0,'owasp_complete_items':0,
+            'release':'HOLD','production_mutated':False}
+          (directory/'b883-auth-identity.json').write_text(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+          print('B883_AUTH_LOCAL_REDIRECTS_71_OF_71_SCOPED_PASS')
+          PY
+          sha256sum "$RUNNER_TEMP/b883-auth-junit.xml" "$RUNNER_TEMP/b883-auth-identity.json"
+      - name: Preserve exact source/JUnit without real secrets
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b883-b887-local-auth-redirect-security-evidence
+          path: |
+            ${{ runner.temp }}/b883-auth-junit.xml
+            ${{ runner.temp }}/b883-auth.log
+            ${{ runner.temp }}/b883-auth-identity.json
+            apps/cms/current/app/Http/Controllers/Auth/AuthenticatedSessionController.php
+            apps/cms/current/app/Http/Controllers/Auth/PasswordResetController.php
+            apps/cms/current/app/Http/Controllers/Auth/CustomerActivationController.php
+            apps/cms/current/app/Http/Requests/LoginRequest.php
+            apps/cms/current/app/Http/Requests/ForgotPasswordRequest.php
+            apps/cms/current/app/Http/Requests/ResetPasswordRequest.php
+            apps/cms/current/app/Http/Requests/CustomerActivationRequest.php
+            apps/cms/current/tests/Feature/AuthLocalRedirectB883Test.php
+            docs/security/B883-B887-AUTH-REDIRECTS-56-IDENTITY-AUDIT.md
+            .github/workflows/b883-auth-local-redirects-qa.yml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Never treat auth route tests as production release approval
+        if: always()
+        run: echo B883_SCOPED_REAL_AUTH_ONLY_CMS_B803_56_UNWAIVED_OWASP368_NOT_FULL_PASS_NO_SSH_NO_DEPLOY_NO_EAS_NO_OTA_NO_PLAY_NO_MERGE
