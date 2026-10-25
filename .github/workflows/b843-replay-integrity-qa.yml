@@ -5,6 +5,9 @@ on:
       - 'apps/cms/current/app/Services/PublicRetailCheckoutService.php'
       - 'apps/cms/current/app/Services/PublicOrderAccessService.php'
       - 'apps/cms/current/tests/Feature/PublicCheckoutReplayIntegrityB843Test.php'
+      - 'docs/security/tools/b846_receipt_scope.py'
+      - 'docs/security/tools/test_b846_receipt_scope.py'
+      - 'docs/security/B845-B846-SCOPED-NEGATIVE-CONTROLS.md'
       - 'apps/cms/current/tests/Feature/PublicRegisteredReceiptBoundaryB836Test.php'
       - '.github/workflows/b843-replay-integrity-qa.yml'
 permissions:
@@ -74,6 +77,21 @@ jobs:
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b843-receipt-regressions-junit.xml" tests/Feature/PublicRegisteredReceiptBoundaryB836Test.php > "$RUNNER_TEMP/b843-receipt-regressions.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/b843-receipt-regressions.log"; exit 1; }
           tail -n 12 "$RUNNER_TEMP/b843-receipt-regressions.log"
           echo 'B843_IDEMPOTENT_REPLAY_AND_RECEIPT=PASS_SCOPED_NO_GLOBAL_RELEASE'
+      - name: B846 evidence-compiler fail-closed unit tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s docs/security/tools -p 'test_b846_receipt_scope.py' -v
+      - name: B846 exact-head JUnit provenance (not OWASP certification)
+        run: |
+          set -euo pipefail
+          python3 docs/security/tools/b846_receipt_scope.py \
+            --replay="$RUNNER_TEMP/b843-replay-junit.xml" \
+            --boundary="$RUNNER_TEMP/b843-receipt-regressions-junit.xml" \
+            --source-sha="$(git rev-parse HEAD)" \
+            --output="$RUNNER_TEMP/b846-receipt-scope.json"
+          test "$(git rev-parse HEAD)" = "$(jq -r .source_sha "$RUNNER_TEMP/b846-receipt-scope.json")"
+          test "$(jq -r .verified_security_pass "$RUNNER_TEMP/b846-receipt-scope.json")" = 0
+          test "$(jq -r .tests.combined "$RUNNER_TEMP/b846-receipt-scope.json")" = 26
       - name: Archive synthetic CI proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -81,6 +99,10 @@ jobs:
           name: b843-replay-and-receipt-scope
           path: |
             ${{ runner.temp }}/b843-replay-junit.xml
+            ${{ runner.temp }}/b846-receipt-scope.json
+            docs/security/tools/b846_receipt_scope.py
+            docs/security/tools/test_b846_receipt_scope.py
+            docs/security/B845-B846-SCOPED-NEGATIVE-CONTROLS.md
             ${{ runner.temp }}/b843-replay.log
             ${{ runner.temp }}/b843-receipt-regressions-junit.xml
             ${{ runner.temp }}/b843-receipt-regressions.log

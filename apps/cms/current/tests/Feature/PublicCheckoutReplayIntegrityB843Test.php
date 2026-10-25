@@ -128,6 +128,64 @@ final class PublicCheckoutReplayIntegrityB843Test extends TestCase
         $this->assertOneSaleOnly();
     }
 
+    // B845: six additional negative controls for already implemented guardrails.
+    // Synthetic MariaDB only; no active production checkout or mail.
+    public function test_same_nonce_cannot_change_shipping_address_on_replay(): void
+    {
+        [$data]=$this->firstCheckout();
+        $data['shipping_address']='B845 Tampered Shipping Address';
+        $this->postJson('/porucivanje',$data)->assertUnprocessable()
+            ->assertJsonValidationErrors('checkout');
+        $this->assertOneSaleOnly();
+    }
+
+    public function test_missing_receipt_ciphertext_cannot_create_fresh_access(): void
+    {
+        [$data]=$this->firstCheckout();
+        PublicCheckoutAttempt::query()->sole()->forceFill([
+            'receipt_token_ciphertext'=>'',
+        ])->save();
+        $this->postJson('/porucivanje',$data)->assertUnprocessable()
+            ->assertJsonValidationErrors('checkout');
+        $this->assertOneSaleOnly();
+    }
+
+    public function test_mismatched_receipt_token_hash_cannot_be_replayed(): void
+    {
+        [$data]=$this->firstCheckout();
+        PublicOrderAccess::query()->sole()->forceFill([
+            'token_hash'=>str_repeat('0',64),
+        ])->save();
+        $this->postJson('/porucivanje',$data)->assertUnprocessable()
+            ->assertJsonValidationErrors('checkout');
+        $this->assertOneSaleOnly();
+    }
+
+    public function test_reassigned_order_cannot_expose_private_receipt_to_original_buyer(): void
+    {
+        [$data]=$this->firstCheckout();
+        $other=$this->person('b845-other-buyer','customer');
+        Order::query()->sole()->forceFill(['user_id'=>$other->id])->save();
+        $this->postJson('/porucivanje',$data)->assertForbidden();
+        $this->assertOneSaleOnly();
+    }
+
+    public function test_blocked_buyer_cannot_replay_previous_checkout(): void
+    {
+        [$data]=$this->firstCheckout();
+        $this->buyer->forceFill(['status'=>'blocked'])->save();
+        $this->postJson('/porucivanje',$data)->assertForbidden();
+        $this->assertOneSaleOnly();
+    }
+
+    public function test_emergency_storefront_off_cancels_replay_before_data_access(): void
+    {
+        [$data]=$this->firstCheckout();
+        app(PublicStorefrontStateService::class)->change(false,$this->owner);
+        $this->postJson('/porucivanje',$data)->assertNotFound();
+        $this->assertOneSaleOnly();
+    }
+
     /** @return array{0:array<string,string>,1:string} */
     private function firstCheckout(): array
     {
