@@ -19,6 +19,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\RedirectResponse;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -53,6 +54,28 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $exceptions->render(static function (ValidationException $exception, Request $request) {
+            // Laravel's routing pipeline turns exceptions into responses before
+            // an outer route middleware can catch them. Scope to only two POSTs.
+            if ($request->isMethod('POST') && !$request->expectsJson()) {
+                $name=$request->route()?->getName();
+                $target=match ($name) {
+                    'public-shop.register.submit' => '/registracija',
+                    'public-shop.checkout.submit' => '/porucivanje',
+                    default => null,
+                };
+                if ($target!==null) {
+                    $safeInput=$name==='public-shop.register.submit'
+                        ? ['first_name','last_name','email','phone']
+                        : ['shipping_full_name','email','shipping_phone',
+                           'shipping_address','shipping_city','shipping_postal_code',
+                           'payment_method','delivery_method','customer_note'];
+                    return (new RedirectResponse($target))
+                        ->setSession($request->session())
+                        ->setRequest($request)
+                        ->withErrors($exception->errors())
+                        ->withInput($request->only($safeInput));
+                }
+            }
             if (!$request->is('api/*')) {
                 return null;
             }
