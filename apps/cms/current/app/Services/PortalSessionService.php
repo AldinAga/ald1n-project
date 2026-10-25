@@ -55,7 +55,12 @@ final class PortalSessionService
         // A browser that changes its password must no longer satisfy the
         // credential proof stored in its earlier Laravel session. Scope the
         // proof to the principal so isolated cross-principal tests remain valid.
-        $request->session()->put(self::PASSWORD_PROOF_KEY, $this->passwordProof($user));
+        $proof=$this->passwordProof($user);
+        // Tie a confirmed credential proof to the exact tracked login row.
+        // Controlled session-ID rotation can migrate THAT row only; it cannot
+        // inherit a different active login or recreate a revoked/deleted row.
+        $proof['session_hash']=$hash;
+        $request->session()->put(self::PASSWORD_PROOF_KEY,$proof);
 
         return $loginSession;
     }
@@ -101,13 +106,43 @@ final class PortalSessionService
             ->first();
 
         if ($session === null) {
-            // B890: for a signed-in Kupac, a missing tracked browser row is
-            // NOT permission to create a new checkout session. This covers
-            // revoked/deleted records as well as regenerated or mismatched
-            // session IDs. A genuine current remember-cookie authentication
-            // may still follow the existing separate Laravel viaRemember path.
+            // A signed-in Kupac cannot bootstrap an arbitrary missing row.
+            // However Laravel can rotate a real session ID after login. In
+            // that case migrate ONLY the original row explicitly bound to
+            // the current, unmodified credential proof. A revoked, missing,
+            // stale or different user's row must never be resurrected.
             if ($user->hasRole('customer') && !Auth::viaRemember()) {
-                return false;
+                $bound=$hasMatchingUserProof ? ($proof['session_hash'] ?? null) : null;
+                if (!is_string($bound) || !preg_match('/^[a-f0-9]{64}$/D',$bound)
+                    || hash_equals($bound,$hash)) {
+                    return false;
+                }
+
+                $previous=UserLoginSession::query()
+                    ->where('session_hash',$bound)
+                    ->where('user_id',$user->id)
+                    ->whereNull('revoked_at')->whereNull('logged_out_at')
+                    ->first();
+                if (!$previous instanceof UserLoginSession
+                    || ($user->password_changed_at !== null
+                        && ($previous->logged_in_at === null
+                            || $previous->logged_in_at->lt($user->password_changed_at)))) {
+                    return false;
+                }
+
+                // One atomic transfer of the active tracked login, not a new
+                // authorization. Concurrent revoke/rotation must fail closed.
+                $moved=UserLoginSession::query()
+                    ->whereKey($previous->id)->where('user_id',$user->id)
+                    ->where('session_hash',$bound)
+                    ->whereNull('revoked_at')->whereNull('logged_out_at')
+                    ->update(['session_hash'=>$hash,'last_seen_at'=>now(),
+                        'updated_at'=>now()]);
+                if ($moved !== 1) return false;
+
+                $proof['session_hash']=$hash;
+                $request->session()->put(self::PASSWORD_PROOF_KEY,$proof);
+                return true;
             }
             // A missing row after a password reset must never resurrect the
             // old authenticated browser. A valid remember cookie is different:
