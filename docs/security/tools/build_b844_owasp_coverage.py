@@ -48,6 +48,7 @@ def wstg_items(text: str) -> list[dict[str, object]]:
             "id": identifier,
             "section": identifier.split("-")[1],
             "title": title,
+            "requirement_text": title,
             "source": WSTG_SOURCE,
         })
     return items
@@ -67,12 +68,33 @@ def asvs_l2_items(text: str) -> tuple[list[dict[str, object]], dict[int, int]]:
         raw_id = row.get("req_id", "").strip()
         if not re.fullmatch(r"V\d+\.\d+\.\d+", raw_id):
             raise ValueError("HOLD_ASVS_MALFORMED_ID")
+        # The initial B844 register stored only the ASVS chapter as "title".
+        # An assessor cannot test 253 distinct requirements without the exact
+        # req_description. Preserve canonical text and chapter/section provenance.
+        chapter_id = row.get("chapter_id", "").strip()
+        chapter_name = row.get("chapter_name", "").strip()
+        section_id = row.get("section_id", "").strip()
+        section_name = row.get("section_name", "").strip()
+        requirement_text = row.get("req_description", "").strip()
+        if (not re.fullmatch(r"V\d+", chapter_id)
+                or not re.fullmatch(r"V\d+\.\d+", section_id)
+                or not raw_id.startswith(section_id + ".")
+                or not section_id.startswith(chapter_id + ".")
+                or not chapter_name or not section_name
+                or len(requirement_text) < 30
+                or any(ord(ch) < 32 and ch not in "\n\t" for ch in requirement_text)):
+            raise ValueError("HOLD_ASVS_MISSING_OR_MISMATCHED_REQUIREMENT_TEXT")
         items.append({
             "framework": "OWASP_ASVS",
             "version": "5.0.0",
             "id": "v5.0.0-" + raw_id[1:],
-            "section": row.get("section_name", "").strip(),
-            "title": row.get("chapter_name", "").strip(),
+            "chapter_id": chapter_id,
+            "chapter_name": chapter_name,
+            "section_id": section_id,
+            "section_name": section_name,
+            "section": section_name,
+            "title": requirement_text,
+            "requirement_text": requirement_text,
             "level": level,
             "source": ASVS_SOURCE,
         })
@@ -99,7 +121,7 @@ def generate(wstg_bytes: bytes, asvs_bytes: bytes, target_commit: str) -> dict[s
     return {
         "title": "Ald1n B844 WSTG4.2 + ASVS5.0.0 L2 item-level initial census",
         "target_commit": target_commit,
-        "disclaimer": "Initial inventory only. All controls require individual applicability review and security evidence; NOT_RUN is not PASS.",
+        "disclaimer": "Requirements preserved verbatim from pinned source. Mapping only; all applicability and full tests UNASSESSED/NOT_RUN. No security PASS.",
         "license": "OWASP original sources CC BY-SA 4.0; this register cites their pinned identifiers and category names.",
         "source_git_blob_ids": {"wstg": WSTG_BLOB, "asvs": ASVS_BLOB},
         "counts": {

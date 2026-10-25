@@ -1,0 +1,196 @@
+name: B858 isolated Laravel Composer security patch (NO DEPLOY)
+on:
+  pull_request:
+    branches:
+      - test/b845-b846-replay-negative-controls-20261025
+    paths:
+      - '.github/workflows/b858-composer-security-repair.yml'
+      - 'apps/cms/current/composer.lock'
+      - 'docs/security/B858-COMPOSER-ADVISORY-REPAIR.md'
+permissions:
+  contents: write
+concurrency:
+  group: b858-deps-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  audited-lockfile:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/b858-laravel-composer-advisories-20261025'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - name: Checkout exact PR source without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: PHP 8.4 and Composer
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Lock source identity and reject unexpected initial changes
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          test -z "$(git status --porcelain)"
+          sha256sum apps/cms/current/composer.lock > "$RUNNER_TEMP/b858-original-lock.sha256"
+          git hash-object apps/cms/current/composer.json > "$RUNNER_TEMP/b858-original-composer-json.blob"
+      - name: Audit existing lock first; update only for REAL advisories
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          rc=0
+          composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/b858-pre-audit.json" 2> "$RUNNER_TEMP/b858-pre-audit.err" || rc=$?
+          printf '%s\n' "$rc" > "$RUNNER_TEMP/b858-pre-audit.rc"
+          test -s "$RUNNER_TEMP/b858-pre-audit.json"
+          python3 - "$RUNNER_TEMP" "$rc" "$(git rev-parse HEAD)" <<'PY'
+          import pathlib,sys
+          sys.path.insert(0,"../../../docs/security/tools")
+          from b857_composer_audit_gate import classify
+          tmp=pathlib.Path(sys.argv[1]);rc=int(sys.argv[2]);head=sys.argv[3]
+          result=classify((tmp/"b858-pre-audit.json").read_bytes(),head,
+                          pathlib.Path("composer.lock").read_bytes(),rc)
+          status=result["result"]
+          decision="clean" if status=="PASS_LOCKED_COMPOSER_AUDIT" else "needs_remediation"
+          (tmp/"b858-pre-audit-decision").write_text(decision+"\n")
+          print("B858_PRE_EXISTING_LOCK="+status+"_ACTION="+decision)
+          PY
+          decision="$(cat "$RUNNER_TEMP/b858-pre-audit-decision")"
+          if [ "$decision" = clean ]; then
+            echo 'B858_NO_VULNERABLE_LOCKED_PACKAGE_NO_SOLVER_UPDATE'
+            composer install --no-scripts --no-plugins --no-interaction --prefer-dist --no-progress \
+              > "$RUNNER_TEMP/b858-resolver.log" 2>&1 || {
+                tail -n 100 "$RUNNER_TEMP/b858-resolver.log"; exit 1;
+              }
+          else
+            test "$decision" = needs_remediation
+            composer update laravel/framework guzzlehttp/guzzle:^7.15.2 league/commonmark league/flysystem symfony/http-foundation \
+              --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-progress \
+              > "$RUNNER_TEMP/b858-resolver.log" 2>&1 || {
+                tail -n 100 "$RUNNER_TEMP/b858-resolver.log"; exit 1;
+              }
+          fi
+          sha256sum composer.lock > "$RUNNER_TEMP/b858-updated-lock.sha256"
+          test "$(git hash-object composer.json)" = "$(cat "$RUNNER_TEMP/b858-original-composer-json.blob")"
+          changes="$(git diff --name-only)"
+          if [ -n "$changes" ]; then test "$changes" = apps/cms/current/composer.lock; fi
+          if [ "$decision" = clean ]; then test -z "$changes"; fi
+          git diff --check
+          composer validate --no-check-publish --no-interaction
+      - name: Require zero advisories and zero abandoned locked packages
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          set +e
+          composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/b858-audit.json" 2> "$RUNNER_TEMP/b858-audit.err"
+          rc=$?
+          set -e
+          echo "$rc" > "$RUNNER_TEMP/b858-audit.rc"
+          python3 ../../../docs/security/tools/b857_composer_audit_gate.py \
+            --audit-json="$RUNNER_TEMP/b858-audit.json" \
+            --lockfile=composer.lock --source-sha="$(git rev-parse HEAD)" \
+            --exit-code="$rc" --output="$RUNNER_TEMP/b858-audit-evidence.json"
+          test "$(jq -r .result "$RUNNER_TEMP/b858-audit-evidence.json")" = PASS_LOCKED_COMPOSER_AUDIT
+      - name: Real MariaDB focused checkout receipt and public catalog regressions
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b858-replay-junit.xml" \
+            tests/Feature/PublicCheckoutReplayIntegrityB843Test.php > "$RUNNER_TEMP/b858-replay.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b858-replay.log"; exit 1; }
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b858-receipt-junit.xml" \
+            tests/Feature/PublicRegisteredReceiptBoundaryB836Test.php > "$RUNNER_TEMP/b858-receipt.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b858-receipt.log"; exit 1; }
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b858-catalog-junit.xml" \
+            tests/Feature/PublicCatalogSurfaceSecurityB847Test.php > "$RUNNER_TEMP/b858-catalog.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/b858-catalog.log"; exit 1; }
+          tail -n 5 "$RUNNER_TEMP/b858-replay.log"
+          tail -n 5 "$RUNNER_TEMP/b858-receipt.log"
+          tail -n 5 "$RUNNER_TEMP/b858-catalog.log"
+          echo 'B858_TARGETED_PATCHED_DEPENDENCY_QA=PASS_SCOPED_ONLY'
+      - name: Archive updated lock source and immutable QA evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b858-composer-remediation-proposal
+          path: |
+            apps/cms/current/composer.json
+            apps/cms/current/composer.lock
+            ${{ runner.temp }}/b858-original-lock.sha256
+            ${{ runner.temp }}/b858-pre-audit.json
+            ${{ runner.temp }}/b858-pre-audit.err
+            ${{ runner.temp }}/b858-pre-audit.rc
+            ${{ runner.temp }}/b858-pre-audit-decision
+            ${{ runner.temp }}/b858-updated-lock.sha256
+            ${{ runner.temp }}/b858-original-composer-json.blob
+            ${{ runner.temp }}/b858-resolver.log
+            ${{ runner.temp }}/b858-audit.json
+            ${{ runner.temp }}/b858-audit.rc
+            ${{ runner.temp }}/b858-audit.err
+            ${{ runner.temp }}/b858-audit-evidence.json
+            ${{ runner.temp }}/b858-replay-junit.xml
+            ${{ runner.temp }}/b858-receipt-junit.xml
+            ${{ runner.temp }}/b858-catalog-junit.xml
+            ${{ runner.temp }}/b858-replay.log
+            ${{ runner.temp }}/b858-receipt.log
+            ${{ runner.temp }}/b858-catalog.log
+          retention-days: 10
+          if-no-files-found: ignore
+      - name: Commit only the proven composer.lock change to existing draft branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: fix/b858-laravel-composer-advisories-20261025
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = AldinAga/ald1n-project
+          test "$GITHUB_HEAD_REF" = "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          changes="$(git diff --name-only)"
+          if [ -z "$changes" ]; then echo 'B858_LOCK_ALREADY_CURRENT_NO_PUSH'; exit 0; fi
+          test "$changes" = apps/cms/current/composer.lock
+          test "$(git hash-object apps/cms/current/composer.json)" = "$(cat "$RUNNER_TEMP/b858-original-composer-json.blob")"
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+          test "$(git rev-parse "refs/remotes/origin/$BRANCH")" = "$EXPECTED_HEAD"
+          git add -- apps/cms/current/composer.lock
+          git diff --cached --check
+          test "$(git diff --cached --name-only)" = apps/cms/current/composer.lock
+          git commit -m "fix(security): update locked Laravel dependencies after audited CI (B858)"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" HEAD:"refs/heads/$BRANCH"
+          echo "B858_DRAFT_ONLY_LOCK_CHANGE_COMMITTED=$(git rev-parse HEAD)"
+      - name: Production remains unchanged
+        if: always()
+        run: echo 'B858_NO_PRODUCTION_NO_MAIN_MERGE_NO_EAS_NO_OTA_NO_PLAY_NO_SSH'
