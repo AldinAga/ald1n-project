@@ -125,7 +125,7 @@ jobs:
           raw=(directory/'b872-combined-junit.xml').read_bytes()
           cases=list(ET.fromstring(raw).iter('testcase'))
           ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
-          observed=collections.Counter((a or '').split('\\')[-1] for a,b in ids)
+          observed=collections.Counter((a or '').replace('\\','.').split('.')[-1] for a,b in ids)
           expected={
             'PublicNoScriptCspB872Test':13,
             'PublicRegisteredReceiptBoundaryB836Test':15,
