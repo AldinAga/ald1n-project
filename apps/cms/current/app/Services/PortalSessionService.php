@@ -55,7 +55,12 @@ final class PortalSessionService
         // A browser that changes its password must no longer satisfy the
         // credential proof stored in its earlier Laravel session. Scope the
         // proof to the principal so isolated cross-principal tests remain valid.
-        $request->session()->put(self::PASSWORD_PROOF_KEY, $this->passwordProof($user));
+        $proof=$this->passwordProof($user);
+        // Tie a freshly authenticated browser to its original registry hash.
+        // A rotated session ID must not silently mint a new active registry
+        // entry after this browser's previous entry was revoked.
+        $proof['session_hash']=$hash;
+        $request->session()->put(self::PASSWORD_PROOF_KEY, $proof);
 
         return $loginSession;
     }
@@ -88,6 +93,13 @@ final class PortalSessionService
             && (int) ($proof['user_id'] ?? 0) === (int) $user->getKey();
 
         if ($hasMatchingUserProof) {
+            // Historical pre-B889 proofs do not contain session_hash.
+            // New logins are bound; a different current ID requires fresh auth.
+            $boundHash=$proof['session_hash'] ?? null;
+            if (is_string($boundHash) && $boundHash!==''
+                && !hash_equals($boundHash,$hash)) {
+                return false;
+            }
             $digest = $proof['digest'] ?? null;
             if (!is_string($digest)
                 || !hash_equals($this->passwordProof($user)['digest'], $digest)) {
