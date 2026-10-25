@@ -38,6 +38,7 @@ final class PublicRetailCheckoutService
         // Controller/session authorization is never sufficient for stock writes.
         abort_unless($actor instanceof User,401);
         abort_unless($actor->status==='active' && $actor->retired_at===null
+            && $actor->email_verified_at!==null && $actor->portal_activated_at!==null
             && $actor->hasRole('customer'),403);
         $buyerId=(int)$actor->id;
         $submittedEmail=mb_strtolower(trim((string)($input['email']??'')));
@@ -110,6 +111,7 @@ final class PublicRetailCheckoutService
             // before creating any attempt/order or decrementing inventory.
             $buyer=User::query()->whereKey($buyerId)->sharedLock()->firstOrFail();
             abort_unless($buyer->status==='active' && $buyer->retired_at===null
+                && $buyer->email_verified_at!==null && $buyer->portal_activated_at!==null
                 && $buyer->hasRole('customer'),403);
             if (!hash_equals(mb_strtolower(trim((string)$buyer->email)),$email)) {
                 throw ValidationException::withMessages(['email'=>'Email adresa kupca je promenjena.']);
