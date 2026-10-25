@@ -1,0 +1,108 @@
+name: B847-B849 public catalog/media scoped security QA (NO RELEASE)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/tests/Feature/PublicCatalogSurfaceSecurityB847Test.php'
+      - 'docs/security/B847-B849-PUBLIC-CATALOG-SECURITY-QA.md'
+      - 'docs/security/tools/b849_catalog_evidence.py'
+      - 'docs/security/tools/test_b849_catalog_evidence.py'
+      - '.github/workflows/b847-catalog-surface-security-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b847-catalog-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  public-catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - name: Exact PR checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 pinned environment
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Lockfile dependencies, syntax and exact MariaDB family
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php -l tests/Feature/PublicCatalogSurfaceSecurityB847Test.php
+          php -l app/Http/Controllers/PublicShopController.php
+          php -l app/Services/PublicRetailCatalogService.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+      - name: Run fifteen HTTP catalog/media security cases on MariaDB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning --log-junit "$RUNNER_TEMP/b847-catalog-junit.xml" tests/Feature/PublicCatalogSurfaceSecurityB847Test.php > "$RUNNER_TEMP/b847-catalog.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/b847-catalog.log"; exit 1; }
+          tail -n 15 "$RUNNER_TEMP/b847-catalog.log"
+          echo 'B847_B848_15_ACTUAL_HTTP_REGRESSIONS=SCOPED_PASS'
+      - name: B849 evidence parser adversarial unit tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s docs/security/tools -p 'test_b849_catalog_evidence.py' -v
+      - name: B849 immutable JUnit hashes/identity gate
+        run: |
+          set -euo pipefail
+          python3 docs/security/tools/b849_catalog_evidence.py \
+            --junit="$RUNNER_TEMP/b847-catalog-junit.xml" \
+            --source-sha="$(git rev-parse HEAD)" \
+            --output="$RUNNER_TEMP/b849-catalog-evidence.json"
+          test "$(jq -r .source_sha "$RUNNER_TEMP/b849-catalog-evidence.json")" = "$(git rev-parse HEAD)"
+          test "$(jq -r .scoped_tests "$RUNNER_TEMP/b849-catalog-evidence.json")" = 15
+          test "$(jq -r .owasp_verified_security_pass "$RUNNER_TEMP/b849-catalog-evidence.json")" = 0
+          test "$(jq -r .global_release "$RUNNER_TEMP/b849-catalog-evidence.json")" = HOLD
+          sha256sum "$RUNNER_TEMP/b847-catalog-junit.xml" "$RUNNER_TEMP/b849-catalog-evidence.json"
+      - name: Archive synthetic source and CI evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b847-b849-catalog-security-scope
+          path: |
+            ${{ runner.temp }}/b847-catalog-junit.xml
+            ${{ runner.temp }}/b847-catalog.log
+            ${{ runner.temp }}/b849-catalog-evidence.json
+            apps/cms/current/tests/Feature/PublicCatalogSurfaceSecurityB847Test.php
+            docs/security/B847-B849-PUBLIC-CATALOG-SECURITY-QA.md
+            docs/security/tools/b849_catalog_evidence.py
+            docs/security/tools/test_b849_catalog_evidence.py
+            .github/workflows/b847-catalog-surface-security-qa.yml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Final production boundary
+        if: always()
+        run: echo 'B849_SCOPED_ONLY OWASP_UNASSESSED FULL_CI_HOLD NO_PROD NO_SSH NO_EAS NO_MERGE'
