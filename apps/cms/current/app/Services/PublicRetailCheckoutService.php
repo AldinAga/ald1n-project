@@ -6,6 +6,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\PublicCheckoutAttempt;
+use App\Models\PublicOrderAccess;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -141,10 +142,28 @@ final class PublicRetailCheckoutService
                 // The same nonce is NOT a license to retrieve someone else's
                 // private receipt after login or account reassignment.
                 abort_unless((int)$order->user_id===$buyerId
-                    && $order->sales_channel==='public_retail',403);
+                    && $order->sales_channel==='public_retail'
+                    && $order->purged_at===null,403);
                 $cipher=(string)$attempt->receipt_token_ciphertext;
-                if ($cipher==='') throw ValidationException::withMessages(['checkout'=>'Kontaktiraj podršku za proveru ranije porudžbine.']);
-                return ['order'=>$order,'token'=>Crypt::decryptString($cipher),'created'=>false];
+                $token=null;
+                if ($cipher!=='') {
+                    try {
+                        $token=Crypt::decryptString($cipher);
+                    } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+                        // An invalid encrypted receipt is never a successful replay.
+                    }
+                }
+                if (!is_string($token)
+                    || preg_match('/\A[a-f0-9]{64}\z/D',$token)!==1
+                    || !PublicOrderAccess::query()
+                        ->where('order_id',$order->id)
+                        ->where('token_hash',hash('sha256',$token))
+                        ->whereNull('revoked_at')
+                        ->where('expires_at','>',now())->exists()) {
+                    throw ValidationException::withMessages(['checkout'=>
+                        'Raniji privatni pristup porudžbini više nije važeći. Kontaktiraj podršku.']);
+                }
+                return ['order'=>$order,'token'=>$token,'created'=>false];
             }
 
             $supplier=User::query()->where('status','active')->whereNull('retired_at')
