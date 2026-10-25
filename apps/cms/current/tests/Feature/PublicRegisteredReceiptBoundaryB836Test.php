@@ -219,6 +219,49 @@ final class PublicRegisteredReceiptBoundaryB836Test extends TestCase
         $this->get('/porudzbina/'.$token)->assertNotFound();
     }
 
+    /** B841: active status alone must never bypass real verified email activation. */
+    public function test_unverified_kupac_cannot_get_new_capability_or_open_existing_receipt(): void
+    {
+        $unissued=$this->unissuedOrder('UNVERIFIED');
+        $this->buyer->forceFill(['email_verified_at'=>null])->save();
+
+        try {
+            app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
+            self::fail('An unverified account cannot mint a private receipt.');
+        } catch (\Illuminate\Validation\ValidationException) {
+            self::assertDatabaseCount('public_order_accesses',1);
+        }
+        $this->actingAs($this->buyer);
+        $this->get($this->receipt())->assertNotFound();
+        self::assertDatabaseCount('orders',2);
+    }
+
+    /** B841: incomplete portal activation is not equivalent to full registration. */
+    public function test_active_but_never_activated_kupac_cannot_get_private_capability(): void
+    {
+        $unissued=$this->unissuedOrder('NOT-ACTIVATED');
+        $this->buyer->forceFill(['portal_activated_at'=>null])->save();
+
+        try {
+            app(PublicOrderAccessService::class)->issue($unissued,(string)$this->buyer->email);
+            self::fail('A never-activated account cannot mint a private receipt.');
+        } catch (\Illuminate\Validation\ValidationException) {
+            self::assertDatabaseCount('public_order_accesses',1);
+        }
+    }
+
+    /** B841: both public checkout HTTP entrypoints reject unverified customer. */
+    public function test_unverified_active_buyer_cannot_enter_or_submit_checkout(): void
+    {
+        $this->buyer->forceFill(['email_verified_at'=>null])->save();
+        $this->actingAs($this->buyer);
+        $this->get('/porucivanje')->assertForbidden();
+        $this->post('/porucivanje',[])->assertForbidden();
+        self::assertDatabaseCount('orders',1);
+        self::assertDatabaseCount('public_checkout_attempts',0);
+        self::assertDatabaseCount('public_order_accesses',1);
+    }
+
     private function unissuedOrder(string $suffix): Order
     {
         $copy=$this->order->replicate();
