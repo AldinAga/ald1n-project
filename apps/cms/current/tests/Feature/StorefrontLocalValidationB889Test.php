@@ -120,6 +120,25 @@ final class StorefrontLocalValidationB889Test extends TestCase
         self::assertDatabaseCount('public_checkout_attempts',0);
     }
 
+    public function test_missing_buyer_tracking_row_is_not_silently_recreated_by_checkout(): void
+    {
+        $this->loginBuyer();
+        $deleted=UserLoginSession::query()->where('user_id',$this->buyer->id)->delete();
+        self::assertSame(1,$deleted);
+
+        // The guard remains authenticated, but the tracked browser session
+        // was destroyed. A new checkout cannot bootstrap another registry.
+        $response=$this->hostileReferer()->postJson('/porucivanje',[
+            'checkout_key'=>str_repeat('c',48),
+            'merchant_policy_fingerprint'=>str_repeat('d',64),
+        ])->assertUnauthorized();
+        self::assertFalse($response->headers->has('Location'));
+        self::assertDatabaseCount('user_login_sessions',0);
+        self::assertDatabaseCount('orders',0);
+        self::assertDatabaseCount('public_checkout_attempts',0);
+        $this->assertGuest();
+    }
+
     private function user(string $name,string $role): User
     {
         return User::query()->create([
