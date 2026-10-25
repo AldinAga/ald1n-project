@@ -1,0 +1,118 @@
+name: B905 M11 expiry eligibility revalidation (NO DEPLOY)
+on:
+  pull_request:
+    branches: [fix/b902-payment-transition-notifications-20261025]
+permissions:
+  contents: read
+jobs:
+  live-expiry:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact head, immutable parent, source-only three-path allowlist
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          BASE=1c8abcf02a9313de79497fc626b3403292e4d386
+          test "$(git merge-base "$BASE" HEAD)" = "$BASE"
+          git diff --name-only "$BASE" HEAD | sort > "$RUNNER_TEMP/b905-changed.txt"
+          printf '%s\n' \
+            .github/workflows/b905-warranty-expiry-live-eligibility-qa.yml \
+            apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php \
+            apps/cms/current/tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php | sort > "$RUNNER_TEMP/b905-allowed.txt"
+          test -z "$(comm -23 "$RUNNER_TEMP/b905-changed.txt" "$RUNNER_TEMP/b905-allowed.txt")"
+          grep -Fx apps/cms/current/tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php "$RUNNER_TEMP/b905-changed.txt"
+          test -z "$(git diff --name-only "$BASE" HEAD -- \
+            apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php \
+            apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php \
+            apps/cms/current/tests/Feature/StorefrontSecurityB806Test.php)"
+          git diff --check
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Actual PHP8.4 MariaDB expiry policy and dispatch tests
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php -l tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php
+          php -l app/Services/WarrantyExpiryRecipientPolicy.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b905-junit.xml" \
+            tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php \
+            tests/Unit/WarrantyExpiryOptInSourceTest.php
+      - name: Strict original 12 unique JUnit cases and source SHA256
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/b905-junit.xml" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          cases=list(ET.parse(sys.argv[1]).getroot().iter('testcase'))
+          ids=[(c.get('classname') or c.get('class'),c.get('name')) for c in cases]
+          assert len(ids)==12 and len(set(ids))==12, 'HOLD_12_UNIQUE_B905_AND_ORIGINAL_M11_CASES'
+          assert sum(c.endswith('WarrantyExpiryFreshEligibilityB905Test') for c,n in ids if c)==9, 'HOLD_9_NEW_B905_CASES'
+          assert sum(c.endswith('WarrantyExpiryOptInSourceTest') for c,n in ids if c)==3, 'HOLD_3_ORIGINAL_M11_CASES'
+          assert all(c and n and (c.endswith('WarrantyExpiryFreshEligibilityB905Test') or c.endswith('WarrantyExpiryOptInSourceTest')) for c,n in ids), 'HOLD_UNEXPECTED_TEST_ID'
+          assert not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped','warning')), 'HOLD_FAILED_OR_SKIPPED_CASE'
+          print('B905_B908_LIVE_EXPIRY_12_OF_12_MARIADB_UNIT_PASS')
+          PY
+          sha256sum app/Services/WarrantyExpiryRecipientPolicy.php \
+            tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php \
+            tests/Unit/WarrantyExpiryOptInSourceTest.php \
+            > "$RUNNER_TEMP/b905-source.sha256"
+      - name: Preserve RED/GREEN original JUnit plus source
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b905-expiry-live-eligibility-evidence
+          path: |
+            ${{ runner.temp }}/b905-junit.xml
+            ${{ runner.temp }}/b905-source.sha256
+            ${{ runner.temp }}/b905-changed.txt
+            apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php
+            apps/cms/current/tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php
+            apps/cms/current/tests/Unit/WarrantyExpiryOptInSourceTest.php
+            .github/workflows/b905-warranty-expiry-live-eligibility-qa.yml
+          retention-days: 7
+      - name: No production operations
+        if: always()
+        run: echo B905_M11_DISPOSABLE_ONLY_NO_HOST_NO_REAL_RECIPIENT_NO_EAS_NO_PLAY_NO_STOREFRONT_ON
