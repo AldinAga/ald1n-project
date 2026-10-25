@@ -25,7 +25,11 @@ final class SecurityHeaders
         // Session-specific carts and checkout forms contain CSRF tokens,
         // purchase nonces and sometimes redisplayed buyer data. Revalidation
         // alone (no-cache) still permits storage, so prohibit storage explicitly.
-        if ($request->routeIs('public-shop.cart', 'public-shop.cart.*',
+        // B877: public dynamic images are still gated by emergency OFF.
+        // A cached 200 must never remain an intermediary bypass after OFF;
+        // protect their 404/error responses as well as successful images.
+        if ($request->routeIs('public-shop.media',
+            'public-shop.cart', 'public-shop.cart.*',
             'public-shop.checkout', 'public-shop.checkout.*')) {
             $headers->set('Cache-Control', 'private, no-store, max-age=0');
             $headers->set('Pragma', 'no-cache');
