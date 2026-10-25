@@ -4,6 +4,9 @@ on:
     paths:
       - 'docs/security/tools/build_b844_owasp_coverage.py'
       - 'docs/security/tools/test_b844_owasp_coverage.py'
+      - 'docs/security/tools/b862_owasp_review_queue.py'
+      - 'docs/security/tools/test_b862_owasp_review_queue.py'
+      - 'docs/security/B862-B865-OWASP-REQUIREMENT-TEXT-AND-SCOPING.md'
       - '.github/workflows/b844-owasp-item-census-qa.yml'
 permissions:
   contents: read
@@ -24,6 +27,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s docs/security/tools -p 'test_b844_owasp_coverage.py' -v
+      - name: B863 negative controls for requirement-level review queue
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s docs/security/tools -p 'test_b862_owasp_review_queue.py' -v
       - name: Fetch exact pinned official standards and verify upstream Git blobs
         run: |
           set -euo pipefail
@@ -53,6 +60,30 @@ jobs:
           print("B844_368_CONTROL_CENSUS=PASS_UNASSESSED_NOT_A_SECURITY_AUDIT")
           PY
           sha256sum "$RUNNER_TEMP/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json"
+      - name: B862-B864 generate full exact-wording 368 requirement review queue
+        run: |
+          set -euo pipefail
+          python3 docs/security/tools/b862_owasp_review_queue.py \
+            --census="$RUNNER_TEMP/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json" \
+            --source-sha='${{ github.event.pull_request.head.sha }}' \
+            --json="$RUNNER_TEMP/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.json" \
+            --csv="$RUNNER_TEMP/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.csv"
+          python3 - "$RUNNER_TEMP/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.json" "$RUNNER_TEMP/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.csv" <<'PY'
+          import csv,json,sys
+          data=json.load(open(sys.argv[1],encoding='utf-8'))
+          with open(sys.argv[2],newline='',encoding='utf-8') as f:
+              rows=list(csv.DictReader(f))
+          assert data['total']==len(data['items'])==len(rows)==368
+          assert data['unassessed']==data['not_run']==368
+          assert data['applicability_reviewed']==data['verified_security_pass']==data['not_applicable']==0
+          assert all(row['requirement_text'] and row['status']=='NOT_RUN' and
+                     row['applicability']=='UNASSESSED' for row in rows)
+          assert len({row['id'] for row in rows})==368
+          assert sum(row['framework']=='OWASP_ASVS' for row in rows)==253
+          assert sum(row['framework']=='OWASP_WSTG' for row in rows)==115
+          print('B864_COMPLETE_TEXT_368_UNASSESSED=PASS_SCOPE_QUEUE_ONLY')
+          PY
+          sha256sum "$RUNNER_TEMP/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.json" "$RUNNER_TEMP/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.csv"
       - name: Archive pinned standards census (NOT a security PASS)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -60,6 +91,11 @@ jobs:
           name: b844-owasp-security-initial-coverage
           path: |
             ${{ runner.temp }}/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json
+            ${{ runner.temp }}/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.json
+            ${{ runner.temp }}/B862-OWASP-WSTG42-ASVS500-L2-REVIEW_QUEUE.csv
+            docs/security/tools/b862_owasp_review_queue.py
+            docs/security/tools/test_b862_owasp_review_queue.py
+            docs/security/B862-B865-OWASP-REQUIREMENT-TEXT-AND-SCOPING.md
             docs/security/tools/build_b844_owasp_coverage.py
             docs/security/tools/test_b844_owasp_coverage.py
             .github/workflows/b844-owasp-item-census-qa.yml

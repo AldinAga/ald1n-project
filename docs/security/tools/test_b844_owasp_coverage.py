@@ -13,8 +13,8 @@ WSTG = """# Checklist
 | WSTG-INFO-01 | Test synthetic route | | |
 """
 ASVS = """chapter_id,chapter_name,section_id,section_name,req_id,req_description,L
-V1,Synthetic Encoding,V1.1,Inputs,V1.1.1,Synthetic requirement one,1
-V1,Synthetic Encoding,V1.1,Inputs,V1.1.2,Synthetic requirement two,2
+V1,Synthetic Encoding,V1.1,Inputs,V1.1.1,Synthetic requirement one must describe a requirement,1
+V1,Synthetic Encoding,V1.1,Inputs,V1.1.2,Synthetic requirement two must describe a requirement,2
 V17,Synthetic WebRTC,V17.1,Other,V17.1.1,Excluded level three,3
 """
 TARGET = "a" * 40
@@ -44,7 +44,25 @@ class CensusTests(unittest.TestCase):
             ["WSTG-INFO-01", "v5.0.0-1.1.1", "v5.0.0-1.1.2"])
         self.assertTrue(all(x["status"] == "NOT_RUN" for x in result["items"]))
         self.assertTrue(all(x["applicability"] == "UNASSESSED" for x in result["items"]))
+        self.assertEqual(result["items"][0]["requirement_text"], "Test synthetic route")
+        self.assertEqual(result["items"][1]["requirement_text"], "Synthetic requirement one must describe a requirement")
+        self.assertEqual(result["items"][1]["title"], "Synthetic requirement one must describe a requirement")
+        self.assertEqual(result["items"][1]["chapter_name"], "Synthetic Encoding")
+        self.assertEqual(result["items"][1]["section_name"], "Inputs")
         self.assertNotIn("v5.0.0-17.1.1", [x["id"] for x in result["items"]])
+
+    def test_very_short_or_empty_asvs_text_refuses_to_be_reviewed(self):
+        for damaged in ["", "short", "Only a chapter", "x"+chr(1)*40]:
+            bad=ASVS.replace("Synthetic requirement one must describe a requirement", damaged)
+            with self.standards(asvs=bad):
+                with self.assertRaisesRegex(ValueError, "HOLD_ASVS_MISSING_OR_MISMATCHED_REQUIREMENT_TEXT"):
+                    census.generate(WSTG.encode(), bad.encode(), TARGET)
+
+    def test_inconsistent_asvs_chapter_section_is_not_silently_accepted(self):
+        bad=ASVS.replace("V1.1,Inputs,V1.1.1", "V2.2,Inputs,V1.1.1")
+        with self.standards(asvs=bad):
+            with self.assertRaisesRegex(ValueError, "HOLD_ASVS_MISSING_OR_MISMATCHED_REQUIREMENT_TEXT"):
+                census.generate(WSTG.encode(), bad.encode(), TARGET)
 
     def test_wstg_headings_and_non_test_rows_are_not_counted(self):
         rows = census.wstg_items(WSTG)
