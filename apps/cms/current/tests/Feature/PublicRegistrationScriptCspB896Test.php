@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Services\SettingsService;
+use App\Models\{Role,User};
+use App\Services\{PublicRegistrationMailSenderService,SettingsService};
+use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\{Hash,Mail};
 use Tests\TestCase;
 
 /**
@@ -22,16 +25,32 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
+        Mail::fake();
         config()->set('app.url', 'https://cms.ald1n.com');
+        config()->set('mail.default','array');
         config()->set('public_storefront.enabled', true);
         config()->set('public_storefront.checkout_enabled', false);
         config()->set('services.turnstile.site_key', 'B896-SYNTHETIC-NONLIVE-SITE-KEY');
+        $owner=User::query()->create([
+            'role_id'=>Role::query()->where('slug','superadmin')->valueOrFail('id'),
+            'username'=>'b896-owner','email'=>'b896-owner@synthetic.example.test',
+            'first_name'=>'B896 Synthetic','password_hash'=>Hash::make('B896-FakeOnly!'),
+            'status'=>'active',
+        ]);
+        $sender='registration@synthetic.example.test';
+        $name='B896 Synthetic Mail Only';
         app(SettingsService::class)->putMany([
             'public_storefront_open'=>'1',
             'turnstile_enabled'=>'1',
-            'public_registration_sender_address'=>'',
-        ], null);
+            'turnstile_site_key'=>'B896-SYNTHETIC-NONLIVE-SITE-KEY',
+            'public_registration_sender_address'=>$sender,
+            'public_registration_sender_name'=>$name,
+            'public_registration_sender_digest'=>PublicRegistrationMailSenderService::fingerprint($sender,$name),
+            'public_registration_sender_approved_by'=>(string)$owner->id,
+            'public_registration_sender_approved_at'=>now()->toISOString(),
+        ],(int)$owner->id);
     }
 
     public function test_live_turnstile_registration_limits_scripts_to_cloudflare_origin_only(): void
@@ -55,7 +74,7 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
         self::assertSame(1,preg_match_all('~<script\b[^>]*>~i',$html,$scripts));
         self::assertStringContainsString('src=',(string)$scripts[0][0]);
         self::assertStringContainsString('B896-SYNTHETIC-NONLIVE-SITE-KEY',$html);
-        self::assertDatabaseCount('users',0);
+        self::assertSame(0,User::query()->whereHas('role',static fn($q)=>$q->where('slug','customer'))->count());
     }
 
     public function test_turnstile_disabled_registration_keeps_restricted_script_allowlist_without_script_tag(): void
@@ -66,7 +85,7 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
         self::assertStringContainsString("script-src https://challenges.cloudflare.com",$policy);
         self::assertStringContainsString("script-src-attr 'none'",$policy);
         self::assertStringNotContainsString('<script',strtolower($response->getContent()));
-        self::assertDatabaseCount('users',0);
+        self::assertSame(0,User::query()->whereHas('role',static fn($q)=>$q->where('slug','customer'))->count());
     }
 
     public function test_malicious_host_referer_and_forwarded_origin_cannot_infect_registration_policy(): void
@@ -91,7 +110,7 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
         $policy=(string)$response->headers->get('Content-Security-Policy');
         self::assertStringNotContainsString('script-src https://challenges.cloudflare.com',$policy);
         self::assertStringContainsString("base-uri 'none'",$policy);
-        self::assertDatabaseCount('users',0);
+        self::assertSame(0,User::query()->whereHas('role',static fn($q)=>$q->where('slug','customer'))->count());
     }
 
     public function test_registration_validation_redirect_keeps_original_global_header_not_success_page_csp(): void
@@ -102,7 +121,7 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
         $policy=(string)$response->headers->get('Content-Security-Policy');
         self::assertStringNotContainsString('script-src https://challenges.cloudflare.com',$policy);
         self::assertStringContainsString("base-uri 'none'",$policy);
-        self::assertDatabaseCount('users',0);
+        self::assertSame(0,User::query()->whereHas('role',static fn($q)=>$q->where('slug','customer'))->count());
     }
 
     public function test_legacy_login_theme_retains_its_original_global_policy(): void
