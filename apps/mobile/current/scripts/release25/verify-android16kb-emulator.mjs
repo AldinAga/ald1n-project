@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * B837: fail-closed, stage-attested offline 16 KiB Android emulator smoke for an existing
- * disposable debug APK. Never uses Expo/EAS, Play, signing credentials or host SSH.
+ * disposable CI APK (ideally bundled-JS, locally debug-signed). No EAS/Play, SSH or host mutation.
  * A PASS demonstrates a single real 16 KiB emulator kernel and an app process
  * surviving an offline launch; it is NOT signed-AAB/physical-device acceptance.
  */
@@ -128,7 +128,19 @@ export async function auditEmulator(apk, invoke = adbCommand, pause = ms => new 
   if (!/\bStatus:\s*ok\b/i.test(launched)) hold('ANDROID_MAIN_ACTIVITY_NOT_STARTED');
   await pause(7000);
   report('CHECK_PROCESS_AND_RUNTIME');
-  const pids = property(['pidof', PACKAGE]);
+  let pids='';
+  try {
+    pids = property(['pidof', PACKAGE]);
+  } catch (error) {
+    // Android pidof intentionally exits 1 when the process is not alive.
+    // This is an app-lifecycle HOLD, not an unknown ADB transport failure.
+    // Inspect only the app-scoped fatal signature; NEVER print raw logcat.
+    if (!(error instanceof Error) || error.message !== 'HOLD_ADB_APP_PROCESS_EXIT_1') throw error;
+    const crash = call(['logcat', '-d', '-s', 'AndroidRuntime:E']);
+    if (/FATAL EXCEPTION[\s\S]*?Process:\s*com\.ald1n\.mobile(?:,|\s|$)/i.test(crash))
+      hold('APP_ANDROID_RUNTIME_FATAL');
+    hold('APP_PROCESS_NOT_ALIVE');
+  }
   if (!/^\d+(?:\s+\d+)*$/.test(pids)) hold('APP_PROCESS_NOT_ALIVE');
 
   // Avoid printing logcat or runtime UI text: it can contain user information.
