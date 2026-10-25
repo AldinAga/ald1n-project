@@ -59,6 +59,24 @@ class RouteInventoryTest(unittest.TestCase):
         rows[0]["action"]="App\\Http\\Controllers\\WrongController@catalog"
         with self.assertRaisesRegex(ValueError,"HOLD_UNEXPECTED_CONTROLLER"):
             inventory(compile_rows(rows),SHA)
+    def test_resolved_laravel_middleware_class_names_accepted(self):
+        rows=expected_rows()
+        for route in rows:
+            route["middleware"]=[
+                item.replace("throttle:","Illuminate\\\\Routing\\\\Middleware\\\\ThrottleRequests:",1)
+                    if item.startswith("throttle:") else
+                "Illuminate\\\\Auth\\\\Middleware\\\\RedirectIfAuthenticated"
+                    if item=="guest" else item
+                for item in route["middleware"]
+            ]
+        result=inventory(compile_rows(rows),SHA)
+        self.assertEqual(result["public_contract_total"],14)
+        self.assertEqual(result["verified_owasp_security_pass"],0)
+    def test_spoofed_throttle_class_name_denied(self):
+        rows=expected_rows()
+        rows[0]["middleware"]=["web","App\\\\Fake\\\\ThrottleRequests:public-shop-browse"]
+        with self.assertRaisesRegex(ValueError,"HOLD_PUBLIC_ROUTE_MIDDLEWARE"):
+            inventory(compile_rows(rows),SHA)
     def test_throttle_removal_denied(self):
         rows=expected_rows()
         rows[0]["middleware"]=["web"]
