@@ -88,11 +88,11 @@ jobs:
           root=ET.parse(sys.argv[1]).getroot()
           tests=list(root.iter('testcase'))
           ids=[((n.get('classname') or n.get('class')),n.get('name')) for n in tests]
-          if len(tests)!=7 or len(ids)!=len(set(ids)) or any(not a or not b for a,b in ids):
+          if len(tests)!=8 or len(ids)!=len(set(ids)) or any(not a or not b for a,b in ids):
               raise SystemExit('HOLD_TEST_CASE_COUNT_OR_IDENTITIES_'+str(len(tests)))
           if any(n.find(k) is not None for n in tests for k in ('failure','error','skipped','warning')):
               raise SystemExit('HOLD_NON_GREEN_CASES')
-          print('B888_B889_SCOPED_ORIGIN_7_OF_7_PASS')
+          print('B888_B889_B890_SCOPED_ORIGIN_8_OF_8_PASS')
           PY
       - name: Archive synthetic test evidence
         if: always()
