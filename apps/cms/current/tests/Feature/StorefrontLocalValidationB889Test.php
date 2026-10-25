@@ -139,6 +139,28 @@ final class StorefrontLocalValidationB889Test extends TestCase
         $this->assertGuest();
     }
 
+    public function test_authenticated_session_rotation_preserves_exact_active_tracked_row_without_duplicate(): void
+    {
+        $this->loginBuyer();
+        $first=UserLoginSession::query()->where('user_id',$this->buyer->id)->sole();
+        $oldHash=$first->session_hash;
+
+        // Exercise a server-authorized session ID rotation with a retained
+        // valid credential proof. It must migrate only this active registry
+        // record, not create a second session or rescue a revoked record.
+        $session=app('session.store');
+        $session->migrate(true);
+        $rotatedHash=hash('sha256',$session->getId());
+        self::assertNotSame($oldHash,$rotatedHash);
+        $request=\\Illuminate\\Http\\Request::create('/porucivanje','GET');
+        $request->setLaravelSession($session);
+        self::assertTrue(app(\\App\\Services\\PortalSessionService::class)
+            ->validateAndTouch($request,$this->buyer));
+        self::assertDatabaseCount('user_login_sessions',1);
+        self::assertSame($first->id,UserLoginSession::query()->sole()->id);
+        self::assertSame($rotatedHash,UserLoginSession::query()->sole()->session_hash);
+    }
+
     private function user(string $name,string $role): User
     {
         return User::query()->create([
