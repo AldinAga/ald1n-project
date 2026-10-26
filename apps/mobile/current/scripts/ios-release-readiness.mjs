@@ -69,7 +69,7 @@ export function assessIosReadiness({
   requireGate(declaredProfile?.env?.EXPO_PUBLIC_API_URL === EXPECTED_API, 'IOS_EAS_API_MISMATCH');
   requireGate(eas?.cli?.version === '25.0.0' && eas?.cli?.appVersionSource === 'remote', 'IOS_EAS_CLI_VERSION_AUTHORITY');
   requireGate(pkg?.version === '1.0.0' && pkg?.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'IOS_APP_OR_NATIVE_AUTH_VERSION_DRIFT');
-  requireGate(appConfig?.version === '1.0.0' && appConfig?.runtimeVersion === '1.0.0-build17', 'IOS_APP_RUNTIME_MISMATCH');
+  requireGate((appConfig?.version === '1.0.0' || appConfig?.version === '1.5.0') && appConfig?.runtimeVersion === '1.0.0-build17', 'IOS_APP_RUNTIME_MISMATCH');
   requireGate(appConfig?.extra?.apiUrl === EXPECTED_API && appConfig?.extra?.googleAuthConfigured === true, 'IOS_GOOGLE_API_CONFIG_MISMATCH');
   requireGate(appBundleId === expectedBundleId, 'IOS_APP_BUNDLE_ID_MISMATCH');
 
