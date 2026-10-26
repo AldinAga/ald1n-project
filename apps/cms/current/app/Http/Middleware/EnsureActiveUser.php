@@ -33,6 +33,13 @@ final class EnsureActiveUser
             return new RedirectResponse(route('login'));
         }
 
+        // A buyer uses the public retail surface, not employee/SubAgent routes.
+        // This also protects authenticated API endpoints without permission middleware.
+        if ($user->hasRole('customer') && !$request->routeIs('api.v1.auth.token.destroy')) {
+            if ($request->routeIs('dashboard')) return new RedirectResponse(route('public-shop.catalog'));
+            abort(403, 'Kupac koristi javni katalog i korpu.');
+        }
+
         return $next($request);
     }
 }

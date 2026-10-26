@@ -17,9 +17,14 @@ final class CustomerActivationService
 {
     public const TOKEN_TTL_HOURS = 72;
 
-    public function invite(User $user, ?User $actor = null): UserActivationToken
+    /** @param array{address:string,name:string}|null $registrationSender */
+    public function invite(User $user, ?User $actor = null, ?array $registrationSender = null): UserActivationToken
     {
         abort_if($user->retired_at !== null, 422, 'Trajno deaktiviranom nalogu nije moguće poslati novu pozivnicu.');
+        if ($registrationSender!==null) {
+            abort_unless($user->hasRole('customer') && $user->status==='pending' && $actor===null,403);
+            abort_unless($registrationSender===app(PublicRegistrationMailSenderService::class)->sender(),503);
+        }
         if (!Schema::hasTable('user_activation_tokens')) {
             throw new RuntimeException('Tabela user_activation_tokens nije dostupna. Pokrenite migracije.');
         }
@@ -49,7 +54,8 @@ final class CustomerActivationService
             ]);
         }, 3);
 
-        $user->notify(new CustomerPortalInvitationNotification($plainToken, self::TOKEN_TTL_HOURS));
+        $user->notify(new CustomerPortalInvitationNotification(
+            $plainToken, self::TOKEN_TTL_HOURS, $registrationSender));
         $token->forceFill(['sent_at' => now()])->save();
 
         return $token->fresh();
@@ -105,6 +111,9 @@ final class CustomerActivationService
                 'remember_token' => Str::random(60),
             ])->save();
             $user->tokens()->delete();
+            // Activating an invited existing account rotates its credential:
+            // invalidate old tracked web sessions in this same transaction.
+            app(PortalSessionService::class)->revokeAll($user, $user);
 
             $token->forceFill(['accepted_at' => now()])->save();
             UserActivationToken::query()

@@ -1,0 +1,70 @@
+name: B844 OWASP WSTG4.2 and ASVS5 L2 item-level census (NO SCAN)
+on:
+  pull_request:
+    paths:
+      - 'docs/security/tools/build_b844_owasp_coverage.py'
+      - 'docs/security/tools/test_b844_owasp_coverage.py'
+      - '.github/workflows/b844-owasp-item-census-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b844-security-census-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact immutable PR source without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Synthetic fail-closed inventory regressions
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s docs/security/tools -p 'test_b844_owasp_coverage.py' -v
+      - name: Fetch exact pinned official standards and verify upstream Git blobs
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --output "$RUNNER_TEMP/b844-wstg42.md" \
+            'https://raw.githubusercontent.com/OWASP/wstg/6664009ef074ee08f349b9da1909acc4340c0e18/checklists/checklist.md'
+          curl --fail --silent --show-error --location --retry 2 --output "$RUNNER_TEMP/b844-asvs500.csv" \
+            'https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.csv'
+          test "$(git hash-object "$RUNNER_TEMP/b844-wstg42.md")" = '7fe5f31651ccbdf4fd7f67fe72b1b4f866c98931'
+          test "$(git hash-object "$RUNNER_TEMP/b844-asvs500.csv")" = '184cf3b04a8fe1809dbed8b6e73be7a6fbaf8689'
+      - name: Build initial NOT_RUN inventory (not a penetration-test result)
+        run: |
+          set -euo pipefail
+          python3 docs/security/tools/build_b844_owasp_coverage.py \
+            --wstg="$RUNNER_TEMP/b844-wstg42.md" \
+            --asvs="$RUNNER_TEMP/b844-asvs500.csv" \
+            --target-commit='${{ github.event.pull_request.head.sha }}' \
+            --output="$RUNNER_TEMP/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json"
+          python3 - "$RUNNER_TEMP/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert x["counts"]["total"]==368
+          assert x["counts"]["wstg_v4_2"]==115
+          assert x["counts"]["asvs_l1_plus_l2"]==253
+          assert x["counts"]["unassessed"]==368
+          assert x["counts"]["verified_security_pass"]==0
+          assert all(row["status"]=="NOT_RUN" and row["applicability"]=="UNASSESSED" for row in x["items"])
+          print("B844_368_CONTROL_CENSUS=PASS_UNASSESSED_NOT_A_SECURITY_AUDIT")
+          PY
+          sha256sum "$RUNNER_TEMP/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json"
+      - name: Archive pinned standards census (NOT a security PASS)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b844-owasp-security-initial-coverage
+          path: |
+            ${{ runner.temp }}/B844-OWASP-WSTG42-ASVS500-L2-NOT_RUN.json
+            docs/security/tools/build_b844_owasp_coverage.py
+            docs/security/tools/test_b844_owasp_coverage.py
+            .github/workflows/b844-owasp-item-census-qa.yml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Enforce no release mutation
+        if: always()
+        run: echo 'B844_NO_ACTIVE_SCAN NO_PRODUCTION_ATTACK NO_RELEASE NO_SECURITY_PASS_CLAIM'

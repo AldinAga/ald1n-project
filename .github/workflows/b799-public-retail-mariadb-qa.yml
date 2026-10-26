@@ -1,0 +1,76 @@
+name: B799 public retail read-only catalog and cart MariaDB QA (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/b799-public-retail-mariadb-qa.yml'
+permissions:
+  contents: read
+jobs:
+  public-retail:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install PHP dependencies
+        working-directory: apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Scoped anonymous catalog/cart and internal regression
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          php -l app/Http/Controllers/PublicShopController.php
+          php -l app/Services/PublicRetailCatalogService.php
+          php -l app/Services/PublicCartService.php
+          php -l app/Services/PublicCheckoutReadinessService.php
+          php -l app/Services/PublicMerchantPolicyService.php
+          php -l app/Http/Controllers/Admin/PublicMerchantSettingsController.php
+          php -l tests/Feature/PublicMerchantSettingsB801Test.php
+          php -l app/Services/PublicOrderAccessService.php
+          php -l app/Http/Controllers/PublicOrderAccessController.php
+          php -l app/Http/Controllers/PublicCheckoutController.php
+          php -l app/Services/PublicRetailCheckoutService.php
+          php -l app/Models/PublicCheckoutAttempt.php
+          php -l database/migrations/2026_10_23_020100_create_public_checkout_attempts.php
+          php -l app/Http/Controllers/Admin/PublicOrderAccessController.php
+          php -l database/migrations/2026_10_23_020000_create_public_order_accesses.php
+          php -l routes/web.php
+          php bin/static-check.php
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning tests/Feature/PublicShopB799CatalogCartTest.php tests/Feature/PublicCheckoutReadinessB799Test.php tests/Feature/PublicMerchantSettingsB801Test.php tests/Feature/PublicOrderCapabilityB799Test.php tests/Feature/PublicRetailCheckoutB799Test.php tests/Feature/CatalogAccessTest.php
+      - name: No production effect
+        if: always()
+        run: echo 'DISPOSABLE_MYSQL_SOURCE_ONLY NO_PRODUCTION_GUEST_CHECKOUT NO_DB_PROD NO_DEPLOY_NO_PLAY'

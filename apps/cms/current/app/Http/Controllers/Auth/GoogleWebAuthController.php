@@ -189,6 +189,10 @@ final class GoogleWebAuthController extends Controller
                 'user_id' => $user->getKey(),
             ]);
 
+            // A customer's landing URL is fixed and origin-relative.
+            if ($user->hasRole('customer')) {
+                return new RedirectResponse(route('public-shop.cart',[],false));
+            }
             return redirect()->intended(route('dashboard'));
         } catch (ValidationException $exception) {
             $this->safeLogWarning('Google identity could not be linked to a CMS account.', $exception);

@@ -32,13 +32,13 @@ final class EnsureTrackedPortalSession
                 return $next($request);
             }
         } catch (Throwable $exception) {
-            Log::warning('Portal session tracking failed open.', [
+            Log::warning('Portal session tracking failed closed.', [
                 'user_id' => $user->id,
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
 
-            return $next($request);
+            // A registry/DB failure cannot authorize a revoked login.
         }
 
         Auth::logout();
