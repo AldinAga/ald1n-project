@@ -1,0 +1,132 @@
+name: B946 Warranty recovery gated MariaDB QA (NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/app/Services/WarrantyActivationRecoveryService.php'
+      - 'apps/cms/current/app/Models/WarrantyActivationRecoveryAttempt.php'
+      - 'apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php'
+      - 'apps/cms/current/config/warranty_recovery.php'
+      - 'apps/cms/current/database/migrations/2026_10_27_230000_create_warranty_activation_recovery_attempts.php'
+      - 'apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php'
+      - '.github/workflows/b946-warranty-activation-recovery-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  recovery:
+    name: B946 read-only, gated recovery and retries on MariaDB 10.11
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: b946_ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact main source and seven paths only, no cron or Storefront
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          BASE=252580c3d65b126c96709ae240d1e3f797d611f5
+          test "$(git merge-base "$BASE" HEAD)" = "$BASE"
+          git diff --name-only "$BASE" HEAD | sort > "$RUNNER_TEMP/actual.txt"
+          cat > "$RUNNER_TEMP/expected.txt" <<'FILES'
+          .github/workflows/b946-warranty-activation-recovery-qa.yml
+          apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php
+          apps/cms/current/app/Models/WarrantyActivationRecoveryAttempt.php
+          apps/cms/current/app/Services/WarrantyActivationRecoveryService.php
+          apps/cms/current/config/warranty_recovery.php
+          apps/cms/current/database/migrations/2026_10_27_230000_create_warranty_activation_recovery_attempts.php
+          apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php
+          FILES
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+          git diff --check "$BASE" HEAD
+          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "a928afc9dc479382c43be6da9727172ea4d62644"
+          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "26ffe49243980892114e1c78beaa369a867c4200"
+          test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "867855218f4907c8a4b861c69b91af473f990d07"
+          test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: PHP 8.4 lint and exact five real MariaDB feature tests
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          install -m 600 /dev/null .env
+          for f in \
+            app/Services/WarrantyActivationRecoveryService.php \
+            app/Models/WarrantyActivationRecoveryAttempt.php \
+            app/Console/Commands/WarrantyActivationRecoveryCommand.php \
+            config/warranty_recovery.php \
+            database/migrations/2026_10_27_230000_create_warranty_activation_recovery_attempts.php \
+            tests/Feature/WarrantyActivationRecoveryB946Test.php; do
+            php -l "$f"
+          done
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b946-junit.xml" \
+            --filter WarrantyActivationRecoveryB946Test
+      - name: Strict five unique real test identities, zero skips/errors/warnings
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/b946-junit.xml" <<'PY'
+          import pathlib, re, sys, xml.etree.ElementTree as ET
+          source = pathlib.Path("tests/Feature/WarrantyActivationRecoveryB946Test.php").read_text()
+          expected = set(re.findall(r"public function (test_[a-z0-9_]+)\(", source))
+          if len(expected) != 5:
+              raise SystemExit("HOLD_B946_SOURCE_TEST_IDENTITY")
+          root = ET.parse(sys.argv[1]).getroot()
+          cases = root.findall(".//testcase")
+          pairs = [(x.attrib.get("classname", ""), x.attrib.get("name", "")) for x in cases]
+          if len(pairs) != 5 or len(set(pairs)) != 5 or {n for _, n in pairs} != expected:
+              raise SystemExit("HOLD_B946_JUNIT_CASES_NOT_EXACT_5")
+          if any("WarrantyActivationRecoveryB946Test" not in c for c, _ in pairs):
+              raise SystemExit("HOLD_B946_TEST_CLASS")
+          if root.findall(".//failure") or root.findall(".//error") or root.findall(".//skipped") or root.findall(".//warning"):
+              raise SystemExit("HOLD_B946_FAILURE_OR_WARNING")
+          print("PASS_B946_EXACT_5_MARIADB_CASES")
+          PY
+      - name: Evidence only, absolutely no deployment
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b946-warranty-recovery-mariadb-evidence
+          path: ${{ runner.temp }}/b946-junit.xml
+          retention-days: 7
+          if-no-files-found: warn
