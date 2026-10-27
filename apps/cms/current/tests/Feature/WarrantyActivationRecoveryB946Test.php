@@ -119,7 +119,7 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame(1, $second['recovered']);
         self::assertSame('resolved', $retry->fresh()->status);
         self::assertSame(1, $retry->fresh()->attempt_count);
-        self::assertSame($number, ProductWarranty::query()->sole()->warranty_number);
+        self::assertSame($number, ProductWarranty::query()->where('order_id', $order->id)->sole()->warranty_number);
         self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count());
     }
 
