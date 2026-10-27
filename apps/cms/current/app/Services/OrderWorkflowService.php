@@ -399,6 +399,13 @@ final class OrderWorkflowService
                     user: $actor,
                 );
 
+                // B943: COD payment, physical delivery and warranty activation
+                // must either all commit or all roll back. A post-commit warning
+                // alone would leave a completed paid order without active cover.
+                if ($paymentNumber !== null) {
+                    $this->warranties->ensureForOrder($locked, $actor);
+                }
+
                 return $locked->fresh(['user', 'supplier', 'completedBy', 'delivery.confirmer']) ?? $locked;
             }, 5);
         } catch (Throwable $exception) {

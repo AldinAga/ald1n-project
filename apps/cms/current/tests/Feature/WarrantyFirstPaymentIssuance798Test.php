@@ -168,6 +168,34 @@ final class WarrantyFirstPaymentIssuance798Test extends TestCase
         self::assertSame(1,OrderPayment::query()->count());
         self::assertSame(1,WarrantyIssuance::query()->count());
         self::assertSame(1,ProductWarranty::query()->count());
+
+        // B943 negative gate: a failed activation cannot commit the COD receipt,
+        // delivery row, immutable issuance or completion. All rows are synthetic.
+        [, $rollbackAdmin, $rollbackOrder] = $this->fixture('cod-activation-rollback');
+        $rollbackOrder->update(['status' => 'confirmed', 'payment_method' => 'cash_on_delivery']);
+        ProductWarranty::creating(static function (ProductWarranty $warranty) use ($rollbackOrder): void {
+            if ((int) $warranty->order_id === (int) $rollbackOrder->id) {
+                throw new \RuntimeException('B943_SYNTHETIC_WARRANTY_ACTIVATION_FAILURE');
+            }
+        });
+
+        try {
+            app(\App\Services\OrderWorkflowService::class)->complete($rollbackOrder, $rollbackAdmin, [
+                'delivery_method' => 'own_transport',
+                'delivered_at' => now()->subMinute()->toDateTimeString(),
+                'recipient_name' => 'Sinteticki Kupac',
+            ]);
+            self::fail('COD completion must roll back if active warranty creation fails.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('B943_SYNTHETIC_WARRANTY_ACTIVATION_FAILURE', $exception->getMessage());
+        }
+
+        self::assertSame('confirmed', (string) $rollbackOrder->fresh()->status);
+        self::assertNull($rollbackOrder->fresh()->completed_at);
+        self::assertSame(0, OrderPayment::query()->where('order_id', $rollbackOrder->id)->count());
+        self::assertSame(0, WarrantyIssuance::query()->where('order_id', $rollbackOrder->id)->count());
+        self::assertSame(0, ProductWarranty::query()->where('order_id', $rollbackOrder->id)->count());
+        self::assertSame(0, OrderDelivery::query()->where('order_id', $rollbackOrder->id)->count());
     }
 
     public function test_unverified_proof_zero_and_refund_do_not_issue(): void
