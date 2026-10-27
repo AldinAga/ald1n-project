@@ -78,18 +78,19 @@ jobs:
             apps/cms/current/tests/Feature/StorefrontSecurityB806Test.php)"
           # Exact six Git blobs from PR93 / PR110 / PR111, tested on PR111+B932 via Report878.
           test "$(git hash-object apps/cms/current/app/Services/OrderPaymentService.php)" = "55e9a81c5d775496586b96a61f21d062c8ebb0ef"
-          test "$(git hash-object apps/cms/current/app/Services/OrderWorkflowService.php)" = "f8f036f458fead11e0aef133453bd81dc3e27db6"
+          test "$(git hash-object apps/cms/current/app/Services/OrderWorkflowService.php)" = "c091fd20df25d1933bc86d2144f771f4d21e33d0"
           test "$(git hash-object apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php)" = "a3558a1b61093dab890d979b7be33054a6d8b5ae"
           test "$(git hash-object apps/cms/current/tests/Feature/PaymentTransitionNotificationB902Test.php)" = "77f4f4f2286657c86229dcd6f467a6a63542281c"
           test "$(git hash-object apps/cms/current/tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php)" = "e7f343c8646f39cee89ba0e14a3cb5dd90f2713f"
-          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php)" = "eb7a4a61c972bc4b421eb133d0fc732bf0622ae7"
+          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php)" = "bde413307d4773f1ad4150f6a345fb72f244b84c"
           # M10 and M11 live-gate requirements; never enable public Storefront.
           grep -Fq 'issueForVerifiedPaymentLocked($locked, $payment, $actor)' apps/cms/current/app/Services/OrderWorkflowService.php
           test "$(grep -Fc 'if ($transitioned) $this->notifyCustomer' apps/cms/current/app/Services/OrderPaymentService.php)" -eq 2
           grep -Fq 'issued_pending_delivery' apps/cms/current/app/Services/WarrantyIssuanceService.php
           grep -Fq '$currentRecipient->notificationPreference()->first()?->warranty_expiry_alerts === true' apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php
-          # B943: COD activation is within the same order-completion transaction.
-          grep -Fq '$this->warranties->ensureForOrder($locked, $actor)' apps/cms/current/app/Services/OrderWorkflowService.php
+          # B944: COD and pre-paid bank activation are within the same completion transaction.
+          test "$(grep -Fc '$this->warranties->ensureForOrder($locked, $actor);' apps/cms/current/app/Services/OrderWorkflowService.php)" -eq 1
+          grep -Fq 'B944_SYNTHETIC_PREPAID_ACTIVATION_FAILURE' apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php
           git diff --check "$BASE" HEAD
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:

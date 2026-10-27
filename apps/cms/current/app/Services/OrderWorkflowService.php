@@ -399,12 +399,11 @@ final class OrderWorkflowService
                     user: $actor,
                 );
 
-                // B943: COD payment, physical delivery and warranty activation
-                // must either all commit or all roll back. A post-commit warning
-                // alone would leave a completed paid order without active cover.
-                if ($paymentNumber !== null) {
-                    $this->warranties->ensureForOrder($locked, $actor);
-                }
+                // B944: a verified COD receipt OR earlier confirmed bank payment
+                // must activate any eligible warranty within the same completion
+                // transaction. Failure rolls back the new delivery/completion,
+                // preserving a previously verified payment and pending issuance.
+                $this->warranties->ensureForOrder($locked, $actor);
 
                 return $locked->fresh(['user', 'supplier', 'completedBy', 'delivery.confirmer']) ?? $locked;
             }, 5);
@@ -424,12 +423,6 @@ final class OrderWorkflowService
         }
 
         $this->reconciliation->reconcile($updated);
-
-        try {
-            $this->warranties->ensureForOrder($updated->loadMissing('user'), $actor);
-        } catch (Throwable $exception) {
-            Log::warning('Automatic warranty issuance failed.', ['order_id' => $updated->id, 'exception' => $exception]);
-        }
 
         if ($updated->user instanceof User) {
             $message = 'Isporuka za porudžbinu '.$updated->order_number.' je evidentirana i porudžbina je kompletirana.';
