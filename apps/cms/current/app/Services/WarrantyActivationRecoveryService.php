@@ -147,6 +147,8 @@ final class WarrantyActivationRecoveryService
                 $snapshot = (array) $issuance->snapshot_json;
                 if ((int) $issuance->order_id !== (int) $order->id
                     || (int) ($snapshot['product_id'] ?? 0) !== (int) $item->product_id
+                    // Order ownership must match immutable first-payment owner.
+                    || (int) ($snapshot['user_id'] ?? 0) !== (int) ($order->user_id ?? 0)
                     || ((int) ($snapshot['duration_months'] ?? 0) === 0
                         && (int) ($snapshot['duration_days'] ?? 0) === 0)) {
                     return $this->manualReview($orderId, $record, 'ISSUANCE_LINEAGE_INVALID');

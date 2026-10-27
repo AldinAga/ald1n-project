@@ -143,12 +143,17 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
             'unit_price_rsd' => 100, 'line_total_rsd' => 100,
         ]);
 
+        // A later reassignment cannot redirect a frozen issued certificate
+        // to a different seller/administrator account.
+        [$changedOwner, $changedAdmin] = $this->paidAndDelivered('owner-changed');
+        $changedOwner->update(['user_id' => $changedAdmin->id]);
+
         config()->set('warranty_recovery.enabled', true);
         $result = app(WarrantyActivationRecoveryService::class)->run(25, true);
-        self::assertSame(2, $result['manual_review']);
+        self::assertSame(3, $result['manual_review']);
         self::assertSame(0, $result['recovered']);
         self::assertSame(0, ProductWarranty::query()->count());
-        self::assertSame(2, WarrantyIssuance::query()->count());
+        self::assertSame(3, WarrantyIssuance::query()->count());
         self::assertSame(
             'VERIFIED_REFUND_PRESENT',
             WarrantyActivationRecoveryAttempt::query()->where('order_id', $refunded->id)->sole()->last_error_code,
@@ -157,13 +162,17 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
             'ISSUANCE_MISSING_OR_INVALID',
             WarrantyActivationRecoveryAttempt::query()->where('order_id', $partial->id)->sole()->last_error_code,
         );
+        self::assertSame(
+            'ISSUANCE_LINEAGE_INVALID',
+            WarrantyActivationRecoveryAttempt::query()->where('order_id', $changedOwner->id)->sole()->last_error_code,
+        );
         // Both blocked orders precede this valid third order. They must not
         // fill a batch whose --limit is only one.
         [$later] = $this->paidAndDelivered('eligible-after-manual');
         $ready = app(WarrantyActivationRecoveryService::class)->run(1, true);
         self::assertSame(1, $ready['candidates']);
         self::assertSame(1, $ready['recovered']);
-        self::assertSame(2, $ready['manual_review_total']);
+        self::assertSame(3, $ready['manual_review_total']);
         self::assertSame(1, ProductWarranty::query()->where('order_id', $later->id)->count());
     }
 

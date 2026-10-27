@@ -72,8 +72,8 @@ jobs:
           FILES
           diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
           git diff --check "$BASE" HEAD
-          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "2ccbdaa0953fb37bb4e10ae72c10393d2823a0ee"
-          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "6770d38506eec12cbff4c910a649100db3aae4a0"
+          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "cd0a1ed8f92b892873f12de4195ee4c45fa68f99"
+          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "c49e787c82f29a6e1883dbee892c13f55dba993a"
           test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "867855218f4907c8a4b861c69b91af473f990d07"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
