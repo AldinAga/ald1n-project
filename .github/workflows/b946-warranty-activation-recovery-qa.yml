@@ -72,8 +72,8 @@ jobs:
           FILES
           diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
           git diff --check "$BASE" HEAD
-          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "a928afc9dc479382c43be6da9727172ea4d62644"
-          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "26ffe49243980892114e1c78beaa369a867c4200"
+          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "2ccbdaa0953fb37bb4e10ae72c10393d2823a0ee"
+          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "6770d38506eec12cbff4c910a649100db3aae4a0"
           test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "867855218f4907c8a4b861c69b91af473f990d07"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
@@ -127,6 +127,14 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: b946-warranty-recovery-mariadb-evidence
-          path: ${{ runner.temp }}/b946-junit.xml
+          path: |
+            ${{ runner.temp }}/b946-junit.xml
+            .github/workflows/b946-warranty-activation-recovery-qa.yml
+            apps/cms/current/app/Services/WarrantyActivationRecoveryService.php
+            apps/cms/current/app/Models/WarrantyActivationRecoveryAttempt.php
+            apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php
+            apps/cms/current/config/warranty_recovery.php
+            apps/cms/current/database/migrations/2026_10_27_230000_create_warranty_activation_recovery_attempts.php
+            apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php
           retention-days: 7
           if-no-files-found: warn

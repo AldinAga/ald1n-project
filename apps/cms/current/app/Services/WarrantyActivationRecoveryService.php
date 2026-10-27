@@ -26,7 +26,7 @@ final class WarrantyActivationRecoveryService
 {
     public function __construct(private readonly WarrantyService $warranties) {}
 
-    /** @return array{mode:string,candidates:int,recovered:int,failed:int,deferred:int,manual_review:int,skipped:int} */
+    /** @return array{mode:string,candidates:int,recovered:int,failed:int,deferred:int,manual_review:int,manual_review_total:int,skipped:int} */
     public function run(int $limit = 25, bool $execute = false): array
     {
         $limit = max(1, min(50, $limit));
@@ -42,22 +42,39 @@ final class WarrantyActivationRecoveryService
 
         // Only existing numbered pending certificates for physically delivered,
         // completed orders. Neither a status change nor a newly issued number.
-        $ids = WarrantyIssuance::query()
+        $query = WarrantyIssuance::query()
             ->where('status', 'issued_pending_delivery')
             ->whereNull('activated_warranty_id')
             ->whereHas('order', static fn ($orders) => $orders
                 ->whereNotNull('completed_at')
                 ->where('status', '!=', 'cancelled')
                 ->whereNull('cancelled_at')
-                ->whereHas('delivery', static fn ($deliveries) => $deliveries->whereNotNull('delivered_at')))
-            ->select('order_id')->distinct()->orderBy('order_id')
+                ->whereHas('delivery', static fn ($deliveries) => $deliveries->whereNotNull('delivered_at')));
+
+        if ($execute) {
+            // Exclude terminal/manual and future-due attempts BEFORE LIMIT.
+            // Otherwise a few older blocked orders could starve all later ones.
+            $query->whereNotIn('order_id', static function ($attempts): void {
+                $attempts->select('order_id')->from('warranty_activation_recovery_attempts')
+                    ->where(static function ($states): void {
+                        $states->whereIn('status', ['manual_review', 'resolved'])
+                            ->orWhere(static function ($retry): void {
+                                $retry->where('status', 'retrying')
+                                    ->where('next_attempt_at', '>', now());
+                            });
+                    });
+            });
+        }
+        $ids = $query->select('order_id')->distinct()->orderBy('order_id')
             ->limit($limit)->pluck('order_id');
 
         $result = [
             'mode' => $execute ? 'gated_execute' : 'read_only',
             'candidates' => $ids->count(),
             'recovered' => 0, 'failed' => 0, 'deferred' => 0,
-            'manual_review' => 0, 'skipped' => 0,
+            'manual_review' => 0, 'manual_review_total' => Schema::hasTable('warranty_activation_recovery_attempts')
+                ? WarrantyActivationRecoveryAttempt::query()->where('status', 'manual_review')->count() : 0,
+            'skipped' => 0,
         ];
         if (!$execute) return $result;
 
@@ -73,6 +90,8 @@ final class WarrantyActivationRecoveryService
             }
         }
 
+        $result['manual_review_total'] = WarrantyActivationRecoveryAttempt::query()
+            ->where('status', 'manual_review')->count();
         return $result;
     }
 

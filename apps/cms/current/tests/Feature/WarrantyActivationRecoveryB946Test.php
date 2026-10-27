@@ -106,8 +106,12 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame(0, ProductWarranty::query()->count());
         self::assertSame('issued_pending_delivery', WarrantyIssuance::query()->sole()->status);
 
-        self::assertSame(1, $service->run(25, true)['deferred']);
+        self::assertSame(0, $service->run(25, true)['candidates']);
         self::assertSame(1, $retry->fresh()->attempt_count);
+        // A future-due older order must not starve a later ready order.
+        [$otherOrder] = $this->paidAndDelivered('retry-other');
+        self::assertSame(1, $service->run(1, true)['recovered']);
+        self::assertSame(1, ProductWarranty::query()->where('order_id', $otherOrder->id)->count());
 
         ProductWarranty::flushEventListeners();
         $retry->update(['next_attempt_at' => now()->subMinute()]);
@@ -153,6 +157,14 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
             'ISSUANCE_MISSING_OR_INVALID',
             WarrantyActivationRecoveryAttempt::query()->where('order_id', $partial->id)->sole()->last_error_code,
         );
+        // Both blocked orders precede this valid third order. They must not
+        // fill a batch whose --limit is only one.
+        [$later] = $this->paidAndDelivered('eligible-after-manual');
+        $ready = app(WarrantyActivationRecoveryService::class)->run(1, true);
+        self::assertSame(1, $ready['candidates']);
+        self::assertSame(1, $ready['recovered']);
+        self::assertSame(2, $ready['manual_review_total']);
+        self::assertSame(1, ProductWarranty::query()->where('order_id', $later->id)->count());
     }
 
     public function test_exhausted_retry_requires_manual_review_and_never_spins(): void
@@ -169,7 +181,7 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame('manual_review', $record->status);
         self::assertSame(2, $record->attempt_count);
         self::assertNull($record->next_attempt_at);
-        self::assertSame(1, $service->run(25, true)['manual_review']);
+        self::assertSame(1, $service->run(25, true)['manual_review_total']);
         self::assertSame(2, $record->fresh()->attempt_count);
         self::assertSame(0, ProductWarranty::query()->count());
     }
