@@ -33,7 +33,7 @@ return new class extends Migration
                 $table->timestamp('last_attempt_at')->nullable();
                 $table->timestamp('resolved_at')->nullable();
                 $table->timestamps();
-                $table->index(['status', 'next_attempt_at']);
+                $table->index(['status', 'next_attempt_at'], 'wr_recovery_status_due_idx');
                 $table->foreign('order_id')->references('id')->on('orders')->restrictOnDelete();
             });
         } finally {
