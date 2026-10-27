@@ -103,19 +103,10 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
           php -l tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php
           php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          # Discover from both configured PHPUnit suites and select these 11 exact classes.
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b922-junit.xml" \
-            tests/Feature/MobilePushRecipientOwnershipB909Test.php \
-            tests/Feature/MobilePushRevocationB910Test.php \
-            tests/Feature/MobilePushCategoryRevocationB911Test.php \
-            tests/Feature/MobilePushTokenRotationB912Test.php \
-            tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php \
-            tests/Feature/MobilePushPhase3BTest.php \
-            tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php \
-            tests/Feature/WarrantyExpiryDeliveryGuardTest.php \
-            tests/Unit/WarrantyExpiryOptInSourceTest.php \
-            tests/Feature/WarrantyFirstPaymentIssuance798Test.php \
-            tests/Feature/PaymentTransitionNotificationB902Test.php
+            --filter '(MobilePushRecipientOwnershipB909Test|MobilePushRevocationB910Test|MobilePushCategoryRevocationB911Test|MobilePushTokenRotationB912Test|WarrantyExpiryArrayMailDeliveryB916Test|MobilePushPhase3BTest|WarrantyExpiryFreshEligibilityB905Test|WarrantyExpiryDeliveryGuardTest|WarrantyExpiryOptInSourceTest|WarrantyFirstPaymentIssuance798Test|PaymentTransitionNotificationB902Test)'
       - name: Strict unique 69-case JUnit gate and source hashes
         working-directory: apps/cms/current
         run: |
@@ -126,7 +117,7 @@ jobs:
           import re
           import sys
           import xml.etree.ElementTree as ET
-          
+
           # Fixed 11-class, 69-method census, compared to pinned source identities.
           fixtures = {'tests/Feature/MobilePushRecipientOwnershipB909Test.php': 6, 'tests/Feature/MobilePushRevocationB910Test.php': 6, 'tests/Feature/MobilePushCategoryRevocationB911Test.php': 9, 'tests/Feature/MobilePushTokenRotationB912Test.php': 7, 'tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php': 10, 'tests/Feature/MobilePushPhase3BTest.php': 3, 'tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php': 9, 'tests/Feature/WarrantyExpiryDeliveryGuardTest.php': 7, 'tests/Unit/WarrantyExpiryOptInSourceTest.php': 3, 'tests/Feature/WarrantyFirstPaymentIssuance798Test.php': 6, 'tests/Feature/PaymentTransitionNotificationB902Test.php': 3}
           required_manifest_sha256 = "01fdcebe4e53839cecf64c6275c5a0c0715e13770fc45cb958cb30217ea187dc"
@@ -149,7 +140,7 @@ jobs:
           manifest = ("\n".join(sorted(expected)) + "\n").encode("utf-8")
           if hashlib.sha256(manifest).hexdigest() != required_manifest_sha256:
               raise SystemExit("HOLD_B932_PINNED_69_IDENTITIES_DRIFT")
-          
+
           path = pathlib.Path(sys.argv[1])
           xml = path.read_bytes()
           if b"<!DOCTYPE" in xml.upper() or b"<!ENTITY" in xml.upper():
