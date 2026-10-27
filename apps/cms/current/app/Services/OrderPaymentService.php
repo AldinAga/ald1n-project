@@ -199,7 +199,11 @@ final class OrderPaymentService
 
     public function verify(OrderPayment $payment, User $actor): OrderPayment
     {
-        $verified = DB::transaction(function () use ($payment, $actor): OrderPayment {
+        // B902: a retry of an already verified payment is not a new event.
+        // Keep the existing reconciliation path; suppress only duplicate notifications.
+        $transitioned = false;
+        $verified = DB::transaction(function () use ($payment, $actor, &$transitioned): OrderPayment {
+            $transitioned = false;
             /** @var OrderPayment $locked */
             $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
             /** @var Order $order */
@@ -211,10 +215,11 @@ final class OrderPaymentService
             $this->recalculateLocked($order);
             $this->audit->log('order.payment_verified', 'Verifikovana uplata '.$locked->payment_number, $locked, before: ['status' => 'submitted'], after: ['status' => 'verified'], user: $actor);
             $this->issuances->issueForVerifiedPaymentLocked($order, $locked, $actor);
+            $transitioned = true;
             return $locked;
         }, 5);
 
-        $this->notifyCustomer($verified, 'Uplata je potvrđena', 'Potvrda uplate '.$verified->payment_number.' je verifikovana.', 'success');
+        if ($transitioned) $this->notifyCustomer($verified, 'Uplata je potvrđena', 'Potvrda uplate '.$verified->payment_number.' je verifikovana.', 'success');
         $verified->loadMissing('order');
         if ($verified->order instanceof Order) $this->syncReceivable($verified->order);
         return $verified;
@@ -239,7 +244,10 @@ final class OrderPaymentService
 
     public function void(OrderPayment $payment, User $actor): OrderPayment
     {
-        $voided = DB::transaction(function () use ($payment, $actor): OrderPayment {
+        // B903: repeated void is idempotent, including buyer-facing delivery.
+        $transitioned = false;
+        $voided = DB::transaction(function () use ($payment, $actor, &$transitioned): OrderPayment {
+            $transitioned = false;
             /** @var OrderPayment $locked */
             $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
             /** @var Order $order */
@@ -250,9 +258,10 @@ final class OrderPaymentService
             $locked->update(['status' => 'voided', 'voided_by' => $actor->id, 'voided_at' => now()]);
             $this->recalculateLocked($order);
             $this->audit->log('order.payment_voided', 'Stornirana uplata '.$locked->payment_number, $locked, before: ['status' => 'verified'], after: ['status' => 'voided'], user: $actor);
+            $transitioned = true;
             return $locked;
         }, 5);
-        $this->notifyCustomer($voided, 'Uplata je stornirana', 'Finansijska stavka '.$voided->payment_number.' je stornirana.', 'warning');
+        if ($transitioned) $this->notifyCustomer($voided, 'Uplata je stornirana', 'Finansijska stavka '.$voided->payment_number.' je stornirana.', 'warning');
         $voided->loadMissing('order');
         if ($voided->order instanceof Order) $this->syncReceivable($voided->order);
         return $voided;
