@@ -174,6 +174,10 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame(1, $ready['recovered']);
         self::assertSame(3, $ready['manual_review_total']);
         self::assertSame(1, ProductWarranty::query()->where('order_id', $later->id)->count());
+        // Read-only operator health must HOLD on unresolved backlog.
+        $rc = \Illuminate\Support\Facades\Artisan::call('app:warranty-activation-recover', ['--limit' => 1]);
+        self::assertSame(1, $rc);
+        self::assertStringContainsString('manual_review_total=3', \Illuminate\Support\Facades\Artisan::output());
     }
 
     public function test_exhausted_retry_requires_manual_review_and_never_spins(): void

@@ -26,17 +26,18 @@ final class WarrantyActivationRecoveryCommand extends Command
         }
 
         $this->line(sprintf(
-            '%s mode=%s candidates=%d recovered=%d failed=%d deferred=%d manual_review=%d skipped=%d',
-            $result['failed'] || $result['manual_review'] ? 'HOLD' : 'PASS',
+            '%s mode=%s candidates=%d recovered=%d failed=%d deferred=%d manual_review=%d manual_review_total=%d skipped=%d',
+            $result['failed'] || $result['manual_review_total'] ? 'HOLD' : 'PASS',
             $result['mode'],
             $result['candidates'],
             $result['recovered'],
             $result['failed'],
             $result['deferred'],
             $result['manual_review'],
+            $result['manual_review_total'],
             $result['skipped'],
         ));
 
-        return $result['failed'] || $result['manual_review'] ? self::FAILURE : self::SUCCESS;
+        return $result['failed'] || $result['manual_review_total'] ? self::FAILURE : self::SUCCESS;
     }
 }
