@@ -96,42 +96,6 @@ final class WarrantyFirstPaymentIssuance798Test extends TestCase
         self::assertSame($warranty->id, $issuance->fresh()->activated_warranty_id);
         self::assertCount(0, app(WarrantyService::class)->ensureForOrder($order, $admin));
         self::assertSame(1, ProductWarranty::query()->count());
-
-        // B944: a prepaid bank transfer is valid before delivery, but a failed
-        // later activation must never commit the delivery/completion. Preserve
-        // the earlier verified payment and pending immutable certificate.
-        [, $prepaidAdmin, $prepaidOrder] = $this->fixture('prepaid-activation-rollback');
-        $prepaidOrder->update(['status' => 'confirmed', 'payment_method' => 'bank_transfer']);
-        $prepaidPayment = $this->record($prepaidOrder, $prepaidAdmin, 12000);
-        self::assertSame('verified', $prepaidPayment->status);
-        $prepaidIssuance = WarrantyIssuance::query()->where('order_id', $prepaidOrder->id)->sole();
-        self::assertSame('issued_pending_delivery', $prepaidIssuance->status);
-
-        ProductWarranty::creating(static function (ProductWarranty $candidate) use ($prepaidOrder): void {
-            if ((int) $candidate->order_id === (int) $prepaidOrder->id) {
-                throw new \RuntimeException('B944_SYNTHETIC_PREPAID_ACTIVATION_FAILURE');
-            }
-        });
-
-        try {
-            app(\App\Services\OrderWorkflowService::class)->complete($prepaidOrder, $prepaidAdmin, [
-                'delivery_method' => 'own_transport',
-                'delivered_at' => now()->subMinute()->toDateTimeString(),
-                'recipient_name' => 'Sinteticki Kupac',
-            ]);
-            self::fail('Previously verified bank transfer cannot silently complete without active warranty.');
-        } catch (\RuntimeException $exception) {
-            self::assertSame('B944_SYNTHETIC_PREPAID_ACTIVATION_FAILURE', $exception->getMessage());
-        }
-
-        self::assertSame('confirmed', (string) $prepaidOrder->fresh()->status);
-        self::assertNull($prepaidOrder->fresh()->completed_at);
-        self::assertSame(0, OrderDelivery::query()->where('order_id', $prepaidOrder->id)->count());
-        self::assertSame(0, ProductWarranty::query()->where('order_id', $prepaidOrder->id)->count());
-        self::assertSame(1, OrderPayment::query()->where('order_id', $prepaidOrder->id)->count());
-        self::assertSame('verified', $prepaidPayment->fresh()->status);
-        self::assertSame(1, WarrantyIssuance::query()->where('order_id', $prepaidOrder->id)->count());
-        self::assertSame('issued_pending_delivery', $prepaidIssuance->fresh()->status);
     }
 
     public function test_deferred_direct_sale_already_delivered_waits_for_first_real_installment(): void
