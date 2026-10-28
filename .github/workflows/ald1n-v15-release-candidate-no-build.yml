@@ -33,7 +33,7 @@ jobs:
           const c=require('fs').readFileSync('app.config.js','utf8');
           const eas=require('./eas.json');
           const pkg=require('./package.json');
-          if(!c.includes("version: '1.5.0'") || !c.includes("'1.5.0-native1'"))process.exit(1);
+          if(!c.includes("version: '1.5.0'") || !c.includes("'1.5.0-native2'"))process.exit(1);
           if(!c.includes("LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD"))process.exit(2);
           if(eas.cli.appVersionSource!=='remote'||eas.build.production.channel!=='production')process.exit(3);
           if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(4);
