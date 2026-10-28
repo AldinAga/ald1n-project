@@ -80,7 +80,7 @@ jobs:
           git diff --check "$BASE" HEAD
           test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "f0e304b2461c46bbef1ae39c6f43b8d58fc7c656"
           test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "b10d9ae1c9796c27fac1703a3f758106bd83ebfd"
-          test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = "fd1a1c77d649c884a62cce238aaac4f1c8419fdf"
+          test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = "3cb30d0375ecea27f4b309e82cd80a4cce914907"
           test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "7701ccdb958a59adcd78f41843f478d29fa8e2df"
           test "$(git hash-object apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php)" = "f7c566a0146953c98aed513206ec06dbd8bcf4b5"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
@@ -89,7 +89,7 @@ jobs:
           php-version: '8.4'
           extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
           coverage: none
-      - name: PHP 8.4 lint, seven recovery cases, two disposable concurrency/SMTP checks
+      - name: PHP 8.4 lint, seven recovery cases, three disposable concurrency/SMTP checks
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -115,7 +115,7 @@ jobs:
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b949-integration-junit.xml" \
             tests/Integration/WarrantyActivationB949IntegrationTest.php
-      - name: Strict nine unique cases across source and real MariaDB/SMTP, no skips
+      - name: Strict ten unique cases across source and real MariaDB/SMTP, no skips
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -123,7 +123,7 @@ jobs:
           import pathlib, re, sys, xml.etree.ElementTree as ET
           paths = [
               ("tests/Feature/WarrantyActivationRecoveryB946Test.php", "WarrantyActivationRecoveryB946Test", 7),
-              ("tests/Integration/WarrantyActivationB949IntegrationTest.php", "WarrantyActivationB949IntegrationTest", 2),
+              ("tests/Integration/WarrantyActivationB949IntegrationTest.php", "WarrantyActivationB949IntegrationTest", 3),
           ]
           seen = set()
           for idx, (path, cls, count) in enumerate(paths):
@@ -141,9 +141,9 @@ jobs:
               if root.findall(".//failure") or root.findall(".//error") or root.findall(".//skipped") or root.findall(".//warning"):
                   raise SystemExit("HOLD_B949_FAILURE_ERROR_SKIP_OR_WARNING "+path)
               seen.update(pairs)
-          if len(seen) != 9:
+          if len(seen) != 10:
               raise SystemExit("HOLD_B949_DUPLICATE_CASES")
-          print("PASS_B949_EXACT_9_DISPOSABLE_MARIADB_SMTP_CASES")
+          print("PASS_B950_EXACT_10_DISPOSABLE_MARIADB_SMTP_CASES")
           PY
       - name: Evidence only, absolutely no deployment
         if: always()
