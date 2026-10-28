@@ -26,7 +26,7 @@ final class WarrantyActivationRecoveryService
 {
     public function __construct(private readonly WarrantyService $warranties) {}
 
-    /** @return array{mode:string,candidates:int,recovered:int,failed:int,deferred:int,manual_review:int,manual_review_total:int,skipped:int} */
+    /** @return array{mode:string,candidates:int,pending_total:int,recovered:int,failed:int,deferred:int,manual_review:int,manual_review_total:int,skipped:int} */
     public function run(int $limit = 25, bool $execute = false): array
     {
         $limit = max(1, min(50, $limit));
@@ -42,7 +42,7 @@ final class WarrantyActivationRecoveryService
 
         // Only existing numbered pending certificates for physically delivered,
         // completed orders. Neither a status change nor a newly issued number.
-        $query = WarrantyIssuance::query()
+        $pending = WarrantyIssuance::query()
             ->where('status', 'issued_pending_delivery')
             ->whereNull('activated_warranty_id')
             ->whereHas('order', static fn ($orders) => $orders
@@ -50,6 +50,11 @@ final class WarrantyActivationRecoveryService
                 ->where('status', '!=', 'cancelled')
                 ->whereNull('cancelled_at')
                 ->whereHas('delivery', static fn ($deliveries) => $deliveries->whereNotNull('delivered_at')));
+
+        // Count DISTINCT stranded orders, not certificate items; report the full
+        // backlog even when --limit hides later orders or retries are deferred.
+        $pendingTotal = (clone $pending)->distinct()->count('order_id');
+        $query = clone $pending;
 
         if ($execute) {
             // Exclude terminal/manual and future-due attempts BEFORE LIMIT.
@@ -70,7 +75,7 @@ final class WarrantyActivationRecoveryService
 
         $result = [
             'mode' => $execute ? 'gated_execute' : 'read_only',
-            'candidates' => $ids->count(),
+            'candidates' => $ids->count(), 'pending_total' => $pendingTotal,
             'recovered' => 0, 'failed' => 0, 'deferred' => 0,
             'manual_review' => 0, 'manual_review_total' => Schema::hasTable('warranty_activation_recovery_attempts')
                 ? WarrantyActivationRecoveryAttempt::query()->where('status', 'manual_review')->count() : 0,
@@ -92,6 +97,9 @@ final class WarrantyActivationRecoveryService
 
         $result['manual_review_total'] = WarrantyActivationRecoveryAttempt::query()
             ->where('status', 'manual_review')->count();
+        // An attempted recovery is not an all-clear when other issued pending
+        // certificates remain stranded, including future-due/manual rows.
+        $result['pending_total'] = (clone $pending)->distinct()->count('order_id');
         return $result;
     }
 
