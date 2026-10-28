@@ -103,7 +103,7 @@ final class WarrantyActivationRecoveryService
         return $result;
     }
 
-    /** @return 'recovered'|'manual_review'|'deferred'|'skipped' */
+    /** @return 'recovered'|'failed'|'manual_review'|'deferred'|'skipped' */
     private function attemptOrder(int $orderId): string
     {
         return DB::transaction(function () use ($orderId): string {
@@ -180,20 +180,35 @@ final class WarrantyActivationRecoveryService
                 }
             }
 
-            // The existing service retains the immutable number, snapshot and
-            // actual delivery-based start date. No new issuance is created.
-            $this->warranties->ensureForOrder($order->loadMissing('user'));
+            // Keep the OUTER order lock until the activation result AND the
+            // retry ledger state are both persisted. The nested transaction
+            // adds a savepoint: a failed activation or failed postcondition
+            // rolls back all attempted warranty/notification writes WITHOUT
+            // releasing the order lock to a second concurrent worker.
+            try {
+                DB::transaction(function () use ($order, $pending): void {
+                    // Retain the original certificate number, frozen terms and
+                    // actual delivery-based start date; never issue a new one.
+                    $this->warranties->ensureForOrder($order->loadMissing('user'));
 
-            foreach ($pending as $issuance) {
-                $fresh = $issuance->fresh();
-                $active = $fresh?->activatedWarranty;
-                if ($fresh?->status !== 'activated'
-                    || !$active instanceof ProductWarranty
-                    || $active->status !== 'active'
-                    || (int) $active->order_item_id !== (int) $issuance->order_item_id
-                    || (string) $active->warranty_number !== (string) $issuance->warranty_number) {
-                    throw new RuntimeException('B946_INCOMPLETE_ACTIVATION');
-                }
+                    foreach ($pending as $issuance) {
+                        $fresh = $issuance->fresh();
+                        $active = $fresh?->activatedWarranty;
+                        if ($fresh?->status !== 'activated'
+                            || !$active instanceof ProductWarranty
+                            || $active->status !== 'active'
+                            || (int) $active->order_item_id !== (int) $issuance->order_item_id
+                            || (string) $active->warranty_number !== (string) $issuance->warranty_number) {
+                            throw new RuntimeException('B946_INCOMPLETE_ACTIVATION');
+                        }
+                    }
+                });
+            } catch (Throwable $exception) {
+                // Write the retry/backoff while still owning the original
+                // InnoDB order row lock. Never release that lock between
+                // rollback and the durable retry record.
+                $this->recordFailure($orderId, $exception);
+                return 'failed';
             }
 
             $this->saveResolved($orderId, $record);
