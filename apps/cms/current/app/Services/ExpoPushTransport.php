@@ -12,14 +12,33 @@ use Throwable;
 
 final class ExpoPushTransport
 {
+    // Internal queued-row metadata; never forward this fingerprint to Expo.
+    public const DEVICE_TOKEN_HASH_KEY = '__ald1n_device_token_hash';
     /** @return array{status:'ok'|'retry'|'error',ticket_id?:string,error?:string,error_code?:string} */
     public function send(MobilePushOutbox $row): array
     {
         $device = $row->device()->first();
+        // A queued row must not follow a token moved to another user after enqueue.
+        // Use a distinct code so the new owner's device is never disabled.
+        if ($device !== null && (int) $device->user_id !== (int) $row->user_id) {
+            return ['status' => 'error', 'error' => 'Push uređaj ne pripada primaocu poruke.', 'error_code' => 'RecipientDeviceMismatch'];
+        }
         $token = trim((string) ($device?->push_token ?? ''));
         if ($device === null || !$device->isActive() || !$device->notifications_enabled || $device->push_provider !== 'expo' || $token === '') {
             return ['status' => 'error', 'error' => 'Push uređaj više nije aktivan ili nema Expo token.', 'error_code' => 'DeviceNotRegistered'];
         }
+
+        $payloadData = is_array($row->data_json) ? $row->data_json : [];
+        if (array_key_exists(self::DEVICE_TOKEN_HASH_KEY, $payloadData)) {
+            $queuedTokenHash = $payloadData[self::DEVICE_TOKEN_HASH_KEY];
+            if (!is_string($queuedTokenHash)
+                || !preg_match('/^[a-f0-9]{64}$/D', $queuedTokenHash)
+                || !hash_equals($queuedTokenHash, (string) ($device->push_token_hash ?? ''))) {
+                return ['status' => 'error', 'error' => 'Token uredjaja je zamenjen nakon zakazivanja poruke.', 'error_code' => 'DeviceTokenChanged'];
+            }
+        }
+        // The hash stays in the database only; it is not customer/device payload.
+        unset($payloadData[self::DEVICE_TOKEN_HASH_KEY]);
 
         if (!preg_match('/^(Expo|Exponent)PushToken\[[^\]]+\]$/', $token)) {
             return ['status' => 'error', 'error' => 'Sačuvani Expo push token nema očekivani format.', 'error_code' => 'DeviceNotRegistered'];
@@ -32,7 +51,7 @@ final class ExpoPushTransport
             'sound' => 'default',
             'channelId' => 'business-updates',
             'priority' => 'high',
-            'data' => is_array($row->data_json) ? $row->data_json : [],
+            'data' => $payloadData,
         ];
 
         try {

@@ -47,16 +47,45 @@ final class MobilePushDispatcher
             $row->refresh();
             $result['processed']++;
             try {
-                // Re-check expiry consent at send time: a queued push cannot outlive opt-out.
+                // B910: re-authorize the live recipient and global push consent
+                // for ALL queued events, not only warranty expiry notifications.
+                $user = User::query()->find($row->user_id);
+                if (!$user instanceof User || $user->status !== 'active' || $user->retired_at !== null) {
+                    $this->fail($row, 'Push primalac vise nema aktivan nalog.');
+                    $result['failed']++;
+                    continue;
+                }
+                $preference = $user->notificationPreference()->first();
+                if ($preference?->push_enabled !== true) {
+                    $this->fail($row, 'Push je iskljucen pre slanja.');
+                    $result['failed']++;
+                    continue;
+                }
+                // The expiry-specific opt-in remains independent from normal
+                // warranty updates. For all OTHER events, a category opt-out
+                // must cancel an already queued message as well.
                 $event = (string) ($row->event ?? '');
-                if (str_contains($event, 'warranty') && (str_contains($event, 'expiry') || str_contains($event, 'expir'))) {
-                    $user = User::query()->find($row->user_id);
+                $isWarrantyExpiry = str_contains($event, 'warranty')
+                    && (str_contains($event, 'expiry') || str_contains($event, 'expir'));
+                if ($isWarrantyExpiry) {
                     $warrantyId = filter_var($row->data_json['warranty_id'] ?? null, FILTER_VALIDATE_INT);
                     $warranty = $warrantyId ? ProductWarranty::query()->find($warrantyId) : null;
-                    if (!$user instanceof User || !$warranty instanceof ProductWarranty
-                        || !$this->expiryPolicy->allows($warranty, $user)
-                        || !(bool) ($user->notificationPreference()->first()?->push_enabled ?? false)) {
+                    if (!$warranty instanceof ProductWarranty
+                        || !$this->expiryPolicy->allows($warranty, $user)) {
                         $this->fail($row, 'Opozvana saglasnost ili pristup garanciji pre push slanja.');
+                        $result['failed']++;
+                        continue;
+                    }
+                } else {
+                    $category = PushEventCategory::fromEvent($event);
+                    if ($preference->{$category} !== true) {
+                        $this->fail($row, 'Kategorija obavestenja je iskljucena pre push slanja.');
+                        $result['failed']++;
+                        continue;
+                    }
+                    if ($event === 'order.shipment_tracking'
+                        && $preference->shipment_tracking_channel === 'email') {
+                        $this->fail($row, 'Push pracenje posiljke je iskljuceno pre slanja.');
                         $result['failed']++;
                         continue;
                     }
@@ -76,7 +105,7 @@ final class MobilePushDispatcher
                 }
 
                 if (($outcome['error_code'] ?? null) === 'DeviceNotRegistered') {
-                    $this->disableDevice($row->mobile_device_id);
+                    $this->disableDevice($row->mobile_device_id, $row->user_id, $this->deviceSnapshot($row));
                 }
 
                 if ($outcome['status'] === 'retry') {
@@ -167,7 +196,7 @@ final class MobilePushDispatcher
             $code = trim((string) ($receipt['details']['error'] ?? ''));
             $message = trim((string) ($receipt['message'] ?? ($code !== '' ? $code : 'Expo Push receipt je vratio grešku.')));
             if ($code === 'DeviceNotRegistered') {
-                $this->disableDevice($row->mobile_device_id);
+                $this->disableDevice($row->mobile_device_id, $row->user_id, $this->deviceSnapshot($row));
             }
             if ($code === 'MessageRateExceeded' && $this->retryFromReceipt($row, $message)) {
                 $result['retried']++;
@@ -255,12 +284,32 @@ final class MobilePushDispatcher
         ])->save();
     }
 
-    private function disableDevice(?int $deviceId): void
+    // Receipt may arrive after a token changes on the same device/user.
+    // Legacy rows without a snapshot retain the previously accepted behavior.
+    private function deviceSnapshot(MobilePushOutbox $row): ?string
     {
-        if (!$deviceId) {
+        $data = $row->data_json;
+        if (!is_array($data) || !array_key_exists(ExpoPushTransport::DEVICE_TOKEN_HASH_KEY, $data)) {
+            return null;
+        }
+
+        return is_string($data[ExpoPushTransport::DEVICE_TOKEN_HASH_KEY])
+            ? $data[ExpoPushTransport::DEVICE_TOKEN_HASH_KEY]
+            : ''; // Invalid metadata: never disable a potentially refreshed token.
+    }
+
+    private function disableDevice(?int $deviceId, ?int $recipientId, ?string $tokenHash = null): void
+    {
+        if (!$deviceId || !$recipientId) {
             return;
         }
-        MobileDevice::query()->whereKey($deviceId)->update([
+        // A stale receipt must never clear the token of a reassigned device.
+        $query = MobileDevice::query()->whereKey($deviceId)->where('user_id', $recipientId);
+        if ($tokenHash !== null) {
+            if (!preg_match('/^[a-f0-9]{64}$/D', $tokenHash)) return;
+            $query->where('push_token_hash', $tokenHash);
+        }
+        $query->update([
             'push_provider' => null,
             'push_token' => null,
             'push_token_hash' => null,

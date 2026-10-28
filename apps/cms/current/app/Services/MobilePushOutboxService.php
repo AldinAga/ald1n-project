@@ -23,7 +23,7 @@ final class MobilePushOutboxService
             ->where('push_provider', 'expo')
             ->whereNotNull('push_token_hash')
             ->orderBy('id')
-            ->get(['id']);
+            ->get(['id', 'push_token_hash']);
 
         if ($devices->isEmpty()) {
             return 0;
@@ -42,7 +42,10 @@ final class MobilePushOutboxService
                 'event' => $this->nullableText($data['event'] ?? null, 120),
                 'title' => Str::limit($title !== '' ? $title : 'Ald1n CMS', 180, ''),
                 'message' => Str::limit($message !== '' ? $message : 'Imate novo poslovno obaveštenje.', 1200, ''),
-                'data_json' => $payload,
+                // Keep the exact device-token fingerprint server-side for delayed receipts.
+                'data_json' => array_replace($payload, [
+                    ExpoPushTransport::DEVICE_TOKEN_HASH_KEY => (string) $device->push_token_hash,
+                ]),
                 'status' => 'pending',
                 'scheduled_for' => now(),
             ]);

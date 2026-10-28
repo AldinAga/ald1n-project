@@ -38,6 +38,7 @@ final class OrderWorkflowService
         private readonly OrderFinancialStateService $financial,
         private readonly OrderFinancialReconciliationService $reconciliation,
         private readonly WarrantyService $warranties,
+        private readonly WarrantyIssuanceService $issuances,
         private readonly OrderEmailOutboxService $emails,
         private readonly OrderVersionService $versions,
     ) {}
@@ -349,6 +350,12 @@ final class OrderWorkflowService
                         'verified_by' => $actor->id,
                         'verified_at' => now(),
                     ]);
+                    // COD becomes a genuine confirmed positive payment ONLY
+                    // when an authorized operator records physical delivery.
+                    // Issue the one immutable, numbered R4 certificate inside
+                    // this same transaction; no successful COD receipt may commit
+                    // while its required issuance ledger write fails.
+                    $this->issuances->issueForVerifiedPaymentLocked($locked, $payment, $actor);
                     $paymentNumber = (string) $payment->payment_number;
                     $net = round($net + $remaining, 2);
                 }
@@ -391,6 +398,13 @@ final class OrderWorkflowService
                     metadata: ['note' => $completionNote !== '' ? $completionNote : null],
                     user: $actor,
                 );
+
+                // B943: COD payment, physical delivery and warranty activation
+                // must either all commit or all roll back. A post-commit warning
+                // alone would leave a completed paid order without active cover.
+                if ($paymentNumber !== null) {
+                    $this->warranties->ensureForOrder($locked, $actor);
+                }
 
                 return $locked->fresh(['user', 'supplier', 'completedBy', 'delivery.confirmer']) ?? $locked;
             }, 5);
