@@ -1,3 +1,9 @@
+# CURRENT B963 R4 — Android M16 PR116 source + exact-head native CI running (2026-10-28)
+
+[PR116](https://github.com/AldinAga/ald1n-project/pull/116) DRAFT on current-main base; HEAD `18315a52a7c25e4bdf244d7613d2b8b447bc1706`. PR82 diverged history was NOT merged. B963 now includes nativegauss 0.2.1 pinned package/package-lock, vetted JitPack AAR v2.0.11 Gradle root config, exact production EAS app-bundle type, APK/AAB/ELF/emulator tests and CI, preserving LG04, normal app1.0.0/runtime1.0.0-build17, gated app1.5.0/runtime1.5.0-native2. Scope-only repair in `scripts/validate-project.mjs` updates two historical literal version checks to assert default+release-gated source. Earlier PR116 test failures were traced to differences in current-main release metadata and old validator version assumptions, not masked. New exact-HEAD CI: native run `40783181124`, release candidate `40783181092`, signed source `40783181192`, emulator `40783181084`, integrated MariaDB `40783181118`, Laravel ancestor-gate `40783181132`; queued/running latest, **NOT VERIFIED PASS**. Prior signed-AAB source gate PASS run `40783016395`, not final-HEAD substitute. Original B962 CloudLinux Laravel real production PASS persists; no EAS, signed AAB, Play, OTA, new production deployment; SDK58 HOLD.
+
+---
+
 # CURRENT B963 R3 — Android M16 reconciled source PR116, exact-head CI running (2026-10-28)
 
 PR [#116](https://github.com/AldinAga/ald1n-project/pull/116) remains DRAFT. Exact source HEAD `c73418633cdc9e7dffea1c709e92582705003ca7` on `feat/b963-android-m16-main-reconcile`. PR82 was NOT merged/rebased blindly. Native Gradle verified `v2.0.11`, added required `react-native-android-liquid-glass@0.2.1` in package and lock, production EAS `android.buildType=app-bundle`, preserved original mobile runtime 1.0.0-build17 by default, and proposed 1.5.0-native2 only via approved production gate. 16KB APK/AAB/ELF/emulator and release QA are source-only CI, no EAS/Play.
