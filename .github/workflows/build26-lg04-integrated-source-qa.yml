@@ -1,0 +1,55 @@
+name: Build26 LG04 Waves1-4 integrated source and bundle QA (NO BUILD)
+on:
+  push:
+    branches:
+      - integration/build26-lg04-waves1-4-current-main-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/**'
+      - '.github/workflows/build26-lg04-integrated-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  integrated-source-and-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: preview
+    steps:
+      - name: Exact commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Locked dependencies
+        working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - name: LG04 source, runtime and regression gates
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --test scripts/release25/build26-native-foundation-main-contract.test.mjs
+          node --test scripts/release25/android-lg04-header-accessibility.test.mjs
+          node --test scripts/release25/android-lg04-catalog-motion-and-readability.test.mjs
+          node --test scripts/release25/android-lg04-sheets-motion-and-confirmation.test.mjs
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - name: Bundle-only Android export, no OTA
+        env:
+          ALD1N_LG03_NATIVE_UAT: '1'
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npx expo export --platform android --output-dir "$RUNNER_TEMP/build26-lg04-android-export"
+          test -d "$RUNNER_TEMP/build26-lg04-android-export"
+      - name: No EAS build and no release
+        if: always()
+        run: |
+          echo 'BUILD26_INTEGRATED_SOURCE_QA_ONLY=YES'
+          echo 'EAS_BUILD=NONE OTA=NONE GOOGLE_PLAY=NONE PROD_CMS_DB_MUTATION=NONE'
