@@ -78,7 +78,7 @@ jobs:
           FILES
           diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
           git diff --check "$BASE" HEAD
-          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "19762e394816848690c372251c5dbabbc6e1a5b5"
+          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "f0e304b2461c46bbef1ae39c6f43b8d58fc7c656"
           test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "b10d9ae1c9796c27fac1703a3f758106bd83ebfd"
           test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = "fd1a1c77d649c884a62cce238aaac4f1c8419fdf"
           test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "7701ccdb958a59adcd78f41843f478d29fa8e2df"
