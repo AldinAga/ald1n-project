@@ -46,6 +46,10 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         $summary = $service->run(25, false);
         self::assertSame('read_only', $summary['mode']);
         self::assertSame(1, $summary['candidates']);
+        self::assertSame(1, $summary['pending_total']);
+        $rc = \Illuminate\Support\Facades\Artisan::call('app:warranty-activation-recover', ['--limit' => 1]);
+        self::assertSame(1, $rc);
+        self::assertStringContainsString('pending_total=1', \Illuminate\Support\Facades\Artisan::output());
         self::assertSame(0, WarrantyActivationRecoveryAttempt::query()->count());
         self::assertSame(0, ProductWarranty::query()->count());
         try {
@@ -72,6 +76,7 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         $first = $service->run(25, true);
         self::assertSame(1, $first['recovered']);
         self::assertSame(0, $first['failed']);
+        self::assertSame(0, $first['pending_total']);
         $warranty = ProductWarranty::query()->sole();
         self::assertSame($number, $warranty->warranty_number);
         self::assertSame($terms, $warranty->terms_snapshot);
@@ -103,6 +108,11 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame(1, $retry->attempt_count);
         self::assertSame('RuntimeException', $retry->last_error_code);
         self::assertTrue($retry->next_attempt_at->isFuture());
+        self::assertSame(1, $first['pending_total']);
+        // Backoff must not make an unresolved certificate invisible to operators.
+        $rc = \Illuminate\Support\Facades\Artisan::call('app:warranty-activation-recover', ['--limit' => 1]);
+        self::assertSame(1, $rc);
+        self::assertStringContainsString('pending_total=1', \Illuminate\Support\Facades\Artisan::output());
         self::assertSame(0, ProductWarranty::query()->count());
         self::assertSame('issued_pending_delivery', WarrantyIssuance::query()->sole()->status);
 
@@ -151,6 +161,7 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         config()->set('warranty_recovery.enabled', true);
         $result = app(WarrantyActivationRecoveryService::class)->run(25, true);
         self::assertSame(3, $result['manual_review']);
+        self::assertSame(3, $result['pending_total']);
         self::assertSame(0, $result['recovered']);
         self::assertSame(0, ProductWarranty::query()->count());
         self::assertSame(3, WarrantyIssuance::query()->count());
@@ -173,6 +184,7 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame(1, $ready['candidates']);
         self::assertSame(1, $ready['recovered']);
         self::assertSame(3, $ready['manual_review_total']);
+        self::assertSame(3, $ready['pending_total']);
         self::assertSame(1, ProductWarranty::query()->where('order_id', $later->id)->count());
         // Read-only operator health must HOLD on unresolved backlog.
         $rc = \Illuminate\Support\Facades\Artisan::call('app:warranty-activation-recover', ['--limit' => 1]);
@@ -194,7 +206,9 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame('manual_review', $record->status);
         self::assertSame(2, $record->attempt_count);
         self::assertNull($record->next_attempt_at);
-        self::assertSame(1, $service->run(25, true)['manual_review_total']);
+        $unresolved = $service->run(25, true);
+        self::assertSame(1, $unresolved['manual_review_total']);
+        self::assertSame(1, $unresolved['pending_total']);
         self::assertSame(2, $record->fresh()->attempt_count);
         self::assertSame(0, ProductWarranty::query()->count());
     }
