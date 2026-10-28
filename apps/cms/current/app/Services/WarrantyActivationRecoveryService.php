@@ -128,6 +128,14 @@ final class WarrantyActivationRecoveryService
                 ->lockForUpdate()->get();
             if ($pending->isEmpty()) return 'skipped';
 
+            // Issue #114 repairs previously verified bank transfers only.
+            // A COD completion must have atomically activated its warranty in
+            // PR113; an inconsistent delivered COD record needs manual review,
+            // never a replay of a potentially half-committed payment flow.
+            if ((string) $order->payment_method !== 'bank_transfer') {
+                return $this->manualReview($orderId, $record, 'UNSUPPORTED_RECOVERY_PAYMENT_METHOD');
+            }
+
             // Fail closed for refunds: a disputed transaction needs a person.
             if (OrderPayment::query()->where('order_id', $orderId)
                 ->where('entry_type', 'refund')->where('status', 'verified')->exists()) {
