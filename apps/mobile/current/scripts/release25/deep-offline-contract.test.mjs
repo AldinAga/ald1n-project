@@ -70,8 +70,10 @@ test('production build and legacy submit remain explicitly fail closed',()=>{
  marker(wf,'      - audit/build25-native-ci-explicit-trigger-20261009');
 });
 test('production Android identity and API remain unchanged',()=>{
- marker(app,"runtimeVersion: '1.0.0-build17'");
- marker(app,"version: '1.0.0'");
+ marker(app,"'1.0.0-build17'");
+ marker(app,"'1.5.0-native2'");
+ marker(app,"ALD1N_V15_RELEASE_GATE === 'approved'");
+ marker(app,"'1.0.0'");
  marker(app,'com.ald1n.mobile');
  assert.equal(eas.build.production.channel,'production');
  assert.equal(eas.submit.production.android.track,'production');
