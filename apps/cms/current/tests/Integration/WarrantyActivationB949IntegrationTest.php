@@ -102,6 +102,68 @@ final class WarrantyActivationB949IntegrationTest extends TestCase
         self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count());
     }
 
+    public function test_two_failed_workers_are_bounded_to_one_retry_when_same_order_fails(): void
+    {
+        $order = $this->paidAndDelivered('concurrent-failure');
+        $orderId = (int) $order->id;
+
+        // Disposable CI MariaDB only: database-injected failure is shared by
+        // both real PHP processes, unlike PHPUnit in-process model listeners.
+        DB::unprepared("CREATE TRIGGER b950_recovery_fail BEFORE INSERT ON product_warranties "
+            ."FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'B950_SYNTHETIC_ACTIVATION_FAILURE'");
+
+        $workers = [];
+        try {
+            DB::beginTransaction();
+            try {
+                Order::query()->whereKey($orderId)->lockForUpdate()->firstOrFail();
+                for ($i = 0; $i < 2; $i++) {
+                    $worker = new Process(
+                        [PHP_BINARY, base_path('artisan'), 'app:warranty-activation-recover', '--execute', '--limit=1'],
+                        base_path(),
+                        [
+                            'APP_ENV' => 'testing',
+                            'WARRANTY_ACTIVATION_RECOVERY_ENABLED' => 'true',
+                            'WARRANTY_ACTIVATION_RECOVERY_ALERTS_ENABLED' => 'false',
+                            'MAIL_MAILER' => 'array',
+                            'QUEUE_CONNECTION' => 'sync',
+                        ],
+                    );
+                    $worker->setTimeout(40);
+                    $worker->start();
+                    $workers[] = $worker;
+                }
+                usleep(1000000);
+                self::assertTrue($workers[0]->isRunning(), 'First failing worker must wait for lock.');
+                self::assertTrue($workers[1]->isRunning(), 'Second failing worker must wait for lock.');
+            } finally {
+                DB::commit();
+            }
+
+            foreach ($workers as $worker) {
+                $worker->wait();
+                // A pending warranty is a nonzero HOLD, not a command success.
+                self::assertSame(1, $worker->getExitCode(), $worker->getErrorOutput().' '.$worker->getOutput());
+            }
+            self::assertSame(0, ProductWarranty::query()->where('order_id', $orderId)->count());
+            self::assertSame('issued_pending_delivery',
+                WarrantyIssuance::query()->where('order_id', $orderId)->sole()->status);
+            $attempt = WarrantyActivationRecoveryAttempt::query()->where('order_id', $orderId)->sole();
+            // A simultaneous failed event must consume one bounded retry slot,
+            // not two, and the next retry must wait for the durable backoff.
+            self::assertSame(1, $attempt->attempt_count);
+            self::assertSame('retrying', $attempt->status);
+            self::assertTrue($attempt->next_attempt_at->isFuture());
+        } finally {
+            foreach ($workers as $worker) {
+                if ($worker->isRunning()) {
+                    $worker->stop(1);
+                }
+            }
+            DB::unprepared('DROP TRIGGER IF EXISTS b950_recovery_fail');
+        }
+    }
+
     public function test_real_local_smtp_transport_captures_only_aggregate_operator_alert(): void
     {
         $order = $this->paidAndDelivered('smtp');
