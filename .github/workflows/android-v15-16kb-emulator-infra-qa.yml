@@ -1,0 +1,56 @@
+name: Android v1.5 16KB emulator infrastructure smoke (NO APK BUILD)
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs'
+      - 'apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs'
+      - '.github/workflows/android-v15-16kb-emulator-infra-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b837-emulator-infra-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  kernel-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PR source, no write credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Node 22 regression tests
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Fail-closed stage regression suite
+        run: |
+          set -euo pipefail
+          node --test apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
+      - name: Ensure isolated KVM
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+      - name: Real Android 15 x86_64 16KB emulator, NO APP INSTALL
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          profile: pixel_7_pro
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
+          disable-animations: true
+          script: |
+            set -eu
+            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --preflight-only
+            echo 'B837_REAL_16KB_EMULATOR_OFFLINE_INFRA=PASS_INFRA_ONLY_NOT_APP_UAT'
+      - name: Enforce no release side effects
+        if: always()
+        run: |
+          echo 'NO_APP_BUILD=YES'
+          echo 'NO_SIGNING=YES'
+          echo 'NO_EAS_OTA_PLAY_CLOUDLINUX=YES'
+          echo 'NO_ANDROID_APP_LAUNCH_OR_UAT_CLAIM=YES'
