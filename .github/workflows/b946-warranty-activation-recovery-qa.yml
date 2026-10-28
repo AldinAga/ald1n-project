@@ -80,7 +80,7 @@ jobs:
           git diff --check "$BASE" HEAD
           test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "8e00572ff1ebee5bb25e31fa33db9c5cd00060e4"
           test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "b10d9ae1c9796c27fac1703a3f758106bd83ebfd"
-          test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = "3cb30d0375ecea27f4b309e82cd80a4cce914907"
+          test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = "a78b8f520b593f01c5ddb6cf594f83f646625f89"
           test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "7701ccdb958a59adcd78f41843f478d29fa8e2df"
           test "$(git hash-object apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php)" = "f7c566a0146953c98aed513206ec06dbd8bcf4b5"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
@@ -89,7 +89,7 @@ jobs:
           php-version: '8.4'
           extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
           coverage: none
-      - name: PHP 8.4 lint, seven recovery cases, three disposable concurrency/SMTP checks
+      - name: PHP 8.4 lint, seven recovery cases, four disposable concurrency/SMTP checks
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -115,7 +115,7 @@ jobs:
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b949-integration-junit.xml" \
             tests/Integration/WarrantyActivationB949IntegrationTest.php
-      - name: Strict ten unique cases across source and real MariaDB/SMTP, no skips
+      - name: Strict eleven unique cases across source and real MariaDB/SMTP, no skips
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -123,7 +123,7 @@ jobs:
           import pathlib, re, sys, xml.etree.ElementTree as ET
           paths = [
               ("tests/Feature/WarrantyActivationRecoveryB946Test.php", "WarrantyActivationRecoveryB946Test", 7),
-              ("tests/Integration/WarrantyActivationB949IntegrationTest.php", "WarrantyActivationB949IntegrationTest", 3),
+              ("tests/Integration/WarrantyActivationB949IntegrationTest.php", "WarrantyActivationB949IntegrationTest", 4),
           ]
           seen = set()
           for idx, (path, cls, count) in enumerate(paths):
@@ -141,9 +141,9 @@ jobs:
               if root.findall(".//failure") or root.findall(".//error") or root.findall(".//skipped") or root.findall(".//warning"):
                   raise SystemExit("HOLD_B949_FAILURE_ERROR_SKIP_OR_WARNING "+path)
               seen.update(pairs)
-          if len(seen) != 10:
+          if len(seen) != 11:
               raise SystemExit("HOLD_B949_DUPLICATE_CASES")
-          print("PASS_B950_EXACT_10_DISPOSABLE_MARIADB_SMTP_CASES")
+          print("PASS_B951_EXACT_11_DISPOSABLE_MARIADB_SMTP_CASES")
           PY
       - name: B950 disposable exact-source cross-PR113 plus PR115 integration, no merge
         run: |
@@ -192,12 +192,12 @@ jobs:
           curl --fail --silent --show-error -X DELETE http://127.0.0.1:8025/api/v1/messages \
             > "$RUNNER_TEMP/b950-mailpit-reset.txt"
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
-            --log-junit "$RUNNER_TEMP/b950-joined-integration3-junit.xml" \
+            --log-junit "$RUNNER_TEMP/b951-joined-integration4-junit.xml" \
             tests/Integration/WarrantyActivationB949IntegrationTest.php
-          python3 - "$RUNNER_TEMP/b950-pr113-69-junit.xml" "$RUNNER_TEMP/b950-joined-recovery7-junit.xml" "$RUNNER_TEMP/b950-joined-integration3-junit.xml" <<'PY'
+          python3 - "$RUNNER_TEMP/b950-pr113-69-junit.xml" "$RUNNER_TEMP/b950-joined-recovery7-junit.xml" "$RUNNER_TEMP/b951-joined-integration4-junit.xml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
-          expect = (69, 7, 3)
+          expect = (69, 7, 4)
           identities = set()
           for xmlpath, count in zip(sys.argv[1:], expect):
               root = ET.parse(xmlpath).getroot()
@@ -210,9 +210,9 @@ jobs:
               if any(not c or not n for c, n in pairs):
                   raise SystemExit("HOLD_B950_COMBINED_IDENTITY:" + xmlpath)
               identities.update(pairs)
-          if len(identities) != 79:
+          if len(identities) != 80:
               raise SystemExit("HOLD_B950_COMBINED_DUPLICATE_IDENTITIES")
-          print("PASS_B950_DISPOSABLE_PR113_PLUS_PR115_EXACT_79_CASES")
+          print("PASS_B951_DISPOSABLE_PR113_PLUS_PR115_EXACT_80_CASES")
           PY
           echo B950_SYNTHETIC_CROSS_PR_ONLY_NO_MAIN_MERGE_NO_DEPLOYMENT
       - name: Evidence only, absolutely no deployment
@@ -226,7 +226,7 @@ jobs:
             ${{ runner.temp }}/b949-mailpit-before.json
             ${{ runner.temp }}/b950-pr113-69-junit.xml
             ${{ runner.temp }}/b950-joined-recovery7-junit.xml
-            ${{ runner.temp }}/b950-joined-integration3-junit.xml
+            ${{ runner.temp }}/b951-joined-integration4-junit.xml
             ${{ runner.temp }}/b950-overlay-paths.txt
             ${{ runner.temp }}/b950-overlap.txt
             .github/workflows/b946-warranty-activation-recovery-qa.yml
