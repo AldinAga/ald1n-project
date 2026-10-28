@@ -33,8 +33,14 @@ jobs:
           const c=require('fs').readFileSync('app.config.js','utf8');
           const eas=require('./eas.json');
           const pkg=require('./package.json');
-          if(!c.includes("version: '1.5.0'") || !c.includes("'1.5.0-native2'"))process.exit(1);
-          if(!c.includes("LG03_DRAFT_NATIVE_MODULE_FORBIDS_PRODUCTION_EAS_BUILD"))process.exit(2);
+          if(!c.includes("ALD1N_V15_RELEASE_GATE === 'approved'"))process.exit(1);
+          const previous={app:process.env.EXPO_PUBLIC_APP_ENV,profile:process.env.EAS_BUILD_PROFILE,gate:process.env.ALD1N_V15_RELEASE_GATE};
+          process.env.EXPO_PUBLIC_APP_ENV='production';process.env.EAS_BUILD_PROFILE='production';delete process.env.ALD1N_V15_RELEASE_GATE;
+          const config=require('./app.config.js');
+          const def=config({config:{}});
+          process.env.ALD1N_V15_RELEASE_GATE='approved';
+          const approved=config({config:{}});
+          if(def.version!=='1.0.0'||def.runtimeVersion!=='1.0.0-build17'||approved.version!=='1.5.0'||approved.runtimeVersion!=='1.5.0-native2')process.exit(2);
           if(eas.cli.appVersionSource!=='remote'||eas.build.production.channel!=='production')process.exit(3);
           if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(4);
           console.log('V15_SOURCE_CONTRACT=PASS; EAS_BUILD=NONE');
