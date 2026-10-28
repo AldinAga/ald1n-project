@@ -84,10 +84,18 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertSame(1, $noExplicitAlert);
         Mail::assertNothingSent();
 
+        // Raw mail is not counted as a conventional Mailable by MailFake:
+        // assert the explicit transport boundary was invoked exactly once.
+        Mail::shouldReceive('raw')->once()->withArgs(static function ($text, $callback): bool {
+            return is_string($text)
+                && str_contains($text, 'Pending orders: 1')
+                && str_contains($text, 'manual review: 0')
+                && !str_contains($text, 'B946-operator-alert')
+                && is_callable($callback);
+        });
         $withAlert = \Illuminate\Support\Facades\Artisan::call('app:warranty-activation-recover', ['--alert' => true]);
         self::assertSame(1, $withAlert);
         self::assertStringContainsString('ALERT_DISPATCH_REQUESTED', \Illuminate\Support\Facades\Artisan::output());
-        Mail::assertSentCount(1);
     }
 
     public function test_enabled_recovery_activates_existing_number_once_with_delivery_date_and_frozen_terms(): void
