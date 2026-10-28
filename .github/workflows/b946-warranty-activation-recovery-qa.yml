@@ -72,17 +72,17 @@ jobs:
           FILES
           diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
           git diff --check "$BASE" HEAD
-          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "cd0a1ed8f92b892873f12de4195ee4c45fa68f99"
-          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "6407d69e9d08e65bdf124ff707369502f0cb04bb"
-          test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "867855218f4907c8a4b861c69b91af473f990d07"
-          test "$(git hash-object apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php)" = "3cc3bc6763822a0cd637adab1b7522e7bae7e1fc"
+          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = "19762e394816848690c372251c5dbabbc6e1a5b5"
+          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "f8327449d49670dc79104f2d7bcec7e6ab4a0531"
+          test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "7701ccdb958a59adcd78f41843f478d29fa8e2df"
+          test "$(git hash-object apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php)" = "f7c566a0146953c98aed513206ec06dbd8bcf4b5"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
           extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
           coverage: none
-      - name: PHP 8.4 lint and exact five real MariaDB feature tests
+      - name: PHP 8.4 lint and exact six real MariaDB feature tests
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -102,7 +102,7 @@ jobs:
           vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
             --log-junit "$RUNNER_TEMP/b946-junit.xml" \
             --filter WarrantyActivationRecoveryB946Test
-      - name: Strict five unique real test identities, zero skips/errors/warnings
+      - name: Strict six unique real test identities, zero skips/errors/warnings
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -110,18 +110,18 @@ jobs:
           import pathlib, re, sys, xml.etree.ElementTree as ET
           source = pathlib.Path("tests/Feature/WarrantyActivationRecoveryB946Test.php").read_text()
           expected = set(re.findall(r"public function (test_[a-z0-9_]+)\(", source))
-          if len(expected) != 5:
+          if len(expected) != 6:
               raise SystemExit("HOLD_B946_SOURCE_TEST_IDENTITY")
           root = ET.parse(sys.argv[1]).getroot()
           cases = root.findall(".//testcase")
           pairs = [(x.attrib.get("classname", ""), x.attrib.get("name", "")) for x in cases]
-          if len(pairs) != 5 or len(set(pairs)) != 5 or {n for _, n in pairs} != expected:
-              raise SystemExit("HOLD_B946_JUNIT_CASES_NOT_EXACT_5")
+          if len(pairs) != 6 or len(set(pairs)) != 6 or {n for _, n in pairs} != expected:
+              raise SystemExit("HOLD_B948_JUNIT_CASES_NOT_EXACT_6")
           if any("WarrantyActivationRecoveryB946Test" not in c for c, _ in pairs):
               raise SystemExit("HOLD_B946_TEST_CLASS")
           if root.findall(".//failure") or root.findall(".//error") or root.findall(".//skipped") or root.findall(".//warning"):
               raise SystemExit("HOLD_B946_FAILURE_OR_WARNING")
-          print("PASS_B946_EXACT_5_MARIADB_CASES")
+          print("PASS_B948_EXACT_6_MARIADB_CASES")
           PY
       - name: Evidence only, absolutely no deployment
         if: always()
