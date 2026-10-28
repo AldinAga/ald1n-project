@@ -82,7 +82,7 @@ jobs:
           test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = "b10d9ae1c9796c27fac1703a3f758106bd83ebfd"
           test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = "a78b8f520b593f01c5ddb6cf594f83f646625f89"
           test "$(git hash-object apps/cms/current/config/warranty_recovery.php)" = "7701ccdb958a59adcd78f41843f478d29fa8e2df"
-          test "$(git hash-object apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php)" = "f7c566a0146953c98aed513206ec06dbd8bcf4b5"
+          test "$(git hash-object apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php)" = "7b8568f6fc548cfff9a0046f9564bb10561eefd6"
           test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/routes/console.php)"
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
