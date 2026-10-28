@@ -145,6 +145,76 @@ jobs:
               raise SystemExit("HOLD_B949_DUPLICATE_CASES")
           print("PASS_B950_EXACT_10_DISPOSABLE_MARIADB_SMTP_CASES")
           PY
+      - name: B950 disposable exact-source cross-PR113 plus PR115 integration, no merge
+        run: |
+          set -euo pipefail
+          BASE=252580c3d65b126c96709ae240d1e3f797d611f5
+          PR113=35f68ce8de7e351eaf94455469a36ccec65bc128
+          PR115=ee00d4de1752b0bff61462558c68224bf3d3314d
+          test "$(git rev-parse HEAD)" = "$PR115"
+          git cat-file -e "$PR113^{commit}"
+          test "$(git merge-base "$PR113" "$PR115")" = "$BASE"
+          test "$(git merge-base "$BASE" "$PR113")" = "$BASE"
+          cat > "$RUNNER_TEMP/b950-overlay-paths.txt" <<'FILES'
+          apps/cms/current/app/Console/Commands/WarrantyActivationRecoveryCommand.php
+          apps/cms/current/app/Models/WarrantyActivationRecoveryAttempt.php
+          apps/cms/current/app/Services/WarrantyActivationRecoveryService.php
+          apps/cms/current/config/warranty_recovery.php
+          apps/cms/current/database/migrations/2026_10_27_230000_create_warranty_activation_recovery_attempts.php
+          apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php
+          apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php
+          FILES
+          git diff --name-only "$BASE" "$PR113" | sort > "$RUNNER_TEMP/b950-pr113-files.txt"
+          sort "$RUNNER_TEMP/b950-overlay-paths.txt" > "$RUNNER_TEMP/b950-overlay-sorted.txt"
+          comm -12 "$RUNNER_TEMP/b950-pr113-files.txt" "$RUNNER_TEMP/b950-overlay-sorted.txt" > "$RUNNER_TEMP/b950-overlap.txt"
+          test ! -s "$RUNNER_TEMP/b950-overlap.txt"
+          WORKTREE="$RUNNER_TEMP/b950-disposable-pr113-pr115"
+          git worktree add --detach "$WORKTREE" "$PR113"
+          while IFS= read -r path; do
+            test -f "$path"
+            mkdir -p "$WORKTREE/$(dirname "$path")"
+            cp "$path" "$WORKTREE/$path"
+            cmp -s "$path" "$WORKTREE/$path"
+          done < "$RUNNER_TEMP/b950-overlay-paths.txt"
+          test "$(git -C "$WORKTREE" rev-parse HEAD)" = "$PR113"
+          cd "$WORKTREE/apps/cms/current"
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          export MOBILE_PUSH_EXPO_ACCESS_TOKEN=''
+          export TURNSTILE_ENABLED=false
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b950-pr113-69-junit.xml" \
+            --filter '(MobilePushRecipientOwnershipB909Test|MobilePushRevocationB910Test|MobilePushCategoryRevocationB911Test|MobilePushTokenRotationB912Test|WarrantyExpiryArrayMailDeliveryB916Test|MobilePushPhase3BTest|WarrantyExpiryFreshEligibilityB905Test|WarrantyExpiryDeliveryGuardTest|WarrantyExpiryOptInSourceTest|WarrantyFirstPaymentIssuance798Test|PaymentTransitionNotificationB902Test)'
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b950-joined-recovery7-junit.xml" \
+            --filter WarrantyActivationRecoveryB946Test
+          curl --fail --silent --show-error -X DELETE http://127.0.0.1:8025/api/v1/messages \
+            > "$RUNNER_TEMP/b950-mailpit-reset.txt"
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b950-joined-integration3-junit.xml" \
+            tests/Integration/WarrantyActivationB949IntegrationTest.php
+          python3 - "$RUNNER_TEMP/b950-pr113-69-junit.xml" "$RUNNER_TEMP/b950-joined-recovery7-junit.xml" "$RUNNER_TEMP/b950-joined-integration3-junit.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          expect = (69, 7, 3)
+          identities = set()
+          for xmlpath, count in zip(sys.argv[1:], expect):
+              root = ET.parse(xmlpath).getroot()
+              cases = root.findall(".//testcase")
+              pairs = [(n.get("classname", n.get("class", "")), n.get("name", "")) for n in cases]
+              if len(pairs) != count or len(set(pairs)) != count:
+                  raise SystemExit("HOLD_B950_COMBINED_CASE_COUNT:" + xmlpath)
+              if any(n.tag in ("failure", "error", "skipped", "warning") for n in root.iter()):
+                  raise SystemExit("HOLD_B950_COMBINED_NON_PASS:" + xmlpath)
+              if any(not c or not n for c, n in pairs):
+                  raise SystemExit("HOLD_B950_COMBINED_IDENTITY:" + xmlpath)
+              identities.update(pairs)
+          if len(identities) != 79:
+              raise SystemExit("HOLD_B950_COMBINED_DUPLICATE_IDENTITIES")
+          print("PASS_B950_DISPOSABLE_PR113_PLUS_PR115_EXACT_79_CASES")
+          PY
+          echo B950_SYNTHETIC_CROSS_PR_ONLY_NO_MAIN_MERGE_NO_DEPLOYMENT
       - name: Evidence only, absolutely no deployment
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -154,6 +224,11 @@ jobs:
             ${{ runner.temp }}/b946-junit.xml
             ${{ runner.temp }}/b949-integration-junit.xml
             ${{ runner.temp }}/b949-mailpit-before.json
+            ${{ runner.temp }}/b950-pr113-69-junit.xml
+            ${{ runner.temp }}/b950-joined-recovery7-junit.xml
+            ${{ runner.temp }}/b950-joined-integration3-junit.xml
+            ${{ runner.temp }}/b950-overlay-paths.txt
+            ${{ runner.temp }}/b950-overlap.txt
             .github/workflows/b946-warranty-activation-recovery-qa.yml
             apps/cms/current/app/Services/WarrantyActivationRecoveryService.php
             apps/cms/current/app/Models/WarrantyActivationRecoveryAttempt.php
