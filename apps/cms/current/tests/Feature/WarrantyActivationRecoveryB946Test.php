@@ -19,6 +19,7 @@ use App\Services\WarrantyActivationRecoveryService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -60,6 +61,34 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         }
         self::assertSame(0, WarrantyActivationRecoveryAttempt::query()->count());
         self::assertSame('issued_pending_delivery', WarrantyIssuance::query()->sole()->status);
+    }
+
+    public function test_operator_alert_is_default_off_and_requires_explicit_recipient_and_flag(): void
+    {
+        $this->paidAndDelivered('operator-alert');
+        Mail::fake();
+
+        $disabled = \\Illuminate\\Support\\Facades\\Artisan::call('app:warranty-activation-recover', ['--alert' => true]);
+        self::assertSame(1, $disabled);
+        self::assertStringContainsString('HOLD_WARRANTY_RECOVERY_ALERT_DISABLED', \\Illuminate\\Support\\Facades\\Artisan::output());
+        Mail::assertNothingSent();
+
+        config()->set('warranty_recovery.alerts_enabled', true);
+        $noRecipient = \\Illuminate\\Support\\Facades\\Artisan::call('app:warranty-activation-recover', ['--alert' => true]);
+        self::assertSame(1, $noRecipient);
+        self::assertStringContainsString('HOLD_WARRANTY_RECOVERY_ALERT_RECIPIENT_INVALID', \\Illuminate\\Support\\Facades\\Artisan::output());
+        Mail::assertNothingSent();
+
+        config()->set('warranty_recovery.alert_email', 'ops@example.test');
+        $noExplicitAlert = \\Illuminate\\Support\\Facades\\Artisan::call('app:warranty-activation-recover', ['--limit' => 1]);
+        self::assertSame(1, $noExplicitAlert);
+        Mail::assertNothingSent();
+
+        $withAlert = \\Illuminate\\Support\\Facades\\Artisan::call('app:warranty-activation-recover', ['--alert' => true]);
+        self::assertSame(1, $withAlert);
+        self::assertStringContainsString('ALERT_DISPATCH_REQUESTED', \\Illuminate\\Support\\Facades\\Artisan::output());
+        Mail::assertSent(\\Illuminate\\Mail\\Mailable::class, 0);
+        Mail::assertSentCount(1);
     }
 
     public function test_enabled_recovery_activates_existing_number_once_with_delivery_date_and_frozen_terms(): void
