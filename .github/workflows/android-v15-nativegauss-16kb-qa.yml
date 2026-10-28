@@ -1,0 +1,277 @@
+name: Android v1.5 16KB nativegauss source and compiler QA (NO EAS BUILD)
+on:
+  push:
+    branches:
+      - feat/b963-android-m16-main-reconcile
+    paths:
+      - apps/mobile/current/app.config.js
+      - apps/mobile/current/plugins/with-android-native-modernization.js
+      - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
+      - .github/workflows/android-v15-nativegauss-16kb-qa.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - apps/mobile/current/app.config.js
+      - apps/mobile/current/plugins/with-android-native-modernization.js
+      - apps/mobile/current/scripts/release25/nativegauss-16kb-pin.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
+      - .github/workflows/android-v15-nativegauss-16kb-qa.yml
+permissions:
+  contents: read
+concurrency:
+  group: android-v15-native16kb-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  native16kb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+      EAS_BUILD_PROFILE: production
+      ALD1N_V15_RELEASE_GATE: approved
+    steps:
+      - name: Checkout isolated source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: B853 verify immutable event source identity
+        run: |
+          set -euo pipefail
+          EXPECTED='${{ github.event.pull_request.head.sha || github.sha }}'
+          ACTUAL="$(git rev-parse HEAD)"
+          test "$ACTUAL" = "$EXPECTED"
+          echo "B853_EXACT_GITHUB_SOURCE_COMMIT=$ACTUAL"
+      - name: Setup Node22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.16.0"
+      - name: JDK17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Confirm app runtime and production package identity
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node -v
+          npm -v
+          node <<'NODE'
+          const pkg=require('./package.json');
+          const eas=require('./eas.json');
+          const app=require('./app.config.js')({config:{}});
+          if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1'
+             ||eas.build.production.channel!=='production'
+             ||eas.build.production.android?.buildType!=='app-bundle'
+             ||app.version!=='1.5.0'||app.runtimeVersion!=='1.5.0-native2'
+             ||app.android?.package!=='com.ald1n.mobile'
+             ||app.extra?.eas?.projectId!=='d43b3866-6838-4217-a23e-3dc7f2cc76cc')
+             process.exit(41);
+          console.log('RELEASE_IDENTITY=PASS_APP_1.5.0_RUNTIME_native2_PROD_PACKAGE');
+          NODE
+      - name: Verify exact JitPack v2.0.11 AAR bytes and 16KB ELF
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAR="$RUNNER_TEMP/liquidglass-v2.0.11.aar"
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 5 \
+            --connect-timeout 20 --max-time 300 --output "$AAR" \
+            "https://jitpack.io/com/github/QWEA0/liquidglass/v2.0.11/liquidglass-v2.0.11.aar"
+          test "$(sha256sum "$AAR" | awk '{print $1}')" = '8218f8075c3c447241f2a1e96d502fc48718c6d007e9e05347bb9669901f13a9'
+          unzip -tqq "$AAR"
+          unzip -p "$AAR" jni/arm64-v8a/libnativegauss.so > "$RUNNER_TEMP/nativegauss.so"
+          readelf -lW "$RUNNER_TEMP/nativegauss.so" > "$RUNNER_TEMP/nativegauss-elf.txt"
+          node - "$RUNNER_TEMP/nativegauss-elf.txt" <<'NODE'
+          const fs=require('node:fs');
+          const s=fs.readFileSync(process.argv[2],'utf8');
+          const p=s.split('\n').filter(x=>/^\s*LOAD\s/.test(x)).map(x=>parseInt(x.trim().split(/\s+/).at(-1),16));
+          if(!p.length||!p.every(x=>Number.isInteger(x)&&x>=16384)){ console.error('HOLD_VENDOR_ELF_LOAD_LT_16KB');process.exit(42); }
+          console.log('PINNED_UPSTREAM_AAR_ELF_16KB=PASS');
+          NODE
+      - name: Install locked dependencies, source tests and validator
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          node --test scripts/release25/nativegauss-16kb-pin.test.mjs
+          node --test scripts/release25/verify-android16kb-apk.test.mjs
+          node --test scripts/release25/verify-android16kb-aab.test.mjs
+          node --test scripts/release25/verify-android16kb-emulator.test.mjs
+          npm run typecheck
+          npm run validate
+      - name: Prepare isolated Android SDK36 and NDK27
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Generate Android native app in disposable CI checkout only
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          test -f android/build.gradle
+          grep -Fq "rootProject.ext.liquidGlassVersion = 'v2.0.11'" android/build.gradle
+          grep -Fq 'ALD1N_NATIVEGAUSS_16KB_UPSTREAM_PIN_V1' android/build.gradle
+          echo 'ROOT_GRADLE_UPSTREAM_2011_PIN=PASS'
+      - name: Compile React Native Fabric bridge against updated upstream library
+        working-directory: apps/mobile/current/android
+        run: |
+          set -euo pipefail
+          ./gradlew :react-native-android-liquid-glass:compileDebugKotlin --no-daemon --stacktrace
+          echo 'LIQUID_GLASS_KOTLIN_BRIDGE_2011_COMPILES=PASS'
+      - name: Assemble complete disposable debug APK and validate native ELF and zip alignment
+        working-directory: apps/mobile/current/android
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          APK='app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          unzip -tqq "$APK"
+          unzip -p "$APK" lib/arm64-v8a/libnativegauss.so > "$RUNNER_TEMP/final-nativegauss.so"
+          readelf -lW "$RUNNER_TEMP/final-nativegauss.so" > "$RUNNER_TEMP/final-nativegauss-elf.txt"
+          node - "$RUNNER_TEMP/final-nativegauss-elf.txt" <<'NODE'
+          const fs=require('node:fs');
+          const s=fs.readFileSync(process.argv[2],'utf8');
+          const a=s.split('\n').filter(x=>/^\s*LOAD\s/.test(x)).map(x=>parseInt(x.trim().split(/\s+/).at(-1),16));
+          if(!a.length||!a.every(x=>Number.isInteger(x)&&x>=16384)){console.error('HOLD_APP_NATIVEGAUSS_LT_16KB');process.exit(44)}
+          console.log('COMPILED_APP_NATIVEGAUSS_ELF_16KB=PASS');
+          NODE
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          echo 'DEBUG_APK_16KB_ZIPALIGN=PASS_CI_ONLY'
+      - name: Audit every 64-bit native ELF in the disposable debug APK
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node scripts/release25/verify-android16kb-apk.mjs android/app/build/outputs/apk/debug/app-debug.apk
+          echo 'ALL_64BIT_APK_NATIVE_ELF_16KB=PASS_CI_ONLY'
+      - name: Build disposable debug AAB and verify bundletool 16KiB delivery path
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          (
+            cd android
+            ./gradlew :app:bundleDebug --no-daemon --stacktrace
+          )
+          AAB="android/app/build/outputs/bundle/debug/app-debug.aab"
+          test -s "$AAB"
+          unzip -tqq "$AAB"
+          node scripts/release25/verify-android16kb-aab.mjs "$AAB"
+          JAR="$RUNNER_TEMP/bundletool-all-1.18.3.jar"
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 4 --connect-timeout 20 --max-time 300 \
+            --output "$JAR" "https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar"
+          test "$(sha256sum "$JAR" | awk '{print $1}')" = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
+          java -jar "$JAR" dump config --bundle="$AAB" > "$RUNNER_TEMP/b832-bundle-config.txt"
+          grep -Fq 'PAGE_ALIGNMENT_16K' "$RUNNER_TEMP/b832-bundle-config.txt"
+          if grep -Fq 'PAGE_ALIGNMENT_4K' "$RUNNER_TEMP/b832-bundle-config.txt"; then
+            echo 'HOLD_AAB_BUNDLE_CONFIG_4K'
+            exit 51
+          fi
+          # bundletool may generate an unsigned APK unless given an explicit
+          # local signer. Create a disposable TEST key: never use the EAS/Play key.
+          DERIVED_TEST_KEY="$RUNNER_TEMP/ald1n-b834-debug-validation.p12"
+          DERIVED_TEST_PASSWORD_FILE="$RUNNER_TEMP/ald1n-b834-debug-pass.txt"
+          openssl rand -hex 24 > "$DERIVED_TEST_PASSWORD_FILE"
+          chmod 600 "$DERIVED_TEST_PASSWORD_FILE"
+          keytool -genkeypair -noprompt -storetype PKCS12 \
+            -keystore "$DERIVED_TEST_KEY" \
+            -storepass "$(cat "$DERIVED_TEST_PASSWORD_FILE")" \
+            -keypass "$(cat "$DERIVED_TEST_PASSWORD_FILE")" \
+            -alias ald1n_ci_validation_only -keyalg RSA -keysize 3072 \
+            -validity 1 -dname "CN=Ald1n Ephemeral CI, OU=QA, O=Ald1n, C=RS" >/dev/null 2>&1
+          test -s "$DERIVED_TEST_KEY"
+          APKS="$RUNNER_TEMP/b832-disposable-debug.apks"
+          java -jar "$JAR" build-apks --bundle="$AAB" --output="$APKS" --mode=universal \
+            --ks="$DERIVED_TEST_KEY" --ks-pass="file:$DERIVED_TEST_PASSWORD_FILE" \
+            --ks-key-alias=ald1n_ci_validation_only --key-pass="file:$DERIVED_TEST_PASSWORD_FILE"
+          test -s "$APKS"
+          unzip -tqq "$APKS"
+          APK="$RUNNER_TEMP/b832-derived-universal.apk"
+          unzip -p "$APKS" universal.apk > "$APK"
+          test -s "$APK"
+          unzip -tqq "$APK"
+          node scripts/release25/verify-android16kb-apk.mjs "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
+          sha256sum "$AAB" "$APKS" "$APK"
+          echo 'B832_DISPOSABLE_AAB_BUNDLE_CONFIG=PASS_16K'
+          echo 'B832_BUNDLETOOL_DERIVED_APK_ALL_NATIVE_ELF_ZIPALIGN=PASS'
+          echo 'SIGNING_IDENTITY=EPHEMERAL_LOCAL_CI_ONLY PLAY_RELEASE=NOT_AUTHORIZED'
+      - name: Build isolated self-contained 16KB test APK with embedded JS (LOCAL DEBUG SIGNER, NO EAS)
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          # Debug variants depend on Metro; the emulator is intentionally offline.
+          # Build only a disposable release-VARIANT APK with its JS asset inside.
+          # There are no production EAS credentials or signing services in CI.
+          (cd android && ./gradlew :app:assembleRelease --no-daemon --stacktrace)
+          TEST_APK='android/app/build/outputs/apk/release/app-release.apk'
+          DEBUG_APK='android/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$TEST_APK"
+          test -s "$DEBUG_APK"
+          unzip -tqq "$TEST_APK"
+          unzip -Z1 "$TEST_APK" > "$RUNNER_TEMP/b839-offline-apk-members.txt"
+          grep -Fxq 'assets/index.android.bundle' "$RUNNER_TEMP/b839-offline-apk-members.txt" || {
+            echo 'HOLD_OFFLINE_TEST_APK_MISSING_EMBEDDED_JS'
+            exit 67
+          }
+          node scripts/release25/verify-android16kb-apk.mjs "$TEST_APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$TEST_APK"
+          SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          DEBUG_CERT="$("$SIGNER" verify --print-certs "$DEBUG_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          TEST_CERT="$("$SIGNER" verify --print-certs "$TEST_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          if [ -z "$DEBUG_CERT" ] || [ -z "$TEST_CERT" ] || [ "$DEBUG_CERT" != "$TEST_CERT" ]; then
+            echo 'HOLD_LOCAL_APK_SIGNER_NOT_THE_DEBUG_TEST_IDENTITY'
+            exit 68
+          fi
+          "$SIGNER" verify "$TEST_APK"
+          sha256sum "$TEST_APK" "$DEBUG_APK"
+          echo 'SELF_CONTAINED_JS_OFFLINE_APK=PASS_LOCAL_DEBUG_SIGNER_NO_EAS_NO_PLAY'
+      - name: Prepare KVM for isolated Android 15 16KiB emulator
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+      - name: Offline 16KiB emulator install and app launch (EMBEDDED-JS TEST APK ONLY)
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          profile: pixel_7_pro
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
+          disable-animations: true
+          script: |
+            # android-emulator-runner runs this callback under /bin/sh.
+            # POSIX set -eu retains fail-closed behavior without bash-only pipefail.
+            set -eu
+            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/release/app-release.apk
+            echo 'ANDROID_15_16KB_EMULATOR_OFFLINE_LAUNCH=PASS_CI_DEBUG_ONLY'
+      - name: No release or production mutation
+        if: always()
+        run: |
+          echo 'NO_EAS_BUILD=YES'
+          echo 'NO_AUTO_INCREMENT=YES'
+          echo 'NO_OTA=YES'
+          echo 'NO_PLAY_SUBMIT=YES'
+          echo 'NO_LARAVEL_OR_DB_MUTATION=YES'
