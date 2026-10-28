@@ -150,7 +150,7 @@ jobs:
           set -euo pipefail
           BASE=252580c3d65b126c96709ae240d1e3f797d611f5
           PR113=35f68ce8de7e351eaf94455469a36ccec65bc128
-          PR115=ee00d4de1752b0bff61462558c68224bf3d3314d
+          PR115='${{ github.event.pull_request.head.sha }}'
           test "$(git rev-parse HEAD)" = "$PR115"
           git cat-file -e "$PR113^{commit}"
           test "$(git merge-base "$PR113" "$PR115")" = "$BASE"
