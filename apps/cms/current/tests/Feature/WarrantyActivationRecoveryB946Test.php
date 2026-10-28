@@ -228,6 +228,24 @@ final class WarrantyActivationRecoveryB946Test extends TestCase
         self::assertStringContainsString('manual_review_total=3', \Illuminate\Support\Facades\Artisan::output());
     }
 
+    public function test_inconsistent_cod_payment_method_requires_manual_review_not_recovery(): void
+    {
+        [$order] = $this->paidAndDelivered('cod-conflict');
+        // In PR113 COD activation is atomic at completion; a completed order
+        // with a still-pending COD certificate must not be silently replayed
+        // by the prepaid bank-transfer recovery path.
+        $order->update(['payment_method' => 'cash_on_delivery']);
+        config()->set('warranty_recovery.enabled', true);
+
+        $result = app(WarrantyActivationRecoveryService::class)->run(25, true);
+        self::assertSame(0, $result['recovered']);
+        self::assertSame(1, $result['manual_review']);
+        self::assertSame(1, $result['pending_total']);
+        self::assertSame('UNSUPPORTED_RECOVERY_PAYMENT_METHOD',
+            WarrantyActivationRecoveryAttempt::query()->where('order_id', $order->id)->sole()->last_error_code);
+        self::assertSame(0, ProductWarranty::query()->where('order_id', $order->id)->count());
+    }
+
     public function test_exhausted_retry_requires_manual_review_and_never_spins(): void
     {
         [$order, $admin] = $this->paidAndDelivered('exhausted');
