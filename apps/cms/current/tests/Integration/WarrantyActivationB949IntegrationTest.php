@@ -164,6 +164,64 @@ final class WarrantyActivationB949IntegrationTest extends TestCase
         }
     }
 
+    public function test_explicit_operator_probe_sends_one_synthetic_smtp_without_warranty_backlog_or_mutation(): void
+    {
+        // Disposable Mailpit only. This is the real SMTP wire boundary,
+        // without a customer, order, issuance or delivery business fixture.
+        Http::timeout(10)->delete('http://127.0.0.1:8025/api/v1/messages')->throw();
+        config()->set('mail.default', 'smtp');
+        config()->set('mail.from.address', 'b951-no-reply@example.test');
+        config()->set('mail.from.name', 'Ald1n Synthetic CI');
+        config()->set('mail.mailers.smtp', [
+            'transport' => 'smtp', 'host' => '127.0.0.1', 'port' => 1025,
+            'encryption' => null, 'username' => null, 'password' => null, 'timeout' => 8,
+        ]);
+        Mail::purge('smtp');
+
+        $issuedBefore = WarrantyIssuance::query()->count();
+        $attemptsBefore = WarrantyActivationRecoveryAttempt::query()->count();
+        self::assertSame(0, $issuedBefore);
+        self::assertSame(0, $attemptsBefore);
+
+        config()->set('warranty_recovery.alerts_enabled', false);
+        config()->set('warranty_recovery.alert_email', '');
+
+        $disabled = Artisan::call('app:warranty-activation-recover', ['--probe-alert' => true]);
+        self::assertSame(1, $disabled);
+        self::assertStringContainsString('HOLD_WARRANTY_RECOVERY_ALERT_DISABLED', Artisan::output());
+
+        config()->set('warranty_recovery.alerts_enabled', true);
+        $missing = Artisan::call('app:warranty-activation-recover', ['--probe-alert' => true]);
+        self::assertSame(1, $missing);
+        self::assertStringContainsString('HOLD_WARRANTY_RECOVERY_ALERT_RECIPIENT_INVALID', Artisan::output());
+
+        config()->set('warranty_recovery.alert_email', 'b951-operator@example.test');
+        $ambiguous = Artisan::call('app:warranty-activation-recover', [
+            '--probe-alert' => true, '--execute' => true,
+        ]);
+        self::assertSame(1, $ambiguous);
+        self::assertStringContainsString('HOLD_WARRANTY_RECOVERY_PROBE_MUST_BE_STANDALONE', Artisan::output());
+
+        $empty = Http::timeout(10)->get('http://127.0.0.1:8025/api/v1/messages')->throw()->json('messages', []);
+        self::assertCount(0, $empty, 'Disabled/invalid/ambiguous probes must send zero email.');
+
+        $rc = Artisan::call('app:warranty-activation-recover', ['--probe-alert' => true]);
+        self::assertSame(0, $rc);
+        self::assertStringContainsString('WARRANTY_ALERT_PROBE_SENT', Artisan::output());
+
+        $messages = Http::timeout(10)->get('http://127.0.0.1:8025/api/v1/messages')->throw()->json('messages', []);
+        self::assertCount(1, $messages);
+        self::assertSame('[TEST] Ald1n warranty recovery operator alert', $messages[0]['Subject'] ?? null);
+        self::assertSame('b951-operator@example.test', $messages[0]['To'][0]['Address'] ?? null);
+        self::assertStringContainsString('TEST ONLY', (string) ($messages[0]['Snippet'] ?? ''));
+        self::assertStringNotContainsString('B949-', json_encode($messages, JSON_THROW_ON_ERROR));
+
+        self::assertSame($issuedBefore, WarrantyIssuance::query()->count());
+        self::assertSame($attemptsBefore, WarrantyActivationRecoveryAttempt::query()->count());
+        self::assertSame(0, Order::query()->count());
+        Http::timeout(10)->delete('http://127.0.0.1:8025/api/v1/messages')->throw();
+    }
+
     public function test_real_local_smtp_transport_captures_only_aggregate_operator_alert(): void
     {
         $order = $this->paidAndDelivered('smtp');
