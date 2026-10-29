@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/b963-android-m16-main-reconcile
+      - diag/b968-android16kb-offline-launch
     paths:
       - apps/mobile/current/app.config.js
       - apps/mobile/current/plugins/with-android-native-modernization.js
@@ -110,6 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
+          node --test scripts/release25/diagnose-android16kb-process.test.mjs
           node --test scripts/release25/nativegauss-16kb-pin.test.mjs
           node --test scripts/release25/verify-android16kb-apk.test.mjs
           node --test scripts/release25/verify-android16kb-aab.test.mjs
@@ -265,7 +267,13 @@ jobs:
             # android-emulator-runner runs this callback under /bin/sh.
             # POSIX set -eu retains fail-closed behavior without bash-only pipefail.
             set -eu
-            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/release/app-release.apk
+            if node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/release/app-release.apk; then
+              echo 'B968_OFFLINE_APP_PROCESS=PASS'
+            else
+              node apps/mobile/current/scripts/release25/diagnose-android16kb-process.mjs || :
+              echo 'B968_OFFLINE_APP_PROCESS=HOLD'
+              exit 2
+            fi
             echo 'ANDROID_15_16KB_EMULATOR_OFFLINE_LAUNCH=PASS_CI_DEBUG_ONLY'
       - name: No release or production mutation
         if: always()
