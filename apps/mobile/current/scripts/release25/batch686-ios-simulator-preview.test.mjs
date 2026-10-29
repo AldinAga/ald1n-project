@@ -109,7 +109,8 @@ test('new simulator command is pinned and always runs local profile gate first; 
   assert.ok(build.endsWith('--package=eas-cli@25.0.0 -- eas build --platform ios --profile ios-simulator'));
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
   assert.ok(pkg.scripts['build:ios:production'].includes('--profile production'));
-  assert.ok(appConfigSrc.includes("runtimeVersion: '1.0.0-build17'"));
+  assert.ok(appConfigSrc.includes("'1.0.0-build17'"));
+  assert.equal(previewConfig().runtimeVersion, '1.0.0-build17');
 });
 
 test('real iOS production still HOLD without postponed Firebase file, not bypassed by simulator profile', () => {
