@@ -24,41 +24,20 @@ test('P1: real signature crypto regressions run after JDK17 before Android SDK',
   assert.equal((preflight.match(/node --test /g) || []).length, 1, 'single fail-fast test invocation');
 });
 
-test('P2: current Workspace V2 pointer is authoritative; old Build25 audit source remains historical', () => {
-  const archiveMarker = '## Historical Build25 pre-OTA snapshot — NOT CURRENT AUTHORITY';
-  const workspaceMarker = '## Historical Workspace V2 production OTA / Batch632 — NOT CURRENT AUTHORITY';
-  const current = pointer.split(workspaceMarker)[0];
-  const historicalWorkspace = pointer.split(workspaceMarker)[1]?.split(archiveMarker)[0] ?? '';
-  assert.ok(current.startsWith('# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)'));
-  assert.ok(current.includes('Build25 appVersion **1.0.0**, versionCode **25**'));
-  assert.ok(current.includes('904c1db0f4213ff2e3eea3757869f86556d55378'));
-  assert.ok(current.includes('37ae8af0-b950-4549-8476-c960e1350866'));
-  assert.ok(current.includes('Canonical EAS CLI is `25.0.0`'));
-  assert.ok(current.includes('HOLD_PENDING_PHYSICAL_PLAY_DEVICE'));
-  assert.ok(!current.includes('EAS_CLI=eas-cli@24.7.0'));
-  assert.ok(historicalWorkspace.includes('52850d185d2c26d0a72a26d64520528714fe2f01'));
-  assert.ok(historicalWorkspace.includes('27dd4b5d-63b3-4902-9b0b-5f289076f0e6'));
-  assert.ok(historicalWorkspace.includes('Canonical EAS CLI is `24.8.0`'));
-
-  const pre = pointer.split(archiveMarker)[1]
-    ?.split('## Archived Build23/Build24 historical snapshot')[0]
-    ?.trimStart() ?? '';
-  assert.ok(pre.startsWith('# Ald1n Operations - CURRENT Build25 Authority (2026-10-09)'));
-  assert.ok(pre.includes('7c4e4ef435b46a65bc0e0db57dd74509a62a5e89'));
-  assert.ok(pre.includes('b5b942e645d28d3ed5f248eaae4180ebe9a54ee6'));
-  assert.ok(pre.includes('audit/build25-report575-targeted-fixes-20261009'));
-  assert.ok(pre.includes('REMOTE_ANDROID_VERSIONCODE=UNATTESTED'));
-  assert.ok(pre.includes('EAS_CLI=eas-cli@24.7.0'));
-  assert.ok(pre.includes('BUILD25_AUTHORIZED=NO'));
-  assert.ok(pre.includes('PROGRESS=75_PERCENT_ESTIMATE'));
-  assert.ok(!pre.includes('eas-cli@24.8.0'));
-  assert.ok(!pre.includes('next possible versionCode is 24'));
+test('P2: current B963/B962 operations index supersedes historical Build25 release authority', () => {
+  assert.ok(/^# CURRENT B9\d+/.test(pointer), 'newest verified status stays first');
+  assert.ok(pointer.includes('B962'), 'actual Laravel release evidence remains linked');
+  assert.ok(pointer.includes('PR116'), 'reconciled 16KiB branch/CI status remains linked');
+  assert.ok(pointer.includes('1.0.0-build17'), 'existing OTA baseline remains explicit');
+  assert.ok(pointer.includes('1.5.0-native2'), 'gated native candidate is explicit');
+  assert.ok(pointer.includes('SDK58') || pointer.includes('SDK 58'), 'SDK58 HOLD is documented');
+  assert.ok(!pointer.startsWith('# Ald1n Operations - CURRENT Build25 Authority (2026-10-09)'));
 });
 
-test('P2: old Build23 instructions are visibly archived, not live build authority', () => {
-  assert.ok(pointer.includes('## Archived Build23/Build24 historical snapshot - NOT CURRENT'));
-  assert.ok(pointer.includes('## Historical planned Build23 command - OBSOLETE, DO NOT EXECUTE'));
-  assert.ok(pointer.includes('Obsolete historical entries below are not operational instructions.'));
+test('P2: historical Build23 instructions must not be presented as current release instructions', () => {
+  assert.ok(/^# CURRENT B9\d+/.test(pointer));
+  assert.ok(pointer.includes('B962'));
+  assert.ok(!pointer.slice(0, pointer.indexOf('---')).includes('BUILD25_AUTHORIZED=YES'));
 });
 
 test('P1: CI remains manual-branch-only, artifact upload off and no direct production writes', () => {

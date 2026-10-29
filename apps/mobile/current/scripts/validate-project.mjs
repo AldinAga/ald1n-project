@@ -1112,7 +1112,8 @@ assert(
 );
 assert(
   build17AppConfigBatch137.includes('MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137')
-    && build17AppConfigBatch137.includes("runtimeVersion: '1.0.0-build17'")
+    && build17AppConfigBatch137.includes("'1.0.0-build17'")
+    && build17AppConfigBatch137.includes("ALD1N_V15_RELEASE_GATE === 'approved'")
     && !build17AppConfigBatch137.includes("runtimeVersion: {\n      policy: 'appVersion'"),
   'Build17 ima izolovan runtime 1.0.0-build17 pa OTA ne može slučajno targetirati Build15/Build16 runtime 1.0.0.'
 );
@@ -1214,7 +1215,7 @@ assert(appConfig.includes("scheme: 'ald1n'"), 'Deep-link scheme je postavljen.')
 assert(appConfig.includes('com.ald1n.mobile'), 'Android/iOS identifikatori su postavljeni.');
 assert(appConfig.includes('typedRoutes: true'), 'Expo Router typed routes su uključene.');
 assert(appConfig.includes('EAS_PROJECT_ID') && appConfig.includes('projectId'), 'Dinamički EAS project ID je podržan.');
-assert(appConfig.includes("version: '1.0.0'"), 'Expo app verzija je 1.0.0.');
+assert(appConfig.includes("'1.0.0'") && appConfig.includes("'1.5.0'") && appConfig.includes("ALD1N_V15_RELEASE_GATE === 'approved'"), 'Expo app verzija je 1.0.0 podrazumevano, a 1.5.0 samo za odobreni production gate.');
 
 // MOBILE_BRANDING_ALD1N_CMS_V06
 const ald1nBrandSource = fs.readFileSync(path.join(root, 'assets/brand/ald1n-v2-logo.png'));

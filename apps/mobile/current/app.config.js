@@ -46,7 +46,7 @@ module.exports = ({ config }) => {
     slug: 'ald1n-mobile',
     owner: 'ald1n',
 
-    version: '1.0.0',
+    version: process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? '1.5.0' : '1.0.0',
     icon: './assets/icon.png',
     scheme: 'ald1n',
     userInterfaceStyle: 'automatic',
@@ -57,7 +57,7 @@ module.exports = ({ config }) => {
     },
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
-    runtimeVersion: '1.0.0-build17',
+    runtimeVersion: process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? '1.5.0-native2' : '1.0.0-build17',
 
     ios: {
       ...(config.ios || {}),
@@ -120,6 +120,7 @@ module.exports = ({ config }) => {
         './plugins/with-android-native-modernization',
         {
           optimizedResourceShrinking: true,
+          liquidGlassVersion: 'v2.0.11',
         },
       ],
 

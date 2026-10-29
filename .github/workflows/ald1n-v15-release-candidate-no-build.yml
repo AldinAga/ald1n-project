@@ -1,0 +1,52 @@
+name: Ald1n v1.5 native release candidate source QA (NO BUILD)
+on:
+  push:
+    branches:
+      - release/v1.5.0-android-native-candidate-20261021
+  pull_request:
+    paths:
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/docs/ANDROID-V15-PRODUCTION-RELEASE-HOLD.md'
+      - '.github/workflows/ald1n-v15-release-candidate-no-build.yml'
+permissions:
+  contents: read
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - working-directory: apps/mobile/current
+        run: npm ci --no-audit --no-fund
+      - working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const c=require('fs').readFileSync('app.config.js','utf8');
+          const eas=require('./eas.json');
+          const pkg=require('./package.json');
+          if(!c.includes("ALD1N_V15_RELEASE_GATE === 'approved'"))process.exit(1);
+          const previous={app:process.env.EXPO_PUBLIC_APP_ENV,profile:process.env.EAS_BUILD_PROFILE,gate:process.env.ALD1N_V15_RELEASE_GATE};
+          process.env.EXPO_PUBLIC_APP_ENV='production';process.env.EAS_BUILD_PROFILE='production';delete process.env.ALD1N_V15_RELEASE_GATE;
+          const config=require('./app.config.js');
+          const def=config({config:{}});
+          process.env.ALD1N_V15_RELEASE_GATE='approved';
+          const approved=config({config:{}});
+          if(def.version!=='1.0.0'||def.runtimeVersion!=='1.0.0-build17'||approved.version!=='1.5.0'||approved.runtimeVersion!=='1.5.0-native2')process.exit(2);
+          if(eas.cli.appVersionSource!=='remote'||eas.build.production.channel!=='production')process.exit(3);
+          if(pkg.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(4);
+          console.log('V15_SOURCE_CONTRACT=PASS; EAS_BUILD=NONE');
+          NODE
+          npm run typecheck
+          npm run validate
+          npm run test:release25
+      - if: always()
+        run: echo 'NO_EAS_NO_OTA_NO_PLAY_NO_PRODUCTION_DEPLOY'

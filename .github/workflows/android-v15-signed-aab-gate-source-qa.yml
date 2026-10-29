@@ -1,0 +1,56 @@
+name: Android v1.5 signed AAB release gate source tests (NO EAS BUILD)
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-apk.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-aab.test.mjs
+      - apps/mobile/current/scripts/release25/signed-16kb-aab-release-gate.mjs
+      - apps/mobile/current/scripts/release25/signed-16kb-aab-release-gate.test.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs
+      - apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs
+      - .github/workflows/android-v15-signed-aab-gate-source-qa.yml
+permissions:
+  contents: read
+concurrency:
+  group: android-v15-signed-aab-gate-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  offline-artifact-gate-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR source (no retained credentials)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: B853 verify immutable event source identity
+        run: |
+          set -euo pipefail
+          EXPECTED='${{ github.event.pull_request.head.sha }}'
+          ACTUAL="$(git rev-parse HEAD)"
+          test "$ACTUAL" = "$EXPECTED"
+          echo "B853_EXACT_GITHUB_SOURCE_COMMIT=$ACTUAL"
+      - name: Node22 toolchain
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Prove no EAS/native release tool is invoked
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          node --version
+          command -v zip
+          command -v unzip
+          node --check scripts/release25/signed-16kb-aab-release-gate.mjs
+          node --test \
+            scripts/release25/verify-android16kb-apk.test.mjs \
+            scripts/release25/verify-android16kb-aab.test.mjs \
+            scripts/release25/signed-16kb-aab-release-gate.test.mjs \
+            scripts/release25/verify-android16kb-emulator.test.mjs
+          echo 'SIGNING_CERTIFICATE_AND_AAB=NOT_SUPPLIED_SOURCE_ONLY'
+          echo 'NO_EAS_BUILD=YES NO_OTA=YES NO_PLAY_SUBMIT=YES NO_DEPLOY=YES'
