@@ -25,7 +25,7 @@ test('canonical v25 authority converges across config and guardrails without glo
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
   assert.ok(/^# CURRENT B9\d+/.test(index));
   assert.ok(index.includes('Android M16') || index.includes('Android 16KB'));
-  assert.ok(index.includes('Canonical EAS CLI is `25.0.0`'));
+  assert.ok(eas.cli.version === '25.0.0' && agents.includes('eas-cli@25.0.0'));
 });
 
 test('optional build wrappers, submit helper and validator use only exact EAS CLI25', () => {
