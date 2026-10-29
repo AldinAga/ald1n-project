@@ -1,3 +1,9 @@
+# CURRENT B965 — Android M16 PR116 regression R3 (2026-10-29)
+
+[PR116](https://github.com/AldinAga/ald1n-project/pull/116) draft latest HEAD `d39b78dba5be0eeaa0434ec46af7a615d2cd9264`. Prior 16KB native full CI 40783181124, emulator infra 40783181084, signed-AAB source 40783181192 = SUCCESS at former HEAD. Last checked run 40835274806 release-candidate failed only two historical 000-LATEST source assertions; R3 fixed both (no source runtime change) and triggered exact-head runs 40836977654 release candidate, 40836977643 LG04, 40836977635 LG03, 40836977786 native, 40836977632 signed source, 40836977655 emulator, 40836977621 MariaDB, 40836977604 Laravel source-only ancestry test, all queued/pending at last check. **NO CI success claimed for new HEAD.** LG03 workflow itself still rejects deliberately added `react-native-android-liquid-glass@0.2.1` with exit32; requires source-policy correction; do not waive 16KB ELF/AAB compliance. Laravel workflow source ancestry strict failure is separate from verified B962 production PASS. No merge/EAS/Play/OTA/CloudLinux changes; SDK58 deferred.
+
+---
+
 # CURRENT B964 R2 — Android M16 PR116 regression and fresh CI (2026-10-29)
 
 [PR116](https://github.com/AldinAga/ald1n-project/pull/116) DRAFT, latest HEAD `5121c91d72d58dcd42588b5edd8a8f29ffb7c5ce`. Previous exact-source `18315a52...` native 16KB full QA 40783181124 SUCCESS, emulator infra 40783181084 SUCCESS, signed AAB source 40783181192 SUCCESS. New regression PR-head `6d2f372...` signed AAB source 40835110112 SUCCESS and MariaDB 40835109924 SUCCESS; LG03 CI 40835110087 FAILED because legacy workflow explicitly forbids nativegauss dependency now intentionally needed for M16; release candidate 40835109946 and LG04 40835110060 FAILED from two remaining stale historical source assertions, which have been updated on current PR head. M10/M11 69-case Laravel CI 40835110038 FAIL inherited source ancestry/scope, NOT Laravel B962 production failure.
