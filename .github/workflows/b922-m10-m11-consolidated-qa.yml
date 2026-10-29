@@ -2,6 +2,23 @@ name: B922 M10+M11 one combined 69-case real Laravel QA (NO DEPLOY)
 "on":
   pull_request:
     branches: [main]
+    paths:
+      - 'apps/cms/current/app/Services/ExpoPushTransport.php'
+      - 'apps/cms/current/app/Services/MobilePushDispatcher.php'
+      - 'apps/cms/current/app/Services/MobilePushOutboxService.php'
+      - 'apps/cms/current/app/Services/OrderPaymentService.php'
+      - 'apps/cms/current/app/Services/OrderWorkflowService.php'
+      - 'apps/cms/current/app/Services/PushEventCategory.php'
+      - 'apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php'
+      - 'apps/cms/current/tests/Feature/MobilePushCategoryRevocationB911Test.php'
+      - 'apps/cms/current/tests/Feature/MobilePushRecipientOwnershipB909Test.php'
+      - 'apps/cms/current/tests/Feature/MobilePushRevocationB910Test.php'
+      - 'apps/cms/current/tests/Feature/MobilePushTokenRotationB912Test.php'
+      - 'apps/cms/current/tests/Feature/PaymentTransitionNotificationB902Test.php'
+      - 'apps/cms/current/tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php'
+      - 'apps/cms/current/tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php'
+      - 'apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php'
+
 permissions:
   contents: read
 jobs:
