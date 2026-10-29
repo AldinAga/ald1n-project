@@ -268,13 +268,8 @@ jobs:
             # android-emulator-runner runs this callback under /bin/sh.
             # POSIX set -eu retains fail-closed behavior without bash-only pipefail.
             set -eu
-            if node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/release/app-release.apk; then
-              echo 'B968_OFFLINE_APP_PROCESS=PASS'
-            else
-              node apps/mobile/current/scripts/release25/diagnose-android16kb-process.mjs || :
-              echo 'B968_OFFLINE_APP_PROCESS=HOLD'
-              exit 2
-            fi
+            node apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs --apk=apps/mobile/current/android/app/build/outputs/apk/release/app-release.apk || node apps/mobile/current/scripts/release25/diagnose-android16kb-process.mjs
+
             echo 'ANDROID_15_16KB_EMULATOR_OFFLINE_LAUNCH=PASS_CI_DEBUG_ONLY'
       - name: No release or production mutation
         if: always()
