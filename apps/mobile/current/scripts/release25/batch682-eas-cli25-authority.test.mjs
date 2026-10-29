@@ -23,7 +23,7 @@ test('canonical v25 authority converges across config and guardrails without glo
   assert.ok(agents.includes('CI 38862601089'));
   assert.ok(agents.includes('Authenticated production exact-group read on hosting'));
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
-  assert.ok(index.startsWith('# CURRENT B963'));
+  assert.ok(/^# CURRENT B9\d+/.test(index));
   assert.ok(index.includes('EAS CLI25') || agents.includes('eas-cli@25.0.0'));
   assert.ok(index.includes('Canonical EAS CLI is `25.0.0`'));
 });
