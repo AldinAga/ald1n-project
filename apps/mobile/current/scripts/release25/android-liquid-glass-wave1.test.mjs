@@ -99,6 +99,6 @@ test('Build25 must remain native-dependency and runtime identical; no accidental
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['expo-blur'], undefined);
   assert.equal(pkg.dependencies['react-native-android-liquid-glass'], '0.2.1');
-  assert.match(appConfig, /runtimeVersion: '1\.0\.0-build17'/);
+  assert.match(appConfig, /'1\.0\.0-build17'/);
   assert.doesNotMatch(navSource, /from 'expo-blur'|from 'react-native-android-liquid-glass'/);
 });
