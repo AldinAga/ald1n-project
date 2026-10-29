@@ -1,0 +1,16 @@
+# B985 isolated EAS production metadata read-only preflight
+- UTC: 2026-10-29T22:00:01+00:00
+- Script: /home/icaffeco/ald1n-project/incoming/B985-ISOLATED-EAS-RELEASE-READONLY-QA.sh
+- Script SHA256: 9c5a21520f198de59ec61b2a6dacc71f1bb34f287e18276fc89b83f60a02d7f5
+- Report source reference: Report965 B984 PASS
+- Expected pinned source commit: 8049f22d208bac1ee47fd4133bb8e1a737cfe457
+- Isolated checkout: /home/icaffeco/ald1n-release-b984-20261029
+- Application/CMS source mutation: NO (canonical operations report is written)
+- EAS build, signing operation, OTA, Google Play action: NO
+- Verified source SHA: 8049f22d208bac1ee47fd4133bb8e1a737cfe457
+- Source config: PASS_B985_EAS25_REMOTE_AUTOINCREMENT_AAB_AND_RUNTIME_SOURCE
+- eas.json SHA256: 644cd7dd7e2efe3b1f0933c36b70dc8f15477a639394e2e264af6b2c7a3ef8c5
+- app.config.js SHA256: 019186da01ce1df398b3112d172e56d6b3bf56f4b93f9ce3721f1fbe01f8d8d8
+- HOLD: EAS project:info failed, check authenticated EAS 25 access
+- Exit code: 2
+- Gate: HOLD_B985_EAS_READONLY_PREFLIGHT
