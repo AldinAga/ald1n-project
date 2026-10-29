@@ -1,0 +1,34 @@
+# B986 isolated Expo dependencies and EAS authenticated metadata recovery
+- UTC: 2026-10-29T22:16:18+00:00
+- Script: /home/icaffeco/ald1n-project/incoming/B986-ISOLATED-EXPO-DEPS-EAS-READONLY-RECOVERY.sh
+- Script SHA256: 866f2e2527cb614ca2352feb0717b1dfd36be820cb1eab6feddb18ba610358dc
+- Expected report predecessor: Report966 B985 HOLD; Report965 B984 PASS
+- Expected source SHA: 8049f22d208bac1ee47fd4133bb8e1a737cfe457
+- Isolated directory: /home/icaffeco/ald1n-release-b984-20261029
+- CloudLinux production Git/app/CMS mutation: NONE
+- EAS build, submit, signing, OTA, Google Play: NEVER INVOKED
+- Permitted isolated change: ignored node_modules from locked npm ci if missing
+- Exact source HEAD: 8049f22d208bac1ee47fd4133bb8e1a737cfe457; package.json and package-lock.json Git blobs PASS
+- Source contract: PASS_EAS25_PRODUCTION_AAB_REMOTE_VERSION_AND_RUNTIME_SOURCE
+- Isolated disk preflight: free_kb=998438696, free_inodes=212789069
+- Running npm ci from exact lockfile inside isolated Expo app only; lifecycle scripts disabled
+- npm ci RC=0: isolated dependency install PASS; no production source touched
+- Source immutability after dependency installation: PASS
+- EAS25 whoami: PASS (ald1n)
+- EAS25 project:info: PASS (@ald1n/ald1n-mobile; expected project UUID)
+- Authenticated EAS remote Android versionCode: 27
+- Next autoIncrement/build/Play versionCode: NOT_ATTESTED until build and Play check
+- Historical Android production builds received: 5
+- Build 1: id=e3bf78a2-0410-4fe5-a279-e0af5624ca0d status=FINISHED version=1.5.0 code=27 source=deb98808afe2568ed06da1c684b9b51d60734b12
+- Build 2: id=7ea65e17-eb5b-4e64-ab86-37c7f7160f7b status=FINISHED version=1.0.0 code=25 source=a531ec2dcf0266c5c186e6c05659ea72be3a3a69
+- Build 3: id=f9af75fe-3a53-4548-a4d7-8d6d5b530ec4 status=ERRORED version=1.0.0 code=24 source=b5b942e645d28d3ed5f248eaae4180ebe9a54ee6
+- Build 4: id=3f277367-7370-4ff2-a069-0c2dcbbdb8bb status=ERRORED version=1.0.0 code=23 source=3a5bc9be733cd3a49d217236fa5966cc762a80e1
+- Build 5: id=b32bfcbd-5f4c-45f5-95a9-5b756749b31a status=FINISHED version=1.0.0 code=22 source=e082641bd4e58c320d4faca0dd50997deca7f416
+- Final source immutable: PASS; isolated ignored node_modules may now be present
+- Upload signing certificate SHA256 vs Google Play Console: NOT_ATTESTED
+- Google Play occupied versionCode maximum: NOT_ATTESTED
+- Physical Android 16KiB UAT: NOT_ATTESTED
+- Signed production AAB/build ID/real binary ELF-zip gate: NOT_BUILT
+- Release/Play/OTA/SDK58/CloudLinux deployment authorization: HOLD
+- Exit code: 0
+- Gate: PASS_B986_ISOLATED_EAS_METADATA_ONLY; PRODUCTION_AAB_STILL_HOLD
