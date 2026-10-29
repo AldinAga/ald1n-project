@@ -1,0 +1,12 @@
+# B984 isolated Android release source checkout
+- UTC: 2026-10-29T21:47:44+00:00
+- Expected source SHA: 8049f22d208bac1ee47fd4133bb8e1a737cfe457
+- Script: /home/icaffeco/ald1n-project/incoming/B984-ISOLATED-ANDROID-RELEASE-CHECKOUT.sh
+- Script SHA256: a64f29feb5123e0d7c0787ede7f4ebc0bf95f6cbb98897b34c1bfab3708a6c3d
+- Destination: /home/icaffeco/ald1n-release-b984-20261029
+- Free KB: 999369676
+- Production checkout mutated: NO
+- EAS/OTA/Play invoked: NO
+- Git fetch or reset on production: NO
+- Exit code: 0
+- Gate: PASS_ISOLATED_SOURCE_ONLY
