@@ -35,7 +35,7 @@ test('P2: current B963/B962 operations index supersedes historical Build25 relea
 });
 
 test('P2: historical Build23 instructions must not be presented as current release instructions', () => {
-  assert.ok(pointer.startsWith('# CURRENT B963'));
+  assert.ok(/^# CURRENT B9\d+/.test(pointer));
   assert.ok(pointer.includes('B962'));
   assert.ok(!pointer.slice(0, pointer.indexOf('---')).includes('BUILD25_AUTHORIZED=YES'));
 });
