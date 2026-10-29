@@ -18,6 +18,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/b963-android-m16-main-reconcile
     paths:
       - apps/mobile/current/app.config.js
       - apps/mobile/current/plugins/with-android-native-modernization.js
