@@ -1,0 +1,21 @@
+# B994 - encrypted off-host operator scripts and reports archive, NO DELETE
+- UTC: 2026-10-30T12:47:45+00:00
+- Script SHA256: 33688a1eef350d1daff970aaafd0ea299f6530b6122f3f77fe889d6736186c28
+- Source: exactly named project trees in /home/icaffeco; other websites untouched
+- Archive scope: historical operation scripts/reports, NOT SQL/database/media/active source backup
+- Google Drive target folder: https://drive.google.com/drive/folders/1sl0VNgX-cX8fywqg-4TmS8TeiidFwqJ2
+- Generic backups/current, backups/releases and shared account caches are EXCLUDED pending project-only ownership proof
+- Missing B959 actual offhost SQL/private restore remains separately HOLD
+- Current in-progress B994 report is excluded from the GPG snapshot; upload it separately to Drive after completion.
+- Ald1n-scoped roots scanned: 41
+- Deliberately excluded identity-ambiguous roots: 2 (no changes)
+- Selected scripts/reports: 21184 (non-vendor, non-runtime; inventory in encrypted manifest)
+- Internal file SHA256 manifest: 8506a918c94eff67264ea20b6d6cd91dfbcb0d1675d8e4a65cfa3a6b9d865da5
+- GPG AES256 will request a strong secret passphrase via terminal/pinentry; never send it to ChatGPT.
+- HOLD: source changed or GPG encryption failed; NO_DELETE
+- Archive preparation completed: NO
+- OFFHOST_GOOGLE_DRIVE_UPLOAD: NOT_PERFORMED; owner must upload encrypted file and independently verify
+- LOCAL_SOURCE_FILES_DELETED: ZERO
+- OTHER_WEBSITES_MAIL_CPANEL_PRODUCTION_MODIFIED: NO
+- Exit code: 2
+- Gate: HOLD_B994_ARCHIVE_OR_MANIFEST_INCOMPLETE; NO_DELETE
