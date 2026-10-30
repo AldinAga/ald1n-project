@@ -88,3 +88,22 @@ test('production profile remains free of auto-submit and native release gate by 
   assert.equal(blocked.version,'1.0.0');
   assert.equal(blocked.runtimeVersion,'1.0.0-build17');
 });
+
+test('same require(config) responds to release gate change per invocation, as existing CI expects', () => {
+  const script = [
+    "const cfg=require(process.argv[1]);",
+    "delete process.env.ALD1N_V15_RELEASE_GATE;",
+    "const old=cfg({config:{}});",
+    "process.env.ALD1N_V15_RELEASE_GATE='approved';",
+    "const next=cfg({config:{}});",
+    "console.log(JSON.stringify([old.version,old.runtimeVersion,next.version,next.runtimeVersion]));"
+  ].join('');
+  const env = {...process.env,EXPO_PUBLIC_APP_ENV:'production',EAS_BUILD_PROFILE:'production'};
+  delete env.ALD1N_V15_RELEASE_GATE;
+  delete env.ALD1N_V15_RELEASE_PROFILE;
+  const child=spawnSync(process.execPath,['-e',script,path.join(mobile,'app.config.js')],{
+    cwd:mobile,env,encoding:'utf8',timeout:15000
+  });
+  assert.equal(child.status,0,child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout),['1.0.0','1.0.0-build17','1.5.0','1.5.0-native2']);
+});
