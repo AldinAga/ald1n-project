@@ -1,0 +1,34 @@
+# B1000 -- nine generated caches eligibility, READ-ONLY, no deletion
+- UTC: 2026-10-30T18:29:46Z
+- Script: /home/icaffeco/ald1n-project/incoming/B1000-ALD1N-NINE-CACHE-READONLY-ELIGIBILITY.sh; normalized SHA256 selfcheck PASS
+- Prev: 973-B998-MOBILE-BUILD-HTTP-READONLY-DIAGNOSTIC-20261030-162132.md; SHA256=9b97a8a9d269b8a54b662ad0184db544bcfae8c1b72f2d56a27fc0da820464f1 PASS
+- GitHub main at preparation: 80d9ebba6d72944262e6047ce693fa08b24a3a84
+- CloudLinux local Git HEAD (not main authority): b5b942e645d28d3ed5f248eaae4180ebe9a54ee6
+- Scope: nine B997 identified generated cache/module trees only; no glob deletion, no backups, no production changes.
+- Historical mobile-build DNS is NOT an app-health gate; old webroot and its nodevenv remain protected.
+- Host process/cron and filesystem inspections are observations, NOT absolute proof of absence of every dependency.
+- HTTP route=/ CURL_RC=0 HTTP=401
+- HTTP route=/api/v1/bootstrap CURL_RC=0 HTTP=401
+- CURRENT_CMS_API_HEALTH=PASS (read-only HTTP code/transport only; not functional UAT)
+- ACCOUNT_HOME_INCLUSIVE_INODES_BEFORE=1081725 (du count, NOT cPanel quota)
+- MOUNTINFO_READABLE_AND_FORMAT_VALID=YES
+- PROCESS_SNAPSHOT=YES; CRONTAB_INSPECTION=YES (contents not logged)
+- SAME_USER_PID_ENUMERATION=YES
+## Exact allowlist eligibility
+- OLD_NPM_149B_V2: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=21946; identity=2051:213303491:1109; path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v2-20260909-212958/npm-cache
+- OLD_NPM_149B_V3: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=21943; identity=2051:213361160:1109; path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v3-20260909-214009/npm-cache
+- OLD_NPM_153: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=21943; identity=2051:213315890:1109; path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-20260911-134823/npm-cache
+- OLD_NPM_153_V2: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=21946; identity=2051:213426679:1109; path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v2-20260911-140016/npm-cache
+- OLD_NPM_153_V3: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=21943; identity=2051:213308026:1109; path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v3-20260911-142606/npm-cache
+- OLD_B984_MODULES: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=57794; identity=2051:214233374:1109; path=/home/icaffeco/ald1n-release-b984-20261029/apps/mobile/current/node_modules
+- OLD_WORKSPACE_AUDIT_MODULES: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=57681; identity=2051:213561529:1109; path=/home/icaffeco/ald1n-workspace-v2-audit-M0VH9I/repo/apps/mobile/current/node_modules
+- OLD_V15_RELEASE_MODULES: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=57794; identity=2051:214138909:1109; path=/home/icaffeco/.ald1n-v15-release-20261021T122039Z/apps/mobile/current/node_modules
+- OLD_LG03_TEST_MODULES: ELIGIBLE_FOR_SEPARATE_REVIEW_ONLY; inodes=57794; identity=2051:213180915:1109; path=/home/icaffeco/.ald1n-eas-candidates/lg03-play-testing-58b5e45b6b53a60e547e225f03ab43dd9ca85361/apps/mobile/current/node_modules
+## Conclusion
+- Eligible for independent operator review only: 9 of 9; held=0; not_present=0
+- SUM_POTENTIAL_INODES_ONLY=340784 (not recovered, includes directory roots)
+- ACTUAL_INODES_RECOVERED=0; FILES_DELETED=0
+- This does not check every cPanel vhost mapping, cross-user process or last-minute race. No deletion authorized by this report.
+- PROTECTED: Laravel CMS/vendor/storage/public, current mobile, B990, nodevenv, old domain root, global npm, other hosted sites, all backups and private data.
+- NEXT: archive authentic report on GitHub and Google Drive; only then separately authorize a newly reviewed exact-path guarded cleanup controller.
+- Gate: PASS_B1000_READONLY_CANDIDATES_IDENTIFIED; DELETION_NOT_AUTHORIZED
