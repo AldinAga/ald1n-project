@@ -1,0 +1,24 @@
+# B1004 - 9 exact old cache roots (CloudLinux: PHP parser, UAPI+API2 correct); no Python; controlled deletion with fresh safety gates
+- UTC: 2026-10-30T22:42:27Z
+- Executable: /home/icaffeco/ald1n-project/incoming/B1004-ALD1N-CLOUDLINUX-PHP-GUARDED-CACHE-CLEANUP.sh (self SHA256 PASS); authoring GitHub main=9ab4728479686b23ab0d5d1592aa0a4f8e03fad5
+- Authentic predecessor: 976-B1002-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261030-193110.md; SHA256=cc57ee5705c79e1f071077ebf01c10f2f800c3e603ebdb3a16143c4208610a20 verified
+- B995 encrypted offhost scripts/reports archive SHA256=cba29ee1c6b708a3c01010aee25f738524b9fceb8a11876369b587063d273f1a and bytes=221001337 verified on host
+- Current SQL/private restore outside host remains UNVERIFIED; backups are categorically EXCLUDED.
+- Legacy mobile-build domain, its webroot and Node22 toolchain; B990/current source; other domains; global npm; cPanel/mail; Laravel storage/vendor; all backups are excluded.
+- Any 401 response is anonymous-health evidence only, NOT functional CMS UAT.
+- Any filesystem/cPanel/active-reference uncertainty causes per-target HOLD; no wildcard selection.
+- Current baseline anonymous CMS HTTP=401 / API HTTP=401 (both must equal Report975 HTTP401)
+- Account home inclusive inode count BEFORE=1082033 (not the cPanel account quota)
+- CPANEL_DOCUMENT_ROOT_INVENTORY=UNVERIFIED_CPAPI2_JSON_COMMAND method=NONE (domain names and paths not logged)
+## Fresh individually pinned preflight (NO deletion before owner confirmation)
+- OLD_NPM_149B_V2: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_NPM_149B_V3: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_NPM_153: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_NPM_153_V2: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_NPM_153_V3: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_B984_MODULES: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_WORKSPACE_AUDIT_MODULES: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_V15_RELEASE_MODULES: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- OLD_LG03_TEST_MODULES: HOLD_CPANEL_BINDINGS_UNVERIFIED (not deleted)
+- Eligible exact roots=0 / 9; held=9; missing=0
+- Gate: HOLD_B1004_ZERO_ELIGIBLE_GENERATED_ROOTS; DELETED=0; HELD=9; MISSING=0
