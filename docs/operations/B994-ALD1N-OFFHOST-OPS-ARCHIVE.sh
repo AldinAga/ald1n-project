@@ -4,7 +4,7 @@
 clear 2>/dev/null || printf '\033c'
 set -Eeuo pipefail
 umask 077
-SELF_HASH_SHA256=778deae5cb946cd83ccdcf41466131801098f6e87c26d334a0a8dcc232def186
+SELF_HASH_SHA256=0644fcc5ec56a685ad51d6855786bb779b486e0daf444d35c4a07334ccb2721f
 HOME_ROOT=/home/icaffeco
 ROOT="$HOME_ROOT/ald1n-project"
 INCOMING="$ROOT/incoming"
@@ -128,8 +128,19 @@ while IFS= read -r -d '' root; do
         -o \( -path '*/scripts/*' \( -iname '*.php' -o -iname '*.js' -o -iname '*.ts' \) \) \) -print0 \)
   ) >> "$SCRATCH/files.unsorted0" || { log '- HOLD: project root not fully readable'; exit 2; }
 done < "$SCRATCH/roots.sorted0"
-LC_ALL=C sort -zu "$SCRATCH/files.unsorted0" > "$SCRATCH/files0"
+LC_ALL=C sort -zu "$SCRATCH/files.unsorted0" > "$SCRATCH/files.with-current0"
+: > "$SCRATCH/files0"
+# This B994 report is being appended while the archive is built. It MUST be
+# excluded from the immutable snapshot and exported separately after completion.
+# All predecessor reports, including Report969, are included normally.
+while IFS= read -r -d '' p; do
+  if [[ "$HOME_ROOT/$p" == "$REPORT" ]]; then
+    continue
+  fi
+  printf '%s\0' "$p" >> "$SCRATCH/files0"
+done < "$SCRATCH/files.with-current0"
 file_count=$(tr -cd '\000' < "$SCRATCH/files0" | wc -c | awk '{print $1}')
+log '- Current in-progress B994 report is excluded from the GPG snapshot; upload it separately to Drive after completion.'
 log "- Ald1n-scoped roots scanned: $root_count"
 log "- Deliberately excluded identity-ambiguous roots: $excluded_roots (no changes)"
 log "- Selected scripts/reports: $file_count (non-vendor, non-runtime; inventory in encrypted manifest)"
