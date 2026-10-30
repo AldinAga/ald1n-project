@@ -1,0 +1,20 @@
+# B998 - read-only CloudLinux HTTP health diagnostic after B997 Report972 HOLD
+- UTC: 2026-10-30T16:21:32Z
+- Source: /home/icaffeco/ald1n-project/incoming/B998-MOBILE-BUILD-VHOST-READONLY-DIAG.sh (normalized self-hash PASS)
+- Prior host report: 972-B997-VERIFIED-GENERATED-INODE-CLEANUP-20261030-160918.md; SHA256=a9860d38b4021fdc7e3bb928e65145ac23d1156a70348cb92e9f7b6ce3e0d651 (PASS)
+- GitHub main at script preparation: 84d8ebf37f1ab664480f07b8629ebd314639d6e5
+- Host git HEAD: b5b942e645d28d3ed5f248eaae4180ebe9a54ee6 (read-only)
+- Prior B997 outcome: HOLD_B997_MOBILE_BUILD_VHOST_HEALTH_BASELINE, DEL=0, SKIP=0.
+- Probes use HTTPS GET / without following redirects or passing credentials.
+- No raw headers, private environment values, response bodies, cookies, auth, IP addresses or credentials recorded.
+- No deletion, application changes, service restarts, EAS or Google Play activities.
+- Host getent mobile-build DNS=FAILED_OR_NOT_SUPPORTED
+- HTTPS_PROXY environment: NOT_SET
+- NO_PROXY environment: NOT_SET
+- PROBE host=cms.ald1n.com variant=exact CURL_RC=0 HTTP=302 CLASS=ORIGINAL_B997_HTTP_POLICY_WOULD_ACCEPT
+- PROBE host=mobile-build.ald1n.com variant=exact CURL_RC=6 HTTP=000 CLASS=DNS_OR_PROXY_RESOLUTION_FAILURE
+- PROBE host=mobile-build.ald1n.com variant=no_curlrc CURL_RC=6 HTTP=000 CLASS=DNS_OR_PROXY_RESOLUTION_FAILURE
+- PROBE host=mobile-build.ald1n.com variant=ipv4 CURL_RC=6 HTTP=000 CLASS=DNS_OR_PROXY_RESOLUTION_FAILURE
+- PROBE host=mobile-build.ald1n.com variant=http11 CURL_RC=6 HTTP=000 CLASS=DNS_OR_PROXY_RESOLUTION_FAILURE
+- Result: HOLD_B998_MOBILE_VHOST_BASELINE_UNRESOLVED
+- Decision: do not bypass HTTP checks or run deletion. Resolve DNS/TLS/network/service root cause first.
