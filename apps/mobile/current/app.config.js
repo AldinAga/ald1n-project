@@ -28,9 +28,22 @@ const hasIosGoogleServicesFile = Boolean(
 // MOBILE_IOS_GOOGLE_NATIVE_CONFIG_V06
 
 const isProduction = APP_ENV === 'production';
+// B989: A dedicated v1.5 Android AAB profile carries BOTH flags to the remote
+// EAS builder. The profile marker is also available during LOCAL config
+// resolution, where EAS_BUILD_PROFILE is not guaranteed to exist.
+// The ordinary production profile remains Build25 by default.
+const v15ReleaseProfile = 'production-v15-16kb';
 const suffix = isProduction ? '' : `.${APP_ENV}`;
 
 module.exports = ({ config }) => {
+  // Evaluate per call: release-candidate CI toggles the gate after requiring config.
+  const isApprovedV15Build = isProduction
+    && process.env.ALD1N_V15_RELEASE_GATE === 'approved'
+    && (
+      process.env.EAS_BUILD_PROFILE === 'production'
+      || process.env.EAS_BUILD_PROFILE === v15ReleaseProfile
+      || process.env.ALD1N_V15_RELEASE_PROFILE === v15ReleaseProfile
+    );
   const existingExtra = config.extra || {};
   const existingEas =
     existingExtra.eas &&
@@ -46,7 +59,7 @@ module.exports = ({ config }) => {
     slug: 'ald1n-mobile',
     owner: 'ald1n',
 
-    version: process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? '1.5.0' : '1.0.0',
+    version: isApprovedV15Build ? '1.5.0' : '1.0.0',
     icon: './assets/icon.png',
     scheme: 'ald1n',
     userInterfaceStyle: 'automatic',
@@ -57,7 +70,7 @@ module.exports = ({ config }) => {
     },
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
-    runtimeVersion: process.env.EAS_BUILD_PROFILE === 'production' && process.env.ALD1N_V15_RELEASE_GATE === 'approved' ? '1.5.0-native2' : '1.0.0-build17',
+    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : '1.0.0-build17',
 
     ios: {
       ...(config.ios || {}),
