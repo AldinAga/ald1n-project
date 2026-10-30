@@ -1,0 +1,11 @@
+# B1003 — Fix cPanel UAPI parser; one guarded cleanup command
+
+Date: 2026-10-30. Local isolated test suite: **29/29 PASS**. This is **NOT** evidence of actual CloudLinux deletion.
+
+Real operator Report976 SHA256: `cc57ee5705c79e1f071077ebf01c10f2f800c3e603ebdb3a16143c4208610a20`; the nine exact cache roots were held for `CPANEL_BINDINGS_UNVERIFIED`, without any deletion. The previous B1002 parser erroneously required top-level `status`/`data`, even though cPanel CLI UAPI commonly wraps these inside `result`. cPanel documents `/usr/local/cpanel/bin/uapi` as the CloudLinux binary path. B1003 first reads DomainInfo domains_data format=list using correct UAPI result wrapper; if it cannot validate complete absolute docroots, tries read-only DomainLookup getdocroots; otherwise fail-closed. No APIs are called with write methods. URLs: https://api.docs.cpanel.net/cpanel/introduction ; https://api.docs.cpanel.net/specifications/cpanel.openapi/domain-information/domaininfo-domains_data
+
+B1003 script SHA256 `dd5d22fd251606c57d0ce43eb4f6c68592c43cc5bb59e9216190a6d9c6c6e2b6`; embedded normalized selfcheck SHA256 `ae3266f621f490aa73350a940548f734d26d80aaad80c88e90152dc2197ae161`.
+
+Synthetic test coverage: exact nine allowlist, locked predecessor hash and B995 ops ciphertext, shell syntax and self-integrity, no uncontrolled glob, exclude protected B990/Node22/CMS/other websites/backups, missing TTY hold, positive 9/9 synthetic generated cache deletion and post-state, HTTP503 hold, unavailable UAPI hold, top-level alternative JSON, real wrapper JSON, DomainLookup fallback after invalid primary payload, incomplete payload hold, docroot collision hold, symlink to unrelated-site sentinel remains intact, active cron reference hold, altered script refusal, wrong source path refusal. Original B1002 isolated suite was 26/26; additional three parser variants bring to 29/29.
+
+For real host execution, cPanel may still deny UAPI access or reveal truly active mappings; the script will **HOLD** and delete zero, or delete only the subset with proven compatible bindings. We do not claim all roots safe nor guarantee inode reduction. Full account-wide deletion is **not allowed**. Deletion after typed operator consent only affects nine *exact* historical cache/node_modules paths and never their parents.
