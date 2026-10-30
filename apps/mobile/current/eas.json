@@ -47,6 +47,21 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "production-v15-16kb": {
+      "extends": "production",
+      "environment": "production",
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_V15_RELEASE_GATE": "approved",
+        "ALD1N_V15_RELEASE_PROFILE": "production-v15-16kb"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
