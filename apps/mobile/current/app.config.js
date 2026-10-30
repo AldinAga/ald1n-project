@@ -33,16 +33,17 @@ const isProduction = APP_ENV === 'production';
 // resolution, where EAS_BUILD_PROFILE is not guaranteed to exist.
 // The ordinary production profile remains Build25 by default.
 const v15ReleaseProfile = 'production-v15-16kb';
-const isApprovedV15Build = isProduction
-  && process.env.ALD1N_V15_RELEASE_GATE === 'approved'
-  && (
-    process.env.EAS_BUILD_PROFILE === 'production'
-    || process.env.EAS_BUILD_PROFILE === v15ReleaseProfile
-    || process.env.ALD1N_V15_RELEASE_PROFILE === v15ReleaseProfile
-  );
 const suffix = isProduction ? '' : `.${APP_ENV}`;
 
 module.exports = ({ config }) => {
+  // Evaluate per call: release-candidate CI toggles the gate after requiring config.
+  const isApprovedV15Build = isProduction
+    && process.env.ALD1N_V15_RELEASE_GATE === 'approved'
+    && (
+      process.env.EAS_BUILD_PROFILE === 'production'
+      || process.env.EAS_BUILD_PROFILE === v15ReleaseProfile
+      || process.env.ALD1N_V15_RELEASE_PROFILE === v15ReleaseProfile
+    );
   const existingExtra = config.extra || {};
   const existingEas =
     existingExtra.eas &&
