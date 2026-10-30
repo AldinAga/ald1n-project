@@ -1,0 +1,189 @@
+# B1001 Consolidated CloudLinux cleanup audit - READ ONLY - no deletion authorization
+- UTC: 2026-10-30T19:22:43Z
+- Auditing: /home/icaffeco/ald1n-project; report path: /home/icaffeco/ald1n-project/docs/operations/975-B1001-CONSOLIDATED-CLEANUP-READONLY-AUDIT-20261030-192243.md
+- Scope: exact 9 Report974 generated directories plus potentially stale Ald1n-owned roots, snapshots, tmp, logs, archives, backup dependencies and current deployment references.
+- Source: /home/icaffeco/ald1n-project/incoming/B1001-ALD1N-CONSOLIDATED-CLEANUP-READONLY-AUDIT.sh (immutable normalized self-hash PASS)
+- Report974 SHA256 pinned: cc6546269c345d164da6736d327719075fca5ec960e1559eae86c7708959de9e (PASS)
+- GitHub main at preparation: c1a4b20f586fdf18eeaa77bd5a2173b03c21bece; host checkout HEAD: b5b942e645d28d3ed5f248eaae4180ebe9a54ee6
+- This script writes ONLY this report; no delete, package install, EAS, OTA, database, backup, cron or application mutation.
+- No process command lines, cron content, IP addresses, HTTP bodies, cookies, tokens or environment values are logged.
+- CANONICAL_SOURCE_LAYOUT=PASS
+- B995_LOCAL_ENCRYPTED_SCRIPTS_REPORTS_ARCHIVE=PASS (off-host complete archive previously independently verified; current SQL/private files NOT covered)
+- CURRENT_SQL_PRIVATE_OFFHOST_RESTORE=NOT_INDEPENDENTLY_ATTESTED; ALL BACKUP ROOTS PROTECTED
+- CMS_ROOT_HTTP: curl_rc=0 code=401
+- ANDROID_API_BOOTSTRAP_HTTP: curl_rc=0 code=401
+- CURRENT_CMS_API_BASELINE=PASS; 401/403 may be correct without authentication; this is NOT full functional UAT
+- MOUNTINFO_VALID=YES
+- PROCESS_VIEW=YES; ACCOUNT_CRON_VIEW=YES; OWNED_PID_LIST=YES
+- OTHER_USERS_FD_CWD_OR_ALL_CPANEL_VHOST_BINDINGS=UNVERIFIED_WHEN_ACCESS_RESTRICTED (do not infer absence)
+- CPANEL_DOMAININFO_DISCOVERY=COMMAND_SUCCEEDED_BUT_MAPPING_UNVERIFIED (raw domain data not logged; no automatic deletion based on it)
+- ACCOUNT_HOME_INCLUSIVE_INODES=1081785 (not cPanel File Usage quota)
+## Protected production/backup/recovery roots: never auto-delete
+- PROTECT /home/icaffeco/ald1n-project/apps/cms/current type=DIRECTORY
+- PROTECT /home/icaffeco/ald1n-project/apps/mobile/current type=DIRECTORY
+- PROTECT /home/icaffeco/ald1n-release-b990-20261030 type=DIRECTORY
+- PROTECT /home/icaffeco/mobile-build.ald1n.com type=DIRECTORY
+- PROTECT /home/icaffeco/nodevenv/mobile-build.ald1n.com/22 type=DIRECTORY
+- PROTECT /home/icaffeco/backups type=DIRECTORY
+- PROTECT /home/icaffeco/.npm type=DIRECTORY
+- PROTECT /home/icaffeco/.ald1n-release-evidence type=DIRECTORY
+- PROTECT /home/icaffeco/.ald1n-offhost-export-b995-20261030 type=DIRECTORY
+## Nine pinned Report974 generated-only candidates
+- OLD_NPM_149B_V2: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=21946; identity=2051:213303491:1109; path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v2-20260909-212958/npm-cache
+- OLD_NPM_149B_V3: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=21943; identity=2051:213361160:1109; path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v3-20260909-214009/npm-cache
+- OLD_NPM_153: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=21943; identity=2051:213315890:1109; path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-20260911-134823/npm-cache
+- OLD_NPM_153_V2: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=21946; identity=2051:213426679:1109; path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v2-20260911-140016/npm-cache
+- OLD_NPM_153_V3: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=21943; identity=2051:213308026:1109; path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v3-20260911-142606/npm-cache
+- OLD_B984_MODULES: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=57794; identity=2051:214233374:1109; path=/home/icaffeco/ald1n-release-b984-20261029/apps/mobile/current/node_modules
+- OLD_WORKSPACE_AUDIT_MODULES: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=57681; identity=2051:213561529:1109; path=/home/icaffeco/ald1n-workspace-v2-audit-M0VH9I/repo/apps/mobile/current/node_modules
+- OLD_V15_RELEASE_MODULES: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=57794; identity=2051:214138909:1109; path=/home/icaffeco/.ald1n-v15-release-20261021T122039Z/apps/mobile/current/node_modules
+- OLD_LG03_TEST_MODULES: ELIGIBLE_FOR_NEXT_EXACT_PATH_REVIEW_ONLY; inodes=57794; identity=2051:213180915:1109; path=/home/icaffeco/.ald1n-eas-candidates/lg03-play-testing-58b5e45b6b53a60e547e225f03ab43dd9ca85361/apps/mobile/current/node_modules
+- REPORT974_NINE_TARGETS: eligible_review_only=9 held=0 missing=0 potential_inodes=340784; actual_recovered=0
+## Account-level Ald1n specific directory discovery (not a deletion allowlist)
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-b632-blade-Qsyb9x inodes=1 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-batch632-host-audit.log state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-chargers-protected-backups inodes=4 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-portfolio.f0qPXI inodes=8 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-project inodes=199579 category=PROTECT_OR_DEPENDENCY_UNKNOWN
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-release-b984-20261029 inodes=60192 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-release-b990-20261030 inodes=60189 category=PROTECT_OR_DEPENDENCY_UNKNOWN
+- ROOT_DISCOVERED path=/home/icaffeco/ald1n-workspace-v2-audit-M0VH9I inodes=60360 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-android-adaptive-496.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b651-cms-rollback-20261013-082609 inodes=3 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b788-DEOR8kRD inodes=37 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b788-activation.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b788-shell.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b789-AdjAQkkR inodes=35 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b790-0DXed8GC inodes=37 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b791-6JhKmiYQ inodes=45 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b792-wEgbF3a9 inodes=5 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b793-2mI5YbAl inodes=36 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b794-EuFVT4cd inodes=23 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b795-6ebefa91d9a94c63 inodes=37 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b795-acceptance.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b796-1YxlvwQc inodes=26 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b796-eBmla8UC inodes=12 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b797-opxutBvW inodes=51 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b798-NEzzFnps inodes=56 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b803.BHDwOLDn inodes=10 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b913-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b916-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b918-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b924-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b925-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b927-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b935-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b938-report.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-b990-one-build-08f8e09eeb74 inodes=2 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch528.8n4nK8 inodes=2011 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch528r.T84mxi inodes=2007 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch564-p0-controller.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch566-p0-controller.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch567-p0-controller.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch568-integration.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch569-readonly-audit.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch570-cli-audit.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch571-ci.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch572-validator-ci.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch573-deep-offline.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch574-ci-cost-safety.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch575-readonly.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-batch576-targeted-fix.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-build19.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-build20.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-build21-r8.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-build21.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-build25-591-global.lock state=SYMLINK_OR_NOT_DIRECTORY action=PROTECT_AND_REVIEW
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-dashboard-d123-snapshots inodes=32 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-dashboard-d123-staging inodes=56 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-dashboard-default-snapshots inodes=14 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-dashboard-default-staging inodes=56 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-eas-candidates inodes=59998 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-liquid-glass-snapshots inodes=18 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-offhost-export-b994-20261030 inodes=1 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-offhost-export-b995-20261030 inodes=2 category=PROTECT_OR_DEPENDENCY_UNKNOWN
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-release-evidence inodes=13 category=PROTECT_OR_DEPENDENCY_UNKNOWN
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-release-staging inodes=13 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-retirement-clone-snapshots inodes=3 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-sdd inodes=3 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-toolchains inodes=544 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-user-retirement-card-ui-snapshots inodes=6 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-ux2-backups inodes=15 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-v15-batch785-eas-json-20261021T125707Z inodes=6 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/.ald1n-v15-release-20261021T122039Z inodes=60052 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/tmp/ald1n inodes=30663 category=REVIEW_UNVERIFIED_NOT_DELETE
+- ROOT_DISCOVERED path=/home/icaffeco/mobile-build.ald1n.com inodes=43774 category=PROTECT_OR_DEPENDENCY_UNKNOWN
+- ROOT_DISCOVERED path=/home/icaffeco/nodevenv/mobile-build.ald1n.com inodes=11 category=PROTECT_OR_DEPENDENCY_UNKNOWN
+- ROOT_DISCOVERY_TOTAL=74; entries_reported=74; truncated_at_80=NO
+## Subtree totals -- do not delete without unique content/offhost and active-reference proof
+- SUBTREE path=/home/icaffeco/ald1n-project/tmp inodes=112499 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/ald1n-project/incoming inodes=692 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/ald1n-project/docs/operations inodes=940 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/tmp/ald1n inodes=30663 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/.ald1n-eas-candidates inodes=59998 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/.ald1n-release-evidence inodes=13 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/backups inodes=4681 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+- SUBTREE path=/home/icaffeco/mobile-build.ald1n.com/node_modules inodes=43430 classification=PROTECT_OR_MANUAL_EVIDENCE_REQUIRED
+## Project temp first-level inode inventory (max 50 results; never auto-delete)
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v2-20260909-212958 inclusive_inodes=22015 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v3-20260909-214009 inclusive_inodes=21968 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v2-20260911-140016 inclusive_inodes=21963 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v3-20260911-142606 inclusive_inodes=21957 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-20260911-134823 inclusive_inodes=21953 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/server-workspace-hygiene-batch139-20260908-224105 inclusive_inodes=1370 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-apk-parity-batch151-v6-20260911-111014 inclusive_inodes=89 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-apk-parity-batch151-v5-20260911-101904 inclusive_inodes=86 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-apk-parity-batch151-v3-20260911-095810 inclusive_inodes=80 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-apk-parity-batch151-v2-20260911-094421 inclusive_inodes=78 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-apk-parity-batch151-v4-20260911-100443 inclusive_inodes=77 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-apk-parity-batch151-v1-20260911-093343 inclusive_inodes=77 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149d-v4-20260910-120959 inclusive_inodes=62 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/batch515r3-20261005-095450 inclusive_inodes=50 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/workspaces inclusive_inodes=48 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-save-batch149e-v6-v5-20260910-111056 inclusive_inodes=43 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-save-batch149e-v6-v4-20260910-110651 inclusive_inodes=42 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/mobile-header-preferences-batch149g-v4-20260910-142443 inclusive_inodes=42 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-user-cart-batch149f-v2-20260910-081954 inclusive_inodes=38 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/mobile-header-preferences-batch149g-v3-20260910-140059 inclusive_inodes=36 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149d-v3-20260909-232139 inclusive_inodes=32 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149d-v2-20260909-230142 inclusive_inodes=31 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/laravel-user-cart-batch149f-v1-20260910-081206 inclusive_inodes=30 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149a-v1-20260909-153657 inclusive_inodes=29 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149c-v1-20260909-220620 inclusive_inodes=27 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-status-fastpath-batch149e-v2-20260909-234236 inclusive_inodes=25 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/batch515r2-20261005-083943 inclusive_inodes=18 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149c-v4-20260909-221925 inclusive_inodes=16 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149a-v4-20260909-183541 inclusive_inodes=16 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-priority-specifications-batch149e-v5-20260910-001136 inclusive_inodes=15 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/audits inclusive_inodes=15 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-fast-start-batch149e-v4-20260909-235621 inclusive_inodes=14 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/cart-icon-product-editor-side-rail-batch149g-v1-20260910-092422 inclusive_inodes=12 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-save-batch149e-v6-v3-20260910-101050 inclusive_inodes=11 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-save-batch149e-v6-v3-20260910-100801 inclusive_inodes=11 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/batch515r-20261005-082141 inclusive_inodes=11 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch150-20260910-213216 inclusive_inodes=10 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-status-fastpath-batch149e-v1-20260909-232934 inclusive_inodes=9 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-fast-start-batch149e-v3-20260909-235328 inclusive_inodes=9 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/mobile-header-cart-overflow-batch149g-v2-20260910-121749 inclusive_inodes=9 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-save-batch149e-v6-v2-20260910-094205 inclusive_inodes=7 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/mobile-quick-settings-side-panel-batch149g-v6-20260910-173614 inclusive_inodes=7 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/mobile-quick-settings-full-width-batch149g-v7-20260910-181654 inclusive_inodes=7 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-runtime-certification-batch149e-v7-v2-20260910-114156 inclusive_inodes=6 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149c-v3-20260909-221453 inclusive_inodes=6 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/batch516-financial-state-root-audit-20261005-111800 inclusive_inodes=6 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/product-editor-true-draft-runtime-certification-batch149e-v7-20260910-111800 inclusive_inodes=5 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/eas-hygiene-batch138-20260908-222335 inclusive_inodes=4 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149a-v3-20260909-154803 inclusive_inodes=4 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD path=/home/icaffeco/ald1n-project/tmp/batch149a-probe-20260909-153657 inclusive_inodes=4 class=REVIEW_NOT_AUTHORIZED
+- TEMP_CHILD_REPORTED=50 (top 50 by inode count; remaining, if any, NOT assessed individually)
+## Unproven high-risk dependencies and release closure gates
+- CROSS_USER_OPEN_PROCESS_FD_AND_CRON_COVERAGE=NOT_ATTESTED_ON_SHARED_HOSTING
+- CPANEL_CURRENT_AND_LEGACY_VHOST_DOCROOT_DEPENDENCY=NOT_ATTESTED_UNLESS_OWNER_PROVIDES_CONTROL_PANEL_EVIDENCE
+- APP_RELEASE_B990_AND_CURRENT_NATIVE_ANDROID_EAS_STATE=PROTECTED_PENDING_EXACT_RELEASE_CLOSURE
+- SOURCE_BACKUPS_SQL_PRIVATE_CONFIG_AND_SECRETS=PROTECTED_PENDING_CURRENT_INDEPENDENT_OFFHOST_RESTORE
+- HISTORICAL_SCRIPTS_REPORTS=OFFHOST_B995_ARCHIVE_PASS_BUT_NEW_REPORT_NOT_INCLUDED; archive this report separately
+- GLOBAL_NPM_OTHER_WEBSITES_MAIL_CPANEL_SHARED_CACHE=NOT_CANDIDATES
+- FINAL_CMS_API_STATUS_COMPARISON=PASS (codes must match preflight; no functional UAT)
+- DELETE_COUNT=0; RECLAIMED_INODES=0; THIS_IS_AN_INVENTORY_ONLY
+- NEXT: archive this authentic numbered report GitHub+Drive, then independently prepare a separate exact-path controlled deletion script for verified expendable assets only; HOLD all unknown roots and backups.
+- Gate: PASS_B1001_CONSOLIDATED_READONLY_AUDIT; DELETION_NOT_AUTHORIZED
