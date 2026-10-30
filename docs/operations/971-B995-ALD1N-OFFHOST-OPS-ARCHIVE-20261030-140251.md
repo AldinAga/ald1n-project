@@ -1,0 +1,37 @@
+# B995 - encrypted off-host operator scripts and reports archive, NO DELETE
+- UTC: 2026-10-30T13:02:51+00:00
+- Script SHA256: 27076ff8fe4574aaca100206caa844f5b1ab5354b2e2fa439e592def39c845f7
+- Source: exactly named project trees in /home/icaffeco; other websites untouched
+- Archive scope: historical operation scripts/reports, NOT SQL/database/media/active source backup
+- Google Drive target folder: https://drive.google.com/drive/folders/1sl0VNgX-cX8fywqg-4TmS8TeiidFwqJ2
+- Generic backups/current, backups/releases and shared account caches are EXCLUDED pending project-only ownership proof
+- Missing B959 actual offhost SQL/private restore remains separately HOLD
+- Report970 B994 archive did not complete; tar/GPG stderr was not recorded; cause NOT VERIFIED
+- Current in-progress B995 report is excluded from the GPG snapshot; upload it separately to Drive after completion.
+- Ald1n-scoped roots scanned: 39
+- Deliberately excluded identity-ambiguous roots: 2 (no changes)
+- Selected scripts/reports: 21185 (non-vendor, non-runtime; inventory in encrypted manifest)
+- Internal file SHA256 manifest: aa0918988199a0d318afc2bb5d4e9b76d27d7aa0872df38bfa462b52a41d721d
+- GPG AES256 uses an owner-entered, hidden passphrase via a dedicated file descriptor (no pinentry/agent prompt).
+- Original B994 Report970 HOLD had insufficient tar/GPG error attribution; this run records both command exit codes and only sanitized error classes.
+- TAR_CREATE_RC: 0
+- GPG_ENCRYPT_RC: 0
+- TAR_CREATE=PASS; GPG_LOOPBACK_ENCRYPT=PASS; verifying full encrypted TAR in second stream
+- GPG_DECRYPT_RC: 0
+- TAR_LIST_RC: 0
+- IMMUTABLE_SOURCE_BEFORE_AFTER_HASH: PASS
+- LOCAL_ARCHIVE_ENCRYPTED_STREAM_AND_TAR_STRUCTURE: PASS
+- ENCRYPTED_ARCHIVE_PATH: /home/icaffeco/.ald1n-offhost-export-b995-20261030/ALD1N-ALL-OPS-SCRIPTS-REPORTS-B995-20261030T130651Z.tar.gz.gpg
+- ENCRYPTED_ARCHIVE_BYTES: 221001337
+- ENCRYPTED_ARCHIVE_SHA256: cba29ee1c6b708a3c01010aee25f738524b9fceb8a11876369b587063d273f1a
+- INTERNAL_MANIFEST_SHA256: aa0918988199a0d318afc2bb5d4e9b76d27d7aa0872df38bfa462b52a41d721d
+- ENCRYPTED_ARCHIVE_FILE_COUNT: 21185
+- OFFHOST: upload the encrypted .tar.gz.gpg to the private Drive folder; no link-wide public sharing
+- DO NOT DELETE any source until Drive byte size/hash independently matches and a recovery check passes.
+- Keep .env, SQL/private backups, active runtime and other-domain data out of this ops-only archive.
+- Archive preparation completed: YES
+- OFFHOST_GOOGLE_DRIVE_UPLOAD: NOT_PERFORMED; owner must upload encrypted file and independently verify
+- LOCAL_SOURCE_FILES_DELETED: ZERO
+- OTHER_WEBSITES_MAIL_CPANEL_PRODUCTION_MODIFIED: NO
+- Exit code: 0
+- Gate: PASS_B995_ENCRYPTED_LOCAL_OPS_ARCHIVE; OFFHOST_UPLOAD_AND_DELETION_HOLD
