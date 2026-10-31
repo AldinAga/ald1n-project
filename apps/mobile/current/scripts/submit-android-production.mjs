@@ -11,7 +11,7 @@ const EXPECTED_APP_VERSION = '1.0.0';
 const EXPECTED_RUNTIME = '1.0.0-build17';
 const EXPECTED_API = 'https://cms.ald1n.com/api/v1';
 const EAS_CLI_VERSION = '25.0.0';
-const NODE_BIN = '/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node';
+const NODE_BIN = '/opt/alt/alt-nodejs22/root/bin/node';
 const NPM_CLI = '/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -48,6 +48,8 @@ if (easJson.submit?.production?.android?.releaseStatus !== 'completed') die('Goo
 
 const productionEnv = {
   ...process.env,
+  // Child CLI shebangs use /usr/bin/env node; never depend on old CloudLinux app nodevenv.
+  PATH: `${path.dirname(NODE_BIN)}${path.delimiter}${process.env.PATH || ''}`,
   EXPO_PUBLIC_APP_ENV: 'production',
   EXPO_PUBLIC_API_URL: EXPECTED_API,
 };
