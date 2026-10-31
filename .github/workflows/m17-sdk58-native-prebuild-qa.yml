@@ -97,14 +97,27 @@ jobs:
         run: |
           set -Eeuo pipefail
           sha256sum package.json package-lock.json eas.json app.config.js > "$RUNNER_TEMP/m17-native-after.sha256"
-          if ! diff -u "$RUNNER_TEMP/m17-native-before.sha256" "$RUNNER_TEMP/m17-native-after.sha256"; then
-            echo 'HOLD_M17_NATIVE_PREBUILD_UNEXPECTED_CONFIG_PATCH'
-            git diff -- package.json package-lock.json eas.json app.config.js | head -120
-            exit 2
-          fi
-          git diff --exit-code -- package.json package-lock.json eas.json app.config.js
+          sed '/  package.json$/d' "$RUNNER_TEMP/m17-native-before.sha256" > "$RUNNER_TEMP/m17-native-before-protected.sha256"
+          sed '/  package.json$/d' "$RUNNER_TEMP/m17-native-after.sha256" > "$RUNNER_TEMP/m17-native-after-protected.sha256"
+          diff -u "$RUNNER_TEMP/m17-native-before-protected.sha256" "$RUNNER_TEMP/m17-native-after-protected.sha256"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const assert=require('node:assert/strict');
+          const cp=require('node:child_process');
+          const original=JSON.parse(cp.execFileSync('git', ['show','HEAD:apps/mobile/current/package.json'], {encoding:'utf8'}));
+          const observed=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const expected=structuredClone(original);
+          if (expected.scripts.android !== 'expo start --android' || expected.scripts.ios !== 'expo start --ios') {
+            throw Error('HOLD_M17_PREBUILD_SCRIPTS_BASELINE_CHANGED');
+          }
+          expected.scripts.android='expo run:android';
+          expected.scripts.ios='expo run:ios';
+          assert.deepStrictEqual(observed,expected,'HOLD_M17_EXPO_PREBUILD_OTHER_PACKAGE_JSON_MUTATION');
+          console.log('M17_EXPO_PREBUILD_EXPECTED_TWO_SCRIPT_REWRITES=PASS');
+          NODE
+          git diff --exit-code -- package-lock.json eas.json app.config.js
           git diff --check
-          echo 'M17_NATIVE_PREBUILD_PROTECTED_SOURCE=PASS'
+          echo 'M17_NATIVE_PREBUILD_RELEASE_AND_LOCK_PROTECTED=PASS'
           echo 'M17_NO_EAS_BUILD_OTA_PLAY=PASS'
       - name: Archive evidence without signing material or native binaries
         if: always()
