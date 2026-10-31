@@ -178,7 +178,7 @@ assert(packageJson.version === '1.0.0', 'Aplikaciona package verzija je 1.0.0.')
 assert(packageLockJson.version === '1.0.0' && packageLockJson.packages?.['']?.version === '1.0.0', 'package-lock release verzija je 1.0.0.');
 assert(packageJson.dependencies?.['expo-notifications'] === '~58.1.7' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~58.1.7' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '58.1.7', 'expo-notifications prati SDK 58 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~58.0.4', 'Expo Symbols je uključen za native Material/SF ikonice.');
-assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.0.2', 'Moderni Google Credential Manager bridge je uključen.');
+assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '1.3.0', 'Moderni Google Credential Manager bridge je uključen.');
 assert(fs.existsSync(path.join(root, 'modules/ald1n-restore-credentials/expo-module.config.json')) && fs.existsSync(path.join(root, 'modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1nrestorecredentials/Ald1nRestoreCredentialsModule.kt')), 'Build23 Restore Credentials local Expo Android module postoji.');
 const restoreCredentialNative = fs.readFileSync(path.join(root, 'modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1nrestorecredentials/Ald1nRestoreCredentialsModule.kt'), 'utf8');
 const restoreCredentialFlow = fs.readFileSync(path.join(root, 'src/features/auth/restore-credentials.ts'), 'utf8');
