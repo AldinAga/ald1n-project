@@ -1,0 +1,30 @@
+name: B1012 ALT Node22 EAS25 source-only QA
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/scripts/build25-release.sh'
+      - 'apps/mobile/current/scripts/submit-android-production.mjs'
+      - 'apps/mobile/current/scripts/release25/b1012-independent-alt-node22.test.mjs'
+      - '.github/workflows/b1012-alt-node22-source-qa.yml'
+  workflow_dispatch:
+
+jobs:
+  node22-source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static EAS/Build25 protections (no builds or submits)
+        run: node --test apps/mobile/current/scripts/release25/b1012-independent-alt-node22.test.mjs
+      - name: Shell and JavaScript syntax
+        run: |
+          bash -n apps/mobile/current/scripts/build25-release.sh
+          node --check apps/mobile/current/scripts/submit-android-production.mjs
+      - name: Parse mobile package and preserve production owner gates
+        run: node -e "const p=require('./apps/mobile/current/package.json'); if (p.version!=='1.0.0'||p.scripts['build:android:production']!=='node scripts/build25-release-controller.mjs') process.exit(1)"
