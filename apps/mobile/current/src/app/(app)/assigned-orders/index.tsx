@@ -78,7 +78,7 @@ export default function AssignedOrdersScreen() {
               Učitaj još
             </Button>
           </View>
-        ) : null}
+        ) : undefined}
       />
     </SafeAreaView>
   );

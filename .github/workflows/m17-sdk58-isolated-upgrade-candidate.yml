@@ -44,60 +44,42 @@ jobs:
           const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json'));
           const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json'));
           const c=fs.readFileSync('apps/mobile/current/app.config.js','utf8');
-          if (p.dependencies.expo!=='~57.0.27' || p.dependencies['react-native']!=='0.86.3' ||
-              p.dependencies.react!=='19.2.3' || p.packageManager!=='npm@10.9.2' ||
+          if (p.dependencies.expo!=='~58.0.22' || p.dependencies['react-native']!=='0.88.1' ||
+              p.dependencies.react!=='19.3.0' || p.devDependencies['@types/react']!=='~19.3.0' ||
+              p.packageManager!=='npm@10.9.2' ||
               e.cli.version!=='25.0.0' || e.cli.appVersionSource!=='remote' ||
               !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-build17'")) {
             throw Error('HOLD_M17_UNEXPECTED_REPO_BASELINE');
           }
-          console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo57/RN0.86/React19.2/npm10/EAS25 runtime frozen');
+          console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo58/RN0.88/React19.3/npm10/EAS25 runtime frozen');
           NODE
           sha256sum apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/m17-release-before.sha256"
           echo "M17_CANDIDATE_SOURCE_COMMIT=$GITHUB_SHA"
           echo 'M17_NO_PRODUCTION_BUILD_OTA_PLAY=PASS'
-      - name: Generate SDK58 target manifest from Expo bundledNativeModules in isolated runner
+      - name: Install exact candidate lockfile using pinned npm10 (no manifest rewrite)
         shell: bash
         working-directory: apps/mobile/current
         run: |
           set -Eeuo pipefail
-          META="$RUNNER_TEMP/m17-expo58-metadata"
-          mkdir -p "$META"
-          npm view expo@58.0.22 version engines --json
-          npm install --prefix "$META" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict expo@58.0.22
-          node - "$META/node_modules/expo/bundledNativeModules.json" <<'NODE'
+          npm ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node - <<'NODE'
           const fs=require('node:fs');
-          const bundle=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          const path='package.json';
-          const p=JSON.parse(fs.readFileSync(path,'utf8'));
-          const expected={expo:'~58.0.22',react:'19.3.0','react-dom':'19.3.0','react-native':'0.88.1'};
-          if (p.dependencies.expo!=='~57.0.27'||p.dependencies['react-native']!=='0.86.3') throw Error('HOLD_M17_PACKAGE_DRIFT');
-          for(const section of ['dependencies','devDependencies']){
-            for(const [name,old] of Object.entries(p[section]||{})){
-              if(name in bundle){
-                const target=bundle[name];
-                if(typeof target!=='string'||!target.trim())throw Error('HOLD_M17_INVALID_EXPO_BUNDLED_TARGET_'+name);
-                expected[name]=target;
-              }
-            }
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+          const bundles=require('./node_modules/expo/bundledNativeModules.json');
+          if(lock.lockfileVersion!==3 || p.dependencies.expo!=='~58.0.22' ||
+             lock.packages[''].dependencies.expo!==p.dependencies.expo ||
+             lock.packages['node_modules/expo'].version!=='58.0.22' ||
+             lock.packages['node_modules/react-native'].version!=='0.88.1' ||
+             lock.packages['node_modules/react'].version!=='19.3.0' ||
+             p.devDependencies['@types/react']!=='~19.3.0')throw Error('HOLD_M17_SOURCE_LOCK_DRIFT');
+          for(const [name,target] of Object.entries(bundles)){
+            const declared=p.dependencies[name] ?? p.devDependencies[name];
+            if(declared && declared!==target && !['react','react-dom','react-native'].includes(name))
+              throw Error('HOLD_M17_BUNDLED_TARGET_DRIFT_'+name+':'+declared+'!='+target);
           }
-          // React/React Native contract is specified by SDK58 and pinned independently of latest tags.
-          Object.assign(expected,{expo:'~58.0.22',react:'19.3.0','react-dom':'19.3.0','react-native':'0.88.1','@types/react':'~19.3.0'});
-          const report=[];
-          for(const section of ['dependencies','devDependencies']){
-            for(const name of Object.keys(p[section]||{})){
-              if(Object.hasOwn(expected,name) && expected[name]!==p[section][name]){
-                report.push(`${section} ${name}: ${p[section][name]} -> ${expected[name]}`);
-                p[section][name]=expected[name];
-              }
-            }
-          }
-          // packageManager, EAS release pins, app/runtime version and app config remain unchanged.
-          if(p.packageManager!=='npm@10.9.2'||p.version!=='1.0.0'||!report.length)throw Error('HOLD_M17_SOURCE_RELEASE_LOCK');
-          fs.writeFileSync(path,JSON.stringify(p,null,2)+'\n');
-          report.forEach(l=>console.log('M17_SDK58_CANDIDATE_TARGET '+l));
-          console.log(`M17_SDK58_TARGET_COUNT=${report.length}`);
+          console.log('M17_SDK58_SOURCE_AND_LOCK_CONSISTENT=PASS');
           NODE
-          npm install --ignore-scripts --no-audit --no-fund --engine-strict --package-lock=true
           echo 'M17_SDK58_NPM10_CANDIDATE_INSTALL=PASS'
       - name: Actual Expo SDK58 dependency contract check (read-only detector)
         working-directory: apps/mobile/current
@@ -140,10 +122,11 @@ jobs:
           NODE
           unexpected="$(git diff --name-only -- . ':!apps/mobile/current/package.json' ':!apps/mobile/current/package-lock.json')"
           if test -n "$unexpected"; then printf 'HOLD_M17_UNEXPECTED_FILE_DIFF=%s\n' "$unexpected"; exit 2; fi
+          test -z "$(git status --porcelain -- apps/mobile/current/package.json apps/mobile/current/package-lock.json)"
           git diff --check
-          echo 'M17_SOURCE_MUTATION_ONLY_EPHEMERAL_NPM_PACKAGE_AND_LOCK=PASS'
+          echo 'M17_NO_PACKAGE_LOCK_OR_CONFIG_MUTATION_IN_CI=PASS'
           echo 'M17_EAS_BUILD_SUBMIT_OTA_PLAY=NONE'
-      - name: Archive generated candidate manifests and lock for source review (NO AUTO COMMIT)
+      - name: Archive tested source manifests and lock for review (NO AUTO COMMIT)
         if: always()
         uses: actions/upload-artifact@v4
         with:
