@@ -5,7 +5,9 @@ set -euo pipefail
 umask 077
 ROOT=/home/icaffeco/ald1n-project
 MOBILE="$ROOT/apps/mobile/current"
-NODE_BIN=/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node
+NODE_BIN=/opt/alt/alt-nodejs22/root/bin/node
+# Keep /usr/bin/env node used by pinned npm-exec EAS on the independent ALT-Node22 runtime.
+export PATH="/opt/alt/alt-nodejs22/root/bin:$PATH"
 STATE_DIR="${ALD1N_BUILD25_STATE_DIR:-$HOME/.ald1n-build25-release}"
 if [ -L "$STATE_DIR" ]; then echo 'BLOCKED: SYMLINK_STATE_DIR' >&2; exit 75; fi
 mkdir -p -m 700 "$STATE_DIR"

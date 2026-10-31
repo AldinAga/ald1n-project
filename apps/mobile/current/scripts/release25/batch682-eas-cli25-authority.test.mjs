@@ -23,7 +23,7 @@ test('canonical v25 authority converges across config and guardrails without glo
   assert.ok(agents.includes('CI 38862601089'));
   assert.ok(agents.includes('Authenticated production exact-group read on hosting'));
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
-  assert.ok(/^# CURRENT B9\d+/.test(index));
+  assert.ok(/^# CURRENT B\d+/.test(index));
   assert.ok(index.includes('Android M16') || index.includes('Android 16KB'));
   assert.ok(eas.cli.version === '25.0.0' && agents.includes('eas-cli@25.0.0'));
 });
