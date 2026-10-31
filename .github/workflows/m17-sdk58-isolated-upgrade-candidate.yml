@@ -81,7 +81,7 @@ jobs:
             }
           }
           // React/React Native contract is specified by SDK58 and pinned independently of latest tags.
-          Object.assign(expected,{expo:'~58.0.22',react:'19.3.0','react-dom':'19.3.0','react-native':'0.88.1'});
+          Object.assign(expected,{expo:'~58.0.22',react:'19.3.0','react-dom':'19.3.0','react-native':'0.88.1','@types/react':'~19.3.0'});
           const report=[];
           for(const section of ['dependencies','devDependencies']){
             for(const name of Object.keys(p[section]||{})){
