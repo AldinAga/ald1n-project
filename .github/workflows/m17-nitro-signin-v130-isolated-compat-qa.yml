@@ -100,7 +100,9 @@ jobs:
           npm run typecheck
           npm run validate
           npm run doctor
-          npm run test:release25
+          # Release25 fixtures emulate their own app environment; native debug alone needs the Google Services production ID.
+          # Clear only the globally-set probe env here; do not alter individual test assertions.
+          env -u EXPO_PUBLIC_APP_ENV npm run test:release25
           echo 'M17_NITRO130_APPLICATION_AND_RELEASE_REGRESSION=PASS'
       - name: Bounded Android SDK36 and NDK27
         shell: bash
