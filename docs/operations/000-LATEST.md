@@ -1,3 +1,15 @@
+# CURRENT B1008 — GitHub PR120 MERGED, 11/11 CI PASS; host guarded CSS deployment pending (2026-10-31)
+
+**B1007 fully closed by authentic [Report980](980-B1007-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261031-074432.md)**: 9/9 old generated cache roots removed and account inclusive inode **1,082,590 → 741,810**, **NET -340,780 (-31.47%)**. All backups/SQL/private, CMS/mobile/B990, Node22 and unrelated sites remain protected. Per-tree total differed from net by 4; root cause unproven. Do not run B1007 again.
+
+**B1008 source fix ACCEPTED on GitHub [PR120](https://github.com/AldinAga/ald1n-project/pull/120), merged main `1a7000dc9e6215759a7ae0710789d94d79ebb9d6`.** All **11/11** PR check runs completed SUCCESS (including PHP 8.4/MariaDB 10.11 Dashboard D1-D3 tests). Mobile quick actions at `apps/cms/current/public/assets/css/ald1n-dashboard-d1.css` now use a 2-col (<=519) / 3-col (520–720px) grid with visible wrapping and >=44px touch targets; removed scoped horizontal rail, no global overflow clipping. Isolated Chromium 14/14 browser widths/themes PASS; one-file CSS guarded deploy fixture 8/8 PASS, but *production UI has NOT yet been updated or visually attested*.
+
+**One owner CloudLinux step, no git pull/reset/clean:** download [B1008 ZIP](https://drive.google.com/file/d/1aJ5Yybfx3ELJXtf9SR68obrmQlyYkGV0/view) (full standalone deploy source SHA256 `e4900e5c14890ebaef58ef66e135cd6c1dc2037fe74ae6c555352dddd2d504bc`); place `B1008-CMS-MOBILE-QUICK-ACTIONS-CSS-DEPLOY.sh` in canonical `/home/icaffeco/ald1n-project/incoming/`, execute `bash /home/icaffeco/ald1n-project/incoming/B1008-CMS-MOBILE-QUICK-ACTIONS-CSS-DEPLOY.sh --run`, approve ONLY after the exact preflight by typing `DEPLOY_B1008_CMS_MOBILE_ACTION_GRID`. It alters only one CSS file, backs up original, and on failing live CMS/API HTTP status auto-rolls back. Returns next numbered operations report (usually 981). [B1008 handoff](B1008-REPORT980-CMS-MOBILE-SCROLL-HANDOFF-20261031.md) (owner Drive copy also archived). Require authentic host report plus mobile visual UAT before calling production scroll fixed. No production deploy, mobile build, OTA or database change yet.
+
+After host B1008 PASS: decouple EAS Node22/npm from legacy `nodevenv/mobile-build.ald1n.com/22` by read-only CLI checks and reviewed build script changes without native production build; then and only then deregister stopped CloudLinux Node web app through Selector and review exact old app root for removal with rollback. Accepted milestones still program 7/17, CMS 7/15, original UI 6/6.
+
+---
+
 # CURRENT B1008 — B1007 cleanup PASS (-340,780 inodes); mobile CMS quick-action CSS fix in PR (2026-10-31)
 
 Authentic [Report980](980-B1007-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261031-074432.md), SHA256 `7dd71033eff52d4af464557ce8911a6b09094905a2eb85ab1b9123b543f2e294`, confirms **9/9 generated cache roots deleted**, home inclusive inode **1,082,590 → 741,810**, **NET 340,780 freed (31.47%)**. Manifest had 340,784 entries, net differs by 4; don't invent a cause. Active CMS/Android/B990, Node22 old service, other domains and all backups were excluded. Never rerun B1007.
