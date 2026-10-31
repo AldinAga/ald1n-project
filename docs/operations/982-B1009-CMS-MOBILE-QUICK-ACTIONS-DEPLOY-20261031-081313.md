@@ -1,0 +1,11 @@
+# B1009 - corrected guarded CMS mobile quick-actions CSS only
+- UTC: 2026-10-31T08:13:14Z
+- Executable: /home/icaffeco/ald1n-project/incoming/B1009-CMS-MOBILE-QUICK-ACTIONS-CSS-DEPLOY.sh (normalized SHA256 PASS)
+- Target: /home/icaffeco/ald1n-project/apps/cms/current/public/assets/css/ald1n-dashboard-d1.css
+- Before CSS SHA256=fe4c3b378419215d6ca3827c96f6002927736d434f0405b72ba2022f5c7140d2
+- After CSS SHA256=15c8b880f9b4cfaa696cfbbd2c4ddbd2a2e8eced6903fb7b7e16a10d8b74e67b
+- Rollback file=/home/icaffeco/ald1n-project/incoming/b1009-css-rollback/ald1n-dashboard-d1.before-b1009-20261031T081303Z.css
+- HTTP CMS: 401 to 401; API: 401 to 401
+- Source change: dashboard quick action rail => 2/3-column grid; checks exact rule and SHA; no other CSS/Blade/DB/EAS edits
+- Mobile live authenticated screen UAT: PENDING_OWNER_VISUAL_CONFIRMATION
+- Gate: PASS_B1009_GUARDED_CSS_ONLY_DEPLOY
