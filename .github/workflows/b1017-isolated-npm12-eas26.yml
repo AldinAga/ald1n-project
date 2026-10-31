@@ -1,0 +1,98 @@
+name: B1017 isolated npm12 EAS26 compatibility
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/b1017-isolated-npm12-eas26.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-npm12-eas26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+    steps:
+      - name: Checkout for read-only project inspection
+        uses: actions/checkout@v4
+      - name: Exact Node 22.23.4
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Confirm baseline and seal tracked app files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(node -v)" = v22.23.4
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const pkg=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          const eas=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          if(pkg.packageManager!=='npm@10.9.2'||eas.cli.version!=='25.0.0'){
+            throw new Error('HOLD_BASELINE_PIN_DRIFT');
+          }
+          console.log('B1017_BASELINE_PIN=PASS npm10.9.2/eas25.0.0 unchanged');
+          NODE
+          sha256sum apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/b1017-before.sha256"
+      - name: Actual isolated npm12.2.1 plus eas-cli26 install / help-only checks
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          LAB="$(mktemp -d "$RUNNER_TEMP/b1017-npm12-eas26.XXXXXXXX")"
+          test -d "$LAB" && test ! -L "$LAB"
+          mkdir -p "$LAB/home" "$LAB/cache" "$LAB/npm12" "$LAB/eas26"
+          export HOME="$LAB/home"
+          export NPM_CONFIG_USERCONFIG="$LAB/home/.npmrc"
+          export NPM_CONFIG_CACHE="$LAB/cache"
+          export NPM_CONFIG_PREFIX="$LAB/global"
+          export EXPO_TOKEN=''
+          export EAS_SESSION=''
+          export EAS_NO_VCS=1
+          echo 'B1017_STAGE=REGISTRY_EXACT_TARGET_METADATA'
+          npm view npm@12.2.1 version engines --json
+          npm view eas-cli@26.0.0 version engines --json
+          echo 'B1017_STAGE=NPM12_ISOLATED_INSTALL'
+          npm install --prefix "$LAB/npm12" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict npm@12.2.1
+          NPM12="$LAB/npm12/node_modules/npm/bin/npm-cli.js"
+          test "$(node "$NPM12" --version)" = 12.2.1
+          echo 'B1017_NPM12_VERSION=PASS'
+          echo 'B1017_STAGE=EAS26_ISOLATED_INSTALL'
+          node "$NPM12" install --prefix "$LAB/eas26" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict eas-cli@26.0.0
+          EAS_BIN="$(node - "$LAB/eas26/node_modules/eas-cli/package.json" <<'NODE'
+          const pkg=require(process.argv[2]);
+          if(pkg.version!=='26.0.0')throw new Error('HOLD_EAS_VERSION');
+          process.stdout.write(typeof pkg.bin==='string'?pkg.bin:pkg.bin.eas);
+          NODE
+          )"
+          test -n "$EAS_BIN"
+          EAS_RUN="$LAB/eas26/node_modules/eas-cli/$EAS_BIN"
+          test -f "$EAS_RUN"
+          node "$EAS_RUN" --version
+          node "$EAS_RUN" --help > "$LAB/help-general.txt"
+          node "$EAS_RUN" build --help > "$LAB/help-build.txt"
+          node "$EAS_RUN" submit --help > "$LAB/help-submit.txt"
+          node "$EAS_RUN" update --help > "$LAB/help-update.txt"
+          echo 'B1017_EAS26_VERSION_AND_SAFE_HELP=PASS'
+          echo 'B1017_STAGE=OUTDATED_METADATA_READ_ONLY'
+          npm view expo version --json
+          npm view react-native version --json
+          npm view expo-router version --json
+          echo 'B1017_REMOTE_ACTIONS=NONE; GLOBAL_NPM_CHANGE=NONE'
+      - name: Prove no tracked mobile source or release pin changed
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha256sum apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/b1017-after.sha256"
+          diff -u "$RUNNER_TEMP/b1017-before.sha256" "$RUNNER_TEMP/b1017-after.sha256"
+          test -z "$(git status --porcelain -- apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/mobile/current/eas.json apps/mobile/current/app.config.js)"
+          echo 'B1017_PRODUCTION_SOURCE_UNCHANGED=PASS'
+          echo 'B1017_NO_EAS_BUILD_SUBMIT_UPDATE=PASS'
