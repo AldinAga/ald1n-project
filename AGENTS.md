@@ -10,6 +10,16 @@ Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninte
 
 ---
 
+## 0C. Permanent owner mandate: NEVER stop after conclusions or documentation; work the next batch (2026-10-31)
+
+When any Ald1n user prompt accepts a PASS, closes an item or requests new development, complete the proper current task AND **immediately undertake the next safe, authorized batch in the project's actual priority order in the SAME turn**. Never finish with commentary, reports, documentation-only updates or promises when source edits, isolated tests, CI, PR preparation, verified artifacts or a bounded operator handoff are possible. Reconstruct fresh GitHub main, AGENTS, 000-LATEST, host reports and Drive each time. Do not wait for another user prompt for already authorized safe work.
+
+When genuine CloudLinux or privileged authorization is required, finish all possible GitHub/CI/isolated preparation, deliver one correctly named SHA-self-verifying noninteractive operator script under canonical incoming and a single copy-paste command, state exact HOLD, and continue independent safe work. NEVER fake PASS or bypass any high-risk production native build/OTA/Play, DDL/destructive/financial gate or a safety-denied operation.
+
+**M16 owner acceptance:** Android versionCode **28** resolved the Google Play **16 KB** issue; the owner reports real device works and explicitly accepts **M16=PASS**. This is authentic owner testimony alongside Google Play screenshots, NOT independent signed AAB, signer, ELF/ZIP or page-size artifact readback, and does not authorize new Play/OTA/build actions. Formal acceptance is **8/17=47.1% program**, **7/15=46.7% CMS**, original UI **6/6=100%**. **B1017 isolated npm12.2.1/EAS26 is ACTIVE now**, then M17 SDK58. Do not rerun M16 remediation or B1015/B1016. Detailed report: docs/operations/988-M16-OWNER-ACCEPTANCE-CONTINUOUS-NEXT-BATCH-20261031.md.
+
+---
+
 ## 0. Owner execution autonomy and communication contract (permanent, 2026-10-23)
 
 **Do the work, do not narrate the work.** For every Ald1n development request, the agent independently reads fresh GitHub `main`, this file, `docs/operations/000-LATEST.md`, current operations evidence, and canonical Google Drive guidance; then performs available source edits, GitHub commits/PR work, CI testing, review, and documentation/Drive archiving **without asking the owner for routine approval or explaining each planned engineering stage**.
