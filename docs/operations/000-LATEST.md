@@ -1,3 +1,13 @@
+# CURRENT M16 OWNER ACCEPTED; CONTINUOUS NEXT-BATCH RULE; B1017 ACTIVE (2026-10-31)
+
+**M16 CLOSED / OWNER-ACCEPTED PASS.** The owner explicitly states **Android versionCode=28 fixed the 16 KB violation** and app operation on a real device is OK; earlier archived Google Play Console screenshots show violation resolved and no policy issue. Sources: [Report987 screenshots](987-M16-GOOGLE-PLAY-16KB-POLICY-CLEARED-20261031.md) and [Report988 owner acceptance + permanent rule](988-M16-OWNER-ACCEPTANCE-CONTINUOUS-NEXT-BATCH-20261031.md). Owner attestation is NOT independent signed AAB/ELF/ZIP/device page-size provenance; keep any future production release authorization gated. Do not repeat completed M16 remediation or B1015/B1016.
+
+**Permanent AGENTS section 0C:** never deliver a project report or conclusions without immediately working the next safe, approved batch IN THE SAME TURN, with actual source/CI/QA or a verified exact one-command operator handoff. No new user prompt required. Hold separately gated production changes and never invent PASS.
+
+**B1017 ACTIVE IMMEDIATELY:** isolated npm 12.2.1 / EAS CLI26 on Node22.23.4; active CloudLinux npm10.9.9 / EAS25 unchanged. Then M17 Expo SDK58. **Formal acceptance 8/17=47.1% overall; CMS 7/15=46.7%; original UI 6/6=100%.**
+
+---
+
 # CURRENT OWNER PLAY CONSOLE 16 KB ISSUE FIXED — M16 policy subgate PASS; binary/device release proof separate (2026-10-31)
 
 **New authentic owner-provided screenshot evidence:** [Report987, policy-specific closeout](987-M16-GOOGLE-PLAY-16KB-POLICY-CLEARED-20261031.md). Google Play Console screen for **Ald1n CMS** displays **"Nije pronađen nijedan problem"** under Policy status, and the specific **"Aplikacija mora da podržava veličine stranica memorije od 16 kB"** violation detail shows **"Kršenje smernica je ispravljeno"** with resolution timestamp **2026-10-30 22:57**. Archived unmodified owner PNGs: [Policy status, no open issues](https://drive.google.com/file/d/1ARgnY7g8rh9oqT6QM8vkhy62ZOH9f9hZ/view) SHA256 `4a994f4778d88e212366a46b63e1e9683b3d53cbd1f374b31c99b3f4aa6768c8`; [16 KB violation fixed](https://drive.google.com/file/d/1nukrAsj5FKz3zP7Y5MtfLUnHPViSPBLi/view) SHA256 `dbbaca67e8ab20fed610044629fec5213d824137dcdd75f5177c83488879cf31`. **PLAY_POLICY_16KB=CLEARED_OWNER_EVIDENCE**; do not call this Google Play policy notice OPEN, and **do not run duplicate 16 KB policy remediation/new native build solely to fix it**.
