@@ -1,0 +1,31 @@
+# B1015 - CloudLinux EAS25 source-only host reconciliation
+UTC_START=2026-10-31T10:08:48Z
+MODE=GUARDED_SOURCE_ONLY; NO_BUILD=YES; NO_OTA=YES; NO_PLAY=YES; NO_NPM_INSTALL=YES
+B1014_REPORT_CONFIRMED=PACKAGE_EAS_SUBMIT_OLD_SHA; WRAPPER_AND_CONTROLLER_MISSING
+EXPECTED_GIT_HEAD=b5b942e645d28d3ed5f248eaae4180ebe9a54ee6
+GIT_HEAD=b5b942e645d28d3ed5f248eaae4180ebe9a54ee6
+SOURCE_SHA256 path=/home/icaffeco/ald1n-project/apps/mobile/current/package.json sha=ca996886464fc3fd33a90f1d0330e3d08101b9440eba5b2a7fe7880add6b5845 uid=1109 mode=644
+SOURCE_SHA256 path=/home/icaffeco/ald1n-project/apps/mobile/current/eas.json sha=b3cd822dd3b5578f40b61dff2539915f94691583414a05b45b83aff198443ad5 uid=1109 mode=644
+SOURCE_SHA256 path=/home/icaffeco/ald1n-project/apps/mobile/current/scripts/submit-android-production.mjs sha=e2ba079fb30ef70bad323b33fbb0b4fefc73d5b5b207fd447ce758982703faee uid=1109 mode=755
+BUILD25_WRAPPER=ABSENT_AS_AUDITED
+BUILD25_CONTROLLER=ABSENT_AS_AUDITED
+ALT_NODE=v22.23.4 ALT_NPM=10.9.9
+STAGE=PASS preserve_non_EAS_package=yes preserve_EAS_profiles=yes direct_submit_disabled=yes
+STAGED_SUBMIT_EXECUTE=BLOCKED_78_PASS
+STAGE_SHA256 package=a378eac2694e1fc37b1ad2249bff92e7d2ac919a6861bef154b410055bc56d79
+STAGE_SHA256 eas=ac85460ecf05bafa008a3d2ba812eee9b6357d65f38bdc734254acdd3aac7e38
+STAGE_SHA256 submit=7ee6fed82901dd73c1bd6687adb8aa63d10e7f83d920b0fa51b39dcadb54886b
+UNCHANGED=app version; Expo dependencies; package lock; CMS; backups; local Git changes; channels; API URL; release flags
+BUILD25_CONTROLLER=STILL_MISSING; RELEASE_GATE=HOLD; NO_RELEASE_AUTHORIZATION
+B1015_PREFLIGHT=READY_SOURCE_ONLY
+Confirm exact three-file source-only change by typing APPLY_B1015_EAS25_SOURCE_ONLY: ROLLBACK_COPY_DIR=/home/icaffeco/.ald1n-b1015-recovery/b1015-20261031-100848.kBJim9d9
+POST_SUBMIT_EXECUTE=BLOCKED_78_PASS
+POST_SHA256 package=a378eac2694e1fc37b1ad2249bff92e7d2ac919a6861bef154b410055bc56d79
+POST_SHA256 eas=ac85460ecf05bafa008a3d2ba812eee9b6357d65f38bdc734254acdd3aac7e38
+POST_SHA256 submit=7ee6fed82901dd73c1bd6687adb8aa63d10e7f83d920b0fa51b39dcadb54886b
+RESULT=PASS_B1015_EAS25_HOST_SOURCE_ONLY
+RELEASE_READINESS=HOLD_BUILD25_CONTROLLER_NOT_ON_HOST
+NEXT=Independent controller/source dependency gate before any production release
+
+- Terminal RC: 0
+- Host source changed: YES_three_files
