@@ -14,7 +14,7 @@
 
 ## Owner-supplied `/home/icaffeco` hidden-folder screenshots, evidence vs assumptions
 
-The screenshots show directory entries with size 4 KB (directory metadata, NOT recursive content size), names and dates only. They DO NOT establish that entire trees are empty, backed up off-host, unused by process/cron, or safely disposable. **Nothing on this list is approved for blind deletion from screenshots alone.** Exact 35 unique visible entries are grouped by preliminary decision:
+The screenshots show directory entries with size 4 KB (directory metadata, NOT recursive content size), names and dates only. They DO NOT establish that entire trees are empty, backed up off-host, unused by process/cron, or safely disposable. **Nothing on this list is approved for blind deletion from screenshots alone.** Exact 34 unique visible entries are grouped by preliminary decision:
 
 ### Conditional candidates, only after exact live-use/unique-source/remote-evidence proof
 
