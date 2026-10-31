@@ -1,3 +1,13 @@
+# CURRENT B1020 M17 LG-03 LEGACY SDK57 FINGERPRINT REPAIRED; FULL SDK58 LG03 SOURCE CI PASS (2026-10-31)
+
+**Original user-linked failure is not the main M17 migration workflow.** GitHub [run41202278247](https://github.com/AldinAga/ald1n-project/actions/runs/41202278247) is actually `Android LG-03 Wave 1` (job124540271826), failed **exit31** in `Native baseline and forbidden-release drift` because the legacy CI explicitly required Expo `~57.0.27` / RN `0.86.3`. Draft PR123 correctly pins SDK58 Expo `~58.0.22` / RN `0.88.1`. The legacy FAIL was a version-scoped identity rejection, not a newly discovered SDK58 compiler crash.
+
+**Actual source correction:** draft [PR123](https://github.com/AldinAga/ald1n-project/pull/123) now has commit `2dd5256e9d32198f447e08ef0b6749df4e49c0e4`. Only `.github/workflows/android-lg03-wave1-source-qa.yml` was edited; it retains exact *SDK57+RN0.86.3+NitroGoogle1.0.2* and *SDK58+RN0.88.1+NitroGoogle1.3.0* baselines (Nitro core0.36.1, LiquidGlass0.2.1, app1.0.0, EAS25 and Build25 runtime/release holds remain locked), rejecting mixed versions. Node22.23.4 pinned. All original TypeScript, validator, regression, and Android JS export steps remain mandatory.
+
+**Real direct GitHub rerun** [run41204234965](https://github.com/AldinAga/ald1n-project/actions/runs/41204234965), job124545953130 **COMPLETED SUCCESS**: strict baseline+release gate PASS; TypeScript and validator PASS; **312/312** Release25 tests PASS; Android JS bundle export **PASS** (2765 modules; no publish). No APK/AAB, EAS build, OTA, Play, production DB/CloudLinux modification. Draft SDK58 M17 still needs actual binary 16KiB/ELF+ZIP and real-device Google Sign-In UAT and separate approvals. Existing M16 versionCode28 remains owner-accepted PASS. Formal milestones **8/17 47.1%**, CMS **7/15 46.7%**. Full [Report992](992-M17-LG03-SDK57-SDK58-CI-REPAIR-20261031.md) and [Google Drive archive](https://drive.google.com/file/d/1MbvyJ_hoh-Z1xH41i8Iy0Hk8o1ZLK0nQ/view).
+
+---
+
 # CURRENT B1019 M17 SDK58 GOOGLE NITRO KOTLIN COMPILER PASS — DEVICE/BINARY GATES OPEN (2026-10-31)
 
 **Actual failure diagnosed and repaired:** in M17 SDK58 draft PR123, the first native JDK17/SDK36/NDK27 Gradle CI failed due to Google Services debug applicationId mismatch (run41198524254), then after a bounded CI identity correction failed in `react-native-nitro-google-signin@1.0.2` `GoogleSignInButtonShadowNode.kt:32` with Kotlin `Function invocation 'getThemedContext()' expected` (run41198826999). This was a third-party native source compatibility failure, not the published M16 Android versionCode28 application.
