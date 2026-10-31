@@ -1,3 +1,13 @@
+# CURRENT OWNER PLAY CONSOLE 16 KB ISSUE FIXED — M16 policy subgate PASS; binary/device release proof separate (2026-10-31)
+
+**New authentic owner-provided screenshot evidence:** [Report987, policy-specific closeout](987-M16-GOOGLE-PLAY-16KB-POLICY-CLEARED-20261031.md). Google Play Console screen for **Ald1n CMS** displays **"Nije pronađen nijedan problem"** under Policy status, and the specific **"Aplikacija mora da podržava veličine stranica memorije od 16 kB"** violation detail shows **"Kršenje smernica je ispravljeno"** with resolution timestamp **2026-10-30 22:57**. Archived unmodified owner PNGs: [Policy status, no open issues](https://drive.google.com/file/d/1ARgnY7g8rh9oqT6QM8vkhy62ZOH9f9hZ/view) SHA256 `4a994f4778d88e212366a46b63e1e9683b3d53cbd1f374b31c99b3f4aa6768c8`; [16 KB violation fixed](https://drive.google.com/file/d/1nukrAsj5FKz3zP7Y5MtfLUnHPViSPBLi/view) SHA256 `dbbaca67e8ab20fed610044629fec5213d824137dcdd75f5177c83488879cf31`. **PLAY_POLICY_16KB=CLEARED_OWNER_EVIDENCE**; do not call this Google Play policy notice OPEN, and **do not run duplicate 16 KB policy remediation/new native build solely to fix it**.
+
+**Evidence boundary:** screenshots do not show package name/versionCode, new completed signed AAB, signer SHA, physical page-size-16384 test, or Play track/rollout. B991 independently recorded a new EAS build in progress at its checkpoint, **not a signed finished artifact**. Do **not** claim particular AAB/ELF/ZIP/UAT or M16 overall acceptance PASS solely from the policy page. **M16_FULL_ACCEPTANCE=OPEN_PENDING_MISSING_PROVENANCE_AND_DEVICE_UAT**; reuse earlier native/emulator CI and request only missing immutable artifact evidence. Avoid asserting failure of anything newly shown PASS. All release/build/OTA/Play safety gates remain. No production changes in this documentation-only update.
+
+**Priority unchanged:** M16 first (now policy subgate PASS), B1017 isolated npm12.2.1/EAS26 second only after M16 accepted, M17 Expo SDK58 third. Previous B1015/B1016 source-only host PASS never rerun. **Acceptance ledger unchanged 7/17=41.2% program, 7/15=46.7% CMS** (formal milestones, not coding progress).
+
+---
+
 # CURRENT OWNER PRIORITY — M16 ANDROID 16 KB FIRST; B1017 npm12/EAS26 SECOND; M17 SDK58 THIRD (2026-10-31)
 
 **Owner's explicit reprioritization replaces the older B1017-first order in previous handoffs.**
