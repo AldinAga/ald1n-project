@@ -20,7 +20,9 @@ jobs:
     env:
       CI: 'true'
       EXPO_NO_TELEMETRY: '1'
-      EXPO_PUBLIC_APP_ENV: development
+      # Use the existing Google Services applicationId for unsigned CI debug compilation only.
+      # EAS_BUILD_PROFILE and ALD1N_V15_RELEASE_GATE remain unset; never a release build.
+      EXPO_PUBLIC_APP_ENV: production
       NPM_CONFIG_AUDIT: 'false'
       NPM_CONFIG_FUND: 'false'
       NPM_CONFIG_FETCH_RETRIES: '1'
@@ -53,6 +55,14 @@ jobs:
              e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote'||
              e.build.production.android.buildType!=='app-bundle')
             throw Error('HOLD_M17_SOURCE_OR_RELEASE_IDENTITY');
+          const app=require('./app.config.js')({config:{}});
+          if (process.env.EAS_BUILD_PROFILE || process.env.ALD1N_V15_RELEASE_GATE
+              ||app.android?.package!=='com.ald1n.mobile'
+              ||app.version!=='1.0.0'
+              ||app.runtimeVersion!=='1.0.0-build17') {
+            throw Error('HOLD_M17_DEBUG_GOOGLE_SERVICES_IDENTITY_OR_RELEASE_ENV');
+          }
+          console.log('M17_CI_DEBUG_GOOGLE_SERVICES_PACKAGE_IDENTITY=PASS_NO_RELEASE_PROFILE');
           console.log('M17_NATIVE_COMPILER_EXACT_SOURCE_AND_RELEASE_GATES=PASS');
           NODE
           sha256sum package-lock.json eas.json app.config.js > "$RUNNER_TEMP/m17-compile-before.sha256"
