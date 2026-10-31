@@ -1,3 +1,13 @@
+# CURRENT B1017 ISOLATED NODE22/NPM12/EAS26 CI PASS — PR122 MERGED (2026-10-31)
+
+**Actual engineering, not just documentation:** [PR122](https://github.com/AldinAga/ald1n-project/pull/122) one-file GitHub Actions lab merged as `c344100974b0f4b86d74ffa2b281a68a10c1f57f`. [Run41196744399](https://github.com/AldinAga/ald1n-project/actions/runs/41196744399), job124524327771 **SUCCESS**, 9/9 steps PASS on exact Node 22.23.4: npm12.2.1 isolated install, EAS CLI26.0.0 isolated install via npm12 (527 packages), exact CLI version and help-only builds/submits/updates, npm registry metadata, before/after SHA of four protected app config files. Existing [Batch721 integrated MariaDB QA run41196744350](https://github.com/AldinAga/ald1n-project/actions/runs/41196744350) also SUCCESS. Full independent evidence in [Report989](989-B1017-NPM12-EAS26-ISOLATED-GITHUB-CI-PASS-20261031.md), mirrored on [owner Google Drive](https://drive.google.com/file/d/1eksEp2h5DrYqc6WcfyVuxu_4UK1PzNAG/view).
+
+**B1017_ISOLATED_GITHUB_CI=PASS; CLOUDLINUX_HOST_B1017=NOT_RUN.** The active host Node22.23.4, npm10.9.9 and EAS CLI25.0.0 remain unchanged; no actual EAS build, OTA, Play, SDK major migration, source dependency install or production modification. Do not claim this CI establishes CloudLinux host compatibility or authorize global tooling upgrades. CI observed upstream latest Expo58.0.22/RN0.88.1/Expo Router58.0.29, not install pins. New next engineering priority **M17 SDK58 controlled source upgrade/preflight** with its own source/CI/device gates; CloudLinux host test for a future toolchain upgrade remains a distinct narrow gate if such a change is chosen. Do not rerun B1017 successful CI without meaningful source change.
+
+**M16 owner PASS via versionCode28 and device confirmation** (Report988), permanent same-turn next batch execution rule remains in AGENTS section0C. **Accepted 8/17=47.1% overall, CMS7/15=46.7%, original UI6/6=100%.**
+
+---
+
 # CURRENT M16 OWNER ACCEPTED; CONTINUOUS NEXT-BATCH RULE; B1017 ACTIVE (2026-10-31)
 
 **M16 CLOSED / OWNER-ACCEPTED PASS.** The owner explicitly states **Android versionCode=28 fixed the 16 KB violation** and app operation on a real device is OK; earlier archived Google Play Console screenshots show violation resolved and no policy issue. Sources: [Report987 screenshots](987-M16-GOOGLE-PLAY-16KB-POLICY-CLEARED-20261031.md) and [Report988 owner acceptance + permanent rule](988-M16-OWNER-ACCEPTANCE-CONTINUOUS-NEXT-BATCH-20261031.md). Owner attestation is NOT independent signed AAB/ELF/ZIP/device page-size provenance; keep any future production release authorization gated. Do not repeat completed M16 remediation or B1015/B1016.
