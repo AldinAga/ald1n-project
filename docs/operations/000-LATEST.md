@@ -1,4 +1,4 @@
-# CURRENT M17 EXPO SDK58 SOURCE AND ANDROID PREBUILD PASS — NATIVE COMPILER OPEN (2026-10-31)
+# CURRENT B1018 M17 EXPO SDK58 SOURCE AND ANDROID PREBUILD PASS — NATIVE COMPILER OPEN (2026-10-31)
 
 **Real SDK58 migration was implemented, not just planned.** Draft [PR123](https://github.com/AldinAga/ald1n-project/pull/123) isolates the source changes: Expo `~58.0.22`, React Native `0.88.1`, React `19.3.0`, revised lockfile, strict source validator and actual RN0.88 fixes. [Source CI run41198102946](https://github.com/AldinAga/ald1n-project/actions/runs/41198102946) **PASS**, real `npm ci`, Expo dependency check, strict TypeScript, validator **0 failures**, Expo Doctor **20/20**, Release25 regression **309/309**. Previous 16 TypeScript errors and old validator/lock/tooling fixtures were repaired; all original release gates retained. The active CloudLinux runtime npm10.9.9/EAS25 and published Android versionCode28 are not changed.
 
