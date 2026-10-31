@@ -1,3 +1,13 @@
+# CURRENT B1008 — B1007 cleanup PASS (-340,780 inodes); mobile CMS quick-action CSS fix in PR (2026-10-31)
+
+Authentic [Report980](980-B1007-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261031-074432.md), SHA256 `7dd71033eff52d4af464557ce8911a6b09094905a2eb85ab1b9123b543f2e294`, confirms **9/9 generated cache roots deleted**, home inclusive inode **1,082,590 → 741,810**, **NET 340,780 freed (31.47%)**. Manifest had 340,784 entries, net differs by 4; don't invent a cause. Active CMS/Android/B990, Node22 old service, other domains and all backups were excluded. Never rerun B1007.
+
+B1008 source-only CSS repair prepared on `fix/b1008-cms-mobile-dashboard-quick-actions-20261031`: `apps/cms/current/public/assets/css/ald1n-dashboard-d1.css` at mobile <=720 no longer forces `flex-wrap:nowrap; overflow-x:auto` in dashboard D1 action buttons. It uses 2-column responsive grid 320–519px and 3-column 520–720px, wraps long labels, keeps all links visible at >=44px height and does not globally hide overflow. [Review and QA](B1008-REPORT980-MOBILE-DASHBOARD-HORIZONTAL-RAIL-QA-20261031.md): isolated Chromium Playwright width/theme 14/14 PASS (320/375/390/430/520/720/768 in dark and light); actual authenticated CMS/device UAT and guarded host deployment **PENDING**. Existing GitHub Dashboard integration CI must pass before app source merge. Do NOT claim production UI fixed until host deployment/rollback gates PASS.
+
+After B1008 acceptance: EAS build wrapper independence from old CloudLinux `nodevenv/mobile-build.ald1n.com/22/bin/node` by validated Node22/npm10 read-only CLI, NO native prod build. After that, deregister stopped Node app through CloudLinux Selector and review exact old source for retirement, never `rm -rf` before app unregister. All backups and unverified old projects remain protected; user-facing functionality acceptance unchanged.
+
+---
+
 # CURRENT B1007 — Owner-attested nine-cache cleanup package, one SSH handoff, local 45/45 QA (2026-10-31)
 
 The owner has supplied the cPanel Domains/Document Root screenshots and CloudLinux Node App Root screen for 2026-10-31. The **nine exact known generated-only roots** pinned in [Report975](975-B1001-CONSOLIDATED-CLEANUP-READONLY-AUDIT-20261030-192243.md) (5 old npm-cache and 4 isolated old Expo node_modules, **340,784 potential inode entries**) are outside all shown domain and Node App roots. Last authentic [Report979](979-B1004-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261030-224227.md) confirms **9/9 held, actual DELETED=0**, because cPanel UAPI parser was unverified. No cache deletion is yet confirmed.

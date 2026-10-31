@@ -1,0 +1,51 @@
+# B1007 - 9 exact old cache roots (CloudLinux: PHP parser, UAPI+API2 correct); no Python; controlled deletion with fresh safety gates
+- UTC: 2026-10-31T07:44:32Z
+- Executable: /home/icaffeco/ald1n-project/incoming/B1007-ALD1N-VERIFIED-9-CACHES-CLEANUP.sh (self SHA256 PASS); authoring GitHub main=11d1752ebff05fe89ac8a8d80864c48901368940
+- Authentic predecessor: 979-B1004-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261030-224227.md; SHA256=36c5565ee78c8ffa0bbd397a0f6d768d339f8abe2d7cf8d74f4b8fe2dc843952 verified
+- B995 encrypted offhost scripts/reports archive SHA256=cba29ee1c6b708a3c01010aee25f738524b9fceb8a11876369b587063d273f1a and bytes=221001337 verified on host
+- Current SQL/private restore outside host remains UNVERIFIED; backups are categorically EXCLUDED.
+- Legacy mobile-build domain, its webroot and Node22 toolchain; B990/current source; other domains; global npm; cPanel/mail; Laravel storage/vendor; all backups are excluded.
+- Any 401 response is anonymous-health evidence only, NOT functional CMS UAT.
+- Owner supplied 2026-10-31 cPanel Domains and Node App screenshots; independent runtime checks remain mandatory.
+- No API spoofing; screenshot-root attestation is valid ONLY while cPanel mapping stays unchanged. Confirm before typing approval.
+- No wildcard deletion; any unverified target state or domain overlap => HOLD.
+- Current baseline anonymous CMS HTTP=401 / API HTTP=401 (both must equal Report975 HTTP401)
+- Account home inclusive inode count BEFORE=1082590 (not the cPanel account quota)
+- CPANEL_DOCUMENT_ROOT_INVENTORY=OWNER_VISUAL_ATTESTED_20261031 method=USER_SUPPLIED_DOMAINS_AND_NODE_APP_SCREENSHOTS; roots=12
+## Fresh individually pinned preflight (NO deletion before owner confirmation)
+- OLD_NPM_149B_V2: READY_FOR_OWNER_CONFIRMATION, inodes=21946, id=2051:213303491:1109, path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v2-20260909-212958/npm-cache
+- OLD_NPM_149B_V3: READY_FOR_OWNER_CONFIRMATION, inodes=21943, id=2051:213361160:1109, path=/home/icaffeco/ald1n-project/tmp/deferred-payment-batch149b-v3-20260909-214009/npm-cache
+- OLD_NPM_153: READY_FOR_OWNER_CONFIRMATION, inodes=21943, id=2051:213315890:1109, path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-20260911-134823/npm-cache
+- OLD_NPM_153_V2: READY_FOR_OWNER_CONFIRMATION, inodes=21946, id=2051:213426679:1109, path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v2-20260911-140016/npm-cache
+- OLD_NPM_153_V3: READY_FOR_OWNER_CONFIRMATION, inodes=21943, id=2051:213308026:1109, path=/home/icaffeco/ald1n-project/tmp/consolidated-device-acceptance-batch153-v3-20260911-142606/npm-cache
+- OLD_B984_MODULES: READY_FOR_OWNER_CONFIRMATION, inodes=57794, id=2051:214233374:1109, path=/home/icaffeco/ald1n-release-b984-20261029/apps/mobile/current/node_modules
+- OLD_WORKSPACE_AUDIT_MODULES: READY_FOR_OWNER_CONFIRMATION, inodes=57681, id=2051:213561529:1109, path=/home/icaffeco/ald1n-workspace-v2-audit-M0VH9I/repo/apps/mobile/current/node_modules
+- OLD_V15_RELEASE_MODULES: READY_FOR_OWNER_CONFIRMATION, inodes=57794, id=2051:214138909:1109, path=/home/icaffeco/.ald1n-v15-release-20261021T122039Z/apps/mobile/current/node_modules
+- OLD_LG03_TEST_MODULES: READY_FOR_OWNER_CONFIRMATION, inodes=57794, id=2051:213180915:1109, path=/home/icaffeco/.ald1n-eas-candidates/lg03-play-testing-58b5e45b6b53a60e547e225f03ab43dd9ca85361/apps/mobile/current/node_modules
+- Eligible exact roots=9 / 9; held=0; missing=0
+- Read-only preflight completed; server still unchanged.
+- Owner confirmed exact B1007 allowlist AND unchanged cPanel Domain/Node App root map from 2026-10-31.
+- OLD_NPM_149B_V2: quarantined same-parent exact generated cache; prior count=21946
+- OLD_NPM_149B_V2: DELETED_GENERATED_ONLY; previously measured inodes=21946
+- OLD_NPM_149B_V3: quarantined same-parent exact generated cache; prior count=21943
+- OLD_NPM_149B_V3: DELETED_GENERATED_ONLY; previously measured inodes=21943
+- OLD_NPM_153: quarantined same-parent exact generated cache; prior count=21943
+- OLD_NPM_153: DELETED_GENERATED_ONLY; previously measured inodes=21943
+- OLD_NPM_153_V2: quarantined same-parent exact generated cache; prior count=21946
+- OLD_NPM_153_V2: DELETED_GENERATED_ONLY; previously measured inodes=21946
+- OLD_NPM_153_V3: quarantined same-parent exact generated cache; prior count=21943
+- OLD_NPM_153_V3: DELETED_GENERATED_ONLY; previously measured inodes=21943
+- OLD_B984_MODULES: quarantined same-parent exact generated cache; prior count=57794
+- OLD_B984_MODULES: DELETED_GENERATED_ONLY; previously measured inodes=57794
+- OLD_WORKSPACE_AUDIT_MODULES: quarantined same-parent exact generated cache; prior count=57681
+- OLD_WORKSPACE_AUDIT_MODULES: DELETED_GENERATED_ONLY; previously measured inodes=57681
+- OLD_V15_RELEASE_MODULES: quarantined same-parent exact generated cache; prior count=57794
+- OLD_V15_RELEASE_MODULES: DELETED_GENERATED_ONLY; previously measured inodes=57794
+- OLD_LG03_TEST_MODULES: quarantined same-parent exact generated cache; prior count=57794
+- OLD_LG03_TEST_MODULES: DELETED_GENERATED_ONLY; previously measured inodes=57794
+- Inclusive account-home inode count BEFORE=1082590 AFTER=741810 NET=340780
+- Sum of exact removed generated directory inode counts=340784
+- DELETED_GENERATED_ROOTS=9; HELD=0; MISSING=0
+- Current SQL/private recovery, all backups, current CMS/mobile, B990, Node22, old domain root, other websites, global npm, cPanel/mail: NOT TOUCHED.
+- Keep this new operations report; it is NOT in the older B995 encrypted archive. Archive it separately to GitHub+Google Drive.
+- Gate: PASS_B1007_EXACT_GENERATED_CACHE_CLEANUP; REMAINING_UNVERIFIED_ROOTS_PROTECTED
