@@ -89,8 +89,20 @@ jobs:
           fs.writeFileSync(path,s.replace(from,to));
           console.log('M17_NITRO130_EPHEMERAL_VALIDATOR_ADAPTED=PASS');
           NODE
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const file='scripts/ios-release-readiness.mjs';
+          const original=fs.readFileSync(file,'utf8');
+          const from="pkg?.dependencies?.['react-native-nitro-google-signin'] === '1.0.2'";
+          const to="pkg?.dependencies?.['react-native-nitro-google-signin'] === '1.3.0'";
+          if(original.split(from).length!==2)throw Error('HOLD_IOS_GOOGLE_NATIVE_VERSION_GATE_ANCHOR_DRIFT');
+          fs.writeFileSync(file,original.replace(from,to));
+          if(!fs.readFileSync(file,'utf8').includes("'IOS_APP_OR_NATIVE_AUTH_VERSION_DRIFT'"))
+            throw Error('HOLD_IOS_NATIVE_AUTH_GATE_LOST');
+          console.log('M17_NITRO130_IOS_NATIVE_AUTH_VERSION_GATE_EXACT=PASS');
+          NODE
           mkdir -p "$RUNNER_TEMP/m17-nitro130-candidate"
-          cp package.json package-lock.json scripts/validate-project.mjs "$RUNNER_TEMP/m17-nitro130-candidate/"
+          cp package.json package-lock.json scripts/validate-project.mjs scripts/ios-release-readiness.mjs "$RUNNER_TEMP/m17-nitro130-candidate/"
           node node_modules/expo/bin/cli install --check
       - name: Strict TypeScript, full project validator, Expo Doctor, Release25 tests
         working-directory: apps/mobile/current
