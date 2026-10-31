@@ -1,0 +1,17 @@
+B1013 isolated local QA (NOT actual CloudLinux host)
+- Bash syntax: PASS
+- Embedded normalized SHA256: PASS
+- Embedded Node transformation syntax: PASS
+- Fixture healthy old Build25/submit/6 EAS scripts: PASS
+- Fixture already-independent Build25/submit: PASS
+- Wrong mobile package version rejected: PASS
+- Unknown EAS command rejected: PASS
+- Incorrect iOS preflight rejected: PASS
+- --auto-submit rejected: PASS
+- Missing Build25 lock rejected: PASS
+- Missing disabled-submit guard rejected: PASS
+- TOTAL: 11/11 PASS (three static/syntax checks plus eight transform fixtures)
+- Real CloudLinux B1013: NOT YET RUN
+- No EAS native build, Play or OTA in local QA
+- B1013 executable source full SHA256: c2c118d61d3e2f96d5b83c4a958df2c92b4e4254607291a86fa15aa52ac084bd
+- B1013 normalized selfhash: 3d4e0ac92af1ca2baa7405bef0b5f1e68abd4613c400604f56d5efa84f78c8f8
