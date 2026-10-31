@@ -6,7 +6,7 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 **Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.
 
-Last consolidated: **2026-10-23** (owner execution autonomy reaffirmed; older technical guardrails retained).
+Last consolidated: **2026-10-31** (owner one-command noninteractive safe batch rule and authenticated B1016 PASS; older release guardrails retained).
 
 ---
 
@@ -19,6 +19,19 @@ Last consolidated: **2026-10-23** (owner execution autonomy reaffirmed; older te
 - Perform all GitHub source/branch/PR, CI, read-only analysis, project documents, and permissible Google Drive organization automatically before the SSH handoff. Preserve any tool safety blocks and never route around denied upload/edit operations.
 - This autonomy does **not** waive release gates: fail closed on unresolved evidence, protect the dirty production checkout, do not deploy, perform data-destructive work, publish OTA, run EAS native builds, or submit Google Play without applicable authorization. No fake PASS. Do not request owner involvement just to repeat completed work.
 - If a genuine required operator action is not yet prepared, continue available work first; report the exact blocker if and only if it remains at the end.
+
+---
+
+
+## 0A. One-command, noninteractive safe operator batches (owner decision, 2026-10-31)
+
+**Permanent UX/execution rule for NEW Ald1n batches:** For read-only audits, isolated QA, narrowly scoped source-only repairs and other **already approved non-production/non-destructive operations**, the operator's deliberate execution of the **exact, reviewed** one-line SSH command is the only routine operational go-ahead. The batch MUST complete its full authorized sequence automatically; do not ask the owner to type `APPLY_...`, `YES`, `CONFIRM`, a SHA256 digest, press Enter for another stage, or run a separate `sha256sum` / syntax / preflight command.
+
+- Delivery: one final, correctly named script located at `/home/icaffeco/ald1n-project/incoming/`; one copy/paste `bash /home/icaffeco/ald1n-project/incoming/<exact-name>.sh --run` invocation (or the script's exact audited single-command interface). Do not hand the owner renamed R2/R3 trial scripts or extra manual shell setup. Fetch the authentic host report and latest remote `main` before preparing the next batch.
+- Embedded self-verification is **mandatory, not optional**: verify the executable's own SHA256/content/integrity anchor, expected basename and canonical path, syntax, release/source/host identity, target file types/ownership/mode and symlinks, Git/source hashes, dependencies, dry-run scope, backups/rollback feasibility and all relevant safety gates **inside the script**. Test the actual delivered name/content in isolated fixtures, including negative tampering, host drift and rollback. Never skip/disable integrity checks to achieve noninteractivity.
+- On mismatch, incomplete proof, safety refusal, unexpected modification or insufficient authority: **HOLD/FAIL CLOSED immediately**, do not retry speculative fixes or auto-approve a newly enlarged scope. Emit a clear, exact blocker and an automatically numbered report under `docs/operations/`. Show real terminal RC, mutating/non-mutating status and any rollback outcome. Do not consume input from stdin in normal safe batches.
+- **Production and high-risk boundaries are unchanged.** This rule does NOT itself authorize EAS native production builds, OTA publication, Google Play submit, destructive deletion/pruning, production DB DDL/migrations or financial/customer data operations. Those require their **separate explicit pre-authorized per-operation release/change gates** and evidence (signer, source commit, versionCode, profile/channel, AAB, device 16 KB and Play where applicable). If missing, fail closed; do not manufacture/auto-fill an approval or interpret an ordinary SSH launch as blanket consent. Gather any genuinely required special authorization **before issuing** a privileged command; do not hide a second prompt in the script. Platform-mandated approval steps cannot be bypassed.
+- Applies prospectively. Never rerun historical B1013/R2/R3 or otherwise rewrite completed batches just to remove their old interactive confirmation. B1016 owner Report986 on 2026-10-31 shows the four Build25 files already installed; do not repeat it.
 
 ---
 
@@ -92,18 +105,16 @@ Do not change these identities incidentally inside maintenance, bugfix, document
 - The GitHub historical report/archive and local current/predecessor retention rules of section 26 remain in force: checkpoint report evidence to GitHub before pruning archived local copies. Never delete uncheckpointed reports.
 - If canonical `incoming` or `docs/operations` is unavailable, or the report sequence cannot be established safely, fail CLOSED and explain the blocker; do not invent a different destination.
 
-### Canonical operator invocation (applies to Batch632 and future batches)
+### Canonical operator invocation (current prospective policy, 2026-10-31)
+
+The owner runs **one** exact command, after the completed script has been placed under canonical `incoming/`:
 
 ```bash
-ROOT=/home/icaffeco/ald1n-project
-SCRIPT="$ROOT/incoming/<batch-script>.sh"
-test -f "$SCRIPT" || { echo "HOLD: missing canonical batch script: $SCRIPT"; exit 2; }
-# Verify the exact advertised SHA-256 BEFORE running.
-# The script must write its numbered terminal report to "$ROOT/docs/operations".
-bash "$SCRIPT"
+bash /home/icaffeco/ald1n-project/incoming/<exact-batch-script>.sh --run
 ```
 
-Do not retroactively move or rewrite completed production source, release archives or historic reports to implement this path policy. This is a delivery/execution/output rule for current and future batches.
+The script itself must validate the expected filename/path, embedded integrity/SHA256, host/source state and scoped authorization, and must generate its numbered `docs/operations/` report. **No separate `sha256sum`, `bash -n`, manual setup or typed approval phrase for approved safe batches.** The earlier multi-line/manual-check sample is superseded. For separately gated production/destructive tasks, missing explicit authority remains HOLD; see section 0A.
+
 
 ---
 
