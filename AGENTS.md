@@ -6,7 +6,7 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 **Read this file before preparing or executing any batch.** If a historical operation report conflicts with this file, first determine whether the report documents a newer intentional change. Do not silently override a newer approved rule.
 
-Last consolidated: **2026-10-31** (owner one-command noninteractive safe batch rule and authenticated B1016 PASS; older release guardrails retained).
+Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
 ---
 
@@ -32,6 +32,17 @@ Last consolidated: **2026-10-31** (owner one-command noninteractive safe batch r
 - On mismatch, incomplete proof, safety refusal, unexpected modification or insufficient authority: **HOLD/FAIL CLOSED immediately**, do not retry speculative fixes or auto-approve a newly enlarged scope. Emit a clear, exact blocker and an automatically numbered report under `docs/operations/`. Show real terminal RC, mutating/non-mutating status and any rollback outcome. Do not consume input from stdin in normal safe batches.
 - **Production and high-risk boundaries are unchanged.** This rule does NOT itself authorize EAS native production builds, OTA publication, Google Play submit, destructive deletion/pruning, production DB DDL/migrations or financial/customer data operations. Those require their **separate explicit pre-authorized per-operation release/change gates** and evidence (signer, source commit, versionCode, profile/channel, AAB, device 16 KB and Play where applicable). If missing, fail closed; do not manufacture/auto-fill an approval or interpret an ordinary SSH launch as blanket consent. Gather any genuinely required special authorization **before issuing** a privileged command; do not hide a second prompt in the script. Platform-mandated approval steps cannot be bypassed.
 - Applies prospectively. Never rerun historical B1013/R2/R3 or otherwise rewrite completed batches just to remove their old interactive confirmation. B1016 owner Report986 on 2026-10-31 shows the four Build25 files already installed; do not repeat it.
+
+---
+
+## 0B. Owner release priority: M16 before B1017 (2026-10-31)
+
+**Latest explicit owner decision, supersedes the opposite order in prior B1016/Report986 handoffs:**
+1. **FIRST: M16 — close Android 16 KB compatibility** using the current validated CloudLinux ALT Node22 v22.23.4, npm10.9.9, and pinned EAS CLI25.0.0. Reconstruct actual source/release identity and inspect the **real signed AAB**, verify native ELF/ZIP 16 KB page-size alignment and packaging, confirm application behavior on a **real applicable Android 16 KB device**, and satisfy documented Google Play compatibility / signer / release gates. Reuse earlier acceptable artifacts; missing or incomplete evidence remains HOLD, never infer PASS from controller installation. No production build, OTA, Google Play submission or version change without separate per-release authorization.
+2. **SECOND, ONLY AFTER M16 is documented PASS and formally accepted:** B1017 — isolated compatibility evaluation of npm 12.2.1 and EAS CLI 26 (check actual published tool version before running), outdated dependency analysis, Node22/CloudLinux/EAS command coverage. Keep system/host npm 10.9.9 and the production EAS CLI25 pin intact unless later separately approved after isolated PASS. Do not let npm modernization delay M16.
+3. **THIRD:** M17 — Expo SDK 58 upgrade after M16 acceptance and the B1017 compatibility analysis, with its own controlled source/test and release gates.
+
+This is a **priority-order/documentation decision only**, not host or release authorization. Preserve completed B1015/B1016 source installs and current production configuration. Future safe host scripts follow section 0A: **one command, no typed phrase/manual checksum**, automatic fail-closed gates and numbered reports.
 
 ---
 
