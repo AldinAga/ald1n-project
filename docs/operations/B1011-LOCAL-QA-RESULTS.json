@@ -1,0 +1,58 @@
+{
+  "passed": 13,
+  "total": 13,
+  "checks": {
+    "bash_syntax": {
+      "pass": true,
+      "detail": ""
+    },
+    "selfhash": {
+      "pass": true,
+      "detail": ""
+    },
+    "no_production_mutations": {
+      "pass": true,
+      "detail": ""
+    },
+    "uses_ephemeral_path": {
+      "pass": true,
+      "detail": ""
+    },
+    "does_not_repeat_root_inventory": {
+      "pass": true,
+      "detail": ""
+    },
+    "pass_independent_eas_version": {
+      "pass": true,
+      "detail": "6 after: f2fa59d92dbbcce9de2e97464fa18f9b5e339f4d9c7d99c56925efe3e6b1aaba\n- Gate: PASS_B1011_INDEPENDENT_ALT_NODE22_NPM10_EAS25\n- Report: /tmp/b1011-qalab-pzrpgm_u/home/ald1n-project/docs/operations/9"
+    },
+    "disposable_cache_removed_success": {
+      "pass": true,
+      "detail": "[]"
+    },
+    "package_unchanged_success": {
+      "pass": true,
+      "detail": ""
+    },
+    "wrong_eas_version_is_hold": {
+      "pass": true,
+      "detail": ""
+    },
+    "network_fail_classified": {
+      "pass": true,
+      "detail": "HA256 after: f2fa59d92dbbcce9de2e97464fa18f9b5e339f4d9c7d99c56925efe3e6b1aaba\n- Gate: HOLD_B1011_EAS25_NOT_YET_PROVEN\n- Report: /tmp/b1011-qalab-zzzrd8b4/home/ald1n-project/docs/operations/984-B1011-A"
+    },
+    "unexpected_package_drift_is_hold": {
+      "pass": true,
+      "detail": ""
+    },
+    "no_private_node_shim_is_hold": {
+      "pass": true,
+      "detail": ""
+    },
+    "tamper_sha256_is_hold": {
+      "pass": true,
+      "detail": ""
+    }
+  }
+}
