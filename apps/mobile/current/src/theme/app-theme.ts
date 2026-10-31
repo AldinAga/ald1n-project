@@ -7,13 +7,13 @@ import { useAppPreferences, type AppThemeMode } from '@/features/preferences/app
 export type { AppThemeMode } from '@/features/preferences/app-preferences';
 export const appThemeMode: AppThemeMode = 'system';
 
-export function resolveAppColorScheme(preferredScheme: ColorSchemeName): AppColorScheme {
+export function resolveAppColorScheme(preferredScheme: ColorSchemeName | null): AppColorScheme {
   return preferredScheme === 'dark' ? 'dark' : 'light';
 }
 
 export function resolveAppThemeMode(
   mode: AppThemeMode,
-  preferredScheme: ColorSchemeName,
+  preferredScheme: ColorSchemeName | null,
 ): AppColorScheme {
   return mode === 'system' ? resolveAppColorScheme(preferredScheme) : mode;
 }

@@ -1,0 +1,129 @@
+name: M17 Expo SDK58 isolated Android native prebuild QA (NO EAS BUILD)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/plugins/**'
+      - '.github/workflows/m17-sdk58-native-prebuild-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-prebuild-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: development
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+    steps:
+      - name: Checkout exact candidate source without write credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node 22.23.4 isolated, no host/toolchain upgrade
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Lock source and production release identities
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          test "$(node -v)" = v22.23.4
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json'));
+          const e=JSON.parse(fs.readFileSync('eas.json'));
+          if (p.dependencies.expo!=='~58.0.22'||p.dependencies['react-native']!=='0.88.1'
+              ||p.version!=='1.0.0'||p.packageManager!=='npm@10.9.2'
+              ||e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote')
+            throw Error('HOLD_M17_NATIVE_PREBUILD_SOURCE_RELEASE_PIN_DRIFT');
+          if(p.dependencies['react-native-android-liquid-glass']!=='0.2.1')
+            throw Error('HOLD_M17_NATIVE_GLASS_PIN');
+          console.log('M17_NATIVE_PREBUILD_RELEASE_IDENTITY_PROTECTED=PASS');
+          NODE
+          sha256sum package.json package-lock.json eas.json app.config.js > "$RUNNER_TEMP/m17-native-before.sha256"
+      - name: Install exact SDK58 lockfile into ephemeral CI checkout
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node node_modules/expo/bin/cli install --check
+          echo 'M17_NATIVE_PREBUILD_DEPENDENCIES=PASS'
+      - name: Generate real Android Gradle project without package fixing or any native build
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          node node_modules/expo/bin/cli prebuild --platform android --no-install --clean
+          test -s android/build.gradle
+          test -s android/app/build.gradle
+          test -s android/gradle.properties
+          test -s android/app/src/main/AndroidManifest.xml
+          echo 'M17_SDK58_ANDROID_PREBUILD_GENERATION=PASS'
+      - name: Preserve app native plugin invariants and identify SDK58 template drifts
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          grep -Fq "rootProject.ext.liquidGlassVersion = 'v2.0.11'" android/build.gradle
+          grep -Fq 'android.r8.optimizedResourceShrinking=true' android/gradle.properties
+          grep -Fq 'proguard-android-optimize.txt' android/app/build.gradle
+          test -s android/app/src/main/res/values-v33/ald1n_splash_api33.xml
+          test -s android/app/src/main/res/values/styles.xml
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const {verifyGeneratedSplashResources}=require('./plugins/with-splash-api33-resources');
+          if (!verifyGeneratedSplashResources(require('node:path').resolve('android'))) throw Error('HOLD_M17_SPLASH_API33');
+          const xml=fs.readFileSync('android/app/src/main/AndroidManifest.xml','utf8');
+          if(!xml.includes('asset_statements'))throw Error('HOLD_M17_RESTORE_CREDENTIALS_DAL');
+          console.log('M17_NATIVE_MODULE_SOURCE_PLUGIN_INVARIANTS=PASS');
+          NODE
+          printf '%s\n' 'M17 Android SDK58 native source prebuild' 'SOURCE_ONLY=YES' 'NATIVE_GRADLE_BUILD=NOT_RUN' 'ANDROID_DEVICE_UAT=NOT_RUN' 'EAS_BUILD=NONE' 'OTA=NONE' 'GOOGLE_PLAY=NONE' 'PRODUCTION_SOURCE=UNCHANGED' > m17-native-prebuild-report.txt
+      - name: Verify no signed release, EAS config or source package mutation
+        if: always()
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          sha256sum package.json package-lock.json eas.json app.config.js > "$RUNNER_TEMP/m17-native-after.sha256"
+          sed '/  package.json$/d' "$RUNNER_TEMP/m17-native-before.sha256" > "$RUNNER_TEMP/m17-native-before-protected.sha256"
+          sed '/  package.json$/d' "$RUNNER_TEMP/m17-native-after.sha256" > "$RUNNER_TEMP/m17-native-after-protected.sha256"
+          diff -u "$RUNNER_TEMP/m17-native-before-protected.sha256" "$RUNNER_TEMP/m17-native-after-protected.sha256"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const assert=require('node:assert/strict');
+          const cp=require('node:child_process');
+          const original=JSON.parse(cp.execFileSync('git', ['show','HEAD:apps/mobile/current/package.json'], {encoding:'utf8'}));
+          const observed=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const expected=structuredClone(original);
+          if (expected.scripts.android !== 'expo start --android' || expected.scripts.ios !== 'expo start --ios') {
+            throw Error('HOLD_M17_PREBUILD_SCRIPTS_BASELINE_CHANGED');
+          }
+          expected.scripts.android='expo run:android';
+          expected.scripts.ios='expo run:ios';
+          assert.deepStrictEqual(observed,expected,'HOLD_M17_EXPO_PREBUILD_OTHER_PACKAGE_JSON_MUTATION');
+          console.log('M17_EXPO_PREBUILD_EXPECTED_TWO_SCRIPT_REWRITES=PASS');
+          NODE
+          git diff --exit-code -- package-lock.json eas.json app.config.js
+          git diff --check
+          echo 'M17_NATIVE_PREBUILD_RELEASE_AND_LOCK_PROTECTED=PASS'
+          echo 'M17_NO_EAS_BUILD_OTA_PLAY=PASS'
+      - name: Archive evidence without signing material or native binaries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m17-sdk58-native-prebuild-evidence-${{ github.run_id }}
+          path: apps/mobile/current/m17-native-prebuild-report.txt
+          if-no-files-found: ignore
+          retention-days: 14

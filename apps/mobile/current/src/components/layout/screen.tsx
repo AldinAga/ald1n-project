@@ -7,6 +7,7 @@ import {
   UIManager,
   View,
   type ScrollViewProps,
+  type ScrollViewInstance,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -36,7 +37,7 @@ export function Screen({
   ...props
 }: ScreenProps) {
   const { colors: themeColors } = useAppTheme();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const focusedTargetRef = useRef<number | null>(null);
   const keyboardTopRef = useRef<number | null>(null);
   const scrollOffsetRef = useRef(0);

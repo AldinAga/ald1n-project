@@ -1,0 +1,138 @@
+name: M17 Expo SDK58 isolated migration candidate (NO RELEASE)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/m17-sdk58-isolated-upgrade-candidate.yml'
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - 'apps/mobile/current/tsconfig.json'
+      - 'apps/mobile/current/scripts/validate-project.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sdk58-isolated-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
+    steps:
+      - name: Checkout exact PR source without write token
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Use exact Node 22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Protect source/release identity and preserve SDK57 baseline
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(node -v)" = 'v22.23.4'
+          test "$(npm -v | cut -d. -f1)" = '10'
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json'));
+          const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json'));
+          const c=fs.readFileSync('apps/mobile/current/app.config.js','utf8');
+          if (p.dependencies.expo!=='~58.0.22' || p.dependencies['react-native']!=='0.88.1' ||
+              p.dependencies.react!=='19.3.0' || p.devDependencies['@types/react']!=='~19.3.0' ||
+              p.packageManager!=='npm@10.9.2' ||
+              e.cli.version!=='25.0.0' || e.cli.appVersionSource!=='remote' ||
+              !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-build17'")) {
+            throw Error('HOLD_M17_UNEXPECTED_REPO_BASELINE');
+          }
+          console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo58/RN0.88/React19.3/npm10/EAS25 runtime frozen');
+          NODE
+          sha256sum apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/m17-release-before.sha256"
+          echo "M17_CANDIDATE_SOURCE_COMMIT=$GITHUB_SHA"
+          echo 'M17_NO_PRODUCTION_BUILD_OTA_PLAY=PASS'
+      - name: Install exact candidate lockfile using pinned npm10 (no manifest rewrite)
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+          const bundles=require('./node_modules/expo/bundledNativeModules.json');
+          if(lock.lockfileVersion!==3 || p.dependencies.expo!=='~58.0.22' ||
+             lock.packages[''].dependencies.expo!==p.dependencies.expo ||
+             lock.packages['node_modules/expo'].version!=='58.0.22' ||
+             lock.packages['node_modules/react-native'].version!=='0.88.1' ||
+             lock.packages['node_modules/react'].version!=='19.3.0' ||
+             p.devDependencies['@types/react']!=='~19.3.0')throw Error('HOLD_M17_SOURCE_LOCK_DRIFT');
+          for(const [name,target] of Object.entries(bundles)){
+            const declared=p.dependencies[name] ?? p.devDependencies[name];
+            if(declared && declared!==target && !['react','react-dom','react-native'].includes(name))
+              throw Error('HOLD_M17_BUNDLED_TARGET_DRIFT_'+name+':'+declared+'!='+target);
+          }
+          console.log('M17_SDK58_SOURCE_AND_LOCK_CONSISTENT=PASS');
+          NODE
+          echo 'M17_SDK58_NPM10_CANDIDATE_INSTALL=PASS'
+      - name: Actual Expo SDK58 dependency contract check (read-only detector)
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node node_modules/expo/bin/cli install --check
+          echo 'M17_EXPO58_DEPENDENCY_CHECK=PASS'
+      - name: Actual TypeScript strict migration check
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm run typecheck
+          echo 'M17_SDK58_TYPECHECK=PASS'
+      - name: Actual app validator / Expo Doctor / selected non-release tests
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm run validate
+          echo 'M17_SDK58_VALIDATOR=PASS'
+          npm run doctor
+          echo 'M17_SDK58_DOCTOR=PASS'
+          npm run test:release25
+          echo 'M17_RELEASE25_SOURCE_TESTS=PASS'
+      - name: Verify limited change scope and protected release identity
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha256sum apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/m17-release-after.sha256"
+          diff -u "$RUNNER_TEMP/m17-release-before.sha256" "$RUNNER_TEMP/m17-release-after.sha256"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json'));
+          const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json'));
+          if (p.version!=='1.0.0'||p.packageManager!=='npm@10.9.2'||e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote')throw Error('HOLD_M17_RELEASE_PIN_MUTATION');
+          console.log('M17_RELEASE_CONFIG_UNCHANGED=PASS');
+          NODE
+          unexpected="$(git diff --name-only -- . ':!apps/mobile/current/package.json' ':!apps/mobile/current/package-lock.json')"
+          if test -n "$unexpected"; then printf 'HOLD_M17_UNEXPECTED_FILE_DIFF=%s\n' "$unexpected"; exit 2; fi
+          test -z "$(git status --porcelain -- apps/mobile/current/package.json apps/mobile/current/package-lock.json)"
+          git diff --check
+          echo 'M17_NO_PACKAGE_LOCK_OR_CONFIG_MUTATION_IN_CI=PASS'
+          echo 'M17_EAS_BUILD_SUBMIT_OTA_PLAY=NONE'
+      - name: Archive tested source manifests and lock for review (NO AUTO COMMIT)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m17-sdk58-candidate-manifests-${{ github.run_id }}
+          path: |
+            apps/mobile/current/package.json
+            apps/mobile/current/package-lock.json
+          retention-days: 14
+          if-no-files-found: warn
