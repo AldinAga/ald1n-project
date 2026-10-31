@@ -1,3 +1,13 @@
+# CURRENT B1005 — cPanel domain screenshots and started legacy Node app; conditional two-stage rehome plan (2026-10-31)
+
+Verified operator screenshots show `cms.ald1n.com` Document Root as `/home/icaffeco/ald1n-project/apps/cms/current/public`, but still show `mobile-build.ald1n.com` Domain Root `/home/icaffeco/mobile-build.ald1n.com` and CloudLinux Node.js App **started (v22.23.4), development mode**, Application Root `/home/icaffeco/mobile-build.ald1n.com`. This corrects earlier "old domain completely retired" inferences: failed public DNS does NOT establish no local configured service. All nine Report975 generated-only cache/module roots are outside the *visible* domain/app roots. **No deletion yet; Report979 9 HOLD, DELETED=0.** No control-panel or production changes were performed.
+
+**[B1005 migration decision](B1005-CPANEL-DOCROOT-NODE-REHOME-DECISION-20261031.md):** the old Node app may be rehomed under a dedicated service directory inside `ald1n-project` in **two gated stages** (stage source/config without disturbing live app; switch Selector App Root and verify/rollback), but it must NOT be pointed directly at Expo `apps/mobile/current`. GitHub `apps/mobile/current/package.json` uses `expo-router/entry` and hardcodes `/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node` in EAS build tasks. A root move can invalidate that toolchain, so the startup file/config, dependency consumers, alternate Node22 runtime and release gates must be checked before any edit. If the old service is only a test stub and has no consumer, retirement after toolchain decoupling may be safer than migration. CloudLinux supports Application Root editing in its Node.js Selector UI and a documented selector CLI `--new-app-root`, but no SSH mutation is authorized in this documentation batch.
+
+Current Laravel CMS, mobile source, B990, legacy Node22/vhost, other sites, all SQL/private/backups and cPanel/mail remain protected. Program acceptance 7/17, CMS 7/15, initial UI 6/6 unchanged.
+
+---
+
 # CURRENT Report979 — B1004 stopped on cPanel metadata; do not dispatch another guess-based deletion batch (2026-10-30)
 
 Authenticated [Report979](979-B1004-EXACT-NINE-GENERATED-CACHE-CLEANUP-20261030-224227.md), original SHA256 `36c5565ee78c8ffa0bbd397a0f6d768d339f8abe2d7cf8d74f4b8fe2dc843952`, UTC `2026-10-30T22:42:27Z`: real B1004 self-check and SHA-256 pins PASS; current CMS and API HTTP401/401; account home 1,082,033 inclusive inode entries before; **`CPANEL_DOCUMENT_ROOT_INVENTORY=UNVERIFIED_CPAPI2_JSON_COMMAND method=NONE`**, **9/9 HELD**, **DELETED=0**. No inode savings verified.
