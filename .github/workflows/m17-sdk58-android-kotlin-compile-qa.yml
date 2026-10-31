@@ -1,0 +1,104 @@
+name: M17 Expo SDK58 isolated Android Kotlin compile QA (NO EAS BUILD)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/plugins/**'
+      - 'apps/mobile/current/modules/**'
+      - '.github/workflows/m17-sdk58-android-kotlin-compile-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  kotlin-compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: development
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+    steps:
+      - name: Checkout exact PR revision without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Pinned Node22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: JDK17 local CI compiler
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Exact SDK58 and release gate snapshot
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json'));
+          const e=JSON.parse(fs.readFileSync('eas.json'));
+          if(p.dependencies.expo!=='~58.0.22'||p.dependencies['react-native']!=='0.88.1'||
+             p.version!=='1.0.0'||p.packageManager!=='npm@10.9.2'||
+             e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote'||
+             e.build.production.android.buildType!=='app-bundle')
+            throw Error('HOLD_M17_SOURCE_OR_RELEASE_IDENTITY');
+          console.log('M17_NATIVE_COMPILER_EXACT_SOURCE_AND_RELEASE_GATES=PASS');
+          NODE
+          sha256sum package-lock.json eas.json app.config.js > "$RUNNER_TEMP/m17-compile-before.sha256"
+      - name: Install exact lockfile without Expo automatic fixer
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node node_modules/expo/bin/cli install --check
+          echo 'M17_NATIVE_COMPILER_DEPENDENCIES=PASS'
+      - name: Install bounded Android SDK36 and NDK27, no release signing credentials
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sdk="${ANDROID_HOME:-}"
+          test -n "$sdk"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager"
+          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+          echo 'M17_NATIVE_COMPILER_SDK36_NDK27=PASS'
+      - name: Generate disposable SDK58 Android project (NO install / EAS / production build)
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node node_modules/expo/bin/cli prebuild --platform android --no-install --clean
+          test -s android/gradlew
+          test -s android/app/build.gradle
+          echo 'M17_NATIVE_COMPILER_GENERATED_SOURCE=PASS'
+      - name: Compile Android Kotlin app and Nativegauss bridge (NO APK / AAB)
+        working-directory: apps/mobile/current/android
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod u+x gradlew
+          ./gradlew :app:compileDebugKotlin :react-native-android-liquid-glass:compileDebugKotlin --no-daemon --stacktrace --warning-mode=summary
+          echo 'M17_SDK58_NATIVE_KOTLIN_APP_AND_GLASS=PASS_CI_ONLY'
+      - name: Verify protected production state unchanged; no deployment
+        if: always()
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha256sum package-lock.json eas.json app.config.js > "$RUNNER_TEMP/m17-compile-after.sha256"
+          diff -u "$RUNNER_TEMP/m17-compile-before.sha256" "$RUNNER_TEMP/m17-compile-after.sha256"
+          git diff --exit-code -- package-lock.json eas.json app.config.js
+          echo 'M17_NATIVE_COMPILER_PROTECTED_RELEASE_FILES=PASS'
+          echo 'EAS_BUILD=NONE; OTA=NONE; PLAY=NONE; SIGNED_AAB=NONE'
