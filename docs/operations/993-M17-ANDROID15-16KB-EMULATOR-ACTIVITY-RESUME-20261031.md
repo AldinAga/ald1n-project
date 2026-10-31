@@ -1,0 +1,25 @@
+# Report993 — B1021 M17 Android 15 / 16-KiB emulator activity resume evidence (2026-10-31)
+
+## Authority and original failed gate
+
+- Reconstructed GitHub main `AGENTS.md`, `docs/operations/000-LATEST.md`, canonical Google Drive `ALD1N-EXPO-CLOUDLINUX-UPDATE-RUNBOOK.md`, exact PR123 head and actual GitHub logs. M16 owner-accepted Android versionCode28 remains PASS, and B1020 LG-03 PASS is not repeated.
+- [Original latest failed CI run41204235196](https://github.com/AldinAga/ald1n-project/actions/runs/41204235196), job `124546223537`, ran on draft PR123 commit `2dd5256e9d32198f447e08ef0b6749df4e49c0e4`. Workflow: `Android v1.5 16KB nativegauss source and compiler QA (NO EAS BUILD)`.
+- All earlier steps completed SUCCESS: exact JitPack/AAR/nativegauss ELF pin, lock and tests, JDK17/SDK36/NDK27, Kotlin Fabric bridge, debug APK, every 64-bit native ELF and 16-KiB ZIP alignment, debug AAB, bundletool-derived universal APK, self-contained embedded-JS release-variant APK with local debug test signing, and Android15 16-KiB emulator/KVM startup.
+- Offline emulator verified a real 16384-byte kernel, API35, x86_64 ABI, airplane mode, and test APK install. The final `LAUNCH_DEBUG_APP` stage failed with `HOLD_ANDROID_MAIN_ACTIVITY_NOT_STARTED`. Follow-up diagnostic returned `PROCESS_ALIVE_AT_DIAGNOSTIC_TIME` and `NO_CLASSIFIABLE_APP_CRASH_SIGNATURE`; terminal shell RC2. **No confirmed app crash; no proof that MainActivity reached foreground.**
+- Original `verify-android16kb-emulator.mjs` demanded literal `Status: ok` from `adb shell am start -W` and returned HOLD otherwise. For privacy, raw `am start` output was never printed. Therefore the exact actual `am start` status (timeout/other) is **NOT KNOWN**. Do not guess it or classify as infrastructure-only.
+
+## B1021 exact-source isolated correction
+
+- Draft PR123 commit `4c75055f8c900ce7413d41f4fcde8deddf119ae1` changed exactly two source-QA files: `apps/mobile/current/scripts/release25/verify-android16kb-emulator.mjs` and `apps/mobile/current/scripts/release25/verify-android16kb-emulator.test.mjs`.
+- Standard literal `Status: ok` launch branch remains unchanged, including seven-second live PID check and app-scoped `AndroidRuntime` fatal scan.
+- On non-OK/missing wait result only, a bounded six-attempt activity-manager probe (five four-second pauses maximum) must find the exact **resumed** `com.ald1n.mobile/.MainActivity` or fully-qualified equivalent; task history, launcher, unrelated packages and a live background PID do not count. Failure remains strict `HOLD_ANDROID_MAIN_ACTIVITY_NOT_RESUMED_AFTER_WAIT`. Non-sensitive fixed wait-status labels `OK/TIMEOUT/OTHER_STATUS/NO_STATUS` are recorded, never raw adb/dumpsys/logcat/private content.
+- Four new regression cases cover exact resumed parsing, fixed status classification, non-OK launch rescue only after strict resume proof, and fail-closed live-PID/background activity; old launcher/fatal/4KB/offline tests retained. No changes to React Native UI/native modules, mobile dependencies/lock, EAS config, production host or app version.
+- Real new CI [run41244705358](https://github.com/AldinAga/ald1n-project/actions/runs/41244705358), job `124665604912`, has already completed `Install locked dependencies, source tests and validator` **SUCCESS** on the fixed code. The expensive actual on-emulator app-launch step was still **IN_PROGRESS / NOT_PROVEN_PASS** at this report's writing.
+- Other exact-source CI: [M17 source41244705427](https://github.com/AldinAga/ald1n-project/actions/runs/41244705427) **SUCCESS**, [native prebuild41244705433](https://github.com/AldinAga/ald1n-project/actions/runs/41244705433) **SUCCESS**, [v1.5 release-gate source tests41244705384](https://github.com/AldinAga/ald1n-project/actions/runs/41244705384) **SUCCESS**, [LG-03 source41244705422](https://github.com/AldinAga/ald1n-project/actions/runs/41244705422) **SUCCESS**, [Android 15 emulator infrastructure41244705374](https://github.com/AldinAga/ald1n-project/actions/runs/41244705374) **SUCCESS (kernel/offline only; NO APK install)**. Separate Kotlin CI `41244705466` was still active.
+
+## Required next evidence and release boundary
+
+- Read the terminal original logs of `41244705358`. App-launch PASS can only be claimed with exact resumed activity proof (when fallback used), live PID/fatal verification and terminal job SUCCESS. If unresolved, report its categorized HOLD without bypassing checks or claiming launch.
+- **M17 remains DRAFT and NOT OWNER-ACCEPTED** until independent SDK58 artifact native ELF/ZIP 16KiB checks, physical Android app/device/Google login UAT, and separately authorized release gates. CI debug APK/AAB and local test signing are not production signed artifacts.
+- No EAS native production build, OTA, Play submission, global CloudLinux npm/EAS change, versionCode increment or CMS/DB mutation. Existing M16 Android versionCode28 remains owner-accepted PASS.
+- Functional acceptance unchanged: **program 8/17 (47.1%), CMS 7/15 (46.7%), original UI 6/6 (100%)**.
