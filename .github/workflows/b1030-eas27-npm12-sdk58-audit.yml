@@ -1,0 +1,164 @@
+name: B1030 EAS CLI 27 npm12 isolated compatibility and SDK58 dependency snapshot (NO BUILD)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/b1030-eas27-npm12-sdk58-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-toolchain-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
+      GIT_TERMINAL_PROMPT: '0'
+      EAS_NO_VCS: '1'
+    steps:
+      - name: Checkout exact proposed source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Use exact verified Node 22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Freeze SDK58 release identity and guarded source blobs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(node -v)" = 'v22.23.4'
+          test "$(npm -v | cut -d. -f1)" = '10'
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const cp = require('node:child_process');
+          const expected = Object.freeze({
+            'apps/mobile/current/package.json':'234f0f6fdfb78fea45c13d3a3ccc44e50282d5d2',
+            'apps/mobile/current/package-lock.json':'c25320e0a0ec97c392dad338c2a616d1c209e9cb',
+            'apps/mobile/current/eas.json':'2131c32e34793811a9998fb5289fe06b8801d97d',
+            'apps/mobile/current/app.config.js':'32ceaf3346680e856fb031be6f9f7bd4c4df0b6e'
+          });
+          for (const [file,blob] of Object.entries(expected)) {
+            const r=cp.spawnSync('git',['hash-object',file],{encoding:'utf8'});
+            if(r.status!==0 || r.stdout.trim()!==blob) throw Error('HOLD_B1030_SOURCE_BLOB_DRIFT_'+file);
+          }
+          const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          if (p.packageManager!=='npm@10.9.2' ||
+              p.dependencies.expo!=='~58.0.22' ||
+              p.dependencies['react-native']!=='0.88.1' ||
+              p.dependencies['react-native-nitro-google-signin']!=='1.3.0' ||
+              e.cli.version!=='25.0.0' ||
+              e.build['m17-sdk58-play-rc']?.android?.buildType!=='app-bundle' ||
+              e.build['m17-sdk58-play-rc']?.channel!=='production' ||
+              e.build['m17-sdk58-uat']?.channel!=='m17-sdk58-uat' ||
+              e.build.production?.channel!=='production') {
+            throw Error('HOLD_B1030_PROTECTED_MOBILE_IDENTITY');
+          }
+          console.log('B1030_EXACT_PR125_SOURCE_BLOBS=PASS; SDK58/RN088/GOOGLE13/EAS25_PROTECTED');
+          NODE
+          sha256sum apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/b1030-before.sha256"
+      - name: Real isolated npm 12.2.1 and EAS CLI 27.2.0 install, safe help-only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          LAB="$(mktemp -d "$RUNNER_TEMP/b1030-npm12-eas27.XXXXXXXX")"
+          test -d "$LAB" && test ! -L "$LAB"
+          mkdir -p "$LAB/home" "$LAB/cache" "$LAB/npm12" "$LAB/eas27"
+          export HOME="$LAB/home"
+          export NPM_CONFIG_USERCONFIG="$LAB/home/.npmrc"
+          export NPM_CONFIG_CACHE="$LAB/cache"
+          export NPM_CONFIG_PREFIX="$LAB/global"
+          unset EXPO_TOKEN EAS_SESSION EXPO_SESSION EXPO_USERNAME EXPO_PASSWORD || true
+          echo 'B1030_STAGE=READONLY_REGISTRY_TARGET_METADATA'
+          npm view npm@12.2.1 version engines --json
+          npm view eas-cli@27.2.0 version engines --json
+          npm install --prefix "$LAB/npm12" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict npm@12.2.1
+          NPM12="$LAB/npm12/node_modules/npm/bin/npm-cli.js"
+          test -f "$NPM12"
+          test "$(node "$NPM12" --version)" = '12.2.1'
+          echo 'B1030_NPM12_NODE22_ISOLATED=PASS'
+          node "$NPM12" install --prefix "$LAB/eas27" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict eas-cli@27.2.0
+          EAS_REL="$(node - "$LAB/eas27/node_modules/eas-cli/package.json" <<'NODE'
+          const p=require(process.argv[2]);
+          if(p.version!=='27.2.0')throw Error('HOLD_B1030_EAS_VERSION');
+          const bin=typeof p.bin==='string'?p.bin:p.bin?.eas;
+          if(typeof bin!=='string'||!bin)throw Error('HOLD_B1030_EAS_BIN');
+          process.stdout.write(bin);
+          NODE
+          )"
+          EAS_BIN="$LAB/eas27/node_modules/eas-cli/$EAS_REL"
+          test -f "$EAS_BIN" && test ! -L "$EAS_BIN"
+          node "$EAS_BIN" --version
+          node "$EAS_BIN" --help > "$LAB/help-general.txt"
+          node "$EAS_BIN" build --help > "$LAB/help-build.txt"
+          node "$EAS_BIN" submit --help > "$LAB/help-submit.txt"
+          node "$EAS_BIN" update --help > "$LAB/help-update.txt"
+          node "$EAS_BIN" build:version --help > "$LAB/help-build-version.txt"
+          test -s "$LAB/help-build.txt" && test -s "$LAB/help-submit.txt" && test -s "$LAB/help-update.txt"
+          grep -q -- '--profile' "$LAB/help-build.txt"
+          grep -q -- '--platform' "$LAB/help-build.txt"
+          echo 'B1030_EAS27_NODE22_NPM12_SAFE_HELP=PASS'
+          echo 'B1030_REMOTE_EAS_ACTIONS=NONE'
+      - name: Read current npm latest tags without changing locked app dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          LAB="$(mktemp -d "$RUNNER_TEMP/b1030-metadata.XXXXXXXX")"
+          mkdir -p "$LAB/home" "$LAB/cache"
+          export HOME="$LAB/home"
+          export NPM_CONFIG_USERCONFIG="$LAB/home/.npmrc"
+          export NPM_CONFIG_CACHE="$LAB/cache"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const cp=require('node:child_process');
+          const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json','utf8'));
+          const eas=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json','utf8'));
+          const items=['expo','expo-router','react-native','react',
+            'react-native-nitro-google-signin','react-native-nitro-modules',
+            'react-native-worklets','react-native-reanimated',
+            'react-native-screens','expo-notifications',
+            'react-native-gesture-handler','tamagui','npm','eas-cli'];
+          const report=[];
+          for(const name of items){
+            const r=cp.spawnSync('npm',['view',name,'dist-tags.latest','--json'],{
+              encoding:'utf8',timeout:45000,maxBuffer:1024*1024
+            });
+            if(r.status!==0)throw Error('HOLD_B1030_NPM_REGISTRY_'+name);
+            const latest=JSON.parse(r.stdout);
+            if(typeof latest!=='string'||!latest)throw Error('HOLD_B1030_NPM_TAG_'+name);
+            const pinned=name==='eas-cli'?eas.cli.version:
+              name==='npm'?p.packageManager.split('@')[1]:
+              (p.dependencies[name]??p.devDependencies[name]??'NOT_PINNED');
+            report.push({package:name,declared:pinned,registryLatest:latest});
+          }
+          const payload={kind:'SOURCE_ONLY_READONLY_PACKAGE_SNAPSHOT',
+            scope:'m17-sdk58-play-rc draft PR125 protected app',
+            testedEas:'27.2.0',testedNpm:'12.2.1',
+            node:'22.23.4',noBuild:true,noSubmit:true,noPublish:true,
+            data:report};
+          const out=JSON.stringify(payload,null,2);
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/b1030-npm-snapshot.json',out+'\n',{mode:0o600});
+          console.log('B1030_NPM_DIST_TAG_SNAPSHOT='+JSON.stringify(report));
+          console.log('B1030_NO_DEPENDENCY_AUTO_UPGRADE=PASS');
+          NODE
+      - name: Verify protected app config and source remain byte-identical
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha256sum apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/b1030-after.sha256"
+          diff -u "$RUNNER_TEMP/b1030-before.sha256" "$RUNNER_TEMP/b1030-after.sha256"
+          test -z "$(git status --porcelain -- apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/mobile/current/eas.json apps/mobile/current/app.config.js)"
+          echo 'B1030_PROTECTED_APP_SOURCE_UNCHANGED=PASS'
+          echo 'B1030_NO_BUILD_NO_SUBMIT_NO_OTA_NO_PLAY=PASS'
