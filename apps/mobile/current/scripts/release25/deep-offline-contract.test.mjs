@@ -43,7 +43,7 @@ test('late product image checks match current shared manager, not old local imag
  assert.ok(!validator.includes("includes('setImages((current) => [...current, ...result.files]);')"));
  assert.ok(!validator.includes("includes('disabled={images.length >= options.image_limits.max_files}')"));
 });
-test('five optional EAS build scripts are pinned to canonical node/npm, no latest',()=>{
+test('legacy Build25 wrappers remain pinned to safe node/npm while SDK58 EAS27 is isolated',()=>{
  const targets={
   'build:android:preview':['android','preview'],
   'build:ios:preview':['ios','preview'],
@@ -58,7 +58,7 @@ test('five optional EAS build scripts are pinned to canonical node/npm, no lates
  assert.equal(pkg.scripts['build:android:production'],'node scripts/build25-release-controller.mjs');
  assert.equal(pkg.scripts['submit:android:production'],'node scripts/submit-android-production.mjs');
  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@latest'));
- assert.equal(eas.cli.version,'25.0.0');
+ assert.equal(eas.cli.version,'27.2.0');
  marker(helper,"const EAS_CLI_VERSION = '25.0.0'");
  marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'25.0.0\'")');
 });
