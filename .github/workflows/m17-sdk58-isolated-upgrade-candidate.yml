@@ -49,16 +49,24 @@ jobs:
           const c=fs.readFileSync('apps/mobile/current/app.config.js','utf8');
           if (p.dependencies.expo!=='~58.0.22' || p.dependencies['react-native']!=='0.88.1' ||
               p.dependencies.react!=='19.3.0' || p.devDependencies['@types/react']!=='~19.3.0' ||
-              p.packageManager!=='npm@10.9.2' ||
-              e.cli.version!=='25.0.0' || e.cli.appVersionSource!=='remote' ||
+              p.packageManager!=='npm@12.2.1' ||
+              e.cli.version!=='27.2.0' || e.cli.appVersionSource!=='remote' ||
               !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-build17'")) {
             throw Error('HOLD_M17_UNEXPECTED_REPO_BASELINE');
           }
-          console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo58/RN0.88/React19.3/npm10/EAS25 runtime frozen');
+          console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo58/RN0.88/React19.3/npm12/EAS27 SDK58 migration isolated');
           NODE
           sha256sum apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/m17-release-before.sha256"
           echo "M17_CANDIDATE_SOURCE_COMMIT=$GITHUB_SHA"
           echo 'M17_NO_PRODUCTION_BUILD_OTA_PLAY=PASS'
+      - name: Install strictly isolated npm12.2.1 for this SDK58 native CI
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/ald1n-npm12"
+          npm install --prefix "$RUNNER_TEMP/ald1n-npm12" --no-save --no-package-lock --ignore-scripts --engine-strict --no-audit --no-fund npm@12.2.1
+          test "$(node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" --version)" = '12.2.1'
+          echo 'M17_NPM12_ISOLATED_CI=PASS'
       - name: B1024 check isolated M17 SDK58 UAT runtime without EAS or build
         working-directory: apps/mobile/current
         shell: bash
@@ -66,12 +74,12 @@ jobs:
           set -Eeuo pipefail
           node --test scripts/release25/m17-sdk58-uat-runtime.test.mjs
           echo 'B1024_SDK58_UAT_RUNTIME_SOURCE_ONLY=PASS; EAS_BUILD=NONE'
-      - name: Install exact candidate lockfile using pinned npm10 (no manifest rewrite)
+      - name: Install exact candidate lockfile using isolated npm12 (no manifest rewrite)
         shell: bash
         working-directory: apps/mobile/current
         run: |
           set -Eeuo pipefail
-          npm ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" ci --ignore-scripts --no-audit --no-fund --engine-strict
           node - <<'NODE'
           const fs=require('node:fs');
           const p=JSON.parse(fs.readFileSync('package.json','utf8'));
@@ -90,7 +98,7 @@ jobs:
           }
           console.log('M17_SDK58_SOURCE_AND_LOCK_CONSISTENT=PASS');
           NODE
-          echo 'M17_SDK58_NPM10_CANDIDATE_INSTALL=PASS'
+          echo 'M17_SDK58_NPM12_CANDIDATE_INSTALL=PASS'
       - name: Actual Expo SDK58 dependency contract check (read-only detector)
         working-directory: apps/mobile/current
         shell: bash
@@ -103,18 +111,18 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          npm run typecheck
+          node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" run typecheck
           echo 'M17_SDK58_TYPECHECK=PASS'
       - name: Actual app validator / Expo Doctor / selected non-release tests
         working-directory: apps/mobile/current
         shell: bash
         run: |
           set -Eeuo pipefail
-          npm run validate
+          node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" run validate
           echo 'M17_SDK58_VALIDATOR=PASS'
-          npm run doctor
+          node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" run doctor
           echo 'M17_SDK58_DOCTOR=PASS'
-          npm run test:release25
+          node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" run test:release25
           echo 'M17_RELEASE25_SOURCE_TESTS=PASS'
       - name: Verify limited change scope and protected release identity
         if: always()
@@ -127,7 +135,7 @@ jobs:
           const fs=require('node:fs');
           const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json'));
           const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json'));
-          if (p.version!=='1.0.0'||p.packageManager!=='npm@10.9.2'||e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote')throw Error('HOLD_M17_RELEASE_PIN_MUTATION');
+          if (p.version!=='1.0.0'||p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote')throw Error('HOLD_M17_RELEASE_PIN_MUTATION');
           console.log('M17_RELEASE_CONFIG_UNCHANGED=PASS');
           NODE
           unexpected="$(git diff --name-only -- . ':!apps/mobile/current/package.json' ':!apps/mobile/current/package-lock.json')"

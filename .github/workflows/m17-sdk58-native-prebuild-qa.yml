@@ -33,6 +33,14 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.23.4'
+      - name: Install strictly isolated npm12.2.1 for this SDK58 native CI
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/ald1n-npm12"
+          npm install --prefix "$RUNNER_TEMP/ald1n-npm12" --no-save --no-package-lock --ignore-scripts --engine-strict --no-audit --no-fund npm@12.2.1
+          test "$(node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" --version)" = '12.2.1'
+          echo 'M17_NPM12_ISOLATED_CI=PASS'
       - name: Lock source and production release identities
         shell: bash
         working-directory: apps/mobile/current
@@ -44,8 +52,8 @@ jobs:
           const p=JSON.parse(fs.readFileSync('package.json'));
           const e=JSON.parse(fs.readFileSync('eas.json'));
           if (p.dependencies.expo!=='~58.0.22'||p.dependencies['react-native']!=='0.88.1'
-              ||p.version!=='1.0.0'||p.packageManager!=='npm@10.9.2'
-              ||e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote')
+              ||p.version!=='1.0.0'||p.packageManager!=='npm@12.2.1'
+              ||e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote')
             throw Error('HOLD_M17_NATIVE_PREBUILD_SOURCE_RELEASE_PIN_DRIFT');
           if(p.dependencies['react-native-android-liquid-glass']!=='0.2.1')
             throw Error('HOLD_M17_NATIVE_GLASS_PIN');
@@ -57,7 +65,7 @@ jobs:
         working-directory: apps/mobile/current
         run: |
           set -Eeuo pipefail
-          npm ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node "$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js" ci --ignore-scripts --no-audit --no-fund --engine-strict
           node node_modules/expo/bin/cli install --check
           echo 'M17_NATIVE_PREBUILD_DEPENDENCIES=PASS'
       - name: Generate real Android Gradle project without package fixing or any native build
