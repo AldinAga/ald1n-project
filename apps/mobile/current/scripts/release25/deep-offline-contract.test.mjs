@@ -43,25 +43,28 @@ test('late product image checks match current shared manager, not old local imag
  assert.ok(!validator.includes("includes('setImages((current) => [...current, ...result.files]);')"));
  assert.ok(!validator.includes("includes('disabled={images.length >= options.image_limits.max_files}')"));
 });
-test('legacy Build25 wrappers remain pinned to safe node/npm while SDK58 EAS27 is isolated',()=>{
+test('native npm builds require signed 16KiB release gates; historic Build25 controller stays blocked',()=>{
  const targets={
   'build:android:preview':['android','preview'],
   'build:ios:preview':['ios','preview'],
   'build:ios:production':['ios','production'],
   'build:android:development':['android','development'],
-  'build:ios:development':['ios','development']
+  'build:ios:development':['ios','development'],
+  'build:ios:simulator':['ios','ios-simulator']
  };
  for(const [key,[platform,profile]] of Object.entries(targets)){
-  const iosGuard = platform === 'ios' ? `node scripts/ios-release-readiness.mjs --profile ${profile} && ` : '';
-  assert.equal(pkg.scripts[key],`${iosGuard}${node} ${npm} exec --yes --package=eas-cli@25.0.0 -- eas build --platform ${platform} --profile ${profile}`,key);
+  const iosGuard=platform==='ios'?('node scripts/ios-release-readiness.mjs --profile '+profile+' && '):'';
+  assert.equal(pkg.scripts[key],iosGuard+'node scripts/release27/hold-unaudited-native-build.mjs --platform '+platform+' --profile '+profile,key);
  }
  assert.equal(pkg.scripts['build:android:production'],'node scripts/build25-release-controller.mjs');
  assert.equal(pkg.scripts['submit:android:production'],'node scripts/submit-android-production.mjs');
- assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@latest'));
+ assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@25.0.0'));
+ assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@24.8.0'));
  assert.equal(eas.cli.version,'27.2.0');
  marker(helper,"const EAS_CLI_VERSION = '25.0.0'");
  marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'25.0.0\'")');
 });
+
 test('production build and legacy submit remain explicitly fail closed',()=>{
  marker(controller,'BUILD25_BLOCKED: Direct production CLI not enabled');
  marker(helper,'DIRECT_SUBMIT_DISABLED: use verified Build25 controller');
