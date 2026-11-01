@@ -70,8 +70,15 @@ jobs:
           NPM12="$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js"
           test "$(node "$NPM12" --version)" = '12.2.1'
           node "$NPM12" install --prefix "$RUNNER_TEMP/ald1n-eas27" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict eas-cli@27.2.0
-          EAS="$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/bin/run"
-          test -f "$EAS" || EAS="$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/bin/run.js"
+          EAS_REL="$(node - "$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/package.json" <<'NODE'
+          const p=require(process.argv[2]);
+          if(p.version!=='27.2.0')throw Error('HOLD_EAS_CLI_NOT_27_2_0');
+          const bin=typeof p.bin==='string'?p.bin:p.bin?.eas;
+          if(!bin)throw Error('HOLD_EAS_CLI_BIN_UNDECLARED');
+          process.stdout.write(bin);
+          NODE
+          )"
+          EAS="$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/$EAS_REL"
           test -f "$EAS"
           node "$EAS" --version
           node "$EAS" build --help > "$RUNNER_TEMP/b1031-eas-help.txt"
