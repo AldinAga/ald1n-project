@@ -36,6 +36,8 @@ const v15ReleaseProfile = 'production-v15-16kb';
 // M17: isolate the next SDK58 internal-UAT binary from Build25 and v1.5 OTA.
 const M17_UAT_PROFILE = 'm17-sdk58-uat';
 const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat1';
+const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
+const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play1';
 const m17Deps = require('./package.json').dependencies || {};
 const isM17Sdk58Source =
   m17Deps.expo === '~58.0.22'
@@ -65,6 +67,20 @@ module.exports = ({ config }) => {
   if (m17MarkerPresent && !isM17Uat) {
     throw new Error('HOLD_M17_SDK58_UAT_PROFILE_OR_SOURCE');
   }
+  // B1029: source-only SDK58 Play identity; NEVER a build/OTA/submit approval.
+  const playMarkerPresent = Boolean(
+    process.env.ALD1N_M17_SDK58_PLAY_RC || process.env.ALD1N_M17_SDK58_PLAY_PROFILE
+  );
+  const isM17PlayRc = isM17Sdk58Source
+    && isProduction
+    && process.env.ALD1N_M17_SDK58_PLAY_RC === 'source-only'
+    && process.env.ALD1N_M17_SDK58_PLAY_PROFILE === M17_PLAY_PROFILE
+    && (!process.env.EAS_BUILD_PROFILE || process.env.EAS_BUILD_PROFILE === M17_PLAY_PROFILE)
+    && process.env.ALD1N_V15_RELEASE_GATE !== 'approved'
+    && !m17MarkerPresent;
+  if (playMarkerPresent && !isM17PlayRc) {
+    throw new Error('HOLD_M17_SDK58_PLAY_PROFILE_OR_SOURCE');
+  }
   const existingExtra = config.extra || {};
   const existingEas =
     existingExtra.eas &&
@@ -91,7 +107,7 @@ module.exports = ({ config }) => {
     },
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
-    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : (isM17Uat ? M17_UAT_RUNTIME : '1.0.0-build17'),
+    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : (isM17Uat ? M17_UAT_RUNTIME : (isM17PlayRc ? M17_PLAY_RUNTIME : '1.0.0-build17')),
 
     ios: {
       ...(config.ios || {}),
