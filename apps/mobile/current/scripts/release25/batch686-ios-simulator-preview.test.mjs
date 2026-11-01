@@ -39,7 +39,7 @@ const simulatedArgs = () => ({
 
 test('separate iOS Simulator profile uses preview identity, never production channel or autoIncrement', () => {
   const b = eas.build['ios-simulator'];
-  assert.equal(eas.cli.version, '25.0.0');
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(b.distribution, 'internal');
   assert.equal(b.channel, 'preview');
   assert.equal(b.env.EXPO_PUBLIC_APP_ENV, 'preview');

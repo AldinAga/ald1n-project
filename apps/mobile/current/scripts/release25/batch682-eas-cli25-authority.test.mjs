@@ -16,8 +16,8 @@ const helper = read(path.join(mobile, 'scripts/submit-android-production.mjs'));
 const validator = read(path.join(mobile, 'scripts/validate-project.mjs'));
 const app = read(path.join(mobile, 'app.config.js'));
 
-test('canonical v25 authority converges across config and guardrails without global EAS installs', () => {
-  assert.equal(eas.cli.version, '25.0.0');
+test('EAS27 project authority preserves historical EAS25 source and safe guards without global EAS installs', () => {
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.ok(agents.includes('eas-cli@25.0.0'));
   assert.ok(agents.includes('CI 38862601089'));
@@ -25,7 +25,7 @@ test('canonical v25 authority converges across config and guardrails without glo
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
   assert.ok(/^# CURRENT B\d+/.test(index));
   assert.ok(index.includes('Android M16') || index.includes('Android 16KB'));
-  assert.ok(eas.cli.version === '25.0.0' && agents.includes('eas-cli@25.0.0'));
+  assert.ok(eas.cli.version === '27.2.0' && agents.includes('eas-cli@25.0.0'));
 });
 
 test('optional build wrappers, submit helper and validator use only exact EAS CLI25', () => {
