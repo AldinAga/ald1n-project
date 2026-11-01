@@ -110,6 +110,7 @@ jobs:
           node "$NPM12" run doctor
           node - <<'NODE'
           const app=require('./app.config.js'),e=require('./eas.json');
+          process.env.EXPO_PUBLIC_APP_ENV='production';
           const original=app({config:{}});
           if(original.android.package!=='com.ald1n.mobile'||original.runtimeVersion!=='1.0.0-build17')
             throw Error('HOLD_B1031_OLD_PRODUCTION_UNEXPECTED');
