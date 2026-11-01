@@ -51,6 +51,18 @@ jobs:
             throw Error('HOLD_B1031_SDK58_16KB_RELEASE_IDENTITY');
           console.log('B1031_SDK58_16KB_AAB_AND_SPLIT_APK_BINARY_AUDIT_SOURCE=PASS');
           NODE
+      - name: Archive audited SDK58 16KB gate sources for owner Google Drive
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1031-sdk58-eas27-nitro2-signed-aab-16kb-gate-source
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            apps/mobile/current/scripts/release27/signed-16kb-sdk58-aab-gate.mjs
+            apps/mobile/current/scripts/release27/signed-16kb-sdk58-aab-gate.test.mjs
+            .github/workflows/b1031-sdk58-play-signed-aab-16kb-source-gate.yml
+
       - name: Signed binary Play and physical device not present, keep release blocked
         if: always()
         run: |
