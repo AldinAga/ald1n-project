@@ -8,6 +8,9 @@ on:
       - 'apps/mobile/current/package-lock.json'
       - 'apps/mobile/current/tsconfig.json'
       - 'apps/mobile/current/scripts/validate-project.mjs'
+      - 'apps/mobile/current/eas.json'
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/scripts/release25/m17-sdk58-uat-runtime.test.mjs'
   workflow_dispatch:
 
 permissions:
@@ -56,6 +59,13 @@ jobs:
           sha256sum apps/mobile/current/eas.json apps/mobile/current/app.config.js > "$RUNNER_TEMP/m17-release-before.sha256"
           echo "M17_CANDIDATE_SOURCE_COMMIT=$GITHUB_SHA"
           echo 'M17_NO_PRODUCTION_BUILD_OTA_PLAY=PASS'
+      - name: B1024 check isolated M17 SDK58 UAT runtime without EAS or build
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --test scripts/release25/m17-sdk58-uat-runtime.test.mjs
+          echo 'B1024_SDK58_UAT_RUNTIME_SOURCE_ONLY=PASS; EAS_BUILD=NONE'
       - name: Install exact candidate lockfile using pinned npm10 (no manifest rewrite)
         shell: bash
         working-directory: apps/mobile/current
