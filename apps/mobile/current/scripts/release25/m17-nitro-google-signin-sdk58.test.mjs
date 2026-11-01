@@ -14,19 +14,19 @@ const login = read('src/app/(auth)/login.tsx');
 const appConfig = read('app.config.js');
 const eas = JSON.parse(read('eas.json'));
 
-test('M17 Kotlin-blocking Google native bridge is exact v1.3.0 with locked npm tarball', () => {
+test('M17 Kotlin-blocking Google native bridge is exact v2.3.1 with locked npm tarball', () => {
   assert.equal(pkg.dependencies.expo, '~58.0.22');
   assert.equal(pkg.dependencies['react-native'], '0.88.1');
-  assert.equal(pkg.dependencies['react-native-nitro-google-signin'], '1.3.0');
-  assert.equal(pkg.dependencies['react-native-nitro-modules'], '0.36.1');
-  assert.equal(lock.packages[''].dependencies['react-native-nitro-google-signin'], '1.3.0');
-  assert.equal(lock.packages['node_modules/react-native-nitro-google-signin'].version, '1.3.0');
+  assert.equal(pkg.dependencies['react-native-nitro-google-signin'], '2.3.1');
+  assert.equal(pkg.dependencies['react-native-nitro-modules'], '0.37.1');
+  assert.equal(lock.packages[''].dependencies['react-native-nitro-google-signin'], '2.3.1');
+  assert.equal(lock.packages['node_modules/react-native-nitro-google-signin'].version, '2.3.1');
   assert.equal(lock.packages['node_modules/react-native-nitro-google-signin'].integrity,
-    'sha512-FK9PTRyKJKo25De48JOZp3lLiAbTCnGfjqBR8OyjdVqVPX722D3CTCeowSCHvrBaVEzHL1GQHccrHV/Yj3tWiw==');
+    'sha512-txDdR3KtJR83WY50OpMj9ndPHmhNJPzX6LE5yqvMOBk5O8NzAaV5OUmrUx0Lm2FdqP+s/Q3Q1lTqdYhe3u1SNA==');
 });
 
-test('Native auth iOS readiness remains fail-closed and tracks exact 1.3.0 bridge', () => {
-  assert.ok(iosReadiness.includes("pkg?.dependencies?.['react-native-nitro-google-signin'] === '1.3.0'"));
+test('Native auth iOS readiness remains fail-closed and tracks exact 2.3.1 bridge', () => {
+  assert.ok(iosReadiness.includes("pkg?.dependencies?.['react-native-nitro-google-signin'] === '2.3.1'"));
   assert.ok(iosReadiness.includes("'IOS_APP_OR_NATIVE_AUTH_VERSION_DRIFT'"));
   for (const gate of ['IOS_GOOGLE_PLIST_MISSING', 'IOS_GOOGLE_REVERSED_CLIENT_ID_MISMATCH',
     'IOS_GOOGLE_WEB_CLIENT_ID_MISMATCH', 'IOS_NATIVE_GOOGLE_PLUGIN_MISSING']) {
@@ -42,8 +42,8 @@ test('Native auth iOS readiness remains fail-closed and tracks exact 1.3.0 bridg
 
 test('Native source upgrade cannot authorize EAS build, OTA or Play', () => {
   assert.equal(pkg.version, '1.0.0');
-  assert.equal(pkg.packageManager, 'npm@10.9.2');
-  assert.equal(eas.cli.version, '25.0.0');
+  assert.equal(pkg.packageManager, 'npm@12.2.1');
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(eas.build.production.channel, 'production');
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');

@@ -10,7 +10,7 @@ const read = (name) => readFileSync(path.join(mobile, name), 'utf8');
 const pkg = JSON.parse(read('package.json'));
 const eas = JSON.parse(read('eas.json'));
 const PROFILE = 'm17-sdk58-uat';
-const RUNTIME = '1.0.0-m17-sdk58-uat1';
+const RUNTIME = '1.0.0-m17-sdk58-uat2';
 const profile = eas.build[PROFILE];
 const clearKeys = [
   'EXPO_PUBLIC_APP_ENV', 'EAS_BUILD_PROFILE',
@@ -45,8 +45,8 @@ function assertConfig(env, expectedVersion, expectedRuntime, expectedPackage) {
 test('SDK58 Android UAT profile is internal, isolated and not a release profile', () => {
   assert.equal(pkg.dependencies.expo, '~58.0.22');
   assert.equal(pkg.dependencies['react-native'], '0.88.1');
-  assert.equal(pkg.dependencies['react-native-nitro-google-signin'], '1.3.0');
-  assert.equal(eas.cli.version, '25.0.0');
+  assert.equal(pkg.dependencies['react-native-nitro-google-signin'], '2.3.1');
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(profile.extends, 'preview');
   assert.equal(profile.environment, 'preview');

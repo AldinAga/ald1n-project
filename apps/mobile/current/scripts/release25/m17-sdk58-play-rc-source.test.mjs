@@ -11,7 +11,7 @@ const read=f=>readFileSync(path.join(mobile,f),'utf8');
 const eas=JSON.parse(read('eas.json'));
 const pkg=JSON.parse(read('package.json'));
 const PROFILE='m17-sdk58-play-rc';
-const RUNTIME='1.0.0-m17-sdk58-play1';
+const RUNTIME='1.0.0-m17-sdk58-play2';
 const profile=eas.build[PROFILE];
 const removeKeys=[
  'EXPO_PUBLIC_APP_ENV','EAS_BUILD_PROFILE',
@@ -46,8 +46,8 @@ function accepted(env, runtime, androidPackage) {
 test('Expo58 Play candidate is a source-only AAB identity and never auto-submits',()=>{
  assert.equal(pkg.dependencies.expo,'~58.0.22');
  assert.equal(pkg.dependencies['react-native'],'0.88.1');
- assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'1.3.0');
- assert.equal(eas.cli.version,'25.0.0');
+ assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'2.3.1');
+ assert.equal(eas.cli.version,'27.2.0');
  assert.equal(eas.cli.appVersionSource,'remote');
  assert.equal(profile.extends,'production');
  assert.equal(profile.environment,'production');
@@ -73,7 +73,7 @@ test('local and remote profile use new SDK58 runtime and exact production packag
  assert.equal(local.env,'production');
  assert.equal(local.owner,'ald1n');
  assert.equal(local.project,'d43b3866-6838-4217-a23e-3dc7f2cc76cc');
- for(const forbidden of ['1.0.0-build17','1.5.0-native2','1.0.0-m17-sdk58-uat1'])
+ for(const forbidden of ['1.0.0-build17','1.5.0-native2','1.0.0-m17-sdk58-uat2'])
    assert.notEqual(RUNTIME,forbidden);
 });
 
@@ -81,7 +81,7 @@ test('bare production Build25, v1.5 and preview SDK58 UAT retain their original 
  accepted({...eas.build.production.env,EAS_BUILD_PROFILE:'production'},'1.0.0-build17','com.ald1n.mobile');
  accepted({...eas.build['production-v15-16kb'].env,EAS_BUILD_PROFILE:'production-v15-16kb'},'1.5.0-native2','com.ald1n.mobile');
  const preview=eas.build['m17-sdk58-uat'];
- accepted({...preview.env,EAS_BUILD_PROFILE:'m17-sdk58-uat'},'1.0.0-m17-sdk58-uat1','com.ald1n.mobile.preview');
+ accepted({...preview.env,EAS_BUILD_PROFILE:'m17-sdk58-uat'},'1.0.0-m17-sdk58-uat2','com.ald1n.mobile.preview');
 });
 
 test('missing, cross-profile, wrong environment and v1.5 overlap reject Play marker',()=>{

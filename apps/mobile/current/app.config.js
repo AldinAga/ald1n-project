@@ -35,14 +35,15 @@ const isProduction = APP_ENV === 'production';
 const v15ReleaseProfile = 'production-v15-16kb';
 // M17: isolate the next SDK58 internal-UAT binary from Build25 and v1.5 OTA.
 const M17_UAT_PROFILE = 'm17-sdk58-uat';
-const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat1';
+const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat2';
 const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
-const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play1';
+const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play2';
 const m17Deps = require('./package.json').dependencies || {};
 const isM17Sdk58Source =
   m17Deps.expo === '~58.0.22'
   && m17Deps['react-native'] === '0.88.1'
-  && m17Deps['react-native-nitro-google-signin'] === '1.3.0';
+  && m17Deps['react-native-nitro-google-signin'] === '2.3.1'
+  && m17Deps['react-native-nitro-modules'] === '0.37.1';
 const suffix = isProduction ? '' : `.${APP_ENV}`;
 
 module.exports = ({ config }) => {

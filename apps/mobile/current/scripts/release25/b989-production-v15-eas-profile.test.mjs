@@ -31,7 +31,7 @@ function evaluate(extraEnv) {
 }
 
 test('dedicated v1.5 EAS profile is a store AAB, isolated from ordinary production', () => {
-  assert.equal(eas.cli.version, '25.0.0');
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(original.channel, 'production');
   assert.equal(original.autoIncrement, true);
