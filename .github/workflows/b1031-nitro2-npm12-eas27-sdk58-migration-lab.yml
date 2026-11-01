@@ -1,0 +1,145 @@
+name: B1031 Nitro2 npm12 EAS27 SDK58 exact lock migration lab (NO BUILD)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/b1031-nitro2-npm12-eas27-sdk58-migration-lab.yml'
+permissions:
+  contents: read
+jobs:
+  sdk58-compatibility-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
+      GIT_TERMINAL_PROMPT: '0'
+      EAS_NO_VCS: '1'
+    steps:
+      - name: Checkout immutable candidate without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Seal four original mobile sources
+        run: |
+          set -Eeuo pipefail
+          test "$(node -v)" = v22.23.4
+          test -z "$(printenv EXPO_TOKEN || true)"
+          node - <<'NODE'
+          const cp=require('node:child_process');
+          for(const [file,sha] of Object.entries({
+           'apps/mobile/current/package.json':'234f0f6fdfb78fea45c13d3a3ccc44e50282d5d2',
+           'apps/mobile/current/package-lock.json':'c25320e0a0ec97c392dad338c2a616d1c209e9cb',
+           'apps/mobile/current/eas.json':'2131c32e34793811a9998fb5289fe06b8801d97d',
+           'apps/mobile/current/app.config.js':'32ceaf3346680e856fb031be6f9f7bd4c4df0b6e'
+          })){
+           const r=cp.spawnSync('git',['hash-object',file],{encoding:'utf8'});
+           if(r.status!==0||r.stdout.trim()!==sha)throw Error('HOLD_B1031_SOURCE_'+file);
+          }
+          console.log('B1031_EXACT_PR126_ORIGINAL_FILES=PASS');
+          NODE
+      - name: Install npm12.2.1 into disposable directory (never global)
+        run: |
+          set -Eeuo pipefail
+          LAB="$(mktemp -d "$RUNNER_TEMP/b1031-npm12.XXXXXXXX")"
+          mkdir -p "$LAB/npm" "$LAB/home" "$LAB/cache"
+          export HOME="$LAB/home" NPM_CONFIG_CACHE="$LAB/cache" NPM_CONFIG_USERCONFIG="$LAB/home/.npmrc"
+          npm install --prefix "$LAB/npm" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict npm@12.2.1
+          NPM12="$LAB/npm/node_modules/npm/bin/npm-cli.js"
+          test "$(node "$NPM12" --version)" = 12.2.1
+          printf '%s\n' "$NPM12" > "$RUNNER_TEMP/b1031-npm-path"
+          echo 'B1031_NPM12_ISOLATED=PASS'
+      - name: Generate SDK58 Nitro 2.3.1, NitroCore 0.37.1, EAS27 and runtime2 candidate
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const e=JSON.parse(fs.readFileSync('eas.json','utf8'));
+          if(p.packageManager!=='npm@10.9.2'||p.dependencies['react-native-nitro-google-signin']!=='1.3.0'||
+             p.dependencies['react-native-nitro-modules']!=='0.36.1'||e.cli.version!=='25.0.0')
+            throw Error('HOLD_B1031_ORIGINAL_VERSIONS');
+          p.packageManager='npm@12.2.1';
+          p.dependencies['react-native-nitro-google-signin']='2.3.1';
+          p.dependencies['react-native-nitro-modules']='0.37.1';
+          e.cli.version='27.2.0';
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');
+          fs.writeFileSync('eas.json',JSON.stringify(e,null,2)+'\n');
+          let app=fs.readFileSync('app.config.js','utf8');
+          const replacements=[
+            ["'1.0.0-m17-sdk58-uat1'","'1.0.0-m17-sdk58-uat2'"],
+            ["'1.0.0-m17-sdk58-play1'","'1.0.0-m17-sdk58-play2'"],
+            ["m17Deps['react-native-nitro-google-signin'] === '1.3.0'","m17Deps['react-native-nitro-google-signin'] === '2.3.1'\n  && m17Deps['react-native-nitro-modules'] === '0.37.1'"]
+          ];
+          for(const [a,b] of replacements){
+            if(app.split(a).length!==2)throw Error('HOLD_B1031_UNIQUE_SOURCE_ANCHOR');
+            app=app.replace(a,b);
+          }
+          fs.writeFileSync('app.config.js',app);
+          console.log('B1031_NEW_SOURCE_PINS_AND_NATIVE_RUNTIMES=PASS');
+          NODE
+          NPM12="$(cat "$RUNNER_TEMP/b1031-npm-path")"
+          node "$NPM12" install --package-lock-only --ignore-scripts --no-audit --no-fund --engine-strict
+          node - <<'NODE'
+          const p=require('./package.json'),l=require('./package-lock.json');
+          if(l.lockfileVersion!==3||p.packageManager!=='npm@12.2.1'||
+             l.packages[''].dependencies['react-native-nitro-google-signin']!=='2.3.1'||
+             l.packages['node_modules/react-native-nitro-google-signin']?.version!=='2.3.1'||
+             l.packages['node_modules/react-native-nitro-modules']?.version!=='0.37.1')
+            throw Error('HOLD_B1031_LOCK_VERSION');
+          for(const x of ['react-native-nitro-google-signin','react-native-nitro-modules'])
+            if(!l.packages['node_modules/'+x].integrity?.startsWith('sha512-'))throw Error('HOLD_B1031_LOCK_INTEGRITY');
+          console.log('B1031_NPM12_EXACT_LOCK=PASS');
+          NODE
+      - name: Run actual locked install plus Expo SDK58 compatibility and TS typecheck
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          NPM12="$(cat "$RUNNER_TEMP/b1031-npm-path")"
+          node "$NPM12" ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node node_modules/expo/bin/cli install --check
+          node "$NPM12" run typecheck
+          node "$NPM12" run doctor
+          node - <<'NODE'
+          const app=require('./app.config.js'),e=require('./eas.json');
+          const original=app({config:{}});
+          if(original.android.package!=='com.ald1n.mobile'||original.runtimeVersion!=='1.0.0-build17')
+            throw Error('HOLD_B1031_OLD_PRODUCTION_UNEXPECTED');
+          for(const [profile,runtime,pkg] of [
+             ['m17-sdk58-uat','1.0.0-m17-sdk58-uat2','com.ald1n.mobile.preview'],
+             ['m17-sdk58-play-rc','1.0.0-m17-sdk58-play2','com.ald1n.mobile']
+          ]){
+           const env={...e.build[profile].env,EAS_BUILD_PROFILE:profile};
+           for(const [k,v] of Object.entries(env))process.env[k]=v;
+           const config=app({config:{}});
+           if(config.runtimeVersion!==runtime||config.android.package!==pkg||e.build[profile].autoSubmit!==undefined)
+             throw Error('HOLD_B1031_PROFILE_'+profile);
+           for(const k of Object.keys(env))delete process.env[k];
+          }
+          console.log('B1031_NITRO2_SDK58_TS_EXPO_PROFILES=PASS');
+          NODE
+      - name: Archive only generated public source and npm12 lock (NO secrets)
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1031-generated-mobile-manifests-and-lock
+          if-no-files-found: error
+          retention-days: 5
+          path: |
+            apps/mobile/current/package.json
+            apps/mobile/current/package-lock.json
+            apps/mobile/current/eas.json
+            apps/mobile/current/app.config.js
+      - name: Every Android build requires independently checked 16KB ELF ZIP bundletool + device gates
+        if: always()
+        run: |
+          echo 'B1031_SDK58_NITRO2_NO_SIGNED_BINARY=HOLD_FOR_16KB'
+          echo 'B1031_NO_EAS_BUILD_NO_OTA_NO_PLAY_SUBMIT=PASS'
