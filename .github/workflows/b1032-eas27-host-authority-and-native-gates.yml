@@ -6,6 +6,7 @@ on:
       - 'apps/mobile/current/scripts/release27/hold-unaudited-native-build*'
       - 'apps/mobile/current/scripts/release25/*.test.mjs'
       - '.github/workflows/b1032-eas27-host-authority-and-native-gates.yml'
+      - 'tools/operator-source/ald1n-b1032-cloudlinux-eas27-npm12-host-reconcile-v1.sh'
 permissions:
   contents: read
 jobs:
@@ -25,6 +26,25 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.23.4'
+      - name: Verify host operator exact SHA, self-integrity, syntax and fail-closed out-of-host execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          src=tools/operator-source/ald1n-b1032-cloudlinux-eas27-npm12-host-reconcile-v1.sh
+          test "$(git hash-object "$src")" = 'ee3a509daebb07d6e3c408ebe61763bc26caed06'
+          test -s "$src"
+          bash -n "$src"
+          expected="$(sed -n -E "s/^SELF_HASH='([0-9a-f]{64})'$/\1/p" "$src")"
+          actual="$(sed -E "s/^SELF_HASH='[0-9a-f]{64}'$/SELF_HASH='0000000000000000000000000000000000000000000000000000000000000000'/" "$src" | sha256sum | awk '{print $1}')"
+          test "$expected" = 'c2229e939b4ec027adee0e6d7438509325e14ca2a7ddaab40068c34daa2b4a5d'
+          test "$actual" = "$expected"
+          set +e
+          output="$(bash "$src" --run 2>&1)"
+          rc="$?"
+          set -e
+          test "$rc" -eq 2
+          case "$output" in *HOLD_CANONICAL_INCOMING_PATH*) ;; *) echo 'HOLD_B1032_OPERATOR_WRONG_PATH_FAIL_CLOSED'; exit 4;; esac
+          echo 'B1032_HOST_OPERATOR_INTEGRITY_SYNTAX_NEGATIVE_PATH=PASS'
       - name: Install isolated npm12 and verify exact SDK58 dependencies and CLI authority
         shell: bash
         working-directory: apps/mobile/current
