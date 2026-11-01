@@ -14,7 +14,7 @@ readonly EXPECTED_EAS='27.2.0'
 readonly EXPECTED_NPM='12.2.1'
 readonly TARGET_BASE='/home/icaffeco/.ald1n-toolchains'
 readonly TARGET="$TARGET_BASE/b1032-npm12-eas27"
-SELF_HASH='c2229e939b4ec027adee0e6d7438509325e14ca2a7ddaab40068c34daa2b4a5d'
+SELF_HASH='3811802e89bd913e0da84f157654b264dbbffefbb7061d19de85cfb8ade4ec42'
 
 REPORT=''
 STAGE=''
@@ -62,7 +62,12 @@ old_npm_version="$("$NODE_BIN" "$OLD_NPM_CLI" --version)" || hold 'HOST_EXISTING
 
 # Git fetch changes remote-tracking metadata only; never merges, resets or checks out files.
 export GIT_TERMINAL_PROMPT=0
-if ! git -C "$ROOT" fetch --no-tags origin main >/dev/null 2>&1; then hold 'CANNOT_READ_LATEST_GITHUB_MAIN'; fi
+remote_url="$(git -C "$ROOT" remote get-url origin)" || hold 'ORIGIN_REMOTE_UNAVAILABLE'
+case "$remote_url" in
+  'https://github.com/AldinAga/ald1n-project'|'https://github.com/AldinAga/ald1n-project.git'|'git@github.com:AldinAga/ald1n-project.git'|'ssh://git@github.com/AldinAga/ald1n-project.git') ;;
+  *) hold 'ORIGIN_REMOTE_NOT_CANONICAL' ;;
+esac
+if ! git -C "$ROOT" fetch --no-tags origin refs/heads/main:refs/remotes/origin/main >/dev/null 2>&1; then hold 'CANNOT_READ_LATEST_GITHUB_MAIN'; fi
 remote_sha="$(git -C "$ROOT" rev-parse refs/remotes/origin/main)" || hold 'REMOTE_MAIN_SHA_MISSING'
 local_sha="$(git -C "$ROOT" rev-parse HEAD)" || hold 'LOCAL_GIT_SHA_MISSING'
 [[ "$remote_sha" =~ ^[0-9a-f]{40}$ && "$local_sha" =~ ^[0-9a-f]{40}$ ]] || hold 'INVALID_GIT_SOURCE_IDENTITY'

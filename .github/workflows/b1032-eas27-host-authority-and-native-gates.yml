@@ -31,12 +31,12 @@ jobs:
         run: |
           set -Eeuo pipefail
           src=tools/operator-source/ald1n-b1032-cloudlinux-eas27-npm12-host-reconcile-v1.sh
-          test "$(git hash-object "$src")" = 'ee3a509daebb07d6e3c408ebe61763bc26caed06'
+          test "$(git hash-object "$src")" = '901795c1a2e91614bcbc26aa1b39600e3d46800d'
           test -s "$src"
           bash -n "$src"
           expected="$(sed -n -E "s/^SELF_HASH='([0-9a-f]{64})'$/\1/p" "$src")"
           actual="$(sed -E "s/^SELF_HASH='[0-9a-f]{64}'$/SELF_HASH='0000000000000000000000000000000000000000000000000000000000000000'/" "$src" | sha256sum | awk '{print $1}')"
-          test "$expected" = 'c2229e939b4ec027adee0e6d7438509325e14ca2a7ddaab40068c34daa2b4a5d'
+          test "$expected" = '3811802e89bd913e0da84f157654b264dbbffefbb7061d19de85cfb8ade4ec42'
           test "$actual" = "$expected"
           set +e
           output="$(bash "$src" --run 2>&1)"
