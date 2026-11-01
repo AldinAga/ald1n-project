@@ -41,7 +41,7 @@ jobs:
           node - <<'NODE'
           const cp=require('node:child_process'),p=require('./package.json'),e=require('./eas.json'),lock=require('./package-lock.json');
           const files={
-           'package.json':'4731164fa7eeb4d8c20e433543839bd1b7b92aef',
+           'package.json':'2518cad679399b35e9fe03ee4c97c810d7fff5bc',
            'eas.json':'5b526f229465e2b5e10ed00dd46b663d7eff05a7',
            'app.config.js':'391972757f31c1e0dcad9318d115472e850cd763',
            'package-lock.json':'3631e0cf38a8c878a730de85f8c418a744e53586'

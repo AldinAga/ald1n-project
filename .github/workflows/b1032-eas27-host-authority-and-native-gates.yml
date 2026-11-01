@@ -1,0 +1,68 @@
+name: B1032 SDK58 single EAS27 authority + 16KB native build HOLD (NO BUILD)
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/scripts/release27/hold-unaudited-native-build*'
+      - 'apps/mobile/current/scripts/release25/*.test.mjs'
+      - '.github/workflows/b1032-eas27-host-authority-and-native-gates.yml'
+permissions:
+  contents: read
+jobs:
+  native-authority-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      GIT_TERMINAL_PROMPT: '0'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Install isolated npm12 and verify exact SDK58 dependencies and CLI authority
+        shell: bash
+        working-directory: apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/b1032/npm12"
+          npm install --prefix "$RUNNER_TEMP/b1032/npm12" --no-save --no-package-lock --ignore-scripts --engine-strict --no-audit --no-fund npm@12.2.1
+          NPM12="$RUNNER_TEMP/b1032/npm12/node_modules/npm/bin/npm-cli.js"
+          test "$(node "$NPM12" --version)" = '12.2.1'
+          node - <<'NODE'
+          const p=require('./package.json'),e=require('./eas.json');
+          const buildNames=Object.keys(p.scripts).filter(x=>x.startsWith('build:')&&x!=='build:android:production');
+          if(buildNames.length!==6||p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0')
+            throw Error('HOLD_B1032_TOOLCHAIN_AUTHORITY');
+          for(const name of buildNames) {
+            const cmd=p.scripts[name];
+            if(!cmd.includes('node scripts/release27/hold-unaudited-native-build.mjs')||
+               cmd.includes('-- eas build ')||cmd.includes('eas-cli@25.0.0')||cmd.includes('eas-cli@24.8.0'))
+              throw Error('HOLD_B1032_UNGUARDED_'+name);
+          }
+          if(p.scripts['build:android:production']!=='node scripts/build25-release-controller.mjs'||
+             p.scripts['submit:android:production']!=='node scripts/submit-android-production.mjs'||
+             p.dependencies['react-native-nitro-google-signin']!=='2.3.1'||
+             p.dependencies['react-native-nitro-modules']!=='0.37.1')
+             throw Error('HOLD_B1032_APP_RELEASE_IDENTITY');
+          console.log('B1032_SDK58_EAS27_NPM12_ONLY_ACTIVE_RUNTIME_AUTHORITY=PASS');
+          NODE
+          node "$NPM12" ci --ignore-scripts --engine-strict --no-audit --no-fund
+          node node_modules/expo/bin/cli install --check
+          node "$NPM12" run typecheck
+          node "$NPM12" run validate
+          node "$NPM12" run doctor
+          node "$NPM12" run test:release25
+          node --test scripts/release27/hold-unaudited-native-build.test.mjs scripts/release27/signed-16kb-sdk58-aab-gate.test.mjs
+          echo 'B1032_FULL_SOURCE_AND_NEGATIVE_16KB_GATES=PASS'
+      - name: No EAS build / OTA / submit / Play and no hosting mutation
+        if: always()
+        run: |
+          echo 'B1032_SIGNED_16KB_BINARY=HOLD_UNTIL_POSTBUILD'
+          echo 'B1032_HOST_INSTALLED_TOOLCHAIN=NOT_ATTESTED'
+          echo 'B1032_NO_NATIVE_BUILD_NO_PLAY_SUBMIT_NO_PRODUCTION_MUTATION=PASS'
