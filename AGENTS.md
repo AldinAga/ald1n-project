@@ -8,6 +8,16 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0D. Permanent accepted-milestone reconciliation and Play-vs-preview boundary (2026-11-01)
+
+**Correct superseding acceptance denominator/numerator**: earlier header sections 0C and B1028 operational notes mention `8/17` program and `7/15` CMS; these omit already **owner-accepted M08/M09/M12**. Original signed owner CloudLinux [Report871](https://drive.google.com/file/d/1Too-mItMVwvf2VAGjX4Okz8EQuQoBDoV/view) accepted M09 and M12, [Report872](https://drive.google.com/file/d/15O7N5vS6zlzIAtMRlcLSMGO8sHKVIZxU/view) accepted M08, and [Report988](docs/operations/988-M16-OWNER-ACCEPTANCE-CONTINUOUS-NEXT-BATCH-20261031.md) accepted M16 Android versionCode28. **CURRENT formal accepted functional ledger: CMS `10/15 = 66.7%`, program `11/17 = 64.7%`, first six UI `6/6=100%`**. Remaining M10, M11, M13, M14, M15, M17 OPEN. Never reset owner-accepted M08/M09/M12 to SKIP merely because a newer index summary carried an old stale count. These counts are accepted functional milestones, not code completion. Formal source/host/owner acceptance still individually required for newly developed code. See [Report1001](docs/operations/1001-B1029-PROJECT-PROGRESS-STOREFRONT-PLAY-SOURCE-20261101.md) and `docs/operations/000-LATEST.md`.
+
+**Storefront**: unmerged Draft PR111 contains a registered/activated/verified/tracked-session buyer source candidate; 57/57 *targeted* PHP/MariaDB cases/1038 assertions were actually green (owner Report875 + corrected independent original JUnit identity validator Report876). This does **not** close the one previous safety-denied B815 test identity, full B803 suite, 368-item OWASP WSTG/ASVS assessment, legal/merchant/FPM/provider/restore UAT or activate public `/katalog`. Previously denied write actions remain denied; do not route around them via different tools or branches. M10/M11 joint 69-case B932 integration is separate and was not run or deployed.
+
+**SDK58 Play release**: User reporting working preview APK is positive device smoke, **NOT** physical 16384-page-size kernel or full native Google OAuth UAT. Existing B1028 EAS APK is `com.ald1n.mobile.preview` vCode11; existing production `com.ald1n.mobile` vCode28 is a different package. [B1029 Draft PR125](https://github.com/AldinAga/ald1n-project/pull/125) creates a **source-only** `m17-sdk58-play-rc` AAB identity for production `com.ald1n.mobile`, declared new runtime `1.0.0-m17-sdk58-play1`, with 19/19 source/profile regression CI PASS. Not an EAS production build, authenticated remote versionCode/signer, native AAB attestation or Play authorization. Do NOT submit the preview APK, use old v1.5-specific signed AAB gate for SDK58, increase versionCode, auto-merge, build, publish OTA or submit Play until the distinct actual production-signed AAB and release approvals are verified. A source-only green CI must not be called an accepted M17 release.
+
+---
+
 ---
 
 ## 0C. Permanent owner mandate: NEVER stop after conclusions or documentation; work the next batch (2026-10-31)
