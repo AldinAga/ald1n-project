@@ -129,6 +129,13 @@ jobs:
             "$RUNNER_TEMP/b1028-validated-private-artifact-url.txt"
           echo 'B1028_EAS_READ_ONLY=TRUE; NEW_EAS_BUILD=NONE'
 
+      - name: Use verified JDK17 for Android build-tools inspection (no app build)
+        if: steps.metadata.outputs.build_status == 'FINISHED'
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Inspect signed EAS APK certificate versionCode native ELF and 16KiB ZIP (if finished)
         if: steps.metadata.outputs.build_status == 'FINISHED'
         working-directory: sdk58-src/apps/mobile/current
@@ -139,11 +146,20 @@ jobs:
           command -v curl
           command -v unzip
           command -v readelf
-          command -v sdkmanager
-          sdkmanager --install 'build-tools;35.0.0' > "$RUNNER_TEMP/b1028-sdkmanager.log" 2>&1 || {
-            echo 'HOLD_B1028_RUNNER_BUILD_TOOLS_NOT_AVAILABLE'; exit 2;
+          sdk="${ANDROID_HOME:?}"
+          test -d "$sdk/cmdline-tools" || {
+            echo 'HOLD_B1028_NO_ANDROID_CMDLINE_TOOLS_ON_RUNNER'; exit 2;
           }
-          tools="${ANDROID_HOME:?}/build-tools/35.0.0"
+          manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f -print -quit)"
+          test -x "$manager" || {
+            echo 'HOLD_B1028_SDKMANAGER_NOT_FOUND_IN_SDK_PATH'; exit 2;
+          }
+          tools="$sdk/build-tools/36.0.0"
+          if ! test -x "$tools/aapt" || ! test -x "$tools/apksigner" || ! test -x "$tools/zipalign"; then
+            "$manager" 'build-tools;36.0.0' > "$RUNNER_TEMP/b1028-sdkmanager.log" 2>&1 || {
+              echo 'HOLD_B1028_RUNNER_BUILD_TOOLS_NOT_AVAILABLE'; exit 2;
+            }
+          fi
           test -x "$tools/aapt"
           test -x "$tools/apksigner"
           test -x "$tools/zipalign"
