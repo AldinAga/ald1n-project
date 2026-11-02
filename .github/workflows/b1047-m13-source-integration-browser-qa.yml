@@ -82,8 +82,11 @@ jobs:
           python3 - "$RUNNER_TEMP/b1047-m13-only.patch" <<'PY'
           import hashlib,json,os,pathlib,subprocess,sys
           root=pathlib.Path('main-src'); fresh=pathlib.Path('integration-verify')
-          paths=subprocess.check_output(['git','-C',str(fresh),'diff','--name-only','HEAD','--','apps/cms/current'],text=True).splitlines()
-          if len(paths)!=12 or len(set(paths))!=12: raise SystemExit('HOLD_B1047_PATCH_12_FILES')
+          tracked=subprocess.check_output(['git','-C',str(fresh),'diff','--name-only','HEAD','--','apps/cms/current'],text=True).splitlines()
+          added=subprocess.check_output(['git','-C',str(fresh),'ls-files','--others','--exclude-standard','--','apps/cms/current'],text=True).splitlines()
+          paths=tracked+added
+          if len(tracked)!=2 or len(added)!=10 or len(paths)!=12 or len(set(paths))!=12:
+              raise SystemExit('HOLD_B1047_PATCH_12_FILES_TRACKED_'+str(len(tracked))+'_NEW_'+str(len(added)))
           for p in paths:
             if hashlib.sha256((root/p).read_bytes()).digest()!=hashlib.sha256((fresh/p).read_bytes()).digest():
               raise SystemExit('HOLD_B1047_PATCH_READBACK_'+p)
