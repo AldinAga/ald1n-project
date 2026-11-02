@@ -76,8 +76,23 @@ if ($action === '--seed') {
         ]);
         if ($slug === 'b1047-laptop') {
             $path = 'products/'.$p->id.'/b1047.png';
-            $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ak8AAAAASUVORK5CYII=', true);
-            if (!is_string($png)) holdB1047('PNG_BYTES');
+            // A previously used 1x1 base64 PNG had an invalid IDAT CRC:
+            // Chromium sometimes displayed it but Firefox showed alt text.
+            // Generate a genuinely decodable synthetic 320x240 PNG via GD.
+            if (!extension_loaded('gd')) holdB1047('GD_EXTENSION_REQUIRED');
+            $canvas = imagecreatetruecolor(320, 240);
+            if ($canvas === false) holdB1047('PNG_CANVAS');
+            $background = imagecolorallocate($canvas, 24, 36, 65);
+            $accent = imagecolorallocate($canvas, 76, 110, 196);
+            $foreground = imagecolorallocate($canvas, 245, 248, 255);
+            imagefilledrectangle($canvas, 0, 0, 319, 239, $background);
+            imagefilledrectangle($canvas, 35, 46, 284, 193, $accent);
+            imagestring($canvas, 5, 137, 105, 'DEMO', $foreground);
+            ob_start();
+            $written = imagepng($canvas);
+            $png = ob_get_clean();
+            imagedestroy($canvas);
+            if ($written !== true || !is_string($png) || strlen($png) < 100) holdB1047('PNG_BYTES');
             Storage::disk('public')->put($path, $png);
             ProductImage::query()->create([
                 'product_id' => $p->id,
