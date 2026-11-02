@@ -1,0 +1,248 @@
+name: B1049 M13 independent catalog flags plus fail-closed route census (NO DEPLOY)
+"on":
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/b1049-m13-independent-catalog-isolation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: b1049-m13-isolation
+  cancel-in-progress: false
+jobs:
+  independent-catalog-ci:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: disposable_b1049
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8134
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: file
+      SESSION_SECURE_COOKIE: 'false'
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      MOBILE_PUSH_ENABLED: 'false'
+      TURNSTILE_ENABLED: 'false'
+      PUBLIC_STOREFRONT_ENABLED: 'false'
+      PUBLIC_CATALOG_READONLY_ENABLED: 'true'
+      PUBLIC_CHECKOUT_ENABLED: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
+      PLAYWRIGHT_NODE_ROOT: /tmp/b1049-playwright
+      B1047_SCREEN_DIR: /tmp/b1049-screens
+      B1049_INDEPENDENT_CATALOG_TEST: 'true'
+    steps:
+      - name: Checkout current main into disposable scratch tree
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: main-src
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Checkout immutable original PR111 only for source import
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 3acc37e90332b0d8fde659503c5cc1a8b5fcc6aa
+          path: storefront-source
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Apply exact B1047 then B1048 then B1049 hardened gates in disposable source only
+        run: |
+          set -Eeuo pipefail
+          test "$APP_ENV" = testing && test "$DB_HOST" = 127.0.0.1 && test "$DB_DATABASE" = ald1n_test
+          test "$PUBLIC_STOREFRONT_ENABLED" = false && test "$PUBLIC_CATALOG_READONLY_ENABLED" = true
+          test "$PUBLIC_CHECKOUT_ENABLED" = false && test "$MAIL_MAILER" = array
+          test ! -e main-src/apps/cms/current/.env
+          BASE=8ae037aaa8e7b1bde80d2a03b29a526628646155
+          git -C main-src merge-base --is-ancestor "$BASE" HEAD || { echo HOLD_B1049_MAIN_ANCESTRY; exit 2; }
+          test -z "$(git -C main-src diff --name-only "$BASE" HEAD -- apps/cms/current)" || { echo HOLD_B1049_CMS_MAIN_DRIFT; exit 2; }
+          python3 main-src/tools/storefront/b1046/b1046_stage_catalog.py main-src storefront-source
+          python3 main-src/tools/storefront/b1047/b1047_finalize_m13_source.py main-src "$RUNNER_TEMP/b1049-base-b1047.patch"
+          test "$(sha256sum "$RUNNER_TEMP/b1049-base-b1047.patch" | cut -d' ' -f1)" = c05f0bf39babf62870ce8ea2607151f6015a526c9ef1977da796f266d06692fc || { echo HOLD_B1049_B1047_PATCH_DRIFT; exit 2; }
+          B1048=main-src/tools/storefront/b1049/B1048-M13-INDEPENDENT-CATALOG-ONLY-ACTIVATION-UNAPPLIED.patch
+          B1049=main-src/tools/storefront/b1049/B1049-M13-UNNAMED-ROUTE-CENSUS-HARDEN-UNAPPLIED.patch
+          test "$(sha256sum "$B1048" | cut -d' ' -f1)" = 571c890aa964123f90da8734deec2e65599c639b4aa385fe12cb2304cad0bde3 || { echo HOLD_B1049_B1048_SOURCE_DRIFT; exit 2; }
+          test "$(sha256sum "$B1049" | cut -d' ' -f1)" = e4dfaec2bddd375e1a0ed283a5e5d989b1f52f06e908d6b47d80e51af83cbe1a || { echo HOLD_B1049_HARDENING_PATCH_DRIFT; exit 2; }
+          git -C main-src apply --check "$GITHUB_WORKSPACE/$B1048"
+          git -C main-src apply "$GITHUB_WORKSPACE/$B1048"
+          git -C main-src apply --check "$GITHUB_WORKSPACE/$B1049"
+          git -C main-src apply "$GITHUB_WORKSPACE/$B1049"
+          git -C main-src add -N -- apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php
+          git -C main-src diff --check HEAD -- apps/cms/current
+          git -C main-src diff --binary HEAD -- apps/cms/current > "$RUNNER_TEMP/b1049-m13-combined-source-UNAPPLIED.patch"
+          git -C main-src worktree add --detach ../independent-verify "$GITHUB_SHA"
+          git -C independent-verify apply --check "$RUNNER_TEMP/b1049-m13-combined-source-UNAPPLIED.patch"
+          git -C independent-verify apply "$RUNNER_TEMP/b1049-m13-combined-source-UNAPPLIED.patch"
+          python3 - "$RUNNER_TEMP/b1049-m13-combined-source-UNAPPLIED.patch" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          root=pathlib.Path('main-src'); fresh=pathlib.Path('independent-verify')
+          def git(c,*args):return subprocess.check_output(['git','-C',str(c),*args],text=True).splitlines()
+          modified=git(fresh,'diff','--name-only','HEAD','--','apps/cms/current')
+          added=git(fresh,'ls-files','--others','--exclude-standard','--','apps/cms/current')
+          paths=sorted(modified+added)
+          if len(modified)!=2 or len(added)!=11 or len(paths)!=13 or len(set(paths))!=13:
+              raise SystemExit('HOLD_B1049_FINAL_PATCH_CENSUS_2MOD_11NEW_GOT_'+str(len(modified))+'_'+str(len(added)))
+          for p in paths:
+              if (root/p).read_bytes()!=(fresh/p).read_bytes():raise SystemExit('HOLD_B1049_INDEPENDENT_BYTE_MISMATCH_'+p)
+          if any('/mobile/' in p or '/migrations/' in p or '/tests/' in p for p in paths):
+              raise SystemExit('HOLD_B1049_CHANGED_UNAUTHORIZED_PATH')
+          b=pathlib.Path(sys.argv[1]).read_bytes()
+          receipt={'batch':'B1049','status':'SOURCE_ONLY_NOT_DEPLOYED',
+              'mainSource':os.environ['GITHUB_SHA'],'basePR111':'3acc37e90332b0d8fde659503c5cc1a8b5fcc6aa',
+              'baseB1047Sha256':'c05f0bf39babf62870ce8ea2607151f6015a526c9ef1977da796f266d06692fc',
+              'overlayB1048Sha256':'571c890aa964123f90da8734deec2e65599c639b4aa385fe12cb2304cad0bde3',
+              'hardeningB1049Sha256':'e4dfaec2bddd375e1a0ed283a5e5d989b1f52f06e908d6b47d80e51af83cbe1a',
+              'combinedSha256':hashlib.sha256(b).hexdigest(),'paths':paths,
+              'gitMainCmsRuntime':'UNTOUCHED','realCloudLinuxOrPlay':'UNTOUCHED','B803Historical56':'OPEN_NOT_WAIVED',
+              'publicStorefront':'OFF_ON_PRODUCTION','androidNativeBuild':'NONE'}
+          pathlib.Path(os.environ['RUNNER_TEMP']+'/b1049-source-receipt.json').write_text(json.dumps(receipt,sort_keys=True,indent=2)+'\n')
+          print('B1049_VERIFIED_PORTABLE_13_PATHS=PASS_2_MODIFIED_11_NEW')
+          PY
+          cp main-src/tools/storefront/b1046/B1046M13ReadOnlyCatalogIntegrationTest.php main-src/apps/cms/current/tests/Feature/
+          cp main-src/tools/storefront/b1049/B1049CatalogIsolationIntegrationTest.php main-src/apps/cms/current/tests/Feature/
+          cp main-src/tools/storefront/b1047/b1047_seed_catalog.php main-src/apps/cms/current/tests/Browser/
+          cp main-src/tools/storefront/b1047/b1047_catalog_browser.cjs main-src/apps/cms/current/tests/Browser/
+          python3 main-src/tools/storefront/b1049/b1049_adapt_legacy_fixtures.py main-src
+      - name: Setup PHP 8.4 and Node 22 only on disposable runner
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: RED-to-GREEN pure PHP security regression, syntax, MariaDB and exact routes
+        working-directory: main-src/apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          php -l app/Support/PublicCatalogReadOnlyGate.php
+          php -l app/Services/PublicStorefrontStateService.php
+          php -l app/Http/Controllers/PublicShopController.php
+          php -l config/public_storefront.php
+          php -l tests/Feature/B1049CatalogIsolationIntegrationTest.php
+          php -l tests/Feature/B1046M13ReadOnlyCatalogIntegrationTest.php
+          php -l tests/Browser/b1047_seed_catalog.php
+          node --check tests/Browser/b1047_catalog_browser.cjs
+          B1049_TEST_CMS_ROOT="$PWD" php ../../../tools/storefront/b1049/B1049PublicCatalogGateTest.php
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          php -r '$c=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_contains((string)$c->query("SELECT VERSION()") ->fetchColumn(),"10.11.19-MariaDB"))exit(42);'
+          php artisan route:list --path=katalog --json > "$RUNNER_TEMP/b1049-routes.json"
+          python3 - "$RUNNER_TEMP/b1049-routes.json" <<'PY'
+          import json,sys
+          rows=json.load(open(sys.argv[1],encoding='utf8'))
+          want={'katalog':('public-shop.catalog','public-shop-browse'),
+            'katalog/slika/{image}':('public-shop.media','public-shop-images'),
+            'katalog/{slug}':('public-shop.show','public-shop-browse')}
+          if len(rows)!=3:raise SystemExit('HOLD_B1049_ROUTE_COUNT')
+          for x in rows:
+            if x['uri'] not in want or x['name']!=want[x['uri']][0] or x['method'] not in ['GET|HEAD','HEAD|GET']:
+              raise SystemExit('HOLD_B1049_GET_ONLY_IDENTITY')
+            th=want[x['uri']][1]
+            if 'throttle:'+th not in x['middleware'] and 'Illuminate\\Routing\\Middleware\\ThrottleRequests:'+th not in x['middleware']:
+              raise SystemExit('HOLD_B1049_THROTTLE')
+          print('B1049_EXACT_PUBLIC_GET_ROUTES=PASS_3')
+          PY
+      - name: Actual 5 legacy adapted plus 8 isolated Laravel tests on disposable MariaDB
+        working-directory: main-src/apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b1049-legacy5.xml" \
+            tests/Feature/B1046M13ReadOnlyCatalogIntegrationTest.php
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b1049-isolation8.xml" \
+            tests/Feature/B1049CatalogIsolationIntegrationTest.php
+          python3 - "$RUNNER_TEMP/b1049-legacy5.xml" "$RUNNER_TEMP/b1049-isolation8.xml" <<'PY'
+          import hashlib,pathlib,re,sys,xml.etree.ElementTree as ET
+          root=pathlib.Path('tests/Feature')
+          sources=[(root/'B1046M13ReadOnlyCatalogIntegrationTest.php',5),(root/'B1049CatalogIsolationIntegrationTest.php',8)]
+          full=set()
+          for (source,n),xmlpath in zip(sources,sys.argv[1:]):
+            methods=re.findall(r'public function (test_[A-Za-z0-9_]+)\s*\(',source.read_text())
+            if len(methods)!=n or len(set(methods))!=n:raise SystemExit('HOLD_B1049_PHP_TEST_SOURCE_CENSUS')
+            b=pathlib.Path(xmlpath).read_bytes()
+            if b'<!DOCTYPE' in b.upper() or b'<!ENTITY' in b.upper():raise SystemExit('HOLD_B1049_UNSAFE_XML')
+            tree=ET.fromstring(b);cases=list(tree.iter('testcase'))
+            if len(cases)!=n or {c.get('name') for c in cases}!=set(methods):raise SystemExit('HOLD_B1049_ORIGINAL_JUNIT_CASE_IDENTITY')
+            for t in tree.iter():
+              if t.tag in ('failure','error','skipped','warning'):raise SystemExit('HOLD_B1049_TEST_EVENT')
+              if t.tag in ('testsuites','testsuite') and any(int(t.get(k,'0')) for k in ('errors','failures','skipped','warnings')):
+                raise SystemExit('HOLD_B1049_FAILURE_OR_SKIP')
+            for c in cases:
+              key=source.stem+'::'+c.get('name','')
+              if key in full:raise SystemExit('HOLD_B1049_CASE_COLLISION')
+              full.add(key)
+          if len(full)!=13:raise SystemExit('HOLD_B1049_EXPECTED_13_UNIQUE_CASES')
+          print('B1049_PHP_MARIADB_REAL_HTTP_TESTS=PASS_13_UNIQUE')
+          PY
+      - name: Install Chromium and Firefox only in isolated runner
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$PLAYWRIGHT_NODE_ROOT"
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium firefox
+      - name: Real browsers with exact independent flags and zero order or inventory mutation
+        working-directory: main-src/apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          test "$APP_ENV" = testing && test "$DB_HOST" = 127.0.0.1 && test "$DB_DATABASE" = ald1n_test
+          test "$MAIL_MAILER" = array && test "$PUBLIC_STOREFRONT_ENABLED" = false && test "$PUBLIC_CATALOG_READONLY_ENABLED" = true
+          test "$PUBLIC_CHECKOUT_ENABLED" = false
+          php artisan migrate:fresh --force --no-ansi
+          php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php tests/Browser/b1047_seed_catalog.php --seed
+          php artisan serve --host=127.0.0.1 --port=8134 > "$RUNNER_TEMP/b1049-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 50); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8134/katalog; then READY=1; break; fi
+            kill -0 "$SERVER_PID" 2>/dev/null || break
+            sleep 1
+          done
+          test "$READY" = 1 || { echo HOLD_B1049_BROWSER_LOCAL_ONLY_SERVER; tail -n 20 "$RUNNER_TEMP/b1049-server.log"; exit 4; }
+          node tests/Browser/b1047_catalog_browser.cjs
+          php tests/Browser/b1047_seed_catalog.php --verify
+          echo 'B1049_REAL_CHROMIUM_FIREFOX_6_RESPONSIVE_CASES_AND_OFF_REVOKE=PASS'
+      - name: Archive only synthetic JUnit, source patch and screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1049-m13-catalog-readonly-isolation-source-only-qa
+          path: |
+            ${{ runner.temp }}/b1049-m13-combined-source-UNAPPLIED.patch
+            ${{ runner.temp }}/b1049-source-receipt.json
+            ${{ runner.temp }}/b1049-routes.json
+            ${{ runner.temp }}/b1049-legacy5.xml
+            ${{ runner.temp }}/b1049-isolation8.xml
+            /tmp/b1049-screens/*-catalog.png
+            /tmp/b1049-screens/*-detail.png
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Explicit no release production or paid build
+        if: always()
+        run: |
+          echo 'B1049_PRODUCTION_CMS_DB=UNCHANGED; PUBLIC_STOREFRONT=OFF'
+          echo 'B1049_EAS_APK_AAB=NONE; OTA=NONE; PLAY=NONE; EXTERNAL_MAIL_PUSH=NONE'
+          echo 'B1049_B803_56=OPEN_NOT_WAIVED; M13_M14_M15=NOT_OWNER_ACCEPTED'
