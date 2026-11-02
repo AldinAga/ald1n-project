@@ -66,6 +66,8 @@ async function runBrowser(engine, label) {
         await documentIsSafe(page, prefix+' detail');
         const image = page.locator('.shop-detail-image img');
         assert.equal(await image.count(),1,prefix+' visible product image missing');
+        const decoded = await image.evaluate(img => img.complete && img.naturalWidth >= 320 && img.naturalHeight >= 240);
+        assert(decoded, prefix+' image decoded pixels missing (HTTP200 alone is insufficient)');
         const rel = await image.getAttribute('src');
         assert(/^\/katalog\/slika\/[0-9]+$/.test(rel), prefix+' unexpected media src '+rel);
         const media = await context.request.get(base + rel);
