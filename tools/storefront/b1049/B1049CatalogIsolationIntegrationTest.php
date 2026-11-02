@@ -118,7 +118,7 @@ final class B1049CatalogIsolationIntegrationTest extends TestCase
         $p = Product::query()->create([
             'created_by' => $owner->id,
             'sku' => 'B1048-QA-ONLY', 'slug' => 'b1048-qa',
-            'name' => 'Synthetic QA', 'price_amount' => 100,
+            'name' => 'Synthetic QA', 'description' => 'Synthetic fixture only', 'price_amount' => 100,
             'price_currency' => 'RSD', 'stock_quantity' => 1,
             'status' => 'active',
         ]);
