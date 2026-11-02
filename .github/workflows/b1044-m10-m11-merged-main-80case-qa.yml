@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   main-postmerge-80:
-    if: github.ref == "refs/heads/main"
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
