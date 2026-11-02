@@ -1,0 +1,212 @@
+name: B1047 M13 exact-source integration patch + Chromium Firefox QA (NO DEPLOY)
+"on":
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/b1047-m13-source-integration-browser-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: b1047-m13-patch-browser
+  cancel-in-progress: false
+jobs:
+  m13-source-and-browser:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: b1047_ephemeral_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8134
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: file
+      SESSION_SECURE_COOKIE: 'false'
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      MOBILE_PUSH_ENABLED: 'false'
+      TURNSTILE_ENABLED: 'false'
+      PUBLIC_STOREFRONT_ENABLED: 'true'
+      PUBLIC_CHECKOUT_ENABLED: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
+      PLAYWRIGHT_NODE_ROOT: /tmp/b1047-playwright
+      B1047_SCREEN_DIR: /tmp/b1047-screens
+    steps:
+      - name: Clone newest main as read-only source of truth
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: main-src
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Clone immutable original storefront PR111 for source-only import
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 3acc37e90332b0d8fde659503c5cc1a8b5fcc6aa
+          path: storefront-source
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Assemble actual M13 source diff and verify apply on independent clean checkout
+        run: |
+          set -Eeuo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_test
+          test "$PUBLIC_CHECKOUT_ENABLED" = false
+          test ! -e main-src/apps/cms/current/.env
+          git -C main-src merge-base --is-ancestor 57b6cf5072f3426fe35af15f4fe4f099405aafe4 HEAD || { echo HOLD_B1047_MAIN_ANCESTRY; exit 2; }
+          test -z "$(git -C main-src diff --name-only 57b6cf5072f3426fe35af15f4fe4f099405aafe4 HEAD -- apps/cms/current)" || { echo HOLD_B1047_CMS_SOURCE_DRIFT; exit 2; }
+          python3 main-src/tools/storefront/b1046/b1046_stage_catalog.py main-src storefront-source
+          python3 main-src/tools/storefront/b1047/b1047_finalize_m13_source.py main-src "$RUNNER_TEMP/b1047-m13-only.patch"
+          git -C main-src worktree add --detach ../integration-verify "$GITHUB_SHA"
+          git -C integration-verify apply --check "$RUNNER_TEMP/b1047-m13-only.patch"
+          git -C integration-verify apply "$RUNNER_TEMP/b1047-m13-only.patch"
+          python3 - "$RUNNER_TEMP/b1047-m13-only.patch" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          root=pathlib.Path('main-src'); fresh=pathlib.Path('integration-verify')
+          paths=subprocess.check_output(['git','-C',str(fresh),'diff','--name-only','HEAD','--','apps/cms/current'],text=True).splitlines()
+          if len(paths)!=12 or len(set(paths))!=12: raise SystemExit('HOLD_B1047_PATCH_12_FILES')
+          for p in paths:
+            if hashlib.sha256((root/p).read_bytes()).digest()!=hashlib.sha256((fresh/p).read_bytes()).digest():
+              raise SystemExit('HOLD_B1047_PATCH_READBACK_'+p)
+          if any('/mobile/' in p or 'migration' in p or 'tests/Feature' in p for p in paths):
+              raise SystemExit('HOLD_B1047_PATH_SAFETY')
+          b=pathlib.Path(sys.argv[1]).read_bytes()
+          pathlib.Path(os.environ['RUNNER_TEMP']+'/b1047-patch-attestation.json').write_text(json.dumps({
+            'batch':'B1047','source_main':os.environ['GITHUB_SHA'],
+            'original_pr111':'3acc37e90332b0d8fde659503c5cc1a8b5fcc6aa',
+            'patch_sha256':hashlib.sha256(b).hexdigest(),'changed_paths':sorted(paths),
+            'integration':'PATCH_ONLY_NOT_APPLIED_TO_ACTIVE_MAIN',
+            'storefront':'OFF_ON_PRODUCTION','B803_56':'OPEN_NOT_WAIVED',
+          },sort_keys=True,indent=2)+'\n')
+          print('B1047_SOURCE_PATCH_APPLIED_TO_INDEPENDENT_CLEAN_CHECKOUT=PASS_12')
+          PY
+          cp main-src/tools/storefront/b1046/B1046M13ReadOnlyCatalogIntegrationTest.php \
+            main-src/apps/cms/current/tests/Feature/B1046M13ReadOnlyCatalogIntegrationTest.php
+          cp main-src/tools/storefront/b1047/b1047_seed_catalog.php main-src/apps/cms/current/tests/Browser/b1047_seed_catalog.php
+          cp main-src/tools/storefront/b1047/b1047_catalog_browser.cjs main-src/apps/cms/current/tests/Browser/b1047_catalog_browser.cjs
+      - name: Pinned isolated PHP 8.4 and Node 22
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Exact syntax route count and locked current-main Composer in disposable runner
+        working-directory: main-src/apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          php -l app/Http/Controllers/PublicShopController.php
+          php -l app/Providers/AppServiceProvider.php
+          php -l routes/web.php
+          php -l tests/Browser/b1047_seed_catalog.php
+          php -l tests/Feature/B1046M13ReadOnlyCatalogIntegrationTest.php
+          node --check tests/Browser/b1047_catalog_browser.cjs
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          php -r '$c=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_contains((string)$c->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(42);'
+          php artisan route:list --path=katalog --json > "$RUNNER_TEMP/b1047-routes.json"
+          python3 - "$RUNNER_TEMP/b1047-routes.json" <<'PY'
+          import json,sys
+          rows=json.load(open(sys.argv[1],encoding='utf8'))
+          want={'katalog':('public-shop.catalog','throttle:public-shop-browse'),
+                'katalog/slika/{image}':('public-shop.media','throttle:public-shop-images'),
+                'katalog/{slug}':('public-shop.show','throttle:public-shop-browse')}
+          if len(rows)!=3: raise SystemExit('HOLD_B1047_PUBLIC_ROUTE_COUNT')
+          for r in rows:
+              if r['uri'] not in want or r['name']!=want[r['uri']][0] or r['method'] not in ['GET|HEAD','HEAD|GET'] or want[r['uri']][1] not in r['middleware']:
+                  raise SystemExit('HOLD_B1047_ROUTE_MISMATCH '+str(r))
+          print('B1047_PUBLIC_ROUTE_THROTTLE_CENSUS=PASS_3_GET_ONLY')
+          PY
+      - name: Five previously proven real Laravel HTTP regression cases unchanged
+        working-directory: main-src/apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b1047-m13-junit.xml" \
+            tests/Feature/B1046M13ReadOnlyCatalogIntegrationTest.php
+          python3 - "$RUNNER_TEMP/b1047-m13-junit.xml" <<'PY'
+          import pathlib,sys,xml.etree.ElementTree as ET
+          b=pathlib.Path(sys.argv[1]).read_bytes()
+          if b'<!DOCTYPE' in b.upper() or b'<!ENTITY' in b.upper(): raise SystemExit('HOLD_B1047_JUNIT_UNSAFE')
+          root=ET.fromstring(b); cases=list(root.iter('testcase'))
+          want={'test_off_by_default_and_no_checkout_or_cart_routes_exist',
+            'test_enabled_synthetic_public_listing_excludes_hidden_prices_and_internal_data',
+            'test_catalog_search_uses_literal_wildcards_and_validated_filters',
+            'test_product_detail_escapes_untrusted_html_and_has_no_buy_cta',
+            'test_media_is_private_no_store_and_revoked_on_emergency_off'}
+          if len(cases)!=5 or {x.attrib.get('name') for x in cases}!=want:
+              raise SystemExit('HOLD_B1047_JUNIT_CASE_IDENTITY')
+          for t in root.iter():
+            if t.tag in ('failure','error','skipped','warning'): raise SystemExit('HOLD_B1047_TEST_EVENT')
+            if t.tag in ('testsuite','testsuites') and any(int(t.attrib.get(a,'0')) for a in ['failures','errors','skipped','warnings']):
+              raise SystemExit('HOLD_B1047_JUNIT_NONPASS')
+          print('B1047_M13_LARAVEL_HTTP_REGRESSIONS=PASS_5_OF_5')
+          PY
+      - name: Install real Chromium and Firefox only in disposable runner
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$PLAYWRIGHT_NODE_ROOT"
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium firefox
+      - name: Real HTTP browser QA at 1440 390 320, emergency OFF and unchanged DB
+        working-directory: main-src/apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          test "$APP_ENV" = testing && test "$DB_HOST" = 127.0.0.1 && test "$DB_DATABASE" = ald1n_test
+          test "$MAIL_MAILER" = array && test "$PUBLIC_CHECKOUT_ENABLED" = false
+          php artisan migrate:fresh --force --no-ansi
+          php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php tests/Browser/b1047_seed_catalog.php --seed
+          php artisan serve --host=127.0.0.1 --port=8134 > "$RUNNER_TEMP/b1047-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8134/katalog; then READY=1; break; fi
+            kill -0 "$SERVER_PID" 2>/dev/null || break
+            sleep 1
+          done
+          test "$READY" = 1 || { echo HOLD_B1047_LOCAL_BROWSER_SERVER; tail -n 20 "$RUNNER_TEMP/b1047-server.log"; exit 5; }
+          node tests/Browser/b1047_catalog_browser.cjs
+          php tests/Browser/b1047_seed_catalog.php --verify
+          echo 'B1047_CHROMIUM_FIREFOX_AND_DB_READONLY=PASS_NO_DEPLOY'
+      - name: Archive exact M13 integration patch and sanitized synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1047-m13-portable-readonly-source-patch-real-browser-evidence
+          path: |
+            ${{ runner.temp }}/b1047-m13-only.patch
+            ${{ runner.temp }}/b1047-patch-attestation.json
+            ${{ runner.temp }}/b1047-routes.json
+            ${{ runner.temp }}/b1047-m13-junit.xml
+            /tmp/b1047-screens/*-catalog.png
+            /tmp/b1047-screens/*-detail.png
+          if-no-files-found: warn
+          retention-days: 30
+      - name: No production / no customer data / no Android release
+        if: always()
+        run: |
+          echo 'B1047_M13=PORTABLE_SOURCE_PATCH_ONLY_NO_GITHUB_RUNTIME_MAIN_CHANGE'
+          echo 'B1047_CLOUDLINUX_PRODUCTION=UNTOUCHED; STOREFRONT=OFF'
+          echo 'B1047_EAS=NONE; OTA=NONE; PLAY=NONE; EMAIL=NONE; LIVE_DB=NONE; B803_56=OPEN'
