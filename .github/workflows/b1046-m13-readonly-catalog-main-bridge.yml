@@ -48,6 +48,7 @@ jobs:
       OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
       PUBLIC_STOREFRONT_ENABLED: 'false'
       PUBLIC_CHECKOUT_ENABLED: 'false'
+      B1046_CACHE_CONTROL_FIX: 'private-no-store-v2'
       WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
     steps:
       - name: Checkout only current merged main in disposable runner
