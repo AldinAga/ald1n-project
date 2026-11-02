@@ -1,0 +1,215 @@
+name: B1044 M10 M11 actual merged main 80-case MariaDB Mailpit QA (NO EAS)
+"on":
+  push:
+    branches: [main]
+    paths: ['.github/workflows/b1044-m10-m11-merged-main-80case-qa.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  main-postmerge-80:
+    if: github.ref == "refs/heads/main"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+          mailpit:
+        image: axllent/mailpit:v1.31.6
+        ports: ['1025:1025', '8025:8025']
+    env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      MOBILE_PUSH_ENABLED: 'false'
+      MOBILE_PUSH_EXPO_ACCESS_TOKEN: ''
+      TURNSTILE_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ALERTS_ENABLED: 'false'
+      B949_DISPOSABLE_INTEGRATION_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact merged main sources, no touching denied B815
+        run: |
+          set -Eeuo pipefail
+          BASE=92dbba6b11ca4002ada72c98c8d8ad405be0476c
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git merge-base "$BASE" HEAD)" = "$BASE"
+          test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current)"
+          test "$(git hash-object apps/cms/current/app/Services/MobilePushDispatcher.php)" = d73c0d8ab0d8fe75d743e76b0044a7d3c18a4b6c
+          test "$(git hash-object apps/cms/current/app/Services/OrderWorkflowService.php)" = f8f036f458fead11e0aef133453bd81dc3e27db6
+          test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = 8e00572ff1ebee5bb25e31fa33db9c5cd00060e4
+          test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = b10d9ae1c9796c27fac1703a3f758106bd83ebfd
+          test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = a78b8f520b593f01c5ddb6cf594f83f646625f89
+          test -f apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php
+          git diff --check "$BASE" HEAD
+          echo 'B1044_ACTUAL_POSTMERGE_SOURCE_PINS=PASS'
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Install locked packages and test 69 real Laravel MariaDB cases
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          install -m 600 /dev/null .env
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          php -l tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test");if(!str_starts_with((string)$p->query("SELECT VERSION()")->fetchColumn(),"10.11.19-MariaDB"))exit(35);'
+          # Discover from both configured PHPUnit suites and select these 11 exact classes.
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b922-junit.xml" \
+            --filter '(MobilePushRecipientOwnershipB909Test|MobilePushRevocationB910Test|MobilePushCategoryRevocationB911Test|MobilePushTokenRotationB912Test|WarrantyExpiryArrayMailDeliveryB916Test|MobilePushPhase3BTest|WarrantyExpiryFreshEligibilityB905Test|WarrantyExpiryDeliveryGuardTest|WarrantyExpiryOptInSourceTest|WarrantyFirstPaymentIssuance798Test|PaymentTransitionNotificationB902Test)'
+      - name: Strict unique 69-case JUnit gate and source hashes
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/b922-junit.xml" <<'PY'
+          import hashlib
+          import pathlib
+          import re
+          import sys
+          import xml.etree.ElementTree as ET
+
+          # Fixed 11-class, 69-method census, compared to pinned source identities.
+          fixtures = {'tests/Feature/MobilePushRecipientOwnershipB909Test.php': 6, 'tests/Feature/MobilePushRevocationB910Test.php': 6, 'tests/Feature/MobilePushCategoryRevocationB911Test.php': 9, 'tests/Feature/MobilePushTokenRotationB912Test.php': 7, 'tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php': 10, 'tests/Feature/MobilePushPhase3BTest.php': 3, 'tests/Feature/WarrantyExpiryFreshEligibilityB905Test.php': 9, 'tests/Feature/WarrantyExpiryDeliveryGuardTest.php': 7, 'tests/Unit/WarrantyExpiryOptInSourceTest.php': 3, 'tests/Feature/WarrantyFirstPaymentIssuance798Test.php': 6, 'tests/Feature/PaymentTransitionNotificationB902Test.php': 3}
+          required_manifest_sha256 = "01fdcebe4e53839cecf64c6275c5a0c0715e13770fc45cb958cb30217ea187dc"
+          expected = set()
+          for filename, count in fixtures.items():
+              path = pathlib.Path(filename)
+              if not path.is_file():
+                  raise SystemExit("HOLD_B932_MISSING_TEST_SOURCE:" + filename)
+              source = path.read_text(encoding="utf-8")
+              cls = path.stem
+              namespace = "Tests\\Unit" if filename.startswith("tests/Unit/") else "Tests\\Feature"
+              if ("namespace " + namespace + ";") not in source or not re.search(r"\bclass\s+" + re.escape(cls) + r"\b", source):
+                  raise SystemExit("HOLD_B932_SOURCE_CLASS_IDENTITY:" + filename)
+              names = re.findall(r"\bfunction\s+(test_[A-Za-z0-9_]+)\s*\(", source)
+              if len(names) != count or len(set(names)) != count:
+                  raise SystemExit("HOLD_B932_SOURCE_METHOD_COUNT:" + filename)
+              expected.update(namespace + "\\" + cls + "::" + name for name in names)
+          if len(expected) != 69:
+              raise SystemExit("HOLD_B932_EXPECTED_MANIFEST_COUNT")
+          manifest = ("\n".join(sorted(expected)) + "\n").encode("utf-8")
+          if hashlib.sha256(manifest).hexdigest() != required_manifest_sha256:
+              raise SystemExit("HOLD_B932_PINNED_69_IDENTITIES_DRIFT")
+
+          path = pathlib.Path(sys.argv[1])
+          xml = path.read_bytes()
+          if b"<!DOCTYPE" in xml.upper() or b"<!ENTITY" in xml.upper():
+              raise SystemExit("HOLD_B932_XML_DTD_OR_ENTITY")
+          try:
+              root = ET.fromstring(xml)
+          except ET.ParseError:
+              raise SystemExit("HOLD_B932_XML_PARSE")
+          if root.tag not in ("testsuites", "testsuite"):
+              raise SystemExit("HOLD_B932_JUNIT_ROOT")
+          for suite in root.iter():
+              if suite.tag in ("testsuites", "testsuite"):
+                  for key in ("failures", "errors", "skipped", "warnings"):
+                      if key in suite.attrib and suite.attrib[key] != "0":
+                          raise SystemExit("HOLD_B932_SUITE_" + key.upper())
+          if root.get("tests") is not None and root.get("tests") != "69":
+              raise SystemExit("HOLD_B932_ROOT_COUNT")
+          if any(node.tag in ("failure", "error", "skipped", "warning") for node in root.iter()):
+              raise SystemExit("HOLD_B932_FAILED_SKIPPED_OR_WARNING_CASE")
+          nodes = list(root.iter("testcase"))
+          if len(nodes) != 69:
+              raise SystemExit("HOLD_B932_JUNIT_NOT_69_CASES")
+          found = set()
+          for node in nodes:
+              cls = node.get("classname") or node.get("class") or ""
+              name = node.get("name") or ""
+              canon_cls = cls.replace(".", "\\").replace("/", "\\")
+              identity = canon_cls + "::" + name
+              if identity not in expected:
+                  raise SystemExit("HOLD_B932_UNKNOWN_CASE:" + identity)
+              if identity in found:
+                  raise SystemExit("HOLD_B932_DUPLICATE_CASE:" + identity)
+              found.add(identity)
+          if found != expected:
+              raise SystemExit("HOLD_B932_MISSING_EXACT_CASES")
+          print("PASS_B932_EXACT_69_JUNIT_SOURCE_PINNED_IDENTITIES_NO_FAILURES")
+          PY
+          sha256sum tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php > "$RUNNER_TEMP/b922-source.sha256"
+      - name: Prove seven recovery and four isolated Mailpit cases on ACTUAL merged main
+        working-directory: apps/cms/current
+        run: |
+          set -Eeuo pipefail
+          test "$B949_DISPOSABLE_INTEGRATION_ENABLED" = 1
+          test "$DB_DATABASE" = ald1n_test
+          test "$WARRANTY_ACTIVATION_RECOVERY_ENABLED" = false
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b1044-recovery7.xml" --filter WarrantyActivationRecoveryB946Test
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:8025/api/v1/messages > "$RUNNER_TEMP/b1044-mailpit-ready.json"
+          vendor/bin/phpunit -c phpunit.mysql.xml --fail-on-warning \
+            --log-junit "$RUNNER_TEMP/b1044-integration4.xml" \
+            tests/Integration/WarrantyActivationB949IntegrationTest.php
+          python3 - "$RUNNER_TEMP/b922-junit.xml" "$RUNNER_TEMP/b1044-recovery7.xml" "$RUNNER_TEMP/b1044-integration4.xml" <<'PY'
+          import pathlib,sys,xml.etree.ElementTree as ET
+          names=set()
+          for file,num,cls in zip(sys.argv[1:],[69,7,4],[None,'WarrantyActivationRecoveryB946Test','WarrantyActivationB949IntegrationTest']):
+              b=pathlib.Path(file).read_bytes()
+              if not (0<len(b)<5_000_000) or b'<!DOCTYPE' in b.upper() or b'<!ENTITY' in b.upper():
+                  raise SystemExit('HOLD_B1044_INVALID_JUNIT_XML')
+              root=ET.fromstring(b)
+              for x in root.iter():
+                  if x.tag in ('testsuites','testsuite'):
+                      for label in ('errors','failures','skipped','warnings'):
+                          if x.get(label) is not None and x.get(label)!='0':raise SystemExit('HOLD_B1044_NONPASS_SUITE')
+                  if x.tag in ('failure','error','skipped','warning'):raise SystemExit('HOLD_B1044_NONPASS_CASE')
+              cases=list(root.iter('testcase'))
+              if len(cases)!=num:raise SystemExit('HOLD_B1044_WRONG_CASE_COUNT')
+              ids={(x.get('classname') or x.get('class') or '')+'::'+(x.get('name') or '') for x in cases}
+              if len(ids)!=num or any(not x.split('::')[0] or not x.split('::')[1].startswith('test_') for x in ids):
+                  raise SystemExit('HOLD_B1044_DUPLICATE_OR_MISSING_CASE')
+              if cls and any(cls not in x for x in ids):raise SystemExit('HOLD_B1044_WRONG_CASE_CLASS')
+              if names&ids:raise SystemExit('HOLD_B1044_DUPLICATE_CROSS_GROUP')
+              names|=ids
+          if len(names)!=80:raise SystemExit('HOLD_B1044_NOT_80_UNIQUE')
+          print('B1044_ACTUAL_MERGED_MAIN_69_PLUS_7_PLUS_4=PASS_80_UNIQUE')
+          PY
+      - name: Evidence (no deployment)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1044-real-merged-main-80case-mariadb-mailpit-evidence
+          path: |
+            ${{ runner.temp }}/b922-junit.xml
+            ${{ runner.temp }}/b1044-recovery7.xml
+            ${{ runner.temp }}/b1044-integration4.xml
+            ${{ runner.temp }}/b922-source.sha256
+            ${{ runner.temp }}/b922-changed.txt
+            apps/cms/current/tests/Feature/WarrantyExpiryArrayMailDeliveryB916Test.php
+          retention-days: 7
+      - name: Explicit no release operations
+        if: always()
+        run: echo B1044_80_REAL_MERGED_MAIN_MARIADB_MAILPIT_ONLY_NO_EXTERNAL_SMTP_EXPO_NO_DEPLOY_NO_EAS_BUILD_NO_OTA_NO_PLAY
