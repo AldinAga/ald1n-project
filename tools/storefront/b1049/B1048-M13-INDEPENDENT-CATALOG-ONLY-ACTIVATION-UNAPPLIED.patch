@@ -1,0 +1,142 @@
+diff --git a/apps/cms/current/app/Http/Controllers/PublicShopController.php b/apps/cms/current/app/Http/Controllers/PublicShopController.php
+index d8371d9..f9ca0a5 100644
+--- a/apps/cms/current/app/Http/Controllers/PublicShopController.php
++++ b/apps/cms/current/app/Http/Controllers/PublicShopController.php
+@@ -15,7 +15,7 @@ final class PublicShopController extends Controller
+ {
+     private function guarded(): void
+     {
+-        abort_unless(app(\App\Services\PublicStorefrontStateService::class)->isOpen(), 404);
++        abort_unless(app(\App\Services\PublicStorefrontStateService::class)->isCatalogReadOnlyOpen(), 404);
+     }
+ 
+     public function catalog(Request $request, PublicRetailCatalogService $catalog): View
+diff --git a/apps/cms/current/app/Services/PublicStorefrontStateService.php b/apps/cms/current/app/Services/PublicStorefrontStateService.php
+index 2e996ae..0f84d78 100644
+--- a/apps/cms/current/app/Services/PublicStorefrontStateService.php
++++ b/apps/cms/current/app/Services/PublicStorefrontStateService.php
+@@ -30,6 +30,41 @@ final class PublicStorefrontStateService
+         return config('public_storefront.enabled') === true && $this->requestedOpen($lock);
+     }
+ 
++    /** M13 separate public catalog control. Reading it NEVER changes checkout permissions. */
++    public function requestedCatalogReadOnlyOpen(): bool
++    {
++        if (!Schema::hasTable('settings')) return false;
++        // Avoid a cached value so emergency OFF revokes the next request.
++        return (string) Setting::query()->where('setting_key', 'public_catalog_readonly_open')
++            ->value('setting_value') === '1';
++    }
++
++    /**
++     * The M13 catalog cannot accidentally inherit the old all-or-nothing shop
++     * switch or future M14/M15 shopping routes. No new admin endpoint is wired.
++     * A production ON action still requires distinct explicit authorization.
++     */
++    public function isCatalogReadOnlyOpen(): bool
++    {
++        $routes = [];
++        foreach (\Illuminate\Support\Facades\Route::getRoutes() as $route) {
++            $routes[] = [
++                'name' => (string) ($route->getName() ?? ''),
++                'uri' => (string) $route->uri(),
++                'methods' => $route->methods(),
++                'middleware' => $route->gatherMiddleware(),
++            ];
++        }
++        return \App\Support\PublicCatalogReadOnlyGate::permits(
++            config('public_storefront.catalog_readonly_enabled') === true,
++            $this->requestedCatalogReadOnlyOpen(),
++            config('public_storefront.enabled') === true,
++            $this->requestedOpen(),
++            config('public_storefront.checkout_enabled') === true,
++            $routes
++        );
++    }
++
+     public function change(bool $open, User $actor): void
+     {
+         abort_unless($actor->status === 'active' && $actor->retired_at === null
+diff --git a/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php b/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php
+new file mode 100644
+index 0000000..1700377
+--- /dev/null
++++ b/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php
+@@ -0,0 +1,63 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Support;
++
++/**
++ * B1048 M13-only fail-closed route and flag gate.
++ * NOT a buyer session gate and NOT permission to accept an order.
++ * Exact GET-only M13 routes and two independent OFF-by-default switches required.
++ */
++final class PublicCatalogReadOnlyGate
++{
++    /**
++     * @param iterable<array{name:string,uri:string,methods:array,middleware:array}> $routes
++     */
++    public static function permits(
++        bool $catalogEnvironmentEnabled,
++        bool $catalogDatabaseOpen,
++        bool $legacyStorefrontEnvironmentEnabled,
++        bool $legacyStorefrontDatabaseOpen,
++        bool $checkoutEnvironmentEnabled,
++        iterable $routes
++    ): bool {
++        if (!$catalogEnvironmentEnabled || !$catalogDatabaseOpen
++            || $legacyStorefrontEnvironmentEnabled || $legacyStorefrontDatabaseOpen
++            || $checkoutEnvironmentEnabled) {
++            return false;
++        }
++
++        $expected = [
++            'public-shop.catalog' => ['katalog', 'public-shop-browse'],
++            'public-shop.show' => ['katalog/{slug}', 'public-shop-browse'],
++            'public-shop.media' => ['katalog/slika/{image}', 'public-shop-images'],
++        ];
++        $seen = [];
++        foreach ($routes as $route) {
++            if (!is_array($route)) return false;
++            $name = (string) ($route['name'] ?? '');
++            $uri = ltrim((string) ($route['uri'] ?? ''), '/');
++            $methods = $route['methods'] ?? [];
++            $middleware = $route['middleware'] ?? [];
++            if (!is_array($methods) || !is_array($middleware)) return false;
++
++            // The M13-only gate fails closed even if old purchase routes
++            // have no public-shop.* names (historically /korpa etc.).
++            if (preg_match('#^(?:korpa|porucivanje|registracija)(?:/|$)#i', $uri)) return false;
++            if (!str_starts_with($name, 'public-shop.')) continue;
++            if (!isset($expected[$name]) || isset($seen[$name])) return false;
++            [$targetUri, $throttle] = $expected[$name];
++            if ($uri !== $targetUri) return false;
++            if (array_diff($methods, ['GET','HEAD']) !== [] || !in_array('GET', $methods, true)) {
++                return false;
++            }
++            $short = 'throttle:'.$throttle;
++            $expanded = 'Illuminate\\Routing\\Middleware\\ThrottleRequests:'.$throttle;
++            if (!in_array($short, $middleware, true) && !in_array($expanded, $middleware, true)) {
++                return false;
++            }
++            $seen[$name] = true;
++        }
++        return count($seen) === count($expected);
++    }
++}
+diff --git a/apps/cms/current/config/public_storefront.php b/apps/cms/current/config/public_storefront.php
+index 48ab469..4da4873 100644
+--- a/apps/cms/current/config/public_storefront.php
++++ b/apps/cms/current/config/public_storefront.php
+@@ -7,6 +7,9 @@ declare(strict_types=1);
+  */
+ return [
+     'enabled' => filter_var(env('PUBLIC_STOREFRONT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
++    // M13-only independent flag: cannot enable historic purchase/checkout.
++    // A separately attested SuperAdmin and live-host release gate are still required.
++    'catalog_readonly_enabled' => filter_var(env('PUBLIC_CATALOG_READONLY_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+     'max_items' => 25,
+     'max_quantity_per_item' => 20,
+     // Unavailable until checkout, after-sales and merchant terms have passed QA.
