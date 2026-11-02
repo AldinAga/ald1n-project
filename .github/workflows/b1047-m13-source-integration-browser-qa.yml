@@ -136,8 +136,13 @@ jobs:
                 'katalog/{slug}':('public-shop.show','throttle:public-shop-browse')}
           if len(rows)!=3: raise SystemExit('HOLD_B1047_PUBLIC_ROUTE_COUNT')
           for r in rows:
-              if r['uri'] not in want or r['name']!=want[r['uri']][0] or r['method'] not in ['GET|HEAD','HEAD|GET'] or want[r['uri']][1] not in r['middleware']:
+              if r['uri'] not in want or r['name']!=want[r['uri']][0] or r['method'] not in ['GET|HEAD','HEAD|GET']:
                   raise SystemExit('HOLD_B1047_ROUTE_MISMATCH '+str(r))
+              # Laravel route:list resolves aliases to the full middleware class.
+              policy=want[r['uri']][1].split(':',1)[1]
+              qualified='Illuminate\\Routing\\Middleware\\ThrottleRequests:'+policy
+              if not any(x in (want[r['uri']][1],qualified) for x in r['middleware']):
+                  raise SystemExit('HOLD_B1047_THROTTLE_OR_POLICY_MISMATCH '+str(r))
           print('B1047_PUBLIC_ROUTE_THROTTLE_CENSUS=PASS_3_GET_ONLY')
           PY
       - name: Five previously proven real Laravel HTTP regression cases unchanged
