@@ -66,7 +66,7 @@ jobs:
           test "$(git hash-object apps/cms/current/app/Services/WarrantyActivationRecoveryService.php)" = 8e00572ff1ebee5bb25e31fa33db9c5cd00060e4
           test "$(git hash-object apps/cms/current/tests/Feature/WarrantyActivationRecoveryB946Test.php)" = b10d9ae1c9796c27fac1703a3f758106bd83ebfd
           test "$(git hash-object apps/cms/current/tests/Integration/WarrantyActivationB949IntegrationTest.php)" = a78b8f520b593f01c5ddb6cf594f83f646625f89
-          test -f apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php
+          test -z "$(git diff --name-only "$BASE" HEAD -- apps/cms/current/tests)"
           git diff --check "$BASE" HEAD
           echo 'B1044_ACTUAL_POSTMERGE_SOURCE_PINS=PASS'
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
