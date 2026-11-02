@@ -91,6 +91,23 @@ def main() -> None:
         fail('PRODUCT_CHECKOUT_REMOVAL')
     detail.write_text(d, encoding='utf-8')
 
+    # B1046 real HTTP RED: Symfony BinaryFileResponse on the original
+    # source emitted Cache-Control: max-age=0, no-store, public.
+    # Explicitly make the response private after file() construction; this
+    # is a source security fix, NOT a workaround or a relaxed test assertion.
+    controller = main_repo / cms / 'app/Http/Controllers/PublicShopController.php'
+    b = controller.read_text(encoding='utf-8')
+    a1 = "        return response()->file($full, ["
+    a2 = "            'X-Content-Type-Options'=>'nosniff',\n        ]);\n    }\n\n    public function cart("
+    if b.count(a1) != 1 or b.count(a2) != 1:
+        fail('EXACT_BINARY_RESPONSE_SOURCE_ANCHOR_DRIFT')
+    b = b.replace(a1, "        $response = response()->file($full, [")
+    b = b.replace(a2, "            'X-Content-Type-Options'=>'nosniff',\n        ]);\n"
+                  "        $response->setPrivate();\n"
+                  "        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');\n"
+                  "        return $response;\n    }\n\n    public function cart(")
+    controller.write_text(b, encoding='utf-8')
+
     routes = main_repo / cms / 'routes/web.php'
     with routes.open('a', encoding='utf-8') as fp:
         fp.write("""
