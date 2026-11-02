@@ -50,6 +50,7 @@ jobs:
       WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
       PLAYWRIGHT_NODE_ROOT: /tmp/b1047-playwright
       B1047_SCREEN_DIR: /tmp/b1047-screens
+      B1047_GD_SYNTHETIC_PNG_BROWSER_DECODE: '320x240-2engines'
     steps:
       - name: Clone newest main as read-only source of truth
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
