@@ -8,6 +8,18 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0F. B1047 portable catalog patch and cross-browser CI accuracy (2026-11-02)
+
+**Reusable verified lessons (M13 public catalog only; never a release waiver).** The B1047 exact-head [GitHub CI run41538553739](https://github.com/AldinAga/ald1n-project/actions/runs/41538553739) succeeded on PHP8.4/MariaDB10.11 and real Chromium+Firefox across desktop/mobile/compact after these three independently observed harness corrections:
+
+- `git apply` creates **untracked** newly added files. For an exact-source patch path census, combine `git diff --name-only HEAD -- <scope>` (existing tracked modifications) with `git ls-files --others --exclude-standard -- <scope>` (new files). B1047 M13 requires exactly **2 modified + 10 newly added = 12** paths, all compared byte-for-byte to an independent clean checkout. Do not weaken/remove the path census to pass CI.
+- Laravel `php artisan route:list --json` may expand a named `throttle:public-shop-browse` / `throttle:public-shop-images` alias into `Illuminate\Routing\Middleware\ThrottleRequests:public-shop-browse` / `...:public-shop-images`. Verify the **same exact expected limiter name** under either representation rather than assuming the short alias is what the CLI displays. Exactly three public M13 GET/HEAD routes; no shopping/write routes.
+- Historic synthetic one-pixel PNG fixture reused from older HTTP tests had a malformed **IDAT CRC**; Chromium tolerated its pixels but Firefox displayed image alt fallback. For real browser acceptance use standards-valid synthetic PNG (B1047 generates 320x240 with PHP GD) and assert `img.complete` plus expected `naturalWidth`/`naturalHeight` **in both browsers**, in addition to image HTTP200, MIME, `private`/`no-store`, emergency OFF and zero stock/order writes. Never claim real browser image render PASS from HTTP200 alone.
+
+**Formal release state unchanged:** [B1047 engineering report](docs/operations/B1047-M13-SOURCE-PATCH-CHROME-FIREFOX-QA-20261102.md) and [Issue104](https://github.com/AldinAga/ald1n-project/issues/104) retain original JUnit/patch/browser evidence. B1047 source patch is **UNAPPLIED to active CMS main** and no CloudLinux deploy was authorized. Production public storefront remains OFF, 56 B803 original failure IDs OPEN_NOT_WAIVED, previously denied B815/branch/index writes not bypassed, SEC23/CSP and 368 OWASP/WSTG/ASVS item review open. No EAS/OTA/Play or repeated generic SMTP probe.
+
+---
+
 ## 0E. Permanent owner mandate: every Android build must prove 16KiB compatibility (2026-11-01)
 
 **Superseding release rule:** Owner requests the latest stable Nitro Google Sign-In + Nitro core, **EAS CLI27.2.0** and **npm12.2.1** before any next Google Play submission. Current SDK58 source upgrade is staged only in unmerged [PR127](https://github.com/AldinAga/ald1n-project/pull/127) with Nitro Google **2.3.1**, Nitro Modules **0.37.1**, `packageManager=npm@12.2.1`, `eas.json.cli.version=27.2.0`, and new isolated M17 UAT/Play runtime2. This is **NOT a host-global CloudLinux npm upgrade** or EAS production release. Do not run bare `npm` or globally change ALT Node selectors/symlinks on dirty CloudLinux.
