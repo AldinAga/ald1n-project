@@ -1,0 +1,19 @@
+diff --git a/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php b/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php
+index 1700377..e087ddd 100644
+--- a/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php
++++ b/apps/cms/current/app/Support/PublicCatalogReadOnlyGate.php
+@@ -43,7 +43,13 @@ final class PublicCatalogReadOnlyGate
+ 
+             // The M13-only gate fails closed even if old purchase routes
+             // have no public-shop.* names (historically /korpa etc.).
+-            if (preg_match('#^(?:korpa|porucivanje|registracija)(?:/|$)#i', $uri)) return false;
++            if (preg_match('#^(?:korpa|porucivanje|registracija|checkout|kupovina)(?:/|$)#i', $uri)) return false;
++            // Reject unnamed or differently named handlers under /katalog as
++            // well: otherwise /katalog/checkout POST could bypass the census.
++            // This is route review, not a replacement for M14/M15 authorization.
++            if ($uri === 'katalog' || str_starts_with($uri, 'katalog/')) {
++                if (!isset($expected[$name])) return false;
++            }
+             if (!str_starts_with($name, 'public-shop.')) continue;
+             if (!isset($expected[$name]) || isset($seen[$name])) return false;
+             [$targetUri, $throttle] = $expected[$name];
