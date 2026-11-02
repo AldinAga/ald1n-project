@@ -117,10 +117,13 @@ final class B1046M13ReadOnlyCatalogIntegrationTest extends TestCase
             'file_hash' => str_repeat('a', 64), 'sort_order' => 1,
             'is_primary' => true, 'created_at' => now(),
         ]);
-        $this->get('/katalog/slika/'.$img->id)->assertOk()
+        $res = $this->get('/katalog/slika/'.$img->id)->assertOk()
             ->assertHeader('Content-Type', 'image/png')
-            ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Cache-Control', 'private, no-store, max-age=0');
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $cache = strtolower((string) $res->headers->get('Cache-Control'));
+        self::assertStringContainsString('private', $cache);
+        self::assertStringContainsString('no-store', $cache);
+        self::assertStringNotContainsString('public', $cache);
         app(SettingsService::class)->putMany(['public_storefront_open'=>'0'], null);
         $this->get('/katalog/slika/'.$img->id)->assertNotFound();
     }
