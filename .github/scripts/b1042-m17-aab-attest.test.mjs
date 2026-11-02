@@ -1,0 +1,30 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { EXPECTED, requireBuildId, selectFromHistory, artifactUrl, signedBuildMetadata, withBinaryResult, certificateFingerprint } from './b1042-m17-aab-attest.mjs';
+const id='9b5e34f3-ff44-4b4b-9bfa-178f5b8d1123';
+const base={id,platform:'ANDROID',buildProfile:EXPECTED.profile,gitCommitHash:EXPECTED.source,status:'FINISHED',appVersion:'1.0.0',appBuildVersion:'29',artifacts:{buildUrl:'https://expo.dev/artifacts/eas/build-real.aab'}};
+const shouldHold=(fn,code)=>assert.throws(fn,new RegExp('HOLD_B1042_'+code));
+test('accept one matching history row',()=>assert.equal(selectFromHistory([base]),id));
+test('accept wrapped history row',()=>assert.equal(selectFromHistory({builds:[base]}),id));
+test('missing history causes HOLD',()=>shouldHold(()=>selectFromHistory([]),'MATCHING_M17_BUILD_NOT_FOUND'));
+test('multiple rows cause HOLD',()=>shouldHold(()=>selectFromHistory([base,base]),'MULTIPLE_M17_BUILDS_FOUND'));
+test('unexpected history shape causes HOLD',()=>shouldHold(()=>selectFromHistory({data:{builds:[base]}}),'HISTORY_SHAPE_INVALID'));
+test('valid exact UUID accepted',()=>assert.equal(requireBuildId(id),id));
+test('invalid UUID rejected',()=>shouldHold(()=>requireBuildId('https://example.com'),'INVALID_BUILD_UUID'));
+test('finished correct AAB metadata accepted',()=>{
+ const r=signedBuildMetadata(base,id);assert.equal(r.receipt.versionCode,29);assert.equal(r.receipt.sourceSha,EXPECTED.source);assert.equal(r.receipt.binary16kb,'NOT_CHECKED');
+});
+test('nonfinished EAS build causes HOLD',()=>shouldHold(()=>signedBuildMetadata({...base,status:'IN_PROGRESS'},id),'BUILD_NOT_FINISHED'));
+test('old versionCode causes HOLD',()=>shouldHold(()=>signedBuildMetadata({...base,appBuildVersion:'28'},id),'VERSION_CODE_NOT_GREATER_THAN_28'));
+test('source mismatch causes HOLD',()=>shouldHold(()=>signedBuildMetadata({...base,gitCommitHash:'f'.repeat(40)},id),'SOURCE_COMMIT_UNATTESTED'));
+test('package mismatch causes HOLD',()=>shouldHold(()=>signedBuildMetadata({...base,appIdentifier:'com.fake.mobile'},id),'EAS_PACKAGE_MISMATCH'));
+test('untrusted artifact domains rejected',()=>shouldHold(()=>artifactUrl({...base,artifacts:{buildUrl:'https://evil.example/artifacts/eas/build.aab'}}),'ARTIFACT_URL_UNTRUSTED'));
+test('artifact path traversal rejected',()=>shouldHold(()=>artifactUrl({...base,artifacts:{buildUrl:'https://expo.dev/artifacts/eas/../evil.aab'}}),'ARTIFACT_URL_UNTRUSTED'));
+test('artifact non-AAB rejected',()=>shouldHold(()=>artifactUrl({...base,artifacts:{buildUrl:'https://expo.dev/artifacts/eas/build.apk'}}),'ARTIFACT_URL_UNTRUSTED'));
+test('certificate missing causes HOLD',()=>shouldHold(()=>certificateFingerprint('no cert'),'SIGNER_CERTIFICATE_COUNT_INVALID'));
+test('bogus binary evidence causes HOLD',()=>shouldHold(()=>withBinaryResult(signedBuildMetadata(base,id).receipt,{status:'PASS_SIGNED_AAB_BINARY_GATE_ONLY'}),'BINARY_GATE_UNTRUSTED_OR_MISMATCH'));
+test('signed binary pass stays narrower than device and Play',()=>{
+ const r=signedBuildMetadata(base,id).receipt;
+ const gate={status:'PASS_SIGNED_AAB_BINARY_GATE_ONLY',easBuildId:id,versionCode:29,claimedSourceCommit:EXPECTED.source,package:EXPECTED.package,appVersion:'1.0.0',runtimeVersion:EXPECTED.runtime,bundleConfig:'PAGE_ALIGNMENT_16K',signedAabSha256:'a'.repeat(64),signingCertificateSha256:'b'.repeat(64),defaultDeliveryApks:{status:'PASS_DEFAULT_APK_SET_BINARY_ONLY',apkCount:12,nativeApkCount:3,checked64BitElf:59},aab64BitElfCount:59};
+ const out=withBinaryResult(r,gate);assert.equal(out.phase,'PASS_SIGNED_AAB_BINARY_ONLY');assert.equal(out.playConsoleStatus,'NOT_CHECKED');assert.equal(out.signerContinuityWithPlayUploadCertificate,'NOT_ATTESTED_NEEDS_PLAY_REFERENCE');
+});
