@@ -15,10 +15,7 @@ jobs:
     services:
       mariadb:
         image: mariadb:10.11.19
-          mailpit:
-        image: axllent/mailpit:v1.31.6
-        ports: ['1025:1025', '8025:8025']
-    env:
+        env:
           MARIADB_DATABASE: ald1n_test
           MARIADB_USER: ald1n_test
           MARIADB_PASSWORD: ald1n_test
@@ -27,6 +24,9 @@ jobs:
         options: >-
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=10s --health-timeout=5s --health-retries=12
+      mailpit:
+        image: axllent/mailpit:v1.31.6
+        ports: ['1025:1025', '8025:8025']
     env:
       APP_ENV: testing
       APP_DEBUG: 'false'
