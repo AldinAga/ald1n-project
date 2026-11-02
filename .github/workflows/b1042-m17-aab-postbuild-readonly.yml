@@ -1,0 +1,226 @@
+name: B1042 M17 signed EAS AAB 16KiB binary audit (READ ONLY NO BUILD)
+
+# Auto-run once when this workflow is introduced on main; manual replay is read-only.
+# Never builds, submits, deploys, publishes OTA, updates credentials, or changes Play tracks.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/b1042-m17-aab-postbuild-readonly.yml'
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: 'Optional exact existing EAS Build UUID; leave empty to find unique M17 signed AAB'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: b1042-m17-postbuild-aab-readonly
+  cancel-in-progress: false
+
+jobs:
+  verify-actual-signed-m17-aab:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      M17_SOURCE_SHA: '6adb3b440b8cfdc068b142a98c418d9d91487f64'
+      M17_SOURCE_TREE: 'fc4578c93820df8b0c85f5215924ab2bc501ba01'
+      M17_PROFILE: 'm17-sdk58-play-rc'
+      M17_RUNTIME: '1.0.0-m17-sdk58-play2'
+      M17_PACKAGE: 'com.ald1n.mobile'
+      M17_PROJECT_ID: 'd43b3866-6838-4217-a23e-3dc7f2cc76cc'
+      EXPO_PUBLIC_APP_ENV: 'production'
+      EAS_BUILD_PROFILE: 'm17-sdk58-play-rc'
+      ALD1N_M17_SDK58_PLAY_RC: 'source-only'
+      ALD1N_M17_SDK58_PLAY_PROFILE: 'm17-sdk58-play-rc'
+      B1042_INPUT_BUILD_ID: ${{ inputs.build_id || '' }}
+
+    steps:
+      - name: Checkout immutable B1042 verifier source from main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Use exact Node 22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+
+      - name: Test B1042 metadata selector and binary receipt gates before EAS access
+        run: |
+          set -Eeuo pipefail
+          test "$(node --version)" = 'v22.23.4'
+          node --check .github/scripts/b1042-m17-aab-attest.mjs
+          node --test .github/scripts/b1042-m17-aab-attest.test.mjs
+          test "$GITHUB_REF" = 'refs/heads/main'
+          echo 'B1042_LOCAL_METADATA_AND_NEGATIVE_TESTS=PASS_CI_ONLY'
+
+      - name: Checkout exact unmerged SDK58 build source separately
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 6adb3b440b8cfdc068b142a98c418d9d91487f64
+          path: sdk58-src
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prepare exact isolated npm12 and EAS27, no global or CloudLinux changes
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/b1042-npm12" "$RUNNER_TEMP/b1042-eas27" "$RUNNER_TEMP/b1042-bin"
+          npm install --prefix "$RUNNER_TEMP/b1042-npm12" --no-save --ignore-scripts --no-audit --no-fund npm@12.2.1
+          npm12="$RUNNER_TEMP/b1042-npm12/node_modules/npm/bin/npm-cli.js"
+          test "$(node "$npm12" --version)" = '12.2.1'
+          node "$npm12" install --prefix "$RUNNER_TEMP/b1042-eas27" --no-save --ignore-scripts --no-audit --no-fund eas-cli@27.2.0
+          eas_bin="$(node - "$RUNNER_TEMP/b1042-eas27/node_modules/eas-cli" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          const root=path.resolve(process.argv[2]);
+          const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
+          if(pkg.version!=='27.2.0')throw Error('HOLD_B1042_EAS_VERSION_DRIFT');
+          const binRelative=typeof pkg.bin==='string'?pkg.bin:pkg.bin?.eas;
+          if(typeof binRelative!=='string'||binRelative.split('/').includes('..'))throw Error('HOLD_B1042_EAS_BIN');
+          const resolved=path.resolve(root,binRelative);
+          if(!resolved.startsWith(root+path.sep)||!fs.statSync(resolved).isFile())throw Error('HOLD_B1042_EAS_BIN');
+          process.stdout.write(resolved);
+          NODE
+          )"
+          test -f "$eas_bin"
+          node "$eas_bin" --version | grep -E '27\.2\.0'
+          printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$(command -v node)" "$npm12" > "$RUNNER_TEMP/b1042-bin/npm"
+          printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$(command -v node)" "$RUNNER_TEMP/b1042-npm12/node_modules/npm/bin/npx-cli.js" > "$RUNNER_TEMP/b1042-bin/npx"
+          chmod 700 "$RUNNER_TEMP/b1042-bin/npm" "$RUNNER_TEMP/b1042-bin/npx"
+          printf '%s\n' "$RUNNER_TEMP/b1042-bin" >> "$GITHUB_PATH"
+          printf 'B1042_NPM12_CLI=%s\nB1042_EAS27_CLI=%s\n' "$npm12" "$eas_bin" >> "$GITHUB_ENV"
+          echo 'B1042_ISOLATED_EAS27_NPM12=PASS'
+
+      - name: Verify exact source and install lock before Expo plugin resolution
+        working-directory: sdk58-src/apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$M17_SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$M17_SOURCE_TREE"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const eas=JSON.parse(fs.readFileSync('eas.json','utf8'));
+          const cfg=require('./app.config.js')({config:{}});
+          const p=eas.build?.['m17-sdk58-play-rc'];
+          if(pkg.version!=='1.0.0'||pkg.packageManager!=='npm@12.2.1'||
+             eas.cli?.version!=='27.2.0'||eas.cli?.appVersionSource!=='remote'||
+             pkg.dependencies?.expo!=='~58.0.22'||pkg.dependencies?.['react-native']!=='0.88.1'||
+             pkg.dependencies?.['react-native-nitro-google-signin']!=='2.3.1'||
+             pkg.dependencies?.['react-native-nitro-modules']!=='0.37.1'||
+             cfg.android?.package!==process.env.M17_PACKAGE||cfg.version!=='1.0.0'||
+             cfg.runtimeVersion!==process.env.M17_RUNTIME||
+             cfg.extra?.eas?.projectId!==process.env.M17_PROJECT_ID||
+             p?.channel!=='production'||p?.distribution!=='store'||p?.android?.buildType!=='app-bundle')
+            throw Error('HOLD_B1042_RELEASE_SOURCE_IDENTITY_DRIFT');
+          console.log('B1042_IMMUTABLE_SDK58_SOURCE_PROFILE_RUNTIME=PASS');
+          NODE
+          node "$B1042_NPM12_CLI" ci --ignore-scripts --no-audit --no-fund --engine-strict
+          test -d node_modules/expo-router
+          git diff --exit-code -- package.json package-lock.json app.config.js eas.json
+          echo 'B1042_LOCKED_EXPO_ROUTER_INSTALLED=PASS'
+
+      - name: Read exactly one authenticated FINISHED EAS AAB without starting a build
+        working-directory: sdk58-src/apps/mobile/current
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          test -n "$EXPO_TOKEN" || { echo 'HOLD_B1042_EXPO_TOKEN_MISSING'; exit 2; }
+          verifier="$GITHUB_WORKSPACE/.github/scripts/b1042-m17-aab-attest.mjs"
+          id_file="$RUNNER_TEMP/b1042-build-id.txt"
+          if test -n "$B1042_INPUT_BUILD_ID"; then
+            node "$verifier" select-id "$B1042_INPUT_BUILD_ID" "$id_file"
+          else
+            node "$B1042_EAS27_CLI" build:list --platform android --build-profile "$M17_PROFILE" \
+              --git-commit-hash "$M17_SOURCE_SHA" --limit 50 --json --non-interactive \
+              > "$RUNNER_TEMP/b1042-history-private.json"
+            node "$verifier" select-history "$RUNNER_TEMP/b1042-history-private.json" "$id_file"
+          fi
+          node "$B1042_EAS27_CLI" build:view "$(cat "$id_file")" --json \
+            > "$RUNNER_TEMP/b1042-view-private.json"
+          node "$verifier" verify-view "$RUNNER_TEMP/b1042-view-private.json" "$id_file" \
+            "$RUNNER_TEMP/b1042-artifact-url.private" "$RUNNER_TEMP/b1042-metadata-receipt.json"
+          echo 'B1042_EAS_READONLY_MATCH=PASS; NO_NEW_BUILD_OR_PLAY_ACTION'
+
+      - name: Install JDK 17 for signed AAB and bundletool inspection
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Audit actual signed AAB and ALL bundletool default delivered APKs for 16 KiB
+        working-directory: sdk58-src/apps/mobile/current
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          test -s "$RUNNER_TEMP/b1042-artifact-url.private"
+          command -v curl
+          command -v unzip
+          command -v readelf
+          command -v jarsigner
+          command -v keytool
+          command -v java
+          command -v sha256sum
+          sdk="${ANDROID_HOME:?}"
+          test -d "$sdk/cmdline-tools" || { echo 'HOLD_B1042_ANDROID_CMDLINE_TOOLS_MISSING'; exit 2; }
+          manager="$(find "$sdk/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -x "$manager" || { echo 'HOLD_B1042_SDKMANAGER_ABSOLUTE_NOT_FOUND'; exit 2; }
+          tools="$sdk/build-tools/36.0.0"
+          if ! test -x "$tools/zipalign" || ! test -x "$tools/apksigner"; then
+            "$manager" 'build-tools;36.0.0' > "$RUNNER_TEMP/b1042-sdkmanager-private.log" 2>&1 || {
+              echo 'HOLD_B1042_ANDROID_BUILD_TOOLS_INSTALL_FAILED'; exit 2;
+            }
+          fi
+          test -x "$tools/zipalign" && test -x "$tools/apksigner"
+          bundletool="$RUNNER_TEMP/b1042-bundletool-all-1.18.3.jar"
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 2 --max-time 180 \
+            --max-filesize 100000000 \
+            'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar' \
+            --output "$bundletool"
+          printf '%s  %s\n' 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29' "$bundletool" | sha256sum -c -
+          aab="$RUNNER_TEMP/b1042-existing-signed.aab"
+          trap 'rm -f "$RUNNER_TEMP/b1042-existing-signed.aab" "$RUNNER_TEMP/b1042-artifact-url.private"' EXIT
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 2 --max-time 480 \
+            --max-filesize 400000000 --output "$aab" "$(cat "$RUNNER_TEMP/b1042-artifact-url.private")"
+          test -s "$aab"
+          unzip -tqq "$aab"
+          sha="$(sha256sum "$aab" | cut -d' ' -f1)"
+          keytool -printcert -rfc -jarfile "$aab" > "$RUNNER_TEMP/b1042-signer-cert.private.pem"
+          verifier="$GITHUB_WORKSPACE/.github/scripts/b1042-m17-aab-attest.mjs"
+          signer="$(node "$verifier" cert-fingerprint "$RUNNER_TEMP/b1042-signer-cert.private.pem")"
+          node scripts/release27/signed-16kb-sdk58-aab-gate.mjs \
+            --aab "$aab" --aab-sha256 "$sha" --signer-sha256 "$signer" \
+            --bundletool "$bundletool" --zipalign "$tools/zipalign" --apksigner "$tools/apksigner" \
+            --expected-version-code "$B1042_VERSION_CODE" --eas-build-id "$B1042_BUILD_ID" \
+            --source-sha "$M17_SOURCE_SHA" --runtime-version "$M17_RUNTIME" \
+            > "$RUNNER_TEMP/b1042-binary-gate-private.json"
+          node "$verifier" complete "$RUNNER_TEMP/b1042-metadata-receipt.json" \
+            "$RUNNER_TEMP/b1042-binary-gate-private.json" "$RUNNER_TEMP/b1042-sanitized-final-receipt.json"
+          echo 'B1042_SIGNED_AAB_16KB_BINARY_ONLY=PASS'
+          echo 'B1042_GOOGLE_PLAY_UPLOAD_SIGNER_CONTINUITY=NEEDS_INDEPENDENT_REFERENCE'
+          echo 'B1042_PHYSICAL_16KB_GOOGLE_AUTH_DEVICE_UAT=NOT_TESTED'
+          echo 'B1042_GOOGLE_PLAY_ROLLOUT=OWNER_CONTROLLED_NOT_MODIFIED'
+
+      - name: Archive sanitized evidence only; never upload signed AAB or credentials
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1042-m17-signed-aab-16kb-postbuild-readonly-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/b1042-metadata-receipt.json
+            ${{ runner.temp }}/b1042-sanitized-final-receipt.json
+          if-no-files-found: warn
+          retention-days: 30
