@@ -48,6 +48,21 @@ async function openOk(page,where,label){
   }));
   assert(measure.scrollWidth<=measure.width+2,
     label+' horizontal overflow '+JSON.stringify(measure));
+  if(where.startsWith('/katalog')){
+    const image=page.locator('img[src^="/katalog/slika/"]');
+    await image.scrollIntoViewIfNeeded();
+    await image.evaluate(img=>img.decode());
+    assert.deepEqual(await image.evaluate(img=>({
+      complete:img.complete,width:img.naturalWidth,height:img.naturalHeight,
+    })),{complete:true,width:320,height:240},label+' decoded PNG');
+    const src=await image.getAttribute('src');
+    assert.match(src,/^\/katalog\/slika\/\d+$/);
+    const media=await page.context().request.get(base+src);
+    assert.equal(media.status(),200,label+' image HTTP');
+    assert.match(media.headers()['content-type'],/^image\/png/);
+    assert.match(media.headers()['cache-control'],/private/);
+    assert.match(media.headers()['cache-control'],/no-store/);
+  }
   return response;
 }
 function avoidInternalNumbers(text,label){
