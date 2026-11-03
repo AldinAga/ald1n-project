@@ -4,7 +4,7 @@
 <section class="shop-hero"><span class="eyebrow">Samo za registrovanog Kupca</span>
 <h1>Podaci za porudžbinu</h1><p>Konačna cena se računa iz aktuelnih prodajnih cena na serveru. Nema provizije.</p></section>
 <div class="shop-detail">
-<form class="shop-detail-content shop-checkout" method="post" action="{{ route('public-shop.checkout.submit') }}">
+<form class="shop-detail-content shop-checkout" method="post" action="{{ route('public-shop.checkout.submit', [], false) }}">
 @csrf
 <input type="hidden" name="checkout_key" value="{{ $checkoutKey }}">
 <input type="hidden" name="merchant_policy_fingerprint" value="{{ $ready['approval_digest'] }}">
