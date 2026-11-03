@@ -388,7 +388,7 @@ const unsafeCastConsumers = [];
 
 for (const file of sourceFiles) {
   const source = fs.readFileSync(file, 'utf8');
-  const relative = path.relative(root, file);
+  const relative = path.relative(root, file).replaceAll('\\', '/');
 
   if (
     /import\s*\{[^}]*\bcolors\b[^}]*\}\s*from\s*['"]@\/constants\/theme['"]/.test(
