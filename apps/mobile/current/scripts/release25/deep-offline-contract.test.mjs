@@ -15,7 +15,7 @@ const app=fs.readFileSync(path.join(mobile,'app.config.js'),'utf8');
 const manager=fs.readFileSync(path.join(mobile,'src/features/catalog/product-image-manager.tsx'),'utf8');
 const creator=fs.readFileSync(path.join(mobile,'src/app/(app)/admin/catalog/create.tsx'),'utf8');
 const marker=(s,x)=>assert.ok(s.includes(x),`missing ${x}`);
-const node='/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node';
+const node='PATH=/opt/alt/alt-nodejs22/root/bin:$PATH /opt/alt/alt-nodejs22/root/bin/node';
 const npm='/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js';
 test('validator is cwd independent, no inherited TypeScript error',()=>{
  assert.ok(!validator.includes('process.cwd()'));

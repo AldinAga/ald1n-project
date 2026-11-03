@@ -27,14 +27,14 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Node 22
+      - name: Pinned Node 22.23.4
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: '22'
+          node-version: '22.23.4'
       - name: Install locked mobile dependencies
         working-directory: apps/mobile/current
         run: npm ci --no-audit --no-fund
-      - name: Native baseline and forbidden-release drift
+      - name: Exact SDK57-or-SDK58 native baseline and forbidden release drift
         working-directory: apps/mobile/current
         run: |
           set -euo pipefail
@@ -42,13 +42,24 @@ jobs:
           const p=require('./package.json');
           const c=require('fs').readFileSync('./app.config.js','utf8');
           const e=require('./eas.json');
-          if(p.version!=='1.0.0'||p.dependencies.expo!=='~57.0.27'||p.dependencies['react-native']!=='0.86.3')process.exit(31);
+          // This LG-03 source gate is shared by the existing accepted SDK57 release
+          // and the isolated SDK58 PR candidate. Reject unsupported/mixed versions.
+          const exactBaselines = {
+            '~57.0.27': { rn:'0.86.3', google:'1.0.2', label:'SDK57' },
+            '~58.0.22': { rn:'0.88.1', google:'1.3.0', label:'SDK58' },
+          };
+          const baseline = exactBaselines[p.dependencies.expo];
+          if(p.version!=='1.0.0'||p.packageManager!=='npm@10.9.2'||!baseline
+             ||p.dependencies['react-native']!==baseline.rn)process.exit(31);
+          if(p.dependencies['react-native-nitro-google-signin']!==baseline.google
+             ||p.dependencies['react-native-nitro-modules']!=='0.36.1')process.exit(36);
+          console.log('LG03_EXACT_'+baseline.label+'_RN_AND_GOOGLE_BRIDGE_BASELINE=PASS');
           if(p.dependencies['expo-blur']||p.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(32);
           if(!c.includes("ALD1N_V15_RELEASE_GATE === 'approved'"))process.exit(33);
           const config=require('./app.config.js');
           const normal=config({config:{}});
           if(normal.version!=='1.0.0'||normal.runtimeVersion!=='1.0.0-build17')process.exit(35);
-          if(e.build?.production?.channel!=='production')process.exit(34);
+          if(e.cli.version!=='25.0.0'||e.cli.appVersionSource!=='remote'||e.build?.production?.channel!=='production'||e.build?.production?.android?.buildType!=='app-bundle')process.exit(34);
           console.log('LG03_NATIVE_DEPENDENCY_16KB_PIN_AND_DEFAULT_RUNTIME_ISOLATION=PASS');
           NODE
       - name: TypeScript and canonical mobile static validation

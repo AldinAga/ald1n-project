@@ -37,6 +37,25 @@
         "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1"
       }
     },
+    "m17-sdk58-uat": {
+      "extends": "preview",
+      "environment": "preview",
+      "distribution": "internal",
+      "channel": "m17-sdk58-uat",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_M17_SDK58_UAT": "isolated",
+        "ALD1N_M17_SDK58_PROFILE": "m17-sdk58-uat"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",

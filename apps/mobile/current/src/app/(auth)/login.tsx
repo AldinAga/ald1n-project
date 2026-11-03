@@ -3,7 +3,7 @@ import { router, type Href } from 'expo-router';
 import { GoogleSignInButton } from 'react-native-nitro-google-signin';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { z } from 'zod';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ type FormValues = z.infer<typeof schema>;
 export default function LoginScreen() {
   const { scheme, colors: themeColors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const scrollRef = useRef<ScrollView> (null);
+  const scrollRef = useRef<ScrollViewInstance> (null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const { signIn, signInWithGoogle } = useAuth();
@@ -123,7 +123,7 @@ export default function LoginScreen() {
             <TextField label="Lozinka" secureTextEntry value={value} onBlur={onBlur} onFocus={keepFormVisible} onChangeText={onChange} error={errors.password?.message} returnKeyType="done" onSubmitEditing={() => void submit()} />
           )} />
           {errors.root?.message ? <Text style={styles.rootError}>{errors.root.message}</Text> : null}
-          <Button onPress={submit} loading={isSubmitting}>Prijavi se</Button>
+          <Button onPress={() => void submit()} loading={isSubmitting}>Prijavi se</Button>
           <Button variant="ghost" onPress={() => router.push('/forgot-password' as Href)}>Zaboravljena lozinka?</Button>
           <Button variant="ghost" onPress={() => router.push('/activate-account' as Href)}>Imam aktivacioni link</Button>
           <Text style={styles.registrationNote}>Novi Google nalog može automatski da kreira registraciju. Aktivacija i dalje prati pravila CMS-a.</Text>
