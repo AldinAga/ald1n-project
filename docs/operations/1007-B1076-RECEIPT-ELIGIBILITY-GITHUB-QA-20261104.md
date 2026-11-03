@@ -22,6 +22,9 @@ The same80 IDs comprise40 HTTP302,9 HTTP403,3 HTTP404 mismatches (all expecting2
 
 No production deployment, CloudLinux access/write, DB migration, storefront activation, real payment/mail, merge, EAS build, OTA or Play. Full historical-suite, merchant/legal, real buyer/concurrency UAT, production FPM/OPcache and owner release gates remain OPEN_NOT_WAIVED. No new Firefox/physical-device/real SMTP acceptance. Mobile checks not applicable to this CMS-only change. Accepted ledger unchanged: program11/17=64.7%,CMS10/15=66.7%,UI6/6;M14/M15 not owner-accepted. Account weekly Usage14%,owner ceiling20%.
 
+## Knowledge-store limitation
+AIVM topic capture returned HTTP403 (plan/role permission), so no Brain topic was saved. No retry or alternative Brain write path was used. GitHub report/index and Drive runbook/archive are saved; Drive downloads were independently SHA256-verified.
+
 ## Evidence and continuation
 [Permanent Drive archive](https://drive.google.com/file/d/1NR9hodG46J-2jk9ORfphayUpUSfnC6qW/view), SHA256 **2a66cc067e085e7fdc71d6da377ce3cb00f539935b2588142edc212410b10b6d**. Includes initial and clean RED, complete final JUnit/logs/exit codes/comparison, actual Chromium screenshots, exact a3edd52e→13edc756 source/test/CI patch and remaining80 identity classification. No .env, private passwords, vendor, database data or dumps.
 Local evidence: D:\GPT\Ald1n-mobile-tools\storefront-qa\b1076.
