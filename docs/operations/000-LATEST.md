@@ -1,3 +1,17 @@
+# CURRENT 2026-11-03 — B1065 OWNER REPORT IS NON-FINAL RUNNING; B1066 CONSOLIDATED PREPARED, HOST NOT RUN
+
+**Evidence as uploaded, not inferred:** 2026-11-03 B1065 attached report `1065-B1065-M13-CONSOLIDATED-FUNCTIONAL-QA-20261103-121829-1719919.md` contains only a `Status: RUNNING` placeholder. [Preserved non-final snapshot](https://drive.google.com/file/d/1Y19N_HtL-an_DTnhoVA-nfhHN9Av5lFJ/view). **Do not claim B1065 PASS/FAIL or rerun it** without final on-host report.
+
+**Completed:** B1057 integration, B1058 routes, B1059 public OFF, B1063 actual isolated Laravel 13/13 tests (77 assertions) plus 74 separate security checks and 3 compiled views, B1064 real public 3x404 and health 200. StoreFront/checkout production OFF. Historic B803 56, OWASP 368, SEC23/CSP, real browser/production FPM+OPcache source evidence, owner approval, M14/M15 remain OPEN_NOT_WAIVED. No release/build/OTA/Play authorized.
+
+**B1066 prepared only:** [one exact read-only consolidated script](https://drive.google.com/file/d/1vLDOrKHGiF1SIeiPRjPK7S7XDxtSg2WZ/view) SHA256 `5a19088e7f2b85cce38e2db8430d969c224125839fa5a641574ad7179f473092`. One SSH call: `bash /home/icaffeco/ald1n-project/incoming/B1066-M13-CONSOLIDATED-ACCEPTANCE-AND-READINESS.sh --run`. It parses immutable final B1065 markers + SHA snapshot, inspects source/route/OFF flags/live HTTPS/security-header/process/browser capabilities/dirty host/local-dev readiness, and writes only one *final* numbered MD report with PASS/HOLD/INFO and accepted percentages. If B1065 is still running/incomplete it HOLDs and does not restart it. It does not test production enabled FPM or visual browsers or unlock checkout. [Seven local fixture scenarios and scope](https://drive.google.com/file/d/1BDWwJJq53LmH9NLv8Z39rHqyewm2vy3q/view) checked; **no host B1066 PASS yet**.
+
+**Formal accepted milestone ledger:** program 11/17=64.7%, CMS10/15=66.7%, original UI6/6=100%. M13 QA success is not owner acceptance. Preserve dirty host checkout; do not git reset/pull/clean or bypass security gate.
+
+[Canonical Drive runbook](https://drive.google.com/file/d/10Lxe_reZ1csYOMK9ESjZ8NUmEglDpOMy/view).
+
+---
+
 # CURRENT 2026-11-03 — B1064 OFF-LIVE HTTP PASS; B1065 PRIVATE ENABLED HTTP PREPARED, HOST NOT RUN
 
 **Verified actual B1064 host report** UTC 2026-11-03T11:53:08Z, [immutable Drive copy](https://drive.google.com/file/d/1FEafBXVbISfDn8klMinQL1YQVr_yhFZM/view), `PASS_OFF_HTTP_AND_SOURCE_PREFLIGHT_ONLY`: host HEAD `b5b942e645d28d3ed5f248eaae4180ebe9a54ee6`, exactly 3 M13 GET/HEAD routes, effective OFF flags; `GET /katalog`, unknown slug and image 404, `/up` 200, `lsphp` process name observed. Nothing in production changed. This does NOT prove enabled production FPM/OPcache execution or real browser acceptance.
