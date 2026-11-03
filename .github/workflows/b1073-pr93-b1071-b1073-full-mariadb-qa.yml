@@ -91,7 +91,7 @@ jobs:
           echo "510e661167d31e2b6654afbac4809133bda696be066df199a9a1a19b4e84628a  $PATCH" | sha256sum -c -
           git -C source-patched apply --check "$PATCH"
           git -C source-patched apply "$PATCH"
-          PATCH_B1073="$GITHUB_WORKSPACE/audit-main/docs/operations/B1073-PR93-B1071-MANIFEST-AND-NOWRITE-UNAPPLIED.patch"
+          PATCH_B1073="$GITHUB_WORKSPACE/audit-main/docs/operations/B1073-PR93-B1071-QA-MANIFEST-NOWRITE-UNAPPLIED.patch"
           echo "2db64aeb8ba79c5db30cd16d0a69f1c8b57bd99ac448152b339a7ffc0f350678  $PATCH_B1073" | sha256sum -c -
           git -C source-patched apply --check "$PATCH_B1073"
           git -C source-patched apply "$PATCH_B1073"
