@@ -6,22 +6,22 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>@yield('title', 'Katalog') · {{ config('app.name', 'Ald1n') }}</title>
-<link rel="stylesheet" href="{{ asset('assets/css/ald1n-public-storefront.css') }}">
+<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css' }}">
 @stack('head')
 </head>
 <body class="public-retail">
 <a class="skip" href="#content">Preskoči navigaciju</a>
 <header class="shop-header"><div class="wrap shop-nav">
-<a class="shop-brand" href="{{ route('public-shop.catalog') }}">AP.Computers <span>Javni katalog</span></a>
+<a class="shop-brand" href="{{ route('public-shop.catalog', [], false) }}">AP.Computers <span>Javni katalog</span></a>
 <nav aria-label="Javna navigacija">
-<a href="{{ route('public-shop.catalog') }}">Artikli</a>
-<a href="{{ route('public-shop.cart') }}">Korpa</a>
+<a href="{{ route('public-shop.catalog', [], false) }}">Artikli</a>
+<a href="{{ route('public-shop.cart', [], false) }}">Korpa</a>
 @if(auth()->user()?->hasRole('customer'))
 <span>{{ auth()->user()->displayName() }} · Kupac</span>
-<form method="post" action="{{ route('logout') }}">@csrf<button type="submit">Odjava</button></form>
+<form method="post" action="{{ route('logout', [], false) }}">@csrf<button type="submit">Odjava</button></form>
 @else
-<a href="{{ route('login') }}">Prijava</a>
-<a href="{{ route('public-shop.register') }}">Registracija</a>
+<a href="{{ route('login', [], false) }}">Prijava</a>
+<a href="{{ route('public-shop.register', [], false) }}">Registracija</a>
 @endif
 </nav></div></header>
 <main id="content" class="wrap">
