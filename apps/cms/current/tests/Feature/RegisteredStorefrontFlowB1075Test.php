@@ -127,7 +127,7 @@ final class RegisteredStorefrontFlowB1075Test extends TestCase
         self::assertNotNull($cached);
         $value=match($field) {
             'role_id'=>$this->owner->role_id,
-            'status'=>'inactive',
+            'status'=>'blocked',
             'retired_at'=>now()->toDateTimeString(),
             default=>null,
         };
@@ -159,6 +159,7 @@ final class RegisteredStorefrontFlowB1075Test extends TestCase
             ->assertRedirect()->headers->get('Location');
         config()->set('public_storefront.checkout_enabled',false);
         $this->get($receipt)->assertOk()->assertHeader('Referrer-Policy','no-referrer');
+        config()->set('public_storefront.checkout_enabled',true);
         config()->set('public_storefront.enabled',false);
         $this->get($receipt)->assertNotFound();
         config()->set('public_storefront.enabled',true);
