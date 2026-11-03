@@ -117,6 +117,62 @@ final class RegisteredStorefrontFlowB1075Test extends TestCase
         self::assertDatabaseCount('orders',1);
     }
 
+    #[DataProvider('withdrawnBuyerAccess')]
+    public function test_receipt_rechecks_current_buyer_when_authenticated_model_is_stale(string $field): void
+    {
+        $receipt=$this->post('/porucivanje',$this->checkoutPayload())
+            ->assertRedirect()->headers->get('Location');
+        $this->get($receipt)->assertOk();
+        $cached=auth()->user();
+        self::assertNotNull($cached);
+        $value=match($field) {
+            'role_id'=>$this->owner->role_id,
+            'status'=>'inactive',
+            'retired_at'=>now()->toDateTimeString(),
+            default=>null,
+        };
+        DB::table('users')->where('id',$this->buyer->id)->update([$field=>$value]);
+        // Another operation can revoke access after the guard loaded this user.
+        auth()->guard('web')->setUser($cached);
+        $this->get($receipt)->assertNotFound();
+        foreach(['orders','order_items','stock_movements','public_order_accesses'] as $table) {
+            self::assertDatabaseCount($table,1);
+        }
+        self::assertSame(3,(int)$this->product->fresh()->stock_quantity);
+        self::assertDatabaseCount('order_payments',0);
+    }
+
+    public static function withdrawnBuyerAccess(): array
+    {
+        return [
+            'email verification withdrawn'=>['email_verified_at'],
+            'activation withdrawn'=>['portal_activated_at'],
+            'buyer role withdrawn'=>['role_id'],
+            'account disabled'=>['status'],
+            'account retired'=>['retired_at'],
+        ];
+    }
+
+    public function test_real_buyer_receipt_respects_emergency_off_and_permanent_token_revocation(): void
+    {
+        $receipt=$this->post('/porucivanje',$this->checkoutPayload())
+            ->assertRedirect()->headers->get('Location');
+        config()->set('public_storefront.checkout_enabled',false);
+        $this->get($receipt)->assertOk()->assertHeader('Referrer-Policy','no-referrer');
+        config()->set('public_storefront.enabled',false);
+        $this->get($receipt)->assertNotFound();
+        config()->set('public_storefront.enabled',true);
+        $this->get($receipt)->assertOk();
+        app(PublicStorefrontStateService::class)->change(false,$this->owner);
+        $this->get($receipt)->assertNotFound();
+        app(\App\Services\PublicOrderAccessService::class)->revoke(\App\Models\Order::query()->sole());
+        app(PublicStorefrontStateService::class)->change(true,$this->owner);
+        $this->get($receipt)->assertNotFound();
+        self::assertDatabaseCount('orders',1);
+        self::assertSame(3,(int)$this->product->fresh()->stock_quantity);
+        self::assertDatabaseCount('order_payments',0);
+    }
+
     /** @return array<string,string> */
     private function checkoutPayload(): array
     {
