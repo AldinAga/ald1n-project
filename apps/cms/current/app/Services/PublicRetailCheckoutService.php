@@ -74,9 +74,10 @@ final class PublicRetailCheckoutService
         }
 
         $cart=$this->cart->get($request);
-        if ($cart===[] && (string)$request->session()->get('ald1n.public_checkout.last_key','')===$sessionKey) {
-            $stored=$request->session()->get('ald1n.public_checkout.last_cart',[]);
-            if (is_array($stored)) $cart=$stored;
+        if ($cart===[]) {
+            // M14/M15: replay is allowed only for this exact completed nonce.
+            // The session snapshot must be strictly typed, bounded and complete.
+            $cart=$this->cart->replaySnapshot($request,$sessionKey);
         }
         if ($cart===[] || count($cart)>25) {
             throw ValidationException::withMessages(['cart'=>'Korpa je prazna ili premašuje dozvoljeni broj artikala.']);
