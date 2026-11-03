@@ -1,0 +1,396 @@
+diff --git a/apps/cms/current/tests/Feature/PublicRetailReplayNoWriteB1073Test.php b/apps/cms/current/tests/Feature/PublicRetailReplayNoWriteB1073Test.php
+new file mode 100644
+index 0000000..fd2b762
+--- /dev/null
++++ b/apps/cms/current/tests/Feature/PublicRetailReplayNoWriteB1073Test.php
+@@ -0,0 +1,173 @@
++<?php
++declare(strict_types=1);
++
++namespace Tests\Feature;
++
++use App\Models\{Product,Role,User};
++use App\Services\{PublicMerchantPolicyService,PublicStorefrontStateService,SettingsService};
++use Database\Seeders\CoreAccessSeeder;
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Illuminate\Support\Facades\{DB,Hash,Mail};
++use PHPUnit\Framework\Attributes\DataProvider;
++use Tests\TestCase;
++
++/** Real HTTP checkout and SQL writes, but synthetic data in disposable MariaDB only. */
++final class PublicRetailReplayNoWriteB1073Test extends TestCase
++{
++    use RefreshDatabase;
++    private User $owner;
++    private User $buyer;
++    private Product $product;
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++        $this->seed(CoreAccessSeeder::class);
++        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
++        Mail::fake();
++        config()->set('app.url','https://cms.ald1n.com');
++        config()->set('services.turnstile.enabled',false);
++        foreach ([
++            'enabled'=>true, 'checkout_enabled'=>true,
++            'terms_url'=>'https://cms.ald1n.com/uslovi',
++            'privacy_url'=>'https://cms.ald1n.com/privatnost',
++            'shipping_fee_rsd'=>'0',
++            'shipping_description'=>'B1073 disposable shipping',
++            'payment_methods'=>['cash_on_delivery'],
++            'delivery_methods'=>['courier','own_transport','customer_pickup'],
++            'support_email'=>'support@example.test',
++        ] as $key=>$value) config()->set('public_storefront.'.$key,$value);
++        $this->owner=$this->person('b1073-owner','superadmin');
++        $this->buyer=$this->person('b1073-buyer','customer');
++        $settings=app(SettingsService::class);
++        $settings->putMany([
++            'documents_company_name'=>'B1073 Synthetic Merchant',
++            'documents_company_address'=>'Test 10',
++            'documents_company_city'=>'Beograd',
++            'documents_company_tax_id'=>'100200300',
++        ],(int)$this->owner->id);
++        $review=app(PublicMerchantPolicyService::class)->review();
++        self::assertTrue($review['complete'],implode('; ',$review['issues']));
++        $settings->putMany([
++            'public_checkout_approval_digest'=>$review['fingerprint'],
++            'public_checkout_approved_by'=>(string)$this->owner->id,
++            'public_checkout_approved_at'=>now()->toISOString(),
++        ],(int)$this->owner->id);
++        app(PublicStorefrontStateService::class)->change(true,$this->owner);
++        $this->product=Product::query()->create([
++            'sku'=>'B1073-SYNTHETIC-ONLY',
++            'slug'=>'b1073-synthetic-only',
++            'name'=>'B1073 Disposable Laptop',
++            'description'=>'Disposable database fixture only',
++            'price_amount'=>12000,'price_currency'=>'RSD',
++            'stock_quantity'=>4,'purchase_price_rsd'=>9000,
++            'status'=>'active','created_by'=>$this->owner->id,
++        ]);
++        $this->post('/login',[
++            'login'=>$this->buyer->email,'password'=>'B1073-Synthetic-Only123!',
++        ])->assertRedirect();
++        $this->assertAuthenticatedAs($this->buyer);
++    }
++
++    /** @return array<string,array{string}> */
++    public static function invalidSnapshots(): array
++    {
++        return [
++            'string-quantity'=>['string-quantity'],
++            'quantity-exceeds-limit'=>['quantity-exceeds-limit'],
++            'zero-product-id'=>['zero-product-id'],
++            'sku-product-key'=>['sku-product-key'],
++            'nested-quantity'=>['nested-quantity'],
++            'boolean-quantity'=>['boolean-quantity'],
++            'more-than-25-products'=>['more-than-25-products'],
++            'empty-array'=>['empty-array'],
++            'not-an-array'=>['not-an-array'],
++        ];
++    }
++
++    #[DataProvider('invalidSnapshots')]
++    public function test_invalid_completed_checkout_replay_never_writes_order_or_inventory(string $variant): void
++    {
++        $original=$this->successfulSyntheticCheckout();
++        self::assertSame(3,(int)$this->product->fresh()->stock_quantity);
++        $id=(int)$this->product->id;
++        $bad=match($variant) {
++            'string-quantity'=>[$id=>'1'],
++            'quantity-exceeds-limit'=>[$id=>21],
++            'zero-product-id'=>[0=>1],
++            'sku-product-key'=>['SKU-B1073'=>1],
++            'nested-quantity'=>[$id=>['quantity'=>1]],
++            'boolean-quantity'=>[$id=>true],
++            'more-than-25-products'=>array_fill_keys(range(1,26),1),
++            'empty-array'=>[],
++            'not-an-array'=>'damaged-session-cart',
++        };
++        $tables=[
++            'orders','order_items','stock_movements','order_status_history',
++            'public_checkout_attempts','public_order_accesses',
++            'order_payments','order_commissions',
++        ];
++        $counts=[];
++        foreach ($tables as $table) $counts[$table]=DB::table($table)->count();
++        $oldStock=(int)$this->product->fresh()->stock_quantity;
++        $oldOrderId=(int)DB::table('orders')->value('id');
++        $mutations=[];
++        DB::listen(static function ($query) use (&$mutations): void {
++            $sql=(string)$query->sql;
++            if (preg_match('~\b(?:INSERT\s+INTO|REPLACE\s+INTO|UPDATE|DELETE\s+FROM)\s+[`"]?(?:orders|order_items|products|stock_movements|order_status_history|public_checkout_attempts|public_order_accesses|order_payments|order_commissions)\b~i',$sql)===1) {
++                $mutations[]=$sql;
++            }
++        });
++        $this->withSession(['ald1n.public_checkout.last_cart'=>$bad])
++            ->postJson('/porucivanje',$original)->assertUnprocessable()
++            ->assertJsonValidationErrors('cart');
++        foreach ($counts as $table=>$expected) {
++            self::assertSame($expected,DB::table($table)->count(),$table.' changed on rejected replay');
++        }
++        self::assertSame($oldStock,(int)$this->product->fresh()->stock_quantity);
++        self::assertSame($oldOrderId,(int)DB::table('orders')->value('id'));
++        self::assertSame([], $mutations, 'Rejected replay attempted order/inventory SQL writes');
++    }
++
++    /** @return array<string,string> */
++    private function successfulSyntheticCheckout(): array
++    {
++        $this->post('/korpa/dodaj/'.$this->product->id,['quantity'=>1])
++            ->assertRedirect('/korpa');
++        $html=$this->get('/porucivanje')->assertOk()->getContent();
++        self::assertSame(1,preg_match('/name="checkout_key" value="([a-f0-9]{48})"/',$html,$nonce));
++        self::assertSame(1,preg_match('/name="merchant_policy_fingerprint" value="([a-f0-9]{64})"/',$html,$digest));
++        $payload=[
++            'checkout_key'=>$nonce[1],
++            'merchant_policy_fingerprint'=>$digest[1],
++            'shipping_full_name'=>'B1073 Synthetic Buyer',
++            'email'=>$this->buyer->email,
++            'shipping_phone'=>'0601234567',
++            'shipping_address'=>'Test 12',
++            'shipping_city'=>'Beograd',
++            'shipping_postal_code'=>'11000',
++            'payment_method'=>'cash_on_delivery',
++            'delivery_method'=>'courier',
++            'accepted_terms'=>'1',
++        ];
++        $this->post('/porucivanje',$payload)->assertRedirect();
++        self::assertDatabaseCount('orders',1);
++        self::assertDatabaseCount('stock_movements',1);
++        self::assertDatabaseCount('public_checkout_attempts',1);
++        return $payload;
++    }
++
++    private function person(string $username,string $role): User
++    {
++        return User::query()->create([
++            'role_id'=>Role::query()->where('slug',$role)->valueOrFail('id'),
++            'username'=>$username,
++            'email'=>$username.'@example.test',
++            'first_name'=>'B1073 Synthetic',
++            'password_hash'=>Hash::make('B1073-Synthetic-Only123!'),
++            'status'=>'active',
++            'email_verified_at'=>now(),
++            'portal_activated_at'=>now(),
++        ]);
++    }
++}
+diff --git a/tools/storefront/b1071/SourceManifestValidator.php b/tools/storefront/b1071/SourceManifestValidator.php
+index 204f71b..fc27d27 100644
+--- a/tools/storefront/b1071/SourceManifestValidator.php
++++ b/tools/storefront/b1071/SourceManifestValidator.php
+@@ -2,41 +2,107 @@
+ declare(strict_types=1);
+ 
+ /**
+- * Only validates an explicitly specified isolated candidate's contents.
+- * No production checkout, credentials, storage or vendor directory access.
++ * Verify a complete, independently pinned snapshot of isolated PHP source.
++ * The expected filenames must come from a trusted caller, not from $pins.
+  */
+ final class SourceManifestValidator
+ {
+-    /** @param array<string,string> $pins */
+-    public static function verify(string $root, array $pins): int
++    /**
++     * @param array<string,string> $pins Exact SHA-256 hex digests by relative path.
++     * @param list<string> $expectedPaths Independently pinned complete PHP inventory.
++     */
++    public static function verify(string $root, array $pins, array $expectedPaths): int
+     {
+-        if ($pins === [] || !is_dir($root) || is_link($root)) {
+-            throw new \InvalidArgumentException('Empty source manifest or invalid isolated root.');
+-        }
+-        $checked=0;
+-        foreach ($pins as $relative => $expected) {
+-            if (!is_string($relative)
+-                || !str_starts_with($relative, 'candidate/')
+-                || !preg_match('~\A[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_.-]+)*\.php\z~D', $relative)
+-                || !preg_match('/\A[a-f0-9]{64}\z/D', $expected)) {
+-                throw new \InvalidArgumentException('Unsafe or unsupported source manifest entry.');
+-            }
+-            $parts=explode('/',$relative);
+-            $walk=$root;
+-            foreach ($parts as $part) {
+-                if ($part === '.' || $part === '..' || $part === '' || $part[0] === '.') {
+-                    throw new \InvalidArgumentException('Unsafe path segment.');
+-                }
+-                $walk.='/'.$part;
+-                if (is_link($walk)) {
+-                    throw new \InvalidArgumentException('Source path contains symlink.');
+-                }
+-            }
+-            if (!is_file($walk) || !hash_equals($expected, hash_file('sha256',$walk))) {
+-                throw new \InvalidArgumentException('Source manifest file missing or drifted.');
+-            }
+-            $checked++;
+-        }
+-        return $checked;
++        if ($pins === [] || $expectedPaths === [] || !array_is_list($expectedPaths)
++            || !str_starts_with($root,'/') || $root === '/' || str_ends_with($root,'/')) {
++            throw new \InvalidArgumentException('Missing exact expected source inventory or unsafe isolated root.');
++        }
++
++        // realpath() alone would silently resolve a symlink ancestor. Reject
++        // every original path component *before* trusting its canonical form.
++        $walk='';
++        foreach (explode('/', substr($root,1)) as $part) {
++            if ($part === '' || $part === '.' || $part === '..') {
++                throw new \InvalidArgumentException('Noncanonical isolated root segment.');
++            }
++            $walk.='/'.$part;
++            if (is_link($walk)) {
++                throw new \InvalidArgumentException('Isolated source root has a symlink ancestor.');
++            }
++        }
++        if (!is_dir($root) || realpath($root) !== $root) {
++            throw new \InvalidArgumentException('Isolated source root is missing or noncanonical.');
++        }
++        $candidate=$root.'/candidate';
++        if (!is_dir($candidate) || is_link($candidate)) {
++            throw new \InvalidArgumentException('Candidate source directory is missing or linked.');
++        }
++        $required=[];
++        foreach ($expectedPaths as $relative) {
++            self::assertSafePath($relative);
++            if (isset($required[$relative])) {
++                throw new \InvalidArgumentException('Duplicate pinned path.');
++            }
++            $required[$relative]=true;
++        }
++        $expected=array_keys($required);
++        sort($expected,SORT_STRING);
++        $submitted=array_keys($pins);
++        sort($submitted,SORT_STRING);
++        if ($submitted!==$expected) {
++            throw new \InvalidArgumentException('Source hash manifest is not the complete expected file set.');
++        }
++
++        $discovered=[];
++        $it=new \RecursiveIteratorIterator(
++            new \RecursiveDirectoryIterator($candidate,\FilesystemIterator::SKIP_DOTS),
++            \RecursiveIteratorIterator::SELF_FIRST
++        );
++        foreach ($it as $entry) {
++            if ($entry->isLink()) {
++                throw new \InvalidArgumentException('Candidate source tree contains a symlink.');
++            }
++            if ($entry->isDir()) continue;
++            if (!$entry->isFile()) {
++                throw new \InvalidArgumentException('Candidate source contains an unsupported filesystem entry.');
++            }
++            if (str_ends_with($entry->getFilename(),'.php')) {
++                $relative='candidate/'.substr($entry->getPathname(),strlen($candidate)+1);
++                self::assertSafePath($relative);
++                $discovered[]=$relative;
++            }
++        }
++        sort($discovered,SORT_STRING);
++        if ($discovered!==$expected) {
++            throw new \InvalidArgumentException('Actual candidate PHP inventory differs from the pinned complete inventory.');
++        }
++        foreach ($expected as $relative) {
++            $hash=$pins[$relative];
++            if (!is_string($hash) || preg_match('/\A[a-f0-9]{64}\z/D',$hash)!==1) {
++                throw new \InvalidArgumentException('Invalid pinned source digest.');
++            }
++            $full=$root.'/'.$relative;
++            if (is_link($full) || !is_file($full)) {
++                throw new \InvalidArgumentException('Pinned source file is missing or linked.');
++            }
++            $actual=hash_file('sha256',$full);
++            if (!is_string($actual) || !hash_equals($hash,$actual)) {
++                throw new \InvalidArgumentException('Pinned isolated source file changed.');
++            }
++        }
++        return count($expected);
++    }
++
++    private static function assertSafePath(mixed $relative): void
++    {
++        if (!is_string($relative) || !str_starts_with($relative,'candidate/')
++            || preg_match('~\Acandidate(?:/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*)+\.php\z~D',$relative)!==1) {
++            throw new \InvalidArgumentException('Noncanonical candidate source path.');
++        }
++        foreach (explode('/',$relative) as $component) {
++            if ($component === '.' || $component === '..' || str_starts_with($component,'.')) {
++                throw new \InvalidArgumentException('Hidden or parent traversal source component.');
++            }
++        }
+     }
+ }
+diff --git a/tools/storefront/b1071/tests/test_manifest_b1073.php b/tools/storefront/b1071/tests/test_manifest_b1073.php
+new file mode 100644
+index 0000000..19e2fa0
+--- /dev/null
++++ b/tools/storefront/b1071/tests/test_manifest_b1073.php
+@@ -0,0 +1,54 @@
++<?php
++declare(strict_types=1);
++require_once __DIR__.'/../SourceManifestValidator.php';
++
++$passed=0;
++function expectManifest(string $label, string $root, array $pins, array $expected, bool $allow): void
++{
++    global $passed;
++    $threw=false;
++    try {
++        $count=SourceManifestValidator::verify($root,$pins,$expected);
++        if ($allow && $count!==count($expected)) {
++            throw new RuntimeException("B1073_WRONG_COUNT_{$label}");
++        }
++    } catch (InvalidArgumentException $e) {
++        $threw=true;
++    }
++    if ($threw===$allow) {
++        throw new RuntimeException("B1073_FAILED_{$label}: expected ".($allow?'ALLOW':'DENY')." got ".($threw?'DENY':'ALLOW'));
++    }
++    $passed++;
++    echo "PASS_B1073 $label\n";
++}
++$root=sys_get_temp_dir().'/b1073-manifest-'.bin2hex(random_bytes(6));
++$real=$root.'/real';
++mkdir($root,0700,true);
++mkdir($real.'/isolated/candidate',0700,true);
++file_put_contents($real.'/isolated/candidate/first.php','<?php echo 1;');
++file_put_contents($real.'/isolated/candidate/second.php','<?php echo 2;');
++$isolated=$real.'/isolated';
++$a='candidate/first.php'; $b='candidate/second.php';
++$ha=hash_file('sha256',$isolated.'/'.$a);$hb=hash_file('sha256',$isolated.'/'.$b);
++$all=[$a=>$ha,$b=>$hb]; $expected=[$a,$b];
++try {
++    expectManifest('exact_complete', $isolated,$all,$expected,true);
++    expectManifest('subset_pins_rejected',$isolated,[$a=>$ha],$expected,false);
++    expectManifest('subset_expected_rejected',$isolated,[$a=>$ha],[$a],false);
++    expectManifest('extra_expected_file_rejected',$isolated,$all,[$a,$b,'candidate/third.php'],false);
++    expectManifest('missing_file_rejected',$isolated,[$a=>$ha,$b=>$hb],[$a,$b,'candidate/third.php'],false);
++    expectManifest('duplicate_expected_rejected',$isolated,$all,[$a,$a,$b],false);
++    expectManifest('hash_drift_rejected',$isolated,[$a=>str_repeat('0',64),$b=>$hb],$expected,false);
++    symlink($real,$root.'/parent-link');
++    expectManifest('symlink_ancestor_rejected',$root.'/parent-link/isolated',$all,$expected,false);
++    unlink($root.'/parent-link');
++    symlink($isolated.'/candidate/first.php',$isolated.'/candidate/hijack.php');
++    expectManifest('unlisted_symlink_rejected',$isolated,$all,$expected,false);
++    unlink($isolated.'/candidate/hijack.php');
++    echo "B1073_MANIFEST_CASES=$passed\n";
++} finally {
++    @unlink($isolated.'/candidate/first.php');
++    @unlink($isolated.'/candidate/second.php');
++    @rmdir($isolated.'/candidate');
++    @rmdir($isolated);@rmdir($real);@rmdir($root);
++}
+diff --git a/tools/storefront/b1071/tests/test_qa.php b/tools/storefront/b1071/tests/test_qa.php
+index adb38c5..fba20e0 100644
+--- a/tools/storefront/b1071/tests/test_qa.php
++++ b/tools/storefront/b1071/tests/test_qa.php
+@@ -31,7 +31,7 @@ $folder=sys_get_temp_dir().'/b1071-qa-'.bin2hex(random_bytes(5));
+ mkdir($folder);mkdir($folder.'/candidate');
+ file_put_contents($folder.'/candidate/good.php','<?php echo 1;');
+ $hash=hash_file('sha256',$folder.'/candidate/good.php');
+-$M=static fn(array $pins)=>SourceManifestValidator::verify($folder,$pins);
++$M=static fn(array $pins)=>SourceManifestValidator::verify($folder,$pins,['candidate/good.php']);
+ qa_case('valid_source_manifest',fn()=> $M(['candidate/good.php'=>$hash]),true,$ok);
+ qa_case('empty_source_manifest',fn()=> $M([]),false,$ok);
+ qa_case('missing_source_path',fn()=> $M(['candidate/absent.php'=>$hash]),false,$ok);
