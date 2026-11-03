@@ -1,0 +1,212 @@
+name: B1072 PR93 B1071 isolated full Laravel MariaDB regression (NO DEPLOY)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/b1072-pr93-b1071-full-mariadb-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: b1072-exact-pr93-b1071-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  full-laravel-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      baseline_db:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      candidate_db:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_test
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ald1n_test
+          MARIADB_ROOT_PASSWORD: ci_only
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: ald1n_test
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ald1n_test
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      TURNSTILE_ENABLED: 'false'
+      MAIL_MAILER: array
+    steps:
+      - name: Checkout exact PR93 source for baseline full suite
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: acb8b9c42ec9254b1a27567abca29a26c1f733f8
+          path: source-original
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Checkout exact PR93 source for patched full suite
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: acb8b9c42ec9254b1a27567abca29a26c1f733f8
+          path: source-patched
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Checkout documentation and pinned unapplied B1071 patch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: audit-main
+          persist-credentials: false
+      - name: PHP 8.4 and required Laravel extensions
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Exact source and patch guards, no protected fixture modification
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/b1072-evidence"
+          echo 'B1072 source-only CI; no secrets, production DB or deployment'
+          test "$(git -C source-original rev-parse HEAD)" = acb8b9c42ec9254b1a27567abca29a26c1f733f8
+          test "$(git -C source-patched rev-parse HEAD)" = acb8b9c42ec9254b1a27567abca29a26c1f733f8
+          test "$(git -C source-patched hash-object apps/cms/current/app/Services/PublicCartService.php)" = 87237d51a372f200e511a7114ae80808d4ba6e2d
+          test "$(git -C source-patched hash-object apps/cms/current/app/Services/PublicRetailCheckoutService.php)" = fb29ad856a5989b8a460a69d702e33b5a28aad45
+          PATCH="$GITHUB_WORKSPACE/audit-main/docs/operations/B1072-B1071-M14-M15-QA-UNAPPLIED.patch"
+          echo "510e661167d31e2b6654afbac4809133bda696be066df199a9a1a19b4e84628a  $PATCH" | sha256sum -c -
+          git -C source-patched apply --check "$PATCH"
+          git -C source-patched apply "$PATCH"
+          git -C source-patched diff --check
+          python3 - <<'PY'
+          import subprocess
+          root='source-patched'
+          modified=set(subprocess.check_output(['git','-C',root,'ls-files','-m'],text=True).splitlines())
+          untracked=set(subprocess.check_output(['git','-C',root,'ls-files','--others','--exclude-standard'],text=True).splitlines())
+          expected_modified={'apps/cms/current/app/Services/PublicCartService.php','apps/cms/current/app/Services/PublicRetailCheckoutService.php'}
+          expected_added={
+            'apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php',
+            'apps/cms/current/tests/Unit/PublicRetailCartReplaySnapshotB1071Test.php',
+            'tools/storefront/b1071/ScopedQaGrantValidator.php',
+            'tools/storefront/b1071/SourceManifestValidator.php',
+            'tools/storefront/b1071/run-local-source-qa.sh',
+            'tools/storefront/b1071/tests/test_checkout_early_gate.php',
+            'tools/storefront/b1071/tests/test_qa.php',
+            'tools/storefront/b1071/tests/test_replay.php',
+          }
+          assert modified==expected_modified,(modified,expected_modified)
+          assert untracked==expected_added,(untracked,expected_added)
+          assert all(not any(n in path for n in ('B805','B809','B815')) for path in (modified|untracked))
+          print('EXACT_PATCH_SCOPE_2_MODIFIED_8_NEW=PASS')
+          PY
+          (cd source-patched && bash tools/storefront/b1071/run-local-source-qa.sh) | tee "$RUNNER_TEMP/b1072-evidence/source-qa.log"
+      - name: Verify two *distinct* disposable MariaDB 10.11.19 services
+        run: |
+          set -euo pipefail
+          php -r '$a=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_test","ald1n_test","ald1n_test"); $b=new PDO("mysql:host=127.0.0.1;port=3307;dbname=ald1n_test","ald1n_test","ald1n_test"); foreach([$a,$b] as $p){$v=(string)$p->query("SELECT VERSION()")->fetchColumn();if(!str_starts_with($v,"10.11.19-MariaDB"))exit(45); echo "MARIADB_ISOLATED_VERSION=$v\n";}'
+      - name: Install exact original PR93 Composer lock dependencies
+        working-directory: source-original/apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Install exact patched PR93 Composer lock dependencies
+        working-directory: source-patched/apps/cms/current
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: New B1071 PHPUnit unit test in patched Laravel Composer runtime
+        working-directory: source-patched/apps/cms/current
+        run: |
+          set -euo pipefail
+          set +e
+          DB_PORT=3307 vendor/bin/phpunit -c phpunit.mysql.xml --no-coverage --log-junit "$RUNNER_TEMP/b1072-evidence/new-b1071-unit.xml" tests/Unit/PublicRetailCartReplaySnapshotB1071Test.php > "$RUNNER_TEMP/b1072-evidence/new-b1071-unit.log" 2>&1
+          rc=$?
+          set -e
+          echo "$rc" > "$RUNNER_TEMP/b1072-evidence/new-b1071-unit.rc"
+          tail -n 20 "$RUNNER_TEMP/b1072-evidence/new-b1071-unit.log"
+          echo "B1071_NEW_UNIT_RC=$rc"
+      - name: Original unfiltered PR93 FULL PHPUnit suite (baseline MariaDB)
+        working-directory: source-original/apps/cms/current
+        run: |
+          set -euo pipefail
+          set +e
+          DB_PORT=3306 vendor/bin/phpunit -c phpunit.mysql.xml --no-coverage --log-junit "$RUNNER_TEMP/b1072-evidence/original-full.xml" > "$RUNNER_TEMP/b1072-evidence/original-full.log" 2>&1
+          rc=$?
+          set -e
+          echo "$rc" > "$RUNNER_TEMP/b1072-evidence/original-full.rc"
+          tail -n 18 "$RUNNER_TEMP/b1072-evidence/original-full.log"
+          echo "ORIGINAL_FULL_RC=$rc (nonzero is recorded, never suppressed)"
+      - name: B1071 patched PR93 FULL PHPUnit suite (separate MariaDB)
+        working-directory: source-patched/apps/cms/current
+        run: |
+          set -euo pipefail
+          set +e
+          DB_PORT=3307 vendor/bin/phpunit -c phpunit.mysql.xml --no-coverage --log-junit "$RUNNER_TEMP/b1072-evidence/patched-full.xml" > "$RUNNER_TEMP/b1072-evidence/patched-full.log" 2>&1
+          rc=$?
+          set -e
+          echo "$rc" > "$RUNNER_TEMP/b1072-evidence/patched-full.rc"
+          tail -n 18 "$RUNNER_TEMP/b1072-evidence/patched-full.log"
+          echo "PATCHED_FULL_RC=$rc (nonzero is recorded, never suppressed)"
+      - name: Compare every original vs patched failure identity and mark HOLD
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,xml.etree.ElementTree as ET, pathlib,json
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'b1072-evidence'
+          def extract(name):
+              f=root/name
+              if not f.is_file(): raise RuntimeError('MISSING_REAL_JUNIT_'+name)
+              tree=ET.parse(f); all_cases=tree.findall('.//testcase')
+              if not all_cases: raise RuntimeError('EMPTY_REAL_JUNIT_'+name)
+              problem=set()
+              for t in all_cases:
+                  if any(t.find(x) is not None for x in ('error','failure','warning')):
+                      problem.add((t.attrib.get('class') or t.attrib.get('classname') or '')+'::'+t.attrib.get('name',''))
+              return {'cases':len(all_cases),'problems':sorted(problem)}
+          orig=extract('original-full.xml'); patched=extract('patched-full.xml')
+          new=sorted(set(patched['problems'])-set(orig['problems']))
+          closed=sorted(set(orig['problems'])-set(patched['problems']))
+          unit_rc=int((root/'new-b1071-unit.rc').read_text().strip())
+          statuses={x:int((root/(x+'.rc')).read_text().strip()) for x in ('original-full','patched-full')}
+          result={'source':'PR93_exact_B1071_patch','baseline_cases':orig['cases'],'candidate_cases':patched['cases'],'baseline_problems':len(orig['problems']),'candidate_problems':len(patched['problems']),'new_problems':new,'closed_problems':closed,'baseline_original_problem_ids':orig['problems'],'patched_problem_ids':patched['problems'],'unit_rc':unit_rc,'full_suite_exit_codes':statuses,'historical_B803_56':'OPEN_NOT_WAIVED'}
+          (root/'comparison.json').write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n')
+          lines=[
+              '# B1072 actual PHP8.4/MariaDB10.11.19 unfiltered isolated CI report',
+              '',
+              f"Original full: {orig['cases']} testcases, {len(orig['problems'])} unique failed identities, rc {statuses['original-full']}",
+              f"Patched full: {patched['cases']} testcases, {len(patched['problems'])} unique failed identities, rc {statuses['patched-full']}",
+              f"New B1071 PHPUnit unit RC: {unit_rc}",
+              f"New failed identities introduced: {len(new)}",f"Original failing identities closed: {len(closed)}",
+              'Historical 56 B803 identities: OPEN_NOT_WAIVED; no skip/exclude/filter applied.',
+              'No production files, DBs, storefront flags or releases changed.',
+              '',
+              '## Newly failing identities',*['- '+x for x in new],
+              '', '## All remaining patched failing identities',*['- '+x for x in patched['problems']]
+          ]
+          (root/'ONE-FINAL-REPORT.md').write_text('\n'.join(lines)+'\n')
+          print('\n'.join(lines[:10]))
+          if unit_rc or new: raise SystemExit('HOLD_NEW_REGRESSION_OR_B1071_UNIT')
+          if statuses['patched-full'] or patched['problems']: raise SystemExit('HOLD_HISTORICAL_FULL_SUITE_FAILURES')
+          print('FULL_PR93_PATCHED_CI_PASS_ONLY_IF_ZERO_FAILURES')
+          PY
+      - name: Preserve ALL real JUnit, logs, 56-identity comparison and final report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1072-pr93-b1071-full-comparison-no-exclusions
+          path: ${{ runner.temp }}/b1072-evidence
+          if-no-files-found: warn
+          retention-days: 7
+      - name: No production effect
+        if: always()
+        run: echo 'GITHUB_ACTIONS_EPHEMERAL_ONLY PR93_EXACT B1071_APPLIED_ONLY_IN_RUNNER NO_PRODUCTION_NO_DEPLOY_NO_PLAY_NO_WAIVERS'
