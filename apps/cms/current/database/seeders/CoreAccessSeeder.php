@@ -18,8 +18,32 @@ final class CoreAccessSeeder extends Seeder
             ['id' => 3, 'name' => 'SuperAdmin', 'slug' => 'superadmin', 'created_at' => now()],
         ], ['id'], ['name', 'slug']);
 
-        // Keep legacy role/user IDs and permissions. Retail buyers are a new role.
-        DB::table('roles')->updateOrInsert(['slug'=>'customer'], ['name'=>'Kupac']);
+        // B876: roles.id is UNSIGNED TINYINT (max 255). updateOrInsert with
+        // no explicit ID consumes a new AUTO_INCREMENT value on EVERY rolled-
+        // back MariaDB RefreshDatabase seeding, exhausting the real schema.
+        // Preserve all pre-existing IDs and user FKs; assign an explicit free
+        // ID only when the new customer role truly does not already exist.
+        $customer = DB::table('roles')->where('slug', 'customer')->first(['id']);
+        if ($customer !== null) {
+            DB::table('roles')->where('id', (int) $customer->id)
+                ->update(['name' => 'Kupac']);
+        } else {
+            $occupied = array_map('intval', DB::table('roles')->pluck('id')->all());
+            $customerId = null;
+            for ($candidate = 4; $candidate <= 255; $candidate++) {
+                if (!in_array($candidate, $occupied, true)) {
+                    $customerId = $candidate;
+                    break;
+                }
+            }
+            if ($customerId === null) {
+                throw new \RuntimeException('B876_ROLE_ID_SPACE_EXHAUSTED');
+            }
+            DB::table('roles')->insert([
+                'id' => $customerId, 'name' => 'Kupac',
+                'slug' => 'customer', 'created_at' => now(),
+            ]);
+        }
 
         DB::table('user_groups')->upsert([[
             'id' => 1, 'name' => 'Standardni korisnik', 'slug' => 'standardni-korisnik',
