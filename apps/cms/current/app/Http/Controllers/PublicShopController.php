@@ -70,12 +70,29 @@ final class PublicShopController extends Controller
             $allowed = is_string($root) ? realpath($root.'/products/'.(int)$product->id) : false;
             $full = is_string($root) ? realpath($root.'/'.$relative) : false;
         } else abort(404);
-        abort_unless(is_string($allowed)&&is_string($full)&&is_file($full)
+        // B893: realpath() on the allowed directory may itself resolve a
+        // symbolic link outside the approved root. The existing leaf-path
+        // check alone would then serve images from that external directory.
+        abort_unless(is_string($root) && is_string($allowed),404);
+        $rootPrefix=rtrim($root,DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+        abort_unless(str_starts_with($allowed,$rootPrefix),404);
+        if ($disk === 'public') {
+            // A public product directory cannot alias another product's
+            // real directory even if both happen to reside on this disk.
+            $expected=$rootPrefix.'products'.DIRECTORY_SEPARATOR.(int)$product->id;
+            abort_unless(hash_equals($expected,$allowed),404);
+        }
+        abort_unless(is_string($full)&&is_file($full)
             &&str_starts_with($full,rtrim($allowed,DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR),404);
         $mime=mime_content_type($full) ?: '';
         abort_unless(in_array($mime,['image/jpeg','image/png','image/webp'],true),404);
         return response()->file($full, [
-            'Content-Type'=>$mime,'Cache-Control'=>'public, max-age=3600',
+            'Content-Type'=>$mime,
+            // B877: emergency OFF must revoke dynamically gated media for
+            // browser/intermediary caches, not merely for fresh origin GETs.
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'Pragma'=>'no-cache',
+            'X-Robots-Tag'=>'noindex, nofollow, noarchive',
             'X-Content-Type-Options'=>'nosniff',
         ]);
     }
@@ -92,7 +109,11 @@ final class PublicShopController extends Controller
         $quantity = (int) $request->validate(['quantity'=>['required','integer','min:1','max:20']])['quantity'];
         $current = $cart->get($request);
         $cart->change($request, (int)$product->id, ($current[(int)$product->id] ?? 0)+$quantity);
-        return redirect()->route('public-shop.cart')->with('status','Artikal je dodat u korpu.');
+        // A cart POST must never produce an absolute Location from an
+        // untrusted Host / X-Forwarded-Host header.
+        return (new RedirectResponse(route('public-shop.cart',[],false)))
+            ->setSession($request->session())
+            ->with('status','Artikal je dodat u korpu.');
     }
 
     public function update(Request $request, Product $product, PublicCartService $cart): RedirectResponse
@@ -100,13 +121,13 @@ final class PublicShopController extends Controller
         $this->guarded();
         $quantity=(int)$request->validate(['quantity'=>['required','integer','min:0','max:20']])['quantity'];
         $cart->change($request,(int)$product->id,$quantity);
-        return redirect()->route('public-shop.cart');
+        return new RedirectResponse(route('public-shop.cart',[],false));
     }
 
     public function remove(Request $request, Product $product, PublicCartService $cart): RedirectResponse
     {
         $this->guarded();
         $cart->change($request,(int)$product->id,0);
-        return redirect()->route('public-shop.cart');
+        return new RedirectResponse(route('public-shop.cart',[],false));
     }
 }
