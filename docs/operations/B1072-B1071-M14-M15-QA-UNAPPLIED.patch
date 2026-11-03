@@ -1,0 +1,428 @@
+diff --git a/apps/cms/current/app/Services/PublicCartService.php b/apps/cms/current/app/Services/PublicCartService.php
+index 87237d5..372f6bc 100644
+--- a/apps/cms/current/app/Services/PublicCartService.php
++++ b/apps/cms/current/app/Services/PublicCartService.php
+@@ -3,6 +3,7 @@ declare(strict_types=1);
+ 
+ namespace App\Services;
+ 
++use App\Support\PublicRetailCartReplaySnapshot;
+ use Illuminate\Http\Request;
+ use Illuminate\Validation\ValidationException;
+ 
+@@ -30,6 +31,30 @@ final class PublicCartService
+         return $clean;
+     }
+ 
++    /**
++     * M14/M15: a completed checkout may replay the original cart only with
++     * the matching nonce and a fully valid, immutable session snapshot.
++     * Never silently drop malformed lines in this idempotency path.
++     * @return array<int,int>
++     */
++    public function replaySnapshot(Request $request, string $checkoutKey): array
++    {
++        $completedKey = $request->session()->get('ald1n.public_checkout.last_key', '');
++        if (!is_string($completedKey) || strlen($checkoutKey) < 32
++            || !hash_equals($completedKey, $checkoutKey)) {
++            return [];
++        }
++        try {
++            return PublicRetailCartReplaySnapshot::validated(
++                $request->session()->get('ald1n.public_checkout.last_cart', [])
++            );
++        } catch (\InvalidArgumentException) {
++            throw ValidationException::withMessages([
++                'cart' => 'Sačuvana korpa nije validna. Obnovi poručivanje.',
++            ]);
++        }
++    }
++
+     public function change(Request $request, int $productId, int $quantity): void
+     {
+         if ($productId < 1 || $quantity < 0 || $quantity > 20) {
+diff --git a/apps/cms/current/app/Services/PublicRetailCheckoutService.php b/apps/cms/current/app/Services/PublicRetailCheckoutService.php
+index fb29ad8..e42360a 100644
+--- a/apps/cms/current/app/Services/PublicRetailCheckoutService.php
++++ b/apps/cms/current/app/Services/PublicRetailCheckoutService.php
+@@ -74,9 +74,10 @@ final class PublicRetailCheckoutService
+         }
+ 
+         $cart=$this->cart->get($request);
+-        if ($cart===[] && (string)$request->session()->get('ald1n.public_checkout.last_key','')===$sessionKey) {
+-            $stored=$request->session()->get('ald1n.public_checkout.last_cart',[]);
+-            if (is_array($stored)) $cart=$stored;
++        if ($cart===[]) {
++            // M14/M15: replay is allowed only for this exact completed nonce.
++            // The session snapshot must be strictly typed, bounded and complete.
++            $cart=$this->cart->replaySnapshot($request,$sessionKey);
+         }
+         if ($cart===[] || count($cart)>25) {
+             throw ValidationException::withMessages(['cart'=>'Korpa je prazna ili premašuje dozvoljeni broj artikala.']);
+diff --git a/apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php b/apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php
+new file mode 100644
+index 0000000..01ea178
+--- /dev/null
++++ b/apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php
+@@ -0,0 +1,31 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Support;
++
++/**
++ * Fail-closed validation for the already-committed checkout cart snapshot.
++ * The live cart is sanitised separately. A replay snapshot must not silently
++ * drop or coerce invalid entries, otherwise it can alter the idempotency key's
++ * request fingerprint or bypass item limits.
++ */
++final class PublicRetailCartReplaySnapshot
++{
++    /** @return array<int,int> */
++    public static function validated(mixed $snapshot): array
++    {
++        if (!is_array($snapshot) || $snapshot === [] || count($snapshot) > 25) {
++            throw new \InvalidArgumentException('The replay cart shape is invalid.');
++        }
++        $cart = [];
++        foreach ($snapshot as $id => $quantity) {
++            if (!is_int($id) || $id < 1 || !is_int($quantity)
++                || $quantity < 1 || $quantity > 20) {
++                throw new \InvalidArgumentException('The replay cart contains an invalid product or quantity.');
++            }
++            $cart[$id] = $quantity;
++        }
++        ksort($cart, SORT_NUMERIC);
++        return $cart;
++    }
++}
+diff --git a/apps/cms/current/tests/Unit/PublicRetailCartReplaySnapshotB1071Test.php b/apps/cms/current/tests/Unit/PublicRetailCartReplaySnapshotB1071Test.php
+new file mode 100644
+index 0000000..d09e551
+--- /dev/null
++++ b/apps/cms/current/tests/Unit/PublicRetailCartReplaySnapshotB1071Test.php
+@@ -0,0 +1,35 @@
++<?php
++declare(strict_types=1);
++
++namespace Tests\Unit;
++
++use App\Support\PublicRetailCartReplaySnapshot;
++use PHPUnit\Framework\TestCase;
++
++final class PublicRetailCartReplaySnapshotB1071Test extends TestCase
++{
++    public function test_valid_snapshot_remains_sorted_and_strictly_typed(): void
++    {
++        self::assertSame([2 => 3, 19 => 1],
++            PublicRetailCartReplaySnapshot::validated([19 => 1, 2 => 3]));
++        self::assertCount(25,
++            PublicRetailCartReplaySnapshot::validated(array_fill_keys(range(1,25),20)));
++    }
++
++    public function test_replay_rejects_malformed_entire_cart_instead_of_coercing_items(): void
++    {
++        foreach ([
++            'not an array', [], array_fill_keys(range(1,26),1),
++            [0=>1], [-1=>1], ['001'=>1], [2=>0], [2=>21],
++            [2=>'2'], [2=>2.0], [2=>true], [2=>['qty'=>2]],
++            [3=>1,4=>'invalid'],
++        ] as $case) {
++            try {
++                PublicRetailCartReplaySnapshot::validated($case);
++                self::fail('Invalid replay cart was accepted.');
++            } catch (\InvalidArgumentException) {
++                self::assertTrue(true);
++            }
++        }
++    }
++}
+diff --git a/tools/storefront/b1071/ScopedQaGrantValidator.php b/tools/storefront/b1071/ScopedQaGrantValidator.php
+new file mode 100644
+index 0000000..811b745
+--- /dev/null
++++ b/tools/storefront/b1071/ScopedQaGrantValidator.php
+@@ -0,0 +1,31 @@
++<?php
++declare(strict_types=1);
++
++/**
++ * Offline, read-only evaluation of SHOW GRANTS rows for one disposable QA user.
++ * Deliberately conservative: unknown grant forms remain HOLD, never PASS.
++ * Not connected to production, and never creates/changes a database grant.
++ */
++final class ScopedQaGrantValidator
++{
++    public static function assertExactQaGrants(array $rows): void
++    {
++        $target='`icaffeco_b913qa`@`localhost`';
++        $schema='`icaffeco\\_ald1n\\_b913\\_test`';
++        $expected=[
++            'GRANT USAGE ON *.* TO '.$target,
++            'GRANT ALL PRIVILEGES ON '.$schema.'.* TO '.$target,
++        ];
++        if (count($rows) !== 2) {
++            throw new \InvalidArgumentException('Unexpected number of QA grants.');
++        }
++        foreach ($rows as $grant) {
++            if (!is_string($grant) || !in_array(trim($grant), $expected, true)) {
++                throw new \InvalidArgumentException('Unapproved or wildcard QA grant.');
++            }
++        }
++        if (count(array_unique(array_map('trim', $rows))) !== 2) {
++            throw new \InvalidArgumentException('Duplicate QA grant rows.');
++        }
++    }
++}
+diff --git a/tools/storefront/b1071/SourceManifestValidator.php b/tools/storefront/b1071/SourceManifestValidator.php
+new file mode 100644
+index 0000000..204f71b
+--- /dev/null
++++ b/tools/storefront/b1071/SourceManifestValidator.php
+@@ -0,0 +1,42 @@
++<?php
++declare(strict_types=1);
++
++/**
++ * Only validates an explicitly specified isolated candidate's contents.
++ * No production checkout, credentials, storage or vendor directory access.
++ */
++final class SourceManifestValidator
++{
++    /** @param array<string,string> $pins */
++    public static function verify(string $root, array $pins): int
++    {
++        if ($pins === [] || !is_dir($root) || is_link($root)) {
++            throw new \InvalidArgumentException('Empty source manifest or invalid isolated root.');
++        }
++        $checked=0;
++        foreach ($pins as $relative => $expected) {
++            if (!is_string($relative)
++                || !str_starts_with($relative, 'candidate/')
++                || !preg_match('~\A[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_.-]+)*\.php\z~D', $relative)
++                || !preg_match('/\A[a-f0-9]{64}\z/D', $expected)) {
++                throw new \InvalidArgumentException('Unsafe or unsupported source manifest entry.');
++            }
++            $parts=explode('/',$relative);
++            $walk=$root;
++            foreach ($parts as $part) {
++                if ($part === '.' || $part === '..' || $part === '' || $part[0] === '.') {
++                    throw new \InvalidArgumentException('Unsafe path segment.');
++                }
++                $walk.='/'.$part;
++                if (is_link($walk)) {
++                    throw new \InvalidArgumentException('Source path contains symlink.');
++                }
++            }
++            if (!is_file($walk) || !hash_equals($expected, hash_file('sha256',$walk))) {
++                throw new \InvalidArgumentException('Source manifest file missing or drifted.');
++            }
++            $checked++;
++        }
++        return $checked;
++    }
++}
+diff --git a/tools/storefront/b1071/run-local-source-qa.sh b/tools/storefront/b1071/run-local-source-qa.sh
+new file mode 100755
+index 0000000..f06d482
+--- /dev/null
++++ b/tools/storefront/b1071/run-local-source-qa.sh
+@@ -0,0 +1,10 @@
++#!/usr/bin/env bash
++set -euo pipefail
++BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
++php "$BASE/tools/storefront/b1071/tests/test_qa.php"
++php "$BASE/tools/storefront/b1071/tests/test_replay.php"
++php "$BASE/tools/storefront/b1071/tests/test_checkout_early_gate.php"
++php -l "$BASE/apps/cms/current/app/Services/PublicCartService.php"
++php -l "$BASE/apps/cms/current/app/Services/PublicRetailCheckoutService.php"
++php -l "$BASE/apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php"
++printf 'B1071_LOCAL_SOURCE_QA=PASS_NO_DATABASE_NO_BROWSER\n'
+diff --git a/tools/storefront/b1071/tests/test_checkout_early_gate.php b/tools/storefront/b1071/tests/test_checkout_early_gate.php
+new file mode 100644
+index 0000000..4c4535a
+--- /dev/null
++++ b/tools/storefront/b1071/tests/test_checkout_early_gate.php
+@@ -0,0 +1,105 @@
++<?php
++declare(strict_types=1);
++namespace App\Models {
++    final class User {
++        public int $id=7;
++        public string $email='buyer@example.test';
++        public string $status='active';
++        public mixed $retired_at=null;
++        public string $email_verified_at='2026-01-01';
++        public string $portal_activated_at='2026-01-01';
++        public function hasRole(string $name): bool { return $name==='customer'; }
++    }
++}
++namespace Illuminate\Http {
++    final class Request {
++        public function __construct(private object $buyer, private object $state) {}
++        public function user(): object { return $this->buyer; }
++        public function session(): object { return $this->state; }
++    }
++}
++namespace Illuminate\Validation {
++    final class ValidationException extends \InvalidArgumentException {
++        public static function withMessages(array $errors): self { return new self(json_encode($errors,JSON_THROW_ON_ERROR)); }
++    }
++}
++namespace Illuminate\Support\Facades {
++    final class DB {
++        public static int $transactions=0;
++        public static function transaction(callable $callback,int $attempts=1): never {
++            self::$transactions++;
++            throw new \RuntimeException('DB_BOUNDARY_SIMULATED');
++        }
++    }
++}
++namespace App\Services {
++    final class PublicRetailCatalogService {}
++    final class PublicCheckoutReadinessService {
++        public function assertReady(): array { return [
++            'approval_digest'=>str_repeat('a',64),
++            'delivery_methods'=>['courier'],
++            'methods'=>['cash_on_delivery'],
++        ];}
++    }
++    final class SettingsService {}
++    final class PublicOrderAccessService {}
++}
++namespace {
++    // Local PHP CLI fixture has no Laravel helpers or mbstring extension.
++    // Test inputs use ASCII synthetic identities only.
++    if (!function_exists('mb_strtolower')) {
++        function mb_strtolower(string $value): string { return strtolower($value); }
++    }
++    function config(string $key): string { return 'synthetic-test-app-key'; }
++    function abort_unless(bool $condition, int $code): void {
++        if (!$condition) throw new \RuntimeException('HTTP_'.(string)$code);
++    }
++    $root=dirname(__DIR__,4);
++    require $root.'/apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php';
++    require $root.'/apps/cms/current/app/Services/PublicCartService.php';
++    require $root.'/apps/cms/current/app/Services/PublicRetailCheckoutService.php';
++    final class State {
++        public function __construct(private array $data) {}
++        public function get(string $k,mixed $default=null): mixed {return $this->data[$k]??$default;}
++        public function put(string $k,mixed $v): void {$this->data[$k]=$v;}
++        public function forget(string $k): void {unset($this->data[$k]);}
++    }
++    $cart=new \App\Services\PublicCartService(new \App\Services\PublicRetailCatalogService());
++    $service=new \App\Services\PublicRetailCheckoutService(
++        new \App\Services\PublicRetailCatalogService(),$cart,
++        new \App\Services\PublicCheckoutReadinessService(),
++        new \App\Services\SettingsService(),
++        new \App\Services\PublicOrderAccessService());
++    $key=str_repeat('b',48);
++    $input=[
++        'checkout_key'=>$key, 'merchant_policy_fingerprint'=>str_repeat('a',64),
++        'email'=>'buyer@example.test','delivery_method'=>'courier','payment_method'=>'cash_on_delivery',
++        'shipping_full_name'=>'Synthetic buyer', 'shipping_address'=>'Synthetic address',
++        'shipping_city'=>'Beograd', 'shipping_postal_code'=>'11000',
++        'shipping_phone'=>'0600000000',
++    ];
++    $cases=[
++        'string_quantity_rejected_before_db'=>[[3=>'2'],false],
++        'zero_quantity_rejected_before_db'=>[[3=>0],false],
++        'non_array_rejected_before_db'=>['not an array',false],
++        'valid_exact_replay_reaches_db_boundary'=>[[3=>2],true],
++    ];
++    $passed=0;
++    foreach($cases as $name=>[$saved,$mayReachDb]) {
++        \Illuminate\Support\Facades\DB::$transactions=0;
++        $session=new State(['ald1n.public_checkout.key'=>$key,
++            'ald1n.public_checkout.last_key'=>$key,
++            'ald1n.public_checkout.last_cart'=>$saved]);
++        try { $service->place(new \Illuminate\Http\Request(new \App\Models\User(),$session),$input);
++            throw new \RuntimeException('Unexpected checkout success');
++        } catch (\Illuminate\Validation\ValidationException $e) {
++            if($mayReachDb || !str_contains($e->getMessage(),'cart'))throw $e;
++        } catch (\RuntimeException $e) {
++            if(!$mayReachDb || $e->getMessage()!=='DB_BOUNDARY_SIMULATED')throw $e;
++        }
++        $want=$mayReachDb?1:0;
++        if(\Illuminate\Support\Facades\DB::$transactions!==$want)throw new \RuntimeException($name.' reached DB unexpectedly');
++        echo "PASS checkout $name\n";$passed++;
++    }
++    echo "CHECKOUT_EARLY_GATES=$passed\n";
++}
+diff --git a/tools/storefront/b1071/tests/test_qa.php b/tools/storefront/b1071/tests/test_qa.php
+new file mode 100644
+index 0000000..adb38c5
+--- /dev/null
++++ b/tools/storefront/b1071/tests/test_qa.php
+@@ -0,0 +1,46 @@
++<?php
++declare(strict_types=1);
++require __DIR__.'/../ScopedQaGrantValidator.php';
++require __DIR__.'/../SourceManifestValidator.php';
++$ok=0;
++function qa_case(string $name, callable $action, bool $allowed, int &$ok): void {
++    try { $action(); if (!$allowed) throw new RuntimeException("Uncaught risky case: $name"); }
++    catch (InvalidArgumentException $e) { if ($allowed) throw $e; }
++    $ok++; echo "PASS QA $name\n";
++}
++$db='icaffeco_ald1n_b913_test';
++$escaped=str_replace('_','\\_',$db);
++$u='`icaffeco_b913qa`@`localhost`';
++$usage="GRANT USAGE ON *.* TO $u";
++$good="GRANT ALL PRIVILEGES ON `$escaped`.* TO $u";
++$unsafe="GRANT ALL PRIVILEGES ON `$db`.* TO $u";
++$G=static fn(array $rows)=>ScopedQaGrantValidator::assertExactQaGrants($rows);
++qa_case('escaped_scope_valid',fn()=> $G([$usage,$good]),true,$ok);
++qa_case('order_independent',fn()=> $G([$good,$usage]),true,$ok);
++qa_case('unescaped_underscore_wildcard',fn()=> $G([$usage,$unsafe]),false,$ok);
++qa_case('global_privilege',fn()=> $G([$good,"GRANT ALL PRIVILEGES ON *.* TO $u"]),false,$ok);
++qa_case('other_database',fn()=> $G([$usage,"GRANT ALL PRIVILEGES ON `production`.* TO $u"]),false,$ok);
++qa_case('role_assignment',fn()=> $G([$usage,$good,'GRANT `ops`@`%` TO '.$u]),false,$ok);
++qa_case('grant_option',fn()=> $G([$usage,$good.' WITH GRANT OPTION']),false,$ok);
++qa_case('table_scope',fn()=> $G([$usage,"GRANT SELECT ON `$escaped`.`products` TO $u"]),false,$ok);
++qa_case('missing_scope',fn()=> $G([$usage]),false,$ok);
++qa_case('duplicate_scope',fn()=> $G([$usage,$good,$good]),false,$ok);
++qa_case('foreign_account',fn()=> $G([$usage,str_replace('icaffeco_b913qa','root',$good)]),false,$ok);
++qa_case('malformed_data',fn()=> $G([$usage,42]),false,$ok);
++$folder=sys_get_temp_dir().'/b1071-qa-'.bin2hex(random_bytes(5));
++mkdir($folder);mkdir($folder.'/candidate');
++file_put_contents($folder.'/candidate/good.php','<?php echo 1;');
++$hash=hash_file('sha256',$folder.'/candidate/good.php');
++$M=static fn(array $pins)=>SourceManifestValidator::verify($folder,$pins);
++qa_case('valid_source_manifest',fn()=> $M(['candidate/good.php'=>$hash]),true,$ok);
++qa_case('empty_source_manifest',fn()=> $M([]),false,$ok);
++qa_case('missing_source_path',fn()=> $M(['candidate/absent.php'=>$hash]),false,$ok);
++qa_case('hash_drift',fn()=> $M(['candidate/good.php'=>str_repeat('0',64)]),false,$ok);
++qa_case('directory_escape',fn()=> $M(['../candidate/good.php'=>$hash]),false,$ok);
++qa_case('absolute_path',fn()=> $M(['/etc/passwd'=>$hash]),false,$ok);
++qa_case('hidden_secret_path',fn()=> $M(['candidate/.env'=>$hash]),false,$ok);
++qa_case('outside_allowlist',fn()=> $M(['production/good.php'=>$hash]),false,$ok);
++symlink($folder.'/candidate/good.php',$folder.'/candidate/link.php');
++qa_case('symlink_rejected',fn()=> $M(['candidate/link.php'=>$hash]),false,$ok);
++unlink($folder.'/candidate/link.php');unlink($folder.'/candidate/good.php');rmdir($folder.'/candidate');rmdir($folder);
++echo "QA_TESTS=$ok\n";
+diff --git a/tools/storefront/b1071/tests/test_replay.php b/tools/storefront/b1071/tests/test_replay.php
+new file mode 100644
+index 0000000..42beb96
+--- /dev/null
++++ b/tools/storefront/b1071/tests/test_replay.php
+@@ -0,0 +1,19 @@
++<?php
++declare(strict_types=1);
++require dirname(__DIR__,4).'/apps/cms/current/app/Support/PublicRetailCartReplaySnapshot.php';
++use App\Support\PublicRetailCartReplaySnapshot as Snap;
++$tests=0;
++function validateReplay(mixed $input, ?array $expected): void {
++    global $tests;
++    try {
++        $actual=Snap::validated($input);
++        if ($expected===null || $actual!==$expected) throw new RuntimeException('Unexpected replay result');
++    } catch (InvalidArgumentException $e) {
++        if ($expected!==null) throw $e;
++    }
++    $tests++;
++}
++validateReplay([19=>1,2=>3],[2=>3,19=>1]);
++validateReplay(array_fill_keys(range(1,25),20),array_fill_keys(range(1,25),20));
++foreach (['bad',[],array_fill_keys(range(1,26),1),[0=>1],[-1=>1],['001'=>1],[2=>0],[2=>21],[2=>'2'],[2=>2.0],[2=>true],[2=>['q'=>2]],[3=>1,4=>'x']] as $v) validateReplay($v,null);
++echo "B1071_REPLAY_CASES=$tests\n";
