@@ -67,6 +67,8 @@ final class PublicOrderAccessService
         // bounded, but current buyer orders require the matching active account.
         if ($order->user_id !== null) {
             $actor=request()->user();
+            // Authentication may have loaded the account before access was withdrawn.
+            $actor=$actor instanceof User ? User::query()->find($actor->getKey()) : null;
             abort_unless($actor instanceof User
                 && (int)$actor->getKey()===(int)$order->user_id
                 && $actor->status==='active' && $actor->retired_at===null
