@@ -122,7 +122,8 @@ jobs:
             tests/Feature/StorefrontHtmlOriginBoundaryB899Test.php \
             tests/Feature/StorefrontLocalValidationB889Test.php \
             tests/Feature/PublicNoScriptCspB872Test.php \
-            tests/Feature/RegisteredStorefrontFlowB1075Test.php
+            tests/Feature/RegisteredStorefrontFlowB1075Test.php \
+            tests/Feature/CoreAccessRoleIdStabilityB876Test.php
           if test "$(cat "$evidence/focused.exit")" != 0; then
             tail -120 "$evidence/focused.log"
             echo 'HOLD_FOCUSED_SOURCE_REGRESSIONS'
@@ -137,11 +138,11 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==42,len(cases)
+          assert len(cases)==45,len(cases)
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']==553,report['before']['count']
-          assert report['after']['count']==606,report['after']['count']
+          assert report['after']['count']==609,report['after']['count']
           assert report['before']['skippedCount']==report['after']['skippedCount']==0
           assert not report['missingOriginalCases'],report['missingOriginalCases']
           assert not report['newFailed'],report['newFailed']
