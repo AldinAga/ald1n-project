@@ -291,6 +291,13 @@
   .site-header[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card > .quick-settings-group:last-child {
     padding-bottom: 14px;
   }
+  /* The R3/R5 .site-header.lg-host rules have !important and higher
+   * specificity, so a generic .menu-open override cannot supply a solid
+   * reading surface. Override only while the drawer is open. */
+  html[data-theme] .site-header.lg-host.menu-open[data-build16-shell="1"],
+  .site-header.lg-host.menu-open[data-build16-shell="1"] {
+    background: var(--ald-surface) !important;
+  }
   .site-header.menu-open[data-build16-shell="1"] {
     background: var(--ald-surface) !important;
   }
