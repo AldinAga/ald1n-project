@@ -110,7 +110,7 @@
 @media(max-width:720px){.order-amendment-item{align-items:flex-start;flex-direction:column}.order-amendment-item .header-button-row{width:100%}}
 </style>
 
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const root = document.querySelector('[data-order-amendment-form]');
     if (!root) return;

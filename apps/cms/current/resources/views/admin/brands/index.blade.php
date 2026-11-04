@@ -196,7 +196,7 @@
 </section>
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const form = document.querySelector('[data-brand-manager-form]');
     if (!form) return;

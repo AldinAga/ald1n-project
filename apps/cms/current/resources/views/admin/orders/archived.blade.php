@@ -145,7 +145,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const archive = document.querySelector('[data-order-archive-center="1"]');
     if (!archive) return;

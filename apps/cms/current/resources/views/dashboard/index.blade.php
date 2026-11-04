@@ -423,7 +423,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-dashboard-d3]').forEach(function (panel) {
     panel.querySelectorAll('[data-d3-mode]').forEach(function (button) {

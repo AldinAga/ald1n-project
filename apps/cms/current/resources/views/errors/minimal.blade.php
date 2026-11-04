@@ -14,10 +14,15 @@
         <h1>@yield('heading')</h1>
         <p>@yield('message')</p>
         <div class="error-page-actions">
-            <button class="button button-secondary" type="button" onclick="history.length > 1 ? history.back() : location.assign('/')">Nazad</button>
+            <button class="button button-secondary" type="button" data-error-back>Nazad</button>
             <a class="button button-primary" href="{{ url('/') }}">Početna strana</a>
         </div>
     </section>
 </main>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
+document.querySelector('[data-error-back]')?.addEventListener('click', () => {
+    history.length > 1 ? history.back() : location.assign('/');
+});
+</script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 @extends('layouts.guest')
 @section('title', 'Zaboravljena lozinka')
 @push('head')
-@if($turnstileEnabled)<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>@endif
+@if($turnstileEnabled)<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>@endif
 @endpush
 @section('content')
 <div class="auth-layout">

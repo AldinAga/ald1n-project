@@ -152,7 +152,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const method = document.querySelector('[data-payment-method]');
     const account = document.querySelector('[data-bank-account]');

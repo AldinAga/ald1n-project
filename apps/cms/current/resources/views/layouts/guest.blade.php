@@ -17,7 +17,7 @@
 
     @stack('styles')
 
-    <script>
+    <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         (() => {
             const mode =
                 localStorage.getItem('ald1n-theme-mode')
@@ -65,7 +65,7 @@
 
     @yield('content')
 
-    <script>
+    <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         const themeQuery =
             window.matchMedia(
                 '(prefers-color-scheme: light)'

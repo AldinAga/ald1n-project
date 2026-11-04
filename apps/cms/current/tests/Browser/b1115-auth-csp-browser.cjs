@@ -308,8 +308,33 @@ async function main() {
         await adminPage.unroute(base+'/admin/catalog/bulk');
       }
     });
-    for (const suffix of ['/edit', '/images']) for (const trigger of ['click', 'requestSubmit']) await check('image-external-submit-confirm-'+suffix.slice(1)+'-'+trigger, async () => {
-      await open(adminPage, '/admin/catalog/'+fixture.product+suffix);
+    await check('image-edit-composition-preserves-no-delete-and-primary-rotate', async () => {
+      await open(adminPage, '/admin/catalog/'+fixture.product+'/edit');
+      assert.equal(await adminPage.locator('button[form="delete-'+fixture.image+'"], #delete-'+fixture.image).count(), 0);
+      for (const action of ['primary', 'rotate-left', 'rotate-right']) {
+        assert.equal(await adminPage.locator('#'+action+'-'+fixture.image).count(), 1);
+        assert.equal(await adminPage.locator('button[form="'+action+'-'+fixture.image+'"]').count(), 1);
+      }
+      assert(await adminPage.locator('button[form="primary-'+fixture.image+'"]').isDisabled());
+      for (const [action, degrees] of [['rotate-left', '270'], ['rotate-right', '90']]) {
+        let requests = 0;
+        const marker = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ak8AAAAASUVORK5CYII=';
+        const endpoint = base+'/admin/catalog/'+fixture.product+'/images/'+fixture.image+'/rotate';
+        await adminPage.route(endpoint, async route => {
+          requests++;
+          assert.equal(route.request().headers()['x-requested-with'], 'XMLHttpRequest');
+          assert(new RegExp('name="degrees"\\r?\\n\\r?\\n'+degrees).test(route.request().postData()));
+          await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({image: {id: fixture.image, url: marker}})});
+        });
+        await adminPage.locator('button[form="'+action+'-'+fixture.image+'"]').click();
+        await adminPage.waitForTimeout(200);
+        assert.equal(requests, 1);
+        assert.equal(await adminPage.locator('[data-product-image-id="'+fixture.image+'"]').getAttribute('src'), marker);
+        await adminPage.unroute(endpoint);
+      }
+    });
+    for (const trigger of ['click', 'requestSubmit']) await check('image-external-submit-confirm-gallery-'+trigger, async () => {
+      await open(adminPage, '/admin/catalog/'+fixture.product+'/images');
       const form = adminPage.locator('#delete-'+fixture.image);
       const button = adminPage.locator('button[form="delete-'+fixture.image+'"]');
       assert.equal(await form.count(), 1); assert.equal(await button.count(), 1);
