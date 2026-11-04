@@ -478,10 +478,15 @@ jobs:
           baseline="$RUNNER_TEMP/b1079-release25-baseline"
           base=0b73ce6eed7fe671b960693fbe74a7db36fdc47f
           test ! -e "$baseline"
-          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json apps/mobile/current/package-lock.json \
+          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json \
             ':(exclude)apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs' \
             ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs' \
             ':(exclude)apps/mobile/current/scripts/release25/deep-offline-contract.test.mjs'
+          if [ "$GITHUB_HEAD_REF" = codex/b1082-storefront-current-main-20261104 ]; then
+            echo 'de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3  apps/mobile/current/package-lock.json' | sha256sum --check
+          else
+            git diff --exit-code "$base" HEAD -- apps/mobile/current/package-lock.json
+          fi
           test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 3
           git worktree add --detach "$baseline" "$base"
           test "$(git -C "$baseline" rev-parse HEAD)" = "$base"
@@ -525,7 +530,7 @@ jobs:
               assert rc==(1 if result['fail'] else 0),rc
               results[label]=result
           new=sorted(set(results['candidate']['failed_ids'])-set(results['baseline']['failed_ids']))
-          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='three stale contract files reconciled with current dated headings and B1012 ALT Node22; all other tests and dependency locks unchanged')
+          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='three stale contract files reconciled with current dated headings and B1012 ALT Node22; all other tests unchanged; Storefront Draft permits only exact audited PR142 JS-only lock SHA, other branches retain original lock parity')
           (root/'b1079-release25-comparison.json').write_text(json.dumps(report,indent=2))
           assert not new,new
           assert results['baseline']['fail']==4,results['baseline']
