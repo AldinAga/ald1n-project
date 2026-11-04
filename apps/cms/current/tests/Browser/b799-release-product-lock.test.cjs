@@ -23,6 +23,7 @@ test('cleanup does not write to a destroyed lock pipe',async()=>{
   stdin.resume();
   stdin.destroy();
   releaseProductLock(stdin);
-  await finished(stdin);
+  await assert.rejects(finished(stdin),{code:'ERR_STREAM_PREMATURE_CLOSE'});
+  assert.equal(stdin.writableEnded,false);
   assert.equal(stdin.writableLength,0);
 });
