@@ -472,7 +472,7 @@ async function main() {
           await amendment.locator('[data-qty-plus]').click();
           assert.equal(await amendment.locator('[data-qty-input]').inputValue(), '2');
           assert.equal(await amendment.locator('[data-product-input]').inputValue(), String(fixture.product));
-          assert(await amendment.locator('[name="_token"]').inputValue());
+          assert(await amendment.locator('[data-order-amendment-form] [name="_token"]').inputValue());
         } finally { await amendment.close(); }
       } finally { await financial.close(); }
     });
