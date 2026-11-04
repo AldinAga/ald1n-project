@@ -275,9 +275,6 @@
   .site-header[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card[open] > summary > .quick-settings-chevron {
     transform: rotate(180deg);
   }
-  .site-header[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card:not([open]) > :not(summary) {
-    display: none !important;
-  }
   .site-header[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card > summary:focus-visible {
     outline: 2px solid var(--ald-primary);
     outline-offset: 2px;
@@ -506,5 +503,22 @@
   }
   .site-header.menu-open[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card > summary > .quick-settings-chevron {
     grid-row: 2;
+  }
+}
+
+@media (max-width: 820px) {
+  .site-header.menu-open[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card > .quick-settings-group {
+    padding: 10px 8px;
+  }
+  .site-header.menu-open[data-build16-shell="1"] .mobile-menu-preferences.quick-settings-card > .quick-settings-divider {
+    margin-inline: 8px;
+  }
+  .site-header.menu-open[data-build16-shell="1"] .quick-settings-label-row {
+    gap: 6px;
+  }
+  .site-header.menu-open[data-build16-shell="1"] .quick-settings-secondary-action {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
   }
 }
