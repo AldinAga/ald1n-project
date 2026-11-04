@@ -22,6 +22,7 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Mail::fake();
+        config()->set('services.turnstile.enabled',false);
         $this->owner=$this->actor('b802-owner','superadmin');
         $this->buyer=$this->actor('b802-buyer','customer');
         foreach ([
@@ -46,11 +47,12 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
             'created_by'=>$this->owner->id,'purchase_price_rsd'=>3333,
             'manual_commission_eur'=>777,
         ]);
+        $this->loginActor($this->buyer);
     }
 
     public function test_customer_uses_public_catalog_and_selects_pickup_without_internal_prices_or_commission(): void
     {
-        $this->actingAs($this->buyer)->get('/katalog')->assertOk()
+        $this->get('/katalog')->assertOk()
             ->assertSee('Synthetic laptop')->assertDontSee('3333')->assertDontSee('777');
         [$data,$html]=$this->form();
         self::assertStringContainsString('name="delivery_method"',$html);
@@ -68,20 +70,21 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
         $privateUrl=$response->headers->get('Location');
         $this->get($privateUrl)->assertOk()->assertSee('Lično preuzimanje');
         $this->get('/catalog')->assertForbidden();
-        $this->actingAs($this->owner)->get('/admin/orders/'.$order->id)->assertOk()
+        $this->loginActor($this->owner);
+        $this->get('/admin/orders/'.$order->id)->assertOk()
             ->assertSee('Lično preuzimanje');
         self::assertNull($order->fresh()->customer_note,
             'Operator display must not silently alter stored customer notes.');
         $this->post('/admin/settings/public-storefront/toggle',['enabled'=>'0'])->assertRedirect();
         $this->get('/katalog')->assertNotFound();
         $this->get('/porucivanje')->assertNotFound();
-        $this->get($privateUrl)->assertOk();
+        $this->loginActor($this->buyer);
+        $this->get($privateUrl)->assertNotFound();
         self::assertDatabaseCount('orders',1);
     }
 
     public function test_missing_disabled_or_forged_delivery_method_does_not_create_an_order(): void
     {
-        $this->actingAs($this->buyer);
         [$data]=$this->form();
         foreach ([null,'express_secret','drone'] as $method) {
             $this->postJson('/porucivanje',$data+['delivery_method'=>$method])
@@ -104,14 +107,15 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
 
     public function test_duplicate_nonce_cannot_switch_delivery_or_buyer_identity(): void
     {
-        $this->actingAs($this->buyer);
         [$data]=$this->form();
         $payload=$data+['delivery_method'=>'customer_pickup'];
         $this->post('/porucivanje',$payload)->assertRedirect();
         $this->postJson('/porucivanje',array_replace($payload,['delivery_method'=>'courier']))
             ->assertUnprocessable()->assertJsonValidationErrors('checkout');
         $other=$this->actor('b802-other-buyer','customer');
-        $this->actingAs($other)->postJson('/porucivanje',$payload)
+        $this->loginActor($other);
+        $payload['email']=$other->email;
+        $this->postJson('/porucivanje',$payload)
             ->assertUnprocessable()->assertJsonValidationErrors('checkout');
         self::assertDatabaseCount('orders',1);
         self::assertSame((int)$this->buyer->id,(int)Order::query()->sole()->user_id);
@@ -137,7 +141,7 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
         preg_match('/name="merchant_policy_fingerprint" value="([a-f0-9]{64})"/',$html,$policy);
         return [[
             'checkout_key'=>$key[1],'merchant_policy_fingerprint'=>$policy[1],
-            'shipping_full_name'=>'Synthetic Buyer','email'=>'buyer@example.test',
+            'shipping_full_name'=>'Synthetic Buyer','email'=>$this->buyer->email,
             'shipping_phone'=>'0601234567','shipping_address'=>'Test 12',
             'shipping_city'=>'Beograd','shipping_postal_code'=>'11000',
             'payment_method'=>'cash_on_delivery','accepted_terms'=>'1',
@@ -153,11 +157,26 @@ final class PublicRetailBuyerCheckoutB802Test extends TestCase
             'public_checkout_approved_at'=>now()->toISOString(),
         ],$this->owner->id);
     }
+
+    private function loginActor(User $actor): void
+    {
+        if (auth()->check()) {
+            $this->post('/logout')->assertRedirect();
+        }
+        $this->post('/login',[
+            'login'=>$actor->email,'password'=>'SyntheticOnly123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($actor);
+    }
+
     private function actor(string $name,string $role): User
     {
         $r=Role::query()->firstOrCreate(['slug'=>$role],['name'=>$role]);
         return User::query()->create(['role_id'=>$r->id,'username'=>$name,
             'email'=>$name.'@example.test','first_name'=>'Synthetic',
+            'last_name'=>'Buyer','address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',
+            'email_verified_at'=>$role==='customer'?now():null,
+            'portal_activated_at'=>$role==='customer'?now():null,
             'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active']);
     }
 }

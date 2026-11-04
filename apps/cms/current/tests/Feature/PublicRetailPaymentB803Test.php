@@ -25,6 +25,7 @@ final class PublicRetailPaymentB803Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Mail::fake();
+        config()->set('services.turnstile.enabled',false);
         $this->owner=$this->actor('b803-owner','superadmin');
         $this->buyer=$this->actor('b803-buyer','customer');
         foreach ([
@@ -48,6 +49,7 @@ final class PublicRetailPaymentB803Test extends TestCase
             'description'=>'Synthetic only','status'=>'active','created_by'=>$this->owner->id,
             'purchase_price_rsd'=>4000,'manual_commission_eur'=>100,
         ]);
+        $this->loginActor($this->buyer);
     }
 
     public function test_public_payment_choices_are_exactly_the_three_owner_requested_modes(): void
@@ -73,6 +75,15 @@ final class PublicRetailPaymentB803Test extends TestCase
         $data=$this->form();
         $data['payment_method']='deferred_payment';
         $data['payment_due_at']=today()->addDays(14)->toDateString();
+        $this->post('/logout')->assertRedirect();
+        $this->postJson('/porucivanje',$data)->assertUnauthorized();
+        self::assertDatabaseCount('orders',0);
+        self::assertDatabaseCount('stock_movements',0);
+        self::assertDatabaseCount('order_payments',0);
+        $this->loginActor($this->buyer);
+        $data=$this->form();
+        $data['payment_method']='deferred_payment';
+        $data['payment_due_at']=today()->addDays(14)->toDateString();
         $this->postJson('/porucivanje',$data)->assertUnprocessable()->assertJsonValidationErrors('payment_method');
         self::assertDatabaseCount('orders',0);
         self::assertDatabaseCount('stock_movements',0);
@@ -89,7 +100,6 @@ final class PublicRetailPaymentB803Test extends TestCase
     {
         config()->set('public_storefront.payment_methods',['cash']);
         $this->approve();
-        $this->actingAs($this->buyer);
         $data=$this->form();
         $data['payment_method']='cash';
         $data['delivery_method']=$delivery;
@@ -106,7 +116,8 @@ final class PublicRetailPaymentB803Test extends TestCase
         self::assertDatabaseCount('warranty_issuances',0);
         self::assertDatabaseCount('order_commissions',0);
         $this->get($url)->assertOk()->assertSee('Plaćanje pri ličnom preuzimanju/dostavi');
-        $this->actingAs($this->owner)->get('/admin/orders/'.$order->id)->assertOk()->assertSee('Plaćanje pri ličnom preuzimanju/dostavi');
+        $this->loginActor($this->owner);
+        $this->get('/admin/orders/'.$order->id)->assertOk()->assertSee('Plaćanje pri ličnom preuzimanju/dostavi');
 
         $workflow=app(OrderWorkflowService::class);
         $processing=$workflow->changeStatus($order,'processing',$this->owner);
@@ -168,7 +179,8 @@ final class PublicRetailPaymentB803Test extends TestCase
 
     public function test_superadmin_form_does_not_offer_public_deferred_payment(): void
     {
-        $this->actingAs($this->owner)->get('/admin/settings/public-storefront')->assertOk()
+        $this->loginActor($this->owner);
+        $this->get('/admin/settings/public-storefront')->assertOk()
             ->assertSee('value="cash"',false)->assertDontSee('value="deferred_payment"',false)
             ->assertDontSee('name="deferred_payment_days"',false);
     }
@@ -181,7 +193,7 @@ final class PublicRetailPaymentB803Test extends TestCase
         preg_match('/name="merchant_policy_fingerprint" value="([a-f0-9]{64})"/',$html,$policy);
         return [
             'checkout_key'=>$key[1],'merchant_policy_fingerprint'=>$policy[1],
-            'shipping_full_name'=>'Synthetic B803 Buyer','email'=>'buyer@example.test',
+            'shipping_full_name'=>'Synthetic B803 Buyer','email'=>$this->buyer->email,
             'shipping_phone'=>'0601234567','shipping_address'=>'Test 12','shipping_city'=>'Beograd',
             'shipping_postal_code'=>'11000','payment_method'=>'cash_on_delivery',
             'delivery_method'=>'courier','accepted_terms'=>'1',
@@ -199,11 +211,26 @@ final class PublicRetailPaymentB803Test extends TestCase
         ],$this->owner->id);
     }
 
+
+    private function loginActor(User $actor): void
+    {
+        if (auth()->check()) {
+            $this->post('/logout')->assertRedirect();
+        }
+        $this->post('/login',[
+            'login'=>$actor->email,'password'=>'SyntheticOnly123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($actor);
+    }
+
     private function actor(string $name,string $role): User
     {
         return User::query()->create([
             'role_id'=>Role::query()->where('slug',$role)->valueOrFail('id'),
             'username'=>$name,'email'=>$name.'@example.test','first_name'=>'Synthetic',
+            'last_name'=>'Buyer','address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',
+            'email_verified_at'=>$role==='customer'?now():null,
+            'portal_activated_at'=>$role==='customer'?now():null,
             'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active',
         ]);
     }
