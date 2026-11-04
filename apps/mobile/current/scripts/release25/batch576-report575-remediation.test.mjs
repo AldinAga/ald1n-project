@@ -25,7 +25,7 @@ test('P1: real signature crypto regressions run after JDK17 before Android SDK',
 });
 
 test('P2: current B963/B962 operations index supersedes historical Build25 release authority', () => {
-  assert.ok(/^# CURRENT B9\d+/.test(pointer), 'newest verified status stays first');
+  assert.ok(/^# CURRENT(?: B\d+| \d{4}-\d{2}-\d{2} — B\d+)/.test(pointer), 'newest verified status stays first');
   assert.ok(pointer.includes('B962'), 'actual Laravel release evidence remains linked');
   assert.ok(pointer.includes('PR116'), 'reconciled 16KiB branch/CI status remains linked');
   assert.ok(pointer.includes('1.0.0-build17'), 'existing OTA baseline remains explicit');
@@ -35,7 +35,7 @@ test('P2: current B963/B962 operations index supersedes historical Build25 relea
 });
 
 test('P2: historical Build23 instructions must not be presented as current release instructions', () => {
-  assert.ok(/^# CURRENT B9\d+/.test(pointer));
+  assert.ok(/^# CURRENT(?: B\d+| \d{4}-\d{2}-\d{2} — B\d+)/.test(pointer));
   assert.ok(pointer.includes('B962'));
   assert.ok(!pointer.slice(0, pointer.indexOf('---')).includes('BUILD25_AUTHORIZED=YES'));
 });
