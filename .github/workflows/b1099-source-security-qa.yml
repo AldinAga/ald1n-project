@@ -102,14 +102,14 @@ jobs:
             printf '%s\n' "$result" > "$evidence/$name.exit"
           }
           printf 'Synthetic clean control.\n' > "$RUNNER_TEMP/b1099-clean/clean.txt"
-          node -e "require('fs').writeFileSync(process.env.RUNNER_TEMP+'/b1099-synthetic-secret/fixture.txt','token = '+JSON.stringify('ghp_'+'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')+'\n')"
+          node -e "require('fs').writeFileSync(process.env.RUNNER_TEMP+'/b1099-synthetic-secret/fixture.txt','token = '+JSON.stringify('ghp_'+require('node:crypto').createHash('sha256').update('B1099-synthetic-local-only-no-authentication').digest('base64url').replace(/[^A-Za-z0-9]/g,'X').slice(0,36))+'\n')"
           scan dir "$RUNNER_TEMP/b1099-clean" clean-control
           scan dir "$RUNNER_TEMP/b1099-synthetic-secret" synthetic-control
           test "$(cat "$evidence/clean-control.exit")" = 0
           test "$(cat "$evidence/synthetic-control.exit")" = 10
           node - "$evidence" <<'NODE'
           const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2];
-          const secret='ghp_'+'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          const secret='ghp_'+require('node:crypto').createHash('sha256').update('B1099-synthetic-local-only-no-authentication').digest('base64url').replace(/[^A-Za-z0-9]/g,'X').slice(0,36);
           const report=fs.readFileSync(path.join(dir,'synthetic-control-redacted.json'),'utf8');
           assert(JSON.parse(report).length>0,'missing synthetic detection');
           assert(!report.includes(secret),'redacted report exposed fixture');

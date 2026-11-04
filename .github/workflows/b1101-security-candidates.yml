@@ -1,0 +1,155 @@
+name: B1101 bounded security dependency candidates (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/composer.json'
+      - 'apps/cms/current/composer.lock'
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - '.github/workflows/b1101-security-candidates.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b1101-security-candidates-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  cms-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_retirement_ci
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ci_only_b1101
+          MARIADB_ROOT_PASSWORD: ci_only_b1101_root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ci_only_b1101
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Resolve only six advisory-affected PHP packages within existing constraints
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1101-cms"
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source-head.txt"
+          cp composer.lock "$evidence/original-composer.lock"
+          sha256sum composer.json composer.lock > "$evidence/original-sha256.txt"
+          curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$RUNNER_TEMP/composer-2.11.1.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --version | tee "$evidence/composer-version.txt"
+          rc=0
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts update laravel/framework guzzlehttp/guzzle league/commonmark league/flysystem symfony/http-foundation symfony/mime --with-dependencies --minimal-changes --no-install --no-interaction --no-progress > "$evidence/resolve.log" 2>&1 || rc=$?
+          printf '%s\n' "$rc" > "$evidence/resolve.exit"
+          tail -n 35 "$evidence/resolve.log"
+          cp composer.lock "$evidence/candidate-composer.lock"
+          sha256sum composer.lock > "$evidence/candidate-sha256.txt"
+          git diff -- composer.lock > "$evidence/composer-security.patch"
+          git diff --exit-code -- composer.json
+          test "$rc" = 0
+          test ! -d vendor
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts validate --check-lock --no-check-publish
+          audit_rc=0
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail > "$evidence/candidate-audit.json" 2> "$evidence/candidate-audit.stderr" || audit_rc=$?
+          printf '%s\n' "$audit_rc" > "$evidence/candidate-audit.exit"
+          test "$audit_rc" = 0
+      - name: Validate candidate full717 against exact disposable MariaDB
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1101-cms"
+          php -r '$db=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));if($db->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci"||!str_starts_with($db->query("SELECT VERSION()")->fetchColumn(),"10.11.19-"))exit(47);'
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts install --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
+          php bin/static-check.php > "$evidence/static.log" 2>&1
+          tail -n 3 "$evidence/static.log"
+          rc=0
+          php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/candidate-full.xml" > "$evidence/candidate-full.log" 2>&1 || rc=$?
+          printf '%s\n' "$rc" > "$evidence/candidate-full.exit"
+          tail -n 35 "$evidence/candidate-full.log"
+          php -r '$x=simplexml_load_file($argv[1]);$cases=$x->xpath("//testcase")?:[];if(count($cases)!==717)exit(48);foreach($cases as $c){if(isset($c->failure)||isset($c->error)||isset($c->skipped))exit(49);}echo "B1101_CANDIDATE_FULL717_ZERO_FAILED_SKIPPED=PASS\n";' "$evidence/candidate-full.xml"
+          test "$rc" = 0
+          git diff --exit-code -- app resources routes bootstrap config database tests composer.json
+          test "$(git diff --name-only | wc -l)" -eq 1
+      - name: Preserve candidate lock and actual QA without committing it
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1101-cms-security-candidate
+          path: ${{ runner.temp }}/b1101-cms
+          retention-days: 7
+          if-no-files-found: error
+  mobile-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22.23.4'}
+      - name: Prepare semver-bounded lock-only mobile candidate for review
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1101-mobile"
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source-head.txt"
+          cp package.json "$evidence/original-package.json"
+          cp package-lock.json "$evidence/original-package-lock.json"
+          rc=0
+          npm exec --yes --package=npm@10.9.2 -- npm audit fix --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/resolve.json" 2> "$evidence/resolve.stderr" || rc=$?
+          printf '%s\n' "$rc" > "$evidence/resolve.exit"
+          cp package-lock.json "$evidence/candidate-package-lock.json"
+          git diff -- package-lock.json > "$evidence/mobile-security.patch"
+          git diff --exit-code -- package.json app.config.js eas.json src app scripts
+          test ! -d node_modules
+          test "$(git diff --name-only | wc -l)" -le 1
+          audit_rc=0
+          npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/candidate-audit.json" 2> "$evidence/candidate-audit.stderr" || audit_rc=$?
+          printf '%s\n' "$audit_rc" > "$evidence/candidate-audit.exit"
+          sha256sum package.json package-lock.json > "$evidence/candidate-sha256.txt"
+          echo "B1101_MOBILE_CANDIDATE_AUDIT_RC=$audit_rc NO_NATIVE_BUILD_NO_OTA_NO_FORCE"
+          test "$audit_rc" = 0
+      - name: Preserve partial candidate and unresolved advisories without adoption
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1101-mobile-security-candidate
+          path: ${{ runner.temp }}/b1101-mobile
+          retention-days: 7
+          if-no-files-found: error
