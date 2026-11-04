@@ -94,6 +94,69 @@ jobs:
           export DB_DATABASE=ald1n_issue19_mariadb_ci
           export ALD1N_DISPOSABLE_CI=mariadb-10.11.19-only
           php tests/Integration/StockMovementEnumMariaDbSafetyProbe.php
+      - name: Positive manual commission baseline RED and candidate GREEN
+        if: github.head_ref == 'codex/b1081-positive-commission-main-20261104'
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/b1081-commission-baseline"
+          evidence="$RUNNER_TEMP/b1081-commission-evidence"
+          base=ac52ce535ee8d9af3dbfb887d6f58a7923fcaa1a
+          test ! -e "$baseline"
+          mkdir -p "$evidence"
+          git diff --exit-code "$base" HEAD -- apps/cms/current/composer.json apps/cms/current/composer.lock apps/mobile/current/package.json apps/mobile/current/package-lock.json apps/cms/current/app/Services/CommissionCalculator.php apps/cms/current/app/Services/OrderService.php ':(glob)apps/cms/current/tests/**/*B805*' ':(glob)apps/cms/current/tests/**/*B809*' ':(glob)apps/cms/current/tests/**/*B815*'
+          git worktree add --detach "$baseline" "$base"
+          for file in tests/Feature/ManualCommissionPolicyB1079Test.php tests/Unit/CommissionCalculatorTest.php tests/Unit/CommissionPercentagePolicyContractTest.php; do
+            cp "apps/cms/current/$file" "$baseline/apps/cms/current/$file"
+          done
+          cp apps/cms/current/.env "$baseline/apps/cms/current/.env"
+          composer install --working-dir="$baseline/apps/cms/current" --no-interaction --prefer-dist --no-progress
+          php <<'PHP'
+          <?php
+          $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci','root','isolated-ci-only',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+          if(!str_starts_with((string)$pdo->query('SELECT VERSION()')->fetchColumn(),'10.11.19-MariaDB'))exit(31);
+          foreach(['ald1n_commission_red_ci','ald1n_commission_green_ci'] as $name)$pdo->exec('CREATE DATABASE '.$name);
+          echo "TWO_NEW_DISPOSABLE_COMMISSION_DATABASES=PASS\n";
+          PHP
+          run_commission() {
+            tree="$1"; label="$2"; database="$3"
+            set +e
+            (cd "$tree/apps/cms/current" && DB_DATABASE="$database" php vendor/bin/phpunit -c phpunit.mysql.xml --log-junit "$evidence/$label.xml" tests/Feature/ManualCommissionPolicyB1079Test.php tests/Unit/CommissionCalculatorTest.php tests/Unit/CommissionPercentagePolicyContractTest.php) 2>&1 | tee "$evidence/$label.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$result" > "$evidence/$label.exit"
+          }
+          run_commission "$baseline" baseline ald1n_commission_red_ci
+          run_commission "$GITHUB_WORKSPACE" candidate ald1n_commission_green_ci
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import os,json,pathlib,xml.etree.ElementTree as E
+          d=pathlib.Path(os.environ['EVIDENCE'])
+          def read(label):
+              cases=E.parse(d/(label+'.xml')).getroot().findall('.//testcase')
+              ids=[(c.get('class',''),c.get('name')) for c in cases]
+              bad=[c.get('name') for c in cases if c.find('failure') is not None or c.find('error') is not None]
+              result={'count':len(cases),'assertions':sum(int(c.get('assertions','0')) for c in cases),'failed':bad,'errors':sum(c.find('error') is not None for c in cases),'skipped':sum(c.find('skipped') is not None for c in cases),'exit':int((d/(label+'.exit')).read_text())}
+              assert len(ids)==len(set(ids))==24,result
+              assert result['skipped']==0,result
+              return result,ids
+          before,old=read('baseline');after,new=read('candidate')
+          assert old==new,'same exact owner-policy tests must execute on both sides'
+          assert before['exit']!=0 and before['failed'] and before['errors']==0,before
+          assert any('test_api_rejects_invalid_manual_amount_without_creating_product' in name and 'zero' in name for name in before['failed']),before
+          assert after['exit']==0 and not after['failed'],after
+          result={'base':'ac52ce535ee8d9af3dbfb887d6f58a7923fcaa1a','baseline':before,'candidate':after,'same_exact_cases':True,'protected_source_and_dependency_parity':True}
+          (d/'comparison.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result))
+          PY
+          (cd apps/cms/current && php bin/static-check.php) 2>&1 | tee "$evidence/static.log"
+      - name: Retain complete commission policy evidence
+        if: always() && github.head_ref == 'codex/b1081-positive-commission-main-20261104'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1081-commission-main-red-green
+          path: ${{ runner.temp }}/b1081-commission-evidence
+          if-no-files-found: error
+          retention-days: 14
       - name: Results do not deploy production
         if: always()
         run: |
@@ -123,7 +186,7 @@ jobs:
           git diff --exit-code -- package.json package-lock.json
 
   release-history:
-    if: contains(fromJSON('["codex/b1080-release-history-main-20261104","codex/b1080-main-postmerge-20261104"]'), github.head_ref) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    if: contains(fromJSON('["codex/b1080-release-history-main-20261104","codex/b1080-main-postmerge-20261104","codex/b1081-positive-commission-main-20261104"]'), github.head_ref) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
