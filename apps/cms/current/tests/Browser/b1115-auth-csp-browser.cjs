@@ -52,7 +52,11 @@ async function main() {
   const contexts = [];
   async function check(id, fn) {
     try { await fn(); results.push({id, status: 'PASS'}); console.log('B1115_CASE '+id+' PASS'); }
-    catch { results.push({id, status: 'FAIL'}); console.log('B1115_CASE '+id+' FAIL'); }
+    catch (error) {
+      const line = /b1115-auth-csp-browser\.cjs:(\d+):/.exec(String(error.stack))?.[1] || null;
+      results.push({id, status: 'FAIL', error: error.code || error.name, line});
+      console.log('B1115_CASE '+id+' FAIL '+(error.code || error.name)+' line='+line);
+    }
   }
   async function context() {
     const ctx = await browser.newContext({ignoreHTTPSErrors: true, viewport: {width: 1440, height: 900}});
@@ -95,9 +99,36 @@ async function main() {
     assert.notEqual(new URL(page.url()).pathname, '/login');
     return page;
   }
+  async function confirmForm(page, selector, trigger = 'requestSubmit', externalButton = null) {
+    const form = page.locator(selector).first();
+    assert.equal(await form.count(), 1);
+    const endpoint = new URL(await form.getAttribute('action'), base).href;
+    const payloads = [];
+    const intercept = async route => { payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); };
+    let prompts = 0;
+    const cancel = async dialog => { prompts++; await dialog.dismiss(); };
+    await page.route(endpoint, intercept);
+    page.on('dialog', cancel);
+    try {
+      if (trigger === 'click') await (externalButton || form.locator('button').first()).click();
+      else await form.evaluate(node => node.requestSubmit());
+      assert.equal(prompts, 1); assert.equal(payloads.length, 0);
+      assert.equal(await form.getAttribute('aria-busy'), null);
+      assert.equal(await form.locator(':disabled').count(), 0);
+      page.off('dialog', cancel);
+      page.once('dialog', dialog => dialog.accept());
+      if (externalButton) await externalButton.evaluate(button => button.form.requestSubmit(button));
+      else await form.evaluate(node => node.requestSubmit(node.querySelector('button')));
+      await page.waitForTimeout(150);
+      assert.equal(payloads.length, 1); assert(payloads[0].get('_token'));
+      assert.equal(await form.getAttribute('aria-busy'), 'true');
+    } finally { page.off('dialog', cancel); await page.unroute(endpoint, intercept); }
+  }
   const script = (body, nonce = '') => '<script'+(nonce ? ' nonce="'+nonce+'"' : '')+'>'+body+'</script>';
   async function attack(ctx, uri, id, relaxed = false) {
     const page = await ctx.newPage();
+    const prior = await ctx.request.get(base+'/login');
+    const staleNonce = /script-src 'nonce-([^']+)'/.exec(prior.headers()['content-security-policy'] || '')?.[1] || 'stale-prior-response';
     let headerNonce = null;
     let policy = '';
     await page.route(base+uri, async route => {
@@ -115,7 +146,7 @@ async function main() {
         + '<script src="https://foreign.synthetic.invalid/probe.js"></script>'
         + '<script src="/b1115-untrusted-self.js"></script>'
         + script('window.__b1115_wrong = true', 'wrong-test-nonce')
-        + script('window.__b1115_stale = true', 'stale-prior-response')
+        + script('window.__b1115_stale = true', staleNonce)
         + '<button id="b1115-handler" onclick="window.__b1115_handler = true">Synthetic probe</button>'
         + permittedProbe;
       const body = (await response.text()).replace('</body>', probes+'</body>');
@@ -187,7 +218,7 @@ async function main() {
       await open(page, '/login');
       assert(await page.getByRole('link', {name: 'Nastavi sa Google nalogom'}).isVisible());
       const link = await page.getByRole('link', {name: 'Nastavi sa Google nalogom'}).getAttribute('href');
-      assert.equal(new URL(link).pathname, '/auth/google/redirect');
+      assert.equal(new URL(link).pathname, '/auth/google');
       const response = await guest.request.get(link, {maxRedirects: 0});
       assert.equal(response.status(), 302);
       assert(new URL(response.headers().location).hostname === 'accounts.google.com');
@@ -274,12 +305,13 @@ async function main() {
       await Promise.all([adminPage.waitForNavigation({waitUntil: 'networkidle'}), form.locator('[name="mode"][value="preview"]').click()]);
       assert.equal(prompts, 0);
       const execute = adminPage.locator('[name="mode"][value="execute"]');
-      await execute.evaluate(button => button.form.requestSubmit(button));
-      assert.equal(prompts, 1);
-      assert.equal(await execute.evaluate(button => button.form.getAttribute('aria-busy')), null);
-      adminPage.off('dialog', cancel);
       let payloads = [];
       await adminPage.route(base+'/admin/catalog/bulk', async route => { payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); });
+      await execute.evaluate(button => button.form.requestSubmit(button));
+      assert.equal(prompts, 1);
+      assert.equal(payloads.length, 0);
+      assert.equal(await execute.evaluate(button => button.form.getAttribute('aria-busy')), null);
+      adminPage.off('dialog', cancel);
       adminPage.once('dialog', dialog => dialog.accept());
       await execute.evaluate(button => button.form.requestSubmit(button));
       await adminPage.waitForTimeout(150);
@@ -289,17 +321,12 @@ async function main() {
       assert(payloads[0].get('_token'));
       await adminPage.unroute(base+'/admin/catalog/bulk');
     });
-    for (const suffix of ['/edit', '/images']) await check('image-external-submit-confirm-'+suffix.slice(1), async () => {
+    for (const suffix of ['/edit', '/images']) for (const trigger of ['click', 'requestSubmit']) await check('image-external-submit-confirm-'+suffix.slice(1)+'-'+trigger, async () => {
       await open(adminPage, '/admin/catalog/'+fixture.product+suffix);
       const form = adminPage.locator('#delete-'+fixture.image);
       const button = adminPage.locator('button[form="delete-'+fixture.image+'"]');
       assert.equal(await form.count(), 1); assert.equal(await button.count(), 1);
-      let prompts = 0;
-      const cancel = async dialog => { prompts++; await dialog.dismiss(); };
-      adminPage.on('dialog', cancel);
-      await button.click(); assert.equal(prompts, 1);
-      assert.equal(await form.getAttribute('aria-busy'), null);
-      adminPage.off('dialog', cancel);
+      await confirmForm(adminPage, '#delete-'+fixture.image, trigger, button);
     });
     await check('native-validation-unchanged', async () => {
       await open(adminPage, '/admin/catalog/create');
@@ -312,15 +339,106 @@ async function main() {
       assert(await form.evaluate(node => !node.checkValidity()));
       adminPage.off('request', listener);
     });
-    await check('product-media-and-correlated-filter-execution', async () => {
-      await open(adminPage, '/admin/catalog/'+fixture.product+'/edit');
-      assert(await adminPage.locator('[data-product-edit-ready]').isVisible());
-      assert(await adminPage.locator('[data-product-images-ready], [data-image-sortable]').count() > 0);
+    await check('product-media-upload-preview-executes', async () => {
+      const mediaPage = await admin.newPage();
+      try {
+        await open(mediaPage, '/admin/catalog/'+fixture.product+'/images');
+        await mediaPage.locator('[data-image-upload-input]').setInputFiles({name: 'b1115.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ak8AAAAASUVORK5CYII=', 'base64')});
+        assert(await mediaPage.locator('[data-image-selection]').isVisible());
+        assert((await mediaPage.locator('[data-image-selection-count]').innerText()).startsWith('1 '));
+        await mediaPage.locator('[data-image-selection-clear]').click();
+        assert.equal(await mediaPage.locator('[data-image-selection]').isVisible(), false);
+      } finally { await mediaPage.close(); }
+    });
+    await check('correlated-filter-brand-line-executes', async () => {
       await open(adminPage, '/catalog');
-      assert(await adminPage.locator('form[data-ux-submit-ready="1"]').count() > 0);
+      const brand = adminPage.locator('[data-filter-brand]');
+      const line = adminPage.locator('[data-filter-line]');
+      const value = await brand.locator('option').nth(1).getAttribute('value');
+      await brand.selectOption(value);
+      assert.equal(await line.locator('option:disabled').count(), 1);
+      await brand.selectOption('');
+      assert.equal(await line.locator('option:disabled').count(), 0);
+    });
+    await check('dictionary-sorting-ui-executes', async () => {
+      await open(adminPage, '/admin/catalog-settings/brands');
+      assert.equal(await adminPage.locator('[data-dictionary-sortable]').getAttribute('data-sort-ready'), '1');
+      await adminPage.locator('[data-sort-edit-start]').first().click();
+      assert(await adminPage.locator('html').evaluate(node => node.classList.contains('dictionary-reorder-active')));
+      await adminPage.keyboard.press('Escape');
+      assert.equal(await adminPage.locator('html').evaluate(node => node.classList.contains('dictionary-reorder-active')), false);
+    });
+    await check('individual-session-confirmation', async () => {
+      await open(adminPage, '/account');
+      await confirmForm(adminPage, 'form[action*="/account/sessions/"]');
+    });
+    await check('report-schedule-confirmation', async () => {
+      await open(adminPage, '/admin/reports');
+      await adminPage.locator('.analytics-schedule').evaluate(node => { node.open = true; });
+      await confirmForm(adminPage, 'form[action$="/reports/schedules/'+fixture.schedule+'"]');
+    });
+    await check('warranty-void-confirmation', async () => {
+      await open(adminPage, '/admin/warranties/'+fixture.warranty);
+      await adminPage.locator('textarea[name="reason"]').fill('Synthetic cancellation');
+      await confirmForm(adminPage, 'form[action$="/warranties/'+fixture.warranty+'/void"]');
+    });
+    await check('direct-sale-installment-sum-and-dates', async () => {
+      const financial = await admin.newPage();
+      try {
+        await open(financial, '/catalog/b812-browser-laptop');
+        await financial.locator('[data-direct-sale-payment-method]').selectOption('deferred_payment');
+        await financial.locator('[name="sale_price_rsd"]').fill('12500');
+        await financial.locator('[data-direct-sale-split-installments]').click();
+        const amounts = await financial.locator('[data-installment-amount]').evaluateAll(nodes => nodes.map(node => Number(node.value)));
+        assert.deepEqual(amounts, [4166.67, 4166.67, 4166.66]);
+        assert.equal(await financial.locator('[data-installment-due]').first().getAttribute('readonly'), '');
+        assert((await financial.locator('[data-direct-sale-installment-total]').innerText()).includes('12.500,00'));
+        assert(await financial.getByText('Provizija po komadu', {exact: true}).isVisible());
+      } finally { await financial.close(); }
+    });
+    await check('order-create-payment-fields-and-order-edit-quantity', async () => {
+      const financial = await admin.newPage();
+      try {
+        await open(financial, '/order/new');
+        await financial.locator('[data-payment-method]').selectOption('deferred_payment');
+        assert(await financial.locator('[data-payment-due]').isVisible());
+        await financial.locator('[data-payment-method]').selectOption('cash_on_delivery');
+        assert.equal(await financial.locator('[data-payment-due]').isVisible(), false);
+        const amendment = await admin.newPage();
+        try {
+          await open(amendment, '/orders/'+fixture.order+'/edit');
+          await amendment.locator('[data-qty-plus]').click();
+          assert.equal(await amendment.locator('[data-qty-input]').inputValue(), '2');
+          assert.equal(await amendment.locator('[data-product-input]').inputValue(), String(fixture.product));
+          assert(await amendment.locator('[name="_token"]').inputValue());
+        } finally { await amendment.close(); }
+      } finally { await financial.close(); }
+    });
+    await check('receivable-installment-rows-and-allow-multiple-submit', async () => {
+      const financial = await admin.newPage();
+      try {
+        await open(financial, '/admin/receivables/'+fixture.receivable);
+        await financial.locator('.receivable-plan-editor').evaluate(node => { node.open = true; });
+        await financial.locator('[data-add-installment]').click();
+        assert.equal(await financial.locator('[data-installment-rows] .installment-row').count(), 2);
+        await financial.locator('[data-installment-rows] .installment-row').last().locator('[data-remove-installment]').click();
+        assert.equal(await financial.locator('[data-installment-rows] .installment-row').count(), 1);
+        const form = financial.locator('form[data-ux-allow-multiple-submit]');
+        await form.locator('[name="amount_rsd"]').fill('100');
+        let requests = 0;
+        await financial.route(base+'/admin/receivables/'+fixture.receivable+'/payments', async route => { requests++; await route.fulfill({status: 204, body: ''}); });
+        await form.evaluate(node => { node.requestSubmit(); node.requestSubmit(); });
+        await financial.waitForTimeout(150);
+        assert.equal(requests, 2);
+        assert.equal(await form.getAttribute('aria-busy'), null);
+      } finally { await financial.close(); }
     });
     const buyer = await context();
     const buyerPage = await login(buyer, false);
+    await check('customer-session-revoke-confirmation', async () => {
+      await open(adminPage, '/admin/customer-portal/users/'+fixture.customer);
+      await confirmForm(adminPage, 'form[action$="/customer-portal/users/'+fixture.customer+'/sessions"]');
+    });
     await check('other-role-admin-denial-unchanged', async () => {
       const response = await buyerPage.goto(base+'/admin/settings/system-health', {waitUntil: 'networkidle'});
       assert.equal(response.status(), 403);
@@ -333,6 +451,9 @@ async function main() {
       await open(page, '/login');
       assert.equal(await page.locator('script[src*="challenges.cloudflare.com"]').count(), 0);
     });
+  } catch (error) {
+    results.push({id: 'harness-completed-all-required-cases', status: 'FAIL', error: error.code || error.name});
+    throw error;
   } finally {
     for (const ctx of contexts) await ctx.close();
     await browser.close();
@@ -340,7 +461,7 @@ async function main() {
     fs.mkdirSync(output, {recursive: true});
     const report = {schema: 1, engine, turnstile: process.env.TURNSTILE_ENABLED === 'true' ? 'controlled-on' : 'off',
       transport: 'actual-loopback-TLS-private-certificate-Node-CA-validated-browser-exception',
-      providerUat: false, source: process.env.GITHUB_SHA, results,
+      providerUat: false, source: process.env.B1115_SOURCE_SHA, results,
       passed: results.filter(result => result.status === 'PASS').length,
       failed: results.filter(result => result.status === 'FAIL').length};
     fs.writeFileSync(path.join(output, engine+'-'+report.turnstile+'.json'), JSON.stringify(report, null, 2)+'\n', {flag: 'wx'});

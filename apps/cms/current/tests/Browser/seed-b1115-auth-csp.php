@@ -20,7 +20,7 @@ require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use App\Models\{Product, Role, User, UserActivationToken};
+use App\Models\{Brand, Order, Product, ProductLine, ProductWarranty, ReceivableCase, ReportSchedule, Role, User, UserActivationToken};
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\{DB, Hash, Storage};
 
@@ -65,6 +65,38 @@ if ($mode === '--seed') {
             'expires_at' => now()->addHour(), 'used_at' => null, 'created_at' => now(),
         ]);
     }
+    foreach (['one', 'two'] as $name) {
+        $brand = Brand::query()->create(['name' => 'B1115 '.$name, 'slug' => 'b1115-'.$name, 'status' => 'active']);
+        ProductLine::query()->create(['brand_id' => $brand->id, 'name' => 'B1115 '.$name, 'slug' => 'b1115-'.$name, 'status' => 'active']);
+    }
+    ReportSchedule::query()->create([
+        'name' => 'B1115 synthetic paused schedule', 'recipients_json' => [], 'formats_json' => ['csv'],
+        'is_active' => false, 'created_by' => $owner->id,
+    ]);
+    $order = Order::query()->create([
+        'source_system' => 'laravel', 'order_number' => 'B1115-SYNTHETIC-ORDER',
+        'user_id' => $owner->id, 'supplier_user_id' => $owner->id,
+        'supplier_name_snapshot' => 'Synthetic Owner', 'supplier_role_snapshot' => 'SuperAdministrator',
+        'status' => 'new', 'inventory_state' => 'reserved',
+        'shipping_full_name' => 'B1115 Synthetic', 'shipping_address' => 'Synthetic 1',
+        'shipping_city' => 'Beograd', 'shipping_postal_code' => '11000', 'shipping_phone' => '0600000000',
+        'subtotal_rsd' => 12500, 'eur_rsd_rate' => 117.78, 'payment_method' => 'deferred_payment',
+        'payment_status' => 'pending', 'payment_state' => 'unpaid', 'paid_total_rsd' => 0,
+        'payment_due_at' => now()->addMonth(),
+    ]);
+    $item = $order->items()->create([
+        'product_id' => $product->id, 'product_sku' => $product->sku, 'product_name' => $product->name,
+        'quantity' => 1, 'unit_price_original' => 12500, 'original_currency' => 'RSD',
+        'unit_price_rsd' => 12500, 'line_total_rsd' => 12500,
+    ]);
+    ProductWarranty::query()->create([
+        'warranty_number' => 'B1115-SYNTHETIC-WARRANTY', 'order_id' => $order->id, 'order_item_id' => $item->id,
+        'product_id' => $product->id, 'user_id' => $owner->id, 'status' => 'active',
+        'starts_at' => today(), 'expires_at' => today()->addYear(), 'duration_months' => 12,
+        'customer_name_snapshot' => 'B1115 Synthetic', 'product_name_snapshot' => $product->name,
+        'product_sku_snapshot' => $product->sku, 'quantity' => 1, 'serial_numbers_json' => [],
+    ]);
+    ReceivableCase::query()->create(['order_id' => $order->id, 'case_number' => 'B1115-SYNTHETIC-CASE', 'status' => 'monitoring', 'created_by' => $owner->id]);
     $settings->putMany([
         'login_background_mode' => 'slideshow', 'login_background_slide_interval' => '3',
         'login_background_mobile_static' => '0', 'login_background_youtube_id' => 'dQw4w9WgXcQ',
@@ -78,9 +110,18 @@ if ($mode === '--seed') {
 }
 if ($mode === '--fixture') {
     // Parent process consumes this privately; never upload credentials, tokens or HTML.
-    echo json_encode(['product' => $product->id, 'image' => $product->images()->firstOrFail()->id], JSON_THROW_ON_ERROR);
+    echo json_encode([
+        'product' => $product->id, 'image' => $product->images()->firstOrFail()->id,
+        'customer' => User::query()->where('username', 'b1115-active')->sole()->id,
+        'schedule' => ReportSchedule::query()->sole()->id, 'warranty' => ProductWarranty::query()->sole()->id,
+        'order' => Order::query()->sole()->id, 'receivable' => ReceivableCase::query()->sole()->id,
+    ], JSON_THROW_ON_ERROR);
     exit(0);
 }
-if (DB::table('orders')->exists() || DB::table('order_payments')->exists() || DB::table('order_commissions')->exists()
-    || (int) $product->stock_quantity !== 4) throw new \RuntimeException('B1115_UNEXPECTED_FINANCIAL_MUTATION');
-echo "B1115_POSTCHECK=PASS_NO_ORDER_PAYMENT_COMMISSION_STOCK_MUTATION\n";
+if (DB::table('orders')->count() !== 1 || DB::table('order_payments')->exists() || DB::table('order_commissions')->exists()
+    || DB::table('stock_movements')->exists() || DB::table('report_deliveries')->exists()
+    || ProductWarranty::query()->sole()->status !== 'active' || $product->images()->count() !== 1
+    || (int) $product->stock_quantity !== 4 || (float) Order::query()->sole()->subtotal_rsd !== 12500.0) {
+    throw new \RuntimeException('B1115_UNEXPECTED_FIXTURE_FINANCIAL_OR_DESTRUCTIVE_MUTATION');
+}
+echo "B1115_POSTCHECK=PASS_FIXTURE_ORDER_ONLY_NO_PAYMENT_COMMISSION_STOCK_OR_DELETE_MUTATION\n";

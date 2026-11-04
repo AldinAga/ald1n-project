@@ -209,6 +209,7 @@ jobs:
       B799_BROWSER_BASE_URL: http://127.0.0.1:8124
       PLAYWRIGHT_NODE_ROOT: /tmp/b1115-playwright
       B1115_ARTIFACT_DIR: /tmp/b1115-safe-evidence
+      B1115_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       GOOGLE_WEB_AUTH_ENABLED: 'true'
       GOOGLE_OAUTH_WEB_CLIENT_ID: synthetic-browser-client
       GOOGLE_OAUTH_CLIENT_SECRET: synthetic-not-a-provider-secret
@@ -249,6 +250,7 @@ jobs:
         working-directory: apps/cms/current
         run: |
           set -uo pipefail
+          set +e
           php vendor/bin/phpunit tests/Feature/TrustedScriptCspB1115Test.php --colors=never 2>&1 | tee "$RUNNER_TEMP/b1115-php.log"
           RC=${PIPESTATUS[0]}
           echo "$RC" > "$RUNNER_TEMP/b1115-php.rc"
@@ -308,10 +310,10 @@ jobs:
           fs.mkdirSync(dir, {recursive: true});
           const files = fs.readdirSync(dir).sort();
           if (files.some(name => !/^(chromium|firefox)-(off|controlled-on)\.json$/.test(name))) throw Error('B1115_ARTIFACT_ALLOWLIST');
-          const manifest = {source: process.env.GITHUB_SHA, privateMaterialIncluded: false, files: files.map(name => {
+          const manifest = {source: process.env.B1115_SOURCE_SHA, privateMaterialIncluded: false, files: files.map(name => {
             const bytes = fs.readFileSync(path.join(dir, name));
             const report = JSON.parse(bytes);
-            if (report.source !== process.env.GITHUB_SHA || !Array.isArray(report.results)) throw Error('B1115_SOURCE_BINDING');
+            if (report.source !== process.env.B1115_SOURCE_SHA || !Array.isArray(report.results)) throw Error('B1115_SOURCE_BINDING');
             return {name, size: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), passed: report.passed, failed: report.failed};
           })};
           fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2)+'\n', {flag: 'wx'});
