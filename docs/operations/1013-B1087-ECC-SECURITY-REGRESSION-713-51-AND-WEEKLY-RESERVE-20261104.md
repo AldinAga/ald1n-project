@@ -27,3 +27,7 @@ PR135 remains Draft/unmerged. Prior verified main menu PR137 and four delegated 
 No production storefront activation/backend rollout, DB/flags/SMTP, EAS/build/OTA/Play, no local PHP/MariaDB/Docker. Dirty worktree and D:/GPT/Ald1n-mobile preserved. Next agent starts from exact32900c source and51-case census, not old73/67; repair unprotected fixtures through real registered sessions and actual behavior, never relax auth or bypass protected B805/B809/B815 denial.
 
 Formal acceptance unchanged11/17=64.7%,CMS10/15=66.7%,originalUI6/6. Weekly Usage19%, user ceiling20%: stop new source work and retain completion/handoff reserve. No reset redeemed. Goal is incomplete, not marked complete.
+
+## Permanent archive receipt
+
+[Complete B1087 focused/full evidence and exact51case diagnostics](https://drive.google.com/file/d/1fQniU60k101wQmoxva-30AJ2qZVwCpX8/view), SHA256 **6896629a36c494b5d8b02abc1d6634629dfa51701b35612e06e0e50e0b526c67**, downloaded back and verified. Archive report predates this self-referential receipt. Report1012 and its complete archive retain earlier73/67 and direct-menu RED/GREEN evidence.
