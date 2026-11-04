@@ -155,8 +155,9 @@ jobs:
           test ! -e "$baseline"
           git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json apps/mobile/current/package-lock.json \
             ':(exclude)apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs' \
-            ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs'
-          test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 2
+            ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs' \
+            ':(exclude)apps/mobile/current/scripts/release25/deep-offline-contract.test.mjs'
+          test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 3
           git worktree add --detach "$baseline" "$base"
           test "$(git -C "$baseline" rev-parse HEAD)" = "$base"
           ln -s "$GITHUB_WORKSPACE/apps/mobile/current/node_modules" "$baseline/apps/mobile/current/node_modules"
@@ -193,13 +194,13 @@ jobs:
           results={}
           for label in ('baseline','candidate'):
               result=scan((root/('b1079-'+label+'-release25.tap')).read_text())
-              assert result['tests']==222,result
+              assert result['tests']==309,result
               assert result['cancelled']==result['skipped']==result['todo']==0,result
               rc=int((root/('b1079-'+label+'-release25.exit')).read_text())
               assert rc==(1 if result['fail'] else 0),rc
               results[label]=result
           new=sorted(set(results['candidate']['failed_ids'])-set(results['baseline']['failed_ids']))
-          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='two historical document bindings changed; other tests and dependency locks unchanged')
+          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='three stale contract files reconciled with current dated headings and B1012 ALT Node22; all other tests and dependency locks unchanged')
           (root/'b1079-release25-comparison.json').write_text(json.dumps(report,indent=2))
           assert not new,new
           assert results['baseline']['fail']==4,results['baseline']
