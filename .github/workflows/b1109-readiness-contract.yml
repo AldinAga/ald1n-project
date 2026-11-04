@@ -105,6 +105,16 @@ jobs:
           if [ "${B1109_TEST_TEE_FAIL:-0}" = 1 ]; then cat > /dev/null; exit 74; fi
           exec "$B1109_REAL_TEE" "$@"
           STUB
+          export B1109_REAL_FIND="$(command -v find)"
+          cat > "$RUNNER_TEMP/b1109-bin/find" <<'STUB'
+          #!/usr/bin/env bash
+          if [ "x$B1109_TEST_FIND_PAUSE" = x1 ]; then
+            "$B1109_REAL_FIND" "$@" > "$RUNNER_TEMP/b1109-find-snapshot" || exit 90
+            touch "$RUNNER_TEMP/b1109-find-ready"
+            timeout 20 head -n 1 "$RUNNER_TEMP/b1109-find-release" > /dev/null || exit 91
+            cat "$RUNNER_TEMP/b1109-find-snapshot"
+          else exec "$B1109_REAL_FIND" "$@"; fi
+          STUB
           chmod +x "$RUNNER_TEMP/b1109-bin/"*
           export PATH="$RUNNER_TEMP/b1109-bin:$PATH"
           script="$root/incoming/b1109-host-readiness.sh"
@@ -217,6 +227,29 @@ jobs:
           rmdir "$HOME/.ald1n-b1109-readiness-lock"
           run_expected 2 after_interrupted_inventory bash "$script"
           grep -Fx SOURCE_CENSUS_STABLE=PASS "$evidence/after_interrupted_inventory.log"
+          mkfifo "$RUNNER_TEMP/b1109-find-release"
+          run_expected 2 overlap_primary timeout 25 env B1109_TEST_FIND_PAUSE=1 bash "$script" &
+          primary_pid=$!
+          ready_rc=0
+          timeout 15 bash -c 'until test -f "$1"; do sleep 0.05; done' bash "$RUNNER_TEMP/b1109-find-ready" || ready_rc=$?
+          peer_rc=0
+          if [ "$ready_rc" -eq 0 ]; then
+            run_expected 2 overlap_peer bash "$script" &
+            peer_pid=$!
+            wait "$peer_pid" || peer_rc=$?
+          fi
+          release_rc=0
+          timeout 5 bash -c 'printf "%s\n" release > "$1"' bash "$RUNNER_TEMP/b1109-find-release" || release_rc=$?
+          primary_rc=0
+          wait "$primary_pid" || primary_rc=$?
+          printf '%s\n' "OVERLAP_READY_RC=$ready_rc PEER_RC=$peer_rc RELEASE_RC=$release_rc PRIMARY_RC=$primary_rc" | tee "$evidence/overlap-barrier.log"
+          cp "$docs/"*B1109-* "$evidence/"
+          find "$docs" -maxdepth 1 -name '.*B1109-*' -type f -exec cp -- {} "$evidence/" \;
+          test "$ready_rc:$peer_rc:$release_rc:$primary_rc" = 0:0:0:0
+          "$B1109_REAL_PHP" -r '$seen=[];$files=array_merge(glob($argv[1]."/[0-9]*-B1109-*")?:[],glob($argv[1]."/.[0-9]*-B1109-*")?:[]);foreach($files as $p){if(preg_match("/\\.?([0-9]+)-B1109-/",basename($p),$m)){if(isset($seen[$m[1]])){echo "DUPLICATE_REPORT_PREFIX=".$m[1]."\n";exit(87);}$seen[$m[1]]=true;}}echo "OVERLAP_REPORT_SEQUENCE=PASS\n";' "$docs" | tee "$evidence/overlap-sequence.log"
+          grep -F 'readiness lock exists' "$evidence/overlap_peer.log"
+          if grep -q '^REPORT=' "$evidence/overlap_peer.log"; then exit 89; fi
+          grep -Fx FINAL_STATUS=HOLD_READINESS_GATES "$evidence/overlap_primary.log"
           if grep -R -E 'PRIVATE_(ENV|CACHE|PHP)_SENTINEL_NEVER_EXPORT' "$docs" "$evidence"; then exit 86; fi
           test "$(cat "$docs/1071-CI-SENTINEL.md")" = retained
           "$B1109_REAL_PHP" -r '$seen=[];$files=array_merge(glob($argv[1]."/[0-9]*-B1109-*")?:[],glob($argv[1]."/.[0-9]*-B1109-*")?:[]);foreach($files as $p){if(preg_match("/\\.?([0-9]+)-B1109-/",basename($p),$m)){if(isset($seen[$m[1]]))exit(87);$seen[$m[1]]=true;}}if(count($seen)<10)exit(88);echo "MONOTONIC_REPORT_SEQUENCE_INCLUDES_INTERRUPTED_PENDING=PASS\n";' "$docs"
