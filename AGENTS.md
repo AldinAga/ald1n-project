@@ -1411,3 +1411,8 @@ B809 source implementation currently in DRAFT PR93 SHA 01c07c6738fd8aa91d541ffca
 ## 0P — Owner resumed work with Weekly Usage ceiling50% (2026-11-04)
 
 The owner explicitly resumed remaining Ald1n work and raised the Weekly Usage maximum from20% to50%. Prior19% reserve STOP entries are historical and superseded by this new owner instruction. Continue using installed relevant ECC skills and GitHub-only runtime QA, check shared account Usage regularly and preserve reserve below50%. All protected-fixture denials, product/registration/commission contracts and production/release gates remain unchanged. Latest verified starting point: DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807,713cases/51failedIDs,117focused cases/1359assertionsPASS. Do not treat budget permission as release authorization.
+
+
+## 0Q — Operations index heading contract (2026-11-04)
+
+Every 000-LATEST.md update MUST keep the first line in the existing numbered format `# CURRENT YYYY-MM-DD — B<batch-number> ...` (or the existing `# CURRENT B<batch-number> ...`). Preserve the actual newest batch identity; a date followed directly by `ECC`, `OWNER RESUME` or a prose title breaks three existing Release25 authority checks. Preflight that first line before publishing an index update. Do not weaken those tests or alter EAS/native/release settings to repair a documentation heading. Report1014 recovery detected this header-only regression; owner Weekly ceiling remains50% under0P.
