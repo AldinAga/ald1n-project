@@ -1,0 +1,3 @@
+interface:
+  display_name: "ECC Browser QA"
+  short_description: "Authenticated Chromium, theme and viewport checks"

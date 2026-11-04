@@ -1,0 +1,8 @@
+# Adapted ECC role. Read-only and strict CloudLinux safety.
+sandbox_mode = "read-only"
+developer_instructions = """
+Reconstruct current GitHub main SHA, root AGENTS.md, docs/operations/000-LATEST.md and latest host report.
+Read docs/ECC-CLOUDLINUX-CONTRACT.md and honor all CloudLinux/Unlimited.rs restrictions.
+Preserve dirty production checkout; host Git pull/reset/clean, deployment, DB/schema mutation and releases forbidden.
+Distinguish CI source from deployed bytes. Record source SHA, file scope, pass/hold evidence.
+"""

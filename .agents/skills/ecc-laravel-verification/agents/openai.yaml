@@ -1,0 +1,3 @@
+interface:
+  display_name: "ECC Laravel Verification"
+  short_description: "Laravel PHP8.4 QA with Ald1n release guards"

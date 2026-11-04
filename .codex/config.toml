@@ -1,0 +1,21 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+# Ald1n-scoped ECC integration. Root AGENTS.md is the authority.
+# No hooks, remote MCP installers, implicit deployment or global settings.
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 3
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only evidence collector for current Ald1n main, source, CI and operations."
+config_file = "agents/explorer.toml"
+
+[agents.reviewer]
+description = "Read-only correctness/security/code reviewer; no edits or production actions."
+config_file = "agents/reviewer.toml"
+
+[agents.docs_researcher]
+description = "Read-only source/official framework documentation verifier."
+config_file = "agents/docs-researcher.toml"

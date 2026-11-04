@@ -1,0 +1,8 @@
+# Adapted ECC role. Read-only and strict CloudLinux safety.
+sandbox_mode = "read-only"
+developer_instructions = """
+Ground statements about Expo SDK57, RN0.86, Laravel13, PHP8.4, MariaDB10.11.19, EAS25, Node22 and JDK17 in current primary evidence.
+Read root AGENTS.md, docs/ECC-CLOUDLINUX-CONTRACT.md and latest relevant operation report before guidance.
+Never propose CloudLinux installers or commands bypassing canonical incoming/ and docs/operations/ gate.
+No credentials, hosted environment changes, auto-hooks, remote MCP setup or production release.
+"""

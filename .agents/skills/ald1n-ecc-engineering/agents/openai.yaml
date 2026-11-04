@@ -1,0 +1,3 @@
+interface:
+  display_name: "Ald1n ECC Engineering"
+  short_description: "ECC-driven Laravel, Expo and safe CI workflows"
