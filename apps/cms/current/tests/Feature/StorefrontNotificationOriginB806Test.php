@@ -19,6 +19,7 @@ final class StorefrontNotificationOriginB806Test extends TestCase
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Mail::fake();
         config()->set('app.url','https://cms.ald1n.com');
+        config()->set('services.turnstile.enabled',false);
         foreach ([
             'enabled'=>true,'checkout_enabled'=>true,
             'terms_url'=>'https://cms.ald1n.com/uslovi','privacy_url'=>'https://cms.ald1n.com/privatnost',
@@ -49,6 +50,24 @@ final class StorefrontNotificationOriginB806Test extends TestCase
             'description'=>'Synthetic only','price_amount'=>12000,'price_currency'=>'RSD',
             'stock_quantity'=>2,'status'=>'active','created_by'=>$owner->id,
         ]);
+        $this->get('https://injected.example.test/porucivanje')->assertRedirect('/login');
+        $this->postJson('https://injected.example.test/porucivanje',[
+            'user_id'=>$owner->id,'checkout_key'=>str_repeat('a',48),
+        ])->assertUnauthorized();
+        self::assertDatabaseCount('orders',0);
+        self::assertSame(0,$owner->notifications()->count());
+        $buyer=User::query()->create([
+            'role_id'=>Role::query()->where('slug','customer')->valueOrFail('id'),
+            'username'=>'b806-notice-buyer','email'=>'buyer@example.test',
+            'first_name'=>'Synthetic','last_name'=>'Buyer','address'=>'Test 12',
+            'city'=>'Beograd','phone'=>'0601234567',
+            'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active',
+            'email_verified_at'=>now(),'portal_activated_at'=>now(),
+        ]);
+        $this->post('/login',[
+            'login'=>$buyer->email,'password'=>'SyntheticOnly123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($buyer);
         $this->post('/korpa/dodaj/'.$product->id,['quantity'=>1])->assertRedirect();
         $html=$this->get('/porucivanje')->assertOk()->getContent();
         preg_match('/name="checkout_key" value="([a-f0-9]{48})"/',$html,$key);

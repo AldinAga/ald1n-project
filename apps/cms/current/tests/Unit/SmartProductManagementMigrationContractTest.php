@@ -24,7 +24,8 @@ final class SmartProductManagementMigrationContractTest extends TestCase
         self::assertStringContainsString('Schema::getIndexes', $source);
         self::assertStringContainsString('Schema::getForeignKeys', $source);
         self::assertStringContainsString('chunkById(200', $source);
-        self::assertStringContainsString("'status' => 'draft'", $source);
+        self::assertStringContainsString("\$updates['status'] = 'draft'", $source);
+        self::assertStringContainsString("\$product->status === 'active' && \$percent < \$minimum", $source);
         self::assertStringContainsString('products_source_product_foreign', $source);
         self::assertStringNotContainsString('dropIfExists', $source);
     }

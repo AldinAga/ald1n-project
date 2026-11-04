@@ -1,3 +1,43 @@
+# CURRENT 2026-11-04 — ECC51 →30; ORPHANED PRIVATE LINK FIXED IN DRAFT; WEEKLY CEILING50%
+
+[Report1014](1014-B1088-B1090-ECC-BUYER-PAYMENT-PRIVATE-RECEIPT-AND-DIRECT-SALE-20261104.md) records exact proof. Owner resumed and raised ceiling to50%; prior20% STOP entries are historical. Latest Usage20%.
+
+B1088 source498cf6e9:130cases/1623assertions PASS, full713/43failedIDs (8resolved). B1089 test-first29cf8cd4 actual orphaned receipt exposed200 after buyer ownership removed; minimal shared-service guard31398cfe now requires non-null owner. Actual [GREEN41809894342](https://github.com/AldinAga/ald1n-project/actions/runs/41809894342): **148cases/1917assertions PASS**, full **715cases/5errors/25failures=30failedIDs**,0skips/missing cases; all640oldPR131 IDs retained. Still18commerce failures NEW versus frozen earliermain487/17baseline, globalCI remainsFAIL. Public order/doc/warranty routes share this guard. NO production rollout or storefront main merge.
+
+Main PR139 mergedfc402517 after all9workflows: actual16/3errors+1failure ->17/111assertions PASS on2fresh MariaDB DBs, respecting approved Report152 positive SA Direct Sale prices without catalog ceiling. No app change or public-shop price-policy change. Those4test repairs await integration/full Draft re-run before subtracting them from30. PR140 remaining8stale contracts pending final QA/merge; no broad completion claim.
+
+[Permanent raw evidence](https://drive.google.com/file/d/1jIWTU_CgK4HWrSRrkZikAl28oKL4clwP/view) SHA25638b1b51d2fc8b400a521c979630e5905a9148a9689e92a943a6b18cb40e4de80 readback verified. Preserve protectedB805/B809/B815 denial and all merchant/security/host/backup/device/release gates. Registered verified/activated Kupac with6signup fields; no oldguestorders. GitHub-only runtime; no FileZilla control, production backend/DB/flags/SMTP/EAS/build/OTA/Play. Formal11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged.
+
+---
+
+# OWNER RESUME 2026-11-04 — WEEKLY CEILING50%, PRIOR RESERVE STOP SUPERSEDED
+
+Owner explicitly resumed work using installed ECC skills and raised maximum Weekly Usage to50%. Current Usage19%; prior20% ceiling/19% STOP below are historical. Latest verified full result remains DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807:713tests/51failedIDs,117focused/1359assertionsPASS. Continue from that census with all protected-fixture, registration, money, GitHub-only runtime and production/release gates intact. See AGENTS0P. New work is not yet claimed verified.
+
+---
+
+# CURRENT 2026-11-04 — ECC73 →51; 117 FOCUSED PASS; WEEKLY19% RESERVE STOP
+
+[Report1013](1013-B1087-ECC-SECURITY-REGRESSION-713-51-AND-WEEKLY-RESERVE-20261104.md) is current. Exact DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807, [actual full41804057598](https://github.com/AldinAga/ald1n-project/actions/runs/41804057598): **713tests/8errors/43failures=51failedIDs**,0skips/0missing baseline cases; all640historicalPR131 IDs retained. Previous73 ->67 verified byReport1012 ->51 through16 original unprotectedB806 security scenarios now using a real verified/activated six-field buyer login. All16original assertions/cases retained, zero new failed IDs versus67, one explicit guest-denial/no-stock-money-write case added. Focus **117tests/1359assertions PASS**. Application code/protectedB805/B809/B815 unchanged. FullCI remainsFAIL;39commerce failed IDs new versus frozen earliermain baseline487/17, not0new. No waiver/main-storefront merge.
+
+Exact51-case MD/CSV/JSON D:/GPT/Ald1n-51-dijagnostika-20261104. [Permanent raw evidence](https://drive.google.com/file/d/1fQniU60k101wQmoxva-30AJ2qZVwCpX8/view) SHA2566896629a36c494b5d8b02abc1d6634629dfa51701b35612e06e0e50e0b526c67 verified by readback.
+
+Owner-invoked ECC laravel-tdd/laravel-verification follows project GitHub-only PHP8.4/MariaDB10.11.19 rules. Required signup6fields/registered verified activated Kupac/no oldguestorders remain binding. Protected-fixture denial stays binding. Main menuPR137 and test-onlyPR138 remain verified/merged; exact two-file direct-menu owner-upload ZIP fromReport1012 remains ready, no new hosting upload confirmation. Owner controls FileZilla.
+
+Weekly **19%**, ceiling20%: STOP new source work, preserve reserve and handoff. Goal incomplete; formal accepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. No production storefront/backend/DB/flags/SMTP/EAS/build/OTA/Play.
+
+---
+
+# CURRENT 2026-11-04 — DIRECT TWO-COLUMN MENU MAIN; ECC STOREFRONT73 →67, STILL HOLD
+
+[Report1012](1012-B1084-B1086-DIRECT-MENU-REQUIRED-SIGNUP-ECC-AND-STOREFRONT-20261104.md) is the latest checkpoint. PR137 merged452b3afb after exact1cf7ecdd/9workflows PASS: opaque two-column mobile menu, directly visible theme/currency panels on right, no settings submenu. Owner-upload two-file ZIP is ready; no agent FileZilla control or live deployment claim. PR138 merged dbe433c8 after30same-ID tests baseline4FAIL ->30PASS/164assertions, all9workflows; four stale delegated-location contracts repaired without app change.
+
+DraftPR135 combined33d7c7e0e6bd09b4138712bf78ad1c161007ef8f, [actual full41802399319](https://github.com/AldinAga/ald1n-project/actions/runs/41802399319): **712cases/8errors/59failures=67failedIDs**,0skips,0missing prior main IDs, all640historicalPR131cases retained. Previous73 ->71 through2valid-buyer login fixtures ->67 through4verified contracts; no new failed IDs versus73. Still55newcommerce failed IDs versus frozen earliermain487/17baseline; fullCI remainsFAIL, not0new. Focus100/1081assertions PASS,309mobile/TSC/validator PASS, actual registered Chromium+Firefox PASS; obsoleteguest-positive browser remainsFAIL. Signup all6fields required; no historicalguestorders; protectedB805/B809/B815 denial unchanged. New exact67diagnostics available locally.
+
+Owner explicitly invoked ECC laravel-tdd/laravel-verification: project GitHub-only PHP8.4/MariaDB10.11.19 rules prevail over generic local/Sail/SQLite examples. Current authority AGENTS0O. No storefront activation, production backend/DB/flags/SMTP/EAS/build/OTA/Play. Formal accepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. Usage last18%, ceiling20%; goal incomplete.
+
+---
+
 # CURRENT 2026-11-04 — B1081-B1083 COMMISSION MAIN;698 CASES/72 STOREFRONT HOLD;LIVE MENU CSS VERIFIED
 
 [Report1011](1011-B1081-B1083-COMMISSION-MAIN-STOREFRONT72-MANUAL-MENU-AND-REGISTRATION-20261104.md) records actual source, exact baseline/candidate results and owner decisions. PR134commission merged1c185c6c5a97d3917069c8d73ad4d2df781c0e7c:24/159assertionsGREEN versus24/10FAIL baseline,309mobile/TSC/validator,983static,10/10workflowsPASS. PR136test-only product/metadata repairs merged e89def93293ed2828f02bed5e412c93e00a7c0df:25/5problem baseline ->32/152assertionsPASS,9/9workflows; all original provider data/other test identities retained. No production backend deployment.

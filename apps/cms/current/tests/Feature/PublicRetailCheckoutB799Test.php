@@ -26,6 +26,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
     use RefreshDatabase;
 
     private Product $product;
+    private User $buyer;
 
     protected function setUp(): void
     {
@@ -34,6 +35,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         config()->set('public_storefront.enabled',true);
+        config()->set('services.turnstile.enabled',false);
         config()->set('public_storefront.checkout_enabled',true);
         config()->set('public_storefront.shipping_description','Besplatna dostava na adresu.');
         config()->set('public_storefront.shipping_fee_rsd','0');
@@ -61,6 +63,8 @@ final class PublicRetailCheckoutB799Test extends TestCase
         ]);
         Mail::fake();
         $this->approveMerchant();
+        $this->buyer=$this->buyer('b799-retail-buyer','buyer@example.test');
+        $this->loginActor($this->buyer);
     }
 
     public function test_anonymous_checkout_creates_one_real_operational_order_with_no_commission(): void
@@ -72,7 +76,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertStringContainsString('/porudzbina/',$location);
         self::assertSame(1,Order::query()->count());
         $order=Order::query()->sole();
-        self::assertNull($order->user_id);
+        self::assertSame((int)$this->buyer->id,(int)$order->user_id);
         self::assertSame('public_retail',$order->sales_channel);
         self::assertSame('new',$order->status);
         self::assertSame('reserved',$order->inventory_state);
@@ -231,8 +235,8 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->get('/porudzbina/'.str_repeat('f',64).'/garancija/'.$issuance->id)
             ->assertNotFound();
         self::assertSame('Sinteticki B800 garantni uslovi.',$warranty->terms_snapshot);
-        self::assertNull($warranty->user_id,
-            'Guest buyer cannot acquire a fabricated internal login.');
+        self::assertSame((int)$this->buyer->id,(int)$warranty->user_id,
+            'The warranty must retain the registered buyer identity.');
         self::assertSame(substr($deliveredAt,0,10),$warranty->starts_at->format('Y-m-d'));
 
         $workflow->complete($completed,$admin,[
@@ -296,7 +300,8 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame(0,\App\Models\WarrantyIssuance::query()->count());
         self::assertSame(0,\App\Models\ProductWarranty::query()->count());
 
-        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/payments',[
+        $this->loginActor($admin);
+        $this->post('/admin/orders/'.$order->id.'/payments',[
             'entry_type'=>'payment','amount_rsd'=>'24000.00',
             'payment_method'=>'bank_transfer',
             'paid_at'=>now()->toDateTimeString(),
@@ -310,6 +315,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('issued_pending_delivery',$pending->status);
         self::assertNull($pending->activated_warranty_id);
         self::assertSame(0,\App\Models\ProductWarranty::query()->count());
+        $this->loginActor($this->buyer);
         $this->get($privatePath)->assertOk()->assertSee($pending->warranty_number)
             ->assertSee('Izdato');
         $pendingPdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
@@ -402,7 +408,8 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $order=Order::query()->sole();
         $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
 
-        $this->actingAs($admin)->get('/admin/orders/'.$order->id)->assertOk();
+        $this->loginActor($admin);
+        $this->get('/admin/orders/'.$order->id)->assertOk();
         $workflow=app(\App\Services\OrderWorkflowService::class);
         $processing=$workflow->changeStatus($order->fresh(),'processing',$admin);
         self::assertSame('processing',$processing->status);
@@ -413,6 +420,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $document=app(\App\Services\OrderDocumentService::class)
             ->issue($confirmed,'order_confirmation',$admin);
         self::assertSame($order->id,$document->order_id);
+        $this->loginActor($this->buyer);
         $this->get($location)->assertOk()->assertSee('Potvrđena');
         $this->get($location.'/dokument/'.$document->id)->assertOk()
             ->assertHeader('Content-Type','application/pdf');
@@ -426,15 +434,23 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $order=Order::query()->sole();
         $revoke='/admin/orders/'.$order->id.'/public-access/revoke';
 
+        $this->post($revoke)->assertForbidden();
+        $this->get($location)->assertOk();
+        $this->post('/logout')->assertRedirect();
         $this->post($revoke)->assertRedirect('/login');
+        $this->loginActor($this->buyer);
         $this->get($location)->assertOk();
 
         $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
-        $this->actingAs($admin)->post($revoke)->assertRedirect();
+        $this->loginActor($admin);
+        $this->post($revoke)->assertRedirect();
+        $this->loginActor($this->buyer);
         $this->get($location)->assertNotFound();
         self::assertNotNull(PublicOrderAccess::query()->sole()->revoked_at);
-        // Repeated staff actions cannot reactivate the revoked capability.
+        // Repeated authorized actions cannot reactivate the revoked capability.
+        $this->loginActor($admin);
         $this->post($revoke)->assertRedirect();
+        $this->loginActor($this->buyer);
         $this->get($location)->assertNotFound();
     }
 
@@ -453,10 +469,11 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $url=$privatePath.'/garancija/'.$pending->id;
         $this->get($url)->assertOk()->assertHeader('Referrer-Policy','no-referrer');
 
+        $otherBuyer=$this->buyer('b799-other-buyer','other-buyer@example.test');
         $other=Order::query()->create([
             'source_system'=>'laravel','sales_channel'=>'public_retail',
             'order_number'=>'APC-B800-DIFFERENT-ORDER',
-            'user_id'=>null,'status'=>'new',
+            'user_id'=>$otherBuyer->id,'status'=>'new',
             'shipping_full_name'=>'Drugi Sinteticki Kupac',
             'shipping_address'=>'Test ulica 2','shipping_city'=>'Beograd',
             'shipping_postal_code'=>'11000','shipping_phone'=>'0602222333',
@@ -466,8 +483,11 @@ final class PublicRetailCheckoutB799Test extends TestCase
         ]);
         $otherToken=app(\App\Services\PublicOrderAccessService::class)
             ->issue($other,'other-buyer@example.test');
+        $this->loginActor($otherBuyer);
+        $this->get('/porudzbina/'.$otherToken)->assertOk();
         $this->get('/porudzbina/'.$otherToken.'/garancija/'.$pending->id)
-            ->assertNotFound('A valid token for another guest order cannot see this PDF.');
+            ->assertNotFound('A valid token and account for another order cannot see this PDF.');
+        $this->loginActor($this->buyer);
 
         $capability=\App\Models\PublicOrderAccess::query()
             ->where('order_id',$order->id)->sole();
@@ -502,6 +522,29 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('unpaid',$order->payment_state);
         self::assertSame(0,OrderPayment::query()->count());
         self::assertSame(0,OrderCommission::query()->count());
+    }
+
+
+    private function buyer(string $username,string $email): User
+    {
+        return User::query()->create([
+            'role_id'=>Role::query()->where('slug','customer')->valueOrFail('id'),
+            'username'=>$username,'email'=>$email,'first_name'=>'Synthetic','last_name'=>'Buyer',
+            'address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',
+            'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active',
+            'email_verified_at'=>now(),'portal_activated_at'=>now(),
+        ]);
+    }
+
+    private function loginActor(User $actor): void
+    {
+        if(auth()->check()) {
+            $this->post('/logout')->assertRedirect();
+        }
+        $this->post('/login',[
+            'login'=>$actor->email,'password'=>'SyntheticOnly123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($actor);
     }
 
     private function approveMerchant(): void

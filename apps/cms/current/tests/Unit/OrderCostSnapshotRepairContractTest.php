@@ -15,7 +15,8 @@ final class OrderCostSnapshotRepairContractTest extends TestCase
 
         self::assertStringContainsString('only touches incomplete snapshots', $service);
         self::assertStringContainsString('lockForUpdate()', $service);
-        self::assertStringContainsString("'repair_variant_current'", $service);
+        self::assertStringNotContainsString("'repair_variant_current'", $service);
+        self::assertStringNotContainsString('ProductVariant', $service);
         self::assertStringContainsString("'repair_receipt_historical'", $service);
         self::assertStringContainsString("'repair_product_current'", $service);
         self::assertStringContainsString('order_item.cost_snapshot.repaired', $service);

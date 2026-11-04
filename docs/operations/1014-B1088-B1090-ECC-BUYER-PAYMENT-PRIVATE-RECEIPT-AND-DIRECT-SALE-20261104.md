@@ -1,0 +1,39 @@
+# Report1014 — B1088/B1089/B1090: resumed50% budget, real buyer/payment boundaries and orphaned receipt fix
+
+Date2026-11-04 Europe/Belgrade. Sequence1014 after fresh GitHub main/local maxima1013. Owner explicitly resumed work and raised Weekly Usage maximum from20% to50%; prior19% reserve STOP is historical. Current Usage20%, new ceiling50%. Goal remains incomplete. AGENTS0P and current index record the new authority.
+
+## B1088 — valid registered delivery/payment scenarios
+
+Source498cf6e9bff36c3279c99656d8485f0de00b87ca, parent32900c20189e3ee2154dbb6adeb2fbec3d6e7807. Two unprotected B802/B803 test fixtures plus existing focused CI census only. Real verified/activated synthetic six-field customer login/logout replaces actingAs-only incomplete buyers; form email matches account. Keep nonce ownership, delivery, merchant policy, no deferred public payment, no premature cash collection, no duplicate financial/stock entries. Actual guest cannot forge deferred payment (JSON401); legitimate customer still gets422 for invalid payment. Global storefront OFF must hide private receipt even for its owner; authorized admin and buyer sessions remain separate. No app or protected fixture edits.
+
+[Run41808939323](https://github.com/AldinAga/ald1n-project/actions/runs/41808939323), job126502939810: focus **130tests/1623assertions PASS**,0errors/failures/skips. Full713cases/8errors/35failures=43failedIDs versus prior51, exactly8 old failures resolved, no new failing ID. All original main and640oldPR131 testcase IDs retained. Artifact13310817915 SHA256688939648f736683f916a22c7910f8c7f570801c98648fafa5b86cd4286dbff5. GlobalCI remainsFAIL; no waiver.
+
+## B1089 — role/receipt fixtures and actual privacy RED/GREEN
+
+Test-first source29cf8cd4c3404f678641085d73bfaa2132d206d5 prepares unprotected B808 role and B799/B818 capability/emergency-switch scenarios with actual valid buyer ownership, six-field profiles and real login. Historical guest-success B808 identity is retained but its obsolete expectation becomes explicit owner-required guest401/no-order-stock-money-write denial. Keep employee403, retired session rejection, valid foreign-account/capability document denial, expiry, permanent revocation, environment/DB OFF and checkout-only OFF separation. Existing case IDs retained;2new cases verify matching logged-in buyer and an orphaned order.
+
+Actual [RED41809368766](https://github.com/AldinAga/ald1n-project/actions/runs/41809368766)/job126504450920:148cases/1908assertions/1failure, no errors/skips. The NEW lost-owner case expected404 but actually received200 after issuing a valid link, removing its order.user_id and logging out. Full715cases/5errors/26failures=31failedIDs:13 earlier commerce failures resolved, plus this newly proven privacy defect. RED artifact13311159217 SHA256ea8159fd1c3aec2aa493442563de0d9c4a5c469939da0dc9032e0dc349eb9df8.
+
+Minimal production fix in Draft31398cfe35c21cd905810854e1f5d867592c6f4b: shared PublicOrderAccessService::order query requires non-null user_id. It retains fresh matching verified/activated customer and tracked-session checks, token hashing/expiry/revocation, purged-order and channel guards. Remove the inaccurate legacy-null-user compatibility comment; owner confirmed no historical guest orders. No user/order/token deletion, migration or production mutation. Caller review verified receipt, order-document and warranty-document endpoints all invoke this shared guard; capability issuance already denied ownerless orders.
+
+Actual [GREEN41809894342](https://github.com/AldinAga/ald1n-project/actions/runs/41809894342)/job126506232688: same **148cases/1917assertions PASS**,0errors/failures/skips. Full715cases/5errors/25failures=30failedIDs; lost-owner regression now passes. All640oldPR131 IDs and current baseline identities retained; zero skips/missing cases. Remaining18commerce failed IDs are NEW versus the frozen earlier main487/17baseline; fullCI correctly staysFAIL. Artifact13312645589 SHA256b8730bc0d08376ee69a74ba8e20167b3e14bad6da0487f080f216fc41261be6a. This privacy fix remains Draft/source-only, not deployed or represented as main.
+
+## B1090 — approved Direct Sale policy, verified main test repair
+
+Historical commit8baa290b2ae758d3733f5b8abddb7ff855897018 and Report152 explicitly approve positive SA Direct Sale prices ABOVE catalog; catalog is a reference, not a ceiling. Do not resurrect removed maximum-price helpers to satisfy stale tests. This does not alter PUBLIC storefront catalog repricing.
+
+PR139 replaces reflection on removed private helpers with actual public DirectSaleService::record behavior: RSD/EUR input/canonical snapshots, below/equal/above-catalog prices, no duplicate stock/payments on replay, invalid rate/zero/negative amount no writes, product-only/OrderService parity. All4original testcase identities retained (one name describes the superseded policy);1new positive-amount guard case. App, dependencies and protected fixtures byte-identical.
+
+Exact tested b0578f84ec986200ce46d604f2b48fe43af57deb, all9 workflows SUCCESS. [Run41809829258](https://github.com/AldinAga/ald1n-project/actions/runs/41809829258)/job126506007242, independent vendor installs and2NEW MariaDB10.11.19 DBs, existing ReceivablesCollection and WarrantyTerms797 suites on both sides: baseline16/53assertions/3errors+1failure ->candidate **17/111assertions PASS**,0skips. Artifact13311921084 SHA256bc4edb5043ff207431487cbb230904347e400638c0f7c92dcf5104c87f552814. Merged main **fc402517bd610064a159d8e24fcbaf4f3e3661b8** after actual draft-ready/readback recovery; no duplicate merge or production rollout. Its4repaired failures are not yet subtracted from Draft30 until main is incorporated and full QA re-runs.
+
+## Next state and unchanged gates
+
+Current DraftPR13531398cfe... verified full30, not main. PR140 is a separate unmerged test-only reconciliation of8other stale contracts plus one shared API error-helper behavior case. Initial real comparison baseline33/8failures ->candidate34/1failure exposed a second stale courier backlink assertion; actual backlink lives in shared context-nav. Latest source1a274dc3d0ceb93dad6805f981022927ed937ca2 follows that include; final QA pending, no success claim yet. GitHub initially delayed mergeability/CI despite a verified clean fast-forward tree; no skipped checks or forced merge.
+
+Next: incorporate only verified main changes, repair unprotected retail fulfillment/PDF and notification fixtures using genuine buyer/admin sessions, retain all original money/stock/privacy assertions and case IDs, then re-run full QA. Protected B805/B809/B815 denial stays binding; do not work around it with production aliases or relaxed registration/auth. Mandatory signup6fields, no old guest orders, positive manual commission/default10% unchanged.
+
+No local PHP/MariaDB/Docker/runtime, no FileZilla control; dirty Windows worktrees preserved. No production storefront/backend/DB/flags/SMTP/EAS/build/OTA/Play. Direct two-column menu ZIP and owner upload confirmation fromReport1012 remain separate. Formal acceptance11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged; targeted PASS is not broad acceptance or release approval.
+
+## Permanent evidence receipt
+
+[Complete B1088-B1090 raw evidence](https://drive.google.com/file/d/1jIWTU_CgK4HWrSRrkZikAl28oKL4clwP/view) SHA256 **38b1b51d2fc8b400a521c979630e5905a9148a9689e92a943a6b18cb40e4de80**, downloaded back and verified. Includes focused/full buyer/payment proof, actual orphaned-receipt RED/GREEN and independent-main Direct Sale comparison. Archive report predates this self-referential receipt. No production exports, secrets or customer data.
