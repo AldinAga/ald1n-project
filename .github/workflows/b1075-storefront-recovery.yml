@@ -244,9 +244,12 @@ jobs:
         run: |
           set -euo pipefail
           baseline="$RUNNER_TEMP/b1079-release25-baseline"
-          base=692e751e0dec407d998c0d1655c4bde5a4600d99
+          base=7efffa17f068494b23d9713b7af4896c7045f349
           test ! -e "$baseline"
-          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json apps/mobile/current/package-lock.json
+          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json apps/mobile/current/package-lock.json \
+            ':(exclude)apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs' \
+            ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs'
+          test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 2
           git worktree add --detach "$baseline" "$base"
           test "$(git -C "$baseline" rev-parse HEAD)" = "$base"
           ln -s "$GITHUB_WORKSPACE/apps/mobile/current/node_modules" "$baseline/apps/mobile/current/node_modules"
@@ -289,9 +292,10 @@ jobs:
               assert rc==(1 if result['fail'] else 0),rc
               results[label]=result
           new=sorted(set(results['candidate']['failed_ids'])-set(results['baseline']['failed_ids']))
-          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='unchanged')
+          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='two historical document bindings changed; other tests and dependency locks unchanged')
           (root/'b1079-release25-comparison.json').write_text(json.dumps(report,indent=2))
           assert not new,new
+          assert results['baseline']['fail']==4,results['baseline']
           if results['candidate']['fail']:
               raise SystemExit('HOLD_HISTORICAL_RELEASE25_FAILURES: '+str(results['candidate']['fail']))
           PY
