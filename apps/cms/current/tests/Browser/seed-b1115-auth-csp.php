@@ -82,7 +82,7 @@ if ($mode === '--seed') {
     ]);
     $order = Order::query()->create([
         'source_system' => 'laravel', 'order_number' => 'B1115-SYNTHETIC-ORDER',
-        'user_id' => User::query()->where('username', 'b1115-operator')->sole()->id, 'supplier_user_id' => $owner->id,
+        'user_id' => User::query()->where('username', 'b1115-portal')->sole()->id, 'supplier_user_id' => $owner->id,
         'supplier_name_snapshot' => 'Synthetic Owner', 'supplier_role_snapshot' => 'SuperAdministrator',
         'status' => 'new', 'inventory_state' => 'reserved',
         'shipping_full_name' => 'B1115 Synthetic', 'shipping_address' => 'Synthetic 1',

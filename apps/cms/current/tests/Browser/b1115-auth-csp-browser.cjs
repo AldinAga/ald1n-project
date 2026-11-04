@@ -54,8 +54,9 @@ async function main() {
     try { await fn(); results.push({id, status: 'PASS'}); console.log('B1115_CASE '+id+' PASS'); }
     catch (error) {
       const line = /b1115-auth-csp-browser\.cjs:(\d+):/.exec(String(error.stack))?.[1] || null;
-      results.push({id, status: 'FAIL', error: error.code || error.name, line});
-      console.log('B1115_CASE '+id+' FAIL '+(error.code || error.name)+' line='+line);
+      const httpStatus = error.expected === 200 && Number.isInteger(error.actual) ? error.actual : null;
+      results.push({id, status: 'FAIL', error: error.code || error.name, line, httpStatus});
+      console.log('B1115_CASE '+id+' FAIL '+(error.code || error.name)+' line='+line+' httpStatus='+httpStatus);
     }
   }
   async function context() {
@@ -415,8 +416,12 @@ async function main() {
       } finally { await financial.close(); }
     });
     await check('order-create-payment-fields-and-order-edit-quantity', async () => {
+      const restricted = await context();
+      const restrictedPage = await login(restricted, 'operator');
+      const foreignProduct = await restrictedPage.goto(base+'/catalog/b812-browser-laptop', {waitUntil: 'networkidle'});
+      assert.equal(foreignProduct.status(), 404);
       const operator = await context();
-      const financial = await login(operator, 'operator');
+      const financial = await login(operator, 'portal');
       try {
         await open(financial, '/catalog/b812-browser-laptop');
         await financial.locator('[data-cart-quantity-toggle]').click();
