@@ -20,6 +20,8 @@ Only SOURCE INTEGRATION and PRIVATE PREPARATION are closed. Active CMS/vendor/en
 
 All0Y public security/secret/dependency/merchant approval/sender/mail/anti-abuse/host/buyerUAT conditions remain. Merchant content FINAL; workingbackup174 owner attestation credited, no old backup replay. No unrelated Mobile/native tasks. Final Cloudflare audit follows safe functional operation. Preserve all reports, failed artifacts, dirty local files/index and Git history.
 
+**Operator/checkpoint numbering interleaving (Report1080 lesson,2026-11-05):** finish publishing a numbered delivery checkpoint BEFORE exposing its executable ZIP/link to the operator. Do not allocate another numbered coordinator checkpoint while that approved operator batch is executing. After receipt resolve freshmain plus every known local/owner report. Preserve both historical1079 files with different names and document their duplicate-prefix erratum; never rename/delete old evidence as a silent fix. No other sequential/nonoverwrite/incoming/report rule is waived.
+
 ## 0Y. Storefront-only priority and owner-approved phased OFF sequence (2026-11-04)
 
 The owner's latest primary objective is finishing the functional Storefront. Other Mobile fixes, optimizations and broad audit expansion are retained as follow-up work, not parallel implementation priorities. Maximum70% Weekly Usage remains binding; preserve a reserve for verification and handoff.

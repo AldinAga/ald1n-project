@@ -1,3 +1,11 @@
+# CURRENT 2026-11-05 — Report1080 / ACTUAL B1133 HOST FACTS; INSTALLATION STILL HOLD
+
+[Report1080](1080-B1133-ACTUAL-HOST-FACTS-AND-NUMBERING-ERRATUM-20261105.md) supersedes pending-host status. Actual [1079host](1079-B1133-PRIVATE-STAGE-20261105-004742.md) confirms successful read-only collection/intentionalHOLD2: sourcePHP671same/62different/26missing; nonPHP26same/5different; vendor6908same/744different/89missing,0unsafe. Verified existing8531-file stage preserved; no restage/upload. Config cache ABSENT; effectiveOFF/schema/FPM NOT_ATTESTED. ActiveCMS/vendor/env/DB/cache/FPM/flags unchanged; not installed/opened.
+
+The differently named1079delivery checkpoint and1079host receipt were allocated concurrently before host fetched the documentation update. Both are preserved;1080 records the erratum and guard: publish numbered checkpoint BEFORE exposing executable ZIP, no coordinator allocation while that operator batch runs. No silent renumber/delete. B1133 has already run; do NOT repeat it. Next controlledOFFinstall still needs reviewed current config/schema/FPM/rollback facts, no guessed credentials or automatic migration/activation. Source merged; mandatory public security/provider/UAT gates remain. User declined pause; max80% unchanged. Earlier entries remain historical.
+
+---
+
 # CURRENT 2026-11-05 — Report1079 / READ-ONLY PREINSTALL PACKET; HOST RESULT PENDING
 
 [Report1079](1079-B1133-READONLY-PREINSTALL-PACKET-AND-PENDING-HOST-FACTS-20261105.md) records B1133. Owner declined pause; maximum80% remains. Existing source/main integration and successful1077 stage stay credited, no app changes or staging replay. Ready D:/GPT/B1133-READONLY-PREINSTALL.zip,6897bytes/SHAf916311446c49c402408ae47765169640b6e84b8b56e4f2cc5c8615790dad0c0, exact4incomingfiles; actual GitHub2positive/9negative/independent0/0/0. Operator command is canonicalincoming/b1133-readonly-preinstall.sh.
