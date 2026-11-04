@@ -1,15 +1,14 @@
-name: B1131 exact private-stage helper regression (NO DEPLOY)
+name: B1133 read-only filesystem preinstall helper (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
-    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1131/**']
+    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1133/**']
 permissions:
   contents: read
-  actions: read
 jobs:
-  helper-only:
+  helper-fixtures:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -19,58 +18,14 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
-      - name: Reproduce actual old helper RED on authenticated runtime
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - name: Actual read-only helper and literal cache fixtures
         run: |
           set -euo pipefail
-          work="$RUNNER_TEMP/b1131"
-          mkdir -p "$work/payload" "$work/stage"
-          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
-          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
-          WORK="$work" python3 - <<'PY'
-          import hashlib,json,os,pathlib,tarfile,zipfile
-          root=pathlib.Path(os.environ['WORK']); payload=root/'payload'
-          with zipfile.ZipFile(root/'runtime.zip') as z:
-              assert set(z.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
-              assert all(i.file_size<=64*1024*1024 for i in z.infolist())
-              for name in z.namelist(): (payload/name).write_bytes(z.read(name))
-          assert hashlib.sha256((payload/'cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
-          manifest=json.loads((payload/'runtime-manifest.json').read_text())
-          doc=json.loads(pathlib.Path('tools/storefront/b1131/runtime-directories.json').read_text())
-          with tarfile.open(payload/'cms-runtime.tar.gz') as tar:
-              dirs=sorted(m.name.rstrip('/') for m in tar.getmembers() if m.isdir())
-              assert all(m.isdir() or m.isfile() for m in tar.getmembers())
-          assert dirs==doc['directories'] and len(dirs)==1181
-          empty=[d for d in dirs if not any(f['path'].startswith(d+'/') for f in manifest['files'])]
-          assert empty==['vendor/symfony/mime/Resources','vendor/symfony/mime/Resources/bin','vendor/symfony/string/Resources/bin']
-          (root/'directory-proof.json').write_text(json.dumps({'sourceCommit':manifest['sourceCommit'],'directories':1181,'emptyDirectories':empty},indent=2))
-          PY
-          tar -tzf "$work/payload/cms-runtime.tar.gz" > "$work/payload/names.txt"
-          tar -tvzf "$work/payload/cms-runtime.tar.gz" > "$work/payload/verbose.txt"
-          set +e
-          php tools/storefront/b1131/old-helper.php pre "$work/payload" "$work/stage" > "$work/red.log" 2>&1
-          result=$?
-          set -e
-          cat "$work/red.log"
-          test "$result" = 2
-          grep -Fx 'HOLD: unlisted tar directory' "$work/red.log"
-          printf '{"oldHelperRC":2,"expectedFailure":"unlisted tar directory","actualPHPExecution":true,"runtimeUnchanged":true,"applicationBootstrapped":false}\n' > "$work/red-receipt.json"
-      - name: Exact directory fix GREEN and fail-closed negative PHP fixtures
-        shell: bash
-        run: |
-          set -euo pipefail
-          php -l tools/storefront/b1131/new-helper.php
-          python3 tools/storefront/b1131/green-fixtures.py "$RUNNER_TEMP/b1131" "$GITHUB_WORKSPACE/tools/storefront/b1131/new-helper.php"
-      - name: Preserve actual RED evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+          php -l tools/storefront/b1133/helper.php
+          php tools/storefront/b1133/fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1133/helper.php" | tee "$RUNNER_TEMP/b1133-fixture.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: b1131-helper-regression-evidence
-          path: |
-            ${{ runner.temp }}/b1131/*-proof.json
-            ${{ runner.temp }}/b1131/*-receipt.json
-            ${{ runner.temp }}/b1131/red.log
+          name: b1133-readonly-helper-receipt
+          path: ${{ runner.temp }}/b1133-fixture.json
           if-no-files-found: error
           retention-days: 7
