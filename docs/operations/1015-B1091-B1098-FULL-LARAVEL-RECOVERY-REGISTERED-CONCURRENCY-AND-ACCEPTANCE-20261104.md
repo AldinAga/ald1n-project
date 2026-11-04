@@ -1,5 +1,7 @@
 # Report1015 — B1091–B1098: full Laravel recovery, approved fixtures and original acceptance reconciliation
 
+**FINAL source2fbf1f63:18/18workflows SUCCESS;717/7281full and192/2677focused PASS;actual registered-browser concurrency PASS. Draft135 remains unmerged/undeployed.**
+
 Date: 2026-11-04 Europe/Belgrade. Sequence1015 follows fresh GitHub main and both local report maxima1014. GitHub-only runtime QA; PHP8.4 and disposable MariaDB10.11.19. Weekly Usage21%, owner ceiling50%; prior20% STOP is superseded. No production or local runtime mutation.
 
 ## Verified full suite and scope
@@ -91,3 +93,23 @@ Owner then reported TWO already-created dedicated hosting test databases. These 
 [Security41817132518](https://github.com/AldinAga/ald1n-project/actions/runs/41817132518) also SUCCESS; real B80725HTTP checks PASS. Artifact13315586694 SHA256c905209fa8e7ad363c8f16446736bc6b305fbd3088708d063583266b669e0f6f verified. Native [41817132149](https://github.com/AldinAga/ald1n-project/actions/runs/41817132149)/release-history126530614686:309/309PASS,0skips,TSC RC0,validator UkupnoFAIL0; validator-path job is conditionally SKIPPED because its path did not change, not a test bypass. Mobile artifact13314778645 SHA256f90119af696ca1f5e36ef7332702f8f2d87c8ce374227a86231f56105f1ed1b2 verified.
 
 All18 workflows onb5e1ee0c returned SUCCESS, but this does NOT erase B803's inherited18wrong-DB failures described above. B1098 currenthead2fbf1f630761c5e864de91bfd5222cc63215b905 changes only CI identity/helper; its final exact-head results are still RUNNING at this checkpoint. Do not claim those new results complete or count an inherited-failure comparator as whole-suite PASS. Source remains Draft135 and undeployed.
+
+
+## FINAL — exact source2fbf1f630761c5e864de91bfd5222cc63215b905
+
+All **18/18** exact-head workflows completedSUCCESS. This supersedes B1098 RUNNING wording in earlier checkpoints above.
+
+- [Canonical full41818033405](https://github.com/AldinAga/ald1n-project/actions/runs/41818033405)/job126533741290: **717tests/7281assertions PASS**, **192focused/2677assertions PASS**,0errors/failures/skips; all640historical PR131 identities retained. Raw13316350464 SHA256**7dc5c1ce6a647e908bc8eb639a2308ed14544d6053f95a08de62558b63e6c903** downloaded/hashed/JUnit-log inspected.
+- [Corrected B80341818033451](https://github.com/AldinAga/ald1n-project/actions/runs/41818033451)/job126533743037: exactDB/version and both unsafe-env rejection checks PASS; frozen predecessor451/26problems ->candidate **717/7281assertions/0problems**, NEW_FAILURES0 and **WHOLE_SUITE_GREEN=YES**. The earlier baseline44 ->26 difference is precisely18wrong-DB guards, not a new application improvement. Raw13315219652 SHA256**ecaecebe5dd944eb73cb5f6a901603e1f45f5fe402b932a4c53ab1b0f2af9edc** independently verified.
+- [Final browser41818033538](https://github.com/AldinAga/ald1n-project/actions/runs/41818033538)/job126533784909: actual registered Chromium+Firefox PASS; both strict concurrent races PASS; full4-order/stock/no-payment/no-commission SQL postcheck PASS. Current source differs from application-testedb5e1ee0c only in two CI/helper paths, no application/testcase changes.
+- Existing current-head native309/TSC/validator and targeted security/CSRF/private rate tests SUCCESS; original source validation evidence retained. No build/OTA/EAS action.
+- Windows D:\GPT\Ald1n-mobile fetched ALL origin branches and tags without prune/force/reset/checkout. Observed at11:07UTC: NOT shallow;2192 reachable commits,184origin refs,1tag. Subsequent documentation commits may increase that count. Existing dirty files remain untouched; new report/checkpoint/handoff files are additive.
+- Production and both owner-reported hosting test DBs remain UNTOUCHED. No password, customer export or DB dump was received or archived. DraftPR135 remains unmerged under AGENTS0O; completed test-recovery does not waive security/merchant/legal/mail/host/UAT release gates.
+- Formal accepted12/17=70.6%,CMS10/15,initialUI6/6; correction of original M17 acceptance, not newly awarded milestone. Weekly last21%, ceiling50%; no reset credit used.
+
+Local durable delivery: Report1015 in both Windows projects; .local-migration/checkpoints/b1091-b1098-20261104 with canonical AGENTS/current-index/runbook/receipt; CONTINUE-REPORT1015-CLAUDE-CODEX.md explains exact source, approvals, completed work, original acceptance and remaining gates. Main source and Draft are explicitly separated. Raw QA is outside project trees under D:\GPT\Ald1n-mobile-tools\storefront-qa.
+
+
+## Permanent complete evidence receipt
+
+[Original B1091-B1098 raw source/CI/RED-GREEN/handoff archive](https://drive.google.com/file/d/1to-1UogjxqTsUptIAIOsqKMnV92W6gJa/view) SHA256 **31725b238876c3ba175bdf5579dd4ae8bf08055aec4010197129e7b831106ed6** was downloaded back from Drive and independently verified. It contains original JUnit/full logs, initial/final717proof, actual same-nonce browserRED/GREEN, initial/finalB803wrong-DB evidence,309native proof, exact owner-approved fixture proof and cross-account continuation instructions. The report inside ZIP predates this self-referential receipt. No production export, DBdump or credential. Canonical Drive runbook is updated in place with this final record; local checkpoint receipt binds its readback hash separately.
