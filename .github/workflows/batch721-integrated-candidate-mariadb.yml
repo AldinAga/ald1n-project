@@ -288,6 +288,74 @@ jobs:
           path: ${{ runner.temp }}/b1084-evidence
           if-no-files-found: error
           retention-days: 14
+      - name: Approved Direct Sale public behavior baseline versus candidate
+        if: github.head_ref == 'codex/b1090-direct-sale-contracts-20261104'
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/b1090-contract-baseline"
+          evidence="$RUNNER_TEMP/b1090-evidence"
+          base=9df36a965912c7180a13f38a12e9023aec9a13ce
+          test ! -e "$baseline"
+          mkdir -p "$evidence"
+          git diff --exit-code "$base" HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/database apps/cms/current/bootstrap apps/cms/current/config apps/cms/current/routes apps/cms/current/composer.json apps/cms/current/composer.lock apps/mobile ':(glob)apps/cms/current/tests/**/*B805*' ':(glob)apps/cms/current/tests/**/*B809*' ':(glob)apps/cms/current/tests/**/*B815*'
+          git worktree add --detach "$baseline" "$base"
+          cp apps/cms/current/.env "$baseline/apps/cms/current/.env"
+          composer install --working-dir="$baseline/apps/cms/current" --no-interaction --prefer-dist --no-progress
+          php <<'PHP'
+          <?php
+          $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci','root','isolated-ci-only',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+          if(!str_starts_with((string)$pdo->query('SELECT VERSION()')->fetchColumn(),'10.11.19-MariaDB'))exit(31);
+          foreach(['ald1n_contract_red_ci','ald1n_contract_green_ci'] as $name)$pdo->exec('CREATE DATABASE '.$name);
+          PHP
+          run_contracts() {
+            tree="$1"; label="$2"; database="$3"
+            set +e
+            (cd "$tree/apps/cms/current" && DB_DATABASE="$database" php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$label.xml" tests/Unit/DirectSaleMaxUnitPriceContractTest.php tests/Feature/ReceivablesCollectionTest.php tests/Feature/WarrantyTerms797Test.php) 2>&1 | tee "$evidence/$label.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$result" > "$evidence/$label.exit"
+          }
+          run_contracts "$baseline" baseline ald1n_contract_red_ci
+          run_contracts "$GITHUB_WORKSPACE" candidate ald1n_contract_green_ci
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import os,json,pathlib,xml.etree.ElementTree as E
+          d=pathlib.Path(os.environ['EVIDENCE'])
+          def read(label):
+              root=E.parse(d/(label+'.xml')).getroot();ids=[];bad=[];assertions=0;skipped=0
+              for suite in root.iter('testsuite'):
+                  for c in suite.findall('testcase'):
+                      key=(c.get('classname') or c.get('class') or suite.get('name'))+'::'+c.get('name')
+                      ids.append(key);assertions+=int(c.get('assertions','0'))
+                      if c.find('failure') is not None or c.find('error') is not None:bad.append(key)
+                      skipped+=c.find('skipped') is not None
+              assert len(ids)==len(set(ids)) and ids
+              return {'cases':len(ids),'assertions':assertions,'failed':bad,'skipped':skipped,'exit':int((d/(label+'.exit')).read_text())},set(ids)
+          before,old=read('baseline');after,new=read('candidate')
+          normalize=lambda values:{x.replace(chr(92),'.') for x in values}
+          expected={
+              'Tests.Unit.DirectSaleMaxUnitPriceContractTest::test_catalog_unit_price_rsd_matches_product_currency_rules',
+              'Tests.Unit.DirectSaleMaxUnitPriceContractTest::test_price_below_and_equal_catalog_are_allowed_but_above_is_rejected',
+              'Tests.Unit.DirectSaleMaxUnitPriceContractTest::test_eur_product_requires_a_positive_rate',
+              'Tests.Unit.DirectSaleMaxUnitPriceContractTest::test_source_contract_is_product_only_and_preserves_order_price_parity',
+          }
+          assert before['exit']!=0 and normalize(before['failed'])==expected,before
+          assert after['exit']==0 and not after['failed'],after
+          assert before['skipped']==after['skipped']==0
+          assert old.issubset(new),'all original testcase IDs must execute'
+          assert normalize(new-old)=={'Tests.Unit.DirectSaleMaxUnitPriceContractTest::test_non_positive_direct_sale_amount_is_rejected_without_writes'}
+          assert before['cases']>4,'existing actual receivables/warranty HTTP/service coverage must also run'
+          result={'base':'9df36a965912c7180a13f38a12e9023aec9a13ce','baseline':before,'candidate':after,'all_original_ids_retained':True,'new_positive_price_guard_case':True,'application_and_protected_source_byte_identical':True,'approved_policy_source':'Report152/8baa290b2ae758d3733f5b8abddb7ff855897018'}
+          (d/'comparison.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
+          PY
+      - name: Retain all Direct Sale public behavior evidence including RED
+        if: always() && github.head_ref == 'codex/b1090-direct-sale-contracts-20261104'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1090-real-mariadb-contract-red-green
+          path: ${{ runner.temp }}/b1090-evidence
+          if-no-files-found: error
+          retention-days: 14
       - name: Results do not deploy production
         if: always()
         run: |
