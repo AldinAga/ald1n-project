@@ -56,3 +56,10 @@ Checkpoint addendum: actual [mobile candidate41828612442](https://github.com/Ald
 New permanent [security evidence archive](https://drive.google.com/file/d/17YrxTgbf5Gz541V2GWKh0J37jmrx75n5/view), SHA256 `e119ec75578c1f9a4bd6655628eebbd3da2d315460754dcfa612610393259504`, independently downloaded and SHA verified. It preserves the preparation-time report and reviewed artifacts; this live report addendum and subsequent final CI results are later evidence, not falsely represented as bytes already in that snapshot.
 
 Prior full717/concurrency archive: Drive `1to-1UogjxqTsUptIAIOsqKMnV92W6gJa`, SHA256 `31725b238876c3ba175bdf5579dd4ae8bf08055aec4010197129e7b831106ed6`, remains independently readback-verified. This report's new security evidence archive and canonical runbook will be recorded in the current index and local checkpoint receipt after upload/readback. No operator script is delivered by this batch; local Node utilities only assemble Git objects/evidence and are not hosting execution artifacts.
+
+
+## Owner decision and completed combined-source QA addendum
+
+Owner explicitly answered: **Postojeće CMS postavke su konačne**. Existing terms/privacy/shipping price+conditions/contact email are final and approved; do not ask again. This settles the content decision, while actual display/application and separate security/mail/host release gates still require evidence.
+
+Combined source1ae9eb90 actual canonical41828321972/job126568700131 completed SUCCESS:717testcases/0errors/0failures/0skips;192focused/zero problems; all640old identities retained. Baseline487/17 is frozen e89 historical source, not latest main. Current c8a head differs only in candidate CI; its additional exact-head canonical41828612398 still running at addendum. Actual current-head browser41828612311/job126570314035 SUCCESS. New JS-only main DraftPR142 head79e43723 (then CI-only correction) repeats exact reviewed lock checks; its first strict comparator falsely counted JSON key-order changes as dependency changes and is corrected to structural equality with self-checks. No application/native source changed by that CI correction, and no PR142 merge is claimed here.
