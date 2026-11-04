@@ -195,14 +195,14 @@ final class StorefrontRegisteredBuyerLifecycleB811Test extends TestCase
     {
         $buyerA = $this->customerOrOperator('b811-buyer-a', 'customer');
         $buyerB = $this->customerOrOperator('b811-buyer-b', 'customer');
-        $this->actingAs($buyerA);
+        $this->loginBuyer($buyerA);
         $this->post('/korpa/dodaj/'.$this->product->id, ['quantity' => 1])->assertRedirect();
         $payload = $this->checkoutPayload($buyerA->email);
         $this->post('/porucivanje', $payload)->assertRedirect();
         $order = Order::query()->sole();
         self::assertSame((int) $buyerA->id, (int) $order->user_id);
 
-        $this->actingAs($buyerB);
+        $this->loginBuyer($buyerB);
         $payload['email'] = $buyerB->email;
         $this->postJson('/porucivanje', $payload)->assertUnprocessable()
             ->assertJsonValidationErrors('checkout');
@@ -216,7 +216,7 @@ final class StorefrontRegisteredBuyerLifecycleB811Test extends TestCase
     public function test_changed_merchant_policy_blocks_submission_without_reservation(): void
     {
         $buyer = $this->customerOrOperator('b811-policy-buyer', 'customer');
-        $this->actingAs($buyer);
+        $this->loginBuyer($buyer);
         $this->post('/korpa/dodaj/'.$this->product->id, ['quantity' => 1])->assertRedirect();
         $payload = $this->checkoutPayload($buyer->email);
 
@@ -267,6 +267,19 @@ final class StorefrontRegisteredBuyerLifecycleB811Test extends TestCase
         ];
     }
 
+
+    private function loginBuyer(User $buyer): void
+    {
+        if (auth()->check()) {
+            $this->post('/logout')->assertRedirect();
+        }
+        $this->post('/login', [
+            'login' => $buyer->email,
+            'password' => 'B811-Synthetic-Pass123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($buyer);
+    }
+
     private function customerOrOperator(string $username, string $role): User
     {
         return User::query()->create([
@@ -274,6 +287,12 @@ final class StorefrontRegisteredBuyerLifecycleB811Test extends TestCase
             'username' => $username,
             'email' => $username.'@example.test',
             'first_name' => 'Synthetic',
+            'last_name' => 'Buyer',
+            'address' => 'Synthetic 12',
+            'city' => 'Beograd',
+            'phone' => '0601234567',
+            'email_verified_at' => $role === 'customer' ? now() : null,
+            'portal_activated_at' => $role === 'customer' ? now() : null,
             'password_hash' => Hash::make('B811-Synthetic-Pass123!'),
             'status' => 'active',
         ]);
