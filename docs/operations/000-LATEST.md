@@ -1,3 +1,17 @@
+# CURRENT 2026-11-04 — B1091-B1098 FULL717 ZERO; REGISTERED REAL CONCURRENCY GREEN;CI-IDENTITY CHECK RUNNING
+
+[Report1015](1015-B1091-B1098-FULL-LARAVEL-RECOVERY-REGISTERED-CONCURRENCY-AND-ACCEPTANCE-20261104.md) is current. Canonical [full41817132145](https://github.com/AldinAga/ald1n-project/actions/runs/41817132145), exactb5e1ee0c025d70252d408f71e78a3202f756963a: **717tests/7281assertions PASS**, focus192/2677PASS,0failed/skipped/missing old640 identities. Main PR139/140 verified unit repairs are integrated. Owner EXPLICITLY approved ONLY two B809/B815 fixture corrections (AGENTS0R); all other protected bytes and all negative guards retained.
+
+[Real Chromium41817132438](https://github.com/AldinAga/ald1n-project/actions/runs/41817132438): BOTH last-stock and same-nonce two-process/two-connection/two-stable-snapshot races PASS;2normal purchases, exact4registered orders,0payments/commissions. Registered B812 Chromium AND Firefox signup/activation/login/cart/order/replay PASS. Actual same-nonce RED onbdc4518f fixed by minimal current shared-lock reads of existing order+receipt inb5e1ee0c; no duplicate financial write or auth relaxation. B80725realHTTP/CSRF/rate checks PASS;309mobile/TSC/validator PASS.
+
+Current DraftPR135 **2fbf1f630761c5e864de91bfd5222cc63215b905** only corrects older B803's disposable DB toald1n_retirement_ci. Its18unchanged retirement guards correctly rejectedoldald1n_test; oldworkflowSUCCESS/NEW_FAILURES0 was NOT fullgreen (717/18failures). Final exact-headB1098QA RUNNING; do not claim complete yet. No storefront main merge/deployment/activation.
+
+**Acceptance correction from original B1044/Issue124:12/17=70.6%, CMS10/15, UI6/6.** Older11/17/M17open summaries below are stale. M17 owner-accepted CLOSED; no repeat native build. M10/M11 source/B962deployment/migration/FPM/B955+B959restore already done, only external-provider/operator business UAT remainsOPEN. SDK58 release source stays isolated from SDK57main. See AGENTS0S.
+
+Weekly21%, owner ceiling50%. Two owner-reported hosting test DBs remain untouched; GitHub runtime only, no localPHP/DB/Docker, FileZilla, productionDB/SMTP/flags/EAS/build/OTA/Play. Remaining security368item assessment/SEC23/scanners,merchant/legal/mail,current-host/release/UAT gates unwaived. Menu direct-two-column ZIP upload still needs its own owner confirmation.
+
+---
+
 # CURRENT 2026-11-04 — B1088-B1090 ECC51 →30; ORPHANED PRIVATE LINK FIXED IN DRAFT; WEEKLY CEILING50%
 
 [Report1014](1014-B1088-B1090-ECC-BUYER-PAYMENT-PRIVATE-RECEIPT-AND-DIRECT-SALE-20261104.md) records exact proof. Owner resumed and raised ceiling to50%; prior20% STOP entries are historical. Latest Usage20%.
