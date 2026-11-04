@@ -15,9 +15,12 @@ final class StableMaintenanceContractTest extends TestCase
         $view = (string) file_get_contents($root.'/resources/views/orders/create.blade.php');
         $doctor = (string) file_get_contents($root.'/app/Console/Commands/OrderCreateDoctorCommand.php');
 
-        self::assertStringContainsString('$variantMap = []', $controller);
-        self::assertStringContainsString("'variantMap' => \$variantMap", $controller);
-        self::assertStringContainsString('const variantMap = @json($variantMap);', $view);
+        self::assertStringNotContainsString('$variantMap', $controller);
+        self::assertStringNotContainsString('variantMap', $view);
+        self::assertStringNotContainsString('product_variant_id', $view);
+        self::assertStringContainsString("'products' => \$products", $controller);
+        self::assertStringContainsString("'product_id' => \$productId", $controller);
+        self::assertStringContainsString('][product_id]', $view);
         self::assertStringNotContainsString('mapWithKeys(fn', $view);
         self::assertStringContainsString('data-order-create-ready="1"', $view);
         self::assertStringContainsString('app:order-create-doctor', $doctor);
