@@ -47,9 +47,10 @@ if (in_array($mode, ['--youtube', '--slideshow'], true)) {
 }
 if ($mode === '--seed') {
     if (User::query()->count() !== 1 || DB::table('orders')->exists()) throw new \RuntimeException('B1115_HOLD_NONEMPTY_PRECURSOR');
-    foreach (['active', 'pending', 'reset'] as $name) {
+    foreach (['active' => 'customer', 'pending' => 'customer', 'reset' => 'customer', 'portal' => 'user', 'operator' => 'admin'] as $name => $role) {
         $user = User::query()->create([
-            'role_id' => Role::query()->where('slug', 'customer')->valueOrFail('id'),
+            'role_id' => Role::query()->where('slug', $role)->valueOrFail('id'),
+            'user_group_id' => $role === 'user' ? 1 : null,
             'username' => 'b1115-'.$name, 'email' => 'b1115-'.$name.'@example.test',
             'first_name' => 'Synthetic', 'password_hash' => Hash::make('B1115-Synthetic-Only123!'),
             'status' => $name === 'pending' ? 'pending' : 'active',
@@ -75,7 +76,7 @@ if ($mode === '--seed') {
     ]);
     $order = Order::query()->create([
         'source_system' => 'laravel', 'order_number' => 'B1115-SYNTHETIC-ORDER',
-        'user_id' => $owner->id, 'supplier_user_id' => $owner->id,
+        'user_id' => User::query()->where('username', 'b1115-operator')->sole()->id, 'supplier_user_id' => $owner->id,
         'supplier_name_snapshot' => 'Synthetic Owner', 'supplier_role_snapshot' => 'SuperAdministrator',
         'status' => 'new', 'inventory_state' => 'reserved',
         'shipping_full_name' => 'B1115 Synthetic', 'shipping_address' => 'Synthetic 1',
@@ -91,7 +92,7 @@ if ($mode === '--seed') {
     ]);
     ProductWarranty::query()->create([
         'warranty_number' => 'B1115-SYNTHETIC-WARRANTY', 'order_id' => $order->id, 'order_item_id' => $item->id,
-        'product_id' => $product->id, 'user_id' => $owner->id, 'status' => 'active',
+        'product_id' => $product->id, 'user_id' => $order->user_id, 'status' => 'active',
         'starts_at' => today(), 'expires_at' => today()->addYear(), 'duration_months' => 12,
         'customer_name_snapshot' => 'B1115 Synthetic', 'product_name_snapshot' => $product->name,
         'product_sku_snapshot' => $product->sku, 'quantity' => 1, 'serial_numbers_json' => [],
@@ -113,6 +114,7 @@ if ($mode === '--fixture') {
     echo json_encode([
         'product' => $product->id, 'image' => $product->images()->firstOrFail()->id,
         'customer' => User::query()->where('username', 'b1115-active')->sole()->id,
+        'portal' => User::query()->where('username', 'b1115-portal')->sole()->id,
         'schedule' => ReportSchedule::query()->sole()->id, 'warranty' => ProductWarranty::query()->sole()->id,
         'order' => Order::query()->sole()->id, 'receivable' => ReceivableCase::query()->sole()->id,
     ], JSON_THROW_ON_ERROR);

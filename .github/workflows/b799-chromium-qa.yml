@@ -210,6 +210,12 @@ jobs:
       PLAYWRIGHT_NODE_ROOT: /tmp/b1115-playwright
       B1115_ARTIFACT_DIR: /tmp/b1115-safe-evidence
       B1115_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
       GOOGLE_WEB_AUTH_ENABLED: 'true'
       GOOGLE_OAUTH_WEB_CLIENT_ID: synthetic-browser-client
       GOOGLE_OAUTH_CLIENT_SECRET: synthetic-not-a-provider-secret

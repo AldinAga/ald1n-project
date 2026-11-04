@@ -13,6 +13,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with: {php-version: '8.4', coverage: none}
       - name: Decode immutable reviewed operator artifact and syntax-check
@@ -34,8 +35,16 @@ jobs:
           cp "$RUNNER_TEMP/b1108-upload/incoming/b1108-storefront-host-inventory.sh" "$root/incoming/"
           for p in apps/cms/current/composer.lock apps/mobile/current/package-lock.json apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/resources/views/layouts/app.blade.php; do
             mkdir -p "$root/$(dirname "$p")"
-            cp "$p" "$root/$p"
+            git show "ed21d450a2698f179624a9320028cff3a478d805:$p" > "$root/$p"
           done
+          (cd "$root" && sha256sum --check <<'SHA256'
+          4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8  apps/cms/current/composer.lock
+          de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3  apps/mobile/current/package-lock.json
+          f77a4ccad3efccb1f4bc1288bf8783b875648db8acb5a30592c92901aea114c9  apps/cms/current/public/assets/css/ald1n-ui-refinement.css
+          26bf2f54ec706d5c8d9e9b52ccf2ff4ca439c62eead6606525232a3bf22e488d  apps/cms/current/resources/views/layouts/app.blade.php
+          SHA256
+          )
+          cp "$root/apps/cms/current/resources/views/layouts/app.blade.php" "$RUNNER_TEMP/b1108-approved-layout.blade.php"
           mkdir -p "$root/apps/cms/current/vendor/composer"
           php -r '$x=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR);file_put_contents($argv[2],json_encode(["packages"=>$x["packages"]],JSON_THROW_ON_ERROR));' "$root/apps/cms/current/composer.lock" "$root/apps/cms/current/vendor/composer/installed.json"
           printf '%s\n' SYNTHETIC_PRIVATE_SENTINEL_NOT_FOR_REPORT > "$root/apps/cms/current/.env"
@@ -78,12 +87,18 @@ jobs:
           diff -u "$evidence/before.sha256" "$evidence/after.sha256"
           grep -F 'SOURCE_VENDOR_INVENTORY=MATCH' "$evidence/valid.log"
           test "$(find "$root/docs/operations" -name '1017-B1108-*' -type f | wc -l)" -eq 1
+          printf '\n<!-- synthetic unapproved layout drift -->\n' >> "$root/apps/cms/current/resources/views/layouts/app.blade.php"
+          run_expected 2 layout_drift bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          test "$(find "$root/docs/operations" -name '1018-B1108-*' -type f | wc -l)" -eq 1
+          grep -F '"matches_reviewed_main":false' "$evidence/layout_drift.log"
+          cp "$RUNNER_TEMP/b1108-approved-layout.blade.php" "$root/apps/cms/current/resources/views/layouts/app.blade.php"
+          echo '26bf2f54ec706d5c8d9e9b52ccf2ff4ca439c62eead6606525232a3bf22e488d  '$root'/apps/cms/current/resources/views/layouts/app.blade.php' | sha256sum --check
           printf '\n' >> "$root/apps/mobile/current/package-lock.json"
           run_expected 2 source_drift bash "$root/incoming/b1108-storefront-host-inventory.sh"
-          test "$(find "$root/docs/operations" -name '1018-B1108-*' -type f | wc -l)" -eq 1
+          test "$(find "$root/docs/operations" -name '1019-B1108-*' -type f | wc -l)" -eq 1
           mv "$root/apps/cms/current/vendor/composer/installed.json" "$RUNNER_TEMP/installed-fixture.json"
           run_expected 2 missing_vendor bash "$root/incoming/b1108-storefront-host-inventory.sh"
-          test "$(find "$root/docs/operations" -name '1019-B1108-*' -type f | wc -l)" -eq 1
+          test "$(find "$root/docs/operations" -name '1020-B1108-*' -type f | wc -l)" -eq 1
           if grep -R -F SYNTHETIC_PRIVATE_SENTINEL_NOT_FOR_REPORT "$root/docs/operations" "$evidence"; then exit 93; fi
           test "$(cat "$root/docs/operations/1016-CI-SENTINEL.md")" = retained
           cp "$root/docs/operations/"*B1108-* "$evidence/"

@@ -57,10 +57,17 @@ final class TrustedScriptCspB1115Test extends TestCase
         foreach ($login->headers->getCookies() as $cookie) $this->withUnencryptedCookie($cookie->getName(), $cookie->getValue());
         $this->assertAuthenticatedAs($owner);
         $seen = [];
-        foreach (['/account', '/admin/catalog/create', '/admin/catalog-settings/brands', '/catalog', '/order/new'] as $uri) {
+        foreach (['/account', '/admin/catalog/create', '/admin/catalog-settings/brands', '/admin/catalog-settings/product-lines', '/catalog'] as $uri) {
             $response = $this->get($uri)->assertOk();
             $seen[] = $this->assertTrustedHtml($response);
         }
+        $this->get('/order/new')->assertForbidden();
+        $this->post('/logout')->assertRedirect();
+        $operator = $this->person('operator', 'admin');
+        $login = $this->post('/login', ['login' => $operator->email, 'password' => 'B1115-Synthetic-Only123!'])->assertRedirect();
+        foreach ($login->headers->getCookies() as $cookie) $this->withUnencryptedCookie($cookie->getName(), $cookie->getValue());
+        $this->assertAuthenticatedAs($operator);
+        $seen[] = $this->assertTrustedHtml($this->get('/order/new')->assertOk());
         self::assertCount(count($seen), array_unique($seen), 'B1115_CROSS_RESPONSE_NONCE_REUSE');
     }
 
@@ -82,7 +89,7 @@ final class TrustedScriptCspB1115Test extends TestCase
         Route::get('/b1115-error-'.$status, static fn () => abort($status));
         config()->set('app.debug', false);
         $response = $this->get('/b1115-error-'.$status)->assertStatus($status);
-        $this->assertTrustedHtml($response);
+        $this->assertTrustedHtml($response, $status !== 422);
     }
 
     public static function routedErrors(): array
@@ -108,7 +115,7 @@ final class TrustedScriptCspB1115Test extends TestCase
         foreach ([$json, $pdf] as $response) self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
 
-    private function assertTrustedHtml(TestResponse $response): string
+    private function assertTrustedHtml(TestResponse $response, bool $hasTrustedScripts = true): string
     {
         $policy = (string) $response->headers->get('Content-Security-Policy');
         self::assertSame(1, preg_match("/\bscript-src 'nonce-([A-Za-z0-9+\/=]+)'(?:;|$)/", $policy, $matches), 'B1115_MISSING_NONCE_ONLY_SCRIPT_SRC');
@@ -121,8 +128,15 @@ final class TrustedScriptCspB1115Test extends TestCase
         $dom = new \DOMDocument();
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
         $scripts = $dom->getElementsByTagName('script');
-        self::assertGreaterThan(0, $scripts->length, 'B1115_EXPECTED_TRUSTED_SCRIPTS');
-        foreach ($scripts as $script) self::assertTrue(hash_equals($nonce, $script->getAttribute('nonce')), 'B1115_TRUSTED_TAG_HEADER_MISMATCH');
+        if ($hasTrustedScripts) self::assertGreaterThan(0, $scripts->length, 'B1115_EXPECTED_TRUSTED_SCRIPTS');
+        else self::assertSame(0, $scripts->length, 'B1115_SCRIPTLESS_VENDOR_ERROR_MUST_STAY_SCRIPTLESS');
+        foreach ($scripts as $script) {
+            self::assertTrue(hash_equals($nonce, $script->getAttribute('nonce')), 'B1115_TRUSTED_TAG_HEADER_MISMATCH');
+            if (str_contains($script->getAttribute('src'), '/assets/js/ux-runtime.js')) {
+                parse_str((string) parse_url($script->getAttribute('src'), PHP_URL_QUERY), $query);
+                self::assertSame((string) filemtime(public_path('assets/js/ux-runtime.js')), $query['v'] ?? null, 'B1115_UX_ASSET_MTIME_CACHE_KEY');
+            }
+        }
         foreach ($dom->getElementsByTagName('*') as $element) {
             foreach ($element->attributes as $attribute) self::assertFalse(str_starts_with(strtolower($attribute->name), 'on'), 'B1115_INLINE_EVENT_HANDLER');
         }

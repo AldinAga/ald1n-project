@@ -1112,7 +1112,7 @@ const loadProductSearch = async (term) => {
 })();
 </script>
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/cart-ui.js') }}?v={{ @filemtime(public_path('assets/js/cart-ui.js')) ?: config('app.version') }}" defer></script>
-<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/ux-runtime.js') }}?v={{ config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/ux-runtime.js') }}?v={{ @filemtime(public_path('assets/js/ux-runtime.js')) ?: config('app.version') }}" defer></script>
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}" type="module" src="{{ asset('assets/js/ald1n-liquid-glass-r3.js') }}?v={{ @filemtime(public_path('assets/js/ald1n-liquid-glass-r3.js')) ?: config('app.version') }}"></script>
 @stack('scripts')
 </body>

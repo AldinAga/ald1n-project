@@ -90,11 +90,11 @@ async function main() {
     assert.equal(new URL(page.url()).origin, base);
     return response;
   }
-  async function login(ctx, owner = true) {
+  async function login(ctx, person = 'owner') {
     const page = await ctx.newPage();
     await open(page, '/login');
-    await page.locator('[name="login"]').fill(owner ? 'b812-staff@example.test' : 'b1115-active@example.test');
-    await page.locator('[name="password"]').fill(owner ? 'B812-Owner-Only123!' : 'B1115-Synthetic-Only123!');
+    await page.locator('[name="login"]').fill(person === 'owner' ? 'b812-staff@example.test' : 'b1115-'+(person === 'customer' ? 'active' : person)+'@example.test');
+    await page.locator('[name="password"]').fill(person === 'owner' ? 'B812-Owner-Only123!' : 'B1115-Synthetic-Only123!');
     await Promise.all([page.waitForNavigation({waitUntil: 'networkidle'}), page.getByRole('button', {name: 'Prijavi se'}).click()]);
     assert.notEqual(new URL(page.url()).pathname, '/login');
     return page;
@@ -357,13 +357,16 @@ async function main() {
         await open(mediaPage, '/admin/catalog/'+fixture.product+'/images');
         await mediaPage.locator('[data-image-upload-input]').setInputFiles({name: 'b1115.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ak8AAAAASUVORK5CYII=', 'base64')});
         assert(await mediaPage.locator('[data-image-selection]').isVisible());
+        assert(await mediaPage.locator('[data-image-upload-progress]').isVisible());
         assert((await mediaPage.locator('[data-image-selection-count]').innerText()).startsWith('1 '));
         await mediaPage.locator('[data-image-selection-clear]').click();
         assert.equal(await mediaPage.locator('[data-image-selection]').isVisible(), false);
+        assert.equal(await mediaPage.locator('[data-image-upload-progress]').isVisible(), false);
       } finally { await mediaPage.close(); }
     });
     await check('correlated-filter-brand-line-executes', async () => {
       await open(adminPage, '/catalog');
+      await adminPage.locator('[data-catalog-filter-open]').click();
       const brand = adminPage.locator('[data-filter-brand]');
       const line = adminPage.locator('[data-filter-line]');
       const value = await brand.locator('option').nth(1).getAttribute('value');
@@ -373,7 +376,7 @@ async function main() {
       assert.equal(await line.locator('option:disabled').count(), 0);
     });
     await check('dictionary-sorting-ui-executes', async () => {
-      await open(adminPage, '/admin/catalog-settings/brands');
+      await open(adminPage, '/admin/catalog-settings/product-lines');
       assert.equal(await adminPage.locator('[data-dictionary-sortable]').getAttribute('data-sort-ready'), '1');
       await adminPage.locator('[data-sort-edit-start]').first().click();
       assert(await adminPage.locator('html').evaluate(node => node.classList.contains('dictionary-reorder-active')));
@@ -409,14 +412,15 @@ async function main() {
       } finally { await financial.close(); }
     });
     await check('order-create-payment-fields-and-order-edit-quantity', async () => {
-      const financial = await admin.newPage();
+      const operator = await context();
+      const financial = await login(operator, 'operator');
       try {
         await open(financial, '/order/new');
         await financial.locator('[data-payment-method]').selectOption('deferred_payment');
         assert(await financial.locator('[data-payment-due]').isVisible());
         await financial.locator('[data-payment-method]').selectOption('cash_on_delivery');
         assert.equal(await financial.locator('[data-payment-due]').isVisible(), false);
-        const amendment = await admin.newPage();
+        const amendment = await operator.newPage();
         try {
           await open(amendment, '/orders/'+fixture.order+'/edit');
           await amendment.locator('[data-qty-plus]').click();
@@ -448,16 +452,24 @@ async function main() {
       } finally { await financial.close(); }
     });
     const buyer = await context();
-    const buyerPage = await login(buyer, false);
+    const buyerPage = await login(buyer, 'customer');
+    const portal = await context();
+    const portalPage = await login(portal, 'portal');
     await check('customer-session-revoke-confirmation', async () => {
-      await open(adminPage, '/admin/customer-portal/users/'+fixture.customer);
-      await confirmForm(adminPage, 'form[action$="/customer-portal/users/'+fixture.customer+'/sessions"]');
+      await open(adminPage, '/admin/customer-portal/users/'+fixture.portal);
+      await confirmForm(adminPage, 'form[action$="/customer-portal/users/'+fixture.portal+'/sessions"]');
     });
     await check('other-role-admin-denial-unchanged', async () => {
-      await open(buyerPage, '/account');
-      const response = await buyerPage.goto(base+'/admin/settings/system-health', {waitUntil: 'networkidle'});
+      await open(portalPage, '/account');
+      const response = await portalPage.goto(base+'/admin/settings/system-health', {waitUntil: 'networkidle'});
       assert.equal(response.status(), 403);
-      await Promise.all([buyerPage.waitForURL('**/account'), buyerPage.getByRole('button', {name: 'Nazad', exact: true}).click()]);
+      await Promise.all([portalPage.waitForURL('**/account'), portalPage.getByRole('button', {name: 'Nazad', exact: true}).click()]);
+    });
+    await check('retail-customer-internal-account-and-admin-remain-denied', async () => {
+      for (const uri of ['/account', '/admin/settings/system-health']) {
+        const response = await buyerPage.goto(base+uri, {waitUntil: 'networkidle'});
+        assert.equal(response.status(), 403);
+      }
     });
     if (process.env.TURNSTILE_ENABLED === 'true') await check('turnstile-controlled-api-and-nonce-child-execute', async () => {
       await open(page, '/login');
