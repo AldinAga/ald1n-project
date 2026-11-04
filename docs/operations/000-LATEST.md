@@ -1,3 +1,21 @@
+# CURRENT 2026-11-04 — B1108 FINAL719 ZERO; REAL HOST1070; SECURITY/DEPLOYMENT HOLD
+
+[Report1071](1071-B1106-B1108-STOREFRONT719-SECURITY-MERGES-AND-REAL-HOST-INVENTORY-20261104.md) is current. [OwnerReport1070](1070-B1108-STOREFRONT-HOST-INVENTORY-20261104-124414.md) preserved BYTE-EXACT (Gitblob34b6c7478bbf21e43629444e55e2c85eff636cbf/SHA2568a1b51895e514e4211eb3b32b94a01477d261b0114668464b2c212c566a252f8). Hosting local reports reached1069 before thisbatch, so1070/1071 followactualhostcensus; do not reuse those numbers or delete uncheckpointed reports.
+
+DraftPR135 exact **e3d97270785fcdeee58721ae0787f3065cf0fcb3**, stillUNMERGED/UNDEPLOYED: actualcanonical41831848712 **719tests/7295assertions;194focused/2691PASS,0failed/errors/skips;allold640IDsretained**. Independentfull41831848898WHOLE_SUITE_GREEN=YES. Real registeredChromium+Firefox41831848399 andbothtrueHTTP/SQLconcurrencyracesPASS,4ownedorders/0payments/0commissions; CSP14responses/28scriptprobesretained. Release25historical41831848311 **309PASS**, exactPR142lockguard,no testwaiver. **18/20workflowsSUCCESS;2auditworkflowsFAILforactualunresolvedsecurityfindings**, not functionaltesterrors.
+
+OwnerfinalexistingCMSterms/privacy/shipping/contactdecision is **APPROVED / AGENTS0U**. NewrealTDD fixedregistrationprivacy usingstaleconfig insteadCMS: RED650dc06b (2cases/1expectedfailure)→one-lineGREENf6498446 (2/14PASS,full719/7295). Existingpolicyservice reused; protectedfixturewhitelistunchanged. Do not ask thisbusinessdecisionagain or forgeapprovaldigests/enableflags.
+
+Main **PR142 mergeded21d450a2698f179624a9320028cff3a478d805**:sixJS-onlyobjectupdates,all102native/Expo/Reactobjectsunchanged,309/TSC/validator/JDK17PASS; npm25→21packages,critical1→0/high9→6. PHPPR141alreadymerged/audit20→0. MainPR143merged57983fb26804967f174bfb54df72c9af9d3906fe onlytestsread-onlyoperatorartifact; latermainchangesareCI/docs,notStorefrontdeployment. Mainapps/packages unchanged sinceed21.
+
+**Actual host:** PHP8.4.27;menuCSSANDBladeMATCHcurrentmain. OldCMS13.20.0/Guzzle7.15.1/CommonMark2.8.3/Symfony8.1.1+8.1.0installedinventorymatchesoldlock27ad4a0c...,notnew4965e0f5.... Mobilehostlock1db0f93d...notnewde158426.... LocalhostHEADb5b942e6vsfetched2869b414,dirty/untrackedsetnotyetknown. ActualinventoryRC2HOLD_DRIFT_OR_NOT_YET_DEPLOYED. NoDB/env/cache/FPM/mail/sourcechange. **Do notsendloosevendoroverlay/blindpull/migration**;nextboundedread-onlyreadinessmustestablishsourcechanges,space,Composer,policy/senderandbackupmetadatabeforecontrolledreleasepreparation. B962/B955/B959 remaincredited; do notrepeat completedproductionwork.
+
+[Permanentnew evidence](https://drive.google.com/file/d/1LqTux-QPzZiitI-0rkUXaMUNJLsecCvC/view) SHA256 **97a7c3f321ee00366c2cafd8fdb83e1ba5be61e1ea615d64caec4ff0708411dc** independentlyreadbackverified. RootZIPD:/GPT/Ald1n-Storefront-provera-hostinga-20261104.zipownerexecuted(script0011225f...);noappoverlay. AGENTS0TrootrelativeZIP/incoming/reportsrulespermanent. Gitleaks816current/1372historyPOTENTIALfindings,remainingnpm21/security368/SEC23/mail/host/backup/rollback/UATOPEN. No releasewaiver.
+
+Formal12/17=70.6%,M17CLOSED,acceptedSDK58Build29isolated;nonewnativebuild. Weekly24%,ceiling50%,noreset. TwoownerQA DBs untouched. GitHubruntimeonly,nolocalPHP/DB/Docker/FileZilla/EAS/OTA/build/Play/productiondeployment. EarlierCURRENTentriesbelowarehistorical.
+
+---
+
 # CURRENT 2026-11-04 — B1105 PHP SECURITY MERGED; STOREFRONT FULL QA RUNNING; RELEASE HOLD
 
 **Update:** owner confirmed existing CMS terms/privacy/shipping/contact settings FINAL and approved; do not ask again. Combined1ae9 canonical41828321972 SUCCESS:717/0problems, focus192PASS, all640oldIDsretained; currentc8a browser41828612311SUCCESS. Currentc8a finalcanonical41828612398stillrunning. JS-only DraftPR142 exacthead03243c683d0bb617a5eaaccab47df7ae531aa65b awaits finalQA; remaining21mobile/816+1372potentialscannerfindings OPEN. Later text saying merchantdecisionpending is superseded by this explicit decision.
