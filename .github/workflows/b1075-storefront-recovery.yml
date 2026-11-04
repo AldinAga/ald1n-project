@@ -161,11 +161,11 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==83,len(cases)
+          assert len(cases)==86,len(cases)
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']==553,report['before']['count']
-          assert report['after']['count']==637,report['after']['count']
+          assert report['after']['count']==640,report['after']['count']
           assert report['before']['skippedCount']==report['after']['skippedCount']==0
           legacy='Tests.Unit.LegacyReadOnlyGuardTest::test_mutating_and_locking_queries_are_blocked'
           expected_provider_cases={legacy+' with data set #'+str(i) for i in range(7)}
