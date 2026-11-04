@@ -261,6 +261,82 @@ async function headerGeometry(page, persona, mode, width) {
   return state;
 }
 
+async function mobileDrawerSingleColumnSmoke(page, label, width) {
+  const pre = await page.evaluate(() => {
+    const header = document.querySelector('[data-site-header]');
+    const panel = document.querySelector('[data-mobile-menu]');
+    const nav = panel?.querySelector(':scope > .main-nav');
+    const settings = panel?.querySelector(':scope > [data-mobile-menu-preferences]');
+    const logout = panel?.querySelector(':scope > .header-logout');
+    const bounds = (node) => {
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width };
+    };
+    const css = panel ? getComputedStyle(panel) : null;
+    const computedAlpha = (node) => {
+      if (!node) return 0;
+      const bg = getComputedStyle(node).backgroundColor;
+      if (bg === 'transparent') return 0;
+      const match = bg.match(/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*([\d.]+))?\s*\)$/);
+      return match ? Number(match[1] ?? '1') : 0;
+    };
+    const layer = header?.querySelector(':scope > .lg-layer');
+    return {
+      panel: bounds(panel), nav: bounds(nav), settings: bounds(settings), logout: bounds(logout),
+      columns: css?.gridTemplateColumns || '',
+      areas: css?.gridTemplateAreas || '',
+      panelScrollWidth: panel?.scrollWidth || 0,
+      panelClientWidth: panel?.clientWidth || 0,
+      opaqueHeader: computedAlpha(header),
+      opaqueMenu: computedAlpha(panel),
+      layerHidden: !layer || getComputedStyle(layer).display === 'none',
+      settingsIsDetails: settings?.tagName === 'DETAILS',
+      settingsInitiallyClosed: settings?.open === false,
+      settingsContentHidden: settings ? getComputedStyle(settings.querySelector('.quick-settings-group')).display === 'none' : false,
+      viewport: window.innerWidth,
+    };
+  });
+  const tag = label + '/' + width;
+  const fits = (r) => r && r.width > 0 && r.left >= -1 && r.right <= width + 1;
+  check(pre.panel && pre.nav && pre.settings && pre.logout, 'MOBILE_DRAWER_PARTS_EXIST', tag + ' ' + JSON.stringify(pre));
+  check(pre.areas.replace(/\s+/g, ' ').includes('"nav" "quick" "logout"'), 'MOBILE_DRAWER_SINGLE_COLUMN', tag + ' ' + pre.areas);
+  check(['panel','nav','settings','logout'].every(key => fits(pre[key])), 'MOBILE_DRAWER_IN_VIEWPORT', tag + ' ' + JSON.stringify(pre));
+  check(pre.nav && pre.settings && pre.logout
+      && pre.nav.bottom <= pre.settings.top + 2
+      && pre.settings.bottom <= pre.logout.top + 2,
+    'MOBILE_DRAWER_VERTICAL_FLOW', tag + ' ' + JSON.stringify(pre));
+  check(pre.panelScrollWidth <= pre.panelClientWidth + 2, 'MOBILE_DRAWER_NO_X_SCROLL', tag + ' ' + JSON.stringify(pre));
+  check(pre.opaqueHeader >= .99 && pre.opaqueMenu >= .99 && pre.layerHidden,
+    'MOBILE_DRAWER_OPAQUE_READING_SURFACE', tag + ' ' + JSON.stringify(pre));
+  check(pre.settingsIsDetails && pre.settingsInitiallyClosed && pre.settingsContentHidden,
+    'MOBILE_SETTINGS_NATIVE_DISCLOSURE_CLOSED', tag + ' ' + JSON.stringify(pre));
+  const preferences = page.locator('[data-mobile-menu-preferences]');
+  await preferences.locator(':scope > summary').click();
+  check(await preferences.evaluate(el => el.open), 'MOBILE_SETTINGS_DISCLOSURE_OPEN', tag);
+  check(await preferences.locator('[data-theme-mode-option="dark"]').isVisible()
+    && await preferences.locator('[data-display-currency-option="RSD"]').isVisible(),
+    'MOBILE_SETTINGS_CONTROLS_ACCESSIBLE', tag);
+  await preferences.locator(':scope > summary').click();
+  check(!(await preferences.evaluate(el => el.open)), 'MOBILE_SETTINGS_DISCLOSURE_RECLOSE', tag);
+  // Menu dropdowns must remain inside the same scroll plane instead of
+  // escaping as absolutely positioned overlays.
+  const firstDropdown = page.locator('[data-mobile-menu] .nav-dropdown').first();
+  if (await firstDropdown.count()) {
+    await firstDropdown.locator(':scope > summary').click();
+    const dropdown = await firstDropdown.locator(':scope > .nav-dropdown-menu').evaluate(el => ({
+      position: getComputedStyle(el).position,
+      width: el.getBoundingClientRect().width,
+      left: el.getBoundingClientRect().left,
+      right: el.getBoundingClientRect().right,
+    }));
+    check(dropdown.position === 'static' && dropdown.left >= -1 && dropdown.right <= width + 1,
+      'MOBILE_DROPDOWN_IN_FLOW', tag + ' ' + JSON.stringify(dropdown));
+    await firstDropdown.locator(':scope > summary').click();
+  }
+  if (width === 320 || width === 390) await snapshot(page, 'mobile-single-column-'+label+'-'+width);
+}
+
 async function searchAndMenu(page, label, width) {
   await page.setViewportSize({ width, height: 900 });
   const toggle = page.locator('[data-header-product-search-toggle]');
@@ -282,6 +358,7 @@ async function searchAndMenu(page, label, width) {
     const menu = page.locator('[data-mobile-menu-toggle]');
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_OPENS', label);
+    if (width <= 820) await mobileDrawerSingleColumnSmoke(page, label, width);
     const hdr = await headerGeometry(page, 'superadmin', label.split('/')[1] || 'dark', width);
     check(hdr.elements.rate !== null && hdr.elements.cart === null && hdr.elements.search !== null,
       'OPERATOR_HEADER_WITH_MENU_NO_PERSONAL_CART', label);
@@ -554,7 +631,7 @@ async function main() {
           // Follow-on Liquid Glass optics smoke must always start on Dashboard.
           await navigate(page, fixture.paths.dashboard, 'RETIREMENT_UAT_RESTORE_DASHBOARD');
           if (persona==='superadmin') {
-            for (const width of [1440,320]) {
+            for (const width of [1440,820,620,390,320]) {
               await searchAndMenu(page,persona+'/'+mode+'/'+width,width);
             }
             for (const width of [1440,620,320]) {

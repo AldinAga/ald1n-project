@@ -1,3 +1,8 @@
+<!-- PR129 integration: retain current operations and original RED evidence. -->
+Laravel mobile-menu source: [PR129](https://github.com/AldinAga/ald1n-project/pull/129), prior exact-head nine CI workflows green, including Chromium/PHP/MariaDB run41726558349. Source retained unchanged; synchronizing current main resolves only this index conflict. Fresh combined CI pending; no production deployment. See [menu evidence](ALD1N-LARAVEL-MOBILE-MENU-SINGLE-COLUMN-20261103.md).
+
+---
+
 # CURRENT 2026-11-04 — B1079 POSITIVE MANUAL COMMISSION:86 TARGETED PASS;75 PHP+4 RELEASE25 HOLD
 
 [Report1009](1009-B1079-POSITIVE-MANUAL-COMMISSION-GITHUB-QA-AND-HANDOFF-20261104.md) supersedes pending-zero statements: **manual EUR must be >0 (cent minimum0.01); blank/null/omitted =>automatic10%; positive manual may be below or above10%, no fixed50EUR cap, SA-only.** Draft PR131 tested7efffa17f068494b23d9713b7af4896c7045f349, stacked on unmerged PR93; application main/production unchanged.
