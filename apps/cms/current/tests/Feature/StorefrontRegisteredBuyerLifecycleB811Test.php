@@ -261,6 +261,8 @@ final class StorefrontRegisteredBuyerLifecycleB811Test extends TestCase
             'last_name' => 'Synthetic',
             'email' => 'B811-New-Buyer@example.test',
             'phone' => '0601234567',
+            'address' => 'Synthetic 12',
+            'city' => 'Beograd',
             'accepted_privacy' => '1',
         ];
     }
