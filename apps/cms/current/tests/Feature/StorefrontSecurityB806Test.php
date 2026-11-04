@@ -16,6 +16,7 @@ final class StorefrontSecurityB806Test extends TestCase
     use RefreshDatabase;
     private Product $product;
     private User $owner;
+    private User $buyer;
 
     protected function setUp(): void
     {
@@ -24,6 +25,7 @@ final class StorefrontSecurityB806Test extends TestCase
         // Throttling is a separate real-HTTP test obligation, not bypassed evidence.
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         config()->set('app.url','https://cms.ald1n.com');
+        config()->set('services.turnstile.enabled',false);
         foreach ([
             'enabled'=>true,'checkout_enabled'=>true,
             'terms_url'=>'https://cms.ald1n.com/uslovi',
@@ -57,6 +59,31 @@ final class StorefrontSecurityB806Test extends TestCase
             'manual_commission_eur'=>876543,'status'=>'active','created_by'=>$this->owner->id,
         ]);
         Mail::fake();
+        $this->buyer=User::query()->create([
+            'role_id'=>Role::query()->where('slug','customer')->valueOrFail('id'),
+            'username'=>'b806-security-buyer','email'=>'buyer@example.test',
+            'first_name'=>'Synthetic','last_name'=>'Buyer','address'=>'Test 12',
+            'city'=>'Beograd','phone'=>'0601234567',
+            'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active',
+            'email_verified_at'=>now(),'portal_activated_at'=>now(),
+        ]);
+        $this->post('/login',[
+            'login'=>$this->buyer->email,'password'=>'SyntheticOnly123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($this->buyer);
+    }
+
+
+    public function test_anonymous_checkout_is_denied_without_inventory_or_financial_writes(): void
+    {
+        $this->post('/logout')->assertRedirect();
+        $this->get('/porucivanje')->assertRedirect('/login');
+        $this->postJson('/porucivanje',[])->assertUnauthorized();
+        foreach(['orders','stock_movements','public_checkout_attempts','public_order_accesses','order_payments','order_commissions'] as $table) {
+            self::assertDatabaseCount($table,0);
+        }
+        self::assertSame(4,(int)$this->product->fresh()->stock_quantity);
+        Mail::assertNothingSent();
     }
 
     public static function origins(): array
@@ -145,7 +172,7 @@ final class StorefrontSecurityB806Test extends TestCase
         self::assertSame(12000.0,(float)$order->subtotal_rsd);
         self::assertSame('unpaid',$order->payment_state);
         self::assertSame('new',$order->status);
-        self::assertNull($order->user_id);
+        self::assertSame((int)$this->buyer->id,(int)$order->user_id);
         self::assertSame((int)$this->owner->id,(int)$order->supplier_user_id);
         self::assertDatabaseCount('order_payments',0);
         self::assertDatabaseCount('order_commissions',0);
