@@ -109,6 +109,8 @@ function avoidInternalNumbers(text,label){
       await openOk(page,'/registracija','guest-signup');
       await page.locator('input[name="first_name"]').fill('B812');
       await page.locator('input[name="last_name"]').fill('Browser Buyer');
+      await page.locator('input[name="address"]').fill('Synthetic 12');
+      await page.locator('input[name="city"]').fill('Beograd');
       await page.locator('input[name="email"]').fill(buyerEmail);
       await page.locator('input[name="phone"]').fill('0601234567');
       await page.locator('input[name="accepted_privacy"]').check();
