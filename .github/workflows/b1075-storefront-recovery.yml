@@ -205,8 +205,6 @@ jobs:
     if: github.head_ref == 'fix/b1075-storefront-recovery-20261103'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    env:
-      npm_config_cache: ${{ runner.temp }}/b1079-npm-cache
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -220,6 +218,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export npm_config_cache="$RUNNER_TEMP/b1079-npm-cache"
           node -e "if(require('./package.json').packageManager!=='npm@10.9.2')process.exit(2)"
           npm exec --yes --package=npm@10.9.2 -- npm ci --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-install.log"
           npm run typecheck 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-typecheck.log"
