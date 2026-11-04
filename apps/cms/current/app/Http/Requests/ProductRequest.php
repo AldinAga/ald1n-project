@@ -51,7 +51,7 @@ final class ProductRequest extends FormRequest
             'price_amount' => [$webDraft ? 'nullable' : 'required', 'numeric', $activePublication ? 'min:0.01' : 'min:0', 'max:9999999999.99'],
             'price_currency' => ['required', Rule::in(['RSD', 'EUR'])],
             'purchase_price_rsd' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
-            'manual_commission_eur' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'manual_commission_eur' => ['nullable', 'numeric', 'min:0.01', 'max:999999.99'],
             'description' => [$webDraft ? 'nullable' : 'required', 'string', 'max:65000'],
             'notes' => ['nullable', 'string', 'max:65000'],
             'stock_quantity' => [$webDraft ? 'nullable' : 'required', 'integer', 'min:0', 'max:1000000'],
