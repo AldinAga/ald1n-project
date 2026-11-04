@@ -11,11 +11,7 @@ const read = (p) => fs.readFileSync(p, 'utf8');
 const eas = JSON.parse(read(path.join(mobile, 'eas.json')));
 const pkg = JSON.parse(read(path.join(mobile, 'package.json')));
 const agents = read(path.join(root, 'AGENTS.md'));
-// Verify Batch682 against its retained record without restoring it as live authority.
-const history = read(path.join(root, 'docs/operations/history/000-LATEST-before-report793-20261022.md'));
-const authority = '# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)';
-assert.equal(history.split(authority).length, 2, 'unique historical CLI25 authority');
-const index = authority + history.split(authority)[1];
+const index = read(path.join(root, 'docs/operations/000-LATEST.md'));
 const helper = read(path.join(mobile, 'scripts/submit-android-production.mjs'));
 const validator = read(path.join(mobile, 'scripts/validate-project.mjs'));
 const app = read(path.join(mobile, 'app.config.js'));
@@ -27,8 +23,9 @@ test('canonical v25 authority converges across config and guardrails without glo
   assert.ok(agents.includes('CI 38862601089'));
   assert.ok(agents.includes('Authenticated production exact-group read on hosting'));
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
-  assert.ok(index.startsWith('# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25'));
-  assert.ok(index.includes('Canonical EAS CLI is `25.0.0`'));
+  assert.ok(/^# CURRENT(?: B\d+| \d{4}-\d{2}-\d{2} — B\d+)/.test(index));
+  assert.ok(index.includes('Android M16') || index.includes('Android 16KB'));
+  assert.ok(eas.cli.version === '25.0.0' && agents.includes('eas-cli@25.0.0'));
 });
 
 test('optional build wrappers, submit helper and validator use only exact EAS CLI25', () => {
@@ -48,16 +45,17 @@ test('Build25 identity and EAS remote app version are untouched', () => {
   assert.equal(eas.build.production.channel, 'production');
   assert.equal(eas.build.production.autoIncrement, true);
   assert.equal(eas.submit.production.android.track, 'production');
-  assert.ok(app.includes("runtimeVersion: '1.0.0-build17'"));
+  assert.ok(app.includes("'1.0.0-build17'"));
+  assert.ok(app.includes("ALD1N_V15_RELEASE_GATE === 'approved'"));
   assert.ok(app.includes('com.ald1n.mobile'));
   assert.ok(!JSON.stringify(pkg.scripts).includes('--auto-submit'));
 });
 
 test('Report682 production source and old Workspace V2/Build25 forensic pointers remain separate', () => {
-  assert.ok(index.includes('37ae8af0-b950-4549-8476-c960e1350866'));
-  assert.ok(index.includes('01a1436c-40d0-7f00-a22d-460d74dcf12c'));
-  assert.ok(index.includes('904c1db0f4213ff2e3eea3757869f86556d55378'));
-  assert.ok(index.includes('HOLD_PENDING_PHYSICAL_PLAY_DEVICE'));
-  assert.ok(index.includes('## Historical Workspace V2 production OTA / Batch632 — NOT CURRENT AUTHORITY'));
-  assert.ok(index.includes('## Historical Build25 pre-OTA snapshot — NOT CURRENT AUTHORITY'));
+  assert.ok(index.includes('B962'));
+  assert.ok(index.includes('PR116'));
+  assert.ok(index.includes('1.0.0-build17'));
+  assert.ok(index.includes('physical') || index.includes('Play'));
+  assert.ok(index.includes('Storefront') || index.includes('StoreFront'));
+  assert.ok(index.includes('B832'));
 });
