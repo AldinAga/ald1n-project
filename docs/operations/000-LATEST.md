@@ -1,3 +1,9 @@
+# OWNER RESUME 2026-11-04 — WEEKLY CEILING50%, PRIOR RESERVE STOP SUPERSEDED
+
+Owner explicitly resumed work using installed ECC skills and raised maximum Weekly Usage to50%. Current Usage19%; prior20% ceiling/19% STOP below are historical. Latest verified full result remains DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807:713tests/51failedIDs,117focused/1359assertionsPASS. Continue from that census with all protected-fixture, registration, money, GitHub-only runtime and production/release gates intact. See AGENTS0P. New work is not yet claimed verified.
+
+---
+
 # CURRENT 2026-11-04 — ECC73 →51; 117 FOCUSED PASS; WEEKLY19% RESERVE STOP
 
 [Report1013](1013-B1087-ECC-SECURITY-REGRESSION-713-51-AND-WEEKLY-RESERVE-20261104.md) is current. Exact DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807, [actual full41804057598](https://github.com/AldinAga/ald1n-project/actions/runs/41804057598): **713tests/8errors/43failures=51failedIDs**,0skips/0missing baseline cases; all640historicalPR131 IDs retained. Previous73 ->67 verified byReport1012 ->51 through16 original unprotectedB806 security scenarios now using a real verified/activated six-field buyer login. All16original assertions/cases retained, zero new failed IDs versus67, one explicit guest-denial/no-stock-money-write case added. Focus **117tests/1359assertions PASS**. Application code/protectedB805/B809/B815 unchanged. FullCI remainsFAIL;39commerce failed IDs new versus frozen earliermain baseline487/17, not0new. No waiver/main-storefront merge.
