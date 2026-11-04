@@ -42,7 +42,8 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=10s --health-timeout=5s --health-retries=12
     env:
-      B1130_CURRENT: ${{ github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.number == 135 && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.base.repo.full_name == 'AldinAga/ald1n-project' && github.head_ref == 'codex/b1082-storefront-current-main-20261104' && github.base_ref == 'main' && github.event.pull_request.base.sha == '93d44e03f3fc21844dead026bd7bb9641cc60b06' }}
+      B1130_CURRENT: ${{ github.event_name == 'pull_request' && github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.number == 135 && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.base.repo.full_name == 'AldinAga/ald1n-project' && github.head_ref == 'codex/b1082-storefront-current-main-20261104' && github.base_ref == 'main' && github.event.pull_request.base.sha == '93d44e03f3fc21844dead026bd7bb9641cc60b06' }}
+      B1132_EVENT: ${{ github.event_name }}
       B1130_REPOSITORY: ${{ github.repository }}
       B1130_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
       B1130_BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
@@ -97,6 +98,8 @@ jobs:
         run: |
           set -euo pipefail
           if test "$B1130_CURRENT" = true; then
+            test "$B1130_CURRENT" = true
+            test "$B1132_EVENT" = pull_request
             test "$B1130_REPOSITORY" = AldinAga/ald1n-project
             test "$B1130_HEAD_REPOSITORY" = AldinAga/ald1n-project
             test "$B1130_BASE_REPOSITORY" = AldinAga/ald1n-project
@@ -104,12 +107,17 @@ jobs:
             test "$B1130_HEAD_REF" = codex/b1082-storefront-current-main-20261104
             test "$B1130_BASE_REF" = main
             test "$B1130_BASE_SHA" = 93d44e03f3fc21844dead026bd7bb9641cc60b06
-            test "$(git -C original rev-parse HEAD)" = 93d44e03f3fc21844dead026bd7bb9641cc60b06
+            test "$(git -C candidate rev-parse HEAD)" = "$B1130_HEAD_SHA"
             git -C candidate merge-base --is-ancestor 93d44e03f3fc21844dead026bd7bb9641cc60b06 "$B1130_HEAD_SHA"
-            git -C candidate merge-base --is-ancestor 3f8c0c31d881e4376cad8ea100c5939beb58f51e "$B1130_HEAD_SHA"
-            test "$(git -C candidate diff --name-status 3f8c0c31d881e4376cad8ea100c5939beb58f51e "$B1130_HEAD_SHA")" = $'M\t.github/workflows/b1082-storefront-current-main.yml'
-            delta="$(git -C candidate diff --raw --no-abbrev 3f8c0c31d881e4376cad8ea100c5939beb58f51e "$B1130_HEAD_SHA")"
-            [[ "$delta" =~ ^:100644\ 100644\ [0-9a-f]{40}\ [0-9a-f]{40}\ M$'\t'\.github/workflows/b1082-storefront-current-main\.yml$ ]]
+            git -C candidate merge-base --is-ancestor ef3f927b77ba573881c2b6dba341732c417e6725 "$B1130_HEAD_SHA"
+            test "$(git -C candidate diff --name-status ef3f927b77ba573881c2b6dba341732c417e6725 "$B1130_HEAD_SHA")" = $'M\t.github/workflows/b1082-storefront-current-main.yml\nM\t.github/workflows/batch721-integrated-candidate-mariadb.yml'
+            delta="$(git -C candidate diff --raw --no-abbrev ef3f927b77ba573881c2b6dba341732c417e6725 "$B1130_HEAD_SHA")"
+            while IFS=$'\t' read -r meta file; do
+              [[ "$meta" =~ ^:100644\ 100644\ [0-9a-f]{40}\ [0-9a-f]{40}\ M$ ]]
+            done <<< "$delta"
+            test "$(git -C candidate rev-parse "$B1130_HEAD_SHA:apps/mobile/current")" = 978408a3ae5a6fee1f0a43d4f2e2480e682df793
+            test "$(git -C candidate rev-parse 93d44e03f3fc21844dead026bd7bb9641cc60b06:apps/mobile/current)" = 978408a3ae5a6fee1f0a43d4f2e2480e682df793
+            test "$(git -C original rev-parse HEAD)" = 93d44e03f3fc21844dead026bd7bb9641cc60b06
           else
             test "$B1130_CURRENT" = false
             test "$(git -C original rev-parse HEAD)" = e89def93293ed2828f02bed5e412c93e00a7c0df

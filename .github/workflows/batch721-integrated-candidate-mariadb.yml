@@ -448,6 +448,17 @@ jobs:
           git diff --exit-code -- package.json package-lock.json
 
   release-history:
+    env:
+      B1130_CURRENT: ${{ github.event_name == 'pull_request' && github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.number == 135 && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.base.repo.full_name == 'AldinAga/ald1n-project' && github.head_ref == 'codex/b1082-storefront-current-main-20261104' && github.base_ref == 'main' && github.event.pull_request.base.sha == '93d44e03f3fc21844dead026bd7bb9641cc60b06' }}
+      B1132_EVENT: ${{ github.event_name }}
+      B1130_REPOSITORY: ${{ github.repository }}
+      B1130_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      B1130_BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+      B1130_PR: ${{ github.event.pull_request.number }}
+      B1130_HEAD_REF: ${{ github.head_ref }}
+      B1130_BASE_REF: ${{ github.base_ref }}
+      B1130_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      B1130_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     if: contains(fromJSON('["codex/b1080-release-history-main-20261104","codex/b1080-main-postmerge-20261104","codex/b1081-positive-commission-main-20261104","codex/b1082-storefront-current-main-20261104"]'), github.head_ref) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -460,6 +471,30 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.23.4'
+      - name: Exact current PR135 source and immutable whole Mobile admission
+        if: env.B1130_CURRENT == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$B1130_CURRENT" = true
+          test "$B1132_EVENT" = pull_request
+          test "$B1130_REPOSITORY" = AldinAga/ald1n-project
+          test "$B1130_HEAD_REPOSITORY" = AldinAga/ald1n-project
+          test "$B1130_BASE_REPOSITORY" = AldinAga/ald1n-project
+          test "$B1130_PR" = 135
+          test "$B1130_HEAD_REF" = codex/b1082-storefront-current-main-20261104
+          test "$B1130_BASE_REF" = main
+          test "$B1130_BASE_SHA" = 93d44e03f3fc21844dead026bd7bb9641cc60b06
+          test "$(git rev-parse HEAD)" = "$B1130_HEAD_SHA"
+          git merge-base --is-ancestor 93d44e03f3fc21844dead026bd7bb9641cc60b06 "$B1130_HEAD_SHA"
+          git merge-base --is-ancestor ef3f927b77ba573881c2b6dba341732c417e6725 "$B1130_HEAD_SHA"
+          test "$(git diff --name-status ef3f927b77ba573881c2b6dba341732c417e6725 "$B1130_HEAD_SHA")" = $'M\t.github/workflows/b1082-storefront-current-main.yml\nM\t.github/workflows/batch721-integrated-candidate-mariadb.yml'
+          delta="$(git diff --raw --no-abbrev ef3f927b77ba573881c2b6dba341732c417e6725 "$B1130_HEAD_SHA")"
+          while IFS=$'\t' read -r meta file; do
+            [[ "$meta" =~ ^:100644\ 100644\ [0-9a-f]{40}\ [0-9a-f]{40}\ M$ ]]
+          done <<< "$delta"
+          test "$(git rev-parse "$B1130_HEAD_SHA:apps/mobile/current")" = 978408a3ae5a6fee1f0a43d4f2e2480e682df793
+          test "$(git rev-parse 93d44e03f3fc21844dead026bd7bb9641cc60b06:apps/mobile/current)" = 978408a3ae5a6fee1f0a43d4f2e2480e682df793
       - name: Locked mobile install and existing canonical source gates only
         working-directory: apps/mobile/current
         shell: bash
@@ -478,16 +513,21 @@ jobs:
           baseline="$RUNNER_TEMP/b1079-release25-baseline"
           base=0b73ce6eed7fe671b960693fbe74a7db36fdc47f
           test ! -e "$baseline"
-          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json \
-            ':(exclude)apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs' \
-            ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs' \
-            ':(exclude)apps/mobile/current/scripts/release25/deep-offline-contract.test.mjs'
-          if [ "$GITHUB_HEAD_REF" = codex/b1082-storefront-current-main-20261104 ]; then
+          if test "$B1130_CURRENT" = true; then
+            test "$(git diff --name-status "$base" HEAD -- apps/mobile/current/scripts/release25)" = $'A\tapps/mobile/current/scripts/release25/api-download.test.mjs\nM\tapps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs\nM\tapps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs\nM\tapps/mobile/current/scripts/release25/deep-offline-contract.test.mjs'
             echo 'de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3  apps/mobile/current/package-lock.json' | sha256sum --check
           else
-            git diff --exit-code "$base" HEAD -- apps/mobile/current/package-lock.json
+            git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json \
+              ':(exclude)apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs' \
+              ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs' \
+              ':(exclude)apps/mobile/current/scripts/release25/deep-offline-contract.test.mjs'
+            if [ "$GITHUB_HEAD_REF" = codex/b1082-storefront-current-main-20261104 ]; then
+              echo 'de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3  apps/mobile/current/package-lock.json' | sha256sum --check
+            else
+              git diff --exit-code "$base" HEAD -- apps/mobile/current/package-lock.json
+            fi
+            test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 3
           fi
-          test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 3
           git worktree add --detach "$baseline" "$base"
           test "$(git -C "$baseline" rev-parse HEAD)" = "$base"
           ln -s "$GITHUB_WORKSPACE/apps/mobile/current/node_modules" "$baseline/apps/mobile/current/node_modules"
@@ -501,6 +541,56 @@ jobs:
           }
           run_release25 "$baseline" baseline
           run_release25 "$GITHUB_WORKSPACE" candidate
+          if test "$B1130_CURRENT" = true; then
+            set +e
+            (cd apps/mobile/current && node --test scripts/release25/api-download.test.mjs) 2>&1 | tee "$RUNNER_TEMP/b1079-focused-release25.tap"
+            focused_rc=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$focused_rc" > "$RUNNER_TEMP/b1079-focused-release25.exit"
+            node - "$RUNNER_TEMP" <<'NODE'
+            const fs=require('fs'),assert=require('assert/strict');
+            const approvedFocused=["private download family: order payment proof","private download family: order confirmation PDF","private download family: order document PDF","private download family: order delivery proof","private download family: customer warranty PDF","private download family: after-sales attachment","private download family: field-work attachment","relative admin PDF callers retain routes, bytes and sharing","relative inputs and configuration normalization preserve existing destinations","host-only and custom bases retain rooted customer-path compatibility","rooted customer paths normalize once with trailing slashes, Expo fallback and encoded query bytes","real report query builders preserve encoded query bytes","initial request cannot delegate bearer credentials to an input origin","successful bytes, content type, content-length normalization and absent token","JSON error preserves ApiError, field data and header request-ID precedence","401 invokes registered handler exactly once and retains payload request-ID","non-JSON and malformed JSON errors retain status fallbacks","network and AbortError use existing mappings and clear the timer","invalid caller IDs and untrusted attachment paths fail before HTTP or writes","malformed PDF and mismatched sizes never reach sharing","failed native writes are deleted and never shared"];
+            function scan(text,expectedCount,expectedFail,rc){
+              const counts={};for(const key of ['tests','pass','fail','cancelled','skipped','todo']){const found=[...text.matchAll(new RegExp('^# '+key+' (\\d+)$','gm'))];assert.equal(found.length,1,'ambiguous/missing TAP '+key);counts[key]=Number(found[0][1]);}
+              const rows=[...text.matchAll(/^(not )?ok (\d+) - (.+)$/gm)].map(m=>({name:m[3],pass:!m[1],ordinal:Number(m[2])}));
+              assert.equal(counts.tests,expectedCount);assert.equal(counts.fail,expectedFail);assert.equal(counts.cancelled+counts.skipped+counts.todo,0);
+              assert.equal(rows.length,counts.tests);assert.equal(new Set(rows.map(r=>r.name)).size,rows.length,'duplicate TAP identity');
+              rows.forEach((r,i)=>assert.equal(r.ordinal,i+1,'TAP ordinal'));assert.equal(rows.filter(r=>r.pass).length,counts.pass);assert.equal(rows.filter(r=>!r.pass).length,counts.fail);assert.equal(counts.pass+counts.fail,counts.tests);assert.equal(rc,expectedFail?1:0,'TAP return code');
+              assert(!/^\s+not ok \d+ - /m.test(text),'unexpected nested failure');return {...counts,ids:rows.map(r=>r.name),failed_ids:rows.filter(r=>!r.pass).map(r=>r.name),rc};
+            }
+            function identities(before,after,focused,pinned){
+              assert.deepEqual([...focused.ids].sort(),[...pinned].sort(),'focused identities differ from reviewed MB01');
+              const old=new Set(before.ids),next=new Set(after.ids);assert(before.ids.every(x=>next.has(x)),'missing original TAP identity');
+              const added=after.ids.filter(x=>!old.has(x));assert.deepEqual([...added].sort(),[...focused.ids].sort(),'unexpected/replaced added identity');return added;
+            }
+            function selfCheck(){
+              const render=rows=>rows.map((r,i)=>(r.pass?'ok ':'not ok ')+(i+1)+' - '+r.name).join('\n')+'\n'+['tests '+rows.length,'pass '+rows.filter(r=>r.pass).length,'fail '+rows.filter(r=>!r.pass).length,'cancelled 0','skipped 0','todo 0'].map(s=>'# '+s).join('\n')+'\n';
+              const old=[{name:'one',pass:false},{name:'two',pass:true},{name:'three',pass:true}],extra=[{name:'four',pass:true},{name:'five',pass:true}],current=[...old.map(x=>({...x,pass:true})),...extra];
+              const b=scan(render(old),3,1,1),f=scan(render(extra),2,0,0),n=scan(render(current),5,0,0);identities(b,n,f,['four','five']);let rejected=0;
+              function deny(fn){assert.throws(fn);rejected++;}
+              deny(()=>scan(render(old).replace('not ok 1 - one','ok 1 - one'),3,1,1));
+              deny(()=>scan(render(current).replace(' - two',' - one'),5,0,0));
+              deny(()=>scan(render(current).replace('# tests 5','# tests 4'),5,0,0));
+              deny(()=>scan(render(current),5,0,1));
+              deny(()=>scan(render(current).replace('# skipped 0','# skipped 1'),5,0,0));
+              deny(()=>scan(render(current)+'# tests 5\n',5,0,0));
+              deny(()=>identities(b,{...n,ids:n.ids.filter(x=>x!=='one')},f,['four','five']));
+              deny(()=>identities(b,{...n,ids:n.ids.map(x=>x==='two'?'replacement':x)},f,['four','five']));
+              deny(()=>identities(b,{...n,ids:[...n.ids,'extra']},f,['four','five']));
+              deny(()=>identities(b,n,{...f,ids:['four','unexpected']},['four','five']));
+              return {positive:1,negative:rejected};
+            }
+            const calibration=selfCheck();
+            if(process.argv[2]==='--self-test'){console.log(JSON.stringify({calibration,applicationTestsExecuted:false}));}
+            else {
+              const root=process.argv[2];const load=(label,total,failed)=>scan(fs.readFileSync(root+'/b1079-'+label+'-release25.tap','utf8'),total,failed,Number(fs.readFileSync(root+'/b1079-'+label+'-release25.exit','utf8').trim()));
+              const baseline=load('baseline',309,4),candidate=load('candidate',330,0),focused=load('focused',21,0);
+              const added=identities(baseline,candidate,focused,approvedFocused);
+              const report={sourceCommit:process.env.B1130_HEAD_SHA,currentMain:'93d44e03f3fc21844dead026bd7bb9641cc60b06',historicalBaseline:'0b73ce6eed7fe671b960693fbe74a7db36fdc47f',baseline,candidate,focused,all309OriginalIdentitiesPreserved:true,exact21AddedIdentities:added,calibration,wholeMobileTree:'978408a3ae5a6fee1f0a43d4f2e2480e682df793',productionMutation:false};
+              fs.writeFileSync(root+'/b1079-release25-comparison.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({baseline:309,baselineFailures:4,candidate:330,candidateFailures:0,focused:21,retainedOriginal:309,exactFocusedAdditions:21,calibration}));
+            }
+          NODE
+          else
           python3 - <<'PY'
           import json,os,pathlib,re
           root=pathlib.Path(os.environ['RUNNER_TEMP'])
@@ -537,6 +627,7 @@ jobs:
           if results['candidate']['fail']:
               raise SystemExit('HOLD_HISTORICAL_RELEASE25_FAILURES: '+str(results['candidate']['fail']))
           PY
+          fi
       - name: Preserve source-gate evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
