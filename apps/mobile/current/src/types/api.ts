@@ -886,7 +886,7 @@ export type AdminProductCreateInput = {
   price_amount?: number;
   price_currency: 'EUR' | 'RSD';
   purchase_price_rsd?: number;
-  manual_commission_eur?: number;
+  manual_commission_eur?: number | null;
   description?: string;
   notes?: string;
   stock_quantity?: number;
