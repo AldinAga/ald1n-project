@@ -210,6 +210,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.23.4'
@@ -238,11 +239,71 @@ jobs:
           console.log('OPENAPI_3_COPIES_POSITIVE_NULLABLE_COMMISSION_PASS');
           NODE
           git diff --exit-code -- package.json package-lock.json
+      - name: Full Release25 baseline and candidate, preserve historical failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/b1079-release25-baseline"
+          base=692e751e0dec407d998c0d1655c4bde5a4600d99
+          test ! -e "$baseline"
+          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json apps/mobile/current/package-lock.json
+          git worktree add --detach "$baseline" "$base"
+          test "$(git -C "$baseline" rev-parse HEAD)" = "$base"
+          ln -s "$GITHUB_WORKSPACE/apps/mobile/current/node_modules" "$baseline/apps/mobile/current/node_modules"
+          run_release25() {
+            tree="$1"; label="$2"
+            set +e
+            (cd "$tree/apps/mobile/current" && node --test scripts/release25/*.test.mjs) 2>&1 | tee "$RUNNER_TEMP/b1079-$label-release25.tap"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$result" > "$RUNNER_TEMP/b1079-$label-release25.exit"
+          }
+          run_release25 "$baseline" baseline
+          run_release25 "$GITHUB_WORKSPACE" candidate
+          python3 - <<'PY'
+          import json,os,pathlib,re
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          def scan(text):
+              counts={}
+              for key in ('tests','pass','fail','cancelled','skipped','todo'):
+                  found=re.findall(r'(?m)^# '+key+r' (\d+)$',text)
+                  assert found,'missing TAP count '+key
+                  counts[key]=int(found[-1])
+              failed=re.findall(r'(?m)^not ok \d+ - (.+)$',text)
+              assert len(failed)==len(set(failed))==counts['fail'],'ambiguous TAP failures'
+              return dict(counts,failed_ids=failed)
+          fixture='\n'.join(['ok 1 - accepted','not ok 2 - sentinel','# tests 2','# pass 1','# fail 1','# cancelled 0','# skipped 0','# todo 0'])
+          assert scan(fixture)['failed_ids']==['sentinel']
+          try:
+              scan(fixture.replace('not ok 2 - sentinel','ok 2 - sentinel'))
+          except AssertionError:
+              pass
+          else:
+              raise AssertionError('TAP census self-check did not reject hidden failure')
+          results={}
+          for label in ('baseline','candidate'):
+              result=scan((root/('b1079-'+label+'-release25.tap')).read_text())
+              assert result['tests']==222,result
+              assert result['cancelled']==result['skipped']==result['todo']==0,result
+              rc=int((root/('b1079-'+label+'-release25.exit')).read_text())
+              assert rc==(1 if result['fail'] else 0),rc
+              results[label]=result
+          new=sorted(set(results['candidate']['failed_ids'])-set(results['baseline']['failed_ids']))
+          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='unchanged')
+          (root/'b1079-release25-comparison.json').write_text(json.dumps(report,indent=2))
+          assert not new,new
+          if results['candidate']['fail']:
+              raise SystemExit('HOLD_HISTORICAL_RELEASE25_FAILURES: '+str(results['candidate']['fail']))
+          PY
       - name: Preserve source-gate evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: b1079-mobile-source-qa
-          path: ${{ runner.temp }}/b1079-*.log
+          path: |
+            ${{ runner.temp }}/b1079-*.log
+            ${{ runner.temp }}/b1079-*.tap
+            ${{ runner.temp }}/b1079-*.exit
+            ${{ runner.temp }}/b1079-release25-comparison.json
           retention-days: 7
           if-no-files-found: error
