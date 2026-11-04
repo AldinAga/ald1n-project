@@ -22,6 +22,17 @@ async function checkPage(page,url,label){
   assert(dims.sw<=dims.w+2,label+' horizontal overflow '+JSON.stringify(dims));
   return res;
 }
+
+async function loginBuyer(page,origin,email){
+  const response=await page.goto(origin+'/login',{waitUntil:'networkidle'});
+  assert.equal(response.status(),200,'synthetic buyer login form');
+  await page.locator('input[name="login"]').fill(email);
+  await page.locator('input[name="password"]').fill('B799-Synthetic-Only123!');
+  await Promise.all([
+    page.waitForURL(url=>url.pathname==='/korpa',{timeout:15000}),
+    page.locator('button[type="submit"]').click(),
+  ]);
+}
 async function startIndependentServer(){
   // The main Chromium workflow already serves :8124. A different PHP process
   // on :8125 is mandatory: one artisan serve instance is single-threaded.
@@ -45,6 +56,8 @@ function stopIndependentServer(proc){
 }
 async function prepareRaceCheckout(browserContext,origin,slug,buyer){
   const page=await browserContext.newPage();
+  const email=('race'+buyer+'@example.test').toLowerCase();
+  await loginBuyer(page,origin,email);
   const show=await page.goto(origin+'/katalog/'+slug,{waitUntil:'networkidle'});
   assert.equal(show.status(),200,'race fixture product GET');
   await page.getByRole('button',{name:'Dodaj u korpu'}).click();
@@ -53,7 +66,6 @@ async function prepareRaceCheckout(browserContext,origin,slug,buyer){
   await page.waitForURL('**/porucivanje',{timeout:15000});
   for(const [name,value] of Object.entries({
     shipping_full_name:'Synthetic Race '+buyer,
-    email:'race'+buyer+'@example.test',
     shipping_phone:'0601234000',
     shipping_address:'Synthetic Parallel Address '+buyer,
     shipping_city:'Beograd',
@@ -61,6 +73,8 @@ async function prepareRaceCheckout(browserContext,origin,slug,buyer){
   })){
     await page.locator('input[name="'+name+'"]').fill(value);
   }
+  assert.equal(await page.locator('input[name="email"]').inputValue(),email);
+  assert.equal(await page.locator('input[name="email"]').isEditable(),false);
   await page.locator('select[name="delivery_method"]').selectOption('courier');
   await page.locator('input[name="accepted_terms"]').check();
   const form=await page.locator('form.shop-checkout').evaluate(element =>
@@ -205,6 +219,8 @@ async function runRealRace(browser){
     await page.waitForURL('**/korpa');
     assert((await page.locator('body').innerText()).includes('12.500,00 RSD'));
     await page.screenshot({path:path.join(dir,'cart.png'),animations:'disabled'});
+    await loginBuyer(page,base,'b799-visual@example.test');
+    assert((await page.locator('body').innerText()).includes('Synthetic Laptop B799'),'anonymous cart survives real buyer login');
     const urls=[];
     for(let purchase=1;purchase<=2;purchase++){
       if(purchase===2){
@@ -216,7 +232,6 @@ async function runRealRace(browser){
       await page.waitForURL('**/porucivanje');
       const inputs={
         shipping_full_name:'Synthetic Buyer '+purchase,
-        email:'synthetic'+purchase+'@example.test',
         shipping_phone:'0601234000',
         shipping_address:'Synthetic Address '+purchase,
         shipping_city:'Beograd',
@@ -225,6 +240,8 @@ async function runRealRace(browser){
       for(const [name,value] of Object.entries(inputs)){
         await page.locator('input[name="'+name+'"]').fill(value);
       }
+      assert.equal(await page.locator('input[name="email"]').inputValue(),'b799-visual@example.test');
+      assert.equal(await page.locator('input[name="email"]').isEditable(),false);
       await page.locator('select[name="delivery_method"]').selectOption('courier');
       await page.locator('input[name="accepted_terms"]').check();
       if(purchase===1){

@@ -130,7 +130,7 @@ final class BuyerCheckoutSessionBoundaryB815Test extends TestCase
             'login'=>$this->buyer->email,
             'password'=>'B815-Old-Password123!',
         ])->assertRedirect('/korpa');
-        $this->settings->put('public_storefront_open','0',null);
+        $this->settings->putMany(['public_storefront_open'=>'0'],null);
         $this->get('/porucivanje')->assertNotFound();
         $this->postJson('/porucivanje',['checkout_key'=>str_repeat('a',48)])
             ->assertNotFound();

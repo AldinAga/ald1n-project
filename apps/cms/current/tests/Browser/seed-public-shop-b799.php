@@ -8,6 +8,7 @@ if ($app->environment()!=='testing' || $db->getDriverName()!=='mysql'
     || config('database.connections.mysql.host')!=='127.0.0.1'
     || config('database.connections.mysql.database')!=='ald1n_test'
     || config('app.url')!=='http://127.0.0.1:8124'
+    || config('mail.default')!=='array'
     || !config('public_storefront.enabled') || !config('public_storefront.checkout_enabled')) {
     fwrite(STDERR,"B799_HOLD_DISPOSABLE_ENV_REQUIRED\n"); exit(3);
 }
@@ -85,7 +86,9 @@ if(in_array('--verify',$argv,true)) {
     $duplicateOrders=Illuminate\Support\Facades\DB::table('order_items')
         ->where('product_sku','B799-RACE-DUPLICATE')->distinct()->count('order_id');
     $ok=$orders->count()===4 && $orders->every(
-        fn($o)=>$o->user_id===null && $o->payment_state==='unpaid')
+        fn($o)=>$o->user_id!==null && $o->user?->hasRole('customer')
+            && $o->user->status==='active' && $o->user->email_verified_at!==null
+            && $o->user->portal_activated_at!==null && $o->payment_state==='unpaid')
         && (int)$product->stock_quantity===6
         && (int)$last->stock_quantity===0
         && (int)$duplicate->stock_quantity===1
@@ -95,6 +98,19 @@ if(in_array('--verify',$argv,true)) {
         && App\Models\StockMovement::query()->where('movement_type','sale')->count()===4
         && App\Models\PublicOrderAccess::query()->count()===4
         && App\Models\PublicCheckoutAttempt::query()->whereNotNull('terms_accepted_at')->count()===4;
+    $buyerId=static fn(string $email): int=>(int)App\Models\User::query()->where('email',$email)->valueOrFail('id');
+    $usersForSku=static fn(string $sku): array=>Illuminate\Support\Facades\DB::table('order_items as i')
+        ->join('orders as o','o.id','=','i.order_id')->where('i.product_sku',$sku)
+        ->pluck('o.user_id')->map(static fn($id)=>(int)$id)->all();
+    $visualUsers=$usersForSku('B799-VISUAL-CI');
+    $lastUsers=$usersForSku('B799-RACE-LASTUNIT');
+    $duplicateUsers=$usersForSku('B799-RACE-DUPLICATE');
+    $ok=$ok && count($visualUsers)===2
+        && count(array_unique($visualUsers))===1 && $visualUsers[0]===$buyerId('b799-visual@example.test')
+        && count($lastUsers)===1 && in_array($lastUsers[0],[
+            $buyerId('racelasta@example.test'),$buyerId('racelastb@example.test'),
+        ],true)
+        && $duplicateUsers===[$buyerId('raceduplicate@example.test')];
     if(!$ok) {fwrite(STDERR,"B799_BROWSER_DB_POSTCHECK_FAIL\n");exit(4);}
     echo "B799_BROWSER_DB_POSTCHECK=PASS ORDERS=4 VISUAL_STOCK=6 LAST_UNIT=0 DUPLICATE_STOCK=1 COMMISSIONS=0 PAYMENTS=0\n";exit(0);
 }
@@ -108,6 +124,21 @@ $admin=App\Models\User::query()->create([
     'password_hash'=>Illuminate\Support\Facades\Hash::make('SyntheticOnly-NotProduction!'),
     'status'=>'active',
 ]);
+
+foreach ([
+    ['b799-visual-buyer','b799-visual@example.test'],
+    ['b799-race-last-a','racelasta@example.test'],
+    ['b799-race-last-b','racelastb@example.test'],
+    ['b799-race-duplicate','raceduplicate@example.test'],
+] as [$username,$email]) {
+    App\Models\User::query()->create([
+        'role_id'=>App\Models\Role::query()->where('slug','customer')->valueOrFail('id'),
+        'username'=>$username,'email'=>$email,'first_name'=>'Synthetic','last_name'=>'B799 Buyer',
+        'address'=>'Synthetic 12','city'=>'Beograd','phone'=>'0601234000',
+        'password_hash'=>Illuminate\Support\Facades\Hash::make('B799-Synthetic-Only123!'),
+        'status'=>'active','email_verified_at'=>now(),'portal_activated_at'=>now(),
+    ]);
+}
 App\Models\Product::query()->create([
     'sku'=>'B799-VISUAL-CI','slug'=>'b799-browser-laptop',
     'name'=>'Synthetic Laptop B799','description'=>'CI-only synthetic product',

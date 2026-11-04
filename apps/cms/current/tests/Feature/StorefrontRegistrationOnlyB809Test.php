@@ -113,6 +113,7 @@ final class StorefrontRegistrationOnlyB809Test extends TestCase
         $payload=[
             'first_name'=>'Synthetic','last_name'=>'Customer',
             'email'=>'NewBuyer@Example.test','phone'=>'0601234567',
+            'address'=>'Test 12','city'=>'Beograd',
             'accepted_privacy'=>'1','role_id'=>$this->owner->role_id,
             'status'=>'active','user_group_id'=>1,
         ];
@@ -167,6 +168,7 @@ final class StorefrontRegistrationOnlyB809Test extends TestCase
         $payload=[
             'first_name'=>'Imposter','last_name'=>'Staff',
             'email'=>'b809-owner@example.test','accepted_privacy'=>'1',
+            'phone'=>'0601234567','address'=>'Test 12','city'=>'Beograd',
             'role_id'=>Role::query()->where('slug','customer')->valueOrFail('id'),
         ];
         $this->post('/registracija',$payload)->assertRedirect();
@@ -179,7 +181,14 @@ final class StorefrontRegistrationOnlyB809Test extends TestCase
     public function test_only_registered_customer_can_buy_and_form_email_cannot_be_forged(): void
     {
         $buyer=$this->person('b809-buyer','customer');
-        $this->actingAs($buyer);
+        $buyer->forceFill([
+            'last_name'=>'Buyer','address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',
+            'email_verified_at'=>now(),'portal_activated_at'=>now(),
+        ])->save();
+        $this->post('/login',[
+            'login'=>$buyer->email,'password'=>'SyntheticOnly123!',
+        ])->assertRedirect('/korpa');
+        $this->assertAuthenticatedAs($buyer);
         $this->post('/korpa/dodaj/'.$this->product->id,['quantity'=>1])->assertRedirect();
         $html=$this->get('/porucivanje')->assertOk()->getContent();
         self::assertStringNotContainsString('Bez registracije',$html);

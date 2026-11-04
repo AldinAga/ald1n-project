@@ -83,25 +83,38 @@ jobs:
           php-version: '8.4'
           extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
           coverage: none
-      - name: Preserve all protected historic fixtures and dependency locks
+      - name: Preserve protected fixtures exact owner-approved corrections and dependency locks
         shell: bash
         run: |
           set -euo pipefail
           test "$(git -C original rev-parse HEAD)" = e89def93293ed2828f02bed5e412c93e00a7c0df
           test "$(git -C candidate rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           python3 - <<'PY'
-          import pathlib,subprocess
+          import json,pathlib,subprocess
           historical='acb8b9c42ec9254b1a27567abca29a26c1f733f8'
           paths=subprocess.check_output(['git','-C','original','ls-tree','-r','--name-only',historical,'apps/cms/current/tests'],text=True).splitlines()
           protected=[p for p in paths if any(n in p for n in ('B805','B809','B815'))]
           assert protected,'empty protected test census'
+          approved_fixture_replacements=json.loads(r'''{"apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php":[["            'email'=>'NewBuyer@Example.test','phone'=>'0601234567',","            'email'=>'NewBuyer@Example.test','phone'=>'0601234567',\n            'address'=>'Test 12','city'=>'Beograd',"],["            'email'=>'b809-owner@example.test','accepted_privacy'=>'1',","            'email'=>'b809-owner@example.test','accepted_privacy'=>'1',\n            'phone'=>'0601234567','address'=>'Test 12','city'=>'Beograd',"],["        $buyer=$this->person('b809-buyer','customer');\n        $this->actingAs($buyer);","        $buyer=$this->person('b809-buyer','customer');\n        $buyer->forceFill([\n            'last_name'=>'Buyer','address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',\n            'email_verified_at'=>now(),'portal_activated_at'=>now(),\n        ])->save();\n        $this->post('/login',[\n            'login'=>$buyer->email,'password'=>'SyntheticOnly123!',\n        ])->assertRedirect('/korpa');\n        $this->assertAuthenticatedAs($buyer);"]],"apps/cms/current/tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php":[["        $this->settings->put('public_storefront_open','0',null);","        $this->settings->putMany(['public_storefront_open'=>'0'],null);"]]}''')
+          assert set(approved_fixture_replacements).issubset(protected)
+          assert len(approved_fixture_replacements)==2
+          authority=(pathlib.Path('candidate')/'AGENTS.md').read_text()
+          assert '## 0R — Explicit owner approval for two protected test fixtures' in authority
           for p in protected:
               old=subprocess.check_output(['git','-C','original','show',historical+':'+p])
-              assert old==(pathlib.Path('candidate')/p).read_bytes(),p
+              actual=(pathlib.Path('candidate')/p).read_bytes()
+              if p in approved_fixture_replacements:
+                  expected=old.decode('utf-8')
+                  for before,after in approved_fixture_replacements[p]:
+                      assert expected.count(before)==1,(p,'approved anchor must match once')
+                      expected=expected.replace(before,after)
+                  assert expected.encode('utf-8')==actual,(p,'only exact owner-approved fixture edits')
+              else:
+                  assert old==actual,(p,'unapproved protected source changed')
           parity=['apps/cms/current/composer.json','apps/cms/current/composer.lock','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/package-lock.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
           for p in parity:
               assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
-          print('PROTECTED_FIXTURES_AND_LOCKS_UNCHANGED',len(protected))
+          print('OWNER_APPROVED_FIXTURE_CORRECTIONS_EXACT',2,'OTHER_PROTECTED_UNCHANGED',len(protected)-2)
           repairs={
               'apps/cms/current/tests/Unit/LegacyReadOnlyGuardTest.php':[
                   ('use LogicException;','use LogicException;\nuse PHPUnit\\Framework\\Attributes\\DataProvider;'),
@@ -162,6 +175,8 @@ jobs:
             tests/Feature/StorefrontRoleBoundaryB808Test.php \
             tests/Feature/PublicOrderCapabilityB799Test.php \
             tests/Feature/PublicReceiptSwitchBoundaryB818Test.php \
+            tests/Feature/StorefrontRegistrationOnlyB809Test.php \
+            tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php \
             tests/Unit/DirectSaleMaxUnitPriceContractTest.php \
             tests/Unit/MobileApiFoundationContractTest.php \
             tests/Unit/MobileGoogleAuthPhase3CContractTest.php \
@@ -188,8 +203,8 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==184,len(cases)
-          assert len({(c.get('classname') or c.get('class'),c.get('name')) for c in cases})==184
+          assert len(cases)==192,len(cases)
+          assert len({(c.get('classname') or c.get('class'),c.get('name')) for c in cases})==192
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']>=451,report['before']['count']

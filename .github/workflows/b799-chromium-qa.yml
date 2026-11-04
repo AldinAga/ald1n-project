@@ -1,4 +1,4 @@
-name: B799 anonymous storefront disposable Chromium acceptance (NO DEPLOY)
+name: B799 registered storefront disposable Chromium acceptance (NO DEPLOY)
 on:
   pull_request:
     paths:
@@ -130,7 +130,7 @@ jobs:
           path: /tmp/b799-browser-screenshots/**/b812-*.png
           retention-days: 3
           if-no-files-found: warn
-      - name: Exercise real localhost guest retail and responsive visuals
+      - name: Exercise real localhost registered retail and responsive visuals
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
