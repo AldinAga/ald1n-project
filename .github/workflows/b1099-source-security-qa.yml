@@ -127,6 +127,13 @@ jobs:
             assert(Array.isArray(rows),'missing redacted report');
             summary[name]={findings:rows.length,rc:Number(fs.readFileSync(path.join(dir,name+'.exit'),'utf8').trim())};
           }
+          const metadata=rows=>rows.map(({RuleID,File,StartLine,EndLine,Commit,Fingerprint})=>({RuleID,File,StartLine,EndLine,Commit,Fingerprint}));
+          const sentinel='B1099_PRIVATE_VALUE_NEVER_UPLOAD';
+          assert(!JSON.stringify(metadata([{RuleID:'test',File:'fixture',Secret:sentinel,Match:sentinel,Message:sentinel,Author:sentinel,Email:sentinel}])).includes(sentinel));
+          for(const name of ['current-tree','head-history']){
+            const rows=JSON.parse(fs.readFileSync(path.join(dir,name+'-redacted.json'),'utf8'));
+            fs.writeFileSync(path.join(dir,name+'-metadata.json'),JSON.stringify(metadata(rows),null,2)+'\n');
+          }
           fs.writeFileSync(path.join(dir,'summary.json'),JSON.stringify(summary,null,2)+'\n');
           console.log('B1099_REDACTED_FINDING_COUNTS='+JSON.stringify(summary));
           NODE
@@ -137,6 +144,15 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: b1099-redacted-secret-audit
-          path: ${{ runner.temp }}/b1099-secrets
+          path: |
+            ${{ runner.temp }}/b1099-secrets/source-head.txt
+            ${{ runner.temp }}/b1099-secrets/audit-utc.txt
+            ${{ runner.temp }}/b1099-secrets/scanner-version.txt
+            ${{ runner.temp }}/b1099-secrets/default-only.toml
+            ${{ runner.temp }}/b1099-secrets/clean-control.exit
+            ${{ runner.temp }}/b1099-secrets/synthetic-control.exit
+            ${{ runner.temp }}/b1099-secrets/summary.json
+            ${{ runner.temp }}/b1099-secrets/current-tree-metadata.json
+            ${{ runner.temp }}/b1099-secrets/head-history-metadata.json
           retention-days: 7
           if-no-files-found: error
