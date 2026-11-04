@@ -1,3 +1,15 @@
+# CURRENT 2026-11-04 — ECC51 →30; ORPHANED PRIVATE LINK FIXED IN DRAFT; WEEKLY CEILING50%
+
+[Report1014](1014-B1088-B1090-ECC-BUYER-PAYMENT-PRIVATE-RECEIPT-AND-DIRECT-SALE-20261104.md) records exact proof. Owner resumed and raised ceiling to50%; prior20% STOP entries are historical. Latest Usage20%.
+
+B1088 source498cf6e9:130cases/1623assertions PASS, full713/43failedIDs (8resolved). B1089 test-first29cf8cd4 actual orphaned receipt exposed200 after buyer ownership removed; minimal shared-service guard31398cfe now requires non-null owner. Actual [GREEN41809894342](https://github.com/AldinAga/ald1n-project/actions/runs/41809894342): **148cases/1917assertions PASS**, full **715cases/5errors/25failures=30failedIDs**,0skips/missing cases; all640oldPR131 IDs retained. Still18commerce failures NEW versus frozen earliermain487/17baseline, globalCI remainsFAIL. Public order/doc/warranty routes share this guard. NO production rollout or storefront main merge.
+
+Main PR139 mergedfc402517 after all9workflows: actual16/3errors+1failure ->17/111assertions PASS on2fresh MariaDB DBs, respecting approved Report152 positive SA Direct Sale prices without catalog ceiling. No app change or public-shop price-policy change. Those4test repairs await integration/full Draft re-run before subtracting them from30. PR140 remaining8stale contracts pending final QA/merge; no broad completion claim.
+
+[Permanent raw evidence](https://drive.google.com/file/d/1jIWTU_CgK4HWrSRrkZikAl28oKL4clwP/view) SHA25638b1b51d2fc8b400a521c979630e5905a9148a9689e92a943a6b18cb40e4de80 readback verified. Preserve protectedB805/B809/B815 denial and all merchant/security/host/backup/device/release gates. Registered verified/activated Kupac with6signup fields; no oldguestorders. GitHub-only runtime; no FileZilla control, production backend/DB/flags/SMTP/EAS/build/OTA/Play. Formal11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged.
+
+---
+
 # OWNER RESUME 2026-11-04 — WEEKLY CEILING50%, PRIOR RESERVE STOP SUPERSEDED
 
 Owner explicitly resumed work using installed ECC skills and raised maximum Weekly Usage to50%. Current Usage19%; prior20% ceiling/19% STOP below are historical. Latest verified full result remains DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807:713tests/51failedIDs,117focused/1359assertionsPASS. Continue from that census with all protected-fixture, registration, money, GitHub-only runtime and production/release gates intact. See AGENTS0P. New work is not yet claimed verified.
