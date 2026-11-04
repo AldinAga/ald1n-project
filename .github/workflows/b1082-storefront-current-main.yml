@@ -42,6 +42,15 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=10s --health-timeout=5s --health-retries=12
     env:
+      B1130_CURRENT: ${{ github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.number == 135 && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.base.repo.full_name == 'AldinAga/ald1n-project' && github.head_ref == 'codex/b1082-storefront-current-main-20261104' && github.base_ref == 'main' && github.event.pull_request.base.sha == '93d44e03f3fc21844dead026bd7bb9641cc60b06' }}
+      B1130_REPOSITORY: ${{ github.repository }}
+      B1130_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      B1130_BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+      B1130_PR: ${{ github.event.pull_request.number }}
+      B1130_HEAD_REF: ${{ github.head_ref }}
+      B1130_BASE_REF: ${{ github.base_ref }}
+      B1130_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      B1130_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       APP_ENV: testing
       APP_DEBUG: 'false'
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -66,7 +75,7 @@ jobs:
       - name: Frozen current main after verified commission merge
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: e89def93293ed2828f02bed5e412c93e00a7c0df
+          ref: ${{ env.B1130_CURRENT == 'true' && '93d44e03f3fc21844dead026bd7bb9641cc60b06' || 'e89def93293ed2828f02bed5e412c93e00a7c0df' }}
           path: original
           persist-credentials: false
           fetch-depth: 0
@@ -87,10 +96,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C original rev-parse HEAD)" = e89def93293ed2828f02bed5e412c93e00a7c0df
-          test "$(git -C candidate rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          if test "$B1130_CURRENT" = true; then
+            test "$B1130_REPOSITORY" = AldinAga/ald1n-project
+            test "$B1130_HEAD_REPOSITORY" = AldinAga/ald1n-project
+            test "$B1130_BASE_REPOSITORY" = AldinAga/ald1n-project
+            test "$B1130_PR" = 135
+            test "$B1130_HEAD_REF" = codex/b1082-storefront-current-main-20261104
+            test "$B1130_BASE_REF" = main
+            test "$B1130_BASE_SHA" = 93d44e03f3fc21844dead026bd7bb9641cc60b06
+            test "$(git -C original rev-parse HEAD)" = 93d44e03f3fc21844dead026bd7bb9641cc60b06
+            git -C candidate merge-base --is-ancestor 93d44e03f3fc21844dead026bd7bb9641cc60b06 "$B1130_HEAD_SHA"
+            git -C candidate merge-base --is-ancestor 3f8c0c31d881e4376cad8ea100c5939beb58f51e "$B1130_HEAD_SHA"
+            test "$(git -C candidate diff --name-status 3f8c0c31d881e4376cad8ea100c5939beb58f51e "$B1130_HEAD_SHA")" = $'M\t.github/workflows/b1082-storefront-current-main.yml'
+            delta="$(git -C candidate diff --raw --no-abbrev 3f8c0c31d881e4376cad8ea100c5939beb58f51e "$B1130_HEAD_SHA")"
+            [[ "$delta" =~ ^:100644\ 100644\ [0-9a-f]{40}\ [0-9a-f]{40}\ M$'\t'\.github/workflows/b1082-storefront-current-main\.yml$ ]]
+          else
+            test "$B1130_CURRENT" = false
+            test "$(git -C original rev-parse HEAD)" = e89def93293ed2828f02bed5e412c93e00a7c0df
+          fi
+          test "$(git -C candidate rev-parse HEAD)" = "$B1130_HEAD_SHA"
           python3 - <<'PY'
-          import hashlib,json,pathlib,subprocess
+          import hashlib,json,os,pathlib,subprocess
           historical='acb8b9c42ec9254b1a27567abca29a26c1f733f8'
           paths=subprocess.check_output(['git','-C','original','ls-tree','-r','--name-only',historical,'apps/cms/current/tests'],text=True).splitlines()
           protected=[p for p in paths if any(n in p for n in ('B805','B809','B815'))]
@@ -114,7 +140,7 @@ jobs:
           parity=['apps/cms/current/composer.json','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
           for p in parity:
               assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
-          assert hashlib.sha256((pathlib.Path('candidate')/'apps/cms/current/composer.lock').read_bytes()).hexdigest()=='4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8','PR141 exact audited main lock'
+          assert hashlib.sha256((pathlib.Path('candidate')/'apps/cms/current/composer.lock').read_bytes()).hexdigest()==('4937d2e652bd41f83005faebfa5f238e4425db3a02506985695b4f3da2b8613b' if os.environ['B1130_CURRENT']=='true' else '4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8'),'exact audited mode-specific main lock'
           assert hashlib.sha256((pathlib.Path('candidate')/'apps/mobile/current/package-lock.json').read_bytes()).hexdigest()=='de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3','PR142 exact reviewed JS-only main lock'
           print('OWNER_APPROVED_FIXTURE_CORRECTIONS_EXACT',2,'OTHER_PROTECTED_UNCHANGED',len(protected)-2)
           repairs={
@@ -202,7 +228,7 @@ jobs:
           wait "$candidate_pid"
           php candidate/tools/storefront/b1075/compare-junit.php "$evidence/original-full.xml" "$evidence/candidate-full.xml" "$evidence/comparison.json"
           EVIDENCE="$evidence" python3 - <<'PY'
-          import os,json,pathlib,xml.etree.ElementTree as E
+          import os,json,pathlib,re,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
           assert len(cases)==194,len(cases)
@@ -228,16 +254,134 @@ jobs:
           missing_old=sorted(set(old['caseIds'])-set(report['after']['ids']))
           assert not missing_old,missing_old
           (d/'complete-lineage-identity-proof.json').write_text(json.dumps({
-              'current_main':'e89def93293ed2828f02bed5e412c93e00a7c0df',
+              'current_main':'93d44e03f3fc21844dead026bd7bb9641cc60b06' if os.environ['B1130_CURRENT']=='true' else 'e89def93293ed2828f02bed5e412c93e00a7c0df',
               'old_PR131_executed_cases':640,'missing_old_PR131_cases':missing_old,
               'main_legacy_discovery_error_identity':legacy if legacy in report['before']['ids'] else None,
               'original_provider_cases':sorted(expected_provider_cases),
               'all_other_main_case_identities_preserved':True,
           },indent=2))
+          if os.environ['B1130_CURRENT']=='true':
+              assert report['before']['count']==511,report['before']['count']
+              for label in ('focused','original-full','candidate-full'):
+                  assert (d/(label+'.exit')).read_text().strip()=='0',label
+                  root=E.parse(d/(label+'.xml')).getroot()
+                  assert not any(root.findall('.//'+kind) for kind in ('error','failure','skipped','warning')),label
+                  assert all(int(node.get(kind,'0'))==0 for node in root.iter() for kind in ('errors','failures','skipped','warnings')),label
+                  assert re.search(r'^OK \(\d+ tests?, \d+ assertions?\)$',(d/(label+'.log')).read_text(),re.M),label
+              (d/'current-source-counts.json').write_text(json.dumps({'sourceCommit':os.environ['B1130_HEAD_SHA'],'baselineCommit':'93d44e03f3fc21844dead026bd7bb9641cc60b06','baseline':report['before']['count'],'candidate':report['after']['count'],'focused':194,'caseIds':report['after']['ids']},indent=2))
           assert not report['newFailed'],report['newFailed']
           if report['after']['failedCount']:
               raise SystemExit('HOLD_HISTORICAL_FULL_SUITE_FAILURES: '+str(report['after']['failedCount']))
           PY
+      - name: Build inert production CMS runtime only after current source gates pass
+        if: success() && env.B1130_CURRENT == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          build="$(mktemp -d "$RUNNER_TEMP/b1130-runtime.XXXXXX")"
+          export B1130_BUILD="$build"
+          mkdir -p "$build/runtime" "$RUNNER_TEMP/b1130-runtime-artifact"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          work=pathlib.Path(os.environ['B1130_BUILD']); dest=work/'runtime'
+          source=os.environ['B1130_HEAD_SHA']; prefix='apps/cms/current/'
+          roots=('app/','bootstrap/','config/','database/migrations/','database/seeders/','resources/','routes/','public/','bin/')
+          files={'artisan','composer.json','composer.lock','VERSION','RELEASE-TAG','CHANGELOG.md'}
+          entries=subprocess.check_output(['git','-C','candidate','ls-tree','-r','-z',source,prefix]).split(b'\0')
+          selected=[]
+          for raw in entries:
+              if not raw: continue
+              meta,name=raw.decode().split('\t',1); mode,kind,blob=meta.split(); rel=name.removeprefix(prefix)
+              if rel not in files and not rel.startswith(roots): continue
+              parts=pathlib.PurePosixPath(rel).parts
+              assert not rel.startswith('/') and '..' not in parts and '\\' not in rel,rel
+              assert mode in ('100644','100755') and kind=='blob',(rel,mode,kind)
+              assert not any(x in ('storage','node_modules','.git','tests','test','fixtures') or x.startswith('.env') for x in parts),rel
+              if rel.startswith('bootstrap/cache/'): continue
+              assert not rel.endswith(('.sql','.sql.gz','.gpg','.p12','.pfx','.key','.sqlite','.sqlite3','.dump')),rel
+              body=subprocess.check_output(['git','-C','candidate','cat-file','blob',blob])
+              target=dest/rel; target.parent.mkdir(parents=True,exist_ok=True); target.write_bytes(body); target.chmod(0o755 if mode=='100755' else 0o644)
+              selected.append({'path':rel,'blob':blob,'sha256':hashlib.sha256(body).hexdigest()})
+          assert files.issubset({x['path'] for x in selected}),files
+          lock=dest/'composer.lock'
+          assert hashlib.sha256(lock.read_bytes()).hexdigest()=='4937d2e652bd41f83005faebfa5f238e4425db3a02506985695b4f3da2b8613b'
+          (work/'source-files.json').write_text(json.dumps(selected,indent=2))
+          PY
+          curl --fail --silent --show-error --location https://getcomposer.org/download/2.11.1/composer.phar --output "$build/composer.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $build/composer.phar" | sha256sum --check --strict
+          export COMPOSER_HOME="$build/composer-home" COMPOSER_CACHE_DIR="$build/composer-cache"
+          php "$build/composer.phar" install --working-dir="$build/runtime" --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction --optimize-autoloader --no-progress
+          php "$build/composer.phar" check-platform-reqs --working-dir="$build/runtime" --no-dev
+          set +e
+          php "$build/composer.phar" audit --working-dir="$build/runtime" --locked --no-dev --format=json > "$build/audit.json" 2> "$build/audit.stderr"
+          audit_rc=$?
+          set -e
+          cat "$build/audit.json" "$build/audit.stderr"
+          test "$audit_rc" = 0
+          (cd "$build/runtime" && php -r 'require "vendor/autoload.php";foreach(json_decode(file_get_contents("vendor/composer/installed.json"),true,512,JSON_THROW_ON_ERROR)["packages"] as $package){$name=$package["name"];echo $name,"\t",Composer\InstalledVersions::getPrettyVersion($name),"\n";}') > "$build/installed-versions.tsv"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,re,stat,subprocess,tarfile
+          work=pathlib.Path(os.environ['B1130_BUILD']); root=work/'runtime'; out=pathlib.Path(os.environ['RUNNER_TEMP'])/'b1130-runtime-artifact'
+          source=os.environ['B1130_HEAD_SHA']; lock=json.loads((root/'composer.lock').read_text()); audit=json.loads((work/'audit.json').read_text())
+          assert not audit.get('advisories') and not audit.get('abandoned'),audit
+          expected={p['name']:p['version'] for p in lock['packages']}
+          actual={}
+          for line in (work/'installed-versions.tsv').read_text().splitlines():
+              name,version=line.split('\t'); actual[name]=version
+          # The root package is not a locked dependency and is ignored by exact name from composer.json.
+          project=json.loads((root/'composer.json').read_text())['name']; actual.pop(project,None)
+          assert actual==expected,{'missing':sorted(set(expected)-set(actual)),'extra':sorted(set(actual)-set(expected)),'different':[n for n in expected.keys() & actual.keys() if expected[n]!=actual[n]]}
+          for item in json.loads((work/'source-files.json').read_text()):
+              assert hashlib.sha256((root/item['path']).read_bytes()).hexdigest()==item['sha256'],item['path']
+          installed=json.loads((root/'vendor/composer/installed.json').read_text())
+          assert installed.get('dev') is False and not installed.get('dev-package-names'),installed.get('dev')
+          files=[]; dirs=[]; total=0
+          for item in sorted(root.rglob('*')):
+              rel=item.relative_to(root).as_posix(); parts=pathlib.PurePosixPath(rel).parts; mode=item.lstat().st_mode
+              assert not item.is_symlink() and (stat.S_ISDIR(mode) or stat.S_ISREG(mode)),rel
+              assert not rel.startswith('/') and '..' not in parts and '\\' not in rel,rel
+              assert not any(p.startswith('.env') or p in ('.git','node_modules','storage','tests','test','fixtures','__fixtures__') for p in parts),rel
+              assert not rel.startswith('bootstrap/cache/'),rel
+              if item.is_dir(): dirs.append(rel); continue
+              assert item.stat().st_nlink==1,rel
+              assert not rel.endswith(('.sql','.sql.gz','.gpg','.p12','.pfx','.key','.sqlite','.sqlite3','.dump')),rel
+              content=item.read_bytes(); size=len(content); assert size<=16*1024*1024,rel
+              assert not re.search(rb'-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----\r?\n[A-Za-z0-9+/=]{32}',content),rel
+              total+=size; files.append({'path':rel,'size':size,'sha256':hashlib.sha256(content).hexdigest()})
+          assert 0<len(files)<=30000 and total<=192*1024*1024,(len(files),total)
+          archive=out/'cms-runtime.tar.gz'
+          with tarfile.open(archive,'w:gz',format=tarfile.PAX_FORMAT) as tar:
+              for rel in dirs+[f['path'] for f in files]:
+                  p=root/rel; info=tar.gettarinfo(str(p),arcname=rel); info.uid=info.gid=0; info.uname=info.gname=''; info.mtime=0
+                  assert info.isdir() or info.isfile(),rel
+                  if info.isfile():
+                      with p.open('rb') as stream: tar.addfile(info,stream)
+                  else: tar.addfile(info)
+          with tarfile.open(archive,'r:gz') as tar:
+              members=tar.getmembers(); assert all(m.isdir() or m.isfile() for m in members)
+              assert {m.name for m in members if m.isfile()}=={x['path'] for x in files}
+              assert len(members)==len(dirs)+len(files)
+              for m in members:
+                  assert not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts
+          assert archive.stat().st_size<=64*1024*1024
+          tree=subprocess.check_output(['git','-C','candidate','rev-parse',source+'^{tree}'],text=True).strip()
+          manifest={'schemaVersion':1,'sourceCommit':source,'sourceTree':tree,'composerLockSHA256':hashlib.sha256((root/'composer.lock').read_bytes()).hexdigest(),'prodPackages':expected,'files':files,'totalFiles':len(files),'totalBytes':total,'archiveRoot':'CMS relative','productionMutation':False,'deploymentAuthorized':False,'storefrontActivationAuthorized':False}
+          (out/'runtime-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          receipt={'schemaVersion':1,'sourceCommit':source,'baselineCommit':'93d44e03f3fc21844dead026bd7bb9641cc60b06','focusedFullComparisonPassed':True,'composerVersion':'2.11.1','composerSHA256':'6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c','installRC':0,'platformRC':0,'auditRC':0,'advisories':0,'abandoned':0,'noDev':True,'noScripts':True,'noPlugins':True,'laravelBootstrapped':False,'databaseAccess':False,'deploymentAuthorized':False,'activationGates':'HOLD; global dependency/security/hosting/provider/UAT gates remain separate'}
+          (out/'build-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          names=['cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json']
+          (out/'bundle.sha256').write_text(''.join(hashlib.sha256((out/name).read_bytes()).hexdigest()+'  '+name+'\n' for name in names))
+          assert {p.name for p in out.iterdir()}==set(names+['bundle.sha256'])
+          print(json.dumps({'sourceCommit':source,'files':len(files),'bytes':total,'archiveBytes':archive.stat().st_size,'productionMutation':False}))
+          PY
+      - name: Preserve bounded inert CMS runtime candidate
+        if: success() && env.B1130_CURRENT == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1130-inert-cms-runtime
+          path: ${{ runner.temp }}/b1130-runtime-artifact
+          if-no-files-found: error
+          retention-days: 7
       - name: Preserve complete actual results even under HOLD
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
