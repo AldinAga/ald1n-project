@@ -41,8 +41,13 @@ final class CustomerPortal2ContractTest extends TestCase
         $controller = (string) file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/Admin/CustomerPortalController.php');
 
         self::assertStringContainsString('confirm_reassign', $controller);
-        self::assertStringContainsString('PortalOrderLinkHistory::query()->create', $controller);
-        self::assertStringContainsString('customer_portal.order_relinked', $controller);
+        $service = (string) file_get_contents(dirname(__DIR__, 2).'/app/Services/CustomerPortalAdminService.php');
+        self::assertStringContainsString('$portal->linkOrder(', $controller);
+        self::assertStringContainsString("\$request->boolean('confirm_reassign')", $controller);
+        self::assertStringContainsString('PortalOrderLinkHistory::query()->create', $service);
+        self::assertStringContainsString('customer_portal.order_relinked', $service);
+        self::assertStringContainsString('!$confirmReassign', $service);
+        self::assertStringContainsString('lockForUpdate()', $service);
     }
 
     public function test_session_rotation_and_activation_cache_security_contracts_are_present(): void
