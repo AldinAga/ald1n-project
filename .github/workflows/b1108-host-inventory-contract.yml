@@ -1,0 +1,115 @@
+name: B1108 read-only hosting inventory contract (NO HOST ACCESS)
+on:
+  pull_request:
+    paths: ['.github/workflows/b1108-host-inventory-contract.yml']
+permissions:
+  contents: read
+jobs:
+  isolated-script-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with: {php-version: '8.4', coverage: none}
+      - name: Decode immutable reviewed operator artifact and syntax-check
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/b1108-evidence" "$RUNNER_TEMP/b1108-upload/incoming"
+          printf '%s' 'IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLXUKc2V0IC1vIHBpcGVmYWlsCkVYUEVDVEVEX0JPRFlfU0hBPTY4ZDQ1NWQ4ZjQ5YTRhOTNiN2JhOWQ3OTllNDVmYTc1YmFhOWFmYzQzOWY3YTE1ZGQyMjljNWIwNjM1ODhlMDQKUk9PVD0vaG9tZS9pY2FmZmVjby9hbGQxbi1wcm9qZWN0ClNDUklQVD0iJFJPT1QvaW5jb21pbmcvYjExMDgtc3RvcmVmcm9udC1ob3N0LWludmVudG9yeS5zaCIKaWYgWyAiJChyZWFscGF0aCAtLSAiJDAiKSIgIT0gIiRTQ1JJUFQiIF07IHRoZW4KICBwcmludGYgJyVzXG4nICdIT0xEOiBydW4gb25seSB0aGUgY2Fub25pY2FsIGluY29taW5nIHNjcmlwdC4nCiAgZXhpdCAyCmZpCkJPRFlfU0hBPSQoc2VkICcvXkVYUEVDVEVEX0JPRFlfU0hBPS9kJyAiJFNDUklQVCIgfCBzaGEyNTZzdW0pCkJPRFlfU0hBPSR7Qk9EWV9TSEElJSAqfQppZiBbICIkQk9EWV9TSEEiICE9ICIkRVhQRUNURURfQk9EWV9TSEEiIF07IHRoZW4KICBwcmludGYgJyVzXG4nICdIT0xEOiBzY3JpcHQgaW50ZWdyaXR5IG1pc21hdGNoOyBub3RoaW5nIGV4ZWN1dGVkLicKICBleGl0IDIKZmkKRE9DUz0iJFJPT1QvZG9jcy9vcGVyYXRpb25zIgppZiBbICEgLWQgIiRET0NTIiBdIHx8IFsgISAtdyAiJERPQ1MiIF07IHRoZW4KICBwcmludGYgJyVzXG4nICdIT0xEOiBjYW5vbmljYWwgb3BlcmF0aW9ucyBkaXJlY3RvcnkgdW5hdmFpbGFibGUuJwogIGV4aXQgMgpmaQojIEZldGNoIHVwZGF0ZXMgR2l0IG9iamVjdHMgb25seTsgbmV2ZXIgbWVyZ2UsIGNoZWNrb3V0IG9yIGFsdGVyIHNvdXJjZSBmaWxlcy4KT1JJR0lOPSQoZ2l0IC1DICIkUk9PVCIgcmVtb3RlIGdldC11cmwgb3JpZ2luKQpjYXNlICIkT1JJR0lOIiBpbgogIGh0dHBzOi8vZ2l0aHViLmNvbS9BbGRpbkFnYS9hbGQxbi1wcm9qZWN0LmdpdHxnaXRAZ2l0aHViLmNvbTpBbGRpbkFnYS9hbGQxbi1wcm9qZWN0LmdpdCkgOzsKICAqKSBwcmludGYgJyVzXG4nICdIT0xEOiB1bmV4cGVjdGVkIG9yaWdpbjsgbm8gZmV0Y2ggYXR0ZW1wdGVkLic7IGV4aXQgMjs7CmVzYWMKZ2l0IC1DICIkUk9PVCIgZmV0Y2ggLS1xdWlldCBvcmlnaW4gbWFpbgpyYz0kPwppZiBbICIkcmMiIC1uZSAwIF07IHRoZW4KICBwcmludGYgJyVzXG4nICdIT0xEOiBmcmVzaCBvcmlnaW4vbWFpbiB1bmF2YWlsYWJsZTsgcmVwb3J0IHNlcXVlbmNlIG5vdCBlc3RhYmxpc2hlZC4nCiAgZXhpdCAyCmZpClJFTU9URV9NQVg9JChnaXQgLUMgIiRST09UIiBscy10cmVlIC1yIC0tbmFtZS1vbmx5IG9yaWdpbi9tYWluIGRvY3Mvb3BlcmF0aW9ucyB8IGF3ayAtRi8gJ3tuPSRORjsgaWYobiB+IC9eWzAtOV0rLS8pe3N1YigvLS4qLywiIixuKTsgaWYobiswPm0pbT1uKzB9fSBFTkR7cHJpbnQgbSswfScpCnJjPSQ/CmlmIFsgIiRyYyIgLW5lIDAgXTsgdGhlbiBwcmludGYgJyVzXG4nICdIT0xEOiByZW1vdGUgcmVwb3J0IGNlbnN1cyBmYWlsZWQuJzsgZXhpdCAyOyBmaQpMT0NBTF9NQVg9JChmaW5kICIkRE9DUyIgLW1heGRlcHRoIDEgLXR5cGUgZiAtcHJpbnRmICclZlxuJyB8IGF3ayAnL15bMC05XSstL3tuPSQwO3N1YigvLS4qLywiIixuKTtpZihuKzA+bSltPW4rMH0gRU5Ee3ByaW50IG0rMH0nKQpyYz0kPwppZiBbICIkcmMiIC1uZSAwIF07IHRoZW4gcHJpbnRmICclc1xuJyAnSE9MRDogbG9jYWwgcmVwb3J0IGNlbnN1cyBmYWlsZWQuJzsgZXhpdCAyOyBmaQpjYXNlICIkUkVNT1RFX01BWDokTE9DQUxfTUFYIiBpbiAqWyEwLTk6XSopIHByaW50ZiAnJXNcbicgJ0hPTEQ6IGludmFsaWQgcmVwb3J0IGNlbnN1cy4nOyBleGl0IDI7OyBlc2FjCmlmIFsgIiRSRU1PVEVfTUFYIiAtbHQgMTAxNiBdOyB0aGVuIHByaW50ZiAnJXNcbicgJ0hPTEQ6IHJlbW90ZSByZXBvcnQgaGlzdG9yeSBpcyBpbmNvbXBsZXRlLic7IGV4aXQgMjsgZmkKTkVYVD0kKChSRU1PVEVfTUFYID4gTE9DQUxfTUFYID8gUkVNT1RFX01BWCArIDEgOiBMT0NBTF9NQVggKyAxKSkKUkVQT1JUPSIkRE9DUy8kKHByaW50ZiAnJTA0ZCcgIiRORVhUIiktQjExMDgtU1RPUkVGUk9OVC1IT1NULUlOVkVOVE9SWS0kKGRhdGUgLXUgKyVZJW0lZC0lSCVNJVMpLm1kIgooc2V0IC1DOyA6ID4gIiRSRVBPUlQiKSB8fCB7IHByaW50ZiAnJXNcbicgJ0hPTEQ6IHJlcG9ydCBhbHJlYWR5IGV4aXN0cyBvciBjYW5ub3QgYmUgY3JlYXRlZC4nOyBleGl0IDI7IH0KbG9nKCkgeyBwcmludGYgJyVzXG4nICIkKiIgfCB0ZWUgLWEgIiRSRVBPUlQiOyB9CmxvZyAnIyBCMTEwOCByZWFkLW9ubHkgaG9zdGluZyBzb3VyY2UvZGVwZW5kZW5jeSBpbnZlbnRvcnknCmxvZyAiU0NSSVBUPSRTQ1JJUFQiCmxvZyAiU0NSSVBUX1NIQTI1Nj0kKHNoYTI1NnN1bSAiJFNDUklQVCIgfCBjdXQgLWQgJyAnIC1mMSkiCmxvZyAiQk9EWV9JTlRFR1JJVFk9UEFTUyBSRVBPUlRfU0VRVUVOQ0VfUkVNT1RFPSRSRU1PVEVfTUFYIExPQ0FMPSRMT0NBTF9NQVgiCmxvZyAiTE9DQUxfSEVBRD0kKGdpdCAtQyAiJFJPT1QiIHJldi1wYXJzZSBIRUFEKSIKbG9nICJSRU1PVEVfTUFJTj0kKGdpdCAtQyAiJFJPT1QiIHJldi1wYXJzZSBvcmlnaW4vbWFpbikiCmxvZyAiQlJBTkNIPSQoZ2l0IC1DICIkUk9PVCIgc3ltYm9saWMtcmVmIC0tcXVpZXQgLS1zaG9ydCBIRUFEIHx8IHByaW50ZiAnJXMnIERFVEFDSEVEKSIKbG9nICdNVVRBVElPTj1SRVBPUlRfT05MWV9BTkRfR0lUX0ZFVENIX01FVEFEQVRBOyBOT19TT1VSQ0VfREJfRU5WX0NBQ0hFX01BSUxfRlBNX0NIQU5HRScKbG9nICdJTlZFTlRPUllfT05MWTogYmFja3VwL3Jlc3RvcmUsIG93bmVyIFVBVCwgY3VycmVudCBkZXBsb3ltZW50IGFuZCByZWxlYXNlIGFwcHJvdmFsIGFyZSBOT1QgYXR0ZXN0ZWQuJwpQSFBfQklOPSQoY29tbWFuZCAtdiBwaHAgfHwgdHJ1ZSkKaWYgWyAteiAiJFBIUF9CSU4iIF07IHRoZW4gbG9nICdIT0xEOiBQSFAgQ0xJIG1pc3NpbmcuJzsgZXhpdCAyOyBmaQpsb2cgIlBIUF9CSU49JFBIUF9CSU4iCiIkUEhQX0JJTiIgLWQgZGlzcGxheV9lcnJvcnM9MCAtZCBsb2dfZXJyb3JzPTAgPDwnUEhQJyAyPiYxIHwgdGVlIC1hICIkUkVQT1JUIgo8P3BocApkZWNsYXJlKHN0cmljdF90eXBlcz0xKTsKJHJvb3Q9Jy9ob21lL2ljYWZmZWNvL2FsZDFuLXByb2plY3QnOwokaG9sZD1mYWxzZTsKZWNobyAnUEhQX1ZFUlNJT049Jy5QSFBfVkVSU0lPTi5QSFBfRU9MOwppZiAoUEhQX01BSk9SX1ZFUlNJT04hPT04IHx8IFBIUF9NSU5PUl9WRVJTSU9OIT09NCkgewogICAgZWNobyAiSE9MRDogcmVxdWlyZWQgUEhQOC40IENMSSBub3Qgc2VsZWN0ZWQuXG4iOwogICAgZXhpdCgyKTsKfQp0cnkgewogICAgJGV4cGVjdGVkPVsKICAgICAgICAnYXBwcy9jbXMvY3VycmVudC9jb21wb3Nlci5sb2NrJz0+JzQ5NjVlMGY1OTU5OWY2OGQ2NzdjZDQ2MDRkZWQyNTZiODA5Y2U4MmE1MmIzNmUzNTVmYWViNmZjYWZmYjFmZjgnLAogICAgICAgICdhcHBzL21vYmlsZS9jdXJyZW50L3BhY2thZ2UtbG9jay5qc29uJz0+J2RlMTU4NDI2NjU1OGZlNzJlMzBjYzdmYTMzMzJmYTBjMTY3NThiNTI2YjU2MWQ1YzU4YzRiN2MxZGFkYmIxZDMnLAogICAgICAgICdhcHBzL2Ntcy9jdXJyZW50L3B1YmxpYy9hc3NldHMvY3NzL2FsZDFuLXVpLXJlZmluZW1lbnQuY3NzJz0+J2Y3N2E0Y2NhZDNlZmNjYjFmNGJjMTI4OGJmODc4M2I4NzU2NDhkYjhhY2I1YTMwNTkyYzkyOTAxYWVhMTE0YzknLAogICAgICAgICdhcHBzL2Ntcy9jdXJyZW50L3Jlc291cmNlcy92aWV3cy9sYXlvdXRzL2FwcC5ibGFkZS5waHAnPT4nMjZiZjJmNTRlYzcwNmQ1YzhkOWU5YjUyY2NmMmZmNGNhNDM5YzYyZWVhZDY2MDY1MjUyMzJhM2JmMjJlNDg4ZCcsCiAgICBdOwogICAgZm9yZWFjaCAoJGV4cGVjdGVkIGFzICRwYXRoPT4kc2hhKSB7CiAgICAgICAgJGFjdHVhbD1pc19maWxlKCRyb290LicvJy4kcGF0aCk/aGFzaF9maWxlKCdzaGEyNTYnLCRyb290LicvJy4kcGF0aCk6bnVsbDsKICAgICAgICAkcGFzcz1pc19zdHJpbmcoJGFjdHVhbCkmJmhhc2hfZXF1YWxzKCRzaGEsJGFjdHVhbCk7CiAgICAgICAgaWYgKCEkcGFzcykgJGhvbGQ9dHJ1ZTsKICAgICAgICBlY2hvIGpzb25fZW5jb2RlKFsnc291cmNlX3BhdGgnPT4kcGF0aCwnc2hhMjU2Jz0+JGFjdHVhbCwnbWF0Y2hlc19yZXZpZXdlZF9tYWluJz0+JHBhc3NdLEpTT05fVEhST1dfT05fRVJST1J8SlNPTl9VTkVTQ0FQRURfU0xBU0hFUykuUEhQX0VPTDsKICAgIH0KICAgICRjbXM9JHJvb3QuJy9hcHBzL2Ntcy9jdXJyZW50JzsKICAgICRsb2NrPWpzb25fZGVjb2RlKChzdHJpbmcpZmlsZV9nZXRfY29udGVudHMoJGNtcy4nL2NvbXBvc2VyLmxvY2snKSx0cnVlLDUxMixKU09OX1RIUk9XX09OX0VSUk9SKTsKICAgIGlmICghaXNfZmlsZSgkY21zLicvdmVuZG9yL2NvbXBvc2VyL2luc3RhbGxlZC5qc29uJykpIHsKICAgICAgICBlY2hvICJIT0xEOiBpbnN0YWxsZWQgdmVuZG9yIGludmVudG9yeSBtaXNzaW5nOyBubyBpbnN0YWxsIGF0dGVtcHRlZC5cbiI7CiAgICAgICAgZXhpdCgyKTsKICAgIH0KICAgICRpbnN0YWxsZWQ9anNvbl9kZWNvZGUoKHN0cmluZylmaWxlX2dldF9jb250ZW50cygkY21zLicvdmVuZG9yL2NvbXBvc2VyL2luc3RhbGxlZC5qc29uJyksdHJ1ZSw1MTIsSlNPTl9USFJPV19PTl9FUlJPUik7CiAgICAkdmVyc2lvbnM9W107CiAgICBmb3JlYWNoICgkaW5zdGFsbGVkWydwYWNrYWdlcyddPz8kaW5zdGFsbGVkIGFzICRwKSB7CiAgICAgICAgaWYgKGlzX2FycmF5KCRwKSYmaXNzZXQoJHBbJ25hbWUnXSwkcFsndmVyc2lvbiddKSkgJHZlcnNpb25zWyRwWyduYW1lJ11dPSRwWyd2ZXJzaW9uJ107CiAgICB9CiAgICAkd2F0Y2g9WydsYXJhdmVsL2ZyYW1ld29yaycsJ2d1enpsZWh0dHAvZ3V6emxlJywnZ3V6emxlaHR0cC9wcm9taXNlcycsJ2d1enpsZWh0dHAvcHNyNycsJ2xlYWd1ZS9jb21tb25tYXJrJywnbGVhZ3VlL2ZseXN5c3RlbScsJ3N5bWZvbnkvaHR0cC1mb3VuZGF0aW9uJywnc3ltZm9ueS9taW1lJ107CiAgICBmb3JlYWNoICgkbG9ja1sncGFja2FnZXMnXT8/W10gYXMgJHApIHsKICAgICAgICBpZiAoIWluX2FycmF5KCRwWyduYW1lJ10/P251bGwsJHdhdGNoLHRydWUpKSBjb250aW51ZTsKICAgICAgICAkYWN0dWFsPSR2ZXJzaW9uc1skcFsnbmFtZSddXT8/bnVsbDsKICAgICAgICAkcGFzcz1pc19zdHJpbmcoJGFjdHVhbCkmJmx0cmltKCRhY3R1YWwsJ3YnKT09PWx0cmltKChzdHJpbmcpJHBbJ3ZlcnNpb24nXSwndicpOwogICAgICAgIGlmICghJHBhc3MpICRob2xkPXRydWU7CiAgICAgICAgZWNobyBqc29uX2VuY29kZShbJ3BhY2thZ2UnPT4kcFsnbmFtZSddLCdzb3VyY2VfbG9ja192ZXJzaW9uJz0+JHBbJ3ZlcnNpb24nXSwnaW5zdGFsbGVkX3ZlcnNpb24nPT4kYWN0dWFsLCdpbnN0YWxsZWRfbWF0Y2hlc19sb2NrJz0+JHBhc3NdLEpTT05fVEhST1dfT05fRVJST1J8SlNPTl9VTkVTQ0FQRURfU0xBU0hFUykuUEhQX0VPTDsKICAgIH0KICAgIGVjaG8gJ1NPVVJDRV9WRU5ET1JfSU5WRU5UT1JZPScuKCRob2xkPydIT0xEX0RSSUZUX09SX05PVF9ZRVRfREVQTE9ZRUQnOidNQVRDSCcpLlBIUF9FT0w7CiAgICBlY2hvICJSRUxFQVNFX0FQUFJPVkFMPU5PVF9FVkFMVUFURUQ7IE5PX0RBVEFCQVNFX0NPTk5FQ1RJT05fT1JfU0VDUkVUX0ZJTEVfUkVBRFxuIjsKICAgIGV4aXQoJGhvbGQ/MjowKTsKfSBjYXRjaCAoVGhyb3dhYmxlKSB7CiAgICBlY2hvICJIT0xEOiByZXF1aXJlZCBpbnZlbnRvcnkgY291bGQgbm90IGJlIHJlYWQ7IG5vIHJlY292ZXJ5IG11dGF0aW9uIGF0dGVtcHRlZC5cbiI7CiAgICBleGl0KDIpOwp9ClBIUApyYz0ke1BJUEVTVEFUVVNbMF19CmxvZyAiUEhQX0lOVkVOVE9SWV9SQz0kcmMiCmxvZyAiUkVQT1JUPSRSRVBPUlQiCmV4aXQgIiRyYyIK' | base64 --decode > "$RUNNER_TEMP/b1108-upload/incoming/b1108-storefront-host-inventory.sh"
+          echo '0011225f5426c3874f54892db286c761a6887246e0604b51742ee4a12a74c028  '$RUNNER_TEMP'/b1108-upload/incoming/b1108-storefront-host-inventory.sh' | sha256sum --check
+          bash -n "$RUNNER_TEMP/b1108-upload/incoming/b1108-storefront-host-inventory.sh"
+      - name: Exercise valid read-only inventory and fail-closed boundaries on synthetic fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/home/icaffeco/ald1n-project
+          test ! -e "$root"
+          sudo install -d -o "$(id -u)" -g "$(id -g)" "$root"
+          mkdir -p "$root/incoming" "$root/docs/operations" "$RUNNER_TEMP/b1108-bin"
+          cp "$RUNNER_TEMP/b1108-upload/incoming/b1108-storefront-host-inventory.sh" "$root/incoming/"
+          for p in apps/cms/current/composer.lock apps/mobile/current/package-lock.json apps/cms/current/public/assets/css/ald1n-ui-refinement.css apps/cms/current/resources/views/layouts/app.blade.php; do
+            mkdir -p "$root/$(dirname "$p")"
+            git show "ed21d450a2698f179624a9320028cff3a478d805:$p" > "$root/$p"
+          done
+          (cd "$root" && sha256sum --check <<'SHA256'
+          4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8  apps/cms/current/composer.lock
+          de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3  apps/mobile/current/package-lock.json
+          f77a4ccad3efccb1f4bc1288bf8783b875648db8acb5a30592c92901aea114c9  apps/cms/current/public/assets/css/ald1n-ui-refinement.css
+          26bf2f54ec706d5c8d9e9b52ccf2ff4ca439c62eead6606525232a3bf22e488d  apps/cms/current/resources/views/layouts/app.blade.php
+          SHA256
+          )
+          cp "$root/apps/cms/current/resources/views/layouts/app.blade.php" "$RUNNER_TEMP/b1108-approved-layout.blade.php"
+          mkdir -p "$root/apps/cms/current/vendor/composer"
+          php -r '$x=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR);file_put_contents($argv[2],json_encode(["packages"=>$x["packages"]],JSON_THROW_ON_ERROR));' "$root/apps/cms/current/composer.lock" "$root/apps/cms/current/vendor/composer/installed.json"
+          printf '%s\n' SYNTHETIC_PRIVATE_SENTINEL_NOT_FOR_REPORT > "$root/apps/cms/current/.env"
+          printf '%s\n' retained > "$root/docs/operations/1016-CI-SENTINEL.md"
+          cat > "$RUNNER_TEMP/b1108-bin/git" <<'STUB'
+          #!/usr/bin/env bash
+          test "$1" = -C || exit 90
+          test "$2" = /home/icaffeco/ald1n-project || exit 91
+          shift 2
+          case "$*" in
+            'remote get-url origin') printf '%s\n' "${B1108_TEST_ORIGIN:-https://github.com/AldinAga/ald1n-project.git}";;
+            'fetch --quiet origin main') exit 0;;
+            'ls-tree -r --name-only origin/main docs/operations') printf '%s\n' docs/operations/1016-CI-SENTINEL.md;;
+            'rev-parse HEAD'|'rev-parse origin/main') printf '%s\n' ed21d450a2698f179624a9320028cff3a478d805;;
+            'symbolic-ref --quiet --short HEAD') printf '%s\n' main;;
+            *) exit 92;;
+          esac
+          STUB
+          chmod +x "$RUNNER_TEMP/b1108-bin/git"
+          export PATH="$RUNNER_TEMP/b1108-bin:$PATH"
+          evidence="$RUNNER_TEMP/b1108-evidence"
+          run_expected() {
+            expected="$1"; label="$2"; shift 2
+            rc=0
+            "$@" > "$evidence/$label.log" 2>&1 || rc=$?
+            cat "$evidence/$label.log"
+            test "$rc" = "$expected"
+            printf '%s\n' "$rc" > "$evidence/$label.exit"
+          }
+          run_expected 2 noncanonical bash "$RUNNER_TEMP/b1108-upload/incoming/b1108-storefront-host-inventory.sh"
+          printf '%s\n' '# tampered' >> "$root/incoming/b1108-storefront-host-inventory.sh"
+          run_expected 2 integrity bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          test "$(find "$root/docs/operations" -type f | wc -l)" -eq 1
+          cp "$RUNNER_TEMP/b1108-upload/incoming/b1108-storefront-host-inventory.sh" "$root/incoming/"
+          run_expected 2 wrong_origin env B1108_TEST_ORIGIN=https://invalid.example/repo bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          test "$(find "$root/docs/operations" -type f | wc -l)" -eq 1
+          find "$root/apps" -type f -print0 | sort -z | xargs -0 sha256sum > "$evidence/before.sha256"
+          run_expected 0 valid bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          find "$root/apps" -type f -print0 | sort -z | xargs -0 sha256sum > "$evidence/after.sha256"
+          diff -u "$evidence/before.sha256" "$evidence/after.sha256"
+          grep -F 'SOURCE_VENDOR_INVENTORY=MATCH' "$evidence/valid.log"
+          test "$(find "$root/docs/operations" -name '1017-B1108-*' -type f | wc -l)" -eq 1
+          printf '\n<!-- synthetic unapproved layout drift -->\n' >> "$root/apps/cms/current/resources/views/layouts/app.blade.php"
+          run_expected 2 layout_drift bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          test "$(find "$root/docs/operations" -name '1018-B1108-*' -type f | wc -l)" -eq 1
+          grep -F '"matches_reviewed_main":false' "$evidence/layout_drift.log"
+          cp "$RUNNER_TEMP/b1108-approved-layout.blade.php" "$root/apps/cms/current/resources/views/layouts/app.blade.php"
+          echo '26bf2f54ec706d5c8d9e9b52ccf2ff4ca439c62eead6606525232a3bf22e488d  '$root'/apps/cms/current/resources/views/layouts/app.blade.php' | sha256sum --check
+          printf '\n' >> "$root/apps/mobile/current/package-lock.json"
+          run_expected 2 source_drift bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          test "$(find "$root/docs/operations" -name '1019-B1108-*' -type f | wc -l)" -eq 1
+          mv "$root/apps/cms/current/vendor/composer/installed.json" "$RUNNER_TEMP/installed-fixture.json"
+          run_expected 2 missing_vendor bash "$root/incoming/b1108-storefront-host-inventory.sh"
+          test "$(find "$root/docs/operations" -name '1020-B1108-*' -type f | wc -l)" -eq 1
+          if grep -R -F SYNTHETIC_PRIVATE_SENTINEL_NOT_FOR_REPORT "$root/docs/operations" "$evidence"; then exit 93; fi
+          test "$(cat "$root/docs/operations/1016-CI-SENTINEL.md")" = retained
+          cp "$root/docs/operations/"*B1108-* "$evidence/"
+          echo 'B1108_SYNTHETIC_CONTRACT=PASS NO_HOST_ACCESS_NO_APP_RUNTIME_NO_DB NO_SECRET_READ' | tee "$evidence/result.txt"
+      - name: Preserve tested root-relative delivery and isolated evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1108-host-inventory-contract
+          path: |
+            ${{ runner.temp }}/b1108-evidence
+            ${{ runner.temp }}/b1108-upload
+          retention-days: 7
+          if-no-files-found: error

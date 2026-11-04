@@ -1,0 +1,646 @@
+{
+  "schema": "ald1n-individual-finding-dispositions/v1",
+  "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+  "metadataSha256": "472bea3609bc92668c3e49f780e791cd5655ebe91d6c9d76d51c8e80ea6b997a",
+  "identitySetSha256": "adb503090b6bd8ed5f5c02748ef3a8eb0bd89aaaebc6c61a6295fef2ce934805",
+  "rawScannerFindings": 816,
+  "rawScannerMetadataModified": false,
+  "reviewedNonSecretLocations": 17,
+  "reviewedStillUnresolvedLocations": 2,
+  "unreviewedOperationsLocations": 797,
+  "currentUnresolvedLocations": 799,
+  "historicalUnreviewedLocations": 1372,
+  "scope": "Exact frozen-source locations only; no path exemption, scanner allowlist, historical extrapolation or release approval.",
+  "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050",
+  "records": [
+    {
+      "path": ".github/workflows/b1049-m13-independent-catalog-isolation.yml",
+      "startLine": 25,
+      "endLine": 25,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/.github/workflows/b1049-m13-independent-catalog-isolation.yml:generic-api-key:25",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "1c563e83f5768326bec870cadcbbd800bce2fc69",
+      "sourceFileSha256": "1c338d0edcf47e14108452a9d182414e465c24f39dcee86546c2c5d8a023105e",
+      "sourceSpanSha256": "6c746147b3b9ec5bc9eefae96c4b0d1e3b46d9bc40e1404c5e6881fbab7ec6bf",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "ephemeral_ci_database_fixture",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "ephemeral-ci-service",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/config/release.php",
+      "startLine": 5,
+      "endLine": 5,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/config/release.php:generic-api-key:5",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "fed8fdbd9c5285cb056d5bfd6addf5ef05d861a3",
+      "sourceFileSha256": "39ff8e0323ae3132845e65e3f7432ed10c65de9d498cfd4f8e75f35cab6f111b",
+      "sourceSpanSha256": "56a62d97902d8ac948d229eb46d9c717acca3b239dcdba1c212c0956c0ffd13e",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "file_integrity_reference",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "release-file-integrity",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/docs/API.md",
+      "startLine": 92,
+      "endLine": 92,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/docs/API.md:generic-api-key:92",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "8419c28f35f3710a3b2c60849d8591ce51a55a60",
+      "sourceFileSha256": "9fe003514f90d0238b9c057fd267b14eea7e20c5c7d18b1545a3b996cb6796c2",
+      "sourceSpanSha256": "4356353a9bb1904a5cb9a0ad274e301b0b84af7844e026f5a8e72cb38f538ce2",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "documented_request_identifier",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "documentation-idempotency-example",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/docs/MOBILE-CLIENT-FOUNDATION.md",
+      "startLine": 89,
+      "endLine": 89,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/docs/MOBILE-CLIENT-FOUNDATION.md:generic-api-key:89",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "d89944da91e6e2ce6806c0f611d708463b21eb0d",
+      "sourceFileSha256": "537e2919fbc6e634ac3f832c93167e661c0f1594114121d9e5e309bbee36df44",
+      "sourceSpanSha256": "4356353a9bb1904a5cb9a0ad274e301b0b84af7844e026f5a8e72cb38f538ce2",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "documented_request_identifier",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "documentation-idempotency-example",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/CoreAccessRoleIdStabilityB876Test.php",
+      "startLine": 41,
+      "endLine": 41,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/CoreAccessRoleIdStabilityB876Test.php:generic-api-key:41",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "1a161913a248e2dfaad149fecb3ef3771c6ab8bb",
+      "sourceFileSha256": "e3c0821a1e7e560814dac8a7d475d53cb37470108fe0d1b4264accbcb2a40ea9",
+      "sourceSpanSha256": "6dc36f284939ae64fa45bf7127e9002854a06e2aee470f55654d9267e87a1a49",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_sentinel",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "role-stability-sentinel",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/CustomerPortal2Test.php",
+      "startLine": 50,
+      "endLine": 50,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/CustomerPortal2Test.php:generic-api-key:50",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "09e9f72c4579d88917525d31690715ac5fd3e18f",
+      "sourceFileSha256": "75c01285b65d029a7d55ec3baf7237a62b871bf53ed8069da7c17e42f3b1044a",
+      "sourceSpanSha256": "bdc4058b7b6d2a4ecc85ced31458d93a43728fadd833ca6c7846eb48ef4b9179",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "activation-replay-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/AuthenticationTest.php",
+      "startLine": 56,
+      "endLine": 56,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/AuthenticationTest.php:generic-api-key:56",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "371519ae686a2091800c6c36c2a7acfc9deb645b",
+      "sourceFileSha256": "2c9eb5f06db42c5e7427c5a49ba1691c41d71512e59b0358c6431104a42f752f",
+      "sourceSpanSha256": "408630c359e9a0e003cb5240961bcc046fb7a0e678a5f6d5dfe4a7a59420e8b8",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "authentication-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php",
+      "startLine": 87,
+      "endLine": 87,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php:generic-api-key:87",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "0f0d8576551e7f10f6eb3192823277ce3e500e7a",
+      "sourceFileSha256": "b02225bfbe236280b1b2c565d82856641e9d9de50c9cb2b2f5b3a54d96853dff",
+      "sourceSpanSha256": "29edad0d201a48ee5c6f1c5124db7eb92e4bc45043746b9f1d4fc9f050777cb9",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_request_key",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "checkout-validation-fixture-key",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php",
+      "startLine": 102,
+      "endLine": 102,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php:generic-api-key:102",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "0f0d8576551e7f10f6eb3192823277ce3e500e7a",
+      "sourceFileSha256": "b02225bfbe236280b1b2c565d82856641e9d9de50c9cb2b2f5b3a54d96853dff",
+      "sourceSpanSha256": "29edad0d201a48ee5c6f1c5124db7eb92e4bc45043746b9f1d4fc9f050777cb9",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_request_key",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "checkout-validation-fixture-key",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/PasswordResetTest.php",
+      "startLine": 58,
+      "endLine": 58,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/PasswordResetTest.php:generic-api-key:58",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "511e0c6484cd83adfb85e8fa9b86a3f8e83c9778",
+      "sourceFileSha256": "bc4d0ccf371d375451b6cf4bd793658501e50c273f4c710e88ee85dc34bb2b29",
+      "sourceSpanSha256": "6924da5a060337ff795647f8b229e9cc2b11d82ff04fa307688a70fb2db9ca53",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "password-reset-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/PasswordResetTest.php",
+      "startLine": 59,
+      "endLine": 59,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/PasswordResetTest.php:generic-api-key:59",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "511e0c6484cd83adfb85e8fa9b86a3f8e83c9778",
+      "sourceFileSha256": "bc4d0ccf371d375451b6cf4bd793658501e50c273f4c710e88ee85dc34bb2b29",
+      "sourceSpanSha256": "b658acb479955a6a48da63f0d4237f95cd66c34db2357fec11de1c19b8a5b922",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "password-reset-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/PasswordResetTest.php",
+      "startLine": 68,
+      "endLine": 68,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/PasswordResetTest.php:generic-api-key:68",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "511e0c6484cd83adfb85e8fa9b86a3f8e83c9778",
+      "sourceFileSha256": "bc4d0ccf371d375451b6cf4bd793658501e50c273f4c710e88ee85dc34bb2b29",
+      "sourceSpanSha256": "6924da5a060337ff795647f8b229e9cc2b11d82ff04fa307688a70fb2db9ca53",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "password-reset-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/PasswordResetTest.php",
+      "startLine": 103,
+      "endLine": 103,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/PasswordResetTest.php:generic-api-key:103",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "511e0c6484cd83adfb85e8fa9b86a3f8e83c9778",
+      "sourceFileSha256": "bc4d0ccf371d375451b6cf4bd793658501e50c273f4c710e88ee85dc34bb2b29",
+      "sourceSpanSha256": "6924da5a060337ff795647f8b229e9cc2b11d82ff04fa307688a70fb2db9ca53",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "password-reset-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/cms/current/tests/Feature/PasswordResetTest.php",
+      "startLine": 104,
+      "endLine": 104,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/cms/current/tests/Feature/PasswordResetTest.php:generic-api-key:104",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "511e0c6484cd83adfb85e8fa9b86a3f8e83c9778",
+      "sourceFileSha256": "bc4d0ccf371d375451b6cf4bd793658501e50c273f4c710e88ee85dc34bb2b29",
+      "sourceSpanSha256": "b658acb479955a6a48da63f0d4237f95cd66c34db2357fec11de1c19b8a5b922",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "synthetic_test_password",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "password-reset-fixture-password",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/mobile/current/google-services.json",
+      "startLine": 55,
+      "endLine": 55,
+      "rule": "gcp-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/mobile/current/google-services.json:gcp-api-key:55",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "d5b5fc587dd1bbe4868df98c237a92a3a18fba5e",
+      "sourceFileSha256": "f71be03fa4095812193442ee38bf06501c08d439404cf1672952b61b9ed798a8",
+      "sourceSpanSha256": "b7c485eeaea56ec30a46c58f57fe98bead83d78833801dcc5c9c311a6eb23c26",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "firebase_client_api_key",
+      "status": "REVIEW_REQUIRED",
+      "proofId": "firebase-client-restrictions-unproven",
+      "releaseClosure": false,
+      "independentReview": "HOLD_RETAINED",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/mobile/current/google-services.json",
+      "startLine": 99,
+      "endLine": 99,
+      "rule": "gcp-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/mobile/current/google-services.json:gcp-api-key:99",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "d5b5fc587dd1bbe4868df98c237a92a3a18fba5e",
+      "sourceFileSha256": "f71be03fa4095812193442ee38bf06501c08d439404cf1672952b61b9ed798a8",
+      "sourceSpanSha256": "b7c485eeaea56ec30a46c58f57fe98bead83d78833801dcc5c9c311a6eb23c26",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "firebase_client_api_key",
+      "status": "REVIEW_REQUIRED",
+      "proofId": "firebase-client-restrictions-unproven",
+      "releaseClosure": false,
+      "independentReview": "HOLD_RETAINED",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt",
+      "startLine": 187,
+      "endLine": 187,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt:generic-api-key:187",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "4d0e78c4514e0753c04db4b6961a1aa87f4c652e",
+      "sourceFileSha256": "c2b743a2d5153c378ebc1272354696cb544e74a5d344744bef2704fd6f4400ca",
+      "sourceSpanSha256": "8c6979c42e0966e9e412093d7146b54daf06036db79e303da825dbaa392b4da1",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "documented_request_identifier",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "documentation-idempotency-example",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt",
+      "startLine": 191,
+      "endLine": 191,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt:generic-api-key:191",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "4d0e78c4514e0753c04db4b6961a1aa87f4c652e",
+      "sourceFileSha256": "c2b743a2d5153c378ebc1272354696cb544e74a5d344744bef2704fd6f4400ca",
+      "sourceSpanSha256": "665981b0166544b3f064eceb12621204eb1194110a44037edf5317b5ce419232",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "documented_request_identifier",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "documentation-idempotency-example",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    },
+    {
+      "path": "apps/mobile/current/scripts/batch528-native-contract.mjs",
+      "startLine": 16,
+      "endLine": 16,
+      "rule": "generic-api-key",
+      "fingerprint": "/home/runner/work/_temp/b1099-tracked-tree/apps/mobile/current/scripts/batch528-native-contract.mjs:generic-api-key:16",
+      "sourceCommit": "e3d97270785fcdeee58721ae0787f3065cf0fcb3",
+      "sourceBlob": "a2ee51939c5494828fdca1c26bf8b6e304bb4a97",
+      "sourceFileSha256": "489bd124a51ed4278a8b680d50fdec07a77c7b469a7976069270dd76769753c4",
+      "sourceSpanSha256": "603411dea742677cb94e1bf0a03effcce2d09ed216a1786253be9551d81b8c5f",
+      "spanDefinition": "UTF-8 decoded source lines joined by LF, no terminal LF; original CR retained",
+      "semanticCategory": "native_source_syntax_marker",
+      "status": "REVIEWED_NON_SECRET_FALSE_POSITIVE",
+      "proofId": "native-source-marker-validation",
+      "releaseClosure": false,
+      "independentReview": "ACCEPTED_IN_SCOPE",
+      "independentReviewSha256": "6ece60c7bea6cedaf2f8b6f2f221cb52961a9ca4422516b3dc16b7e0abd56050"
+    }
+  ],
+  "proofs": [
+    {
+      "id": "ephemeral-ci-service",
+      "checks": {
+        "mariaService": true,
+        "testingEnvironment": true,
+        "databaseLoopback": true,
+        "explicitDisposableFixture": true,
+        "oneAssignmentOnly": true,
+        "noProductionHost": true,
+        "noDeployTransport": true,
+        "zeroRuntimeExactLiteralUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": ".github/workflows/b1049-m13-independent-catalog-isolation.yml",
+          "blob": "1c563e83f5768326bec870cadcbbd800bce2fc69",
+          "fileSha256": "1c338d0edcf47e14108452a9d182414e465c24f39dcee86546c2c5d8a023105e"
+        }
+      ],
+      "explanation": "The flagged value initializes the root account of a job-scoped disposable MariaDB service; application connections are testing/loopback. No tracked runtime/config/database/routes/API-contract exact-value use was found in the bounded current-source lookup. No claim about historical reuse or live infrastructure."
+    },
+    {
+      "id": "release-file-integrity",
+      "checks": {
+        "integrityConfigSection": true,
+        "publicHtaccessTarget": true,
+        "approvedRuntimeReference": true,
+        "gitDefaultDiffers": true,
+        "consumerReadsMap": true,
+        "consumerHashesFile": true,
+        "consumerComparesHash": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/config/release.php",
+          "blob": "fed8fdbd9c5285cb056d5bfd6addf5ef05d861a3",
+          "fileSha256": "39ff8e0323ae3132845e65e3f7432ed10c65de9d498cfd4f8e75f35cab6f111b"
+        },
+        {
+          "path": "apps/cms/current/app/Console/Commands/ReleaseIntegrityCommand.php",
+          "blob": "868f12d36d64f583fdbc4cdc337ff194f07d47e5",
+          "fileSha256": "e951da1943a5144d052bc21513c2754392bccb0a71612c909d46e12d0d915e4e"
+        },
+        {
+          "path": "apps/cms/current/public/.htaccess",
+          "blob": "0f094f6159ccdbf7075a18565ebdd9df41495aab",
+          "fileSha256": "e53d6c6eec98102b98d8cddddf99b02579dc82ad963bfe786962f93bbbae806c"
+        },
+        {
+          "path": "AGENTS.md",
+          "blob": "ea42ea1f614208f8baca54d120dc517213df6134",
+          "fileSha256": "12ea63f4ded53dc6031857c7f7b63616f82bb5a7feb25bde553545d3bfb5cb4a"
+        }
+      ],
+      "explanation": "A specific public/.htaccess integrity reference equals the approved runtime hash in frozen AGENTS; checked-in default .htaccess intentionally differs. ReleaseIntegrityCommand consumes the mapping with hash_file and hash_equals. This is a file-integrity reference, not an authentication credential. Coordinator claim independently reproduced."
+    },
+    {
+      "id": "documentation-idempotency-example",
+      "checks": {
+        "allFourSameValue": true,
+        "uuidShaped": true,
+        "copiedPreflightReferences": true,
+        "controllerReadsHeader": true,
+        "controllerUsesAuthenticatedRequest": true,
+        "serviceComputesPayloadDigest": true,
+        "serviceHasActorContext": true,
+        "zeroRuntimeSampleUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/docs/API.md",
+          "blob": "8419c28f35f3710a3b2c60849d8591ce51a55a60",
+          "fileSha256": "9fe003514f90d0238b9c057fd267b14eea7e20c5c7d18b1545a3b996cb6796c2"
+        },
+        {
+          "path": "apps/cms/current/docs/MOBILE-CLIENT-FOUNDATION.md",
+          "blob": "d89944da91e6e2ce6806c0f611d708463b21eb0d",
+          "fileSha256": "537e2919fbc6e634ac3f832c93167e661c0f1594114121d9e5e309bbee36df44"
+        },
+        {
+          "path": "apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt",
+          "blob": "4d0e78c4514e0753c04db4b6961a1aa87f4c652e",
+          "fileSha256": "c2b743a2d5153c378ebc1272354696cb544e74a5d344744bef2704fd6f4400ca"
+        },
+        {
+          "path": "apps/cms/current/app/Http/Controllers/Api/V1/OrderController.php",
+          "blob": "3ae9370408476df473a68090e37a2fbab36ab90e",
+          "fileSha256": "f14aa5b87933e2486d3df6d9f64e81ecfc818b82cf92e41fa84c92459704d071"
+        },
+        {
+          "path": "apps/cms/current/app/Services/IdempotencyService.php",
+          "blob": "3b2d01d32505b031a9f96e9cf7f4a509c842676a",
+          "fileSha256": "567bf68bca1963b7240fd4bc4a909235587d0f2ad3ec7cd544a007394133006d"
+        }
+      ],
+      "explanation": "Four exact occurrences of one documented request-deduplication UUID, including two provenance-tagged preflight copies. The actual order controller reads the header separately from authenticated request user context; no exact sample is wired into the bounded runtime lookup. This is a request identifier example, not authentication material. No order or network request was sent."
+    },
+    {
+      "id": "authentication-fixture-password",
+      "checks": {
+        "refreshDatabase": true,
+        "testClass": true,
+        "hashConstructedFromSameLiteral": true,
+        "createdTestUser": true,
+        "loginUsesFixture": true,
+        "assertsAuthenticated": true,
+        "zeroRuntimeLiteralUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/tests/Feature/AuthenticationTest.php",
+          "blob": "371519ae686a2091800c6c36c2a7acfc9deb645b",
+          "fileSha256": "2c9eb5f06db42c5e7427c5a49ba1691c41d71512e59b0358c6431104a42f752f"
+        },
+        {
+          "path": "apps/cms/current/phpunit.xml",
+          "blob": "d994d3987439aa88d1795169ca9ed9370400f283",
+          "fileSha256": "e946f74cdc09bb6e0c163fb72d0fa1453401d38dc2794c5fadbd1998cd7973f3"
+        }
+      ],
+      "explanation": "The test constructs a PHP password hash from the same fixed literal, inserts its own user and posts the literal through test login, asserting authentication. RefreshDatabase and phpunit testing/SQLite :memory: establish the synthetic fixture boundary. No exact use was found in the bounded runtime tree."
+    },
+    {
+      "id": "role-stability-sentinel",
+      "checks": {
+        "refreshDatabase": true,
+        "testClass": true,
+        "literalAssignedAsPasswordHash": true,
+        "notEncodedPasswordHash": true,
+        "insertedUserRow": true,
+        "repeatedSeeder": true,
+        "identifierStabilityAssertions": true,
+        "zeroRuntimeLiteralUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/tests/Feature/CoreAccessRoleIdStabilityB876Test.php",
+          "blob": "1a161913a248e2dfaad149fecb3ef3771c6ab8bb",
+          "fileSha256": "e3c0821a1e7e560814dac8a7d475d53cb37470108fe0d1b4264accbcb2a40ea9"
+        },
+        {
+          "path": "apps/cms/current/phpunit.xml",
+          "blob": "d994d3987439aa88d1795169ca9ed9370400f283",
+          "fileSha256": "e946f74cdc09bb6e0c163fb72d0fa1453401d38dc2794c5fadbd1998cd7973f3"
+        }
+      ],
+      "explanation": "A deliberately non-encoded sentinel in a test-inserted user row supports repeated role-ID/FK preservation assertions. It is not an imported password hash. Static fixture isolation and zero bounded runtime exact-value uses establish this specific occurrence; no general test exemption."
+    },
+    {
+      "id": "activation-replay-fixture-password",
+      "checks": {
+        "refreshDatabase": true,
+        "testClass": true,
+        "notificationFake": true,
+        "initialPasswordMatchesHashAssertion": true,
+        "replayUsesDifferentFixturePassword": true,
+        "secondActivationRejected": true,
+        "tokenConsumed": true,
+        "fixtureCreation": true,
+        "zeroRuntimeLiteralUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/tests/Feature/CustomerPortal2Test.php",
+          "blob": "09e9f72c4579d88917525d31690715ac5fd3e18f",
+          "fileSha256": "75c01285b65d029a7d55ec3baf7237a62b871bf53ed8069da7c17e42f3b1044a"
+        },
+        {
+          "path": "apps/cms/current/phpunit.xml",
+          "blob": "d994d3987439aa88d1795169ca9ed9370400f283",
+          "fileSha256": "e946f74cdc09bb6e0c163fb72d0fa1453401d38dc2794c5fadbd1998cd7973f3"
+        },
+        {
+          "path": "apps/cms/current/app/Services/CustomerActivationService.php",
+          "blob": "3a7efabec04c06340fcffc23589c65e1194c8d06",
+          "fileSha256": "549b4f2188869644bf1b11664f7f648cabf8896f67de05eedc3660bbe2f2fd10"
+        }
+      ],
+      "explanation": "A locally created test customer is invited with fake notifications; initial activation uses one fixture password confirmed by Hash::check, and rejected replay supplies a different fixed fixture password. The token variable is generated during the scenario, not a hard-coded token export. No bounded runtime exact password use."
+    },
+    {
+      "id": "password-reset-fixture-password",
+      "checks": {
+        "refreshDatabase": true,
+        "testClass": true,
+        "notificationFake": true,
+        "allFiveSameFixturePassword": true,
+        "tokenCapturedFromFakeNotification": true,
+        "hashCheckSameFixture": true,
+        "testCreatesUser": true,
+        "loginAssertion": true,
+        "replayRejection": true,
+        "zeroRuntimeLiteralUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/tests/Feature/PasswordResetTest.php",
+          "blob": "511e0c6484cd83adfb85e8fa9b86a3f8e83c9778",
+          "fileSha256": "bc4d0ccf371d375451b6cf4bd793658501e50c273f4c710e88ee85dc34bb2b29"
+        },
+        {
+          "path": "apps/cms/current/phpunit.xml",
+          "blob": "d994d3987439aa88d1795169ca9ed9370400f283",
+          "fileSha256": "e946f74cdc09bb6e0c163fb72d0fa1453401d38dc2794c5fadbd1998cd7973f3"
+        }
+      ],
+      "explanation": "Five individual payload fields contain the same synthetic test password: reset password/confirmation, successful login, then second-scenario reset/confirmation. A fake notification supplies the dynamic token; same-value hash/login assertions and replay rejection consume it in RefreshDatabase tests. Each field receives its own disposition."
+    },
+    {
+      "id": "checkout-validation-fixture-key",
+      "checks": {
+        "refreshDatabase": true,
+        "testClass": true,
+        "bothFieldsIdentical": true,
+        "bothArePayloadKeyFields": true,
+        "explicitSyntheticInvalidLiteral": true,
+        "htmlTestPost": true,
+        "jsonTestPost": true,
+        "assertsNoOrderWrite": true,
+        "assertsJsonUnprocessable": true,
+        "testCreatesUser": true,
+        "zeroRuntimeLiteralUses": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/cms/current/tests/Feature/StorefrontLocalValidationB889Test.php",
+          "blob": "0f0d8576551e7f10f6eb3192823277ce3e500e7a",
+          "fileSha256": "b02225bfbe236280b1b2c565d82856641e9d9de50c9cb2b2f5b3a54d96853dff"
+        },
+        {
+          "path": "apps/cms/current/phpunit.xml",
+          "blob": "d994d3987439aa88d1795169ca9ed9370400f283",
+          "fileSha256": "e946f74cdc09bb6e0c163fb72d0fa1453401d38dc2794c5fadbd1998cd7973f3"
+        }
+      ],
+      "explanation": "Two fixed checkout payload identifiers are supplied only by the HTML/JSON negative-validation scenarios. Test users are created locally; fake notifications, RefreshDatabase, unprocessable/error assertions and no-order-write assertion constrain this fixture. No bounded runtime exact-value use."
+    },
+    {
+      "id": "native-source-marker-validation",
+      "checks": {
+        "fourMarkers": true,
+        "allMarkersExistInRealKotlin": true,
+        "stringPresenceConsumer": true,
+        "validateSourceExport": true,
+        "nodeBuiltinImportsOnly": true
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/mobile/current/scripts/batch528-native-contract.mjs",
+          "blob": "a2ee51939c5494828fdca1c26bf8b6e304bb4a97",
+          "fileSha256": "489bd124a51ed4278a8b680d50fdec07a77c7b469a7976069270dd76769753c4"
+        },
+        {
+          "path": "apps/mobile/current/modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1nrestorecredentials/Ald1nRestoreCredentialsModule.kt",
+          "blob": "896bbc405caa2104a5812a915e83b02baa8716d4",
+          "fileSha256": "9ec57875ccd9bfdf051e78a2e6d2bf846712fece1cb7ec5e5f8ba702bfe79de3"
+        }
+      ],
+      "explanation": "The flagged source line is an array of four expected native Kotlin syntax markers. Every marker occurs in the actual native source, and the immediate consumer is kotlin.includes(marker) inside exported validateSource. The line supplies code-presence assertions, not a key/token to an authentication or remote sink. No native helper or app test was executed."
+    },
+    {
+      "id": "firebase-client-restrictions-unproven",
+      "checks": {
+        "parseableClientConfiguration": true,
+        "bothSpansMapToClientApiKey": true,
+        "sameValueAtBothLocations": true,
+        "applicationApiRestrictionEvidenceObtained": false,
+        "credentialInvoked": false
+      },
+      "sourceReferences": [
+        {
+          "path": "apps/mobile/current/google-services.json",
+          "blob": "d5b5fc587dd1bbe4868df98c237a92a3a18fba5e",
+          "fileSha256": "f71be03fa4095812193442ee38bf06501c08d439404cf1672952b61b9ed798a8"
+        }
+      ],
+      "explanation": "Both exact spans map to client[].api_key[].current_key in the Firebase client configuration. This proves type and placement only. Actual API restrictions, Android package/signature restrictions and permission impact are not established by these bytes; no console/network/credential probe was authorized or performed."
+    }
+  ],
+  "limitations": [
+    "Static frozen-source analysis only; no application tests, production observations or credential invocation.",
+    "No review of the 797 operations findings or 1372 historical findings.",
+    "Proposals require coordinator independent review and actual gate accounting; no release closure or zero-scanner claim.",
+    "A first exploratory source-span probe incorrectly treated quoted-string masking as sufficient and exposed unquoted disposable CI fixture values in tool output. No such values appear in this deliverable; no credential was invoked. Source printing was stopped, unsafe exploratory helper removed, and all subsequent output restricted to structured proof metadata.",
+    "Runtime absence checks cover only frozen app/config/database/routes/Mobile source/API-contract paths, not historical or live reuse."
+  ]
+}

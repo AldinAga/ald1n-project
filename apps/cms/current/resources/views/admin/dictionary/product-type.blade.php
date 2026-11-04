@@ -101,7 +101,7 @@
 
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const workspace = document.querySelector('[data-product-type-workspace]');
     const form = document.querySelector('.product-type-settings-form');
@@ -323,5 +323,5 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('assets/js/dictionary-sort-manager.js') }}?v={{ config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/dictionary-sort-manager.js') }}?v={{ config('app.version') }}" defer></script>
 @endpush

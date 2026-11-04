@@ -968,3 +968,6 @@ html[data-theme="light"] .auth-layout-over-background .auth-card{background:rgba
     }
 }
 /* /BATCH155_V3_DESKTOP_DENSITY */
+
+.image-selection[hidden], .image-upload-progress[hidden] { display: none; }
+label[data-bank-account][hidden], label[data-payment-due][hidden] { display: none; }

@@ -96,7 +96,7 @@
 <div class="pagination-wrap">{{ $commissions->links() }}</div>
 @endsection
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     document.querySelector('[data-select-all="commission_ids[]"]')?.addEventListener('change', (event) => {
         document.querySelectorAll('input[name="commission_ids[]"]').forEach((box) => { box.checked = event.target.checked; });
     });

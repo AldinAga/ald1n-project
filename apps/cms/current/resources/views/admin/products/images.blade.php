@@ -53,12 +53,12 @@
         <form id="rotate-left-{{ $image->id }}" method="post" action="{{ route('admin.products.images.rotate', [$product, $image]) }}" data-image-ajax-form data-image-action="rotate" data-image-id="{{ $image->id }}">@csrf @method('PATCH')<input type="hidden" name="degrees" value="270"></form>
         <form id="rotate-right-{{ $image->id }}" method="post" action="{{ route('admin.products.images.rotate', [$product, $image]) }}" data-image-ajax-form data-image-action="rotate" data-image-id="{{ $image->id }}">@csrf @method('PATCH')<input type="hidden" name="degrees" value="90"></form>
         @if($image->storage_disk === 'public')
-            <form id="delete-{{ $image->id }}" method="post" action="{{ route('admin.products.images.destroy', [$product, $image]) }}">@csrf @method('DELETE')</form>
+            <form id="delete-{{ $image->id }}" data-confirm-submit="Ukloniti sliku?" method="post" action="{{ route('admin.products.images.destroy', [$product, $image]) }}">@csrf @method('DELETE')</form>
         @endif
     @endforeach
 </div>
 @endsection
 
 @push('scripts')
-<script src="{{ asset('assets/js/product-media-manager.js') }}?v={{ config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/product-media-manager.js') }}?v={{ config('app.version') }}" defer></script>
 @endpush

@@ -111,7 +111,7 @@
 </div>
 @endsection
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const editor = document.querySelector('[data-installment-editor]');
     if (!editor) return;

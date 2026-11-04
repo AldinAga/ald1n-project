@@ -375,7 +375,7 @@
 
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const grid = document.querySelector('.unified-product-grid');
     if (!(grid instanceof HTMLElement)) return;
@@ -439,7 +439,7 @@
 </script>
 @endpush
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const workspace = document.querySelector('[data-ux-catalog-workspace="1"]');
     const form = document.querySelector('[data-catalog-filter-form]');
@@ -498,7 +498,7 @@
 @endpush
 @push('scripts')
 @include('partials.correlated-specification-filter-script')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const form = document.querySelector('[data-catalog-filter-form]');
     const drawer = form?.querySelector('[data-catalog-filter-drawer]');
@@ -552,7 +552,7 @@
 })();
 </script>
 @if($canManageCatalog)
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const boxes = Array.from(document.querySelectorAll('[data-unified-product-select]'));
     const bar = document.querySelector('[data-unified-bulk-bar]');

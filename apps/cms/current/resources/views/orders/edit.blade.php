@@ -110,7 +110,7 @@
 @media(max-width:720px){.order-amendment-item{align-items:flex-start;flex-direction:column}.order-amendment-item .header-button-row{width:100%}}
 </style>
 
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const root = document.querySelector('[data-order-amendment-form]');
     if (!root) return;
@@ -129,8 +129,8 @@
     };
     const bindRow = (row) => {
         const input = row.querySelector('[data-qty-input]');
-        row.querySelector('[data-qty-minus]').addEventListener('click', () => input.value = String(Math.max(1, Number(input.value || 1) - 1));
-        row.querySelector('[data-qty-plus]').addEventListener('click', () => input.value = String(Math.min(1000, Number(input.value || 1) + 1));
+        row.querySelector('[data-qty-minus]').addEventListener('click', () => input.value = String(Math.max(1, Number(input.value || 1) - 1)));
+        row.querySelector('[data-qty-plus]').addEventListener('click', () => input.value = String(Math.min(1000, Number(input.value || 1) + 1)));
         row.querySelector('[data-remove-item]').addEventListener('click', () => {
             if (items.querySelectorAll('[data-order-item]').length <= 1) return window.alert('Porudžbina mora imati najmanje jednu stavku.');
             row.remove(); reindex();

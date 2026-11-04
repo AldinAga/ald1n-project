@@ -128,7 +128,7 @@
                         <form
                             method="post"
                             action="{{ route('account.sessions.destroy', $session) }}"
-                            onsubmit="return confirm('Opozvati ovu prijavu?')"
+                            data-confirm-submit="Opozvati ovu prijavu?"
                         >
                             @csrf
                             @method('delete')
@@ -147,7 +147,7 @@
             <form
                 method="post"
                 action="{{ route('account.sessions.destroy-others') }}"
-                onsubmit="return confirm('Opozvati sve druge prijave?')"
+                data-confirm-submit="Opozvati sve druge prijave?"
             >
                 @csrf
                 @method('delete')

@@ -201,7 +201,7 @@
 
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const input = document.querySelector('[data-settings-search]');
     const list = document.querySelector('[data-settings-list]');

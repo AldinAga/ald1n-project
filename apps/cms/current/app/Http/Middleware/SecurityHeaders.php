@@ -12,6 +12,8 @@ final class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
+        $nonce = base64_encode(random_bytes(16));
+        $request->attributes->set('_csp_nonce', $nonce);
         $response = $next($request);
         $headers = $response->headers;
 
@@ -20,7 +22,17 @@ final class SecurityHeaders
         $headers->set('Referrer-Policy', 'same-origin');
         $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $headers->set('Content-Security-Policy', "base-uri 'none'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com");
+        $headers->set('Content-Security-Policy', "base-uri 'none'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; script-src 'nonce-{$nonce}'; script-src-attr 'none'");
+
+        // Successful public overrides are scriptless or separately restrict registration.
+        $publicPolicy = $request->isMethod('GET') && $response->getStatusCode() === 200
+            && $request->routeIs('public-shop.catalog', 'public-shop.show', 'public-shop.cart',
+                'public-shop.checkout', 'public-shop.order.show', 'public-shop.register');
+        if (str_starts_with(strtolower((string) $headers->get('Content-Type')), 'text/html')
+            && !$response->isRedirection() && !$publicPolicy) {
+            $headers->set('Cache-Control', 'private, no-store, max-age=0');
+            $headers->set('Pragma', 'no-cache');
+        }
 
         // Session-specific carts and checkout forms contain CSRF tokens,
         // purchase nonces and sometimes redisplayed buyer data. Revalidation
