@@ -34,7 +34,10 @@ final class CatalogSettingsProductDataContractTest extends TestCase
 
         self::assertStringContainsString('function destroy(', $controller);
         self::assertStringContainsString('function purge(', $controller);
-        self::assertStringContainsString('hash_equals', $controller);
+        $manager = (string) file_get_contents($root.'/app/Services/CatalogDictionaryManagerService.php');
+        self::assertStringContainsString('hash_equals', $manager);
+        self::assertStringContainsString('$manager->purgeSpecificationField(', $controller);
+        self::assertStringContainsString('catalog.specification_field.deleted', $manager);
         self::assertStringContainsString('catalog.specification_field.deleted', $controller);
         self::assertStringContainsString('Trajno brisanje', $view);
     }
