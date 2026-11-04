@@ -4,6 +4,8 @@ on:
     branches: [feat/b799-public-retail-catalog-cart-checkout]
     paths:
       - 'apps/cms/current/**'
+      - 'apps/mobile/current/**'
+      - 'packages/api-contract/openapi.yaml'
       - 'tools/storefront/b1075/**'
       - '.github/workflows/b1075-storefront-recovery.yml'
 permissions:
@@ -142,7 +144,9 @@ jobs:
             tests/Feature/CoreAccessRoleIdStabilityB876Test.php \
             tests/Unit/LegacyReadOnlyGuardTest.php \
             tests/Unit/DeliveryNoteMigrationContractTest.php \
-            tests/Feature/ManualCommissionPolicyB1079Test.php
+            tests/Feature/ManualCommissionPolicyB1079Test.php \
+            tests/Unit/CommissionCalculatorTest.php \
+            tests/Unit/CommissionPercentagePolicyContractTest.php
           if test "$(cat "$evidence/focused.exit")" != 0; then
             tail -120 "$evidence/focused.log"
             echo 'HOLD_FOCUSED_SOURCE_REGRESSIONS'
@@ -157,22 +161,33 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==76,len(cases)
+          assert len(cases)==83,len(cases)
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']==553,report['before']['count']
-          assert report['after']['count']==635,report['after']['count']
+          assert report['after']['count']==637,report['after']['count']
           assert report['before']['skippedCount']==report['after']['skippedCount']==0
           legacy='Tests.Unit.LegacyReadOnlyGuardTest::test_mutating_and_locking_queries_are_blocked'
           expected_provider_cases={legacy+' with data set #'+str(i) for i in range(7)}
-          assert report['missingOriginalCases']==[legacy],report['missingOriginalCases']
+          commission_prefix='Tests.Unit.CommissionCalculatorTest::'
+          commission_migrations={
+              commission_prefix+'test_existing_automatic_fifty_euro_maximum_is_preserved':
+                  commission_prefix+'test_automatic_commission_has_no_fixed_fifty_euro_maximum',
+              commission_prefix+'test_manual_commission_requires_uncapped_ten_percent_floor':
+                  commission_prefix+'test_positive_manual_commission_may_override_below_or_above_ten_percent',
+          }
+          assert set(report['missingOriginalCases'])=={legacy,*commission_migrations},report['missingOriginalCases']
+          for old,new in commission_migrations.items():
+              assert old in report['before']['failed']
+              assert new in report['after']['ids'] and new not in report['after']['failed']
           assert legacy in report['before']['failed']
           assert expected_provider_cases.issubset(report['after']['ids'])
           assert not expected_provider_cases.intersection(report['after']['failed'])
           (d/'legacy-provider-identity-migration.json').write_text(json.dumps({
               'old_discovery_error_identity':legacy,
               'actual_original_provider_cases':sorted(expected_provider_cases),
-              'source_constraint':'metadata-only; original inputs and assertions unchanged',
+              'legacy_provider_source_constraint':'metadata-only; original inputs and assertions unchanged',
+              'owner_20261104_commission_rule_identity_migrations':commission_migrations,
           },indent=2))
           assert not report['newFailed'],report['newFailed']
           if report['after']['failedCount']:
@@ -186,3 +201,49 @@ jobs:
           path: ${{ runner.temp }}/b1075-evidence
           if-no-files-found: error
           retention-days: 7
+  mobile-commission-source:
+    if: github.head_ref == 'fix/b1075-storefront-recovery-20261103'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      npm_config_cache: ${{ runner.temp }}/b1079-npm-cache
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Locked mobile install and existing canonical source gates only
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "if(require('./package.json').packageManager!=='npm@10.9.2')process.exit(2)"
+          npm exec --yes --package=npm@10.9.2 -- npm ci --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-install.log"
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-typecheck.log"
+          node scripts/validate-project.mjs 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-validator.log"
+          node <<'NODE' | tee "$RUNNER_TEMP/b1079-openapi-parity.log"
+          const fs=require('node:fs'),assert=require('node:assert/strict'),yaml=require('yaml');
+          const paths=['../../cms/current/docs/openapi.yaml','docs/openapi.yaml','../../../packages/api-contract/openapi.yaml'];
+          const docs=paths.map(p=>fs.readFileSync(p,'utf8'));
+          assert(docs.every(x=>x===docs[0]),'OpenAPI byte parity');
+          for(const document of docs){
+            const field=yaml.parse(document).components.schemas.AdminProductCreateInput.properties.manual_commission_eur;
+            assert.deepEqual(field.type,['number','null']);
+            assert.equal(field.minimum,0.01);
+            assert.equal(field.maximum,999999.99);
+            assert.match(field.description,/lower or higher than 10%/);
+          }
+          console.log('OPENAPI_3_COPIES_POSITIVE_NULLABLE_COMMISSION_PASS');
+          NODE
+          git diff --exit-code -- package.json package-lock.json
+      - name: Preserve source-gate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1079-mobile-source-qa
+          path: ${{ runner.temp }}/b1079-*.log
+          retention-days: 7
+          if-no-files-found: error
