@@ -75,7 +75,36 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$B922_EVENT_HEAD_SHA"
-          if [ "$B922_PR_NUMBER" = "147" ]; then
+          if [ "$B922_PR_NUMBER" = "149" ]; then
+            test "$B922_REPOSITORY" = "AldinAga/ald1n-project"
+            test "$B922_HEAD_REPOSITORY" = "AldinAga/ald1n-project"
+            test "$B922_HEAD_REF" = "codex/b1121-upload-boundary-20261104"
+            test "$B922_BASE_REF" = "main"
+            test "$B922_BASE_SHA" = "c863b426344a1d4d71f16819c3237a415622e89d"
+            BASE=c863b426344a1d4d71f16819c3237a415622e89d
+            REVIEWED=68e077901d5a156d4d0fc7161bc09ef9993461c8
+            test "$(git merge-base "$BASE" HEAD)" = "$BASE"
+            test "$(git merge-base "$REVIEWED" HEAD)" = "$REVIEWED"
+            git diff --no-renames --name-only "$BASE" HEAD | sort > "$RUNNER_TEMP/b937-changed.txt"
+            cat > "$RUNNER_TEMP/b937-expected.txt" <<'FILES'
+          .github/workflows/b922-m10-m11-consolidated-qa.yml
+          apps/cms/current/app/Services/OrderPaymentService.php
+          apps/cms/current/tests/Feature/PaymentProofFreshStateB1121Test.php
+          FILES
+            diff -u "$RUNNER_TEMP/b937-expected.txt" "$RUNNER_TEMP/b937-changed.txt"
+            git diff --no-renames --name-status "$REVIEWED" HEAD > "$RUNNER_TEMP/b1121-reviewed-changed.txt"
+            printf 'M\t.github/workflows/b922-m10-m11-consolidated-qa.yml\n' > "$RUNNER_TEMP/b1121-reviewed-expected.txt"
+            diff -u "$RUNNER_TEMP/b1121-reviewed-expected.txt" "$RUNNER_TEMP/b1121-reviewed-changed.txt"
+            test "$(git ls-tree --format='%(objectmode) %(objecttype)' HEAD -- .github/workflows/b922-m10-m11-consolidated-qa.yml)" = "100644 blob"
+            for ref in "$BASE" "$REVIEWED" HEAD; do
+              test "$(git ls-tree --format='%(objectmode) %(objecttype)' "$ref" -- apps/cms/current/app/Services/OrderPaymentService.php)" = "100644 blob"
+            done
+            for ref in "$REVIEWED" HEAD; do
+              test "$(git ls-tree --format='%(objectmode) %(objecttype)' "$ref" -- apps/cms/current/tests/Feature/PaymentProofFreshStateB1121Test.php)" = "100644 blob"
+            done
+            cp "$RUNNER_TEMP/b937-changed.txt" "$RUNNER_TEMP/b922-changed.txt"
+            B922_SOURCE_MODE=b1121
+          elif [ "$B922_PR_NUMBER" = "147" ]; then
             test "$B922_REPOSITORY" = "AldinAga/ald1n-project"
             test "$B922_HEAD_REPOSITORY" = "AldinAga/ald1n-project"
             test "$B922_HEAD_REF" = "codex/b1119-owned-cancel-lock-20261104"
@@ -129,8 +158,12 @@ jobs:
             apps/cms/current/tests/Feature/StorefrontRegistrationOnlyB809Test.php \
             apps/cms/current/tests/Feature/StorefrontSecurityB806Test.php)"
           # Exact six Git blobs from PR93 / PR110 / PR111, tested on PR111+B932 via Report878.
-          test "$(git hash-object apps/cms/current/app/Services/OrderPaymentService.php)" = "55e9a81c5d775496586b96a61f21d062c8ebb0ef"
-          if [ "$B922_SOURCE_MODE" = "b1119" ]; then
+          if [ "$B922_SOURCE_MODE" = "b1121" ]; then
+            test "$(git hash-object apps/cms/current/app/Services/OrderPaymentService.php)" = "452273f2bb7ffe61387697f542c27048f1b083c1"
+          else
+            test "$(git hash-object apps/cms/current/app/Services/OrderPaymentService.php)" = "55e9a81c5d775496586b96a61f21d062c8ebb0ef"
+          fi
+          if [ "$B922_SOURCE_MODE" = "b1119" ] || [ "$B922_SOURCE_MODE" = "b1121" ]; then
             test "$(git hash-object apps/cms/current/app/Services/OrderWorkflowService.php)" = "5c7d6b7a5ecaa721b35521a0ac4623478fb3816b"
           else
             test "$(git hash-object apps/cms/current/app/Services/OrderWorkflowService.php)" = "f8f036f458fead11e0aef133453bd81dc3e27db6"

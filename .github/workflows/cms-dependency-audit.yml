@@ -1,0 +1,183 @@
+name: CMS exact locked dependency audit (NO DEPLOY)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/cms/current/composer.json'
+      - 'apps/cms/current/composer.lock'
+      - '.github/workflows/cms-dependency-audit.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cms-dependency-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ${{ fromJSON(github.head_ref == 'codex/b1125-symfony-patch-20261104' && '["locked","candidate"]' || '["locked"]') }}
+    name: ${{ matrix.mode }} dependency audit
+    env:
+      MODE: ${{ matrix.mode }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      COMPOSER_NO_INTERACTION: '1'
+      COMPOSER_NO_AUDIT: '1'
+      COMPOSER_PROCESS_TIMEOUT: '120'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with: {php-version: '8.4', coverage: none}
+      - name: Prepare isolated dependency-only inputs and pinned Composer
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          case "$MODE" in locked|candidate) ;; *) exit 40 ;; esac
+          evidence="$RUNNER_TEMP/cms-dependency-$MODE-evidence"
+          scratch="$(mktemp -d "$RUNNER_TEMP/cms-dependency-$MODE.XXXXXXXX")"
+          mkdir -p "$evidence" "$scratch/home" "$scratch/cache"
+          printf 'EVIDENCE=%s\nSCRATCH=%s\nCOMPOSER_HOME=%s/home\nCOMPOSER_CACHE_DIR=%s/cache\nCOMPOSER_BIN=%s/composer-2.11.1.phar\n' "$evidence" "$scratch" "$scratch" "$scratch" "$scratch" >> "$GITHUB_ENV"
+          printf '%s\n' "$EXPECTED_HEAD" > "$evidence/source-head.txt"
+          printf '%s\n' "$MODE" > "$evidence/mode.txt"
+          test ! -e apps/cms/current/vendor
+          cp apps/cms/current/composer.json apps/cms/current/composer.lock "$scratch/"
+          cp "$scratch/composer.lock" "$evidence/original.lock"
+          sha256sum apps/cms/current/composer.json apps/cms/current/composer.lock > "$evidence/source-inputs.sha256"
+          curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$scratch/composer-2.11.1.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $scratch/composer-2.11.1.phar" | sha256sum --check
+          php "$scratch/composer-2.11.1.phar" --version --no-ansi
+      - name: Prepare only the three reviewed Symfony patch packages
+        id: candidate
+        if: matrix.mode == 'candidate'
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset COMPOSER_AUTH GITHUB_TOKEN GH_TOKEN
+          cd "$SCRATCH"
+          set +e
+          php "$COMPOSER_BIN" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail > "$EVIDENCE/before-audit.json" 2> "$EVIDENCE/before-audit.stderr"
+          before_rc=$?
+          printf '%s\n' "$before_rc" > "$EVIDENCE/before-audit.exit"
+          php "$COMPOSER_BIN" --no-plugins --no-scripts update symfony/http-kernel:8.1.11 symfony/routing:8.1.11 symfony/serializer:8.1.11 --with-dependencies --minimal-changes --no-install --no-interaction --no-progress > "$EVIDENCE/resolve.log" 2>&1
+          resolve_rc=$?
+          printf '%s\n' "$resolve_rc" > "$EVIDENCE/resolve.exit"
+          set -e
+          cat "$EVIDENCE/resolve.log"
+          test "$resolve_rc" = 0
+          test "$before_rc" = 0 -o "$before_rc" = 1
+          php <<'PHP'
+          <?php
+          declare(strict_types=1);
+          function requireCandidate(array $before, array $after): array {
+              $allowed = ['symfony/http-kernel'=>'v8.1.1','symfony/routing'=>'v8.1.0','symfony/serializer'=>'v8.1.8'];
+              $changed = [];
+              foreach (['packages','packages-dev'] as $section) {
+                  if (!isset($before[$section],$after[$section]) || !is_array($before[$section]) || !is_array($after[$section])) throw new RuntimeException('Missing package section');
+                  $index = static function(array $packages): array {
+                      $result=[];
+                      foreach($packages as $package) {
+                          if(!is_array($package) || !isset($package['name']) || isset($result[$package['name']])) throw new RuntimeException('Invalid or duplicate package');
+                          $result[$package['name']]=$package;
+                      }
+                      ksort($result);return $result;
+                  };
+                  $old=$index($before[$section]);$new=$index($after[$section]);
+                  if(array_keys($old)!==array_keys($new)) throw new RuntimeException('Package added, removed or moved');
+                  foreach($old as $name=>$package) {
+                      if(isset($allowed[$name])) {
+                          if(!in_array($package['version']??null,[$allowed[$name],'v8.1.11'],true) || ($new[$name]['version']??null)!=='v8.1.11') throw new RuntimeException('Unreviewed target version');
+                          if($package!==$new[$name])$changed[]=$name;
+                      } elseif($package!==$new[$name]) throw new RuntimeException('Unreviewed package delta');
+                  }
+                  unset($before[$section],$after[$section]);
+              }
+              if($before!==$after) throw new RuntimeException('Lock metadata changed');
+              sort($changed);$targets=array_keys($allowed);sort($targets);
+              if($changed!==[] && $changed!==$targets)throw new RuntimeException('Partial target update');
+              return $changed;
+          }
+          $fixture=['packages'=>[['name'=>'symfony/http-kernel','version'=>'v8.1.1'],['name'=>'symfony/routing','version'=>'v8.1.0'],['name'=>'symfony/serializer','version'=>'v8.1.8'],['name'=>'other/package','version'=>'v1.0.0']],'packages-dev'=>[],'content-hash'=>'same'];
+          $patched=$fixture;for($i=0;$i<3;$i++)$patched['packages'][$i]['version']='v8.1.11';
+          if(count(requireCandidate($fixture,$patched))!==3 || requireCandidate($patched,$patched)!==[])throw new RuntimeException('Positive scope calibration');
+          $bad=[];$x=$patched;$x['packages'][3]['version']='v2.0.0';$bad[]=$x;
+          $x=$patched;array_pop($x['packages']);$bad[]=$x;
+          $x=$patched;$x['packages'][]=['name'=>'new/package','version'=>'v1'];$bad[]=$x;
+          $x=$patched;$x['content-hash']='different';$bad[]=$x;
+          $x=$patched;$x['packages'][0]['version']='v8.2.0';$bad[]=$x;
+          $x=$patched;$x['packages'][]=$x['packages'][0];$bad[]=$x;
+          foreach($bad as $x){$rejected=false;try{requireCandidate($fixture,$x);}catch(RuntimeException){$rejected=true;}if(!$rejected)throw new RuntimeException('Negative scope calibration');}
+          $partial=$fixture;$partial['packages'][0]['version']='v8.1.11';$rejected=false;try{requireCandidate($partial,$patched);}catch(RuntimeException){$rejected=true;}if(!$rejected)throw new RuntimeException('Partial source calibration');
+          $e=getenv('EVIDENCE');$before=json_decode(file_get_contents($e.'/original.lock'),true,512,JSON_THROW_ON_ERROR);$after=json_decode(file_get_contents('composer.lock'),true,512,JSON_THROW_ON_ERROR);
+          $changed=requireCandidate($before,$after);
+          foreach(['symfony/http-kernel','symfony/routing','symfony/serializer'] as $name){$rows=array_values(array_filter(array_merge($after['packages'],$after['packages-dev']),fn($p)=>$p['name']===$name));if(count($rows)!==1||$rows[0]['version']!=='v8.1.11')throw new RuntimeException('Missing target package');}
+          if(file_get_contents('composer.json')!==file_get_contents(getenv('GITHUB_WORKSPACE').'/apps/cms/current/composer.json') || is_dir('vendor'))throw new RuntimeException('Non-lock mutation');
+          $audit=json_decode(file_get_contents($e.'/before-audit.json'),true,512,JSON_THROW_ON_ERROR);if(!array_key_exists('advisories',$audit)||($audit['abandoned']??[])!==[])throw new RuntimeException('Missing audit or abandoned packages');
+          $summary=['source'=>trim(file_get_contents($e.'/source-head.txt')),'changedPackages'=>$changed,'candidateLockSHA256'=>hash_file('sha256','composer.lock'),'composerJsonUnchanged'=>true,'otherPackagesAndMetadataUnchanged'=>true,'scopeSelfchecks'=>9,'beforeAdvisories'=>array_sum(array_map('count',$audit['advisories']))];
+          file_put_contents($e.'/scope.json',json_encode($summary,JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)."\n");
+          copy('composer.lock',$e.'/candidate.lock');
+          echo 'CANDIDATE_SCOPE='.json_encode($summary,JSON_THROW_ON_ERROR)."\n";
+          PHP
+      - name: Validate and audit the complete locked graph with actual return codes
+        if: always() && steps.prepare.outcome == 'success' && (matrix.mode == 'locked' || steps.candidate.outcome == 'success')
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset COMPOSER_AUTH GITHUB_TOKEN GH_TOKEN
+          cd "$SCRATCH"
+          set +e
+          php "$COMPOSER_BIN" --no-plugins --no-scripts validate --check-lock --no-interaction > "$EVIDENCE/validate.log" 2>&1
+          validate_rc=$?
+          printf '%s\n' "$validate_rc" > "$EVIDENCE/validate.exit"
+          php "$COMPOSER_BIN" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail > "$EVIDENCE/audit.json" 2> "$EVIDENCE/audit.stderr"
+          audit_rc=$?
+          printf '%s\n' "$audit_rc" > "$EVIDENCE/audit.exit"
+          set -e
+          cat "$EVIDENCE/validate.log"
+          php <<'PHP'
+          <?php
+          $e=getenv('EVIDENCE');$a=json_decode(file_get_contents($e.'/audit.json'),true,512,JSON_THROW_ON_ERROR);
+          if(!array_key_exists('advisories',$a)||!is_array($a['advisories'])||!array_key_exists('abandoned',$a)||!is_array($a['abandoned']))throw new RuntimeException('Incomplete audit JSON');
+          $s=['source'=>trim(file_get_contents($e.'/source-head.txt')),'mode'=>getenv('MODE'),'lockSHA256'=>hash_file('sha256','composer.lock'),'composerJsonSHA256'=>hash_file('sha256','composer.json'),'validateRC'=>(int)trim(file_get_contents($e.'/validate.exit')),'auditRC'=>(int)trim(file_get_contents($e.'/audit.exit')),'advisoryCount'=>array_sum(array_map('count',$a['advisories'])),'affectedPackages'=>count($a['advisories']),'abandonedCount'=>count($a['abandoned']),'vendorInstalled'=>is_dir('vendor'),'productionMutation'=>false];
+          if($s['vendorInstalled'])throw new RuntimeException('Unexpected vendor install');
+          file_put_contents($e.'/summary.json',json_encode($s,JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)."\n");echo 'LOCKED_AUDIT_RESULT='.json_encode($s,JSON_THROW_ON_ERROR)."\n";
+          PHP
+          cd "$GITHUB_WORKSPACE"
+          sha256sum --check "$EVIDENCE/source-inputs.sha256"
+          test ! -e apps/cms/current/vendor
+      - name: Enforce actual validation and zero-advisory audit
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$EVIDENCE/summary.json"
+          test "$(cat "$EVIDENCE/validate.exit")" = 0
+          test "$(cat "$EVIDENCE/audit.exit")" = 0
+          php -r '$s=json_decode(file_get_contents(getenv("EVIDENCE")."/summary.json"),true,512,JSON_THROW_ON_ERROR);if($s["advisoryCount"]!==0||$s["abandonedCount"]!==0||$s["vendorInstalled"]!==false)exit(41);'
+      - name: Bound dependency-only evidence and bind every retained file
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          php <<'PHP'
+          <?php
+          $e=getenv('EVIDENCE');if(!is_dir($e))throw new RuntimeException('Missing evidence');
+          $allowed=['source-head.txt','mode.txt','original.lock','source-inputs.sha256','before-audit.json','before-audit.stderr','before-audit.exit','resolve.log','resolve.exit','scope.json','candidate.lock','validate.log','validate.exit','audit.json','audit.stderr','audit.exit','summary.json'];$files=[];$total=0;
+          foreach(scandir($e) as $name){if($name==='.'||$name==='..')continue;$p=$e.'/'.$name;if(!in_array($name,$allowed,true)||is_link($p)||!is_file($p)||filesize($p)>2097152)throw new RuntimeException('Evidence allowlist/type/size');$total+=filesize($p);if($total>5242880)throw new RuntimeException('Evidence total bound');$files[]=['name'=>$name,'size'=>filesize($p),'sha256'=>hash_file('sha256',$p)];}
+          file_put_contents($e.'/manifest.json',json_encode(['source'=>getenv('EXPECTED_HEAD'),'mode'=>getenv('MODE'),'privateMaterialIncluded'=>false,'files'=>$files],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)."\n");
+          PHP
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cms-dependency-${{ matrix.mode }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ env.EVIDENCE }}
+          retention-days: 7
+          if-no-files-found: error

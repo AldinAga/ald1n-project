@@ -52,7 +52,15 @@ final class OrderPaymentService
             $payment = DB::transaction(function () use ($order, $file, $data, $actor, $path): OrderPayment {
                 /** @var Order $locked */
                 $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
+                // The order can change while its private proof file is being stored.
+                if ((int) $locked->user_id !== (int) $actor->id) abort(404);
                 $this->assertOrderOpen($locked, 'proof');
+                if ($locked->status === 'cancelled') {
+                    throw ValidationException::withMessages(['proof' => 'Potvrda se ne može poslati za otkazanu porudžbinu.']);
+                }
+                if ($locked->payment_method !== 'bank_transfer') {
+                    throw ValidationException::withMessages(['proof' => 'Potvrda uplate je dostupna samo za uplatu na račun.']);
+                }
                 $payment = OrderPayment::query()->create([
                     'order_id' => $locked->id,
                     'payment_number' => $this->numbers->next('payment', (int) now()->format('Y')),
