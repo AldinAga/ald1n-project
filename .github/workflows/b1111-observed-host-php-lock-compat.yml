@@ -149,7 +149,7 @@ jobs:
           function need(bool $ok,string $reason):void { if(!$ok)throw new RuntimeException($reason); }
           function rc(string $name):int { global $dir; $p="$dir/$name"; need(is_file($p),'Missing exit receipt: '.$name); $s=trim(file_get_contents($p)); need((bool)preg_match('/^\d+$/D',$s),'Invalid RC: '.$name); return (int)$s; }
           function cases(string $leg):array {
-              global $dir;
+              global $dir,$result;
               need(rc("$leg.install.exit")===0,$leg.' dependency install failed');
               need(rc("$leg.list.exit")===0,$leg.' suite collection failed');
               $log=file_get_contents("$dir/$leg.list.log");
@@ -163,7 +163,7 @@ jobs:
               $rows=$xml->xpath('//testcase')?:[]; need(count($rows)>0,$leg.' empty JUnit');
               $cases=[];
               foreach($rows as $row){
-                  $class=(string)($row['classname']?:$row['class']); $name=(string)$row['name']; $id=$class.'::'.$name;
+                  $class=(string)$row['class']; $name=(string)$row['name']; $id=$class.'::'.$name;
                   need($class!=='' && $name!=='' && !isset($cases[$id]),$leg.' missing/duplicate identity '.$id);
                   $outcome='passed';$diagnostics=[];
                   foreach(['failure','error','skipped'] as $kind)foreach($row->$kind as $node){
@@ -173,6 +173,8 @@ jobs:
                   $cases[$id]=['outcome'=>$outcome,'diagnostics'=>$diagnostics];
               }
               sort($expected,SORT_STRING);$actual=array_keys($cases);sort($actual,SORT_STRING);
+              $result['collectionChecks'][$leg]=['collected'=>count($expected),'executed'=>count($actual),
+                  'missing'=>array_values(array_diff($expected,$actual)),'extra'=>array_values(array_diff($actual,$expected))];
               need($expected===$actual,$leg.' collected identities differ from executed JUnit (missing/extra)');
               ksort($cases,SORT_STRING);return ['collected'=>$expected,'cases'=>$cases,'rc'=>rc("$leg.exit")];
           }
@@ -187,12 +189,28 @@ jobs:
               $missing=array_values(array_diff(array_keys($before),array_keys($after)));
               $extra=array_values(array_diff(array_keys($after),array_keys($before)));
               $inherited=[];$regressions=[];$changed=[];$skipped=[];
-              // Exact diagnostics are retained. Only the two known disposable root prefixes are normalized for comparison.
+              // Retain full raw diagnostics and compare them separately from bounded dependency-stack signatures.
               $normalize=static fn($v)=>str_replace([getenv('RUNNER_TEMP').'/b1111/baseline/',getenv('RUNNER_TEMP').'/b1111/candidate/'],'<isolated-root>/',json_encode($v,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES));
+              $signature=static function(array $row):string {
+                  foreach($row['diagnostics'] as &$d){
+                      $text=str_replace([getenv('RUNNER_TEMP').'/b1111/baseline/',getenv('RUNNER_TEMP').'/b1111/candidate/'],'<isolated-root>/',$d['text']);
+                      $text=str_replace(['Port: 3306, Database: ald1n_retirement_ci','Port: 3307, Database: ald1n_retirement_ci'],'Port: <disposable-port>, Database: ald1n_retirement_ci',$text);
+                      $d['text']=preg_replace('~^(<isolated-root>/apps/cms/current/vendor/[^\r\n]+):\d+$~m','$1:<dependency-line>',$text);
+                  }
+                  return json_encode($row,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+              };
+              $probe=static fn(string $text)=>['outcome'=>'error','diagnostics'=>[['kind'=>'error','attributes'=>['type'=>'ExampleError'],'text'=>$text]]];
+              $a=$probe("missing table; Port: 3306, Database: ald1n_retirement_ci\n<isolated-root>/apps/cms/current/vendor/example.php:10\n<isolated-root>/apps/cms/current/app/example.php:7");
+              $b=$probe("missing table; Port: 3307, Database: ald1n_retirement_ci\n<isolated-root>/apps/cms/current/vendor/example.php:20\n<isolated-root>/apps/cms/current/app/example.php:7");
+              need($signature($a)===$signature($b),'signature probe: disposable port/vendor line mapping');
+              need($signature($a)!==$signature($probe(str_replace('missing table','different error',$b['diagnostics'][0]['text']))),'signature probe: changed error must differ');
+              need($signature($a)!==$signature($probe(str_replace('app/example.php:7','app/example.php:8',$b['diagnostics'][0]['text']))),'signature probe: app frame must differ');
+              $result['signatureSelfChecks']=3;
+              $result['signatureMapping']='Only the two disposable roots, exact test-schema connection ports and vendor stack line numbers. Preserve exact raw diagnostics; all messages/types, vendor file paths and app/test stack lines remain significant.';
               foreach($after as $id=>$row){
                   if($row['outcome']==='skipped')$skipped[]=$id;
                   if(!isset($before[$id]))continue;
-                  if($row['outcome']!=='passed' && $before[$id]['outcome']===$row['outcome'] && $normalize($before[$id])===$normalize($row))$inherited[]=$id;
+                  if($row['outcome']!=='passed' && $before[$id]['outcome']===$row['outcome'] && $signature($before[$id])===$signature($row))$inherited[]=$id;
                   elseif($row['outcome']!=='passed')$regressions[]=$id;
                   if($normalize($before[$id])!==$normalize($row))$changed[$id]=['baseline'=>$before[$id],'candidate'=>$row];
               }
@@ -203,6 +221,11 @@ jobs:
                   'baselineIdentitiesAndOutcomes'=>$before,'candidateIdentitiesAndOutcomes'=>$after];
               $result['stage']='static_and_audit';
               $result['baselineStaticRC']=rc('baseline.static.exit');$result['candidateStaticRC']=rc('candidate.static.exit');
+              $baseStatic=file_get_contents("$dir/baseline.static.log");$candidateStatic=file_get_contents("$dir/candidate.static.log");
+              $result['staticOutputsIdentical']=$baseStatic===$candidateStatic;
+              $result['baselineStaticSHA256']=hash('sha256',$baseStatic);$result['candidateStaticSHA256']=hash('sha256',$candidateStatic);
+              preg_match_all('/^FAIL\s+(.+)$/m',$baseStatic,$baseStaticFailures);preg_match_all('/^FAIL\s+(.+)$/m',$candidateStatic,$candidateStaticFailures);
+              $result['baselineStaticFailures']=$baseStaticFailures[1];$result['candidateStaticFailures']=$candidateStaticFailures[1];
               $audit=json_decode(file_get_contents("$dir/candidate-audit.json"),true,512,JSON_THROW_ON_ERROR);
               $result['candidateAuditRC']=rc('candidate-audit.exit');
               need(array_key_exists('advisories',$audit),'Missing advisory data');
@@ -211,8 +234,9 @@ jobs:
               need($regressions===[],'candidate regression or changed failure signature');
               need($skipped===[] && !in_array('skipped',array_column($before,'outcome'),true),'skipped identities');
               need($result['candidateAuditRC']===0 && $result['candidateAdvisoryPackages']===0 && $result['candidateAbandonedPackages']===0,'candidate audit failed');
-              need($result['baselineStaticRC']===0 && $result['candidateStaticRC']===0,'canonical static check failed');
-              if($baseBad!==[] || $inherited!==[]){$result['status']='BLOCKED_INHERITED_FAILURES';$result['stage']='inherited_suite_failures';}
+              $staticBlocked=$result['baselineStaticRC']!==0 || $result['candidateStaticRC']!==0;
+              need(!$staticBlocked || ($result['baselineStaticRC']===$result['candidateStaticRC'] && $result['staticOutputsIdentical']),'new/different canonical static failure');
+              if($baseBad!==[] || $inherited!==[] || $staticBlocked){$result['status']='BLOCKED_INHERITED_FAILURES';$result['stage']=$staticBlocked?'inherited_suite_or_static_failures':'inherited_suite_failures';}
               else {need($base['rc']===0 && $candidate['rc']===0,'nonzero suite RC');$result['status']='BOUNDED_DIAGNOSTIC_PASS';$result['stage']='complete';}
           } catch(Throwable $e){$result['reason']=$e->getMessage();}
           file_put_contents("$dir/comparison.json",json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
