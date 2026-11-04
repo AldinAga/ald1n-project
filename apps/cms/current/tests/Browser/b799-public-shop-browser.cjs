@@ -198,7 +198,8 @@ async function runRealRace(browser){
         throw barrierError;
       }
       assert.deepEqual(outcomes.map(row=>row.status),[302,302],
-        'same nonce must replay existing receipt on concurrent retry');
+        'same nonce must replay existing receipt on concurrent retry; statuses='+
+          JSON.stringify(outcomes.map(row=>row.status)));
       assert.equal(privatePath(outcomes[0]),privatePath(outcomes[1]),
         'same receipt capability and no duplicate order');
       console.log('B799_SAME_NONCE_CONCURRENT_HTTP=PASS RESPONSES=2 ORDERS=1');

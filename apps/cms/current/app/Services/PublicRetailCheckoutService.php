@@ -139,7 +139,8 @@ final class PublicRetailCheckoutService
                 throw ValidationException::withMessages(['checkout'=>'Isti zahtev ne može promeniti sadržaj porudžbine.']);
             }
             if ($attempt->order_id!==null) {
-                $order=Order::query()->findOrFail($attempt->order_id);
+                // A concurrent winner committed after this transaction's read view.
+                $order=Order::query()->sharedLock()->findOrFail($attempt->order_id);
                 // The same nonce is NOT a license to retrieve someone else's
                 // private receipt after login or account reassignment.
                 abort_unless((int)$order->user_id===$buyerId
@@ -156,11 +157,11 @@ final class PublicRetailCheckoutService
                 }
                 if (!is_string($token)
                     || preg_match('/\A[a-f0-9]{64}\z/D',$token)!==1
-                    || !PublicOrderAccess::query()
+                    || PublicOrderAccess::query()
                         ->where('order_id',$order->id)
                         ->where('token_hash',hash('sha256',$token))
                         ->whereNull('revoked_at')
-                        ->where('expires_at','>',now())->exists()) {
+                        ->where('expires_at','>',now())->sharedLock()->first(['id'])===null) {
                     throw ValidationException::withMessages(['checkout'=>
                         'Raniji privatni pristup porudžbini više nije važeći. Kontaktiraj podršku.']);
                 }
