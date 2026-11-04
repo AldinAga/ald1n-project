@@ -105,7 +105,7 @@ All **18/18** exact-head workflows completedSUCCESS. This supersedes B1098 RUNNI
 - Existing current-head native309/TSC/validator and targeted security/CSRF/private rate tests SUCCESS; original source validation evidence retained. No build/OTA/EAS action.
 - Windows D:\GPT\Ald1n-mobile fetched ALL origin branches and tags without prune/force/reset/checkout. Observed at11:07UTC: NOT shallow;2192 reachable commits,184origin refs,1tag. Subsequent documentation commits may increase that count. Existing dirty files remain untouched; new report/checkpoint/handoff files are additive.
 - Production and both owner-reported hosting test DBs remain UNTOUCHED. No password, customer export or DB dump was received or archived. DraftPR135 remains unmerged under AGENTS0O; completed test-recovery does not waive security/merchant/legal/mail/host/UAT release gates.
-- Formal accepted12/17=70.6%,CMS10/15,initialUI6/6; correction of original M17 acceptance, not newly awarded milestone. Weekly last21%, ceiling50%; no reset credit used.
+- Formal accepted12/17=70.6%,CMS10/15,initialUI6/6; correction of original M17 acceptance, not newly awarded milestone. Weekly last22%, ceiling50%; no reset credit used.
 
 Local durable delivery: Report1015 in both Windows projects; .local-migration/checkpoints/b1091-b1098-20261104 with canonical AGENTS/current-index/runbook/receipt; CONTINUE-REPORT1015-CLAUDE-CODEX.md explains exact source, approvals, completed work, original acceptance and remaining gates. Main source and Draft are explicitly separated. Raw QA is outside project trees under D:\GPT\Ald1n-mobile-tools\storefront-qa.
 
