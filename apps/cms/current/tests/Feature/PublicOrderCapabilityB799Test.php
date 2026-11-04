@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Order;
+use App\Models\{Order,Role,User};
+use App\Services\SettingsService;
+use Database\Seeders\CoreAccessSeeder;
+use Illuminate\Support\Facades\Hash;
 use App\Models\PublicOrderAccess;
 use App\Services\PublicOrderAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +15,7 @@ use Tests\TestCase;
 final class PublicOrderCapabilityB799Test extends TestCase
 {
     use RefreshDatabase;
+    private User $buyer;
 
     protected function setUp(): void
     {
@@ -19,6 +23,12 @@ final class PublicOrderCapabilityB799Test extends TestCase
         // Test expiry and revocation, not cumulative per-IP throttling across the suite.
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         config()->set('public_storefront.enabled',true);
+        config()->set('services.turnstile.enabled',false);
+        $this->seed(CoreAccessSeeder::class);
+        $owner=$this->person('b799-cap-owner','owner@example.test','superadmin');
+        $this->buyer=$this->person('b799-cap-buyer','buyer@example.test','customer');
+        app(SettingsService::class)->putMany(['public_storefront_open'=>'1'],$owner->id);
+        $this->loginBuyer($this->buyer);
     }
 
     public function test_public_order_capability_is_random_hashed_at_rest_and_scoped_to_one_order(): void
@@ -37,7 +47,7 @@ final class PublicOrderCapabilityB799Test extends TestCase
         $other=$this->order('public_retail','cap2');
         $this->get('/porudzbina/'.str_repeat('e',64))->assertNotFound();
         $this->get('/porudzbina/'.$other->id)->assertNotFound();
-        $this->get('/admin/orders/'.$order->id)->assertRedirect('/login');
+        $this->get('/admin/orders/'.$order->id)->assertForbidden();
         $this->get('/porudzbina/'.$token)->assertDontSee($other->order_number);
     }
 
@@ -77,12 +87,71 @@ final class PublicOrderCapabilityB799Test extends TestCase
         $this->get('/porudzbina/'.$token)->assertNotFound();
     }
 
+
+    public function test_private_receipt_requires_the_matching_logged_in_buyer(): void
+    {
+        $order=$this->order('public_retail','owner-only');
+        $token=app(PublicOrderAccessService::class)->issue($order,$this->buyer->email);
+        $path='/porudzbina/'.$token;
+        $this->get($path)->assertOk();
+        $this->post('/logout')->assertRedirect();
+        $this->get($path)->assertNotFound();
+        $other=$this->person('b799-other-buyer','other@example.test','customer');
+        $this->loginBuyer($other);
+        $this->get($path)->assertNotFound();
+        $this->loginBuyer($this->buyer);
+        $this->get($path)->assertOk();
+        self::assertDatabaseCount('orders',1);
+        self::assertDatabaseCount('public_order_accesses',1);
+        self::assertDatabaseCount('order_payments',0);
+    }
+
+    public function test_previously_issued_receipt_with_lost_order_owner_fails_closed(): void
+    {
+        $order=$this->order('public_retail','orphaned');
+        $token=app(PublicOrderAccessService::class)->issue($order,$this->buyer->email);
+        $path='/porudzbina/'.$token;
+        $this->get($path)->assertOk();
+        $order->forceFill(['user_id'=>null])->save();
+        $this->post('/logout')->assertRedirect();
+        $this->get($path)->assertNotFound();
+        $this->loginBuyer($this->buyer);
+        $this->get($path)->assertNotFound();
+        self::assertDatabaseCount('orders',1);
+        self::assertDatabaseCount('public_order_accesses',1);
+        self::assertNull(PublicOrderAccess::query()->sole()->revoked_at);
+        self::assertDatabaseCount('order_payments',0);
+    }
+
+    private function loginBuyer(User $buyer): void
+    {
+        if (auth()->check()) {
+            $this->post('/logout')->assertRedirect();
+        }
+        $this->post('/login',[
+            'login'=>$buyer->email,'password'=>'B799-Synthetic-Only123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($buyer);
+    }
+
+    private function person(string $username,string $email,string $role): User
+    {
+        return User::query()->create([
+            'role_id'=>Role::query()->where('slug',$role)->valueOrFail('id'),
+            'username'=>$username,'email'=>$email,
+            'first_name'=>'Synthetic','last_name'=>'Buyer',
+            'address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',
+            'password_hash'=>Hash::make('B799-Synthetic-Only123!'),'status'=>'active',
+            'email_verified_at'=>now(),'portal_activated_at'=>now(),
+        ]);
+    }
+
     private function order(string $channel,string $suffix): Order
     {
         return Order::query()->create([
             'source_system'=>'laravel','sales_channel'=>$channel,
             'order_number'=>'APC-B799-'.$suffix,
-            'user_id'=>null,'status'=>'new',
+            'user_id'=>$this->buyer->id,'status'=>'new',
             'shipping_full_name'=>'Sinteticki Kupac',
             'shipping_address'=>'Test ulica 1',
             'shipping_city'=>'Beograd','shipping_postal_code'=>'11000',

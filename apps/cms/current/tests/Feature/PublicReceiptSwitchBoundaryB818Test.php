@@ -29,6 +29,8 @@ final class PublicReceiptSwitchBoundaryB818Test extends TestCase
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
         config()->set('app.url','https://cms.ald1n.com');
+        config()->set('services.turnstile.enabled',false);
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 
         foreach ([
             'enabled'=>true,
@@ -84,6 +86,10 @@ final class PublicReceiptSwitchBoundaryB818Test extends TestCase
         ]);
         $this->token=app(PublicOrderAccessService::class)
             ->issue($this->order,(string)$this->buyer->email);
+        $this->post('/login',[
+            'login'=>$this->buyer->email,'password'=>'B818-Synthetic-Only123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($this->buyer);
     }
 
     public function test_superadmin_emergency_off_hides_existing_valid_receipt(): void
@@ -150,7 +156,8 @@ final class PublicReceiptSwitchBoundaryB818Test extends TestCase
             'role_id'=>Role::query()->where('slug',$role)->valueOrFail('id'),
             'username'=>$username,
             'email'=>$username.'@example.test',
-            'first_name'=>'B818 Synthetic',
+            'first_name'=>'B818 Synthetic','last_name'=>'Buyer',
+            'address'=>'Test 12','city'=>'Beograd','phone'=>'0601234567',
             'password_hash'=>Hash::make('B818-Synthetic-Only123!'),
             'status'=>'active',
             'email_verified_at'=>now(),

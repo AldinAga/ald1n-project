@@ -17,6 +17,7 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
     use RefreshDatabase;
 
     private User $operator;
+    private User $buyer;
     private Product $product;
 
     protected function setUp(): void
@@ -26,6 +27,7 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Mail::fake();
         config()->set('app.url','https://cms.ald1n.com');
+        config()->set('services.turnstile.enabled',false);
         foreach ([
             'enabled'=>true,'checkout_enabled'=>true,
             'terms_url'=>'https://cms.ald1n.com/uslovi',
@@ -55,6 +57,8 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
             'status'=>'active','created_by'=>$this->operator->id,
             'purchase_price_rsd'=>987654,'manual_commission_eur'=>876543,
         ]);
+        $this->buyer=$this->person('b808-buyer','customer');
+        $this->loginActor($this->buyer);
     }
 
     public static function operatorRoles(): array
@@ -71,7 +75,8 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
     {
         $payload=$this->form();
         $actor=$role==='superadmin'?$this->operator:$this->person('b808-'.$role,$role);
-        $this->actingAs($actor)->get('/katalog')->assertOk()
+        $this->loginActor($actor);
+        $this->get('/katalog')->assertOk()
             ->assertDontSee('987654')->assertDontSee('876543');
         $this->get('/porucivanje')->assertForbidden();
         $this->postJson('/porucivanje',$payload)->assertForbidden();
@@ -87,7 +92,8 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
     public function test_valid_customer_still_checks_out_with_real_identity_and_no_commission(): void
     {
         $buyer=$this->person('b808-kupac','customer');
-        $this->actingAs($buyer)->get('/katalog')->assertOk()
+        $this->loginActor($buyer);
+        $this->get('/katalog')->assertOk()
             ->assertDontSee('987654')->assertDontSee('876543');
         $payload=$this->form();
         $result=$this->post('/porucivanje',$payload)->assertRedirect();
@@ -107,21 +113,29 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
 
     public function test_anonymous_guest_still_orders_without_fake_staff_customer_id(): void
     {
-        $location=$this->post('/porucivanje',$this->form())->assertRedirect()
-            ->headers->get('Location');
-        self::assertNull(Order::query()->sole()->user_id);
-        self::assertSame('public_retail',Order::query()->sole()->sales_channel);
-        $this->get((string)$location)->assertOk();
-        self::assertDatabaseCount('order_payments',0);
-        self::assertDatabaseCount('order_commissions',0);
+        // Keep the historical testcase ID; the owner now requires registration.
+        $this->post('/logout')->assertRedirect();
+        $this->get('/porucivanje')->assertRedirect('/login');
+        $this->postJson('/porucivanje',[
+            'checkout_key'=>str_repeat('a',48),
+            'user_id'=>$this->operator->id,
+        ])->assertUnauthorized();
+        foreach(['orders','public_checkout_attempts','public_order_accesses','stock_movements','order_payments','order_commissions'] as $table) {
+            self::assertDatabaseCount($table,0);
+        }
+        self::assertSame(4,(int)$this->product->fresh()->stock_quantity);
+
     }
 
     public function test_retired_customer_cannot_continue_guest_checkout_with_old_session(): void
     {
-        $payload=$this->form();
         $buyer=$this->person('b808-retired','customer');
+        $this->loginActor($buyer);
+        $payload=$this->form();
         $buyer->forceFill(['retired_at'=>now()])->save();
-        $this->actingAs($buyer)->get('/porucivanje')->assertForbidden();
+        // A new HTTP request reloads the principal from its existing session.
+        auth()->forgetGuards();
+        $this->get('/porucivanje')->assertForbidden();
         $this->postJson('/porucivanje',$payload)->assertForbidden();
         self::assertDatabaseCount('orders',0);
         self::assertDatabaseCount('stock_movements',0);
@@ -159,12 +173,28 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
         self::assertDatabaseCount('order_commissions',0);
     }
 
+
+    private function loginActor(User $actor): void
+    {
+        if (auth()->check()) {
+            $this->post('/logout')->assertRedirect();
+        }
+        $this->post('/login',[
+            'login'=>$actor->email,'password'=>'OnlySynthetic123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($actor);
+    }
+
     private function person(string $username,string $role): User
     {
         return User::query()->create([
             'role_id'=>Role::query()->where('slug',$role)->valueOrFail('id'),
             'username'=>$username,'email'=>$username.'@example.test',
-            'first_name'=>'Synthetic','password_hash'=>Hash::make('OnlySynthetic123!'),
+            'first_name'=>'Synthetic','last_name'=>'Buyer','address'=>'Test 12',
+            'city'=>'Beograd','phone'=>'0601234567',
+            'email_verified_at'=>$role==='customer'?now():null,
+            'portal_activated_at'=>$role==='customer'?now():null,
+            'password_hash'=>Hash::make('OnlySynthetic123!'),
             'status'=>'active',
         ]);
     }
@@ -181,7 +211,7 @@ final class StorefrontRoleBoundaryB808Test extends TestCase
             'checkout_key'=>$key[1],
             'merchant_policy_fingerprint'=>$digest[1],
             'shipping_full_name'=>'Synthetic B808 Buyer',
-            'email'=>'b808-buyer@example.test','shipping_phone'=>'0601234567',
+            'email'=>auth()->user()->email,'shipping_phone'=>'0601234567',
             'shipping_address'=>'Test 12','shipping_city'=>'Beograd',
             'shipping_postal_code'=>'11000','payment_method'=>'cash_on_delivery',
             'delivery_method'=>'courier','accepted_terms'=>'1',

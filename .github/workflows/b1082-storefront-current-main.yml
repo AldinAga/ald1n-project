@@ -159,6 +159,9 @@ jobs:
             tests/Feature/StorefrontSecurityB806Test.php \
             tests/Feature/PublicRetailBuyerCheckoutB802Test.php \
             tests/Feature/PublicRetailPaymentB803Test.php \
+            tests/Feature/StorefrontRoleBoundaryB808Test.php \
+            tests/Feature/PublicOrderCapabilityB799Test.php \
+            tests/Feature/PublicReceiptSwitchBoundaryB818Test.php \
             tests/Unit/CommissionCalculatorTest.php \
             tests/Unit/CommissionPercentagePolicyContractTest.php
           if test "$(cat "$evidence/focused.exit")" != 0; then
@@ -174,8 +177,8 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==130,len(cases)
-          assert len({(c.get('classname') or c.get('class'),c.get('name')) for c in cases})==130
+          assert len(cases)==148,len(cases)
+          assert len({(c.get('classname') or c.get('class'),c.get('name')) for c in cases})==148
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']>=451,report['before']['count']
