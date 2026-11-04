@@ -198,7 +198,8 @@ export async function apiDownload(path: string, timeoutMs = 30_000): Promise<Api
     headers.set('X-Mobile-Client', 'ald1n-mobile/0.4.0');
     if (token) headers.set('Authorization', `Bearer ${token}`);
 
-    const response = await fetch(`${API_URL}/${path.replace(/^\//, '')}`, {
+    const downloadPath = API_URL.endsWith('/api/v1') ? path.replace(/^\/api\/v1\//, '') : path;
+    const response = await fetch(`${API_URL}/${downloadPath.replace(/^\//, '')}`, {
       method: 'GET',
       headers,
       signal: controller.signal,
