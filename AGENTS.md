@@ -8,13 +8,25 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0N. Final public registration and manual-operation authority (owner2026-11-04)
+
+The original guest-buying rule was explicitly withdrawn. NEW public purchases require a registered/authenticated Kupac, with existing active/non-retired/verified-email/activation/tracked-session guards. Mandatory signup fields are first_name, last_name, address, city, phone and email. Preserve privacy acceptance, Turnstile, approved sender and one-time activation; no incidental password/role/approval change. Do not silently add postal code or another mandatory field.
+
+The owner explicitly confirmed there are NO old orders without accounts. Do not create a legacy anonymous-order/receipt compatibility path or issue new anonymous capabilities. Public browsing/cart may remain anonymous; checkout and private order access remain bound to the legitimate registered owner.
+
+The owner makes final business decisions where a repeated unresolved policy is genuinely unclear; the agent handles routine technical choices and should not re-ask these settled rules. The agent must NOT control FileZilla. When manual hosting work is actually needed, provide the exact files and canonical destination paths, or one tested integrity-checking SSH command under the existing incoming/report rules. The owner performs upload/SSH. Do not use that workflow to bypass a denied integration or protected-test safeguard.
+
+Owner manually uploaded the verified PR129 menu CSS/Blade; public cache-busted CSS SHA2563a6176d2a049588797506b4d3b1e97e5aaef9e49625f3c9be7d9245127b51954 is independently confirmed live. Actual phone visual UAT and server Blade readback are not independently attested. Backend commission is verified in mainPR134 but not production-deployed by the agent. Required6field registration implementation is being TDD-verified on unmerged DraftPR135, not a deployment claim. See [Report1011](docs/operations/1011-B1081-B1083-COMMISSION-MAIN-STOREFRONT72-MANUAL-MENU-AND-REGISTRATION-20261104.md).
+
+---
+
 ## 0M. Owner commission authority — automatic10%, positive manual override (2026-11-04)
 
 **Latest explicit owner clarification supersedes earlier contradictory minimum/maximum wording:** automatic commission is10% of the product price converted to EUR ONLY when no manual amount is entered (omitted/null/blank). A valid **positive** manual EUR amount overrides that default and may be LOWER or HIGHER than10%. There is NO10% manual floor and NO fixed50EUR business ceiling. The owner separately confirmed that manual0 is NOT allowed: an explicitly entered0/negative amount must be rejected as input, not interpreted as a request for automatic10%. Preserve existing currency precision and technical storage/range bounds; do not introduce a percentage ceiling.
 
 Keep existing SuperAdministrator-only override authorization, public-retail zero-commission isolation, currencies/rates, identifiers and already-issued order snapshots. Do not retroactively rewrite money/order data or reintroduce variants. The earlier chat phrase “min10%” is explicitly superseded by the owner's subsequent clarification. Old unit expectations of a50EUR cap/manual10% floor are stale against this rule; their narrowly scoped reconciliation must retain raw before/after evidence and explicit test-identity accounting, without touching protected B805/B809/B815 cases or waiving any release gate.
 
-B1079 implementation and tests are being verified in unmerged Draft PR131. This section records product authority, NOT proof of deployment, completed CI or owner acceptance of any remaining milestone. Keep production release gates closed until the actual required evidence is complete.
+B1081 independently ported the8commission application/contract paths onto fresh main and merged PR134 at1c185c6c5a97d3917069c8d73ad4d2df781c0e7c after real24/159assertions GREEN (same24 baseline10FAIL),309mobile/TSC/validator,983static and all10workflows PASS. Calculator/OrderService/old snapshots/locks untouched. This is source integration, not production backend deployment or acceptance of a remaining milestone. Full commerce remains unmerged DraftPR135 with72historic failed IDs at the last complete run; all release gates stay closed.
 
 ---
 

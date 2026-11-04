@@ -30,10 +30,13 @@ final class CatalogPageRuntimeContractTest extends TestCase
         $catalogController = (string) file_get_contents($root.'/app/Http/Controllers/CatalogController.php');
         $dictionaryController = (string) file_get_contents($root.'/app/Http/Controllers/Admin/CatalogDictionaryController.php');
 
-        foreach (["'brands' =>", "'lines' =>", "'types' =>", "'filterFields' =>"] as $required) {
+        foreach (["'brands' =>", "'lines' =>", "'types' =>"] as $required) {
             self::assertStringContainsString($required, $adminController);
             self::assertStringContainsString($required, $catalogController);
         }
+
+        self::assertStringContainsString("'filterFields' =>", $catalogController);
+        self::assertStringContainsString("redirect()->route('catalog.index', \$request->query())", $adminController);
 
         self::assertStringContainsString("'selectableFields' =>", $dictionaryController);
         self::assertStringContainsString("'dependencyMaps' =>", $dictionaryController);
