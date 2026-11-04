@@ -1,0 +1,142 @@
+name: B1099 isolated dependency and redacted secret audit (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/composer.json'
+      - 'apps/cms/current/composer.lock'
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - '.github/workflows/b1099-source-security-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b1099-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  locked-dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with: {php-version: '8.4', coverage: none}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22.23.4'}
+      - name: Audit all locked dependencies without installing or fixing packages
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1099-dependencies"
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source-head.txt"
+          date -u > "$evidence/audit-utc.txt"
+          sha256sum apps/cms/current/composer.lock apps/mobile/current/package-lock.json > "$evidence/locks-before.sha256"
+          curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$RUNNER_TEMP/composer-2.11.1.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --version | tee "$evidence/composer-version.txt"
+          npm exec --yes --package=npm@10.9.2 -- npm --version | tee "$evidence/npm-version.txt"
+          grep -Fxq '10.9.2' "$evidence/npm-version.txt"
+          test ! -e apps/cms/current/.env
+          test ! -d apps/cms/current/vendor
+          test ! -d apps/mobile/current/node_modules
+          rc=0
+          (cd apps/cms/current && php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail) > "$evidence/composer-audit.json" 2> "$evidence/composer-audit.stderr" || rc=$?
+          printf '%s\n' "$rc" > "$evidence/composer-audit.exit"
+          rc=0
+          (cd apps/mobile/current && npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json) > "$evidence/npm-audit.json" 2> "$evidence/npm-audit.stderr" || rc=$?
+          printf '%s\n' "$rc" > "$evidence/npm-audit.exit"
+          node - "$evidence" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2];
+          for(const name of ['composer','npm']){
+            const report=JSON.parse(fs.readFileSync(path.join(dir,name+'-audit.json'),'utf8'));
+            assert(report&&typeof report==='object'&&!Array.isArray(report),'missing audit report');
+            console.log('B1099_'+name.toUpperCase()+'_AUDIT_RC='+fs.readFileSync(path.join(dir,name+'-audit.exit'),'utf8').trim());
+          }
+          NODE
+          sha256sum --check "$evidence/locks-before.sha256"
+          git diff --exit-code -- apps/cms/current/composer.json apps/cms/current/composer.lock apps/mobile/current/package.json apps/mobile/current/package-lock.json
+          test ! -e apps/cms/current/.env
+          test ! -d apps/cms/current/vendor
+          test ! -d apps/mobile/current/node_modules
+          test "$(cat "$evidence/composer-audit.exit")" = 0
+          test "$(cat "$evidence/npm-audit.exit")" = 0
+      - name: Preserve actual dependency results even under HOLD
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1099-locked-dependency-audit
+          path: ${{ runner.temp }}/b1099-dependencies
+          retention-days: 7
+          if-no-files-found: error
+  redacted-secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22.23.4'}
+      - name: Calibrate pinned scanner, scan tracked tree and full HEAD ancestry redacted
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1099-secrets"
+          mkdir -p "$evidence" "$RUNNER_TEMP/b1099-gitleaks" "$RUNNER_TEMP/b1099-clean" "$RUNNER_TEMP/b1099-synthetic-secret" "$RUNNER_TEMP/b1099-tracked-tree"
+          git rev-parse HEAD > "$evidence/source-head.txt"
+          date -u > "$evidence/audit-utc.txt"
+          curl --fail --silent --show-error --location --retry 2 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz' --output "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/b1099-gitleaks" gitleaks
+          scanner="$RUNNER_TEMP/b1099-gitleaks/gitleaks"
+          "$scanner" version | tee "$evidence/scanner-version.txt"
+          printf '[extend]\nuseDefault = true\n' > "$evidence/default-only.toml"
+          touch "$RUNNER_TEMP/b1099-empty-ignore"
+          scan() {
+            mode="$1"; target="$2"; name="$3"; shift 3
+            result=0
+            "$scanner" "$mode" "$target" "$@" --config "$evidence/default-only.toml" --gitleaks-ignore-path "$RUNNER_TEMP/b1099-empty-ignore" --ignore-gitleaks-allow --redact=100 --no-banner --no-color --timeout=300 --exit-code=10 --report-format=json --report-path "$evidence/$name-redacted.json" > "$evidence/$name.log" 2>&1 || result=$?
+            printf '%s\n' "$result" > "$evidence/$name.exit"
+          }
+          printf 'Synthetic clean control.\n' > "$RUNNER_TEMP/b1099-clean/clean.txt"
+          node -e "require('fs').writeFileSync(process.env.RUNNER_TEMP+'/b1099-synthetic-secret/fixture.txt','token = '+JSON.stringify('ghp_'+'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')+'\n')"
+          scan dir "$RUNNER_TEMP/b1099-clean" clean-control
+          scan dir "$RUNNER_TEMP/b1099-synthetic-secret" synthetic-control
+          test "$(cat "$evidence/clean-control.exit")" = 0
+          test "$(cat "$evidence/synthetic-control.exit")" = 10
+          node - "$evidence" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2];
+          const secret='ghp_'+'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          const report=fs.readFileSync(path.join(dir,'synthetic-control-redacted.json'),'utf8');
+          assert(JSON.parse(report).length>0,'missing synthetic detection');
+          assert(!report.includes(secret),'redacted report exposed fixture');
+          assert(!fs.readFileSync(path.join(dir,'synthetic-control.log'),'utf8').includes(secret),'redacted log exposed fixture');
+          assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir,'clean-control-redacted.json'),'utf8')),[]);
+          console.log('B1099_SCANNER_SYNTHETIC_DETECTION_AND_REDACTION=PASS');
+          NODE
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/b1099-tracked-tree"
+          scan dir "$RUNNER_TEMP/b1099-tracked-tree" current-tree
+          scan git . head-history --log-opts=HEAD
+          node - "$evidence" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2],summary={};
+          for(const name of ['current-tree','head-history']){
+            const rows=JSON.parse(fs.readFileSync(path.join(dir,name+'-redacted.json'),'utf8'));
+            assert(Array.isArray(rows),'missing redacted report');
+            summary[name]={findings:rows.length,rc:Number(fs.readFileSync(path.join(dir,name+'.exit'),'utf8').trim())};
+          }
+          fs.writeFileSync(path.join(dir,'summary.json'),JSON.stringify(summary,null,2)+'\n');
+          console.log('B1099_REDACTED_FINDING_COUNTS='+JSON.stringify(summary));
+          NODE
+          test "$(cat "$evidence/current-tree.exit")" = 0
+          test "$(cat "$evidence/head-history.exit")" = 0
+      - name: Preserve redacted findings even under HOLD
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1099-redacted-secret-audit
+          path: ${{ runner.temp }}/b1099-secrets
+          retention-days: 7
+          if-no-files-found: error

@@ -16,11 +16,39 @@ if(process.env.APP_ENV!=='testing'||base!=='http://127.0.0.1:8124'||!dir||!root)
 }
 const {chromium}=require(path.join(root,'node_modules','playwright'));
 fs.mkdirSync(dir,{recursive:true});
+async function checkScriptlessPolicy(page,response,label){
+  const headers=response.headers();
+  const policy=headers['content-security-policy']||'';
+  for(const directive of ["script-src 'none'","script-src-attr 'none'","script-src-elem 'none'","frame-ancestors 'none'"]){
+    assert(policy.includes(directive),label+' missing '+directive);
+  }
+  assert.equal(headers['x-frame-options'],'DENY',label+' framing');
+  assert.equal(headers['x-content-type-options'],'nosniff',label+' MIME');
+  assert.equal(headers['access-control-allow-origin'],undefined,label+' public CORS');
+  const executed=await page.evaluate(()=>{
+    delete window.__b1099Inline;
+    delete window.__b1099Handler;
+    const script=document.createElement('script');
+    script.textContent='window.__b1099Inline=true;';
+    document.head.append(script);
+    script.remove();
+    const button=document.createElement('button');
+    button.type='button';
+    button.setAttribute('onclick','window.__b1099Handler=true;');
+    document.body.append(button);
+    button.click();
+    button.remove();
+    return {inline:window.__b1099Inline===true,handler:window.__b1099Handler===true};
+  });
+  assert.deepEqual(executed,{inline:false,handler:false},label+' real browser script blocking');
+  console.log('B1099_BROWSER_SCRIPT_POLICY=PASS '+label);
+}
 async function checkPage(page,url,label){
   const res=await page.goto(base+url,{waitUntil:'networkidle',timeout:30000});
   assert.equal(res.status(),200,label+' HTTP');
   const dims=await page.evaluate(()=>({w:window.innerWidth,sw:document.documentElement.scrollWidth}));
   assert(dims.sw<=dims.w+2,label+' horizontal overflow '+JSON.stringify(dims));
+  await checkScriptlessPolicy(page,res,label);
   return res;
 }
 
@@ -226,6 +254,7 @@ async function runRealRace(browser){
     await page.getByRole('button',{name:'Dodaj u korpu'}).click();
     await page.waitForURL('**/korpa');
     assert((await page.locator('body').innerText()).includes('12.500,00 RSD'));
+    await checkPage(page,'/korpa','cart-script-policy');
     await page.screenshot({path:path.join(dir,'cart.png'),animations:'disabled'});
     await loginBuyer(page,base,'b799-visual@example.test');
     assert((await page.locator('body').innerText()).includes('Synthetic Laptop B799'),'anonymous cart survives real buyer login');
@@ -238,6 +267,7 @@ async function runRealRace(browser){
       }
       await page.getByRole('link',{name:'Nastavi na poručivanje'}).click();
       await page.waitForURL('**/porucivanje');
+      await checkPage(page,'/porucivanje','checkout-script-policy-'+purchase);
       const inputs={
         shipping_full_name:'Synthetic Buyer '+purchase,
         shipping_phone:'0601234000',
@@ -274,6 +304,7 @@ async function runRealRace(browser){
       urls.push(page.url());
       const res=await page.reload({waitUntil:'networkidle'});
       assert.equal(res.status(),200);
+      await checkScriptlessPolicy(page,res,'receipt-script-policy-'+purchase);
       assert.equal(res.headers()['referrer-policy'],'no-referrer');
       assert((res.headers()['cache-control']||'').includes('no-store'));
       assert((await page.locator('body').innerText()).includes('Synthetic Laptop B799'));
