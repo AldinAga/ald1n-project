@@ -1,3 +1,15 @@
+# CURRENT 2026-11-04 — B1081-B1083 COMMISSION MAIN;698 CASES/72 STOREFRONT HOLD;LIVE MENU CSS VERIFIED
+
+[Report1011](1011-B1081-B1083-COMMISSION-MAIN-STOREFRONT72-MANUAL-MENU-AND-REGISTRATION-20261104.md) records actual source, exact baseline/candidate results and owner decisions. PR134commission merged1c185c6c5a97d3917069c8d73ad4d2df781c0e7c:24/159assertionsGREEN versus24/10FAIL baseline,309mobile/TSC/validator,983static,10/10workflowsPASS. PR136test-only product/metadata repairs merged e89def93293ed2828f02bed5e412c93e00a7c0df:25/5problem baseline ->32/152assertionsPASS,9/9workflows; all original provider data/other test identities retained. No production backend deployment.
+
+DraftPR135 on fresh main, last completely tested75130a030f090384d44ec65d635fd064b56adf53: [full41795397919](https://github.com/AldinAga/ald1n-project/actions/runs/41795397919) main487/17failedIDs vs candidate698/72failedIDs;0skips/0missingmain and all640oldPR131cases retained. 56knowncommerce failed IDs are new versus main; fullCI remainsFAIL, not0new. Source after3variant contract repairs is72, superseding old75. ProtectedB805/B809/B815 and all acceptance/release gates preserved.
+
+Owner uploaded menu2filepack manually; cache-busted liveCSS24702bytes SHA2563a6176d2a049588797506b4d3b1e97e5aaef9e49625f3c9be7d9245127b51954 verified. UnversionedCloudflareURL initiallycachedold16158bytes; no physicalphone UAT or serverBlade readback claimed. Owner controls FileZilla; deliver files/exactpaths or testedSSHwhenneeded.
+
+Final owner rule: signup must collect firstName,surname,address,city,phone,email; every NEW purchase requires registered/verified/activated Kupac. Owner confirms no old guestorders; no anonymous compatibility path. B1085new14actualHTTP/DOM tests are being run RED before changing controller/form; implementationnotyetclaimedPASS. No newproductionDB/flags/SMTP/EAS/build/OTA/Play. Formalaccepted11/17=64.7%,CMS10/15=66.7%,UI6/6unchanged;Usage17%,ceiling20%. All Report1008/1009/1010 other planned/security/host/device gates remain OPEN.
+
+---
+
 # CURRENT 2026-11-04 — B1080 MAIN PR129/130/132 MERGED;309 MOBILE PASS;STOREFRONT75 HOLD
 
 **Final integrated-main proof:** [run41786165779](https://github.com/AldinAga/ald1n-project/actions/runs/41786165779) verifies menu+validator+current index+mobile together:309/309PASS,TSC/validator/MariaDBPASS. CI-onlyPR133 merged dc9adf6a6f8a06928f922b9b7d771f71a9001bef; app tree byte-identical to tested54431899. Commerce75HOLD remains; no deployment.
