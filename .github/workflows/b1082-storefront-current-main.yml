@@ -66,7 +66,7 @@ jobs:
       - name: Frozen current main after verified commission merge
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 1c185c6c5a97d3917069c8d73ad4d2df781c0e7c
+          ref: e89def93293ed2828f02bed5e412c93e00a7c0df
           path: original
           persist-credentials: false
           fetch-depth: 0
@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C original rev-parse HEAD)" = 1c185c6c5a97d3917069c8d73ad4d2df781c0e7c
+          test "$(git -C original rev-parse HEAD)" = e89def93293ed2828f02bed5e412c93e00a7c0df
           test "$(git -C candidate rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           python3 - <<'PY'
           import pathlib,subprocess
@@ -113,10 +113,15 @@ jobs:
           }
           for p,replacements in repairs.items():
               expected=(pathlib.Path('original')/p).read_text()
-              for old,new in replacements:
-                  assert expected.count(old)==1,p
-                  expected=expected.replace(old,new)
-              assert (pathlib.Path('candidate')/p).read_text()==expected,p
+              actual=(pathlib.Path('candidate')/p).read_text()
+              if actual==expected:
+                  for old,new in replacements:
+                      assert new in expected,p
+              else:
+                  for old,new in replacements:
+                      assert expected.count(old)==1,p
+                      expected=expected.replace(old,new)
+                  assert actual==expected,p
           print('LEGACY_TEST_INPUTS_AND_ASSERTIONS_UNCHANGED_METADATA_ONLY')
           PY
           composer install --working-dir=original/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
@@ -173,8 +178,13 @@ jobs:
           assert report['before']['skippedCount']==report['after']['skippedCount']==0
           legacy='Tests.Unit.LegacyReadOnlyGuardTest::test_mutating_and_locking_queries_are_blocked'
           expected_provider_cases={legacy+' with data set #'+str(i) for i in range(7)}
-          assert set(report['missingOriginalCases'])=={legacy},report['missingOriginalCases']
-          assert legacy in report['before']['failed']
+          if legacy in report['before']['ids']:
+              assert set(report['missingOriginalCases'])=={legacy},report['missingOriginalCases']
+              assert legacy in report['before']['failed']
+          else:
+              assert not report['missingOriginalCases'],report['missingOriginalCases']
+              assert expected_provider_cases.issubset(report['before']['ids'])
+              assert not expected_provider_cases.intersection(report['before']['failed'])
           assert expected_provider_cases.issubset(report['after']['ids'])
           assert not expected_provider_cases.intersection(report['after']['failed'])
           old=json.loads(pathlib.Path('candidate/tools/storefront/b1082/pr131-tested-case-ids.json').read_text())
@@ -182,9 +192,9 @@ jobs:
           missing_old=sorted(set(old['caseIds'])-set(report['after']['ids']))
           assert not missing_old,missing_old
           (d/'complete-lineage-identity-proof.json').write_text(json.dumps({
-              'current_main':'1c185c6c5a97d3917069c8d73ad4d2df781c0e7c',
+              'current_main':'e89def93293ed2828f02bed5e412c93e00a7c0df',
               'old_PR131_executed_cases':640,'missing_old_PR131_cases':missing_old,
-              'main_legacy_discovery_error_identity':legacy,
+              'main_legacy_discovery_error_identity':legacy if legacy in report['before']['ids'] else None,
               'original_provider_cases':sorted(expected_provider_cases),
               'all_other_main_case_identities_preserved':True,
           },indent=2))
