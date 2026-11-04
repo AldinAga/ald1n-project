@@ -272,7 +272,7 @@ jobs:
               'Tests.Unit.CustomerPortal2ContractTest::test_order_relink_requires_confirmation_and_writes_history',
           }
           # PHPUnit may spell namespaces with backslashes; preserve all identities.
-          normalize=lambda values:{x.replace('\\\\','.') for x in values}
+          normalize=lambda values:{x.replace(chr(92),'.') for x in values}
           assert before['exit']!=0 and normalize(before['failed'])==expected,before
           assert after['exit']==0 and not after['failed'],after
           assert before['skipped']==after['skipped']==0
