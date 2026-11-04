@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Services\LegacyReadOnlyGuard;
 use LogicException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class LegacyReadOnlyGuardTest extends TestCase
@@ -26,7 +27,7 @@ final class LegacyReadOnlyGuardTest extends TestCase
         self::assertTrue(true);
     }
 
-    /** @dataProvider mutatingQueries */
+    #[DataProvider('mutatingQueries')]
     public function test_mutating_and_locking_queries_are_blocked(string $query): void
     {
         $this->expectException(LogicException::class);

@@ -20,9 +20,16 @@ final class StorageCapacityTotalContractTest extends TestCase
         self::assertStringContainsString('applyComputedTotals', $request);
         self::assertStringContainsString('data-storage-total-display', $form);
         self::assertStringContainsString('parseLegacyText', $service);
-        self::assertStringContainsString('normalizeVariantTable', $service);
+        self::assertStringContainsString("normalizeEntityTable('products', 'product_spec_values', 'product_id'", $service);
+        self::assertStringNotContainsString('normalizeVariantTable', $service);
         self::assertStringContainsString('isDerivedStorageTotalField', (string) file_get_contents($root.'/app/Models/SpecificationField.php'));
         self::assertStringContainsString('userTouchedStorage', (string) file_get_contents($root.'/public/assets/js/product-media-manager.js'));
         self::assertStringContainsString('Preserve an old total', $service);
+    }
+    public function test_product_storage_totals_and_legacy_fallback_remain_supported_without_variants(): void
+    {
+        $service = new \App\Services\StorageSpecificationService();
+        self::assertSame(1524, $service->totalCapacity($service->parseLegacyText('SSD 500 GB + HDD 1 TB')));
+        self::assertSame(750, $service->totalCapacity($service->normalizeRows([['type' => 'SSD']], 750)));
     }
 }

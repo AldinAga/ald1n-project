@@ -12,7 +12,9 @@ final class CatalogDetailBladeContractTest extends TestCase
     {
         $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/catalog/show.blade.php');
 
-        self::assertStringContainsString('$variantImage = $variant->images->first()?->url;', $view);
+        self::assertStringNotContainsString('$variant', $view);
+        self::assertStringContainsString('$displayImages->count()', $view);
+        self::assertStringContainsString('data-gallery-main-image', $view);
         self::assertStringNotContainsString('@foreach($variant->specificationValues as $value)@php', $view);
         self::assertStringNotContainsString("@can('orders.create')@if", $view);
         self::assertStringNotContainsString('@if($variant->specificationValues->isNotEmpty())<ul', $view);
