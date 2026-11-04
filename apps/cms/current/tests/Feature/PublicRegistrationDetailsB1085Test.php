@@ -101,6 +101,32 @@ final class PublicRegistrationDetailsB1085Test extends TestCase
         Notification::assertSentTo($buyer,CustomerPortalInvitationNotification::class);
     }
 
+    public static function privacyPolicySources(): array
+    {
+        return ['configured fallback'=>[false], 'current CMS setting'=>[true]];
+    }
+
+    #[DataProvider('privacyPolicySources')]
+    public function test_registration_uses_current_merchant_privacy_link(bool $stored): void
+    {
+        $fallback='https://cms.ald1n.com/old-config-privacy';
+        $current='https://cms.ald1n.com/current-cms-privacy';
+        config()->set('public_storefront.privacy_url',$fallback);
+        if ($stored) app(SettingsService::class)->putMany(['public_checkout_privacy_url'=>$current],null);
+        $html=$this->get('/registracija')->assertOk()->getContent();
+        $document=new \DOMDocument();
+        $prior=libxml_use_internal_errors(true);
+        try { $document->loadHTML($html); }
+        finally { libxml_clear_errors(); libxml_use_internal_errors($prior); }
+        $links=(new \DOMXPath($document))->query('//form//label[input[@name="accepted_privacy"]]//a');
+        self::assertSame(1,$links->length);
+        self::assertSame($stored?$current:$fallback,$links->item(0)->getAttribute('href'));
+        self::assertDatabaseCount('users',1);
+        self::assertDatabaseCount('orders',0);
+        Notification::assertNothingSent();
+        Mail::assertNothingSent();
+    }
+
     public function test_registration_form_marks_every_required_detail_as_required(): void
     {
         $html=$this->get('/registracija')->assertOk()->getContent();

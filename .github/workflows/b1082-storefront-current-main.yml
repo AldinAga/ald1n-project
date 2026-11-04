@@ -111,10 +111,11 @@ jobs:
                   assert expected.encode('utf-8')==actual,(p,'only exact owner-approved fixture edits')
               else:
                   assert old==actual,(p,'unapproved protected source changed')
-          parity=['apps/cms/current/composer.json','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/package-lock.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
+          parity=['apps/cms/current/composer.json','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
           for p in parity:
               assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
           assert hashlib.sha256((pathlib.Path('candidate')/'apps/cms/current/composer.lock').read_bytes()).hexdigest()=='4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8','PR141 exact audited main lock'
+          assert hashlib.sha256((pathlib.Path('candidate')/'apps/mobile/current/package-lock.json').read_bytes()).hexdigest()=='de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3','PR142 exact reviewed JS-only main lock'
           print('OWNER_APPROVED_FIXTURE_CORRECTIONS_EXACT',2,'OTHER_PROTECTED_UNCHANGED',len(protected)-2)
           repairs={
               'apps/cms/current/tests/Unit/LegacyReadOnlyGuardTest.php':[
@@ -204,8 +205,8 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==192,len(cases)
-          assert len({(c.get('classname') or c.get('class'),c.get('name')) for c in cases})==192
+          assert len(cases)==194,len(cases)
+          assert len({(c.get('classname') or c.get('class'),c.get('name')) for c in cases})==194
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']>=451,report['before']['count']
