@@ -50,7 +50,7 @@ final class ManualCommissionPolicyB1079Test extends TestCase
 
     public static function invalidManualAmounts(): array
     {
-        return ['zero'=>[0],'zero string'=>['0.00'],'negative'=>[-1],'below one cent'=>['0.001']];
+        return ['zero'=>[0],'zero string'=>['0.00'],'zero comma'=>['0,00'],'negative'=>[-1],'below one cent'=>['0.001']];
     }
 
     #[DataProvider('acceptedManualAmounts')]
@@ -75,6 +75,7 @@ final class ManualCommissionPolicyB1079Test extends TestCase
             'blank'=>[['manual_commission_eur'=>''],null,100.0],
             'one cent'=>[['manual_commission_eur'=>0.01],0.01,0.01],
             'below ten percent'=>[['manual_commission_eur'=>2],2.0,2.0],
+            'comma decimal'=>[['manual_commission_eur'=>'2,50'],2.5,2.5],
             'ten percent'=>[['manual_commission_eur'=>100],100.0,100.0],
             'above ten percent'=>[['manual_commission_eur'=>150],150.0,150.0],
         ];
