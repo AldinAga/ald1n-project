@@ -73,7 +73,7 @@ jobs:
           echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check
           php "$RUNNER_TEMP/composer-2.11.1.phar" --version | tee "$evidence/composer-version.txt"
           rc=0
-          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts update laravel/framework guzzlehttp/guzzle league/commonmark league/flysystem symfony/http-foundation symfony/mime --with-dependencies --minimal-changes --no-install --no-interaction --no-progress > "$evidence/resolve.log" 2>&1 || rc=$?
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts update laravel/framework guzzlehttp/guzzle:^7.15.2 league/commonmark league/flysystem symfony/http-foundation symfony/mime --with-dependencies --minimal-changes --no-install --no-interaction --no-progress > "$evidence/resolve.log" 2>&1 || rc=$?
           printf '%s\n' "$rc" > "$evidence/resolve.exit"
           tail -n 35 "$evidence/resolve.log"
           cp composer.lock "$evidence/candidate-composer.lock"
@@ -132,7 +132,7 @@ jobs:
           cp package.json "$evidence/original-package.json"
           cp package-lock.json "$evidence/original-package-lock.json"
           rc=0
-          npm exec --yes --package=npm@10.9.2 -- npm audit fix --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/resolve.json" 2> "$evidence/resolve.stderr" || rc=$?
+          npm exec --yes --package=npm@10.9.2 -- npm update shell-quote node-forge brace-expansion @xmldom/xmldom zod --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/resolve.json" 2> "$evidence/resolve.stderr" || rc=$?
           printf '%s\n' "$rc" > "$evidence/resolve.exit"
           cp package-lock.json "$evidence/candidate-package-lock.json"
           git diff -- package-lock.json > "$evidence/mobile-security.patch"
@@ -142,6 +142,31 @@ jobs:
           audit_rc=0
           npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/candidate-audit.json" 2> "$evidence/candidate-audit.stderr" || audit_rc=$?
           printf '%s\n' "$audit_rc" > "$evidence/candidate-audit.exit"
+          node - "$evidence" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2];
+          const before=JSON.parse(fs.readFileSync(path.join(dir,'original-package-lock.json'),'utf8'));
+          const after=JSON.parse(fs.readFileSync(path.join(dir,'candidate-package-lock.json'),'utf8'));
+          const protectedNode=p=>{
+            const name=p.split('node_modules/').at(-1);
+            return name==='react'||name==='react-dom'||name==='react-native'||name.startsWith('react-native-')||name.startsWith('@react-native/')||name==='expo'||name.startsWith('expo-')||name.startsWith('@expo/');
+          };
+          assert(protectedNode('node_modules/expo'));
+          assert(protectedNode('node_modules/cli/node_modules/expo-router'));
+          assert(!protectedNode('node_modules/shell-quote'));
+          assert.deepEqual(after.packages[''],before.packages[''],'root dependency declarations changed');
+          const keys=[...new Set([...Object.keys(before.packages),...Object.keys(after.packages)])],changes=[];
+          let protectedCount=0;
+          for(const key of keys){
+            if(protectedNode(key)){
+              protectedCount++;
+              assert.deepEqual(after.packages[key],before.packages[key],'native/Expo boundary changed: '+key);
+            }
+            const a=before.packages[key],b=after.packages[key];
+            if(a?.version!==b?.version)changes.push({path:key,before:a?.version??null,after:b?.version??null});
+          }
+          fs.writeFileSync(path.join(dir,'bounded-version-changes.json'),JSON.stringify({protectedCount,changes,nativeExpoBoundary:'UNCHANGED'},null,2)+'\n');
+          console.log('B1101_NATIVE_EXPO_NODES_UNCHANGED='+protectedCount+' JS_VERSION_CHANGES='+changes.length);
+          NODE
           sha256sum package.json package-lock.json > "$evidence/candidate-sha256.txt"
           echo "B1101_MOBILE_CANDIDATE_AUDIT_RC=$audit_rc NO_NATIVE_BUILD_NO_OTA_NO_FORCE"
           test "$audit_rc" = 0
