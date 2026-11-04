@@ -1416,3 +1416,8 @@ The owner explicitly resumed remaining Ald1n work and raised the Weekly Usage ma
 ## 0Q — Operations index heading contract (2026-11-04)
 
 Every 000-LATEST.md update MUST keep the first line in the existing numbered format `# CURRENT YYYY-MM-DD — B<batch-number> ...` (or the existing `# CURRENT B<batch-number> ...`). Preserve the actual newest batch identity; a date followed directly by `ECC`, `OWNER RESUME` or a prose title breaks three existing Release25 authority checks. Preflight that first line before publishing an index update. Do not weaken those tests or alter EAS/native/release settings to repair a documentation heading. Report1014 recovery detected this header-only regression; owner Weekly ceiling remains50% under0P.
+
+
+## 0R — Explicit owner approval for two protected test fixtures (2026-11-04)
+
+Owner explicitly answered `Odobravam navedene izmene testova` to the scoped approval request covering ONLY tests/Feature/StorefrontRegistrationOnlyB809Test.php and tests/Feature/BuyerCheckoutSessionBoundaryB815Test.php. Approved changes: complete valid required registration/profile data, verified/activated synthetic positive buyer with REAL login, and existing SettingsService::putMany instead of nonexistent put. Preserve every guest/authentication/foreign-email/role-escalation/one-time-activation/OFF404/no-money-stock-write assertion and every testcase identity. This is a new narrow owner authorization superseding the earlier denial for these fixture corrections only; no weakening application auth, no alias/workaround, no B805 or PortalSessionCredentialBoundaryB815 changes, no fixture skips or release waiver. Do not infer broader protected-file or production authorization. Weekly ceiling50% remains0P.
