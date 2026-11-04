@@ -8,6 +8,12 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0U. Owner finalized existing CMS merchant settings (2026-11-04)
+
+The owner explicitly answered **Postojeće CMS postavke su konačne** for terms of sale, privacy, shipping price/conditions and contact email. Treat the existing CMS values as final approved content; do not ask this same business decision again or silently replace them with environment defaults. Public pages must consume the existing shared merchant policy service, including registration privacy links, with its established stored-value precedence and configuration fallback.
+
+This content decision is not permission to forge/update a policy approval digest, approve an email sender, enable storefront/checkout, waive security/backup/UAT gates or deploy an unmerged Draft. Actual stored values, approval freshness, correct page rendering and live mail/host readiness still need evidence. Never request passwords to verify this decision.
+
 ## 0T. Owner rule: ready manual-upload ZIPs mirror the project root (2026-11-04)
 
 The owner explicitly requires: "napraviš sve subfoldere za svaki fajl ... unzip u /home/icaffeco/ald1n-project ... svaki fajl legne na svoje mesto". Whenever a manual upload is genuinely needed and the delivery has passed its gates, provide the actual ready file and exact destination immediately; do not wait for another request and do not control FileZilla.
