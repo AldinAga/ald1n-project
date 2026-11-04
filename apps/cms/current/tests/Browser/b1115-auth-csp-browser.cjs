@@ -107,22 +107,28 @@ async function main() {
     const intercept = async route => { payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); };
     let prompts = 0;
     const cancel = async dialog => { prompts++; await dialog.dismiss(); };
+    let accepted = 0;
+    const accept = async dialog => { accepted++; await dialog.accept(); };
     await page.route(endpoint, intercept);
     page.on('dialog', cancel);
     try {
       if (trigger === 'click') await (externalButton || form.locator('button').first()).click();
+      else if (trigger === 'enter') {
+        await form.evaluate(node => { const input = document.createElement('input'); input.name = 'b1115-enter'; node.prepend(input); });
+        await form.locator('[name="b1115-enter"]').press('Enter');
+      }
       else await form.evaluate(node => node.requestSubmit());
       assert.equal(prompts, 1); assert.equal(payloads.length, 0);
       assert.equal(await form.getAttribute('aria-busy'), null);
       assert.equal(await form.locator(':disabled').count(), 0);
       page.off('dialog', cancel);
-      page.once('dialog', dialog => dialog.accept());
+      page.on('dialog', accept);
       if (externalButton) await externalButton.evaluate(button => button.form.requestSubmit(button));
       else await form.evaluate(node => node.requestSubmit(node.querySelector('button')));
       await page.waitForTimeout(150);
-      assert.equal(payloads.length, 1); assert(payloads[0].get('_token'));
+      assert.equal(accepted, 1); assert.equal(payloads.length, 1); assert(payloads[0].get('_token'));
       assert.equal(await form.getAttribute('aria-busy'), 'true');
-    } finally { page.off('dialog', cancel); await page.unroute(endpoint, intercept); }
+    } finally { page.off('dialog', cancel); page.off('dialog', accept); await page.unroute(endpoint, intercept); }
   }
   const script = (body, nonce = '') => '<script'+(nonce ? ' nonce="'+nonce+'"' : '')+'>'+body+'</script>';
   async function attack(ctx, uri, id, relaxed = false) {
@@ -268,30 +274,7 @@ async function main() {
     for (const trigger of ['click', 'enter', 'requestSubmit']) {
       await check('session-confirm-cancel-retry-'+trigger, async () => {
         await open(adminPage, '/account');
-        const form = adminPage.locator('form[action$="/account/sessions"]');
-        assert.equal(await form.count(), 1);
-        let requests = 0;
-        const intercept = async route => { requests++; await route.fulfill({status: 204, body: ''}); };
-        await adminPage.route(base+'/account/sessions', intercept);
-        let prompts = 0;
-        const cancel = async dialog => { prompts++; await dialog.dismiss(); };
-        adminPage.on('dialog', cancel);
-        if (trigger === 'click') await form.locator('button').click();
-        if (trigger === 'enter') {
-          await form.evaluate(node => { const input = document.createElement('input'); input.name = 'b1115-enter'; node.prepend(input); });
-          await form.locator('[name="b1115-enter"]').press('Enter');
-        }
-        if (trigger === 'requestSubmit') await form.evaluate(node => node.requestSubmit());
-        assert.equal(prompts, 1); assert.equal(requests, 0);
-        assert.equal(await form.getAttribute('aria-busy'), null);
-        assert.equal(await form.locator(':disabled').count(), 0);
-        adminPage.off('dialog', cancel);
-        adminPage.once('dialog', dialog => dialog.accept());
-        await form.evaluate(node => node.requestSubmit(node.querySelector('button')));
-        await adminPage.waitForTimeout(150);
-        assert.equal(requests, 1);
-        assert.equal(await form.getAttribute('aria-busy'), 'true');
-        await adminPage.unroute(base+'/account/sessions', intercept);
+        await confirmForm(adminPage, 'form[action$="/account/sessions"]', trigger);
       });
     }
     await check('bulk-preview-execute-submitter-payload', async () => {
@@ -302,6 +285,7 @@ async function main() {
       let prompts = 0;
       const cancel = async dialog => { prompts++; await dialog.dismiss(); };
       adminPage.on('dialog', cancel);
+      try {
       await Promise.all([adminPage.waitForNavigation({waitUntil: 'networkidle'}), form.locator('[name="mode"][value="preview"]').click()]);
       assert.equal(prompts, 0);
       const execute = adminPage.locator('[name="mode"][value="execute"]');
@@ -319,7 +303,10 @@ async function main() {
       assert.equal(payloads[0].get('mode'), 'execute');
       assert.equal(payloads[0].get('product_ids[]'), String(fixture.product));
       assert(payloads[0].get('_token'));
-      await adminPage.unroute(base+'/admin/catalog/bulk');
+      } finally {
+        adminPage.off('dialog', cancel);
+        await adminPage.unroute(base+'/admin/catalog/bulk');
+      }
     });
     for (const suffix of ['/edit', '/images']) for (const trigger of ['click', 'requestSubmit']) await check('image-external-submit-confirm-'+suffix.slice(1)+'-'+trigger, async () => {
       await open(adminPage, '/admin/catalog/'+fixture.product+suffix);
