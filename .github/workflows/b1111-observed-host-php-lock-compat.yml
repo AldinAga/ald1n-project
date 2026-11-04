@@ -148,6 +148,41 @@ jobs:
           $result=['status'=>'FAIL_CLOSED','stage'=>'inputs','releaseApproval'=>false];
           function need(bool $ok,string $reason):void { if(!$ok)throw new RuntimeException($reason); }
           function rc(string $name):int { global $dir; $p="$dir/$name"; need(is_file($p),'Missing exit receipt: '.$name); $s=trim(file_get_contents($p)); need((bool)preg_match('/^\d+$/D',$s),'Invalid RC: '.$name); return (int)$s; }
+          function auditCounts(mixed $audit,int $exit):array {
+              need(array_key_exists('advisories',$audit),'Missing advisory data');
+              $counts=['advisories'=>count($audit['advisories']),'abandoned'=>count($audit['abandoned']??[])];
+              need($exit===0 && $counts['advisories']===0 && $counts['abandoned']===0,'candidate audit failed');
+              return $counts;
+          }
+          function auditSchemaFixtures(string $dir):array {
+              $fixtures=[
+                  ['explicit_empty','{"advisories":[],"abandoned":[]}',0,true],
+                  ['missing_abandoned','{"advisories":[]}',0,false],
+                  ['null_abandoned','{"advisories":[],"abandoned":null}',0,false],
+                  ['missing_advisories','{"abandoned":[]}',0,false],
+                  ['null_advisories','{"advisories":null,"abandoned":[]}',0,false],
+                  ['string_advisories','{"advisories":"invalid","abandoned":[]}',0,false],
+                  ['string_abandoned','{"advisories":[],"abandoned":"invalid"}',0,false],
+                  ['boolean_advisories','{"advisories":false,"abandoned":[]}',0,false],
+                  ['integer_abandoned','{"advisories":[],"abandoned":0}',0,false],
+                  ['scalar_root','false',0,false],
+                  ['nonempty_advisories','{"advisories":{"synthetic/package":[{"advisoryId":"synthetic"}]},"abandoned":[]}',0,false],
+                  ['nonempty_abandoned','{"advisories":[],"abandoned":{"synthetic/package":"replacement/package"}}',0,false],
+                  ['nonzero_audit_rc','{"advisories":[],"abandoned":[]}',1,false],
+              ];
+              $rows=[];$failed=0;
+              foreach($fixtures as [$name,$input,$exit,$expected]){
+                  $accepted=false;$error=null;
+                  try {auditCounts(json_decode($input,true,512,JSON_THROW_ON_ERROR),$exit);$accepted=true;}
+                  catch(Throwable $e){$error=['type'=>$e::class,'message'=>$e->getMessage()];}
+                  $passed=$accepted===$expected;if(!$passed)$failed++;
+                  $rows[]=['name'=>$name,'input'=>$input,'auditRC'=>$exit,'expectedAccepted'=>$expected,'actualAccepted'=>$accepted,'passed'=>$passed,'error'=>$error];
+              }
+              $proof=['parser'=>'same auditCounts used for candidate-audit.json','total'=>count($rows),'failed'=>$failed,'fixtures'=>$rows];
+              file_put_contents("$dir/audit-schema-fixtures.json",json_encode($proof,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+              echo 'B1111_AUDIT_SCHEMA_FIXTURES='.json_encode($proof)."\n";
+              return ['total'=>count($rows),'failed'=>$failed];
+          }
           function cases(string $leg):array {
               global $dir,$result;
               need(rc("$leg.install.exit")===0,$leg.' dependency install failed');
@@ -228,12 +263,13 @@ jobs:
               $result['baselineStaticFailures']=$baseStaticFailures[1];$result['candidateStaticFailures']=$candidateStaticFailures[1];
               $audit=json_decode(file_get_contents("$dir/candidate-audit.json"),true,512,JSON_THROW_ON_ERROR);
               $result['candidateAuditRC']=rc('candidate-audit.exit');
-              need(array_key_exists('advisories',$audit),'Missing advisory data');
-              $result['candidateAdvisoryPackages']=count($audit['advisories']);$result['candidateAbandonedPackages']=count($audit['abandoned']??[]);
+              $auditCounts=auditCounts($audit,$result['candidateAuditRC']);
+              $result['candidateAdvisoryPackages']=$auditCounts['advisories'];$result['candidateAbandonedPackages']=$auditCounts['abandoned'];
+              $result['auditSchemaFixtures']=auditSchemaFixtures($dir);
+              need($result['auditSchemaFixtures']['failed']===0,'audit schema fixtures failed');
               need($missing===[] && $extra===[],'identity loss or unexpected identities');
               need($regressions===[],'candidate regression or changed failure signature');
               need($skipped===[] && !in_array('skipped',array_column($before,'outcome'),true),'skipped identities');
-              need($result['candidateAuditRC']===0 && $result['candidateAdvisoryPackages']===0 && $result['candidateAbandonedPackages']===0,'candidate audit failed');
               $staticBlocked=$result['baselineStaticRC']!==0 || $result['candidateStaticRC']!==0;
               need(!$staticBlocked || ($result['baselineStaticRC']===$result['candidateStaticRC'] && $result['staticOutputsIdentical']),'new/different canonical static failure');
               if($baseBad!==[] || $inherited!==[] || $staticBlocked){$result['status']='BLOCKED_INHERITED_FAILURES';$result['stage']=$staticBlocked?'inherited_suite_or_static_failures':'inherited_suite_failures';}

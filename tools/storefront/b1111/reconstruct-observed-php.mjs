@@ -238,7 +238,7 @@ function verifyAfter(out) {
 
 function manifest(out) {
   const dir = path.join(out, 'evidence'); fs.mkdirSync(dir, { recursive: true });
-  const permitted = /^(?:reconstruction|negative-checks|post-test-source|comparison)\.json$|^(?:baseline|candidate)\.(?:log|xml|exit|install\.log|install\.exit|list\.xml|list\.log|list\.exit|static\.log|static\.exit)$|^candidate-audit\.(?:json|stderr|exit)$|^(?:reconstruct|verify|compare|download-composer)\.(?:log|exit)$|^composer\.sha256$/;
+  const permitted = /^(?:reconstruction|negative-checks|post-test-source|comparison|audit-schema-fixtures)\.json$|^(?:baseline|candidate)\.(?:log|xml|exit|install\.log|install\.exit|list\.xml|list\.log|list\.exit|static\.log|static\.exit)$|^candidate-audit\.(?:json|stderr|exit)$|^(?:reconstruct|verify|compare|download-composer)\.(?:log|exit)$|^composer\.sha256$/;
   const entries = [];
   for (const name of fs.readdirSync(dir)) {
     assert(permitted.test(name), 'Unexpected/private artifact: ' + name);
