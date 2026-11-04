@@ -1,3 +1,15 @@
+# CURRENT 2026-11-04 — B1077/B1078: CHROMIUM+FIREFOX PNG PASS,62 TARGETED PASS,FULL78 HOLD
+
+[Consolidated Report1008](1008-B1077-B1078-CROSS-BROWSER-TEST-INFRA-AND-RELEASE-HOLD-20261104.md) records actual results and the complete remaining release plan. [Draft PR131](https://github.com/AldinAga/ald1n-project/pull/131), tested head692e751e0dec407d998c0d1655c4bde5a4600d99, remains stacked on unmerged PR93. **Main application/production unchanged; only docs here.**
+
+[Real CI41744562332](https://github.com/AldinAga/ald1n-project/actions/runs/41744562332):62 focused/792 assertions PASS; original full553/81 failing IDs vs candidate621/5352 assertions/7 errors/71 failures/**78 failing IDs**,0new,0skips. Two original test-runner errors fixed using metadata/bootstrap ONLY; original inputs/assertions unchanged. Raw missing legacy provider discovery-error identity is explicitly replaced by its seven exact original passing data sets; complete identity migration proof retained, not hidden. Protected B805/B809/B815 and Composer locks byte-identical. **Global FAILURE/HOLD remains.** Unrelated presenter stop-failing not attributed.
+
+[Real browsers41744562313](https://github.com/AldinAga/ald1n-project/actions/runs/41744562313): registered buyer flow, replay, staff denial and actual320x240 PNG decoding/HTTP/private-no-store in BOTH Chromium and Firefox PASS. Old guest-success B799 scenario still runs and fails. Static983/0 unsuccessful PASS. No real SMTP/physical/native/host acceptance.
+
+[Permanent complete evidence](https://drive.google.com/file/d/1cn_46eSjOQEHAiEnAGwfs-pIBzFPPjeN/view) SHA256ded5a5f9e55ccb384691ee591aadcb981ad2a225c9a51c85b0b8e4ad9295e76f. Production requested ONLY when mandatory gates are actually safe: remaining M10/M11/M13/M14/M15/M17,78 historical IDs,368 security review,SEC23,merchant/mail/concurrency/restore/dirty-host/FPM and signed16KiB/device/OAuth proof remain open. No rule waiver, test filtering, guest-buying relaxation, source merge/deploy/DB/flags/EAS/OTA/Play. Formal accepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. Runtime tests GitHub-only; weekly Usage last14%,ceiling20%.
+
+---
+
 # CURRENT 2026-11-04 — B1076 PR131 SOURCE: RECEIPT ELIGIBILITY FIX,51 TARGETED PASS,FULL80 HOLD
 
 [Report1007](1007-B1076-RECEIPT-ELIGIBILITY-GITHUB-QA-20261104.md) supersedes the source-progress snapshot below. [Draft PR131](https://github.com/AldinAga/ald1n-project/pull/131) is stacked on unmerged PR93 acb8b9c42ec9254b1a27567abca29a26c1f733f8; tested application13edc7567cbca299fa6cbf915f5d4caab85f637c. **Application main/production unchanged.** B1075 selected reviewed storefront fixes and stable role-ID seeding; B1076 reloads current buyer eligibility before private receipt/document access after three independently reproduced stale-authentication failures.
