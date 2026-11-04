@@ -180,6 +180,7 @@ final class PublicRegistrationMailSenderB810Test extends TestCase
         return [
             'first_name'=>'Synthetic','last_name'=>'Buyer',
             'email'=>'b810-buyer@example.test','accepted_privacy'=>'1',
+            'address'=>'Synthetic 12','city'=>'Beograd','phone'=>'0601234567',
         ];
     }
 
