@@ -310,11 +310,11 @@ async function mobileDrawerReadabilitySmoke(page, label, width) {
   check(pre.panelScrollWidth <= pre.panelClientWidth + 2, 'MOBILE_DRAWER_NO_X_SCROLL', tag + ' ' + JSON.stringify(pre));
   check(pre.opaqueHeader >= .99 && pre.opaqueMenu >= .99 && pre.layerHidden,
     'MOBILE_DRAWER_OPAQUE_READING_SURFACE', tag + ' ' + JSON.stringify(pre));
-  check(pre.settingsIsDetails && pre.settingsInitiallyClosed && pre.settingsContentHidden,
-    'MOBILE_SETTINGS_NATIVE_DISCLOSURE_CLOSED', tag + ' ' + JSON.stringify(pre));
+  check(!pre.settingsIsDetails && !pre.settingsContentHidden,
+    'MOBILE_SETTINGS_PANELS_DIRECTLY_VISIBLE', tag + ' ' + JSON.stringify(pre));
   const preferences = page.locator('[data-mobile-menu-preferences]');
-  await preferences.locator(':scope > summary').click();
-  check(await preferences.evaluate(el => el.open), 'MOBILE_SETTINGS_DISCLOSURE_OPEN', tag);
+  check(await preferences.locator('summary').count() === 0,
+    'MOBILE_SETTINGS_NO_SUBMENU', tag);
   const expanded = await preferences.evaluate(el => {
     const panel = el.parentElement;
     const rect = el.getBoundingClientRect();
@@ -339,8 +339,6 @@ async function mobileDrawerReadabilitySmoke(page, label, width) {
   check(await preferences.locator('[data-theme-mode-option="dark"]').isVisible()
     && await preferences.locator('[data-display-currency-option="RSD"]').isVisible(),
     'MOBILE_SETTINGS_CONTROLS_ACCESSIBLE', tag);
-  await preferences.locator(':scope > summary').click();
-  check(!(await preferences.evaluate(el => el.open)), 'MOBILE_SETTINGS_DISCLOSURE_RECLOSE', tag);
   // Menu dropdowns must remain inside the same scroll plane instead of
   // escaping as absolutely positioned overlays.
   const firstDropdown = page.locator('[data-mobile-menu] .nav-dropdown').first();
