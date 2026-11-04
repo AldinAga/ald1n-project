@@ -95,6 +95,22 @@ jobs:
           for p in protected+['apps/cms/current/composer.json','apps/cms/current/composer.lock']:
               assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
           print('PROTECTED_FIXTURES_AND_LOCKS_UNCHANGED',len(protected))
+          repairs={
+              'apps/cms/current/tests/Unit/LegacyReadOnlyGuardTest.php':[
+                  ('use LogicException;','use LogicException;\nuse PHPUnit\\Framework\\Attributes\\DataProvider;'),
+                  ('/** @dataProvider mutatingQueries */',"#[DataProvider('mutatingQueries')]"),
+              ],
+              'apps/cms/current/tests/Unit/DeliveryNoteMigrationContractTest.php':[
+                  ('use PHPUnit\\Framework\\TestCase;','use Tests\\TestCase;'),
+              ],
+          }
+          for p,replacements in repairs.items():
+              expected=(pathlib.Path('original')/p).read_text()
+              for old,new in replacements:
+                  assert expected.count(old)==1,p
+                  expected=expected.replace(old,new)
+              assert (pathlib.Path('candidate')/p).read_text()==expected,p
+          print('LEGACY_TEST_INPUTS_AND_ASSERTIONS_UNCHANGED_METADATA_ONLY')
           PY
           composer install --working-dir=original/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
           composer install --working-dir=candidate/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
@@ -123,7 +139,9 @@ jobs:
             tests/Feature/StorefrontLocalValidationB889Test.php \
             tests/Feature/PublicNoScriptCspB872Test.php \
             tests/Feature/RegisteredStorefrontFlowB1075Test.php \
-            tests/Feature/CoreAccessRoleIdStabilityB876Test.php
+            tests/Feature/CoreAccessRoleIdStabilityB876Test.php \
+            tests/Unit/LegacyReadOnlyGuardTest.php \
+            tests/Unit/DeliveryNoteMigrationContractTest.php
           if test "$(cat "$evidence/focused.exit")" != 0; then
             tail -120 "$evidence/focused.log"
             echo 'HOLD_FOCUSED_SOURCE_REGRESSIONS'
@@ -138,13 +156,23 @@ jobs:
           import os,json,pathlib,xml.etree.ElementTree as E
           d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
           cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
-          assert len(cases)==51,len(cases)
+          assert len(cases)==62,len(cases)
           assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
           assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
           assert report['before']['count']==553,report['before']['count']
-          assert report['after']['count']==615,report['after']['count']
+          assert report['after']['count']==621,report['after']['count']
           assert report['before']['skippedCount']==report['after']['skippedCount']==0
-          assert not report['missingOriginalCases'],report['missingOriginalCases']
+          legacy='Tests.Unit.LegacyReadOnlyGuardTest::test_mutating_and_locking_queries_are_blocked'
+          expected_provider_cases={legacy+' with data set #'+str(i) for i in range(7)}
+          assert report['missingOriginalCases']==[legacy],report['missingOriginalCases']
+          assert legacy in report['before']['failed']
+          assert expected_provider_cases.issubset(report['after']['ids'])
+          assert not expected_provider_cases.intersection(report['after']['failed'])
+          (d/'legacy-provider-identity-migration.json').write_text(json.dumps({
+              'old_discovery_error_identity':legacy,
+              'actual_original_provider_cases':sorted(expected_provider_cases),
+              'source_constraint':'metadata-only; original inputs and assertions unchanged',
+          },indent=2))
           assert not report['newFailed'],report['newFailed']
           if report['after']['failedCount']:
               raise SystemExit('HOLD_HISTORICAL_FULL_SUITE_FAILURES: '+str(report['after']['failedCount']))
