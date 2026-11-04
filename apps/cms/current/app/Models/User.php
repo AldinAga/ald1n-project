@@ -98,6 +98,9 @@ final class User extends Authenticatable implements PasskeyUser
                 return [];
             }
 
+            // Retail customers never inherit internal SubAgent group rights.
+            if ($this->hasRole('customer')) return [];
+
             if ($this->hasRole('admin', 'superadmin')) {
                 if (!$this->permissionSlugsResolved) {
                     $slugs = DB::table('permissions')
@@ -256,6 +259,8 @@ final class User extends Authenticatable implements PasskeyUser
     public function roleName(string $fallback = 'Korisnik'): string
     {
         try {
+            if ($this->hasRole('user')) return 'SubAgent';
+            if ($this->hasRole('customer')) return 'Kupac';
             $name = $this->relationLoaded('role')
                 ? $this->role?->name
                 : $this->role()->value('name');
