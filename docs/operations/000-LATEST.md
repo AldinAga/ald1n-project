@@ -1,5 +1,8 @@
 # CURRENT 2026-11-04 — B1105 PHP SECURITY MERGED; STOREFRONT FULL QA RUNNING; RELEASE HOLD
 
+**Update:** owner confirmed existing CMS terms/privacy/shipping/contact settings FINAL and approved; do not ask again. Combined1ae9 canonical41828321972 SUCCESS:717/0problems, focus192PASS, all640oldIDsretained; currentc8a browser41828612311SUCCESS. Currentc8a finalcanonical41828612398stillrunning. JS-only DraftPR142 exacthead03243c683d0bb617a5eaaccab47df7ae531aa65b awaits finalQA; remaining21mobile/816+1372potentialscannerfindings OPEN. Later text saying merchantdecisionpending is superseded by this explicit decision.
+
+
 [Report1016](1016-B1099-B1105-STOREFRONT-SECURITY-PHP-LOCK-AND-MANUAL-DELIVERY-20261104.md) is current. Main PR141 merged **faf8cced8028dd0499447675fa9c5144f5b250c4**, exact tested aa4c8b7d:9/9 workflows SUCCESS, baseline AND candidate489tests/3920assertions PASS, canonical983/0, PHP20advisories→0. No hosting vendor/deployment claim.
 
 Storefront Draft135 current **c8a1337aa2da40f8f7a22932e73eaacbe3f33d2c** integrates main PHP security lock via1ae9eb90 and preserves exact protected-fixture whitelist. Combined canonical41828321972/browser41828322221 running; earlier full717/7281+192/2677 and real purchase races on2fbf1f63 remain verified historical evidence, not a claim current final QA completed. CSP14responses/28script probes PASS. Source composer audit on1ae9RC0; npm unresolved.
