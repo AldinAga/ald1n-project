@@ -278,9 +278,10 @@ final class ProductRequest extends FormRequest
         ];
 
         if ($this->user()?->hasRole('superadmin') === true) {
-            $normalized['manual_commission_eur'] = $this->filled('manual_commission_eur')
-                ? str_replace(',', '.', (string) $this->input('manual_commission_eur'))
-                : null;
+            $manual = $this->input('manual_commission_eur');
+            $normalized['manual_commission_eur'] = is_string($manual)
+                ? (trim($manual) === '' ? null : str_replace(',', '.', trim($manual)))
+                : $manual;
         } else {
             $this->request->remove('manual_commission_eur');
         }
