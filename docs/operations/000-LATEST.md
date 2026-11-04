@@ -1,3 +1,13 @@
+# CURRENT 2026-11-04 — DIRECT TWO-COLUMN MENU MAIN; ECC STOREFRONT73 →67, STILL HOLD
+
+[Report1012](1012-B1084-B1086-DIRECT-MENU-REQUIRED-SIGNUP-ECC-AND-STOREFRONT-20261104.md) is the latest checkpoint. PR137 merged452b3afb after exact1cf7ecdd/9workflows PASS: opaque two-column mobile menu, directly visible theme/currency panels on right, no settings submenu. Owner-upload two-file ZIP is ready; no agent FileZilla control or live deployment claim. PR138 merged dbe433c8 after30same-ID tests baseline4FAIL ->30PASS/164assertions, all9workflows; four stale delegated-location contracts repaired without app change.
+
+DraftPR135 combined33d7c7e0e6bd09b4138712bf78ad1c161007ef8f, [actual full41802399319](https://github.com/AldinAga/ald1n-project/actions/runs/41802399319): **712cases/8errors/59failures=67failedIDs**,0skips,0missing prior main IDs, all640historicalPR131cases retained. Previous73 ->71 through2valid-buyer login fixtures ->67 through4verified contracts; no new failed IDs versus73. Still55newcommerce failed IDs versus frozen earliermain487/17baseline; fullCI remainsFAIL, not0new. Focus100/1081assertions PASS,309mobile/TSC/validator PASS, actual registered Chromium+Firefox PASS; obsoleteguest-positive browser remainsFAIL. Signup all6fields required; no historicalguestorders; protectedB805/B809/B815 denial unchanged. New exact67diagnostics available locally.
+
+Owner explicitly invoked ECC laravel-tdd/laravel-verification: project GitHub-only PHP8.4/MariaDB10.11.19 rules prevail over generic local/Sail/SQLite examples. Current authority AGENTS0O. No storefront activation, production backend/DB/flags/SMTP/EAS/build/OTA/Play. Formal accepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. Usage last18%, ceiling20%; goal incomplete.
+
+---
+
 # CURRENT 2026-11-04 — B1081-B1083 COMMISSION MAIN;698 CASES/72 STOREFRONT HOLD;LIVE MENU CSS VERIFIED
 
 [Report1011](1011-B1081-B1083-COMMISSION-MAIN-STOREFRONT72-MANUAL-MENU-AND-REGISTRATION-20261104.md) records actual source, exact baseline/candidate results and owner decisions. PR134commission merged1c185c6c5a97d3917069c8d73ad4d2df781c0e7c:24/159assertionsGREEN versus24/10FAIL baseline,309mobile/TSC/validator,983static,10/10workflowsPASS. PR136test-only product/metadata repairs merged e89def93293ed2828f02bed5e412c93e00a7c0df:25/5problem baseline ->32/152assertionsPASS,9/9workflows; all original provider data/other test identities retained. No production backend deployment.
