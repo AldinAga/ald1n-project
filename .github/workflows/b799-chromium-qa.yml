@@ -78,6 +78,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l tests/Browser/seed-public-shop-b799.php
           php tests/Support/check-checkout-concurrency-witness.php
+          node --test tests/Browser/b799-release-product-lock.test.cjs
           node --check tests/Browser/b799-public-shop-browser.cjs
           php -l tests/Browser/seed-b812-registered-buyer.php
           node --check tests/Browser/b812-registered-buyer-browser.cjs

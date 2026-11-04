@@ -1,5 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
+const releaseProductLock=require('./b799-release-product-lock.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
 const {spawn,execFile}=require('node:child_process');
@@ -158,12 +159,15 @@ async function runRealRace(browser){
           postRetail(ctxA,base,formA),postRetail(ctxB,raceBase,formB)
         ]);
         try{await confirmConcurrentWaiters('lastunit')}catch(e){barrierError=e}
-        lock.stdin.end('RELEASE\n');
+        releaseProductLock(lock.stdin);
         outcomes=await pending;
       }finally{
-        if(!lock.stdin.destroyed)lock.stdin.end('RELEASE\n');
+        releaseProductLock(lock.stdin);
       }
-      if(barrierError)throw barrierError;
+      if(barrierError){
+        console.error('B799_BARRIER_RESPONSE_STATUSES',outcomes.map(row=>row.status));
+        throw barrierError;
+      }
       const statuses=outcomes.map(row=>row.status).sort((a,b)=>a-b);
       assert.deepEqual(statuses,[302,422],
         'only one shopper may reserve the sole in-stock item');
@@ -184,12 +188,15 @@ async function runRealRace(browser){
           postRetail(ctx,base,form),postRetail(ctx,raceBase,form)
         ]);
         try{await confirmConcurrentWaiters('duplicate')}catch(e){barrierError=e}
-        lock.stdin.end('RELEASE\n');
+        releaseProductLock(lock.stdin);
         outcomes=await pending;
       }finally{
-        if(!lock.stdin.destroyed)lock.stdin.end('RELEASE\n');
+        releaseProductLock(lock.stdin);
       }
-      if(barrierError)throw barrierError;
+      if(barrierError){
+        console.error('B799_BARRIER_RESPONSE_STATUSES',outcomes.map(row=>row.status));
+        throw barrierError;
+      }
       assert.deepEqual(outcomes.map(row=>row.status),[302,302],
         'same nonce must replay existing receipt on concurrent retry');
       assert.equal(privatePath(outcomes[0]),privatePath(outcomes[1]),
