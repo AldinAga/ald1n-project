@@ -283,13 +283,7 @@
             @endcanany
         </nav>
         {{-- BATCH149G_V5_QUICK_SETTINGS_CARD --}}
-        <details class="mobile-menu-preferences quick-settings-card" data-mobile-menu-preferences aria-label="Brza podešavanja">
-            <summary class="quick-settings-heading">
-                <strong>Brza podešavanja</strong>
-                <small>Prikaz važi na ovom uređaju.</small>
-                <span class="quick-settings-chevron" aria-hidden="true">⌄</span>
-            </summary>
-
+        <div class="mobile-menu-preferences quick-settings-card" data-mobile-menu-preferences role="group" aria-label="Podešavanja prikaza">
             <div class="quick-settings-group">
                 <div class="quick-settings-label-row">
                     <span class="quick-settings-label">Tema</span>
@@ -337,7 +331,7 @@
                 </div>
                 <small class="mobile-menu-currency-note" data-display-currency-status aria-live="polite"></small>
             </div>
-        </details>
+        </div>
         <form class="header-logout" method="post" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit"><x-icon name="logout" />Odjava</button></form>
     </div>
     @endauth

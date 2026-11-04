@@ -261,7 +261,7 @@ async function headerGeometry(page, persona, mode, width) {
   return state;
 }
 
-async function mobileDrawerSingleColumnSmoke(page, label, width) {
+async function mobileDrawerReadabilitySmoke(page, label, width) {
   const pre = await page.evaluate(() => {
     const header = document.querySelector('[data-site-header]');
     const panel = document.querySelector('[data-mobile-menu]');
@@ -300,25 +300,45 @@ async function mobileDrawerSingleColumnSmoke(page, label, width) {
   const tag = label + '/' + width;
   const fits = (r) => r && r.width > 0 && r.left >= -1 && r.right <= width + 1;
   check(pre.panel && pre.nav && pre.settings && pre.logout, 'MOBILE_DRAWER_PARTS_EXIST', tag + ' ' + JSON.stringify(pre));
-  check(pre.areas.replace(/\s+/g, ' ').includes('"nav" "quick" "logout"'), 'MOBILE_DRAWER_SINGLE_COLUMN', tag + ' ' + pre.areas);
+  check(pre.areas.replace(/\s+/g, ' ').includes('"nav quick" "logout logout"'), 'MOBILE_DRAWER_TWO_COLUMNS', tag + ' ' + pre.areas);
   check(['panel','nav','settings','logout'].every(key => fits(pre[key])), 'MOBILE_DRAWER_IN_VIEWPORT', tag + ' ' + JSON.stringify(pre));
   check(pre.nav && pre.settings && pre.logout
-      && pre.nav.bottom <= pre.settings.top + 2
-      && pre.settings.bottom <= pre.logout.top + 2,
-    'MOBILE_DRAWER_VERTICAL_FLOW', tag + ' ' + JSON.stringify(pre));
+      && pre.nav.right <= pre.settings.left + 2
+      && Math.abs(pre.nav.top - pre.settings.top) <= 2
+      && Math.max(pre.nav.bottom, pre.settings.bottom) <= pre.logout.top + 2,
+    'MOBILE_DRAWER_TWO_COLUMNS_LOGOUT_BELOW', tag + ' ' + JSON.stringify(pre));
   check(pre.panelScrollWidth <= pre.panelClientWidth + 2, 'MOBILE_DRAWER_NO_X_SCROLL', tag + ' ' + JSON.stringify(pre));
   check(pre.opaqueHeader >= .99 && pre.opaqueMenu >= .99 && pre.layerHidden,
     'MOBILE_DRAWER_OPAQUE_READING_SURFACE', tag + ' ' + JSON.stringify(pre));
-  check(pre.settingsIsDetails && pre.settingsInitiallyClosed && pre.settingsContentHidden,
-    'MOBILE_SETTINGS_NATIVE_DISCLOSURE_CLOSED', tag + ' ' + JSON.stringify(pre));
+  check(!pre.settingsIsDetails && !pre.settingsContentHidden,
+    'MOBILE_SETTINGS_PANELS_DIRECTLY_VISIBLE', tag + ' ' + JSON.stringify(pre));
   const preferences = page.locator('[data-mobile-menu-preferences]');
-  await preferences.locator(':scope > summary').click();
-  check(await preferences.evaluate(el => el.open), 'MOBILE_SETTINGS_DISCLOSURE_OPEN', tag);
+  check(await preferences.locator('summary').count() === 0,
+    'MOBILE_SETTINGS_NO_SUBMENU', tag);
+  const expanded = await preferences.evaluate(el => {
+    const panel = el.parentElement;
+    const rect = el.getBoundingClientRect();
+    const buttons = [...el.querySelectorAll('button')].filter(button => button.getClientRects().length);
+    return {
+      settingsLeft: rect.left, settingsRight: rect.right,
+      settingsScrollWidth: el.scrollWidth, settingsClientWidth: el.clientWidth,
+      panelScrollWidth: panel.scrollWidth, panelClientWidth: panel.clientWidth,
+      buttons: buttons.map(button => {
+        const box = button.getBoundingClientRect();
+        return { left: box.left, right: box.right, width: box.width, height: box.height };
+      }),
+    };
+  });
+  check(expanded.settingsScrollWidth <= expanded.settingsClientWidth + 2
+      && expanded.panelScrollWidth <= expanded.panelClientWidth + 2,
+    'MOBILE_SETTINGS_EXPANDED_NO_X_OVERFLOW', tag + ' ' + JSON.stringify(expanded));
+  check(expanded.buttons.length > 0 && expanded.buttons.every(button =>
+      button.left >= expanded.settingsLeft - 2 && button.right <= expanded.settingsRight + 2),
+    'MOBILE_SETTINGS_EXPANDED_CONTROLS_FIT', tag + ' ' + JSON.stringify(expanded));
+
   check(await preferences.locator('[data-theme-mode-option="dark"]').isVisible()
     && await preferences.locator('[data-display-currency-option="RSD"]').isVisible(),
     'MOBILE_SETTINGS_CONTROLS_ACCESSIBLE', tag);
-  await preferences.locator(':scope > summary').click();
-  check(!(await preferences.evaluate(el => el.open)), 'MOBILE_SETTINGS_DISCLOSURE_RECLOSE', tag);
   // Menu dropdowns must remain inside the same scroll plane instead of
   // escaping as absolutely positioned overlays.
   const firstDropdown = page.locator('[data-mobile-menu] .nav-dropdown').first();
@@ -334,7 +354,7 @@ async function mobileDrawerSingleColumnSmoke(page, label, width) {
       'MOBILE_DROPDOWN_IN_FLOW', tag + ' ' + JSON.stringify(dropdown));
     await firstDropdown.locator(':scope > summary').click();
   }
-  if (width === 320 || width === 390) await snapshot(page, 'mobile-single-column-'+label+'-'+width);
+  if (width === 320 || width === 390) await snapshot(page, 'mobile-two-column-'+label+'-'+width);
 }
 
 async function searchAndMenu(page, label, width) {
@@ -358,7 +378,7 @@ async function searchAndMenu(page, label, width) {
     const menu = page.locator('[data-mobile-menu-toggle]');
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_OPENS', label);
-    if (width <= 820) await mobileDrawerSingleColumnSmoke(page, label, width);
+    if (width <= 820) await mobileDrawerReadabilitySmoke(page, label, width);
     const hdr = await headerGeometry(page, 'superadmin', label.split('/')[1] || 'dark', width);
     check(hdr.elements.rate !== null && hdr.elements.cart === null && hdr.elements.search !== null,
       'OPERATOR_HEADER_WITH_MENU_NO_PERSONAL_CART', label);
