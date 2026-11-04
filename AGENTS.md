@@ -8,6 +8,18 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0Z. Storefront merged, successful private stage and maximum80% (2026-11-05)
+
+The owner explicitly increased Weekly Usage maximum70% to **80%**; this overrides only older numerical ceilings in0X/0Y. Preserve a stopping/checkpoint reserve, no reset or purchase. Functional Storefront remains the sole primary goal.
+
+PR135 source integration is complete: normal merge ddb0b0be03a7d7164ad7a45cfef705da98c1bf9c from reviewed70fba448936cc2ca1582cb03227ef4fb36f90471; merge tree equals candidate. Functional/source profile21/23SUCCESS, B1099/B1101 remain open auditFAIL. CMS753/15194+194focused, static983/0, Mobile330+21/all309 retained, browser280PASS, scoped independent0/0/0. See [Report1078](docs/operations/1078-B1131-B1132-STOREFRONT-MERGED-AND-HOST-PRIVATE-STAGE-20261105.md).
+
+Actual ownerReport1077 confirms8531files/1181directories at /home/icaffeco/.ald1n-stage/b1131-ef3f927.6hh7mU, PHP8.4.27 CLI autoloadPASS, EXIT0. Preserve/reuse the successful stage and accurately-labelled originalef3 runtime: its entire CMS tree equals mergedsource. Report1076 stopped before extraction because3 legitimate empty Symfony directories were missing from file-only admission; independently tested/reviewed B1131 fixes exact directory admission only. Do NOT replay completed staging batches or reupload vendor.
+
+Only SOURCE INTEGRATION and PRIVATE PREPARATION are closed. Active CMS/vendor/env/DB/cache/FPM/flags remain unchanged by these batches. Next prepare a separately reviewed controlled OFF-installation operation proving active source/vendor/OFF/schema/config/FPM/storage/rollback compatibility before mutation. Missing migration files do not prove missing DB schema. No production DB migration or automatic public activation follows from merge.
+
+All0Y public security/secret/dependency/merchant approval/sender/mail/anti-abuse/host/buyerUAT conditions remain. Merchant content FINAL; workingbackup174 owner attestation credited, no old backup replay. No unrelated Mobile/native tasks. Final Cloudflare audit follows safe functional operation. Preserve all reports, failed artifacts, dirty local files/index and Git history.
+
 ## 0Y. Storefront-only priority and owner-approved phased OFF sequence (2026-11-04)
 
 The owner's latest primary objective is finishing the functional Storefront. Other Mobile fixes, optimizations and broad audit expansion are retained as follow-up work, not parallel implementation priorities. Maximum70% Weekly Usage remains binding; preserve a reserve for verification and handoff.

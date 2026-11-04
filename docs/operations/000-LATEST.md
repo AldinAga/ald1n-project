@@ -1,3 +1,13 @@
+# CURRENT 2026-11-05 — Report1078 / STOREFRONT MERGED; HOST PRIVATE STAGE PASS; MAX80%
+
+[Report1078](1078-B1131-B1132-STOREFRONT-MERGED-AND-HOST-PRIVATE-STAGE-20261105.md) is current. Owner maximum Weekly Usage80%, preserve reserve. PR135 normally merged as ddb0b0be03a7d7164ad7a45cfef705da98c1bf9c, exact reviewed70fba tree. Final source profile21/23SUCCESS with B1099/B1101 auditFAIL/open; CMS753/15194,194focused,983/0static; Mobile330+21/all309 retained; browser280PASS; independent scoped0/0/0. Not global security/public release clearance.
+
+Actual [1076](1076-B1130-PRIVATE-STAGE-20261104-234242.md) stopped before extraction; [1077](1077-B1131-PRIVATE-STAGE-20261105-000705.md) confirms8531files/1181dirs, PHP8.4.27 autoloadPASS, EXIT0 in /home/icaffeco/.ald1n-stage/b1131-ef3f927.6hh7mU. Preserve/reuse this stage and originalef3 payload, CMS-tree identical to mergedsource; do not replay staging or upload vendor again.
+
+ACTIVE INSTALLATION HAS NOT RUN. Next separately reviewed controlled OFF installation must establish active source/vendor/OFF/schema/config/FPM/rollback compatibility. No automatic file switch, production DB migration or public activation. Mandatory security368/SEC23/secret/dependency/merchant-approval/sender/mail/realbuyerUAT remain HOLD before public opening. Merchant content FINAL and workingbackup174 credited; no backup replay, unrelated Mobile/native/EAS/OTA/Play or local application runtime. [AGENTS0Z](../../AGENTS.md) is latest authority. Earlier entries remain historical, preserved unchanged.
+
+---
+
 # CURRENT 2026-11-04 — B1130 STOREFRONT FIRST; OWNER-APPROVED PHASED OFF INSTALL
 
 Owner approved the phased sequence recorded in AGENTS0Y: verified source → controlled OFF installation → real hosting/mail/buyer UAT → public activation only after obligatory gates. This changes sequencing, not security acceptance; no automatic activation or production DB migration is authorized. The sole primary goal is a functional Storefront. Mobile consent PR151 is frozen TESTONLY for later; no new broad audit work. Current source main65b46ac53be8b696d707070049c756a5375cfe13 includes independently verified PHP PR150 audit0/full511/983 and prior proof-upload/private-download fixes; production is unchanged. Existing Draft135 must now be consolidated with this reviewed main and verified as one candidate before an OFF installation package is delivered. Global security/provider/hosting HOLDs remain explicit. Earlier entries below are historical.
