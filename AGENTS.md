@@ -8,6 +8,12 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0S. Reconciled original acceptance and completed deployment authority (B1095, 2026-11-04)
+
+The original [B1044 receipt](docs/operations/B1044-M17-OWNER-ACCEPTANCE-M10M11-MERGED-80CASE-PASS-20261102.md) and [Issue124 owner acceptance](https://github.com/AldinAga/ald1n-project/issues/124#issuecomment-6585783961) outrank later summaries that accidentally reverted to 11/17. Correct formal acceptance is **12/17 (70.6%)**, CMS10/15, UI6/6. M17 is owner-accepted functional CLOSED; this correction is not new CI acceptance. Signed AAB versionCode29/source6adb3b440b8cfdc068b142a98c418d9d91487f64 and original 16KiB audit are archived by B1044. Physical page-size output, individual device/OAuth matrix and Play rollout/signer continuity are not independently evidenced; do not invent them or repeat a native build. Native SDK58 source remains on its distinct release branch; do not describe it as merged into current SDK57 main.
+
+PR113/115 source integration, B962 twelve-file CloudLinux deployment/additive recovery migration, OPcache/FPM probes and B955/B959 restore evidence are already completed. Do not rerun them because PR111/127 Draft bodies or stale later summaries say pending. B1044 actual merged-source 80tests/586assertions PASS is source/provider-simulation evidence, not external provider delivery acceptance. M10/M11 formal business acceptance remains OPEN for independently authorized real SMTP/Expo/operator delivery/recovery UAT; alerts/recovery stay default OFF. Remaining formal functional tasks: M10,M11,M13,M14,M15. Preserve security/merchant/legal/current-host/source/backup/release gates; no production or native action follows from this correction.
+
 ## 0N. Final public registration and manual-operation authority (owner2026-11-04)
 
 The original guest-buying rule was explicitly withdrawn. NEW public purchases require a registered/authenticated Kupac, with existing active/non-retired/verified-email/activation/tracked-session guards. Mandatory signup fields are first_name, last_name, address, city, phone and email. Preserve privacy acceptance, Turnstile, approved sender and one-time activation; no incidental password/role/approval change. Do not silently add postal code or another mandatory field.
