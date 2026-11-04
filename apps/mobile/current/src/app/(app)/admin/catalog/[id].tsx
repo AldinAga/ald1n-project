@@ -353,7 +353,7 @@ export default function AdminCatalogEditScreen() {
     if (!name.trim() && (!selectedType || !selectedType.auto_name_enabled)) nextErrors.name = 'Unesi naziv ili koristi automatsko formiranje naziva.';
     if ((!saveDraft || priceAmount.trim()) && price === null) nextErrors.price_amount = 'Unesi ispravnu prodajnu cenu.';
     if (purchasePriceRsd.trim() && purchase === null) nextErrors.purchase_price_rsd = 'Unesi ispravnu nabavnu cenu.';
-    if (isSuperAdmin && manualCommissionEur.trim() && commission === null) nextErrors.manual_commission_eur = 'Unesi ispravnu proviziju.';
+    if (isSuperAdmin && manualCommissionEur.trim() && (commission ?? 0) < 0.01) nextErrors.manual_commission_eur = 'Ručna provizija mora biti veća od 0 EUR.';
     if (!saveDraft && !description.trim()) nextErrors.description = 'Opis je obavezan.';
     if ((!saveDraft || stockQuantity.trim()) && stock === null) nextErrors.stock_quantity = 'Lager mora biti ceo broj 0 ili veći.';
     if ((!saveDraft || lowStockThreshold.trim()) && threshold === null) nextErrors.low_stock_threshold = 'Prag lagera mora biti ceo broj 0 ili veći.';
