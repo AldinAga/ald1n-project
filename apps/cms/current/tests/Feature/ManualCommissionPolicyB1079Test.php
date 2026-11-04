@@ -85,9 +85,12 @@ final class ManualCommissionPolicyB1079Test extends TestCase
         $this->actingAs($this->owner,'sanctum')
             ->postJson('/api/v1/admin/catalog/products',$this->payload()+['manual_commission_eur'=>2])->assertCreated();
         $product=Product::query()->sole();
-        $this->putJson('/api/v1/admin/catalog/products/'.$product->id,$this->payload()+['manual_commission_eur'=>0])
-            ->assertUnprocessable();
+        $response=$this->putJson('/api/v1/admin/catalog/products/'.$product->id,array_replace(
+            $this->payload(),['sku'=>$product->sku,'regenerate_sku'=>false,'manual_commission_eur'=>0]
+        ))->assertUnprocessable();
+        self::assertStringContainsString('manual_commission_eur',(string)$response->getContent());
         self::assertSame(2.0,(float)$product->fresh()->manual_commission_eur);
+        self::assertSame($product->sku,$product->fresh()->sku);
         self::assertDatabaseCount('products',1);
     }
 
@@ -96,7 +99,9 @@ final class ManualCommissionPolicyB1079Test extends TestCase
         $this->actingAs($this->owner,'sanctum')
             ->postJson('/api/v1/admin/catalog/products',$this->payload()+['manual_commission_eur'=>2])->assertCreated();
         $product=Product::query()->sole();
-        $this->putJson('/api/v1/admin/catalog/products/'.$product->id,$this->payload()+['manual_commission_eur'=>''])
+        $this->putJson('/api/v1/admin/catalog/products/'.$product->id,array_replace(
+            $this->payload(),['sku'=>$product->sku,'regenerate_sku'=>false,'manual_commission_eur'=>'']
+        ))
             ->assertOk();
         $product->refresh();
         self::assertNull($product->manual_commission_eur);
