@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\PublicRetailCartReplaySnapshot;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -28,6 +29,30 @@ final class PublicCartService
         }
         ksort($clean, SORT_NUMERIC);
         return $clean;
+    }
+
+    /**
+     * M14/M15: a completed checkout may replay the original cart only with
+     * the matching nonce and a fully valid, immutable session snapshot.
+     * Never silently drop malformed lines in this idempotency path.
+     * @return array<int,int>
+     */
+    public function replaySnapshot(Request $request, string $checkoutKey): array
+    {
+        $completedKey = $request->session()->get('ald1n.public_checkout.last_key', '');
+        if (!is_string($completedKey) || strlen($checkoutKey) < 32
+            || !hash_equals($completedKey, $checkoutKey)) {
+            return [];
+        }
+        try {
+            return PublicRetailCartReplaySnapshot::validated(
+                $request->session()->get('ald1n.public_checkout.last_cart', [])
+            );
+        } catch (\InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'cart' => 'Sačuvana korpa nije validna. Obnovi poručivanje.',
+            ]);
+        }
     }
 
     public function change(Request $request, int $productId, int $quantity): void

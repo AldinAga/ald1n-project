@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * B812 disposable localhost Chromium buyer acceptance.
+ * B812 disposable localhost Chromium/Firefox buyer acceptance.
  * SMTP is deliberately NOT used. The activation link below is synthetic,
  * and --mock-delivery substitutes its hash only after real HTTP signup.
  * Historical B799 guest-success tests are not altered or bypassed.
@@ -19,7 +19,9 @@ if(process.env.APP_ENV!=='testing'
    ||base!=='http://127.0.0.1:8124'||!root||!dir){
   throw new Error('B812_BROWSER_HOLD_LOCALHOST_SYNTHETIC_ONLY');
 }
-const {chromium}=require(path.join(root,'node_modules','playwright'));
+const engine=process.env.B812_BROWSER_ENGINE||'chromium';
+assert(['chromium','firefox'].includes(engine),'B812_BROWSER_HOLD_UNSUPPORTED_ENGINE');
+const browserType=require(path.join(root,'node_modules','playwright'))[engine];
 const fixture='tests/Browser/seed-b812-registered-buyer.php';
 const buyerEmail='b812-browser-buyer@example.test';
 const activationToken='B812'+'x'.repeat(76);
@@ -46,6 +48,21 @@ async function openOk(page,where,label){
   }));
   assert(measure.scrollWidth<=measure.width+2,
     label+' horizontal overflow '+JSON.stringify(measure));
+  if(where.startsWith('/katalog')){
+    const image=page.locator('img[src^="/katalog/slika/"]');
+    await image.scrollIntoViewIfNeeded();
+    await image.evaluate(img=>img.decode());
+    assert.deepEqual(await image.evaluate(img=>({
+      complete:img.complete,width:img.naturalWidth,height:img.naturalHeight,
+    })),{complete:true,width:320,height:240},label+' decoded PNG');
+    const src=await image.getAttribute('src');
+    assert.match(src,/^\/katalog\/slika\/\d+$/);
+    const media=await page.context().request.get(base+src);
+    assert.equal(media.status(),200,label+' image HTTP');
+    assert.match(media.headers()['content-type'],/^image\/png/);
+    assert.match(media.headers()['cache-control'],/private/);
+    assert.match(media.headers()['cache-control'],/no-store/);
+  }
   return response;
 }
 function avoidInternalNumbers(text,label){
@@ -54,7 +71,7 @@ function avoidInternalNumbers(text,label){
 }
 
 (async()=>{
-  const browser=await chromium.launch({headless:true});
+  const browser=await browserType.launch({headless:true});
   try{
     for(const width of [1440,390]){
       const ctx=await browser.newContext({viewport:{width,height:900}});
@@ -180,7 +197,7 @@ function avoidInternalNumbers(text,label){
       assert.equal(new URL(repeatedLocation,base).pathname,receiptPath,
         'nonce replay must not change receipt capability');
       php('--verify');
-      console.log('B812_REGISTERED_CHROMIUM=PASS SIGNUP_ACTIVATION_LOGIN_CART_ORDER_REPLAY');
+      console.log('B812_REGISTERED_'+engine.toUpperCase()+'=PASS SIGNUP_ACTIVATION_LOGIN_CART_ORDER_REPLAY');
     }finally{await ctx.close();}
 
     // Role check is a genuinely independent HTTP browser session, not an
@@ -199,6 +216,6 @@ function avoidInternalNumbers(text,label){
     }finally{await staff.close();}
   }finally{await browser.close();}
 })().catch(e=>{
-  console.error('B812_CHROMIUM_FAIL '+String(e.message).replace(/[a-f0-9]{64,}/g,'[REDACTED]'));
+  console.error('B812_'+engine.toUpperCase()+'_FAIL '+String(e.message).replace(/[a-f0-9]{64,}/g,'[REDACTED]'));
   process.exitCode=1;
 });

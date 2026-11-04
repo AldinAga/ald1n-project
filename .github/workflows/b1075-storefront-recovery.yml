@@ -1,0 +1,313 @@
+name: B1075 isolated storefront recovery (NO DEPLOY)
+on:
+  pull_request:
+    branches: [feat/b799-public-retail-catalog-cart-checkout]
+    paths:
+      - 'apps/cms/current/**'
+      - 'apps/mobile/current/**'
+      - 'packages/api-contract/openapi.yaml'
+      - 'tools/storefront/b1075/**'
+      - '.github/workflows/b1075-storefront-recovery.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b1075-${{ github.head_ref }}
+  cancel-in-progress: false
+jobs:
+  isolated-storefront:
+    if: github.head_ref == 'fix/b1075-storefront-recovery-20261103'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      baseline_db:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_retirement_ci
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ci_only_b1075
+          MARIADB_ROOT_PASSWORD: ci_only_root_b1075
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      candidate_db:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_retirement_ci
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ci_only_b1075
+          MARIADB_ROOT_PASSWORD: ci_only_root_b1075
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ci_only_b1075
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+    steps:
+      - name: Frozen original PR93
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: acb8b9c42ec9254b1a27567abca29a26c1f733f8
+          path: original
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact recovery head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
+          fetch-depth: 0
+      - name: PHP8.4 and locked dependencies
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Preserve all protected historic fixtures and dependency locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C original rev-parse HEAD)" = acb8b9c42ec9254b1a27567abca29a26c1f733f8
+          test "$(git -C candidate rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          python3 - <<'PY'
+          import pathlib,subprocess
+          paths=subprocess.check_output(['git','-C','original','ls-files','apps/cms/current/tests'],text=True).splitlines()
+          protected=[p for p in paths if any(n in p for n in ('B805','B809','B815'))]
+          assert protected,'empty protected test census'
+          for p in protected+['apps/cms/current/composer.json','apps/cms/current/composer.lock']:
+              assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
+          print('PROTECTED_FIXTURES_AND_LOCKS_UNCHANGED',len(protected))
+          repairs={
+              'apps/cms/current/tests/Unit/LegacyReadOnlyGuardTest.php':[
+                  ('use LogicException;','use LogicException;\nuse PHPUnit\\Framework\\Attributes\\DataProvider;'),
+                  ('/** @dataProvider mutatingQueries */',"#[DataProvider('mutatingQueries')]"),
+              ],
+              'apps/cms/current/tests/Unit/DeliveryNoteMigrationContractTest.php':[
+                  ('use PHPUnit\\Framework\\TestCase;','use Tests\\TestCase;'),
+              ],
+          }
+          for p,replacements in repairs.items():
+              expected=(pathlib.Path('original')/p).read_text()
+              for old,new in replacements:
+                  assert expected.count(old)==1,p
+                  expected=expected.replace(old,new)
+              assert (pathlib.Path('candidate')/p).read_text()==expected,p
+          print('LEGACY_TEST_INPUTS_AND_ASSERTIONS_UNCHANGED_METADATA_ONLY')
+          PY
+          composer install --working-dir=original/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
+          composer install --working-dir=candidate/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
+      - name: Real MariaDB focused journeys and full unfiltered identity comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1075-evidence"
+          mkdir -p "$evidence"
+          for port in 3306 3307; do
+            actual="$(DB_PORT="$port" php -r '$db=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));$v=$db->query("SELECT VERSION()")->fetchColumn();if(!str_starts_with($v,"10.11.19-"))exit(3);echo $db->query("SELECT DATABASE()")->fetchColumn();')"
+            test "$actual" = ald1n_retirement_ci
+          done
+          run_suite() {
+            tree="$1"; port="$2"; label="$3"; shift 3
+            set +e
+            (cd "$tree/apps/cms/current" && DB_PORT="$port" LEGACY_DB_PORT="$port" php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$label.xml" "$@") > "$evidence/$label.log" 2>&1
+            result=$?
+            set -e
+            printf '%s\n' "$result" > "$evidence/$label.exit"
+          }
+          run_suite candidate 3307 focused \
+            tests/Feature/PublicMediaCacheAndCartRedirectB877Test.php \
+            tests/Feature/StorefrontMediaPathBoundaryB893Test.php \
+            tests/Feature/StorefrontHtmlOriginBoundaryB899Test.php \
+            tests/Feature/StorefrontLocalValidationB889Test.php \
+            tests/Feature/PublicNoScriptCspB872Test.php \
+            tests/Feature/RegisteredStorefrontFlowB1075Test.php \
+            tests/Feature/CoreAccessRoleIdStabilityB876Test.php \
+            tests/Unit/LegacyReadOnlyGuardTest.php \
+            tests/Unit/DeliveryNoteMigrationContractTest.php \
+            tests/Feature/ManualCommissionPolicyB1079Test.php \
+            tests/Unit/CommissionCalculatorTest.php \
+            tests/Unit/CommissionPercentagePolicyContractTest.php
+          if test "$(cat "$evidence/focused.exit")" != 0; then
+            tail -120 "$evidence/focused.log"
+            echo 'HOLD_FOCUSED_SOURCE_REGRESSIONS'
+            exit 1
+          fi
+          run_suite original 3306 original-full & original_pid=$!
+          run_suite candidate 3307 candidate-full & candidate_pid=$!
+          wait "$original_pid"
+          wait "$candidate_pid"
+          php candidate/tools/storefront/b1075/compare-junit.php "$evidence/original-full.xml" "$evidence/candidate-full.xml" "$evidence/comparison.json"
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import os,json,pathlib,xml.etree.ElementTree as E
+          d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
+          cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
+          assert len(cases)==86,len(cases)
+          assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
+          assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
+          assert report['before']['count']==553,report['before']['count']
+          assert report['after']['count']==640,report['after']['count']
+          assert report['before']['skippedCount']==report['after']['skippedCount']==0
+          legacy='Tests.Unit.LegacyReadOnlyGuardTest::test_mutating_and_locking_queries_are_blocked'
+          expected_provider_cases={legacy+' with data set #'+str(i) for i in range(7)}
+          commission_prefix='Tests.Unit.CommissionCalculatorTest::'
+          commission_migrations={
+              commission_prefix+'test_existing_automatic_fifty_euro_maximum_is_preserved':
+                  commission_prefix+'test_automatic_commission_has_no_fixed_fifty_euro_maximum',
+              commission_prefix+'test_manual_commission_requires_uncapped_ten_percent_floor':
+                  commission_prefix+'test_positive_manual_commission_may_override_below_or_above_ten_percent',
+          }
+          assert set(report['missingOriginalCases'])=={legacy,*commission_migrations},report['missingOriginalCases']
+          for old,new in commission_migrations.items():
+              assert old in report['before']['failed']
+              assert new in report['after']['ids'] and new not in report['after']['failed']
+          assert legacy in report['before']['failed']
+          assert expected_provider_cases.issubset(report['after']['ids'])
+          assert not expected_provider_cases.intersection(report['after']['failed'])
+          (d/'legacy-provider-identity-migration.json').write_text(json.dumps({
+              'old_discovery_error_identity':legacy,
+              'actual_original_provider_cases':sorted(expected_provider_cases),
+              'legacy_provider_source_constraint':'metadata-only; original inputs and assertions unchanged',
+              'owner_20261104_commission_rule_identity_migrations':commission_migrations,
+          },indent=2))
+          assert not report['newFailed'],report['newFailed']
+          if report['after']['failedCount']:
+              raise SystemExit('HOLD_HISTORICAL_FULL_SUITE_FAILURES: '+str(report['after']['failedCount']))
+          PY
+      - name: Preserve complete actual results even under HOLD
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1075-actual-mariadb-junit
+          path: ${{ runner.temp }}/b1075-evidence
+          if-no-files-found: error
+          retention-days: 7
+  mobile-commission-source:
+    if: github.head_ref == 'fix/b1075-storefront-recovery-20261103'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Locked mobile install and existing canonical source gates only
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          export npm_config_cache="$RUNNER_TEMP/b1079-npm-cache"
+          node -e "if(require('./package.json').packageManager!=='npm@10.9.2')process.exit(2)"
+          npm exec --yes --package=npm@10.9.2 -- npm ci --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-install.log"
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-typecheck.log"
+          node scripts/validate-project.mjs 2>&1 | tee "$RUNNER_TEMP/b1079-mobile-validator.log"
+          node <<'NODE' | tee "$RUNNER_TEMP/b1079-openapi-parity.log"
+          const fs=require('node:fs'),assert=require('node:assert/strict'),yaml=require('yaml');
+          const paths=['../../cms/current/docs/openapi.yaml','docs/openapi.yaml','../../../packages/api-contract/openapi.yaml'];
+          const docs=paths.map(p=>fs.readFileSync(p,'utf8'));
+          assert(docs.every(x=>x===docs[0]),'OpenAPI byte parity');
+          for(const document of docs){
+            const field=yaml.parse(document).components.schemas.AdminProductCreateInput.properties.manual_commission_eur;
+            assert.deepEqual(field.type,['number','null']);
+            assert.equal(field.minimum,0.01);
+            assert.equal(field.maximum,999999.99);
+            assert.match(field.description,/lower or higher than 10%/);
+          }
+          console.log('OPENAPI_3_COPIES_POSITIVE_NULLABLE_COMMISSION_PASS');
+          NODE
+          git diff --exit-code -- package.json package-lock.json
+      - name: Full Release25 baseline and candidate, preserve historical failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/b1079-release25-baseline"
+          base=7efffa17f068494b23d9713b7af4896c7045f349
+          test ! -e "$baseline"
+          git diff --exit-code "$base" HEAD -- apps/mobile/current/scripts/release25 apps/mobile/current/package.json apps/mobile/current/package-lock.json \
+            ':(exclude)apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs' \
+            ':(exclude)apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs'
+          test "$(git diff --name-only "$base" HEAD -- apps/mobile/current/scripts/release25 | wc -l)" -eq 2
+          git worktree add --detach "$baseline" "$base"
+          test "$(git -C "$baseline" rev-parse HEAD)" = "$base"
+          ln -s "$GITHUB_WORKSPACE/apps/mobile/current/node_modules" "$baseline/apps/mobile/current/node_modules"
+          run_release25() {
+            tree="$1"; label="$2"
+            set +e
+            (cd "$tree/apps/mobile/current" && node --test scripts/release25/*.test.mjs) 2>&1 | tee "$RUNNER_TEMP/b1079-$label-release25.tap"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$result" > "$RUNNER_TEMP/b1079-$label-release25.exit"
+          }
+          run_release25 "$baseline" baseline
+          run_release25 "$GITHUB_WORKSPACE" candidate
+          python3 - <<'PY'
+          import json,os,pathlib,re
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          def scan(text):
+              counts={}
+              for key in ('tests','pass','fail','cancelled','skipped','todo'):
+                  found=re.findall(r'(?m)^# '+key+r' (\d+)$',text)
+                  assert found,'missing TAP count '+key
+                  counts[key]=int(found[-1])
+              failed=re.findall(r'(?m)^not ok \d+ - (.+)$',text)
+              assert len(failed)==len(set(failed))==counts['fail'],'ambiguous TAP failures'
+              return dict(counts,failed_ids=failed)
+          fixture='\n'.join(['ok 1 - accepted','not ok 2 - sentinel','# tests 2','# pass 1','# fail 1','# cancelled 0','# skipped 0','# todo 0'])
+          assert scan(fixture)['failed_ids']==['sentinel']
+          try:
+              scan(fixture.replace('not ok 2 - sentinel','ok 2 - sentinel'))
+          except AssertionError:
+              pass
+          else:
+              raise AssertionError('TAP census self-check did not reject hidden failure')
+          results={}
+          for label in ('baseline','candidate'):
+              result=scan((root/('b1079-'+label+'-release25.tap')).read_text())
+              assert result['tests']==222,result
+              assert result['cancelled']==result['skipped']==result['todo']==0,result
+              rc=int((root/('b1079-'+label+'-release25.exit')).read_text())
+              assert rc==(1 if result['fail'] else 0),rc
+              results[label]=result
+          new=sorted(set(results['candidate']['failed_ids'])-set(results['baseline']['failed_ids']))
+          report=dict(results,new_failed_ids=new,release25_source_and_dependency_census='two historical document bindings changed; other tests and dependency locks unchanged')
+          (root/'b1079-release25-comparison.json').write_text(json.dumps(report,indent=2))
+          assert not new,new
+          assert results['baseline']['fail']==4,results['baseline']
+          if results['candidate']['fail']:
+              raise SystemExit('HOLD_HISTORICAL_RELEASE25_FAILURES: '+str(results['candidate']['fail']))
+          PY
+      - name: Preserve source-gate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1079-mobile-source-qa
+          path: |
+            ${{ runner.temp }}/b1079-*.log
+            ${{ runner.temp }}/b1079-*.tap
+            ${{ runner.temp }}/b1079-*.exit
+            ${{ runner.temp }}/b1079-release25-comparison.json
+          retention-days: 7
+          if-no-files-found: error

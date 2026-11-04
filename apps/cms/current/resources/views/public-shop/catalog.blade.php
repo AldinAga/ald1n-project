@@ -3,7 +3,7 @@
 @section('content')
 <section class="shop-hero"><span class="eyebrow">Ponuda</span><h1>Pronađi svoj sledeći uređaj.</h1>
 <p>Javno dostupni aktivni artikli. Cene su pune prodajne cene, bez internih provizija.</p></section>
-<form class="shop-filters" method="get" action="{{ route('public-shop.catalog') }}">
+<form class="shop-filters" method="get" action="{{ route('public-shop.catalog', [], false) }}">
 <label>Pretraga <input name="q" type="search" maxlength="80" value="{{ request('q') }}" placeholder="Naziv ili SKU"></label>
 <label>Brend <select name="brand_id"><option value="">Svi</option>@foreach($filters['brands'] as $brand)
 <option value="{{ $brand->id }}" @selected((int)request('brand_id') === (int)$brand->id)>{{ $brand->name }}</option>
@@ -19,15 +19,15 @@
 <div class="shop-products">
 @forelse($page as $p)
 <article class="shop-product">
-<a class="shop-image" href="{{ route('public-shop.show',$p['slug']) }}">
+<a class="shop-image" href="{{ route('public-shop.show',$p['slug'],false) }}">
 @if($p['image'])<img src="{{ $p['image'] }}" alt="" loading="lazy" width="320" height="240">@else<span class="no-image">Fotografija nije dostupna</span>@endif
 </a><div class="shop-product-body">
 <span class="eyebrow">{{ $p['brand'] }}</span>
-<h2><a href="{{ route('public-shop.show',$p['slug']) }}">{{ $p['name'] }}</a></h2>
+<h2><a href="{{ route('public-shop.show',$p['slug'],false) }}">{{ $p['name'] }}</a></h2>
 <p class="sku">SKU {{ $p['sku'] }}</p>
 <div class="shop-price">{{ $p['price_original'] }} {{ $p['currency'] }}</div>
 <p class="availability">{{ $p['stock']>0 ? 'Na stanju' : 'Trenutno nedostupno' }}</p>
-@if($p['can_buy'])<form method="post" action="{{ route('public-shop.cart.add',$p['id']) }}">@csrf
+@if($p['can_buy'])<form method="post" action="{{ route('public-shop.cart.add',$p['id'],false) }}">@csrf
 <input type="hidden" name="quantity" value="1"><button type="submit">Dodaj u korpu</button>
 </form>@endif</div></article>
 @empty

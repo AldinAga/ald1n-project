@@ -16,14 +16,18 @@ use Throwable;
 
 final class PublicCheckoutController extends Controller
 {
-    private function requireRetailBuyer(Request $request): void
+    private function requireRetailBuyer(Request $request): ?RedirectResponse
     {
         $actor=$request->user();
         // A public order is ONLY available to a signed-in, active Kupac.
         // Never turn a missing identity or staff account into an anonymous sale.
         if ($actor===null) {
-            throw new \Illuminate\Auth\AuthenticationException(
-                'Prijavi se ili registruj nalog Kupca pre poručivanja.', ['web'], route('login'));
+            if ($request->expectsJson()) {
+                throw new \Illuminate\Auth\AuthenticationException(
+                    'Prijavi se ili registruj nalog Kupca pre poručivanja.', ['web'], '/login');
+            }
+            // Never derive the redirect authority from Host or forwarded headers.
+            return new RedirectResponse('/login');
         }
         abort_unless($actor->status==='active' && $actor->retired_at===null
             && $actor->email_verified_at!==null && $actor->portal_activated_at!==null
@@ -46,18 +50,23 @@ final class PublicCheckoutController extends Controller
             \Illuminate\Support\Facades\Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            throw new \Illuminate\Auth\AuthenticationException(
-                'Prijava je istekla. Prijavite se ponovo.', ['web'], route('login')
-            );
+            if ($request->expectsJson()) {
+                throw new \Illuminate\Auth\AuthenticationException(
+                    'Prijava je istekla. Prijavite se ponovo.', ['web'], '/login'
+                );
+            }
+            // Never generate an absolute Location from spoofable request Host.
+            return new RedirectResponse('/login');
         }
+        return null;
     }
 
-    public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View
+    public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View|RedirectResponse
     {
         // Preserve the storefront-wide OFF/404 contract for every visitor,
         // then enforce buyer-only authorization while it is available.
         $ready=$policy->assertReady();
-        $this->requireRetailBuyer($request);
+        if (($redirect=$this->requireRetailBuyer($request)) !== null) return $redirect;
         $quote=$cart->quote($request);
         if (!$quote['items'] || $quote['stale']) {
             abort(409,'Korpa mora sadržati dostupne artikle pre poručivanja.');
@@ -88,7 +97,7 @@ final class PublicCheckoutController extends Controller
     ): RedirectResponse {
         // OFF must stay a uniform 404 even for authenticated operators.
         $policy->assertReady();
-        $this->requireRetailBuyer($request);
+        if (($redirect=$this->requireRetailBuyer($request)) !== null) return $redirect;
         $validated=$request->validate([
             'checkout_key'=>['required','string','size:48'],
             'merchant_policy_fingerprint'=>['required','regex:/^[a-f0-9]{64}$/D'],

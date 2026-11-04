@@ -11,9 +11,9 @@ require dirname(__DIR__,2).'/vendor/autoload.php';
 $app=require dirname(__DIR__,2).'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use App\Models\{Order, Product, PublicCheckoutAttempt, PublicOrderAccess, Role, StockMovement, User, UserActivationToken};
+use App\Models\{Order, Product, ProductImage, PublicCheckoutAttempt, PublicOrderAccess, Role, StockMovement, User, UserActivationToken};
 use App\Services\{PublicMerchantPolicyService, PublicRegistrationMailSenderService, SettingsService};
-use Illuminate\Support\Facades\{DB,Hash};
+use Illuminate\Support\Facades\{DB,Hash,Storage};
 
 $mode=$argv[1]??'';
 $buyerEmail='b812-browser-buyer@example.test';
@@ -62,7 +62,7 @@ if ($mode==='--seed') {
         'eur_rsd_rate'=>'117.78',
     ],$owner->id);
 
-    Product::query()->create([
+    $product=Product::query()->create([
         'sku'=>'B812-BROWSER',
         'slug'=>'b812-browser-laptop',
         'name'=>'B812 Synthetic Browser Laptop',
@@ -72,6 +72,22 @@ if ($mode==='--seed') {
         'purchase_price_rsd'=>999888,
         'manual_commission_eur'=>777777,
         'created_by'=>$owner->id,
+    ]);
+    // A real GD PNG avoids the malformed one-pixel fixture tolerated by Chromium.
+    $image=imagecreatetruecolor(320,240);
+    imagefill($image,0,0,imagecolorallocate($image,35,90,150));
+    ob_start();
+    imagepng($image);
+    $png=(string)ob_get_clean();
+    $relative='products/'.$product->id.'/b1077-browser.png';
+    if (!Storage::disk('public')->put($relative,$png)) {
+        throw new \RuntimeException('B1077_SYNTHETIC_IMAGE_WRITE_FAILED');
+    }
+    ProductImage::query()->create([
+        'product_id'=>$product->id,'storage_disk'=>'public','file_path'=>$relative,
+        'original_filename'=>'b1077-browser.png','mime_type'=>'image/png',
+        'file_size'=>strlen($png),'file_hash'=>hash('sha256',$png),
+        'sort_order'=>1,'is_primary'=>true,'created_at'=>now(),
     ]);
     $review=app(PublicMerchantPolicyService::class)->review();
     if (!$review['complete']) {

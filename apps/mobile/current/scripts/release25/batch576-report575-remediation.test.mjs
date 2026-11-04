@@ -6,7 +6,11 @@ import {fileURLToPath} from 'node:url';
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(dir, '../../../../..');
 const wf = fs.readFileSync(path.join(repo, '.github/workflows/ald1n-native-528.yml'), 'utf8');
-const pointer = fs.readFileSync(path.join(repo, 'docs/operations/000-LATEST.md'), 'utf8');
+// Batch576/682 assertions concern the archived CLI25 release, not today's operations index.
+const history = fs.readFileSync(path.join(repo, 'docs/operations/history/000-LATEST-before-report793-20261022.md'), 'utf8');
+const authority = '# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)';
+assert.equal(history.split(authority).length, 2, 'unique historical CLI25 authority');
+const pointer = authority + history.split(authority)[1];
 const signatureTest = path.join(dir, 'verify-signature.test.mjs');
 const trigger = 'audit/build25-native-ci-explicit-trigger-20261009';
 
