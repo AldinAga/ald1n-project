@@ -356,6 +356,69 @@ jobs:
           path: ${{ runner.temp }}/b1090-evidence
           if-no-files-found: error
           retention-days: 14
+      - name: Current API product and navigation contracts baseline versus candidate
+        if: github.head_ref == 'codex/b1091-current-contracts-20261104'
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/b1091-contract-baseline"
+          evidence="$RUNNER_TEMP/b1091-evidence"
+          base=fc402517bd610064a159d8e24fcbaf4f3e3661b8
+          test ! -e "$baseline"
+          mkdir -p "$evidence"
+          git diff --exit-code "$base" HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/database apps/cms/current/bootstrap apps/cms/current/config apps/cms/current/routes apps/cms/current/composer.json apps/cms/current/composer.lock apps/mobile ':(glob)apps/cms/current/tests/**/*B805*' ':(glob)apps/cms/current/tests/**/*B809*' ':(glob)apps/cms/current/tests/**/*B815*'
+          git worktree add --detach "$baseline" "$base"
+          cp apps/cms/current/.env "$baseline/apps/cms/current/.env"
+          composer install --working-dir="$baseline/apps/cms/current" --no-interaction --prefer-dist --no-progress
+          php <<'PHP'
+          <?php
+          $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci','root','isolated-ci-only',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+          if(!str_starts_with((string)$pdo->query('SELECT VERSION()')->fetchColumn(),'10.11.19-MariaDB'))exit(31);
+          foreach(['ald1n_contract_red_ci','ald1n_contract_green_ci'] as $name)$pdo->exec('CREATE DATABASE '.$name);
+          PHP
+          run_contracts() {
+            tree="$1"; label="$2"; database="$3"
+            set +e
+            (cd "$tree/apps/cms/current" && DB_DATABASE="$database" php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$label.xml" tests/Unit/MobileApiFoundationContractTest.php tests/Unit/MobileGoogleAuthPhase3CContractTest.php tests/Unit/OrderCostSnapshotRepairContractTest.php tests/Unit/PerformanceDataQualityContractTest.php tests/Unit/ProductMediaUxContractTest.php tests/Unit/SettingsHubNavigationContractTest.php tests/Unit/ShipmentCourierContractTest.php tests/Unit/SmartProductManagementMigrationContractTest.php tests/Feature/MobileApiFoundationTest.php tests/Feature/CatalogAccessTest.php tests/Feature/CatalogDetailPageTest.php) 2>&1 | tee "$evidence/$label.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$result" > "$evidence/$label.exit"
+          }
+          run_contracts "$baseline" baseline ald1n_contract_red_ci
+          run_contracts "$GITHUB_WORKSPACE" candidate ald1n_contract_green_ci
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import os,json,pathlib,xml.etree.ElementTree as E
+          d=pathlib.Path(os.environ['EVIDENCE'])
+          def read(label):
+              root=E.parse(d/(label+'.xml')).getroot();ids=[];bad=[];assertions=0;skipped=0
+              for suite in root.iter('testsuite'):
+                  for c in suite.findall('testcase'):
+                      key=(c.get('classname') or c.get('class') or suite.get('name'))+'::'+c.get('name')
+                      ids.append(key);assertions+=int(c.get('assertions','0'))
+                      if c.find('failure') is not None or c.find('error') is not None:bad.append(key)
+                      skipped+=c.find('skipped') is not None
+              assert len(ids)==len(set(ids)) and ids
+              return {'cases':len(ids),'assertions':assertions,'failed':bad,'skipped':skipped,'exit':int((d/(label+'.exit')).read_text())},set(ids)
+          before,old=read('baseline');after,new=read('candidate')
+          normalize=lambda values:{v.replace(chr(92),'.') for v in values}
+          expected=set(["Tests.Unit.MobileApiFoundationContractTest::test_v220_release_contains_mobile_api_contract","Tests.Unit.MobileGoogleAuthPhase3CContractTest::test_phase3c_source_contains_google_auth_security_contract","Tests.Unit.OrderCostSnapshotRepairContractTest::test_repair_is_conservative_and_uses_audited_sources","Tests.Unit.PerformanceDataQualityContractTest::test_release_profile_and_catalog_quality_filters_are_connected","Tests.Unit.ProductMediaUxContractTest::test_product_form_starts_with_name_images_and_specifications","Tests.Unit.SettingsHubNavigationContractTest::test_settings_hub_centralizes_configuration_links_and_removes_courier_link_from_order_detail","Tests.Unit.ShipmentCourierContractTest::test_shipment_and_courier_contract_markers_are_present","Tests.Unit.SmartProductManagementMigrationContractTest::test_beta719_migration_is_recoverable_and_backfills_existing_catalog"])
+          assert before['exit']!=0 and normalize(before['failed'])==expected,before
+          assert after['exit']==0 and not after['failed'],after
+          assert before['skipped']==after['skipped']==0
+          assert old.issubset(new),'all original testcase IDs must execute'
+          assert normalize(new-old)=={'Tests.Unit.MobileApiFoundationContractTest::test_shared_api_error_response_preserves_status_request_id_errors_and_headers'}
+          assert before['cases']>15,'existing real API and catalog HTTP cases must execute'
+          result={'base':'fc402517bd610064a159d8e24fcbaf4f3e3661b8','baseline':before,'candidate':after,'all_original_ids_retained':True,'one_shared_error_behavior_case_added':True,'application_and_protected_source_byte_identical':True}
+          (d/'comparison.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
+          PY
+      - name: Retain all current contract evidence including RED
+        if: always() && github.head_ref == 'codex/b1091-current-contracts-20261104'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1091-real-mariadb-contract-red-green
+          path: ${{ runner.temp }}/b1091-evidence
+          if-no-files-found: error
+          retention-days: 14
       - name: Results do not deploy production
         if: always()
         run: |

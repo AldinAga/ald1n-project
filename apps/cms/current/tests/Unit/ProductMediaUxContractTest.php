@@ -12,15 +12,16 @@ final class ProductMediaUxContractTest extends TestCase
     {
         $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/admin/products/form.blade.php');
 
-        $name = strpos($view, '<h2>Naziv artikla</h2>');
+        $name = strpos($view, 'data-product-name');
         $images = strpos($view, '<h2>Dodavanje slika</h2>');
         $specifications = strpos($view, '<h2>Specifikacije</h2>');
 
         self::assertIsInt($name);
         self::assertIsInt($images);
         self::assertIsInt($specifications);
-        self::assertLessThan($images, $name);
-        self::assertLessThan($specifications, $images);
+        // The approved product workflow is identity, specifications, then media.
+        self::assertLessThan($specifications, $name);
+        self::assertLessThan($images, $specifications);
     }
 
     public function test_gallery_has_touch_sort_primary_rotation_and_upload_progress(): void

@@ -22,7 +22,7 @@ final class SettingsHubNavigationContractTest extends TestCase
         self::assertStringContainsString("name('settings.index')", $routes);
         self::assertStringContainsString("route('admin.settings.index')", $layout);
         self::assertStringContainsString("route('admin.settings.couriers.index')", $layout);
-        self::assertStringContainsString('Centar podešavanja', $layout);
+        self::assertStringContainsString('Sva podešavanja', $layout);
         self::assertStringContainsString('Pronađi podešavanje', $hub);
         self::assertStringContainsString('Kurirske službe', $hub);
         self::assertStringContainsString('Šifarnici kataloga', $hub);
@@ -32,7 +32,10 @@ final class SettingsHubNavigationContractTest extends TestCase
         self::assertStringContainsString('Dobavljači servisnih delova', $hub);
         self::assertStringContainsString('Grupe pristupa', $hub);
         self::assertStringNotContainsString('Podešavanja kurira', $order);
-        self::assertStringContainsString("route('admin.settings.index')", $couriers);
+        $contextNav=(string)file_get_contents($root.'/resources/views/admin/settings/partials/context-nav.blade.php');
+        self::assertStringContainsString("@include('admin.settings.partials.context-nav'", $couriers);
+        self::assertStringContainsString("route('admin.settings.index')", $contextNav);
+        self::assertStringNotContainsString('Nazad na porudžbine', $contextNav);
         self::assertStringNotContainsString('Nazad na porudžbine', $couriers);
     }
 }
