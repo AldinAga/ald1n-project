@@ -35,8 +35,10 @@ jobs:
           assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3');
           assert.deepEqual(now.packages[''],old.packages['']);
           const expected={'node_modules/@xmldom/xmldom':'0.8.15','node_modules/brace-expansion':'5.0.12','node_modules/node-forge':'1.4.3','node_modules/plist/node_modules/@xmldom/xmldom':'0.9.12','node_modules/shell-quote':'1.12.0','node_modules/zod':'4.6.7'};
+          const {isDeepStrictEqual}=require('node:util');
+          assert(isDeepStrictEqual({a:1,b:2},{b:2,a:1}));assert(!isDeepStrictEqual({version:'1'},{version:'2'}));
           const keys=[...new Set([...Object.keys(old.packages),...Object.keys(now.packages)])],changed=[];
-          for(const k of keys){if(JSON.stringify(old.packages[k])!==JSON.stringify(now.packages[k])){assert(k in expected,'unexpected package object changed: '+k);assert.equal(now.packages[k].version,expected[k]);changed.push(k);}}
+          for(const k of keys){if(!isDeepStrictEqual(old.packages[k],now.packages[k])){assert(k in expected,'unexpected package object changed: '+k);assert.equal(now.packages[k].version,expected[k]);changed.push(k);}}
           assert.deepEqual(changed.sort(),Object.keys(expected).sort());
           cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--','apps/mobile/current/package.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json','apps/mobile/current/src','apps/mobile/current/scripts','apps/cms/current','packages']);
           fs.writeFileSync(process.env.RUNNER_TEMP+'/b1106-mobile/lock-proof.json',JSON.stringify({baseline:base,changed,allOtherPackageObjectsUnchanged:true,noNativeConfigOrApplicationChange:true},null,2)+'\n');
