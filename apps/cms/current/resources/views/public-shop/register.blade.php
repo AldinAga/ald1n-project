@@ -13,8 +13,10 @@
 <form method="post" action="{{ route('public-shop.register.submit', [], false) }}">@csrf
 <label>Ime <input name="first_name" required minlength="2" maxlength="100" autocomplete="given-name" value="{{ old('first_name') }}"></label>
 <label>Prezime <input name="last_name" required minlength="2" maxlength="100" autocomplete="family-name" value="{{ old('last_name') }}"></label>
-<label>Email <input type="email" name="email" required maxlength="190" autocomplete="email" value="{{ old('email') }}"></label>
-<label>Telefon (opciono) <input name="phone" maxlength="40" autocomplete="tel" value="{{ old('phone') }}"></label>
+<label>Adresa <input name="address" required maxlength="255" autocomplete="street-address" value="{{ old('address') }}"></label>
+<label>Grad <input name="city" required maxlength="120" autocomplete="address-level2" value="{{ old('city') }}"></label>
+<label>Telefon <input type="tel" name="phone" required maxlength="40" autocomplete="tel" value="{{ old('phone') }}"></label>
+<label>E-mail <input type="email" name="email" required maxlength="190" autocomplete="email" value="{{ old('email') }}"></label>
 <div class="shop-hidden-hp" aria-hidden="true"><label>Website<input name="website" autocomplete="off" tabindex="-1"></label></div>
 @if($turnstileEnabled)<div class="cf-turnstile" data-sitekey="{{ $turnstileSiteKey }}" data-action="retail_registration"></div>@endif
 <label class="shop-choice"><input type="checkbox" name="accepted_privacy" value="1" required>
