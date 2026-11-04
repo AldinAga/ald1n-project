@@ -1,0 +1,291 @@
+name: B1109 bounded host readiness contract (NO HOST ACCESS)
+on:
+  pull_request:
+    paths: ['.github/workflows/b1109-readiness-contract.yml']
+permissions:
+  contents: read
+jobs:
+  isolated-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with: {php-version: '8.4', coverage: none}
+      - name: Verify immutable operator bytes and Bash/PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/b1109-upload/incoming"
+          printf '%s' 'IyEvdXNyL2Jpbi9lbnYgYmFzaApjbGVhciAyPi9kZXYvbnVsbCB8fCBwcmludGYgJ1wwMzNjJwpzZXQgLXUKc2V0IC1vIHBpcGVmYWlsCnVtYXNrIDA3NwpFWFBFQ1RFRF9CT0RZX1NIQT1lNzU2YTQ2NGIzMmM5YzZiYjUyMmQ4ZjU3YmMyYzViNTM2NGE2OGM2ZmYwMjNlY2ZjMzI2MGY4NDFmZjhiMjQ3CkVYUEVDVEVEX0hFTFBFUl9TSEE9YTdhNDliOTdkYmEzNzU0YzcwMzQ3Njg5MjRlOGY4MzJiYjQ2OWVkYTc0YzJiMTdmMGY1MzRkOGE2MWVjNTM3NgpST09UPS9ob21lL2ljYWZmZWNvL2FsZDFuLXByb2plY3QKU0NSSVBUPSIkUk9PVC9pbmNvbWluZy9iMTEwOS1ob3N0LXJlYWRpbmVzcy5zaCIKSEVMUEVSPSIkUk9PVC9pbmNvbWluZy9iMTEwOS1ob3N0LXJlYWRpbmVzcy5waHAiCmlmIFsgIiQjIiAtbmUgMCBdIHx8IFsgIiQocmVhbHBhdGggLS0gIiQwIikiICE9ICIkU0NSSVBUIiBdIHx8IFsgIiQoaWQgLXVuKSIgIT0gaWNhZmZlY28gXTsgdGhlbgogIHByaW50ZiAnJXNcbicgJ0hPTEQ6IGNhbm9uaWNhbCBwYXRoLCBvd25lciBvciBhcmd1bWVudHMgbWlzbWF0Y2guJzsgZXhpdCAyCmZpCkJPRFk9JChzZWQgJy9eRVhQRUNURURfQk9EWV9TSEE9L2QnICIkU0NSSVBUIiB8IHNoYTI1NnN1bSk7IEJPRFk9JHtCT0RZJSUgKn0KaWYgWyAiJEJPRFkiICE9ICIkRVhQRUNURURfQk9EWV9TSEEiIF0gfHwgWyAhIC1mICIkSEVMUEVSIiBdIHx8IFsgLUwgIiRIRUxQRVIiIF07IHRoZW4KICBwcmludGYgJyVzXG4nICdIT0xEOiBzY3JpcHQgaW50ZWdyaXR5IG9yIGNhbm9uaWNhbCBoZWxwZXIgdW5hdmFpbGFibGUuJzsgZXhpdCAyCmZpCkhBU0g9JChzaGEyNTZzdW0gIiRIRUxQRVIiKTsgSEFTSD0ke0hBU0glJSAqfQppZiBbICIkSEFTSCIgIT0gIiRFWFBFQ1RFRF9IRUxQRVJfU0hBIiBdOyB0aGVuIHByaW50ZiAnJXNcbicgJ0hPTEQ6IGhlbHBlciBpbnRlZ3JpdHkgbWlzbWF0Y2guJzsgZXhpdCAyOyBmaQpET0NTPSIkUk9PVC9kb2NzL29wZXJhdGlvbnMiCmlmIFsgISAtZCAiJERPQ1MiIF0gfHwgWyAhIC13ICIkRE9DUyIgXSB8fCBbIC1MICIkRE9DUyIgXTsgdGhlbiBwcmludGYgJyVzXG4nICdIT0xEOiBjYW5vbmljYWwgcmVwb3J0IGRpcmVjdG9yeSB1bmF2YWlsYWJsZS4nOyBleGl0IDI7IGZpCmZvciBkaXIgaW4gL2hvbWUgL2hvbWUvaWNhZmZlY28gIiRST09UIiAiJFJPT1QvaW5jb21pbmciICIkUk9PVC9kb2NzIiAiJERPQ1MiICIkUk9PVC9hcHBzIiAiJFJPT1QvYXBwcy9jbXMiICIkUk9PVC9hcHBzL2Ntcy9jdXJyZW50IjsgZG8KICBpZiBbICEgLWQgIiRkaXIiIF0gfHwgWyAtTCAiJGRpciIgXTsgdGhlbiBwcmludGYgJyVzXG4nICdIT0xEOiBub25jYW5vbmljYWwgZGlyZWN0b3J5IGFuY2VzdG9yLic7IGV4aXQgMjsgZmkKZG9uZQpQUkVWSU9VUz0iJERPQ1MvMTA3MC1CMTEwOC1TVE9SRUZST05ULUhPU1QtSU5WRU5UT1JZLTIwMjYxMTA0LTEyNDQxNC5tZCIKSEFTSD0kKHNoYTI1NnN1bSAiJFBSRVZJT1VTIiAyPi9kZXYvbnVsbCk7IEhBU0g9JHtIQVNIJSUgKn0KaWYgWyAiJEhBU0giICE9IDhhMWI1MTg5NWU1MTRlNDIxMWViM2IzMmI5NGEwMTQ3N2QyNjFiMDExNDY2ODQ2NGIyYzIxMmM1NjZhMjUyZjggXTsgdGhlbgogIHByaW50ZiAnJXNcbicgJ0hPTEQ6IHByZXZpb3VzIGFjdHVhbCBSZXBvcnQxMDcwIGJpbmRpbmcgZmFpbGVkOyBubyBmYWxsYmFjay4nOyBleGl0IDIKZmkKT1JJR0lOPSQoZ2l0IC1DICIkUk9PVCIgcmVtb3RlIGdldC11cmwgb3JpZ2luKQpjYXNlICIkT1JJR0lOIiBpbiBodHRwczovL2dpdGh1Yi5jb20vQWxkaW5BZ2EvYWxkMW4tcHJvamVjdC5naXR8Z2l0QGdpdGh1Yi5jb206QWxkaW5BZ2EvYWxkMW4tcHJvamVjdC5naXQpIDs7ICopIHByaW50ZiAnJXNcbicgJ0hPTEQ6IHVua25vd24gb3JpZ2luLic7IGV4aXQgMjs7IGVzYWMKZ2l0IC1DICIkUk9PVCIgZmV0Y2ggLS1xdWlldCBvcmlnaW4gbWFpbiB8fCB7IHByaW50ZiAnJXNcbicgJ0hPTEQ6IGZyZXNoIG9yaWdpbi9tYWluIHVuYXZhaWxhYmxlLic7IGV4aXQgMjsgfQpMT0NLPSIkSE9NRS8uYWxkMW4tYjExMDktcmVhZGluZXNzLWxvY2siCm1rZGlyICIkTE9DSyIgMj4vZGV2L251bGwgfHwgeyBwcmludGYgJyVzXG4nICdIT0xEOiByZWFkaW5lc3MgbG9jayBleGlzdHM7IGRvIG5vdCByZXN0YXJ0IGJsaW5kbHkuJzsgZXhpdCAyOyB9CnRyYXAgJ3JtZGlyICIkTE9DSyIgMj4vZGV2L251bGwgfHwgdHJ1ZScgRVhJVApSRU1PVEVfTUFYPSQoZ2l0IC1DICIkUk9PVCIgbHMtdHJlZSAtciAtLW5hbWUtb25seSBvcmlnaW4vbWFpbiBkb2NzL29wZXJhdGlvbnMgfCBhd2sgLUYvICd7bj0kTkY7aWYobn4vXlswLTldKy0vKXtzdWIoLy0uKi8sIiIsbik7aWYobiswPm0pbT1uKzB9fUVORHtwcmludCBtKzB9JykKcmM9JD87IGlmIFsgIiRyYyIgLW5lIDAgXTsgdGhlbiBwcmludGYgJyVzXG4nICdIT0xEOiByZW1vdGUgcmVwb3J0IGNlbnN1cyBmYWlsZWQuJzsgZXhpdCAyOyBmaQpMT0NBTF9NQVg9JChmaW5kICIkRE9DUyIgLW1heGRlcHRoIDEgLXR5cGUgZiAtcHJpbnRmICclZlxuJyB8IGF3ayAne249JDA7c3ViKC9eXC4vLCIiLG4pO2lmKG5+L15bMC05XSstLyl7c3ViKC8tLiovLCIiLG4pO2lmKG4rMD5tKW09biswfX1FTkR7cHJpbnQgbSswfScpCnJjPSQ/OyBpZiBbICIkcmMiIC1uZSAwIF07IHRoZW4gcHJpbnRmICclc1xuJyAnSE9MRDogbG9jYWwgcmVwb3J0IGNlbnN1cyBmYWlsZWQuJzsgZXhpdCAyOyBmaQpjYXNlICIkUkVNT1RFX01BWDokTE9DQUxfTUFYIiBpbiAqWyEwLTk6XSopIHByaW50ZiAnJXNcbicgJ0hPTEQ6IG1hbGZvcm1lZCByZXBvcnQgY2Vuc3VzLic7IGV4aXQgMjs7IGVzYWMKaWYgWyAiJFJFTU9URV9NQVgiIC1sdCAxMDcxIF07IHRoZW4gcHJpbnRmICclc1xuJyAnSE9MRDogcmVtb3RlIHJlcG9ydCBoaXN0b3J5IGluY29tcGxldGUuJzsgZXhpdCAyOyBmaQpORVhUPSQoKFJFTU9URV9NQVggPiBMT0NBTF9NQVggPyBSRU1PVEVfTUFYICsgMSA6IExPQ0FMX01BWCArIDEpKQpSRVBPUlQ9IiRET0NTLyQocHJpbnRmICclMDRkJyAiJE5FWFQiKS1CMTEwOS1IT1NULVJFQURJTkVTUy0kKGRhdGUgLXUgKyVZJW0lZC0lSCVNJVMpLSQkLm1kIgpTVEFHRT0iJERPQ1MvLiQoYmFzZW5hbWUgIiRSRVBPUlQiKS5wZW5kaW5nIgooc2V0IC1DOyA6ID4gIiRTVEFHRSIpIHx8IHsgcHJpbnRmICclc1xuJyAnSE9MRDogY2Fubm90IHJlc2VydmUgbmV3IHJlcG9ydCBzdGFnZS4nOyBleGl0IDI7IH0KTE9HX0ZBSUxFRD0wCmxvZygpIHsKICBwcmludGYgJyVzXG4nICIkKiIgfCB0ZWUgLWEgIiRTVEFHRSIKICBpZiBbICIke1BJUEVTVEFUVVNbMV19IiAtbmUgMCBdOyB0aGVuIExPR19GQUlMRUQ9MTsgZmkKfQpGSU5JU0hFRD0wCmZpbmlzaCgpIHsKICByZXN1bHQ9IiQxIjsgcmVhc29uPSIkMiIKICBpZiBbICIkRklOSVNIRUQiIC1lcSAxIF07IHRoZW4gcmV0dXJuOyBmaQogIEZJTklTSEVEPTEKICBsb2cgIkZJTkFMX1NUQVRVUz0kcmVhc29uIgogIGxvZyAiU0NSSVBUX1JDPSRyZXN1bHQgU09VUkNFX0RCX0VOVl9DQUNIRV9GUE1fTVVUQVRJT049Tk8iCiAgcHJpbnRmICclc1xuJyAiUkVQT1JUPSRSRVBPUlQiID4+ICIkU1RBR0UiIHx8IExPR19GQUlMRUQ9MQogIGlmIFsgIiRMT0dfRkFJTEVEIiAtbmUgMCBdOyB0aGVuIHByaW50ZiAnJXNcbicgJ0hPTEQ6IHJlcG9ydCB3cml0ZSBmYWlsZWQ7IG5vIGNvbXBsZXRlZCByZXBvcnQgY29tbWl0dGVkLic7IHJldHVybiAyOyBmaQogIG12IC1uIC0tICIkU1RBR0UiICIkUkVQT1JUIgogIG1vdmVfcmM9JD8KICBpZiBbICIkbW92ZV9yYyIgLW5lIDAgXSB8fCBbIC1lICIkU1RBR0UiIF07IHRoZW4gcHJpbnRmICclc1xuJyAnSE9MRDogZmluYWwgcmVwb3J0IG5vdCBjb21taXR0ZWQgYXRvbWljYWxseTsgcGVuZGluZyBldmlkZW5jZSByZXRhaW5lZC4nOyByZXR1cm4gMjsgZmkKICBwcmludGYgJyVzXG4nICJSRVBPUlQ9JFJFUE9SVCIKfQp0cmFwICdmaW5pc2ggMTMwIEhPTERfSU5URVJSVVBURUQ7IGV4aXQgMTMwJyBJTlQKdHJhcCAnZmluaXNoIDE0MyBIT0xEX0lOVEVSUlVQVEVEOyBleGl0IDE0MycgVEVSTQpsb2cgJyMgQjExMDkgYm91bmRlZCBzb3VyY2UvdG9vbGNoYWluL2JhY2t1cC1tZXRhZGF0YSByZWFkaW5lc3Mg4oCUIG5vIHJ1bnRpbWUvREIgdGVzdHMnCmxvZyAiU0NSSVBUX1NIQTI1Nj0kKHNoYTI1NnN1bSAiJFNDUklQVCIgfCBjdXQgLWQgJyAnIC1mMSkiCmxvZyAiSEVMUEVSX1NIQTI1Nj0kRVhQRUNURURfSEVMUEVSX1NIQSBQUkVWSU9VU19SRVBPUlRfU0hBMjU2PThhMWI1MTg5NWU1MTRlNDIxMWViM2IzMmI5NGEwMTQ3N2QyNjFiMDExNDY2ODQ2NGIyYzIxMmM1NjZhMjUyZjgiCmxvZyAiUkVQT1JUX0NFTlNVU19SRU1PVEU9JFJFTU9URV9NQVggTE9DQUw9JExPQ0FMX01BWCIKbG9nICJMT0NBTF9IRUFEPSQoZ2l0IC1DICIkUk9PVCIgcmV2LXBhcnNlIEhFQUQpIFJFTU9URV9NQUlOPSQoZ2l0IC1DICIkUk9PVCIgcmV2LXBhcnNlIG9yaWdpbi9tYWluKSIKbG9nICdTT1VSQ0VfTVVUQVRJT049Tk8gQ09NTUlUX0NSRUFURUQ9Tk8gUFVTSF9DT01QTEVURUQ9Tk8gQ0FORElEQVRFX1BVQkxJU0hFRD1OTyBQUk9EVUNUSU9OX1BST01PVEVEPU5PJwpDTVM9IiRST09UL2FwcHMvY21zL2N1cnJlbnQiCkJFRk9SRT0kKHNoYTI1NnN1bSAiJENNUy8uZW52IiAiJFJPT1QvLmdpdC9IRUFEIiAiJFJPT1QvLmdpdC9pbmRleCIgIiRDTVMvcHVibGljLy5odGFjY2VzcyIgMj4vZGV2L251bGwpCnJjPSQ/OyBpZiBbICIkcmMiIC1uZSAwIF07IHRoZW4gZmluaXNoIDIgSE9MRF9QUk9URUNURURfSU5QVVRfTUlTU0lORzsgZXhpdCAyOyBmaQpsb2cgJ0dpdCBzb3VyY2Ugc3RhdHVzIChwYXRocyBvbmx5OyBubyBkaWZmIG9yIHByaXZhdGUgY29udGVudHMpOicKIyBBdm9pZCBHaXQncyBvcHRpb25hbCBpbmRleCByZWZyZXNoIGR1cmluZyB0aGlzIHJlYWQtb25seSBpbnZlbnRvcnkuCkdJVF9PUFRJT05BTF9MT0NLUz0wIGdpdCAtQyAiJFJPT1QiIHN0YXR1cyAtLXNob3J0IC0tdW50cmFja2VkLWZpbGVzPWFsbCAtLSBhcHBzL2Ntcy9jdXJyZW50L2FwcCBhcHBzL2Ntcy9jdXJyZW50L2NvbmZpZyBhcHBzL2Ntcy9jdXJyZW50L3JvdXRlcyBhcHBzL2Ntcy9jdXJyZW50L2RhdGFiYXNlL21pZ3JhdGlvbnMgYXBwcy9jbXMvY3VycmVudC9yZXNvdXJjZXMvdmlld3MgYXBwcy9jbXMvY3VycmVudC90ZXN0cyBhcHBzL2Ntcy9jdXJyZW50L2Jvb3RzdHJhcC9hcHAucGhwIHwgdGVlIC1hICIkU1RBR0UiCnBpcGVsaW5lPSgiJHtQSVBFU1RBVFVTW0BdfSIpCmlmIFsgIiR7cGlwZWxpbmVbMV19IiAtbmUgMCBdOyB0aGVuIExPR19GQUlMRUQ9MTsgZmkKaWYgWyAiJHtwaXBlbGluZVswXX0iIC1uZSAwIF07IHRoZW4gZmluaXNoIDIgSE9MRF9HSVRfU1RBVFVTOyBleGl0IDI7IGZpCkNPTVBPU0VSX0JJTj0kKGNvbW1hbmQgLXYgY29tcG9zZXIgfHwgdHJ1ZSkKaWYgWyAtbiAiJENPTVBPU0VSX0JJTiIgXTsgdGhlbgogIFZFUlNJT049VU5LTk9XTgogIFRFWFQ9JCh7IGNkICIkUk9PVCIgJiYgIiRDT01QT1NFUl9CSU4iIC0tbm8tcGx1Z2lucyAtLW5vLXNjcmlwdHMgLS12ZXJzaW9uOyB9IDI+JjEpOyBjb21wb3Nlcl9yYz0kPwogIGlmIFtbICIkVEVYVCIgPX4gQ29tcG9zZXJcIHZlcnNpb25cIChbMC05XStcLlswLTldK1wuWzAtOV0rKSBdXTsgdGhlbiBWRVJTSU9OPSR7QkFTSF9SRU1BVENIWzFdfTsgZWxzZSBWRVJTSU9OPVVOS05PV047IGZpCiAgbG9nICJDT01QT1NFUl9WRVJTSU9OPSRWRVJTSU9OIFJDPSRjb21wb3Nlcl9yYyBOT19JTlNUQUxMPVlFUyIKZWxzZSBsb2cgJ0NPTVBPU0VSX1ZFUlNJT049TUlTU0lORyBOT19JTlNUQUxMPVlFUyc7IGZpClBIUF9CSU49JChjb21tYW5kIC12IHBocCB8fCB0cnVlKQppZiBbIC16ICIkUEhQX0JJTiIgXTsgdGhlbiBmaW5pc2ggMiBIT0xEX1BIUF9NSVNTSU5HOyBleGl0IDI7IGZpCmZpbHRlcl9waHBfb3V0cHV0KCkgewogIGJhZD0wCiAgbGluZT0nJwogIHdoaWxlIElGUz0gcmVhZCAtciBsaW5lIHx8IFsgLW4gIiRsaW5lIiBdOyBkbwogICAgaWYgW1sgIiRsaW5lIiA9fiBeKFNPVVJDRV9DRU5TVVNfQ09VTlR8UEhQX1dBUk5JTkdfQ09VTlQpPVswLTldKyQgXV07IHRoZW4gcHJpbnRmICclc1xuJyAiJGxpbmUiOyBjb250aW51ZTsgZmkKICAgIGNhc2UgIiRsaW5lIiBpbgogICAgICBTT1VSQ0VfRklMRT1ceypcfXxTT1VSQ0VfQ0VOU1VTX0lTU1VFUz1ceypcfXxGSUxFU1lTVEVNPVx7Klx9fENBQ0hFRF9GTEFHX0lOUFVUU19PTkxZPVx7Klx9fEJBQ0tVUF9GSUxFU1lTVEVNX09OTFk9XHsqXH18QjEwNjVfUkVDRUlQVD1ceypcfXxIT0xEPVx7Klx9KSBwcmludGYgJyVzXG4nICIkbGluZSI7OwogICAgICAnQ09ORklHX0NBQ0hFPSJBQlNFTlRfT1JfVU5UUlVTVEVEX05PX0VOVl9GQUxMQkFDS19OT19CT09UU1RSQVAiJ3xTT1VSQ0VfQ0VOU1VTX1NUQUJMRT1QQVNTfFNPVVJDRV9DRU5TVVNfU1RBQkxFPUhPTERfSU5DT01QTEVURV9TT1VSQ0V8QjExMDlfTUVUQURBVEFfQ09NUExFVEU9WUVTfEVGRkVDVElWRV9GUE1fRkxBR1M9Tk9UX0FUVEVTVEVEfERBVEFCQVNFX0NPTk5FQ1RJT05TPU5PTkV8RU5WX1ZBTFVFX1BBUlNFX09SX0VYUE9SVD1OT19QUklWQVRFX0lOVEVHUklUWV9IQVNIX09OTFl8UkVTVE9SRV9PUl9SRUxFQVNFX0FQUFJPVkFMPU5PVF9FVkFMVUFURUR8Tk9fUkVDT1ZFUllfTVVUQVRJT05fQVRURU1QVEVEKSBwcmludGYgJyVzXG4nICIkbGluZSI7OwogICAgICAqKSBwcmludGYgJyVzXG4nIEhPTERfUEhQX1NURE9VVF9OT0lTRT1ZRVM7IGJhZD0yOzsKICAgIGVzYWMKICBkb25lCiAgcmV0dXJuICIkYmFkIgp9CiIkUEhQX0JJTiIgLWQgZGlzcGxheV9lcnJvcnM9MCAtZCBkaXNwbGF5X3N0YXJ0dXBfZXJyb3JzPTAgLWQgbG9nX2Vycm9ycz0wIC1kIGF1dG9fcHJlcGVuZF9maWxlPSAtZCBhdXRvX2FwcGVuZF9maWxlPSAiJEhFTFBFUiIgMj4vZGV2L251bGwgfCBmaWx0ZXJfcGhwX291dHB1dCB8IHRlZSAtYSAiJFNUQUdFIgpwaXBlbGluZT0oIiR7UElQRVNUQVRVU1tAXX0iKQpoZWxwZXJfcmM9JHtwaXBlbGluZVswXX07IGZpbHRlcl9yYz0ke3BpcGVsaW5lWzFdfQppZiBbICIke3BpcGVsaW5lWzJdfSIgLW5lIDAgXTsgdGhlbiBMT0dfRkFJTEVEPTE7IGZpCmxvZyAiUEhQX0hFTFBFUl9SQz0kaGVscGVyX3JjIE9VVFBVVF9GSUxURVJfUkM9JGZpbHRlcl9yYyBTVERFUlJfU1VQUFJFU1NFRF9OT19QUklWQVRFX0RJQUdOT1NUSUNfRVhQT1JUPVlFUyIKQUZURVI9JChzaGEyNTZzdW0gIiRDTVMvLmVudiIgIiRST09ULy5naXQvSEVBRCIgIiRST09ULy5naXQvaW5kZXgiICIkQ01TL3B1YmxpYy8uaHRhY2Nlc3MiIDI+L2Rldi9udWxsKQpyYz0kPwppZiBbICIkcmMiIC1uZSAwIF0gfHwgWyAiJEJFRk9SRSIgIT0gIiRBRlRFUiIgXTsgdGhlbiBmaW5pc2ggMiBIT0xEX1BST1RFQ1RFRF9JTlBVVF9EUklGVDsgZXhpdCAyOyBmaQpsb2cgJ1BST1RFQ1RFRF9GT1VSX1VOQ0hBTkdFRD1QQVNTJwppZiAhIGdyZXAgLUZ4cSBCMTEwOV9NRVRBREFUQV9DT01QTEVURT1ZRVMgIiRTVEFHRSIgfHwgISBncmVwIC1GeHEgU09VUkNFX0NFTlNVU19TVEFCTEU9UEFTUyAiJFNUQUdFIjsgdGhlbgogIGZpbmlzaCAyIEhPTERfU09VUkNFX09SX0hFTFBFUl9JTkNPTVBMRVRFOyBleGl0IDIKZmkKaWYgWyAiJGhlbHBlcl9yYyIgLW5lIDAgXSB8fCBbICIkZmlsdGVyX3JjIiAtbmUgMCBdOyB0aGVuIGZpbmlzaCAyIEhPTERfUkVBRElORVNTX0dBVEVTOyBleGl0IDI7IGZpCmZpbmlzaCAwIElOVkVOVE9SWV9PTkxZX1JFTEVBU0VfTk9UX0FQUFJPVkVECnJjPSQ/CmV4aXQgIiRyYyIK' | base64 --decode > "$RUNNER_TEMP/b1109-upload/incoming/b1109-host-readiness.sh"
+          printf '%s' 'PD9waHAKZGVjbGFyZShzdHJpY3RfdHlwZXM9MSk7Cgokcm9vdD0nL2hvbWUvaWNhZmZlY28vYWxkMW4tcHJvamVjdCc7CiRjbXM9JHJvb3QuJy9hcHBzL2Ntcy9jdXJyZW50JzsKJHBoYXNlPSdFTlRSWSc7CiRob2xkPWZhbHNlOwokd2FybmluZ3M9MDsKZnVuY3Rpb24gZW1pdChzdHJpbmcgJGtleSwgbWl4ZWQgJHZhbHVlKTogdm9pZCB7CiAgICBlY2hvICRrZXkuJz0nLmpzb25fZW5jb2RlKCR2YWx1ZSxKU09OX1RIUk9XX09OX0VSUk9SfEpTT05fVU5FU0NBUEVEX1NMQVNIRVMpLlBIUF9FT0w7Cn0Kc2V0X2Vycm9yX2hhbmRsZXIoc3RhdGljIGZ1bmN0aW9uICgpIHVzZSAoJiR3YXJuaW5ncyk6IGJvb2wgeyAkd2FybmluZ3MrKzsgcmV0dXJuIHRydWU7IH0pOwp0cnkgewogICAgaWYgKFBIUF9TQVBJIT09J2NsaSd8fHJlYWxwYXRoKF9fRklMRV9fKSE9PSRyb290LicvaW5jb21pbmcvYjExMDktaG9zdC1yZWFkaW5lc3MucGhwJwogICAgICAgIHx8UEhQX01BSk9SX1ZFUlNJT04hPT04fHxQSFBfTUlOT1JfVkVSU0lPTiE9PTR8fCFmdW5jdGlvbl9leGlzdHMoJ3Rva2VuX2dldF9hbGwnKXx8IWZ1bmN0aW9uX2V4aXN0cygncHJvY19vcGVuJykpIHsKICAgICAgICB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignRU5UUlknKTsKICAgIH0KICAgIGZvcmVhY2ggKFsnL2hvbWUnLCcvaG9tZS9pY2FmZmVjbycsJHJvb3QsJHJvb3QuJy9hcHBzJywkcm9vdC4nL2FwcHMvY21zJywkY21zXSBhcyAkYW5jZXN0b3IpIHsKICAgICAgICBpZiAoaXNfbGluaygkYW5jZXN0b3IpfHwhaXNfZGlyKCRhbmNlc3RvcikpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdBTkNFU1RPUicpOwogICAgfQogICAgJHBoYXNlPSdTT1VSQ0VfQ0VOU1VTJzsKICAgICRkaXJzPVsnYXBwJywnY29uZmlnJywncm91dGVzJywnZGF0YWJhc2UvbWlncmF0aW9ucycsJ3Jlc291cmNlcy92aWV3cycsJ3Rlc3RzJ107CiAgICAkY2Vuc3VzPXN0YXRpYyBmdW5jdGlvbiAoKSB1c2UgKCRjbXMsJGRpcnMpOiBhcnJheSB7CiAgICAgICAgJHBhdGhzPVtdOyRtaXNzaW5nRGlycz1bXTsKICAgICAgICBmb3JlYWNoICgkZGlycyBhcyAkZGlyKSB7CiAgICAgICAgICAgICRiYXNlPSRjbXMuJy8nLiRkaXI7CiAgICAgICAgICAgIGlmIChpc19saW5rKCRiYXNlKSkgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ1NPVVJDRV9ESVJFQ1RPUllfU1lNTElOSycpOwogICAgICAgICAgICBpZiAoIWlzX2RpcigkYmFzZSkpIHsgJG1pc3NpbmdEaXJzW109JGRpcjsgY29udGludWU7IH0KICAgICAgICAgICAgaWYgKHJlYWxwYXRoKCRiYXNlKSE9PSRiYXNlKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignU09VUkNFX0RJUkVDVE9SWScpOwogICAgICAgICAgICAkY291bnQ9MDsKICAgICAgICAgICAgJGl0ZXJhdG9yPW5ldyBSZWN1cnNpdmVJdGVyYXRvckl0ZXJhdG9yKG5ldyBSZWN1cnNpdmVEaXJlY3RvcnlJdGVyYXRvcigkYmFzZSxGaWxlc3lzdGVtSXRlcmF0b3I6OlNLSVBfRE9UUykpOwogICAgICAgICAgICBmb3JlYWNoICgkaXRlcmF0b3IgYXMgJGZpbGUpIHsKICAgICAgICAgICAgICAgIGlmICgkZmlsZS0+aXNMaW5rKCkpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdTT1VSQ0VfU1lNTElOSycpOwogICAgICAgICAgICAgICAgaWYgKCEkZmlsZS0+aXNGaWxlKCl8fCRmaWxlLT5nZXRFeHRlbnNpb24oKSE9PSdwaHAnKSBjb250aW51ZTsKICAgICAgICAgICAgICAgICRwPSRmaWxlLT5nZXRQYXRobmFtZSgpOwogICAgICAgICAgICAgICAgaWYgKHJlYWxwYXRoKCRwKSE9PSRwfHwkZmlsZS0+Z2V0U2l6ZSgpPjIwOTcxNTIpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdTT1VSQ0VfQ09ORklORU1FTlQnKTsKICAgICAgICAgICAgICAgICRyZWxhdGl2ZT1zdWJzdHIoJHAsc3RybGVuKCRjbXMpKzEpOwogICAgICAgICAgICAgICAgaWYgKCFwcmVnX21hdGNoKCd+XltBLVphLXowLTlfLi9AKCkgLV0rJH5EJywkcmVsYXRpdmUpKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignU09VUkNFX05BTUUnKTsKICAgICAgICAgICAgICAgICRwYXRoc1tdPSRyZWxhdGl2ZTsKICAgICAgICAgICAgICAgIGlmIChjb3VudCgkcGF0aHMpPjgwMDApIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdTT1VSQ0VfQ0VOU1VTX0xJTUlUJyk7CiAgICAgICAgICAgICAgICAkY291bnQrKzsKICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAoJGNvdW50PT09MCkgJG1pc3NpbmdEaXJzW109JGRpcjsKICAgICAgICB9CiAgICAgICAgJGJvb3RzdHJhcD1nbG9iKCRjbXMuJy9ib290c3RyYXAvKi5waHAnKT86W107CiAgICAgICAgaWYgKGlzX2xpbmsoJGNtcy4nL2Jvb3RzdHJhcCcpKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQk9PVFNUUkFQX0RJUkVDVE9SWV9TWU1MSU5LJyk7CiAgICAgICAgaWYgKCRib290c3RyYXA9PT1bXSkgJG1pc3NpbmdEaXJzW109J2Jvb3RzdHJhcCc7CiAgICAgICAgZWxzZWlmIChyZWFscGF0aCgkY21zLicvYm9vdHN0cmFwJykhPT0kY21zLicvYm9vdHN0cmFwJykgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ0JPT1RTVFJBUF9ESVJFQ1RPUlknKTsKICAgICAgICBmb3JlYWNoICgkYm9vdHN0cmFwIGFzICRwKSB7CiAgICAgICAgICAgIGlmIChpc19saW5rKCRwKXx8cmVhbHBhdGgoJHApIT09JHApIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdCT09UU1RSQVBfU1lNTElOSycpOwogICAgICAgICAgICAkcGF0aHNbXT1zdWJzdHIoJHAsc3RybGVuKCRjbXMpKzEpOwogICAgICAgIH0KICAgICAgICBzb3J0KCRwYXRocyxTT1JUX1NUUklORyk7CiAgICAgICAgaWYgKCRwYXRocz09PVtdfHxjb3VudCgkcGF0aHMpIT09Y291bnQoYXJyYXlfdW5pcXVlKCRwYXRocykpKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignRU1QVFlfT1JfRFVQTElDQVRFX0NFTlNVUycpOwogICAgICAgIHJldHVybiBbJ3BhdGhzJz0+JHBhdGhzLCdtaXNzaW5nX2RpcnMnPT4kbWlzc2luZ0RpcnNdOwogICAgfTsKICAgICRjZW5zdXNTdGF0ZT0kY2Vuc3VzKCk7JHBhdGhzPSRjZW5zdXNTdGF0ZVsncGF0aHMnXTsKICAgICRzY29wZT1hcnJheV9tYXAoc3RhdGljIGZuIChzdHJpbmcgJGQpOiBzdHJpbmc9PidhcHBzL2Ntcy9jdXJyZW50LycuJGQsJGRpcnMpOwogICAgJHNjb3BlW109J2FwcHMvY21zL2N1cnJlbnQvYm9vdHN0cmFwJzsKICAgICRwcm9jZXNzPXByb2Nfb3BlbihbJ2dpdCcsJy1DJywkcm9vdCwnbHMtZmlsZXMnLCcteicsJy0tJywuLi4kc2NvcGVdLFswPT5bJ2ZpbGUnLCcvZGV2L251bGwnLCdyJ10sMT0+WydwaXBlJywndyddLDI9PlsnZmlsZScsJy9kZXYvbnVsbCcsJ3cnXV0sJHBpcGVzKTsKICAgIGlmICghaXNfcmVzb3VyY2UoJHByb2Nlc3MpKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignR0lUX0NFTlNVU19QUk9DRVNTJyk7CiAgICAkdHJhY2tlZD1zdHJlYW1fZ2V0X2NvbnRlbnRzKCRwaXBlc1sxXSk7ZmNsb3NlKCRwaXBlc1sxXSk7CiAgICAkZ2l0UmM9cHJvY19jbG9zZSgkcHJvY2Vzcyk7CiAgICBpZiAoJGdpdFJjIT09MHx8IWlzX3N0cmluZygkdHJhY2tlZCl8fHN0cmxlbigkdHJhY2tlZCk+MjA5NzE1MikgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ0dJVF9DRU5TVVNfT1VUUFVUJyk7CiAgICAkaW5kZXhlZD1bXTsKICAgIGZvcmVhY2ggKGV4cGxvZGUoIlwwIiwkdHJhY2tlZCkgYXMgJHApIHsKICAgICAgICBpZiAoIXN0cl9zdGFydHNfd2l0aCgkcCwnYXBwcy9jbXMvY3VycmVudC8nKXx8IXN0cl9lbmRzX3dpdGgoJHAsJy5waHAnKSkgY29udGludWU7CiAgICAgICAgJHJlbGF0aXZlPXN1YnN0cigkcCxzdHJsZW4oJ2FwcHMvY21zL2N1cnJlbnQvJykpOwogICAgICAgIGlmIChzdHJfc3RhcnRzX3dpdGgoJHJlbGF0aXZlLCdib290c3RyYXAvJykmJnN0cl9jb250YWlucyhzdWJzdHIoJHJlbGF0aXZlLHN0cmxlbignYm9vdHN0cmFwLycpKSwnLycpKSBjb250aW51ZTsKICAgICAgICAkaW5kZXhlZFtdPSRyZWxhdGl2ZTsKICAgIH0KICAgIGlmICgkaW5kZXhlZD09PVtdKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignVFJBQ0tFRF9TT1VSQ0VfRU1QVFknKTsKICAgICRtaXNzaW5nSW5kZXhlZD1hcnJheV92YWx1ZXMoYXJyYXlfZGlmZigkaW5kZXhlZCwkcGF0aHMpKTsKICAgICRjb21wbGV0ZT0kbWlzc2luZ0luZGV4ZWQ9PT1bXSYmJGNlbnN1c1N0YXRlWydtaXNzaW5nX2RpcnMnXT09PVtdOwogICAgaWYgKCEkY29tcGxldGUpICRob2xkPXRydWU7CiAgICAkc291cmNlPVtdOyR0b3RhbEJ5dGVzPTA7CiAgICBmb3JlYWNoICgkcGF0aHMgYXMgJHApIHsKICAgICAgICBjbGVhcnN0YXRjYWNoZSh0cnVlLCRjbXMuJy8nLiRwKTsKICAgICAgICAkYmVmb3JlPXN0YXQoJGNtcy4nLycuJHApOwogICAgICAgICR0b3RhbEJ5dGVzKz0kYmVmb3JlWydzaXplJ107CiAgICAgICAgaWYgKCR0b3RhbEJ5dGVzPjY3MTA4ODY0KSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignU09VUkNFX0JZVEVfTElNSVQnKTsKICAgICAgICAkYnl0ZXM9ZmlsZV9nZXRfY29udGVudHMoJGNtcy4nLycuJHApOwogICAgICAgIGNsZWFyc3RhdGNhY2hlKHRydWUsJGNtcy4nLycuJHApOwogICAgICAgICRhZnRlcj1zdGF0KCRjbXMuJy8nLiRwKTsKICAgICAgICBpZiAoIWlzX3N0cmluZygkYnl0ZXMpfHxzdHJsZW4oJGJ5dGVzKSE9PSRiZWZvcmVbJ3NpemUnXSkgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ1NPVVJDRV9DSEFOR0VEX0RVUklOR19SRUFEJyk7CiAgICAgICAgZm9yZWFjaCAoWydkZXYnLCdpbm8nLCdzaXplJywnbXRpbWUnLCdjdGltZSddIGFzICRmaWVsZCkgaWYgKCRiZWZvcmVbJGZpZWxkXSE9PSRhZnRlclskZmllbGRdKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignU09VUkNFX0NIQU5HRURfRFVSSU5HX1JFQUQnKTsKICAgICAgICAkc291cmNlW109WydwYXRoJz0+JHAsJ2dpdF9ibG9iJz0+c2hhMSgnYmxvYiAnLnN0cmxlbigkYnl0ZXMpLiJcMCIuJGJ5dGVzKSwnc2hhMjU2Jz0+aGFzaCgnc2hhMjU2JywkYnl0ZXMpLCdieXRlcyc9PnN0cmxlbigkYnl0ZXMpLCdpbmRleGVkJz0+aW5fYXJyYXkoJHAsJGluZGV4ZWQsdHJ1ZSldOwogICAgfQogICAgaWYgKCRjZW5zdXNTdGF0ZSE9PSRjZW5zdXMoKSkgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ1NPVVJDRV9TRVRfQ0hBTkdFRCcpOwogICAgZm9yZWFjaCAoJHNvdXJjZSBhcyAkcm93KSBpZiAoaGFzaF9maWxlKCdzaGEyNTYnLCRjbXMuJy8nLiRyb3dbJ3BhdGgnXSkhPT0kcm93WydzaGEyNTYnXSkgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ1NPVVJDRV9CWVRFU19DSEFOR0VEJyk7CiAgICBlbWl0KCdTT1VSQ0VfQ0VOU1VTX0NPVU5UJyxjb3VudCgkc291cmNlKSk7CiAgICBlbWl0KCdTT1VSQ0VfQ0VOU1VTX0lTU1VFUycsWydtaXNzaW5nX2luZGV4ZWQnPT4kbWlzc2luZ0luZGV4ZWQsJ21pc3NpbmdfZGlycyc9PiRjZW5zdXNTdGF0ZVsnbWlzc2luZ19kaXJzJ10sJ2NvbXBsZXRlJz0+JGNvbXBsZXRlXSk7CiAgICBmb3JlYWNoICgkc291cmNlIGFzICRyb3cpIGVtaXQoJ1NPVVJDRV9GSUxFJywkcm93KTsKICAgIGVjaG8gJ1NPVVJDRV9DRU5TVVNfU1RBQkxFPScuKCRjb21wbGV0ZT8nUEFTUyc6J0hPTERfSU5DT01QTEVURV9TT1VSQ0UnKS5QSFBfRU9MOwogICAgJHBoYXNlPSdGSUxFU1lTVEVNJzsKICAgIGVtaXQoJ0ZJTEVTWVNURU0nLFsnZnJlZV9ieXRlcyc9PmRpc2tfZnJlZV9zcGFjZSgkY21zKSwncm9vdF9ob21lX3NhbWVfZGV2aWNlJz0+c3RhdCgkcm9vdClbJ2RldiddPT09c3RhdCgnL2hvbWUvaWNhZmZlY28nKVsnZGV2J10sCiAgICAgICAgJ2Ntc193cml0YWJsZSc9PmlzX3dyaXRhYmxlKCRjbXMpLCd2ZW5kb3JfaXNfZGlyZWN0b3J5Jz0+aXNfZGlyKCRjbXMuJy92ZW5kb3InKSwndmVuZG9yX2lzX3N5bWxpbmsnPT5pc19saW5rKCRjbXMuJy92ZW5kb3InKV0pOwogICAgJHBoYXNlPSdDT05GSUdfQ0FDSEVfTUVUQURBVEEnOwogICAgJGNhY2hlPSRjbXMuJy9ib290c3RyYXAvY2FjaGUvY29uZmlnLnBocCc7CiAgICAkY29uZmlnPW51bGw7CiAgICBpZiAoaXNfZmlsZSgkY2FjaGUpJiYhaXNfbGluaygkY2FjaGUpJiZyZWFscGF0aChkaXJuYW1lKCRjYWNoZSkpPT09JGNtcy4nL2Jvb3RzdHJhcC9jYWNoZScpIHsKICAgICAgICAkdGV4dD1maWxlX2dldF9jb250ZW50cygkY2FjaGUpOwogICAgICAgIGlmICghaXNfc3RyaW5nKCR0ZXh0KXx8c3RybGVuKCR0ZXh0KT4yNjIxNDQpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdDT05GSUdfQ0FDSEVfU0laRScpOwogICAgICAgICR0b2tlbnM9YXJyYXlfdmFsdWVzKGFycmF5X2ZpbHRlcih0b2tlbl9nZXRfYWxsKCR0ZXh0KSxzdGF0aWMgZm4gKCR0KTogYm9vbD0+IWlzX2FycmF5KCR0KXx8IWluX2FycmF5KCR0WzBdLFtUX1dISVRFU1BBQ0UsVF9DT01NRU5ULFRfRE9DX0NPTU1FTlRdLHRydWUpKSk7CiAgICAgICAgaWYgKCgkdG9rZW5zWzBdWzBdPz9udWxsKSE9PVRfT1BFTl9UQUd8fCgkdG9rZW5zWzFdWzBdPz9udWxsKSE9PVRfUkVUVVJOKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQ09ORklHX0NBQ0hFX1JFVFVSTicpOwogICAgICAgICRjdXJzb3I9MjskaXRlbXM9MDskcGFyc2U9bnVsbDsKICAgICAgICAvLyBEZWNvZGUgdmFyX2V4cG9ydCBkYXRhOyBuZXZlciBleGVjdXRlIGEgcHJpdmF0ZSBjYWNoZWQgUEhQIGZpbGUuCiAgICAgICAgJHBhcnNlPXN0YXRpYyBmdW5jdGlvbiAoaW50ICRkZXB0aCkgdXNlICgmJHBhcnNlLCYkY3Vyc29yLCYkaXRlbXMsJHRva2Vucyk6IG1peGVkIHsKICAgICAgICAgICAgaWYgKCRkZXB0aD42NHx8KyskaXRlbXM+MTAwMDAwKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQ09ORklHX0RBVEFfQk9VTkQnKTsKICAgICAgICAgICAgJHQ9JHRva2Vuc1skY3Vyc29yKytdPz9udWxsOwogICAgICAgICAgICBpZiAoJHQ9PT0nWyd8fChpc19hcnJheSgkdCkmJiR0WzBdPT09VF9BUlJBWSkpIHsKICAgICAgICAgICAgICAgICRjbG9zZT0kdD09PSdbJz8nXSc6JyknOwogICAgICAgICAgICAgICAgaWYgKCRjbG9zZT09PScpJyYmKCR0b2tlbnNbJGN1cnNvcisrXT8/bnVsbCkhPT0nKCcpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdDT05GSUdfQVJSQVknKTsKICAgICAgICAgICAgICAgICRvdXQ9W107CiAgICAgICAgICAgICAgICB3aGlsZSAoKCR0b2tlbnNbJGN1cnNvcl0/P251bGwpIT09JGNsb3NlKSB7CiAgICAgICAgICAgICAgICAgICAgJGZpcnN0PSRwYXJzZSgkZGVwdGgrMSk7CiAgICAgICAgICAgICAgICAgICAgJG5leHQ9JHRva2Vuc1skY3Vyc29yXT8/bnVsbDsKICAgICAgICAgICAgICAgICAgICBpZiAoaXNfYXJyYXkoJG5leHQpJiYkbmV4dFswXT09PVRfRE9VQkxFX0FSUk9XKSB7CiAgICAgICAgICAgICAgICAgICAgICAgICRjdXJzb3IrKzsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKCghaXNfaW50KCRmaXJzdCkmJiFpc19zdHJpbmcoJGZpcnN0KSl8fGFycmF5X2tleV9leGlzdHMoJGZpcnN0LCRvdXQpKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQ09ORklHX0tFWScpOwogICAgICAgICAgICAgICAgICAgICAgICAkb3V0WyRmaXJzdF09JHBhcnNlKCRkZXB0aCsxKTsKICAgICAgICAgICAgICAgICAgICB9IGVsc2UgJG91dFtdPSRmaXJzdDsKICAgICAgICAgICAgICAgICAgICBpZiAoKCR0b2tlbnNbJGN1cnNvcl0/P251bGwpPT09JGNsb3NlKSBicmVhazsKICAgICAgICAgICAgICAgICAgICBpZiAoKCR0b2tlbnNbJGN1cnNvcisrXT8/bnVsbCkhPT0nLCcpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdDT05GSUdfU0VQQVJBVE9SJyk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAkY3Vyc29yKys7CiAgICAgICAgICAgICAgICByZXR1cm4gJG91dDsKICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAoaXNfYXJyYXkoJHQpJiYkdFswXT09PVRfQ09OU1RBTlRfRU5DQVBTRURfU1RSSU5HKSB7CiAgICAgICAgICAgICAgICAkbGl0ZXJhbD0kdFsxXTsKICAgICAgICAgICAgICAgIGlmICgkbGl0ZXJhbFswXSE9PSInInx8IXN0cl9lbmRzX3dpdGgoJGxpdGVyYWwsIiciKSkgdGhyb3cgbmV3IFJ1bnRpbWVFeGNlcHRpb24oJ0NPTkZJR19TVFJJTkcnKTsKICAgICAgICAgICAgICAgICRyYXc9c3Vic3RyKCRsaXRlcmFsLDEsLTEpOyR2YWx1ZT0nJzsKICAgICAgICAgICAgICAgIGZvciAoJGk9MCwkbj1zdHJsZW4oJHJhdyk7JGk8JG47JGkrKykgewogICAgICAgICAgICAgICAgICAgIGlmICgkcmF3WyRpXT09PSdcXCcmJiRpKzE8JG4mJmluX2FycmF5KCRyYXdbJGkrMV0sWydcXCcsIiciXSx0cnVlKSkgJHZhbHVlLj0kcmF3WysrJGldOwogICAgICAgICAgICAgICAgICAgIGVsc2UgJHZhbHVlLj0kcmF3WyRpXTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIHJldHVybiAkdmFsdWU7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgaWYgKGlzX2FycmF5KCR0KSYmJHRbMF09PT1UX1NUUklORykgewogICAgICAgICAgICAgICAgcmV0dXJuIG1hdGNoKHN0cnRvbG93ZXIoJHRbMV0pKSB7J3RydWUnPT50cnVlLCdmYWxzZSc9PmZhbHNlLCdudWxsJz0+bnVsbCxkZWZhdWx0PT50aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQ09ORklHX0NPTlNUQU5UJyl9OwogICAgICAgICAgICB9CiAgICAgICAgICAgICRuZWdhdGl2ZT0kdD09PSctJzsKICAgICAgICAgICAgaWYgKCRuZWdhdGl2ZSkgJHQ9JHRva2Vuc1skY3Vyc29yKytdPz9udWxsOwogICAgICAgICAgICBpZiAoaXNfYXJyYXkoJHQpJiYkdFswXT09PVRfTE5VTUJFUiYmcHJlZ19tYXRjaCgnL14oPzowfFsxLTldWzAtOV0qKSQvRCcsJHRbMV0pKSB7CiAgICAgICAgICAgICAgICAkdmFsdWU9KGludCkkdFsxXTsKICAgICAgICAgICAgICAgIGlmICgoc3RyaW5nKSR2YWx1ZSE9PSR0WzFdKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQ09ORklHX0lOVEVHRVInKTsKICAgICAgICAgICAgICAgIHJldHVybiAkbmVnYXRpdmU/LSR2YWx1ZTokdmFsdWU7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgaWYgKGlzX2FycmF5KCR0KSYmJHRbMF09PT1UX0ROVU1CRVImJmlzX251bWVyaWMoJHRbMV0pJiZpc19maW5pdGUoKGZsb2F0KSR0WzFdKSkgcmV0dXJuICgkbmVnYXRpdmU/LTE6MSkqKGZsb2F0KSR0WzFdOwogICAgICAgICAgICB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignTk9OX0xJVEVSQUxfQ09ORklHX0RBVEEnKTsKICAgICAgICB9OwogICAgICAgICRjb25maWc9JHBhcnNlKDApOwogICAgICAgIGlmICghaXNfYXJyYXkoJGNvbmZpZyl8fCgkdG9rZW5zWyRjdXJzb3IrK10/P251bGwpIT09JzsnfHwkY3Vyc29yIT09Y291bnQoJHRva2VucykpIHRocm93IG5ldyBSdW50aW1lRXhjZXB0aW9uKCdDT05GSUdfREFUQV9FTkQnKTsKICAgICAgICAkZmxhZ3M9W107CiAgICAgICAgZm9yZWFjaCAoWydlbmFibGVkJywnY2F0YWxvZ19yZWFkb25seV9lbmFibGVkJywnY2hlY2tvdXRfZW5hYmxlZCddIGFzICRrZXkpIHsKICAgICAgICAgICAgJHZhbHVlPSRjb25maWdbJ3B1YmxpY19zdG9yZWZyb250J11bJGtleV0/P251bGw7CiAgICAgICAgICAgICRmbGFnc1ska2V5XT1pc19ib29sKCR2YWx1ZSk/KCR2YWx1ZT8nT04nOidPRkYnKTonVU5LTk9XTic7CiAgICAgICAgfQogICAgICAgIGVtaXQoJ0NBQ0hFRF9GTEFHX0lOUFVUU19PTkxZJywkZmxhZ3MpOwogICAgfSBlbHNlIHsKICAgICAgICAkaG9sZD10cnVlOwogICAgICAgIGVtaXQoJ0NPTkZJR19DQUNIRScsJ0FCU0VOVF9PUl9VTlRSVVNURURfTk9fRU5WX0ZBTExCQUNLX05PX0JPT1RTVFJBUCcpOwogICAgfQogICAgJHBoYXNlPSdCQUNLVVBfRklMRVNZU1RFTV9NRVRBREFUQSc7CiAgICAkY29uZmlndXJlZD0kY29uZmlnWydiYWNrdXAnXVsncGF0aCddPz9udWxsOwogICAgJGJhY2t1cD1pc19zdHJpbmcoJGNvbmZpZ3VyZWQpJiYkY29uZmlndXJlZCE9PScnPyRjb25maWd1cmVkOiRjbXMuJy9zdG9yYWdlL2FwcC9iYWNrdXBzJzsKICAgICRjb25maXJtZWQ9aXNfc3RyaW5nKCRjb25maWd1cmVkKSYmJGNvbmZpZ3VyZWQhPT0nJzsKICAgICRyZWFsPXJlYWxwYXRoKCRiYWNrdXApOwogICAgJHB1YmxpYz1yZWFscGF0aCgkY21zLicvcHVibGljJyk7CiAgICAkb3V0c2lkZUNtc1B1YmxpYz1pc19zdHJpbmcoJHJlYWwpJiZpc19zdHJpbmcoJHB1YmxpYykmJiRyZWFsIT09JHB1YmxpYyYmIXN0cl9zdGFydHNfd2l0aCgkcmVhbCwkcHVibGljLicvJyk7CiAgICAkbWV0YWRhdGE9Wydjb25maWd1cmVkX3BhdGhfY29uZmlybWVkJz0+JGNvbmZpcm1lZCwnZXhpc3RpbmdfZGlyZWN0b3J5X291dHNpZGVfY3VycmVudF9jbXNfcHVibGljJz0+JG91dHNpZGVDbXNQdWJsaWMmJmlzX2RpcigkcmVhbCksJ3ByaXZhY3lfcGVybWlzc2lvbnMnPT4nTk9UX0FUVEVTVEVEJywnZW50cnlfY291bnQnPT5udWxsLCduZXdlc3RfZW50cnlfdXRjJz0+bnVsbCwncmVzdG9yZV9yZWFkaW5lc3MnPT4nTk9UX0FUVEVTVEVEJ107CiAgICBpZiAoISRjb25maXJtZWR8fCEkb3V0c2lkZUNtc1B1YmxpY3x8IWlzX2RpcigkcmVhbCkpICRob2xkPXRydWU7CiAgICBpZiAoJG91dHNpZGVDbXNQdWJsaWMmJmlzX2RpcigkcmVhbCkpIHsKICAgICAgICAkY291bnQ9MDskbmV3ZXN0PTA7JGxpbmtzPTA7CiAgICAgICAgZm9yZWFjaCAobmV3IERpcmVjdG9yeUl0ZXJhdG9yKCRyZWFsKSBhcyAkZW50cnkpIHsKICAgICAgICAgICAgaWYgKCRlbnRyeS0+aXNEb3QoKSkgY29udGludWU7CiAgICAgICAgICAgIGlmICgrKyRjb3VudD41MDAwKSB0aHJvdyBuZXcgUnVudGltZUV4Y2VwdGlvbignQkFDS1VQX0RJUkVDVE9SWV9CT1VORCcpOwogICAgICAgICAgICBpZiAoJGVudHJ5LT5pc0xpbmsoKSkgeyAkbGlua3MrKzskaG9sZD10cnVlO2NvbnRpbnVlOyB9CiAgICAgICAgICAgICRuZXdlc3Q9bWF4KCRuZXdlc3QsJGVudHJ5LT5nZXRNVGltZSgpKTsKICAgICAgICB9CiAgICAgICAgJG1ldGFkYXRhWydlbnRyeV9jb3VudCddPSRjb3VudDsKICAgICAgICAkbWV0YWRhdGFbJ3N5bWxpbmtfZW50cmllc19ub3RfZm9sbG93ZWQnXT0kbGlua3M7CiAgICAgICAgJG1ldGFkYXRhWyduZXdlc3RfZW50cnlfdXRjJ109JG5ld2VzdD9nbWRhdGUoJ2MnLCRuZXdlc3QpOm51bGw7CiAgICB9CiAgICBlbWl0KCdCQUNLVVBfRklMRVNZU1RFTV9PTkxZJywkbWV0YWRhdGEpOwogICAgJHBoYXNlPSdCMTA2NV9SRUNFSVBUJzsKICAgICRyZWNlaXB0PSRyb290LicvZG9jcy9vcGVyYXRpb25zLzEwNjUtQjEwNjUtTTEzLUNPTlNPTElEQVRFRC1GVU5DVElPTkFMLVFBLTIwMjYxMTAzLTEyMTgyOS0xNzE5OTE5Lm1kJzsKICAgICRzaGE9aXNfZmlsZSgkcmVjZWlwdCkmJiFpc19saW5rKCRyZWNlaXB0KT9oYXNoX2ZpbGUoJ3NoYTI1NicsJHJlY2VpcHQpOm51bGw7CiAgICBlbWl0KCdCMTA2NV9SRUNFSVBUJyxbJ3NoYTI1Nic9PiRzaGEsJ3N0YXRlJz0+JHNoYT09PSc4OGYyMjA3M2VkNmIxMDI0ZmI1ODM4NzYyYWJkMzY5YjQyMDc3Y2I0MGRjMzhkYmUzMTY1MDdkNWYwZDVhNzQ5Jz8nVU5DSEFOR0VEX0lOQ09NUExFVEVfU05BUFNIT1QnOidNSVNTSU5HX09SX0NIQU5HRURfUkVRVUlSRVNfUkVWSUVXJywncWFfY2xlYW51cCc9PidOT1RfQVRURVNURURfTk9fREJfUFJPQkVfTk9fUkVSVU4nXSk7CiAgICAkaG9sZD10cnVlOwogICAgZW1pdCgnUEhQX1dBUk5JTkdfQ09VTlQnLCR3YXJuaW5ncyk7CiAgICBpZiAoJHdhcm5pbmdzIT09MCkgJGhvbGQ9dHJ1ZTsKICAgIGVjaG8gIkVGRkVDVElWRV9GUE1fRkxBR1M9Tk9UX0FUVEVTVEVEXG5EQVRBQkFTRV9DT05ORUNUSU9OUz1OT05FXG5FTlZfVkFMVUVfUEFSU0VfT1JfRVhQT1JUPU5PX1BSSVZBVEVfSU5URUdSSVRZX0hBU0hfT05MWVxuUkVTVE9SRV9PUl9SRUxFQVNFX0FQUFJPVkFMPU5PVF9FVkFMVUFURURcbkIxMTA5X01FVEFEQVRBX0NPTVBMRVRFPVlFU1xuIjsKICAgIGV4aXQoJGhvbGQ/MjowKTsKfSBjYXRjaCAoVGhyb3dhYmxlICRlKSB7CiAgICB3aGlsZSAob2JfZ2V0X2xldmVsKCk+MCkgb2JfZW5kX2NsZWFuKCk7CiAgICAkcmVhc29uPXByZWdfbWF0Y2goJy9eW0EtWl9dezEsNjR9JC9EJywkZS0+Z2V0TWVzc2FnZSgpKT8kZS0+Z2V0TWVzc2FnZSgpOidSRVZJRVdfUkVRVUlSRUQnOwogICAgZW1pdCgnSE9MRCcsWydwaGFzZSc9PiRwaGFzZSwncmVhc29uX2NvZGUnPT4kcmVhc29uLCdleGNlcHRpb25fY2xhc3MnPT5nZXRfY2xhc3MoJGUpLCd3YXJuaW5ncyc9PiR3YXJuaW5nc10pOwogICAgZWNobyAiTk9fUkVDT1ZFUllfTVVUQVRJT05fQVRURU1QVEVEXG4iOwogICAgZXhpdCgyKTsKfQo=' | base64 --decode > "$RUNNER_TEMP/b1109-upload/incoming/b1109-host-readiness.php"
+          echo 'f2e8e4bb5fc626e595134ca6b1400ef812d740229aaa20b0c06a99f1c081f83a  '$RUNNER_TEMP'/b1109-upload/incoming/b1109-host-readiness.sh' | sha256sum --check
+          echo 'a7a49b97dba3754c7034768924e8f832bb469eda74c2b17f0f534d8a61ec5376  '$RUNNER_TEMP'/b1109-upload/incoming/b1109-host-readiness.php' | sha256sum --check
+          bash -n "$RUNNER_TEMP/b1109-upload/incoming/b1109-host-readiness.sh"
+          php -l "$RUNNER_TEMP/b1109-upload/incoming/b1109-host-readiness.php"
+      - name: Real isolated full-script negative and positive contracts
+        shell: bash
+        env:
+          B1065_FIXTURE_B64: 'IyBCMTA2NSBNMTMgaW5zdGFsbGVkLXNvdXJjZSBpc29sYXRlZCBmdW5jdGlvbmFsIFFBCgotIFN0YXR1czogUlVOTklORwo='
+        run: |
+          set -euo pipefail
+          root=/home/icaffeco/ald1n-project
+          cms="$root/apps/cms/current"
+          docs="$root/docs/operations"
+          evidence="$RUNNER_TEMP/b1109-evidence"
+          upload="$RUNNER_TEMP/b1109-upload/incoming"
+          test ! -e "$root"
+          sudo install -d -o "$(id -u)" -g "$(id -g)" "$root"
+          mkdir -p "$root/incoming" "$docs" "$evidence" "$RUNNER_TEMP/b1109-bin"
+          cp "$upload/"* "$root/incoming/"
+          cp docs/operations/1070-B1108-STOREFRONT-HOST-INVENTORY-20261104-124414.md "$docs/"
+          printf '%s\n' retained > "$docs/1071-CI-SENTINEL.md"
+          printf '%s' "$B1065_FIXTURE_B64" | base64 --decode > "$docs/1065-B1065-M13-CONSOLIDATED-FUNCTIONAL-QA-20261103-121829-1719919.md"
+          for dir in app config routes database/migrations resources/views tests bootstrap; do
+            mkdir -p "$cms/$dir"
+            printf '%s\n' '<?php return true;' > "$cms/$dir/fixture.php"
+          done
+          printf '%s\n' '<?php return false;' > "$cms/app/extra.php"
+          mkdir -p "$cms/public" "$cms/vendor" "$cms/bootstrap/cache"
+          printf '%s\n' PRIVATE_ENV_SENTINEL_NEVER_EXPORT > "$cms/.env"
+          printf '%s\n' '# synthetic public boundary' > "$cms/public/.htaccess"
+          chmod 600 "$cms/.env"
+          git -C "$root" init -b main
+          git -C "$root" add apps/cms/current/app apps/cms/current/config apps/cms/current/routes apps/cms/current/database/migrations apps/cms/current/resources/views apps/cms/current/tests apps/cms/current/bootstrap/fixture.php
+          git -C "$root" -c user.name=Fixture -c user.email=fixture@example.test -c commit.gpgsign=false commit -m fixture
+          export B1109_REAL_GIT="$(command -v git)"
+          export B1109_REAL_PHP="$(command -v php)"
+          export B1109_REAL_MV="$(command -v mv)"
+          export B1109_REAL_TEE="$(command -v tee)"
+          "$B1109_REAL_PHP" -r '$b=$argv[1]."/private-backups-ci\x27quoted";mkdir($b);$c=["backup"=>["path"=>$b],"public_storefront"=>["enabled"=>false,"catalog_readonly_enabled"=>false,"checkout_enabled"=>false],"database"=>["password"=>"PRIVATE_CACHE_SENTINEL_NEVER_EXPORT"],"misc"=>[null,true,false,-3,0.25,"quote\x27 slash\\ newline\n",[2=>"two"]]];file_put_contents($argv[1]."/apps/cms/current/bootstrap/cache/config.php","<?php return ".var_export($c,true).";\n");' "$root"
+          cp "$cms/bootstrap/cache/config.php" "$RUNNER_TEMP/b1109-safe-cache.php"
+          cat > "$RUNNER_TEMP/b1109-bin/id" <<'STUB'
+          #!/usr/bin/env bash
+          if [ "$*" = -un ]; then printf '%s\n' "${B1109_TEST_USER:-icaffeco}"; else /usr/bin/id "$@"; fi
+          STUB
+          cat > "$RUNNER_TEMP/b1109-bin/git" <<'STUB'
+          #!/usr/bin/env bash
+          test "$1" = -C || exit 90
+          test "$2" = /home/icaffeco/ald1n-project || exit 91
+          shift 2
+          case "$*" in
+            'remote get-url origin') printf '%s\n' https://github.com/AldinAga/ald1n-project.git;;
+            'fetch --quiet origin main') exit 0;;
+            'ls-tree -r --name-only origin/main docs/operations') printf '%s\n' docs/operations/1071-CI-SENTINEL.md;;
+            'rev-parse origin/main') printf '%s\n' 82e483c6e08ad4101cad710d8d9a1af2a66ebc02;;
+            *) exec "$B1109_REAL_GIT" -C /home/icaffeco/ald1n-project "$@";;
+          esac
+          STUB
+          cat > "$RUNNER_TEMP/b1109-bin/php" <<'STUB'
+          #!/usr/bin/env bash
+          case "${B1109_TEST_PHP_CASE:-normal}" in
+            missing_extension) exec "$B1109_REAL_PHP" -n -d disable_functions=token_get_all "$@";;
+            stderr_only) printf '%s\n' PRIVATE_PHP_SENTINEL_NEVER_EXPORT >&2; exit 0;;
+            stdout_noise) printf '%s\n' PRIVATE_PHP_SENTINEL_NEVER_EXPORT; exec "$B1109_REAL_PHP" "$@";;
+            terminate) kill -TERM "$PPID"; exit 2;;
+            kill) kill -KILL "$PPID"; exit 2;;
+            *) exec "$B1109_REAL_PHP" "$@";;
+          esac
+          STUB
+          cat > "$RUNNER_TEMP/b1109-bin/composer" <<'STUB'
+          #!/usr/bin/env bash
+          test "$*" = '--no-plugins --no-scripts --version' || exit 90
+          printf '%s\n' 'Composer version 2.11.1 fixture'
+          STUB
+          cat > "$RUNNER_TEMP/b1109-bin/mv" <<'STUB'
+          #!/usr/bin/env bash
+          if [ "${B1109_TEST_MOVE_FAIL:-0}" = 1 ]; then exit 77; fi
+          exec "$B1109_REAL_MV" "$@"
+          STUB
+          cat > "$RUNNER_TEMP/b1109-bin/tee" <<'STUB'
+          #!/usr/bin/env bash
+          if [ "${B1109_TEST_TEE_FAIL:-0}" = 1 ]; then cat > /dev/null; exit 74; fi
+          exec "$B1109_REAL_TEE" "$@"
+          STUB
+          export B1109_REAL_FIND="$(command -v find)"
+          cat > "$RUNNER_TEMP/b1109-bin/find" <<'STUB'
+          #!/usr/bin/env bash
+          if [ "x$B1109_TEST_FIND_PAUSE" = x1 ]; then
+            "$B1109_REAL_FIND" "$@" > "$RUNNER_TEMP/b1109-find-snapshot" || exit 90
+            touch "$RUNNER_TEMP/b1109-find-ready"
+            timeout 20 head -n 1 "$RUNNER_TEMP/b1109-find-release" > /dev/null || exit 91
+            cat "$RUNNER_TEMP/b1109-find-snapshot"
+          else exec "$B1109_REAL_FIND" "$@"; fi
+          STUB
+          chmod +x "$RUNNER_TEMP/b1109-bin/"*
+          export PATH="$RUNNER_TEMP/b1109-bin:$PATH"
+          script="$root/incoming/b1109-host-readiness.sh"
+          run_expected() {
+            expected="$1"; label="$2"; shift 2
+            rc=0
+            "$@" > "$evidence/$label.log" 2>&1 || rc=$?
+            tail -n 7 "$evidence/$label.log"
+            test "$rc" = "$expected"
+            printf '%s\n' "$rc" > "$evidence/$label.exit"
+          }
+          run_expected 2 wrong_path bash "$upload/b1109-host-readiness.sh"
+          run_expected 2 hostile_owner env B1109_TEST_USER=root bash "$script"
+          cp "$root/incoming/b1109-host-readiness.php" "$RUNNER_TEMP/b1109-helper-original.php"
+          printf '%s\n' '# tampered' >> "$root/incoming/b1109-host-readiness.php"
+          run_expected 2 helper_tamper bash "$script"
+          cp "$RUNNER_TEMP/b1109-helper-original.php" "$root/incoming/b1109-host-readiness.php"
+          printf '%s\n' '# tampered' >> "$script"
+          run_expected 2 script_tamper bash "$script"
+          cp "$upload/b1109-host-readiness.sh" "$script"
+          mv "$docs/1070-B1108-STOREFRONT-HOST-INVENTORY-20261104-124414.md" "$RUNNER_TEMP/b1109-previous.md"
+          run_expected 2 missing_previous bash "$script"
+          mv "$RUNNER_TEMP/b1109-previous.md" "$docs/1070-B1108-STOREFRONT-HOST-INVENTORY-20261104-124414.md"
+          test "$(find "$docs" -name '*-B1109-*' -type f | wc -l)" -eq 0
+          before=$(sha256sum "$cms/.env" "$root/.git/HEAD" "$root/.git/index" "$cms/public/.htaccess")
+          run_expected 2 complete_inventory bash "$script"
+          grep -Fx SOURCE_CENSUS_STABLE=PASS "$evidence/complete_inventory.log"
+          grep -Fx B1109_METADATA_COMPLETE=YES "$evidence/complete_inventory.log"
+          grep -F 'UNCHANGED_INCOMPLETE_SNAPSHOT' "$evidence/complete_inventory.log"
+          grep -F '"configured_path_confirmed":true,"existing_directory_outside_current_cms_public":true' "$evidence/complete_inventory.log"
+          grep -Fx PROTECTED_FOUR_UNCHANGED=PASS "$evidence/complete_inventory.log"
+          test "$(find "$docs" -name '1072-B1109-*.md' -type f | wc -l)" -eq 1
+          after=$(sha256sum "$cms/.env" "$root/.git/HEAD" "$root/.git/index" "$cms/public/.htaccess")
+          test "$before" = "$after"
+          mkdir -p "$RUNNER_TEMP/b1109-other-public"
+          chmod 0777 "$RUNNER_TEMP/b1109-other-public"
+          "$B1109_REAL_PHP" -r '$c=["backup"=>["path"=>$argv[1]],"public_storefront"=>["enabled"=>false,"catalog_readonly_enabled"=>false,"checkout_enabled"=>false]];file_put_contents($argv[2],"<?php return ".var_export($c,true).";\n");' "$RUNNER_TEMP/b1109-other-public" "$cms/bootstrap/cache/config.php"
+          run_expected 2 other_public_unattested bash "$script"
+          grep -F '"existing_directory_outside_current_cms_public":true' "$evidence/other_public_unattested.log"
+          grep -F '"privacy_permissions":"NOT_ATTESTED"' "$evidence/other_public_unattested.log"
+          grep -Fx B1109_METADATA_COMPLETE=YES "$evidence/other_public_unattested.log"
+          grep -Fx FINAL_STATUS=HOLD_READINESS_GATES "$evidence/other_public_unattested.log"
+          grep -Fx RESTORE_OR_RELEASE_APPROVAL=NOT_EVALUATED "$evidence/other_public_unattested.log"
+          cp "$RUNNER_TEMP/b1109-safe-cache.php" "$cms/bootstrap/cache/config.php"
+          printf '%s\n' '<?php return 42;' > "$cms/app/untracked.php"
+          run_expected 2 untracked_included bash "$script"
+          grep -F '"path":"app/untracked.php"' "$evidence/untracked_included.log" | grep -F '"indexed":false'
+          mv "$cms/app/extra.php" "$RUNNER_TEMP/b1109-extra.php"
+          run_expected 2 tracked_subset_missing bash "$script"
+          grep -Fx SOURCE_CENSUS_STABLE=HOLD_INCOMPLETE_SOURCE "$evidence/tracked_subset_missing.log"
+          grep -F 'app/extra.php' "$evidence/tracked_subset_missing.log" | grep -F missing_indexed
+          if grep -Fxq SOURCE_CENSUS_STABLE=PASS "$evidence/tracked_subset_missing.log"; then exit 81; fi
+          mv "$RUNNER_TEMP/b1109-extra.php" "$cms/app/extra.php"
+          mv "$cms/app" "$RUNNER_TEMP/b1109-app"
+          mkdir "$cms/app"
+          run_expected 2 zero_source_directory bash "$script"
+          grep -Fx SOURCE_CENSUS_STABLE=HOLD_INCOMPLETE_SOURCE "$evidence/zero_source_directory.log"
+          grep -F '"missing_dirs":["app"]' "$evidence/zero_source_directory.log"
+          if grep -Fxq SOURCE_CENSUS_STABLE=PASS "$evidence/zero_source_directory.log"; then exit 82; fi
+          rmdir "$cms/app"
+          mv "$RUNNER_TEMP/b1109-app" "$cms/app"
+          slot=0
+          for dir in app config routes database/migrations resources/views tests bootstrap; do
+            test ! -e "$RUNNER_TEMP/b1109-empty-$slot"
+            mv "$cms/$dir" "$RUNNER_TEMP/b1109-empty-$slot"
+            mkdir "$cms/$dir"
+            slot=$((slot+1))
+          done
+          run_expected 2 entirely_empty_census bash "$script"
+          grep -F '"reason_code":"EMPTY_OR_DUPLICATE_CENSUS"' "$evidence/entirely_empty_census.log"
+          slot=0
+          for dir in app config routes database/migrations resources/views tests bootstrap; do
+            rmdir "$cms/$dir"
+            mv "$RUNNER_TEMP/b1109-empty-$slot" "$cms/$dir"
+            slot=$((slot+1))
+          done
+          mv "$cms" "$RUNNER_TEMP/b1109-cms"
+          ln -s "$RUNNER_TEMP/b1109-cms" "$cms"
+          run_expected 2 ancestor_symlink bash "$script"
+          unlink "$cms"
+          mv "$RUNNER_TEMP/b1109-cms" "$cms"
+          printf '%s\n' '<?php echo "PRIVATE_CACHE_SENTINEL_NEVER_EXPORT"; return [];' > "$cms/bootstrap/cache/config.php"
+          run_expected 2 nonliteral_cache bash "$script"
+          grep -F CONFIG_CACHE_RETURN "$evidence/nonliteral_cache.log"
+          test ! -e "$root/SHOULD_NOT_EXIST"
+          printf '%s\n' "<?php return array('backup'=>array('path'=>('file_put_contents')('$root/SHOULD_NOT_EXIST','bad')));" > "$cms/bootstrap/cache/config.php"
+          run_expected 2 quoted_function_cache bash "$script"
+          grep -F NON_LITERAL_CONFIG_DATA "$evidence/quoted_function_cache.log"
+          test ! -e "$root/SHOULD_NOT_EXIST"
+          cp "$RUNNER_TEMP/b1109-safe-cache.php" "$cms/bootstrap/cache/config.php"
+          run_expected 2 missing_extension env B1109_TEST_PHP_CASE=missing_extension bash "$script"
+          grep -F '"reason_code":"ENTRY"' "$evidence/missing_extension.log"
+          run_expected 2 stderr_no_marker env B1109_TEST_PHP_CASE=stderr_only bash "$script"
+          grep -Fx FINAL_STATUS=HOLD_SOURCE_OR_HELPER_INCOMPLETE "$evidence/stderr_no_marker.log"
+          run_expected 2 stdout_noise env B1109_TEST_PHP_CASE=stdout_noise bash "$script"
+          grep -Fx HOLD_PHP_STDOUT_NOISE=YES "$evidence/stdout_noise.log"
+          grep -F OUTPUT_FILTER_RC=2 "$evidence/stdout_noise.log"
+          run_expected 2 report_move_failure env B1109_TEST_MOVE_FAIL=1 bash "$script"
+          grep -F 'not committed atomically' "$evidence/report_move_failure.log"
+          if grep -q '^REPORT=' "$evidence/report_move_failure.log"; then exit 83; fi
+          run_expected 2 report_write_failure env B1109_TEST_TEE_FAIL=1 bash "$script"
+          grep -F 'report write failed' "$evidence/report_write_failure.log"
+          if grep -q '^REPORT=' "$evidence/report_write_failure.log"; then exit 84; fi
+          run_expected 143 interrupted env B1109_TEST_PHP_CASE=terminate bash "$script"
+          grep -Fx FINAL_STATUS=HOLD_INTERRUPTED "$evidence/interrupted.log"
+          run_expected 137 killed env B1109_TEST_PHP_CASE=kill bash "$script"
+          if grep -q '^REPORT=' "$evidence/killed.log"; then exit 85; fi
+          test -d "$HOME/.ald1n-b1109-readiness-lock"
+          run_expected 2 stale_lock bash "$script"
+          rmdir "$HOME/.ald1n-b1109-readiness-lock"
+          run_expected 2 after_interrupted_inventory bash "$script"
+          grep -Fx SOURCE_CENSUS_STABLE=PASS "$evidence/after_interrupted_inventory.log"
+          mkfifo "$RUNNER_TEMP/b1109-find-release"
+          run_expected 2 overlap_primary timeout 25 env B1109_TEST_FIND_PAUSE=1 bash "$script" &
+          primary_pid=$!
+          ready_rc=0
+          timeout 15 bash -c 'until test -f "$1"; do sleep 0.05; done' bash "$RUNNER_TEMP/b1109-find-ready" || ready_rc=$?
+          peer_rc=0
+          if [ "$ready_rc" -eq 0 ]; then
+            run_expected 2 overlap_peer bash "$script" &
+            peer_pid=$!
+            wait "$peer_pid" || peer_rc=$?
+          fi
+          release_rc=0
+          timeout 5 bash -c 'printf "%s\n" release > "$1"' bash "$RUNNER_TEMP/b1109-find-release" || release_rc=$?
+          primary_rc=0
+          wait "$primary_pid" || primary_rc=$?
+          printf '%s\n' "OVERLAP_READY_RC=$ready_rc PEER_RC=$peer_rc RELEASE_RC=$release_rc PRIMARY_RC=$primary_rc" | tee "$evidence/overlap-barrier.log"
+          cp "$docs/"*B1109-* "$evidence/"
+          find "$docs" -maxdepth 1 -name '.*B1109-*' -type f -exec cp -- {} "$evidence/" \;
+          test "$ready_rc:$peer_rc:$release_rc:$primary_rc" = 0:0:0:0
+          "$B1109_REAL_PHP" -r '$seen=[];$files=array_merge(glob($argv[1]."/[0-9]*-B1109-*")?:[],glob($argv[1]."/.[0-9]*-B1109-*")?:[]);foreach($files as $p){if(preg_match("/\\.?([0-9]+)-B1109-/",basename($p),$m)){if(isset($seen[$m[1]])){echo "DUPLICATE_REPORT_PREFIX=".$m[1]."\n";exit(87);}$seen[$m[1]]=true;}}echo "OVERLAP_REPORT_SEQUENCE=PASS\n";' "$docs" | tee "$evidence/overlap-sequence.log"
+          grep -F 'readiness lock exists' "$evidence/overlap_peer.log"
+          if grep -q '^REPORT=' "$evidence/overlap_peer.log"; then exit 89; fi
+          grep -Fx FINAL_STATUS=HOLD_READINESS_GATES "$evidence/overlap_primary.log"
+          if grep -R -E 'PRIVATE_(ENV|CACHE|PHP)_SENTINEL_NEVER_EXPORT' "$docs" "$evidence"; then exit 86; fi
+          test "$(cat "$docs/1071-CI-SENTINEL.md")" = retained
+          "$B1109_REAL_PHP" -r '$seen=[];$files=array_merge(glob($argv[1]."/[0-9]*-B1109-*")?:[],glob($argv[1]."/.[0-9]*-B1109-*")?:[]);foreach($files as $p){if(preg_match("/\\.?([0-9]+)-B1109-/",basename($p),$m)){if(isset($seen[$m[1]]))exit(87);$seen[$m[1]]=true;}}if(count($seen)<10)exit(88);echo "MONOTONIC_REPORT_SEQUENCE_INCLUDES_INTERRUPTED_PENDING=PASS\n";' "$docs"
+          cp "$docs/"*B1109-* "$evidence/"
+          find "$docs" -maxdepth 1 -name '.*B1109-*' -type f -exec cp -- {} "$evidence/" \;
+          "$B1109_REAL_PHP" -r '
+          $evidence=$argv[1];$upload=$argv[2];$expected=["1083"=>"report_move_failure","1084"=>"report_write_failure","1086"=>"killed"];$manifest=[];$seen=[];
+          foreach([$upload,$evidence] as $root){
+            $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST);
+            foreach($it as $file){
+              if(!str_starts_with($file->getFilename(),"."))continue;
+              $name=$file->getFilename();
+              if($root!==$evidence||!$file->isFile()||$file->isLink()||$file->getPath()!==$evidence||!preg_match("/^\\.(1083|1084|1086)-B1109-HOST-READINESS-[0-9]{8}-[0-9]{6}-[0-9]+\\.md\\.pending$/D",$name,$m)||isset($seen[$m[1]]))throw new RuntimeException("Unexpected hidden evidence: ".$name);
+              $seen[$m[1]]=true;$bytes=file_get_contents($file->getPathname());$fixture=$expected[$m[1]];
+              if($fixture==="report_move_failure"&&(!str_contains($bytes,"FINAL_STATUS=HOLD_READINESS_GATES\n")||!str_contains($bytes,"SCRIPT_RC=2 SOURCE_DB_ENV_CACHE_FPM_MUTATION=NO\n")))throw new RuntimeException("Move-failure pending signature");
+              if($fixture==="report_write_failure"&&$bytes!=="REPORT=/home/icaffeco/ald1n-project/docs/operations/".substr($name,1,-8)."\n")throw new RuntimeException("Write-failure pending signature");
+              if($fixture==="killed"&&(!str_starts_with($bytes,"# B1109 bounded source/toolchain/backup-metadata readiness")||str_contains($bytes,"FINAL_STATUS=")||str_contains($bytes,"REPORT=")))throw new RuntimeException("Killed pending signature");
+              $manifest[]=["fixture"=>$fixture,"basename"=>$name,"bytes"=>strlen($bytes),"sha256"=>hash("sha256",$bytes)];
+            }
+          }
+          if(count($manifest)!==3)throw new RuntimeException("Expected exactly three pending receipts");
+          usort($manifest,fn($a,$b)=>strcmp($a["basename"],$b["basename"]));
+          $json=json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+          if(file_put_contents($evidence."/pending-receipts-manifest.json",$json)!==strlen($json))throw new RuntimeException("Manifest write failed");
+          echo "PENDING_RECEIPTS_MANIFEST=PASS COUNT=3\n";
+          ' "$evidence" "$upload"
+          echo 'B1109_ISOLATED_CONTRACT=PASS CANONICAL_PATH_OWNER_INTEGRITY_NONEMPTY_COMPLETE_SOURCE_NOISE_INTERRUPTION_ATOMIC_REPORT_NO_DB_NO_ENV_EXPORT' | tee "$evidence/result.txt"
+
+      - name: Preserve exact tested upload and complete synthetic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1109-bounded-readiness-contract
+          path: |
+            ${{ runner.temp }}/b1109-upload
+            ${{ runner.temp }}/b1109-evidence
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
