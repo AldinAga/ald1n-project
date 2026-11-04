@@ -11,7 +11,11 @@ const read = (p) => fs.readFileSync(p, 'utf8');
 const eas = JSON.parse(read(path.join(mobile, 'eas.json')));
 const pkg = JSON.parse(read(path.join(mobile, 'package.json')));
 const agents = read(path.join(root, 'AGENTS.md'));
-const index = read(path.join(root, 'docs/operations/000-LATEST.md'));
+// Verify Batch682 against its retained record without restoring it as live authority.
+const history = read(path.join(root, 'docs/operations/history/000-LATEST-before-report793-20261022.md'));
+const authority = '# CURRENT AUTHORITY — Product Editor UX2 Android OTA and EAS CLI25 (2026-10-16)';
+assert.equal(history.split(authority).length, 2, 'unique historical CLI25 authority');
+const index = authority + history.split(authority)[1];
 const helper = read(path.join(mobile, 'scripts/submit-android-production.mjs'));
 const validator = read(path.join(mobile, 'scripts/validate-project.mjs'));
 const app = read(path.join(mobile, 'app.config.js'));
