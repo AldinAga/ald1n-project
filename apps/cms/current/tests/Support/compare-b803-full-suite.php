@@ -2,7 +2,7 @@
 declare(strict_types=1);
 // CI-only complete-suite accounting. A green comparison is NOT a green full suite.
 $dir=$argv[1]??'';
-if ($dir==='' || getenv('APP_ENV')!=='testing' || getenv('DB_DATABASE')!=='ald1n_test') exit(40);
+if ($dir==='' || getenv('APP_ENV')!=='testing' || getenv('DB_DATABASE')!=='ald1n_retirement_ci') exit(40);
 $parse=static function (string $path): array {
     if (!is_file($path)) throw new RuntimeException('Missing complete JUnit result.');
     $xml=simplexml_load_file($path);

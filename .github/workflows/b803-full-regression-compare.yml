@@ -17,7 +17,7 @@ jobs:
       mariadb:
         image: mariadb:10.11.19
         env:
-          MARIADB_DATABASE: ald1n_test
+          MARIADB_DATABASE: ald1n_retirement_ci
           MARIADB_USER: ald1n_test
           MARIADB_PASSWORD: ald1n_test
           MARIADB_ROOT_PASSWORD: ci_only
@@ -32,7 +32,7 @@ jobs:
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
       DB_PORT: '3306'
-      DB_DATABASE: ald1n_test
+      DB_DATABASE: ald1n_retirement_ci
       DB_USERNAME: ald1n_test
       DB_PASSWORD: ald1n_test
       CACHE_STORE: array
@@ -57,6 +57,20 @@ jobs:
           mkdir -p "$RUNNER_TEMP/b803-evidence" "$RUNNER_TEMP/b803-baseline"
           git rev-parse HEAD > "$RUNNER_TEMP/b803-evidence/source-head.txt"
           git archive 32def73e4145b00f51e672b7b1810b34d8fe44e4 apps/cms/current | tar -x -C "$RUNNER_TEMP/b803-baseline"
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          php -r '$db=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));if($db->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci"||!str_starts_with($db->query("SELECT VERSION()")->fetchColumn(),"10.11.19-"))exit(47);echo "B1098_EXACT_DISPOSABLE_MARIADB_IDENTITY=PASS\n";'
+          for wrong in old-database production-env; do
+            rc=0
+            if test "$wrong" = old-database; then
+              DB_DATABASE=ald1n_test php apps/cms/current/tests/Support/compare-b803-full-suite.php "$RUNNER_TEMP/b803-evidence" || rc=$?
+            else
+              APP_ENV=production php apps/cms/current/tests/Support/compare-b803-full-suite.php "$RUNNER_TEMP/b803-evidence" || rc=$?
+            fi
+            test "$rc" = 40
+          done
+          echo 'B1098_COMPARATOR_REJECTS_NONCANONICAL_DATABASE_AND_NONTEST_ENV=PASS'
           php apps/cms/current/tests/Support/build-b803-runtime-manifest.php "$RUNNER_TEMP/b803-evidence/runtime-manifest.json"
       - name: Complete baseline suite - record inherited failures without hiding them
         run: |
