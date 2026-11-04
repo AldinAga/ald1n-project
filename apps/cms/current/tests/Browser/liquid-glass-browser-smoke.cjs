@@ -300,7 +300,7 @@ async function mobileDrawerReadabilitySmoke(page, label, width) {
   const tag = label + '/' + width;
   const fits = (r) => r && r.width > 0 && r.left >= -1 && r.right <= width + 1;
   check(pre.panel && pre.nav && pre.settings && pre.logout, 'MOBILE_DRAWER_PARTS_EXIST', tag + ' ' + JSON.stringify(pre));
-  check(pre.areas.replace(/\s+/g, ' ').includes('"nav" "quick" "logout"'), 'MOBILE_DRAWER_SINGLE_COLUMN', tag + ' ' + pre.areas);
+  check(pre.areas.replace(/\s+/g, ' ').includes('"nav quick" "logout logout"'), 'MOBILE_DRAWER_TWO_COLUMNS', tag + ' ' + pre.areas);
   check(['panel','nav','settings','logout'].every(key => fits(pre[key])), 'MOBILE_DRAWER_IN_VIEWPORT', tag + ' ' + JSON.stringify(pre));
   check(pre.nav && pre.settings && pre.logout
       && pre.nav.right <= pre.settings.left + 2
@@ -315,6 +315,27 @@ async function mobileDrawerReadabilitySmoke(page, label, width) {
   const preferences = page.locator('[data-mobile-menu-preferences]');
   await preferences.locator(':scope > summary').click();
   check(await preferences.evaluate(el => el.open), 'MOBILE_SETTINGS_DISCLOSURE_OPEN', tag);
+  const expanded = await preferences.evaluate(el => {
+    const panel = el.parentElement;
+    const rect = el.getBoundingClientRect();
+    const buttons = [...el.querySelectorAll('button')].filter(button => button.getClientRects().length);
+    return {
+      settingsLeft: rect.left, settingsRight: rect.right,
+      settingsScrollWidth: el.scrollWidth, settingsClientWidth: el.clientWidth,
+      panelScrollWidth: panel.scrollWidth, panelClientWidth: panel.clientWidth,
+      buttons: buttons.map(button => {
+        const box = button.getBoundingClientRect();
+        return { left: box.left, right: box.right, width: box.width, height: box.height };
+      }),
+    };
+  });
+  check(expanded.settingsScrollWidth <= expanded.settingsClientWidth + 2
+      && expanded.panelScrollWidth <= expanded.panelClientWidth + 2,
+    'MOBILE_SETTINGS_EXPANDED_NO_X_OVERFLOW', tag + ' ' + JSON.stringify(expanded));
+  check(expanded.buttons.length > 0 && expanded.buttons.every(button =>
+      button.left >= expanded.settingsLeft - 2 && button.right <= expanded.settingsRight + 2),
+    'MOBILE_SETTINGS_EXPANDED_CONTROLS_FIT', tag + ' ' + JSON.stringify(expanded));
+
   check(await preferences.locator('[data-theme-mode-option="dark"]').isVisible()
     && await preferences.locator('[data-display-currency-option="RSD"]').isVisible(),
     'MOBILE_SETTINGS_CONTROLS_ACCESSIBLE', tag);
