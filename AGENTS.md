@@ -8,6 +8,16 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0M. Owner commission authority — automatic10%, positive manual override (2026-11-04)
+
+**Latest explicit owner clarification supersedes earlier contradictory minimum/maximum wording:** automatic commission is10% of the product price converted to EUR ONLY when no manual amount is entered (omitted/null/blank). A valid **positive** manual EUR amount overrides that default and may be LOWER or HIGHER than10%. There is NO10% manual floor and NO fixed50EUR business ceiling. The owner separately confirmed that manual0 is NOT allowed: an explicitly entered0/negative amount must be rejected as input, not interpreted as a request for automatic10%. Preserve existing currency precision and technical storage/range bounds; do not introduce a percentage ceiling.
+
+Keep existing SuperAdministrator-only override authorization, public-retail zero-commission isolation, currencies/rates, identifiers and already-issued order snapshots. Do not retroactively rewrite money/order data or reintroduce variants. The earlier chat phrase “min10%” is explicitly superseded by the owner's subsequent clarification. Old unit expectations of a50EUR cap/manual10% floor are stale against this rule; their narrowly scoped reconciliation must retain raw before/after evidence and explicit test-identity accounting, without touching protected B805/B809/B815 cases or waiving any release gate.
+
+B1079 implementation and tests are being verified in unmerged Draft PR131. This section records product authority, NOT proof of deployment, completed CI or owner acceptance of any remaining milestone. Keep production release gates closed until the actual required evidence is complete.
+
+---
+
 ## 0L. B1074 exact retirement CI database identity and 80 remaining historic failures (2026-11-03)
 
 **Superseding TEST-INFRASTRUCTURE outcome (not application release):** [Real GitHub Actions B1074 #41718864135](https://github.com/AldinAga/ald1n-project/actions/runs/41718864135), [permanent one-report GitHub record](docs/operations/B1074-REGRESSION-ROOT-CAUSE-AND-CI-20261103.md), [single canonical Drive owner report](https://drive.google.com/file/d/1Iz2JKuYuhgZbWPLtTAlzKw-AXUJkONF0/view), [all original JUnit/logs/comparison ZIP](https://drive.google.com/file/d/1biSPyNKP1vd2Px1ygFZdxMv6Rte0QQFx/view) SHA256 `fc430d94cfbfca488e4cf668e6ad3ba1bfe9262e3a5607533cea3e45853e42fd`. In PR93 `UserRetirementMySqlIntegrationTest::setUp()`, **18/18 former CI failures were caused by `DB_DATABASE=ald1n_test` violating its exact hard safety gate `DB::getDatabaseName() === 'ald1n_retirement_ci'`**. Do not alter or bypass that gate, and do not interpret the 18 historical failures as failing retirement business logic. B1074 creates **two disposable and independent MariaDB10.11.19 CI containers** each with the exact `ald1n_retirement_ci` database; verifies their individual identity with `SELECT DATABASE()` and runs all tests unfiltered. Do NOT ever connect retirement tests to any production or existing non-disposable schema.

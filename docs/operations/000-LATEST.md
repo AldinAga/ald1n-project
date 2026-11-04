@@ -1,10 +1,37 @@
-<!-- 2026-11-03 LARAVEL MOBILE MENU ACTUAL CHROMIUM FAILURE AND FIX -->
-**PR #129 actual Chromium evidence (separate from B1074):** [First real CI #41725382308](https://github.com/AldinAga/ald1n-project/actions/runs/41725382308) was **FAILURE** despite green Laravel/PHP/MariaDB/static job: **12 browser opacity failures** at widths 820/620/390/320 x dark/light/auto; correct single-column nav/quick/logout geometry and opaque menu panel, but Liquid Glass rendered the parent header transparent (`opaqueHeader=0`). The test was retained unweakened. CSS specificity correction pushed as `e0559aeca67fcb5d80e8f29a4ee9bf1b319c608d` on the same Draft PR. [Second exact-source CI #41726244847](https://github.com/AldinAga/ald1n-project/actions/runs/41726244847) **pending** at this evidence point. [Detailed GitHub continuation](ALD1N-LARAVEL-MOBILE-MENU-SINGLE-COLUMN-20261103.md) and [Drive owner report](https://docs.google.com/document/d/1htlo3-1x2f9Ry-i7Td7w8jLgNmv670xivxs5zNN2k2g/edit). **No prod deployment or release acceptance; B1074 80 historic full-suite failures still HOLD.**
+<!-- PR129 integration: retain current operations and original RED evidence. -->
+Laravel mobile-menu source: [PR129](https://github.com/AldinAga/ald1n-project/pull/129), prior exact-head nine CI workflows green, including Chromium/PHP/MariaDB run41726558349. Source retained unchanged; synchronizing current main resolves only this index conflict. Fresh combined CI pending; no production deployment. See [menu evidence](ALD1N-LARAVEL-MOBILE-MENU-SINGLE-COLUMN-20261103.md).
 
 ---
 
-<!-- 2026-11-03 LARAVEL MOBILE MENU REOPENED -->
-**Additional reopened Laravel mobile-browser navigation issue (source-only / release HOLD):** The B149G V6/V7 two-column layout below 620px remains a confirmed source-level design defect; fixed on isolated `fix/laravel-mobile-menu-single-column-20261103` branch with responsive one-column menu, native `details` for quick settings, opaque opened header and Chromium regression checks for 820/620/390/320px. **NOT merged, NOT deployed and NOT browser-UAT PASS.** See [dedicated mobile navigation record](ALD1N-LARAVEL-MOBILE-MENU-SINGLE-COLUMN-20261103.md). Preserve latest B1074 80 historic CI failures and all current backend/storefront release HOLD gates.
+# CURRENT 2026-11-04 — B1079 POSITIVE MANUAL COMMISSION:86 TARGETED PASS;75 PHP+4 RELEASE25 HOLD
+
+[Report1009](1009-B1079-POSITIVE-MANUAL-COMMISSION-GITHUB-QA-AND-HANDOFF-20261104.md) supersedes pending-zero statements: **manual EUR must be >0 (cent minimum0.01); blank/null/omitted =>automatic10%; positive manual may be below or above10%, no fixed50EUR cap, SA-only.** Draft PR131 tested7efffa17f068494b23d9713b7af4896c7045f349, stacked on unmerged PR93; application main/production unchanged.
+
+[Actual CI41750685984](https://github.com/AldinAga/ald1n-project/actions/runs/41750685984):86focused/951assertions PASS after genuine zero-input and type-boundary RED. Full640cases/7errors/68failures/**75failingIDs**,0new/0skips. Rawmissing3 explicitly mapped (provider=>7datasets;2owner-authorized commission renames), never hidden. Mobile TypeScript/validator/OpenAPI PASS; fullRelease25 baseline and candidate both222/218PASS/**same4FAIL**,0new/0skips, deliberateHOLD. Static983/0 PASS; Chromium+Firefox registered buyer/PNG/replay PASS, containing guest-positive B799 stillFAIL. Protected fixtures unchanged. No merge/deploy/productionDB/flags/EAS/build/OTA/Play.
+
+[Permanent raw evidence+patches](https://drive.google.com/file/d/1NNWoEaqcsj0U93j0oFQzF8kNr3OYkgPh/view) SHA256ec5e98a18cfd7e8610f2f34e19ff0adc36a985d70ad8ccfa347484a5e96d3e7f. Detailed cross-account handoff inReport1009. PR129menu/130Windows/111warranty/127SDK58 remain separate; PR127doesnotincludeB1079 and requires reviewedport+fullcombinedQA beforebuild. All Report1008 security368/SEC23/merchant/mail/concurrency/restore/host/device gates OPEN_NOT_WAIVED. Formalaccepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. RuntimechecksGitHubonly; Usage15%,ceiling20%.
+
+---
+
+# CURRENT 2026-11-04 — B1077/B1078: CHROMIUM+FIREFOX PNG PASS,62 TARGETED PASS,FULL78 HOLD
+
+[Consolidated Report1008](1008-B1077-B1078-CROSS-BROWSER-TEST-INFRA-AND-RELEASE-HOLD-20261104.md) records actual results and the complete remaining release plan. [Draft PR131](https://github.com/AldinAga/ald1n-project/pull/131), tested head692e751e0dec407d998c0d1655c4bde5a4600d99, remains stacked on unmerged PR93. **Main application/production unchanged; only docs here.**
+
+[Real CI41744562332](https://github.com/AldinAga/ald1n-project/actions/runs/41744562332):62 focused/792 assertions PASS; original full553/81 failing IDs vs candidate621/5352 assertions/7 errors/71 failures/**78 failing IDs**,0new,0skips. Two original test-runner errors fixed using metadata/bootstrap ONLY; original inputs/assertions unchanged. Raw missing legacy provider discovery-error identity is explicitly replaced by its seven exact original passing data sets; complete identity migration proof retained, not hidden. Protected B805/B809/B815 and Composer locks byte-identical. **Global FAILURE/HOLD remains.** Unrelated presenter stop-failing not attributed.
+
+[Real browsers41744562313](https://github.com/AldinAga/ald1n-project/actions/runs/41744562313): registered buyer flow, replay, staff denial and actual320x240 PNG decoding/HTTP/private-no-store in BOTH Chromium and Firefox PASS. Old guest-success B799 scenario still runs and fails. Static983/0 unsuccessful PASS. No real SMTP/physical/native/host acceptance.
+
+[Permanent complete evidence](https://drive.google.com/file/d/1cn_46eSjOQEHAiEnAGwfs-pIBzFPPjeN/view) SHA256ded5a5f9e55ccb384691ee591aadcb981ad2a225c9a51c85b0b8e4ad9295e76f. Production requested ONLY when mandatory gates are actually safe: remaining M10/M11/M13/M14/M15/M17,78 historical IDs,368 security review,SEC23,merchant/mail/concurrency/restore/dirty-host/FPM and signed16KiB/device/OAuth proof remain open. No rule waiver, test filtering, guest-buying relaxation, source merge/deploy/DB/flags/EAS/OTA/Play. Formal accepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. Runtime tests GitHub-only; weekly Usage last14%,ceiling20%.
+
+---
+
+# CURRENT 2026-11-04 — B1076 PR131 SOURCE: RECEIPT ELIGIBILITY FIX,51 TARGETED PASS,FULL80 HOLD
+
+[Report1007](1007-B1076-RECEIPT-ELIGIBILITY-GITHUB-QA-20261104.md) supersedes the source-progress snapshot below. [Draft PR131](https://github.com/AldinAga/ald1n-project/pull/131) is stacked on unmerged PR93 acb8b9c42ec9254b1a27567abca29a26c1f733f8; tested application13edc7567cbca299fa6cbf915f5d4caab85f637c. **Application main/production unchanged.** B1075 selected reviewed storefront fixes and stable role-ID seeding; B1076 reloads current buyer eligibility before private receipt/document access after three independently reproduced stale-authentication failures.
+
+[Actual GitHub41741259048](https://github.com/AldinAga/ald1n-project/actions/runs/41741259048):51 focused tests/772 assertions PASS; full original553/81 failing IDs vs candidate615/80 failing IDs,0new,0missing original cases,0skips. Same80 IDs as B1075; **global FAILURE/HOLD_HISTORICAL_FULL_SUITE_FAILURES**. CMS static983/0 unsuccessful PASS; same-head B812 real registered Chromium/signup/activation/login/cart/checkout/replay PASS, while containing B799 guest-success workflow remains FAILURE. No real SMTP/Firefox/physical/prod-runtime acceptance. Protected historic fixtures and buyer security are unmodified.
+
+[Permanent complete evidence](https://drive.google.com/file/d/1NR9hodG46J-2jk9ORfphayUpUSfnC6qW/view) SHA2562a66cc067e085e7fdc71d6da377ce3cb00f539935b2588142edc212410b10b6d. Canonical Drive runbook updated. Owner requires GitHub runtime checks; local QA databases remain stopped. No deploy/production writes/flags/migration/EAS/native/OTA/Play or source merge. All release gates OPEN_NOT_WAIVED. Formal accepted ledger remains11/17=64.7%,CMS10/15=66.7%,UI6/6;M14/M15 not accepted. Weekly Usage14%,owner maximum20%.
 
 ---
 
