@@ -1,0 +1,93 @@
+name: Mobile source verification (no release)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mobile/current/src/**'
+      - 'apps/mobile/current/scripts/**'
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - 'apps/mobile/current/tsconfig.json'
+      - 'apps/mobile/current/expo-env.d.ts'
+      - 'apps/mobile/current/tamagui.config.ts'
+      - 'apps/mobile/current/.npmrc'
+      - 'apps/mobile/current/app.js'
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/eas.json'
+      - 'apps/mobile/current/modules/**'
+      - 'apps/mobile/current/plugins/**'
+      - '.github/workflows/mobile-source-qa.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Record exact source and verify toolchain
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/mobile-source-qa"
+          mkdir -p "$evidence"
+          test "$(git rev-parse HEAD)" = "$PR_HEAD"
+          printf 'HEAD=%s\nBASE=%s\n' "$PR_HEAD" "$PR_BASE" | tee "$evidence/source.txt"
+          node --version | tee "$evidence/node.txt"
+          test "$(node --version)" = 'v22.23.4'
+          java -version 2>&1 | tee "$evidence/java.txt"
+          java -version 2>&1 | grep -E 'version "17[.]'
+          for tool in jar keytool jarsigner zip unzip; do command -v "$tool"; done
+      - name: Install locked dependencies
+        working-directory: apps/mobile/current
+        run: |
+          set -euo pipefail
+          npm exec --yes --package=npm@10.9.2 -- npm --version | tee "$RUNNER_TEMP/mobile-source-qa/npm.txt"
+          grep -Fx '10.9.2' "$RUNNER_TEMP/mobile-source-qa/npm.txt"
+          npm exec --yes --package=npm@10.9.2 -- npm ci --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/mobile-source-qa/install.log"
+      - name: Run source regressions and preserve every real result
+        working-directory: apps/mobile/current
+        run: |
+          set -uo pipefail
+          evidence="$RUNNER_TEMP/mobile-source-qa"
+          node --test scripts/release25/api-download.test.mjs 2>&1 | tee "$evidence/api-download.log"
+          focused=${PIPESTATUS[0]}
+          npm run typecheck 2>&1 | tee "$evidence/typecheck.log"
+          types=${PIPESTATUS[0]}
+          node scripts/validate-project.mjs 2>&1 | tee "$evidence/validator.log"
+          validator=${PIPESTATUS[0]}
+          npm run test:release25 2>&1 | tee "$evidence/release25.log"
+          full=${PIPESTATUS[0]}
+          printf 'FOCUSED=%s\nTYPECHECK=%s\nVALIDATOR=%s\nFULL=%s\n' "$focused" "$types" "$validator" "$full" | tee "$evidence/exit-codes.txt"
+          test "$focused" -eq 0 && test "$types" -eq 0 && test "$validator" -eq 0 && test "$full" -eq 0 || exit 1
+          node - "$evidence" <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict'),dir=process.argv[2];
+          assert.match(fs.readFileSync(dir+'/validator.log','utf8'),/^Ukupno FAIL:\s*0\s*$/m);
+          for(const file of ['api-download.log','release25.log']) {
+            const log=fs.readFileSync(dir+'/'+file,'utf8');
+            for(const key of ['fail','cancelled','skipped','todo']) assert.match(log,new RegExp('^# '+key+' 0\\s*$','m'));
+            const count=log.match(/^# tests (\d+)\s*$/m); assert(count && Number(count[1])>0,'Nonempty TAP: '+file);
+            assert.match(log,new RegExp('^# pass '+count[1]+'\\s*$','m'));
+          }
+          NODE
+      - name: Preserve exact-head validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-source-qa
+          path: ${{ runner.temp }}/mobile-source-qa
+          if-no-files-found: error
+          retention-days: 7
