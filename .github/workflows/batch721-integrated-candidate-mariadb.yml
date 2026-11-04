@@ -123,7 +123,7 @@ jobs:
           git diff --exit-code -- package.json package-lock.json
 
   release-history:
-    if: github.head_ref == 'codex/b1080-release-history-main-20261104'
+    if: github.head_ref == 'codex/b1080-release-history-main-20261104' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
