@@ -149,8 +149,10 @@ jobs:
           function need(bool $ok,string $reason):void { if(!$ok)throw new RuntimeException($reason); }
           function rc(string $name):int { global $dir; $p="$dir/$name"; need(is_file($p),'Missing exit receipt: '.$name); $s=trim(file_get_contents($p)); need((bool)preg_match('/^\d+$/D',$s),'Invalid RC: '.$name); return (int)$s; }
           function auditCounts(mixed $audit,int $exit):array {
-              need(array_key_exists('advisories',$audit),'Missing advisory data');
-              $counts=['advisories'=>count($audit['advisories']),'abandoned'=>count($audit['abandoned']??[])];
+              need(is_array($audit),'Invalid audit document');
+              foreach(['advisories','abandoned'] as $key)
+                  need(array_key_exists($key,$audit) && is_array($audit[$key]),'Missing/invalid audit collection: '.$key);
+              $counts=['advisories'=>count($audit['advisories']),'abandoned'=>count($audit['abandoned'])];
               need($exit===0 && $counts['advisories']===0 && $counts['abandoned']===0,'candidate audit failed');
               return $counts;
           }
