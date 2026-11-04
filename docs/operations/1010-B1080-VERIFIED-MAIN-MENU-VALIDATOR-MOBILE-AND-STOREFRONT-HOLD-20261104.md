@@ -54,3 +54,15 @@ No production hosting access/deployment/FPM/OPcache/DB/schema/data/flag/SMTP cha
 ## Permanent archive checkpoint
 
 [Complete B1080 evidence](https://drive.google.com/file/d/1kWtrvv6rrA6s2fG2FH8EUaiIDDdQsFVf/view), SHA256 **b4c11b4b38f2febdae27df53b06b7ca96b356a82e90ebc95d2f2e5d6378eff8b**. Archive includes preceding report revision before this receipt. All original artifact hashes retained.
+
+## Final integrated-main verification and subsequent CI-only merge
+
+After PR129/130/132 and the new current Report1010 heading were present together, [actual run41786165779](https://github.com/AldinAga/ald1n-project/actions/runs/41786165779) on54431899c40008eb4178d5ccdbcfd85e4a899609 independently passed both applicable jobs: **main mobile309/309PASS**, TypeScript, full validator0FAIL, baseline309/305/4FAIL comparison, and MariaDB integration. No skipped test cases. PR130-only validator-path job is not applicable here; its prior3-casePASS is retained. No new app changes were made for this verification.
+
+Local gh manual dispatch was unavailable (not authenticated); no key was requested/read/copied. A single-line CI-only PR133 enabled the connected GitHub PR trigger for this final application tree; final run passed before merge. PR133 merged as **dc9adf6a6f8a06928f922b9b7d771f71a9001bef**. Git diff from tested54431899 to this main across apps is empty; whitespace check PASS. Documentation-only checkpoint updates after it are not app drift.
+
+[Permanent menu Chromium evidence](https://drive.google.com/file/d/1nEFSirjX2dwGyVi6gIewFOCQjAcQfiTr/view) SHA256ddb46ecf88c43f6c7b72ee7cc87817054f6feaec4448e6a3063e585b2cb6574d. Actual browser artifact is from PR129 combined merge refdff64fe8f40f4bdc8a7100af985e9e421d96077c for head af346f30, including current-main validator; historical report's head reference denotes the PR source, not a claim that merge-ref checks run directly on head.
+
+[Permanent final integrated-main309 evidence](https://drive.google.com/file/d/1dc9xgXKLtkY4Ltiu6v1pWvUAlft75DLq/view) SHA256083fa8a23c03e69da8a8f703643330ae4d1fd404373425a9c5e6dacd54b0d288. Full TAP and real exits retained. Original core archive predates this final verification; these linked artifacts supplement it, never replace earlier RED.
+
+**Result:** menu129, validator130 and mobile contract132 plus verification133 merged; commerce93/131 and SDK58 are not claimed merged. No production release. All75 commerce PHP identities remain and must be reconciled under the existing safeguards. Main309GREEN is a scoped mobile result, not all-project/full-CMS certification.
