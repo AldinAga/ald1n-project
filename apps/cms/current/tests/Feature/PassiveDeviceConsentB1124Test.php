@@ -10,7 +10,8 @@ use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Database\Events\TransactionBeginning;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -65,11 +66,20 @@ if (PHP_SAPI === 'cli' && ($argv[1] ?? null) === 'b1124-worker') {
 
 final class PassiveDeviceConsentB1124Test extends TestCase
 {
-    use DatabaseMigrations;
+    use DatabaseTruncation;
+
+    protected function beforeTruncatingDatabase(): void
+    {
+        self::assertSame('testing', app()->environment());
+        self::assertSame('ald1n_retirement_ci', DB::connection()->getDatabaseName());
+        // Independent workers need committed fixtures; protected migration down() must never run.
+        RefreshDatabaseState::$migrated = false;
+    }
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->beforeApplicationDestroyed(static function (): void { RefreshDatabaseState::$migrated = false; });
         self::assertSame('testing', app()->environment());
         self::assertSame('ald1n_retirement_ci', DB::connection()->getDatabaseName());
         $this->seed(CoreAccessSeeder::class);
@@ -172,7 +182,7 @@ final class PassiveDeviceConsentB1124Test extends TestCase
         $user = $this->user('rollback');
         $other = $this->device($this->user('foreign-rollback'), true, 'rollback-foreign');
         $own = $this->device($user, true, 'rollback-own');
-        $before = [$other->getRawOriginal(), $own->getRawOriginal()];
+        $before = [$other->fresh()->getRawOriginal(), $own->fresh()->getRawOriginal()];
         Event::listen('eloquent.saving: '.MobileDevice::class, function (MobileDevice $model) use ($own): void {
             if ((int) $model->id === (int) $own->id) throw new \RuntimeException('Synthetic B1124 rollback');
         });
@@ -287,7 +297,7 @@ final class PassiveDeviceConsentB1124Test extends TestCase
         $user = $this->user(strtolower($method).'-claim');
         $own = $this->device($user, false);
         $foreign = $this->device($this->user(strtolower($method).'-foreign'), true);
-        $before = $foreign->getRawOriginal();
+        $before = $foreign->fresh()->getRawOriginal();
         Sanctum::actingAs($user);
         $data = $method === 'POST' ? $this->payload($own, $foreign->push_token) : ['push_provider' => 'expo', 'push_token' => $foreign->push_token];
         $this->json($method, $method === 'POST' ? '/api/v1/devices' : '/api/v1/devices/'.$own->id, $data)->assertOk();
