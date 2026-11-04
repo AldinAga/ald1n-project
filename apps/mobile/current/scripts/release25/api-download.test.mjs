@@ -22,7 +22,7 @@ function fixture(options = {}) {
     delete() { this.deleted = true; this.exists = false; }
   }
   const native = {
-    'expo-constants': { default: { expoConfig: { extra: { apiUrl: options.extra ?? base } } } },
+    'expo-constants': { __esModule: true, default: { expoConfig: { extra: { apiUrl: options.extra ?? base } } } },
     'expo/fetch': { fetch: () => { throw new Error('Unexpected multipart transport'); } },
     '@/lib/storage': { tokenStore: { get: async () => options.token === undefined ? 'synthetic-token' : options.token } },
     'expo-file-system': { File, Paths: { cache: 'file:///synthetic-cache' } },

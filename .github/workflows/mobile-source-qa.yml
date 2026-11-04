@@ -61,6 +61,7 @@ jobs:
       - name: Run source regressions and preserve every real result
         working-directory: apps/mobile/current
         run: |
+          set +e
           set -uo pipefail
           evidence="$RUNNER_TEMP/mobile-source-qa"
           node --test scripts/release25/api-download.test.mjs 2>&1 | tee "$evidence/api-download.log"
