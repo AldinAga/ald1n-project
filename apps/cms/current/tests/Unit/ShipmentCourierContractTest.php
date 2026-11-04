@@ -24,7 +24,8 @@ final class ShipmentCourierContractTest extends TestCase
         self::assertStringNotContainsString("cash_on_delivery", $service);
         self::assertStringContainsString('Broj za praćenje se unosi isključivo kroz Evidenciju slanja pošiljke.', $workflow);
         self::assertStringContainsString('Evidencija slanja pošiljke', $view);
-        self::assertStringContainsString('Evidentiraj da je poručeni artikal poslat kupcu', $view);
+        self::assertStringContainsString('Evidentiraj da je roba poslata.', $view);
+        self::assertStringContainsString('Ova akcija ne potvrđuje stvarnu isporuku niti naplatu pouzećem.', $view);
         self::assertStringContainsString('final class CourierDirectoryService', $directory);
         self::assertStringContainsString("hasRole('superadmin')", $directory);
     }

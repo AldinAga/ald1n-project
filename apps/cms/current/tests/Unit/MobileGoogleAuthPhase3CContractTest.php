@@ -25,7 +25,8 @@ final class MobileGoogleAuthPhase3CContractTest extends TestCase
 
         self::assertIsString($service);
         self::assertStringContainsString("provider_subject", $service);
-        self::assertStringContainsString("status' => 'pending'", $service);
+        self::assertStringContainsString("'status' => \$autoActivate ? 'active' : 'pending'", $service);
+        self::assertStringContainsString("config('mobile.google_auth.auto_activate_registration', false)", $service);
         self::assertStringContainsString("standardni-korisnik", $service);
         self::assertStringContainsString('googleIsAuthoritativeForEmail', $service);
         self::assertStringContainsString("@gmail.com", $service);

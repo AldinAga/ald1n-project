@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
+use Illuminate\Support\Facades\Route;
 
 final class PerformanceDataQualityContractTest extends TestCase
 {
@@ -22,12 +23,12 @@ final class PerformanceDataQualityContractTest extends TestCase
     {
         $root = dirname(__DIR__, 2);
         $release = (string) file_get_contents($root.'/config/release.php');
-        $routes = (string) file_get_contents($root.'/routes/web.php');
         $query = (string) file_get_contents($root.'/app/Services/CatalogQueryService.php');
 
         self::assertStringContainsString("'cms_v216'", $release);
         self::assertStringContainsString("app:cms-v2-1-6-doctor", $release);
-        self::assertStringContainsString('admin.data-quality.index', $routes);
+        self::assertTrue(Route::has('admin.data-quality.index'));
+        self::assertSame('admin/data-quality',Route::getRoutes()->getByName('admin.data-quality.index')->uri());
         self::assertStringContainsString("'missing_image'", $query);
         self::assertStringContainsString("'incomplete'", $query);
     }

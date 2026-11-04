@@ -22,7 +22,7 @@ final class SettingsHubNavigationContractTest extends TestCase
         self::assertStringContainsString("name('settings.index')", $routes);
         self::assertStringContainsString("route('admin.settings.index')", $layout);
         self::assertStringContainsString("route('admin.settings.couriers.index')", $layout);
-        self::assertStringContainsString('Centar podešavanja', $layout);
+        self::assertStringContainsString('Sva podešavanja', $layout);
         self::assertStringContainsString('Pronađi podešavanje', $hub);
         self::assertStringContainsString('Kurirske službe', $hub);
         self::assertStringContainsString('Šifarnici kataloga', $hub);
