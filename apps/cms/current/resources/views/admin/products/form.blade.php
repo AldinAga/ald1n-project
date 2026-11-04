@@ -392,7 +392,7 @@
                     <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
                     <label><span>Nabavna cena RSD</span><input name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small>Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
                     @if(auth()->user()?->hasRole('superadmin'))
-                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"></label>
+                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0.01" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"></label>
                     @endif
                     @if(!$product->exists || auth()->user()->can('stock.adjust'))
                         <label><span>Količina</span><input name="stock_quantity" type="number" min="0" required value="{{ old('stock_quantity',$product->stock_quantity??0) }}"></label>
