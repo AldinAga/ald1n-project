@@ -47,6 +47,7 @@ final class MobileApiFoundationContractTest extends TestCase
         ],$response->getData(true));
         self::assertSame('7',$response->headers->get('Retry-After'));
         $missing=ApiErrorResponse::make(Request::create('/api/v1/catalog'),'Unavailable','server_error',500);
+        self::assertSame(500,$missing->getStatusCode());
         self::assertNull($missing->getData(true)['request_id']);
         self::assertArrayNotHasKey('errors',$missing->getData(true));
     }
