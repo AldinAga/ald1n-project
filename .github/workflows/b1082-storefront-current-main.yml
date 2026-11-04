@@ -90,7 +90,7 @@ jobs:
           test "$(git -C original rev-parse HEAD)" = e89def93293ed2828f02bed5e412c93e00a7c0df
           test "$(git -C candidate rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           python3 - <<'PY'
-          import json,pathlib,subprocess
+          import hashlib,json,pathlib,subprocess
           historical='acb8b9c42ec9254b1a27567abca29a26c1f733f8'
           paths=subprocess.check_output(['git','-C','original','ls-tree','-r','--name-only',historical,'apps/cms/current/tests'],text=True).splitlines()
           protected=[p for p in paths if any(n in p for n in ('B805','B809','B815'))]
@@ -111,9 +111,10 @@ jobs:
                   assert expected.encode('utf-8')==actual,(p,'only exact owner-approved fixture edits')
               else:
                   assert old==actual,(p,'unapproved protected source changed')
-          parity=['apps/cms/current/composer.json','apps/cms/current/composer.lock','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/package-lock.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
+          parity=['apps/cms/current/composer.json','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/package-lock.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
           for p in parity:
               assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
+          assert hashlib.sha256((pathlib.Path('candidate')/'apps/cms/current/composer.lock').read_bytes()).hexdigest()=='4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8','PR141 exact audited main lock'
           print('OWNER_APPROVED_FIXTURE_CORRECTIONS_EXACT',2,'OTHER_PROTECTED_UNCHANGED',len(protected)-2)
           repairs={
               'apps/cms/current/tests/Unit/LegacyReadOnlyGuardTest.php':[
