@@ -8,7 +8,11 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
-## 0V. Owner resumed unlimited-by-prior-cap Subagent Driven work (2026-11-04)
+## 0W. Owner confirmed working backup and prioritizes current development (2026-11-04)
+
+The owner identified **backup174-offsite-main807f4bc8.tar.gpg**, said it is saved locally and on Google Drive, and explicitly confirmed it works while directing the agent to continue development instead of revisiting past backups. Credit this working-backup owner attestation; stop repeated backup-folder questions, Drive searches, private archive downloads, and replays of completed B955/B959 backup/restore work. Safe current source/test development must not wait for discovery of an old default hosting backup folder. Preserve all existing copies. Do not invent a new independent checksum/fresh restore verification from the owner's statement, and do not create/prune/delete backups or run production changes incidentally. A genuinely new deployment-specific condition must be explained concretely rather than reopening settled history by default.
+
+## 0V. Owner withdrew previous Usage cap and requested Subagent Driven continuation (2026-11-04)
 
 The owner explicitly instructed: **Zanemari prethodni limit koji sam ti dao, samo teraj dok ne dovršimo sve započete zadatke Subagent Driven**. This withdraws the earlier20%/50% Weekly Usage ceiling for ongoing Ald1n work. Continue authorized safe tasks with the installed Subagent Driven workflow and independent reviews; do not stop merely because the old percentage ceiling is reached. It does not authorize purchasing credits, consuming a reset, destructive actions, bypassing release gates or production/native changes. Existing GitHub-only runtime, manual hosting handoff, protected-test, security and deployment boundaries remain binding.
 
