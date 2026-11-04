@@ -60,11 +60,12 @@ final class PublicOrderAccessService
         abort_unless($access instanceof PublicOrderAccess,404);
         $order=Order::query()->whereKey($access->order_id)
             ->where('sales_channel','public_retail')
-            ->whereNull('purged_at')->first();
+            ->whereNull('purged_at')
+            ->whereNotNull('user_id')->first();
         abort_unless($order instanceof Order,404);
-        // B809: a token for a registered Kupac purchase is not an anonymous
-        // login. Legacy null-user receipts remain read-only and capability
-        // bounded, but current buyer orders require the matching active account.
+        // A private link never substitutes for its registered buyer account.
+        // The owner confirms there are no historical guest orders; lost ownership
+        // must fail closed instead of turning an issued link into anonymous access.
         if ($order->user_id !== null) {
             $actor=request()->user();
             // Authentication may have loaded the account before access was withdrawn.
