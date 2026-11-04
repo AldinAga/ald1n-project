@@ -1,3 +1,19 @@
+# CURRENT 2026-11-04 — B1105 PHP SECURITY MERGED; STOREFRONT FULL QA RUNNING; RELEASE HOLD
+
+[Report1016](1016-B1099-B1105-STOREFRONT-SECURITY-PHP-LOCK-AND-MANUAL-DELIVERY-20261104.md) is current. Main PR141 merged **faf8cced8028dd0499447675fa9c5144f5b250c4**, exact tested aa4c8b7d:9/9 workflows SUCCESS, baseline AND candidate489tests/3920assertions PASS, canonical983/0, PHP20advisories→0. No hosting vendor/deployment claim.
+
+Storefront Draft135 current **c8a1337aa2da40f8f7a22932e73eaacbe3f33d2c** integrates main PHP security lock via1ae9eb90 and preserves exact protected-fixture whitelist. Combined canonical41828321972/browser41828322221 running; earlier full717/7281+192/2677 and real purchase races on2fbf1f63 remain verified historical evidence, not a claim current final QA completed. CSP14responses/28script probes PASS. Source composer audit on1ae9RC0; npm unresolved.
+
+Six-JS-only mobile candidate (NOTadopted) passed TSC/validator/**309tests,0failed/skipped**, JDK17, actual41828612442/job126570055534. Exact lockde158426...,102Expo/native/React objects unchanged;25affectedpackages→21,critical1→0,6high remain. Job staysFAIL at retained audit-zero gate. Gitleaks actual calibrated scan816current/1372history POTENTIAL findings, allreviewrequired; no blanketignore or confirmed-leak claim. Security368/SEC23/merchant/legal/mail/host/backup/rollback/UAT remainOPEN; DraftUNMERGED/UNDEPLOYED.
+
+Owner confirmed menu root-package upload/resolved; public CSS readback matchesf77a4cca/26646bytes. AGENTS0T permanent: manual ZIP must mirror monorepo paths with no outer wrapper, extract into /home/icaffeco/ald1n-project; scriptsincoming only/reportsdocs/operations only. Reconstructed previous delivery ZIP is historical Git evidence, not a prior-host backup. Do not repeat menu confirmation requests.
+
+[New security evidence archive](https://drive.google.com/file/d/17YrxTgbf5Gz541V2GWKh0J37jmrx75n5/view), SHA256e119ec75578c1f9a4bd6655628eebbd3da2d315460754dcfa612610393259504 independentlyreadbackverified. Archive is preparation snapshot; latest addenda live in Report1016. Original full717 archive1to-1UogjxqTsUptIAIOsqKMnV92W6gJa retained. Canonical Drive runbook preserves all prior bytes and gains current security/HOLD status.
+
+Formal acceptance12/17=70.6%;M17CLOSED, B962M10/M11deployment/migrationalreadydone; no repeat build/deploy. TwoownerQA DBs untouched. Owner merchant/legal/shipping/email confirmation pending. Weekly23%,ceiling50%, no reset used. No localruntime/FileZilla/productionDB/flags/SMTP/EAS/build/OTA/Play. Older current headings below are historical.
+
+---
+
 # CURRENT 2026-11-04 — B1098 FINAL18/18 CI; BOTH FULL717 ZERO; REAL REGISTERED CONCURRENCY PASS
 
 [Report1015](1015-B1091-B1098-FULL-LARAVEL-RECOVERY-REGISTERED-CONCURRENCY-AND-ACCEPTANCE-20261104.md) is FINAL. DraftPR135 exact **2fbf1f630761c5e864de91bfd5222cc63215b905** has **18/18 workflows SUCCESS**. [Canonical41818033405](https://github.com/AldinAga/ald1n-project/actions/runs/41818033405):717tests/7281assertions PASS,192focused/2677PASS,0failed/errors/skips/missing old640 identities. [Older B803 corrected41818033451](https://github.com/AldinAga/ald1n-project/actions/runs/41818033451): SAME717/7281/0problems, **WHOLE_SUITE_GREEN=YES**; exactdisposableDB/negative environment guards PASS. Its prior18wrong-DB failures were CI configuration, not weakened retirement tests. Earlier RUNNING statements below are historical.
