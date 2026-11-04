@@ -8,6 +8,10 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0V. Owner resumed unlimited-by-prior-cap Subagent Driven work (2026-11-04)
+
+The owner explicitly instructed: **Zanemari prethodni limit koji sam ti dao, samo teraj dok ne dovršimo sve započete zadatke Subagent Driven**. This withdraws the earlier20%/50% Weekly Usage ceiling for ongoing Ald1n work. Continue authorized safe tasks with the installed Subagent Driven workflow and independent reviews; do not stop merely because the old percentage ceiling is reached. It does not authorize purchasing credits, consuming a reset, destructive actions, bypassing release gates or production/native changes. Existing GitHub-only runtime, manual hosting handoff, protected-test, security and deployment boundaries remain binding.
+
 ## 0U. Owner finalized existing CMS merchant settings (2026-11-04)
 
 The owner explicitly answered **Postojeće CMS postavke su konačne** for terms of sale, privacy, shipping price/conditions and contact email. Treat the existing CMS values as final approved content; do not ask this same business decision again or silently replace them with environment defaults. Public pages must consume the existing shared merchant policy service, including registration privacy links, with its established stored-value precedence and configuration fallback.
