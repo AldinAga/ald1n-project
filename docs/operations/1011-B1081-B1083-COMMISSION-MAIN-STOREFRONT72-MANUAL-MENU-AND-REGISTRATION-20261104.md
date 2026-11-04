@@ -53,3 +53,7 @@ Immediate next: complete B1085 RED/GREEN and real registered browser fixture upd
 SOURCE_MUTATION=yes isolated source/tests; MAIN_MERGED=PR134+PR136; STOREFRONT_MAIN_MERGED=no; AGENT_PRODUCTION_MUTATION=no; OWNER_MENU_UPLOAD=reported/CSSverified; PRODUCTION_BACKEND_DEPLOYMENT=no; DB/flags/SMTP/EAS/build/OTA/Play=no. Original dirty worktree/acb8b9c HEAD and original D:\GPT\Ald1n-mobile/history retained; local runtime not started.
 
 Formal accepted ledger unchanged **11/17=64.7%,CMS10/15=66.7%,UI6/6**. Weekly Usage latest17%,ceiling20%,reserve retained; no reset redeemed. Goal remains active/incomplete. Prior AIVM capture403 persists; no repeated or alternate brain write. GitHub/Drive checkpoints are durable records.
+
+## Permanent archive checkpoint
+
+[Complete B1081-B1083 evidence](https://drive.google.com/file/d/1hz7lr4Qo5udG-3oLBD5QoElotMOg4uL4/view) SHA256 **f8a09375e4b375d2534029c5e78ec790c30ead951d7898372d847a621dc77b3a**. Includes commission RED/GREEN, full309mobile, initial697/75 and refreshed698/72 full JUnit,32-case contract proof, both registered browsers, original75case spreadsheet, exact assembly proof and approved/live menuCSS. No attached user screenshot or real customer data copied. Archive report predates this self-referential receipt.
