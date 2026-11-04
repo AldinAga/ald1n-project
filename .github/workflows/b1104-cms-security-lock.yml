@@ -30,6 +30,14 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=10s --health-timeout=5s --health-retries=12
     env:
+      B1125_MODE: ${{ github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.number == 150 && github.head_ref == 'codex/b1125-symfony-patch-20261104' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.sha == '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' }}
+      B1125_REPOSITORY: ${{ github.repository }}
+      B1125_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      B1125_PR: ${{ github.event.pull_request.number }}
+      B1125_HEAD_REF: ${{ github.head_ref }}
+      B1125_BASE_REF: ${{ github.event.pull_request.base.ref }}
+      B1125_EVENT_BASE: ${{ github.event.pull_request.base.sha }}
+      B1125_EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
       APP_ENV: testing
       APP_DEBUG: 'false'
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -52,7 +60,10 @@ jobs:
       OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {ref: d6a3e9f986b3b43d02ce304af7fa5e07e7bd1929, path: baseline, persist-credentials: false}
+        with:
+          ref: ${{ github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.number == 150 && github.head_ref == 'codex/b1125-symfony-patch-20261104' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.sha == '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' && '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' || 'd6a3e9f986b3b43d02ce304af7fa5e07e7bd1929' }}
+          path: baseline
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -69,8 +80,55 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/b1104-evidence"
           git -C candidate rev-parse HEAD > "$RUNNER_TEMP/b1104-evidence/source-head.txt"
-          echo '4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8  candidate/apps/cms/current/composer.lock' | sha256sum --check
-          git -C candidate diff --exit-code d6a3e9f986b3b43d02ce304af7fa5e07e7bd1929 HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile
+          # B1125_SOURCE_GUARD_BEGIN
+          test "$(git -C candidate rev-parse HEAD)" = "$B1125_EVENT_HEAD"
+          case "$B1125_MODE" in
+            true)
+              test "$B1125_REPOSITORY" = AldinAga/ald1n-project
+              test "$B1125_HEAD_REPOSITORY" = AldinAga/ald1n-project
+              test "$B1125_PR" = 150
+              test "$B1125_HEAD_REF" = codex/b1125-symfony-patch-20261104
+              test "$B1125_BASE_REF" = main
+              test "$B1125_EVENT_BASE" = 1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca
+              test "$(git -C baseline rev-parse HEAD)" = 1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca
+              git -C candidate merge-base --is-ancestor 1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca HEAD
+              git -C candidate merge-base --is-ancestor 566109cac265a38f8220e44d45859be83d5d7b9f HEAD
+              git -C candidate diff --name-only --no-renames 1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca HEAD > "$RUNNER_TEMP/b1125-net-paths.txt"
+              printf '%s\n' .github/workflows/b1104-cms-security-lock.yml .github/workflows/cms-dependency-audit.yml apps/cms/current/composer.lock > "$RUNNER_TEMP/b1125-expected-paths.txt"
+              cmp "$RUNNER_TEMP/b1125-net-paths.txt" "$RUNNER_TEMP/b1125-expected-paths.txt"
+              git -C candidate diff --raw --no-abbrev --no-renames 566109cac265a38f8220e44d45859be83d5d7b9f HEAD > "$RUNNER_TEMP/b1125-frozen-delta.txt"
+              test "$(wc -l < "$RUNNER_TEMP/b1125-frozen-delta.txt")" -eq 1
+              grep -Eq '^:100644 100644 [0-9a-f]{40} [0-9a-f]{40} M[[:space:]]+\.github/workflows/b1104-cms-security-lock\.yml$' "$RUNNER_TEMP/b1125-frozen-delta.txt"
+              test "$(git -C candidate rev-parse HEAD:.github/workflows/cms-dependency-audit.yml)" = e6489fdc8767edfbc76dba8c88489392218c1d49
+              test "$(git -C candidate rev-parse HEAD:apps/cms/current/composer.lock)" = c0ced1237a08113deb583fbe605bdafb469e1ba3
+              echo '4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8  baseline/apps/cms/current/composer.lock' | sha256sum --check
+              echo '4937d2e652bd41f83005faebfa5f238e4425db3a02506985695b4f3da2b8613b  candidate/apps/cms/current/composer.lock' | sha256sum --check
+              git -C candidate diff --exit-code 1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile packages
+              ;;
+            false)
+              test "$(git -C baseline rev-parse HEAD)" = d6a3e9f986b3b43d02ce304af7fa5e07e7bd1929
+              echo '4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8  candidate/apps/cms/current/composer.lock' | sha256sum --check
+              git -C candidate diff --exit-code d6a3e9f986b3b43d02ce304af7fa5e07e7bd1929 HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile
+              ;;
+            *) exit 46 ;;
+          esac
+          # B1125_SOURCE_GUARD_END
+          if test "$B1125_MODE" = true; then
+            php <<'PHP'
+          <?php
+          $a=json_decode(file_get_contents('baseline/apps/cms/current/composer.lock'),true,512,JSON_THROW_ON_ERROR);
+          $b=json_decode(file_get_contents('candidate/apps/cms/current/composer.lock'),true,512,JSON_THROW_ON_ERROR);
+          $changed=[];$total=0;
+          foreach(['packages','packages-dev'] as $section){
+              $old=array_column($a[$section],null,'name');$new=array_column($b[$section],null,'name');ksort($old);ksort($new);
+              if(count($old)!==count($a[$section])||count($new)!==count($b[$section])||array_keys($old)!==array_keys($new))throw new RuntimeException('Package set drift');
+              $total+=count($old);foreach($old as $name=>$package){if($package!==$new[$name]){$changed[]=$name;if($new[$name]['version']!=='v8.1.11')throw new RuntimeException('Patch version drift');}}
+              unset($a[$section],$b[$section]);
+          }
+          sort($changed);if($total!==125||$a!==$b||$changed!==['symfony/http-kernel','symfony/routing','symfony/serializer'])throw new RuntimeException('Unreviewed lock object delta');
+          file_put_contents(getenv('RUNNER_TEMP').'/b1104-evidence/package-comparison.json',json_encode(['source'=>getenv('B1125_EVENT_HEAD'),'packages'=>$total,'changed'=>$changed,'preserved'=>122,'otherMetadataUnchanged'=>true],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)."\n");
+          PHP
+          fi
           curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$RUNNER_TEMP/composer-2.11.1.phar"
           echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check
           for tree in baseline candidate; do
@@ -112,6 +170,12 @@ jobs:
               return array_keys($ids);
           }
           $before=cases($dir.'/baseline.xml');$after=cases($dir.'/candidate.xml');
+          if(getenv('B1125_MODE')==='true'){
+              if(count($before)!==511||count($after)!==511||count(array_unique($before))!==511||count(array_unique($after))!==511)exit(50);
+              $sameBefore=$before;$sameAfter=$after;sort($sameBefore);sort($sameAfter);if($sameBefore!==$sameAfter)exit(51);
+              foreach(['baseline','candidate'] as $label){$xml=simplexml_load_file($dir.'/'.$label.'.xml');if($xml===false||($xml->xpath('//warning')?:[])!==[])exit(52);foreach(($xml->xpath('//*[@warnings]')?:[]) as $suite){if((int)$suite['warnings']!==0)exit(52);}if(preg_match('/^OK [(]511 tests, [0-9]+ assertions[)]$/m',str_replace(chr(13),'',file_get_contents($dir.'/'.$label.'.log')))!==1)exit(53);}
+              file_put_contents($dir.'/current-mode-proof.json',json_encode(['baselineCases'=>511,'candidateCases'=>511,'uniqueBaseline'=>count(array_unique($before)),'uniqueCandidate'=>count(array_unique($after)),'completeIdentitiesEqual'=>true,'warnings'=>0],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR));
+          }
           if(array_diff($before,$after)!==[]||trim(file_get_contents($dir.'/baseline.exit'))!=='0'||trim(file_get_contents($dir.'/candidate.exit'))!=='0')exit(48);
           $audit=json_decode(file_get_contents($dir.'/candidate-audit.json'),true,512,JSON_THROW_ON_ERROR);
           if(!array_key_exists('advisories',$audit)||$audit['advisories']!==[]||($audit['abandoned']??[])!==[])exit(49);
