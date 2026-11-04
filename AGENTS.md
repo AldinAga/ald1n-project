@@ -8,6 +8,16 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0T. Owner rule: ready manual-upload ZIPs mirror the project root (2026-11-04)
+
+The owner explicitly requires: "napraviš sve subfoldere za svaki fajl ... unzip u /home/icaffeco/ald1n-project ... svaki fajl legne na svoje mesto". Whenever a manual upload is genuinely needed and the delivery has passed its gates, provide the actual ready file and exact destination immediately; do not wait for another request and do not control FileZilla.
+
+Application-delivery ZIP entries MUST be relative to **/home/icaffeco/ald1n-project**, preserving every actual subdirectory, with NO extra enclosing delivery folder and NO flattened filenames. Example entries: apps/cms/current/public/assets/css/ald1n-ui-refinement.css and apps/cms/current/resources/views/layouts/app.blade.php. The owner can extract one ZIP directly into the canonical project root. Include only the explicitly approved payload files; instruction/manifest sidecars must not create unintended files in that extraction tree.
+
+Before delivery, verify the exact allowlisted entry set, reject absolute/drive paths, traversal, backslashes and duplicates, and verify each archived file against the approved source SHA256. Preserve existing local packages/files and required backups; provide clear replacement scope. No production secrets, .env, DB dumps, caches or unrelated source. Existing section1A remains binding: operator executable scripts/helpers belong ONLY in incoming/ and generated reports/logs ONLY in docs/operations/. Tracked application source stays at its actual application path.
+
+Packaging is not permission to deploy an unapproved Draft, activate flags, run migrations or bypass release gates. A ready/delivered ZIP is not evidence of hosting application; record application only after owner confirmation. The 2026-11-04 replacement menu ZIP contains ONLY the two already-main/QA-approved menu files with correct root-relative directories; the previous flat ZIP is preserved but is superseded for manual delivery.
+
 ## 0S. Reconciled original acceptance and completed deployment authority (B1095, 2026-11-04)
 
 The original [B1044 receipt](docs/operations/B1044-M17-OWNER-ACCEPTANCE-M10M11-MERGED-80CASE-PASS-20261102.md) and [Issue124 owner acceptance](https://github.com/AldinAga/ald1n-project/issues/124#issuecomment-6585783961) outrank later summaries that accidentally reverted to 11/17. Correct formal acceptance is **12/17 (70.6%)**, CMS10/15, UI6/6. M17 is owner-accepted functional CLOSED; this correction is not new CI acceptance. Signed AAB versionCode29/source6adb3b440b8cfdc068b142a98c418d9d91487f64 and original 16KiB audit are archived by B1044. Physical page-size output, individual device/OAuth matrix and Play rollout/signer continuity are not independently evidenced; do not invent them or repeat a native build. Native SDK58 source remains on its distinct release branch; do not describe it as merged into current SDK57 main.
