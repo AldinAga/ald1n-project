@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\{Role, User};
-use App\Services\SettingsService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\{Hash, Route};
@@ -27,21 +26,27 @@ final class TrustedScriptCspB1115Test extends TestCase
     public static function authPages(): array
     {
         return [
-            'login' => ['/login'],
-            'forgot' => ['/forgot-password'],
-            'reset' => ['/reset-password/'.str_repeat('R', 80)],
-            'activation' => ['/activate-account/'.str_repeat('A', 80)],
+            'login' => ['login'],
+            'forgot' => ['forgot'],
+            'reset' => ['reset'],
+            'activation' => ['activation'],
         ];
     }
 
     #[DataProvider('authPages')]
-    public function test_auth_scripts_require_a_matching_unpredictable_request_nonce(string $uri): void
+    public function test_auth_scripts_require_a_matching_unpredictable_request_nonce(string $page): void
     {
+        $uri = match ($page) {
+            'forgot' => '/forgot-password',
+            'reset' => '/reset-password/'.str_repeat('R', 80),
+            'activation' => '/activate-account/'.str_repeat('A', 80),
+            default => '/login',
+        };
         $first = $this->get($uri)->assertOk();
         $nonce = $this->assertTrustedHtml($first);
         $second = $this->withHeaders(['If-None-Match' => 'synthetic-old', 'X-CSP-Nonce' => $nonce])
             ->get($uri.'?_csp_nonce='.$nonce)->assertOk();
-        self::assertNotSame($nonce, $this->assertTrustedHtml($second), 'B1115_NONCE_MUST_BE_FRESH');
+        self::assertTrue($nonce !== $this->assertTrustedHtml($second), 'B1115_NONCE_MUST_BE_FRESH');
         $second->assertHeader('Referrer-Policy', 'no-referrer');
     }
 
@@ -117,7 +122,7 @@ final class TrustedScriptCspB1115Test extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
         $scripts = $dom->getElementsByTagName('script');
         self::assertGreaterThan(0, $scripts->length, 'B1115_EXPECTED_TRUSTED_SCRIPTS');
-        foreach ($scripts as $script) self::assertSame($nonce, $script->getAttribute('nonce'), 'B1115_TRUSTED_TAG_HEADER_MISMATCH');
+        foreach ($scripts as $script) self::assertTrue(hash_equals($nonce, $script->getAttribute('nonce')), 'B1115_TRUSTED_TAG_HEADER_MISMATCH');
         foreach ($dom->getElementsByTagName('*') as $element) {
             foreach ($element->attributes as $attribute) self::assertFalse(str_starts_with(strtolower($attribute->name), 'on'), 'B1115_INLINE_EVENT_HANDLER');
         }

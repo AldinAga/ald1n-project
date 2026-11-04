@@ -427,7 +427,9 @@ async function main() {
         await form.locator('[name="amount_rsd"]').fill('100');
         let requests = 0;
         await financial.route(base+'/admin/receivables/'+fixture.receivable+'/payments', async route => { requests++; await route.fulfill({status: 204, body: ''}); });
-        await form.evaluate(node => { node.requestSubmit(); node.requestSubmit(); });
+        await form.evaluate(node => node.requestSubmit());
+        await financial.waitForTimeout(150);
+        await form.evaluate(node => node.requestSubmit());
         await financial.waitForTimeout(150);
         assert.equal(requests, 2);
         assert.equal(await form.getAttribute('aria-busy'), null);
@@ -440,8 +442,10 @@ async function main() {
       await confirmForm(adminPage, 'form[action$="/customer-portal/users/'+fixture.customer+'/sessions"]');
     });
     await check('other-role-admin-denial-unchanged', async () => {
+      await open(buyerPage, '/account');
       const response = await buyerPage.goto(base+'/admin/settings/system-health', {waitUntil: 'networkidle'});
       assert.equal(response.status(), 403);
+      await Promise.all([buyerPage.waitForURL('**/account'), buyerPage.getByRole('button', {name: 'Nazad', exact: true}).click()]);
     });
     if (process.env.TURNSTILE_ENABLED === 'true') await check('turnstile-controlled-api-and-nonce-child-execute', async () => {
       await open(page, '/login');
