@@ -109,6 +109,9 @@ final class PasswordResetService
             ])->save();
 
             $user->tokens()->delete();
+            // A recovered password must also invalidate tracked web sessions.
+            // Keep this inside the same transaction as the credential rotation.
+            app(PortalSessionService::class)->revokeAll($user, $user);
             if (Schema::hasTable('mobile_devices')) {
                 $user->mobileDevices()->update([
                     'personal_access_token_id' => null,

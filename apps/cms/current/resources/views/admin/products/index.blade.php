@@ -19,7 +19,7 @@
 @endsection
 @push('scripts')
 @include('partials.correlated-specification-filter-script')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => { const all=document.querySelector('[data-select-all]'); const boxes=Array.from(document.querySelectorAll('[data-product-select]')); const count=document.querySelector('[data-bulk-count]'); const refresh=()=>{const n=boxes.filter(b=>b.checked).length;if(count)count.textContent=`${n} izabrano`;if(all){all.checked=n>0&&n===boxes.length;all.indeterminate=n>0&&n<boxes.length;}}; all?.addEventListener('change',()=>{boxes.forEach(b=>b.checked=all.checked);refresh();}); boxes.forEach(b=>b.addEventListener('change',refresh)); refresh(); })();
 </script>
 @endpush

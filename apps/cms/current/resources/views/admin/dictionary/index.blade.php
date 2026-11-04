@@ -114,7 +114,7 @@
 
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const workspace = document.querySelector('[data-spec-library-workspace]');
     const search = workspace?.querySelector('[data-spec-library-search]');
@@ -197,9 +197,9 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('assets/js/dictionary-sort-manager.js') }}?v={{ config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/dictionary-sort-manager.js') }}?v={{ config('app.version') }}" defer></script>
 @if($resource==='specification-fields')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 document.querySelectorAll('.dictionary-form, .dictionary-card form').forEach((form) => {
     const type = form.querySelector('[data-spec-data-type]');
     if (!type) return;

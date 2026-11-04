@@ -83,7 +83,7 @@
             let submitting = false;
 
             form.addEventListener('submit', (event) => {
-                if (allowMultipleSubmit) return;
+                if (event.defaultPrevented || allowMultipleSubmit) return;
                 if (submitting) {
                     event.preventDefault();
                     return;

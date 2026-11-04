@@ -533,7 +533,7 @@
 
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const boot = () => {
         const workspace = document.querySelector('[data-ux-product-workspace]');
@@ -1070,7 +1070,7 @@
 </script>
 @endpush
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const root = document.querySelector('[data-product-edit-ready]');
     const form = root?.querySelector(':scope > form');
@@ -1301,5 +1301,5 @@
 @endpush
 
 @push('scripts')
-<script src="{{ asset('assets/js/product-media-manager.js') }}?v={{ config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/product-media-manager.js') }}?v={{ config('app.version') }}" defer></script>
 @endpush

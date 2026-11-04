@@ -216,7 +216,7 @@
         @endif
     @endforeach
 
-    <script>
+    <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     (() => {
         const root = document.querySelector('[data-login-background-settings]');
         if (!root) return;

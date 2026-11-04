@@ -57,6 +57,8 @@ final class GoogleAuthController extends Controller
     /** @return list<string> */
     private function tokenAbilities(User $user): array
     {
+        if ($user->hasRole('customer')) return [];
+
         if ($user->hasRole('admin', 'superadmin')) {
             return ['*'];
         }

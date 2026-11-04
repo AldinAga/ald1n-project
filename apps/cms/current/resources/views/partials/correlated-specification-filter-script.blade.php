@@ -1,4 +1,4 @@
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 document.querySelectorAll('[data-correlated-spec-filter-form]').forEach((form) => {
     const brand = form.querySelector('[data-filter-brand]');
     const line = form.querySelector('[data-filter-line]');

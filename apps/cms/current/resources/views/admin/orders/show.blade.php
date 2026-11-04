@@ -866,7 +866,7 @@
 </details>
 @endif
 
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const logisticsButtons = Array.from(document.querySelectorAll('[data-logistics-action]'));
     const logisticsPanels = Array.from(document.querySelectorAll('[data-logistics-panel]'));

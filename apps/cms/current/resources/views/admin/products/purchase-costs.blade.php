@@ -71,7 +71,7 @@
         </form>
     @endif
 </div>
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const form = document.querySelector('[data-purchase-cost-form]');
     if (!form) return;

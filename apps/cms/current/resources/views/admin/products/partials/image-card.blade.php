@@ -51,7 +51,7 @@
         <button class="button button-ghost button-small" type="submit" form="rotate-right-{{ $image->id }}" title="Rotiraj udesno 90°">↷ 90°</button>
         <a class="button button-ghost button-small" href="{{ $image->download_url }}" title="Preuzmi originalnu fotografiju"><x-icon name="download" size="16" /> Preuzmi</a>
         @if($allowDelete && $image->storage_disk === 'public')
-            <button class="button button-danger button-small" type="submit" form="delete-{{ $image->id }}" onclick="return confirm('Ukloniti sliku?')">Ukloni</button>
+            <button class="button button-danger button-small" type="submit" form="delete-{{ $image->id }}">Ukloni</button>
         @endif
     </div>
 </article>

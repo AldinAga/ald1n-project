@@ -315,6 +315,22 @@ final class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // Public guest browsing, shopping and checkout must not share the same
+        // global-IP generic throttle key. Previously six catalog/media reads
+        // exhausted the checkout POST budget before the first purchase.
+        RateLimiter::for('public-shop-browse', static fn (Request $request): Limit =>
+            Limit::perMinute(120)->by('public-shop-browse|'.$request->ip()));
+        RateLimiter::for('public-shop-images', static fn (Request $request): Limit =>
+            Limit::perMinute(300)->by('public-shop-images|'.$request->ip()));
+        RateLimiter::for('public-shop-cart-write', static fn (Request $request): Limit =>
+            Limit::perMinute(30)->by('public-shop-cart-write|'.$request->ip()));
+        RateLimiter::for('public-shop-checkout', static fn (Request $request): array => [
+            Limit::perMinute(6)->by('public-shop-checkout-minute|'.$request->ip()),
+            Limit::perHour(30)->by('public-shop-checkout-hour|'.$request->ip()),
+        ]);
+        RateLimiter::for('public-shop-private', static fn (Request $request): Limit =>
+            Limit::perMinute(30)->by('public-shop-private|'.$request->ip()));
+
         RateLimiter::for('admin-write', static function (Request $request): Limit {
             $actor = $request->user()?->getAuthIdentifier() ?? $request->ip();
             return Limit::perMinute(60)->by('admin-write|'.$actor);

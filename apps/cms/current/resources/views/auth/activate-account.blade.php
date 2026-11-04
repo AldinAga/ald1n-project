@@ -3,7 +3,7 @@
 
 @push('head')
     @if($turnstileEnabled)
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        <script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     @endif
 @endpush
 

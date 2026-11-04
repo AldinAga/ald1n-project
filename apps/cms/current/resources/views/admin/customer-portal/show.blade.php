@@ -81,7 +81,7 @@
             <form
                 method="post"
                 action="{{ route('admin.customer-portal.users.sessions.revoke', $customer) }}"
-                onsubmit="return confirm('Opozvati sve aktivne prijave ovog kupca?')"
+                data-confirm-submit="Opozvati sve aktivne prijave ovog kupca?"
             >
                 @csrf
                 @method('delete')

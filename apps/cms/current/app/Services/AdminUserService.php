@@ -25,6 +25,9 @@ final class AdminUserService
             $password = (string) ($data['password'] ?? '');
             unset($data['password']);
 
+            if (Role::query()->whereKey((int)$data['role_id'])->value('slug') === 'customer') {
+                $data['user_group_id'] = null;
+            }
             $data['password_hash'] = Hash::make($password);
             if ((string) $data['status'] === 'active') {
                 $data['approved_by'] = (int) $actor->getAuthIdentifier();
@@ -65,6 +68,7 @@ final class AdminUserService
             $before = $locked->toArray();
             $newRole = Role::query()->findOrFail((int) $data['role_id']);
             $nextStatus = (string) $data['status'];
+            if ($newRole->slug === 'customer') $data['user_group_id'] = null;
 
             if ($locked->hasRole('superadmin')) {
                 $removesEffectiveSuperAdmin = (string) $newRole->slug !== 'superadmin' || $nextStatus !== 'active';

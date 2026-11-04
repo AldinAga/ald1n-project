@@ -351,7 +351,7 @@
         </div>
     </form>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     // BATCH149D_V4_DEFERRED_DIRECT_SALE_UI
     (() => {
         const form = document.querySelector('.direct-sale-form[data-direct-sale-confirm]');
@@ -531,7 +531,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const galleries = document.querySelectorAll('[data-product-gallery]');
     if (!galleries.length) return;
@@ -768,7 +768,7 @@
 @endpush
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const button = document.querySelector('[data-product-description-copy]');
     const source = document.querySelector('[data-product-description-copy-source]');

@@ -1,7 +1,7 @@
 @extends('layouts.guest')
 @section('title', 'Prijava')
 @push('head')
-@if($turnstileEnabled)<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>@endif
+@if($turnstileEnabled)<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>@endif
 @endpush
 @section('content')
 @php
@@ -120,7 +120,7 @@
 </div>
 
 @if($loginMode === 'slideshow' && count($loginSlides) > 1)
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const root = document.querySelector('[data-login-slideshow]');
     if (!root || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;

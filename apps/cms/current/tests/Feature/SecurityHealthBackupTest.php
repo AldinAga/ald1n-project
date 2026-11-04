@@ -24,12 +24,21 @@ final class SecurityHealthBackupTest extends TestCase
 
     public function test_security_headers_and_request_id_are_present(): void
     {
-        $this->get('/login')
+        $response = $this->get('/login')
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
-            ->assertHeader('Referrer-Policy', 'same-origin')
+            // B816 requires the stronger policy; never waive these headers.
+            ->assertHeader('Referrer-Policy', 'no-referrer')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive')
             ->assertHeader('X-Request-ID');
+
+        // Symfony may normalize Cache-Control directive order. Verify the
+        // complete required semantics, not presentation/order of directives.
+        $cache = (string) $response->headers->get('Cache-Control');
+        self::assertStringContainsString('private', $cache);
+        self::assertStringContainsString('no-store', $cache);
+        self::assertStringContainsString('max-age=0', $cache);
     }
 
     public function test_failed_login_is_written_to_security_events_without_plain_login(): void

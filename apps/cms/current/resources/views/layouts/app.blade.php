@@ -51,7 +51,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/vendor/liquid-glass-web.css') }}?v={{ @filemtime(public_path('assets/css/vendor/liquid-glass-web.css')) ?: config('app.version') }}">
     @stack('styles')
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-refinement.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-refinement.css')) ?: config('app.version') }}">
-    <script>
+    <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';
             const resolved = mode === 'auto'
@@ -393,7 +393,7 @@
     </div>
     @if($footerLinks->isNotEmpty())<nav class="footer-links">@foreach($footerLinks as $link)<a href="{{ $link['url'] }}" @if($footerLinksNewTab) target="_blank" rel="noopener noreferrer" @endif>{{ $link['label'] }}</a>@endforeach</nav>@endif
 </footer>
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     const themeQuery = window.matchMedia('(prefers-color-scheme: light)');
     const themeModes = ['auto', 'dark', 'light'];
     const themeLabels = { auto: 'Auto', dark: 'Tamna', light: 'Svetla' };
@@ -1063,8 +1063,13 @@ const loadProductSearch = async (term) => {
     });
 
     document.querySelectorAll('[data-confirm]').forEach((button) => button.addEventListener('click', (event) => { if (!confirm(button.dataset.confirm || 'Potvrdi akciju?')) event.preventDefault(); }));
+    document.addEventListener('submit', (event) => {
+        if (event.defaultPrevented || !(event.target instanceof HTMLFormElement)) return;
+        const message = event.submitter?.dataset.confirmSubmit || event.target.dataset.confirmSubmit;
+        if (message && !confirm(message)) event.preventDefault();
+    }, true);
 </script>
-<script data-global-two-decimal-display-contract>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" data-global-two-decimal-display-contract>
 (() => {
     const blocked = new Set(['SCRIPT','STYLE','INPUT','TEXTAREA','SELECT','OPTION','CODE','PRE']);
     const nf = new Intl.NumberFormat('sr-Latn-RS', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -1106,9 +1111,9 @@ const loadProductSearch = async (term) => {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })();
 </script>
-<script src="{{ asset('assets/js/cart-ui.js') }}?v={{ @filemtime(public_path('assets/js/cart-ui.js')) ?: config('app.version') }}" defer></script>
-<script src="{{ asset('assets/js/ux-runtime.js') }}?v={{ config('app.version') }}" defer></script>
-<script type="module" src="{{ asset('assets/js/ald1n-liquid-glass-r3.js') }}?v={{ @filemtime(public_path('assets/js/ald1n-liquid-glass-r3.js')) ?: config('app.version') }}"></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/cart-ui.js') }}?v={{ @filemtime(public_path('assets/js/cart-ui.js')) ?: config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/ux-runtime.js') }}?v={{ @filemtime(public_path('assets/js/ux-runtime.js')) ?: config('app.version') }}" defer></script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}" type="module" src="{{ asset('assets/js/ald1n-liquid-glass-r3.js') }}?v={{ @filemtime(public_path('assets/js/ald1n-liquid-glass-r3.js')) ?: config('app.version') }}"></script>
 @stack('scripts')
 </body>
 </html>

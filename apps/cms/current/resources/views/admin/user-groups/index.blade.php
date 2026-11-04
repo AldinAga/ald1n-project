@@ -410,7 +410,7 @@
 </div>
 
 @push('scripts')
-<script>
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const normalize = (value) => String(value || '')
         .toLocaleLowerCase('sr-Latn')
