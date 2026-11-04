@@ -1,3 +1,15 @@
+# CURRENT 2026-11-04 — B1080 MAIN PR129/130/132 MERGED;309 MOBILE PASS;STOREFRONT75 HOLD
+
+[Report1010](1010-B1080-VERIFIED-MAIN-MENU-VALIDATOR-MOBILE-AND-STOREFRONT-HOLD-20261104.md): verified main source merges — PR130Windows/POSIXvalidator (real3-case/TSC/validator/MariaDBPASS), PR129Laravel mobile-browser menu (fresh9/9CI,authenticatedChromium/PHP/MariaDBPASS), PR132current-main mobilecontracts (all309PASS,baseline305/4FAIL,0skip/0new). Application integration commit91b2b647a58cef5ce26171b6289eadf9f858ae1d. No production deployment, DB/flags, EAS/build/OTA/Play.
+
+Storefront DraftPR131 source d5d7a62cf8e2a6b374bc93bbdc131b23a9b5ae18 remains stacked on unmergedPR93. Actual41784834001:86focused/951assertionsPASS;full640/75failedIDs (7errors+68failures),0new/0skips,rawmissing3explicitlymapped. Its separate222mobiletests now222PASS. Main309 and older222lineage are independently verified; no test/config transplant. First invalid PR132 prep was caught beforemerge and documented; newer main assertions restored before309GREEN.
+
+75PHPidentityclassification:40HTTP302+9HTTP403+3HTTP404,16otherassertions,7executionerrors. Manyrequireforbiddenguestcheckout/variants/retiredDirectSalecap or obsoletefixtures. B805/B809/B815 protections and prior safetydenial persist; no suppress/waive/compatibilityalias/rewrite. Freshmain warranty/push/payment work must survive future reviewed storefront assembly. SDK58PR127 and warrantyPR111 remain separate.
+
+[Permanent evidence](https://drive.google.com/file/d/1kWtrvv6rrA6s2fG2FH8EUaiIDDdQsFVf/view) SHA256b4c11b4b38f2febdae27df53b06b7ca96b356a82e90ebc95d2f2e5d6378eff8b. All Report1008/1009 fullsecurity368/SEC23/merchant/legal/mail/concurrency/restore/dirtyhost/physicaldevice releasegates remainOPEN. Formalaccepted11/17=64.7%,CMS10/15=66.7%,UI6/6unchanged. GitHubruntimeonly;weeklyUsage15%,max20%.
+
+---
+
 <!-- PR129 integration: retain current operations and original RED evidence. -->
 Laravel mobile-menu source: [PR129](https://github.com/AldinAga/ald1n-project/pull/129), prior exact-head nine CI workflows green, including Chromium/PHP/MariaDB run41726558349. Source retained unchanged; synchronizing current main resolves only this index conflict. Fresh combined CI pending; no production deployment. See [menu evidence](ALD1N-LARAVEL-MOBILE-MENU-SINGLE-COLUMN-20261103.md).
 
