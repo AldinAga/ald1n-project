@@ -255,6 +255,27 @@ jobs:
           "$B1109_REAL_PHP" -r '$seen=[];$files=array_merge(glob($argv[1]."/[0-9]*-B1109-*")?:[],glob($argv[1]."/.[0-9]*-B1109-*")?:[]);foreach($files as $p){if(preg_match("/\\.?([0-9]+)-B1109-/",basename($p),$m)){if(isset($seen[$m[1]]))exit(87);$seen[$m[1]]=true;}}if(count($seen)<10)exit(88);echo "MONOTONIC_REPORT_SEQUENCE_INCLUDES_INTERRUPTED_PENDING=PASS\n";' "$docs"
           cp "$docs/"*B1109-* "$evidence/"
           find "$docs" -maxdepth 1 -name '.*B1109-*' -type f -exec cp -- {} "$evidence/" \;
+          "$B1109_REAL_PHP" -r '
+          $evidence=$argv[1];$upload=$argv[2];$expected=["1083"=>"report_move_failure","1084"=>"report_write_failure","1086"=>"killed"];$manifest=[];$seen=[];
+          foreach([$upload,$evidence] as $root){
+            $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST);
+            foreach($it as $file){
+              if(!str_starts_with($file->getFilename(),"."))continue;
+              $name=$file->getFilename();
+              if($root!==$evidence||!$file->isFile()||$file->isLink()||$file->getPath()!==$evidence||!preg_match("/^\\.(1083|1084|1086)-B1109-HOST-READINESS-[0-9]{8}-[0-9]{6}-[0-9]+\\.md\\.pending$/D",$name,$m)||isset($seen[$m[1]]))throw new RuntimeException("Unexpected hidden evidence: ".$name);
+              $seen[$m[1]]=true;$bytes=file_get_contents($file->getPathname());$fixture=$expected[$m[1]];
+              if($fixture==="report_move_failure"&&(!str_contains($bytes,"FINAL_STATUS=HOLD_READINESS_GATES\n")||!str_contains($bytes,"SCRIPT_RC=2 SOURCE_DB_ENV_CACHE_FPM_MUTATION=NO\n")))throw new RuntimeException("Move-failure pending signature");
+              if($fixture==="report_write_failure"&&$bytes!=="REPORT=/home/icaffeco/ald1n-project/docs/operations/".substr($name,1,-8)."\n")throw new RuntimeException("Write-failure pending signature");
+              if($fixture==="killed"&&(!str_starts_with($bytes,"# B1109 bounded source/toolchain/backup-metadata readiness")||str_contains($bytes,"FINAL_STATUS=")||str_contains($bytes,"REPORT=")))throw new RuntimeException("Killed pending signature");
+              $manifest[]=["fixture"=>$fixture,"basename"=>$name,"bytes"=>strlen($bytes),"sha256"=>hash("sha256",$bytes)];
+            }
+          }
+          if(count($manifest)!==3)throw new RuntimeException("Expected exactly three pending receipts");
+          usort($manifest,fn($a,$b)=>strcmp($a["basename"],$b["basename"]));
+          $json=json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+          if(file_put_contents($evidence."/pending-receipts-manifest.json",$json)!==strlen($json))throw new RuntimeException("Manifest write failed");
+          echo "PENDING_RECEIPTS_MANIFEST=PASS COUNT=3\n";
+          ' "$evidence" "$upload"
           echo 'B1109_ISOLATED_CONTRACT=PASS CANONICAL_PATH_OWNER_INTEGRITY_NONEMPTY_COMPLETE_SOURCE_NOISE_INTERRUPTION_ATOMIC_REPORT_NO_DB_NO_ENV_EXPORT' | tee "$evidence/result.txt"
 
       - name: Preserve exact tested upload and complete synthetic evidence
@@ -265,5 +286,6 @@ jobs:
           path: |
             ${{ runner.temp }}/b1109-upload
             ${{ runner.temp }}/b1109-evidence
+          include-hidden-files: true
           retention-days: 7
           if-no-files-found: error
