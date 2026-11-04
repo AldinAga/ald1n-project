@@ -57,6 +57,12 @@ jobs:
           test "$result" = 2
           grep -Fx 'HOLD: unlisted tar directory' "$work/red.log"
           printf '{"oldHelperRC":2,"expectedFailure":"unlisted tar directory","actualPHPExecution":true,"runtimeUnchanged":true,"applicationBootstrapped":false}\n' > "$work/red-receipt.json"
+      - name: Exact directory fix GREEN and fail-closed negative PHP fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l tools/storefront/b1131/new-helper.php
+          python3 tools/storefront/b1131/green-fixtures.py "$RUNNER_TEMP/b1131" "$GITHUB_WORKSPACE/tools/storefront/b1131/new-helper.php"
       - name: Preserve actual RED evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
