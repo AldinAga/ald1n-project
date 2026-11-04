@@ -157,6 +157,70 @@ jobs:
           path: ${{ runner.temp }}/b1081-commission-evidence
           if-no-files-found: error
           retention-days: 14
+      - name: Product-only contracts and metadata repair real baseline versus candidate
+        if: github.head_ref == 'codex/b1083-product-only-test-contracts-20261104'
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/b1083-contract-baseline"
+          evidence="$RUNNER_TEMP/b1083-evidence"
+          base=1c185c6c5a97d3917069c8d73ad4d2df781c0e7c
+          test ! -e "$baseline"
+          mkdir -p "$evidence"
+          git diff --exit-code "$base" HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/database apps/cms/current/bootstrap apps/cms/current/config apps/cms/current/routes apps/cms/current/composer.json apps/cms/current/composer.lock apps/mobile ':(glob)apps/cms/current/tests/**/*B805*' ':(glob)apps/cms/current/tests/**/*B809*' ':(glob)apps/cms/current/tests/**/*B815*'
+          git worktree add --detach "$baseline" "$base"
+          cp apps/cms/current/.env "$baseline/apps/cms/current/.env"
+          composer install --working-dir="$baseline/apps/cms/current" --no-interaction --prefer-dist --no-progress
+          php <<'PHP'
+          <?php
+          $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname=ald1n_retirement_ci','root','isolated-ci-only',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+          if(!str_starts_with((string)$pdo->query('SELECT VERSION()')->fetchColumn(),'10.11.19-MariaDB'))exit(31);
+          foreach(['ald1n_contract_red_ci','ald1n_contract_green_ci'] as $name)$pdo->exec('CREATE DATABASE '.$name);
+          PHP
+          run_contracts() {
+            tree="$1"; label="$2"; database="$3"
+            set +e
+            (cd "$tree/apps/cms/current" && DB_DATABASE="$database" php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$label.xml" tests/Unit/CatalogDetailBladeContractTest.php tests/Unit/StableMaintenanceContractTest.php tests/Unit/StorageCapacityTotalContractTest.php tests/Unit/LegacyReadOnlyGuardTest.php tests/Unit/DeliveryNoteMigrationContractTest.php tests/Feature/CatalogDetailPageTest.php tests/Feature/ProductionOrderInventoryTest.php) 2>&1 | tee "$evidence/$label.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf '%s\n' "$result" > "$evidence/$label.exit"
+          }
+          run_contracts "$baseline" baseline ald1n_contract_red_ci
+          run_contracts "$GITHUB_WORKSPACE" candidate ald1n_contract_green_ci
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import os,json,pathlib,xml.etree.ElementTree as E
+          d=pathlib.Path(os.environ['EVIDENCE'])
+          def read(label):
+              root=E.parse(d/(label+'.xml')).getroot();ids=[];bad=[];assertions=0;skipped=0
+              for suite in root.iter('testsuite'):
+                  for c in suite.findall('testcase'):
+                      key=(c.get('classname') or c.get('class') or suite.get('name'))+'::'+c.get('name')
+                      ids.append(key);assertions+=int(c.get('assertions','0'))
+                      if c.find('failure') is not None or c.find('error') is not None:bad.append(key)
+                      skipped+=c.find('skipped') is not None
+              assert len(ids)==len(set(ids)) and ids
+              return {'cases':len(ids),'assertions':assertions,'failed':bad,'skipped':skipped,'exit':int((d/(label+'.exit')).read_text())},set(ids)
+          before,old=read('baseline');after,new=read('candidate')
+          assert before['exit']!=0 and len(before['failed'])==5,before
+          assert after['exit']==0 and not after['failed'],after
+          assert before['skipped']==after['skipped']==0
+          missing=old-new
+          assert len(missing)==1 and next(iter(missing)).endswith('::test_mutating_and_locking_queries_are_blocked'),missing
+          added=new-old
+          assert len(added)==8,added
+          assert sum('::test_mutating_and_locking_queries_are_blocked with data set #' in x for x in added)==7,added
+          assert sum(x.endswith('::test_product_storage_totals_and_legacy_fallback_remain_supported_without_variants') for x in added)==1,added
+          result={'base':'1c185c6c5a97d3917069c8d73ad4d2df781c0e7c','baseline':before,'candidate':after,'old_provider_discovery_error':sorted(missing),'actual_original_provider_cases_and_new_storage_behavior':sorted(added),'application_and_protected_source_byte_identical':True}
+          (d/'comparison.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
+          PY
+      - name: Retain all product-only contract evidence including RED
+        if: always() && github.head_ref == 'codex/b1083-product-only-test-contracts-20261104'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1083-real-mariadb-contract-red-green
+          path: ${{ runner.temp }}/b1083-evidence
+          if-no-files-found: error
+          retention-days: 14
       - name: Results do not deploy production
         if: always()
         run: |
