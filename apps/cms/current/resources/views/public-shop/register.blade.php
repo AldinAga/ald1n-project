@@ -20,7 +20,7 @@
 <div class="shop-hidden-hp" aria-hidden="true"><label>Website<input name="website" autocomplete="off" tabindex="-1"></label></div>
 @if($turnstileEnabled)<div class="cf-turnstile" data-sitekey="{{ $turnstileSiteKey }}" data-action="retail_registration"></div>@endif
 <label class="shop-choice"><input type="checkbox" name="accepted_privacy" value="1" required>
-Upoznat/a sam sa <a href="{{ config('public_storefront.privacy_url') }}" target="_blank" rel="noopener noreferrer">obradom ličnih podataka</a>.</label>
+Upoznat/a sam sa <a href="{{ app(\App\Services\PublicMerchantPolicyService::class)->policy()['privacy_url'] }}" target="_blank" rel="noopener noreferrer">obradom ličnih podataka</a>.</label>
 <button type="submit">Pošalji registraciju</button>
 <p class="shop-muted">Stiže jednokratni aktivacioni link. Lozinku postavljate tek nakon potvrde email adrese.</p>
 <p>Već imate nalog? <a href="{{ route('login', [], false) }}">Prijavite se.</a></p>
