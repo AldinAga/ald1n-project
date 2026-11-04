@@ -1,3 +1,15 @@
+# CURRENT 2026-11-04 — ECC73 →51; 117 FOCUSED PASS; WEEKLY19% RESERVE STOP
+
+[Report1013](1013-B1087-ECC-SECURITY-REGRESSION-713-51-AND-WEEKLY-RESERVE-20261104.md) is current. Exact DraftPR135 source32900c20189e3ee2154dbb6adeb2fbec3d6e7807, [actual full41804057598](https://github.com/AldinAga/ald1n-project/actions/runs/41804057598): **713tests/8errors/43failures=51failedIDs**,0skips/0missing baseline cases; all640historicalPR131 IDs retained. Previous73 ->67 verified byReport1012 ->51 through16 original unprotectedB806 security scenarios now using a real verified/activated six-field buyer login. All16original assertions/cases retained, zero new failed IDs versus67, one explicit guest-denial/no-stock-money-write case added. Focus **117tests/1359assertions PASS**. Application code/protectedB805/B809/B815 unchanged. FullCI remainsFAIL;39commerce failed IDs new versus frozen earliermain baseline487/17, not0new. No waiver/main-storefront merge.
+
+Exact51-case MD/CSV/JSON D:/GPT/Ald1n-51-dijagnostika-20261104. [Permanent raw evidence](https://drive.google.com/file/d/1fQniU60k101wQmoxva-30AJ2qZVwCpX8/view) SHA2566896629a36c494b5d8b02abc1d6634629dfa51701b35612e06e0e50e0b526c67 verified by readback.
+
+Owner-invoked ECC laravel-tdd/laravel-verification follows project GitHub-only PHP8.4/MariaDB10.11.19 rules. Required signup6fields/registered verified activated Kupac/no oldguestorders remain binding. Protected-fixture denial stays binding. Main menuPR137 and test-onlyPR138 remain verified/merged; exact two-file direct-menu owner-upload ZIP fromReport1012 remains ready, no new hosting upload confirmation. Owner controls FileZilla.
+
+Weekly **19%**, ceiling20%: STOP new source work, preserve reserve and handoff. Goal incomplete; formal accepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. No production storefront/backend/DB/flags/SMTP/EAS/build/OTA/Play.
+
+---
+
 # CURRENT 2026-11-04 — DIRECT TWO-COLUMN MENU MAIN; ECC STOREFRONT73 →67, STILL HOLD
 
 [Report1012](1012-B1084-B1086-DIRECT-MENU-REQUIRED-SIGNUP-ECC-AND-STOREFRONT-20261104.md) is the latest checkpoint. PR137 merged452b3afb after exact1cf7ecdd/9workflows PASS: opaque two-column mobile menu, directly visible theme/currency panels on right, no settings submenu. Owner-upload two-file ZIP is ready; no agent FileZilla control or live deployment claim. PR138 merged dbe433c8 after30same-ID tests baseline4FAIL ->30PASS/164assertions, all9workflows; four stale delegated-location contracts repaired without app change.
