@@ -1,3 +1,13 @@
+# CURRENT 2026-11-04 — B1079 POSITIVE MANUAL COMMISSION:86 TARGETED PASS;75 PHP+4 RELEASE25 HOLD
+
+[Report1009](1009-B1079-POSITIVE-MANUAL-COMMISSION-GITHUB-QA-AND-HANDOFF-20261104.md) supersedes pending-zero statements: **manual EUR must be >0 (cent minimum0.01); blank/null/omitted =>automatic10%; positive manual may be below or above10%, no fixed50EUR cap, SA-only.** Draft PR131 tested7efffa17f068494b23d9713b7af4896c7045f349, stacked on unmerged PR93; application main/production unchanged.
+
+[Actual CI41750685984](https://github.com/AldinAga/ald1n-project/actions/runs/41750685984):86focused/951assertions PASS after genuine zero-input and type-boundary RED. Full640cases/7errors/68failures/**75failingIDs**,0new/0skips. Rawmissing3 explicitly mapped (provider=>7datasets;2owner-authorized commission renames), never hidden. Mobile TypeScript/validator/OpenAPI PASS; fullRelease25 baseline and candidate both222/218PASS/**same4FAIL**,0new/0skips, deliberateHOLD. Static983/0 PASS; Chromium+Firefox registered buyer/PNG/replay PASS, containing guest-positive B799 stillFAIL. Protected fixtures unchanged. No merge/deploy/productionDB/flags/EAS/build/OTA/Play.
+
+[Permanent raw evidence+patches](https://drive.google.com/file/d/1NNWoEaqcsj0U93j0oFQzF8kNr3OYkgPh/view) SHA256ec5e98a18cfd7e8610f2f34e19ff0adc36a985d70ad8ccfa347484a5e96d3e7f. Detailed cross-account handoff inReport1009. PR129menu/130Windows/111warranty/127SDK58 remain separate; PR127doesnotincludeB1079 and requires reviewedport+fullcombinedQA beforebuild. All Report1008 security368/SEC23/merchant/mail/concurrency/restore/host/device gates OPEN_NOT_WAIVED. Formalaccepted11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged. RuntimechecksGitHubonly; Usage15%,ceiling20%.
+
+---
+
 # CURRENT 2026-11-04 — B1077/B1078: CHROMIUM+FIREFOX PNG PASS,62 TARGETED PASS,FULL78 HOLD
 
 [Consolidated Report1008](1008-B1077-B1078-CROSS-BROWSER-TEST-INFRA-AND-RELEASE-HOLD-20261104.md) records actual results and the complete remaining release plan. [Draft PR131](https://github.com/AldinAga/ald1n-project/pull/131), tested head692e751e0dec407d998c0d1655c4bde5a4600d99, remains stacked on unmerged PR93. **Main application/production unchanged; only docs here.**
