@@ -50,7 +50,11 @@ final class ManualCommissionPolicyB1079Test extends TestCase
 
     public static function invalidManualAmounts(): array
     {
-        return ['zero'=>[0],'zero string'=>['0.00'],'zero comma'=>['0,00'],'negative'=>[-1],'below one cent'=>['0.001']];
+        return [
+            'zero'=>[0],'zero string'=>['0.00'],'zero comma'=>['0,00'],
+            'negative'=>[-1],'below one cent'=>['0.001'],
+            'boolean false'=>[false],'boolean true'=>[true],'array'=>[[2]],
+        ];
     }
 
     #[DataProvider('acceptedManualAmounts')]
