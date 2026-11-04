@@ -69,6 +69,12 @@ function cachedFlagInputs(string $text):array {
         }
     return $flags;
 }
+function cachedFileInputs(string $file):array {
+    if(!file_exists($file))return ['status'=>'ABSENT_UNATTESTED'];
+    if(is_link($file)||!is_file($file)||realpath($file)!==$file)return ['status'=>'UNTRUSTED_NOT_EXECUTED'];
+    try {$text=file_get_contents($file,false,null,0,262145);if(!is_string($text)||realpath($file)!==$file)throw new RuntimeException('CONFIG_READ');return cachedFlagInputs($text);}
+    catch(Throwable $e){return ['status'=>'UNTRUSTED_NOT_EXECUTED'];}
+}
 if(realpath($_SERVER['SCRIPT_FILENAME']??'')===__FILE__){
     if(PHP_SAPI!=='cli'||PHP_VERSION_ID<80401||PHP_VERSION_ID>=80500||realpath(__FILE__)!=='/home/icaffeco/ald1n-project/incoming/b1133-readonly-preinstall.php')exit(2);
     $cms='/home/icaffeco/ald1n-project/apps/cms/current';$stage='/home/icaffeco/.ald1n-stage/b1131-ef3f927.6hh7mU/runtime';
@@ -77,7 +83,7 @@ if(realpath($_SERVER['SCRIPT_FILENAME']??'')===__FILE__){
     if(($manifest['sourceCommit']??'')!=='ef3f927b77ba573881c2b6dba341732c417e6725'||count($manifest['files'])!==8531)exit(2);
     $result=inspectRuntime($cms,$manifest['files']);
     $config=$cms.'/bootstrap/cache/config.php';$result['configCache']=is_link($config)?'UNSAFE_LINK':(is_file($config)?'PRESENT_NOT_EVALUATED':'ABSENT');
-    try { $result['cachedFlagInputsOnly']=is_file($config)&&!is_link($config)?cachedFlagInputs(file_get_contents($config)):['status'=>'ABSENT_UNATTESTED']; } catch(Throwable $e){$result['cachedFlagInputsOnly']=['status'=>'UNTRUSTED_NOT_EXECUTED'];}
+    $result['cachedFlagInputsOnly']=cachedFileInputs($config);
     $result['effectiveStorefrontOFF']='NOT_ATTESTED';$result['schemaMetadata']='NOT_ATTESTED_NO_DB_CONNECTION';$result['FPM']='NOT_ATTESTED';$result['LaravelBootstrapped']=false;$result['databaseAccess']=false;$result['productionMutation']=false;$result['installReady']='HOLD';
-    echo json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL;exit(2);
+    echo json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
 }
