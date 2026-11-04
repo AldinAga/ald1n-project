@@ -1,0 +1,129 @@
+name: B1104 main CMS security lock compatibility (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/composer.json'
+      - 'apps/cms/current/composer.lock'
+      - '.github/workflows/b1104-cms-security-lock.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b1104-cms-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  full-main-compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      baseline_db:
+        image: mariadb:10.11.19
+        env: {MARIADB_DATABASE: ald1n_retirement_ci, MARIADB_USER: ald1n_test, MARIADB_PASSWORD: ci_only_b1104, MARIADB_ROOT_PASSWORD: ci_only_root}
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      candidate_db:
+        image: mariadb:10.11.19
+        env: {MARIADB_DATABASE: ald1n_retirement_ci, MARIADB_USER: ald1n_test, MARIADB_PASSWORD: ci_only_b1104, MARIADB_ROOT_PASSWORD: ci_only_root}
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ci_only_b1104
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: d6a3e9f986b3b43d02ce304af7fa5e07e7bd1929, path: baseline, persist-credentials: false}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Verify exact reviewed lock and unchanged application contracts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/b1104-evidence"
+          git -C candidate rev-parse HEAD > "$RUNNER_TEMP/b1104-evidence/source-head.txt"
+          echo '4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8  candidate/apps/cms/current/composer.lock' | sha256sum --check
+          git -C candidate diff --exit-code d6a3e9f986b3b43d02ce304af7fa5e07e7bd1929 HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile
+          curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$RUNNER_TEMP/composer-2.11.1.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check
+          for tree in baseline candidate; do
+            test ! -e "$tree/apps/cms/current/.env"
+            php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts install --working-dir="$tree/apps/cms/current" --no-interaction --prefer-dist --no-progress
+          done
+      - name: Real full baseline and candidate on separate disposable MariaDB services
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1104-evidence"
+          for port in 3306 3307; do
+            DB_PORT="$port" php -r '$d=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));if($d->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci"||!str_starts_with($d->query("SELECT VERSION()")->fetchColumn(),"10.11.19-"))exit(47);'
+          done
+          run_full() {
+            tree="$1"; port="$2"; rc=0
+            (cd "$tree/apps/cms/current" && DB_PORT="$port" LEGACY_DB_PORT="$port" php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$tree.xml") > "$evidence/$tree.log" 2>&1 || rc=$?
+            printf '%s\n' "$rc" > "$evidence/$tree.exit"
+          }
+          run_full baseline 3306 & base_pid=$!
+          run_full candidate 3307 & candidate_pid=$!
+          wait "$base_pid"; wait "$candidate_pid"
+          tail -n 6 "$evidence/baseline.log"
+          tail -n 6 "$evidence/candidate.log"
+          (cd candidate/apps/cms/current && php bin/static-check.php) > "$evidence/static.log" 2>&1
+          tail -n 3 "$evidence/static.log"
+          (cd candidate/apps/cms/current && php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail) > "$evidence/candidate-audit.json" 2> "$evidence/candidate-audit.stderr"
+          php <<'PHP'
+          <?php
+          $dir=getenv('RUNNER_TEMP').'/b1104-evidence';
+          function cases(string $file): array {
+              $x=simplexml_load_file($file); if($x===false)throw new RuntimeException('Missing real JUnit');
+              $rows=$x->xpath('//testcase')?:[];if(count($rows)<400)throw new RuntimeException('Incomplete suite');
+              $ids=[];
+              foreach($rows as $row){
+                  $class=(string)($row['classname']?:$row['class']);$id=$class.'::'.(string)$row['name'];
+                  if($class===''||isset($ids[$id])||isset($row->failure)||isset($row->error)||isset($row->skipped))throw new RuntimeException('Failed/skipped/duplicate case '.$id);
+                  $ids[$id]=true;
+              }
+              return array_keys($ids);
+          }
+          $before=cases($dir.'/baseline.xml');$after=cases($dir.'/candidate.xml');
+          if(array_diff($before,$after)!==[]||trim(file_get_contents($dir.'/baseline.exit'))!=='0'||trim(file_get_contents($dir.'/candidate.exit'))!=='0')exit(48);
+          $audit=json_decode(file_get_contents($dir.'/candidate-audit.json'),true,512,JSON_THROW_ON_ERROR);
+          if(!array_key_exists('advisories',$audit)||$audit['advisories']!==[]||($audit['abandoned']??[])!==[])exit(49);
+          $result=['baselineCases'=>count($before),'candidateCases'=>count($after),'failed'=>0,'skipped'=>0,'missingBaselineIdentities'=>[],'candidateAdvisories'=>0];
+          file_put_contents($dir.'/comparison.json',json_encode($result,JSON_PRETTY_PRINT)."\n");
+          echo 'B1104_FULL_COMPATIBILITY_AND_SECURITY='.json_encode($result)."\n";
+          PHP
+      - name: Preserve exact dependency and full-suite proof without deployment
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1104-main-cms-security-compatibility
+          path: ${{ runner.temp }}/b1104-evidence
+          retention-days: 7
+          if-no-files-found: error
