@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 // CI-only diagnostic. No app code, observed test, host file or dependency is repaired here.
 const MAIN = 'bc42e8cd4d8777cf2d16e15a54a01403b5b679e7';
@@ -11,6 +12,9 @@ const PREIMAGE = '5598fb0fe52c8c0f6b039c20a9ac44cfebba6c56';
 const REPORT = 'docs/operations/1073-B1109-HOST-READINESS-20261104-144325-1998023.md';
 const REPORT_SHA = 'd2ba8ec3d67102c8e4409da133be32bafec30a9cb167d1a6a99c067870f2059a';
 const PATCH_SHA = 'b8bf1ffe7cae991a4f7a63cf47e68dbf5a81cd819daf79f5abc4f25106c69153';
+const PATCH_BYTES = 43726;
+const GZIP_SHA = '6767ac0c476451290fd28ee49a317cb9b6cd9f0b03dc31e2d2548df70c99a68e';
+const GZIP_BYTES = 12952;
 const OLD_LOCK = '27ad4a0ca3845bc10967329ef61583f7f4a81f5d9e67ad5e5c304fbf9df7d014';
 const NEW_LOCK = '4965e0f59599f68d677cd4604ded256b809ce82a52b36e355faeb6fcaffb1ff8';
 const CMS = 'apps/cms/current/';
@@ -21,6 +25,23 @@ const json = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null,
 const validPath = p => typeof p === 'string' && !p.includes('\\') && !p.startsWith('/') &&
   p.split('/').every(s => s !== '' && s !== '.' && s !== '..' && /^[A-Za-z0-9_.-]+$/.test(s)) &&
   /^(?:(?:app|config|routes|database\/migrations|resources\/views|tests)\/.+|bootstrap\/[^/]+)\.php$/.test(p);
+
+function decodeGzip(bytes) {
+  const decoded = gunzipSync(bytes, { maxOutputLength: PATCH_BYTES });
+  assert.equal(decoded.length, PATCH_BYTES); assert.equal(hash(decoded), PATCH_SHA);
+  return decoded;
+}
+
+function readFixture(bytes) {
+  assert.equal(bytes.length, GZIP_BYTES); assert.equal(hash(bytes), GZIP_SHA);
+  return decodeGzip(bytes);
+}
+
+function fixtureBytes() {
+  const file = new URL('./b1049-observed-source-UNAPPLIED.patch.gz', import.meta.url);
+  const stat = fs.lstatSync(file); assert(stat.isFile()); assert.equal(stat.size, GZIP_BYTES);
+  return fs.readFileSync(file);
+}
 
 function parseReport(bytes, verifyDigest = true) {
   if (verifyDigest) { assert.equal(bytes.length, 184566); assert.equal(hash(bytes), REPORT_SHA); }
@@ -95,7 +116,7 @@ function patchPHP(bytes, getPreimage) {
   return { outputs, ignored };
 }
 
-function negatives(report, patch, rows) {
+function negatives(report, patch, rows, compressed) {
   const checks = [];
   const reject = (name, fn) => { assert.throws(fn, undefined, name); checks.push({ name, rejected: true }); };
   const replaceRow = fn => Buffer.from(report.toString('utf8').replace(/^SOURCE_FILE=(.+)$/m, (_, s) => 'SOURCE_FILE=' + JSON.stringify(fn(JSON.parse(s)))));
@@ -111,6 +132,13 @@ function negatives(report, patch, rows) {
   reject('payload-blob-mismatch', () => verifyBytes({ ...rows[0], git_blob: '0'.repeat(40) }, b));
   reject('patch-digest-mismatch', () => patchPHP(Buffer.concat([patch, Buffer.from('x')]), () => Buffer.alloc(0)));
   reject('patch-preimage-mismatch', () => patchPHP(patch, () => Buffer.from('wrong preimage\n')));
+  const tampered = Buffer.from(compressed); tampered[0] ^= 1;
+  reject('gzip-transport-digest-mismatch', () => readFixture(tampered));
+  reject('oversized-gzip-transport', () => readFixture(Buffer.concat([compressed, Buffer.from('x')])));
+  reject('bad-gzip-decode', () => decodeGzip(Buffer.from('not a gzip stream')));
+  const wrongDecoded = Buffer.from(patch); wrongDecoded[0] ^= 1;
+  reject('decoded-patch-digest-mismatch', () => decodeGzip(gzipSync(wrongDecoded)));
+  reject('oversized-decoded-patch', () => decodeGzip(gzipSync(Buffer.alloc(PATCH_BYTES + 1))));
   return checks;
 }
 
@@ -143,8 +171,8 @@ function reconstruct(out) {
   assert(!fs.existsSync(out)); fs.mkdirSync(out);
   const evidence = path.join(out, 'evidence'); fs.mkdirSync(evidence);
   const report = git('show', MAIN + ':' + REPORT); const rows = parseReport(report);
-  const patch = fs.readFileSync(new URL('./b1049-observed-source-UNAPPLIED.patch', import.meta.url));
-  json(path.join(evidence, 'negative-checks.json'), negatives(report, patch, rows));
+  const compressed = fixtureBytes(); const patch = readFixture(compressed);
+  json(path.join(evidence, 'negative-checks.json'), negatives(report, patch, rows, compressed));
   const derived = patchPHP(patch, p => git('show', PREIMAGE + ':' + p));
   const payloads = new Map();
   for (const r of rows) {
@@ -179,7 +207,9 @@ function reconstruct(out) {
   json(path.join(evidence, 'reconstruction.json'), {
     controlHEAD: git('rev-parse', 'HEAD').toString().trim(), main: MAIN, hostHEAD: HOST, patchPreimage: PREIMAGE,
     report: REPORT, reportSHA256: REPORT_SHA, reportBytes: report.length, patchSHA256: PATCH_SHA,
-    patchBytes: patch.length, originalArtifact: 13186312279, originalRun: 41540790119,
+    patchBytes: patch.length, fixtureTransport: 'standard gzip; decoded original patch byte-identical',
+    fixtureGzipBytes: compressed.length, fixtureGzipSHA256: hash(compressed),
+    originalArtifact: 13186312279, originalRun: 41540790119,
     originalArtifactZIP_SHA256: '9212fcbc227859aa876654ebcb4c821c4caff5f6e2a575bb48768f2344eb1f4c',
     originalRunConclusion: 'failure; source patch independently verified', ignoredCSS: derived.ignored,
     rawGitPayloads: 753, patchPHP: 12, oldLockSHA256: OLD_LOCK, newLockSHA256: NEW_LOCK,
@@ -224,9 +254,10 @@ else if (mode === 'verify') verifyAfter(path.resolve(target));
 else if (mode === 'manifest') manifest(path.resolve(target));
 else if (mode === 'self-check') {
   const report = git('show', MAIN + ':' + REPORT); const rows = parseReport(report);
-  const patch = fs.readFileSync(new URL('./b1049-observed-source-UNAPPLIED.patch', import.meta.url));
-  const checks = negatives(report, patch, rows); const result = patchPHP(patch, p => git('show', PREIMAGE + ':' + p));
+  const compressed = fixtureBytes(); const patch = readFixture(compressed);
+  const checks = negatives(report, patch, rows, compressed); const result = patchPHP(patch, p => git('show', PREIMAGE + ':' + p));
   for (const [p, b] of result.outputs) verifyBytes(rows.find(r => r.path === p), b);
   for (const row of rows) verifyBytes(row, result.outputs.get(row.path) ?? git('cat-file', 'blob', row.git_blob));
-  console.log(JSON.stringify({ checks, patchPHP: result.outputs.size, rawGitPayloads: 753, reportRows: rows.length, verifiedPayloads: rows.length }));
+  console.log(JSON.stringify({ checks, patchPHP: result.outputs.size, rawGitPayloads: 753, reportRows: rows.length, verifiedPayloads: rows.length,
+    gzipSHA256: hash(compressed), decodedSHA256: hash(patch), gzipBytes: compressed.length, decodedBytes: patch.length }));
 } else throw Error('Expected reconstruct|verify|manifest|self-check and external output path');
