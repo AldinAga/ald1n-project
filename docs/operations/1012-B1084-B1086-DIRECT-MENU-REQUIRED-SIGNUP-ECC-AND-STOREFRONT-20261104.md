@@ -1,0 +1,45 @@
+# Report1012 — B1084/B1085/B1086: direct mobile panels, mandatory signup, ECC storefront recovery
+
+Date: 2026-11-04, Europe/Belgrade. Report sequence1012 follows verified GitHub main and both preserved local report maxima1011. Batch numbers differ from report sequence. Runtime QA GitHub-only; no local PHP/MariaDB/Docker run.
+
+## Owner decisions and menu scope
+
+The owner clarified that TWO columns were intentional; the original defect was excessive transparency. They subsequently required directly visible theme/currency panels on the right, without a “Brza podešavanja” heading or click-to-open submenu. Left navigation, right direct settings, opaque background, in-flow dropdowns, one scroll plane and reachable logout are the requested result. Owner controls manual hosting upload; never control FileZilla.
+
+Draft PR137 contains only refinement CSS, layout Blade and its existing Chromium test. Existing theme/currency controls and their JavaScript contracts are retained. New direct-panel browser assertions were run BEFORE the production change on source6525a966aaadc6f85fedf31f35dd5dd168eabf75: run41800423330, actual browser job126475170403 failed as expected with MOBILE_SETTINGS_PANELS_DIRECTLY_VISIBLE / MOBILE_SETTINGS_NO_SUBMENU / unavailable controls. RED artifact13307541792 SHA256 f24ce92fd4b1bce9804afef3e6415dd7507593b1ae4c290f988b8cdbcb54c1c6. Original opacity, viewport, dropdown, control containment and logout checks retained; no skip/waiver. Source9d711ec52cd9aa939ac98c8e88c293e96132fe2d passed all9 workflows and actual browser41801050467, then visual review caught wrapped narrow theme labels; newest source1cf7ecdd57e76e05717a79293ed8abc7e1771870 fixes only those labels. Final acceptance recorded below, not inferred from an earlier head.
+
+## Required registration: actual RED and GREEN
+
+Owner requires first_name, last_name, address, city, phone, email; every purchase requires a registered, verified and activated Kupac. No historical guest orders exist. No anonymous receipt compatibility is introduced.
+
+Draft PR135 test-first source7db8f18a83202e73c2107f432d696704e4e8ad9e, run41797075054, job126463567982: focused100 cases/1022assertions,8failures,0errors/skips. Fourteen added real HTTP/DOM cases cover each of6fields missing/blank, full profile persistence without role escalation and required form fields. Baseline phone optional/address-city absent; first/last/email were already required.
+
+GREEN source e9a81507c4bdf89f55d00d7b7ac1341fa469bb1b, run41798128349, job126467032219: same100 cases,1081assertions,0failures/errors/skips, RC0. Minimal registration controller and form change; trim profile, preserve email normalization/pending account/one-time activation/approved synthetic sender. Model columns already exist; no DDL. Positive unprotected B810/B811 and real B812 browser fixtures supply the mandatory profile. Protected B805/B809/B815 files unchanged. Both real registered Chromium and Firefox scenarios passed within run41798128408; the separate historical guest-success browser stage still fails.
+
+The COMPLETE unfiltered suite is NOT green: frozen main487 cases/17failedIDs versus candidate712 cases/8errors/65failures=73failedIDs, zero skips/missing main cases; all640 historical PR131 IDs retained. Previous698/72 plus14new cases becomes712/73. The sole new failed identity versus previous72 is StorefrontRegistrationOnlyB809Test::test_self_registration_stays_pending_until_one_time_email_activation: that protected positive fixture lacks mandatory profile fields, creates no account, then throws ModelNotFoundException. Do not revert required fields or bypass the earlier protected-fixture denial to conceal this. All release gates stay HOLD.
+
+RED archive SHA256 c9e42b8750c9c79cf570dd201eb3a4b232ba642df355d7b9cafb62bd33e2c349; GREEN archive SHA256 eb9fd22b312e9f605925002ed0f4793e7b753dd5a8992b3dc28fb535709df181. Exact XML/logs/RCs retained locally.
+
+## Explicitly invoked ECC recovery
+
+Read and applied installed ECC laravel-tdd and laravel-verification skills. Project authority overrides generic SQLite/Sail/Pint/PHPStan/deployment examples: existing PHP8.4/MariaDB10.11.19 disposable GitHub runners, canonical static-check.php, existing tests and locks. No new dependencies, local runtime, production cache/queue/DB probes or coverage percentage claim.
+
+B1084 Draft PR138 source71591aff0cb8ae036a36e77b64caff4811d445d7 repairs four unit tests that demanded already-delegated filter/cleanup/confirmation/audit/history logic inline in controllers. Follow real existing service calls and keep all security/cleanup/query/history/locking/audit assertions; no application change. Run41801516211/job126478159837 uses two NEW databases and independent vendor installs, same4unit files plus existing CatalogAccess/CatalogDetailPage/CustomerPortal2/CustomerPortalDashboard HTTP suites: exact same30 IDs, baseline30/151assertions/4failures -> candidate30/164assertions/0failures/errors/skips. Application/dependency/mobile/protected file parity asserted. Artifact13307013736 SHA2561cddbccc12d3995ea8e676e1d4bdd66b4a50b4d765171e18512c0a9c9c869c82. This repairs stale test locations, not four production behavior defects; final merge status below.
+
+B811 lifecycle fixture source5e459e10aeb31bd2f4f0686ea31767e581925995 on Draft PR135 replaces actingAs-only positive buyers with verified/activated synthetic six-field customers and real login/logout, preserving every existing nonce-cross-buyer, changed-policy, stock/order/payment/commission assertion. Existing actual73 suite supplies the prior two403 RED results. Run41801351584 must be read to completion before any reduction from73 is claimed. It does not edit protected fixtures or relax application authentication.
+
+## Preservation and remaining work
+
+Report1011 Drive runbook and aggregate both downloaded and SHA256 reverified: canonical runbook a9dcafe7043f2d3baf577840bcfb7d1c465efe73ad3ec6faa815deb3fa81d74f; aggregate f8a09375e4b375d2534029c5e78ec790c30ead951d7898372d847a621dc77b3a. Historical75 diagnostics remain a labeled snapshot. Dirty worktree and D:\GPT\Ald1n-mobile preserved; no reset/clean/force push.
+
+No storefront activation, production backend deployment, production DB/flags/SMTP or EAS/build/OTA/Play. Menu hosting upload is owner-executed and requires fresh confirmation; GitHub merge does not prove live deployment. All unfulfilled merchant/security/host/backup/device/native/release gates from Report1011 remain open. Formal accepted11/17=64.7%, CMS10/15=66.7%, originalUI6/6 unchanged. Weekly Usage last18%, ceiling20%; no reset redeemed. Overall goal incomplete.
+
+## Verified closure and current combined Draft
+
+PR138 merged dbe433c8c2a6dac877e1c999bd781b2b87a02a21 after all9 workflows SUCCESS. Its four repaired identities are verified in the30-case independent-database comparison, not yet subtracted from a combined full-suite count until re-run.
+
+PR137 final tested1cf7ecdd57e76e05717a79293ed8abc7e1771870 passed all9 workflows; final browser41801608981 actual artifact13307848547 SHA256db8f4c1ce5f70746a0b07f8500294703cff7e8082f02510ebab39b3cb4fb0f2c. Reviewed final dark390 screenshot with unsplit theme labels and directly visible panels; light320 review from earlier direct-panel head was retained. Merged452b3afbfb5ab5a01edab344d953f6a536d8806a. Delivered D:/GPT/Ald1n-menu-direktni-paneli-20261104.zip, exact source-verified two app files plus local instructions/manifest/preview. CSS26646bytes SHA256f77a4ccad3efccb1f4bc1288bf8783b875648db8acb5a30592c92901aea114c9; Blade69586bytes SHA25626bf2f54ec706d5c8d9e9b52ccf2ff4ca439c62eead6606525232a3bf22e488d. Both target canonical CMS paths printed in manifest. No new owner-upload confirmation or live direct-panel deployment claim yet.
+
+B811 actual run41801351584/job126477602015 completed: candidate712cases/8errors/63failures=71failedIDs,0skips. The prior two403 identities now pass; no other failing IDs disappeared or were waived. Focus100 also reached full comparison without a focused regression. Artifact13308675052 SHA2560ad81ddf884a20c6651224e4f3142078e51d0fe0e6f47dd383197b3448a87b2f. Whole workflow remains FAIL on71, as intended.
+
+A clean three-way git merge-tree combined this verified Draft head5e459e10aeb31bd2f4f0686ea31767e581925995 with current main452b3afbfb5ab5a01edab344d953f6a536d8806a, with NO conflicts. Protected B805/B809/B815 parity and git diff --check passed before mutation. New Draft-only merge33d7c7e0e6bd09b4138712bf78ad1c161007ef8f, tree8aa74a826f75d20bcae827fabacb232b350cc7dd, both parents retained, non-force fast-forward push. Thus newer menu, docs and four test repairs are preserved in Draft without overwriting newer source or local dirty files. Its full result is pending below; no speculative67 count claimed.
