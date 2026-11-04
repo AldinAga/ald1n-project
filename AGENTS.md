@@ -8,6 +8,19 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0Y. Storefront-only priority and owner-approved phased OFF sequence (2026-11-04)
+
+The owner's latest primary objective is finishing the functional Storefront. Other Mobile fixes, optimizations and broad audit expansion are retained as follow-up work, not parallel implementation priorities. Maximum70% Weekly Usage remains binding; preserve a reserve for verification and handoff.
+
+After reviewing the sequencing conflict in0O/0T, the owner explicitly answered **Da, fazno uz isključenu Prodavnicu** to: verified source into main → controlled installation with Storefront OFF → actual hosting/mail/buyer tests → public activation only after all obligatory conditions. This expressly supersedes the earlier blanket timing restrictions in0O/0T/section37 to the extent that they demanded host/provider facts before any source integration or controlled OFF installation.
+
+1. Source phase: finish exact-candidate functional/security regression checks and independent review before source integration. Retain protected fixtures, complete test identities, real return codes and all raw findings. Record unresolved global/provider/hosting controls explicitly as HOLD; do not relabel them PASS or claim global security clearance. Do not override GitHub branch protection or force a merge past required checks.
+2. Controlled installation phase: deliver one root-relative package with executable artifacts only in incoming/ and numbered reports only in docs/operations/. Verify integrity automatically. Preserve existing source/private files, .env, uploads and working backup evidence; keep Storefront/checkout closed. Fail closed on unexpected source/vendor/config/DB state. The owner performs manual upload/SSH; no FileZilla control.
+3. Hosting/UAT phase: obtain actual installed-source/vendor/schema, effective HTTPS/FPM/config, real approved merchant/sender/mail and controlled registered-buyer/operator evidence. Do not forge stored approvals or substitute synthetic GitHub results for provider/host facts.
+4. Activation phase: all mandatory security, dependency, secret-adjudication, legal/payment/shipping, backup/rollback and UAT gates still apply before public opening. This sequencing approval does not waive any control, authorize automatic activation, production DB migrations, banking/refunds, EAS/OTA/native builds or Play submission. Any migration or activation needs its separately reviewable approved operation.
+
+The requested final Cloudflare security-audit-skill pass remains after safe functional release/operation. Reviewed upstreamc1c8a8c1471069fb0e188eeaff69b8e8db6564a8/SKILL blob92178dad304d3f63e37582a297026a7874e12c62; no full run has yet occurred. Keep the GitHub-only execution rules and independently enforce the skill's isolation/verification requirements when that stage starts.
+
 ## 0X. Owner deep-audit scope and maximum70% Weekly Usage (2026-11-04)
 
 The latest explicit owner goal restores a consumption ceiling: **do not exceed70% Weekly Usage**. This supersedes0V's prior ceiling withdrawal; older20/50% caps remain historical. Read actual account usage through the read-only application limit tool, not token-count estimates; recheck during substantial work and before new expensive dispatches. At the initial read for this instruction the actual weekly use was40% (10080-minute window). Keep a conservative reserve before70% for stopping dispatches, checkpointing and handoff; do not consume a reset or buy credits without separate explicit approval. Do not mark the goal complete merely because the budget boundary is approaching.
