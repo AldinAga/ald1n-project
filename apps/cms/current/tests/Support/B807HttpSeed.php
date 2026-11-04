@@ -22,6 +22,14 @@ $owner=\App\Models\User::query()->create([
     'password_hash'=>\Illuminate\Support\Facades\Hash::make('OnlySynthetic123!'),
     'status'=>'active',
 ]);
+\App\Models\User::query()->create([
+    'role_id'=>\App\Models\Role::query()->where('slug','customer')->valueOrFail('id'),
+    'username'=>'b807-synthetic-buyer','email'=>'buyer@b807.example.test',
+    'first_name'=>'Synthetic','last_name'=>'Buyer','address'=>'Test 12',
+    'city'=>'Beograd','phone'=>'0601234567',
+    'password_hash'=>\Illuminate\Support\Facades\Hash::make('B807-Synthetic-Only123!'),
+    'status'=>'active','email_verified_at'=>now(),'portal_activated_at'=>now(),
+]);
 $settings=app(\App\Services\SettingsService::class);
 $settings->putMany([
     'public_storefront_open'=>'1','documents_company_name'=>'Synthetic B807 Merchant',

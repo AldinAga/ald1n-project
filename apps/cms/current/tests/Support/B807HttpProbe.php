@@ -70,8 +70,9 @@ try {
     $check($cart['code']===200 && str_contains($cart['body'],'Synthetic B807 product'),
         'real_cookie_session_persists');
     $checkout=$http('GET','/porucivanje');
-    $check($checkout['code']===200 && str_contains(strtolower((string)($checkout['headers']['cache-control']??'')),'no-store'),
-        'checkout_no_store');
+    $check($checkout['code']===302
+        && parse_url((string)($checkout['headers']['location']??''),PHP_URL_PATH)==='/login',
+        'guest_checkout_requires_login');
     $check($http('POST','/porucivanje',['shipping_full_name'=>'Synthetic'])['code']===419,
         'checkout_no_csrf_419');
     $check($http('PUT','/admin/settings/public-storefront',['terms_url'=>'https://attacker.example.test'])['code']===419,
@@ -89,6 +90,26 @@ try {
     $check(str_contains(strtolower((string)($private['headers']['referrer-policy']??'')),'no-referrer'),
         'private_error_referrer_policy');
     $check($private['code']===429,'private_capability_throttle_enforced');
+    $login=$http('GET','/login');
+    $check($login['code']===200
+        && preg_match('/name="_token"\\s+value="([^"]+)"/',$login['body'],$loginMatch)===1,
+        'real_buyer_login_form_csrf');
+    $signedIn=$http('POST','/login',[
+        '_token'=>$loginMatch[1],'login'=>'buyer@b807.example.test',
+        'password'=>'B807-Synthetic-Only123!',
+    ]);
+    $check($signedIn['code']===302
+        && parse_url((string)($signedIn['headers']['location']??''),PHP_URL_PATH)==='/korpa',
+        'verified_buyer_real_login');
+    $checkout=$http('GET','/porucivanje');
+    $check($checkout['code']===200
+        && str_contains(strtolower((string)($checkout['headers']['cache-control']??'')),'no-store'),
+        'checkout_no_store');
+    $check(str_contains($checkout['body'],'buyer@b807.example.test')
+        && str_contains($checkout['body'],'Synthetic B807 product'),
+        'buyer_identity_and_prelogin_cart_preserved');
+    $check($http('POST','/porucivanje',['shipping_full_name'=>'Synthetic'])['code']===419,
+        'authenticated_checkout_no_csrf_419');
     $db=new PDO('mysql:host=127.0.0.1;dbname=ald1n_test','ald1n_test','ald1n_test',[
         PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
     ]);

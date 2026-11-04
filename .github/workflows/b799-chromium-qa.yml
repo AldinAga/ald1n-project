@@ -140,6 +140,8 @@ jobs:
           php artisan migrate:fresh --force --no-ansi
           php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
           php tests/Browser/seed-public-shop-b799.php
+          # Prior B812 engines use the same localhost IP; retain the real 6/min limiter.
+          sleep 61
           php artisan serve --host=127.0.0.1 --port=8124 > "$RUNNER_TEMP/b799-server.log" 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
