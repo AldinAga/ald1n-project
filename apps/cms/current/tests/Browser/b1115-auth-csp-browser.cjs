@@ -104,7 +104,8 @@ async function main() {
     assert.equal(await form.count(), 1);
     const endpoint = new URL(await form.getAttribute('action'), base).href;
     const payloads = [];
-    const intercept = async route => { payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); };
+    const methods = [];
+    const intercept = async route => { methods.push(route.request().method()); payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); };
     let prompts = 0;
     const cancel = async dialog => { prompts++; await dialog.dismiss(); };
     let accepted = 0;
@@ -127,6 +128,8 @@ async function main() {
       else await form.evaluate(node => node.requestSubmit(node.querySelector('button')));
       await page.waitForTimeout(150);
       assert.equal(accepted, 1); assert.equal(payloads.length, 1); assert(payloads[0].get('_token'));
+      assert.equal(methods[0], 'POST');
+      assert.equal(payloads[0].get('_method')?.toUpperCase() || null, endpoint.endsWith('/void') ? null : 'DELETE');
       assert.equal(await form.getAttribute('aria-busy'), 'true');
     } finally { page.off('dialog', cancel); page.off('dialog', accept); await page.unroute(endpoint, intercept); }
   }
@@ -415,11 +418,49 @@ async function main() {
       const operator = await context();
       const financial = await login(operator, 'operator');
       try {
+        await open(financial, '/catalog/b812-browser-laptop');
+        await financial.locator('[data-cart-quantity-toggle]').click();
+        assert.equal(await financial.locator('[data-cart-quantity-toggle]').getAttribute('aria-expanded'), 'true');
+        await financial.locator('[data-cart-quantity-plus]').click();
+        assert.equal(await financial.locator('[data-cart-quantity-input]').inputValue(), '2');
+        await financial.locator('[data-cart-quantity-minus]').click();
+        assert.equal(await financial.locator('[data-cart-quantity-input]').inputValue(), '1');
         await open(financial, '/order/new');
         await financial.locator('[data-payment-method]').selectOption('deferred_payment');
         assert(await financial.locator('[data-payment-due]').isVisible());
         await financial.locator('[data-payment-method]').selectOption('cash_on_delivery');
         assert.equal(await financial.locator('[data-payment-due]').isVisible(), false);
+        for (const [mode, bankVisible, dueVisible] of [['bank_transfer', true, false], ['deferred_payment', false, true], ['cash_on_delivery', false, false]]) {
+          const submission = await operator.newPage();
+          try {
+            await open(submission, '/order/new');
+            await submission.locator('[data-payment-method]').selectOption(mode);
+            assert.equal(await submission.locator('[data-bank-account]').isVisible(), bankVisible);
+            assert.equal(await submission.locator('[data-payment-due]').isVisible(), dueVisible);
+            const due = submission.locator('[name="payment_due_at"]');
+            const bank = submission.locator('[name="bank_account_id"]');
+            assert.equal(await due.isDisabled(), !dueVisible);
+            assert.equal(await due.evaluate(node => node.required), dueVisible);
+            assert.equal(await bank.isDisabled(), !bankVisible);
+            if (bankVisible) await bank.selectOption(String(fixture.bankAccount));
+            if (dueVisible) await due.fill(new Date(Date.now()+30*86400000).toISOString().slice(0, 10));
+            for (const [name, value] of Object.entries({shipping_full_name: 'B1115 Synthetic', shipping_address: 'Synthetic 1', shipping_city: 'Beograd', shipping_postal_code: '11000', shipping_phone: '0600000000'})) {
+              await submission.locator('[name="'+name+'"]').fill(value);
+            }
+            await submission.locator('[name="items[0][product_id]"]').selectOption(String(fixture.product));
+            await submission.locator('[name="items[0][quantity]"]').fill('1');
+            const payloads = [];
+            await submission.route(base+'/orders', async route => { payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); });
+            await submission.locator('.build16-order-create-form').evaluate(node => node.requestSubmit());
+            await submission.waitForTimeout(200);
+            assert.equal(payloads.length, 1);
+            assert.equal(payloads[0].get('payment_method'), mode);
+            assert.equal(payloads[0].get('bank_account_id'), bankVisible ? String(fixture.bankAccount) : null);
+            assert.equal(payloads[0].has('payment_due_at'), dueVisible);
+            assert.equal(payloads[0].get('items[0][product_id]'), String(fixture.product));
+            assert(payloads[0].get('_token') && payloads[0].get('idempotency_key'));
+          } finally { await submission.close(); }
+        }
         const amendment = await operator.newPage();
         try {
           await open(amendment, '/orders/'+fixture.order+'/edit');

@@ -20,7 +20,7 @@ require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use App\Models\{Brand, Order, Product, ProductLine, ProductWarranty, ReceivableCase, ReportSchedule, Role, User, UserActivationToken};
+use App\Models\{BankAccount, Brand, Order, Product, ProductLine, ProductWarranty, ReceivableCase, ReportSchedule, Role, User, UserActivationToken};
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\{DB, Hash, Storage};
 
@@ -74,6 +74,12 @@ if ($mode === '--seed') {
         'name' => 'B1115 synthetic paused schedule', 'recipients_json' => [], 'formats_json' => ['csv'],
         'is_active' => false, 'created_by' => $owner->id,
     ]);
+    BankAccount::query()->create([
+        'label' => 'B1115 synthetic account', 'recipient_name' => 'B1115 Synthetic',
+        'recipient_address' => 'Synthetic 1, Beograd', 'account_number' => '160000000000000001',
+        'account_number_display' => '160-0000000000000-01', 'payment_code' => '221',
+        'is_active' => true, 'created_by' => $owner->id,
+    ]);
     $order = Order::query()->create([
         'source_system' => 'laravel', 'order_number' => 'B1115-SYNTHETIC-ORDER',
         'user_id' => User::query()->where('username', 'b1115-operator')->sole()->id, 'supplier_user_id' => $owner->id,
@@ -117,6 +123,7 @@ if ($mode === '--fixture') {
         'portal' => User::query()->where('username', 'b1115-portal')->sole()->id,
         'schedule' => ReportSchedule::query()->sole()->id, 'warranty' => ProductWarranty::query()->sole()->id,
         'order' => Order::query()->sole()->id, 'receivable' => ReceivableCase::query()->sole()->id,
+        'bankAccount' => BankAccount::query()->sole()->id,
     ], JSON_THROW_ON_ERROR);
     exit(0);
 }
