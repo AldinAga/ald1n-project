@@ -1,5 +1,7 @@
 # CURRENT 2026-11-04 — B1080 MAIN PR129/130/132 MERGED;309 MOBILE PASS;STOREFRONT75 HOLD
 
+**Final integrated-main proof:** [run41786165779](https://github.com/AldinAga/ald1n-project/actions/runs/41786165779) verifies menu+validator+current index+mobile together:309/309PASS,TSC/validator/MariaDBPASS. CI-onlyPR133 merged dc9adf6a6f8a06928f922b9b7d771f71a9001bef; app tree byte-identical to tested54431899. Commerce75HOLD remains; no deployment.
+
 [Report1010](1010-B1080-VERIFIED-MAIN-MENU-VALIDATOR-MOBILE-AND-STOREFRONT-HOLD-20261104.md): verified main source merges — PR130Windows/POSIXvalidator (real3-case/TSC/validator/MariaDBPASS), PR129Laravel mobile-browser menu (fresh9/9CI,authenticatedChromium/PHP/MariaDBPASS), PR132current-main mobilecontracts (all309PASS,baseline305/4FAIL,0skip/0new). Application integration commit91b2b647a58cef5ce26171b6289eadf9f858ae1d. No production deployment, DB/flags, EAS/build/OTA/Play.
 
 Storefront DraftPR131 source d5d7a62cf8e2a6b374bc93bbdc131b23a9b5ae18 remains stacked on unmergedPR93. Actual41784834001:86focused/951assertionsPASS;full640/75failedIDs (7errors+68failures),0new/0skips,rawmissing3explicitlymapped. Its separate222mobiletests now222PASS. Main309 and older222lineage are independently verified; no test/config transplant. First invalid PR132 prep was caught beforemerge and documented; newer main assertions restored before309GREEN.
