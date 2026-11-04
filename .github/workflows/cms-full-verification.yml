@@ -1,0 +1,101 @@
+name: CMS full verification (NO DEPLOY)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/cms/current/**'
+      - '.github/workflows/cms-full-verification.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cms-full-verification-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  full-cms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env: {MARIADB_DATABASE: ald1n_retirement_ci, MARIADB_USER: ald1n_test, MARIADB_PASSWORD: ci_only_cms, MARIADB_ROOT_PASSWORD: ci_only_root}
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ci_only_cms
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_PORT: '3306'
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Attest source and disposable database; install exact lock
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cms-full-evidence"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/cms-full-evidence/source-head.txt"
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_retirement_ci
+          php -r '$d=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));if($d->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci"||!str_starts_with($d->query("SELECT VERSION()")->fetchColumn(),"10.11.19-"))exit(47); echo "DISPOSABLE_MARIADB_10.11.19=PASS\n";'
+          test ! -e apps/cms/current/.env
+          install -m 600 /dev/null apps/cms/current/.env
+          curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$RUNNER_TEMP/composer-2.11.1.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check
+          php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts install --working-dir=apps/cms/current --no-interaction --prefer-dist --no-progress
+      - name: Full unfiltered suite and canonical static gate with real exit codes
+        working-directory: apps/cms/current
+        run: |
+          set -uo pipefail
+          evidence="$RUNNER_TEMP/cms-full-evidence"
+          set +e
+          php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/full.xml" 2>&1 | tee "$evidence/full.log"
+          suite_rc=${PIPESTATUS[0]}
+          printf '%s\n' "$suite_rc" > "$evidence/full.exit"
+          php bin/static-check.php 2>&1 | tee "$evidence/static.log"
+          static_rc=${PIPESTATUS[0]}
+          printf '%s\n' "$static_rc" > "$evidence/static.exit"
+          php -r '$x=simplexml_load_file($argv[1]);if($x===false)exit(48);$cases=$x->xpath("//testcase")?:[];if(count($cases)===0)exit(49);echo "COLLECTED_CASES=".count($cases).PHP_EOL;' "$evidence/full.xml" 2>&1 | tee "$evidence/collection.log"
+          collection_rc=${PIPESTATUS[0]}
+          printf '%s\n' "$collection_rc" > "$evidence/collection.exit"
+          printf 'FULL_RC=%s STATIC_RC=%s COLLECTION_RC=%s\n' "$suite_rc" "$static_rc" "$collection_rc"
+          test "$suite_rc" -eq 0 && test "$static_rc" -eq 0 && test "$collection_rc" -eq 0
+      - name: Retain exact-head synthetic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cms-full-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/cms-full-evidence/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Production boundary
+        if: always()
+        run: echo 'PRODUCTION=UNTOUCHED DB=DISPOSABLE_CI_ONLY NO_PROVIDER_DELIVERY NO_DEPLOY NO_EAS_OTA_BUILD_PLAY'

@@ -45,24 +45,22 @@ final class OrderWorkflowService
 
     public function cancelOwn(Order $order, User $user, ?string $note = null): Order
     {
-        abort_unless((int) $order->user_id === (int) $user->id, 404);
-        $this->assertNotDirectSale($order);
-        if (!in_array($order->status, ['new', 'processing', 'cancelled'], true)) {
-            throw ValidationException::withMessages(['status' => 'Sopstvena porudžbina može biti otkazana samo dok je nova ili u obradi.']);
-        }
-
-        return $this->changeStatus($order, 'cancelled', $user, $note ?: 'Korisnik je otkazao porudžbinu.');
+        return $this->changeStatus($order, 'cancelled', $user, $note ?: 'Korisnik je otkazao porudžbinu.', ownCancellation: true);
     }
 
-    public function changeStatus(Order $order, string $newStatus, User $actor, ?string $note = null, ?string $expectedOrderToken = null): Order
+    public function changeStatus(Order $order, string $newStatus, User $actor, ?string $note = null, ?string $expectedOrderToken = null, bool $ownCancellation = false): Order
     {
-        $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note, $expectedOrderToken): Order {
+        $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note, $expectedOrderToken, $ownCancellation): Order {
             /** @var Order $locked */
             $locked = Order::query()->with(['items', 'commission'])->lockForUpdate()->findOrFail($order->id);
+            if ($ownCancellation) abort_unless((int) $locked->user_id === (int) $actor->id, 404);
             $this->assertNotDirectSale($locked);
             $this->assertNotCompleted($locked);
             $this->assertLaravelOrder($locked);
             $oldStatus = (string) $locked->status;
+            if ($ownCancellation && !in_array($oldStatus, ['new', 'processing', 'cancelled'], true)) {
+                throw ValidationException::withMessages(['status' => 'Sopstvena porudžbina može biti otkazana samo dok je nova ili u obradi.']);
+            }
             if ($newStatus === 'confirmed') {
                 $this->versions->assertFresh($locked, (string) $expectedOrderToken, 'order_version_token');
             }
