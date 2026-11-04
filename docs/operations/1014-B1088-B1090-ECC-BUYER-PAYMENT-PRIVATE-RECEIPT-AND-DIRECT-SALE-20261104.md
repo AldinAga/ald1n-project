@@ -33,3 +33,7 @@ Current DraftPR13531398cfe... verified full30, not main. PR140 is a separate unm
 Next: incorporate only verified main changes, repair unprotected retail fulfillment/PDF and notification fixtures using genuine buyer/admin sessions, retain all original money/stock/privacy assertions and case IDs, then re-run full QA. Protected B805/B809/B815 denial stays binding; do not work around it with production aliases or relaxed registration/auth. Mandatory signup6fields, no old guest orders, positive manual commission/default10% unchanged.
 
 No local PHP/MariaDB/Docker/runtime, no FileZilla control; dirty Windows worktrees preserved. No production storefront/backend/DB/flags/SMTP/EAS/build/OTA/Play. Direct two-column menu ZIP and owner upload confirmation fromReport1012 remain separate. Formal acceptance11/17=64.7%,CMS10/15=66.7%,UI6/6 unchanged; targeted PASS is not broad acceptance or release approval.
+
+## Permanent evidence receipt
+
+[Complete B1088-B1090 raw evidence](https://drive.google.com/file/d/1jIWTU_CgK4HWrSRrkZikAl28oKL4clwP/view) SHA256 **38b1b51d2fc8b400a521c979630e5905a9148a9689e92a943a6b18cb40e4de80**, downloaded back and verified. Includes focused/full buyer/payment proof, actual orphaned-receipt RED/GREEN and independent-main Direct Sale comparison. Archive report predates this self-referential receipt. No production exports, secrets or customer data.
