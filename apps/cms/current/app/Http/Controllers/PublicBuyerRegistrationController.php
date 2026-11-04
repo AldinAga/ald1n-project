@@ -53,7 +53,9 @@ final class PublicBuyerRegistrationController extends Controller
             'first_name'=>['required','string','min:2','max:100'],
             'last_name'=>['required','string','min:2','max:100'],
             'email'=>['required','email:rfc','max:190'],
-            'phone'=>['nullable','string','max:40'],
+            'address'=>['required','string','max:255'],
+            'city'=>['required','string','max:120'],
+            'phone'=>['required','string','max:40'],
             'accepted_privacy'=>['accepted'],
             'website'=>['nullable','size:0'],
             'cf-turnstile-response'=>['nullable','string','max:4096'],
@@ -83,7 +85,9 @@ final class PublicBuyerRegistrationController extends Controller
                     'password_hash'=>Hash::make(Str::random(64)),
                     'first_name'=>trim((string)$data['first_name']),
                     'last_name'=>trim((string)$data['last_name']),
-                    'phone'=>trim((string)($data['phone']??''))?:null,
+                    'address'=>trim((string)$data['address']),
+                    'city'=>trim((string)$data['city']),
+                    'phone'=>trim((string)$data['phone']),
                     'status'=>'pending',
                 ]);
             },3);
