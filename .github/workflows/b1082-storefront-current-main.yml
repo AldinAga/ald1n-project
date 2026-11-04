@@ -1,0 +1,202 @@
+name: B1082 current-main storefront assembly (NO DEPLOY)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/cms/current/**'
+      - 'apps/mobile/current/**'
+      - 'packages/api-contract/openapi.yaml'
+      - 'tools/storefront/**'
+      - '.github/workflows/b1082-storefront-current-main.yml'
+permissions:
+  contents: read
+concurrency:
+  group: b1082-${{ github.head_ref }}
+  cancel-in-progress: false
+jobs:
+  isolated-storefront:
+    if: github.head_ref == 'codex/b1082-storefront-current-main-20261104'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      baseline_db:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_retirement_ci
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ci_only_b1075
+          MARIADB_ROOT_PASSWORD: ci_only_root_b1075
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      candidate_db:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_DATABASE: ald1n_retirement_ci
+          MARIADB_USER: ald1n_test
+          MARIADB_PASSWORD: ci_only_b1075
+          MARIADB_ROOT_PASSWORD: ci_only_root_b1075
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: https://cms.ald1n.com
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ci_only_b1075
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+    steps:
+      - name: Frozen current main after verified commission merge
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 1c185c6c5a97d3917069c8d73ad4d2df781c0e7c
+          path: original
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact recovery head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
+          fetch-depth: 0
+      - name: PHP8.4 and locked dependencies
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Preserve all protected historic fixtures and dependency locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C original rev-parse HEAD)" = 1c185c6c5a97d3917069c8d73ad4d2df781c0e7c
+          test "$(git -C candidate rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          python3 - <<'PY'
+          import pathlib,subprocess
+          historical='acb8b9c42ec9254b1a27567abca29a26c1f733f8'
+          paths=subprocess.check_output(['git','-C','original','ls-tree','-r','--name-only',historical,'apps/cms/current/tests'],text=True).splitlines()
+          protected=[p for p in paths if any(n in p for n in ('B805','B809','B815'))]
+          assert protected,'empty protected test census'
+          for p in protected:
+              old=subprocess.check_output(['git','-C','original','show',historical+':'+p])
+              assert old==(pathlib.Path('candidate')/p).read_bytes(),p
+          parity=['apps/cms/current/composer.json','apps/cms/current/composer.lock','apps/cms/current/app/Services/CommissionCalculator.php','apps/cms/current/app/Services/OrderService.php','apps/cms/current/app/Services/OrderPaymentService.php','apps/cms/current/app/Services/OrderWorkflowService.php','apps/cms/current/app/Services/WarrantyActivationRecoveryService.php','apps/cms/current/app/Services/WarrantyExpiryRecipientPolicy.php','apps/cms/current/app/Services/MobilePushDispatcher.php','apps/cms/current/tests/Feature/WarrantyFirstPaymentIssuance798Test.php','apps/mobile/current/scripts/release25/batch576-report575-remediation.test.mjs','apps/mobile/current/scripts/release25/batch682-eas-cli25-authority.test.mjs','apps/mobile/current/package.json','apps/mobile/current/package-lock.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']
+          for p in parity:
+              assert (pathlib.Path('original')/p).read_bytes()==(pathlib.Path('candidate')/p).read_bytes(),p
+          print('PROTECTED_FIXTURES_AND_LOCKS_UNCHANGED',len(protected))
+          repairs={
+              'apps/cms/current/tests/Unit/LegacyReadOnlyGuardTest.php':[
+                  ('use LogicException;','use LogicException;\nuse PHPUnit\\Framework\\Attributes\\DataProvider;'),
+                  ('/** @dataProvider mutatingQueries */',"#[DataProvider('mutatingQueries')]"),
+              ],
+              'apps/cms/current/tests/Unit/DeliveryNoteMigrationContractTest.php':[
+                  ('use PHPUnit\\Framework\\TestCase;','use Tests\\TestCase;'),
+              ],
+          }
+          for p,replacements in repairs.items():
+              expected=(pathlib.Path('original')/p).read_text()
+              for old,new in replacements:
+                  assert expected.count(old)==1,p
+                  expected=expected.replace(old,new)
+              assert (pathlib.Path('candidate')/p).read_text()==expected,p
+          print('LEGACY_TEST_INPUTS_AND_ASSERTIONS_UNCHANGED_METADATA_ONLY')
+          PY
+          composer install --working-dir=original/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
+          composer install --working-dir=candidate/apps/cms/current --no-interaction --prefer-dist --no-scripts --no-plugins --no-progress
+      - name: Real MariaDB focused journeys and full unfiltered identity comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1082-evidence"
+          mkdir -p "$evidence"
+          for port in 3306 3307; do
+            actual="$(DB_PORT="$port" php -r '$db=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));$v=$db->query("SELECT VERSION()")->fetchColumn();if(!str_starts_with($v,"10.11.19-"))exit(3);echo $db->query("SELECT DATABASE()")->fetchColumn();')"
+            test "$actual" = ald1n_retirement_ci
+          done
+          run_suite() {
+            tree="$1"; port="$2"; label="$3"; shift 3
+            set +e
+            (cd "$tree/apps/cms/current" && DB_PORT="$port" LEGACY_DB_PORT="$port" php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$label.xml" "$@") > "$evidence/$label.log" 2>&1
+            result=$?
+            set -e
+            printf '%s\n' "$result" > "$evidence/$label.exit"
+          }
+          run_suite candidate 3307 focused \
+            tests/Feature/PublicMediaCacheAndCartRedirectB877Test.php \
+            tests/Feature/StorefrontMediaPathBoundaryB893Test.php \
+            tests/Feature/StorefrontHtmlOriginBoundaryB899Test.php \
+            tests/Feature/StorefrontLocalValidationB889Test.php \
+            tests/Feature/PublicNoScriptCspB872Test.php \
+            tests/Feature/RegisteredStorefrontFlowB1075Test.php \
+            tests/Feature/CoreAccessRoleIdStabilityB876Test.php \
+            tests/Unit/LegacyReadOnlyGuardTest.php \
+            tests/Unit/DeliveryNoteMigrationContractTest.php \
+            tests/Feature/ManualCommissionPolicyB1079Test.php \
+            tests/Unit/CommissionCalculatorTest.php \
+            tests/Unit/CommissionPercentagePolicyContractTest.php
+          if test "$(cat "$evidence/focused.exit")" != 0; then
+            tail -120 "$evidence/focused.log"
+            echo 'HOLD_FOCUSED_SOURCE_REGRESSIONS_FULL_RUN_STILL_REQUIRED'
+          fi
+          run_suite original 3306 original-full & original_pid=$!
+          run_suite candidate 3307 candidate-full & candidate_pid=$!
+          wait "$original_pid"
+          wait "$candidate_pid"
+          php candidate/tools/storefront/b1075/compare-junit.php "$evidence/original-full.xml" "$evidence/candidate-full.xml" "$evidence/comparison.json"
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import os,json,pathlib,xml.etree.ElementTree as E
+          d=pathlib.Path(os.environ['EVIDENCE']); report=json.loads((d/'comparison.json').read_text())
+          cases=E.parse(d/'focused.xml').getroot().findall('.//testcase')
+          assert len(cases)==86,len(cases)
+          assert (d/'focused.exit').read_text().strip()=='0',(d/'focused.log').read_text()[-4000:]
+          assert all(not any(c.find(k) is not None for k in ('error','failure','skipped')) for c in cases)
+          assert report['before']['count']>=451,report['before']['count']
+          assert report['after']['count']>=max(640,report['before']['count']),report['after']['count']
+          assert report['before']['skippedCount']==report['after']['skippedCount']==0
+          legacy='Tests.Unit.LegacyReadOnlyGuardTest::test_mutating_and_locking_queries_are_blocked'
+          expected_provider_cases={legacy+' with data set #'+str(i) for i in range(7)}
+          assert set(report['missingOriginalCases'])=={legacy},report['missingOriginalCases']
+          assert legacy in report['before']['failed']
+          assert expected_provider_cases.issubset(report['after']['ids'])
+          assert not expected_provider_cases.intersection(report['after']['failed'])
+          old=json.loads(pathlib.Path('candidate/tools/storefront/b1082/pr131-tested-case-ids.json').read_text())
+          assert old['count']==len(old['caseIds'])==640
+          missing_old=sorted(set(old['caseIds'])-set(report['after']['ids']))
+          assert not missing_old,missing_old
+          (d/'complete-lineage-identity-proof.json').write_text(json.dumps({
+              'current_main':'1c185c6c5a97d3917069c8d73ad4d2df781c0e7c',
+              'old_PR131_executed_cases':640,'missing_old_PR131_cases':missing_old,
+              'main_legacy_discovery_error_identity':legacy,
+              'original_provider_cases':sorted(expected_provider_cases),
+              'all_other_main_case_identities_preserved':True,
+          },indent=2))
+          assert not report['newFailed'],report['newFailed']
+          if report['after']['failedCount']:
+              raise SystemExit('HOLD_HISTORICAL_FULL_SUITE_FAILURES: '+str(report['after']['failedCount']))
+          PY
+      - name: Preserve complete actual results even under HOLD
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1082-current-main-full-junit
+          path: ${{ runner.temp }}/b1082-evidence
+          if-no-files-found: error
+          retention-days: 7
