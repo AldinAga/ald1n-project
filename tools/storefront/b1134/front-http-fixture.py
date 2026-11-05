@@ -7,8 +7,8 @@ def sha(data):return hashlib.sha256(data).hexdigest()
 def run(file,*args):
     result=subprocess.run(['php','-d','opcache.enable_cli=0',str(file),*map(str,args)],capture_output=True,text=True)
     assert result.returncode==0,(file,result.returncode,result.stdout[-2500:],result.stderr[-2500:]);return result.stdout
-def case(filecache):
-    work=base/('disk' if filecache else 'memory');work.mkdir();current=work/'current';candidate=work/'candidate';retained=work/'retained';failed=work/'failed';shutil.copytree(stage,current);shutil.copytree(stage,candidate)
+def case(filecache,override=False):
+    work=base/('override-reject' if override else ('disk' if filecache else 'memory'));work.mkdir();current=work/'current';candidate=work/'candidate';retained=work/'retained';failed=work/'failed';shutil.copytree(stage,current);shutil.copytree(stage,candidate)
     for rel in ['public/uploads','storage/app/public','storage/logs','storage/framework/sessions','storage/framework/cache/data','storage/framework/views','bootstrap/cache']:(current/rel).mkdir(parents=True,exist_ok=True)
     (candidate/'bootstrap/cache').mkdir(parents=True,exist_ok=True)
     (current/'public/storage').symlink_to(current/'storage/app/public');(current/'storage/app/public/existing').write_text('upload');(current/'storage/logs/existing').write_text('log');(current/'public/uploads/old').write_text('public-upload')
@@ -29,7 +29,7 @@ def case(filecache):
     run(current/'artisan','package:discover','--no-ansi','--no-interaction');run(current/'artisan','view:cache','--no-ansi','--no-interaction')
     locator=work/'locate.php';locator.write_text('<?php require '+json.dumps(str(current/'vendor/autoload.php'))+';$app=require '+json.dumps(str(current/'bootstrap/app.php'))+';$app->make('+json.dumps(r'Illuminate\Contracts\Console\Kernel')+')->bootstrap();echo $app->make("blade.compiler")->getCompiledPath('+json.dumps(str(current/'resources/views/auth/login.blade.php'))+');')
     compiled=pathlib.Path(run(locator).strip());compiled.write_text(compiled.read_text()+'\nSTALE_OLD_COMPILED_SENTINEL\n');os.utime(compiled,(time.time()+86400,time.time()+86400))
-    sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1];sock.close();disk=work/'opcache';disk.mkdir();log=(work/'server.log').open('wb');server=subprocess.Popen(['php','-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.validate_timestamps=0','-d','opcache.file_update_protection=0','-d','opcache.file_cache='+ (str(disk) if filecache else ''),'-S','127.0.0.1:'+str(port),'-t',str(current/'public')],stdout=log,stderr=log)
+    sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1];sock.close();disk=work/'opcache';disk.mkdir();log=(work/'server.log').open('wb');server=subprocess.Popen(['php','-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.validate_timestamps=0','-d','opcache.enable_file_override='+str(int(override)),'-d','opcache.file_update_protection=0','-d','opcache.file_cache='+ (str(disk) if filecache else ''),'-S','127.0.0.1:'+str(port),'-t',str(current/'public')],stdout=log,stderr=log)
     origin='http://127.0.0.1:'+str(port)
     def request(path,action=None,auth=True,smoking=False,**fields):
         data=None if action is None else json.dumps({'action':action,**fields}).encode();headers={'Content-Type':'application/json'}
@@ -50,7 +50,12 @@ def case(filecache):
             except OSError:time.sleep(.1)
         status,body,_=request('/login');assert status==200 and 'STALE_OLD_COMPILED_SENTINEL' in body,(status,body[-500:])
         old_m=bridge('maintenance',base=str(current),**context);time.sleep(1.1);new_m=bridge('maintenance',base=str(candidate),**context);assert list(old_m['files'].values())==list(new_m['files'].values())
-        assert request('/login')[0]==503;assert request(rpc,'probe',auth=False)[0]==503;status,text,_=request(rpc,'probe');assert status==200,(status,text);assert json.loads(text)['actualIndex'] is True
+        assert request('/login')[0]==503;assert request(rpc,'probe',auth=False)[0]==503;status,text,_=request(rpc,'probe')
+        if override:
+            assert status==403,('UNSAFE_FILE_OVERRIDE_NOT_REJECTED',status,text)
+            assert current.is_dir() and candidate.is_dir() and not retained.exists()
+            return {'enableFileOverrideRejectedBeforeCodeSwitch':True}
+        assert status==200,(status,text);assert json.loads(text)['actualIndex'] is True
         assert request(rpc,'reset')[0]==403
         cfg['phase']='maintenance';cfg['files']=bridge('census',base=str(current));signed();assert request(rpc,'invalidate',offset=1)[0]==403;invalidate()
         bridge('switch');run(current/'artisan','package:discover','--no-ansi','--no-interaction');run(current/'artisan','view:cache','--no-ansi','--no-interaction')
@@ -66,4 +71,4 @@ def case(filecache):
         bridge('release',base=str(failed),receipt=new_m);bridge('release',base=str(current),receipt=old_m);assert request('/login')[0]==200;assert request(rpc,'probe',auth=False)[0]==404
         return {'actualFrontIndex':True,'fileCacheEnabled':filecache,'timestampsOff':True,'oldSchemaNoMigrations':True,'loginAndAdminEntry':True,'ONEnvOverriddenOFF':True,'privateSmokeWhilePublic503':True,'noMaintenanceCookieToBrowser':True,'freshCompiledViewsDespiteFutureOldMtime':True,'prePostForceInvalidationAndRollback':True,'privateDataWriteSurvivesRollback':True,'revokedDispatcherUnavailable':True,'noPublicAliasCreated':True}
     finally:server.terminate();server.wait(timeout=5);log.close()
-results=[case(False),case(True)];receipt={'profiles':results,'LSPHPGroup':'HOST_SELF_CALIBRATION_REQUIRED_NOT_AVAILABLE_ON_CLI_SERVER','productionExecution':False};(base/'front-receipt.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt,indent=2))
+results=[case(False),case(True),case(False,True)];receipt={'profiles':results,'LSPHPGroup':'HOST_SELF_CALIBRATION_REQUIRED_NOT_AVAILABLE_ON_CLI_SERVER','productionExecution':False};(base/'front-receipt.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt,indent=2))

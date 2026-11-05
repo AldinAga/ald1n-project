@@ -33,7 +33,12 @@ final class HostWebControl
         if($error!==0||!is_string($body)||strlen($body)>16384)throw new RuntimeException('WEB_TRANSPORT');
         if(!$authenticated){if($status!==503||!str_contains($body,$this->config['ownerStamp']))throw new RuntimeException('WEB_UNAUTHENTICATED_NOT_BARRIERED');return ['unauthenticatedDenied'=>true];}
         if($status!==200)throw new RuntimeException('WEB_AUTHENTICATED_HTTP_'.$status);$data=json_decode($body,true,64,JSON_THROW_ON_ERROR);
-        if(($data['status']??'')!=='ok'||($data['id']??'')!==$this->config['id']||($data['phase']??'')!==$this->config['phase']||($data['librarySHA256']??'')!==$this->config['librarySHA256']||($data['uid']??-1)!==posix_geteuid())throw new RuntimeException('WEB_RECEIPT_SCOPE');return $data;
+        $this->validateReceipt($data);return $data;
+    }
+
+    private function validateReceipt(array $data):void
+    {
+        if(($data['status']??'')!=='ok'||($data['id']??'')!==$this->config['id']||($data['phase']??'')!==$this->config['phase']||($data['librarySHA256']??'')!==$this->config['librarySHA256']||($data['uid']??-1)!==posix_geteuid())throw new RuntimeException('WEB_RECEIPT_SCOPE');
     }
 
     public function invalidateAll():array
