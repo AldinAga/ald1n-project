@@ -52,7 +52,7 @@ def case(filecache,override=False):
         old_m=bridge('maintenance',base=str(current),**context);time.sleep(1.1);new_m=bridge('maintenance',base=str(candidate),**context);assert list(old_m['files'].values())==list(new_m['files'].values())
         assert request('/login')[0]==503;assert request(rpc,'probe',auth=False)[0]==503;status,text,_=request(rpc,'probe')
         if override:
-            assert status==403,('UNSAFE_FILE_OVERRIDE_NOT_REJECTED',status,text)
+            assert status==503 and json.loads(text)=={'status':'denied'},('UNSAFE_FILE_OVERRIDE_NOT_REJECTED',status,text)
             assert current.is_dir() and candidate.is_dir() and not retained.exists()
             return {'enableFileOverrideRejectedBeforeCodeSwitch':True}
         assert status==200,(status,text);assert json.loads(text)['actualIndex'] is True
