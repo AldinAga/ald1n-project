@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+require $argv[1];
+function check(bool $ok):void {if(!$ok)throw new RuntimeException('FIXTURE');}
+function env(string $name,mixed $default=null):mixed {return ['PUBLIC_STOREFRONT_ENABLED'=>'true','PUBLIC_CHECKOUT_ENABLED'=>'true','PUBLIC_CHECKOUT_SUPPORT_EMAIL'=>'fixture@example.test','PUBLIC_CHECKOUT_DELIVERY_METHODS'=>'courier,customer_pickup'][$name]??$default;}
+$root=getenv('RUNNER_TEMP').'/b1134-primitives';mkdir($root);$original=file_get_contents($argv[2]);$hash=hash('sha256',$original);$clamped=ReleasePrimitives::offConfig($original,$hash);file_put_contents($root.'/original.php',$original);file_put_contents($root.'/clamped.php',$clamped);$before=require $root.'/original.php';$after=require $root.'/clamped.php';check($before['enabled']===true&&$before['checkout_enabled']===true);check($after['enabled']===false&&$after['checkout_enabled']===false);unset($before['enabled'],$before['checkout_enabled'],$after['enabled'],$after['checkout_enabled']);check($before===$after);
+try{ReleasePrimitives::offConfig($original,str_repeat('0',64));throw new LogicException('HASH_NOT_REJECTED');}catch(RuntimeException $e){check($e->getMessage()==='CONFIG_SOURCE_HASH');}
+mkdir($root.'/current');mkdir($root.'/candidate');file_put_contents($root.'/current/old','old');file_put_contents($root.'/candidate/new','new');$receipt=ReleasePrimitives::switchDirectories($root.'/current',$root.'/candidate',$root.'/rollback');check(file_get_contents($root.'/current/new')==='new'&&file_get_contents($root.'/rollback/old')==='old');ReleasePrimitives::rollbackDirectories($receipt,$root.'/failed');check(file_get_contents($root.'/current/old')==='old'&&file_get_contents($root.'/failed/new')==='new');
+try{ReleasePrimitives::assertCompleteHostGates([]);throw new LogicException('UNFINISHED_ACCEPTED');}catch(RuntimeException $e){check(str_starts_with($e->getMessage(),'UNFINISHED_INSTALLER_GATE_'));}
+echo json_encode(['draftOnly'=>true,'positive'=>3,'negative'=>2,'offOverridesOnEnv'=>true,'otherConfigPreserved'=>true,'directorySwitchAndRollback'=>true,'unfinishedHostGatesReject'=>true,'productionExecution'=>false],JSON_PRETTY_PRINT).PHP_EOL;

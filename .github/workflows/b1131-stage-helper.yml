@@ -1,12 +1,12 @@
-name: B1133 read-only filesystem preinstall helper (NO DEPLOY)
+name: B1134 unfinished installer primitives only (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
-    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1133/**']
+    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1134/**']
 permissions:
   contents: read
 jobs:
-  helper-fixtures:
+  draft-only:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -18,14 +18,14 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
-      - name: Actual read-only helper and literal cache fixtures
+      - name: Synthetic OFF configuration and directory rollback primitives only
         run: |
           set -euo pipefail
-          php -l tools/storefront/b1133/helper.php
-          php tools/storefront/b1133/fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1133/helper.php" | tee "$RUNNER_TEMP/b1133-fixture.json"
+          php -l tools/storefront/b1134/ReleasePrimitives.php
+          php tools/storefront/b1134/fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134/ReleasePrimitives.php" "$GITHUB_WORKSPACE/tools/storefront/b1134/public_storefront.php" | tee "$RUNNER_TEMP/b1134-primitives.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: b1133-readonly-helper-receipt
-          path: ${{ runner.temp }}/b1133-fixture.json
+          name: b1134-unfinished-primitives-only
+          path: ${{ runner.temp }}/b1134-primitives.json
           if-no-files-found: error
           retention-days: 7
