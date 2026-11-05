@@ -1,4 +1,4 @@
-name: B1134 unfinished installer primitives only (NO DEPLOY)
+name: B1134 installer filesystem and authenticated webcache protocol (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
@@ -6,9 +6,9 @@ on:
 permissions:
   contents: read
 jobs:
-  draft-only:
+  scoped-protocol:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -17,15 +17,26 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
+          extensions: opcache
           coverage: none
-      - name: Synthetic OFF configuration and directory rollback primitives only
+      - name: File operations private data journal maintenance and forced OFF
         run: |
           set -euo pipefail
           php -l tools/storefront/b1134/ReleasePrimitives.php
+          php -l tools/storefront/b1134/WebCacheEndpoint.php
+          php -l tools/storefront/b1134/SchedulerControl.php
           php tools/storefront/b1134/fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134/ReleasePrimitives.php" "$GITHUB_WORKSPACE/tools/storefront/b1134/public_storefront.php" | tee "$RUNNER_TEMP/b1134-primitives.json"
+          php tools/storefront/b1134/preservation-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134/ReleasePrimitives.php" | tee "$RUNNER_TEMP/b1134-preservation.json"
+      - name: Actual HTTP OPcache source and generated cache switch rollback with timestamps disabled
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1134/web-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1134/WebCacheEndpoint.php"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: b1134-unfinished-primitives-only
-          path: ${{ runner.temp }}/b1134-primitives.json
+          name: b1134-focused-protocol-only
+          path: |
+            ${{ runner.temp }}/b1134-*.json
+            ${{ runner.temp }}/b1134-web/web-receipt.json
           if-no-files-found: error
           retention-days: 7
