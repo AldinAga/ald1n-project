@@ -1,3 +1,9 @@
+# CURRENT 2026-11-05 — Report1081 / SKIP REPEATED DB CONFIRMATION; BUILD CONTROLLED OFF INSTALLER
+
+[Report1081](1081-B1134-OWNER-DB-CONFIRMATION-WAIVER-AND-CONTROLLED-INSTALL-PATH-20261105.md) is current. Owner says existingDBworks/unchanged; stop DBparameterquestions/probes and genericinventories. Solegoal stableStorefront. Next complete independentlyreviewedOFFinstaller uses verified1077stage, preservesprivateenv/storage/custom.htaccess/oldsource+vendor, adapts provenrollback/maintenance/web-cacheprocedure. Do not extrapolate B962 twelve-filedeployment toblindwholevendoroverlay or call defaultsfalseunconditionalOFF. No installer or productionchange has yetoccurred; no migrations/automaticpublicactivationauthorized. No broadalready-green suite/staging/vendorupload replay. ActualWeekly79%, max80unchanged, userdeclinespause; preservehandoff and never shipuntestedcode tofitquota. Earlier entries historical.
+
+---
+
 # CURRENT 2026-11-05 — Report1080 / ACTUAL B1133 HOST FACTS; INSTALLATION STILL HOLD
 
 [Report1080](1080-B1133-ACTUAL-HOST-FACTS-AND-NUMBERING-ERRATUM-20261105.md) supersedes pending-host status. Actual [1079host](1079-B1133-PRIVATE-STAGE-20261105-004742.md) confirms successful read-only collection/intentionalHOLD2: sourcePHP671same/62different/26missing; nonPHP26same/5different; vendor6908same/744different/89missing,0unsafe. Verified existing8531-file stage preserved; no restage/upload. Config cache ABSENT; effectiveOFF/schema/FPM NOT_ATTESTED. ActiveCMS/vendor/env/DB/cache/FPM/flags unchanged; not installed/opened.

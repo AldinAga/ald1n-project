@@ -8,6 +8,12 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0ZB. Owner skips repeated DB confirmation and prioritizes controlled installation (2026-11-05)
+
+The owner expressly directs skipping repeated database confirmation/probing because the existing database works/has not changed, and reiterates stable functional Storefront as the sole goal. Retire the metadata-only B1134 design; do not request DB_DATABASE/DB_USERNAME/DB_HOST/DB_PORT again or issue another generic host inventory. Credit this owner attestation for the controlledOFF installation phase. A skipped fact remains NOT_ATTESTED, never invent PASS. This does not authorize production DB migrations, data/flag writes or automatic public opening.
+
+Next prepare a complete independently reviewed controlledOFF installer using the alreadyverified1077stage and provenmaintenance/backup/rollback pattern, preservingprivate.env/storage/custom.htaccess/source/vendor. Fullvendorreplacement is not a twelve-file overlay. StrongOFF and a concrete web-cache/switch mechanism must be implemented/tested as partofnewdeploymentlogic, rather than repeating unrelatedalready-passed suites. No partial/untestedinstaller or publicdebugbackdoor. All canonicalincoming/report/provenance/numbering rules and ownermaximum80% remain; no reset/purchase. See Report1081 and existingReport1080 facts. Merchantcontent/workingbackup remaincredited; no old staging/backupreplay.
+
 ## 0Z. Storefront merged, successful private stage and maximum80% (2026-11-05)
 
 The owner explicitly increased Weekly Usage maximum70% to **80%**; this overrides only older numerical ceilings in0X/0Y. Preserve a stopping/checkpoint reserve, no reset or purchase. Functional Storefront remains the sole primary goal.
