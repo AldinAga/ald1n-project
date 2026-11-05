@@ -13,14 +13,21 @@ final class ReleasePrimitives
     public static function preservePrivate(string $active,string $candidate,string $rollback,array $publicPrivatePaths=[]):array
     {
         self::confinedDirectory($active);self::confinedDirectory($candidate);
-        if(file_exists($rollback)||is_link($rollback)||dirname($rollback)!==dirname($active))throw new RuntimeException('ROLLBACK_COLLISION');
+        if(file_exists($rollback)||is_link($rollback)||(realpath(dirname($rollback))!==dirname($rollback)||stat(dirname($rollback))['dev']!==stat($active)['dev']))throw new RuntimeException('ROLLBACK_COLLISION');
         self::confinedDirectory($candidate.'/public');
         foreach(['.env','storage'] as $name){
             $source=$active.'/'.$name;$target=$candidate.'/'.$name;
             if(is_link($source)||realpath($source)!==$source||($name==='.env'?!is_file($source):!is_dir($source))||file_exists($target)||is_link($target))throw new RuntimeException('PRIVATE_PATH_CONFINEMENT');
         }
         self::confinedDirectory($active.'/storage/framework');
+        foreach(['app','logs','framework/sessions','framework/cache'] as $namespace)self::confinedDirectory($active.'/storage/'.$namespace);
         if(is_link($active.'/storage/framework/views'))throw new RuntimeException('OLD_VIEWS_LINK');
+        $storageCount=0;
+        foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($active.'/storage',FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST) as $entry){
+            if(++$storageCount>200000)throw new RuntimeException('PRIVATE_STORAGE_METADATA_BOUND');
+            if(!$entry->isLink())continue;$resolved=realpath($entry->getPathname());
+            if(!is_string($resolved)||str_starts_with($resolved,$active.'/storage/framework/views')||(str_starts_with($resolved,$active.'/')&&!str_starts_with($resolved,$active.'/storage/')))throw new RuntimeException('PRIVATE_STORAGE_LINK_SEMANTICS_UNSUPPORTED');
+        }
         // New compiled views are release-local, while ALL business storage entries remain shared.
         $links=['.env'=>$rollback.'/.env'];$newDirectories=[$candidate.'/storage',$candidate.'/storage/framework',$candidate.'/storage/framework/views'];
         foreach(new DirectoryIterator($active.'/storage') as $item){if($item->isDot()||$item->getFilename()==='framework')continue;$name=$item->getFilename();$links['storage/'.$name]=$rollback.'/storage/'.$name;}
@@ -70,15 +77,24 @@ final class ReleasePrimitives
     }
 
     /** File maintenance blocks HTTP before autoload and also supplies Laravel's file driver state. */
-    public static function ownMaintenance(string $storage,string $owner):array
+    public static function ownMaintenance(string $storage,string $owner,?int $expires=null,?int $startedAt=null,?array $web=null):array
     {
         self::confinedDirectory($storage);self::confinedDirectory($storage.'/framework');$directory=$storage.'/framework';$paths=[$directory.'/maintenance.php',$directory.'/down'];
         foreach($paths as $path)if(file_exists($path)||is_link($path))throw new RuntimeException('MAINTENANCE_ALREADY_OWNED');
-        $stamp=hash('sha256',$owner);$php="<?php\nhttp_response_code(503);header('Retry-After: 60');header('Cache-Control: no-store');echo 'ALD1N owned maintenance ".$stamp."';exit;\n";
-        $payloads=[$php,json_encode(['time'=>time(),'retry'=>60,'status'=>503,'secret'=>null,'redirect'=>null,'template'=>null,'ald1n_owner'=>$stamp],JSON_THROW_ON_ERROR)];$created=[];
+        $stamp=hash('sha256',$owner);$expires??=time()+1500;$smokeToken=hash_hmac('sha256','private-http-smoke',$owner);$cookieKey=hash_hmac('sha256','framework-maintenance-secret',$owner);
+        $php="<?php\n// Owned deployment barrier; only a private per-run header may exercise real HTTP middleware.\n".
+            '$provided=$_SERVER[\'HTTP_X_ALD1N_RELEASE_SMOKE\']??\'\';'."\n";
+        $php.='if(time()<='.$expires.'&&is_string($provided)&&hash_equals(\''.hash('sha256',$smokeToken).'\',hash(\'sha256\',$provided))){'."\n".
+            '$until=min(time()+60,'.$expires.');$_COOKIE[\'laravel_maintenance\']=base64_encode(json_encode([\'expires_at\'=>$until,\'mac\'=>hash_hmac(\'sha256\',(string)$until,\''.$cookieKey.'\')]));return;'."\n}\n".
+            "http_response_code(503);header('Retry-After: 60');header('Cache-Control: no-store');echo 'ALD1N owned maintenance ".$stamp."';exit;\n";
+        if($web!==null){
+            if(!preg_match('/^[a-f0-9]{64}$/D',$web['frontSHA256']??'')||!is_string($web['library']??null)||!is_string($web['envelope']??null))throw new RuntimeException('MAINTENANCE_WEB_CONTEXT');
+            $php="<?php\nrequire ".var_export($web['library'],true).";\nWebCacheEndpoint::barrier(".var_export($web['envelope'],true).','.var_export($stamp,true).','.var_export($web['frontSHA256'],true).','.var_export(hash('sha256',$smokeToken),true).','.var_export($cookieKey,true).");\n";
+        }
+        $payloads=[$php,json_encode(['time'=>$startedAt??time(),'retry'=>60,'status'=>503,'secret'=>$cookieKey,'redirect'=>null,'template'=>null,'ald1n_owner'=>$stamp],JSON_THROW_ON_ERROR)];$created=[];
         try{foreach($paths as $i=>$path){$handle=fopen($path,'x');if($handle===false)throw new RuntimeException('MAINTENANCE_CREATE');$created[$path]=hash('sha256',$payloads[$i]);$written=fwrite($handle,$payloads[$i]);fflush($handle);fclose($handle);if($written!==strlen($payloads[$i]))throw new RuntimeException('MAINTENANCE_WRITE');}}
         catch(Throwable $error){foreach($created as $path=>$digest)if(is_file($path)&&!is_link($path)&&hash_file('sha256',$path)===$digest)unlink($path);throw $error;}
-        $identity=stat($storage);return ['files'=>$created,'storage'=>$storage,'storageDevice'=>$identity['dev'],'storageInode'=>$identity['ino'],'ownerSHA256'=>$stamp];
+        $identity=stat($storage);return ['files'=>$created,'storage'=>$storage,'storageDevice'=>$identity['dev'],'storageInode'=>$identity['ino'],'ownerSHA256'=>$stamp,'smokeToken'=>$smokeToken,'expires'=>$expires];
     }
 
     public static function releaseMaintenance(array $receipt,?string $storageLocation=null):void
@@ -94,7 +110,7 @@ final class ReleasePrimitives
     public static function switchJournaled(string $active,string $candidate,string $rollback,string $journal,string $owner):array
     {
         self::confinedDirectory($active);self::confinedDirectory($candidate);
-        if(file_exists($rollback)||is_link($rollback)||dirname($rollback)!==dirname($active)||stat($active)['dev']!==stat($candidate)['dev'])throw new RuntimeException('SWITCH_CONFINEMENT');
+        if(file_exists($rollback)||is_link($rollback)||(realpath(dirname($rollback))!==dirname($rollback)||stat(dirname($rollback))['dev']!==stat($active)['dev'])||stat($active)['dev']!==stat($candidate)['dev'])throw new RuntimeException('SWITCH_CONFINEMENT');
         self::journalState($journal,$owner,'INTENT_OLD_RENAME');
         if(!rename($active,$rollback))throw new RuntimeException('OLD_RELEASE_RENAME');
         self::journalState($journal,$owner,'OLD_RENAMED');self::journalState($journal,$owner,'INTENT_NEW_RENAME');
@@ -109,6 +125,7 @@ final class ReleasePrimitives
     /** Disk-state recovery, including interruption between the two directory renames. */
     public static function recoverSwitch(array $plan,string $journal,string $owner,string $failedRelease):string
     {
+        clearstatcache(true);
         $active=$plan['active'];$candidate=$plan['candidate'];$rollback=$plan['rollback'];
         foreach([$active,$candidate,$rollback,$failedRelease] as $path){if(is_link($path))throw new RuntimeException('RECOVERY_LINK');if(file_exists($path))self::confinedDirectory($path);}
         $matches=static function(string $path,array $identity):bool{$s=is_dir($path)?stat($path):false;return is_array($s)&&$s['dev']===$identity['dev']&&$s['ino']===$identity['ino'];};
@@ -139,7 +156,7 @@ final class ReleasePrimitives
     public static function switchDirectories(string $active,string $candidate,string $rollback):array
     {
         foreach([$active,$candidate] as $path)if(is_link($path)||!is_dir($path)||realpath($path)!==$path)throw new RuntimeException('DIRECTORY_CONFINEMENT');
-        if(file_exists($rollback)||is_link($rollback)||dirname($rollback)!==dirname($active))throw new RuntimeException('ROLLBACK_COLLISION');
+        if(file_exists($rollback)||is_link($rollback)||(realpath(dirname($rollback))!==dirname($rollback)||stat(dirname($rollback))['dev']!==stat($active)['dev']))throw new RuntimeException('ROLLBACK_COLLISION');
         if(stat($active)['dev']!==stat($candidate)['dev'])throw new RuntimeException('CROSS_FILESYSTEM');
         if(!rename($active,$rollback))throw new RuntimeException('OLD_RELEASE_RENAME');
         if(!rename($candidate,$active)){
@@ -152,7 +169,7 @@ final class ReleasePrimitives
     public static function rollbackDirectories(array $receipt,string $failedRelease):void
     {
         $active=$receipt['active'];$rollback=$receipt['rollback'];
-        if(is_link($active)||is_link($rollback)||!is_dir($active)||!is_dir($rollback)||file_exists($failedRelease)||is_link($failedRelease)||dirname($failedRelease)!==dirname($active))throw new RuntimeException('ROLLBACK_CONFINEMENT');
+        if(is_link($active)||is_link($rollback)||!is_dir($active)||!is_dir($rollback)||file_exists($failedRelease)||is_link($failedRelease)||(realpath(dirname($failedRelease))!==dirname($failedRelease)||stat(dirname($failedRelease))['dev']!==stat($active)['dev']))throw new RuntimeException('ROLLBACK_CONFINEMENT');
         if(!rename($active,$failedRelease))throw new RuntimeException('FAILED_RELEASE_RETAIN');
         if(!rename($rollback,$active)){
             if(!rename($failedRelease,$active))throw new RuntimeException('ROLLBACK_AND_RESTORE_FAILED_HOLD_MAINTENANCE');

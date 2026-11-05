@@ -1,14 +1,15 @@
-name: B1134 installer filesystem and authenticated webcache protocol (NO DEPLOY)
+name: B1134 controlled OFF installer focused verification (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
     paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1134/**']
 permissions:
   contents: read
+  actions: read
 jobs:
-  scoped-protocol:
+  focused-installer:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -17,26 +18,61 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
-          extensions: opcache
+          extensions: opcache,pdo_sqlite,sqlite3,mbstring,dom,curl,gd,intl,bcmath,zip
           coverage: none
-      - name: File operations private data journal maintenance and forced OFF
+      - name: Whole prototype syntax and bounded filesystem ownership tests
         run: |
           set -euo pipefail
-          php -l tools/storefront/b1134/ReleasePrimitives.php
-          php -l tools/storefront/b1134/WebCacheEndpoint.php
-          php -l tools/storefront/b1134/SchedulerControl.php
+          for file in ReleasePrimitives.php InstallFileOps.php HostWebControl.php SchedulerControl.php InstallCoordinator.php operator-entry.php WebCacheEndpoint.php; do php -l "tools/storefront/b1134/$file"; done
+          bash -n tools/storefront/b1134/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1134/operator-wrapper.sh; then exit 2; fi
+          set +e
+          bash tools/storefront/b1134/operator-wrapper.sh --help > "$RUNNER_TEMP/b1134-argument-reject.txt" 2>&1
+          argument_rc=$?
+          set -e
+          test "$argument_rc" = 2
+          grep -F 'unknown arguments' "$RUNNER_TEMP/b1134-argument-reject.txt"
           php tools/storefront/b1134/fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134/ReleasePrimitives.php" "$GITHUB_WORKSPACE/tools/storefront/b1134/public_storefront.php" | tee "$RUNNER_TEMP/b1134-primitives.json"
           php tools/storefront/b1134/preservation-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134/ReleasePrimitives.php" | tee "$RUNNER_TEMP/b1134-preservation.json"
-      - name: Actual HTTP OPcache source and generated cache switch rollback with timestamps disabled
+          php tools/storefront/b1134/process-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134/HostWebControl.php" | tee "$RUNNER_TEMP/b1134-process.json"
+      - name: Reuse authenticated exact runtime artifact only
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 tools/storefront/b1134/web-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1134/WebCacheEndpoint.php"
+          work="$RUNNER_TEMP/b1134-runtime"
+          mkdir -p "$work/payload" "$work/stage"
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
+          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
+          WORK="$work" python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile,zipfile
+          root=pathlib.Path(os.environ['WORK'])
+          with zipfile.ZipFile(root/'runtime.zip') as archive:
+              assert set(archive.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
+              for entry in archive.infolist():
+                  assert entry.file_size<=64*1024*1024
+                  (root/'payload'/entry.filename).write_bytes(archive.read(entry))
+          assert hashlib.sha256((root/'payload/cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
+          with tarfile.open(root/'payload/cms-runtime.tar.gz') as tar:
+              members=tar.getmembers()
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in members)
+              tar.extractall(root/'stage',filter='data')
+          PY
+      - name: Real Laravel first-party scheduler ownership and relocated backend
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1134/scheduler-fixture.py "$RUNNER_TEMP/b1134-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1134"
+      - name: Actual index maintenance RPC, memory and disk OPcache, old-schema OFF HTTP and rollback
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1134/front-http-fixture.py "$RUNNER_TEMP/b1134-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1134/WebCacheEndpoint.php" "$GITHUB_WORKSPACE/tools/storefront/b1134"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1134-focused-protocol-only
+          name: b1134-focused-installer-evidence
           path: |
             ${{ runner.temp }}/b1134-*.json
-            ${{ runner.temp }}/b1134-web/web-receipt.json
+            ${{ runner.temp }}/b1134-scheduler/scheduler-receipt.json
+            ${{ runner.temp }}/b1134-front/front-receipt.json
           if-no-files-found: error
           retention-days: 7
