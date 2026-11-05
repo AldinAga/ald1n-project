@@ -36,9 +36,11 @@ final class HostWebControl
         $this->validateReceipt($data);return $data;
     }
 
-    private function validateReceipt(array $data):void
+    private function validateReceipt(array $data,bool $smoke=false):void
     {
         if(($data['status']??'')!=='ok'||($data['id']??'')!==$this->config['id']||($data['phase']??'')!==$this->config['phase']||($data['librarySHA256']??'')!==$this->config['librarySHA256']||($data['uid']??-1)!==posix_geteuid())throw new RuntimeException('WEB_RECEIPT_SCOPE');
+        if(($data['actualIndex']??false)!==true)throw new RuntimeException('WEB_RECEIPT_FRONT_CONTEXT');
+        if($this->group!==null&&(($data['sapi']??'')!=='litespeed'||!is_int($data['pid']??null)||$data['pid']<=0||($data['ppid']??null)!==$this->group['parent']['pid']||($data['pidNamespace']??null)!==readlink('/proc/self/ns/pid')||($data[$smoke?'cacheSharedWithRPC':'sentinelPreviouslyCached']??false)!==true))throw new RuntimeException('WEB_RECEIPT_PROCESS_CACHE_GROUP');
     }
 
     public function invalidateAll():array
@@ -57,6 +59,7 @@ final class HostWebControl
         if($error!==0||$status!==$expected||!is_string($body)||($stamp!==null&&!str_contains($body,$stamp)))throw new RuntimeException('PUBLIC_HTTP_SMOKE_'.$expected);
         if($privateSmoke){$recordPath=$this->private.'/smoke-'.hash('sha256',$path).'.json';$record=null;for($attempt=0;$attempt<100;$attempt++){if(is_file($recordPath)&&!is_link($recordPath)&&filesize($recordPath)<16384){$candidate=json_decode(file_get_contents($recordPath),true);if(is_array($candidate)&&($candidate['nonce']??'')===$nonce){$record=$candidate;break;}}usleep(100000);}
             if(!is_array($record)||($record['id']??'')!==$this->config['id']||($record['phase']??'')!==$this->config['phase']||($record['librarySHA256']??'')!==$this->config['librarySHA256']||($record['cacheSharedWithRPC']??false)!==true||($record['applicationBootstrapped']??false)!==true||($record['basePathMatches']??false)!==true||($record['configCacheAbsent']??false)!==true||($record['releaseLocalCompiledViews']??false)!==true)throw new RuntimeException('ACTUAL_GET_CONTEXT_NOT_ATTESTED');
+            $this->validateReceipt($record,true);
             if($this->config['phase']==='installed'&&(($record['storefrontEnabled']??null)!==false||($record['checkoutEnabled']??null)!==false))throw new RuntimeException('ACTUAL_GET_OFF_NOT_ATTESTED');
         }
         echo 'PUBLIC_HTTP_EXPECTED_'.$expected.'=PASS'.PHP_EOL;
@@ -65,6 +68,8 @@ final class HostWebControl
     /** Calibrate real LSAPI active/idle process titles with this authenticated three-second web request. */
     public function calibrateVisibility():array
     {
+        // A newly created sentinel may be intentionally uncached during file_update_protection.
+        $warm=false;for($attempt=0;$attempt<17;$attempt++){if(($this->request('probe')['sentinelPreviouslyCached']??false)===true){$warm=true;break;}usleep(1000000);}if(!$warm)throw new RuntimeException('WEB_CACHE_SENTINEL_NOT_WARM');
         $nonce=bin2hex(random_bytes(16));$marker=$this->private.'/visibility-'.$nonce.'.json';$suffix=substr($this->config['activeRoot'].'/public/index.php',-45);
         $curl=$this->handle($this->config['rpcPath'],['action'=>'visibility','nonce'=>$nonce],true);$multi=curl_multi_init();curl_multi_add_handle($multi,$curl);$started=microtime(true);$identity=null;$stages=[];$idle=false;$namespace=readlink('/proc/self/ns/pid');
         do{
@@ -80,7 +85,7 @@ final class HostWebControl
         $body=curl_multi_getcontent($curl);$status=curl_getinfo($curl,CURLINFO_RESPONSE_CODE);curl_multi_remove_handle($multi,$curl);curl_multi_close($multi);curl_close($curl);
         $receipt=json_decode($body,true,64,JSON_THROW_ON_ERROR);if($status!==200||($receipt['id']??'')!==$this->config['id']||($receipt['sapi']??'')!=='litespeed'||($receipt['visibilityNonce']??'')!==$nonce||!isset($stages['execution'],$stages['shutdown'])||$identity===null||!$idle)throw new RuntimeException('WEB_PROCESS_VISIBILITY_UNSUPPORTED');
         $parent=HostProcessGuard::identity($identity['ppid']);if($parent===null||$parent['executable']!==$identity['executable']||$parent['argv0']!==$identity['idleArgv0'])throw new RuntimeException('LSAPI_PROCESS_GROUP_NOT_PROVEN');
-        $group=$identity+['sapi'=>'litespeed','activeToIdleTransitionProven'=>true,'heldExecutionAndShutdown'=>true,'parent'=>$parent+['pid'=>$identity['ppid']],'installer'=>HostProcessGuard::identity(getmypid())+['pid'=>getmypid()]];HostProcessGuard::assertGroup($group);$this->setGroup($group);return $group;
+        $group=$identity+['sapi'=>'litespeed','activeToIdleTransitionProven'=>true,'heldExecutionAndShutdown'=>true,'parent'=>$parent+['pid'=>$identity['ppid']],'installer'=>HostProcessGuard::identity(getmypid())+['pid'=>getmypid()]];HostProcessGuard::assertGroup($group);$this->setGroup($group);$this->validateReceipt($receipt);return $group;
     }
 
     public function cleanupStatus():void

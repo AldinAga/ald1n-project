@@ -44,7 +44,7 @@ final class SchedulerControl
                 if($repository->get($pauseKey)!==true)throw new RuntimeException('PAUSE_NOT_EFFECTIVE');return $receipt;
             }
             $receipt=['priorPaused'=>$paused,'pausedByInstaller'=>!$paused,'backendFingerprint'=>$fingerprint,'driver'=>$driver,'owner'=>$owner,'technicalApplicationBootstrap'=>true];
-            if(!$paused){$repository->forever($marker,$receipt);if($kernel->call('schedule:pause',['--no-interaction'=>true,'--no-ansi'=>true])!==0)throw new RuntimeException('FIRST_PARTY_PAUSE_FAILED');}
+            if(!$paused){if($repository->forever($marker,$receipt)!==true||$repository->get($marker)!==$receipt)throw new RuntimeException('SCHEDULER_OWNER_NOT_DURABLE');if($kernel->call('schedule:pause',['--no-interaction'=>true,'--no-ansi'=>true])!==0)throw new RuntimeException('FIRST_PARTY_PAUSE_FAILED');}
             if($repository->get($pauseKey)!==true)throw new RuntimeException('PAUSE_NOT_EFFECTIVE');return $receipt;
         }
         if($previous===null&&$action==='release')$previous=is_array($existingOwner)?$existingOwner:['priorPaused'=>$paused,'pausedByInstaller'=>false,'backendFingerprint'=>$fingerprint,'owner'=>$owner];
@@ -54,7 +54,8 @@ final class SchedulerControl
         if($action==='release'){
             if($previous['pausedByInstaller']){if($paused&&$kernel->call('schedule:resume',['--no-interaction'=>true,'--no-ansi'=>true])!==0)throw new RuntimeException('FIRST_PARTY_RESUME_FAILED');if($repository->get($pauseKey,false)!==false)throw new RuntimeException('RESUME_NOT_EFFECTIVE');}
             // Commit restore evidence BEFORE deleting ownership: a killed parent can safely re-enter.
-            $repository->forever($terminalKey,['owner'=>$owner,'backendFingerprint'=>$fingerprint,'priorPaused'=>$previous['priorPaused']]);
+            $terminalReceipt=['owner'=>$owner,'backendFingerprint'=>$fingerprint,'priorPaused'=>$previous['priorPaused']];
+            if($repository->forever($terminalKey,$terminalReceipt)!==true||$repository->get($terminalKey)!==$terminalReceipt)throw new RuntimeException('SCHEDULER_RESTORE_NOT_DURABLE');
             if($previous['pausedByInstaller'])$repository->forget($marker);
             if(!$lock->release())throw new RuntimeException('SCHEDULER_LOCK_RELEASE');return ['restoredPriorPaused'=>$previous['priorPaused'],'backendFingerprint'=>$fingerprint,'ownedRestore'=>true];
         }
