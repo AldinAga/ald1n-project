@@ -26,6 +26,16 @@ final class SchedulerControl
         if(!$lock->isOwnedByCurrentProcess()&&!$lock->get())throw new RuntimeException('SCHEDULER_OWNED_BY_ANOTHER_OPERATION');
         $paused=$repository->get($pauseKey,false);if(!is_bool($paused))throw new RuntimeException('SCHEDULER_STATE_AMBIGUOUS');
         $existingOwner=$repository->get($marker);
+        $terminalKey='ald1n:release:scheduler-restored:'.$owner;
+        $terminal=$repository->get($terminalKey);
+        if($action==='release'&&$terminal!==null){
+            if(!is_array($terminal)||($terminal['owner']??null)!==$owner||($terminal['backendFingerprint']??null)!==$fingerprint||!is_bool($terminal['priorPaused']??null))throw new RuntimeException('SCHEDULER_TERMINAL_RECEIPT');
+            if($existingOwner===null){
+                if($paused!==$terminal['priorPaused'])throw new RuntimeException('SCHEDULER_STATE_CHANGED_AFTER_RESTORE');
+                if(!$lock->release())throw new RuntimeException('SCHEDULER_LOCK_RELEASE');
+                return ['restoredPriorPaused'=>$terminal['priorPaused'],'backendFingerprint'=>$fingerprint,'ownedRestore'=>true,'alreadyRestored'=>true];
+            }
+        }
         if($action==='pause'){
             if($existingOwner!==null){
                 if(!is_array($existingOwner)||($existingOwner['owner']??null)!==$owner||($existingOwner['backendFingerprint']??null)!==$fingerprint)throw new RuntimeException('EXISTING_SCHEDULER_OWNER_MARKER');
@@ -42,7 +52,10 @@ final class SchedulerControl
         if($previous['pausedByInstaller']&&(!is_array($existingOwner)||($existingOwner['owner']??null)!==$owner||($existingOwner['backendFingerprint']??null)!==$fingerprint))throw new RuntimeException('SCHEDULER_OWNERSHIP_CHANGED');
         if($paused!==true&&$action!=='release')throw new RuntimeException('SCHEDULER_PAUSE_CHANGED_EXTERNALLY');
         if($action==='release'){
-            if($previous['pausedByInstaller']){if($paused&&$kernel->call('schedule:resume',['--no-interaction'=>true,'--no-ansi'=>true])!==0)throw new RuntimeException('FIRST_PARTY_RESUME_FAILED');if($repository->get($pauseKey,false)!==false)throw new RuntimeException('RESUME_NOT_EFFECTIVE');$repository->forget($marker);}
+            if($previous['pausedByInstaller']){if($paused&&$kernel->call('schedule:resume',['--no-interaction'=>true,'--no-ansi'=>true])!==0)throw new RuntimeException('FIRST_PARTY_RESUME_FAILED');if($repository->get($pauseKey,false)!==false)throw new RuntimeException('RESUME_NOT_EFFECTIVE');}
+            // Commit restore evidence BEFORE deleting ownership: a killed parent can safely re-enter.
+            $repository->forever($terminalKey,['owner'=>$owner,'backendFingerprint'=>$fingerprint,'priorPaused'=>$previous['priorPaused']]);
+            if($previous['pausedByInstaller'])$repository->forget($marker);
             if(!$lock->release())throw new RuntimeException('SCHEDULER_LOCK_RELEASE');return ['restoredPriorPaused'=>$previous['priorPaused'],'backendFingerprint'=>$fingerprint,'ownedRestore'=>true];
         }
         return ['paused'=>true,'backendFingerprint'=>$fingerprint,'ownershipVerified'=>true];

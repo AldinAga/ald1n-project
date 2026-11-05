@@ -149,7 +149,7 @@ final class InstallCoordinator
             $this->emit('RECOVERY_OF_EXISTING_TRANSACTION',$this->state['id']);return $this->recover('OPERATOR_RESUMED_INTERRUPTED_INSTALL');
         }
         try{
-            $this->prepare();$this->save('SCHEDULER_PAUSE_INTENT');$this->state['scheduler']=$this->scheduler('pause');$this->save('SCHEDULER_PAUSED');
+            $this->prepare();$this->state['schedulerPauseAttempted']=true;$this->save('SCHEDULER_PAUSE_INTENT');$this->state['scheduler']=$this->scheduler('pause');$this->save('SCHEDULER_PAUSED');
             $this->save('MAINTENANCE_INTENT');$actual=ReleasePrimitives::ownMaintenance($this->active().'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());if($actual['files']!==$this->state['oldMaintenance']['files'])throw new RuntimeException('MAINTENANCE_PLAN_MISMATCH');$this->save('MAINTENANCE_OWNED');
             // Fresh executed nonce and authenticated real-index response are mandatory before any code/vendor rename.
             $probe=null;for($attempt=0;$attempt<17;$attempt++){try{$this->web->request('probe',null,false);$probe=$this->web->request('probe');break;}catch(Throwable $error){if($attempt===16)throw $error;usleep(1000000);}}
@@ -182,7 +182,7 @@ final class InstallCoordinator
             $plan=$this->state['plan'];$active=$this->active();$current=is_dir($active)?$this->identity($active):null;
             if($current===$plan['oldIdentity']&&!is_dir($plan['rollback'])){
                 $this->cleanupMapping();if(is_array($this->state['oldMaintenance']))$this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');if(is_array($this->state['newMaintenance'])&&is_dir($plan['candidate'].'/storage'))$this->clearMaintenance($this->state['newMaintenance'],$plan['candidate'].'/storage');
-                if($this->state['scheduler']!==null||in_array($this->state['phase'],['SCHEDULER_PAUSE_INTENT','SCHEDULER_PAUSED','MAINTENANCE_INTENT','MAINTENANCE_OWNED','WORKER_VISIBILITY_CALIBRATED','PRE_INVALIDATION_INTENT','OLD_WEB_CACHE_INVALIDATED'],true))$this->scheduler('release');$this->assertGit();$this->save('ROLLED_BACK_PRE_SWITCH');$this->emit('ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',true);return 2;
+                if(($this->state['schedulerPauseAttempted']??false)||$this->state['scheduler']!==null||in_array($this->state['phase'],['SCHEDULER_PAUSE_INTENT','SCHEDULER_PAUSED','MAINTENANCE_INTENT','MAINTENANCE_OWNED','WORKER_VISIBILITY_CALIBRATED','PRE_INVALIDATION_INTENT','OLD_WEB_CACHE_INVALIDATED'],true))$this->scheduler('release');$this->assertGit();$this->save('ROLLED_BACK_PRE_SWITCH');$this->emit('ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',true);return 2;
             }
             if($current===$plan['candidateIdentity']){
                 // Keep admission blocked before touching the installed candidate again.
