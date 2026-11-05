@@ -8,6 +8,16 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0ZC. B1134 verified OFF installer and owner90% ceiling (2026-11-05)
+
+Owner explicitly increased Weekly maximum to **90%**, superseding older80/70/50/20 entries; no reset or purchase. Keep closure reserve near88%, read actual account usage, and do not mistake budget permission for release authorization. Owner declined pause.
+
+[Report1082](docs/operations/1082-B1134-VERIFIED-OFF-INSTALLER-AND-MANUAL-DELIVERY-20261105.md) records final helper/test a699ebcada9409369adc8c2491bbcc3b7947e91a, exact focused GitHub41995128883 PASS, both scoped final reviews0 and independently audited12-file incoming-only ZIP. Reviewed executable bytes match dc5d9d297fe3b3eda8e9edfd844287cc81db8846; final commit only corrects a test's denial status503. Reuse successful1077 private stage; no vendor reupload, broad suite/inventory/DB confirmation replay.
+
+The package is controlled installation with runtime OFF clamp, not public activation. Exact host LSAPI/process/cache gates remain invocation-conditional; unknown profile HOLD. Preserve dirty host Git, private .env/storage/uploads/custom .htaccess and original release. TWO renames have owned maintenance/journal recovery, not atomic-pair semantics. **Retained original release is a permanent private-data dependency: no delete/move/prune; future backups must include real private targets, not only current symlinks.** Do not reopen the owner-attested historical backup audit.
+
+Only owner manual upload/SSH is pending. No production execution by agent, migrations, direct DB probes/business writes, Storefront flag/.env changes or mobile releases authorized. Technical application/cache/scheduler ownership operations are disclosed. Request actual EXIT=/REPORT= afterward; never call source/CI delivery a host PASS. Do not allocate another numbered coordinator report while owner execution runs. Future activation restores original NEW approved config from immutable stage after remaining acceptance gates, never the old production config.
+
 ## 0ZB. Owner skips repeated DB confirmation and prioritizes controlled installation (2026-11-05)
 
 The owner expressly directs skipping repeated database confirmation/probing because the existing database works/has not changed, and reiterates stable functional Storefront as the sole goal. Retire the metadata-only B1134 design; do not request DB_DATABASE/DB_USERNAME/DB_HOST/DB_PORT again or issue another generic host inventory. Credit this owner attestation for the controlledOFF installation phase. A skipped fact remains NOT_ATTESTED, never invent PASS. This does not authorize production DB migrations, data/flag writes or automatic public opening.

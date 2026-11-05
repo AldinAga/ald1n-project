@@ -1,3 +1,11 @@
+# CURRENT 2026-11-05 — B1134 VERIFIED OFF INSTALLER; MANUAL INSTALL PENDING
+
+[Report1082](1082-B1134-VERIFIED-OFF-INSTALLER-AND-MANUAL-DELIVERY-20261105.md) is current. Final helper a699ebcada9409369adc8c2491bbcc3b7947e91a: [focused GitHub41995128883 PASS](https://github.com/AldinAga/ald1n-project/actions/runs/41995128883), independent reviews0, root audited12-file incoming-only package. ZIP `B1134-CONTROLLED-OFF-INSTALL-a699ebc.zip`, SHA256 `74c00ab2874248fd3dbf6b15fcd1f18653819a16974dc5d15e112857abdde61b`. Complete installer/recovery tests now pass; real LSAPI hosting attestation and installation remain OWNER-PENDING, not production PASS. Reuse verified1077 stage without vendor reupload or DB confirmation/inventory replay.
+
+Owner maximum is now **90%**, explicit override of older entries; actual84%, preserve closure reserve/no reset. Controlled OFF install preserves private bytes/custom .htaccess/dirty Git; retained original release is a permanent private-data dependency and must be included in future backups. No migrations/flag changes/public opening or mobile release. After upload run only canonical incoming script and return EXIT=/REPORT=. Publish checkpoint before executable link; no concurrent coordinator report allocation during owner execution. Previous entries below are historical.
+
+---
+
 # CURRENT 2026-11-05 — Report1081 / SKIP REPEATED DB CONFIRMATION; BUILD CONTROLLED OFF INSTALLER
 
 [Report1081](1081-B1134-OWNER-DB-CONFIRMATION-WAIVER-AND-CONTROLLED-INSTALL-PATH-20261105.md) is current. Owner says existingDBworks/unchanged; stop DBparameterquestions/probes and genericinventories. Solegoal stableStorefront. Next complete independentlyreviewedOFFinstaller uses verified1077stage, preservesprivateenv/storage/custom.htaccess/oldsource+vendor, adapts provenrollback/maintenance/web-cacheprocedure. Do not extrapolate B962 twelve-filedeployment toblindwholevendoroverlay or call defaultsfalseunconditionalOFF. No installer or productionchange has yetoccurred; no migrations/automaticpublicactivationauthorized. No broadalready-green suite/staging/vendorupload replay. ActualWeekly79%, max80unchanged, userdeclinespause; preservehandoff and never shipuntestedcode tofitquota. Earlier entries historical.
