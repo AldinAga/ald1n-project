@@ -31,7 +31,7 @@ foreach(['success','failure-after-rename','interrupted-gap','lost-pause-intent']
     $preserved=ReleasePrimitives::preservePrivate($active,$candidate,$retained);
     $config=$candidate.'/config/public_storefront.php';$original=file_get_contents($config);$clamped=ReleasePrimitives::offConfig($original,hash('sha256',$original));file_put_contents($config,$clamped);
     shell(['git','init','--quiet'],$root);shell(['git','-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--allow-empty','-m','fixture','--quiet'],$root);file_put_contents($root.'/index-sentinel','fixture');shell(['git','add','index-sentinel'],$root);
-    $private=$home.'/state';mkdir($private,0700);$transaction=$private.'/'.str_repeat('a',32);mkdir($transaction,0700);
+    $private=$home.'/.ald1n-b1134-state';mkdir($private,0700);$transaction=$private.'/'.str_repeat('a',32);mkdir($transaction,0700);
     $plan=['active'=>$active,'candidate'=>$candidate,'rollback'=>$retained,'failed'=>$failed,'oldIdentity'=>identity($active),'candidateIdentity'=>identity($candidate)];$journal=$transaction.'/journal.jsonl';$owner=ReleasePrimitives::createJournal($journal,$plan);
     $oldMaintenance=ReleasePrimitives::ownMaintenance($active.'/storage',$owner);$newMaintenance=ReleasePrimitives::ownMaintenance($candidate.'/storage',$owner);
     $librarySource='<?php // fixture immutable transport';$library=$root.'/incoming/b1134-webcache-'.hash('sha256',$librarySource).'.php';file_put_contents($library,$librarySource);
