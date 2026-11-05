@@ -63,6 +63,7 @@ jobs:
           set -euo pipefail
           python3 tools/storefront/b1134/scheduler-fixture.py "$RUNNER_TEMP/b1134-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1134"
       - name: Actual coordinator filesystem transaction, failure recovery and no-repeat reentry
+        if: always()
         run: |
           set -euo pipefail
           php tools/storefront/b1134/coordinator-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1134" "$RUNNER_TEMP/b1134-runtime/stage" "$RUNNER_TEMP/b1134-runtime/payload" "$GITHUB_WORKSPACE/tools/storefront/b1134/runtime-directories.json" | tee "$RUNNER_TEMP/b1134-coordinator.json"
