@@ -11,6 +11,8 @@ replayed=invoke('pause',first);assert replayed==receipt
 invoke('verify',secrets.token_hex(32),receipt,want=2);invoke('verify',first,receipt)
 # Original release relocation must keep the SAME file-cache inode/prefix identity.
 retained=work/'retained';base.rename(retained);base=retained;restored=invoke('release',first,receipt);assert restored['restoredPriorPaused'] is False
+# Parent can die after the technical cache restore, before persisting its state.
+restored=invoke('release',first,receipt);assert restored['restoredPriorPaused'] is False
 invoke('set-paused',first,value=True);second=secrets.token_hex(32);already=invoke('pause',second);assert already['priorPaused'] is True and already['pausedByInstaller'] is False;restored=invoke('release',second,already);assert restored['restoredPriorPaused'] is True
 invoke('set-paused',first,value=False);third=secrets.token_hex(32);owned=invoke('pause',third);restored=invoke('release',third,None);assert restored['restoredPriorPaused'] is False
 receipt={'firstPartyLaravelCacheExecuted':True,'persistentDriver':'file','priorPausedPreserved':True,'foreignOwnerRejected':True,'pauseReplayIdempotent':True,'retainedReleaseBackendIdentityStable':True,'lostParentReceiptRecoveredFromOwnedCacheMarker':True,'results':results,'productionExecution':False};(work/'scheduler-receipt.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt,indent=2))
