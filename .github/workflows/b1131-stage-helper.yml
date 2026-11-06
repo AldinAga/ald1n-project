@@ -1,12 +1,12 @@
-name: B1135 sentinel recovery focused verification (NO DEPLOY)
+name: B1136 fresh web OPcache read-only verification (NO RESET)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
-    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1135/**']
+    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1136/**']
 permissions:
   contents: read
 jobs:
-  focused-recovery:
+  focused-read:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -19,30 +19,20 @@ jobs:
           php-version: '8.4'
           extensions: opcache,curl
           coverage: none
-      - name: Real PHP sentinel long-protection and blocked-cache behavior
+      - name: Native syntax and shell portability
         run: |
           set -euo pipefail
-          php -l tools/storefront/b1135/HostWebControl.php
-          php -l tools/storefront/b1135/FrontCacheEndpoint.php
-          python3 tools/storefront/b1135/sentinel-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1135" "$GITHUB_WORKSPACE/tools/storefront/b1134"
-      - name: Exact predecessor recovery and stale namespace rejection
-        if: always()
+          for file in ReadEndpoint.php ReadControl.php operator-entry.php fixture-call.php; do php -l "tools/storefront/b1136/$file"; done
+          bash -n tools/storefront/b1136/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1136/operator-wrapper.sh; then exit 2; fi
+      - name: Actual front HTTP read, full and disabled cache, authentication and owned cleanup
         run: |
           set -euo pipefail
-          php -l tools/storefront/b1135/InstallCoordinator.php
-          php -l tools/storefront/b1135/operator-entry.php
-          bash -n tools/storefront/b1135/operator-wrapper.sh
-          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1135/operator-wrapper.sh; then exit 2; fi
-          php tools/storefront/b1135/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1135" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1135-recovery.json"
-      - name: Actual extracted wrapper accepts exact immutable new helper filename
-        if: always()
-        run: python3 tools/storefront/b1135/wrapper-prefix-fixture.py tools/storefront/b1135/operator-wrapper.sh
+          python3 tools/storefront/b1136/http-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1136" "$GITHUB_WORKSPACE/apps/cms/current/public/index.php"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1135-focused-recovery-evidence
-          path: |
-            ${{ runner.temp }}/b1135-sentinel/receipt.json
-            ${{ runner.temp }}/b1135-recovery.json
+          name: b1136-readonly-web-evidence
+          path: ${{ runner.temp }}/b1136-http/receipt.json
           if-no-files-found: warn
           retention-days: 7
