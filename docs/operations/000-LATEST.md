@@ -1,3 +1,11 @@
+# CURRENT 2026-11-06 — B1134 HOST HOLD; ORIGINAL APPLICATION RESTORED
+
+Actual [ownerReport1083](1083-B1134-CONTROLLED-OFF-INSTALL-20261106-082445.md), raw SHA256 `6666c636a1894c1bc7b1cd067ce1f12e418725aa485511f81bf6652eaacce7b1`, supersedes pending execution. Package integrity passed; candidate prepared; owned scheduler pause and public503 passed. Gate `WEB_CACHE_SENTINEL_NOT_WARM` stopped BEFORE any source/vendor rename. Scheduler releaseRC0, `ROLLED_BACK_PRE_SWITCH`, `ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED=true`, EXIT2. Do NOT call this installed or OFF-runtime deployed. Failure identifies missing observed cached sentinel, NOT its underlying hosting cause.
+
+Next narrowly scoped B1135 recovery preserves the predecessor/state, reuses verified candidate/stage, keeps all cache/group gates and no DB probes/migrations/public activation. Evaluate actual numeric cache protection/age with bounded wait; no speculative INI changes/reset/cache gate bypass, no vendor reupload or generic inventory. Weekly actual85%/owner90%; keep closure reserve. Source/helper tests remain GitHub-only. Earlier delivery entries below are historical.
+
+---
+
 # CURRENT 2026-11-05 — B1134 VERIFIED OFF INSTALLER; MANUAL INSTALL PENDING
 
 Verified downloads: [operator ZIP](https://drive.google.com/file/d/1kvkFD2KG_NhuCDASa81JfauMNSsb36cn/view?usp=drivesdk) · [Claude/Codex handoff](https://drive.google.com/file/d/1Qe_bgDgvMkmzaZ8dQwZtd0A2HdgGOD9J/view?usp=drivesdk) · [source/evidence handoff ZIP](https://drive.google.com/file/d/1w7JNQNFHHhVQrBQcQ2uowRBj6mAN2LNY/view?usp=drivesdk). Both archives and handoff were read back byte-identically from Drive. Canonical runbook preserves every prior byte; final SHA256 `7c6f15b98ec895644ea27603dac07ff5b16ba20cc788ce8a11f417ae0a4d04b7`. Handoff ZIP SHA256 `c6c4ef189103281cc1484cfb02ce18b65bbc71b27ed7f0798048d4ad551b6a44`.
