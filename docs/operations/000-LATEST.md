@@ -1,3 +1,13 @@
+# CURRENT 2026-11-06 — B1138 VERIFIED OWN-USER SELECTOR READ; HOST CAPABILITY PENDING
+
+[Report1093](1093-B1138-VERIFIED-OWN-USER-SELECTOR-READ-20261106.md) is current. Owner asks to avoid hosting support. CloudLinux documents own-user selectorctl; dropdown5000/10000 alone does not prove every supported route unavailable. Actual CLI accessibility/allowed setting scope UNKNOWN. [B1138 packet](https://drive.google.com/file/d/1YPZu9bTnpB8T86gS_P36Rs5iCjmOnCCa/view), SHA2569cef65cb1a2f60b70698f22066670107e6ebd4f5f9bc5387e51ec51f3386e47e,3incomingfiles/5101bytes. Unzip root then bash /home/icaffeco/ald1n-project/incoming/b1138-selector-read.sh . Fixed ownicaffeco/PHP8.4 --print-options only; no setting/reset/refresh/install/DB action or full config dump. Return filtered targets and EXIT=/REPORT=; private raw capture stays on host.
+
+Frozen04779cbaf636f0e8d8dec7f684293c1cdc6bc929 [GitHub42234934530 PASS](https://github.com/AldinAga/ald1n-project/actions/runs/42234934530), finalindependent0, root3file/source/selfhash/bash auditPASS. Initial2P2fixed with genuineRED/GREENinterleavedreportreservation/parentpermissions tests and childcore0/privatecwd. Report1093beforelink; no coordinatornumberallocation duringownerrun.
+
+1092 is B1137terminalreentryrefusal only, no new cache evidence.1091 source/vendor never switched; FULL with56.11MiBfree leaveshashcauseunproven. Preserveallpriorstates/candidate, no installer rerun or pointer deletion. Readsuccess is NOT permission to set50000/currentwebstate/publicactivation; honorAPIrestriction, no --quiet/--replace-options/directINI bypass. AccountPHPrefresh is not provenCMS-only or permanentcapacityfix and is not authorized here. Any eventual setting change/controlledOFFinstall/publicopening retains existing gates. Earlier entries historical; no application/dirtyindex mutation.
+
+---
+
 # CURRENT 2026-11-06 — B1137 ACTUAL1092 TERMINAL REENTRY REFUSED; NO NEW CACHE SAMPLE
 
 Actual1092 rawSHA2566ade497e859b4355d93cc6dc2682a6746da9fbbf2f3100bfb66a11c46097100f records another invocation of b1137-controlled-install.sh. Integrity passed, then PRIOR_ATTEMPT_ROLLED_BACK_NO_AUTOMATIC_REDEPLOY=true/EXIT2. No new candidate switch, scheduler pause or fresh OPcache measurement is reported. This is terminal reentry protection, not a new diagnosis or deployment. Preserve B1137 pointer/state; no deletion or blind installer rerun.
