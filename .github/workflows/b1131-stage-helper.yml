@@ -1,12 +1,12 @@
-name: B1136 fresh web OPcache read-only verification (NO RESET)
+name: B1137 controlled OFF continuation admission (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
-    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1136/**']
+    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1137/**']
 permissions:
   contents: read
 jobs:
-  focused-read:
+  focused-continuation:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -17,22 +17,17 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
-          extensions: opcache,curl
+          extensions: curl
           coverage: none
-      - name: Native syntax and shell portability
+      - name: Actual admission, original retained ID and both preserved predecessors
         run: |
           set -euo pipefail
-          for file in ReadEndpoint.php ReadControl.php operator-entry.php fixture-call.php; do php -l "tools/storefront/b1136/$file"; done
-          bash -n tools/storefront/b1136/operator-wrapper.sh
-          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1136/operator-wrapper.sh; then exit 2; fi
-      - name: Actual front HTTP read, full and disabled cache, authentication and owned cleanup
-        run: |
-          set -euo pipefail
-          python3 tools/storefront/b1136/http-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1136" "$GITHUB_WORKSPACE/apps/cms/current/public/index.php"
+          php -l tools/storefront/b1137/B1137Recovery.php
+          php tools/storefront/b1137/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1137" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1137-admission.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1136-readonly-web-evidence
-          path: ${{ runner.temp }}/b1136-http/receipt.json
+          name: b1137-continuation-evidence
+          path: ${{ runner.temp }}/b1137-admission.json
           if-no-files-found: warn
           retention-days: 7
