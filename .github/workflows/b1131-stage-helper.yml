@@ -1,49 +1,30 @@
-name: B1137 controlled OFF continuation admission (NO DEPLOY)
+name: B1138 own-user selector read-only mock verification
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
-    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1137/**']
+    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1138/**']
 permissions:
   contents: read
 jobs:
-  focused-continuation:
+  readonly-selector:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
-      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
-        with:
-          php-version: '8.4'
-          extensions: curl
-          coverage: none
-      - name: Actual admission, original retained ID and both preserved predecessors
+      - name: Actual shell functions, fixed argv and sanitized target filtering
         run: |
           set -euo pipefail
-          php -l tools/storefront/b1137/B1137Recovery.php
-          php -l tools/storefront/b1137/InstallCoordinator.php
-          php -l tools/storefront/b1137/operator-entry.php
-          bash -n tools/storefront/b1137/operator-wrapper.sh
-          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1137/operator-wrapper.sh; then exit 2; fi
-          php tools/storefront/b1137/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1137" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1137-admission.json"
-      - name: Coordinator exact inverse and new-state reentry
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import pathlib
-          old=pathlib.Path('tools/storefront/b1135/InstallCoordinator.php').read_bytes()
-          new=pathlib.Path('tools/storefront/b1137/InstallCoordinator.php').read_bytes()
-          inverse=new.replace(b'/.ald1n-b1137-state',b'/.ald1n-b1135-state').replace(b'B1137Recovery::prepare',b'B1135Recovery::prepare').replace(b'B1137_PREDECESSOR_RECOVERY',b'B1135_PREDECESSOR_RECOVERY')
-          assert inverse==old
-          print('COORDINATOR_ONLY_THREE_REVIEWED_ADMISSION_NAMESPACE_EDITS=PASS')
-          PY
-          php tools/storefront/b1137/reentry-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1137"
+          script=tools/storefront/b1138/b1138-selector-read.sh
+          bash -n "$script"
+          if grep -nE '<\(|>\(|/dev/fd|python3|--add-options|--replace-options|--reset-options|--delete-options|--quiet' "$script"; then exit 2; fi
+          bash tools/storefront/b1138/fixtures.sh "$script"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1137-continuation-evidence
-          path: ${{ runner.temp }}/b1137-admission.json
+          name: b1138-selector-read-evidence
+          path: ${{ runner.temp }}/b1138-fixture-receipt.json
           if-no-files-found: warn
           retention-days: 7
