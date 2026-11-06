@@ -1,3 +1,15 @@
+# CURRENT 2026-11-06 - B1136 ACTUAL1089: EFFECTIVE512MiB FRESH READABLE PASS
+
+Owner increased OPcache to512MB; actual report1089 now proves effective web PHP capacity536870912bytes=512MiB. Raw SHA2562da79ae7af3181efeefa6801046d583ac1fcaecceb3e6d526025fa7fb02f0bc6. All3authenticated actual-index samples READABLE/cacheFull=false/free374872352bytes(357.51MiB)/used161998560bytes/wasted0; restartPending=false/restartInProgress=false; PHP8.4.27/litespeed/LiteSpeed. TwoPIDs share currentparent/starttime1793971234=2026-11-06 13:20:34UTC/14:20:34Belgrade. This is a recent cache snapshot, not a long-term stability test or installation-capacity guarantee.
+
+All4normal login checks200; previous own probe state recovered, current cleanup/revocationPASS; EXIT0/FRESH_READABLE_SNAPSHOTS_ONLY_NOT_DEPLOYMENT_APPROVAL. B1136 does not install/reset/clearRedis/changeDBorflags. The previously observed FULL capacity blocker is currently clear; no repeated generic audit or new status packet is needed. Earlier hosting request is conditional historical advice, no longer a prerequisite before continuing from this new evidence.
+
+Next prepare the smallest independently reviewed state-aware continuation of the owner-approved controlled OFF installation. Do not invoke B1134/B1135 blindly or delete terminal state. Preserve exact1085rolled-back predecessor, original application/vendor/private state and already completecandidate; use new owned state/journal. Re-attest required web/cache gates during installation; no restage/vendor reupload, DB probe/migration, public Storefront opening, release-gate bypass or mobile release. Manual ZIP must preserve incoming subfolders and one canonical command; publish its numbered checkpoint before executable link. No new installation helper yet claimed tested or delivered by this status.
+
+Raw1089 report archived byte-exact to GitHub docs/operations and Drive; prior history preserved. Main application tree remainsda8ac0c953e3c6741b921bb9fa660f80d247c55e, dirty local HEAD/index preserved. Existing user approval remains controlledOFF only; public activation and schema changes remain separate gates.
+
+---
+
 # CURRENT 2026-11-06 - B1136 ACTUAL1088: FRESH OPCACHE FULL AT256MiB
 
 Actual owner report1088 SHA256cc6abc41cfd035c40e94a0cc378d046c135923fc044758adf18683d849b99221 supersedes pending hosting status. Three authenticated fresh actual-index samples: cacheFull=true/free1088bytes/used268434368/wasted0, total268435456bytes=256MiB; PHP8.4.27/litespeed/SERVER_SOFTWARELiteSpeed; restartPending=false/restartInProgress=false. cachedScripts7909/maxCachedKeys16229 are different metrics, not an exact utilization ratio.
