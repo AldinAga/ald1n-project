@@ -27,9 +27,9 @@ final class HostWebControl
         return $curl;
     }
 
-    public function request(string $action,?int $offset=null,bool $authenticated=true):array
+    public function request(string $action,?int $offset=null,bool $authenticated=true,int $timeoutSeconds=35):array
     {
-        $this->assertGroup();$payload=['action'=>$action];if($offset!==null)$payload['offset']=$offset;$curl=$this->handle($this->config['rpcPath'],$payload,$authenticated);$body=curl_exec($curl);$status=curl_getinfo($curl,CURLINFO_RESPONSE_CODE);$error=curl_errno($curl);curl_close($curl);$this->assertGroup();
+        $this->assertGroup();$payload=['action'=>$action];if($offset!==null)$payload['offset']=$offset;$curl=$this->handle($this->config['rpcPath'],$payload,$authenticated);curl_setopt($curl,CURLOPT_TIMEOUT,max(1,min(35,$timeoutSeconds)));$body=curl_exec($curl);$status=curl_getinfo($curl,CURLINFO_RESPONSE_CODE);$error=curl_errno($curl);curl_close($curl);$this->assertGroup();
         if($error!==0||!is_string($body)||strlen($body)>16384)throw new RuntimeException('WEB_TRANSPORT');
         if(!$authenticated){if($status!==503||!str_contains($body,$this->config['ownerStamp']))throw new RuntimeException('WEB_UNAUTHENTICATED_NOT_BARRIERED');return ['unauthenticatedDenied'=>true];}
         if($status!==200)throw new RuntimeException('WEB_AUTHENTICATED_HTTP_'.$status);$data=json_decode($body,true,64,JSON_THROW_ON_ERROR);
@@ -67,14 +67,27 @@ final class HostWebControl
 
     private static function warmSentinel(callable $probe):void
     {
-        $warm=false;for($attempt=0;$attempt<17;$attempt++){if(($probe()['sentinelPreviouslyCached']??false)===true){$warm=true;break;}usleep(1000000);}if(!$warm)throw new RuntimeException('WEB_CACHE_SENTINEL_NOT_WARM');
+        $started=hrtime(true);$deadline=$started+120000000000;$first=true;$diagnostics=[];
+        $fail=static function(string $code)use(&$diagnostics):never{echo 'WEB_CACHE_SENTINEL_DIAGNOSTICS='.json_encode($diagnostics,JSON_THROW_ON_ERROR).PHP_EOL;throw new RuntimeException($code);};
+        while(true){
+            $remaining=(int)floor(($deadline-hrtime(true))/1000000000);if($remaining<1)$fail('WEB_CACHE_SENTINEL_NOT_WARM');$r=$probe(min(35,$remaining));
+            if(($r['sentinelPreviouslyCached']??false)===true){$remaining=(int)floor(($deadline-hrtime(true))/1000000000);if($remaining<1)$fail('WEB_CACHE_SENTINEL_LATER_PROOF_DEADLINE');if(($probe(min(35,$remaining))['sentinelPreviouslyCached']??false)!==true)$fail('WEB_CACHE_SENTINEL_LATER_REQUEST_NOT_CACHED');return;}
+            if($first){
+                $d=$r['sentinelDiagnostics']??null;if(!is_array($d))$fail('WEB_CACHE_SENTINEL_NUMERIC_CAPS_MISSING');
+                foreach(['fileUpdateProtectionSeconds','sentinelAgeSeconds','maxFileSizeBytes','sentinelSizeBytes','freeMemoryBytes','cachedScripts','maxCachedKeys'] as $key){if(!is_int($d[$key]??null)||$d[$key]<0||$d[$key]>PHP_INT_MAX)$fail('WEB_CACHE_SENTINEL_NUMERIC_CAPS_INVALID');$diagnostics[$key]=$d[$key];}
+                if(!is_bool($d['cacheFull']??null))$fail('WEB_CACHE_SENTINEL_NUMERIC_CAPS_INVALID');$diagnostics['cacheFull']=$d['cacheFull'];
+                if($d['cacheFull']||($d['maxFileSizeBytes']>0&&$d['sentinelSizeBytes']>$d['maxFileSizeBytes']))$fail('WEB_CACHE_SENTINEL_CAPACITY_OR_SIZE_HOLD');
+                $budget=max(17,$d['fileUpdateProtectionSeconds']-$d['sentinelAgeSeconds']+3);if($budget>120)$fail('WEB_CACHE_SENTINEL_PROTECTION_EXCEEDS_BOUND');$deadline=$started+$budget*1000000000;$diagnostics['boundedWaitSeconds']=$budget;echo 'WEB_CACHE_SENTINEL_OBSERVED='.json_encode($diagnostics,JSON_THROW_ON_ERROR).PHP_EOL;$first=false;
+            }
+            if(hrtime(true)+1000000000>=$deadline)$fail('WEB_CACHE_SENTINEL_NOT_WARM');usleep(1000000);
+        }
     }
 
     /** Calibrate real LSAPI active/idle process titles with this authenticated three-second web request. */
     public function calibrateVisibility():array
     {
         // A newly created sentinel may be intentionally uncached during file_update_protection.
-        self::warmSentinel(fn():array=>$this->request('probe'));
+        self::warmSentinel(fn(int $timeout):array=>$this->request('probe',null,true,$timeout));
         $nonce=bin2hex(random_bytes(16));$marker=$this->private.'/visibility-'.$nonce.'.json';$suffix=substr($this->config['activeRoot'].'/public/index.php',-45);
         $curl=$this->handle($this->config['rpcPath'],['action'=>'visibility','nonce'=>$nonce],true);$multi=curl_multi_init();curl_multi_add_handle($multi,$curl);$started=microtime(true);$identity=null;$stages=[];$idle=false;$namespace=readlink('/proc/self/ns/pid');
         do{

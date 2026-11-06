@@ -25,10 +25,21 @@ jobs:
           php -l tools/storefront/b1135/HostWebControl.php
           php -l tools/storefront/b1135/FrontCacheEndpoint.php
           python3 tools/storefront/b1135/sentinel-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1135" "$GITHUB_WORKSPACE/tools/storefront/b1134"
+      - name: Exact predecessor recovery and stale namespace rejection
+        if: always()
+        run: |
+          set -euo pipefail
+          php -l tools/storefront/b1135/InstallCoordinator.php
+          php -l tools/storefront/b1135/operator-entry.php
+          bash -n tools/storefront/b1135/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1135/operator-wrapper.sh; then exit 2; fi
+          php tools/storefront/b1135/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1135" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1135-recovery.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: b1135-focused-recovery-evidence
-          path: ${{ runner.temp }}/b1135-sentinel/receipt.json
+          path: |
+            ${{ runner.temp }}/b1135-sentinel/receipt.json
+            ${{ runner.temp }}/b1135-recovery.json
           if-no-files-found: warn
           retention-days: 7
