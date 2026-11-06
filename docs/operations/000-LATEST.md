@@ -1,3 +1,19 @@
+# CURRENT 2026-11-06 — B1137 ACTUAL1092 TERMINAL REENTRY REFUSED; NO NEW CACHE SAMPLE
+
+Actual1092 rawSHA2566ade497e859b4355d93cc6dc2682a6746da9fbbf2f3100bfb66a11c46097100f records another invocation of b1137-controlled-install.sh. Integrity passed, then PRIOR_ATTEMPT_ROLLED_BACK_NO_AUTOMATIC_REDEPLOY=true/EXIT2. No new candidate switch, scheduler pause or fresh OPcache measurement is reported. This is terminal reentry protection, not a new diagnosis or deployment. Preserve B1137 pointer/state; no deletion or blind installer rerun.
+
+Last actual cache diagnosis remains1091: cacheFull=true with56.11MiB free; occupied key count unknown, so hash-table saturation is a hypothesis, not proven. Owner confirms cPanelmax_accelerated_files10000; screenshot shows ONLY5000/10000 dropdown choices. The recommended50000 cannot be selected in this UI and has NOT been confirmed applied. Prepared hosting request asks to enable/apply50000 whilekeeping512MB and checknum_cached_keys/restartcounters/sharedpoolscope; request not sent by assistant.
+
+Existing B1136 is the status-only command: bash /home/icaffeco/ald1n-project/incoming/b1136-opcache-read.sh . Use it for fresh effective maxCachedKeys/full/memory/cleanup evidence after confirmed settings, or when a fresh status is requested. No new upload needed for that check. Do not run B1137 for cache readings. The earlier additive scalar status proposal is unimplemented fallback, not an available package.
+
+Owner now asks whether hosting contact can be avoided. Official CloudLinux documents own-user selectorctl end-user options (CageFS>=7.6.17), including --print-options and additive --add-options; --replace-options replaces ALL options and must not be used. This is a supported CLI route worth checking, not proof this host exposes it or allows50000. Earlier categorical claim that provider intervention is necessarily required was too strong. Preparing minimal B1138 READ-ONLY own-user/PHP8.4 CLI capability/target-option check, no mutation/reset/installation or full configuration dump. No B1138 packet has yet been tested/delivered at this checkpoint. Honor missing/denied/restricted API results; do not edit alt_php.ini or bypass validation. Source: https://docs.cloudlinux.com/cloudlinuxos/command-line_tools/#php-selector .
+
+A detached PHP refresh is only a possible temporary option; its scope can cover the same account's other domains, it does not raise the key limit and cannot prove durable capacity. No restart is authorized/executed by this investigation. Eventual installation remains controlledOFF followed by all public activation gates; no promise of successful public activation merely from cache refresh.
+
+Raw1092 archived byte-exact in GitHub docs/operations and Drive, notes copied into new local checkpoint folders. No source/vendor/DB/flag/service/cache mutation by assistant. Earlier history and all private predecessor/retained data preserved. Public Storefront is not installed/opened by these operations. No coordinator report number allocation while owner executes.
+
+---
+
 # CURRENT 2026-11-06 — B1137 ACTUAL1091 PRE-SWITCH HOLD; FULL FLAG WITH FREE MEMORY
 
 Actual owner1091 raw SHA256ed4f9bfa989ead90269da4d58cce4fd490c381861fe062a907b71372eac2e9b2 supersedes pending execution. All new packet hashes passed. Exact predecessor/candidate admission passed and8531candidate reused without vendor recopy. Owned scheduler pause rc0 and maintenance503PASS. Sentinel gate reports cacheFull=true whilefreeMemoryBytes=58838624(56.11MiB), cachedScripts14367/maxCachedKeys16229, fileUpdateProtection2s/age1s/maxFileSize0/sentinel48bytes. INSTALL_HOLD_REASON=WEB_CACHE_SENTINEL_CAPACITY_OR_SIZE_HOLD.
