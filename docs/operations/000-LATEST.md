@@ -1,3 +1,13 @@
+# CURRENT 2026-11-06 — B1136 FRESH WEB OPCACHE CHECK READY; HOST RESULT PENDING
+
+Owner explicitly revoked prior usage ceiling for this recheck; no account reset/credit purchase. [Report1087](1087-B1136-FRESH-WEB-OPCACHE-READONLY-PACKET-20261106.md) is current. Actual1085/full32bytes and1086/terminal refusal are historical; CURRENT cache remains UNKNOWN. No restart, Redis clear, deployment, DB or flag change performed. Do not rerun B1134/B1135 or remove their state.
+
+Frozen1230430d8c6042f973e71ab779913719aa136d35 [GitHub42222389201 PASS](https://github.com/AldinAga/ald1n-project/actions/runs/42222389201), independent review0; root8-member ZIP byte/source/checksum/shell audit PASS. Real PHP HTTP enabled/disabled/full profiles/auth/foreign refusal/owned cleanup/orphan retry PASS; actual hostLSAPI and old cached barrier remain unobserved. [B1136 packet](https://drive.google.com/file/d/14PLLEVKW3MXhNY0BqQVkZAWoAsKrerAg/view), SHA2563b6c7a67353c18021e8a140cac2ccb650242cce04d8f08b5d0a04912633b3cdc. Unzip root then bash /home/icaffeco/ald1n-project/incoming/b1136-opcache-read.sh. Only three authenticated actual-index snapshots, temporary owned pass-through link/no down, automatic cleanup; ordinary login HTTP executes existing app. No guaranteed absence of transient impact from stale cached maintenance code; mismatches HOLD.
+
+Checkpoint1087 before operator link; wait for snapshots/EXIT=/REPORT=. Even READABLE is status only, not installation approval. Script assigns next unused host report from fresh main+local. No coordinator number allocation while owner executes. Original source/vendor/private state preserved; earlier entries historical.
+
+---
+
 # CURRENT 2026-11-06 — B1135 HOST OPCACHE FULL; HOSTING ACTION NEEDED
 
 Actual [first1085](1085-B1135-CONTROLLED-OFF-INSTALL-20261106-090353.md), raw SHA256 `bf541cabcda5683e740c64ae1e30aa589ad7af0883c2e1139b314d775a104967`, supersedes unknown-cause/pending execution. Real authenticated CMS web OPcache reported cacheFull=true, freeMemoryBytes=32, cachedScripts=8290/maxCachedKeys16229, fileUpdateProtectionSeconds=2 and maxFileSizeBytes=0. Existing candidate reused, no vendor recopy. Gate WEB_CACHE_SENTINEL_CAPACITY_OR_SIZE_HOLD stopped BEFORE any source/vendor rename; scheduler releaseRC0, ROLLED_BACK_PRE_SWITCH, ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED=true, EXIT2.
