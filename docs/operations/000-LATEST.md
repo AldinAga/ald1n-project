@@ -1,3 +1,17 @@
+# CURRENT 2026-11-06 - B1136 ACTUAL1088: FRESH OPCACHE FULL AT256MiB
+
+Actual owner report1088 SHA256cc6abc41cfd035c40e94a0cc378d046c135923fc044758adf18683d849b99221 supersedes pending hosting status. Three authenticated fresh actual-index samples: cacheFull=true/free1088bytes/used268434368/wasted0, total268435456bytes=256MiB; PHP8.4.27/litespeed/SERVER_SOFTWARELiteSpeed; restartPending=false/restartInProgress=false. cachedScripts7909/maxCachedKeys16229 are different metrics, not an exact utilization ratio.
+
+Cache start_time1793970715 is2026-11-06 13:11:55UTC/14:11:55Belgrade, only minutes before14:15report. Current instance is recently initialized and already full; report does not prove who restarted it, cause of refill or which domains share it. Do not repeatedly reset blindly: hosting must assess effective CMSwebcapacity and sharing, choose adequate capacity or isolation and disclose impact before controlled PHP refresh. Redis is not the OPcache intervention target. Official scope reference: https://docs.litespeedtech.com/lsws/cp/cpanel/php/#specific-user . Prepared unsent hosting request HOSTING-REQUEST-ACTUAL1088-20261106.md contains the exact facts.
+
+All four login checks200; OWNED_PASS_THROUGH_BRIDGE_CLEANUP=PASS; REVOKED_PROBE_UNAVAILABLE=PASS. EXIT2 is intentional FULL capacity HOLD, not failed data collection or installation. No source/vendor install, DB probe/migration, flags, Redis flush, service restart or cache reset by assistant/helper. B1134/B1135 terminal state/private candidate preserved. No new implementation or audit package required.
+
+After hosting remediation, rerun the SAME B1136 command: bash /home/icaffeco/ald1n-project/incoming/b1136-opcache-read.sh . Wait for fresh WEB_OPCACHE_SNAPSHOT_1/2/3 plus EXIT=/REPORT=. No coordinator report allocation during owner execution. Do not rerun B1134/B1135 or delete their state; READABLE status alone is not installation approval.
+
+Raw report archived byte-exact in GitHub docs/operations and Drive; this status and hosting request retained in new local checkpoint folders in both projects, preserving existing history. Main application tree remainsda8ac0c953e3c6741b921bb9fa660f80d247c55e. Owner revoked old usage ceiling for this check; no credit purchase/reset.
+
+---
+
 # CURRENT 2026-11-06 — B1136 FRESH WEB OPCACHE CHECK READY; HOST RESULT PENDING
 
 Owner explicitly revoked prior usage ceiling for this recheck; no account reset/credit purchase. [Report1087](1087-B1136-FRESH-WEB-OPCACHE-READONLY-PACKET-20261106.md) is current. Actual1085/full32bytes and1086/terminal refusal are historical; CURRENT cache remains UNKNOWN. No restart, Redis clear, deployment, DB or flag change performed. Do not rerun B1134/B1135 or remove their state.
