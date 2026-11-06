@@ -20,6 +20,9 @@ selector_safe() {
   selector_parent="$(dirname "$selector_path")"
   while :; do
     test ! -w "$selector_parent" && test "$(stat -c %u -- "$selector_parent")" = 0 || return 2
+    selector_parent_mode="$(stat -c %a -- "$selector_parent")" || return 2
+    case "$selector_parent_mode" in ''|*[!0-7]*) return 2;; esac
+    test "$((8#$selector_parent_mode & 022))" = 0 || return 2
     test "$selector_parent" = / && break
     selector_parent="$(dirname "$selector_parent")"
   done
@@ -31,7 +34,7 @@ selector_read() {
   selector_timeout="$(realpath "$selector_timeout")" || return 2
   selector_safe "$selector_timeout" || return 2
   # Child-only regular-file size limit; raw tool output never goes to the report.
-  (ulimit -f 64 || exit 2; "$selector_timeout" --signal=TERM --kill-after=2s 20s "$selector_program" --print-options --version=8.4 --user=icaffeco > "$selector_scratch/stdout" 2> "$selector_scratch/stderr")
+  (ulimit -c 0 || exit 2; cd "$selector_scratch" || exit 2; ulimit -f 64 || exit 2; "$selector_timeout" --signal=TERM --kill-after=2s 20s "$selector_program" --print-options --version=8.4 --user=icaffeco > "$selector_scratch/stdout" 2> "$selector_scratch/stderr")
 }
 selector_filter() {
   LC_ALL=C awk '
@@ -102,10 +105,12 @@ fetch_output="$(git -C "$ROOT" fetch origin main 2>&1)"; fetch_rc=$?
 test "$fetch_rc" = 0 || fail 'fresh main unavailable'
 git -C "$ROOT" ls-tree -r --name-only origin/main -- docs/operations > "$B1138_SCRATCH/remote-census" || fail 'remote report census'
 # BEGIN B1138_RESERVATION
-find "$ROOT/docs/operations" -maxdepth 1 -type f -name '[0-9]*' -printf '%f\n' > "$B1138_SCRATCH/local-census" || fail 'local report census'
 test -d "$HOME/.ald1n-stage" && test "$(realpath "$HOME/.ald1n-stage")" = "$HOME/.ald1n-stage" && test "$(stat -c %u -- "$HOME/.ald1n-stage")" = "$(id -u)" && test "$(stat -c %a -- "$HOME/.ald1n-stage")" = 700 || fail 'canonical private report reservation directory unavailable'
 lock="$HOME/.ald1n-stage/report-sequence.lock"
 mkdir "$lock" || fail 'report sequence reservation active'
+find "$ROOT/docs/operations" -maxdepth 1 -type f -name '[0-9]*' -printf '%f\n' > "$B1138_SCRATCH/local-census"
+census_rc=$?
+if test "$census_rc" != 0; then rmdir "$lock"; fail 'local report census'; fi
 next="$(awk -F/ '{name=$NF;if(name ~ /^[0-9]+-/){split(name,a,"-");if(a[1]+0>n)n=a[1]+0}}END{if(n<1092)exit 2;printf "%.0f",n+1}' "$B1138_SCRATCH/remote-census" "$B1138_SCRATCH/local-census")"; sequence_rc=$?
 if test "$sequence_rc" != 0; then rmdir "$lock"; fail 'fresh report sequence unavailable'; fi
 REPORT="$ROOT/docs/operations/${next}-B1138-SELECTOR-READ-$(date +%Y%m%d-%H%M%S).md"
