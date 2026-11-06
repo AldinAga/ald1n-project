@@ -1,3 +1,15 @@
+# CURRENT 2026-11-06 — B1135 HOST OPCACHE FULL; HOSTING ACTION NEEDED
+
+Actual [first1085](1085-B1135-CONTROLLED-OFF-INSTALL-20261106-090353.md), raw SHA256 `bf541cabcda5683e740c64ae1e30aa589ad7af0883c2e1139b314d775a104967`, supersedes unknown-cause/pending execution. Real authenticated CMS web OPcache reported cacheFull=true, freeMemoryBytes=32, cachedScripts=8290/maxCachedKeys16229, fileUpdateProtectionSeconds=2 and maxFileSizeBytes=0. Existing candidate reused, no vendor recopy. Gate WEB_CACHE_SENTINEL_CAPACITY_OR_SIZE_HOLD stopped BEFORE any source/vendor rename; scheduler releaseRC0, ROLLED_BACK_PRE_SWITCH, ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED=true, EXIT2.
+
+[Second1086](1086-B1135-CONTROLLED-OFF-INSTALL-20261106-090926.md), raw SHA256 `4c7dce22a102918738a47d6c0ff0adae88c91cff4eb1d4a40b88b419bf86f806`, is only terminal reentry refusal, not a separate cache diagnosis or deployment.
+
+Confirmed blocker is exhausted reserved in-memory OPcache, not the prior20-second hypothesis: actual protection is2s. Next owner/hosting action is to assess effective capacity and safely refresh/restart the relevant CMS web PHP/LSAPI pool. If shared with other domains, establish scope before action; no global reset or guessed restart marker. Agent has not restarted PHP or changed capacity. Prepare no blind redeploy/state deletion: B1135's terminal guard remains intentional; after hosting confirmation use a reviewed state-aware continuation.
+
+Weekly88%/owner90%, no reset/new development. No DB probes/migrations/flag changes, vendor restage, app source changes or public opening. Full actual reports preserved; old candidate/private state stay intact. Earlier entries are historical.
+
+---
+
 # CURRENT 2026-11-06 — B1135 BOUNDED RECOVERY VERIFIED; OWNER EXECUTION PENDING
 
 Byte-verified downloads: [B1135 operator ZIP](https://drive.google.com/file/d/1Iq5VItvOMduPM18Oa7SjDz6k3qTQ8b0g/view?usp=drivesdk) · [current Claude/Codex handoff](https://drive.google.com/file/d/18_PZ03P1BZwFcu2Ame_Vmpuw8W8UQv67/view?usp=drivesdk) · [Report1084 on Drive](https://drive.google.com/file/d/15Jij4IgP3kr9VJyV1q3SpvJZr9-0Rnkw/view?usp=drivesdk). Canonical runbook readback SHA256 `9c7ff6325834570323855b1b86683b49a66a80e0258b2c689dd231ca11f5d388`; all old history preserved. These verified files do not attest actual host installation.
