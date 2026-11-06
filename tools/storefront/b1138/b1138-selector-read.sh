@@ -101,6 +101,7 @@ B1138_SCRATCH="$(mktemp -d "$HOME/.ald1n-b1138-XXXXXXXX")" || fail 'private capt
 fetch_output="$(git -C "$ROOT" fetch origin main 2>&1)"; fetch_rc=$?
 test "$fetch_rc" = 0 || fail 'fresh main unavailable'
 git -C "$ROOT" ls-tree -r --name-only origin/main -- docs/operations > "$B1138_SCRATCH/remote-census" || fail 'remote report census'
+# BEGIN B1138_RESERVATION
 find "$ROOT/docs/operations" -maxdepth 1 -type f -name '[0-9]*' -printf '%f\n' > "$B1138_SCRATCH/local-census" || fail 'local report census'
 test -d "$HOME/.ald1n-stage" && test "$(realpath "$HOME/.ald1n-stage")" = "$HOME/.ald1n-stage" && test "$(stat -c %u -- "$HOME/.ald1n-stage")" = "$(id -u)" && test "$(stat -c %a -- "$HOME/.ald1n-stage")" = 700 || fail 'canonical private report reservation directory unavailable'
 lock="$HOME/.ald1n-stage/report-sequence.lock"
@@ -111,6 +112,7 @@ REPORT="$ROOT/docs/operations/${next}-B1138-SELECTOR-READ-$(date +%Y%m%d-%H%M%S)
 (set -o noclobber; : > "$REPORT") || fail 'report collision'
 rmdir "$lock" || fail 'report reservation release'
 export REPORT B1138_SCRATCH
+# END B1138_RESERVATION
 script_hash="$(sha256sum "$SCRIPT")"; script_hash="${script_hash%% *}"
 printf 'SCRIPT=%s\nSCRIPT_SHA256=%s\nSCRIPT_NORMALIZED_INTEGRITY_SHA256=%s\n' "$SCRIPT" "$script_hash" "$SELF_SHA" | tee -a "$REPORT"
 printf '%s\n' "$fetch_output" | tee -a "$REPORT"
