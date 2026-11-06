@@ -11,6 +11,16 @@ final class B1135Recovery
     {
         if(is_link($path)||realpath($path)!==$path||!is_dir($path)||fileowner($path)!==posix_geteuid())throw new RuntimeException('B1135_DIRECTORY_IDENTITY');$s=stat($path);return ['dev'=>$s['dev'],'ino'=>$s['ino']];
     }
+    private static function publicExtras(string $base,array $expected,array $privatePaths):array
+    {
+        self::identity($base.'/public');$extras=[];$count=0;
+        $iterator=new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(new RecursiveDirectoryIterator($base.'/public',FilesystemIterator::SKIP_DOTS),static fn($entry)=>!isset($privatePaths[substr($entry->getPathname(),strlen($base)+1)])),RecursiveIteratorIterator::SELF_FIRST);
+        foreach($iterator as $entry){$relative=substr($entry->getPathname(),strlen($base)+1);if(++$count>20000||$entry->isLink())throw new RuntimeException('B1135_PUBLIC_EXTRAS_DRIFT');if($entry->isDir())continue;if(!$entry->isFile())throw new RuntimeException('B1135_PUBLIC_EXTRAS_DRIFT');if(isset($expected[$relative]))continue;
+            if($relative==='public/.user.ini'){$text=self::regular($entry->getPathname(),65536);if(preg_match('/auto_prepend|auto_append|opcache\.preload|opcache\.file_cache_only|APP_CONFIG_CACHE|APP_BASE_PATH|APP_ROUTES_CACHE|APP_SERVICES_CACHE|APP_PACKAGES_CACHE|VIEW_COMPILED_PATH/i',$text))throw new RuntimeException('B1135_PUBLIC_EXTRAS_DRIFT');}
+            elseif(!preg_match('/\.(?:png|jpe?g|gif|svg|webp|ico|css|js|map|txt|xml|json|woff2?|ttf|eot|pdf)$/i',$relative))throw new RuntimeException('B1135_PUBLIC_EXTRAS_DRIFT');
+            $extras[$relative]=hash('sha256',self::regular($entry->getPathname(),33554432));
+        }ksort($extras);return $extras;
+    }
     public static function prepare(string $root,string $home,array $manifest,array $git):array
     {
         [$reportBytes,$reportedGit,$source]=self::readReport($root);
@@ -44,6 +54,8 @@ final class B1135Recovery
         foreach(['storage','uploads','attachments'] as $name){$relative='public/'.$name;$path=$active.'/'.$relative;if(!file_exists($path)&&!is_link($path))continue;$resolved=realpath($path);if(!is_string($resolved))throw new RuntimeException('B1135_PRIVATE_PUBLIC_PATH');if(is_link($path)){if(!str_starts_with($resolved,$active.'/storage/'))throw new RuntimeException('B1135_PRIVATE_PUBLIC_LINK');$links[$relative]=$plan['rollback'].substr($resolved,strlen($active));}else{$links[$relative]=$plan['rollback'].'/'.$relative;}}
         $stored=$s['preserved']['privateLinks'];ksort($stored);ksort($links);if($links!==$stored)throw new RuntimeException('B1135_PRIVATE_NAMESPACE_CHANGED');
         foreach($links as $relative=>$target){InstallFileOps::relative($relative);$path=$plan['candidate'].'/'.$relative;if(!is_link($path)||readlink($path)!==$target)throw new RuntimeException('B1135_PRIVATE_LINK_DRIFT');}
+        $privatePublic=array_filter($links,static fn($path)=>str_starts_with($path,'public/'),ARRAY_FILTER_USE_KEY);
+        if(self::publicExtras($active,$expected,$privatePublic)!==self::publicExtras($plan['candidate'],$expected,$privatePublic))throw new RuntimeException('B1135_PUBLIC_EXTRAS_DRIFT');
         foreach(['storage','storage/framework','storage/framework/views'] as $relative)self::identity($plan['candidate'].'/'.$relative);
         if(scandir($plan['candidate'].'/storage/framework/views')!==['.','..'])throw new RuntimeException('B1135_CANDIDATE_VIEWS_NOT_PRISTINE');
         $newId=bin2hex(random_bytes(16));$private=$home.'/.ald1n-b1135-state/'.$newId;self::identity(dirname($private));if(!mkdir($private,0700))throw new RuntimeException('B1135_NEW_STATE_CREATE');

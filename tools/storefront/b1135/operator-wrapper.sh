@@ -17,7 +17,7 @@ test ! -L "$ROOT/incoming/b1135-package.sha256" || fail 'checksum link'
 actual="$(sha256sum "$ROOT/incoming/b1135-package.sha256")" || fail 'checksum file missing'; actual="${actual%% *}"
 test "$actual" = "$CHECKSUMS_SHA" || fail 'package checksum integrity'
 while read -r digest file; do
-  case "$file" in b1135-*) ;; *) fail 'unexpected package filename';; esac
+  case "$file" in b1135-*|b1134-webcache-*.php) ;; *) fail 'unexpected package filename';; esac
   case "$file" in */*|*..*) fail 'package path';; esac
   test ! -L "$ROOT/incoming/$file" || fail 'package helper link'
 done < "$ROOT/incoming/b1135-package.sha256"
