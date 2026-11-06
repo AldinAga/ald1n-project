@@ -1,4 +1,4 @@
-# CURRENT 2026-11-06 - B1136 ACTUAL1089: EFFECTIVE512MiB FRESH READABLE PASS
+# CURRENT 2026-11-06 — B1136 ACTUAL1089: EFFECTIVE512MiB FRESH READABLE PASS
 
 Owner increased OPcache to512MB; actual report1089 now proves effective web PHP capacity536870912bytes=512MiB. Raw SHA2562da79ae7af3181efeefa6801046d583ac1fcaecceb3e6d526025fa7fb02f0bc6. All3authenticated actual-index samples READABLE/cacheFull=false/free374872352bytes(357.51MiB)/used161998560bytes/wasted0; restartPending=false/restartInProgress=false; PHP8.4.27/litespeed/LiteSpeed. TwoPIDs share currentparent/starttime1793971234=2026-11-06 13:20:34UTC/14:20:34Belgrade. This is a recent cache snapshot, not a long-term stability test or installation-capacity guarantee.
 
