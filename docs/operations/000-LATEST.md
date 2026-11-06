@@ -1,3 +1,13 @@
+# CURRENT 2026-11-06 — B1137 VERIFIED CONTROLLED OFF CONTINUATION; HOST EXECUTION PENDING
+
+[Report1090](1090-B1137-VERIFIED-CONTROLLED-OFF-CONTINUATION-20261106.md) is current. Actual1089 confirms effective512MiB/free357.51MiB/notFULL, login200/cleanupPASS/EXIT0; no repeated status packet/restart needed. Owner-approved controlledOFF installation continues only through B1137, not blind B1134/B1135 rerun or state deletion. Exact1083/1085/1089 and both predecessor chains bind new separate owner/journal to the same original8531candidate; old pointers/states preserved. No vendor restage/newDBprobe/migration/flagwrite/publicactivation/mobile release.
+
+Frozen15b71b4efd081251103d6139a3717908a4fd9d4a: genuine RED then [GREEN42226238706 PASS](https://github.com/AldinAga/ald1n-project/actions/runs/42226238706), independentreview0, root8file/frozenblob/5unchangeddependencies/checksum/bash auditPASS. Existing install/cache/sentinel/group/OFF/rollback gates retained, new admission only; actual current hosting gate results remain pending. [B1137 packet](https://drive.google.com/file/d/1yuGzCrEdhGV7A-vjvTrE09-4lsWG3mKd/view), SHA256fd8b254421c32eab9b3296f065b697da14d4143068e2048a0bfb1a1490e39535. Unzip root then bash /home/icaffeco/ald1n-project/incoming/b1137-controlled-install.sh. CMS temporarily enters owned maintenance; Storefront stays OFF. Retained original release is a PERMANENT private-data dependency; never prune and back up real linked targets.
+
+Publish1090 BEFORE operator link; wait for full report/EXIT=/REPORT=. No coordinator number allocation while owner runs. Installation is NOT yet attested. Earlier entries are historical; appsource/dirtylocalindex unchanged. Preserve source/provenance and user decisions; no reset/purchase.
+
+---
+
 # CURRENT 2026-11-06 — B1136 ACTUAL1089: EFFECTIVE512MiB FRESH READABLE PASS
 
 Owner increased OPcache to512MB; actual report1089 now proves effective web PHP capacity536870912bytes=512MiB. Raw SHA2562da79ae7af3181efeefa6801046d583ac1fcaecceb3e6d526025fa7fb02f0bc6. All3authenticated actual-index samples READABLE/cacheFull=false/free374872352bytes(357.51MiB)/used161998560bytes/wasted0; restartPending=false/restartInProgress=false; PHP8.4.27/litespeed/LiteSpeed. TwoPIDs share currentparent/starttime1793971234=2026-11-06 13:20:34UTC/14:20:34Belgrade. This is a recent cache snapshot, not a long-term stability test or installation-capacity guarantee.
