@@ -1,0 +1,39 @@
+SCRIPT=/home/icaffeco/ald1n-project/incoming/b1137-controlled-install.sh
+SCRIPT_SHA256=e44937f637287bd2ebd03d3f924c9f0abc10270cb2b3b15291e1aa897a7ddede
+SCRIPT_NORMALIZED_INTEGRITY_SHA256=862e9b8fbd984aaeb2a7837e5a5b9b2bd9fd36fe48fa1e93da493582c567ddd7
+CHECKSUMS_SHA256=3b4c7a82cee8a36f7aa4a93959346117621fdf26c04653ebbccdade6282018a6
+From github.com:AldinAga/ald1n-project
+ * branch            main       -> FETCH_HEAD
+   2546d95..fbb23d5  main       -> origin/main
+b1137-controlled-install.php: OK
+b1137-coordinator.php: OK
+b1137-package.json: OK
+b1137-provenance.json: OK
+b1137-README.md: OK
+b1137-recovery.php: OK
+B1137 CONTROLLED MAIN CMS AND COMPLETE VENDOR INSTALL; RUNTIME OFF
+NO_PRODUCTION_MIGRATIONS_OR_DIRECT_DB_PROBES=YES
+TECHNICAL_APPLICATION_BOOT_CACHE_SCHEDULER_WRITES=AUTHORIZED_OWNED_ONLY
+BRANCH=main
+LOCAL_HEAD=b5b942e645d28d3ed5f248eaae4180ebe9a54ee6
+REMOTE_HEAD=fbb23d55be286278ad6e01570055f316a7c80fb4
+HELPER_SOURCE_SHA=15b71b4efd081251103d6139a3717908a4fd9d4a
+RELEASE_PHASE="PREPARED"
+RELEASE_PHASE="CANDIDATE_READY"
+B1137_PREDECESSOR_RECOVERY={"reportSHA256":"bf541cabcda5683e740c64ae1e30aa589ad7af0883c2e1139b314d775a104967","capacityReportSHA256":"2da79ae7af3181efeefa6801046d583ac1fcaecceb3e6d526025fa7fb02f0bc6","pointerSHA256":"f093a0185e5e70962cb56a14d40afe12f9cce8143a07535d9ccbc38c1e4b310e","stateSHA256":"9a5694f9de461d98177416e74c418e419660c84d4e52da01dcf93d201290ccff","journalSHA256":"21cfe85f8a5649e44f3e729e9413c8ceb82055111a5cef1e3ecf48b79801131b","private":"/home/icaffeco/.ald1n-b1135-state/41de978d9741927683f5e57d056af503","preservedUnmodified":true,"originalB1134PointerSHA256":"0b1773be0d05f72a26e4c8b52adcd3e6a94a5595690b46005dc816f43669918b","originalB1134StateSHA256":"82a1719614243cd4e4ed625953c50793de8ec90c168b542e575c57c5696e7ac3"}
+EXISTING_COMPLETE_CANDIDATE_REUSED_NO_VENDOR_RECOPY=true
+HOST_GIT={"head":"b5b942e645d28d3ed5f248eaae4180ebe9a54ee6","branch":"main","index":"/home/icaffeco/ald1n-project/.git/index","indexSHA256":"46fe76d5751d8bca229d39831ac55fc66c76a0f6607246914177bdd9ccf066c5"}
+RELEASE_PHASE="SCHEDULER_PAUSE_INTENT"
+TECHNICAL_SCHEDULER_CACHE={"action":"pause","rc":0,"oldApplicationBootstrap":true,"directBusinessOrSchemaQueries":false}
+RELEASE_PHASE="SCHEDULER_PAUSED"
+RELEASE_PHASE="MAINTENANCE_INTENT"
+RELEASE_PHASE="MAINTENANCE_OWNED"
+PUBLIC_HTTP_EXPECTED_503=PASS
+WEB_CACHE_SENTINEL_DIAGNOSTICS={"fileUpdateProtectionSeconds":2,"sentinelAgeSeconds":1,"maxFileSizeBytes":0,"sentinelSizeBytes":48,"freeMemoryBytes":58838624,"cachedScripts":14367,"maxCachedKeys":16229,"cacheFull":true}
+INSTALL_HOLD_REASON="WEB_CACHE_SENTINEL_CAPACITY_OR_SIZE_HOLD"
+AUTHENTICATED_FRONT_DISPATCH_REVOKED={"noPublicAliasEverCreated":true,"signedStateRevoked":true,"frameworkBarrierRemovalFollows":true,"immutableLibraryStaysIncomingOnly":true}
+TECHNICAL_SCHEDULER_CACHE={"action":"release","rc":0,"oldApplicationBootstrap":true,"directBusinessOrSchemaQueries":false}
+RELEASE_PHASE="ROLLED_BACK_PRE_SWITCH"
+ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED=true
+EXIT=2
+REPORT=/home/icaffeco/ald1n-project/docs/operations/1091-B1137-CONTROLLED-OFF-INSTALL-20261106-150122.md

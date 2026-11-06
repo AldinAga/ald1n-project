@@ -1,36 +1,37 @@
-name: B1138 own-user selector read-only mock verification
+name: B1139 account refresh admission RED (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
-    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1138/**']
+    paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1139/**']
 permissions:
   contents: read
 jobs:
-  readonly-selector:
+  focused-account-refresh:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
-      - name: Actual shell functions, fixed argv and sanitized target filtering
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl
+          coverage: none
+      - name: Existing admission must reject actual next B1137 chain
         run: |
-          set -euo pipefail
-          script=tools/storefront/b1138/b1138-selector-read.sh
-          bash -n "$script"
-          if grep -nE '<\(|>\(|/dev/fd|python3|--add-options|--replace-options|--reset-options|--delete-options|--quiet' "$script"; then exit 2; fi
-          bash tools/storefront/b1138/fixtures.sh "$script"
-      - name: Actual interleaved shared reservation refreshes local census
-        if: always()
-        run: bash tools/storefront/b1138/reservation-fixture.sh tools/storefront/b1138/b1138-selector-read.sh
-      - name: Other-group writable root-owned parent is refused
-        if: always()
-        run: bash tools/storefront/b1138/parent-mode-fixture.sh tools/storefront/b1138/b1138-selector-read.sh
+          set +e
+          php tools/storefront/b1139/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1139" "$GITHUB_WORKSPACE/tools/storefront/b1134" > "$RUNNER_TEMP/b1139-red.txt" 2>&1
+          rc=$?
+          cat "$RUNNER_TEMP/b1139-red.txt"
+          echo "ACTUAL_RED_RC=$rc" | tee -a "$RUNNER_TEMP/b1139-red.txt"
+          test "$rc" -ne 0 || exit 2
+          grep -F 'B1137_REPORTED_PREDECESSOR_DRIFT' "$RUNNER_TEMP/b1139-red.txt" || exit 2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1138-selector-read-evidence
-          path: ${{ runner.temp }}/b1138-fixture-receipt.json
-          if-no-files-found: warn
+          name: b1139-account-refresh-red
+          path: ${{ runner.temp }}/b1139-red.txt
+          if-no-files-found: error
           retention-days: 7
