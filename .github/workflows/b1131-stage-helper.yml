@@ -23,7 +23,23 @@ jobs:
         run: |
           set -euo pipefail
           php -l tools/storefront/b1137/B1137Recovery.php
+          php -l tools/storefront/b1137/InstallCoordinator.php
+          php -l tools/storefront/b1137/operator-entry.php
+          bash -n tools/storefront/b1137/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1137/operator-wrapper.sh; then exit 2; fi
           php tools/storefront/b1137/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1137" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1137-admission.json"
+      - name: Coordinator exact inverse and new-state reentry
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib
+          old=pathlib.Path('tools/storefront/b1135/InstallCoordinator.php').read_bytes()
+          new=pathlib.Path('tools/storefront/b1137/InstallCoordinator.php').read_bytes()
+          inverse=new.replace(b'/.ald1n-b1137-state',b'/.ald1n-b1135-state').replace(b'B1137Recovery::prepare',b'B1135Recovery::prepare').replace(b'B1137_PREDECESSOR_RECOVERY',b'B1135_PREDECESSOR_RECOVERY')
+          assert inverse==old
+          print('COORDINATOR_ONLY_THREE_REVIEWED_ADMISSION_NAMESPACE_EDITS=PASS')
+          PY
+          php tools/storefront/b1137/reentry-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1137"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
