@@ -8,6 +8,14 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0ZD. Actual B1134 pre-switch HOLD and bounded B1135 recovery (2026-11-06)
+
+Actual owner [1083](docs/operations/1083-B1134-CONTROLLED-OFF-INSTALL-20261106-082445.md) stopped at WEB_CACHE_SENTINEL_NOT_WARM before any source/vendor rename; scheduler restored, original code/vendor untouched. Do NOT call B1134 installed. Cache root cause remains NOT_PROVEN.
+
+[Report1084](docs/operations/1084-B1135-BOUNDED-SENTINEL-RECOVERY-AND-MANUAL-DELIVERY-20261106.md) records tested/reviewed B1135. Numeric observed protection/age and monotonic/per-request bounds replace the insufficient17-second assumption, maximum120s. Require real cached sentinel AND separate later-request same-cache proof, all existing group/auth/OFF gates. Compile success is not cache-residency proof; no backdating, INI/reset or blacklist bypass.
+
+Recovery accepts only exact1083 + terminal pre-switch predecessor, unchanged active identity/env/Git/index, full candidate/source/private namespace checks; NEW B1135 owner/journal/pointer archives predecessor bytes without overwriting old state. Reuse prepared candidate, no vendor/stage replay. Unlisted public executable/INI drift rejected. Original B1134 dependencies remain hash-pinned, not redelivered. Fresh owner execution/actual LSAPI attestation still pending. Preserve permanent retained private-data targets and all prior release gates. Owner90% maximum remains, preserve closure reserve.
+
 ## 0ZC. B1134 verified OFF installer and owner90% ceiling (2026-11-05)
 
 Owner explicitly increased Weekly maximum to **90%**, superseding older80/70/50/20 entries; no reset or purchase. Keep closure reserve near88%, read actual account usage, and do not mistake budget permission for release authorization. Owner declined pause.

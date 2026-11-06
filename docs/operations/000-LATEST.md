@@ -1,3 +1,11 @@
+# CURRENT 2026-11-06 — B1135 BOUNDED RECOVERY VERIFIED; OWNER EXECUTION PENDING
+
+[Report1084](1084-B1135-BOUNDED-SENTINEL-RECOVERY-AND-MANUAL-DELIVERY-20261106.md) is current. Actual1083 stopped before source/vendor rename and restored scheduler; original application untouched, NOT installed. B1135 uses observed numeric cache protection/age with monotonic maximum120s and separate cached-request proof; root cause on hosting remains unproven. [Final exact GitHub42183482909 PASS](https://github.com/AldinAga/ald1n-project/actions/runs/42183482909), head9dd104f806c0d835616b1f0f5b1a3e5df9a3ac7c, independent reviews0; root byte-audited10 new incoming-only files, original B1134 files/state preserved.
+
+ZIP `B1135-SENTINEL-RECOVERY-9dd104f.zip`, SHA256 `4ae69ded017c258a70f2ad29cedfa79d3ed64c95d390c5d4677f9e1b5052fe4b`. Reuse existing8531-file candidate, new separate owner/journal/state; no vendor upload/re-copy, generic inventory, DB confirmation/migration or public activation. Real host LSAPI/OFF gates still conditional on execution. One command: `bash /home/icaffeco/ald1n-project/incoming/b1135-controlled-install.sh`; return EXIT=/REPORT=. Publish checkpoint before executable link and do not allocate another coordinator report during owner run. Weekly87%/maximum90%, reserve for closure/no reset. Older entries historical.
+
+---
+
 # CURRENT 2026-11-06 — B1134 HOST HOLD; ORIGINAL APPLICATION RESTORED
 
 Actual [ownerReport1083](1083-B1134-CONTROLLED-OFF-INSTALL-20261106-082445.md), raw SHA256 `6666c636a1894c1bc7b1cd067ce1f12e418725aa485511f81bf6652eaacce7b1`, supersedes pending execution. Package integrity passed; candidate prepared; owned scheduler pause and public503 passed. Gate `WEB_CACHE_SENTINEL_NOT_WARM` stopped BEFORE any source/vendor rename. Scheduler releaseRC0, `ROLLED_BACK_PRE_SWITCH`, `ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED=true`, EXIT2. Do NOT call this installed or OFF-runtime deployed. Failure identifies missing observed cached sentinel, NOT its underlying hosting cause.
