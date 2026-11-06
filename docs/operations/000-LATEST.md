@@ -1,3 +1,13 @@
+# CURRENT 2026-11-06 — B1139 VERIFIED ONE-SHOT ACCOUNT PHP REFRESH + OFF ATTEMPT; HOST PENDING
+
+[Report1095](1095-B1139-VERIFIED-ACCOUNT-PHP-REFRESH-OFF-ATTEMPT-20261106.md) is current. Owner explicitly chose preparation with wholeicaffecoPHPaccount scope/possible impact to other sites, StorefrontOFF/allguards/no-guarantee. [B1139 packet](https://drive.google.com/file/d/1qlTr5DBRYwuW1c41_TbjQn1M7S4gYo5x/view), SHA25615f3862edcf97fd4eaeb95b20c6fc5bebd15d5069f5c03fbd5469ebcf66a14b3,9incomingfiles/23208bytes. Choose suitable time, unziproot then bash /home/icaffeco/ald1n-project/incoming/b1139-controlled-install.sh . No agent hostexecution yet.
+
+Frozen6ded3e8c5893ee2962437c6642d7ff268f2262fa: genuineadmissionRED then [GREEN42239554484 PASS](https://github.com/AldinAga/ald1n-project/actions/runs/42239554484), independent0, root9file/frozenblob/5olddeps/checksum/bashauditPASS. Exactlyone durable accountmarkerrequest AFTERauthenticatedprobe+503 BEFOREfreshcalibration; newparent/cacheepochack +postcalibrationbind, all oldsentinel/quiet/OFF/switch/rollbackgates unchanged. Existingempty marker becomesnewline(priorbytesprivatelyarchived); nonemptycontentsretained/absentexclusivecreate. Interruptedintentneverre-signals. Threeoldstates/journals andsame8531candidatepreserved; no vendorrestage/DBprobe/migration/flagwrite/publicopening/mobile release.
+
+1094CLIavailablebutdeclaredmaxfilesRANGE5000,10000/memory512M. Nooutofrangewrite. Coldrefreshdoesnotraisekeylimit; invalidate doesnotfreekeys/RAM andfull/restart/mixedgroupsmaystillHOLD. NativePHPHTTPtestsnotLSAPIhostproof orstableactivationguarantee. OriginalretainedreleaseisPERMANENTprivate-data dependency, neverprune/backuponlysymlinks. Publish1095BEFORElink, waitfullreport/EXIT=/REPORT=, no coordinatorallocationduringownerrun. Do not rerun B1137/deletepointers. Previousentrieshistorical; appsource/dirtyindexunchanged.
+
+---
+
 # CURRENT 2026-11-06 — B1138 ACTUAL1094 OWN-USER CLI READ PASS; DECLARED RANGE RESTRICTED
 
 Actual owner1094 rawSHA256c2f35bf4c95dcdafe0863eb4d35784bbedba8c3088cf388c0b7cd3c79c893408: root-owned/non-writable /usr/bin/selectorctl verified; ownicaffeco/PHP8.4 --print-options RC0, stdout4910bytes/stderr0, targetfilterRC0, EXIT0. Targets: max_accelerated_files DEFAULT10000/VALUE10000/TYPElist/RANGE5000,10000; memory_consumption DEFAULT512M/VALUE512M/TYPElist/RANGE64M,128M,256M,512M. No settings/reset/install action. CLI availability is now proven; no permission for out-of-range50000 is established. Do not try --quiet, forced configuration edits, --replace-options or out-of-declared-range writes.
