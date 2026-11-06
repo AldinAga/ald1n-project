@@ -1,4 +1,4 @@
-name: B1139 account refresh admission RED (NO DEPLOY)
+name: B1139 reviewed account-refresh OFF continuation (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
@@ -8,7 +8,7 @@ permissions:
 jobs:
   focused-account-refresh:
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -19,19 +19,47 @@ jobs:
           php-version: '8.4'
           extensions: curl
           coverage: none
-      - name: Existing admission must reject actual next B1137 chain
+      - name: Syntax, scope and exact reused coordinator inverse
         run: |
-          set +e
-          php tools/storefront/b1139/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1139" "$GITHUB_WORKSPACE/tools/storefront/b1134" > "$RUNNER_TEMP/b1139-red.txt" 2>&1
-          rc=$?
-          cat "$RUNNER_TEMP/b1139-red.txt"
-          echo "ACTUAL_RED_RC=$rc" | tee -a "$RUNNER_TEMP/b1139-red.txt"
-          test "$rc" -ne 0 || exit 2
-          grep -F 'B1137_REPORTED_PREDECESSOR_DRIFT' "$RUNNER_TEMP/b1139-red.txt" || exit 2
+          set -euo pipefail
+          for file in tools/storefront/b1139/*.php; do php -l "$file"; done
+          bash -n tools/storefront/b1139/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1139/operator-wrapper.sh; then exit 2; fi
+          python3 - <<'PY'
+          import pathlib
+          old=pathlib.Path('tools/storefront/b1137/InstallCoordinator.php').read_bytes()
+          new=pathlib.Path('tools/storefront/b1139/InstallCoordinator.php').read_bytes()
+          start=new.index(b"$this->state['accountRefresh']=AccountRefresh::run(")
+          end=new.index(b"$this->state['visibility']=$this->web->calibrateVisibility();",start)
+          inverse=new[:start]+new[end:]
+          bind=b"AccountRefresh::bindCalibration($this->state['accountRefresh'],$this->state['visibility'],$this->web->request('probe'));"
+          assert inverse.count(bind)==1
+          inverse=inverse.replace(bind,b'').replace(b'/.ald1n-b1139-state',b'/.ald1n-b1137-state').replace(b'B1139Recovery::prepare',b'B1137Recovery::prepare').replace(b'B1139_PREDECESSOR_RECOVERY',b'B1137_PREDECESSOR_RECOVERY')
+          assert inverse==old
+          assert b"publicStatus('/login',503" in new[:start]
+          print('COORDINATOR_EXACT_INVERSE_SINGLE_POST_503_REFRESH_AND_BIND=PASS')
+          PY
+      - name: Actual three-generation admission and state reentry
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1139/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1139" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1139-admission.json"
+          php tools/storefront/b1139/reentry-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1139" | tee "$RUNNER_TEMP/b1139-reentry.txt"
+      - name: Actual private marker single-signal and interruption ownership
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1139/account-refresh-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1139" | tee "$RUNNER_TEMP/b1139-marker.json"
+      - name: Actual PHP HTTP cold cache, near-full canonical switch and failure gates
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1139/web-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1139" "$GITHUB_WORKSPACE/tools/storefront/b1135" | tee "$RUNNER_TEMP/b1139-http.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1139-account-refresh-red
-          path: ${{ runner.temp }}/b1139-red.txt
-          if-no-files-found: error
+          name: b1139-account-refresh-evidence
+          path: |
+            ${{ runner.temp }}/b1139-admission.json
+            ${{ runner.temp }}/b1139-reentry.txt
+            ${{ runner.temp }}/b1139-marker.json
+            ${{ runner.temp }}/b1139-http.json
+          if-no-files-found: warn
           retention-days: 7
