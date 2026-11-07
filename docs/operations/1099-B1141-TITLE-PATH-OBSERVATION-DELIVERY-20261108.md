@@ -1,0 +1,46 @@
+# B1141 — verified finite title/path observation package
+
+Report1099; batchB1141; delivery checkpoint2026-11-08. Fresh main before numbering `015afd52d600b7e271a296d3f4c473c8b14e7b37`; highest GitHub operation report1098, highest local docs report1075 in each Windows project. No owner batch was running during reservation. This is documentation/package delivery, not actual hosting execution; the operator wrapper reserves its own later execution report under the shared lock with a fresh remote/local census.
+
+## Exact delivered executable and package
+
+Frozen diagnostic source `9de400c9f1b30b49fe13b580f60d409b97107d69`, tree `1ea6c3da0fee9e49b9bb971431fb1127e86adaf6`, helper branch `codex/b1131-stage-helper-ci-20261104`. This helper is not merged application code in main. Canonical executable `/home/icaffeco/ald1n-project/incoming/b1141-visibility-observe.sh` raw SHA-256 `23efccb8f5358321a0b4b50a2995256a9fcb5a531a2a0f86777027b84cf35431`, normalized self-integrity SHA-256 `5af0bbf18bc236c57c90b94d6fc7c910dc6a1ffcc0a66158a3723bfa0ee1402f`. Automatic integrity checks require no separate operator checksum command.
+
+Final `B1141-VISIBILITY-OBSERVE-9de400c.zip`: **20685bytes,9 regular incoming members,52365 uncompressed bytes**, SHA-256 `788bcc0ed21b1d53bb6a09304db18f9175795f1e227e71188acb4a4ae8166aff`. [Project Drive package](https://drive.google.com/file/d/1-hBRTi75m9Cyq13cyv0scrKu3HfPXvzu/view). Root independent archive audit **PASS**: source blobs, nine-only incoming paths, wrapper normalized/raw integrity, seven checksummed payload/metadata members, loader pins, reviewed README and `bash -n` verified. Delivery-file proof SHA-256 `32a6c49231c8a4581117558c7c627d5bb7d9a1c89eb52a82a676bfab6c97df90`.
+
+Nine new files are entry, control, observer, content-hashed endpoint, wrapper, metadata, checksums, README and provenance. Existing `incoming/b1135-web-client.php` remains unchanged and is not redelivered; automatic loader SHA-256 pin `546a77f1229af2813da3379159b8cb8f6d8057964e5400c78c49dc676894da34`. Old B1140/B1135/application/vendor source and prior state/candidate/private retained targets remain untouched.
+
+## Actual1098 evidence and honest limits
+
+Owner Report1098 raw SHA-256 `7cbb923de3f5be4ff1723be027d38c1ecd6f3f88549f9d43d3e3b630484214a6` recorded HTTP200/curl0/curlMulti0, valid response scope, all execution/shutdown/done marker stages accepted and matching nonce/UID/namespace. No partial/malformed/rejected marker reads. One bounded `ps` snapshot listed target lsphp; owned `/proc` identity was readable; observed categories lsphp then absent. The title had a colon and at least46bytes but `exact45SuffixMatchSeen=false`, no matching title-derived identity/process-matched phases or idle transition before150samples/15seconds. Four ordinary login checks returned200; exact-owned cleanup and revoked-probe unavailability PASS; exit0.
+
+These facts isolate an observed exact-suffix mismatch. They do not establish an alternate alias, a NUL-segment layout, worker death or any other underlying title/path cause. First absence is only an observation. Original full calibration/cache/parent/group/drain gates were not executed. The single B1139 account refresh remains consumed, not approval for another restart.
+
+Upstream [PHP8.4.27 LSAPI raw-path/title source](https://github.com/php/php-src/blob/php-8.4.27/sapi/litespeed/lsapi_main.c#L590), including [colon plus final45pathbytes](https://github.com/php/php-src/blob/php-8.4.27/sapi/litespeed/lsapi_main.c#L605-L612), informs finite hypotheses. Upstream source does not attest the modified CloudLinux binary or its actual runtime title bytes.
+
+## Regression, final CI and independent review
+
+- Corrected RED [42425813746](https://github.com/AldinAga/ald1n-project/actions/runs/42425813746), source `c96673b75f142ac2aab2bb4cf64eccdd04bd3bcd`, artifact13595411783, ZIP SHA-256 `776cbb9d111f045bba548d0be08a43125ff1cd4017af6f5f71fb90d0dbc26ebe` verified before inspection. An unchanged B1140 classifier misses a validated same-file alias while the canonical positive control passes. The initial workflow RC-capture failure is preserved and not counted as behavioral RED. This is a fixture counterexample, not proof of the real host's alias.
+- The reviewer verified **zero `red-alias.php` delta** from corrected REDc96673 to final9de400: the same failing test executes unchanged and passes GREEN as `VALIDATED_ALIAS_TITLE_CLASSIFIED`; no assertion weakening. Earlier c9 source GREEN42426113487 remains historical, not final-source authority.
+- Final [42426303712](https://github.com/AldinAga/ald1n-project/actions/runs/42426303712), job128565205970, completed SUCCESS at exact9de400. Artifact13596105228,2411bytes, provider ZIP SHA-256 `30b9488f45f3bfcb915dc1648c3cd6d90e3e6817099e2fcb3b05f15fb7cb8dbb` verified before four allowlisted bounded predicate/title/HTTP/alias-GREEN receipts were inspected independently.
+- Independent final behavior/security review **PASS,0 Critical/0 Important/0 Minor**, SHA-256 `04b2f084e06b7baa2afd98f7c0bfa85409c30b133d7267a0828cd68d2fa58213`. Ten selected remote blobs and unchanged dependencies/front-controller hashes verified; no original B1140/B1135/application/vendor delta. Reviewed external README SHA-256 `9cc0cc77a08825dd4ac2be06e38a43e5fa14979646681afcc2c98dd863f96266` bound in package metadata/audit.
+
+Focused tests cover fresh attempt/nonce/UID/namespace/stage/library/front binding; owned mode0600 regular canonical markers bounded16KiB; stale/foreign/relative/NUL/oversized path refusal; symlink/mode/partial marker negatives; independently bound request PID/start/executable identity and reuse; finite known aliases/canonical full/tail45 comparisons, NUL structure and whitespace/control flags; first-argument-only prefix equality; absence semantics; fixed command-line readable/unavailable/over_limit/changed categories; privacy; no calibration approval. Final title receipt has12 positive checks. Both real PHP HTTP cache profiles record HTTP200/curl0, bounded15seconds, accepted SCRIPT_FILENAME, unavailable PATH_TRANSLATED, fresh binding and149 baseline matches/zero mismatches across execution/shutdown/done. Authentication/action/tamper/stale/collision/normal traffic/exact cleanup/interrupted/repeated recovery remain covered. No unchanged broad app suite or source CI was replayed merely for packaging. No local PHP was run.
+
+## Bounded behavior and manual handoff
+
+One authenticated held request uses a temporary exact-owned pass-through bridge; ordinary requests continue to the existing application. The helper itself does not bootstrap Laravel or query its database; ordinary login checks can execute normal existing application database/cache work. Only bounded absolute SCRIPT_FILENAME/PATH_TRANSLATED candidates resolving to the pinned canonical index are accepted, bound to the fresh request and validated again in CLI. Missing PATH_TRANSLATED remains unavailable. Unknown/foreign titles are not learned. Public reports contain fixed categories/counts/booleans/lengths/offsets, no raw private paths/titles/arguments or executable-path digest.
+
+`identityBaselineEstablished` and per-stage `baselineMatches`/`baselineMismatches` provide independent continuity evidence. Legacy `pidStartStable=true` can be vacuous without `matchingIdentitySeen`; do not quote it as proof. `firstAbsence` does not prove death or idle. `knownPathPrefixIdleObserved` requires the same bound identity and first argument exactly equal to a prefix from a previously matched known first-argument title; it is only diagnostic equality, not original calibration or whole-group/drain acceptance. `exactFrozenCalibrationExecuted=false`, `frozenLoopPredicateSatisfied=null`, `calibrationWouldPass=null` remain explicit.
+
+Unzip the `incoming/` subtree into `/home/icaffeco/ald1n-project/`, preserving subfolders. If a same-name B1141 file exists, do not overwrite it blindly. Run one command:
+
+```bash
+bash /home/icaffeco/ald1n-project/incoming/b1141-visibility-observe.sh
+```
+
+The wrapper verifies integrity, streams real RC/output into its canonical numbered `docs/operations` report and prints `REPORT=`. Return only that report. **Do not return visibility-*.json, state.json, web.json, signing-key, .env, whole private folders or raw process lists.** New private visibility markers contain internal lexical paths and are not shareable diagnostic output.
+
+No installer/client title-admission rule is changed, no gate or timeout is relaxed, no restart/account signal/cache reset/invalidation/install/code/vendor switch/scheduler mutation/production DB probe/migration/flag write/public activation/EAS/OTA/Play action is performed. Source-private state and old installer gates stay preserved. Root assembled and independently audited this diagnostic only. `OBSERVATION_COLLECTED_NOT_DEPLOYMENT_APPROVAL` never authorizes deployment. Permanent Subagent Driven/task-relevant ECC rule0ZE and existing manual ZIP/security/release contracts remain binding.
+
+**Unverified:** actual CloudLinux B1141 execution and exact title mismatch cause, unchanged original full calibration/cache/parent/group/drain checks, safe installation and public activation. No hosting fix, installation or Storefront readiness is claimed before the owner returns new evidence and remaining gates pass.
