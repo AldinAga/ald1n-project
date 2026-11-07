@@ -1,3 +1,16 @@
+# CURRENT 2026-11-08 — B1140 VERIFIED VISIBILITY OBSERVATION PACKAGE; HOST RUN PENDING
+
+Report1097 records the frozen75f78839ba401ab1ab7aa235620a783fa3a29086 observation-only packet: corrected RED42423083891, final CI42424332335/job128559256857 SUCCESS, verified artifact13594742646, independent review0/0/0 and root nine-file ZIP audit PASS. ZIP17964bytes/SHA2563cd59151b7e7ce5f8cfd87d21665443fb203fd30c06022a4304e7026f7ae701e. B1140 is a diagnostic source on its dedicated helper branch, not application code merged into main. [Delivery report](https://github.com/AldinAga/ald1n-project/blob/main/docs/operations/1097-B1140-VISIBILITY-OBSERVATION-DELIVERY-20261108.md). [Project Drive package](https://drive.google.com/file/d/1JtjmNw8FPRE1aBVZAN89pybSR9nSYC_h/view).
+
+Owner markerDONE proves only the final diagnostic callback write; actual1096WEB_VISIBILITY_TIMEOUT cause remains UNKNOWN. No B1140 hosting run, installation, activation or new PHP restart has occurred at this checkpoint. The consumed B1139 account-refresh approval is not reused. The diagnostic preserves normal HTTP via an owned temporary pass-through bridge and reports transport/stage/process/identity/title/idle facts separately with bounded sanitized output. exactFrozenCalibrationExecuted=false, psSampledThroughout=false, frozenLoopPredicateSatisfied=null and calibrationWouldPass=null; no exact calibration or deployment approval is inferred. Full cache/parent/group/installer gates remain untouched.
+
+Operator unzips the incoming/ subtree into /home/icaffeco/ald1n-project and invokes only bash /home/icaffeco/ald1n-project/incoming/b1140-visibility-observe.sh. Checksums are automatic. Existing b1135-web-client.php is required/pinned, not redelivered. Return only the numbered docs/operations report from REPORT=; never private state/keys/env/process dumps. Preserve old states, candidate and private retained targets. Initial local packaging-only missing compression assembly was resolved; failed artifacts retained, final ZIP audited; no shipped source/CI change.
+
+Permanent Subagent Driven/task-relevant ECC rule AGENTS0ZE remains in force. Current app/vendor, dirty Windows working trees/index, hosting settings and public StorefrontOFF remain unchanged. Earlier history follows byte-exact.
+
+
+---
+
 # CURRENT 2026-11-08 — B1140 SUBAGENT/ECC WORKFLOW; VISIBILITY DIAGNOSTIC IN PREPARATION
 
 Owner permanently requires Subagent Driven development and relevant installed ECC workflows. Canonical AGENTS.md section 0ZE was published in main be5a76180014aa167d5d0824bd53c92b12f00288: scoped single writer per path, frozen independent review, coordinator package audit, applicable TDD/debugging/security/verification, no overlapping edits and no redundant replay of completed CI. Select only skills relevant to the task; existing project contracts and explicit owner decisions remain authoritative. This rule does not authorize a new stack, local runtime, production mutation or release-gate waiver.
