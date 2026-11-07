@@ -1,0 +1,299 @@
+name: B1111 observed-host PHP lock diagnostic (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/b1111-observed-host-php-lock-compat.yml'
+      - 'tools/storefront/b1111/**'
+permissions:
+  contents: read
+concurrency:
+  group: b1111-observed-host-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  observed-host-lock-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      baseline_db:
+        image: mariadb:10.11.19
+        env: {MARIADB_DATABASE: ald1n_retirement_ci, MARIADB_USER: ald1n_test, MARIADB_PASSWORD: ci_only_b1111, MARIADB_ROOT_PASSWORD: ci_only_root}
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      candidate_db:
+        image: mariadb:10.11.19
+        env: {MARIADB_DATABASE: ald1n_retirement_ci, MARIADB_USER: ald1n_test, MARIADB_PASSWORD: ci_only_b1111, MARIADB_ROOT_PASSWORD: ci_only_root}
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: ald1n_retirement_ci
+      DB_USERNAME: ald1n_test
+      DB_PASSWORD: ci_only_b1111
+      LEGACY_DB_HOST: 127.0.0.1
+      LEGACY_DB_PORT: '1'
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+      LEGACY_DB_PASSWORD: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+      PUBLIC_STOREFRONT_ENABLED: 'false'
+      PUBLIC_CATALOG_READONLY_ENABLED: 'false'
+      PUBLIC_CHECKOUT_ENABLED: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ENABLED: 'false'
+      WARRANTY_ACTIVATION_RECOVERY_ALERTS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+      - name: Verify every observed raw byte and negative guard before dependency execution
+        id: reconstruction
+        run: |
+          set +e
+          out="$RUNNER_TEMP/b1111"
+          node tools/storefront/b1111/reconstruct-observed-php.mjs reconstruct "$out" > "$RUNNER_TEMP/b1111-reconstruct.log" 2>&1
+          rc=$?
+          mkdir -p "$out/evidence"
+          cp "$RUNNER_TEMP/b1111-reconstruct.log" "$out/evidence/reconstruct.log"
+          printf '%s\n' "$rc" > "$out/evidence/reconstruct.exit"
+          cat "$out/evidence/reconstruct.log"
+          exit "$rc"
+      - name: Download the same digest-pinned Composer for both lock legs
+        run: |
+          set +e
+          evidence="$RUNNER_TEMP/b1111/evidence"
+          curl --fail --silent --show-error --location --retry 2 'https://getcomposer.org/download/2.11.1/composer.phar' --output "$RUNNER_TEMP/composer-2.11.1.phar" 2>&1 | tee "$evidence/download-composer.log"
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -eq 0 ]; then
+            printf '%s  %s\n' '6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c' "$RUNNER_TEMP/composer-2.11.1.phar" | sha256sum --check >> "$evidence/download-composer.log" 2>&1
+            rc=$?
+          fi
+          printf '%s\n' "$rc" > "$evidence/download-composer.exit"
+          printf '%s\n' '6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c' > "$evidence/composer.sha256"
+          cat "$evidence/download-composer.log"
+          exit "$rc"
+      - name: Full existing entrypoint on independent disposable databases; retain both failures
+        run: |
+          set +e
+          out="$RUNNER_TEMP/b1111"
+          evidence="$out/evidence"
+          run_leg() {
+            leg="$1"; port="$2"
+            app="$out/$leg/apps/cms/current"
+            (
+              cd "$app" || exit 51
+              export DB_PORT="$port"
+              php -r '$d=new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));if($d->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_retirement_ci"||!str_starts_with($d->query("SELECT VERSION()")->fetchColumn(),"10.11.19-"))exit(47);'
+              rc=$?
+              if [ "$rc" -ne 0 ]; then printf '%s\n' "$rc" > "$evidence/$leg.install.exit"; return; fi
+              php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts install --no-interaction --prefer-dist --no-progress 2>&1 | tee "$evidence/$leg.install.log"
+              rc=${PIPESTATUS[0]}
+              printf '%s\n' "$rc" > "$evidence/$leg.install.exit"
+              if [ "$rc" -eq 0 ]; then
+                php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --list-tests 2>&1 | tee "$evidence/$leg.list.log"
+                rc=${PIPESTATUS[0]}; printf '%s\n' "$rc" > "$evidence/$leg.list.exit"
+                php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/$leg.xml" 2>&1 | tee "$evidence/$leg.log"
+                rc=${PIPESTATUS[0]}; printf '%s\n' "$rc" > "$evidence/$leg.exit"
+              fi
+              php bin/static-check.php 2>&1 | tee "$evidence/$leg.static.log"
+              rc=${PIPESTATUS[0]}; printf '%s\n' "$rc" > "$evidence/$leg.static.exit"
+              if [ "$leg" = candidate ]; then
+                php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail > "$evidence/candidate-audit.json" 2> "$evidence/candidate-audit.stderr"
+                rc=$?; printf '%s\n' "$rc" > "$evidence/candidate-audit.exit"
+                cat "$evidence/candidate-audit.json" "$evidence/candidate-audit.stderr"
+              fi
+            )
+          }
+          run_leg baseline 3306 & baseline_pid=$!
+          run_leg candidate 3307 & candidate_pid=$!
+          wait "$baseline_pid"; wait "$candidate_pid"
+      - name: Reverify source scope after both test runs
+        if: ${{ always() && steps.reconstruction.outcome == 'success' }}
+        run: |
+          set +e
+          evidence="$RUNNER_TEMP/b1111/evidence"
+          node tools/storefront/b1111/reconstruct-observed-php.mjs verify "$RUNNER_TEMP/b1111" 2>&1 | tee "$evidence/verify.log"
+          rc=${PIPESTATUS[0]}; printf '%s\n' "$rc" > "$evidence/verify.exit"
+          exit "$rc"
+      - name: Compare every collected identity, outcome, diagnostic and zero-advisory gate
+        if: always()
+        run: |
+          set +e
+          evidence="$RUNNER_TEMP/b1111/evidence"
+          mkdir -p "$evidence"
+          php <<'PHP' > "$evidence/compare.log" 2>&1
+          <?php
+          declare(strict_types=1);
+          $dir=getenv('RUNNER_TEMP').'/b1111/evidence';
+          $result=['status'=>'FAIL_CLOSED','stage'=>'inputs','releaseApproval'=>false];
+          function need(bool $ok,string $reason):void { if(!$ok)throw new RuntimeException($reason); }
+          function rc(string $name):int { global $dir; $p="$dir/$name"; need(is_file($p),'Missing exit receipt: '.$name); $s=trim(file_get_contents($p)); need((bool)preg_match('/^\d+$/D',$s),'Invalid RC: '.$name); return (int)$s; }
+          function auditCounts(mixed $audit,int $exit):array {
+              need(is_array($audit),'Invalid audit document');
+              foreach(['advisories','abandoned'] as $key)
+                  need(array_key_exists($key,$audit) && is_array($audit[$key]),'Missing/invalid audit collection: '.$key);
+              $counts=['advisories'=>count($audit['advisories']),'abandoned'=>count($audit['abandoned'])];
+              need($exit===0 && $counts['advisories']===0 && $counts['abandoned']===0,'candidate audit failed');
+              return $counts;
+          }
+          function auditSchemaFixtures(string $dir):array {
+              $fixtures=[
+                  ['explicit_empty','{"advisories":[],"abandoned":[]}',0,true],
+                  ['missing_abandoned','{"advisories":[]}',0,false],
+                  ['null_abandoned','{"advisories":[],"abandoned":null}',0,false],
+                  ['missing_advisories','{"abandoned":[]}',0,false],
+                  ['null_advisories','{"advisories":null,"abandoned":[]}',0,false],
+                  ['string_advisories','{"advisories":"invalid","abandoned":[]}',0,false],
+                  ['string_abandoned','{"advisories":[],"abandoned":"invalid"}',0,false],
+                  ['boolean_advisories','{"advisories":false,"abandoned":[]}',0,false],
+                  ['integer_abandoned','{"advisories":[],"abandoned":0}',0,false],
+                  ['scalar_root','false',0,false],
+                  ['nonempty_advisories','{"advisories":{"synthetic/package":[{"advisoryId":"synthetic"}]},"abandoned":[]}',0,false],
+                  ['nonempty_abandoned','{"advisories":[],"abandoned":{"synthetic/package":"replacement/package"}}',0,false],
+                  ['nonzero_audit_rc','{"advisories":[],"abandoned":[]}',1,false],
+              ];
+              $rows=[];$failed=0;
+              foreach($fixtures as [$name,$input,$exit,$expected]){
+                  $accepted=false;$error=null;
+                  try {auditCounts(json_decode($input,true,512,JSON_THROW_ON_ERROR),$exit);$accepted=true;}
+                  catch(Throwable $e){$error=['type'=>$e::class,'message'=>$e->getMessage()];}
+                  $passed=$accepted===$expected;if(!$passed)$failed++;
+                  $rows[]=['name'=>$name,'input'=>$input,'auditRC'=>$exit,'expectedAccepted'=>$expected,'actualAccepted'=>$accepted,'passed'=>$passed,'error'=>$error];
+              }
+              $proof=['parser'=>'same auditCounts used for candidate-audit.json','total'=>count($rows),'failed'=>$failed,'fixtures'=>$rows];
+              file_put_contents("$dir/audit-schema-fixtures.json",json_encode($proof,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+              echo 'B1111_AUDIT_SCHEMA_FIXTURES='.json_encode($proof)."\n";
+              return ['total'=>count($rows),'failed'=>$failed];
+          }
+          function cases(string $leg):array {
+              global $dir,$result;
+              need(rc("$leg.install.exit")===0,$leg.' dependency install failed');
+              need(rc("$leg.list.exit")===0,$leg.' suite collection failed');
+              $log=file_get_contents("$dir/$leg.list.log");
+              preg_match_all('/^\s+- (.+)\r?$/m',$log,$matches);
+              $expected=array_map('trim',$matches[1]);
+              need(count($expected)>0 && count($expected)===count(array_unique($expected)),$leg.' empty/duplicate collection');
+              need(is_file("$dir/$leg.xml"),$leg.' missing JUnit');
+              $bytes=file_get_contents("$dir/$leg.xml"); need(!str_contains($bytes,'<!DOCTYPE'), 'DOCTYPE forbidden');
+              $xml=simplexml_load_string($bytes,SimpleXMLElement::class,LIBXML_NONET);
+              need($xml!==false,$leg.' invalid JUnit');
+              $rows=$xml->xpath('//testcase')?:[]; need(count($rows)>0,$leg.' empty JUnit');
+              $cases=[];
+              foreach($rows as $row){
+                  $class=(string)$row['class']; $name=(string)$row['name']; $id=$class.'::'.$name;
+                  need($class!=='' && $name!=='' && !isset($cases[$id]),$leg.' missing/duplicate identity '.$id);
+                  $outcome='passed';$diagnostics=[];
+                  foreach(['failure','error','skipped'] as $kind)foreach($row->$kind as $node){
+                      $outcome=$kind;$attributes=[];foreach($node->attributes() as $k=>$v)$attributes[$k]=(string)$v;
+                      $diagnostics[]=['kind'=>$kind,'attributes'=>$attributes,'text'=> (string)$node];
+                  }
+                  $cases[$id]=['outcome'=>$outcome,'diagnostics'=>$diagnostics];
+              }
+              sort($expected,SORT_STRING);$actual=array_keys($cases);sort($actual,SORT_STRING);
+              $result['collectionChecks'][$leg]=['collected'=>count($expected),'executed'=>count($actual),
+                  'missing'=>array_values(array_diff($expected,$actual)),'extra'=>array_values(array_diff($actual,$expected))];
+              need($expected===$actual,$leg.' collected identities differ from executed JUnit (missing/extra)');
+              ksort($cases,SORT_STRING);return ['collected'=>$expected,'cases'=>$cases,'rc'=>rc("$leg.exit")];
+          }
+          try {
+              need(rc('reconstruct.exit')===0,'reconstruction failed');
+              need(rc('download-composer.exit')===0,'Composer integrity/download failed');
+              need(rc('verify.exit')===0,'source changed or source verification failed');
+              $source=json_decode(file_get_contents("$dir/reconstruction.json"),true,512,JSON_THROW_ON_ERROR);
+              need($source['census']['baseline']['testsPHP']===94 && $source['census']['baseline']===$source['census']['candidate'],'observed test census mismatch');
+              $result['stage']='suite_comparison'; $base=cases('baseline');$candidate=cases('candidate');
+              $before=$base['cases'];$after=$candidate['cases'];
+              $missing=array_values(array_diff(array_keys($before),array_keys($after)));
+              $extra=array_values(array_diff(array_keys($after),array_keys($before)));
+              $inherited=[];$regressions=[];$changed=[];$skipped=[];
+              // Retain full raw diagnostics and compare them separately from bounded dependency-stack signatures.
+              $normalize=static fn($v)=>str_replace([getenv('RUNNER_TEMP').'/b1111/baseline/',getenv('RUNNER_TEMP').'/b1111/candidate/'],'<isolated-root>/',json_encode($v,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES));
+              $signature=static function(array $row):string {
+                  foreach($row['diagnostics'] as &$d){
+                      $text=str_replace([getenv('RUNNER_TEMP').'/b1111/baseline/',getenv('RUNNER_TEMP').'/b1111/candidate/'],'<isolated-root>/',$d['text']);
+                      $text=str_replace(['Port: 3306, Database: ald1n_retirement_ci','Port: 3307, Database: ald1n_retirement_ci'],'Port: <disposable-port>, Database: ald1n_retirement_ci',$text);
+                      $d['text']=preg_replace('~^(<isolated-root>/apps/cms/current/vendor/[^\r\n]+):\d+$~m','$1:<dependency-line>',$text);
+                  }
+                  return json_encode($row,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+              };
+              $probe=static fn(string $text)=>['outcome'=>'error','diagnostics'=>[['kind'=>'error','attributes'=>['type'=>'ExampleError'],'text'=>$text]]];
+              $a=$probe("missing table; Port: 3306, Database: ald1n_retirement_ci\n<isolated-root>/apps/cms/current/vendor/example.php:10\n<isolated-root>/apps/cms/current/app/example.php:7");
+              $b=$probe("missing table; Port: 3307, Database: ald1n_retirement_ci\n<isolated-root>/apps/cms/current/vendor/example.php:20\n<isolated-root>/apps/cms/current/app/example.php:7");
+              need($signature($a)===$signature($b),'signature probe: disposable port/vendor line mapping');
+              need($signature($a)!==$signature($probe(str_replace('missing table','different error',$b['diagnostics'][0]['text']))),'signature probe: changed error must differ');
+              need($signature($a)!==$signature($probe(str_replace('app/example.php:7','app/example.php:8',$b['diagnostics'][0]['text']))),'signature probe: app frame must differ');
+              $result['signatureSelfChecks']=3;
+              $result['signatureMapping']='Only the two disposable roots, exact test-schema connection ports and vendor stack line numbers. Preserve exact raw diagnostics; all messages/types, vendor file paths and app/test stack lines remain significant.';
+              foreach($after as $id=>$row){
+                  if($row['outcome']==='skipped')$skipped[]=$id;
+                  if(!isset($before[$id]))continue;
+                  if($row['outcome']!=='passed' && $before[$id]['outcome']===$row['outcome'] && $signature($before[$id])===$signature($row))$inherited[]=$id;
+                  elseif($row['outcome']!=='passed')$regressions[]=$id;
+                  if($normalize($before[$id])!==$normalize($row))$changed[$id]=['baseline'=>$before[$id],'candidate'=>$row];
+              }
+              $baseBad=array_keys(array_filter($before,fn($r)=>$r['outcome']!=='passed'));
+              $result+=['baselineCases'=>count($before),'candidateCases'=>count($after),'baselineRC'=>$base['rc'],'candidateRC'=>$candidate['rc'],
+                  'missingIdentities'=>$missing,'extraIdentities'=>$extra,'baselineProblems'=>$baseBad,'inheritedFailures'=>$inherited,
+                  'candidateRegressions'=>$regressions,'skippedIdentities'=>$skipped,'changedOutcomesOrDiagnostics'=>$changed,
+                  'baselineIdentitiesAndOutcomes'=>$before,'candidateIdentitiesAndOutcomes'=>$after];
+              $result['stage']='static_and_audit';
+              $result['baselineStaticRC']=rc('baseline.static.exit');$result['candidateStaticRC']=rc('candidate.static.exit');
+              $baseStatic=file_get_contents("$dir/baseline.static.log");$candidateStatic=file_get_contents("$dir/candidate.static.log");
+              $result['staticOutputsIdentical']=$baseStatic===$candidateStatic;
+              $result['baselineStaticSHA256']=hash('sha256',$baseStatic);$result['candidateStaticSHA256']=hash('sha256',$candidateStatic);
+              preg_match_all('/^FAIL\s+(.+)$/m',$baseStatic,$baseStaticFailures);preg_match_all('/^FAIL\s+(.+)$/m',$candidateStatic,$candidateStaticFailures);
+              $result['baselineStaticFailures']=$baseStaticFailures[1];$result['candidateStaticFailures']=$candidateStaticFailures[1];
+              $audit=json_decode(file_get_contents("$dir/candidate-audit.json"),true,512,JSON_THROW_ON_ERROR);
+              $result['candidateAuditRC']=rc('candidate-audit.exit');
+              $auditCounts=auditCounts($audit,$result['candidateAuditRC']);
+              $result['candidateAdvisoryPackages']=$auditCounts['advisories'];$result['candidateAbandonedPackages']=$auditCounts['abandoned'];
+              $result['auditSchemaFixtures']=auditSchemaFixtures($dir);
+              need($result['auditSchemaFixtures']['failed']===0,'audit schema fixtures failed');
+              need($missing===[] && $extra===[],'identity loss or unexpected identities');
+              need($regressions===[],'candidate regression or changed failure signature');
+              need($skipped===[] && !in_array('skipped',array_column($before,'outcome'),true),'skipped identities');
+              $staticBlocked=$result['baselineStaticRC']!==0 || $result['candidateStaticRC']!==0;
+              need(!$staticBlocked || ($result['baselineStaticRC']===$result['candidateStaticRC'] && $result['staticOutputsIdentical']),'new/different canonical static failure');
+              if($baseBad!==[] || $inherited!==[] || $staticBlocked){$result['status']='BLOCKED_INHERITED_FAILURES';$result['stage']=$staticBlocked?'inherited_suite_or_static_failures':'inherited_suite_failures';}
+              else {need($base['rc']===0 && $candidate['rc']===0,'nonzero suite RC');$result['status']='BOUNDED_DIAGNOSTIC_PASS';$result['stage']='complete';}
+          } catch(Throwable $e){$result['reason']=$e->getMessage();}
+          file_put_contents("$dir/comparison.json",json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+          echo 'B1111_DIAGNOSTIC='.json_encode(array_diff_key($result,array_flip(['baselineIdentitiesAndOutcomes','candidateIdentitiesAndOutcomes','changedOutcomesOrDiagnostics'])))."\n";
+          exit($result['status']==='BOUNDED_DIAGNOSTIC_PASS'?0:1);
+          PHP
+          rc=$?; printf '%s\n' "$rc" > "$evidence/compare.exit"
+          cat "$evidence/compare.log"
+          exit "$rc"
+      - name: Reject unexpected/private artifact files and record every exported digest
+        id: manifest
+        if: always()
+        run: node tools/storefront/b1111/reconstruct-observed-php.mjs manifest "$RUNNER_TEMP/b1111"
+      - name: Preserve both complete test results and bounded immutable receipts
+        if: ${{ always() && steps.manifest.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1111-observed-host-lock-diagnostic
+          path: ${{ runner.temp }}/b1111/evidence/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
