@@ -1,3 +1,19 @@
+# CURRENT 2026-11-07 — B1139 ACTUAL1096 REFRESH ACKNOWLEDGED; VISIBILITY TIMEOUT PRE-SWITCH
+
+Actual owner1096 rawSHA2560b62589448a5b0c6f192ecf31d98c8865d5d1ac5697c6dc0a9a3b12f366452a2 supersedes pending execution. Packet integrity/admission passed,8531candidate reused/no vendor recopy; schedulerpauseRC0 and ownedmaintenance503PASS. Durable ACCOUNT_REFRESH_INTENT→SIGNALLED→ACKNOWLEDGED recorded. Oldparent1835348/cacheStart1794078927 became newparent1845071/cacheStart1794079211; marker/home/UID1109 evidence acknowledged. This proves that the accepted one-shot account refresh happened, not a complete calibrated process group or installation.
+
+New OPcache observation: cacheFull=false/free519262424bytes(about495MiB), cachedScripts2/maxCachedKeys16229, protection2s/age1s/sentinel48bytes. Failure has moved beyond the previous FULL gate to INSTALL_HOLD_REASON=WEB_VISIBILITY_TIMEOUT. No WORKER_VISIBILITY_CALIBRATED or source switch reported. Dispatchrevoked; schedulerreleaseRC0; ROLLED_BACK_PRE_SWITCH; ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED=true; EXIT2. Do not call this installed/opened or a failed refresh. Post-rollback ordinarylogin200 is not separately reported here; no invented post-checkPASS.
+
+The frozen HostWebControl::calibrateVisibility reports one lossy15s umbrella before inspecting HTTP/curl outcome or stage flags. Missing/denied visibility request, missing/mismatched marker, process title mismatch, missed execution/shutdown observation or absent idle transition can all produce this timeout. Existing HTTP CI explicitly did not exercise real LSAPI calibration; root cause is NOT PROVEN. Upstream PHP8.4.27 lsapi_main.c does use colon+last45path and clears the suffix AFTER request shutdown, so do not blindly relax that match. Source https://github.com/php/php-src/blob/php-8.4.27/sapi/litespeed/lsapi_main.c#L605 .
+
+Minimum next evidence requires no new host action: current B1139 attempt retains private visibility-<nonce>.json containing only nonce/stage/PID/namespace/UID. Owner asked to paste ONLY that small file from /home/icaffeco/.ald1n-b1139-state/<attempt>/ using File Manager(showhidden). Do NOT ask for state.json/web.json/signing keys or whole private folder. done/execution/shutdown/missing select different next branches; a final done marker alone does not prove what CLI observed. No timeout increase, guard bypass, new installer/restart or source change justified yet; reproduce the selected branch in GitHub before a fix.
+
+The owner-approved single account refresh has now been consumed. Do not re-signal automatically, rerun B1139 for redeployment, delete terminal pointers or silently reuse approval for another account refresh. All B1134/B1135/B1137/B1139states, marker and retained original/candidate/private targets stay protected. PublicStorefront remainsOFF; schema/mail/security/functional acceptance gates are unchanged.
+
+Raw1096 archived byte-exact to GitHub/Drive, notes copied to new local checkpoints and canonical history preserved. No source/vendor/DB/flag/service/cache mutation by assistant. Fresh main app tree and dirtylocalHEAD/index preserved. Wait for retained visibility receipt text; do not allocate another numbered coordinator report while owner is executing any batch.
+
+---
+
 # CURRENT 2026-11-06 — B1139 VERIFIED ONE-SHOT ACCOUNT PHP REFRESH + OFF ATTEMPT; HOST PENDING
 
 [Report1095](1095-B1139-VERIFIED-ACCOUNT-PHP-REFRESH-OFF-ATTEMPT-20261106.md) is current. Owner explicitly chose preparation with wholeicaffecoPHPaccount scope/possible impact to other sites, StorefrontOFF/allguards/no-guarantee. [B1139 packet](https://drive.google.com/file/d/1qlTr5DBRYwuW1c41_TbjQn1M7S4gYo5x/view), SHA25615f3862edcf97fd4eaeb95b20c6fc5bebd15d5069f5c03fbd5469ebcf66a14b3,9incomingfiles/23208bytes. Choose suitable time, unziproot then bash /home/icaffeco/ald1n-project/incoming/b1139-controlled-install.sh . No agent hostexecution yet.
