@@ -1,4 +1,4 @@
-name: B1141 existing canonical title classifier RED (NO DEPLOY)
+name: B1141 bounded title/path observation (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
@@ -6,9 +6,9 @@ on:
 permissions:
   contents: read
 jobs:
-  focused-title-red:
+  focused-observation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -19,18 +19,35 @@ jobs:
           php-version: '8.4'
           extensions: curl
           coverage: none
-      - name: Preserve expected-reason RED against unchanged B1140 classifier
+      - name: Syntax and unchanged installer guard dependencies
         run: |
-          set -uo pipefail
-          rc=0
-          php tools/storefront/b1141/red-alias.php "$GITHUB_WORKSPACE/tools/storefront/b1140" > "$RUNNER_TEMP/b1141-red.txt" 2>&1 || rc=$?
-          cat "$RUNNER_TEMP/b1141-red.txt"
-          test "$rc" = 2 || exit 2
-          grep -Fx 'VALIDATED_ALIAS_TITLE_NOT_CLASSIFIED' "$RUNNER_TEMP/b1141-red.txt" || exit 2
+          set -euo pipefail
+          for file in tools/storefront/b1141/*.php; do php -l "$file"; done
+          bash -n tools/storefront/b1141/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1141/operator-wrapper.sh; then exit 2; fi
+          printf '%s  %s\n' 546a77f1229af2813da3379159b8cb8f6d8057964e5400c78c49dc676894da34 tools/storefront/b1135/HostWebControl.php | sha256sum -c -
+          printf '%s  %s\n' 177be93697dc7fd78c80e6564d6c872a3f55787adf9cd603a5b323bbb6e8eb7e tools/storefront/b1135/FrontCacheEndpoint.php | sha256sum -c -
+      - name: Exact predicate samples, partial marker and privacy negatives
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1141/trace-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1141" | tee "$RUNNER_TEMP/b1141-predicate.json"
+      - name: Known aliases, finite title forms, fresh identity and private marker bounds
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1141/title-path-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1141" | tee "$RUNNER_TEMP/b1141-title.json"
+          php tools/storefront/b1141/red-alias.php "$GITHUB_WORKSPACE/tools/storefront/b1141" | tee "$RUNNER_TEMP/b1141-alias-green.txt"
+      - name: Actual PHP HTTP observer, auth, collision, normal traffic and cleanup
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1141/http-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1141" "$GITHUB_WORKSPACE/apps/cms/current/public/index.php" | tee "$RUNNER_TEMP/b1141-http.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1141-expected-red
-          path: ${{ runner.temp }}/b1141-red.txt
-          if-no-files-found: error
+          name: b1141-observation-evidence
+          path: |
+            ${{ runner.temp }}/b1141-predicate.json
+            ${{ runner.temp }}/b1141-http.json
+            ${{ runner.temp }}/b1141-title.json
+            ${{ runner.temp }}/b1141-alias-green.txt
+          if-no-files-found: warn
           retention-days: 7
