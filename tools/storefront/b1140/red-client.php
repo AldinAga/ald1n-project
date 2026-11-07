@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);require $argv[1];$c=json_decode(file_get_contents($argv[2]),true,64,JSON_THROW_ON_ERROR);$o=(new ReflectionClass(HostWebControl::class))->newInstanceWithoutConstructor();foreach(['origin','private','config','key','token'] as $key)(new ReflectionProperty($o,$key))->setValue($o,$c[$key]);$started=hrtime(true);
+try{$o->calibrateVisibility();echo 'UNEXPECTED_CALIBRATION_PASS';exit(9);}catch(RuntimeException $e){echo json_encode(['code'=>$e->getMessage(),'elapsedSeconds'=>(hrtime(true)-$started)/1e9],JSON_THROW_ON_ERROR).PHP_EOL;exit($e->getMessage()==='WEB_VISIBILITY_TIMEOUT'?2:3);}
