@@ -1,3 +1,18 @@
+# CURRENT 2026-11-07 — B1139 RETAINED VISIBILITY DONE; OBSERVATION-ONLY TRACE NEXT
+
+Owner supplied only retained visibility-4ed3a29b0ed17fb2a049bc93e93d7eb6.json, rawSHA256a41ac904d2c5f38a8064515f44313e73b1db62e633ee44b9c177e4cb137df62c. Parsednonce matches filename, stage=done, PID1845127, namespacepid:[4026531836], UID1109. This proves the diagnostic shutdown callback reached its final write. It does NOT prove HTTP200, what CLI observed during execution/shutdown, matching ps comm/title, native PHP teardown completion or idle transition. Exact1096calibration root cause remains unproven; no guessed timeout/title relaxation.
+
+Next minimum B1140 preparation is OBSERVATION_ONLY: reuse owned authenticated actual-index pass-through bridge/no down, one fixed held request with existing1.5s execution/3s shutdown marker behavior, preserve source-faithful15s predicate classification but report transport/stage/UID/namespace/targetprocess/title-shape/idle facts separately. No cached-sentinel prerequisite for observation is not deployment approval; installer gates and old engine remain untouched. Collection completion distinct from calibrationWouldPass/unknown. Never emit release approval.
+
+One bounded host run must identify each blocked condition even when HTTPfinished and idlefalse; whitelist numeric/enum/boolean facts only, no raw argv/cmdline/paths/env/unrelated process details or response-body dump. Normal login before/after and exact owned cleanup/revocation required. No accountPHPsignal/restart, installer, scheduler, production data/flag/DB or oldB1139state modification. All old terminal pointers/marker/candidate/private retained targets stay protected; accepted one-shot refresh was already consumed by1096.
+
+Before delivery reproduce a frozen-method ambiguous timeout against real HTTPS/nativePHP counterexample, then test new detailed diagnostics/auth/collision/partialstage/privacy/cleanup in GitHub. That counterexample is not proof of the exact hosting cause. No B1140 packet yet claimed tested/delivered at this checkpoint. Root approved this bounded read-only implementation; single source writer, frozen independent review and checkpoint before any executable link. No new installer/recovery chain until actual visibility cause is known.
+
+Retained JSON archived byte-exact as B1139-1096-visibility-4ed3a29b0ed17fb2a049bc93e93d7eb6.json; no keys/config files requested or stored. Prior1096refresh acknowledged/newcache notFULL, rollbackpre-switch/schedulerrelease0/codevendoruntouched remain credited. Current appsource/dirtyindex unchanged and publicStorefrontOFF. Earlier history preserved; no coordinator report numbering while owner runs.
+
+
+---
+
 # CURRENT 2026-11-07 — B1139 ACTUAL1096 REFRESH ACKNOWLEDGED; VISIBILITY TIMEOUT PRE-SWITCH
 
 Actual owner1096 rawSHA2560b62589448a5b0c6f192ecf31d98c8865d5d1ac5697c6dc0a9a3b12f366452a2 supersedes pending execution. Packet integrity/admission passed,8531candidate reused/no vendor recopy; schedulerpauseRC0 and ownedmaintenance503PASS. Durable ACCOUNT_REFRESH_INTENT→SIGNALLED→ACKNOWLEDGED recorded. Oldparent1835348/cacheStart1794078927 became newparent1845071/cacheStart1794079211; marker/home/UID1109 evidence acknowledged. This proves that the accepted one-shot account refresh happened, not a complete calibrated process group or installation.
