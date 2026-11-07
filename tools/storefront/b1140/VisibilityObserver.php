@@ -7,10 +7,11 @@ final class VisibilityObserver
     {
         $pipes=[];$process=@proc_open($command,[1=>['pipe','w'],2=>['pipe','w']],$pipes);if(!is_resource($process))return ['state'=>'unavailable','rc'=>null,'output'=>''];
         foreach($pipes as $pipe)stream_set_blocking($pipe,false);$output='';$bytes=0;$state='complete';$rc=null;$deadline=hrtime(true)+max(1,$budgetMilliseconds)*1000000;
+        $drain=static function()use($pipes,&$output,&$bytes,&$state,$limit):bool{foreach($pipes as $number=>$pipe){$part=stream_get_contents($pipe,$limit+1);if(!is_string($part)){$state='unreadable';return false;}$bytes+=strlen($part);if($bytes>$limit){$state='overflow';return false;}if($number===1)$output.=$part;}return true;};
         try{
             do{
-                foreach($pipes as $number=>$pipe){$part=stream_get_contents($pipe,$limit+1);if(!is_string($part)){$state='unreadable';break 2;}$bytes+=strlen($part);if($bytes>$limit){$state='overflow';break 2;}if($number===1)$output.=$part;}
-                $status=proc_get_status($process);if(!$status['running']){$rc=$status['exitcode'];break;}if(hrtime(true)>=$deadline){$state='timeout';break;}usleep(1000);
+                if(!$drain())break;
+                $status=proc_get_status($process);if(!$status['running']){if(!$drain())break;$rc=$status['exitcode'];break;}if(hrtime(true)>=$deadline){$state='timeout';break;}usleep(1000);
             }while(true);
             if($state!=='complete'){@proc_terminate($process,9);$output='';}
         }finally{foreach($pipes as $pipe)fclose($pipe);$closed=proc_close($process);if($rc===null&&$state==='complete')$rc=$closed;}
@@ -58,7 +59,7 @@ final class VisibilityObserver
     }
     private static function initial():array
     {
-        return ['observationOnly'=>true,'deploymentApproval'=>false,'collectionComplete'=>false,'calibrationWouldPass'=>false,'frozenLoopPredicateSatisfied'=>null,'observedLoopExit'=>false,'heldExecutionAndShutdownSeen'=>false,'psSnapshot'=>null,'psSampledThroughout'=>false,'markerSeen'=>false,'partialOrMalformedMarkerReads'=>0,'rejectedMarkerReads'=>0,'invalidTargetPIDReads'=>0,'rawStages'=>[],'acceptedStages'=>[],'processMatchedStages'=>[],'nonceMatchSeen'=>false,'uidMatchSeen'=>false,'namespaceMatchSeen'=>false,'localNamespaceReadable'=>false,'targetPID'=>null,'targetCommCategories'=>[],'targetCommLsphpSeen'=>false,'targetIdentityReadableSeen'=>false,'exact45SuffixMatchSeen'=>false,'titleHasColonSeen'=>false,'titleAtLeast46BytesSeen'=>false,'nonemptyIdlePrefixSeen'=>false,'matchingIdentitySeen'=>false,'pidStartStable'=>true,'idleTransitionObserved'=>false,'transportCompleted'=>false,'httpStatus'=>null,'curlRC'=>null,'curlMultiRC'=>null,'responseScopeValid'=>false,'bodyOverflow'=>false,'timedOut'=>false,'samples'=>0];
+        return ['observationOnly'=>true,'deploymentApproval'=>false,'collectionComplete'=>false,'calibrationWouldPass'=>null,'exactFrozenCalibrationExecuted'=>false,'frozenLoopPredicateSatisfied'=>null,'observedLoopExit'=>false,'heldExecutionAndShutdownSeen'=>false,'psSnapshot'=>null,'psSampledThroughout'=>false,'markerSeen'=>false,'partialOrMalformedMarkerReads'=>0,'rejectedMarkerReads'=>0,'invalidTargetPIDReads'=>0,'rawStages'=>[],'acceptedStages'=>[],'processMatchedStages'=>[],'nonceMatchSeen'=>false,'uidMatchSeen'=>false,'namespaceMatchSeen'=>false,'localNamespaceReadable'=>false,'targetPID'=>null,'targetCommCategories'=>[],'targetCommLsphpSeen'=>false,'targetIdentityReadableSeen'=>false,'exact45SuffixMatchSeen'=>false,'titleHasColonSeen'=>false,'titleAtLeast46BytesSeen'=>false,'nonemptyIdlePrefixSeen'=>false,'matchingIdentitySeen'=>false,'pidStartStable'=>true,'idleTransitionObserved'=>false,'transportCompleted'=>false,'httpStatus'=>null,'curlRC'=>null,'curlMultiRC'=>null,'responseScopeValid'=>false,'bodyOverflow'=>false,'timedOut'=>false,'samples'=>0];
     }
     public static function observe(CurlHandle $curl,string $private,array $config,string $nonce):array
     {
@@ -81,11 +82,8 @@ final class VisibilityObserver
             $trace['bodyOverflow']=$overflow;
             try{$receipt=json_decode($body,true,32,JSON_THROW_ON_ERROR);$trace['responseScopeValid']=is_array($receipt)&&($receipt['status']??null)==='ok'&&($receipt['id']??null)===$config['id']&&($receipt['nonce']??null)===$nonce&&($receipt['uid']??null)===posix_geteuid()&&($receipt['actualIndex']??false)===true&&($receipt['librarySHA256']??null)===$config['librarySHA256']&&($receipt['bridgeSHA256']??null)===$config['bridgeSHA256'];}catch(Throwable $e){}
             $trace['observedLoopExit']=!$running&&$idle;$trace['heldExecutionAndShutdownSeen']=isset($matched['execution'],$matched['shutdown']);
-            $ps=$trace['psSnapshot'];$psKnown=is_array($ps)&&$ps['state']==='complete'&&$ps['rc']===0;$psCompatible=$psKnown&&$ps['targetListed']===true&&$ps['targetCommCategory']==='lsphp';
-            // One ps snapshot cannot replay every original-loop sample; compatible results remain unknown.
-            $trace['frozenLoopPredicateSatisfied']=$psKnown&&!$psCompatible?false:null;
-            if(!$trace['observedLoopExit']||!$trace['heldExecutionAndShutdownSeen']||!$trace['pidStartStable'])$trace['frozenLoopPredicateSatisfied']=false;
-            $trace['calibrationWouldPass']=$trace['observedLoopExit']&&$trace['heldExecutionAndShutdownSeen']&&$trace['pidStartStable']&&$psCompatible&&$mrc===CURLM_OK&&$trace['httpStatus']===200&&$trace['curlRC']===0&&$trace['responseScopeValid']?null:false;
+            // This diagnostic does not execute the unchanged original calibration.
+            $trace['frozenLoopPredicateSatisfied']=null;$trace['calibrationWouldPass']=null;
             $trace['collectionComplete']=true;
         }finally{curl_multi_remove_handle($multi,$curl);curl_multi_close($multi);curl_close($curl);$trace['elapsedSeconds']=round((hrtime(true)-$started)/1e9,3);}
         foreach(['rawStages','acceptedStages','processMatchedStages','targetCommCategories'] as $key)$trace[$key]=array_keys($trace[$key]);
