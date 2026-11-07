@@ -46,7 +46,10 @@ mkdir "$HOME/.ald1n-stage/report-sequence.lock" || fail 'another operator report
 next="$("$PHP" -d opcache.enable_cli=0 -r '$highest=0;foreach(file($argv[1],FILE_IGNORE_NEW_LINES)?:[] as $p){if(preg_match("/^(\d+)-/",basename($p),$m))$highest=max($highest,(int)$m[1]);}foreach(new DirectoryIterator($argv[2]) as $i){if($i->isFile()&&preg_match("/^(\d+)-/",$i->getFilename(),$m))$highest=max($highest,(int)$m[1]);}if($highest<1096)exit(2);echo $highest+1;' "$scratch/reports.txt" "$ROOT/docs/operations")"; sequence=$?
 if test "$sequence" != 0; then rmdir "$HOME/.ald1n-stage/report-sequence.lock"; fail 'report sequence unavailable'; fi
 REPORT="$ROOT/docs/operations/${next}-B1140-VISIBILITY-OBSERVE-$(date +%Y%m%d-%H%M%S).md"
-(set -o noclobber; : > "$REPORT") || fail 'report collision'
+if ! (set -o noclobber; : > "$REPORT"); then
+  rmdir "$HOME/.ald1n-stage/report-sequence.lock"
+  fail 'report collision'
+fi
 rmdir "$HOME/.ald1n-stage/report-sequence.lock" || fail 'report reservation unlock'
 export REPORT
 printf 'SCRIPT=%s\nSCRIPT_SHA256=%s\nSCRIPT_NORMALIZED_INTEGRITY_SHA256=%s\nCHECKSUMS_SHA256=%s\n' "$SCRIPT" "$script_bytes" "$SELF_SHA" "$CHECKSUMS_SHA" | tee -a "$REPORT"
