@@ -26,6 +26,8 @@ Root independently audited ZIP membership/path/size, frozen source blobs, wrappe
 
 Exactly nine new files: entry, control, observer, content-hashed endpoint, wrapper, metadata, checksum manifest, README and provenance, all under `incoming/b1140-*`. Existing `incoming/b1135-web-client.php` is not redelivered; loader automatically requires SHA-256 `546a77f1229af2813da3379159b8cb8f6d8057964e5400c78c49dc676894da34`. Do not overwrite existing same-name B1140 files blindly. Old terminal states/candidate and retained private-file targets remain protected.
 
+Canonical executable `/home/icaffeco/ald1n-project/incoming/b1140-visibility-observe.sh` raw SHA-256 `052a768e088d0a95b0281b27c9529ce6e5ffaafb7964d3f9a823db59f17d45ee`; normalized self-integrity SHA-256 `c789760a3df746a0d21239dad049fc0de8c3a2b966fc6c59d28a2ca6062c1fb7`. Both were checked against the audited final ZIP. Operator integrity checks remain automatic; no separate manual checksum command is required.
+
 The first local ZIP attempt failed because Windows PowerShell required an explicit built-in `System.IO.Compression` assembly load. The local packaging helper was corrected; the failed stage and zero-byte ZIP were preserved under distinct failed-artifact names. Final exclusive ZIP assembly and independent audit succeeded. Shipped source was unchanged; no source CI replay or local PHP execution was needed.
 
 ## Operator handoff and limitations
