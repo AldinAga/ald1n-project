@@ -1,4 +1,4 @@
-name: B1140 frozen visibility ambiguity RED (NO DEPLOY)
+name: B1140 observation-only visibility diagnosis (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
@@ -8,7 +8,7 @@ permissions:
 jobs:
   focused-observation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -19,14 +19,28 @@ jobs:
           php-version: '8.4'
           extensions: curl
           coverage: none
-      - name: Genuine frozen calibration counterexample through trusted HTTPS
+      - name: Syntax and unchanged installer guard dependencies
         run: |
           set -euo pipefail
-          python3 tools/storefront/b1140/red-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1140" "$GITHUB_WORKSPACE/tools/storefront/b1135" | tee "$RUNNER_TEMP/b1140-old-red.json"
+          for file in tools/storefront/b1140/*.php; do php -l "$file"; done
+          bash -n tools/storefront/b1140/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1140/operator-wrapper.sh; then exit 2; fi
+          printf '%s  %s\n' 546a77f1229af2813da3379159b8cb8f6d8057964e5400c78c49dc676894da34 tools/storefront/b1135/HostWebControl.php | sha256sum -c -
+          printf '%s  %s\n' 177be93697dc7fd78c80e6564d6c872a3f55787adf9cd603a5b323bbb6e8eb7e tools/storefront/b1135/FrontCacheEndpoint.php | sha256sum -c -
+      - name: Exact predicate samples, partial marker and privacy negatives
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1140/trace-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1140" | tee "$RUNNER_TEMP/b1140-predicate.json"
+      - name: Actual PHP HTTP observer, auth, collision, normal traffic and cleanup
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1140/http-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1140" "$GITHUB_WORKSPACE/apps/cms/current/public/index.php" | tee "$RUNNER_TEMP/b1140-http.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1140-frozen-visibility-red
-          path: ${{ runner.temp }}/b1140-old-red.json
-          if-no-files-found: error
+          name: b1140-observation-evidence
+          path: |
+            ${{ runner.temp }}/b1140-predicate.json
+            ${{ runner.temp }}/b1140-http.json
+          if-no-files-found: warn
           retention-days: 7
