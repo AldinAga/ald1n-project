@@ -1,4 +1,4 @@
-import hashlib,hmac,http.client,http.server,json,os,pathlib,secrets,socket,ssl,subprocess,sys,threading,time
+import hashlib,hmac,http.client,http.server,json,os,pathlib,secrets,socket,ssl,subprocess,sys,threading,time,urllib.parse
 tools=pathlib.Path(sys.argv[1]);old=pathlib.Path(sys.argv[2]);root=pathlib.Path(os.environ['RUNNER_TEMP'])/'b1140-old-red';root.mkdir();active=root/'current';(active/'public').mkdir(parents=True);(active/'storage/framework').mkdir(parents=True);incoming=root/'incoming';incoming.mkdir();private=root/'private';private.mkdir(mode=0o700)
 sha=lambda data:hashlib.sha256(data).hexdigest()
 index=active/'public/index.php';index.write_text('<?php require __DIR__."/../storage/framework/maintenance.php"; http_response_code(404);')
@@ -21,7 +21,7 @@ try:
  for n in range(40):
   try:c=socket.create_connection(('127.0.0.1',port),.1);c.close();break
   except OSError:time.sleep(.1)
- command=root/'command.json';command.write_text(json.dumps({'origin':'https://127.0.0.1:'+str(tlsport),'private':str(private),'config':cfg,'key':key,'token':token}))
- run=subprocess.run(['php','-d','curl.cainfo='+str(cert),str(tools/'red-client.php'),str(old/'HostWebControl.php'),str(command)],capture_output=True,text=True,timeout=25);receipt=json.loads(run.stdout);markers=list(private.glob('visibility-*.json'));assert run.returncode==2,(run.returncode,receipt,run.stderr);assert receipt['code']=='WEB_VISIBILITY_TIMEOUT';assert len(markers)==1;marker=json.loads(markers[0].read_text());assert marker['stage']=='done';comm=pathlib.Path('/proc/'+str(marker['pid'])+'/comm').read_text().strip();assert comm!='lsphp';assert any(r=={'action':'visibility','status':200} for r in observed)
+ origin='https://127.0.0.1:'+str(tlsport);assert urllib.parse.urlparse(origin).hostname=='127.0.0.1';env={k:v for k,v in os.environ.items() if k.lower() not in ['http_proxy','https_proxy','all_proxy']};env['NO_PROXY']='127.0.0.1,localhost';command=root/'command.json';command.write_text(json.dumps({'origin':'https://127.0.0.1:'+str(tlsport),'private':str(private),'config':cfg,'key':key,'token':token}))
+ run=subprocess.run(['php','-d','curl.cainfo='+str(cert),str(tools/'red-client.php'),str(old/'HostWebControl.php'),str(command)],capture_output=True,text=True,timeout=25,env=env);receipt=json.loads(run.stdout.strip().splitlines()[-1]);markers=list(private.glob('visibility-*.json'));assert run.returncode==2,(run.returncode,receipt,run.stderr);assert receipt['code']=='WEB_VISIBILITY_TIMEOUT';assert len(markers)==1;marker=json.loads(markers[0].read_text());assert marker['stage']=='done';comm=pathlib.Path('/proc/'+str(marker['pid'])+'/comm').read_text().strip();assert comm!='lsphp';assert any(r=={'action':'visibility','status':200} for r in observed)
  print(json.dumps({'frozenActualCalibrationMethod':True,'actualHTTPSRealPHP':True,'visibilityHTTPStatus':200,'retainedStage':'done','commIsLsphp':False,'actualOldCode':receipt['code'],'elapsedSeconds':receipt['elapsedSeconds'],'host1096CauseNotProven':True},indent=2))
 finally:proxy.shutdown();proxy.server_close();server.terminate();server.wait(timeout=5);log.close()
