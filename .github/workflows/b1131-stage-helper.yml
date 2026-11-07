@@ -22,8 +22,8 @@ jobs:
       - name: Preserve expected-reason RED against unchanged B1140 classifier
         run: |
           set -uo pipefail
-          php tools/storefront/b1141/red-alias.php "$GITHUB_WORKSPACE/tools/storefront/b1140" > "$RUNNER_TEMP/b1141-red.txt" 2>&1
-          rc=$?
+          rc=0
+          php tools/storefront/b1141/red-alias.php "$GITHUB_WORKSPACE/tools/storefront/b1140" > "$RUNNER_TEMP/b1141-red.txt" 2>&1 || rc=$?
           cat "$RUNNER_TEMP/b1141-red.txt"
           test "$rc" = 2 || exit 2
           grep -Fx 'VALIDATED_ALIAS_TITLE_NOT_CLASSIFIED' "$RUNNER_TEMP/b1141-red.txt" || exit 2
