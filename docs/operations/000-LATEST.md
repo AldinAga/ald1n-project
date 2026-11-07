@@ -1,3 +1,12 @@
+# CURRENT 2026-11-08 — B1140 SUBAGENT/ECC WORKFLOW; VISIBILITY DIAGNOSTIC IN PREPARATION
+
+Owner permanently requires Subagent Driven development and relevant installed ECC workflows. Canonical AGENTS.md section 0ZE was published in main be5a76180014aa167d5d0824bd53c92b12f00288: scoped single writer per path, frozen independent review, coordinator package audit, applicable TDD/debugging/security/verification, no overlapping edits and no redundant replay of completed CI. Select only skills relevant to the task; existing project contracts and explicit owner decisions remain authoritative. This rule does not authorize a new stack, local runtime, production mutation or release-gate waiver.
+
+The supplied B1139 visibility marker has stage=done; it proves the diagnostic shutdown callback reached its final write, not successful CLI calibration or the exact hosting timeout cause. B1140 observation-only diagnostic remains in preparation; no package delivery, installation or public activation is claimed. The consumed one-shot account refresh must not be repeated automatically. Existing code/vendor, private data and all earlier recovery state remain protected. Earlier operation history follows unchanged.
+
+
+---
+
 # CURRENT 2026-11-07 — B1139 RETAINED VISIBILITY DONE; OBSERVATION-ONLY TRACE NEXT
 
 Owner supplied only retained visibility-4ed3a29b0ed17fb2a049bc93e93d7eb6.json, rawSHA256a41ac904d2c5f38a8064515f44313e73b1db62e633ee44b9c177e4cb137df62c. Parsednonce matches filename, stage=done, PID1845127, namespacepid:[4026531836], UID1109. This proves the diagnostic shutdown callback reached its final write. It does NOT prove HTTP200, what CLI observed during execution/shutdown, matching ps comm/title, native PHP teardown completion or idle transition. Exact1096calibration root cause remains unproven; no guessed timeout/title relaxation.
