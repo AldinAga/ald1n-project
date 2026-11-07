@@ -8,6 +8,15 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0ZE. Permanent Subagent Driven and relevant ECC workflow (owner 2026-11-08)
+
+The owner requires Subagent Driven work and applicable installed ECC skills for ongoing Ald1n development, debugging and verification. This is a continuing project rule. Explicit owner decisions and this project's environment, product and release contracts take precedence over generic skill examples.
+
+- The coordinator assigns a bounded task, acceptance criteria and an explicit file/branch scope to each subagent. Keep one active product-source writer; independent investigation/review is read-only. Freeze the exact candidate before a separate subagent reviews its behavior, diff, evidence and security boundaries. The coordinator resolves findings and verifies the final package before integration or delivery. Scale delegation to the actual task; do not create overlapping writers or duplicate completed work.
+- Select and read only ECC skills relevant to the current change: Laravel TDD, security and verification for CMS behavior; debugging, change-impact, orchestration, API, database, frontend/accessibility or Mobile guidance when those areas are actually touched. Investigate the observed failure and existing callers before editing. For behavioral fixes, preserve an expected-reason RED regression, apply the smallest fix, then record GREEN and the appropriate broader checks. Do not weaken assertions or release gates to obtain a pass.
+- Preserve GitHub-only runtime QA and existing pinned environments, commands and test identities. Skill examples do not authorize starting local PHP/Composer/npm/DB/Expo runtimes, installing a new stack or scanner, autonomous loops, paid services, external data uploads or production/provider actions. Report unrun or unsupported checks honestly; retain successful evidence instead of replaying it without cause.
+- Existing owner manual-upload/SSH, root-relative ZIP, canonical incoming/report paths, report sequencing, private-file preservation and deployment/activation gates remain binding. Subagent or ECC approval is not production approval. Record the exact source, checks, independent review and remaining blockers in the existing operations/handoff records.
+
 ## 0ZD. Actual B1134 pre-switch HOLD and bounded B1135 recovery (2026-11-06)
 
 Actual owner [1083](docs/operations/1083-B1134-CONTROLLED-OFF-INSTALL-20261106-082445.md) stopped at WEB_CACHE_SENTINEL_NOT_WARM before any source/vendor rename; scheduler restored, original code/vendor untouched. Do NOT call B1134 installed. Cache root cause remains NOT_PROVEN.
