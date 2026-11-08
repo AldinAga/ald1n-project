@@ -11,6 +11,10 @@ declare(strict_types=1);
  * closed HTTP smokes, Laravel log scan. Any failure after step C starts restores the clamp and the .env automatically and
  * re-verifies. A migration failure gets no automatic rollback: the clamp stays and a recovery note is printed.
  * Every phase is saved before the next step; a re-run converges from the saved phase.
+ * Every run that will execute migrate --force takes its OWN fresh backup; a backup is reused only inside the same process,
+ * after a re-check of its row, size and directory, a second app:backup-verify and an age bound, immediately before migrate.
+ * The two Storefront tables are checked for every column, unique key, index and foreign key the migrations define, so a
+ * table left with columns but without constraints (a lock timeout between Schema::create statements) is a HOLD.
  * @author Ald1n <https://ald1n.com>
  */
 final class MigrateUnclampCoordinator
@@ -27,7 +31,19 @@ final class MigrateUnclampCoordinator
     public const TOGGLE_COLUMNS=['merchant_policy_digest','delivery_method','customer_user_id','payment_due_at_snapshot'];
     /** Known first-migration introspection stop under --pretend (pretend returns no rows, so hasTable('orders') is false). */
     public const PRETEND_INTROSPECTION_CODE='PUBLIC_ORDER_ACCESS_REQUIRES_EXISTING_ORDERS';
-    private const MIGRATE_PHASES=['PREFLIGHT_PASSED','BACKUP_INTENT','BACKUP_CREATED','HOLD_BACKUP_FAILED','BACKUP_VERIFIED','HOLD_PRETEND_UNEXPECTED','MIGRATE_INTENT','HOLD_MIGRATION_FAILED','HOLD_MIGRATION_VERIFY_FAILED','HOLD_MIGRATE_PREFLIGHT_BLOCKED'];
+    /**
+     * The exact --pretend stop of each migration when it is the FIRST pending one: pretend returns no rows, so every
+     * hasTable() guard is false and the migration throws its own code. Fresh and resume accept only this exact pair.
+     */
+    public const PRETEND_KNOWN_STOPS=['2026_10_23_020000_create_public_order_accesses'=>'PUBLIC_ORDER_ACCESS_REQUIRES_EXISTING_ORDERS','2026_10_23_020100_create_public_checkout_attempts'=>'PUBLIC_CHECKOUT_DEPENDENCIES_INCOMPLETE','2026_10_24_030000_add_retail_customer_role'=>'B802_ROLES_TABLE_MISSING'];
+    /** Columns, unique keys, plain indexes and foreign keys exactly as the two create migrations (ef3f927) define them. */
+    public const EXPECTED_SCHEMA=[
+        'public_order_accesses'=>['migration'=>'2026_10_23_020000_create_public_order_accesses','columns'=>['id','order_id','token_hash','email_ciphertext','expires_at','revoked_at','created_at','updated_at'],
+            'unique'=>[['id'],['order_id'],['token_hash']],'index'=>[['expires_at','revoked_at']],'foreign'=>[['order_id','orders','id','RESTRICT']]],
+        'public_checkout_attempts'=>['migration'=>'2026_10_23_020100_create_public_checkout_attempts','columns'=>['id','key_hash','request_fingerprint','receipt_token_ciphertext','terms_url','privacy_url','shipping_description','shipping_fee_rsd','merchant_policy_digest','delivery_method','customer_user_id','payment_due_at_snapshot','terms_accepted_at','order_id','created_at','updated_at'],
+            'unique'=>[['id'],['key_hash'],['order_id']],'index'=>[],'foreign'=>[['order_id','orders','id','RESTRICT']]],
+    ];
+    private const MIGRATE_PHASES=['PREFLIGHT_PASSED','BACKUP_INTENT','BACKUP_CREATED','HOLD_BACKUP_FAILED','BACKUP_VERIFIED','HOLD_PRETEND_UNEXPECTED','HOLD_SCHEDULED_BACKUP_WINDOW','HOLD_BACKUP_RECHECK_FAILED','HOLD_MIGRATE_CENSUS_BLOCKED','MIGRATE_INTENT','HOLD_MIGRATION_FAILED','HOLD_MIGRATION_VERIFY_FAILED','HOLD_MIGRATE_PREFLIGHT_BLOCKED'];
     private const UNCLAMP_READY=['MIGRATED_VERIFIED','RESTORED_CLAMPED','HOLD_UNCLAMP_PREFLIGHT_BLOCKED'];
     private const IN_FLIGHT=['UNCLAMP_INTENT','CONFIG_UNCLAMPED','ENV_UNCLAMPED','ACCEPTANCE_INTENT','RESTORE_INTENT','RESTORE_INCOMPLETE'];
     private array $state=[];
@@ -45,10 +61,21 @@ final class MigrateUnclampCoordinator
     private int $censusSeconds=75;
     private int $waitMargin=3;
     private int $minFreeBytes=2147483648;
-    private ?array $backupWindow=['02:00','03:40'];
+    /** Scheduled-backup overlap gate in the APP timezone (never the CLI default); $fixedNow is a test clock only. */
+    private bool $scheduleGate=true;
+    private ?int $fixedNow=null;
+    private int $scheduleMarginSeconds=900;
+    private int $defaultBackupSeconds=2400;
+    private int $backupTimeout=2400;
+    private int $verifyTimeout=2400;
+    private int $migrateTimeout=900;
+    private int $backupMaxAgeSeconds=600;
     private int $probeSamples=2;
     private ?Closure $fault=null;
     private ?array $manifest=null;
+    /** The backup THIS process created and verified (never loaded from saved state): id, key, size, monotonic times. */
+    private ?array $processBackup=null;
+    private ?array $lastChildStop=null;
 
     public function __construct(private string $root,private string $home)
     {
@@ -95,8 +122,34 @@ final class MigrateUnclampCoordinator
     private function command(array $argv,?string $cwd=null,int $timeout=120,?array $env=null):array
     {
         $pipes=[];$process=proc_open($argv,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,$cwd,$env);if(!is_resource($process))throw new RuntimeException('CHILD_START');fclose($pipes[0]);stream_set_blocking($pipes[1],false);stream_set_blocking($pipes[2],false);$stdout='';$stderr='';$started=microtime(true);
-        do{$stdout.=(string)stream_get_contents($pipes[1]);$stderr.=(string)stream_get_contents($pipes[2]);if(strlen($stdout)>4194304||strlen($stderr)>4194304){proc_terminate($process);throw new RuntimeException('CHILD_OUTPUT_BOUND');}$last=proc_get_status($process);if(microtime(true)-$started>$timeout){proc_terminate($process);throw new RuntimeException('CHILD_TIMEOUT');}if($last['running'])usleep(100000);}while($last['running']);
+        do{$stdout.=(string)stream_get_contents($pipes[1]);$stderr.=(string)stream_get_contents($pipes[2]);if(strlen($stdout)>4194304||strlen($stderr)>4194304)$this->stopChild($process,$pipes,'CHILD_OUTPUT_BOUND');$last=proc_get_status($process);if($last['running']&&microtime(true)-$started>$timeout)$this->stopChild($process,$pipes,'CHILD_TIMEOUT');if($last['running'])usleep(100000);}while($last['running']);
         $stdout.=(string)stream_get_contents($pipes[1]);$stderr.=(string)stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);$closed=proc_close($process);$rc=$last['exitcode']>=0?$last['exitcode']:$closed;return ['rc'=>$rc,'stdout'=>$stdout,'stderr'=>$stderr,'stderrBytes'=>strlen($stderr)];
+    }
+
+    /** Own-user process tree below $pid (ps pid/ppid), deepest first. */
+    public static function descendants(int $pid):array
+    {
+        $pipes=[];$p=@proc_open(['ps','-u',(string)posix_geteuid(),'-o','pid=,ppid='],[1=>['pipe','w'],2=>['pipe','w']],$pipes);if(!is_resource($p))return [];
+        $out=(string)stream_get_contents($pipes[1]);stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);proc_close($p);$children=[];
+        foreach(explode("\n",$out) as $line)if(preg_match('/^\s*(\d+)\s+(\d+)\s*$/',$line,$m))$children[(int)$m[2]][]=(int)$m[1];
+        $result=[];$queue=[$pid];while($queue!==[]){$next=array_shift($queue);foreach($children[$next]??[] as $child)if(!in_array($child,$result,true)&&$child!==$pid){$result[]=$child;$queue[]=$child;}}
+        return array_reverse($result);
+    }
+
+    /**
+     * A child that ran too long or printed too much is stopped as a whole tree (TERM, KILL after 10 s) and this process
+     * WAITS until the child has exited before the error propagates, so no artisan or dump keeps running behind a HOLD.
+     */
+    private function stopChild(mixed $process,array $pipes,string $code):never
+    {
+        $pid=(int)proc_get_status($process)['pid'];$tree=self::descendants($pid);foreach($tree as $p)@posix_kill($p,15);@posix_kill($pid,15);
+        $alive=static fn(array $pids):array=>array_values(array_filter($pids,static fn($p)=>@posix_kill($p,0)));$deadline=microtime(true)+10;
+        while(microtime(true)<$deadline&&(proc_get_status($process)['running']||$alive($tree)!==[])){foreach([1,2] as $i)if(is_resource($pipes[$i]??null))stream_get_contents($pipes[$i]);usleep(200000);}
+        $killed=0;foreach($alive($tree) as $p){@posix_kill($p,9);$killed++;}if(proc_get_status($process)['running']){@posix_kill($pid,9);$killed++;}
+        $deadline=microtime(true)+20;while(proc_get_status($process)['running']&&microtime(true)<$deadline){foreach([1,2] as $i)if(is_resource($pipes[$i]??null))stream_get_contents($pipes[$i]);usleep(200000);}
+        $exited=!proc_get_status($process)['running'];foreach([1,2] as $i)if(is_resource($pipes[$i]??null))fclose($pipes[$i]);if($exited)proc_close($process);
+        $this->lastChildStop=['reason'=>$code,'childExited'=>$exited,'descendantsSignalled'=>count($tree),'killedAfterGrace'=>$killed,'survivingDescendants'=>count($alive($tree))];
+        $this->emit('CHILD_STOPPED',$this->lastChildStop);throw new RuntimeException($code);
     }
 
     private function artisan(array $arguments,int $timeout):array
@@ -105,9 +158,9 @@ final class MigrateUnclampCoordinator
     }
 
     /** The read-only bootstrap helper; its JSON carries booleans, counts and names only. */
-    private function appState(string $mode,?string $argument=null):array
+    private function appState(string $mode,?string $argument=null,int $timeout=120):array
     {
-        $r=$this->command(array_merge([$this->php,'-d','opcache.enable=0','-d','opcache.enable_cli=0',$this->appStateScript,$this->active(),$mode],$argument===null?[]:[$argument]),$this->active(),120,array_merge(getenv(),['COLUMNS'=>'240']));
+        $r=$this->command(array_merge([$this->php,'-d','opcache.enable=0','-d','opcache.enable_cli=0',$this->appStateScript,$this->active(),$mode],$argument===null?[]:[$argument]),$this->active(),$timeout,array_merge(getenv(),['COLUMNS'=>'240']));
         $data=json_decode(trim($r['stdout']),true,16);if(!is_array($data))throw new RuntimeException('APP_STATE_UNPARSED');
         if($r['rc']!==0||($data['ok']??false)!==true){$code=is_string($data['error']??null)&&preg_match('/^[A-Z0-9_]+$/D',$data['error'])?$data['error']:'APP_STATE_FAILED';throw new RuntimeException($code);}return $data;
     }
@@ -162,15 +215,60 @@ final class MigrateUnclampCoordinator
             'sha256'=>['report'=>hash('sha256',$report),'pointer'=>hash('sha256',$pointerBytes),'state'=>hash('sha256',$stateBytes),'journal'=>hash('sha256',$journalBytes)],'bytes'=>['report'=>$report,'pointer'=>$pointerBytes,'state'=>$stateBytes,'journal'=>$journalBytes]];
     }
 
-    /** Disk and inode headroom on every filesystem the run writes to (the CMS tree and the backup directory). */
-    private function headroom(array $paths,?int $lastBackup):array
+    /**
+     * Bytes and inodes one more backup needs at its peak: app:backup-create writes the plain SQL dump BEFORE gzip, so the
+     * uncompressed dump (bounded by three times the data+index size, hex blobs included), the gzip copy and the copied
+     * private files coexist, plus a fixed reserve for migrations, logs and the private state.
+     */
+    public static function backupNeed(int $minFreeBytes,?int $lastBackupBytes,?int $databaseBytes,?int $fileCount):array
     {
-        $need=max($this->minFreeBytes,3*max(0,(int)$lastBackup));$result=[];
+        return ['bytes'=>max($minFreeBytes,max(0,(int)$lastBackupBytes)+3*max(0,(int)$databaseBytes)+536870912),'inodes'=>2*(max(0,(int)$fileCount)+100)+1000];
+    }
+
+    /** Disk and inode headroom on every filesystem the run writes to (the CMS tree and the backup directory). */
+    private function headroom(array $paths,array $need):array
+    {
+        $result=[];
         foreach(array_values(array_unique(array_filter($paths,'is_string'))) as $index=>$path){
             $r=$this->command(['stat','-f','-c','%a %S %d %c',$path],null,20);if($r['rc']!==0||!preg_match('/^(\d+) (\d+) (\d+) (\d+)$/D',trim($r['stdout']),$m))throw new RuntimeException('DISK_STAT_UNAVAILABLE');
             $free=(int)$m[1]*(int)$m[2];$inodes=(int)$m[4];$freeInodes=(int)$m[3];$percent=$inodes>0?round(100*$freeInodes/$inodes,2):null;
-            $result[]=['filesystem'=>$index===0?'CMS_TREE':'BACKUP_DIRECTORY','freeBytes'=>$free,'requiredBytes'=>$need,'freeInodes'=>$freeInodes,'freeInodePercent'=>$percent];
-            if($free<$need)throw new RuntimeException('DISK_HEADROOM_INSUFFICIENT');if($percent!==null&&$percent<5)throw new RuntimeException('INODE_HEADROOM_INSUFFICIENT');
+            $result[]=['filesystem'=>$index===0?'CMS_TREE':'BACKUP_DIRECTORY','freeBytes'=>$free,'requiredBytes'=>$need['bytes'],'freeInodes'=>$freeInodes,'requiredInodes'=>$need['inodes'],'freeInodePercent'=>$percent];
+            if($free<$need['bytes'])throw new RuntimeException('DISK_HEADROOM_INSUFFICIENT');if(($percent!==null&&$percent<5)||($inodes>0&&$freeInodes<$need['inodes']))throw new RuntimeException('INODE_HEADROOM_INSUFFICIENT');
+        }
+        return $result;
+    }
+
+    /**
+     * `quota -w -p` lines (1 KiB blocks): filesystem, blocks[*], soft, hard, grace, files[*], soft, hard, grace.
+     * Returns null when the output is not that format; an explicit "none" is an empty list (no account limit).
+     */
+    public static function parseQuota(string $stdout):?array
+    {
+        if(preg_match('/^Disk quotas for (?:user|group) \S+ \(uid \d+\): none\s*$/m',$stdout))return [];$rows=[];$header=false;
+        foreach(preg_split('/\R/',$stdout) as $line){
+            if(preg_match('/^\s*Filesystem\s+blocks\s+quota\s+limit\s+grace\s+files\s+quota\s+limit\s+grace\s*$/',$line)){$header=true;continue;}
+            if(!$header||trim($line)==='')continue;
+            if(!preg_match('/^\s*(\S+)\s+(\d+)\*?\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\*?\s+(\d+)\s+(\d+)\s+(\S+)\s*$/D',$line,$m))return null;
+            $blocks=array_filter([(int)$m[3],(int)$m[4]]);$files=array_filter([(int)$m[7],(int)$m[8]]);
+            $rows[]=['usedBytes'=>1024*(int)$m[2],'limitBytes'=>$blocks===[]?null:1024*min($blocks),'usedInodes'=>(int)$m[6],'limitInodes'=>$files===[]?null:min($files)];
+        }
+        return $header?$rows:null;
+    }
+
+    /**
+     * The cPanel account quota as an unprivileged CageFS shell sees it (`quota`). Without the tool or with output that is not
+     * understood the quota is reported as NOT READ and the filesystem free space (df/stat) remains the only byte gate.
+     */
+    private function quota(array $need):array
+    {
+        $bin=null;foreach(explode(':',(string)getenv('PATH')) as $d)if($d!==''&&str_starts_with($d,'/')&&is_file($d.'/quota')&&is_executable($d.'/quota')){$bin=$d.'/quota';break;}
+        if($bin===null)return ['read'=>false,'note'=>'CPANEL_ACCOUNT_QUOTA_NOT_READ_NO_QUOTA_TOOL_DF_ONLY'];
+        try{$r=$this->command([$bin,'-w','-p'],null,20,array_merge(getenv(),['LC_ALL'=>'C']));}catch(Throwable $e){return ['read'=>false,'note'=>'CPANEL_ACCOUNT_QUOTA_NOT_READ_'.self::code($e).'_DF_ONLY'];}
+        $rows=self::parseQuota($r['stdout']);if($rows===null)return ['read'=>false,'note'=>'CPANEL_ACCOUNT_QUOTA_NOT_READ_UNPARSED_RC'.$r['rc'].'_DF_ONLY'];$result=['read'=>true,'limited'=>false,'filesystems'=>[]];
+        foreach($rows as $row){
+            $freeBytes=$row['limitBytes']===null?null:$row['limitBytes']-$row['usedBytes'];$freeInodes=$row['limitInodes']===null?null:$row['limitInodes']-$row['usedInodes'];$result['limited']=$result['limited']||$freeBytes!==null||$freeInodes!==null;
+            $result['filesystems'][]=['freeBytes'=>$freeBytes,'requiredBytes'=>$need['bytes'],'freeInodes'=>$freeInodes,'requiredInodes'=>$need['inodes']];
+            if($freeBytes!==null&&$freeBytes<$need['bytes'])throw new RuntimeException('ACCOUNT_QUOTA_HEADROOM_INSUFFICIENT');if($freeInodes!==null&&$freeInodes<$need['inodes'])throw new RuntimeException('ACCOUNT_QUOTA_INODES_INSUFFICIENT');
         }
         return $result;
     }
@@ -181,6 +279,19 @@ final class MigrateUnclampCoordinator
         $roots=[$this->active(),$this->retained()];$deadline=hrtime(true)+$this->censusSeconds*1000000000;$clean=0;$samples=0;$seen=0;
         do{$b=LeanGates::busy($this->active().'/public/index.php',LeanGates::processes(),getmypid(),$roots);$samples++;if($b['artisan']===0){if(++$clean>=3)return ['clean'=>true,'samples'=>$samples,'busySamples'=>$seen,'otherArtisanIgnored'=>$b['otherArtisanIgnored']];}else{$clean=0;$seen++;}usleep(1000000);}while(hrtime(true)<$deadline);
         throw new RuntimeException('CMS_ARTISAN_RUNNING');
+    }
+
+    /** Other sessions of this database executing a statement, and open InnoDB transactions when readable: 3 clean samples. */
+    private function lockCensus():array
+    {
+        $r=$this->appState('locks',(string)$this->censusSeconds,$this->censusSeconds+60);if(($r['clean']??false)!==true)throw new RuntimeException('DB_SESSIONS_ACTIVE_BEFORE_MIGRATE');unset($r['ok']);return $r;
+    }
+
+    /** The artisan and database-session census immediately before migrate --force; a busy CMS is a HOLD with no migration. */
+    private function preMigrateCensus():void
+    {
+        try{$artisan=$this->census();$locks=$this->lockCensus();}catch(Throwable $e){$this->emit('PRE_MIGRATE_CENSUS',['clean'=>false,'code'=>self::code($e)]);$this->save('HOLD_MIGRATE_CENSUS_BLOCKED');$this->recoveryNote('MIGRATE_CENSUS',['code'=>self::code($e),'migrateExecuted'=>false,'next'=>'WAIT_FOR_THE_CMS_ARTISAN_OR_DATABASE_SESSION_TO_FINISH_THEN_RUN_THE_SAME_COMMAND_IT_TAKES_A_NEW_BACKUP']);throw $e;}
+        $this->emit('PRE_MIGRATE_CENSUS',['clean'=>true,'artisan'=>$artisan,'databaseSessions'=>$locks]);
     }
 
     private function migrationStatus():array
@@ -255,7 +366,8 @@ final class MigrateUnclampCoordinator
         $tree=$manifest!==null&&$chain!==null&&$expected!==null?$try('activeTreeEqualsManifest',fn()=>LeanGates::verifyTree($this->active(),$manifest,$expected,$chain['htaccessSHA256'],self::MANIFEST_FILES)):null;if(!array_key_exists('activeTreeEqualsManifest',$g))$g['activeTreeEqualsManifest']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
         $v['tree']=$tree===null?null:$tree+['publicIndexPhpUnchanged'=>true];
         $env=$chain!==null?$try('envSymlink',fn()=>EnvFlags::inspect($this->active().'/.env',$chain['retained'].'/.env',$chain['retained'])):null;if(!array_key_exists('envSymlink',$g))$g['envSymlink']='NOT_EVALUATED_CHAIN';
-        $v['env']=$env===null?null:['symlink'=>true,'realpathInRetainedTree'=>true,'readableWritable'=>true,'sameFilesystemAsDirectory'=>true,'mode'=>sprintf('%04o',$env['mode'])];
+        $v['env']=$env===null?null:['symlink'=>true,'realpathInRetainedTree'=>true,'readableWritable'=>true,'sameFilesystemAsDirectory'=>true,'mode'=>sprintf('%04o',$env['mode']),'gid'=>$env['gid'],'nlink'=>$env['nlink'],'aclFree'=>$env['aclFree']];
+        if($stage!=='closed'){$replaceable=$try('activeConfigReplaceable',fn()=>AtomicFile::replaceable($this->configPath()));$v['configFile']=$replaceable;}
         $keys=$env!==null?$try('envKeys',function()use($env,$stage):array{$s=EnvFlags::state((string)file_get_contents($env['target']));foreach($s as $state)if($stage==='closed'?$state!=='true':!in_array($state,['absent','false'],true))throw new RuntimeException($stage==='closed'?'ENV_KEYS_NOT_TRUE':'ENV_KEYS_NOT_ABSENT_OR_FALSE');return $s;}):null;
         if(!array_key_exists('envKeys',$g))$g['envKeys']='NOT_EVALUATED_ENV';$v['envKeys']=$keys;
         if($chain!==null&&$env!==null)$v['envSHA256EqualsB1144Record']=hash_file('sha256',$env['target'])===$chain['envSHA256AtB1144'];
@@ -269,15 +381,26 @@ final class MigrateUnclampCoordinator
             $ok=match($stage){'fresh'=>$k===0&&$s['pending']===self::PENDING,'migrate'=>$k>=0&&$k<=3&&$s['pending']===array_slice(self::PENDING,$k)&&($k===0||($this->state['migrateAttempted']??false)===true),default=>$k===3&&$s['pending']===[]};
             if(!$ok)throw new RuntimeException('MIGRATION_SET_NOT_EXPECTED_FOR_'.strtoupper($stage));return $s;});
         $v['migrations']=$migrations;
-        $app=$try('appStateDatabase',fn()=>$this->appState('state'));
+        $app=$try('appStateDatabase',fn()=>$this->appState('state'));$backupStage=in_array($stage,['fresh','migrate'],true)&&($migrations===null||$migrations['pending']!==[]);
         if($app!==null){
             $flag=$app['storefrontFlag'];$v['app']=['db'=>true,'configCached'=>false,'storefrontDbSwitch'=>$flag,'backupsRunning'=>$app['backups']['running'],'tables'=>$app['tables'],'toggleColumns'=>$app['toggleColumns'],'roles'=>$app['roles']];
             if($stage!=='closed')$g['storefrontDbSwitchClosed']=in_array($flag,['absent','0'],true)?null:'STOREFRONT_DB_SWITCH_NOT_ABSENT_OR_0';
             $g['noRunningBackup']=$app['backups']['table']===true&&$app['backups']['running']===0?null:'BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING';
-            if(in_array($stage,['unclamp','closed'],true))$g['schemaAfterMigrations']=$this->schemaGaps($app)===[]?null:'SCHEMA_AFTER_MIGRATIONS_INCOMPLETE';
-            $disk=$try('diskAndInodeHeadroom',fn()=>$this->headroom([$this->active(),$app['backupPathReal']],$app['backups']['lastCompletedSizeBytes']));$v['headroom']=$disk;$v['lastBackupSeconds']=$app['backups']['lastCompletedSeconds'];
-        }else foreach(['storefrontDbSwitchClosed','noRunningBackup','diskAndInodeHeadroom'] as $gate)$g[$gate]='NOT_EVALUATED_APP_STATE';
-        if(in_array($stage,['fresh','migrate'],true)&&$this->backupWindow!==null){$now=date('H:i');$g['outsideScheduledBackupWindow']=$now>=$this->backupWindow[0]&&$now<$this->backupWindow[1]?'INSIDE_SCHEDULED_BACKUP_WINDOW':null;$v['localTime']=$now;}
+            if($app['backups']['runningRuns']!==[])$v['runningBackups']=array_map(fn($r)=>['id'=>$r['id'],'key'=>$r['key'],'type'=>$r['type'],'startedAt'=>$r['startedAt'],'gateClearsAt'=>$r['startedAt']===null?null:$r['startedAt']+21600,'explanation'=>'A_KILLED_OR_CRASHED_APP_BACKUP_LEAVES_ITS_ROW_RUNNING_FOREVER_THE_GATE_COUNTS_RUNNING_ROWS_STARTED_IN_THE_LAST_6_HOURS'],$app['backups']['runningRuns']);
+            // Every existing Storefront table must carry every constraint of its migration; a table with all columns but a
+            // missing unique key, index or foreign key would make the migration return early and record itself as run.
+            $constraints=self::schemaConstraintGaps($app['schema']??[]);$v['schemaConstraints']=$constraints;
+            $g['schemaConstraints']=array_filter($constraints,static fn($t)=>$t['exists']&&$t['columnsComplete']&&$t['missing']!==[])===[]?null:'PUBLIC_TABLE_COLUMNS_WITHOUT_CONSTRAINTS';
+            if(in_array($stage,['unclamp','closed'],true)){$gaps=$this->schemaGaps($app);$g['schemaAfterMigrations']=$gaps===[]?null:(array_filter($gaps,static fn($x)=>!str_starts_with($x,'CONSTRAINT_'))===[]?'PUBLIC_TABLE_COLUMNS_WITHOUT_CONSTRAINTS':'SCHEMA_AFTER_MIGRATIONS_INCOMPLETE');}
+            $need=self::backupNeed($this->minFreeBytes,$app['backups']['lastCompletedSizeBytes'],$app['databaseBytes']??null,$app['backups']['lastCompletedFileCount']??null);$v['backupNeed']=$need+['databaseBytes'=>$app['databaseBytes']??null,'uncompressedDumpCovered'=>true];
+            $disk=$try('diskAndInodeHeadroom',fn()=>$this->headroom([$this->active(),$app['backupPathReal']],$need));$v['headroom']=$disk;$v['lastBackupSeconds']=$app['backups']['lastCompletedSeconds'];
+            $v['accountQuota']=$try('accountQuotaHeadroom',fn()=>$this->quota($need));
+            if($backupStage){
+                $retention=$try('backupRetentionHealthy',fn()=>$this->retention($app));$v['backupRetention']=$retention;
+                if($retention!==null&&$retention['blocked'])$g['backupRetentionHealthy']='BACKUP_RETENTION_WOULD_REJECT_NEW_BACKUP';
+                if($this->scheduleGate){$schedule=$try('outsideScheduledBackupWindow',fn()=>$this->scheduleState($app,4));$v['schedule']=$schedule;if($schedule!==null&&$schedule['conflict']!==null)$g['outsideScheduledBackupWindow']='SCHEDULED_BACKUP_OVERLAP_'.strtoupper($schedule['conflict']['type']);}
+            }
+        }else foreach(['storefrontDbSwitchClosed','noRunningBackup','diskAndInodeHeadroom','schemaConstraints'] as $gate)$g[$gate]='NOT_EVALUATED_APP_STATE';
         if($stage!=='closed'){
             $v['artisanCensus']=$chain!==null?$try('noRunningCmsArtisan',fn()=>$this->census()):null;if(!array_key_exists('noRunningCmsArtisan',$g))$g['noRunningCmsArtisan']='NOT_EVALUATED_CHAIN';
             if($expected!==null&&isset($this->state['id'])){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$expected,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_CONFIG';
@@ -290,7 +413,125 @@ final class MigrateUnclampCoordinator
     {
         $gaps=[];foreach(['orders','public_order_accesses','public_checkout_attempts'] as $t)if(($app['tables'][$t]??false)!==true)$gaps[]='TABLE_'.$t;
         foreach(self::TOGGLE_COLUMNS as $c)if(($app['toggleColumns'][$c]??false)!==true)$gaps[]='COLUMN_'.$c;
+        foreach(self::schemaConstraintGaps($app['schema']??[]) as $table=>$t){if(!$t['exists'])continue;if(!$t['columnsComplete'])$gaps[]='COLUMNS_'.$table;foreach($t['missing'] as $m)$gaps[]='CONSTRAINT_'.$table.'_'.$m;}
         if(($app['roles']['user']??null)!=='SubAgent')$gaps[]='ROLE_USER_NAME';if(!is_string($app['roles']['customer']??null))$gaps[]='ROLE_CUSTOMER';return $gaps;
+    }
+
+    /**
+     * Per Storefront table: exists, every migration column present, and the missing constraints by signature (names are
+     * not required, InnoDB may add or drop an implicit foreign-key index). Extra unique keys or foreign keys are refused.
+     */
+    public static function schemaConstraintGaps(array $schema):array
+    {
+        $result=[];
+        foreach(self::EXPECTED_SCHEMA as $table=>$want){
+            $t=$schema[$table]??null;if(!is_array($t)||($t['exists']??false)!==true){$result[$table]=['exists'=>false,'columnsComplete'=>false,'missing'=>[],'rows'=>null,'migration'=>$want['migration']];continue;}
+            $columns=is_array($t['columns']??null)?$t['columns']:[];$indexes=is_array($t['indexes']??null)?$t['indexes']:[];$foreign=is_array($t['foreignKeys']??null)?$t['foreignKeys']:[];$missing=[];
+            $sig=static fn(bool $unique,array $cols):string=>($unique?'UNIQUE':'INDEX').'('.implode(',',$cols).')';$have=[];foreach($indexes as $index)$have[]=$sig((bool)($index['unique']??false),(array)($index['columns']??[]));
+            if(($indexes['PRIMARY']['columns']??null)!==['id']||($indexes['PRIMARY']['unique']??false)!==true)$missing[]='PRIMARY(id)';
+            foreach($want['unique'] as $cols)if(!in_array($sig(true,$cols),$have,true))$missing[]=$sig(true,$cols);
+            foreach($want['index'] as $cols)if(!in_array($sig(false,$cols),$have,true))$missing[]=$sig(false,$cols);
+            $wantUnique=array_map(static fn($c)=>$sig(true,$c),$want['unique']);foreach(array_unique($have) as $h)if(str_starts_with($h,'UNIQUE(')&&!in_array($h,$wantUnique,true))$missing[]='UNEXPECTED_'.$h;
+            $fk=static fn(array $f):string=>'FOREIGN('.$f[0].'->'.$f[1].'.'.$f[2].'_ON_DELETE_'.$f[3].')';$haveForeign=array_map(static fn($f)=>$fk([(string)($f['column']??''),(string)($f['referencedTable']??''),(string)($f['referencedColumn']??''),strtoupper((string)($f['deleteRule']??''))]),$foreign);
+            foreach($want['foreign'] as $f)if(!in_array($fk($f),$haveForeign,true))$missing[]=$fk($f);foreach($haveForeign as $h)if(!in_array($h,array_map($fk,$want['foreign']),true))$missing[]='UNEXPECTED_'.$h;
+            $result[$table]=['exists'=>true,'columnsComplete'=>array_diff($want['columns'],$columns)===[],'missing'=>array_values(array_unique($missing)),'rows'=>is_int($t['rows']??null)?$t['rows']:null,'migration'=>$want['migration']];
+        }
+        return $result;
+    }
+
+    /**
+     * The app's own retention (BackupService::prune) walks completed backups newest first and keeps the first two that
+     * verify; with two or more completed rows and fewer than two verifying it throws and marks the NEW backup failed.
+     * Same walk here, read-only: completed rows that fail app:backup-verify while fewer than two verify is a HOLD.
+     */
+    private function retention(array $app):array
+    {
+        $verified=[];$failing=[];$own=array_column($this->state['unverifiableBackups']??[],'id');
+        foreach($app['backups']['completedRuns'] as $run){if(count($verified)>=2)break;if($this->verifyRun((int)$run['id'])['pass'])$verified[]=['id'=>$run['id'],'key'=>$run['key'],'type'=>$run['type']];else $failing[]=['id'=>$run['id'],'key'=>$run['key'],'type'=>$run['type'],'dirPresent'=>$run['dirPresent'],'createdByThisTool'=>in_array($run['id'],$own,true)];}
+        return ['completed'=>count($app['backups']['completedRuns']),'verified'=>$verified,'failing'=>$failing,'blocked'=>$failing!==[]&&count($verified)<2,'walk'=>'NEWEST_FIRST_LIKE_THE_APP_RETENTION'];
+    }
+
+    private function verifyRun(int $id):array
+    {
+        $started=hrtime(true);try{$v=$this->artisan(['app:backup-verify','--run='.$id],$this->verifyTimeout);}catch(Throwable $e){return ['pass'=>false,'rc'=>null,'child'=>self::code($e),'seconds'=>(hrtime(true)-$started)/1e9];}
+        return ['pass'=>$v['rc']===0&&str_contains($v['stdout'],'Backup je logicki validan'),'rc'=>$v['rc'],'seconds'=>(hrtime(true)-$started)/1e9];
+    }
+
+    private function now():int {return $this->fixedNow??time();}
+
+    /**
+     * Whether [now, now+need) overlaps a scheduled backup [start, start+duration) of the app's own scheduler, each event in
+     * its own (app) timezone. Only "M H * * D" expressions (dailyAt, weeklyOn) are understood; anything else is refused.
+     */
+    public static function scheduleConflict(array $events,int $now,int $needSeconds,int $scheduledSeconds):?array
+    {
+        if($events===[])throw new RuntimeException('SCHEDULE_BACKUP_EVENTS_UNREADABLE');
+        foreach($events as $event){
+            if(!is_array($event)||!is_string($event['expression']??null)||!preg_match('/^(\d{1,2}) (\d{1,2}) \* \* (\*|[0-7])$/D',$event['expression'],$m)||(int)$m[1]>59||(int)$m[2]>23)throw new RuntimeException('SCHEDULE_EXPRESSION_UNSUPPORTED');
+            try{$tz=new DateTimeZone((string)($event['timezone']??''));}catch(Throwable){throw new RuntimeException('SCHEDULE_TIMEZONE_INVALID');}
+            $today=(new DateTimeImmutable('@'.$now))->setTimezone($tz)->setTime(0,0);
+            for($d=-2;$d<=9;$d++){
+                $day=$today->modify(($d<0?'':'+').$d.' days');if($m[3]!=='*'&&(int)$day->format('w')!==(int)$m[3]%7)continue;$at=$day->setTime((int)$m[2],(int)$m[1]);$start=$at->getTimestamp();
+                if($now<$start+$scheduledSeconds&&$start<$now+$needSeconds)return ['type'=>(string)($event['type']??'unknown'),'startsAtLocal'=>$at->format('Y-m-d H:i T'),'timezone'=>$tz->getName(),'secondsFromNowToStart'=>$start-$now];
+            }
+        }
+        return null;
+    }
+
+    /** $factor backup durations of work still ahead, plus the margin, must end before the next scheduled backup starts. */
+    private function scheduleState(array $app,int $factor):array
+    {
+        $last=$app['backups']['lastCompletedSeconds']??null;$base=$last===null?$this->defaultBackupSeconds:max(60,(int)$last);
+        $need=$factor*$base+$this->scheduleMarginSeconds;$duration=2*$base+600;$now=$this->now();$tz=(string)($app['appTimezone']??'');
+        try{$local=(new DateTimeImmutable('@'.$now))->setTimezone(new DateTimeZone($tz))->format('Y-m-d H:i T');}catch(Throwable){throw new RuntimeException('APP_TIMEZONE_INVALID');}
+        return ['conflict'=>self::scheduleConflict($app['backupSchedule']??[],$now,$need,$duration),'appTimezone'=>$tz,'appLocalTime'=>$local,'cliDefaultTimezoneIgnored'=>date_default_timezone_get(),'needSeconds'=>$need,'scheduledBackupSeconds'=>$duration,'events'=>$app['backupSchedule']];
+    }
+
+    /** Re-checked before the backup and immediately before migrate --force: an overlap there is a HOLD before the step. */
+    private function scheduleCheck(array $app,string $point,int $factor):void
+    {
+        if(!$this->scheduleGate)return;try{$s=$this->scheduleState($app,$factor);}catch(Throwable $e){$s=['conflict'=>['type'=>self::code($e)]];}
+        if($s['conflict']===null)return;$this->emit('SCHEDULED_BACKUP_OVERLAP',['point'=>$point]+$s);$this->save('HOLD_SCHEDULED_BACKUP_WINDOW');
+        $this->recoveryNote('SCHEDULED_BACKUP_WINDOW',['point'=>$point,'conflict'=>$s['conflict'],'next'=>'RUN_THE_SAME_COMMAND_AFTER_THE_SCHEDULED_BACKUP_HAS_FINISHED_IT_TAKES_A_NEW_BACKUP']);throw new RuntimeException('SCHEDULED_BACKUP_OVERLAP_'.strtoupper((string)$s['conflict']['type']));
+    }
+
+    /** Every recovery note carries the FIRST pre-migration backup (68 ran) and the current one; never raw output. */
+    private function recoveryNote(string $kind,array $fields):void
+    {
+        $first=$this->state['firstPreMigrationBackup']??null;
+        $this->emit('RECOVERY_NOTE',['kind'=>$kind]+$fields+['firstPreMigrationBackup'=>$first===null?'NONE_YET':['id'=>$first['id'],'key'=>$first['key'],'ranAtBackup'=>self::RAN_BEFORE,'keepNote'=>'THE_APP_KEEPS_ONLY_THE_2_NEWEST_VERIFIED_BACKUPS_COPY_IT_OFF_THE_SERVER_BEFORE_THE_NEXT_NIGHTLY_BACKUP'],'latestBackupOfThisTool'=>isset($this->state['backup'])?['id'=>$this->state['backup']['id'],'key'=>$this->state['backup']['key'],'verified'=>$this->state['backup']['verified']]:'NONE']);
+    }
+
+    /** One exact owner command per line (plain text, copy everything after the colon). Only ids, keys and table names. */
+    private function ownerCommand(string $php):void {echo 'OWNER_COMMAND: cd '.$this->active().' && php artisan tinker --execute="'.$php.'"'.PHP_EOL;}
+
+    /** Specific recovery for every preflight blocker that has one. */
+    private function preflightRecovery(array $report):void
+    {
+        $v=$report['values'];$b=$report['blockers'];
+        if(in_array('BACKUP_RETENTION_WOULD_REJECT_NEW_BACKUP',$b,true)){
+            $this->recoveryNote('BACKUP_RETENTION',['failing'=>$v['backupRetention']['failing'],'verified'=>$v['backupRetention']['verified'],'why'=>'APP_BACKUP_CREATE_WOULD_MARK_THE_NEW_GOOD_BACKUP_FAILED_AND_EVERY_LATER_CREATE_INCLUDING_THE_NIGHTLY_ONE_WOULD_FAIL',
+                'ownerProcedure'=>'MARK_EACH_LISTED_FAILING_ROW_FAILED_WITH_ITS_OWNER_COMMAND_THEN_RUN_THE_SAME_COMMAND_ITS_DIRECTORY_STAYS_IN_BACKUP_PATH_UNDER_ITS_KEY_AND_MAY_BE_DELETED_AFTERWARDS']);
+            foreach($v['backupRetention']['failing'] as $row)$this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$row['id'].")->where('status','completed')->update(['status'=>'failed','error_message'=>'B1145 owner: failed app:backup-verify'])");
+        }
+        if(in_array('BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING',$b,true)&&isset($v['runningBackups'])){
+            $this->recoveryNote('RUNNING_BACKUP_ROW',['rows'=>$v['runningBackups'],'ownerProcedure'=>'IF_NO_BACKUP_PROCESS_IS_RUNNING_PS_SHOWS_NO_ARTISAN_OR_DUMP_MARK_THE_STALE_ROW_FAILED_WITH_ITS_OWNER_COMMAND_OR_WAIT_UNTIL_GATE_CLEARS_AT']);
+            foreach($v['runningBackups'] as $row)$this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$row['id'].")->where('status','running')->update(['status'=>'failed','error_message'=>'B1145 owner: stale running backup'])");
+        }
+        if(in_array('PUBLIC_TABLE_COLUMNS_WITHOUT_CONSTRAINTS',$b,true))$this->schemaRecovery($v['schemaConstraints']??[],$v['migrations']['pending']??null);
+        foreach($b as $code)if(str_starts_with($code,'SCHEDULED_BACKUP_OVERLAP_'))$this->recoveryNote('SCHEDULED_BACKUP_WINDOW',['conflict'=>$v['schedule']['conflict']??null,'next'=>'RUN_THE_SAME_COMMAND_AFTER_THE_SCHEDULED_BACKUP_HAS_FINISHED']);
+        foreach(['DISK_HEADROOM_INSUFFICIENT','INODE_HEADROOM_INSUFFICIENT','ACCOUNT_QUOTA_HEADROOM_INSUFFICIENT','ACCOUNT_QUOTA_INODES_INSUFFICIENT'] as $code)if(in_array($code,$b,true))$this->recoveryNote('HEADROOM',['code'=>$code,'need'=>$v['backupNeed']??null,'next'=>'FREE_SPACE_OR_INODES_IN_THE_ACCOUNT_THEN_RUN_THE_SAME_COMMAND']);
+    }
+
+    /** An EMPTY table whose migration is still pending is dropped so the migration recreates it with every constraint. */
+    private function schemaRecovery(array $constraints,?array $pending):void
+    {
+        foreach($constraints as $table=>$t){
+            if(!$t['exists']||!$t['columnsComplete']||$t['missing']===[])continue;$isPending=is_array($pending)&&in_array($t['migration'],$pending,true);$drop=$isPending&&$t['rows']===0;
+            $this->recoveryNote('TABLE_WITHOUT_CONSTRAINTS',['table'=>$table,'missing'=>$t['missing'],'rows'=>$t['rows'],'migrationPending'=>$isPending,
+                'ownerProcedure'=>$drop?'THE_TABLE_IS_EMPTY_AND_ITS_MIGRATION_IS_PENDING_DROP_IT_WITH_THE_OWNER_COMMAND_THEN_RUN_THE_SAME_COMMAND_THE_MIGRATION_RECREATES_IT_WITH_EVERY_CONSTRAINT':'DO_NOT_DROP_THE_TABLE_HAS_ROWS_OR_ITS_MIGRATION_IS_RECORDED_A_DEVELOPER_MUST_ADD_THE_MISSING_CONSTRAINTS_EXACTLY_AS_THE_MIGRATION_DEFINES_STOREFRONT_STAYS_CLOSED']);
+            if($drop)$this->ownerCommand("Schema::drop('".$table."')");
+        }
     }
 
     private function loadExisting():bool
@@ -316,20 +557,74 @@ final class MigrateUnclampCoordinator
         $this->state['admission']=$chain['sha256'];$this->state['b1144']=array_diff_key($chain,['bytes'=>true]);$this->emit('B1144_TERMINAL_ADMISSION',['b1144Id'=>$chain['id'],'reportSHA256'=>$chain['sha256']['report'],'archivedPrivate0600'=>true,'liveBytesUnchanged'=>true]);
     }
 
-    /** (A) Fresh backup of the production database and private files, then its own verification. Prints id, size and status only. */
+    /**
+     * (A) A FRESH backup of the production database and private files in THIS run, then its own verification. A backup of
+     * an earlier run is never reused (the nightly retention may have removed it). Prints id, key, size and status only.
+     */
     private function backup(int $ran):void
     {
-        $previous=$this->state['backup']??null;
-        if(is_array($previous)&&($previous['verified']??false)===true&&($previous['ranAtBackup']??null)===$ran){$this->emit('BACKUP_REUSED_VERIFIED',['id'=>$previous['id'],'sizeBytes'=>$previous['sizeBytes'],'status'=>'VERIFIED']);return;}
-        $this->save('BACKUP_INTENT');$create=$this->artisan(['app:backup-create','--type=manual'],2400);
+        $this->processBackup=null;$app=$this->appState('state');$this->scheduleCheck($app,'BEFORE_BACKUP_CREATE',3);$this->warnFirstBackup($app);
+        $this->save('BACKUP_INTENT');$since=time();$started=hrtime(true);
+        try{$create=$this->artisan(['app:backup-create','--type=manual'],$this->backupTimeout);}catch(Throwable $e){$this->backupChildFailure('CREATE',$e,$since);}
         $key=preg_match('/^PASS Backup je kreiran: (\S+)\s*$/m',$create['stdout'],$m)?basename($m[1]):null;
-        if($create['rc']!==0||$key===null||!preg_match('/^\d{8}-\d{6}-manual-[a-f0-9]{6}$/D',$key)){$this->emit('BACKUP',['status'=>'CREATE_FAILED','rc'=>$create['rc'],'rawOutputNotExported'=>true]);$this->save('HOLD_BACKUP_FAILED');throw new RuntimeException('BACKUP_CREATE_FAILED');}
-        $run=$this->appState('backup',$key);if(($run['found']??false)!==true||($run['status']??null)!=='completed'||!is_int($run['id']??null)){$this->emit('BACKUP',['status'=>'RUN_NOT_COMPLETED']);$this->save('HOLD_BACKUP_FAILED');throw new RuntimeException('BACKUP_RUN_NOT_COMPLETED');}
-        $this->state['backup']=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'ranAtBackup'=>$ran,'verified'=>false];$this->save('BACKUP_CREATED');
-        $verify=$this->artisan(['app:backup-verify','--run='.$run['id']],2400);$pass=$verify['rc']===0&&str_contains($verify['stdout'],'Backup je logicki validan');
-        $this->emit('BACKUP',['id'=>$run['id'],'sizeBytes'=>$run['sizeBytes'],'status'=>$pass?'VERIFIED':'VERIFY_FAILED','verifyRC'=>$verify['rc']]);
-        if(!$pass){$this->save('HOLD_BACKUP_FAILED');throw new RuntimeException('BACKUP_VERIFY_FAILED');}
-        $this->state['backup']['verified']=true;$this->save('BACKUP_VERIFIED');
+        if($create['rc']!==0||$key===null||!preg_match('/^\d{8}-\d{6}-manual-[a-f0-9]{6}$/D',$key)){
+            $this->emit('BACKUP',['status'=>'CREATE_FAILED','rc'=>$create['rc'],'rawOutputNotExported'=>true]);$this->save('HOLD_BACKUP_FAILED');
+            $this->recoveryNote('BACKUP_CREATE_FAILED',['rowsSinceIntent'=>$this->backupRowsSince($since),'why'=>'READ_THE_LARAVEL_LOG_A_FAILED_DUMP_OR_THE_APP_RETENTION_FEWER_THAN_TWO_RESTORE_READY_BACKUPS_MARKS_THE_NEW_ROW_FAILED','next'=>'FIX_THE_CAUSE_THEN_RUN_THE_SAME_COMMAND']);throw new RuntimeException('BACKUP_CREATE_FAILED');
+        }
+        $run=$this->appState('backup',$key);if(($run['found']??false)!==true||($run['status']??null)!=='completed'||!is_int($run['id']??null)){$this->emit('BACKUP',['status'=>'RUN_NOT_COMPLETED']);$this->save('HOLD_BACKUP_FAILED');$this->recoveryNote('BACKUP_RUN_NOT_COMPLETED',['key'=>$key,'why'=>'THE_APP_RETENTION_REMOVED_THE_NEW_BACKUP_BECAUSE_IT_FAILED_APP_BACKUP_VERIFY_WHILE_TWO_OTHER_BACKUPS_VERIFIED','next'=>'READ_THE_LARAVEL_LOG_FIX_THE_CAUSE_THEN_RUN_THE_SAME_COMMAND']);throw new RuntimeException('BACKUP_RUN_NOT_COMPLETED');}
+        $createdAt=hrtime(true);$this->state['backup']=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'ranAtBackup'=>$ran,'verified'=>false,'createdAt'=>time()];$this->save('BACKUP_CREATED');
+        $verify=$this->verifyRun($run['id']);
+        $this->emit('BACKUP',['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'status'=>$verify['pass']?'VERIFIED':'VERIFY_FAILED','verifyRC'=>$verify['rc'],'createSeconds'=>round(($createdAt-$started)/1e9,1),'verifySeconds'=>round($verify['seconds'],1)]);
+        if(!$verify['pass']){
+            // Remember exactly which backup of THIS tool failed verification: it stays "completed" and blocks the app's retention.
+            $this->state['unverifiableBackups'][]=['id'=>$run['id'],'key'=>$key,'at'=>time()];$this->save('HOLD_BACKUP_FAILED');
+            $this->recoveryNote('BACKUP_VERIFY_FAILED',['id'=>$run['id'],'key'=>$key,'createdByThisTool'=>true,'child'=>$verify['child']??null,'why'=>'WHILE_THIS_COMPLETED_ROW_FAILS_VERIFY_AND_FEWER_THAN_TWO_OTHER_BACKUPS_VERIFY_THE_APP_REJECTS_EVERY_NEW_BACKUP_INCLUDING_THE_NIGHTLY_ONE','ownerProcedure'=>'MARK_THIS_ROW_FAILED_WITH_THE_OWNER_COMMAND_THEN_FIX_THE_CAUSE_AND_RUN_THE_SAME_COMMAND']);
+            $this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$run['id'].")->where('status','completed')->update(['status'=>'failed','error_message'=>'B1145 owner: failed app:backup-verify'])");
+            throw new RuntimeException(isset($verify['child'])?'BACKUP_VERIFY_CHILD_TERMINATED':'BACKUP_VERIFY_FAILED');
+        }
+        $this->processBackup=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'createdAt'=>$createdAt,'verifySeconds'=>$verify['seconds']];$this->state['backup']['verified']=true;
+        // The FIRST verified pre-migration backup (68 ran) is kept in state for every later recovery note and never overwritten.
+        if($ran===self::RAN_BEFORE&&!isset($this->state['firstPreMigrationBackup']))$this->state['firstPreMigrationBackup']=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'verifiedAt'=>time()];
+        $this->save('BACKUP_VERIFIED');
+    }
+
+    /** Backup rows (running) this run may have left, for the recovery note; empty when the database cannot be read. */
+    private function backupRowsSince(int $since):array
+    {
+        try{$app=$this->appState('state');}catch(Throwable){return ['readable'=>false];}
+        return ['readable'=>true,'running'=>array_values(array_filter($app['backups']['runningRuns'],static fn($r)=>($r['startedAt']??0)>=$since-5))];
+    }
+
+    /** A backup child stopped by timeout or output bound: HOLD saved after the child exited, with the running-row explanation. */
+    private function backupChildFailure(string $step,Throwable $error,int $since):never
+    {
+        $code=self::code($error);$this->save('HOLD_BACKUP_FAILED');$rows=$this->backupRowsSince($since);
+        $this->recoveryNote('BACKUP_CHILD_TERMINATED',['step'=>$step,'reason'=>$code,'child'=>$this->lastChildStop,'rowsSinceIntent'=>$rows,'migrateExecuted'=>false,
+            'runningRowExplanation'=>'THE_STOPPED_APP_BACKUP_NEVER_UPDATES_ITS_BACKUP_RUNS_ROW_IT_STAYS_RUNNING_AND_THE_NO_RUNNING_BACKUP_GATE_BLOCKS_FOR_6_HOURS_AFTER_ITS_START_UNLESS_THE_OWNER_MARKS_IT_FAILED',
+            'ownerProcedure'=>'CONFIRM_NO_ARTISAN_OR_DUMP_PROCESS_RUNS_THEN_MARK_EACH_LISTED_RUNNING_ROW_FAILED_WITH_ITS_OWNER_COMMAND_ITS_PARTIAL_DIRECTORY_MAY_BE_DELETED_THEN_RUN_THE_SAME_COMMAND']);
+        foreach($rows['running']??[] as $row)$this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$row['id'].")->where('status','running')->update(['status'=>'failed','error_message'=>'B1145 owner: stopped backup'])");
+        throw new RuntimeException('BACKUP_CHILD_TERMINATED');
+    }
+
+    /** Warns when the app's keep-two retention could remove the first pre-migration backup with the backup about to start. */
+    private function warnFirstBackup(array $app):void
+    {
+        $first=$this->state['firstPreMigrationBackup']??null;if($first===null)return;$ids=array_column($app['backups']['completedRuns'],'id');$position=array_search($first['id'],$ids,true);
+        if($position===false)$this->emit('WARN_FIRST_PRE_MIGRATION_BACKUP',['id'=>$first['id'],'key'=>$first['key'],'status'=>'ALREADY_REMOVED_BY_APP_RETENTION_COPY_THE_OFF_SERVER_COPY_IF_YOU_HAVE_ONE']);
+        elseif($position>=1)$this->emit('WARN_FIRST_PRE_MIGRATION_BACKUP',['id'=>$first['id'],'key'=>$first['key'],'status'=>'THE_APP_RETENTION_REMOVES_IT_WHEN_THIS_BACKUP_COMPLETES_COPY_IT_OFF_THE_SERVER_FIRST_IF_IT_IS_NEEDED','newerCompleted'=>$position]);
+    }
+
+    /**
+     * Reuse of the backup taken in THIS process, immediately before migrate --force: the row exists and is completed with
+     * the same id and size, its directory is present, and app:backup-verify passes again. Returns the failed check or null.
+     */
+    private function recheckBackup():?string
+    {
+        $b=$this->processBackup;if($b===null)return 'NO_BACKUP_IN_THIS_RUN';$this->fault('BEFORE_BACKUP_RECHECK');
+        try{$row=$this->appState('backup',$b['key']);}catch(Throwable $e){return 'ROW_UNREADABLE_'.self::code($e);}
+        if(($row['found']??false)!==true)return 'ROW_MISSING';if(($row['status']??null)!=='completed'||($row['id']??null)!==$b['id'])return 'ROW_NOT_COMPLETED';
+        if(($row['sizeBytes']??null)!==$b['sizeBytes'])return 'SIZE_CHANGED';if(($row['dirPresent']??false)!==true)return 'DIRECTORY_MISSING';
+        $v=$this->verifyRun($b['id']);return $v['pass']?null:'VERIFY_FAILED';
     }
 
     /** Migration names in --pretend output, in order of first appearance. */
@@ -340,35 +635,56 @@ final class MigrateUnclampCoordinator
 
     /**
      * --pretend may list only migrations that are pending, in order. It either lists all of them (rc 0) or stops at the FIRST
-     * one because pretend returns no rows to schema introspection (on a fresh run the exact known code must appear). The
-     * authoritative file-set gate stays migrate:status (exactly the pending suffix, nothing else).
+     * one because pretend returns no rows to schema introspection; then that migration's own exact code must appear
+     * (PRETEND_KNOWN_STOPS), on a fresh run and on a resume alike. The authoritative file-set gate stays migrate:status.
      */
     public static function pretendVerdict(int $rc,string $stdout,string $stderr,array $pending,bool $fresh):array
     {
         $names=self::pretendNames($stdout);if($pending===[]||array_diff($names,$pending)!==[]||$names!==array_slice($pending,0,count($names)))return ['ok'=>false,'listed'=>$names,'code'=>'PRETEND_LISTS_UNEXPECTED_MIGRATIONS'];
         if($rc===0)return $names===$pending?['ok'=>true,'listed'=>$names,'mode'=>'ALL_PENDING_LISTED']:['ok'=>false,'listed'=>$names,'code'=>'PRETEND_INCOMPLETE_LISTING'];
-        $known=str_contains($stdout.$stderr,self::PRETEND_INTROSPECTION_CODE);
-        if($names===[$pending[0]]&&(!$fresh||$known))return ['ok'=>true,'listed'=>$names,'mode'=>'STOPPED_AT_FIRST_PENDING_PRETEND_INTROSPECTION','knownIntrospectionCode'=>$known];
+        $expectedCode=self::PRETEND_KNOWN_STOPS[$pending[0]]??null;$known=$expectedCode!==null&&str_contains($stdout.$stderr,$expectedCode);
+        $foreign=false;foreach(self::PRETEND_KNOWN_STOPS as $name=>$code)if($name!==$pending[0]&&str_contains($stdout.$stderr,$code))$foreign=true;
+        if($names===[$pending[0]]&&$known&&!$foreign)return ['ok'=>true,'listed'=>$names,'mode'=>'STOPPED_AT_FIRST_PENDING_PRETEND_INTROSPECTION','knownIntrospectionCode'=>$expectedCode,'resume'=>!$fresh];
         return ['ok'=>false,'listed'=>$names,'code'=>'PRETEND_FAILED_UNEXPECTEDLY'];
     }
 
     /** (B) Exactly the pending migrations: never seeding, fresh, rollback or refresh. No automatic rollback on failure. */
-    private function migrate(array $pending,bool $fresh):void
+    private function migrate(array $pending,bool $fresh,int $ran):void
     {
         if($pending!==[]){
-            $p=$this->artisan(['migrate','--pretend','--force'],300);$verdict=self::pretendVerdict($p['rc'],$p['stdout'],$p['stderr'],$pending,$fresh);
+            try{$p=$this->artisan(['migrate','--pretend','--force'],300);}catch(Throwable $e){$this->save('HOLD_PRETEND_UNEXPECTED');$this->recoveryNote('PRETEND_CHILD_TERMINATED',['reason'=>self::code($e),'child'=>$this->lastChildStop,'migrateExecuted'=>false]);throw new RuntimeException('PRETEND_CHILD_TERMINATED');}
+            $verdict=self::pretendVerdict($p['rc'],$p['stdout'],$p['stderr'],$pending,$fresh);
             $this->emit('MIGRATE_PRETEND',['rc'=>$p['rc']]+$verdict+['rawOutputNotExported'=>true]);if(!$verdict['ok']){$this->save('HOLD_PRETEND_UNEXPECTED');throw new RuntimeException($verdict['code']);}
-            $this->state['migrateAttempted']=true;$this->save('MIGRATE_INTENT');$m=$this->artisan(['migrate','--force'],900);
+            // The backup of THIS run is re-checked and re-verified, then the census, then the age bound; otherwise one retake.
+            for($attempt=0;;$attempt++){
+                $reason=$this->recheckBackup();
+                if($reason===null){
+                    $this->preMigrateCensus();$age=(hrtime(true)-$this->processBackup['createdAt'])/1e9;$bound=max($this->backupMaxAgeSeconds,(int)ceil(2*$this->processBackup['verifySeconds'])+2*$this->censusSeconds+60);
+                    if($age<=$bound){$this->emit('BACKUP_RECHECKED_BEFORE_MIGRATE',['id'=>$this->processBackup['id'],'key'=>$this->processBackup['key'],'rowCompleted'=>true,'sameSize'=>true,'directoryPresent'=>true,'reverified'=>true,'ageSeconds'=>(int)$age,'maxAgeSeconds'=>$bound,'sameProcess'=>true]);break;}
+                    $reason='OLDER_THAN_'.$bound.'_SECONDS';
+                }
+                $this->emit('BACKUP_RECHECK_FAILED',['reason'=>$reason,'attempt'=>$attempt+1,'action'=>$attempt===0?'RETAKE_A_FRESH_BACKUP':'HOLD']);
+                if($attempt>=1){$this->save('HOLD_BACKUP_RECHECK_FAILED');$this->recoveryNote('BACKUP_RECHECK_FAILED',['reason'=>$reason,'migrateExecuted'=>false,'next'=>'CHECK_WHAT_REMOVES_OR_CHANGES_BACKUPS_CRON_RETENTION_OR_DISK_THEN_RUN_THE_SAME_COMMAND']);throw new RuntimeException('BACKUP_RECHECK_FAILED_BEFORE_MIGRATE');}
+                $this->backup($ran);
+            }
+            $this->scheduleCheck($this->appState('state'),'BEFORE_MIGRATE_FORCE',1);$this->fault('BEFORE_MIGRATE_FORCE');
+            $this->state['migrateAttempted']=true;$this->save('MIGRATE_INTENT');$child=null;
+            try{$m=$this->artisan(['migrate','--force'],$this->migrateTimeout);}catch(Throwable $e){$child=['reason'=>self::code($e)]+($this->lastChildStop??[]);$m=['rc'=>null];}
             try{$status=$this->migrationStatus();}catch(Throwable $e){$status=['ran'=>null,'pending'=>null,'error'=>self::code($e)];}
-            $this->emit('MIGRATE',['rc'=>$m['rc'],'ran'=>$status['ran'],'pending'=>$status['pending'],'seedFreshRollbackOrRefresh'=>false,'rawOutputNotExported'=>true]);
-            if($m['rc']!==0||$status['pending']!==[]||$status['ran']!==self::RAN_BEFORE+3){
-                $this->save('HOLD_MIGRATION_FAILED');
-                $this->emit('MIGRATION_RECOVERY_NOTE',['automaticRollback'=>false,'clamp'=>'IN_PLACE_STOREFRONT_CLOSED','backupId'=>$this->state['backup']['id']??null,'ran'=>$status['ran'],'pending'=>$status['pending'],'next'=>'READ_THE_LARAVEL_LOG_FIX_THE_CAUSE_THEN_RUN_THE_SAME_COMMAND_AGAIN_IT_TAKES_A_NEW_BACKUP_AND_RUNS_ONLY_WHAT_IS_STILL_PENDING_OR_RESTORE_THE_VERIFIED_BACKUP_ON_A_SEPARATE_DATABASE_FIRST']);
-                throw new RuntimeException('MIGRATION_FAILED_NO_AUTOMATIC_ROLLBACK');
+            $this->emit('MIGRATE',['rc'=>$m['rc'],'ran'=>$status['ran'],'pending'=>$status['pending'],'childTerminated'=>$child,'seedFreshRollbackOrRefresh'=>false,'rawOutputNotExported'=>true]);
+            if($child!==null||$m['rc']!==0||$status['pending']!==[]||$status['ran']!==self::RAN_BEFORE+3){
+                $this->save('HOLD_MIGRATION_FAILED');$schema=null;try{$schema=self::schemaConstraintGaps($this->appState('state')['schema']??[]);}catch(Throwable){}
+                $this->emit('MIGRATION_RECOVERY_NOTE',['automaticRollback'=>false,'clamp'=>'IN_PLACE_STOREFRONT_CLOSED','backupId'=>$this->state['backup']['id']??null,'firstPreMigrationBackupId'=>$this->state['firstPreMigrationBackup']['id']??null,'ran'=>$status['ran'],'pending'=>$status['pending'],'childTerminated'=>$child,'schemaConstraints'=>$schema,
+                    'next'=>'READ_THE_LARAVEL_LOG_FIX_THE_CAUSE_THEN_RUN_THE_SAME_COMMAND_AGAIN_IT_CHECKS_EVERY_TABLE_CONSTRAINT_TAKES_A_NEW_BACKUP_AND_RUNS_ONLY_WHAT_IS_STILL_PENDING_OR_RESTORE_THE_VERIFIED_BACKUP_ON_A_SEPARATE_DATABASE_FIRST']);
+                $this->recoveryNote('MIGRATION_FAILED',['childTerminated'=>$child!==null,'ran'=>$status['ran'],'pending'=>$status['pending']]);
+                throw new RuntimeException($child!==null?'MIGRATE_CHILD_TERMINATED_NO_AUTOMATIC_ROLLBACK':'MIGRATION_FAILED_NO_AUTOMATIC_ROLLBACK');
             }
         }
-        $app=$this->appState('state');$gaps=$this->schemaGaps($app);$this->emit('SCHEMA_AFTER_MIGRATIONS',['tables'=>$app['tables'],'toggleColumns'=>$app['toggleColumns'],'roles'=>$app['roles'],'gaps'=>$gaps,'readOnly'=>true]);
-        if($gaps!==[]){$this->save('HOLD_MIGRATION_VERIFY_FAILED');throw new RuntimeException('SCHEMA_AFTER_MIGRATIONS_INCOMPLETE');}
+        $app=$this->appState('state');$gaps=$this->schemaGaps($app);$this->emit('SCHEMA_AFTER_MIGRATIONS',['tables'=>$app['tables'],'toggleColumns'=>$app['toggleColumns'],'roles'=>$app['roles'],'constraints'=>self::schemaConstraintGaps($app['schema']??[]),'gaps'=>$gaps,'readOnly'=>true]);
+        if($gaps!==[]){
+            $this->save('HOLD_MIGRATION_VERIFY_FAILED');$this->schemaRecovery(self::schemaConstraintGaps($app['schema']??[]),[]);
+            throw new RuntimeException(array_filter($gaps,static fn($x)=>!str_starts_with($x,'CONSTRAINT_'))===[]?'PUBLIC_TABLE_COLUMNS_WITHOUT_CONSTRAINTS':'SCHEMA_AFTER_MIGRATIONS_INCOMPLETE');
+        }
         $this->save('MIGRATED_VERIFIED');
     }
 
@@ -428,19 +744,22 @@ final class MigrateUnclampCoordinator
         }catch(Throwable $e){$problems[]=self::code($e);}
         if($problems!==[]){
             try{$this->save('RESTORE_INCOMPLETE');}catch(Throwable){$this->emit('RESTORE_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RUN_THE_SAME_COMMAND');}
-            $this->emit('RESTORE_INCOMPLETE',['problems'=>array_values(array_unique($problems)),'privateCopies'=>is_array($u)?'KEPT_0600_IN_PRIVATE_STATE':'NONE','operatorNote'=>'DO_NOT_EDIT_BY_HAND_FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RESTORES_AGAIN']);return false;
+            $this->emit('RESTORE_INCOMPLETE',['problems'=>array_values(array_unique($problems)),'privateCopies'=>is_array($u)?'KEPT_0600_IN_PRIVATE_STATE':'NONE','operatorNote'=>'DO_NOT_EDIT_BY_HAND_FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RESTORES_AGAIN','firstPreMigrationBackupId'=>$this->state['firstPreMigrationBackup']['id']??null]);return false;
         }
         $this->save('RESTORED_CLAMPED');$this->emit('RESTORED',['clamp'=>'EXACT_PRIVATE_COPY','env'=>'EXACT_PRIVATE_COPY_OR_UNCHANGED','configShow'=>'enabled=false checkout_enabled=false','storefront'=>'CLOSED']);return true;
     }
 
     private function hold(string $phase,array $report):int
     {
-        $this->save($phase);$this->emit('HOLD_NO_MUTATION',['phase'=>$phase,'blockers'=>$report['blockers']]);return 2;
+        $this->save($phase);$this->emit('HOLD_NO_MUTATION',['phase'=>$phase,'blockers'=>$report['blockers'],'firstPreMigrationBackupId'=>$this->state['firstPreMigrationBackup']['id']??null]);$this->preflightRecovery($report);return 2;
     }
 
     private function finish():int
     {
-        $this->emit('B1145_RESULT',['migrations'=>'71_RAN_0_PENDING','runtimeClamp'=>'REMOVED_CONFIG_IS_STAGED_ORIGINAL','env'=>['PUBLIC_STOREFRONT_ENABLED'=>true,'PUBLIC_CHECKOUT_ENABLED'=>true],'storefront'=>'CLOSED_DB_SWITCH_ABSENT_OR_0','backupId'=>$this->state['backup']['id']??null]);
+        $first=$this->state['firstPreMigrationBackup']??null;
+        $this->emit('B1145_RESULT',['migrations'=>'71_RAN_0_PENDING','runtimeClamp'=>'REMOVED_CONFIG_IS_STAGED_ORIGINAL','env'=>['PUBLIC_STOREFRONT_ENABLED'=>true,'PUBLIC_CHECKOUT_ENABLED'=>true],'storefront'=>'CLOSED_DB_SWITCH_ABSENT_OR_0','backupId'=>$this->state['backup']['id']??null,'firstPreMigrationBackupId'=>$first['id']??null]);
+        $present=null;if($first!==null)try{$present=in_array($first['id'],array_column($this->appState('state')['backups']['completedRuns'],'id'),true);}catch(Throwable){}
+        if($first!==null)$this->emit('FIRST_PRE_MIGRATION_BACKUP',['id'=>$first['id'],'key'=>$first['key'],'sizeBytes'=>$first['sizeBytes'],'ranAtBackup'=>self::RAN_BEFORE,'stillOnServer'=>$present,'horizon'=>'THE_APP_KEEPS_ONLY_THE_2_NEWEST_VERIFIED_BACKUPS_THE_NIGHTLY_02_30_BACKUPS_REMOVE_IT_DOWNLOAD_OR_COPY_IT_OFF_THE_SERVER_RIGHT_AFTER_THIS_RUN']);
         $this->emit('OWNER_NEXT_STEPS',['1_ADMIN_LOGIN_CMS_ALD1N_COM','2_CONFIRM_MERCHANT_REVIEW_APPROVED','3_TURN_ON_THE_PUBLIC_STOREFRONT_SWITCH_IN_THE_ADMIN_UI','4_CHECK_KATALOG_200_AND_ONE_TEST_ORDER','EMERGENCY_OFF_IS_THE_SAME_ADMIN_SWITCH']);
         $this->emit('PERMANENT_PRIVATE_DATA_DEPENDENCY_DO_NOT_PRUNE',$this->retained());$this->emit('DO_NOT_RERUN_B1144_AFTER_B1145','ITS_CLAMP_AND_ENV_DIGESTS_ARE_NOW_OUTDATED');return 0;
     }
@@ -448,7 +767,7 @@ final class MigrateUnclampCoordinator
     /** Re-run after the terminal PASS: re-verify only; the DB switch may already be ON by the owner and is reported, not gated. */
     private function closedRerun():int
     {
-        $p=$this->preflight('closed');if($p['blockers']!==[]){$this->emit('HOLD_CLOSED_UNCLAMPED_REVERIFY',$p['blockers']);return 2;}
+        $p=$this->preflight('closed');if($p['blockers']!==[]){$this->emit('HOLD_CLOSED_UNCLAMPED_REVERIFY',$p['blockers']);$this->preflightRecovery($p);return 2;}
         $shown=$this->configShow();$this->emit('CONFIG_SHOW_PUBLIC_STOREFRONT',$shown);if($shown!==['enabled'=>true,'checkout_enabled'=>true]){$this->emit('HOLD_CLOSED_UNCLAMPED_REVERIFY',['CONFIG_SHOW_NOT_UNCLAMPED']);return 2;}
         $this->emit('ALREADY_UNCLAMPED_NO_REPEAT',true);return $this->finish();
     }
@@ -460,10 +779,11 @@ final class MigrateUnclampCoordinator
             $phase=$this->state['phase'];if($phase==='CLOSED_UNCLAMPED')return $this->closedRerun();
             if(in_array($phase,['PREFLIGHT','HOLD_PREFLIGHT_BLOCKED'],true)){
                 $this->cleanupRecorded();$p=$this->preflight('fresh');if($p['blockers']!==[])return $this->hold('HOLD_PREFLIGHT_BLOCKED',$p);$this->admit();$this->save('PREFLIGHT_PASSED');
-                $this->backup(self::RAN_BEFORE);$this->migrate(self::PENDING,true);
+                $this->backup(self::RAN_BEFORE);$this->migrate(self::PENDING,true,self::RAN_BEFORE);
             }elseif(in_array($phase,self::MIGRATE_PHASES,true)){
                 $this->cleanupRecorded();$p=$this->preflight('migrate');if($p['blockers']!==[])return $this->hold('HOLD_MIGRATE_PREFLIGHT_BLOCKED',$p);
-                $pending=$p['values']['migrations']['pending'];if($pending!==[])$this->backup($p['values']['migrations']['ran']);$this->migrate($pending,false);
+                // Every run that will execute migrate --force takes its own fresh backup first.
+                $pending=$p['values']['migrations']['pending'];$ran=$p['values']['migrations']['ran'];if($pending!==[])$this->backup($ran);$this->migrate($pending,false,$ran);
             }elseif(in_array($phase,self::IN_FLIGHT,true)){
                 $this->emit('RESUMED_INTERRUPTED_UNCLAMP',['phase'=>$phase]);if(!$this->restore('RESUMED_INTERRUPTED_'.$phase))return 2;
             }elseif(!in_array($phase,self::UNCLAMP_READY,true))throw new RuntimeException('UNKNOWN_SAVED_PHASE');
