@@ -109,7 +109,7 @@ foreach(['noRouteCache','routeCache'] as $variant){
     [$rc,$o]=$run($allSteps());$steps=$stepsClean();echo 'STEP_SMOKES='.json_encode($steps,JSON_UNESCAPED_SLASHES).PHP_EOL;
     check($rc===0&&lastRaw($o,'B1146_FINAL')==='PASS_INSTALLED_LEGAL_OVERLAY_STOREFRONT_CLOSED'&&$tree()==='INSTALLED','INSTALL_PASS_'.$variant);check($steps['points']===23&&$steps['bad']===[],'EVERY_STEP_SERVES_'.$variant);
     $approval=lastLine($o,'MERCHANT_APPROVAL');check($approval['before']['approvalDigestMatchesFingerprint']===true&&$approval['after']['approvalDigestMatchesFingerprint']===false&&$approval['resetByThisInstall']===true&&str_contains($o,'OWNER_NOTICE_MERCHANT_APPROVAL=THE_MERCHANT_APPROVAL_IS_RESET'),'APPROVAL_RESET_PRINTED_'.$variant);
-    $smokes=lastLine($o,'PUBLIC_HTTP_SMOKES');check($smokes['state']==='INSTALLED'&&$smokes['failed']===[]&&count(array_filter($smokes['rows'],static fn($r)=>$r['expected']===200&&$r['noindex']))===8,'LEGAL_200_NOINDEX_'.$variant);
+    $smokes=lastLine($o,'PUBLIC_HTTP_SMOKES');check($smokes['state']==='INSTALLED'&&$smokes['failed']===[]&&count(array_filter($smokes['rows'],static fn($r)=>in_array($r['path'],OverlayCoordinator::LEGAL,true)&&$r['observed']===200&&$r['noindex']))===8,'LEGAL_200_NOINDEX_'.$variant);
     check($status('/admin/settings/public-storefront',['Cookie: '.$adminCookie])===200&&$status('/admin/settings/public-storefront/legal/terms',['Cookie: '.$adminCookie])===200,'SUPERADMIN_PAGES_NEW_CODE_'.$variant);
     check(($variant==='routeCache')===($routeCacheSHA()!==null)&&($cacheBefore===null||$routeCacheSHA()!==$cacheBefore),'ROUTE_CACHE_MODE_KEPT_'.$variant);
     check(!str_contains($o,'globalReset":true')&&str_contains($o,'"label":"installed-invalidate"'),'TARGETED_INVALIDATION_ONLY_'.$variant);
