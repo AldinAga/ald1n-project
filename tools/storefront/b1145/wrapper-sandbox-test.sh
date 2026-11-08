@@ -67,6 +67,8 @@ grep -qx 'WORKER_DETACHED_FROM_SSH_SESSION=YES' "$report" || die DETACH_NO_DETAC
 grep -qx 'B1145_FINAL=HOLD' "$report" || die DETACH_NO_FINAL_LINE
 grep -qx 'B1145_PHASE="HOLD_PREFLIGHT_BLOCKED"' "$report" || die DETACH_UNEXPECTED_HOLD
 grep -qx 'EXIT=2' "$report" || die DETACH_NO_EXIT_LINE
+if grep -q $'\033' "$report"; then die DETACH_REPORT_HAS_TERMINAL_ESCAPE; fi
+grep -q $'\033' "$log" || die DETACH_FOREGROUND_DID_NOT_CLEAR
 if grep -q 'WORKER_STOPPED_BY_SIGNAL' "$report"; then die DETACH_WORKER_GOT_SIGNAL; fi
 
 # Late worker start (setsid delayed 75 s): the foreground writes WORKER_START_UNCONFIRMED and NO EXIT line; the worker,
@@ -99,4 +101,6 @@ test ! -e "$lock" || die PLAIN_LOCK_LEFT
 test "$(scratch_count)" = 0 || die PLAIN_SCRATCH_LEFT
 report="$(sed -n 's/^REPORT=//p' "$log" | head -n 1)"
 case "$report" in /home/icaffeco/ald1n-project/docs/operations/1108-B1145-CONTROLLED-MIGRATE-UNCLAMP-*.md|/home/icaffeco/ald1n-project/docs/operations/11[0-9][0-9]-B1145-CONTROLLED-MIGRATE-UNCLAMP-*.md) ;; *) die "PLAIN_REPORT_NAME_$report";; esac
-printf '{"intReleasesLockAndScratch":true,"termReleasesLockAndScratch":true,"workerSurvivesForegroundHupTerm":true,"workerWroteFinalLines":true,"lateWorkerStartUnconfirmedNoForegroundExit":true,"lateWorkerSingleExitLine":true,"plainRunExit":2,"reportNumberedAfter1107":true}\n'
+if grep -q $'\033' "$report"; then die PLAIN_REPORT_HAS_TERMINAL_ESCAPE; fi
+grep -q '^WORKER_PID=[0-9]' "$report" || die PLAIN_NO_WORKER_PID
+printf '{"intReleasesLockAndScratch":true,"termReleasesLockAndScratch":true,"workerSurvivesForegroundHupTerm":true,"workerWroteFinalLines":true,"lateWorkerStartUnconfirmedNoForegroundExit":true,"lateWorkerSingleExitLine":true,"plainRunExit":2,"reportNumberedAfter1107":true,"terminalClearedReportEscapeFree":true}\n'

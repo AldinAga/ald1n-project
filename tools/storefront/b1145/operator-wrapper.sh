@@ -3,6 +3,9 @@
 # The worker runs DETACHED from the SSH session (own session, HUP ignored, stdin /dev/null) and writes the report file
 # itself; this foreground part only reserves the report, follows it and prints the final EXIT line. An SSH drop or
 # Ctrl-C here never stops the worker: follow the report with tail -f.
+# The worker is started with stdout on /dev/null and appends to the report itself, so the terminal clear (AGENTS 26)
+# never writes escape bytes into the operation report.
+clear 2>/dev/null || printf '\033c'
 set -u
 umask 077
 export GIT_OPTIONAL_LOCKS=0
@@ -18,7 +21,12 @@ CRITICAL=0
 PENDING_SIGNAL=''
 scratch=''
 case "$#:${1-}" in 1:--worker) WORKER=1;; esac
-if test "$WORKER" = 1; then printf 'WORKER_PID=%s\n' "$$"; fi
+if test "$WORKER" = 1; then
+  case "${REPORT-}" in "$ROOT"/docs/operations/*.md) ;; *) printf 'HOLD: worker report context\n'; exit 2;; esac
+  test ! -L "$REPORT" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || { printf 'HOLD: worker report context\n'; exit 2; }
+  exec >> "$REPORT" 2>&1 < /dev/null
+  printf 'WORKER_PID=%s\n' "$$"
+fi
 fail() {
   printf 'HOLD: %s\n' "$*"
   if test "$WORKER" = 1; then printf 'EXIT=2\nREPORT=%s\n' "${REPORT-}"; fi
@@ -92,9 +100,9 @@ cleanup
 export REPORT
 printf 'SCRIPT=%s\nSCRIPT_SHA256=%s\nSCRIPT_NORMALIZED_INTEGRITY_SHA256=%s\nCHECKSUMS_SHA256=%s\n%s\n' "$SCRIPT" "$script_bytes" "$SELF_SHA" "$CHECKSUMS_SHA" "$fetch_output" >> "$REPORT"
 if command -v setsid >/dev/null 2>&1; then
-  setsid nohup bash "$SCRIPT" --worker >> "$REPORT" 2>&1 < /dev/null &
+  setsid nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &
 else
-  nohup bash "$SCRIPT" --worker >> "$REPORT" 2>&1 < /dev/null &
+  nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &
 fi
 WORKER_STARTED=1
 printf 'REPORT=%s\nWORKER_STARTED_DETACHED=YES; an SSH drop or Ctrl-C now does not stop it; follow with: tail -f %s\n' "$REPORT" "$REPORT"

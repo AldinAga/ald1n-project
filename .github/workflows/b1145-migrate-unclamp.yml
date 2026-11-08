@@ -49,7 +49,10 @@ jobs:
           bash -n tools/storefront/b1145/operator-wrapper.sh
           bash -n tools/storefront/b1145/wrapper-sandbox-test.sh
           if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1145/operator-wrapper.sh; then exit 2; fi
-          grep -q 'setsid nohup bash "$SCRIPT" --worker' tools/storefront/b1145/operator-wrapper.sh
+          grep -q 'setsid nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &' tools/storefront/b1145/operator-wrapper.sh
+          # AGENTS rule 26: the terminal clear is the first command after the shebang and the comment block.
+          test "$(grep -v '^#' tools/storefront/b1145/operator-wrapper.sh | head -n 1)" = "clear 2>/dev/null || printf '\033c'"
+          grep -q 'exec >> "$REPORT" 2>&1 < /dev/null' tools/storefront/b1145/operator-wrapper.sh
           grep -q "trap 'on_signal HUP 129' HUP" tools/storefront/b1145/operator-wrapper.sh
           grep -q 'if($highest<1107)exit(2)' tools/storefront/b1145/operator-wrapper.sh
           shipped='tools/storefront/b1145/operator-entry.php tools/storefront/b1145/MigrateUnclampCoordinator.php tools/storefront/b1145/EnvFlags.php tools/storefront/b1145/UnclampProbe.php tools/storefront/b1145/AppState.php tools/storefront/b1145/operator-wrapper.sh'
@@ -119,7 +122,8 @@ jobs:
           out="$(as bash "$script" 2>&1)"; rc=$?
           set -e
           printf '%s\n' "$out"
-          test "$rc" = 2 && grep -qx 'HOLD: canonical reports or successful stage unavailable' <<<"$out"
+          # The first output line carries the terminal clear (AGENTS 26), so this match is anchored at the end only.
+          test "$rc" = 2 && grep -q 'HOLD: canonical reports or successful stage unavailable$' <<<"$out"
           set +e
           out="$(as bash "$script" --unexpected 2>&1)"; rc=$?
           set -e
@@ -128,17 +132,27 @@ jobs:
           as git -C /home/icaffeco/ald1n-project -c user.name=Sandbox -c user.email=sandbox@example.invalid commit -q --allow-empty -m sandbox
           as git -C /home/icaffeco/ald1n-project update-ref refs/remotes/origin/main HEAD
           as mkdir -p /home/icaffeco/ald1n-project/docs/operations
+          # The worker appends to its report itself (stdout is not the report), so the report file is what is checked.
+          sandbox_report=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md
           set +e
-          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
           set -e
+          out="$(sudo cat "$sandbox_report")"
           printf '%s\n' "$out"
-          test "$rc" = 2 && grep -qx 'B1145_FINAL=HOLD' <<<"$out" && grep -qx 'B1145_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NONE"' <<<"$out"
+          test "$rc" = 2 && grep -qx 'B1145_FINAL=HOLD' <<<"$out" && grep -qx 'B1145_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NONE"' <<<"$out" && grep -q '^WORKER_PID=[0-9]' <<<"$out"
+          if sudo grep -q $'\033' "$sandbox_report"; then echo 'escape byte in the report'; exit 2; fi
+          as rm -f "$sandbox_report"
           as cp /home/icaffeco/ald1n-project/incoming/b1144-gates.php /tmp/b1144-gates.saved
           as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1144-gates.php'
           set +e
-          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
           set -e
+          out="$(sudo cat "$sandbox_report")"
           test "$rc" = 2 && grep -qx 'HOLD_CODE=PACKAGE_FILE_INTEGRITY' <<<"$out"
+          set +e
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/tmp/elsewhere.md bash "$script" --worker > /dev/null 2>&1; rc=$?
+          set -e
+          test "$rc" = 2 && test ! -e /tmp/elsewhere.md
           as cp /tmp/b1144-gates.saved /home/icaffeco/ald1n-project/incoming/b1144-gates.php
           as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1145-coordinator.php'
           set +e
