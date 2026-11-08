@@ -1,0 +1,163 @@
+name: B1144 lean controlled OFF install (NO DEPLOY)
+on:
+  push:
+    branches: [codex/b1144-lean-install-20261108]
+    paths: ['.github/workflows/b1144-lean-install.yml', 'tools/storefront/b1144/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  lean-install:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: opcache,pdo_sqlite,sqlite3,mbstring,dom,curl,gd,intl,bcmath,zip
+          coverage: none
+      - name: Pin cms.ald1n.com to loopback so CI can never reach production
+        run: |
+          set -euo pipefail
+          echo '127.0.0.1 cms.ald1n.com' | sudo tee -a /etc/hosts >/dev/null
+          test "$(getent hosts cms.ald1n.com | awk '{print $1}' | head -n1)" = 127.0.0.1
+      - name: Syntax, portable operator shell and removed mechanisms absent from shipped code
+        run: |
+          set -euo pipefail
+          for f in tools/storefront/b1144/*.php; do php -l "$f"; done
+          bash -n tools/storefront/b1144/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1144/operator-wrapper.sh; then exit 2; fi
+          shipped='tools/storefront/b1144/operator-entry.php tools/storefront/b1144/InstallCoordinator.php tools/storefront/b1144/B1144Recovery.php tools/storefront/b1144/LeanGates.php tools/storefront/b1144/FreshnessProbe.php tools/storefront/b1144/LeanWeb.php tools/storefront/b1144/operator-wrapper.sh'
+          if grep -niE '/usr/local/cpanel|uapi|DomainInfo|opcache_reset|php_flag|HostProcessGuard|UncachedProfile|verify-files' $shipped; then exit 2; fi
+          if grep -n $'\r' $shipped tools/storefront/b1144/README-SR.md; then exit 2; fi
+      - name: Real gates - scope, mtime diagnostic, local SHA-256, migrate:status parser, log offsets, process drain, probe file
+        run: php tools/storefront/b1144/gates-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1144" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/gates.json"
+      - name: Exact Report1104 B1143 terminal admission over six preserved generations
+        run: php tools/storefront/b1144/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/admission.json"
+      - name: Reuse authenticated exact existing runtime
+        id: runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/b1144-runtime"
+          mkdir -p "$work/payload" "$work/stage"
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
+          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
+          WORK="$work" python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile,zipfile
+          root=pathlib.Path(os.environ['WORK'])
+          with zipfile.ZipFile(root/'runtime.zip') as archive:
+              assert set(archive.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
+              for entry in archive.infolist():
+                  assert entry.file_size<=64*1024*1024
+                  (root/'payload'/entry.filename).write_bytes(archive.read(entry))
+          assert hashlib.sha256((root/'payload/cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
+          assert hashlib.sha256((root/'payload/runtime-manifest.json').read_bytes()).hexdigest()=='d737387e60a981b3b404e0980d9b70cb95b6e1d506a39211981d49dcd12be4c6'
+          with tarfile.open(root/'payload/cms-runtime.tar.gz') as archive:
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in archive.getmembers())
+              archive.extractall(root/'stage',filter='data')
+          PY
+          test "$(sha256sum tools/storefront/b1134/runtime-directories.json | cut -c1-64)" = 1e790c20fb9712d416399975d6cbcce3be1bd2dc12ede59a95f2e1cc75ea7e3e
+      - name: Real coordinator - success, every pre-switch HOLD, rollback at every post-switch stage incl. after lift, crash re-entry
+        if: ${{ !cancelled() && steps.runtime.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1144/coordinator-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1144" "$RUNNER_TEMP/b1144-runtime/stage" "$RUNNER_TEMP/b1144-runtime/payload" "$GITHUB_WORKSPACE/tools/storefront/b1134/runtime-directories.json" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/coordinator.json"
+      - name: Real Laravel over TLS - same-mtime stale code, targeted invalidation, smokes, log scan, rollback, OPcache off
+        if: ${{ !cancelled() && steps.runtime.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1144/front-fixture.py "$RUNNER_TEMP/b1144-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1144" "$GITHUB_WORKSPACE/tools/storefront/b1134"
+          cp "$RUNNER_TEMP/b1144-front/front-receipt.json" "$RUNNER_TEMP/front.json"
+      - name: Build operator ZIP
+        id: package
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1144/package.php "$GITHUB_WORKSPACE/tools/storefront/b1144" "$GITHUB_WORKSPACE/tools/storefront/b1134" "$RUNNER_TEMP/package" "$GITHUB_SHA" | tee "$RUNNER_TEMP/package.json"
+          (cd "$RUNNER_TEMP/package" && sha256sum --check --strict b1144-operator.zip.sha256)
+          unzip -Z1 "$RUNNER_TEMP/package/b1144-operator.zip" | sort > "$RUNNER_TEMP/members.txt"
+          cat "$RUNNER_TEMP/members.txt"
+          if grep -vE '^incoming/b1144-[A-Za-z0-9._-]+$' "$RUNNER_TEMP/members.txt"; then exit 2; fi
+      - name: Operator wrapper in a sandbox /home/icaffeco - integrity, canonical HOLD, entry wiring, tamper
+        run: |
+          set -euo pipefail
+          sudo useradd --create-home --home-dir /home/icaffeco --shell /bin/bash icaffeco
+          sudo chmod 755 /home/icaffeco
+          install -m 0644 "$RUNNER_TEMP/package/b1144-operator.zip" /tmp/b1144-operator.zip
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" "$@"; }
+          as mkdir -p /home/icaffeco/ald1n-project/incoming
+          as unzip -q /tmp/b1144-operator.zip -d /home/icaffeco/ald1n-project
+          for pair in ReleasePrimitives.php:b1134-release.php InstallFileOps.php:b1134-files.php SchedulerControl.php:b1134-scheduler.php; do
+            install -m 0644 "tools/storefront/b1134/${pair%%:*}" "/tmp/${pair##*:}"
+            as cp "/tmp/${pair##*:}" "/home/icaffeco/ald1n-project/incoming/${pair##*:}"
+          done
+          script=/home/icaffeco/ald1n-project/incoming/b1144-controlled-install.sh
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          printf '%s\n' "$out"
+          test "$rc" = 2 && grep -qx 'HOLD: canonical reports or successful stage unavailable' <<<"$out"
+          set +e
+          out="$(as bash "$script" --unexpected 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          # Entry wiring: real package.json verification and class loading, then the first host gate HOLDs (no staged manifest here).
+          as git init -q /home/icaffeco/ald1n-project
+          as git -C /home/icaffeco/ald1n-project -c user.name=Sandbox -c user.email=sandbox@example.invalid commit -q --allow-empty -m sandbox
+          as git -C /home/icaffeco/ald1n-project update-ref refs/remotes/origin/main HEAD
+          as mkdir -p /home/icaffeco/ald1n-project/docs/operations
+          set +e
+          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          set -e
+          printf '%s\n' "$out"
+          test "$rc" = 2 && grep -qx 'B1144_FINAL=HOLD' <<<"$out" && grep -qx 'HOLD_CODE=RUNTIME_MANIFEST_INTEGRITY' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=' <<<"$out"
+          test -d /home/icaffeco/.ald1n-b1144-state && test -z "$(sudo ls -A /home/icaffeco/.ald1n-b1144-state | grep -v '^installer.lock$' || true)"
+          # Pinned B1134 dependency drift is refused by the entry.
+          as cp /home/icaffeco/ald1n-project/incoming/b1134-files.php /tmp/b1134-files.saved
+          as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1134-files.php'
+          set +e
+          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -qx 'HOLD_CODE=PACKAGE_FILE_INTEGRITY' <<<"$out"
+          as cp /tmp/b1134-files.saved /home/icaffeco/ald1n-project/incoming/b1134-files.php
+          # Tampered helper and tampered wrapper are refused before PHP runs.
+          as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1144-coordinator.php'
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: package integrity' <<<"$out"
+          as bash -c 'printf "# tamper\n" >> /home/icaffeco/ald1n-project/incoming/b1144-controlled-install.sh'
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: operator script integrity' <<<"$out"
+          printf '{"canonicalHold":true,"unknownArguments":"HOLD","entryWiring":"HOLD_CODE=RUNTIME_MANIFEST_INTEGRITY","b1134PinDrift":"HOLD","helperTamper":"HOLD","wrapperTamper":"HOLD"}\n' | tee "$RUNNER_TEMP/sandbox.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: b1144-lean-install-evidence
+          path: |
+            ${{ runner.temp }}/gates.json
+            ${{ runner.temp }}/admission.json
+            ${{ runner.temp }}/coordinator.json
+            ${{ runner.temp }}/front.json
+            ${{ runner.temp }}/package.json
+            ${{ runner.temp }}/sandbox.json
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ success() }}
+        with:
+          name: b1144-operator-package
+          path: |
+            ${{ runner.temp }}/package/b1144-operator.zip
+            ${{ runner.temp }}/package/b1144-operator.zip.sha256
+          retention-days: 30
