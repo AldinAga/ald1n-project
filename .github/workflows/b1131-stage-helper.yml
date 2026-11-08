@@ -41,16 +41,19 @@ jobs:
           set -euo pipefail
           php tools/storefront/b1142/conformance-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" | tee "$RUNNER_TEMP/b1142-conformance.json"
       - name: Actual old RED and new native process HTTPS calibration with negative gates
+        id: native
         run: |
           set -euo pipefail
           python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1135" red | tee "$RUNNER_TEMP/b1142-native-red.json"
           python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1142" green | tee "$RUNNER_TEMP/b1142-native-green.json"
       - name: Exact four-generation terminal admission and no-repeat state reentry
+        if: success() || steps.native.outcome == 'failure'
         run: |
           set -euo pipefail
           php tools/storefront/b1142/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1142-admission.json"
           php tools/storefront/b1142/reentry-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" | tee "$RUNNER_TEMP/b1142-reentry.txt"
       - name: Reuse authenticated exact existing runtime solely for transaction and endpoint checks
+        if: success() || steps.native.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -73,10 +76,12 @@ jobs:
               archive.extractall(root/'stage',filter='data')
           PY
       - name: Existing owned transaction, post-switch rollback, interrupted gap and terminal reentry
+        if: success() || steps.native.outcome == 'failure'
         run: |
           set -euo pipefail
           php tools/storefront/b1142/coordinator-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" "$RUNNER_TEMP/b1142-runtime/stage" "$RUNNER_TEMP/b1142-runtime/payload" "$GITHUB_WORKSPACE/tools/storefront/b1134/runtime-directories.json" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1142-coordinator.json"
       - name: Actual immutable endpoint auth, memory/disk cache, OFF web and rollback
+        if: success() || steps.native.outcome == 'failure'
         run: |
           set -euo pipefail
           python3 tools/storefront/b1142/front-http-fixture.py "$RUNNER_TEMP/b1142-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1142/FrontCacheEndpoint.php" "$GITHUB_WORKSPACE/tools/storefront/b1134"
