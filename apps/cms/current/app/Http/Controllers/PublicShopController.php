@@ -26,11 +26,16 @@ final class PublicShopController extends Controller
         $filters = $request->validate([
             'q' => ['nullable','string','max:80'],
             'brand_id'=>['nullable','integer','min:1'], 'category_id'=>['nullable','integer','min:1'],
-            'stock'=>['nullable','in:available'], 'sort'=>['nullable','in:name,newest'],
+            'stock'=>['nullable','in:available'], 'sort'=>['nullable','in:name,newest,price_asc,price_desc'],
         ]);
         $page = $catalog->search($filters);
         $page->getCollection()->transform(static fn (Product $p) => $catalog->present($p));
-        return view('public-shop.catalog', ['page'=>$page, 'filters'=>$catalog->filters()]);
+        $lists = $catalog->filters();
+        return view('public-shop.catalog', [
+            'page'=>$page,
+            'filters'=>$lists,
+            'seo'=>\App\Support\PublicCatalogPresentation::build($page, $filters, $lists, $catalog->available()->count()),
+        ]);
     }
 
     public function show(string $slug, PublicRetailCatalogService $catalog): View

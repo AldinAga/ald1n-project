@@ -85,10 +85,24 @@ final class PublicNoScriptCspB872Test extends TestCase
     #[DataProvider('publicHtml')]
     public function test_scriptless_public_html_has_enforced_policy_and_framing_denial(string $uri): void
     {
+        config()->set('app.url','https://cms.ald1n.com');
         $response=$this->get($uri)->assertOk();
         $this->assertStrict($response);
-        self::assertStringNotContainsString('<script',strtolower($response->getContent()));
-        self::assertStringNotContainsString('<iframe',strtolower($response->getContent()));
+        $html=strtolower((string)$response->getContent());
+        // Only the catalog may carry exactly one schema.org data block. A
+        // type="application/ld+json" element is never executed; every other
+        // <script> form (src, inline JS, other types) stays forbidden.
+        preg_match_all('~<script\b[^>]*>~',$html,$open);
+        if ($uri==='/katalog') {
+            self::assertSame(['<script type="application/ld+json">'],$open[0]);
+            self::assertSame(1,substr_count($html,'</script>'));
+            self::assertSame(1,preg_match('~<script type="application/ld\+json">(.*?)</script>~s',
+                (string)$response->getContent(),$block));
+            self::assertIsArray(json_decode($block[1],true,512,JSON_THROW_ON_ERROR));
+            $html=str_replace(strtolower($block[0]),'',$html);
+        }
+        self::assertStringNotContainsString('<script',$html);
+        self::assertStringNotContainsString('<iframe',$html);
     }
 
     public function test_cart_write_redirect_unchanged_and_cart_get_remains_scriptless(): void
