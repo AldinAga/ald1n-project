@@ -23,6 +23,10 @@ final class PublicNoScriptCsp
         'public-shop.cart',
         'public-shop.checkout',
         'public-shop.order.show',
+        // Public legal pages share the same scriptless layout (no inline
+        // styles, handlers or frames). They keep the default no-store.
+        'legal.index',
+        'legal.*',
     ];
 
     public function handle(Request $request, Closure $next): Response

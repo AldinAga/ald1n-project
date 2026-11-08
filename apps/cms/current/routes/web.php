@@ -104,6 +104,17 @@ Route::name('public-shop.')->group(function (): void {
         ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.remove');
 });
 
+// Static legal information pages. Always available (merchant settings need
+// their HTTPS URLs before opening) and independent of the storefront switch.
+// GET only, no shop data, outside the public-shop.* namespace.
+Route::get('/pravne-informacije', [\App\Http\Controllers\PublicLegalPageController::class, 'index'])
+    ->middleware('throttle:public-shop-browse')->name('legal.index');
+foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
+    Route::get('/'.$legalPage['slug'], [\App\Http\Controllers\PublicLegalPageController::class, 'show'])
+        ->defaults('page', $legalKey)
+        ->middleware('throttle:public-shop-browse')->name('legal.'.$legalKey);
+}
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
         ->middleware('throttle:public-shop-browse')->name('public-shop.register');
@@ -493,6 +504,14 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->middleware('throttle:admin-write')->name('public-storefront.update');
             Route::put('/public-storefront/registration-sender', [PublicMerchantSettingsController::class, 'updateRegistrationSender'])
                 ->middleware('throttle:admin-write')->name('public-storefront.registration-sender');
+            Route::get('/public-storefront/legal/{page}', [\App\Http\Controllers\Admin\PublicLegalTextController::class, 'edit'])
+                ->whereIn('page', \App\Support\PublicLegalTemplates::EDITABLE)->name('public-storefront.legal.edit');
+            Route::put('/public-storefront/legal/{page}', [\App\Http\Controllers\Admin\PublicLegalTextController::class, 'update'])
+                ->whereIn('page', \App\Support\PublicLegalTemplates::EDITABLE)
+                ->middleware('throttle:admin-write')->name('public-storefront.legal.update');
+            Route::post('/public-storefront/legal/{page}/reset', [\App\Http\Controllers\Admin\PublicLegalTextController::class, 'reset'])
+                ->whereIn('page', \App\Support\PublicLegalTemplates::EDITABLE)
+                ->middleware('throttle:admin-write')->name('public-storefront.legal.reset');
             Route::get('/modules', [ModuleSettingsController::class, 'index'])->name('modules.index');
             Route::put('/modules', [ModuleSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('modules.update');
             Route::get('/automation', [AutomationController::class, 'index'])->middleware('permission:automation.manage')->name('automation.index');

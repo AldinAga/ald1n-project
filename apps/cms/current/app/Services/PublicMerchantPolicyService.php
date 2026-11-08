@@ -62,6 +62,10 @@ final class PublicMerchantPolicyService
     {
         $policy ??= $this->policy();
         unset($policy['methods'],$policy['deliveries']);
+        // The public legal page texts are part of what the owner signs.
+        // Editing any of them (or a placeholder-only identity value) changes
+        // this digest and therefore revokes an earlier approval.
+        $policy['legal_texts_digest'] = (new PublicLegalTextStore($this->settings))->digest();
         return hash('sha256', json_encode($policy,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
@@ -75,30 +79,32 @@ final class PublicMerchantPolicyService
     public function review(): array
     {
         $p = $this->policy();
-        $issues = [];
+        // Keyed by a stable code so the settings checklist can explain each
+        // item; 'issues' keeps the exact previous messages and order.
+        $coded = [];
         if ($p['company_name'] === '' || in_array($p['company_name'], ['Ald1n','Ald1n CMS'], true)
             || $p['company_address'] === '' || $p['company_city'] === '' || $p['company_tax_id'] === '') {
-            $issues[]='Unesi stvarni naziv, adresu, grad i PIB trgovca u PDF podešavanjima.';
+            $coded['identity']='Unesi stvarni naziv, adresu, grad i PIB trgovca u PDF podešavanjima.';
         }
-        if (!$this->safeLegalUrl($p['terms_url'])) $issues[]='Nedostaje validna HTTPS adresa uslova prodaje.';
-        if (!$this->safeLegalUrl($p['privacy_url'])) $issues[]='Nedostaje validna HTTPS adresa politike privatnosti.';
-        if ($p['shipping_description'] === '') $issues[]='Unesi stvarne uslove dostave.';
+        if (!$this->safeLegalUrl($p['terms_url'])) $coded['terms_url']='Nedostaje validna HTTPS adresa uslova prodaje.';
+        if (!$this->safeLegalUrl($p['privacy_url'])) $coded['privacy_url']='Nedostaje validna HTTPS adresa politike privatnosti.';
+        if ($p['shipping_description'] === '') $coded['shipping_description']='Unesi stvarne uslove dostave.';
         // Current existing orders have no independent shipping fee ledger.
         if (!preg_match('/^0(?:\.0{1,2})?$/D', $p['shipping_fee_rsd'])) {
-            $issues[]='Trošak dostave mora biti izričito odobren kao 0 RSD. Naplata dostave još nije podržana.';
+            $coded['shipping_fee']='Trošak dostave mora biti izričito odobren kao 0 RSD. Naplata dostave još nije podržana.';
         }
         if (!filter_var($p['support_email'], FILTER_VALIDATE_EMAIL)) {
-            $issues[]='Unesi validan e-mail za podršku kupcima.';
+            $coded['support_email']='Unesi validan e-mail za podršku kupcima.';
         }
         if ($p['methods'] === [] || array_diff($p['methods'], array_keys(\App\Support\PublicRetailOptions::PAYMENT)) !== []) {
-            $issues[]='Izaberi podržani način plaćanja.';
+            $coded['payment_methods']='Izaberi podržani način plaćanja.';
         }
         if ($p['deliveries']===[] || array_diff($p['deliveries'],array_keys(\App\Support\PublicRetailOptions::DELIVERY))!==[]) {
-            $issues[]='Izaberi postojece nacine dostave dostupne kupcu.';
+            $coded['delivery_methods']='Izaberi postojece nacine dostave dostupne kupcu.';
         }
         if (in_array('cash',$p['methods'],true)
             && array_intersect($p['deliveries'],['customer_pickup','own_transport'])===[]) {
-            $issues[]='Placanje pri preuzimanju zahteva licno preuzimanje ili sopstvenu dostavu.';
+            $coded['cash_delivery']='Placanje pri preuzimanju zahteva licno preuzimanje ili sopstvenu dostavu.';
         }
         $bank = null;
         if (in_array('bank_transfer', $p['methods'], true)) {
@@ -106,8 +112,9 @@ final class PublicMerchantPolicyService
             $bank = $id && $id > 0
                 ? BankAccount::query()->whereKey($id)->where('is_active', true)->first()
                 : null;
-            if (!$bank instanceof BankAccount) $issues[]='Za bankovni transfer izaberi aktivan žiro račun.';
+            if (!$bank instanceof BankAccount) $coded['bank_account']='Za bankovni transfer izaberi aktivan žiro račun.';
         }
+        $issues = array_values($coded);
         $fingerprint = $this->fingerprint($p);
         $digest = trim((string)$this->settings->get('public_checkout_approval_digest',''));
         $by = filter_var($this->settings->get('public_checkout_approved_by',''), FILTER_VALIDATE_INT);
@@ -120,7 +127,22 @@ final class PublicMerchantPolicyService
         return [
             'policy'=>$p,'issues'=>$issues,'complete'=>$issues === [],
             'approved'=>$approved,'fingerprint'=>$fingerprint,'bank_account'=>$bank,
+            'issue_codes'=>array_keys($coded),
+            'signature'=>[
+                'present'=>$digest !== '',
+                'matches'=>$digest !== '' && hash_equals($digest,$fingerprint),
+                'at'=>$at,'by'=>$by && $by > 0 ? (int)$by : null,
+            ],
         ];
+    }
+
+    /**
+     * Read-only access to the same URL rule used by review(). Used by the
+     * settings page to decide whether a suggested legal-page URL would pass.
+     */
+    public function isSafeLegalUrl(string $url): bool
+    {
+        return $this->safeLegalUrl($url);
     }
 
     private function safeLegalUrl(string $url): bool

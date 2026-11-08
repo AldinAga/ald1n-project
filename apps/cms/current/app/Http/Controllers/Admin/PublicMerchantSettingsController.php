@@ -22,8 +22,20 @@ final class PublicMerchantSettingsController extends Controller
         PublicRegistrationMailSenderService $registrationMail): View
     {
         $this->authorizeOwner($request);
+        $review=$merchant->review();
+        $legal=app(\App\Services\PublicLegalPagesService::class);
+        $texts=app(\App\Services\PublicLegalTextStore::class);
+        $approver=$review['signature']['by']
+            ? \App\Models\User::query()->whereKey($review['signature']['by'])->first()
+            : null;
         return view('admin.settings.public-storefront',[
-            'review'=>$merchant->review(),
+            'review'=>$review,
+            'readiness'=>app(\App\Services\PublicStorefrontOnReadinessService::class)->evaluate($review),
+            'legalUrls'=>$legal->absoluteUrls(),
+            'legalMissing'=>$legal->missing(),
+            'legalCustom'=>collect(\App\Support\PublicLegalTemplates::EDITABLE)
+                ->mapWithKeys(static fn (string $page): array => [$page=>$texts->isCustom($page)])->all(),
+            'approverName'=>$approver?->displayName(),
             'registrationMail'=>$registrationMail->status(),
             'systemMailFrom'=>(string)config('mail.from.address'),
             'bankAccounts'=>BankAccount::query()->where('is_active',true)->orderBy('label')
@@ -94,7 +106,9 @@ final class PublicMerchantSettingsController extends Controller
             'delivery_methods.*'=>[Rule::in(array_keys(\App\Support\PublicRetailOptions::DELIVERY))],
             'bank_account_id'=>['nullable','integer','min:1'],
             'merchant_approval'=>['nullable',Rule::in(['1'])],
+            'approval_fingerprint'=>['nullable','string','max:128'],
         ]);
+        $shownFingerprint=(string)($data['approval_fingerprint']??'');
         $methods=array_values(array_unique(array_map('strval',
             (array)($data['payment_methods']??[]))));
         sort($methods,SORT_STRING);
@@ -112,7 +126,15 @@ final class PublicMerchantSettingsController extends Controller
         // All data, attestation and revocation are one atomic DB write. A
         // partially saved policy cannot inherit the signature of old terms.
         try {
-        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner): void {
+        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner,$shownFingerprint): void {
+            // The owner signs only the state the page showed. If identity,
+            // legal texts, bank accounts or terms changed elsewhere after the
+            // page loaded, refuse before writing anything.
+            if (($data['merchant_approval']??null)==='1'
+                && ($shownFingerprint==='' || !hash_equals($merchant->review()['fingerprint'],$shownFingerprint))) {
+                throw ValidationException::withMessages(['merchant_approval'=>
+                    'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.']);
+            }
             $values=[
                 'public_checkout_terms_url'=>trim((string)($data['terms_url']??'')),
                 'public_checkout_privacy_url'=>trim((string)($data['privacy_url']??'')),

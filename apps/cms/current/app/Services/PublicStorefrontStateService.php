@@ -41,16 +41,13 @@ final class PublicStorefrontStateService
                 ]);
                 $state=Setting::query()->where('setting_key','public_storefront_open')->lockForUpdate()->firstOrFail();
                 if ($open) {
-                    $review=$this->merchant->review();
-                    $schema=Schema::hasTable('public_order_accesses')
-                        && Schema::hasColumns('public_checkout_attempts',[
-                            'merchant_policy_digest','delivery_method','customer_user_id','payment_due_at_snapshot',
-                        ]);
-                    if (config('public_storefront.enabled')!==true
-                        || config('public_storefront.checkout_enabled')!==true
-                        || !$schema || !$review['approved']) {
+                    // One shared evaluator for this guard and the settings
+                    // checklist: code flags, schema and a valid approval.
+                    $readiness=app(PublicStorefrontOnReadinessService::class)
+                        ->evaluate($this->merchant->review());
+                    if (!$readiness['ready']) {
                         throw ValidationException::withMessages(['enabled'=>
-                            'ON zahteva isporucen kod, spremnu bazu i potvrdjene uslove trgovca.']);
+                            'ON nije moguć. Nije ispunjeno: '.implode('; ',$readiness['failed']).'.']);
                     }
                 }
                 $before=(string)$state->setting_value === '1';
