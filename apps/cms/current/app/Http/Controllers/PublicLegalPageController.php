@@ -22,6 +22,7 @@ final class PublicLegalPageController extends Controller
         return $this->respond('public-shop.legal.index', [
             'pages' => PublicLegalTemplates::PAGES,
             'current' => null,
+            'draft' => $legal->isDraft(null),
         ], $store);
     }
 
@@ -36,6 +37,7 @@ final class PublicLegalPageController extends Controller
             'body' => $page === 'trader' ? null : $legal->renderBody($page, $values),
             'traderRows' => $legal->traderRows($values),
             'values' => $values,
+            'draft' => $legal->isDraft($page),
         ], $store);
     }
 

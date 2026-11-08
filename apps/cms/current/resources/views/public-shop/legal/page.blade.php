@@ -6,6 +6,7 @@
 <div class="legal-shell">
 @include('public-shop.legal.nav')
 <article class="legal-article">
+@include('public-shop.legal.draft')
 <span class="eyebrow">Pravne informacije</span>
 <h1>{{ $title }}</h1>
 
@@ -24,7 +25,8 @@
 @if($current === 'withdrawal')
 <section class="legal-form" aria-labelledby="withdrawal-form-title">
 <h2 id="withdrawal-form-title">Obrazac za odustanak od ugovora zaključenog na daljinu</h2>
-<p class="legal-note">Odštampajte ili prepišite obrazac, popunite ga i pošaljite nam ga poštom ili e-poštom. Obrazac nije obavezan; dovoljna je i druga jasna izjava.</p>
+<p class="legal-note" data-withdrawal-form-status>Radna verzija obrasca. Trgovac je usklađuje sa obrascem koji propisuje ministar nadležan za zaštitu potrošača. Isti obrazac dobijate i na trajnom nosaču podataka, na primer u e-poruci sa potvrdom porudžbine.</p>
+<p class="legal-note">Odštampajte ili prepišite obrazac, popunite ga i pošaljite nam ga poštom ili e-poštom. Obrazac nije obavezan; dovoljna je i druga nedvosmislena izjava.</p>
 <h3>Popunjava trgovac</h3>
 <div class="legal-line"><span>Naziv</span><span>@if($values['naziv_firme'] !== null){{ $values['naziv_firme'] }}@else{!! $missing !!}@endif</span></div>
 <div class="legal-line"><span>Adresa</span><span>@if($values['adresa_za_reklamacije'] !== null){{ $values['adresa_za_reklamacije'] }}@else{!! $missing !!}@endif</span></div>

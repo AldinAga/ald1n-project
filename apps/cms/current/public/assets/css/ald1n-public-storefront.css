@@ -12,6 +12,7 @@
 .legal-article h2{font-size:21px;margin:34px 0 10px;color:#fff}.legal-article h3{font-size:18px;margin:24px 0 8px}
 .legal-article p,.legal-article li{color:#d8e1f5}.legal-article ul,.legal-article ol{padding-left:22px}.legal-article li{margin:6px 0}
 .legal-lead{color:#b7c6e2;font-size:17px}
+.legal-draft{margin:0 0 20px;padding:14px 16px;border:2px solid #e0b45c;border-left-width:8px;border-radius:12px;background:#3d2f12;color:#ffe7b8}.legal-draft strong{display:block;font-size:17px;color:#fff3d6}.legal-draft p{margin:6px 0 0;color:#ffe7b8}
 .legal-missing{display:inline-block;padding:1px 8px;border:1px dashed #e0b45c;border-radius:6px;color:#ffd890;background:#3d2f12;font-size:.92em}
 .legal-facts{display:grid;gap:0;margin:18px 0;border:1px solid #45577b;border-radius:14px;overflow:hidden}
 .legal-facts div{display:grid;grid-template-columns:minmax(150px,1fr) 2fr;gap:12px;padding:12px 16px;border-bottom:1px solid #34446a}.legal-facts div:last-child{border-bottom:0}

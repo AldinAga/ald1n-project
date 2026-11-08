@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
+@php($shopClosed = $hideShopNav ?? !app(\App\Services\PublicStorefrontStateService::class)->isOpen())
+@if($shopClosed)<meta name="robots" content="noindex,nofollow">@endif
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>@yield('title', 'Katalog') · {{ config('app.name', 'Ald1n') }}</title>
 <link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css' }}">

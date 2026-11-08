@@ -27,8 +27,13 @@
 @endif
 
 <div class="alert" role="note">
-    Ovo je šablon za početak. Pre otvaranja prodavnice tekst mora da pregleda vlasnik, a poželjno i pravnik.
+    Ovo je šablon za početak, usklađen sa Zakonom o zaštiti potrošača ("Sl. glasnik RS", br. 35/2026). Pre otvaranja prodavnice tekst mora da pregleda vlasnik, a poželjno i pravnik.
 </div>
+<ul class="muted" data-legal-editor-help>
+    <li>Javna stranica nosi oznaku „Nacrt — tekst je na pregledu kod trgovca” dok prikazuje neizmenjen šablon ili dok uslovi trgovca nisu potvrđeni. Oznaka nestaje kada sačuvaš pregledan tekst i potvrdiš uslove.</li>
+    <li>Izmena teksta dok je prodavnica uključena povlači potvrdu uslova i odmah zaustavlja javno poručivanje, dok ponovo ne potvrdiš uslove. Katalog ostaje vidljiv.</li>
+    <li>Obrazac za odustanak na stranici je radna verzija. Uskladi ga sa obrascem koji propisuje ministar i šalji ga kupcu i na trajnom nosaču podataka, na primer u e-poruci sa potvrdom porudžbine.</li>
+</ul>
 
 <div class="admin-form-grid settings-primary-form">
     <div class="form-main">

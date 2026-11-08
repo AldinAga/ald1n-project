@@ -5,6 +5,7 @@
 <div class="legal-shell">
 @include('public-shop.legal.nav')
 <article class="legal-article">
+@include('public-shop.legal.draft')
 <span class="eyebrow">Pravne informacije</span>
 <h1>Pravila kupovine na jednom mestu</h1>
 <p class="legal-lead">Ovde su uslovi prodaje, zaštita podataka, pravo na odustanak, reklamacije, dostava i plaćanje i podaci o trgovcu.</p>

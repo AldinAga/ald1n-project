@@ -149,6 +149,11 @@ final class PublicMerchantSettingsB801Test extends TestCase
     /** @param array<string,mixed> $overrides @return array<string,mixed> */
     private function data(array $overrides=[]): array
     {
+        // An approving submit carries the fingerprint the settings page
+        // showed, i.e. the stored state just before this request.
+        if (($overrides['merchant_approval']??null)==='1' && !array_key_exists('approval_fingerprint',$overrides)) {
+            $overrides['approval_fingerprint']=app(PublicMerchantPolicyService::class)->review()['fingerprint'];
+        }
         return array_replace([
             'terms_url'=>'https://cms.ald1n.com/uslovi',
             'privacy_url'=>'https://cms.ald1n.com/privatnost',

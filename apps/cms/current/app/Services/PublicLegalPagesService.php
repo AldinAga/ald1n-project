@@ -96,6 +96,18 @@ final class PublicLegalPagesService
         return $labels;
     }
 
+    /**
+     * A public legal page is a draft while the merchant approval does not
+     * match the current terms and texts, or while an editable page still
+     * shows the shipped template. $page null means the overview page.
+     */
+    public function isDraft(?string $page): bool
+    {
+        if (!$this->merchant->review()['approved']) return true;
+        return $page !== null && in_array($page, PublicLegalTemplates::EDITABLE, true)
+            && !$this->texts->isCustom($page);
+    }
+
     public function renderBody(string $page, ?array $values = null): string
     {
         return $this->renderer->render($this->texts->effective($page), $values ?? $this->values());

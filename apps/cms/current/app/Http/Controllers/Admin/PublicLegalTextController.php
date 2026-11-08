@@ -57,7 +57,7 @@ final class PublicLegalTextController extends Controller
         $changed = $this->store($request, $page, $stored, $texts, $settings, $audit, 'settings.public_legal_text_updated');
 
         return redirect()->route('admin.settings.public-storefront.legal.edit', $page)->with('status', $changed
-            ? 'Tekst je sačuvan. Potvrda uslova trgovca je povučena i mora se ponovo dati.'
+            ? 'Tekst je sačuvan. Ako je postojala potvrda uslova trgovca, povučena je i mora se ponovo dati.'
             : 'Tekst nije promenjen.');
     }
 
@@ -68,7 +68,7 @@ final class PublicLegalTextController extends Controller
         $changed = $this->store($request, $page, '', $texts, $settings, $audit, 'settings.public_legal_text_reset');
 
         return redirect()->route('admin.settings.public-storefront.legal.edit', $page)->with('status', $changed
-            ? 'Vraćen je šablon. Potvrda uslova trgovca je povučena i mora se ponovo dati.'
+            ? 'Vraćen je šablon. Ako je postojala potvrda uslova trgovca, povučena je i mora se ponovo dati.'
             : 'Stranica već koristi šablon.');
     }
 
@@ -81,6 +81,7 @@ final class PublicLegalTextController extends Controller
         if ($before === $after && $texts->isCustom($page) === ($stored !== '')) {
             return false;
         }
+        $hadApproval = (string) $settings->get('public_checkout_approval_digest', '') !== '';
         try {
             DB::transaction(static function () use ($settings, $page, $stored, $owner): void {
                 $settings->putMany([
@@ -98,7 +99,7 @@ final class PublicLegalTextController extends Controller
             'SuperAdministrator je izmenio pravni tekst javne prodavnice: '.PublicLegalTemplates::PAGES[$page]['title'].'.',
             null,
             ['page' => $page, 'text_sha256' => $before],
-            ['page' => $page, 'text_sha256' => $after, 'template' => $stored === '', 'approval_revoked' => true],
+            ['page' => $page, 'text_sha256' => $after, 'template' => $stored === '', 'approval_revoked' => $hadApproval],
             user: $owner,
         );
         return true;

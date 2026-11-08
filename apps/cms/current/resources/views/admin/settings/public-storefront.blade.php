@@ -88,6 +88,7 @@
         <p class="muted">CMS objavljuje ove stranice i dok je prodavnica OFF. Ne prikazuju artikle, cene ni podatke kupaca.</p>
     </div></div>
     <div class="alert" role="note"><strong>Tekstovi su šablon.</strong> Pre otvaranja prodavnice vlasnik, a poželjno i pravnik, mora da pregleda svaki tekst. Svaka izmena teksta povlači potvrdu uslova.</div>
+    <p class="muted" data-legal-durable-medium>Obrazac za odustanak i obaveštenje o pravu na odustanak kupac mora da dobije i na trajnom nosaču podataka, na primer u e-poruci sa potvrdom porudžbine (Zakon o zaštiti potrošača, "Sl. glasnik RS", br. 35/2026, član 32). Obrazac na sajtu uskladi sa obrascem koji propisuje ministar (član 29). Dok je tekst šablon ili uslovi nisu potvrđeni, javne stranice nose oznaku nacrta.</p>
     <ul class="stack-list legal-url-list">
         @foreach($legalUrls as $key => $legalUrl)
         <li class="setting-row" data-legal-url="{{ $key }}">
@@ -292,6 +293,8 @@
             <p class="muted"><strong>Potvrda još nije moguća:</strong> prvo ispuni stavke iz kontrolne liste.</p>
             @endunless
             <p class="muted">Ako sačuvaš bez potvrde, prethodna potvrda se povlači. Javno poručivanje ostaje zaključano.</p>
+            {{-- Exact state shown on this page. Approval is refused if anything changed elsewhere since loading. --}}
+            <input type="hidden" name="approval_fingerprint" value="{{ $review['fingerprint'] }}" data-approval-fingerprint>
             <label>
                 <input type="checkbox" name="merchant_approval" value="1"
                        @checked(old('merchant_approval')==='1')>

@@ -338,6 +338,119 @@ final class PublicLegalPagesB1146Test extends TestCase
         self::assertTrue($items['schema_customer_user_id']);
     }
 
+    public function test_public_pages_show_draft_banner_until_text_is_reviewed_and_approved(): void
+    {
+        $banner = 'Nacrt — tekst je na pregledu kod trgovca';
+        foreach (['/pravne-informacije', '/podaci-o-trgovcu', '/uslovi-prodaje', '/politika-privatnosti'] as $uri) {
+            $this->get($uri)->assertOk()->assertSee($banner)
+                ->assertSee('role="note" aria-labelledby="legal-draft-title" data-legal-draft', false);
+        }
+
+        // Approved, but the terms page still equals the shipped template.
+        $this->approveCompletePolicy();
+        $this->get('/pravne-informacije')->assertOk()->assertDontSee('data-legal-draft', false);
+        $this->get('/podaci-o-trgovcu')->assertOk()->assertDontSee('data-legal-draft', false);
+        $this->get('/uslovi-prodaje')->assertOk()->assertSee($banner);
+
+        // A reviewed text revokes the approval: still a draft.
+        $this->actingAs($this->owner)->put('/admin/settings/public-storefront/legal/terms',
+            ['body' => "## Uslovi\n\nPregledan tekst trgovca za {{naziv_firme}}."])->assertSessionHasNoErrors();
+        $this->get('/uslovi-prodaje')->assertOk()->assertSee($banner);
+        $this->get('/podaci-o-trgovcu')->assertOk()->assertSee($banner);
+
+        // Approval of the exact current texts removes the banner for that page only.
+        $this->approveCompletePolicy();
+        $this->get('/uslovi-prodaje')->assertOk()->assertDontSee('data-legal-draft', false)
+            ->assertSee('Pregledan tekst trgovca za Sinteticki Trgovac DOO.');
+        $this->get('/politika-privatnosti')->assertOk()->assertSee($banner);
+        $this->get('/pravne-informacije')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+    }
+
+    public function test_legal_pages_are_scriptless_frame_denied_and_not_stored(): void
+    {
+        foreach (['/pravne-informacije', '/podaci-o-trgovcu', '/uslovi-prodaje', '/pravo-na-odustanak', '/kolacici'] as $uri) {
+            $response = $this->get($uri)->assertOk();
+            $csp = (string) $response->headers->get('Content-Security-Policy');
+            self::assertStringContainsString("script-src 'none'", $csp, $uri);
+            self::assertStringContainsString("frame-ancestors 'none'", $csp, $uri);
+            self::assertStringContainsString("default-src 'none'", $csp, $uri);
+            self::assertStringNotContainsString('nonce-', $csp, $uri);
+            $response->assertHeader('X-Frame-Options', 'DENY');
+            self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'), $uri);
+        }
+    }
+
+    public function test_shop_layout_emits_meta_noindex_only_while_closed(): void
+    {
+        $data = ['pages' => PublicLegalTemplates::PAGES, 'current' => null, 'draft' => false,
+            'errors' => new \Illuminate\Support\ViewErrorBag()];
+        $closed = view('public-shop.legal.index', $data + ['hideShopNav' => true])->render();
+        $open = view('public-shop.legal.index', $data + ['hideShopNav' => false])->render();
+        self::assertStringContainsString('<meta name="robots" content="noindex,nofollow">', $closed);
+        self::assertStringNotContainsString('name="robots"', $open);
+        self::assertStringContainsString('<meta name="robots" content="noindex,nofollow">',
+            $this->get('/pravne-informacije')->assertOk()->getContent());
+    }
+
+    public function test_approval_requires_the_fingerprint_shown_on_the_page(): void
+    {
+        $shown = $this->shownFingerprint();
+        // Someone changes a legal text in another tab after the page loaded.
+        app(SettingsService::class)->putMany([PublicLegalTextStore::key('cookies') => 'Izmenjen tekst.'], null);
+        $payload = [
+            'terms_url' => 'https://cms.ald1n.com/uslovi-prodaje',
+            'privacy_url' => 'https://cms.ald1n.com/politika-privatnosti',
+            'shipping_fee_rsd' => '0', 'shipping_description' => 'Sinteticka dostava za test.',
+            'payment_methods' => ['cash_on_delivery'], 'delivery_methods' => ['courier', 'customer_pickup'],
+            'support_email' => 'podrska@example.test', 'bank_account_id' => '', 'merchant_approval' => '1',
+        ];
+        $this->actingAs($this->owner)->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $shown])
+            ->assertRedirect()->assertSessionHasErrors(['merchant_approval' =>
+                'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.']);
+        $this->put('/admin/settings/public-storefront', $payload)->assertSessionHasErrors('merchant_approval');
+        $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => str_repeat('0', 64)])
+            ->assertSessionHasErrors('merchant_approval');
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_terms_url'),
+            'A refused approval must not persist the submitted draft.');
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
+
+        $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $this->shownFingerprint()])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        self::assertTrue(app(PublicMerchantPolicyService::class)->review()['approved']);
+        $this->get('/admin/settings/public-storefront')->assertOk()
+            ->assertSee('name="approval_fingerprint" value="'.$this->shownFingerprint().'"', false);
+    }
+
+    public function test_audit_marks_approval_revoked_only_when_an_approval_existed(): void
+    {
+        $this->actingAs($this->owner)->put('/admin/settings/public-storefront/legal/cookies',
+            ['body' => "## Kolacici\n\nPrvi tekst."])->assertSessionHasNoErrors();
+        $first = AuditLog::query()->where('action', 'settings.public_legal_text_updated')->sole();
+        self::assertFalse($first->after_json['approval_revoked']);
+
+        $this->approveCompletePolicy();
+        $this->put('/admin/settings/public-storefront/legal/cookies',
+            ['body' => "## Kolacici\n\nDrugi tekst."])->assertSessionHasNoErrors();
+        $second = AuditLog::query()->where('action', 'settings.public_legal_text_updated')->latest('id')->first();
+        self::assertNotSame($first->id, $second->id);
+        self::assertTrue($second->after_json['approval_revoked']);
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
+    }
+
+    public function test_templates_cite_the_2026_consumer_law_only(): void
+    {
+        foreach (PublicLegalTemplates::EDITABLE as $page) {
+            $text = PublicLegalTemplates::body($page);
+            self::assertStringNotContainsString('88/2021', $text, $page);
+            self::assertStringNotContainsString('88/21', $text, $page);
+        }
+        self::assertStringContainsString('Zakon o zaštiti potrošača ("Sl. glasnik RS", br. 35/2026)', PublicLegalTemplates::body('terms'));
+        self::assertStringContainsString('član 173', PublicLegalTemplates::body('terms'));
+        self::assertStringContainsString('čl. 63. do 65', PublicLegalTemplates::body('privacy'));
+        $this->get('/pravo-na-odustanak')->assertOk()
+            ->assertSee('Radna verzija obrasca')->assertSee('trajnom nosaču podataka');
+    }
+
     private function fillCompletePolicy(bool $approve = false): void
     {
         $this->actingAs($this->owner)->put('/admin/settings/public-storefront', [
@@ -349,7 +462,14 @@ final class PublicLegalPagesB1146Test extends TestCase
             'delivery_methods' => ['courier', 'own_transport', 'customer_pickup'],
             'support_email' => 'podrska@example.test',
             'bank_account_id' => '',
-        ] + ($approve ? ['merchant_approval' => '1'] : []))->assertRedirect()->assertSessionHasNoErrors();
+        ] + ($approve ? ['merchant_approval' => '1', 'approval_fingerprint' => $this->shownFingerprint()] : []))
+            ->assertRedirect()->assertSessionHasNoErrors();
+    }
+
+    /** The fingerprint the settings page shows for the stored state. */
+    private function shownFingerprint(): string
+    {
+        return app(PublicMerchantPolicyService::class)->review()['fingerprint'];
     }
 
     private function approveCompletePolicy(): void
