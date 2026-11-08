@@ -19,6 +19,9 @@ fs.mkdirSync(dir, {recursive: true});
 const widths = [375, 768, 1280];
 const schemes = ['dark', 'light'];
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Defects are collected so every screenshot is still produced; the run fails at the end.
+const failures = [];
+const check = (ok, message) => { if (!ok) failures.push(message); };
 
 async function open(page, url, label, problems) {
   const response = await page.goto(base + url, {waitUntil: 'networkidle', timeout: 45000});
@@ -33,15 +36,18 @@ async function open(page, url, label, problems) {
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForLoadState('networkidle');
+  await page.waitForFunction(() => [...document.images].every(img => img.complete), null, {timeout: 20000})
+    .catch(() => {});
   const dims = await page.evaluate(() => ({w: window.innerWidth, sw: document.documentElement.scrollWidth}));
-  assert(dims.sw <= dims.w + 1, label + ' horizontal overflow ' + JSON.stringify(dims));
+  check(dims.sw <= dims.w + 1, label + ' horizontal overflow ' + JSON.stringify(dims));
   const broken = await page.evaluate(() => [...document.images]
     .filter(img => !img.complete || img.naturalWidth === 0).map(img => img.getAttribute('src')));
-  assert.deepEqual(broken, [], label + ' broken images');
+  check(broken.length === 0, label + ' broken images ' + JSON.stringify(broken));
   const overflowing = await page.evaluate(() => [...document.querySelectorAll('.shop-product, .shop-filters, .shop-chip, .shop-pagination')]
     .filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.className));
-  assert.deepEqual(overflowing, [], label + ' clipped component content');
-  assert.deepEqual(problems.splice(0), [], label + ' console/CSP/rate problems');
+  check(overflowing.length === 0, label + ' clipped component content ' + JSON.stringify(overflowing));
+  const seen = problems.splice(0);
+  check(seen.length === 0, label + ' console/CSP/rate problems ' + JSON.stringify(seen.slice(0, 8)));
 }
 
 (async () => {
@@ -67,9 +73,9 @@ async function open(page, url, label, problems) {
 
         await open(page, '/katalog', 'catalog ' + tag, problems);
         const h1 = await page.locator('h1').count();
-        assert.equal(h1, 1, 'single h1');
+        check(h1 === 1, tag + ' single h1');
         const alts = await page.locator('.shop-products img').evaluateAll(imgs => imgs.map(img => img.alt));
-        assert(alts.length > 0 && alts.every(alt => alt.trim().length > 3), 'meaningful alt text');
+        check(alts.length > 0 && alts.every(alt => alt.trim().length > 3), tag + ' meaningful alt text');
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '.png'), fullPage: true, animations: 'disabled'});
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-fold.png'), animations: 'disabled'});
 
@@ -77,7 +83,7 @@ async function open(page, url, label, problems) {
         await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2.6));
         await pause(200);
         const top = await page.locator('.shop-back-to-top').boundingBox();
-        assert(top && top.y > 0 && top.y + top.height <= 900, 'back-to-top visible after scrolling ' + JSON.stringify(top));
+        check(top && top.y > 0 && top.y + top.height <= 900, tag + ' back-to-top visible after scrolling ' + JSON.stringify(top));
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-scrolled.png'), animations: 'disabled'});
 
         if (width === 1280) {
@@ -108,6 +114,7 @@ async function open(page, url, label, problems) {
         await pause(scheme === 'dark' && width === 1280 ? 61000 : 2000);
       }
     }
+    if (failures.length) throw new Error(failures.length + ' defects: ' + failures.join(' | '));
     console.log('CATALOG_VISUAL_QA=PASS ' + summary.join(','));
   } finally {
     await browser.close();

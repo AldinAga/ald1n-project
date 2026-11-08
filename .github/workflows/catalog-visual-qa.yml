@@ -92,6 +92,7 @@ jobs:
           LEGACY_DB_USERNAME: disabled_qa_legacy
           LEGACY_DB_PASSWORD: ''
           SESSION_DRIVER: array
+          APP_URL: https://cms.ald1n.com
         run: |
           set -euo pipefail
           for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test; do
