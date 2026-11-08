@@ -34,12 +34,13 @@ $envBytes=implode("\n",['APP_NAME=Ald1n','APP_ENV=production','APP_DEBUG=false',
     'SESSION_DRIVER=file','CACHE_STORE=file','QUEUE_CONNECTION=sync','MAIL_MAILER=array','LOG_CHANNEL=daily','LOG_LEVEL=debug','TURNSTILE_ENABLED=false','PULSE_ENABLED=false','TELESCOPE_ENABLED=false','MOBILE_PUSH_ENABLED=false','OPERATIONAL_EMAIL_NOTIFICATIONS=false',
     'LEGACY_DB_DATABASE=disabled','LEGACY_DB_USERNAME=disabled_qa_legacy','BACKUP_PATH='.$home.'/cms-backups','BACKUP_MYSQLDUMP_BINARY='.$dumpWrapper,'PUBLIC_CHECKOUT_ENABLED=false','FIXTURE_PRIVATE_MARKER=secret-never-output','']);
 file_put_contents($old.'/.env',$envBytes);chmod($old.'/.env',0640);
+if(!is_dir($old.'/public'))mkdir($old.'/public',0755,true);check(copy($candidate.'/public/.htaccess',$old.'/public/.htaccess')&&chmod($old.'/public/.htaccess',0644),'OLD_TREE_HTACCESS');
 $preserved=ReleasePrimitives::preservePrivate($old,$candidate,$retained);rename($old,$retained);rename($candidate,$active);
 check(is_link($active.'/.env')&&readlink($active.'/.env')===$retained.'/.env'&&is_link($active.'/storage/logs'),'TOPOLOGY_SYMLINKS');
 $configPath=$active.'/config/public_storefront.php';$original=file_get_contents($configPath);check(hash('sha256',$original)===MigrateUnclampCoordinator::ORIGINAL_SHA,'RUNTIME_ORIGINAL_0CFBC864');
 $clamp=ReleasePrimitives::offConfig($original,MigrateUnclampCoordinator::ORIGINAL_SHA);file_put_contents($configPath,$clamp);chmod($configPath,0644);
 $stageDir=$home.'/.ald1n-stage/b1131-ef3f927.6hh7mU';mkdir($stageDir.'/verification',0755,true);mkdir($stageDir.'/runtime/config',0755,true);copy($payload.'/runtime-manifest.json',$stageDir.'/verification/runtime-manifest.json');file_put_contents($stageDir.'/runtime/config/public_storefront.php',$original);
-$htaccess=hash_file('sha256',$active.'/public/.htaccess');
+$htaccess=hash_file('sha256',$active.'/public/.htaccess');check(!isset($preserved['customHtaccessSHA256'])||$preserved['customHtaccessSHA256']===$htaccess,'HTACCESS_DIGEST');
 sh(['git','init','--quiet','-b','main'],$root);sh(['git','-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--allow-empty','-m','fixture','--quiet'],$root);$head=sh(['git','rev-parse','HEAD'],$root);
 
 // B1144 CLOSED_INSTALL state and a Report1106-shaped terminal report bound to it (the real 1106 bytes are checked by the unit fixture).
@@ -133,7 +134,7 @@ unlink($fakePretend);$expect('PRETEND_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$un
 
 // 4. A fourth pending migration (row missing): pure preflight HOLD, twice, nothing changed.
 $reset();$pdo()->exec("DELETE FROM migrations WHERE migration='2026_07_21_000003_create_system_tables'");
-foreach([1,2] as $n){$out=$expect('FOURTH_PENDING_'.$n,$run(),2,'HOLD_PREFLIGHT_BLOCKED');$pre=lastLine($out,'PREFLIGHT');check($pre['gates']['migrateStatus']==='MIGRATION_SET_NOT_EXPECTED_FOR_FRESH'&&$pre['mutations']==='NONE','FOURTH_PENDING_GATE');$clamped('FOURTH');check($count('SELECT COUNT(*) FROM backup_runs')===0,'FOURTH_NO_BACKUP');}
+foreach([1,2] as $n){$out=$expect('FOURTH_PENDING_'.$n,$run(),2,'HOLD_PREFLIGHT_BLOCKED');$pre=lastLine($out,'PREFLIGHT');check($pre['gates']['migrateStatus']==='MIGRATION_SET_NOT_EXPECTED_FOR_FRESH'&&$pre['applicationFiles']==='NONE'&&$pre['database']==='NONE','FOURTH_PENDING_GATE');$clamped('FOURTH');check($count('SELECT COUNT(*) FROM backup_runs')===0,'FOURTH_NO_BACKUP');}
 $results['fourthPending']='PREFLIGHT_HOLD_TWICE_NO_MUTATION';
 
 // 5. Migration failure in the 2nd migration (partial table) and in the 3rd (legacy role missing): no automatic rollback, clamp kept, converge after the fix.

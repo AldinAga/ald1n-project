@@ -132,7 +132,7 @@ jobs:
           out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
           set -e
           printf '%s\n' "$out"
-          test "$rc" = 2 && grep -qx 'B1145_FINAL=HOLD' <<<"$out" && grep -qx 'B1145_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=' <<<"$out" && grep -q '"mutations":"NONE"' <<<"$out"
+          test "$rc" = 2 && grep -qx 'B1145_FINAL=HOLD' <<<"$out" && grep -qx 'B1145_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NONE"' <<<"$out"
           as cp /home/icaffeco/ald1n-project/incoming/b1144-gates.php /tmp/b1144-gates.saved
           as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1144-gates.php'
           set +e

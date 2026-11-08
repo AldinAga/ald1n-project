@@ -224,7 +224,7 @@ final class MigrateUnclampCoordinator
         try{
             FreshnessProbe::write($this->active().'/public/'.$plan['name'],$plan['source'],$staging);$requests=[];for($n=0;$n<$this->probeSamples;$n++)$requests[]=[$invalidate,!$invalidate];
             foreach($requests as $index=>[$inv,$fresh]){
-                if($settle&&$index===count($requests)-1&&$invalidate){$wait=$frequency+$this->waitMargin;$this->emit('WEB_CONFIG_SETTLE_WAIT',['label'=>$label,'seconds'=>$wait]);sleep($wait);$inv=false;$fresh=true;}
+                if($settle&&$index===count($requests)-1&&$invalidate){$wait=$frequency+$this->waitMargin;$this->emit('WEB_CONFIG_SETTLE_WAIT',['label'=>$label,'seconds'=>$wait]);sleep($wait);$this->web->status('/login',200,null,$this->marker());$inv=false;$fresh=true;}
                 $response=$this->web->probe($plan['name'],$plan['token'],$inv,null);$route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);
                 $a=UnclampProbe::assess($response,$this->state['id'],$expected,$this->allowedSapis,$inv,$fresh);$frequency=max($frequency,(int)($a['values']['revalidateFreq']??0));
                 $samples[]=['route'=>$route,'invalidationRequested'=>$inv,'requireFresh'=>$fresh,'gates'=>array_map(static fn($c)=>$c??'PASS',$a['gates'])]+$a['values'];foreach($a['failures'] as $f)$failures[]=$f;
@@ -283,7 +283,7 @@ final class MigrateUnclampCoordinator
             if($expected!==null&&isset($this->state['id'])){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$expected,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_CONFIG';
         }
         $blockers=array_values(array_unique(array_filter($g,static fn($c)=>$c!==null)));
-        $report=['stage'=>$stage,'gates'=>array_map(static fn($c)=>$c??'PASS',$g),'values'=>$v,'blockers'=>$blockers,'mutations'=>'NONE'];$this->emit('PREFLIGHT',$report);return $report;
+        $report=['stage'=>$stage,'gates'=>array_map(static fn($c)=>$c??'PASS',$g),'values'=>$v,'blockers'=>$blockers,'applicationFiles'=>'NONE','database'=>'NONE','transientProbe'=>'WRITTEN_AND_REMOVED','privateState'=>'B1145_NAMESPACE_ONLY'];$this->emit('PREFLIGHT',$report);return $report;
     }
 
     private function schemaGaps(array $app):array
