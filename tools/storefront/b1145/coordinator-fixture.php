@@ -275,7 +275,10 @@ $crashes=[];
 foreach(['SAVED_PREFLIGHT_PASSED','SAVED_BACKUP_CREATED','SAVED_BACKUP_VERIFIED','SAVED_MIGRATE_INTENT','SAVED_MIGRATED_VERIFIED','SAVED_UNCLAMP_INTENT','BEFORE_CONFIG_RENAME','SAVED_CONFIG_UNCLAMPED','BEFORE_ENV_RENAME','SAVED_ENV_UNCLAMPED','SAVED_ACCEPTANCE_INTENT','SAVED_RESTORE_INTENT','SAVED_CLOSED_UNCLAMPED'] as $point){
     $reset();$actions=[$point=>'kill'];if($point==='SAVED_RESTORE_INTENT')$actions=['SAVED_ACCEPTANCE_INTENT'=>'logError','SAVED_RESTORE_INTENT'=>'kill'];
     [$rc,$out]=$run($actions);$secretFree('CRASH_'.$point,$out);check($rc===137||$rc===-1||$rc===9,'CRASH_'.$point.'_NOT_KILLED_RC_'.$rc);check(str_contains((string)@file_get_contents($faultLog),$point.' kill'),'CRASH_'.$point.'_NOT_REACHED');
-    $expect('CRASH_'.$point.'_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('CRASH_'.$point);check($count('SELECT COUNT(*) FROM backup_runs')<=2,'CRASH_'.$point.'_BACKUPS');$crashes[$point]='CONVERGED';
+    $crashedBackup=$count('SELECT COALESCE(MAX(id),0) FROM backup_runs');
+    $rerun=$expect('CRASH_'.$point.'_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('CRASH_'.$point);
+    // H1 across runs: a re-run that still has to migrate takes and rechecks its OWN backup, never the crashed run's one.
+    if(in_array($point,['SAVED_PREFLIGHT_PASSED','SAVED_BACKUP_CREATED','SAVED_BACKUP_VERIFIED','SAVED_MIGRATE_INTENT'],true)){$re=lastLine($rerun,'BACKUP_RECHECKED_BEFORE_MIGRATE');check(is_array($re)&&(int)($re['id']??0)>$crashedBackup&&($re['sameProcess']??null)===true,'CRASH_'.$point.'_REUSED_THE_CRASHED_RUN_BACKUP');}check($count('SELECT COUNT(*) FROM backup_runs')<=2,'CRASH_'.$point.'_BACKUPS');$crashes[$point]='CONVERGED';
 }
 $results['crashReentry']=$crashes;
 
