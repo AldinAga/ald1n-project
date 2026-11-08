@@ -62,21 +62,53 @@ final class LeanGates
         return $result;
     }
 
-    /** Busy = an lsphp title for THIS CMS front controller ("lsphp:" + last 44 bytes of its path), or any artisan process. Other sites are ignored. */
-    public static function busy(string $index,array $processes,int $self):array
+    /** Working directory of an own-user process; null when the kernel does not show it. */
+    public static function cwd(int $pid):?string {$link=@readlink('/proc/'.$pid.'/cwd');return is_string($link)?$link:null;}
+
+    private static function under(string $path,array $roots):bool {foreach($roots as $root)if($path===$root||str_starts_with($path,$root.'/'))return true;return false;}
+
+    /**
+     * Busy = an lsphp title for THIS CMS front controller ("lsphp:" + last 44 bytes of its path), or an artisan process of
+     * THIS CMS: its arguments name a path under one of the CMS release roots, or its working directory is under one of them.
+     * An artisan process whose working directory cannot be read counts as busy (fail closed). Other sites are ignored.
+     */
+    public static function busy(string $index,array $processes,int $self,array $roots,?callable $cwd=null):array
     {
-        $suffix=substr($index,-self::TITLE_SUFFIX_BYTES);$cms=0;$artisan=0;
-        foreach($processes as $pid=>$args){if($pid===$self)continue;$args=rtrim((string)$args);if(str_starts_with($args,'lsphp:')&&str_ends_with($args,$suffix)){$cms++;continue;}if(preg_match('~(?:^|[\s/])artisan(?:\s|$)~',$args))$artisan++;}
-        return ['cms'=>$cms,'artisan'=>$artisan];
+        if($roots===[])throw new RuntimeException('DRAIN_ROOTS');foreach($roots as $root)if(!is_string($root)||!str_starts_with($root,'/')||str_ends_with($root,'/'))throw new RuntimeException('DRAIN_ROOTS');
+        $suffix=substr($index,-self::TITLE_SUFFIX_BYTES);$cms=0;$artisan=0;$foreignArtisan=0;$cwd??=[self::class,'cwd'];
+        foreach($processes as $pid=>$args){
+            if($pid===$self)continue;$args=rtrim((string)$args);if(str_starts_with($args,'lsphp:')&&str_ends_with($args,$suffix)){$cms++;continue;}
+            if(!preg_match('~(?:^|[\s/])artisan(?:\s|$)~',$args))continue;$named=false;
+            foreach(preg_split('/\s+/',$args) as $word)if(str_starts_with($word,'/')&&self::under($word,$roots)){$named=true;break;}
+            if(!$named){$directory=$cwd((int)$pid);$named=$directory===null||self::under($directory,$roots);}
+            if($named)$artisan++;else $foreignArtisan++;
+        }
+        return ['cms'=>$cms,'artisan'=>$artisan,'otherArtisanIgnored'=>$foreignArtisan];
+    }
+
+    /** Distinct lsphp titles seen in snapshots and whether THIS CMS's busy title was among them (drain positive control). */
+    public static function titleObservation(string $index,array $snapshots):array
+    {
+        $suffix=substr($index,-self::TITLE_SUFFIX_BYTES);$seen=[];$hits=0;
+        foreach($snapshots as $snapshot)foreach($snapshot as $args){$args=rtrim((string)$args);if(!str_starts_with($args,'lsphp'))continue;if(str_starts_with($args,'lsphp:')&&str_ends_with($args,$suffix))$hits++;if(count($seen)<20)$seen[substr($args,0,120)]=true;}
+        return ['expectedTitle'=>'lsphp:'.$suffix,'observed'=>$hits>0,'busyTitleSamples'=>$hits,'snapshots'=>count($snapshots),'lsphpTitlesSeen'=>array_keys($seen)];
+    }
+
+    /** The log gate needs Laravel daily files (LOG_CHANNEL=daily): laravel-YYYY-MM-DD.log under storage/logs. */
+    public static function dailyLogs(string $logs):array
+    {
+        $directory=realpath($logs);if(!is_string($directory)||!is_dir($directory))return ['dailyFiles'=>0,'newest'=>null,'directory'=>false];$names=[];
+        foreach(glob($directory.'/laravel-*.log')?:[] as $path)if(preg_match('/^laravel-\d{4}-\d{2}-\d{2}\.log$/D',basename($path))&&is_file($path)&&!is_link($path))$names[]=basename($path);
+        sort($names,SORT_STRING);return ['dailyFiles'=>count($names),'newest'=>$names===[]?null:end($names),'directory'=>true];
     }
 
     /** Bounded narrow drain. Three consecutive clean samples are required; otherwise HOLD. */
-    public static function drain(string $index,int $timeoutSeconds,int $intervalMilliseconds=500):array
+    public static function drain(string $index,array $roots,int $timeoutSeconds,int $intervalMilliseconds=500):array
     {
         if(!str_ends_with($index,'/public/index.php')||$timeoutSeconds<1||$timeoutSeconds>600)throw new RuntimeException('DRAIN_SCOPE');
         $deadline=hrtime(true)+$timeoutSeconds*1000000000;$consecutive=0;$samples=0;$last=['cms'=>0,'artisan'=>0];
         do{
-            $last=self::busy($index,self::processes(),getmypid());$samples++;
+            $last=self::busy($index,self::processes(),getmypid(),$roots);$samples++;
             if($last['cms']===0&&$last['artisan']===0){if(++$consecutive>=3)return ['drained'=>true,'samples'=>$samples,'titleSuffixBytes'=>self::TITLE_SUFFIX_BYTES,'otherSitesIgnored'=>true];}else $consecutive=0;
             if($samples%20===1)echo 'CMS_DRAIN_WAIT='.json_encode(['sample'=>$samples]+$last,JSON_THROW_ON_ERROR).PHP_EOL;
             usleep($intervalMilliseconds*1000);
