@@ -86,6 +86,8 @@ final class B1144SchemaCompatSmokeTest extends TestCase
     public function test_every_parameterless_authenticated_get_route_responds_for_superadmin(): void
     {
         $admin = $this->person('b1144-sweep');
+        // Rate limiters are not under test; 20+ export routes would otherwise hit 429.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 
         $rows = [];
         $failures = [];
@@ -106,19 +108,35 @@ final class B1144SchemaCompatSmokeTest extends TestCase
             $path = '/'.ltrim($uri, '/');
             $status = 0;
             $cause = '';
+            $response = null;
+            $exception = null;
             try {
                 $response = $this->actingAs($admin)->get($path);
                 $status = $response->getStatusCode();
-                if ($response->exception !== null) {
-                    $cause = get_class($response->exception).': '.mb_substr($response->exception->getMessage(), 0, 300);
+                $exception = $response->baseResponse->exception ?? null;
+                if ($exception instanceof \Throwable) {
+                    $cause = get_class($exception).': '.mb_substr($exception->getMessage(), 0, 300);
+                }
+                if ($status >= 300 && $status < 400) {
+                    $cause = trim($cause.' -> '.(string) $response->headers->get('Location'));
                 }
             } catch (\Throwable $e) {
                 $status = 599;
                 $cause = get_class($e).': '.mb_substr($e->getMessage(), 0, 300);
             }
-            $rows[] = sprintf('%d %s%s', $status, $path, $cause !== '' ? ' <= '.$cause : '');
-            if ($status < 200 || $status >= 400) {
-                $failures[] = sprintf('%d %s%s', $status, $path, $cause !== '' ? ' <= '.$cause : '');
+            $line = sprintf('%d %s%s', $status, $path, $cause !== '' ? ' <= '.$cause : '');
+            $rows[] = $line;
+            // 403 = permission model (customer-portal routes are not for superadmin),
+            // 3xx = documented redirect. Schema incompatibility shows up as 5xx / 404 / crash.
+            $swallowed = isset($exception) && $exception instanceof \Throwable
+                && !($exception instanceof \Illuminate\Validation\ValidationException)
+                && !($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface)
+                && $status < 500;
+            $degraded = $status === 200 && isset($response)
+                && !$response->baseResponse instanceof \Symfony\Component\HttpFoundation\StreamedResponse
+                && preg_match('/privremeno nis?u? dostup/iu', (string) $response->getContent()) === 1;
+            if ($status >= 500 || $status === 404 || $status === 0 || $swallowed || $degraded) {
+                $failures[] = $line.($swallowed ? ' [SWALLOWED_EXCEPTION]' : '').($degraded ? ' [DEGRADED_PAGE]' : '');
             }
         }
 
@@ -131,9 +149,11 @@ final class B1144SchemaCompatSmokeTest extends TestCase
     {
         $admin = $this->person('b1144-main');
 
-        foreach (['/', '/account', '/admin/orders', '/admin/catalog', '/admin/users', '/admin/settings', '/admin/settings/public-storefront'] as $path) {
+        foreach (['/', '/account', '/admin/orders', '/admin/users', '/admin/settings', '/admin/settings/public-storefront'] as $path) {
             $this->actingAs($admin)->get($path)->assertOk();
         }
+        // /admin/catalog is a documented redirect (see sweep report for the target).
+        $this->actingAs($admin)->get('/admin/catalog')->assertRedirect();
     }
 
     public function test_admin_order_detail_renders_for_plain_and_public_retail_orders(): void
