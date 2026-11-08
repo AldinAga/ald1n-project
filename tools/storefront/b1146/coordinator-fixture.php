@@ -123,9 +123,11 @@ foreach(['noRouteCache','routeCache'] as $variant){
     }else{
         // R7: an interrupted backup left changed private copies; the next run detects every stale copy, writes it again and
         // the later rollback still puts back the exact old bytes, route cache included. S5: the new route cache is 0644.
-        $routeFiles=count(glob($active.'/bootstrap/cache/routes-*.php')?:[]);[$rc,$o]=$run(['AFTER_BACKUP_COPIES'=>['corruptBackup','kill']]);check($rc!==0&&$tree()==='PRE'&&!str_contains($o,'OVERLAY_STEP='),'KILLED_DURING_BACKUP');
+        $preRouteModes=[];foreach(glob($active.'/bootstrap/cache/routes-*.php')?:[] as $f)$preRouteModes[basename($f)]=fileperms($f)&0777;$routeFiles=count($preRouteModes);[$rc,$o]=$run(['AFTER_BACKUP_COPIES'=>['corruptBackup','kill']]);check($rc!==0&&$tree()==='PRE'&&!str_contains($o,'OVERLAY_STEP='),'KILLED_DURING_BACKUP');
         [$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1146_FINAL')==='PASS_INSTALLED_LEGAL_OVERLAY_STOREFRONT_CLOSED'&&preg_match_all('/^BACKUP_COPY_REWRITTEN=/m',$o)===9+$routeFiles,'STALE_BACKUP_COPIES_REWRITTEN');
-        foreach(glob($active.'/bootstrap/cache/routes-*.php')?:[] as $f)check((fileperms($f)&0777)===0644,'ROUTE_CACHE_MODE_0644');
+        // The route cache that artisan writes during the install has the same mode as the one the owner's own artisan wrote
+        // (umask 022 for artisan children, while the operator entry itself runs with 077), and never group/world-writable.
+        foreach(glob($active.'/bootstrap/cache/routes-*.php')?:[] as $f){$mode=fileperms($f)&0777;check($mode===$preRouteModes[basename($f)]&&($mode&0022)===0&&($mode&0044)===0044,'ROUTE_CACHE_MODE_'.sprintf('%04o',$mode).'_BEFORE_'.sprintf('%04o',$preRouteModes[basename($f)]??0));}
         [$rc,$o]=$run([],'rollback');check($rc===0&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore,'ROLLBACK_AFTER_REWRITTEN_COPIES_EXACT');$reset();
         $results[$variant]['staleBackupCopies']=['rewritten'=>9+$routeFiles,'rollbackExact'=>true];
     }
