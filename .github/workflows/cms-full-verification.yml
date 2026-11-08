@@ -1,5 +1,6 @@
 name: CMS full verification (NO DEPLOY)
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
