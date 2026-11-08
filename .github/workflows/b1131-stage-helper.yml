@@ -1,4 +1,4 @@
-name: B1143 startup disabled profile RED (NO DEPLOY)
+name: B1143 startup disabled profile GREEN (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  uncached-red:
+  uncached-green:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -19,15 +19,24 @@ jobs:
           php-version: '8.4'
           extensions: opcache,curl
           coverage: none
-      - name: Expected old endpoint startup-disabled rejection
+      - name: Source syntax and portable operator shell
         run: |
-          set +e
-          python3 tools/storefront/b1143/uncached-http-fixture.py tools/storefront/b1143/FrontCacheEndpoint.php > "$RUNNER_TEMP/red.txt" 2>&1
-          rc=$?
-          cat "$RUNNER_TEMP/red.txt"
-          test "$rc" != 0 && grep -F "STARTUP_DISABLED_PROFILE_MUST_BE_SUPPORTED', 503" "$RUNNER_TEMP/red.txt"
+          set -euo pipefail
+          for f in tools/storefront/b1143/*.php; do php -l "$f"; done
+          bash -n tools/storefront/b1143/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1143/operator-wrapper.sh; then exit 2; fi
+      - name: Real overlay, topology, journal-safe restore and same-path witness
+        run: php tools/storefront/b1143/profile-fixture.php tools/storefront/b1143 | tee "$RUNNER_TEMP/profile.json"
+      - name: Actual startup-disabled endpoint
+        run: python3 tools/storefront/b1143/uncached-http-fixture.py tools/storefront/b1143/FrontCacheEndpoint.php | tee "$RUNNER_TEMP/http.json"
+      - name: Actual warmed memory and disk code, startup-off and ignored-off controls
+        run: python3 tools/storefront/b1143/startup-cache-fixture.py | tee "$RUNNER_TEMP/startup.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: b1143-red-evidence
-          path: ${{ runner.temp }}/red.txt
+          name: b1143-uncached-evidence
+          path: |
+            ${{ runner.temp }}/profile.json
+            ${{ runner.temp }}/http.json
+            ${{ runner.temp }}/startup.json
           retention-days: 7
