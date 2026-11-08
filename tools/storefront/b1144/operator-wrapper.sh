@@ -26,7 +26,7 @@ PHP="$(command -v php)" || fail 'PHP unavailable'
 "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r 'exit(PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500?0:2);' || fail 'PHP8.4.1+ required'
 if test "${1-}" = --worker; then
   test -n "${REPORT-}" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || fail 'worker report context'
-  printf 'B1144 LEAN CONTROLLED MAIN CMS AND COMPLETE VENDOR INSTALL; RUNTIME OFF\nCPANEL_UAPI_OR_PHP_PROFILE_OVERLAY=NONE\nNO_PUBLIC_ACTIVATION_OR_PRODUCTION_MIGRATIONS=YES\nREAD_ONLY_MIGRATE_STATUS_AND_TARGETED_OPCACHE_INVALIDATION=AUTHORIZED_OWNED_ONLY\n'
+  printf 'B1144 LEAN CONTROLLED MAIN CMS AND COMPLETE VENDOR INSTALL; RUNTIME OFF\nHOSTING_PANEL_CALLS_OR_PHP_PROFILE_OVERLAY=NONE\nNO_PUBLIC_ACTIVATION_OR_PRODUCTION_MIGRATIONS=YES\nREAD_ONLY_MIGRATE_STATUS_AND_TARGETED_OPCACHE_INVALIDATION=AUTHORIZED_OWNED_ONLY\n'
   branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)" || fail 'branch provenance'
   local_head="$(git -C "$ROOT" rev-parse HEAD)" || fail 'HEAD provenance'
   remote_head="$(git -C "$ROOT" rev-parse origin/main)" || fail 'main provenance'
