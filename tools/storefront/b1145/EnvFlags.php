@@ -21,7 +21,9 @@ final class EnvFlags
         if($s['uid']!==posix_geteuid())throw new RuntimeException('ENV_TARGET_OWNER');if(!is_readable($real)||!is_writable($real))throw new RuntimeException('ENV_TARGET_NOT_READ_WRITE');
         $directory=dirname($real);if(is_link($directory)||realpath($directory)!==$directory||!is_writable($directory))throw new RuntimeException('ENV_TARGET_DIRECTORY_NOT_WRITABLE');
         if(stat($directory)['dev']!==$s['dev'])throw new RuntimeException('ENV_TARGET_DIRECTORY_FILESYSTEM');if($s['size']>1048576)throw new RuntimeException('ENV_TARGET_SIZE');
-        return ['link'=>$link,'target'=>$real,'directory'=>$directory,'mode'=>$s['mode']&0777,'uid'=>$s['uid'],'dev'=>$s['dev'],'ino'=>$s['ino'],'linkIno'=>lstat($link)['ino']];
+        // A rename gives the target a new inode: a second hard link would keep the old bytes and an ACL would be lost.
+        if($s['nlink']!==1)throw new RuntimeException('ENV_TARGET_HARDLINKED');if(!AtomicFile::aclFree($real))throw new RuntimeException('ENV_TARGET_HAS_ACL');
+        return ['link'=>$link,'target'=>$real,'directory'=>$directory,'mode'=>$s['mode']&0777,'uid'=>$s['uid'],'gid'=>$s['gid'],'nlink'=>$s['nlink'],'aclFree'=>true,'dev'=>$s['dev'],'ino'=>$s['ino'],'linkIno'=>lstat($link)['ino']];
     }
 
     /** Per key: absent, false, true or other. A duplicate, CRLF, NUL or a non-plain key line is refused. */
@@ -68,22 +70,44 @@ final class AtomicFile
     public static function isOwnTemp(string $path):bool {return preg_match('~/\.[A-Za-z0-9_.]+\.b1145-[a-f0-9]{16}\.tmp$~D',$path)===1;}
 
     /**
-     * Writes, syncs and verifies the temp file, keeps the target's mode, gives it an mtime newer than the replaced file,
-     * then renames it over the target (one rename in one directory). The parent directory is synced when the kernel allows it.
+     * No POSIX ACL on the file: GNU ls marks an ACL with "+" after the mode string ("." is only a security context).
+     * Anything else (ls missing, unparsed output) is not proven ACL-free.
+     */
+    public static function aclFree(string $path):bool
+    {
+        $pipes=[];$p=@proc_open(['ls','-ldn','--',$path],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,null,['PATH'=>'/usr/bin:/bin','LC_ALL'=>'C']);if(!is_resource($p))return false;
+        fclose($pipes[0]);$out=(string)stream_get_contents($pipes[1]);stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);if(proc_close($p)!==0)return false;
+        return preg_match('/^[-dl][rwxsStT-]{9}(\.?) /',$out)===1;
+    }
+
+    /** The checks every replacement needs before it starts: one hard link, no ACL. Returns gid, nlink and ACL status. */
+    public static function replaceable(string $target):array
+    {
+        clearstatcache(true,$target);if(is_link($target)||!is_file($target))throw new RuntimeException('ATOMIC_REPLACE_SCOPE');$s=stat($target);
+        if($s['nlink']!==1)throw new RuntimeException('ATOMIC_TARGET_HARDLINKED');if(!self::aclFree($target))throw new RuntimeException('ATOMIC_TARGET_HAS_ACL');
+        return ['gid'=>$s['gid'],'nlink'=>$s['nlink'],'aclFree'=>true];
+    }
+
+    /**
+     * Writes, syncs and verifies the temp file, keeps the target's mode and group, gives it an mtime newer than the replaced
+     * file, then renames it over the target (one rename in one directory). The parent directory is synced when the kernel
+     * allows it. A target with a second hard link or an ACL is refused; a group that cannot be kept stops before the rename.
      */
     public static function replace(string $target,string $bytes,int $mode,string $temp):array
     {
         if(!self::isOwnTemp($temp)||dirname($temp)!==dirname($target)||is_link($target)||!is_file($target))throw new RuntimeException('ATOMIC_REPLACE_SCOPE');
-        clearstatcache(true,$target);$before=stat($target);$h=@fopen($temp,'x');if($h===false)throw new RuntimeException('ATOMIC_TEMP_CREATE');$ok=false;
+        $facts=self::replaceable($target);clearstatcache(true,$target);$before=stat($target);$h=@fopen($temp,'x');if($h===false)throw new RuntimeException('ATOMIC_TEMP_CREATE');$ok=false;
         try{
             if(!chmod($temp,$mode)||fwrite($h,$bytes)!==strlen($bytes)||!fflush($h)||(function_exists('fsync')&&!fsync($h)))throw new RuntimeException('ATOMIC_TEMP_WRITE');$ok=true;
         }finally{fclose($h);if(!$ok)@unlink($temp);}
-        clearstatcache(true,$temp);if(is_link($temp)||hash_file('sha256',$temp)!==hash('sha256',$bytes)||(fileperms($temp)&0777)!==$mode){@unlink($temp);throw new RuntimeException('ATOMIC_TEMP_VERIFY');}
+        clearstatcache(true,$temp);if(stat($temp)['gid']!==$before['gid'])@chgrp($temp,$before['gid']);clearstatcache(true,$temp);if(stat($temp)['gid']!==$before['gid']){@unlink($temp);throw new RuntimeException('ATOMIC_GID_NOT_PRESERVABLE');}
+        if(is_link($temp)||hash_file('sha256',$temp)!==hash('sha256',$bytes)||(fileperms($temp)&0777)!==$mode){@unlink($temp);throw new RuntimeException('ATOMIC_TEMP_VERIFY');}
         if(filemtime($temp)<=$before['mtime']&&!touch($temp,$before['mtime']+1)){@unlink($temp);throw new RuntimeException('ATOMIC_TEMP_MTIME');}
         if(!@rename($temp,$target)){@unlink($temp);throw new RuntimeException('ATOMIC_RENAME');}
         $synced=false;$d=@fopen(dirname($target),'r');if($d!==false){$synced=function_exists('fsync')&&@fsync($d);fclose($d);}
         clearstatcache(true,$target);$after=stat($target);if(is_link($target)||hash_file('sha256',$target)!==hash('sha256',$bytes)||($after['mode']&0777)!==$mode||$after['mtime']<=$before['mtime'])throw new RuntimeException('ATOMIC_RESULT_VERIFY');
-        return ['directorySynced'=>$synced,'newInode'=>$after['ino']!==$before['ino'],'mtimeAdvanced'=>true];
+        if($after['gid']!==$before['gid'])throw new RuntimeException('ATOMIC_GID_NOT_PRESERVED');
+        return ['directorySynced'=>$synced,'newInode'=>$after['ino']!==$before['ino'],'mtimeAdvanced'=>true,'gid'=>$after['gid'],'gidPreserved'=>true,'nlinkBefore'=>$facts['nlink'],'aclFreeBefore'=>true];
     }
 
     /** Private 0600 copy in the 0700 state directory, synced; returns its SHA-256. */
