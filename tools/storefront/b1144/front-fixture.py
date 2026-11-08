@@ -124,7 +124,11 @@ try:
     restored,_=freshness(old_hash,'restored');assert restored['pass'] and restored['summary']['targetedInvalidations']>=1,restored
     time.sleep(restored['summary']['waitSeconds']);assert raw('/b1144-marker.php')[1]=='OLD-B1144-MARKER'
     bridge('release',receipt=new_m,base=str(failed));bridge('release',receipt=old_m,base=str(current))
-    assert status('/login',200,attempts=2)['pass'];assert (current/'storage/app/public/after-lift').read_text()=='new-user-bytes'
+    first_login=status('/login',200,attempts=2)
+    if not first_login['pass']:
+        logfile=current/'storage/logs/laravel.log';print('ROLLBACK_LOGIN_DIAGNOSTIC',json.dumps(first_login),logfile.read_text()[-2500:] if logfile.exists() else 'NO_LOG',flush=True)
+        time.sleep(125);print('ROLLBACK_LOGIN_AFTER_REALPATH_TTL',json.dumps(status('/login',200)),flush=True)
+    assert first_login['pass'];assert (current/'storage/app/public/after-lift').read_text()=='new-user-bytes'
     stop()
     # OPcache-off profile: the same probe validates without invalidation candidates and needs no wait.
     start(False)
