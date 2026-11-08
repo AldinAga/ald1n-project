@@ -1,5 +1,5 @@
 import http.client,http.server,json,os,pathlib,secrets,socket,ssl,subprocess,sys,threading,time
-tools=pathlib.Path(sys.argv[1]);client=pathlib.Path(sys.argv[2]);mode=sys.argv[3];root=pathlib.Path(os.environ['RUNNER_TEMP'])/('b1142-native-'+mode);root.mkdir();results=[]
+tools=pathlib.Path(sys.argv[1]);client=pathlib.Path(sys.argv[2]);mode=sys.argv[3];root=pathlib.Path(os.environ['RUNNER_TEMP'])/('b1142-native-'+mode);root.mkdir();results=[];assert __import__('pwd').getpwuid(os.geteuid()).pw_name=='b1142qa','DEDICATED_COMPLETE_CENSUS_UID_REQUIRED'
 def port():
  s=socket.socket();s.bind(('127.0.0.1',0));p=s.getsockname()[1];s.close();return p
 profiles=[('44',44),('45',45),('width-change',44),('prefix-change',44),('missing-shutdown',44),('no-idle',44),('absent',44),('epoch-change',44),('pid-reuse',44),('done-foreign-pid',44),('receipt-foreign-pid',44)] if mode=='green' else [('44',44)]
@@ -22,9 +22,10 @@ for scenario,width in profiles:
   until=time.monotonic()+1
   while not any(r['action']=='visibility' and r['status']==200 for r in observed) and time.monotonic()<until:time.sleep(.01)
   assert any(r['action']=='visibility' and r['status']==200 for r in observed),'VISIBILITY_HTTP200_REQUIRED'
-  results.append({'scenario':scenario,'width':width,'expectedOldFailure':mode=='red','nativeFixtureTitleAndStagesVerified':controls,'receipt':receipt})
+  results.append({'scenario':scenario,'width':width,'expectedOldFailure':mode=='red','ownedCensusIsolatedUser':True,'nativeFixtureTitleAndStagesVerified':controls,'receipt':receipt})
  finally:
   stop.write_text('stop');proxy.shutdown();proxy.server_close()
   try:parent.communicate(timeout=4)
   except subprocess.TimeoutExpired:parent.kill();parent.communicate(timeout=2)
+  census=subprocess.run(['ps','-u',str(os.geteuid()),'-o','comm='],capture_output=True,text=True,check=True);assert not any(s.strip()=='lsphp' for s in census.stdout.splitlines()),'OWNED_FIXTURE_PROCESSES_LEAKED_BETWEEN_CASES'
 print(json.dumps(results,indent=2))

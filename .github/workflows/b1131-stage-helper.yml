@@ -44,8 +44,18 @@ jobs:
         id: native
         run: |
           set -euo pipefail
-          python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1135" red | tee "$RUNNER_TEMP/b1142-native-red.json"
-          python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1142" green | tee "$RUNNER_TEMP/b1142-native-green.json"
+          if id b1142qa >/dev/null 2>&1; then exit 2; fi
+          native_root="$(mktemp -d /tmp/b1142-native.XXXXXX)"
+          chmod 755 "$native_root"
+          mkdir -p "$native_root/source/tools" "$native_root/source/old" "$native_root/source/new"
+          cp tools/storefront/b1142/native-parent.php tools/storefront/b1142/native-worker.php tools/storefront/b1142/native-client.php tools/storefront/b1142/native-fixture.py "$native_root/source/tools/"
+          cp tools/storefront/b1135/HostWebControl.php "$native_root/source/old/"
+          cp tools/storefront/b1142/HostWebControl.php "$native_root/source/new/"
+          chmod -R a-w "$native_root/source"
+          sudo useradd --system --user-group --no-create-home --home-dir "$native_root/home" --shell /usr/sbin/nologin b1142qa
+          sudo install -d -o b1142qa -g b1142qa -m 700 "$native_root/home" "$native_root/work"
+          sudo -u b1142qa env -i PATH="$PATH" HOME="$native_root/home" RUNNER_TEMP="$native_root/work" python3 "$native_root/source/tools/native-fixture.py" "$native_root/source/tools" "$native_root/source/old" red | tee "$RUNNER_TEMP/b1142-native-red.json"
+          sudo -u b1142qa env -i PATH="$PATH" HOME="$native_root/home" RUNNER_TEMP="$native_root/work" python3 "$native_root/source/tools/native-fixture.py" "$native_root/source/tools" "$native_root/source/new" green | tee "$RUNNER_TEMP/b1142-native-green.json"
       - name: Exact four-generation terminal admission and no-repeat state reentry
         if: success() || steps.native.outcome == 'failure'
         run: |
