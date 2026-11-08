@@ -36,7 +36,11 @@ jobs:
           set -euo pipefail
           for f in tools/storefront/b1144/*.php; do php -l "$f"; done
           bash -n tools/storefront/b1144/operator-wrapper.sh
+          bash -n tools/storefront/b1144/wrapper-sandbox-test.sh
           if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1144/operator-wrapper.sh; then exit 2; fi
+          # Detached worker, signal traps and the lock critical section are present in the shipped wrapper.
+          grep -q 'setsid nohup bash "$SCRIPT" --worker' tools/storefront/b1144/operator-wrapper.sh
+          grep -q "trap 'on_signal HUP 129' HUP" tools/storefront/b1144/operator-wrapper.sh
           shipped='tools/storefront/b1144/operator-entry.php tools/storefront/b1144/InstallCoordinator.php tools/storefront/b1144/B1144Recovery.php tools/storefront/b1144/LeanGates.php tools/storefront/b1144/FreshnessProbe.php tools/storefront/b1144/LeanWeb.php tools/storefront/b1144/operator-wrapper.sh'
           if grep -niE '/usr/local/cpanel|uapi|DomainInfo|opcache_reset|php_flag|HostProcessGuard|UncachedProfile|verify-files' $shipped; then exit 2; fi
           if grep -n $'\r' $shipped tools/storefront/b1144/README-SR.md; then exit 2; fi
@@ -143,6 +147,40 @@ jobs:
           set -e
           test "$rc" = 2 && grep -q 'HOLD: operator script integrity' <<<"$out"
           printf '{"canonicalHold":true,"unknownArguments":"HOLD","entryWiring":"HOLD_CODE=RUNTIME_MANIFEST_INTEGRITY","b1134PinDrift":"HOLD","helperTamper":"HOLD","wrapperTamper":"HOLD"}\n' | tee "$RUNNER_TEMP/sandbox.json"
+      - name: Operator wrapper past the report lock - INT/TERM release the lock, the detached worker survives the foreground
+        run: |
+          set -euo pipefail
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1144-shims:$PATH" "$@"; }
+          # Fresh package bytes: the previous step tampered two members on purpose.
+          sudo -u icaffeco unzip -o -q /tmp/b1144-operator.zip -d /home/icaffeco/ald1n-project
+          # Shims: git fetch is stubbed (no network, no GitHub); php sleeps before the report-sequence call or the worker entry
+          # only while a marker file exists, so a signal can be delivered past the lock or while the worker is running.
+          mkdir -p /tmp/b1144-shims
+          command -v php > /tmp/b1144-shims/real-php
+          command -v git > /tmp/b1144-shims/real-git
+          cat > /tmp/b1144-shims/php <<'SHIM'
+          #!/bin/bash
+          real="$(cat /tmp/b1144-shims/real-php)"
+          for a in "$@"; do
+            case "$a" in
+              */reports.txt) if test -e /tmp/b1144-slow-sequence; then sleep 30; fi;;
+              */incoming/b1144-controlled-install.php) if test -e /tmp/b1144-slow-worker; then sleep 25; fi;;
+            esac
+          done
+          exec "$real" "$@"
+          SHIM
+          cat > /tmp/b1144-shims/git <<'SHIM'
+          #!/bin/bash
+          if test "${3-}" = fetch; then printf 'SANDBOX_GIT_FETCH_STUBBED=%s\n' "$*"; exit 0; fi
+          exec "$(cat /tmp/b1144-shims/real-git)" "$@"
+          SHIM
+          chmod 755 /tmp/b1144-shims /tmp/b1144-shims/php /tmp/b1144-shims/git
+          as mkdir -p /home/icaffeco/.ald1n-stage
+          as bash -c 'printf "sandbox predecessor\n" > /home/icaffeco/ald1n-project/docs/operations/1104-SANDBOX-PREDECESSOR.md'
+          as git -C /home/icaffeco/ald1n-project remote add origin https://github.com/AldinAga/ald1n-project
+          install -m 0755 tools/storefront/b1144/wrapper-sandbox-test.sh /tmp/b1144-wrapper-sandbox-test.sh
+          as bash /tmp/b1144-wrapper-sandbox-test.sh | tee "$RUNNER_TEMP/wrapper-sandbox.json"
+          grep -q '"workerSurvivesForegroundHupTerm":true' "$RUNNER_TEMP/wrapper-sandbox.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -154,6 +192,7 @@ jobs:
             ${{ runner.temp }}/front.json
             ${{ runner.temp }}/package.json
             ${{ runner.temp }}/sandbox.json
+            ${{ runner.temp }}/wrapper-sandbox.json
           retention-days: 14
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: ${{ success() }}
