@@ -39,19 +39,21 @@ if(time()>__EXPIRES__||($_SERVER['REQUEST_METHOD']??'')!=='GET'||($_SERVER['HTTP
 header('Content-Type: application/json; charset=utf-8');header('Cache-Control: private, no-store, max-age=0');header('X-Robots-Tag: noindex, nofollow, noarchive');header("Content-Security-Policy: default-src 'none'");
 $roots=__ROOTS__;$files=__FILES__;$docroot=realpath((string)($_SERVER['DOCUMENT_ROOT']??''));$here=realpath(__DIR__);$self=realpath(__FILE__);
 $status=function_exists('opcache_get_status')?@opcache_get_status(true):false;$enabled=is_array($status)&&!empty($status['opcache_enabled']);$scripts=is_array($status)&&is_array($status['scripts']??null)?$status['scripts']:null;
-$invalidate=($_SERVER['HTTP_X_ALD1N_RELEASE_INVALIDATE']??'')==='YES';$candidates=0;$invalidated=0;$failed=0;
+$invalidate=($_SERVER['HTTP_X_ALD1N_RELEASE_INVALIDATE']??'')==='YES';$candidates=0;$invalidated=0;$failed=0;$vanished=0;
 if($invalidate&&$enabled){
     if($scripts===null)$failed++;
     else foreach($scripts as $key=>$info){
         $path=is_array($info)&&is_string($info['full_path']??null)?$info['full_path']:(is_string($key)?$key:'');$inside=false;
         foreach($roots as $root)if(str_starts_with($path,$root.'/')){$inside=true;break;}
-        if(!$inside||$path===$self)continue;$candidates++;
+        if(!$inside||$path===$self)continue;
+        // A cached script whose file no longer exists at that path (only one tree has it) cannot be resolved for invalidation; count it apart.
+        if(!is_file($path)){$vanished++;continue;}$candidates++;
         if(function_exists('opcache_invalidate')&&opcache_invalidate($path,true))$invalidated++;else $failed++;
     }
 }
 $hashes=[];foreach($files as $relative){$full=__DIR__.'/../'.$relative;$hashes[$relative]=is_file($full)&&!is_link($full)?hash_file('sha256',$full):null;}
 $ini=strtolower(trim((string)ini_get('opcache.enable')));
-echo json_encode(['kind'=>'B1144_FRESHNESS_PROBE','id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'opcacheLoaded'=>extension_loaded('Zend OPcache'),'opcacheIniEnabled'=>in_array($ini,['1','on','yes','true'],true),'opcacheEnabled'=>$enabled,'statusAccess'=>is_array($status),'scriptsListed'=>$scripts!==null,'validateTimestamps'=>(int)ini_get('opcache.validate_timestamps'),'revalidateFreq'=>(int)ini_get('opcache.revalidate_freq'),'fileCache'=>(string)ini_get('opcache.file_cache')!=='','fileCacheOnly'=>(int)ini_get('opcache.file_cache_only')===1,'invalidationRequested'=>$invalidate,'invalidationCandidates'=>$candidates,'invalidated'=>$invalidated,'invalidationFailed'=>$failed,'globalReset'=>false,'files'=>$hashes],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+echo json_encode(['kind'=>'B1144_FRESHNESS_PROBE','id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'opcacheLoaded'=>extension_loaded('Zend OPcache'),'opcacheIniEnabled'=>in_array($ini,['1','on','yes','true'],true),'opcacheEnabled'=>$enabled,'statusAccess'=>is_array($status),'scriptsListed'=>$scripts!==null,'validateTimestamps'=>(int)ini_get('opcache.validate_timestamps'),'revalidateFreq'=>(int)ini_get('opcache.revalidate_freq'),'fileCache'=>(string)ini_get('opcache.file_cache')!=='','fileCacheOnly'=>(int)ini_get('opcache.file_cache_only')===1,'invalidationRequested'=>$invalidate,'invalidationCandidates'=>$candidates,'invalidated'=>$invalidated,'invalidationFailed'=>$failed,'vanishedCachedScripts'=>$vanished,'globalReset'=>false,'files'=>$hashes],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
 PROBE;
         return strtr($template,$replace)."\n";
     }
@@ -84,9 +86,9 @@ PROBE;
         if($ini&&(($r['opcacheLoaded']??null)!==true||($r['statusAccess']??null)!==true||!$enabled))throw new RuntimeException('FRESHNESS_OPCACHE_STATUS_UNAVAILABLE');
         if(!$ini&&$enabled)throw new RuntimeException('FRESHNESS_OPCACHE_STATE_AMBIGUOUS');
         if($enabled&&(($r['scriptsListed']??null)!==true||($r['fileCacheOnly']??null)!==false))throw new RuntimeException('FRESHNESS_OPCACHE_SCRIPTS_UNLISTED');
-        foreach(['invalidationCandidates','invalidated','invalidationFailed','validateTimestamps','revalidateFreq'] as $key)if(!is_int($r[$key]??null)||$r[$key]<0)throw new RuntimeException('FRESHNESS_PROBE_FIELDS');
+        foreach(['invalidationCandidates','invalidated','invalidationFailed','vanishedCachedScripts','validateTimestamps','revalidateFreq'] as $key)if(!is_int($r[$key]??null)||$r[$key]<0)throw new RuntimeException('FRESHNESS_PROBE_FIELDS');
         if(($r['invalidationRequested']??null)!==$invalidationRequested||($r['globalReset']??null)!==false||$r['invalidationFailed']!==0||$r['invalidated']!==$r['invalidationCandidates'])throw new RuntimeException('FRESHNESS_TARGETED_INVALIDATION_FAILED');
         if($r['revalidateFreq']>60)throw new RuntimeException('FRESHNESS_REVALIDATE_FREQ_UNSUPPORTED');
-        return ['sapi'=>$r['sapi'],'php'=>$r['php'],'docrootMatches'=>true,'treeFilesVerified'=>count($expectedFiles),'opcacheLoaded'=>($r['opcacheLoaded']??null)===true,'opcacheEnabled'=>$enabled,'validateTimestamps'=>$r['validateTimestamps'],'revalidateFreq'=>$r['revalidateFreq'],'fileCache'=>($r['fileCache']??null)===true,'targetedInvalidations'=>$r['invalidated'],'globalReset'=>false,'waitSeconds'=>$r['revalidateFreq']+2];
+        return ['sapi'=>$r['sapi'],'php'=>$r['php'],'docrootMatches'=>true,'treeFilesVerified'=>count($expectedFiles),'opcacheLoaded'=>($r['opcacheLoaded']??null)===true,'opcacheEnabled'=>$enabled,'validateTimestamps'=>$r['validateTimestamps'],'revalidateFreq'=>$r['revalidateFreq'],'fileCache'=>($r['fileCache']??null)===true,'targetedInvalidations'=>$r['invalidated'],'vanishedCachedScripts'=>$r['vanishedCachedScripts'],'globalReset'=>false,'waitSeconds'=>$r['revalidateFreq']+2];
     }
 }
