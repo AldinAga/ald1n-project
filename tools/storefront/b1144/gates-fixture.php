@@ -81,7 +81,7 @@ ob_start();$drained=LeanGates::drain($index,15,200);$drainOutput=ob_get_clean();
 $spawn(['php','-n','-r',$titleCode,'lsphp:'.$suffix,'60',$padding]);$waitFor(fn()=>LeanGates::busy($index,LeanGates::processes(),getmypid())['cms']===1);
 ob_start();try{LeanGates::drain($index,2,200);throw new LogicException('LINGERING_CMS_ACCEPTED');}catch(RuntimeException $e){check($e->getMessage()==='CMS_WORKERS_OR_ARTISAN_NOT_DRAINED','DRAIN_CMS_TIMEOUT_CODE');}$timeoutOutput=ob_get_clean();check(str_contains($timeoutOutput,'CMS_DRAIN_TIMEOUT={"cms":1,"artisan":0}'),'DRAIN_TIMEOUT_REPORTED');
 proc_terminate(array_pop($children),9);$waitFor(fn()=>LeanGates::busy($index,LeanGates::processes(),getmypid())['cms']===0);
-$artisan=$base.'/drain/artisan';file_put_contents($artisan,'<?php usleep(60000000);');$spawn(['php','-n',$artisan,'queue:work']);$waitFor(fn()=>LeanGates::busy($index,LeanGates::processes(),getmypid())['artisan']===1);
+$artisan=$base.'/drain/artisan';mkdir($base.'/drain',0755);file_put_contents($artisan,'<?php usleep(60000000);');$spawn(['php','-n',$artisan,'queue:work']);$waitFor(fn()=>LeanGates::busy($index,LeanGates::processes(),getmypid())['artisan']===1);
 ob_start();try{LeanGates::drain($index,2,200);throw new LogicException('ARTISAN_ACCEPTED');}catch(RuntimeException $e){check($e->getMessage()==='CMS_WORKERS_OR_ARTISAN_NOT_DRAINED','DRAIN_ARTISAN_CODE');}ob_end_clean();
 foreach($children as $p){$s=proc_get_status($p);if($s['running'])proc_terminate($p,9);proc_close($p);}
 rejects(fn()=>LeanGates::drain('/x/index.php',5),'DRAIN_SCOPE','DRAIN_SCOPE');
