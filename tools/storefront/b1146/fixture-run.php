@@ -17,21 +17,30 @@ $package=json_decode((string)file_get_contents($cfg['incoming'].'/b1146-package.
 $o=(new ReflectionClass(OverlayCoordinator::class))->newInstanceWithoutConstructor();
 $set=static function(string $name,mixed $value)use($o):void{(new ReflectionProperty($o,$name))->setValue($o,$value);};
 foreach(['root','home','base','pointer','stage','b1145Base','appStateScript','appCheckScript','php','allowedSapis','censusSeconds','minFreeBytes','scheduleGate','fixedNow','incoming','mode'] as $key)$set($key,$cfg[$key]);
-$set('plan',OverlayCoordinator::plan($package,$cfg['incoming']));$set('web',new FixtureWeb($cfg['port'],$cfg['secrets']));
-$actions=$cfg['actions']??[];
+foreach((array)($cfg['overrides']??[]) as $key=>$value)$set($key,$value);
+$set('plan',OverlayCoordinator::plan($package,$cfg['incoming']));$set('web',new FixtureWeb($cfg['port'],$cfg['secrets'],$cfg['dropCsp']));
+$actions=$cfg['actions']??[];$active=$cfg['root'].'/apps/cms/current';
+// A process that LeanGates counts as a CMS artisan run (its arguments end in "artisan", its working directory is the CMS).
+$busy=static function()use($active,$cfg):void{$pid=trim((string)shell_exec('cd '.escapeshellarg($active).' && { setsid bash -c "sleep 40; true" artisan > /dev/null 2>&1 < /dev/null & echo $!; }'));file_put_contents($cfg['busyPidFile'],$pid);};
+// Changes one byte of every private backup copy written so far (an interrupted earlier backup left stale copies).
+$corrupt=static function()use($cfg):void{$p=json_decode((string)file_get_contents($cfg['pointer']),true);foreach(glob($p['private'].'/backup/*.orig')?:[] as $f)file_put_contents($f,"\n",FILE_APPEND);};
 $stepSmoke=static function(string $point)use($cfg):void{
     // A sample that stays far below the public-shop-browse throttle (120/min per IP) across 23 points.
     $row=['point'=>$point];foreach(array_merge(OverlayCoordinator::SYSTEM,['/pravne-informacije','/uslovi-prodaje','/katalog','/registracija']) as $p)$row['anon'][$p]=FixtureWeb::get($cfg['port'],$p)['status'];
     foreach(['/admin/settings/public-storefront','/admin/settings','/'] as $p)$row['admin'][$p]=FixtureWeb::get($cfg['port'],$p,['Cookie: '.$cfg['adminCookie']])['status'];
     file_put_contents($cfg['stepLog'],json_encode($row,JSON_UNESCAPED_SLASHES)."\n",FILE_APPEND);
 };
-$set('fault',static function(string $point)use($actions,$cfg,$stepSmoke):void{
+$set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$corrupt):void{
     foreach((array)($actions[$point]??[]) as $action){
         file_put_contents($cfg['faultLog'],$point.' '.$action."\n",FILE_APPEND);
         match($action){
             'kill'=>posix_kill(getmypid(),9),
             'stepSmoke'=>$stepSmoke($point),
             'logError'=>file_put_contents($cfg['logDir'].'/laravel-'.date('Y-m-d').'.log','['.date('Y-m-d H:i:s').'] production.ERROR: injected fixture failure during acceptance'."\n",FILE_APPEND),
+            'fail'=>throw new RuntimeException('FIXTURE_INJECTED_FAILURE'),
+            'busy'=>$busy(),
+            'corruptBackup'=>$corrupt(),
+            'dropCsp'=>touch($cfg['dropCsp']),
             default=>throw new RuntimeException('FIXTURE_UNKNOWN_ACTION'),
         };
     }

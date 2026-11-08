@@ -58,7 +58,12 @@ final class OverlayCoordinator
     private string $appStateScript;
     private string $appCheckScript;
     private int $censusSeconds=75;
-    private int $minFreeBytes=268435456;
+    private int $minFreeBytes=536870912;
+    /** Monotonic time of the last tree change made by THIS process (never taken from a saved state of another process). */
+    private ?int $lastChangeNs=null;
+    private ?int $runStartNs=null;
+    /** Wall-clock budget from the start of this run to the first change; beyond it the run HOLDs before any change. */
+    private int $budgetSeconds=900;
     private bool $scheduleGate=true;
     private ?int $fixedNow=null;
     private int $scheduleNeedSeconds=1800;
@@ -134,7 +139,8 @@ final class OverlayCoordinator
 
     private function artisan(array $arguments,int $timeout=300):array
     {
-        return $this->command(array_merge([$this->php,'-d','opcache.enable=0','-d','opcache.enable_cli=0',$this->active().'/artisan'],$arguments,['--no-interaction','--no-ansi']),$this->active(),$timeout,array_merge(getenv(),['COLUMNS'=>'240']));
+        // The operator entry runs with umask 077; artisan children (route cache) get 022 so their files match the tree (0644).
+        $previous=umask(0022);try{return $this->command(array_merge([$this->php,'-d','opcache.enable=0','-d','opcache.enable_cli=0',$this->active().'/artisan'],$arguments,['--no-interaction','--no-ansi']),$this->active(),$timeout,array_merge(getenv(),['COLUMNS'=>'240']));}finally{umask($previous);}
     }
 
     private function artisanOk(array $arguments,int $timeout=300):void
@@ -234,7 +240,26 @@ final class OverlayCoordinator
             $r=$this->command(['stat','-f','-c','%a %S %d %c',$path],null,20);if($r['rc']!==0||!preg_match('/^(\d+) (\d+) (\d+) (\d+)$/D',trim($r['stdout']),$m))throw new RuntimeException('DISK_STAT_UNAVAILABLE');
             $free=(int)$m[1]*(int)$m[2];$result[]=['filesystem'=>$i===0?'CMS_TREE':'PRIVATE_STATE','freeBytes'=>$free,'requiredBytes'=>$need,'freeInodes'=>(int)$m[3]];if($free<$need)throw new RuntimeException('DISK_HEADROOM_INSUFFICIENT');if((int)$m[3]<1000)throw new RuntimeException('INODE_HEADROOM_INSUFFICIENT');
         }
+        $result[]=['filesystem'=>'CPANEL_ACCOUNT_QUOTA']+$this->quota($need,1000);
         return $result;
+    }
+
+    /**
+     * The per-user (cPanel/CageFS) quota as `quota -w -p` shows it to this account, parsed by the pinned B1145 parser. A
+     * shared host usually fills the account quota long before the filesystem; without a readable tool the filesystem free
+     * space stays the only byte gate and the report says so.
+     */
+    private function quota(int $bytes,int $inodes):array
+    {
+        $bin=null;foreach(explode(':',(string)getenv('PATH')) as $d)if($d!==''&&str_starts_with($d,'/')&&is_file($d.'/quota')&&is_executable($d.'/quota')){$bin=$d.'/quota';break;}
+        if($bin===null)return ['read'=>false,'note'=>'ACCOUNT_QUOTA_NOT_READ_NO_QUOTA_TOOL_FILESYSTEM_ONLY'];
+        try{$r=$this->command([$bin,'-w','-p'],null,20,array_merge(getenv(),['LC_ALL'=>'C']));}catch(Throwable $e){return ['read'=>false,'note'=>'ACCOUNT_QUOTA_NOT_READ_'.self::code($e).'_FILESYSTEM_ONLY'];}
+        $rows=MigrateUnclampCoordinator::parseQuota($r['stdout']);if($rows===null)return ['read'=>false,'note'=>'ACCOUNT_QUOTA_NOT_READ_UNPARSED_RC'.$r['rc'].'_FILESYSTEM_ONLY'];$out=['read'=>true,'limited'=>false,'requiredBytes'=>$bytes,'requiredInodes'=>$inodes,'rows'=>[]];
+        foreach($rows as $row){
+            $freeBytes=$row['limitBytes']===null?null:$row['limitBytes']-$row['usedBytes'];$freeInodes=$row['limitInodes']===null?null:$row['limitInodes']-$row['usedInodes'];$out['limited']=$out['limited']||$freeBytes!==null||$freeInodes!==null;$out['rows'][]=['freeBytes'=>$freeBytes,'freeInodes'=>$freeInodes];
+            if($freeBytes!==null&&$freeBytes<$bytes)throw new RuntimeException('ACCOUNT_QUOTA_HEADROOM_INSUFFICIENT');if($freeInodes!==null&&$freeInodes<$inodes)throw new RuntimeException('ACCOUNT_QUOTA_INODES_INSUFFICIENT');
+        }
+        return $out;
     }
 
     /** Scheduled app:backup-create (02:30 daily, 03:10 Sunday, app timezone) must not start within the next 30 minutes. */
@@ -280,7 +305,7 @@ final class OverlayCoordinator
         $this->cleanupRecorded();FreshnessProbe::assertNoLeftover($this->active().'/public');$targets=$this->probeTargets($installed);$plan=OverlayProbe::plan($this->state['id'],$targets,$this->viewsDirectory());
         $staging=$this->state['private'].'/probe-'.bin2hex(random_bytes(8)).'.staging';$this->state['probes'][]=['name'=>$plan['name'],'sha256'=>$plan['sha256'],'label'=>$label,'staging'=>$staging];$this->persist();
         try{FreshnessProbe::write($this->active().'/public/'.$plan['name'],$plan['source'],$staging);$response=$this->web->probe($plan['name'],$plan['token'],$invalidate,null);}finally{$this->cleanupRecorded();}
-        $route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);$a=OverlayProbe::assess($response,$this->state['id'],$targets,$this->allowedSapis,$invalidate,$requireFresh);
+        $route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);$a=OverlayProbe::assess($response,$this->state['id'],$targets,$this->allowedSapis,$invalidate,$requireFresh,posix_geteuid());
         $result=['label'=>$label,'route'=>$route,'invalidationRequested'=>$invalidate,'requireFresh'=>$requireFresh,'gates'=>array_map(static fn($c)=>$c??'PASS',$a['gates'])]+$a['values']+['probeRemoved'=>true,'failures'=>$a['failures']];$this->emit('WEB_OVERLAY_PROBE',$result);
         if(!$collect&&$a['failures']!==[])throw new RuntimeException($a['failures'][0]);return $result;
     }
@@ -288,13 +313,13 @@ final class OverlayCoordinator
     /** Waits on the monotonic clock until $seconds have passed since the last change; heartbeat every 15 s. */
     private function hold(string $label,int $seconds):void
     {
-        if($seconds<0||$seconds>FreshnessProbe::MAX_HOLD_SECONDS)throw new RuntimeException('OVERLAY_HOLD_EXCEEDS_BOUND');$since=(int)($this->state['lastChangeNs']??hrtime(true));$deadline=$since+$seconds*1000000000;$beat=hrtime(true)+15000000000;
+        if($seconds<0||$seconds>FreshnessProbe::MAX_HOLD_SECONDS)throw new RuntimeException('OVERLAY_HOLD_EXCEEDS_BOUND');$since=$this->lastChangeNs??hrtime(true);$deadline=$since+$seconds*1000000000;$beat=hrtime(true)+15000000000;
         $this->emit('OVERLAY_HOLD_START',['label'=>$label,'seconds'=>$seconds,'remainingSeconds'=>max(0,(int)ceil(($deadline-hrtime(true))/1e9)),'clock'=>'MONOTONIC']);
         while(($rest=$deadline-hrtime(true))>0){usleep((int)max(1000,intdiv(min($rest,max(0,$beat-hrtime(true)),1000000000),1000)));if(hrtime(true)>=$beat&&hrtime(true)<$deadline){$this->emit('OVERLAY_HOLD_HEARTBEAT',['label'=>$label,'remainingSeconds'=>(int)ceil(($deadline-hrtime(true))/1e9)]);$beat+=15000000000;}}
         $this->emit('OVERLAY_HOLD',['label'=>$label,'seconds'=>$seconds,'done'=>true]);
     }
 
-    private function changed():void {$this->state['lastChangeNs']=hrtime(true);}
+    private function changed():void {$this->lastChangeNs=hrtime(true);}
 
     /** $installed: legal pages 200 with noindex; otherwise 404 (the old tree has no such route). Shop routes always 404. */
     private function smokes(bool $installed):array
@@ -303,8 +328,10 @@ final class OverlayCoordinator
         $expect=[];foreach(self::SYSTEM as $p)$expect[$p]=200;foreach(self::LEGAL as $p)$expect[$p]=$installed?200:404;foreach(self::CLOSED as $p)$expect[$p]=404;
         foreach($expect as $path=>$status){
             for($attempt=1;$attempt<=3;$attempt++){$r=$this->web->fetch($path,$marker);if(!$r['transport']&&!in_array($r['status'],[502,503,504,520,521,522,523,524,525,526,527],true))break;if($attempt<3)usleep(2000000);}
-            $noindex=OverlayWeb::noindex($r['robots']);$pass=!$r['transport']&&$r['status']===$status&&(!($installed&&in_array($path,self::LEGAL,true))||$noindex);
-            $rows[]=['path'=>$path,'expected'=>$status,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'noindex'=>$noindex,'result'=>$pass?'PASS':'FAIL','attempts'=>$attempt];if(!$pass)$failed[]=$path;
+            // A legal page of the installed code must be noindex, scriptless (CSP script-src 'none') and never framed (DENY).
+            $noindex=OverlayWeb::noindex($r['robots']);$scriptless=OverlayWeb::scriptless($r['csp']??[]);$deny=OverlayWeb::frameDeny($r['frame']??[]);$legal=$installed&&in_array($path,self::LEGAL,true);
+            $pass=!$r['transport']&&$r['status']===$status&&(!$legal||($noindex&&$scriptless&&$deny));
+            $rows[]=['path'=>$path,'expected'=>$status,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'noindex'=>$noindex,'cspScriptSrcNone'=>$scriptless,'frameDeny'=>$deny,'result'=>$pass?'PASS':'FAIL','attempts'=>$attempt];if(!$pass)$failed[]=$path;
         }
         $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$installed?'INSTALLED':'OLD','rows'=>$rows,'failed'=>$failed]);if($failed!==[])throw new RuntimeException($installed?'INSTALLED_SMOKE_FAILED':'OLD_STATE_SMOKE_FAILED');return $rows;
     }
@@ -328,10 +355,12 @@ final class OverlayCoordinator
         $chain=$try('chainB1145Report1108',fn()=>$this->chain());if($chain!==null)$this->state['chain']=$chain;$v['chain']=$chain;
         $manifest=$try('runtimeManifest',fn()=>$this->manifest());
         $targets=$try('overlayTargets',fn()=>$this->targets());$v['targets']=$targets;
-        if($targets!==null){if(!$installed&&!$targets['preState'])$g['overlayTargets']=$targets['installed']?'ALREADY_INSTALLED':($targets['link']!==[]?'TARGET_IS_SYMLINK':'UNKNOWN_PRE_STATE_REFUSED');if($installed&&!$targets['installed'])$g['overlayTargets']='INSTALLED_DIGESTS_CHANGED';}
+        if($targets!==null){if(!$installed&&!$targets['preState'])$g['overlayTargets']=$targets['installed']?'OVERLAY_ALREADY_PRESENT_WITHOUT_B1146_STATE_NO_BACKUP_NOTHING_CHANGED':($targets['link']!==[]?'TARGET_IS_SYMLINK':'UNKNOWN_PRE_STATE_REFUSED');if($installed&&!$targets['installed'])$g['overlayTargets']='INSTALLED_DIGESTS_CHANGED';}
         $v['tree']=$manifest!==null&&$chain!==null?$try('activeTreeEqualsManifest',fn()=>$installed?LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$chain['htaccessSHA256'],self::MANIFEST_FILES+12):LeanGates::verifyTree($this->active(),$manifest,self::CONFIG_SHA,$chain['htaccessSHA256'],self::MANIFEST_FILES)):null;
         if(!array_key_exists('activeTreeEqualsManifest',$g))$g['activeTreeEqualsManifest']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
         if(!$installed)$v['replaceable']=$try('targetsReplaceable',function():array{$n=0;foreach($this->plan as $s){if($s['kind']==='modified'){OverlayFiles::replaceable($this->target($s));$n++;}else{$d=dirname($this->target($s));while(!is_dir($d))$d=dirname($d);if(is_link($d)||!is_writable($d))throw new RuntimeException('TARGET_DIRECTORY_NOT_WRITABLE');}}return ['modifiedOneLinkNoAcl'=>$n];});
+        // The 12 new classes are found through the PSR-4 fallback; an authoritative classmap would make them invisible.
+        $g['composerClassmapNotAuthoritative']=$this->classmapAuthoritative()?'COMPOSER_CLASSMAP_AUTHORITATIVE_NEW_CLASSES_WOULD_NOT_LOAD':null;
         $g['configNotCached']=file_exists($this->active().'/bootstrap/cache/config.php')?'CONFIG_CACHE_PRESENT':null;
         $g['noMaintenanceMode']=file_exists($this->active().'/storage/framework/down')||file_exists($this->active().'/storage/framework/maintenance.php')?'MAINTENANCE_MODE_ACTIVE':null;
         $try('noLeftoverProbeOrTemp',function():void{FreshnessProbe::assertNoLeftover($this->active().'/public');if($this->ownTemps()!==[])throw new RuntimeException('LEFTOVER_B1146_TEMP_FILE');});
@@ -352,6 +381,16 @@ final class OverlayCoordinator
         $try('liveSmokes',fn()=>$this->smokes($installed));
         $blockers=array_values(array_unique(array_filter($g,static fn($c)=>$c!==null)));
         $report=['stage'=>$stage,'gates'=>array_map(static fn($c)=>$c??'PASS',$g),'values'=>$v,'blockers'=>$blockers,'applicationFiles'=>'NONE','database'=>'NONE','transientProbe'=>'WRITTEN_AND_REMOVED','privateState'=>'B1146_NAMESPACE_ONLY'];$this->emit('PREFLIGHT',$report);return $report;
+    }
+
+    /** True when vendor/composer enables setClassMapAuthoritative(true) or sets $classMapAuthoritative; unreadable counts as true. */
+    private function classmapAuthoritative():bool
+    {
+        foreach(['autoload_real.php','autoload_static.php'] as $name){
+            $path=$this->active().'/vendor/composer/'.$name;if(!is_file($path)||is_link($path)){if($name==='autoload_real.php')return true;continue;}$text=(string)file_get_contents($path);
+            if(preg_match('/setClassMapAuthoritative\s*\(\s*true\s*\)/i',$text)||preg_match('/classMapAuthoritative\s*=\s*true/i',$text))return true;
+        }
+        return false;
     }
 
     private function loadExisting():bool
@@ -375,24 +414,42 @@ final class OverlayCoordinator
         foreach($this->plan as $s){
             if($s['kind']==='new'){$files[$s['n']]=['path'=>$s['path'],'kind'=>'new','before'=>'ABSENT'];continue;}
             $t=$this->target($s);$bytes=(string)file_get_contents($t);if(!hash_equals((string)$s['preSHA256'],hash('sha256',$bytes)))throw new RuntimeException('PRE_STATE_CHANGED_BEFORE_BACKUP');clearstatcache(true,$t);$st=stat($t);
-            $copy=$dir.'/'.sprintf('%02d',$s['n']).'.orig';if(is_file($copy))AtomicFile::readPrivate($copy,(string)$s['preSHA256']);else AtomicFile::privateCopy($copy,$bytes);
+            $copy=$dir.'/'.sprintf('%02d',$s['n']).'.orig';$this->privateBackupCopy($copy,$bytes);
             $files[$s['n']]=['path'=>$s['path'],'kind'=>'modified','copy'=>$copy,'sha256'=>$s['preSHA256'],'size'=>strlen($bytes),'mode'=>$st['mode']&0777,'gid'=>$st['gid'],'mtime'=>$st['mtime']];
         }
-        $routes=[];foreach($preflight['values']['caches']['routeCacheFiles'] as $name=>$sha){$t=$this->active().'/bootstrap/cache/'.$name;$bytes=(string)file_get_contents($t);if(hash('sha256',$bytes)!==$sha)throw new RuntimeException('ROUTE_CACHE_CHANGED_BEFORE_BACKUP');clearstatcache(true,$t);$st=stat($t);$copy=$dir.'/'.$name.'.orig';if(!is_file($copy))AtomicFile::privateCopy($copy,$bytes);$routes[$name]=['copy'=>$copy,'sha256'=>$sha,'mode'=>$st['mode']&0777,'gid'=>$st['gid']];}
+        $routes=[];foreach($preflight['values']['caches']['routeCacheFiles'] as $name=>$sha){$t=$this->active().'/bootstrap/cache/'.$name;$bytes=(string)file_get_contents($t);if(hash('sha256',$bytes)!==$sha)throw new RuntimeException('ROUTE_CACHE_CHANGED_BEFORE_BACKUP');clearstatcache(true,$t);$st=stat($t);$copy=$dir.'/'.$name.'.orig';$this->privateBackupCopy($copy,$bytes);$routes[$name]=['copy'=>$copy,'sha256'=>$sha,'mode'=>$st['mode']&0777,'gid'=>$st['gid']];}
         $this->state['backup']=['directory'=>$dir,'files'=>$files,'routeCache'=>$routes];$this->state['cache']=['routeCacheFiles'=>$preflight['values']['caches']['routeCacheFiles'],'viewsCached'=>$preflight['values']['caches']['viewsCached']];
         $this->state['approvalBefore']=$preflight['values']['approval'];$this->state['groupPauseSeconds']=(int)($preflight['values']['web']['revalidateFreq']??2)+1;$doc=$dir.'/manifest.json';if(is_file($doc))unlink($doc);AtomicFile::privateCopy($doc,json_encode(['batch'=>'B1146','files'=>array_values($files),'routeCache'=>$routes],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+        $this->fault('AFTER_BACKUP_COPIES');
         $this->emit('PER_FILE_BACKUP',['directory'=>$dir,'modifiedFilesCopied'=>count(array_filter($files,static fn($f)=>$f['kind']==='modified')),'newFilesRecordedAbsent'=>count(array_filter($files,static fn($f)=>$f['kind']==='new')),'routeCacheFilesCopied'=>count($routes),'mode'=>'0600','manifestSHA256'=>hash_file('sha256',$doc)]);
         $this->save('BACKED_UP');$this->fault('AFTER_BACKUP');
+    }
+
+    /**
+     * A backup copy left by an interrupted earlier backup of this transaction (still before any install) is reused only when
+     * it holds exactly the live bytes; otherwise it is removed and written again. Called only while the tree is pre-state.
+     */
+    private function privateBackupCopy(string $copy,string $bytes):void
+    {
+        if(file_exists($copy)||is_link($copy)){
+            try{AtomicFile::readPrivate($copy,hash('sha256',$bytes));return;}catch(Throwable){if(is_link($copy)||!is_file($copy)||!unlink($copy))throw new RuntimeException('BACKUP_COPY_STALE_NOT_REMOVABLE');$this->emit('BACKUP_COPY_REWRITTEN',basename($copy));}
+        }
+        AtomicFile::privateCopy($copy,$bytes);AtomicFile::readPrivate($copy,hash('sha256',$bytes));
     }
 
     /** Route cache handling after routes/web.php changed: route:clear, then route:cache again only when a cache existed. */
     private function refreshRoutes():void
     {
-        $this->artisanOk(['route:clear']);if($this->state['cache']['routeCacheFiles']!==[]){$this->artisanOk(['route:cache']);if($this->routeCacheFiles()===[])throw new RuntimeException('ROUTE_CACHE_NOT_REBUILT');}$this->changed();$this->persist();
+        $this->state['routesRefreshed']=true;$this->persist();$this->artisanOk(['route:clear']);if($this->state['cache']['routeCacheFiles']!==[]){$this->artisanOk(['route:cache']);if($this->routeCacheFiles()===[])throw new RuntimeException('ROUTE_CACHE_NOT_REBUILT');}$this->changed();$this->persist();
         $this->routesCheck(true);$this->fault('AFTER_ROUTES');
     }
 
-    private function refreshViews():void {$this->artisanOk(['view:clear']);if($this->state['cache']['viewsCached']===true)$this->artisanOk(['view:cache'],600);$this->changed();$this->persist();}
+    /**
+     * view:clear only. Compiled views are rebuilt on demand by the web workers; a full view:cache is never run, so a
+     * view:cache failure can never block an install or a rollback, and the earlier "views pre-compiled" state is not
+     * claimed to be restored (the report says so).
+     */
+    private function refreshViews():void {$this->artisanOk(['view:clear']);$this->changed();$this->persist();}
 
     private function install():void
     {
@@ -402,10 +459,11 @@ final class OverlayCoordinator
         $pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));
         foreach($this->plan as $s){
             if($group!==null&&$group!==$s['group']){$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);}$group=$s['group'];
-            $t=$this->target($s);$bytes=$this->payload($s);$this->state['applied'][$s['n']]='PENDING';
+            $this->fault('BEFORE_STEP_'.$s['n']);$t=$this->target($s);$bytes=$this->payload($s);$this->state['applied'][$s['n']]='PENDING';
             if($s['kind']==='new'){
-                $dir=dirname($t);if(!is_dir($dir)){if(!is_dir(dirname($dir)))throw new RuntimeException('TARGET_PARENT_MISSING');$this->state['createdDirs'][]=$dir;$this->persist();if(!mkdir($dir,0755))throw new RuntimeException('TARGET_DIRECTORY_CREATE');chmod($dir,0755);}
-                $temp=$this->recordTemp(OverlayFiles::tempFor($t));$receipt=OverlayFiles::create($t,$bytes,0644,$temp);
+                // A new file or directory takes the group of its parent directory, like the rest of the tree.
+                $dir=dirname($t);if(!is_dir($dir)){if(!is_dir(dirname($dir)))throw new RuntimeException('TARGET_PARENT_MISSING');$this->state['createdDirs'][]=$dir;$this->persist();if(!mkdir($dir,0755))throw new RuntimeException('TARGET_DIRECTORY_CREATE');chmod($dir,0755);$pg=stat(dirname($dir))['gid'];if(stat($dir)['gid']!==$pg)@chgrp($dir,$pg);clearstatcache(true,$dir);if(stat($dir)['gid']!==$pg)throw new RuntimeException('OVERLAY_DIRECTORY_GID_NOT_PRESERVABLE');}
+                $temp=$this->recordTemp(OverlayFiles::tempFor($t));$receipt=OverlayFiles::create($t,$bytes,0644,$temp,stat($dir)['gid']);
             }else{$b=$this->state['backup']['files'][$s['n']];$temp=$this->recordTemp(OverlayFiles::tempFor($t));$receipt=OverlayFiles::replace($t,$bytes,$b['mode'],$b['gid'],$temp,(string)$s['preSHA256']);}
             $this->state['temps']=array_values(array_filter($this->state['temps'],static fn($x)=>$x!==$temp));$this->state['applied'][$s['n']]='DONE';$this->changed();$this->persist();
             $this->emit('OVERLAY_STEP',['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'sha256'=>$s['payloadSHA256']]+$receipt);$this->fault('AFTER_STEP_'.$s['n']);
@@ -441,25 +499,38 @@ final class OverlayCoordinator
     {
         $this->emit('OVERLAY_ROLLBACK',['reason'=>$reason]);$problems=[];try{$this->save('ROLLBACK_INTENT');}catch(Throwable $e){$problems[]=self::code($e);}
         try{$this->cleanupRecorded();}catch(Throwable $e){$problems[]=self::code($e);}
-        $backup=$this->state['backup']??null;$restored=0;$removed=0;$routesDone=false;
-        if(is_array($backup)){
-            $group=null;$pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));
+        $backup=$this->state['backup']??null;$restored=0;$removed=0;$routesDone=false;$stoppedBefore=null;$touched=true;
+        try{$touched=$this->touched();}catch(Throwable $e){$problems[]=self::code($e);}
+        if(!$touched){
+            // Nothing of the overlay reached the tree: no file, cache or view work and no web verification at all.
+            foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir)&&(scandir($dir)?:[])===['.','..']&&!rmdir($dir))$problems[]='CREATED_DIRECTORY_NOT_REMOVED';
+            try{$this->persist();}catch(Throwable $e){$problems[]=self::code($e);}
+            $this->emit('ROLLBACK_FILES',['nothingApplied'=>true,'modifiedRestored'=>0,'newRemoved'=>0,'routeCacheRestored'=>false,'problems'=>$problems]);
+            if($problems===[]){$this->save('ROLLED_BACK');$this->emit('ROLLED_BACK',['files'=>'NONE_WERE_CHANGED','refreshAndWebVerification'=>'NOT_NEEDED','storefront'=>'CLOSED']);return true;}
+        }elseif(!is_array($backup))$problems[]='ROLLBACK_BACKUP_RECORD_MISSING';
+        if($touched&&is_array($backup)){
+            $group=null;$groupFailed=false;$pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));
             foreach(array_reverse($this->plan) as $s){
-                if($group!==null&&$group!==$s['group']&&$restored+$removed>0)sleep($pause);$group=$s['group'];
+                // Never leave a non-prefix state: when any restore of a group failed, the earlier groups (whose code the later
+                // groups call) stay installed and the rollback stops here with a recovery note.
+                if($group!==null&&$group!==$s['group']){if($groupFailed){$stoppedBefore=$s['group'];break;}if($restored+$removed>0)sleep($pause);}$group=$s['group'];
                 try{
-                    $c=$this->classify($s);$t=$this->target($s);
+                    $this->fault('BEFORE_RESTORE_'.$s['n']);$c=$this->classify($s);$t=$this->target($s);
                     if($s['kind']==='modified'){
                         if($c['state']==='payload'){$b=$backup['files'][$s['n']];$bytes=AtomicFile::readPrivate($b['copy'],$b['sha256']);OverlayFiles::replace($t,$bytes,$b['mode'],$b['gid'],$this->recordTemp(OverlayFiles::tempFor($t)),$s['payloadSHA256']);$restored++;$this->changed();}
                         elseif($c['state']!=='pre')throw new RuntimeException('ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_'.$s['n']);
                     }elseif($c['state']==='payload'){OverlayFiles::removeExact($t,$s['payloadSHA256']);$removed++;$this->changed();}
                     elseif($c['state']!=='absent')throw new RuntimeException('ROLLBACK_FOREIGN_NEW_FILE_NOT_REMOVED_'.$s['n']);
-                }catch(Throwable $e){$problems[]=self::code($e);}
-                if($s['group']==='C')try{$this->restoreRouteCache($backup);$routesDone=true;}catch(Throwable $e){$problems[]=self::code($e);}
+                }catch(Throwable $e){$problems[]=self::code($e);$groupFailed=true;}
+                if($s['group']==='C')try{$this->restoreRouteCache($backup);$routesDone=true;}catch(Throwable $e){$problems[]=self::code($e);$groupFailed=true;}
             }
-            foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir)&&(scandir($dir)?:[])===['.','..']&&!rmdir($dir))$problems[]='CREATED_DIRECTORY_NOT_REMOVED';
+            if($stoppedBefore===null)foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir)&&(scandir($dir)?:[])===['.','..']&&!rmdir($dir))$problems[]='CREATED_DIRECTORY_NOT_REMOVED';
             try{$this->cleanupRecorded();$this->refreshViews();}catch(Throwable $e){$problems[]=self::code($e);}
         }
-        $this->persist();$this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'routeCacheRestored'=>$routesDone,'problems'=>$problems]);
+        if($touched){
+            try{$this->persist();}catch(Throwable $e){$problems[]=self::code($e);}
+            $this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'routeCacheRestored'=>$routesDone,'stoppedBeforeGroup'=>$stoppedBefore,'earlierGroupsKeptInstalled'=>$stoppedBefore!==null,'problems'=>$problems]);
+        }
         if($problems===[])try{
             $t=$this->targets();if(!$t['preState'])throw new RuntimeException('ROLLBACK_TARGETS_NOT_PRE_STATE');$this->routesCheck(false);
             $first=$this->probeRun('restored-invalidate',false,true,false);$this->hold('restored',(int)$first['holdSeconds']);$this->smokes(false);$this->probeRun('restored-fresh',false,false,true);
@@ -469,22 +540,71 @@ final class OverlayCoordinator
             try{$this->save('ROLLBACK_INCOMPLETE');}catch(Throwable){$this->emit('ROLLBACK_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RUN_THE_SAME_COMMAND');}
             $this->recoveryNote(array_values(array_unique($problems)));return false;
         }
-        $this->save('ROLLED_BACK');$this->emit('ROLLED_BACK',['files'=>'EXACT_PRIVATE_COPIES','newFiles'=>'REMOVED','routeCache'=>$this->state['cache']['routeCacheFiles']===[]?'ABSENT_AS_BEFORE':'EXACT_PRIVATE_COPY','tree'=>'EQUALS_8531_FILE_MANIFEST','storefront'=>'CLOSED']);return true;
+        $this->save('ROLLED_BACK');$this->emit('ROLLED_BACK',['files'=>'EXACT_PRIVATE_COPIES','newFiles'=>'REMOVED','routeCache'=>$this->state['cache']['routeCacheFiles']===[]?'ABSENT_AS_BEFORE':'EXACT_PRIVATE_COPY','compiledViews'=>'CLEARED_REBUILT_ON_DEMAND_NOT_PRECOMPILED','tree'=>'EQUALS_8531_FILE_MANIFEST','storefront'=>'CLOSED']);return true;
+    }
+
+    /** Whether any overlay byte may have reached the tree: an applied step, a payload file, a changed route cache, a created directory. */
+    private function touched():bool
+    {
+        foreach((array)($this->state['applied']??[]) as $v)if($v==='DONE'||$v==='PENDING')return true;
+        if(($this->state['createdDirs']??[])!==[]||($this->state['routesRefreshed']??false)===true)return true;
+        $t=$this->targets();if($t['payload']>0||$t['foreign']!==[]||$t['link']!==[])return true;
+        $before=$this->state['cache']['routeCacheFiles']??null;return is_array($before)&&$this->routeCacheFiles()!==$before;
     }
 
     private function restoreRouteCache(array $backup):void
     {
         $now=$this->routeCacheFiles();$before=$backup['routeCache']??[];
         foreach($now as $name=>$sha)if(!isset($before[$name])){$t=$this->active().'/bootstrap/cache/'.$name;OverlayFiles::removeExact($t,$sha);}
-        foreach($before as $name=>$b){$t=$this->active().'/bootstrap/cache/'.$name;$bytes=AtomicFile::readPrivate($b['copy'],$b['sha256']);if(isset($now[$name])){if($now[$name]!==$b['sha256'])OverlayFiles::replace($t,$bytes,$b['mode'],$b['gid'],$this->recordTemp(OverlayFiles::tempFor($t)),$now[$name]);}else OverlayFiles::create($t,$bytes,$b['mode'],$this->recordTemp(OverlayFiles::tempFor($t)));}
+        foreach($before as $name=>$b){$t=$this->active().'/bootstrap/cache/'.$name;$bytes=AtomicFile::readPrivate($b['copy'],$b['sha256']);if(isset($now[$name])){if($now[$name]!==$b['sha256'])OverlayFiles::replace($t,$bytes,$b['mode'],$b['gid'],$this->recordTemp(OverlayFiles::tempFor($t)),$now[$name]);}else OverlayFiles::create($t,$bytes,$b['mode'],$this->recordTemp(OverlayFiles::tempFor($t)),$b['gid']);}
         $this->cleanupRecorded();$this->changed();
     }
 
     private function recoveryNote(array $problems):void
     {
-        $files=[];foreach($this->plan as $s){$c=$this->classify($s);$b=$this->state['backup']['files'][$s['n']]??null;$files[]=['n'=>$s['n'],'path'=>$s['path'],'now'=>$c['state'],'backupCopy'=>$b['copy']??null,'mode'=>isset($b['mode'])?sprintf('%04o',$b['mode']):null];}
-        $this->emit('RECOVERY_NOTE',['kind'=>'ROLLBACK_INCOMPLETE','problems'=>$problems,'files'=>$files,'backupDirectory'=>$this->state['backup']['directory']??null,'privateCopies'=>'KEPT_0600','next'=>'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RETRIES_THE_ROLLBACK_FIRST','manualOnlyIfTheSameCommandKeepsFailing'=>'OWNER_COMMAND_LINES_BELOW']);
-        foreach($files as $f){$t=$this->active().'/'.$f['path'];if($f['now']==='payload'&&$f['backupCopy']!==null)echo 'OWNER_COMMAND: install -m '.$f['mode'].' '.$f['backupCopy'].' '.$t.PHP_EOL;elseif($f['now']==='payload')echo 'OWNER_COMMAND: rm -f '.$t.PHP_EOL;}
+        $a=$this->active();$files=[];
+        foreach($this->plan as $s){try{$now=$this->classify($s)['state'];}catch(Throwable){$now='UNREADABLE';}$b=$this->state['backup']['files'][$s['n']]??null;$files[$s['n']]=['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'now'=>$now,'backupCopy'=>$b['copy']??null,'mode'=>isset($b['mode'])?sprintf('%04o',$b['mode']):null,'gid'=>$b['gid']??null];}
+        $this->emit('RECOVERY_NOTE',['kind'=>'ROLLBACK_INCOMPLETE','problems'=>$problems,'files'=>array_values($files),'backupDirectory'=>$this->state['backup']['directory']??null,'privateCopies'=>'KEPT_0600','next'=>'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RETRIES_THE_ROLLBACK_FIRST','manualOnlyIfTheSameCommandKeepsFailing'=>'OWNER_COMMAND_LINES_BELOW_IN_THIS_ORDER','order'=>'REVERSE_INSTALL_ORDER_MODIFIED_FILES_AND_ROUTE_CACHE_FIRST_NEW_FILES_LAST_THEN_EMPTY_NEW_DIRECTORIES_THEN_VIEW_CLEAR']);
+        // Reverse install order: groups E, D, C (+ the route cache), B, then the new files of group A, then their directories.
+        foreach(array_reverse($files) as $f){
+            $t=$a.'/'.$f['path'];
+            if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null)echo 'OWNER_COMMAND: install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$f['backupCopy'].' '.$t.PHP_EOL;
+            elseif($f['kind']==='new'&&$f['now']==='payload')echo 'OWNER_COMMAND: rm -f '.$t.PHP_EOL;
+            elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1146'.PHP_EOL;
+            if($f['group']==='C'){
+                try{$current=$this->routeCacheFiles();}catch(Throwable){$current=[];echo 'OWNER_INSPECT: '.$a.'/bootstrap/cache/routes-*.php UNREADABLE'.PHP_EOL;}
+                $before=$this->state['backup']['routeCache']??[];
+                foreach($before as $name=>$b)if(($current[$name]??null)!==$b['sha256'])echo 'OWNER_COMMAND: install -m '.sprintf('%04o',$b['mode']).' -g '.(int)$b['gid'].' '.$b['copy'].' '.$a.'/bootstrap/cache/'.$name.PHP_EOL;
+                foreach($current as $name=>$sha)if(!isset($before[$name]))echo 'OWNER_COMMAND: rm -f '.$a.'/bootstrap/cache/'.$name.PHP_EOL;
+            }
+        }
+        foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir))echo 'OWNER_COMMAND: rmdir '.$dir.PHP_EOL;
+        echo 'OWNER_COMMAND: cd '.$a.' && php -d opcache.enable=0 artisan view:clear --no-interaction'.PHP_EOL;
+        echo 'OWNER_COMMAND_NOTE=THE_WEB_WORKERS_SEE_THE_RESTORED_FILES_AFTER_ABOUT_2_MINUTES_(realpath_cache_ttl)'.PHP_EOL;
+    }
+
+    /**
+     * Gates before any restore that the owner asks for (--rollback, $strict) or that resumes an interrupted install: the
+     * Storefront DB switch must be absent or 0 (the shop is never rolled back while open), no CMS artisan process, and for
+     * --rollback the scheduled backup window must be clear. Read-only.
+     */
+    private function rollbackGates(bool $strict):array
+    {
+        $b=[];$v=[];
+        try{$app=$this->helper($this->appStateScript,'state');$v['storefrontDbSwitch']=$app['storefrontFlag'];if(!in_array($app['storefrontFlag'],['absent','0'],true))$b[]='STOREFRONT_IS_ON_TURN_THE_SHOP_OFF_IN_ADMIN_FIRST_THEN_RUN_THE_SAME_COMMAND';
+            if($strict&&$this->scheduleGate){$s=$this->scheduleState($app);$v['schedule']=$s;if($s['conflict']!==null)$b[]='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']);}
+        }catch(Throwable $e){$v['appState']=self::code($e);if($strict)$b[]='APP_STATE_UNREADABLE_'.self::code($e);}
+        try{$v['census']=$this->census();}catch(Throwable $e){$b[]=self::code($e);}
+        $this->emit('ROLLBACK_GATES',['strict'=>$strict,'values'=>$v,'blockers'=>$b]);return $b;
+    }
+
+    /** Right before the first change: the run is still inside its time budget, the shop is still closed and no backup is due. */
+    private function beforeFirstChange():void
+    {
+        $elapsed=intdiv(hrtime(true)-(int)$this->runStartNs,1000000000);if($elapsed>$this->budgetSeconds)throw new RuntimeException('TIME_BUDGET_EXCEEDED_BEFORE_FIRST_CHANGE');
+        $app=$this->helper($this->appStateScript,'state');if(!in_array($app['storefrontFlag'],['absent','0'],true))throw new RuntimeException('STOREFRONT_DB_SWITCH_NOT_ABSENT_OR_0');
+        if($this->scheduleGate){$s=$this->scheduleState($app);if($s['conflict']!==null)throw new RuntimeException('SCHEDULED_BACKUP_WITHIN_30_MINUTES_RECHECK');}
+        $this->emit('BEFORE_FIRST_CHANGE',['elapsedSeconds'=>$elapsed,'budgetSeconds'=>$this->budgetSeconds,'storefrontDbSwitch'=>$app['storefrontFlag'],'scheduleRechecked'=>$this->scheduleGate]);
     }
 
     private function hold2(string $phase,array $report):int {$this->save($phase);$this->emit('HOLD_NO_MUTATION',['phase'=>$phase,'blockers'=>$report['blockers']]);return 2;}
@@ -492,7 +612,7 @@ final class OverlayCoordinator
     private function finish(string $final):int
     {
         $this->final=$final;$this->emit('B1146_RESULT',['overlay'=>'PR152_LEGAL_PAGES_21_FILES','newFiles'=>12,'modifiedFiles'=>9,'tests'=>'NOT_INSTALLED','storefront'=>'CLOSED_DB_SWITCH_ABSENT_OR_0','migrations'=>'NONE','env'=>'UNCHANGED','config'=>'UNCHANGED','opcache'=>'TARGETED_PER_FILE_INVALIDATION_ONLY','backupDirectory'=>$this->state['backup']['directory']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE']);
-        $this->emit('OWNER_NEXT_STEPS',['1_LOG_IN_TO_CMS_ALD1N_COM_AS_SUPERADMIN','2_OPEN_/admin/settings/public-storefront_AND_CHECK_THE_ON_CHECKLIST_AND_THE_LEGAL_TEXT_LINKS','3_REVIEW_THE_LEGAL_TEXTS_AND_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN','4_THE_STOREFRONT_STAYS_OFF_UNTIL_YOU_TURN_IT_ON','ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback']);
+        $this->emit('OWNER_NEXT_STEPS',['1_LOG_IN_TO_CMS_ALD1N_COM_AS_SUPERADMIN','2_OPEN_/admin/settings/public-storefront_AND_CHECK_THE_ON_CHECKLIST_AND_THE_LEGAL_TEXT_LINKS','3_REVIEW_THE_LEGAL_TEXTS_AND_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN','4_THE_STOREFRONT_STAYS_OFF_UNTIL_YOU_TURN_IT_ON']+(isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback (THE_SHOP_MUST_BE_OFF)']:['NO_B1146_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
         $this->emit('DO_NOT_RERUN_B1144_OR_B1145_AFTER_B1146','THEIR_MANIFEST_GATES_NOW_SEE_THE_9_MODIFIED_FILES');return 0;
     }
 
@@ -504,21 +624,33 @@ final class OverlayCoordinator
 
     public function run():int
     {
+        $this->runStartNs=hrtime(true);
         try{$this->open();$existing=$this->loadExisting();if(!$existing||($this->mode==='install'&&$this->state['phase']==='ROLLED_BACK'))$this->begin();}catch(Throwable $e){$this->emit('HOLD_BEFORE_ANY_MUTATION',self::code($e));return 2;}
         try{
             $phase=$this->state['phase'];
             if($this->mode==='rollback'){
                 if(!in_array($phase,['INSTALLED_PASS','ROLLBACK_INCOMPLETE','ROLLBACK_INTENT','ACCEPTANCE_INTENT','FILES_INSTALLED','INSTALL_INTENT','BACKED_UP'],true)){$this->emit('HOLD_NOTHING_TO_ROLL_BACK',['phase'=>$phase]);return 2;}
-                $this->state['chain']??=$this->chain();if(!$this->restore('OWNER_REQUESTED_ROLLBACK'))return 2;$this->final='PASS_ROLLED_BACK_BY_OWNER';$this->emit('OWNER_NOTICE','THE_OLD_CODE_IS_ACTIVE_AGAIN_THE_LEGAL_PAGES_ARE_GONE_A_LATER_RUN_OF_THE_SAME_COMMAND_WITHOUT_OPTIONS_INSTALLS_AGAIN');return 0;
+                $this->state['chain']??=$this->chain();
+                $blockers=$this->rollbackGates(true);
+                if($blockers!==[]){$this->emit('HOLD_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE']);if(preg_grep('/^APP_STATE_UNREADABLE_/',$blockers)!==[])$this->recoveryNote($blockers);return 2;}
+                if(!$this->restore('OWNER_REQUESTED_ROLLBACK'))return 2;$this->final='PASS_ROLLED_BACK_BY_OWNER';$this->emit('OWNER_NOTICE','THE_OLD_CODE_IS_ACTIVE_AGAIN_THE_LEGAL_PAGES_ARE_GONE_A_LATER_RUN_OF_THE_SAME_COMMAND_WITHOUT_OPTIONS_INSTALLS_AGAIN');
+                echo 'OWNER_NOTICE_MERCHANT_APPROVAL=AFTER_THIS_ROLLBACK_RE_CHECK_/admin/settings/public-storefront_AN_APPROVAL_GIVEN_UNDER_THE_LEGAL_PAGES_CODE_NO_LONGER_MATCHES_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN_BEFORE_THE_STOREFRONT_CAN_BE_TURNED_ON'.PHP_EOL;return 0;
             }
             if($phase==='INSTALLED_PASS')return $this->alreadyInstalled();
-            if(in_array($phase,self::IN_FLIGHT,true)){$this->emit('RESUMED_INTERRUPTED_INSTALL',['phase'=>$phase]);$this->state['chain']??=$this->chain();$ok=$this->restore('RESUMED_INTERRUPTED_'.$phase);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
+            if(in_array($phase,self::IN_FLIGHT,true)){
+                $this->emit('RESUMED_INTERRUPTED_INSTALL',['phase'=>$phase]);$this->state['chain']??=$this->chain();
+                $blockers=$this->rollbackGates(false);if($blockers!==[]){$this->emit('HOLD_RESUMED_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'RUN_THE_SAME_COMMAND_AGAIN_WHEN_THE_BLOCKERS_ARE_GONE']);return 2;}
+                $ok=$this->restore('RESUMED_INTERRUPTED_'.$phase);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;
+            }
             if(!in_array($phase,['PREFLIGHT','HOLD_PREFLIGHT_BLOCKED'],true))throw new RuntimeException('UNKNOWN_SAVED_PHASE');
             $this->cleanupRecorded();$p=$this->preflight('fresh');
-            if($p['blockers']===['ALREADY_INSTALLED']){$this->emit('ALREADY_INSTALLED_WITHOUT_B1146_STATE','REVERIFYING');return $this->alreadyInstalled();}
             if($p['blockers']!==[])return $this->hold2('HOLD_PREFLIGHT_BLOCKED',$p);
+            $this->fault('AFTER_PREFLIGHT');
+            // Before the first change (backup copies included): a clean artisan census, the time budget, the shop still closed
+            // and the scheduled-backup window re-checked. Any failure is a HOLD with nothing changed.
+            try{$this->census();$this->beforeFirstChange();}catch(Throwable $e){$p['blockers']=[self::code($e)];return $this->hold2('HOLD_PREFLIGHT_BLOCKED',$p);}
             $this->backup($p);
-            try{$this->census();$this->install();$this->accept();}catch(Throwable $e){$code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);$ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
+            try{$this->install();$this->accept();}catch(Throwable $e){$code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);$ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
             return $this->finish('PASS_INSTALLED_LEGAL_OVERLAY_STOREFRONT_CLOSED');
         }catch(Throwable $e){$this->emit('HOLD_CODE_DETAIL',self::code($e));return 2;}
     }
@@ -555,12 +687,12 @@ final class OverlayFiles
     }
 
     /** Creates $target from a synced temp with link(): it fails if the name exists, so nothing is ever clobbered. */
-    public static function create(string $target,string $bytes,int $mode,string $temp):array
+    public static function create(string $target,string $bytes,int $mode,string $temp,int $gid):array
     {
         if(!self::isOwnTemp($temp)||dirname($temp)!==dirname($target)||is_link(dirname($target)))throw new RuntimeException('OVERLAY_CREATE_SCOPE');clearstatcache(true,$target);if(file_exists($target)||is_link($target))throw new RuntimeException('OVERLAY_NEW_TARGET_EXISTS');
-        self::writeTemp($temp,$bytes,$mode);if(!@link($temp,$target)){@unlink($temp);throw new RuntimeException(file_exists($target)?'OVERLAY_NEW_TARGET_EXISTS':'OVERLAY_LINK');}@unlink($temp);$synced=self::syncDirectory(dirname($target));
+        self::writeTemp($temp,$bytes,$mode);if(stat($temp)['gid']!==$gid)@chgrp($temp,$gid);clearstatcache(true,$temp);if(stat($temp)['gid']!==$gid){@unlink($temp);throw new RuntimeException('OVERLAY_GID_NOT_PRESERVABLE');}if(!@link($temp,$target)){@unlink($temp);throw new RuntimeException(file_exists($target)?'OVERLAY_NEW_TARGET_EXISTS':'OVERLAY_LINK');}@unlink($temp);$synced=self::syncDirectory(dirname($target));
         clearstatcache(true,$target);if(is_link($target)||!is_file($target)||hash_file('sha256',$target)!==hash('sha256',$bytes)||stat($target)['nlink']!==1)throw new RuntimeException('OVERLAY_RESULT_VERIFY');
-        return ['op'=>'LINK_NEW','directorySynced'=>$synced,'mode'=>sprintf('%04o',$mode)];
+        return ['op'=>'LINK_NEW','directorySynced'=>$synced,'mode'=>sprintf('%04o',$mode),'gid'=>$gid];
     }
 
     /** Removes $target only while it holds exactly $sha256. */

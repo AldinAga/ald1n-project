@@ -54,7 +54,7 @@ foreach($paths as $path){
     $files[$path]=['sha256'=>$exists?hash_file('sha256',$path):null,'cached'=>$cached,'stale'=>$stale,'awaitingRecompile'=>$cached===true&&$stamp===0];
 }
 $ini=strtolower(trim((string)ini_get('opcache.enable')));$realpathTtl=ini_get('realpath_cache_ttl');$realpathSize=ini_get('realpath_cache_size');
-echo json_encode(['kind'=>__KIND__,'id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'opcacheLoaded'=>extension_loaded('Zend OPcache'),'opcacheIniEnabled'=>in_array($ini,['1','on','yes','true'],true),'opcacheEnabled'=>$enabled,'statusAccess'=>is_array($status),'scriptsListed'=>$scripts!==null,'fileCacheOnly'=>(int)ini_get('opcache.file_cache_only')===1,'validateTimestamps'=>(int)ini_get('opcache.validate_timestamps'),'revalidateFreq'=>(int)ini_get('opcache.revalidate_freq'),'realpathCacheTtl'=>is_string($realpathTtl)?$realpathTtl:null,'realpathCacheSize'=>is_string($realpathSize)?$realpathSize:null,'invalidationRequested'=>$invalidate,'invalidated'=>$invalidated,'compiledViewsInvalidated'=>$viewInvalidated,'invalidationFailed'=>$failed,'vanishedCachedScripts'=>$vanished,'globalReset'=>false,'files'=>$files],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+echo json_encode(['kind'=>__KIND__,'id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'euid'=>function_exists('posix_geteuid')?posix_geteuid():null,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'opcacheLoaded'=>extension_loaded('Zend OPcache'),'opcacheIniEnabled'=>in_array($ini,['1','on','yes','true'],true),'opcacheEnabled'=>$enabled,'statusAccess'=>is_array($status),'scriptsListed'=>$scripts!==null,'fileCacheOnly'=>(int)ini_get('opcache.file_cache_only')===1,'validateTimestamps'=>(int)ini_get('opcache.validate_timestamps'),'revalidateFreq'=>(int)ini_get('opcache.revalidate_freq'),'realpathCacheTtl'=>is_string($realpathTtl)?$realpathTtl:null,'realpathCacheSize'=>is_string($realpathSize)?$realpathSize:null,'invalidationRequested'=>$invalidate,'invalidated'=>$invalidated,'compiledViewsInvalidated'=>$viewInvalidated,'invalidationFailed'=>$failed,'vanishedCachedScripts'=>$vanished,'globalReset'=>false,'files'=>$files],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
 PROBE;
         return strtr($template,$replace)."\n";
     }
@@ -63,10 +63,12 @@ PROBE;
      * Collect-all: every gate is null (PASS) or its HOLD code; nothing throws. $expected: absolute path => sha256|null.
      * With $requireFresh every listed file that exists must not be held stale by OPcache.
      */
-    public static function assess(array $r,string $id,array $expected,array $allowedSapis,bool $invalidationRequested,bool $requireFresh):array
+    public static function assess(array $r,string $id,array $expected,array $allowedSapis,bool $invalidationRequested,bool $requireFresh,?int $operatorEuid=null):array
     {
         $g=[];$int=static fn(string $k):?int=>is_int($r[$k]??null)?$r[$k]:null;$enabled=($r['opcacheEnabled']??null)===true;$ini=($r['opcacheIniEnabled']??null)===true;
         $g['scope']=($r['kind']??null)===self::KIND&&($r['id']??null)===$id?null:'OVERLAY_PROBE_SCOPE';
+        // The web worker must run as the operator account (suEXEC): files it reads and the caches it writes share one owner.
+        $g['webEuid']=$operatorEuid!==null&&$int('euid')!==null&&$int('euid')!==$operatorEuid?'OVERLAY_WEB_EUID_NOT_OPERATOR':null;
         $g['sapi']=in_array($r['sapi']??null,$allowedSapis,true)?null:'OVERLAY_PROBE_SAPI';
         $g['php84']=is_string($r['php']??null)&&str_starts_with($r['php'],'8.4.')?null:'OVERLAY_PROBE_PHP';
         $g['docroot']=($r['docrootMatches']??null)===true?null:'OVERLAY_PROBE_DOCROOT';
@@ -82,7 +84,7 @@ PROBE;
         foreach($expected as $path=>$sha){$f=$files[$path]??null;if(!is_array($f)||($f['sha256']??null)!==$sha)$content[]=$path;elseif($requireFresh&&($f['stale']??null)!==false)$stale[]=$path;}
         if(count($files)!==count($expected))$content[]='FILE_SET';
         $g['webTreeContent']=$content===[]?null:'OVERLAY_WEB_TREE_CONTENT';$g['fresh']=$stale===[]?null:'OVERLAY_WEB_CODE_STALE';
-        $values=['php'=>is_string($r['php']??null)?$r['php']:null,'sapi'=>is_string($r['sapi']??null)?$r['sapi']:null,'opcacheEnabled'=>$enabled,'validateTimestamps'=>$int('validateTimestamps'),'revalidateFreq'=>$frequency,'realpathCacheTtl'=>$readable?(int)$ttl:null,'realpathCacheSize'=>is_scalar($r['realpathCacheSize']??null)?(string)$r['realpathCacheSize']:null,'holdSeconds'=>$hold,
+        $values=['php'=>is_string($r['php']??null)?$r['php']:null,'sapi'=>is_string($r['sapi']??null)?$r['sapi']:null,'webEuidIsOperator'=>$int('euid')===null?null:$int('euid')===$operatorEuid,'opcacheEnabled'=>$enabled,'validateTimestamps'=>$int('validateTimestamps'),'revalidateFreq'=>$frequency,'realpathCacheTtl'=>$readable?(int)$ttl:null,'realpathCacheSize'=>is_scalar($r['realpathCacheSize']??null)?(string)$r['realpathCacheSize']:null,'holdSeconds'=>$hold,
             'targets'=>count($expected),'targetsCached'=>count(array_filter($files,static fn($f)=>is_array($f)&&($f['cached']??null)===true)),'invalidated'=>$int('invalidated'),'compiledViewsInvalidated'=>$int('compiledViewsInvalidated'),'vanishedCachedScripts'=>$int('vanishedCachedScripts'),'contentMismatches'=>count($content),'staleTargets'=>count($stale),'globalReset'=>false];
         return ['gates'=>$g,'failures'=>array_values(array_filter($g,static fn($c)=>$c!==null)),'values'=>$values];
     }

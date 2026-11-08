@@ -97,7 +97,7 @@ CRITICAL=1
 if mkdir "$LOCK" 2>/dev/null; then LOCK_HELD=1; fi
 CRITICAL=0
 if test -n "$PENDING_SIGNAL"; then on_signal $PENDING_SIGNAL; fi
-test "$LOCK_HELD" = 1 || fail 'another operator report reservation active'
+test "$LOCK_HELD" = 1 || fail "another operator report reservation active; if no operator worker runs (check: ps -u icaffeco -o pid=,args= | grep -E 'b11[0-9][0-9]-' | grep -v grep) the lock is stale and is removed with: rmdir $LOCK"
 next="$("$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r '$highest=0;foreach(file($argv[1],FILE_IGNORE_NEW_LINES)?:[] as $p){if(preg_match("/^(\d+)-/",basename($p),$m))$highest=max($highest,(int)$m[1]);}foreach(new DirectoryIterator($argv[2]) as $i){if($i->isFile()&&preg_match("/^(\d+)-/",$i->getFilename(),$m))$highest=max($highest,(int)$m[1]);}if($highest<1108)exit(2);echo $highest+1;' "$scratch/reports.txt" "$ROOT/docs/operations")"; sequence=$?
 test "$sequence" = 0 || fail 'report sequence unavailable'
 label=LEGAL-OVERLAY
