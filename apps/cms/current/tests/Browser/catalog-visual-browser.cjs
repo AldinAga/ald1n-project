@@ -31,10 +31,11 @@ async function open(page, url, label, problems) {
   // Bring every lazy image into view once so full-page shots show them.
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   for (let y = 0; y < height; y += 500) {
-    await page.evaluate(top => window.scrollTo(0, top), y);
-    await pause(60);
+    await page.evaluate(top => window.scrollTo({top, behavior: 'instant'}), y);
+    await pause(120);
   }
-  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => window.scrollTo({top: 0, behavior: 'instant'}));
   await page.waitForLoadState('networkidle');
   await page.waitForFunction(() => [...document.images].every(img => img.complete), null, {timeout: 20000})
     .catch(() => {});
@@ -80,14 +81,14 @@ async function open(page, url, label, problems) {
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-fold.png'), animations: 'disabled'});
 
         // Scrolled viewport: the CSS-only back-to-top button must be visible.
-        await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2.6));
+        await page.evaluate(() => window.scrollTo({top: window.innerHeight * 2.6, behavior: 'instant'}));
         await pause(200);
         const top = await page.locator('.shop-back-to-top').boundingBox();
         check(top && top.y > 0 && top.y + top.height <= 900, tag + ' back-to-top visible after scrolling ' + JSON.stringify(top));
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-scrolled.png'), animations: 'disabled'});
 
         if (width === 1280) {
-          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.evaluate(() => window.scrollTo({top: 0, behavior: 'instant'}));
           await page.locator('.shop-product').first().hover();
           await pause(700);
           await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-hover.png'), animations: 'allow'});
