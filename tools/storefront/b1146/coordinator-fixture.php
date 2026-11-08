@@ -128,7 +128,8 @@ foreach(['noRouteCache','routeCache'] as $variant){
         check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&lastLine($o,'ROLLBACK_FILES')['nothingApplied']===true&&!str_contains($tail,'ARTISAN=')&&!str_contains($tail,'WEB_OVERLAY_PROBE=')&&!str_contains($tail,'PUBLIC_HTTP_SMOKES=')&&$tree()==='PRE','NOTHING_APPLIED_NO_REFRESH');$reset();
         // F5: nothing applied, but a modified target went missing: never reported as the verified old state.
         $web=$active.'/routes/web.php';[$rc,$o]=$run(['BEFORE_STEP_1'=>['hideWeb','fail']]);$wasHidden=is_file($hiddenWeb)&&!file_exists($web);if(is_file($hiddenWeb))rename($hiddenWeb,$web);
-        check($wasHidden&&$rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&!str_contains($o,'"nothingApplied":true')&&lastLine($o,'ROLLBACK_FILES')['stoppedAtStep']===16&&str_contains($o,'ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_16'),'MISSING_TARGET_NOT_REPORTED_AS_OLD_STATE');
+        check($wasHidden&&$rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&!str_contains($o,'"nothingApplied":true')&&lastLine($o,'ROLLBACK_FILES')['stoppedAtStep']===16&&str_contains($o,'ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_16')&&lastLine($o,'ROLLBACK_FILES')['exactInstallPrefixKept']==='NOT_AN_INSTALL_PREFIX_SEE_RECOVERY_NOTE_FILES','MISSING_TARGET_NOT_REPORTED_AS_OLD_STATE');
+        check(preg_match('~^OWNER_INSPECT: '.preg_quote($web,'~').' IS_MISSING_NOT_REMOVED_BY_B1146_THE_OLD_BYTES_ARE_IN \S+/backup/16\.orig SHA256 [a-f0-9]{64}$~m',$o)===1,'MISSING_TARGET_INSPECT_LINE');
         [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_TARGET_BACK_THEN_VERIFIED');$reset();$results[$variant]['missingTargetNothingApplied']='HOLD_ROLLBACK_INCOMPLETE_THEN_VERIFIED';
         // R8: the time budget is checked right before the first change.
         [$rc,$o]=$run([],'install',['budgetSeconds'=>0]);check($rc===2&&str_contains($o,'"blockers":["TIME_BUDGET_EXCEEDED_BEFORE_FIRST_CHANGE"]')&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','TIME_BUDGET_HOLD');$reset();
@@ -196,7 +197,7 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // C1: one restore of group E fails (injected). The rollback stops before group D, so groups A-D (whose code the
         // installed E files call) stay installed: never a non-prefix state. HOLD with a reverse-order recovery note.
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_19'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');$note=lastLine($o,'RECOVERY_NOTE');
-        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&lastLine($o,'B1146_PHASE')==='ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===19&&$rf['modifiedRestored']===2&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_FIRST_FAILURE');
+        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&lastLine($o,'B1146_PHASE')==='ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===19&&$rf['exactInstallPrefixKept']==='STEPS_1_TO_19_INSTALLED_LATER_STEPS_RESTORED'&&$rf['modifiedRestored']===2&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_FIRST_FAILURE');
         check($note['kind']==='ROLLBACK_INCOMPLETE'&&in_array('FIXTURE_INJECTED_FAILURE',$note['problems'],true),'RECOVERY_NOTE_PROBLEM');
         $prefix(19);sleep(3);check($status('/login')===200&&$status('/up')===200&&$status('/admin/settings/public-storefront',['Cookie: '.$adminCookie])===200,'PREFIX_19_SERVES');
         // The manual block: sha256 check before every install, exact reverse order (19..13), new files last, then the
@@ -210,10 +211,23 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // F1: a failed restore in the middle of group B (step 14): steps 1..14 stay installed, 15..21 are old again, an
         // exact install prefix; the same command again converges to the verified old state.
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_14'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');
-        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===14&&$rf['modifiedRestored']===7&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_STEP_14');
+        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===14&&$rf['exactInstallPrefixKept']==='STEPS_1_TO_14_INSTALLED_LATER_STEPS_RESTORED'&&$rf['modifiedRestored']===7&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_STEP_14');
         $prefix(14);sleep(3);check($status('/login')===200&&$status('/up')===200,'PREFIX_14_SERVES');
         [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','PARTIAL_ROLLBACK_14_RETRIED_TO_OLD_STATE');$reset();
         $results[$variant]['partialRollback']=['step19'=>'PREFIX_1_19_MANUAL_BLOCK_RESTORED','step14'=>'PREFIX_1_14_RERUN_CONVERGED'];
+    }else{
+        // With a route cache: a failed restore of step 17 keeps steps 1..17 and the new route cache. The manual block puts the
+        // old route cache back right BEFORE routes/web.php (exact reverse of the install) and, run as pasted, restores the
+        // exact old bytes including the route cache.
+        [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_17'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');
+        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===17&&$rf['exactInstallPrefixKept']==='STEPS_1_TO_17_INSTALLED_LATER_STEPS_RESTORED'&&$routeCacheSHA()!==$cacheBefore,'PARTIAL_ROLLBACK_STOPS_AT_STEP_17_ROUTE_CACHE');
+        $prefix(17);$lines=$block($o);$kinds=array_values(array_filter(array_map($kindOf,$lines)));$expected=[];
+        foreach(array_reverse($plan) as $s){if($s['n']>17||$s['kind']!=='modified')continue;if($s['group']==='C')foreach(glob($active.'/bootstrap/cache/routes-*.php')?:[] as $f)array_push($expected,'verify','install:'.$f);array_push($expected,'verify','install:'.$active.'/'.$s['path']);}
+        foreach(array_reverse($plan) as $s)if($s['kind']==='new')$expected[]='rm:'.$active.'/'.$s['path'];
+        check(count($expected)>2*5+12&&array_slice($kinds,0,count($expected))===$expected&&end($kinds)==='view','RECOVERY_BLOCK_ROUTE_CACHE_BEFORE_WEB');
+        $manual=$runBlock($lines);check($manual['rc']===0&&str_contains($manual['out'],'B1146_MANUAL_RECOVERY_BLOCK_DONE')&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore,'MANUAL_BLOCK_RESTORES_ROUTE_CACHE:'.substr($manual['out'],-400));
+        [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore,'AFTER_MANUAL_BLOCK_ROUTE_CACHE_VERIFIED');$reset();
+        $results[$variant]['partialRollback']=['step17'=>'PREFIX_1_17_MANUAL_BLOCK_RESTORED_ROUTE_CACHE_EXACT'];
     }
 
     // SIGKILL in the middle of the copy (after routes/web.php in the route-cache variant): the re-run restores, then installs.

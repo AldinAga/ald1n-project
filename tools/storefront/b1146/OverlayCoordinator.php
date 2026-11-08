@@ -537,7 +537,7 @@ final class OverlayCoordinator
         }
         if($touched){
             try{$this->persist();}catch(Throwable $e){$problems[]=self::code($e);}
-            $this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'routeCacheRestored'=>$routesDone,'stoppedAtStep'=>$stoppedBefore,'exactInstallPrefixKept'=>$stoppedBefore===null?null:'STEPS_1_TO_'.$stoppedBefore.'_INSTALLED_LATER_STEPS_RESTORED','problems'=>$problems]);
+            $this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'routeCacheRestored'=>$routesDone,'stoppedAtStep'=>$stoppedBefore,'exactInstallPrefixKept'=>$stoppedBefore===null?null:($this->isInstallPrefix($stoppedBefore)?'STEPS_1_TO_'.$stoppedBefore.'_INSTALLED_LATER_STEPS_RESTORED':'NOT_AN_INSTALL_PREFIX_SEE_RECOVERY_NOTE_FILES'),'problems'=>$problems]);
         }
         if($problems===[])try{
             $t=$this->targets();if(!$t['preState'])throw new RuntimeException('ROLLBACK_TARGETS_NOT_PRE_STATE');$this->routesCheck(false);
@@ -559,6 +559,13 @@ final class OverlayCoordinator
         // Anything but the exact pre-state (an absent modified file, a foreign or linked target, a payload byte) counts as touched.
         $t=$this->targets();if(!$t['preState']||$t['payload']>0||$t['foreign']!==[]||$t['link']!==[])return true;
         $before=$this->state['cache']['routeCacheFiles']??null;return is_array($before)&&$this->routeCacheFiles()!==$before;
+    }
+
+    /** Verified, not assumed: steps 1..$k hold the payload, every later step its old bytes (a later new file is absent). */
+    private function isInstallPrefix(int $k):bool
+    {
+        try{foreach($this->plan as $s){$c=$this->classify($s)['state'];if($s['n']<=$k?$c!=='payload':$c!==($s['kind']==='new'?'absent':'pre'))return false;}}catch(Throwable){return false;}
+        return true;
     }
 
     private function restoreRouteCache(array $backup):void
@@ -596,6 +603,7 @@ final class OverlayCoordinator
             if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null){$lines[]='printf '.$q('%s  %s\n').' '.$q((string)$f['sha256']).' '.$q((string)$f['backupCopy']).' | sha256sum --check --strict --quiet -';$lines[]='install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$q((string)$f['backupCopy']).' '.$q($t);}
             elseif($f['kind']==='modified'&&$f['now']==='payload'){$lines[]='echo '.$q('NO_BACKUP_COPY_FOR '.$t.' STOP').' >&2';$lines[]='exit 2';}
             elseif($f['kind']==='new'&&$f['now']==='payload'&&$record)$lines[]='rm -f -- '.$q($t);
+            elseif($f['kind']==='modified'&&$f['now']==='absent')echo 'OWNER_INSPECT: '.$t.' IS_MISSING_NOT_REMOVED_BY_B1146_THE_OLD_BYTES_ARE_IN '.($f['backupCopy']??'NO_BACKUP_COPY').' SHA256 '.($f['sha256']??'UNKNOWN').PHP_EOL;
             elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1146'.PHP_EOL;
         }
         if($record)foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir))$lines[]='rmdir --ignore-fail-on-non-empty -- '.$q($dir);
