@@ -8,6 +8,14 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0ZG. Owner selects a CMS-only uncached Storefront profile (2026-11-08)
+
+The owner requires stable public Storefront with the existing SuperAdministrator ON/OFF control, without OPcache as a prerequisite and without stopping or restarting other sites. Pursue a reviewed CMS-only uncached PHP profile. This supersedes OPcache-dependent recovery sequencing in 0ZF for that profile; it does not authorize bypassing stale-code, source/vendor/runtime, private-file, OFF, rollback or release checks. The UNSENT hosting-capacity ticket is historical, not the current recommended path or permission to contact hosting.
+
+- Begin with read-only feasibility and independent review of an actually supported CMS-scoped precompile mechanism under the current reviewed direction: CMS-local `.htaccess`, only if proven effective. Configuration text alone does not prove disabled execution or site isolation; unknown support, stale-code ambiguity or wider impact remains HOLD.
+- Replace cache-residency/epoch assumptions with reviewed bounded evidence of effective uncached execution and exact intended source/vendor/runtime before the conditional transaction. Preserve existing settings, candidate, all terminal states/journals/private retained targets and installation/rollback safeguards. No global reset, invalidation, account restart/signal, restart-marker access, selector-wide change, other-site action, production migration or automatic activation; prior B1139 refresh is consumed.
+- After actual controlledOFF success, verify installed existing UI/OFF404, approved mail and registered-buyer readiness, then activate only through the existing control after binding release conditions. No duplicate switch or unrelated feature; 0ZE remains in force. Do not call an uncached profile supported, installed or publicly ready before actual evidence.
+
 ## 0ZF. Public Storefront priority and exact runtime-format recovery (owner 2026-11-08)
 
 The primary goal is a stable publicly available Storefront controlled by the existing SuperAdministrator ON/OFF switch at `/admin/settings/public-storefront`. Reuse that implemented control; do not build a duplicate switch or unrelated features. The current critical path is reviewed conditional OFF installation, then actual installed UI/OFF404, mail and registered-buyer readiness, then safe activation through the existing control after applicable release conditions. Controller readiness checks do not replace SMTP, security or other existing release gates.

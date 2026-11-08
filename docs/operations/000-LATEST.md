@@ -1,3 +1,16 @@
+# CURRENT 2026-11-08 — B1142 OWNER DIRECTION: CMS-ONLY UNCACHED PROFILE; FEASIBILITY PENDING
+
+Owner redirects the primary publicStorefront/existingSuperAdminON-OFF goal to a reviewed CMS-only uncachedPHPprofile, without OPcache prerequisite and without stopping/restarting other sites. No provider ticket or newrefresh execution; UNSENT HOSTING-OPCACHE-CAPACITY-1102-20261108.md is historical and no longer current recommendation. Actual1102remains pre-switchcacheHOLD/originalcodevendoruntouched/schedulerrestored; no actualformatcalibration/install/publicactivation.
+
+Firstread-onlyfeasibility+independentreview must establish a genuinelysupported CMS-scoped precompile OPcachedisable mechanism and effectiveisolation. CMS-local `.htaccess` support/effect is UNKNOWN, not implied by writing a directive. This supersedes0ZF's OPcache-dependent sequencing onlyforrevieweduncachedprofile; it doesNOTwaivestale-code/source/vendor/runtime/rollback/private/OFF/releaseproof. Unknownsupport/stalecode/widerimpactHOLD. No globalreset/invalidation/accountsignal/restartmarker/selectorwidechange/other-siteaction/providercontact/DBmigration/automaticactivation. Existingoldstates/candidate/private targets and consumedB1139refresh remainprotected.
+
+AfterconcreteuncachedOFFinstallproof: installedexistingUI/OFF404, actualmail/registeredbuyerreadiness, then separately gatedpublicON. No duplicatecontrol/unrelatedfeature. This owner-direction checkpoint creates no1103/nooperatorpacket/source/CI/hostmutation. Preserveallpreviouscanonicalbytes whenlaterapprovedforpublication.
+
+B1143 has an approved implementation plan; it is NOT yet implemented, tested or installed. This direction checkpoint is not an executable delivery.
+
+
+---
+
 # CURRENT 2026-11-08 — B1142 ACTUAL1102 CACHE-CAPACITY HOLD; ROLLED BACK BEFORE SWITCH
 
 Owner Report1102 raw SHA256a0a2a4ebf28c4c9e5e2884c7ccd7874e9c8c74b96b100280b5245fa5f58da838 binds helper382f617942b6ac48b306788048bb45f7fca0dde3 and expected script/checksum/library files. Exactpredecessoradmission and complete8531candidate reuse PASS/no vendorrecopy; oldstatespreserved. TechnicalschedulerpauseRC0 and ownedmaintenancepublic503PASS. Authenticatedsentineldiagnostics: cacheFull=true, freeMemoryBytes40435264, cachedScripts14758, maxCachedKeys16229, fileUpdateProtection2seconds, sentinelAge0, sentinelSize48bytes, maxFileSize0 (no size cap). Gate stopped at WEB_CACHE_SENTINEL_CAPACITY_OR_SIZE_HOLD BEFORE title-format calibration or code/vendor switch. No actual44/45 format conclusion follows from this report. FreeRAM and scriptcount do not alone prove which cache-capacity sublimit was exhausted.
