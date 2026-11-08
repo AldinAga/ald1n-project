@@ -14,7 +14,15 @@ Pokrenite je preko SSH naloga `icaffeco`. Skripta prvo očisti ekran. Radni deo 
 
 ## Koliko traje
 
-Obično 10 do 15 minuta. U najgorem slučaju oko 65 minuta. Najduži deo je backup: aplikacija ga pravi do 40 minuta (granica je 2400 s), a provera backup-a traje koliko i čitanje cele gzip datoteke. Backup proveravamo dva puta: odmah posle pravljenja i još jednom neposredno pre migracija.
+Obično 10 do 15 minuta. Najduži deo je backup: aplikacija ga pravi do 40 minuta (granica je 2400 s), a provera backup-a traje koliko i čitanje cele gzip datoteke. Backup proveravamo dva puta: odmah posle pravljenja i još jednom neposredno pre migracija.
+
+Tri gornje granice, da znate kada nešto nije u redu:
+
+- spor backup (jedan backup na granici od 40 minuta, plus obe provere): oko 65 minuta;
+- ako ponovna provera pre migracija ne prođe, skripta jednom pravi novi backup i proverava ga dva puta: oko 2 sata;
+- zbir svih ugrađenih granica na najdužem putu (svaki `app:backup-create` i svaki `app:backup-verify` do 2400 s, dve provere ranijih backup-a, dva backup-a sa po dve provere, popisi, `migrate --force` do 900 s): oko 20.700 s, odnosno 5 sati i 45 minuta. Ako u proveri mora da preskoči ranije backup-e koji ne prolaze, svaka dodatna provera dodaje do 2400 s.
+
+Svaku komandu koja pređe svoju granicu skripta sama zaustavi, sa svim potprocesima, i to zapiše u izveštaj. Izveštaj može da ćuti i preko sat vremena, jer se pravljenje backup-a i njegova prva provera ispisuju zajedno, tek kada se obe završe. Sve dok `ps -u icaffeco -o pid,args` pokazuje `app:backup-create` ili `app:backup-verify`, posao radi.
 
 Ostala čekanja su kratka i ograničena:
 
