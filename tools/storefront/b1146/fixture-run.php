@@ -17,7 +17,7 @@ $package=json_decode((string)file_get_contents($cfg['incoming'].'/b1146-package.
 $o=(new ReflectionClass(OverlayCoordinator::class))->newInstanceWithoutConstructor();
 $set=static function(string $name,mixed $value)use($o):void{(new ReflectionProperty($o,$name))->setValue($o,$value);};
 foreach(['root','home','base','pointer','stage','b1145Base','appStateScript','appCheckScript','php','allowedSapis','censusSeconds','minFreeBytes','scheduleGate','fixedNow','incoming','mode'] as $key)$set($key,$cfg[$key]);
-foreach((array)($cfg['overrides']??[]) as $key=>$value)$set($key,$value);
+$set('ignoreSchedule',false);foreach((array)($cfg['overrides']??[]) as $key=>$value)$set($key,$value);
 $set('plan',OverlayCoordinator::plan($package,$cfg['incoming']));$set('web',new FixtureWeb($cfg['port'],$cfg['secrets'],$cfg['dropCsp']));
 $actions=$cfg['actions']??[];$active=$cfg['root'].'/apps/cms/current';
 // A process that LeanGates counts as a CMS artisan run (its arguments end in "artisan", its working directory is the CMS).
@@ -30,7 +30,7 @@ $stepSmoke=static function(string $point)use($cfg):void{
     foreach(['/admin/settings/public-storefront','/admin/settings','/'] as $p)$row['admin'][$p]=FixtureWeb::get($cfg['port'],$p,['Cookie: '.$cfg['adminCookie']])['status'];
     file_put_contents($cfg['stepLog'],json_encode($row,JSON_UNESCAPED_SLASHES)."\n",FILE_APPEND);
 };
-$set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$corrupt):void{
+$set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$corrupt,$active):void{
     foreach((array)($actions[$point]??[]) as $action){
         file_put_contents($cfg['faultLog'],$point.' '.$action."\n",FILE_APPEND);
         match($action){
@@ -41,6 +41,8 @@ $set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$c
             'busy'=>$busy(),
             'corruptBackup'=>$corrupt(),
             'dropCsp'=>touch($cfg['dropCsp']),
+            // A modified target goes missing (not pre-state, not payload) while nothing of the overlay was applied yet.
+            'hideWeb'=>rename($active.'/routes/web.php',$cfg['hiddenWeb']),
             default=>throw new RuntimeException('FIXTURE_UNKNOWN_ACTION'),
         };
     }

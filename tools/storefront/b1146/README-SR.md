@@ -44,7 +44,8 @@ dan, 03:10 nedeljom). Taj period proveravamo dva puta: na početku i neposredno 
 - U `laravel.log` nema novih grešaka, a svih 8543 fajlova ima tačan digest.
 
 Ako bilo koja provera padne, sami vraćamo stare fajlove, bajt po bajt, i ponovo proveravamo
-staro stanje. Rezultat je tada `HOLD_ROLLED_BACK_OLD_STATE_VERIFIED`.
+staro stanje. Rezultat je tada `HOLD_ROLLED_BACK_OLD_STATE_VERIFIED`, a `OWNER_NEXT_STEPS` opet
+traži čišćenje istog CSS URL-a u Cloudflare-u.
 
 Uspešan kraj je `B1146_FINAL=PASS_INSTALLED_LEGAL_OVERLAY_STOREFRONT_CLOSED`.
 
@@ -53,7 +54,8 @@ otvaranju stranice. Ne pokrećemo `view:cache`.
 
 ## Šta proveravate vi
 
-1. Ako je Cloudflare keš uključen, posle instalacije očistite tačno jedan URL:
+1. Ako je Cloudflare keš uključen, posle instalacije očistite tačno jedan URL (prvi korak u
+   `OWNER_NEXT_STEPS`):
    `https://cms.ald1n.com/assets/css/ald1n-public-storefront.css`. Druga mogućnost je da
    sačekate da keš istekne. Do tada se pravni blokovi prikazuju bez stilova.
 2. Prijavite se na cms.ald1n.com kao SuperAdmin.
@@ -66,8 +68,15 @@ otvaranju stranice. Ne pokrećemo `view:cache`.
 5. Prodavnica ostaje isključena dok je vi ne uključite.
 
 Ako izveštaj ima `LEFTOVER_FRESHNESS_PROBE_REQUIRES_OPERATOR_INSPECTION`, ništa nije
-instalirano. To je privremeni probni fajl iz prekinutog pokretanja. Pokrenite istu komandu još
-jednom: ona ga ukloni i nastavi.
+instalirano. Sledeće pokretanje iste komande samo uklanja probni fajl koji je zabeležila ova
+B1146 transakcija. Ako hold ostane, fajl je tuđ (na primer iz B1144) i treba ga pregledati
+ručno. Proverite ovako:
+
+```
+ls -la /home/icaffeco/ald1n-project/apps/cms/current/public/ald1n-b1144-*
+```
+
+Ako nijedan B1144 ili B1146 posao ne radi, pošaljite nam ispis pre brisanja.
 
 ## Ponovno pokretanje
 
@@ -84,17 +93,32 @@ Prvo isključite prodavnicu u adminu. Dok je uključena, vraćanje ne počinje
 bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback
 ```
 
-Pre početka proveravamo i da ne radi artisan komanda i da nije blizu zakazani backup.
+Pre početka proveravamo i da ne radi artisan komanda i da nije blizu zakazani backup. Ako je
+backup blizu, a vraćanje ne može da čeka, pokrenite:
 
-Vraćanje radi obrnutim redom od instalacije. Vraća tačne privatne kopije iz
-`~/.ald1n-b1146-state`, briše 12 novih fajlova i vraća keš ruta kakav je bio. Kraj je
-`PASS_ROLLED_BACK_BY_OWNER`.
+```
+bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback --ignore-schedule
+```
 
-Ako jedan fajl ne može da se vrati, stajemo pre sledeće grupe. Ranije grupe ostaju
-instalirane, jer ih kasnije grupe koriste, pa sajt i dalje radi. Rezultat je
-`HOLD_ROLLBACK_INCOMPLETE`, a izveštaj ima `RECOVERY_NOTE` i `OWNER_COMMAND` linije u tačnom
-redosledu. Prvo otklonite uzrok iz izveštaja i pokrenite istu komandu još jednom: ona prvo
-ponovo pokuša vraćanje. Ručne komande su samo za slučaj da i to ne uspe.
+Ova opcija preskače samo proveru backup termina. Prodavnica i dalje mora biti isključena, a
+artisan komanda ne sme da radi.
+
+Vraćanje radi tačno obrnutim redom od instalacije. Vraća tačne privatne kopije iz
+`~/.ald1n-b1146-state`, vraća keš ruta neposredno pre `routes/web.php`, briše 12 novih fajlova
+i briše kompajlirane šablone. Kraj je `PASS_ROLLED_BACK_BY_OWNER`.
+
+Ako jedan fajl ne može da se vrati, odmah stajemo. Fajlovi do tog koraka ostaju instalirani, a
+svi posle njega su vraćeni. To je stanje kroz koje je prošla i sama instalacija. Rezultat je
+`HOLD_ROLLBACK_INCOMPLETE`. Izveštaj tada ima `RECOVERY_NOTE` i jedan blok komandi od linije
+`bash -e <<'B1146_RECOVERY'` do linije `B1146_RECOVERY`. Prvo otklonite uzrok iz izveštaja i
+pokrenite istu komandu još jednom: ona prvo ponovo pokuša vraćanje. Blok je samo za slučaj da i
+to ne uspe, i samo dok je prodavnica isključena. Ceo blok nalepite u SSH odjednom. On proveri
+sha256 svake kopije pre vraćanja i staje na prvoj grešci.
+
+Ako vraćanje stane pre početka (backup termin, artisan komanda, nečitljivo stanje prodavnice),
+ništa nije promenjeno. Izveštaj tada ima `RECOVERY_NOTE` vrste
+`ROLLBACK_NOT_STARTED_MANUAL_ONLY` i isti blok, samo za ručnu upotrebu. Kada je stanje
+prodavnice nečitljivo, prvo u adminu potvrdite da je prodavnica isključena.
 
 Posle vraćanja:
 

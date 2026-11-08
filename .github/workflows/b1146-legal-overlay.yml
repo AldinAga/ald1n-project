@@ -139,6 +139,13 @@ jobs:
           out="$(as bash "$script" --unexpected 2>&1)"; rc=$?
           set -e
           test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          # The schedule override exists only together with --rollback.
+          for bad in "--ignore-schedule" "--ignore-schedule --rollback" "--rollback --ignore-schedule --x"; do
+            set +e
+            out="$(as bash "$script" $bad 2>&1)"; rc=$?
+            set -e
+            test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          done
           as git init -q -b main /home/icaffeco/ald1n-project
           as git -C /home/icaffeco/ald1n-project -c user.name=Sandbox -c user.email=sandbox@example.invalid commit -q --allow-empty -m sandbox
           as git -C /home/icaffeco/ald1n-project update-ref refs/remotes/origin/main HEAD
@@ -198,9 +205,10 @@ jobs:
           as git -C /home/icaffeco/ald1n-project remote add origin https://github.com/AldinAga/ald1n-project
           as bash -c 'printf "sandbox predecessor\n" > /home/icaffeco/ald1n-project/docs/operations/1108-SANDBOX-PREDECESSOR.md'
           ops=/home/icaffeco/ald1n-project/docs/operations
-          for mode in install rollback; do
-            arg=(); label=LEGAL-OVERLAY; final_rx='^B1146_PHASE="HOLD_PREFLIGHT_BLOCKED"$'
-            if test "$mode" = rollback; then arg=(--rollback); label=LEGAL-OVERLAY-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+          for variant in install rollback rollback-ignore-schedule; do
+            mode=$variant; ignore=0; arg=(); label=LEGAL-OVERLAY; final_rx='^B1146_PHASE="HOLD_PREFLIGHT_BLOCKED"$'
+            if test "$variant" = rollback; then arg=(--rollback); label=LEGAL-OVERLAY-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+            if test "$variant" = rollback-ignore-schedule; then mode=rollback; ignore=1; arg=(--rollback --ignore-schedule); label=LEGAL-OVERLAY-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
             set +e
             out="$(timeout 600 sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1146-shims:$PATH" bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh "${arg[@]}" 2>&1)"; rc=$?
             set -e
@@ -210,6 +218,8 @@ jobs:
             body="$(sudo cat "$ops/$report")"
             grep -qx "OPERATOR_MODE=$mode" <<<"$body"
             grep -qx "B1146_MODE=$mode" <<<"$body"
+            grep -qx "OPERATOR_IGNORE_SCHEDULE=$ignore" <<<"$body"
+            grep -qx "B1146_IGNORE_SCHEDULE=$ignore" <<<"$body"
             grep -qE "$final_rx" <<<"$body"
             test "$(grep -c '^EXIT=' <<<"$body")" = 1 && test "$(tail -n 2 <<<"$body" | head -n 1)" = 'EXIT=2'
             grep -q '^SANDBOX_GIT_FETCH_STUBBED=' <<<"$body"
@@ -218,7 +228,7 @@ jobs:
             test ! -e /home/icaffeco/.ald1n-stage/report-sequence.lock
             sudo rm -f "$ops/$report"
           done
-          printf '{"ownerCommandInstall":"REPORT_1109_WORKER_HOLD_EXIT_2","ownerCommandRollback":"REPORT_1109_ROLLBACK_WORKER_HOLD_EXIT_2","modeExported":true,"lockReleased":true}\n' | tee "$RUNNER_TEMP/owner-commands.json"
+          printf '{"ownerCommandInstall":"REPORT_1109_WORKER_HOLD_EXIT_2","ownerCommandRollback":"REPORT_1109_ROLLBACK_WORKER_HOLD_EXIT_2","ownerCommandRollbackIgnoreSchedule":"REPORT_1109_ROLLBACK_WORKER_HOLD_EXIT_2_OVERRIDE_EXPORTED","modeExported":true,"lockReleased":true}\n' | tee "$RUNNER_TEMP/owner-commands.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

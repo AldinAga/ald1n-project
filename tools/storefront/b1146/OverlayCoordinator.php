@@ -8,10 +8,11 @@ declare(strict_types=1);
  * Order: PREFLIGHT (read-only, collect-all; any blocker is a HOLD with nothing changed) -> per-file backup into the private
  * B1146 namespace -> install in dependency order (new classes and views, route-independent modified files, routes/web.php,
  * route cache handling, route-dependent modified files and CSS), each via same-directory temp + fsync + rename (link for a
- * new file, so nothing is ever clobbered) -> view:clear (+ view:cache when views were cached) -> targeted per-file
+ * new file, so nothing is ever clobbered) -> view:clear only (views are rebuilt on demand) -> targeted per-file
  * opcache_invalidate through a token-gated temporary probe -> wait max(realpath_cache_ttl, revalidate_freq) + 5 s ->
  * smokes, fresh-code probe, merchant-approval notice, log scan, full tree verification. Any failure after the first file
- * restores every backed-up byte, re-invalidates, re-clears the caches and smoke-tests the old state.
+ * restores the backed-up bytes in reverse install order (stopping at the first failed restore, so the tree is always an
+ * exact install prefix), re-invalidates, clears the compiled views and smoke-tests the old state.
  * Every phase is saved before the next step; a re-run converges from the saved phase.
  * @author Ald1n <https://ald1n.com>
  */
@@ -45,6 +46,7 @@ final class OverlayCoordinator
     public const CLOSED=['/katalog','/korpa','/porucivanje','/registracija'];
     public const SYSTEM=['/login','/up'];
     public const B1146_ROUTE_NAMES=11;
+    public const CSS_PURGE_STEP='1_CLOUDFLARE_PURGE_EXACTLY_https://cms.ald1n.com/assets/css/ald1n-public-storefront.css_OR_WAIT_FOR_THE_CACHE_TTL';
     private const IN_FLIGHT=['BACKED_UP','INSTALL_INTENT','FILES_INSTALLED','ACCEPTANCE_INTENT','ROLLBACK_INTENT','ROLLBACK_INCOMPLETE'];
     private array $state=[];
     private string $base;
@@ -73,8 +75,9 @@ final class OverlayCoordinator
     private array $plan;
     public string $final='HOLD';
 
-    public function __construct(private string $root,private string $home,array $package,private string $incoming,private string $mode='install')
+    public function __construct(private string $root,private string $home,array $package,private string $incoming,private string $mode='install',private bool $ignoreSchedule=false)
     {
+        if($ignoreSchedule&&$mode!=='rollback')throw new RuntimeException('OPERATOR_SCHEDULE_OVERRIDE');
         if($root!=='/home/icaffeco/ald1n-project'||$home!=='/home/icaffeco'||realpath($root)!==$root||realpath($home)!==$home||!function_exists('posix_geteuid')||!extension_loaded('curl')||PHP_VERSION_ID<80401||PHP_VERSION_ID>=80500)throw new RuntimeException('HOST_PROFILE');
         $this->base=$home.'/.ald1n-b1146-state';$this->pointer=$this->base.'/current.json';$this->stage=$home.'/.ald1n-stage/b1131-ef3f927.6hh7mU';$this->b1145Base=$home.'/.ald1n-b1145-state';
         $this->appStateScript=$incoming.'/b1145-app-state.php';$this->appCheckScript=$incoming.'/b1146-app-check.php';$this->web=new OverlayWeb();$this->plan=self::plan($package,$incoming);putenv('GIT_OPTIONAL_LOCKS=0');
@@ -360,7 +363,7 @@ final class OverlayCoordinator
         if(!array_key_exists('activeTreeEqualsManifest',$g))$g['activeTreeEqualsManifest']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
         if(!$installed)$v['replaceable']=$try('targetsReplaceable',function():array{$n=0;foreach($this->plan as $s){if($s['kind']==='modified'){OverlayFiles::replaceable($this->target($s));$n++;}else{$d=dirname($this->target($s));while(!is_dir($d))$d=dirname($d);if(is_link($d)||!is_writable($d))throw new RuntimeException('TARGET_DIRECTORY_NOT_WRITABLE');}}return ['modifiedOneLinkNoAcl'=>$n];});
         // The 12 new classes are found through the PSR-4 fallback; an authoritative classmap would make them invisible.
-        $g['composerClassmapNotAuthoritative']=$this->classmapAuthoritative()?'COMPOSER_CLASSMAP_AUTHORITATIVE_NEW_CLASSES_WOULD_NOT_LOAD':null;
+        $g['composerClassmapNotAuthoritative']=$this->classmapBlocker();
         $g['configNotCached']=file_exists($this->active().'/bootstrap/cache/config.php')?'CONFIG_CACHE_PRESENT':null;
         $g['noMaintenanceMode']=file_exists($this->active().'/storage/framework/down')||file_exists($this->active().'/storage/framework/maintenance.php')?'MAINTENANCE_MODE_ACTIVE':null;
         $try('noLeftoverProbeOrTemp',function():void{FreshnessProbe::assertNoLeftover($this->active().'/public');if($this->ownTemps()!==[])throw new RuntimeException('LEFTOVER_B1146_TEMP_FILE');});
@@ -384,13 +387,14 @@ final class OverlayCoordinator
     }
 
     /** True when vendor/composer enables setClassMapAuthoritative(true) or sets $classMapAuthoritative; unreadable counts as true. */
-    private function classmapAuthoritative():bool
+    /** null = composer autoload is not authoritative; otherwise the blocker code (authoritative, or the autoloader is unreadable). */
+    private function classmapBlocker():?string
     {
         foreach(['autoload_real.php','autoload_static.php'] as $name){
-            $path=$this->active().'/vendor/composer/'.$name;if(!is_file($path)||is_link($path)){if($name==='autoload_real.php')return true;continue;}$text=(string)file_get_contents($path);
-            if(preg_match('/setClassMapAuthoritative\s*\(\s*true\s*\)/i',$text)||preg_match('/classMapAuthoritative\s*=\s*true/i',$text))return true;
+            $path=$this->active().'/vendor/composer/'.$name;if(!is_file($path)||is_link($path)){if($name==='autoload_real.php')return 'COMPOSER_AUTOLOAD_REAL_MISSING_OR_LINK_CANNOT_VERIFY_THE_CLASSMAP_MODE';continue;}$text=(string)file_get_contents($path);
+            if(preg_match('/setClassMapAuthoritative\s*\(\s*true\s*\)/i',$text)||preg_match('/classMapAuthoritative\s*=\s*true/i',$text))return 'COMPOSER_CLASSMAP_AUTHORITATIVE_NEW_CLASSES_WOULD_NOT_LOAD';
         }
-        return false;
+        return null;
     }
 
     private function loadExisting():bool
@@ -491,9 +495,10 @@ final class OverlayCoordinator
     }
 
     /**
-     * Puts every backed-up byte back (reverse order; a modified file only when it holds the payload, a new file removed only
-     * when it holds the payload; anything foreign is reported and never overwritten), restores the route cache bytes, clears
-     * and re-caches views like before, re-invalidates, waits and smoke-tests the old state.
+     * Puts every backed-up byte back in exact reverse install order (a modified file only when it holds the payload, a new
+     * file removed only when it holds the payload; anything foreign is reported and never overwritten; the first failure
+     * stops the loop), restores the route cache bytes right before routes/web.php, clears the compiled views (no view:cache),
+     * re-invalidates, waits and smoke-tests the old state.
      */
     private function restore(string $reason):bool
     {
@@ -502,34 +507,37 @@ final class OverlayCoordinator
         $backup=$this->state['backup']??null;$restored=0;$removed=0;$routesDone=false;$stoppedBefore=null;$touched=true;
         try{$touched=$this->touched();}catch(Throwable $e){$problems[]=self::code($e);}
         if(!$touched){
-            // Nothing of the overlay reached the tree: no file, cache or view work and no web verification at all.
+            // Nothing of the overlay reached the tree: no file, cache or view work and no web verification at all. This is
+            // reported only when every target is exactly in its pre-state (re-checked here, not assumed).
+            try{if(!$this->targets()['preState'])$problems[]='NOTHING_APPLIED_BUT_TARGETS_NOT_EXACTLY_PRE_STATE';}catch(Throwable $e){$problems[]=self::code($e);}
             foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir)&&(scandir($dir)?:[])===['.','..']&&!rmdir($dir))$problems[]='CREATED_DIRECTORY_NOT_REMOVED';
             try{$this->persist();}catch(Throwable $e){$problems[]=self::code($e);}
             $this->emit('ROLLBACK_FILES',['nothingApplied'=>true,'modifiedRestored'=>0,'newRemoved'=>0,'routeCacheRestored'=>false,'problems'=>$problems]);
             if($problems===[]){$this->save('ROLLED_BACK');$this->emit('ROLLED_BACK',['files'=>'NONE_WERE_CHANGED','refreshAndWebVerification'=>'NOT_NEEDED','storefront'=>'CLOSED']);return true;}
         }elseif(!is_array($backup))$problems[]='ROLLBACK_BACKUP_RECORD_MISSING';
         if($touched&&is_array($backup)){
-            $group=null;$groupFailed=false;$pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));
+            $group=null;$pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));
             foreach(array_reverse($this->plan) as $s){
-                // Never leave a non-prefix state: when any restore of a group failed, the earlier groups (whose code the later
-                // groups call) stay installed and the rollback stops here with a recovery note.
-                if($group!==null&&$group!==$s['group']){if($groupFailed){$stoppedBefore=$s['group'];break;}if($restored+$removed>0)sleep($pause);}$group=$s['group'];
+                // Exact reverse of the install order, stopping at the FIRST failed restore: the tree is then always an exact
+                // install prefix (steps 1..n installed, everything after n back to old), a state the install itself passed.
+                if($group!==null&&$group!==$s['group']&&$restored+$removed>0)sleep($pause);$group=$s['group'];
                 try{
+                    // The install refreshed the route cache right AFTER routes/web.php, so the rollback restores it right BEFORE.
+                    if($s['group']==='C'){$this->restoreRouteCache($backup);$routesDone=true;}
                     $this->fault('BEFORE_RESTORE_'.$s['n']);$c=$this->classify($s);$t=$this->target($s);
                     if($s['kind']==='modified'){
                         if($c['state']==='payload'){$b=$backup['files'][$s['n']];$bytes=AtomicFile::readPrivate($b['copy'],$b['sha256']);OverlayFiles::replace($t,$bytes,$b['mode'],$b['gid'],$this->recordTemp(OverlayFiles::tempFor($t)),$s['payloadSHA256']);$restored++;$this->changed();}
                         elseif($c['state']!=='pre')throw new RuntimeException('ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_'.$s['n']);
                     }elseif($c['state']==='payload'){OverlayFiles::removeExact($t,$s['payloadSHA256']);$removed++;$this->changed();}
                     elseif($c['state']!=='absent')throw new RuntimeException('ROLLBACK_FOREIGN_NEW_FILE_NOT_REMOVED_'.$s['n']);
-                }catch(Throwable $e){$problems[]=self::code($e);$groupFailed=true;}
-                if($s['group']==='C')try{$this->restoreRouteCache($backup);$routesDone=true;}catch(Throwable $e){$problems[]=self::code($e);$groupFailed=true;}
+                }catch(Throwable $e){$problems[]=self::code($e);$stoppedBefore=$s['n'];break;}
             }
             if($stoppedBefore===null)foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir)&&(scandir($dir)?:[])===['.','..']&&!rmdir($dir))$problems[]='CREATED_DIRECTORY_NOT_REMOVED';
             try{$this->cleanupRecorded();$this->refreshViews();}catch(Throwable $e){$problems[]=self::code($e);}
         }
         if($touched){
             try{$this->persist();}catch(Throwable $e){$problems[]=self::code($e);}
-            $this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'routeCacheRestored'=>$routesDone,'stoppedBeforeGroup'=>$stoppedBefore,'earlierGroupsKeptInstalled'=>$stoppedBefore!==null,'problems'=>$problems]);
+            $this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'routeCacheRestored'=>$routesDone,'stoppedAtStep'=>$stoppedBefore,'exactInstallPrefixKept'=>$stoppedBefore===null?null:'STEPS_1_TO_'.$stoppedBefore.'_INSTALLED_LATER_STEPS_RESTORED','problems'=>$problems]);
         }
         if($problems===[])try{
             $t=$this->targets();if(!$t['preState'])throw new RuntimeException('ROLLBACK_TARGETS_NOT_PRE_STATE');$this->routesCheck(false);
@@ -548,7 +556,8 @@ final class OverlayCoordinator
     {
         foreach((array)($this->state['applied']??[]) as $v)if($v==='DONE'||$v==='PENDING')return true;
         if(($this->state['createdDirs']??[])!==[]||($this->state['routesRefreshed']??false)===true)return true;
-        $t=$this->targets();if($t['payload']>0||$t['foreign']!==[]||$t['link']!==[])return true;
+        // Anything but the exact pre-state (an absent modified file, a foreign or linked target, a payload byte) counts as touched.
+        $t=$this->targets();if(!$t['preState']||$t['payload']>0||$t['foreign']!==[]||$t['link']!==[])return true;
         $before=$this->state['cache']['routeCacheFiles']??null;return is_array($before)&&$this->routeCacheFiles()!==$before;
     }
 
@@ -560,26 +569,39 @@ final class OverlayCoordinator
         $this->cleanupRecorded();$this->changed();
     }
 
-    private function recoveryNote(array $problems):void
+    /**
+     * The recovery note: every target's state and ONE manual block (a quoted heredoc run by `bash -e`, so the first failing
+     * line stops the block before anything after it). Exact reverse install order: modified files (each backup copy is
+     * sha256-verified right before it is installed) and the route cache right before routes/web.php, then the new files of
+     * group A, then their now-empty directories, then view:clear with the PHP binary of this tool.
+     * $kind ROLLBACK_INCOMPLETE: a rollback ran and stopped. ROLLBACK_NOT_STARTED_MANUAL_ONLY: a gate stopped it before any
+     * restore; nothing was attempted and the block is for the owner only, with the shop OFF.
+     */
+    private function recoveryNote(array $problems,string $kind='ROLLBACK_INCOMPLETE'):void
     {
-        $a=$this->active();$files=[];
-        foreach($this->plan as $s){try{$now=$this->classify($s)['state'];}catch(Throwable){$now='UNREADABLE';}$b=$this->state['backup']['files'][$s['n']]??null;$files[$s['n']]=['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'now'=>$now,'backupCopy'=>$b['copy']??null,'mode'=>isset($b['mode'])?sprintf('%04o',$b['mode']):null,'gid'=>$b['gid']??null];}
-        $this->emit('RECOVERY_NOTE',['kind'=>'ROLLBACK_INCOMPLETE','problems'=>$problems,'files'=>array_values($files),'backupDirectory'=>$this->state['backup']['directory']??null,'privateCopies'=>'KEPT_0600','next'=>'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RETRIES_THE_ROLLBACK_FIRST','manualOnlyIfTheSameCommandKeepsFailing'=>'OWNER_COMMAND_LINES_BELOW_IN_THIS_ORDER','order'=>'REVERSE_INSTALL_ORDER_MODIFIED_FILES_AND_ROUTE_CACHE_FIRST_NEW_FILES_LAST_THEN_EMPTY_NEW_DIRECTORIES_THEN_VIEW_CLEAR']);
-        // Reverse install order: groups E, D, C (+ the route cache), B, then the new files of group A, then their directories.
+        $a=$this->active();$files=[];$q=static fn(string $v):string=>escapeshellarg($v);
+        foreach($this->plan as $s){try{$now=$this->classify($s)['state'];}catch(Throwable){$now='UNREADABLE';}$b=$this->state['backup']['files'][$s['n']]??null;$files[$s['n']]=['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'now'=>$now,'backupCopy'=>$b['copy']??null,'sha256'=>$b['sha256']??null,'mode'=>isset($b['mode'])?sprintf('%04o',$b['mode']):null,'gid'=>$b['gid']??null];}
+        $record=is_array($this->state['backup']['files']??null);
+        $next=$kind==='ROLLBACK_INCOMPLETE'?'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RETRIES_THE_ROLLBACK_FIRST':'NOTHING_WAS_ATTEMPTED_CONFIRM_THE_SHOP_IS_OFF_IN_ADMIN_FIRST_THEN_CLEAR_THE_BLOCKERS_AND_RUN_THE_SAME_COMMAND';
+        $this->emit('RECOVERY_NOTE',['kind'=>$kind,'problems'=>$problems,'files'=>array_values($files),'backupDirectory'=>$this->state['backup']['directory']??null,'backupRecord'=>$record?'PRESENT':'MISSING_NEW_FILES_ARE_NOT_REMOVED_BY_THE_BLOCK','privateCopies'=>'KEPT_0600','next'=>$next,'manualBlock'=>'ONLY_IF_THE_SAME_COMMAND_KEEPS_FAILING_AND_ONLY_WITH_THE_SHOP_OFF_IN_ADMIN','order'=>'EXACT_REVERSE_INSTALL_ORDER_ROUTE_CACHE_RIGHT_BEFORE_routes/web.php_NEW_FILES_LAST_THEN_EMPTY_NEW_DIRECTORIES_THEN_VIEW_CLEAR']);
+        $lines=['set -euo pipefail','umask 022'];
         foreach(array_reverse($files) as $f){
             $t=$a.'/'.$f['path'];
-            if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null)echo 'OWNER_COMMAND: install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$f['backupCopy'].' '.$t.PHP_EOL;
-            elseif($f['kind']==='new'&&$f['now']==='payload')echo 'OWNER_COMMAND: rm -f '.$t.PHP_EOL;
-            elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1146'.PHP_EOL;
             if($f['group']==='C'){
                 try{$current=$this->routeCacheFiles();}catch(Throwable){$current=[];echo 'OWNER_INSPECT: '.$a.'/bootstrap/cache/routes-*.php UNREADABLE'.PHP_EOL;}
                 $before=$this->state['backup']['routeCache']??[];
-                foreach($before as $name=>$b)if(($current[$name]??null)!==$b['sha256'])echo 'OWNER_COMMAND: install -m '.sprintf('%04o',$b['mode']).' -g '.(int)$b['gid'].' '.$b['copy'].' '.$a.'/bootstrap/cache/'.$name.PHP_EOL;
-                foreach($current as $name=>$sha)if(!isset($before[$name]))echo 'OWNER_COMMAND: rm -f '.$a.'/bootstrap/cache/'.$name.PHP_EOL;
+                foreach($before as $name=>$b)if(($current[$name]??null)!==$b['sha256']){$lines[]='printf '.$q('%s  %s\n').' '.$q((string)$b['sha256']).' '.$q((string)$b['copy']).' | sha256sum --check --strict --quiet -';$lines[]='install -m '.sprintf('%04o',$b['mode']).' -g '.(int)$b['gid'].' '.$q((string)$b['copy']).' '.$q($a.'/bootstrap/cache/'.$name);}
+                if($record)foreach($current as $name=>$sha)if(!isset($before[$name]))$lines[]='rm -f -- '.$q($a.'/bootstrap/cache/'.$name);
             }
+            if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null){$lines[]='printf '.$q('%s  %s\n').' '.$q((string)$f['sha256']).' '.$q((string)$f['backupCopy']).' | sha256sum --check --strict --quiet -';$lines[]='install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$q((string)$f['backupCopy']).' '.$q($t);}
+            elseif($f['kind']==='modified'&&$f['now']==='payload'){$lines[]='echo '.$q('NO_BACKUP_COPY_FOR '.$t.' STOP').' >&2';$lines[]='exit 2';}
+            elseif($f['kind']==='new'&&$f['now']==='payload'&&$record)$lines[]='rm -f -- '.$q($t);
+            elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1146'.PHP_EOL;
         }
-        foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir))echo 'OWNER_COMMAND: rmdir '.$dir.PHP_EOL;
-        echo 'OWNER_COMMAND: cd '.$a.' && php -d opcache.enable=0 artisan view:clear --no-interaction'.PHP_EOL;
+        if($record)foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir))$lines[]='rmdir --ignore-fail-on-non-empty -- '.$q($dir);
+        $lines[]='cd '.$q($a).' && '.$q($this->php).' -d opcache.enable=0 -d opcache.enable_cli=0 artisan view:clear --no-interaction';$lines[]='echo B1146_MANUAL_RECOVERY_BLOCK_DONE';
+        echo 'OWNER_COMMAND_BLOCK=PASTE_EVERYTHING_FROM_THE_bash_-e_LINE_TO_THE_B1146_RECOVERY_LINE_INTO_THE_SSH_SHELL_IT_STOPS_AT_THE_FIRST_FAILING_LINE'.PHP_EOL;
+        echo "bash -e <<'B1146_RECOVERY'".PHP_EOL.implode(PHP_EOL,$lines).PHP_EOL.'B1146_RECOVERY'.PHP_EOL;
         echo 'OWNER_COMMAND_NOTE=THE_WEB_WORKERS_SEE_THE_RESTORED_FILES_AFTER_ABOUT_2_MINUTES_(realpath_cache_ttl)'.PHP_EOL;
     }
 
@@ -592,7 +614,9 @@ final class OverlayCoordinator
     {
         $b=[];$v=[];
         try{$app=$this->helper($this->appStateScript,'state');$v['storefrontDbSwitch']=$app['storefrontFlag'];if(!in_array($app['storefrontFlag'],['absent','0'],true))$b[]='STOREFRONT_IS_ON_TURN_THE_SHOP_OFF_IN_ADMIN_FIRST_THEN_RUN_THE_SAME_COMMAND';
-            if($strict&&$this->scheduleGate){$s=$this->scheduleState($app);$v['schedule']=$s;if($s['conflict']!==null)$b[]='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']);}
+            if($strict&&$this->scheduleGate){$s=$this->scheduleState($app);$v['schedule']=$s;
+                // The owner override (--rollback --ignore-schedule) lifts only this gate; the shop-OFF and census gates stay.
+                if($s['conflict']!==null){if($this->ignoreSchedule)$v['scheduleOverride']='SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE';else $b[]='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']).'_WAIT_OR_RUN_WITH_--rollback_--ignore-schedule';}}
         }catch(Throwable $e){$v['appState']=self::code($e);if($strict)$b[]='APP_STATE_UNREADABLE_'.self::code($e);}
         try{$v['census']=$this->census();}catch(Throwable $e){$b[]=self::code($e);}
         $this->emit('ROLLBACK_GATES',['strict'=>$strict,'values'=>$v,'blockers'=>$b]);return $b;
@@ -607,12 +631,24 @@ final class OverlayCoordinator
         $this->emit('BEFORE_FIRST_CHANGE',['elapsedSeconds'=>$elapsed,'budgetSeconds'=>$this->budgetSeconds,'storefrontDbSwitch'=>$app['storefrontFlag'],'scheduleRechecked'=>$this->scheduleGate]);
     }
 
+    /**
+     * A rollback gate stopped the run before any restore. When the tree holds overlay bytes and the shop is not reported ON,
+     * the owner still gets the manual-only recovery block (marked: nothing attempted, shop must be OFF). While the shop is
+     * ON no block is printed: the shop is turned OFF first.
+     */
+    private function manualNoteIfTouched(array $blockers):void
+    {
+        if(in_array('STOREFRONT_IS_ON_TURN_THE_SHOP_OFF_IN_ADMIN_FIRST_THEN_RUN_THE_SAME_COMMAND',$blockers,true))return;
+        try{$touched=$this->touched();}catch(Throwable){$touched=true;}
+        if($touched)$this->recoveryNote($blockers,'ROLLBACK_NOT_STARTED_MANUAL_ONLY');
+    }
+
     private function hold2(string $phase,array $report):int {$this->save($phase);$this->emit('HOLD_NO_MUTATION',['phase'=>$phase,'blockers'=>$report['blockers']]);return 2;}
 
     private function finish(string $final):int
     {
         $this->final=$final;$this->emit('B1146_RESULT',['overlay'=>'PR152_LEGAL_PAGES_21_FILES','newFiles'=>12,'modifiedFiles'=>9,'tests'=>'NOT_INSTALLED','storefront'=>'CLOSED_DB_SWITCH_ABSENT_OR_0','migrations'=>'NONE','env'=>'UNCHANGED','config'=>'UNCHANGED','opcache'=>'TARGETED_PER_FILE_INVALIDATION_ONLY','backupDirectory'=>$this->state['backup']['directory']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE']);
-        $this->emit('OWNER_NEXT_STEPS',['1_LOG_IN_TO_CMS_ALD1N_COM_AS_SUPERADMIN','2_OPEN_/admin/settings/public-storefront_AND_CHECK_THE_ON_CHECKLIST_AND_THE_LEGAL_TEXT_LINKS','3_REVIEW_THE_LEGAL_TEXTS_AND_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN','4_THE_STOREFRONT_STAYS_OFF_UNTIL_YOU_TURN_IT_ON']+(isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback (THE_SHOP_MUST_BE_OFF)']:['NO_B1146_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
+        $this->emit('OWNER_NEXT_STEPS',array_merge([self::CSS_PURGE_STEP,'2_LOG_IN_TO_CMS_ALD1N_COM_AS_SUPERADMIN','3_OPEN_/admin/settings/public-storefront_AND_CHECK_THE_ON_CHECKLIST_AND_THE_LEGAL_TEXT_LINKS','4_REVIEW_THE_LEGAL_TEXTS_AND_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN','5_THE_STOREFRONT_STAYS_OFF_UNTIL_YOU_TURN_IT_ON'],isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback (THE_SHOP_MUST_BE_OFF)']:['NO_B1146_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
         $this->emit('DO_NOT_RERUN_B1144_OR_B1145_AFTER_B1146','THEIR_MANIFEST_GATES_NOW_SEE_THE_9_MODIFIED_FILES');return 0;
     }
 
@@ -632,15 +668,16 @@ final class OverlayCoordinator
                 if(!in_array($phase,['INSTALLED_PASS','ROLLBACK_INCOMPLETE','ROLLBACK_INTENT','ACCEPTANCE_INTENT','FILES_INSTALLED','INSTALL_INTENT','BACKED_UP'],true)){$this->emit('HOLD_NOTHING_TO_ROLL_BACK',['phase'=>$phase]);return 2;}
                 $this->state['chain']??=$this->chain();
                 $blockers=$this->rollbackGates(true);
-                if($blockers!==[]){$this->emit('HOLD_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE']);if(preg_grep('/^APP_STATE_UNREADABLE_/',$blockers)!==[])$this->recoveryNote($blockers);return 2;}
+                if($blockers!==[]){$this->emit('HOLD_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>preg_grep('/^APP_STATE_UNREADABLE_/',$blockers)!==[]?'THE_SHOP_STATE_IS_UNREADABLE_CONFIRM_THE_SHOP_IS_OFF_IN_ADMIN_FIRST':'CLEAR_THE_BLOCKERS_THEN_RUN_THE_SAME_COMMAND']);$this->manualNoteIfTouched($blockers);return 2;}
                 if(!$this->restore('OWNER_REQUESTED_ROLLBACK'))return 2;$this->final='PASS_ROLLED_BACK_BY_OWNER';$this->emit('OWNER_NOTICE','THE_OLD_CODE_IS_ACTIVE_AGAIN_THE_LEGAL_PAGES_ARE_GONE_A_LATER_RUN_OF_THE_SAME_COMMAND_WITHOUT_OPTIONS_INSTALLS_AGAIN');
-                echo 'OWNER_NOTICE_MERCHANT_APPROVAL=AFTER_THIS_ROLLBACK_RE_CHECK_/admin/settings/public-storefront_AN_APPROVAL_GIVEN_UNDER_THE_LEGAL_PAGES_CODE_NO_LONGER_MATCHES_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN_BEFORE_THE_STOREFRONT_CAN_BE_TURNED_ON'.PHP_EOL;return 0;
+                echo 'OWNER_NOTICE_MERCHANT_APPROVAL=AFTER_THIS_ROLLBACK_RE_CHECK_/admin/settings/public-storefront_AN_APPROVAL_GIVEN_UNDER_THE_LEGAL_PAGES_CODE_NO_LONGER_MATCHES_CONFIRM_THE_MERCHANT_APPROVAL_AGAIN_BEFORE_THE_STOREFRONT_CAN_BE_TURNED_ON'.PHP_EOL;
+                $this->emit('OWNER_NEXT_STEPS',[self::CSS_PURGE_STEP,'2_OPEN_/admin/settings/public-storefront_AND_RE_CHECK_THE_MERCHANT_APPROVAL','3_THE_STOREFRONT_STAYS_OFF_UNTIL_YOU_TURN_IT_ON']);return 0;
             }
             if($phase==='INSTALLED_PASS')return $this->alreadyInstalled();
             if(in_array($phase,self::IN_FLIGHT,true)){
                 $this->emit('RESUMED_INTERRUPTED_INSTALL',['phase'=>$phase]);$this->state['chain']??=$this->chain();
-                $blockers=$this->rollbackGates(false);if($blockers!==[]){$this->emit('HOLD_RESUMED_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'RUN_THE_SAME_COMMAND_AGAIN_WHEN_THE_BLOCKERS_ARE_GONE']);return 2;}
-                $ok=$this->restore('RESUMED_INTERRUPTED_'.$phase);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;
+                $blockers=$this->rollbackGates(false);if($blockers!==[]){$this->emit('HOLD_RESUMED_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'RUN_THE_SAME_COMMAND_AGAIN_WHEN_THE_BLOCKERS_ARE_GONE']);$this->manualNoteIfTouched($blockers);return 2;}
+                $ok=$this->restore('RESUMED_INTERRUPTED_'.$phase);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[self::CSS_PURGE_STEP]);return 2;
             }
             if(!in_array($phase,['PREFLIGHT','HOLD_PREFLIGHT_BLOCKED'],true))throw new RuntimeException('UNKNOWN_SAVED_PHASE');
             $this->cleanupRecorded();$p=$this->preflight('fresh');
@@ -650,7 +687,7 @@ final class OverlayCoordinator
             // and the scheduled-backup window re-checked. Any failure is a HOLD with nothing changed.
             try{$this->census();$this->beforeFirstChange();}catch(Throwable $e){$p['blockers']=[self::code($e)];return $this->hold2('HOLD_PREFLIGHT_BLOCKED',$p);}
             $this->backup($p);
-            try{$this->install();$this->accept();}catch(Throwable $e){$code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);$ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
+            try{$this->install();$this->accept();}catch(Throwable $e){$code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);$ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[self::CSS_PURGE_STEP]);return 2;}
             return $this->finish('PASS_INSTALLED_LEGAL_OVERLAY_STOREFRONT_CLOSED');
         }catch(Throwable $e){$this->emit('HOLD_CODE_DETAIL',self::code($e));return 2;}
     }

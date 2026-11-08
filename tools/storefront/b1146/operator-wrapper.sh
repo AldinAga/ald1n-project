@@ -6,6 +6,7 @@
 # The worker is started with stdout on /dev/null and appends to the report itself, so the terminal clear (AGENTS 26)
 # never writes escape bytes into the operation report.
 # Without options it installs (or re-verifies an earlier PASS); --rollback restores the backed-up bytes of a B1146 install.
+# --rollback --ignore-schedule is the owner override for the scheduled-backup window only (shop OFF and census still gate).
 clear 2>/dev/null || printf '\033c'
 set -u
 umask 077
@@ -17,12 +18,13 @@ CHECKSUMS_SHA=__CHECKSUMS_SHA__
 LOCK="$HOME/.ald1n-stage/report-sequence.lock"
 WORKER=0
 MODE=install
+IGNORE_SCHEDULE=0
 LOCK_HELD=0
 WORKER_STARTED=0
 CRITICAL=0
 PENDING_SIGNAL=''
 scratch=''
-case "$#:${1-}" in 1:--worker) WORKER=1;; 1:--rollback) MODE=rollback;; esac
+case "$#:${1-}:${2-}" in 1:--worker:) WORKER=1;; 1:--rollback:) MODE=rollback;; 2:--rollback:--ignore-schedule) MODE=rollback; IGNORE_SCHEDULE=1;; esac
 if test "$WORKER" = 1; then
   case "${REPORT-}" in "$ROOT"/docs/operations/*.md) ;; *) printf 'HOLD: worker report context\n'; exit 2;; esac
   test ! -L "$REPORT" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || { printf 'HOLD: worker report context\n'; exit 2; }
@@ -30,6 +32,7 @@ if test "$WORKER" = 1; then
   report_name="${REPORT##*/}"
   [[ "$report_name" =~ ^[0-9]+-B1146-LEGAL-OVERLAY(-ROLLBACK)?-[0-9]{8}-[0-9]{6}\.md$ ]] || { printf 'HOLD: worker report name\n'; exit 2; }
   case "${B1146_MODE-}" in install|rollback) ;; *) printf 'HOLD: worker mode\n'; exit 2;; esac
+  case "${B1146_MODE-}:${B1146_IGNORE_SCHEDULE-0}" in install:0|rollback:0|rollback:1) ;; *) printf 'HOLD: worker schedule override\n'; exit 2;; esac
   exec >> "$REPORT" 2>&1 < /dev/null
   printf 'WORKER_PID=%s\n' "$$"
 fi
@@ -56,7 +59,7 @@ trap cleanup EXIT
 trap 'on_signal INT 130' INT
 trap 'on_signal HUP 129' HUP
 trap 'on_signal TERM 143' TERM
-case "$#:${1-}" in 0:) ;; 1:--worker) ;; 1:--rollback) ;; *) fail 'unknown arguments; invoke the canonical command without options (or with --rollback only)';; esac
+case "$#:${1-}:${2-}" in 0::) ;; 1:--worker:) ;; 1:--rollback:) ;; 2:--rollback:--ignore-schedule) ;; *) fail 'unknown arguments; invoke the canonical command without options, with --rollback, or with --rollback --ignore-schedule';; esac
 test "$HOME" = /home/icaffeco || fail 'use the project owner SSH account'
 test "$(realpath "$0")" = "$SCRIPT" || fail 'canonical incoming script required'
 actual="$(sed 's/^SELF_SHA=.*/SELF_SHA=__SELF_SHA__/' "$SCRIPT" | sha256sum)"; actual="${actual%% *}"
@@ -75,7 +78,7 @@ PHP="$(command -v php)" || fail 'PHP unavailable'
 "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r 'exit(PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500?0:2);' || fail 'PHP8.4.1+ required'
 if test "$WORKER" = 1; then
   test -n "${REPORT-}" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || fail 'worker report context'
-  printf 'B1146 LEGAL PAGES OVERLAY (PR152, 12 NEW + 9 MODIFIED FILES); STOREFRONT STAYS CLOSED\nSTOREFRONT_DB_SWITCH_WRITTEN=NO\nMIGRATIONS=NONE\nENV_CHANGED=NO\nCONFIG_CHANGED=NO\nOPCACHE_GLOBAL_CLEAR=NEVER_TARGETED_PER_FILE_INVALIDATION_ONLY\nWORKER_DETACHED_FROM_SSH_SESSION=YES\nOPERATOR_MODE=%s\n' "$B1146_MODE"
+  printf 'B1146 LEGAL PAGES OVERLAY (PR152, 12 NEW + 9 MODIFIED FILES); STOREFRONT STAYS CLOSED\nSTOREFRONT_DB_SWITCH_WRITTEN=NO\nMIGRATIONS=NONE\nENV_CHANGED=NO\nCONFIG_CHANGED=NO\nOPCACHE_GLOBAL_CLEAR=NEVER_TARGETED_PER_FILE_INVALIDATION_ONLY\nWORKER_DETACHED_FROM_SSH_SESSION=YES\nOPERATOR_MODE=%s\nOPERATOR_IGNORE_SCHEDULE=%s\n' "$B1146_MODE" "${B1146_IGNORE_SCHEDULE-0}"
   branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)" || fail 'branch provenance'
   local_head="$(git -C "$ROOT" rev-parse HEAD)" || fail 'HEAD provenance'
   remote_head="$(git -C "$ROOT" rev-parse origin/main)" || fail 'main provenance'
@@ -108,6 +111,8 @@ cleanup
 export REPORT
 B1146_MODE="$MODE"
 export B1146_MODE
+B1146_IGNORE_SCHEDULE="$IGNORE_SCHEDULE"
+export B1146_IGNORE_SCHEDULE
 printf 'SCRIPT=%s\nSCRIPT_SHA256=%s\nSCRIPT_NORMALIZED_INTEGRITY_SHA256=%s\nCHECKSUMS_SHA256=%s\n%s\n' "$SCRIPT" "$script_bytes" "$SELF_SHA" "$CHECKSUMS_SHA" "$fetch_output" >> "$REPORT"
 if command -v setsid >/dev/null 2>&1; then
   setsid nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &

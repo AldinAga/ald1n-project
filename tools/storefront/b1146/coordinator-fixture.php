@@ -13,6 +13,9 @@ declare(strict_types=1);
  * Round 2: artisan census before the backup, nothing-applied rollback without refresh, time budget, missing CSP on a legal
  * page, --rollback refused while the shop is ON, a failed restore that keeps the installed prefix with a reverse-order
  * recovery note, stale backup copies rewritten after a kill during the backup, view:clear only, web euid = operator.
+ * Round 3: the rollback stops at the FIRST failed restore (exact install prefix; failure at step 19 and at step 14), the
+ * manual recovery block executed as pasted, a missing target never reported as the old state, OWNER_NEXT_STEPS complete,
+ * --rollback inside the backup window (HOLD + manual-only block) and with the owner override --ignore-schedule.
  * Usage: php coordinator-fixture.php <b1146> <b1145> <b1144> <b1134> <runtime stage> <payload dir> <runtime-directories.json> <operator zip>
  * @author Ald1n <https://ald1n.com>
  */
@@ -81,8 +84,8 @@ check($post['status']===302&&!str_contains((string)$post['location'],'/login'),'
 
 $private=$home.'/.ald1n-b1146-state';$secrets=$base.'/probe-secrets';$faultLog=$base.'/faults.log';$stepLog=$base.'/steps.jsonl';$logDir=$retained.'/storage/logs';$configJSON=$base.'/run.json';$safeNow=strtotime('2026-11-11 13:00:00 UTC');
 $dropCsp=$base.'/drop-csp';$busyPidFile=$base.'/busy.pid';$allOutput='';
-$run=static function(array $actions=[],string $mode='install',array $overrides=[])use($configJSON,$tools,$b1145,$b1144,$b1134,$root,$home,$private,$stageDir,$b1145Base,$incoming,$secrets,$faultLog,$stepLog,$logDir,$adminCookie,$safeNow,$dropCsp,$busyPidFile,&$allOutput):array{
-    file_put_contents($configJSON,json_encode(['overrides'=>$overrides,'dropCsp'=>$dropCsp,'busyPidFile'=>$busyPidFile,'tools'=>$tools,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'root'=>$root,'home'=>$home,'base'=>$private,'pointer'=>$private.'/current.json','stage'=>$stageDir,'b1145Base'=>$b1145Base,'appStateScript'=>$incoming.'/b1145-app-state.php','appCheckScript'=>$incoming.'/b1146-app-check.php','php'=>PHP_BINARY,'allowedSapis'=>['cli-server'],
+$run=static function(array $actions=[],string $mode='install',array $overrides=[])use($configJSON,$tools,$b1145,$b1144,$b1134,$root,$home,$private,$stageDir,$b1145Base,$incoming,$secrets,$faultLog,$stepLog,$logDir,$adminCookie,$safeNow,$dropCsp,$busyPidFile,$base,&$allOutput):array{
+    file_put_contents($configJSON,json_encode(['overrides'=>$overrides,'dropCsp'=>$dropCsp,'busyPidFile'=>$busyPidFile,'hiddenWeb'=>$base.'/web.php.hidden','tools'=>$tools,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'root'=>$root,'home'=>$home,'base'=>$private,'pointer'=>$private.'/current.json','stage'=>$stageDir,'b1145Base'=>$b1145Base,'appStateScript'=>$incoming.'/b1145-app-state.php','appCheckScript'=>$incoming.'/b1146-app-check.php','php'=>PHP_BINARY,'allowedSapis'=>['cli-server'],
         'censusSeconds'=>20,'minFreeBytes'=>268435456,'scheduleGate'=>true,'fixedNow'=>$safeNow,'incoming'=>$incoming,'mode'=>$mode,'port'=>PORT,'secrets'=>$secrets,'faultLog'=>$faultLog,'stepLog'=>$stepLog,'logDir'=>$logDir,'adminCookie'=>$adminCookie,'actions'=>$actions],JSON_UNESCAPED_SLASHES));
     $p=proc_open(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$tools.'/fixture-run.php',$configJSON],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);$rc=proc_close($p);
     echo "----- RUN mode=$mode rc=$rc -----\n".$out.($err!==''?"\nSTDERR=".substr($err,-2000)."\n":'');$allOutput.=$out;return [$rc,$out];
@@ -97,6 +100,15 @@ $allSteps=static function():array{$a=[];for($n=1;$n<=21;$n++)$a['AFTER_STEP_'.$n
 $stepsClean=static function()use($stepLog):array{$rows=array_map(static fn($l)=>json_decode($l,true),array_filter(explode("\n",(string)@file_get_contents($stepLog))));$bad=[];
     foreach($rows as $r){foreach($r['anon'] as $p=>$s){$legal=in_array($p,OverlayCoordinator::LEGAL,true);if($s>=500||($legal&&!in_array($s,[200,404],true))||(!$legal&&in_array($p,OverlayCoordinator::CLOSED,true)&&$s!==404)||(in_array($p,OverlayCoordinator::SYSTEM,true)&&$s!==200))$bad[]=$r['point'].' '.$p.' '.$s;}foreach($r['admin'] as $p=>$s)if($s!==200)$bad[]=$r['point'].' ADMIN '.$p.' '.$s;}
     return ['points'=>count($rows),'bad'=>$bad];};
+// Exact install prefix: steps 1..k hold the payload, steps after k the old bytes (a new file after k is absent).
+$prefix=static function(int $k)use($plan,$active):void{foreach($plan as $s){$t=$active.'/'.$s['path'];$sha=is_file($t)?hash_file('sha256',$t):null;check($sha===($s['n']<=$k?$s['payloadSHA256']:$s['preSHA256']),'PREFIX_'.$k.'_STEP_'.$s['n']);}};
+// The manual recovery block between the quoted-heredoc markers, and a run of it exactly as pasted (bash -e).
+$block=static function(string $o):array{check(preg_match("/^bash -e <<'B1146_RECOVERY'\n(.*?)\nB1146_RECOVERY$/ms",$o,$m)===1,'RECOVERY_BLOCK_PRESENT');return explode("\n",$m[1]);};
+$kindOf=static function(string $l):?string{$last=preg_match("/'([^']*)'$/",$l,$m)?$m[1]:null;
+    if(in_array($l,['set -euo pipefail','umask 022','echo B1146_MANUAL_RECOVERY_BLOCK_DONE'],true))return null;if(str_starts_with($l,'printf ')&&str_contains($l,'| sha256sum --check --strict --quiet -'))return 'verify';
+    if(str_starts_with($l,'install -m ')&&str_contains($l,' -g '))return 'install:'.$last;if(str_starts_with($l,'rm -f -- '))return 'rm:'.$last;if(str_starts_with($l,'rmdir --ignore-fail-on-non-empty -- '))return 'rmdir';if(str_contains($l,' artisan view:clear --no-interaction'))return 'view';return 'other';};
+$runBlock=static function(array $lines):array{$p=proc_open(['bash','-e'],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fwrite($pipes[0],implode("\n",$lines)."\n");fclose($pipes[0]);$out=stream_get_contents($pipes[1]).stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);return ['rc'=>proc_close($p),'out'=>$out];};
+$conflictNow=(new DateTimeImmutable('2026-11-11 02:10:00',new DateTimeZone('Europe/Belgrade')))->getTimestamp();$hiddenWeb=$base.'/web.php.hidden';
 $results=[];
 
 foreach(['noRouteCache','routeCache'] as $variant){
@@ -114,6 +126,10 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // R5: a failure before the first file: the rollback records "nothing applied" and runs no view/route/web work.
         [$rc,$o]=$run(['BEFORE_STEP_1'=>['fail']]);$tail=substr($o,(int)strpos($o,'OVERLAY_ROLLBACK='));
         check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&lastLine($o,'ROLLBACK_FILES')['nothingApplied']===true&&!str_contains($tail,'ARTISAN=')&&!str_contains($tail,'WEB_OVERLAY_PROBE=')&&!str_contains($tail,'PUBLIC_HTTP_SMOKES=')&&$tree()==='PRE','NOTHING_APPLIED_NO_REFRESH');$reset();
+        // F5: nothing applied, but a modified target went missing: never reported as the verified old state.
+        $web=$active.'/routes/web.php';[$rc,$o]=$run(['BEFORE_STEP_1'=>['hideWeb','fail']]);$wasHidden=is_file($hiddenWeb)&&!file_exists($web);if(is_file($hiddenWeb))rename($hiddenWeb,$web);
+        check($wasHidden&&$rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&!str_contains($o,'"nothingApplied":true')&&lastLine($o,'ROLLBACK_FILES')['stoppedAtStep']===16&&str_contains($o,'ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_16'),'MISSING_TARGET_NOT_REPORTED_AS_OLD_STATE');
+        [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_TARGET_BACK_THEN_VERIFIED');$reset();$results[$variant]['missingTargetNothingApplied']='HOLD_ROLLBACK_INCOMPLETE_THEN_VERIFIED';
         // R8: the time budget is checked right before the first change.
         [$rc,$o]=$run([],'install',['budgetSeconds'=>0]);check($rc===2&&str_contains($o,'"blockers":["TIME_BUDGET_EXCEEDED_BEFORE_FIRST_CHANGE"]')&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','TIME_BUDGET_HOLD');$reset();
         // S6: a legal page without CSP script-src 'none' fails acceptance and is rolled back.
@@ -140,6 +156,7 @@ foreach(['noRouteCache','routeCache'] as $variant){
     check($status('/admin/settings/public-storefront',['Cookie: '.$adminCookie])===200&&$status('/admin/settings/public-storefront/legal/terms',['Cookie: '.$adminCookie])===200,'SUPERADMIN_PAGES_NEW_CODE_'.$variant);
     check(($variant==='routeCache')===($routeCacheSHA()!==null)&&($cacheBefore===null||$routeCacheSHA()!==$cacheBefore),'ROUTE_CACHE_MODE_KEPT_'.$variant);
     check(!str_contains($o,'globalReset":true')&&str_contains($o,'"label":"installed-invalidate"'),'TARGETED_INVALIDATION_ONLY_'.$variant);
+    $next=(array)lastLine($o,'OWNER_NEXT_STEPS');check(count($next)===6&&$next[0]===OverlayCoordinator::CSS_PURGE_STEP&&str_starts_with((string)$next[5],'ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh --rollback'),'OWNER_NEXT_STEPS_COMPLETE_'.$variant);
     $results[$variant]['install']=['final'=>lastRaw($o,'B1146_FINAL'),'stepSmokePoints'=>$steps['points'],'approval'=>$approval['resetByThisInstall']];
 
     // Idempotent re-run.
@@ -149,14 +166,22 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // R4: while the shop is ON (DB switch 1), --rollback changes nothing and says to turn the shop OFF first; a plain
         // re-run is no PASS either. With the switch removed again the same rollback command runs.
         $pdo()->exec("INSERT INTO settings (setting_key,setting_value,created_at,updated_at) VALUES ('public_storefront_open','1',NOW(),NOW())");$artisan(['cache:clear']);
-        [$rc,$o]=$run([],'rollback');check($rc===2&&str_contains($o,'HOLD_ROLLBACK_NOT_STARTED=')&&str_contains($o,'STOREFRONT_IS_ON_TURN_THE_SHOP_OFF_IN_ADMIN_FIRST_THEN_RUN_THE_SAME_COMMAND')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$tree()==='INSTALLED','ROLLBACK_REFUSED_WHILE_SHOP_ON');
+        [$rc,$o]=$run([],'rollback');check($rc===2&&str_contains($o,'HOLD_ROLLBACK_NOT_STARTED=')&&str_contains($o,'STOREFRONT_IS_ON_TURN_THE_SHOP_OFF_IN_ADMIN_FIRST_THEN_RUN_THE_SAME_COMMAND')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&!str_contains($o,'RECOVERY_NOTE=')&&$tree()==='INSTALLED','ROLLBACK_REFUSED_WHILE_SHOP_ON');
         [$rc,$o]=$run();check($rc===2&&str_contains($o,'HOLD_INSTALLED_REVERIFY=')&&lastRaw($o,'B1146_FINAL')!=='PASS_ALREADY_INSTALLED'&&$tree()==='INSTALLED','RERUN_NOT_PASS_WHILE_SHOP_ON');
         $pdo()->exec("DELETE FROM settings WHERE setting_key='public_storefront_open'");$artisan(['cache:clear']);
         $results[$variant]['rollbackWhileShopOn']='HOLD_NOTHING_CHANGED';
+        // F4: 20 minutes before the 02:30 backup --rollback holds before any restore, and because the tree holds the overlay
+        // it prints the manual-only recovery block (nothing attempted, shop must be OFF).
+        [$rc,$o]=$run([],'rollback',['fixedNow'=>$conflictNow]);$note=lastLine($o,'RECOVERY_NOTE');
+        check($rc===2&&preg_match('/"blockers":\["SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z_]+_WAIT_OR_RUN_WITH_--rollback_--ignore-schedule"\]/',$o)===1&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$note['kind']==='ROLLBACK_NOT_STARTED_MANUAL_ONLY'&&$block($o)!==[]&&$tree()==='INSTALLED','SCHEDULE_HOLD_WITH_MANUAL_BLOCK');
+        $results[$variant]['rollbackInScheduleWindow']='HOLD_NOTHING_CHANGED_MANUAL_ONLY_BLOCK_PRINTED';
     }
 
-    // Owner rollback: exact old bytes, old route cache bytes, legal pages 404, approval matches the old code again.
-    [$rc,$o]=$run([],'rollback');check(str_contains($o,'OWNER_NOTICE_MERCHANT_APPROVAL=AFTER_THIS_ROLLBACK_RE_CHECK_'),'ROLLBACK_APPROVAL_NOTICE_'.$variant);check($rc===0&&lastRaw($o,'B1146_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore&&!is_dir($active.'/resources/views/public-shop/legal'),'OWNER_ROLLBACK_'.$variant);
+    // Owner rollback: exact old bytes, old route cache bytes, legal pages 404, approval matches the old code again. In the
+    // first variant it runs inside the backup window with the owner override (--rollback --ignore-schedule).
+    [$rc,$o]=$run([],'rollback',$variant==='noRouteCache'?['fixedNow'=>$conflictNow,'ignoreSchedule'=>true]:[]);
+    check($variant!=='noRouteCache'||str_contains($o,'SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE'),'SCHEDULE_OVERRIDE_USED');
+    check(in_array(OverlayCoordinator::CSS_PURGE_STEP,(array)lastLine($o,'OWNER_NEXT_STEPS'),true),'CSS_PURGE_AFTER_ROLLBACK_'.$variant);check(str_contains($o,'OWNER_NOTICE_MERCHANT_APPROVAL=AFTER_THIS_ROLLBACK_RE_CHECK_'),'ROLLBACK_APPROVAL_NOTICE_'.$variant);check($rc===0&&lastRaw($o,'B1146_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore&&!is_dir($active.'/resources/views/public-shop/legal'),'OWNER_ROLLBACK_'.$variant);
     check(lastLine($o,'PUBLIC_HTTP_SMOKES')['state']==='OLD'&&$status('/pravne-informacije')===404&&$status('/admin/settings/public-storefront',['Cookie: '.$adminCookie])===200,'OLD_STATE_SERVED_'.$variant);
     $after=json_decode(sh(['php','-d','opcache.enable=0',$incoming.'/b1146-app-check.php',$active,'approval']),true);check($after['approvalDigestMatchesFingerprint']===true&&$after['legalTextsInFingerprint']===false,'OLD_APPROVAL_VALID_AGAIN_'.$variant);
     $results[$variant]['ownerRollback']=['final'=>'PASS_ROLLED_BACK_BY_OWNER','routeCacheBytesRestored'=>$routeCacheSHA()===$cacheBefore];$reset();
@@ -171,18 +196,24 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // C1: one restore of group E fails (injected). The rollback stops before group D, so groups A-D (whose code the
         // installed E files call) stay installed: never a non-prefix state. HOLD with a reverse-order recovery note.
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_19'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');$note=lastLine($o,'RECOVERY_NOTE');
-        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&lastLine($o,'B1146_PHASE')==='ROLLBACK_INCOMPLETE'&&$rf['stoppedBeforeGroup']==='D'&&$rf['earlierGroupsKeptInstalled']===true&&$rf['modifiedRestored']===3&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_GROUP');
-        check(in_array('FIXTURE_INJECTED_FAILURE',$note['problems'],true),'RECOVERY_NOTE_PROBLEM');
-        foreach($plan as $s){$sha=hash_file('sha256',$active.'/'.$s['path']);check($sha===(in_array($s['n'],[18,20,21],true)?$s['preSHA256']:$s['payloadSHA256']),'PREFIX_STATE_STEP_'.$s['n']);}
-        sleep(3);check($status('/login')===200&&$status('/up')===200,'PREFIX_STATE_SERVES_LOGIN');
-        preg_match_all('/^OWNER_COMMAND: (.+)$/m',$o,$m);$cmds=$m[1];$expected=[];
-        foreach(array_reverse($plan) as $s)if(!in_array($s['n'],[18,20,21],true)&&$s['kind']==='modified')$expected[]='install';foreach(array_reverse($plan) as $s)if($s['kind']==='new')$expected[]='rm';
-        $kinds=array_map(static fn($c)=>str_starts_with($c,'install -m ')&&str_contains($c,' -g ')?'install':(str_starts_with($c,'rm -f ')?'rm':(str_starts_with($c,'rmdir ')?'rmdir':(str_contains($c,'artisan view:clear')?'view':'other'))),$cmds);
-        $order=[];foreach(array_reverse($plan) as $s)if(!in_array($s['n'],[18,20,21],true))$order[]=$active.'/'.$s['path'];$targets=array_map(static fn($c)=>substr($c,(int)strrpos($c,' ')+1),array_slice($cmds,0,count($expected)));
-        check(array_slice($kinds,0,count($expected))===$expected&&$targets===$order&&in_array('rmdir',$kinds,true)&&end($kinds)==='view'&&!in_array('other',$kinds,true),'RECOVERY_COMMANDS_REVERSE_ORDER');
-        // The same command again retries the rollback first and reaches the verified old state.
-        [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','PARTIAL_ROLLBACK_RETRIED_TO_OLD_STATE');$reset();
-        $results[$variant]['partialRollback']=['stoppedBeforeGroup'=>'D','prefixKept'=>true,'retry'=>'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'];
+        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&lastLine($o,'B1146_PHASE')==='ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===19&&$rf['modifiedRestored']===2&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_FIRST_FAILURE');
+        check($note['kind']==='ROLLBACK_INCOMPLETE'&&in_array('FIXTURE_INJECTED_FAILURE',$note['problems'],true),'RECOVERY_NOTE_PROBLEM');
+        $prefix(19);sleep(3);check($status('/login')===200&&$status('/up')===200&&$status('/admin/settings/public-storefront',['Cookie: '.$adminCookie])===200,'PREFIX_19_SERVES');
+        // The manual block: sha256 check before every install, exact reverse order (19..13), new files last, then the
+        // directories, then view:clear with the tool's PHP binary. Executed here exactly as the owner would paste it.
+        $lines=$block($o);$kinds=array_values(array_filter(array_map($kindOf,$lines)));$expected=[];
+        foreach(array_reverse($plan) as $s)if($s['n']<=19&&$s['kind']==='modified')array_push($expected,'verify','install:'.$active.'/'.$s['path']);foreach(array_reverse($plan) as $s)if($s['kind']==='new')$expected[]='rm:'.$active.'/'.$s['path'];
+        $tailKinds=array_slice($kinds,count($expected));check(array_slice($kinds,0,count($expected))===$expected&&count($tailKinds)>=2&&end($tailKinds)==='view'&&array_unique(array_slice($tailKinds,0,-1))===['rmdir'],'RECOVERY_BLOCK_EXACT_REVERSE_ORDER');
+        $manual=$runBlock($lines);check($manual['rc']===0&&str_contains($manual['out'],'B1146_MANUAL_RECOVERY_BLOCK_DONE')&&$tree()==='PRE'&&!is_dir($active.'/resources/views/public-shop/legal'),'MANUAL_BLOCK_RESTORES_OLD_STATE:'.substr($manual['out'],-400));
+        // The same command afterwards verifies the old state and closes the transaction.
+        [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','AFTER_MANUAL_BLOCK_VERIFIED');$reset();
+        // F1: a failed restore in the middle of group B (step 14): steps 1..14 stay installed, 15..21 are old again, an
+        // exact install prefix; the same command again converges to the verified old state.
+        [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_14'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');
+        check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===14&&$rf['modifiedRestored']===7&&$rf['newRemoved']===0,'PARTIAL_ROLLBACK_STOPS_AT_STEP_14');
+        $prefix(14);sleep(3);check($status('/login')===200&&$status('/up')===200,'PREFIX_14_SERVES');
+        [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1146_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','PARTIAL_ROLLBACK_14_RETRIED_TO_OLD_STATE');$reset();
+        $results[$variant]['partialRollback']=['step19'=>'PREFIX_1_19_MANUAL_BLOCK_RESTORED','step14'=>'PREFIX_1_14_RERUN_CONVERGED'];
     }
 
     // SIGKILL in the middle of the copy (after routes/web.php in the route-cache variant): the re-run restores, then installs.
