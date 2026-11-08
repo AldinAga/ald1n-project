@@ -32,7 +32,7 @@ final class FixtureWeb
         if($this->consume('probe-'.$label))throw new RuntimeException('FRESHNESS_PROBE_HTTP_UNAVAILABLE');
         $server=['REQUEST_METHOD'=>'GET','HTTP_HOST'=>'cms.ald1n.com','HTTP_X_ALD1N_RELEASE_PROBE'=>$token,'DOCUMENT_ROOT'=>$this->active.'/public']+($invalidate?['HTTP_X_ALD1N_RELEASE_INVALIDATE'=>'YES']:[]);
         $compile=array_values(array_filter(array_map(fn($r)=>$this->active.'/'.$r,$this->compile),'is_file'));
-        $p=proc_open(array_merge(['php','-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.revalidate_freq=0',$this->harness,$this->active.'/public/'.$name,json_encode($server)],$compile),[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);proc_close($p);
+        $p=proc_open(array_merge(['php','-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.revalidate_freq=0','-d','opcache.file_update_protection=0',$this->harness,$this->active.'/public/'.$name,json_encode($server)],$compile),[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);proc_close($p);
         if($out==='')throw new RuntimeException('FRESHNESS_PROBE_HTTP_UNAVAILABLE');$data=json_decode($out,true,16,JSON_THROW_ON_ERROR);
         if($label==='installed'&&$this->sapiOverride!==null)$data['sapi']=$this->sapiOverride;$data['_route']='FIXTURE_CLI_HARNESS';return $data;
     }
