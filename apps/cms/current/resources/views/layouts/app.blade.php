@@ -253,6 +253,7 @@
                     <a href="{{ route('admin.settings.exchange.index') }}"><x-icon name="coins" />EUR/RSD kurs</a>
                     <a href="{{ route('admin.settings.bank-accounts.index') }}"><x-icon name="wallet" />Žiro računi</a>
                     @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.couriers.index') }}"><x-icon name="truck" />Kurirske službe</a>@endif
+                    @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.public-storefront.index') }}" data-nav-public-storefront><x-icon name="cart" />Javna prodavnica</a>@endif
                     @endcan
 
                     @canany(['catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement'])

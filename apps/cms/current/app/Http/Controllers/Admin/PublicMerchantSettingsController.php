@@ -22,8 +22,20 @@ final class PublicMerchantSettingsController extends Controller
         PublicRegistrationMailSenderService $registrationMail): View
     {
         $this->authorizeOwner($request);
+        $review=$merchant->review();
+        $legal=app(\App\Services\PublicLegalPagesService::class);
+        $texts=app(\App\Services\PublicLegalTextStore::class);
+        $approver=$review['signature']['by']
+            ? \App\Models\User::query()->whereKey($review['signature']['by'])->first()
+            : null;
         return view('admin.settings.public-storefront',[
-            'review'=>$merchant->review(),
+            'review'=>$review,
+            'readiness'=>app(\App\Services\PublicStorefrontOnReadinessService::class)->evaluate($review),
+            'legalUrls'=>$legal->absoluteUrls(),
+            'legalMissing'=>$legal->missing(),
+            'legalCustom'=>collect(\App\Support\PublicLegalTemplates::EDITABLE)
+                ->mapWithKeys(static fn (string $page): array => [$page=>$texts->isCustom($page)])->all(),
+            'approverName'=>$approver?->displayName(),
             'registrationMail'=>$registrationMail->status(),
             'systemMailFrom'=>(string)config('mail.from.address'),
             'bankAccounts'=>BankAccount::query()->where('is_active',true)->orderBy('label')
