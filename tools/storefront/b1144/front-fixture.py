@@ -82,9 +82,12 @@ def stop():
 web={'loopbackPort':tls_port,'publicPort':tls_port,'caFile':str(cert)}
 def status(path,expected,stamp=None,attempts=1):return bridge('status',path=path,expected=expected,stamp=stamp,attempts=attempts,**web)
 roots=[str(current),str(candidate),str(retained),str(failed)]
+# Private 0700 staging directory on the same filesystem: the probe is written there, fsynced and hard-linked into public/.
+staging_dir=work/'private-state';staging_dir.mkdir(mode=0o700);staging_dir.chmod(0o700)
 marker_rel='app/B1144FreshnessMarker.php';old_hash=sha((current/marker_rel).read_bytes());new_hash=sha((candidate/marker_rel).read_bytes())
 def freshness(expected_hash,label,fallback=False,sapis=('cli-server',)):
-    w=bridge('probe-write',current=str(current),id=job,roots=roots,expected={marker_rel:expected_hash})
+    w=bridge('probe-write',current=str(current),id=job,roots=roots,expected={marker_rel:expected_hash},stagingDir=str(staging_dir))
+    assert list(staging_dir.iterdir())==[],('PROBE_STAGING_LEFT',list(staging_dir.iterdir()))
     name,token=w['name'],w['token']
     denied={}
     for case,headers,method in [('noToken',{},'GET'),('wrongToken',{'X-Ald1n-Release-Probe':'0'*64},'GET'),('wrongHost',{'Host':'shop.ald1n.com','X-Ald1n-Release-Probe':token},'GET'),('post',{'X-Ald1n-Release-Probe':token},'POST'),('head',{'X-Ald1n-Release-Probe':token},'HEAD')]:
@@ -103,6 +106,11 @@ try:
     baseline=bridge('logs-baseline',logs=str(current/'storage/logs'))
     new_m=bridge('own',base=str(candidate),owner=owner,expires=expires,started=started);old_m=bridge('own',base=str(current),owner=owner,expires=expires,started=started)
     barrier=status('/login',503,old_m['ownerSHA256']);assert barrier['pass'],barrier;wrong=status('/login',503,'f'*64);assert not wrong['pass'] and wrong['code']=='PUBLIC_HTTP_SMOKE_503'
+    # The restored-fallback re-check mechanism on real Laravel: the private per-run header passes the owned barrier and the
+    # framework maintenance middleware (/login 200) while every public request still gets the owned 503.
+    behind=status('/login',200,attempts=1,smokeToken=old_m['smokeToken']);assert behind['pass'] and '"behindOwnedBarrier":true' in behind['line'],behind
+    wrong_token=status('/login',200,attempts=1,smokeToken='0'*64);assert not wrong_token['pass'] and wrong_token['code']=='PUBLIC_HTTP_SMOKE_200_BEHIND_BARRIER',wrong_token
+    assert status('/login',503,old_m['ownerSHA256'])['pass'];assert old_m['smokeToken'] not in behind['line']
     bridge('switch',current=str(current),candidate=str(candidate),retained=str(retained),journal=str(work/'journal.jsonl'),owner=owner);swapped_install=int(time.time())
     artisan(current,'package:discover');artisan(current,'view:cache')
     time.sleep(2.5);stale=raw('/b1144-marker.php')[1];assert stale=='OLD-B1144-MARKER',('STALE_CODE_NOT_REPRODUCED',stale)
@@ -155,7 +163,7 @@ try:
     off,_=freshness(old_hash,'opcache-off');assert off['pass'] and off['summary']['opcacheEnabled'] is False and off['summary']['targetedInvalidations']==0,off
     assert raw('/b1144-marker.php')[1]=='OLD-B1144-MARKER'
     stop();server=None
-    receipt={'realLaravelRuntime':True,'tlsHostnameCertificateForCmsAld1nCom':True,'sameMtimeSameSizeStaleCodeReproduced':{'install':True,'rollback':True},'targetedInvalidationFreshened':{'install':True,'rollback':True},'loopbackRoute':installed['route'],'fallbackRoute':fallback['route'],'probeDenied404':denied,'probeRemovedAfterUse':True,'probeNameOrTokenPrinted':False,'freshnessSummary':s,'wrongSapi':'HOLD','wrongTree':'HOLD','barrier503WithOwnerStamp':True,'foreignStamp':'HOLD','cliAboutRC':0,'migrateStatus':cli['parsed'],'postLiftSmokes':smokes,'newLogErrorLines':scan['newErrorLines'],'rollbackAfterLift':'OLD_RESTORED_FRESHNESS_VERIFIED_LOGIN_200','realpathCacheTtlReported':REALPATH_TTL,'staleEnvRealpathAfterRollbackReproduced':True,'barrierHold':{'install':hold_install,'restore':hold_restore},'firstLoginAfterRestoreLiftAttempts':1,'opcacheOffProfile':off['summary'],'productionContacted':False}
+    receipt={'realLaravelRuntime':True,'tlsHostnameCertificateForCmsAld1nCom':True,'sameMtimeSameSizeStaleCodeReproduced':{'install':True,'rollback':True},'targetedInvalidationFreshened':{'install':True,'rollback':True},'loopbackRoute':installed['route'],'fallbackRoute':fallback['route'],'probeDenied404':denied,'probeRemovedAfterUse':True,'probeNameOrTokenPrinted':False,'freshnessSummary':s,'wrongSapi':'HOLD','wrongTree':'HOLD','barrier503WithOwnerStamp':True,'privateLogin200BehindOwnedBarrier':True,'wrongSmokeTokenStays503':True,'foreignStamp':'HOLD','cliAboutRC':0,'migrateStatus':cli['parsed'],'postLiftSmokes':smokes,'newLogErrorLines':scan['newErrorLines'],'rollbackAfterLift':'OLD_RESTORED_FRESHNESS_VERIFIED_LOGIN_200','realpathCacheTtlReported':REALPATH_TTL,'staleEnvRealpathAfterRollbackReproduced':True,'barrierHold':{'install':hold_install,'restore':hold_restore},'firstLoginAfterRestoreLiftAttempts':1,'opcacheOffProfile':off['summary'],'productionContacted':False}
 finally:
     if server is not None and server.poll() is None:server.terminate()
 (base/'front-receipt.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt,indent=2))
