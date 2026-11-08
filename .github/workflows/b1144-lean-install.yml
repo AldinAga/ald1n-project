@@ -27,8 +27,10 @@ jobs:
       - name: Pin cms.ald1n.com to loopback so CI can never reach production
         run: |
           set -euo pipefail
-          echo '127.0.0.1 cms.ald1n.com' | sudo tee -a /etc/hosts >/dev/null
-          test "$(getent hosts cms.ald1n.com | awk '{print $1}' | head -n1)" = 127.0.0.1
+          printf '\n127.0.0.1 cms.ald1n.com\n::1 cms.ald1n.com\n' | sudo tee -a /etc/hosts >/dev/null
+          resolved="$(getent ahosts cms.ald1n.com | awk '{print $1}' | sort -u | tr '\n' ' ')"
+          printf 'cms.ald1n.com resolves to: %s\n' "$resolved"
+          python3 -c 'import socket,sys;a={i[4][0] for i in socket.getaddrinfo("cms.ald1n.com",443)};print(sorted(a));sys.exit(0 if a and a<={"127.0.0.1","::1"} else 2)'
       - name: Syntax, portable operator shell and removed mechanisms absent from shipped code
         run: |
           set -euo pipefail
