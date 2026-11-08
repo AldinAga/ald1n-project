@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\{Brand,Category,Product,ProductImage,Role,User};
 use App\Services\SettingsService;
+use App\Support\PublicCatalogPresentation;
 use App\Support\SerbianPlural;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -145,15 +146,115 @@ final class PublicCatalogRedesignTest extends TestCase
         self::assertSame(1, substr_count(strtolower($html), '</script>'));
         $schema = $this->schemaFrom($html);
         self::assertSame('https://schema.org', $schema['@context']);
-        $types = array_column($schema['@graph'], '@type');
-        self::assertSame(['CollectionPage', 'BreadcrumbList', 'ItemList'], $types);
-        $list = $schema['@graph'][2];
+        self::assertSame('CollectionPage', $schema['@type']);
+        self::assertSame('https://cms.ald1n.com/katalog#stranica', $schema['@id']);
+        self::assertSame('https://cms.ald1n.com/katalog', $schema['url']);
+        self::assertSame('sr', $schema['inLanguage']);
+        // The unfiltered catalog is one level deep: no single-item breadcrumb.
+        self::assertArrayNotHasKey('breadcrumb', $schema);
+        $list = $schema['mainEntity'];
+        self::assertSame('ItemList', $list['@type']);
         self::assertSame(2, $list['numberOfItems']);
         self::assertSame(1, $list['itemListElement'][0]['position']);
         self::assertSame('Evil </script><script>alert(1)</script> & "quote"', $list['itemListElement'][0]['name']);
         self::assertMatchesRegularExpression('~^https://cms\.ald1n\.com/katalog/rd-syn-\d+$~', $list['itemListElement'][0]['url']);
-        self::assertSame('https://cms.ald1n.com/katalog', $schema['@graph'][0]['url']);
-        self::assertSame('sr', $schema['@graph'][0]['inLanguage']);
+    }
+
+    public function test_filtered_schema_has_two_level_breadcrumb_and_no_shared_id(): void
+    {
+        $this->product('Lenovo Crumb Laptop', 70000, 'RSD', 2, false, true, true);
+        $html = (string) $this->get('/katalog?category_id='.$this->category->id)->assertOk()->getContent();
+        $schema = $this->schemaFrom($html);
+        self::assertArrayNotHasKey('@id', $schema);
+        self::assertArrayNotHasKey('url', $schema);
+        self::assertSame('Laptopovi · Katalog', $schema['name']);
+        $crumbs = $schema['breadcrumb']['itemListElement'];
+        self::assertSame('BreadcrumbList', $schema['breadcrumb']['@type']);
+        self::assertCount(2, $crumbs);
+        self::assertSame(['Katalog', 'https://cms.ald1n.com/katalog'], [$crumbs[0]['name'], $crumbs[0]['item']]);
+        self::assertSame('Laptopovi', $crumbs[1]['name']);
+        self::assertArrayNotHasKey('item', $crumbs[1]);
+        self::assertSame(1, $schema['mainEntity']['numberOfItems']);
+        // Category views stay indexable; only free-text search is noindex.
+        self::assertStringNotContainsString('name="robots"', $html);
+
+        // A stock or sort filter has no breadcrumb level of its own.
+        $stock = $this->schemaFrom((string) $this->get('/katalog?stock=available')->assertOk()->getContent());
+        self::assertArrayNotHasKey('breadcrumb', $stock);
+        self::assertArrayNotHasKey('@id', $stock);
+    }
+
+    public function test_search_results_are_noindex_follow_with_plain_canonical(): void
+    {
+        $this->product('ThinkPad Search Hit', 70000);
+        $html = (string) $this->get('/katalog?q=ThinkPad')->assertOk()->getContent();
+        self::assertSame(1, substr_count($html, 'name="robots"'));
+        self::assertStringContainsString('<meta name="robots" content="noindex,follow">', $html);
+        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $html);
+    }
+
+    public function test_page_past_the_last_returns_404(): void
+    {
+        for ($i = 1; $i <= 21; $i++) {
+            $this->product('Range Item '.$i, 10000 + $i);
+        }
+        $this->get('/katalog?page=2')->assertOk();
+        $this->get('/katalog?page=3')->assertNotFound();
+        $this->get('/katalog?page=999')->assertNotFound();
+        $this->get('/katalog?q=nepostojeci-artikal&page=2')->assertNotFound();
+        // Page 1 of an empty result is the normal empty state, not a 404.
+        $this->get('/katalog?q=nepostojeci-artikal')->assertOk();
+        $this->get('/katalog?page=1')->assertOk();
+    }
+
+    public function test_one_result_heading_uses_genitive(): void
+    {
+        $this->product('Single Laptop', 50000);
+        $html = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringContainsString('Prikazano 1–1 od 1 artikla', $html);
+        self::assertStringContainsString('<strong>1</strong> artikal u ponudi', $html);
+    }
+
+    public function test_invalid_utf8_in_schema_text_is_substituted_not_fatal(): void
+    {
+        $json = PublicCatalogPresentation::jsonLd(['name' => "Laptop \xB1\xFF bad"]);
+        self::assertNotNull($json);
+        $name = json_decode($json, true, 512, JSON_THROW_ON_ERROR)['name'];
+        self::assertMatchesRegularExpression('~^Laptop (\x{FFFD})+ bad$~u', $name);
+        // The page view model survives a row whose name is not valid UTF-8.
+        $rows = new \Illuminate\Pagination\LengthAwarePaginator([['slug' => 'bad-row', 'name' => "Bad \xC3\x28 row"]], 1, 20, 1, ['path' => '/katalog']);
+        $seo = PublicCatalogPresentation::build($rows, [], ['brands' => [], 'categories' => []], 1);
+        self::assertNotNull($seo['schema_json']);
+        $decoded = json_decode((string) $seo['schema_json'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertStringStartsWith('Bad ', $decoded['mainEntity']['itemListElement'][0]['name']);
+        // Any other encoding failure omits the block instead of a 500.
+        self::assertNull(PublicCatalogPresentation::jsonLd(['price' => NAN]));
+    }
+
+    public function test_base_url_accepts_only_an_https_origin(): void
+    {
+        $valid = [
+            'https://cms.ald1n.com' => 'https://cms.ald1n.com',
+            'https://cms.ald1n.com/' => 'https://cms.ald1n.com',
+            'https://CMS.ald1n.com:8443' => 'https://cms.ald1n.com:8443',
+        ];
+        foreach ($valid as $url => $expected) {
+            config()->set('app.url', $url);
+            self::assertSame($expected, PublicCatalogPresentation::baseUrl(), $url);
+        }
+        foreach (['http://cms.ald1n.com', 'https://cms.ald1n.com/shop', 'https://cms.ald1n.com/?x=1', 'https://cms.ald1n.com#a',
+            'https://user:pw@cms.ald1n.com', 'https://', 'ftp://cms.ald1n.com', 'not a url', '', '//cms.ald1n.com',
+            'https://cms.ald1n.com?', 'https://bad_host.example'] as $url) {
+            config()->set('app.url', $url);
+            self::assertNull(PublicCatalogPresentation::baseUrl(), $url);
+        }
+
+        config()->set('app.url', 'https://cms.ald1n.com/podfolder');
+        $this->product('Safe Laptop', 50000);
+        $html = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringNotContainsString('rel="canonical"', $html);
+        self::assertStringNotContainsString('<script', $html);
+        self::assertStringNotContainsString('podfolder', $html);
     }
 
     public function test_invalid_app_url_omits_absolute_urls_instead_of_using_host(): void
@@ -239,8 +340,9 @@ final class PublicCatalogRedesignTest extends TestCase
         self::assertStringContainsString('<title>Katalog artikala · strana 2 · ', $second);
         self::assertStringContainsString('Prikazano 21–25 od 25 artikala', $second);
         $schema = $this->schemaFrom($second);
-        self::assertSame(21, $schema['@graph'][2]['itemListElement'][0]['position']);
-        self::assertSame(25, $schema['@graph'][2]['numberOfItems']);
+        self::assertSame('https://cms.ald1n.com/katalog?page=2#stranica', $schema['@id']);
+        self::assertSame(21, $schema['mainEntity']['itemListElement'][0]['position']);
+        self::assertSame(25, $schema['mainEntity']['numberOfItems']);
     }
 
     public function test_price_sort_compares_rsd_equivalent_across_currencies(): void
@@ -282,6 +384,13 @@ final class PublicCatalogRedesignTest extends TestCase
             101 => 'artikal', 111 => 'artikala', 112 => 'artikala', 122 => 'artikla'];
         foreach ($cases as $count => $word) {
             self::assertSame($count.' '.$word, SerbianPlural::articles($count), (string) $count);
+        }
+        // Genitive after "od" (Prikazano 1–20 od N ...).
+        $genitive = [1 => 'artikla', 2 => 'artikla', 3 => 'artikla', 4 => 'artikla', 5 => 'artikala', 11 => 'artikala',
+            12 => 'artikala', 13 => 'artikala', 14 => 'artikala', 21 => 'artikla', 22 => 'artikla', 25 => 'artikala',
+            101 => 'artikla', 111 => 'artikala', 112 => 'artikala'];
+        foreach ($genitive as $count => $word) {
+            self::assertSame($count.' '.$word, SerbianPlural::articlesGenitive($count), 'genitive '.$count);
         }
     }
 

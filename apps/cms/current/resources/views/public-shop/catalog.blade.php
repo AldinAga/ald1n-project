@@ -3,6 +3,7 @@
 @section('title', $seo['title'])
 @push('head')
 <meta name="description" content="{{ $seo['description'] }}">
+@if($seo['robots'])<meta name="robots" content="{{ $seo['robots'] }}">@endif
 @if($seo['canonical'])<link rel="canonical" href="{{ $seo['canonical'] }}">
 <meta property="og:url" content="{{ $seo['canonical'] }}">@endif
 @if($seo['prev'])<link rel="prev" href="{{ $seo['prev'] }}">@endif
@@ -15,7 +16,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{{ $seo['title'] }}">
 <meta name="twitter:description" content="{{ $seo['description'] }}">
-@if($seo['schema'])<script type="application/ld+json">{!! \App\Support\PublicCatalogPresentation::jsonLd($seo['schema']) !!}</script>@endif
+@if($seo['schema_json'])<script type="application/ld+json">{!! $seo['schema_json'] !!}</script>@endif
 @endpush
 @section('content')
 @php($sortValue = in_array(request('sort'), array_keys(\App\Support\PublicCatalogPresentation::SORT_LABELS), true) ? request('sort') : 'newest')
@@ -68,8 +69,8 @@
 <section class="shop-results-section" aria-labelledby="rezultati-naslov">
 <div class="shop-results-bar">
 <h2 id="rezultati-naslov" class="shop-results">
-@if($page->total() > 0)
-Prikazano {{ $page->firstItem() }}–{{ $page->lastItem() }} od {{ \App\Support\SerbianPlural::articles($page->total()) }}
+@if($page->count() > 0 && $page->firstItem() !== null)
+Prikazano {{ $page->firstItem() }}–{{ $page->lastItem() }} od {{ \App\Support\SerbianPlural::articlesGenitive($page->total()) }}
 @else
 Nema rezultata
 @endif

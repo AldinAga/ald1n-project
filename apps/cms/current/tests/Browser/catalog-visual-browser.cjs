@@ -13,7 +13,7 @@ const base = process.env.CATALOG_VISUAL_BASE_URL;
 if (process.env.APP_ENV !== 'testing' || base !== 'http://127.0.0.1:8124' || !dir || !root) {
   throw new Error('CATALOG_VISUAL_HOLD_LOCALHOST_ONLY');
 }
-const {chromium} = require(path.join(root, 'node_modules', 'playwright'));
+const {chromium, webkit} = require(path.join(root, 'node_modules', 'playwright'));
 fs.mkdirSync(dir, {recursive: true});
 
 const widths = [375, 768, 1280];
@@ -49,6 +49,50 @@ async function open(page, url, label, problems) {
   check(overflowing.length === 0, label + ' clipped component content ' + JSON.stringify(overflowing));
   const seen = problems.splice(0);
   check(seen.length === 0, label + ' console/CSP/rate problems ' + JSON.stringify(seen.slice(0, 8)));
+  // The page must end at the footer (no extra scroll from the back-to-top
+  // rail), and on pages shorter than two screens the button stays hidden.
+  const end = await pageEnd(page);
+  check(end.sh <= Math.max(end.ih, end.footerEnd) + 1, label + ' extra scroll below the footer ' + JSON.stringify(end));
+  if (end.sh < 2 * end.ih - 72) {
+    check(end.visible === 0, label + ' back-to-top shows on a short page ' + JSON.stringify(end));
+  }
+  return end;
+}
+
+// Scrolls to the very end, measures, and returns to the top.
+async function pageEnd(page) {
+  return page.evaluate(() => {
+    const de = document.documentElement;
+    window.scrollTo({top: de.scrollHeight, behavior: 'instant'});
+    const footer = document.querySelector('.shop-footer');
+    const footerEnd = footer ? Math.ceil(footer.getBoundingClientRect().bottom + window.scrollY) : 0;
+    const rail = document.querySelector('.shop-top-rail');
+    const btn = document.querySelector('.shop-back-to-top');
+    let visible = 0;
+    if (rail && btn) {
+      const r = rail.getBoundingClientRect();
+      const b = btn.getBoundingClientRect();
+      visible = Math.max(0, Math.min(r.bottom, b.bottom, window.innerHeight) - Math.max(r.top, b.top, 0));
+    }
+    const out = {sh: de.scrollHeight, ih: window.innerHeight, footerEnd, visible};
+    window.scrollTo({top: 0, behavior: 'instant'});
+    return out;
+  });
+}
+
+// Keyboard focus on the back-to-top link must put it, with its ring, inside the viewport.
+async function focusTop(page, tag, file) {
+  await page.locator('.shop-back-to-top').focus();
+  await page.keyboard.press('Shift');
+  await pause(150);
+  const box = await page.locator('.shop-back-to-top').boundingBox();
+  const ih = await page.evaluate(() => window.innerHeight);
+  check(box && box.y >= 6 && box.y + box.height <= ih - 6, tag + ' focused back-to-top inside the viewport ' + JSON.stringify(box));
+  const ring = await page.locator('.shop-back-to-top').evaluate(el => getComputedStyle(el).outlineStyle + ' ' + getComputedStyle(el).outlineWidth);
+  check(ring.startsWith('solid 3px'), tag + ' back-to-top focus ring ' + ring);
+  await page.screenshot({path: path.join(dir, file + '.png'), animations: 'disabled'});
+  const vw = await page.evaluate(() => window.innerWidth);
+  await page.screenshot({path: path.join(dir, file + '-zoom.png'), clip: {x: vw - 140, y: ih - 140, width: 140, height: 140}, animations: 'disabled'});
 }
 
 (async () => {
@@ -87,12 +131,7 @@ async function open(page, url, label, problems) {
         check(top && top.y > 0 && top.y + top.height <= 900, tag + ' back-to-top visible after scrolling ' + JSON.stringify(top));
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-scrolled.png'), animations: 'disabled'});
         // Keyboard focus ring on the back-to-top button (focus + key press => :focus-visible).
-        await page.locator('.shop-back-to-top').focus();
-        await page.keyboard.press('Shift');
-        await pause(150);
-        await page.screenshot({path: path.join(dir, 'focus-top-' + tag + '.png'), animations: 'disabled'});
-        const ring = await page.locator('.shop-back-to-top').evaluate(el => getComputedStyle(el).outlineStyle + ' ' + getComputedStyle(el).outlineWidth);
-        check(ring.startsWith('solid 3px'), tag + ' back-to-top focus ring ' + ring);
+        await focusTop(page, tag, 'focus-top-' + tag);
 
         if (width === 1280) {
           await page.evaluate(() => window.scrollTo({top: 0, behavior: 'instant'}));
@@ -112,12 +151,21 @@ async function open(page, url, label, problems) {
           await page.screenshot({path: path.join(dir, 'catalog-page3-' + tag + '.png'), fullPage: true, animations: 'disabled'});
           await open(page, '/katalog?q=Synthetic&brand_id=1&stock=available&sort=price_asc', 'filtered ' + tag, problems);
           await page.screenshot({path: path.join(dir, 'catalog-filtered-' + tag + '.png'), fullPage: true, animations: 'disabled'});
-          await open(page, '/katalog?q=nepostojeci-artikal', 'empty ' + tag, problems);
+          const empty = await open(page, '/katalog?q=nepostojeci-artikal', 'empty ' + tag, problems);
+          check(empty.sh === Math.max(empty.ih, empty.footerEnd), 'empty ' + tag + ' page ends at the footer ' + JSON.stringify(empty));
+          console.log('PAGE_END empty ' + tag + ' ' + JSON.stringify(empty));
           await page.screenshot({path: path.join(dir, 'catalog-empty-' + tag + '.png'), fullPage: true, animations: 'disabled'});
           await open(page, '/katalog/visual-product-45', 'detail ' + tag, problems);
           await page.screenshot({path: path.join(dir, 'detail-' + tag + '.png'), fullPage: true, animations: 'disabled'});
-          await open(page, '/korpa', 'cart ' + tag, problems);
+          const cart = await open(page, '/korpa', 'cart ' + tag, problems);
+          // The empty cart fits one 900px screen: no scroll, no button.
+          check(cart.sh === cart.ih && cart.visible === 0, 'cart ' + tag + ' no scroll and no back-to-top ' + JSON.stringify(cart));
+          console.log('PAGE_END cart ' + tag + ' ' + JSON.stringify(cart));
           await page.screenshot({path: path.join(dir, 'cart-' + tag + '.png'), fullPage: true, animations: 'disabled'});
+          await focusTop(page, 'cart ' + tag, 'focus-top-short-' + tag);
+          const focusedEnd = await page.evaluate(() => document.documentElement.scrollHeight);
+          check(focusedEnd === cart.ih, 'cart ' + tag + ' focusing back-to-top adds no scroll ' + focusedEnd);
+          await page.keyboard.press('Tab');
           await open(page, '/pravne-informacije', 'legal ' + tag, problems);
           await page.screenshot({path: path.join(dir, 'legal-' + tag + '.png'), fullPage: true, animations: 'disabled'});
         }
@@ -151,6 +199,39 @@ async function open(page, url, label, problems) {
         }
         await context.close();
       }
+    }
+    // WebKit (Safari engine): the back-to-top clip box, ring and shadow
+    // without overflow-clip-margin, on a long page and on the short cart.
+    await pause(61000);
+    const wk = await webkit.launch({headless: true});
+    try {
+      for (const scheme of schemes) {
+        const context = await wk.newContext({viewport: {width: 1280, height: 900}, colorScheme: scheme, deviceScaleFactor: 1});
+        const page = await context.newPage();
+        const problems = [];
+        page.on('response', res => {
+          if (/\/favicon\.ico$/.test(res.url())) return;
+          if (res.status() >= 400 && res.url().startsWith(base)) problems.push('HTTP ' + res.status() + ' ' + res.url());
+        });
+        const tag = 'webkit-' + scheme + '-1280';
+        await open(page, '/katalog', 'catalog ' + tag, problems);
+        await page.evaluate(() => window.scrollTo({top: window.innerHeight * 2.6, behavior: 'instant'}));
+        await pause(300);
+        const top = await page.locator('.shop-back-to-top').boundingBox();
+        check(top && top.y > 0 && top.y + top.height <= 900, tag + ' back-to-top visible after scrolling ' + JSON.stringify(top));
+        await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-scrolled.png'), animations: 'disabled'});
+        await focusTop(page, tag, 'focus-top-' + tag);
+        const cart = await open(page, '/korpa', 'cart ' + tag, problems);
+        check(cart.sh === cart.ih && cart.visible === 0, 'cart ' + tag + ' no scroll and no back-to-top ' + JSON.stringify(cart));
+        console.log('PAGE_END cart ' + tag + ' ' + JSON.stringify(cart));
+        await page.screenshot({path: path.join(dir, 'cart-' + tag + '.png'), fullPage: true, animations: 'disabled'});
+        await focusTop(page, 'cart ' + tag, 'focus-top-short-' + tag);
+        summary.push(tag);
+        await context.close();
+        await pause(2000);
+      }
+    } finally {
+      await wk.close();
     }
     if (failures.length) throw new Error(failures.length + ' defects: ' + failures.join(' | '));
     console.log('CATALOG_VISUAL_QA=PASS ' + summary.join(','));

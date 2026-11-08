@@ -98,10 +98,16 @@ final class PublicCatalogPresentation
             $canonical = $base.$catalogPath.($active === [] && $current > 1 ? '?page='.$current : '');
         }
 
+        $schema = $base === null ? null
+            : self::schema($page, $base, $catalogPath, $canonical, $title, $description, $categoryName ?? $brandName, $active !== []);
+
         return [
             'title' => $title,
             'description' => $description,
             'canonical' => $canonical,
+            // Free-text search results are thin, unbounded URL variants:
+            // keep them out of the index but let crawlers follow the links.
+            'robots' => isset($active['q']) ? 'noindex,follow' : null,
             'prev' => $page->previousPageUrl(),
             'next' => $page->nextPageUrl(),
             'chips' => $chips,
@@ -110,7 +116,8 @@ final class PublicCatalogPresentation
             'catalog_total' => $catalogTotal,
             'brand_count' => self::countOf($lists['brands']),
             'category_count' => self::countOf($lists['categories']),
-            'schema' => $base === null ? null : self::schema($page, $base, $catalogPath, $canonical, $title, $description, $categoryName ?? $brandName),
+            'schema' => $schema,
+            'schema_json' => $schema === null ? null : self::jsonLd($schema),
         ];
     }
 
@@ -125,23 +132,41 @@ final class PublicCatalogPresentation
         return $name.' – '.$brand;
     }
 
-    /** JSON for a non-executable application/ld+json data block. */
-    public static function jsonLd(array $schema): string
+    /**
+     * JSON for a non-executable application/ld+json data block. Invalid
+     * UTF-8 in catalog text is replaced with U+FFFD; any other encoding
+     * failure returns null so the page renders without structured data.
+     */
+    public static function jsonLd(array $schema): ?string
     {
-        return (string) json_encode($schema,
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
+        try {
+            return json_encode($schema,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
+                | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return null;
+        }
     }
 
+    /**
+     * The configured public origin: https, a host, an optional port and
+     * nothing else. Any other APP_URL yields null and absolute URLs are omitted.
+     */
     public static function baseUrl(): ?string
     {
         $url = trim((string) config('app.url'));
         $parts = parse_url($url);
-        if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], true) || ($parts['host'] ?? '') === ''
-            || isset($parts['query']) || isset($parts['fragment']) || isset($parts['user'])) {
+        if (!is_array($parts) || strtolower($parts['scheme'] ?? '') !== 'https') {
+            return null;
+        }
+        $host = strtolower($parts['host'] ?? '');
+        if ($host === '' || !preg_match('~^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$~', $host)
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+            || !in_array($parts['path'] ?? '', ['', '/'], true) || str_contains($url, '?') || str_contains($url, '#')) {
             return null;
         }
 
-        return rtrim($url, '/');
+        return 'https://'.$host.(isset($parts['port']) ? ':'.(int) $parts['port'] : '');
     }
 
     /** @param array<string,mixed> $filters @return array<string,string|int> */
@@ -190,7 +215,7 @@ final class PublicCatalogPresentation
     }
 
     /** @return array<string,mixed> */
-    private static function schema(LengthAwarePaginator $page, string $base, string $catalogPath, ?string $canonical, string $title, string $description, ?string $crumb): array
+    private static function schema(LengthAwarePaginator $page, string $base, string $catalogPath, ?string $canonical, string $title, string $description, ?string $crumb, bool $filtered): array
     {
         $catalogUrl = $base.$catalogPath;
         $pageUrl = $canonical ?? $catalogUrl;
@@ -204,43 +229,40 @@ final class PublicCatalogPresentation
                 'name' => (string) $item['name'],
             ];
         }
-        $breadcrumbs = [[
-            '@type' => 'ListItem',
-            'position' => 1,
-            'name' => 'Katalog',
-            'item' => $catalogUrl,
-        ]];
-        if ($crumb !== null) {
-            // The last crumb may omit "item"; this keeps filter query URLs out.
-            $breadcrumbs[] = ['@type' => 'ListItem', 'position' => 2, 'name' => $crumb];
-        }
-
-        return [
+        // Nodes are nested, so no cross-reference ids are needed. Only the
+        // unfiltered catalog (its own canonical URL) carries @id and url;
+        // filtered variants share the plain canonical and must not claim it.
+        $collection = [
             '@context' => 'https://schema.org',
-            '@graph' => [
-                [
-                    '@type' => 'CollectionPage',
-                    '@id' => $pageUrl.'#stranica',
-                    'url' => $pageUrl,
-                    'name' => $title,
-                    'description' => $description,
-                    'inLanguage' => 'sr',
-                    'isPartOf' => ['@type' => 'WebSite', 'name' => self::SITE_NAME, 'url' => $base.'/'],
-                    'breadcrumb' => ['@id' => $pageUrl.'#putanja'],
-                    'mainEntity' => ['@id' => $pageUrl.'#artikli'],
-                ],
-                [
-                    '@type' => 'BreadcrumbList',
-                    '@id' => $pageUrl.'#putanja',
-                    'itemListElement' => $breadcrumbs,
-                ],
-                [
-                    '@type' => 'ItemList',
-                    '@id' => $pageUrl.'#artikli',
-                    'numberOfItems' => $page->total(),
-                    'itemListElement' => $items,
-                ],
-            ],
+            '@type' => 'CollectionPage',
         ];
+        if (!$filtered) {
+            $collection['@id'] = $pageUrl.'#stranica';
+            $collection['url'] = $pageUrl;
+        }
+        $collection += [
+            'name' => $title,
+            'description' => $description,
+            'inLanguage' => 'sr',
+            'isPartOf' => ['@type' => 'WebSite', 'name' => self::SITE_NAME, 'url' => $base.'/'],
+        ];
+        if ($crumb !== null) {
+            // A trail needs two levels: Katalog > brand or category. The last
+            // crumb omits "item", which keeps filter query URLs out.
+            $collection['breadcrumb'] = [
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => [
+                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Katalog', 'item' => $catalogUrl],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => $crumb],
+                ],
+            ];
+        }
+        $collection['mainEntity'] = [
+            '@type' => 'ItemList',
+            'numberOfItems' => $page->total(),
+            'itemListElement' => $items,
+        ];
+
+        return $collection;
     }
 }

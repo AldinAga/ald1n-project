@@ -384,6 +384,8 @@ a.shop-page:hover{border-color:var(--accent);background:var(--surface-2)}
   .shop-nav nav a.shop-nav-cart{margin-left:2px;padding:8px 12px}
   .shop-nav-cart span{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .shop-cart-item{grid-template-columns:1fr}
+  /* One column: brand, category and sort selects show their full labels. */
+  .shop-filters{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:520px){.legal-facts div,.legal-form .legal-line{grid-template-columns:1fr;gap:2px}}
 
@@ -394,34 +396,36 @@ a.shop-page:hover{border-color:var(--accent);background:var(--surface-2)}
   .shop-image img{transition:transform .6s var(--ease)}
   .shop-button,button,.shop-details-link,.shop-chip,.shop-page,.shop-nav nav a,.shop-filters input,.shop-filters select{transition:background-color .18s ease,border-color .18s ease,color .18s ease,filter .18s ease,transform .18s ease}
   .shop-toggle-track,.shop-toggle-track::after{transition:transform .22s var(--ease),background-color .22s ease}
-  .shop-hero-catalog>*{animation:shop-rise .7s var(--ease) both}
-  .shop-hero-catalog>:nth-child(2){animation-delay:.06s}
-  .shop-hero-catalog>:nth-child(3){animation-delay:.12s}
-  .shop-hero-catalog>:nth-child(4){animation-delay:.18s}
-  .shop-filter-panel{animation:shop-rise .7s var(--ease) .2s both}
-  .shop-product-cell{animation:shop-rise .55s var(--ease) both}
-  .shop-product-cell:nth-child(2){animation-delay:.04s}
-  .shop-product-cell:nth-child(3){animation-delay:.08s}
-  .shop-product-cell:nth-child(4){animation-delay:.12s}
-  .shop-product-cell:nth-child(5){animation-delay:.16s}
-  .shop-product-cell:nth-child(6){animation-delay:.2s}
-  .shop-product-cell:nth-child(7){animation-delay:.24s}
-  .shop-product-cell:nth-child(n+8){animation-delay:.28s}
+  /* Above the fold (hero, filters, first row) moves with transform only and
+     is painted at full opacity from the first frame, so LCP is not delayed.
+     Cards further down may also fade in. */
+  .shop-hero-catalog>*,.shop-filter-panel,.shop-product-cell:nth-child(-n+4){animation:shop-lift .6s var(--ease) both}
+  .shop-hero-catalog>:nth-child(2),.shop-product-cell:nth-child(2){animation-delay:.04s}
+  .shop-hero-catalog>:nth-child(3),.shop-product-cell:nth-child(3){animation-delay:.08s}
+  .shop-hero-catalog>:nth-child(4),.shop-filter-panel,.shop-product-cell:nth-child(4){animation-delay:.12s}
+  .shop-product-cell:nth-child(n+5){animation:shop-rise .55s var(--ease) .16s both}
 }
 @media (prefers-reduced-motion:no-preference) and (hover:hover){
   .shop-product:hover,.shop-product:focus-within{transform:translateY(-4px);box-shadow:var(--shadow-hover);border-color:var(--border-strong)}
   .shop-product:hover .shop-image img{transform:scale(1.05)}
 }
 @media (hover:hover){.shop-product:focus-within{border-color:var(--accent)}}
+@keyframes shop-lift{from{transform:translateY(8px)}to{transform:none}}
 @keyframes shop-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
 /* ---------- Back to top (CSS only) ----------
    The rail starts one screen below the top, so the sticky button only enters
-   the viewport after the first screen has been scrolled. */
-.shop-top-rail{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:0;width:48px;height:max(0px,calc(100% - 200vh + 72px));overflow:clip;overflow-clip-margin:28px;pointer-events:none;z-index:40}
-.shop-back-to-top{position:sticky;top:calc(100vh - 64px - env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:1px solid var(--top-border);background:var(--top-bg);color:#ffffff;font-size:22px;font-weight:700;line-height:1;text-decoration:none;box-shadow:0 10px 24px rgba(0,0,0,.35);pointer-events:auto}
+   the viewport after the first screen has been scrolled. On pages shorter
+   than that the rail has no height and clips the button completely.
+   The rail is 16px wider on each side and the button sits 16px above the
+   page end, so the focus ring (6px) and the shadow (16px) fit inside the
+   clip box without overflow-clip-margin, which WebKit does not support. */
+.shop-top-rail{position:absolute;right:max(0px,calc(env(safe-area-inset-right,0px) - 16px));bottom:0;box-sizing:border-box;width:80px;padding-inline:16px;height:max(0px,calc(100% - 200vh + 72px));overflow:clip;pointer-events:none;z-index:40}
+.shop-back-to-top{position:sticky;top:calc(100vh - 64px - env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:1px solid var(--top-border);background:var(--top-bg);color:#ffffff;font-size:22px;font-weight:700;line-height:1;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:auto}
 .shop-back-to-top:hover{background:var(--top-bg-hover)}
-.shop-back-to-top:focus-visible{outline:3px solid var(--top-ring);outline-offset:3px;box-shadow:0 0 0 3px var(--bg),0 10px 24px rgba(0,0,0,.35)}
+/* Keyboard focus always shows the link, also on short pages where the rail
+   hides it: fixed positioning escapes the rail's clip box. */
+.shop-back-to-top:focus-visible{position:fixed;top:auto;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));outline:3px solid var(--top-ring);outline-offset:3px;box-shadow:0 0 0 3px var(--bg),0 4px 12px rgba(0,0,0,.35)}
 
 /* ---------- Forced colors and print ---------- */
 @media (forced-colors:active){

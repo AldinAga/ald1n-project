@@ -22,7 +22,7 @@ concurrency:
 jobs:
   screenshots:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     services:
       mariadb:
         image: mariadb:10.11.19
@@ -103,7 +103,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$PLAYWRIGHT_NODE_ROOT"
           npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1 axe-core@4.10.3
-          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium webkit
       - name: Render synthetic catalog in dark and light at 375/768/1280
         working-directory: apps/cms/current
         run: |
