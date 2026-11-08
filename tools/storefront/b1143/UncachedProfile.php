@@ -28,6 +28,7 @@ final class UncachedProfile
     }
     public static function plan(string $active,string $candidate,string $private,string $expected,string $id):array
     {
+        if(realpath($private)!==$private||is_link($private)||!is_dir($private)||(fileperms($private)&0777)!==0700||fileowner($private)!==posix_geteuid())throw new RuntimeException('UNCACHED_PRIVATE_SCOPE');foreach([$active,$candidate] as $base){$ds=@lstat($base.'/public');if(!is_array($ds)||!is_dir($base.'/public')||is_link($base.'/public')||realpath($base.'/public')!==$base.'/public'||$ds['uid']!==posix_geteuid())throw new RuntimeException('UNCACHED_DIRECTORY_DRIFT');}
         $entries=[];foreach(['old'=>$active,'candidate'=>$candidate] as $label=>$base){$path=$base.'/public/.htaccess';$s=self::checked($path);$bytes=file_get_contents($path);if(strlen($bytes)+strlen(self::BLOCK)>65536||hash('sha256',$bytes)!==$expected||str_contains($bytes,'ALD1N B1143'))throw new RuntimeException('UNCACHED_CONFIG_ADMISSION');$archive=$private.'/original-'.$label.'.htaccess';self::create($archive,$bytes,0600);$ds=stat($base.'/public');$entries[$label]=['archive'=>$archive,'originalSHA256'=>$expected,'overlaySHA256'=>hash('sha256',$bytes.self::BLOCK),'mode'=>$s['mode']&0777,'publicIdentity'=>['dev'=>$ds['dev'],'ino'=>$ds['ino']]];}
         return ['mode'=>'UNCACHED_CMS','id'=>$id,'entries'=>$entries,'profileSHA256'=>hash('sha256',json_encode([$id,$entries],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES))];
     }

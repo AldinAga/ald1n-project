@@ -67,7 +67,7 @@ final class InstallCoordinator
     {
         if($this->git(['rev-parse','origin/main:apps/cms/current'])!==self::CMS_TREE)throw new RuntimeException('FRESH_MAIN_CMS_DRIFT');
         $this->state=B1143Recovery::prepare($this->root,$this->home,$this->manifest,$this->gitSnapshot());
-        $topology=$this->command(['/usr/local/cpanel/bin/uapi','--output=json','DomainInfo','domains_data','format=list','hide_temporary_domains=0'],null,15);if($topology['rc']!==0||strlen($topology['stdout'])>1048576)throw new RuntimeException('CMS_DOCROOT_SCOPE_UNAVAILABLE');$this->emit('CMS_DIRECTORY_SCOPE',UncachedProfile::topology(json_decode($topology['stdout'],true,64,JSON_THROW_ON_ERROR),$this->active().'/public'));$this->state['uncached']=UncachedProfile::plan($this->active(),$this->state['plan']['candidate'],$this->state['private'],$this->state['preserved']['customHtaccessSHA256'],$this->state['id']);$this->save('PREPARED');$this->mapping();$new=ReleasePrimitives::ownMaintenance($this->state['plan']['candidate'].'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());
+        $topology=$this->command(['/usr/local/cpanel/bin/uapi','--user=icaffeco','--output=json','DomainInfo','domains_data','format=list','hide_temporary_domains=0'],null,15);if($topology['rc']!==0||strlen($topology['stdout'])>1048576)throw new RuntimeException('CMS_DOCROOT_SCOPE_UNAVAILABLE');$this->emit('CMS_DIRECTORY_SCOPE',UncachedProfile::topology(json_decode($topology['stdout'],true,64,JSON_THROW_ON_ERROR),$this->active().'/public'));$this->state['uncached']=UncachedProfile::plan($this->active(),$this->state['plan']['candidate'],$this->state['private'],$this->state['preserved']['customHtaccessSHA256'],$this->state['id']);$this->save('PREPARED');$this->mapping();$new=ReleasePrimitives::ownMaintenance($this->state['plan']['candidate'].'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());
         $old=$new;$old['storage']=$this->active().'/storage';$identity=$this->identity($old['storage']);$old['storageDevice']=$identity['dev'];$old['storageInode']=$identity['ino'];$old['files']=[];foreach($new['files'] as $path=>$digest)$old['files'][$this->active().'/storage/framework/'.basename($path)]=$digest;
         $this->state['newMaintenance']=$new;$this->state['oldMaintenance']=$old;$this->save('CANDIDATE_READY');$this->emit('B1143_PREDECESSOR_RECOVERY',$this->state['predecessor']);$this->emit('EXISTING_COMPLETE_CANDIDATE_REUSED_NO_VENDOR_RECOPY',true);$this->emit('HOST_GIT',$this->state['git']);
     }
@@ -86,7 +86,7 @@ final class InstallCoordinator
         if(file_exists($keyPath)){if(is_link($keyPath)||realpath($keyPath)!==$keyPath||(fileperms($keyPath)&0777)!==0600||file_get_contents($keyPath)!==$key)throw new RuntimeException('WEB_KEY_COLLISION');}
         else{$handle=fopen($keyPath,'x');if($handle===false)throw new RuntimeException('WEB_KEY_CREATE');chmod($keyPath,0600);if(fwrite($handle,$key)!==64)throw new RuntimeException('WEB_KEY_WRITE');fflush($handle);fclose($handle);}
         $indexSHA=null;foreach($this->manifest['files'] as $file)if($file['path']==='public/index.php')$indexSHA=$file['sha256'];
-        $config=['schemaVersion'=>1,'id'=>$this->state['id'],'phase'=>$phase,'expires'=>time()+1500,'tokenSHA256'=>hash('sha256',$this->state['web']['token']),'smokeTokenSHA256'=>hash('sha256',hash_hmac('sha256','private-http-smoke',$this->state['owner'])),'ownerStamp'=>hash('sha256',$this->state['owner']),'incoming'=>$incoming,'activeRoot'=>$this->active(),'rpcPath'=>'/__ald1n_release_'.$this->state['id'],'indexSHA256'=>$indexSHA,'librarySHA256'=>$digest,'executionProfile'=>'UNCACHED_CMS','samePathFreshnessProven'=>($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true,'profileSHA256'=>$this->state['uncached']['profileSHA256']??str_repeat('0',64),'overlaySHA256'=>$this->state['uncached']['entries']['old']['overlaySHA256']??str_repeat('0',64),'allowedSapis'=>['litespeed'],'files'=>[]];
+        $config=['schemaVersion'=>1,'id'=>$this->state['id'],'phase'=>$phase,'expires'=>time()+1500,'tokenSHA256'=>hash('sha256',$this->state['web']['token']),'smokeTokenSHA256'=>hash('sha256',hash_hmac('sha256','private-http-smoke',$this->state['owner'])),'ownerStamp'=>hash('sha256',$this->state['owner']),'incoming'=>$incoming,'activeRoot'=>$this->active(),'rpcPath'=>'/__ald1n_release_'.$this->state['id'],'indexSHA256'=>$indexSHA,'librarySHA256'=>$digest,'executionProfile'=>'UNCACHED_CMS','samePathFreshnessProven'=>$this->freshnessProven(),'profileSHA256'=>$this->state['uncached']['profileSHA256']??str_repeat('0',64),'overlaySHA256'=>$this->state['uncached']['entries']['old']['overlaySHA256']??str_repeat('0',64),'allowedSapis'=>['litespeed'],'files'=>[]];
         $this->web=new HostWebControl('https://cms.ald1n.com',$this->state['private'],$config,$key,$this->state['web']['token'],hash_hmac('sha256','private-http-smoke',$this->state['owner']));
         if(isset($this->state['visibility']))$this->web->setGroup($this->state['visibility']);$this->web->setPhase($phase);
     }
@@ -161,6 +161,10 @@ final class InstallCoordinator
     }
 
     /** Code is already original before the original PHP profile can be restored. */
+    private function freshnessProven():bool
+    {
+        $proof=$this->state['uncachedFreshness']??[];return ($proof['samePathFreshnessProven']??false)===true&&($proof['id']??null)===($this->state['id']??null)&&($proof['profileSHA256']??null)===($this->state['uncached']['profileSHA256']??null);
+    }
     private function finishOriginalProfile(bool $switched):int
     {
         $plan=$this->state['plan'];$active=$this->active();if($this->identity($active)!==$plan['oldIdentity'])throw new RuntimeException('ORIGINAL_CODE_REQUIRED_BEFORE_CONFIG_RESTORE');
@@ -173,9 +177,14 @@ final class InstallCoordinator
             if(($this->state['schedulerPauseAttempted']??false)||$this->state['scheduler']!==null)$this->scheduler('release');$this->assertGit();$this->save($switched?'ROLLED_BACK':'ROLLED_BACK_PRE_SWITCH');
             $this->emit($switched?'ROLLBACK':'ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',$switched?'ORIGINAL_CODE_PRIVATE_DATA_AND_PROFILE_RESTORED_HTTP_VERIFIED':true);return 2;
         }catch(Throwable $error){
-            if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true){UncachedProfile::apply($this->state['uncached'],'old',$active);$this->mapping('preflight');if(is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());$this->save('UNCACHED_OLD_PROFILE_REAPPLIED_HOLD');}
-            if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)!==true)$this->save('ORIGINAL_PROFILE_AVAILABILITY_HOLD');throw $error;
+            if($this->freshnessProven()){UncachedProfile::apply($this->state['uncached'],'old',$active);$this->mapping('preflight');if(is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());$this->save('UNCACHED_OLD_PROFILE_REAPPLIED_HOLD');}
+            if(!$this->freshnessProven())$this->save('ORIGINAL_PROFILE_AVAILABILITY_HOLD');throw $error;
         }
+    }
+
+    private function verifyRestoredUncached():void
+    {
+        $active=$this->active();UncachedProfile::assertApplied($this->state['uncached'],'old',$active);unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->web->setPhase('rollback',InstallFileOps::phpCensus($active));$this->web->verifyFiles();$this->web->request('probe');$this->web->publicStatus('/login',200,null,true);HostProcessGuard::quiet($active,$this->state['visibility']);
     }
 
     private function recover(string $reason):int
@@ -184,10 +193,10 @@ final class InstallCoordinator
         try{
             $plan=$this->state['plan'];$active=$this->active();$current=is_dir($active)?$this->identity($active):null;
             if($current===$plan['oldIdentity']&&!is_dir($plan['rollback'])){
-                $switched=is_dir($plan['failed']);if(isset($this->state['originalProfileRestore'])){
-                    if(($this->state['originalProfileRestore']['switched']??null)!==$switched)throw new RuntimeException('RESTORE_PHASE_TOPOLOGY_MISMATCH');
-                    if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true){UncachedProfile::apply($this->state['uncached'],'old',$active);$this->mapping('preflight');if(is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());
-                        if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true){unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);}}
+                $switched=is_dir($plan['failed']);if(isset($this->state['originalProfileRestore'])&&($this->state['originalProfileRestore']['switched']??null)!==$switched)throw new RuntimeException('RESTORE_PHASE_TOPOLOGY_MISMATCH');
+                if($switched||isset($this->state['originalProfileRestore'])){
+                    if($this->freshnessProven()){UncachedProfile::apply($this->state['uncached'],'old',$active);unset($this->state['visibility']);$this->mapping('preflight');if(is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());$this->verifyRestoredUncached();}
+                    elseif($switched)throw new RuntimeException('RESTORED_CODE_UNCACHED_PROOF_REQUIRED');
                 }
                 return $this->finishOriginalProfile($switched);
             }
@@ -196,7 +205,7 @@ final class InstallCoordinator
                 UncachedProfile::assertApplied($this->state['uncached'],'candidate',$active);unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->scheduler('verify');$this->web->setPhase('installed',InstallFileOps::phpCensus($active));$this->web->verifyFiles();
             }
             ReleasePrimitives::recoverSwitch($plan,$this->state['journal'],$this->state['owner'],$plan['failed']);$this->save('OLD_RESTORED_MAINTENANCE_HELD');
-            UncachedProfile::assertApplied($this->state['uncached'],'old',$active);unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->web->setPhase('rollback',InstallFileOps::phpCensus($active));$this->web->verifyFiles();$this->web->request('probe');$this->web->publicStatus('/login',200,null,true);HostProcessGuard::quiet($active,$this->state['visibility']);return $this->finishOriginalProfile(is_dir($plan['failed']));
+            $this->verifyRestoredUncached();return $this->finishOriginalProfile(is_dir($plan['failed']));
         }catch(Throwable $error){if(($this->state['phase']??'')!=='ORIGINAL_PROFILE_AVAILABILITY_HOLD')$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');$this->emit('RECOVERY_HOLD',$error->getMessage());return 2;}
     }
 }
