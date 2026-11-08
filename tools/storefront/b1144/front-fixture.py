@@ -114,6 +114,8 @@ try:
         r=status(path,expected,attempts=2);smokes[path]=r['pass'];assert r['pass'],(path,r)
     scan=bridge('logs-scan',logs=str(current/'storage/logs'),baseline=baseline);assert scan['newErrorLines']==0,(scan,(retained/'storage/logs/laravel.log').read_text()[-3000:] if (retained/'storage/logs/laravel.log').exists() else '')
     (current/'storage/app/public/after-lift').write_text('new-user-bytes')
+    # Live traffic on the new code puts the NEW marker in OPcache; a rollback to the same path must then be proven fresh again.
+    assert raw('/b1144-marker.php')[1]=='NEW-B1144-MARKER'
     # Post-lift failure path: barrier back on both trees, swap back, restored-tree freshness, lift, /login 200.
     new_again=bridge('own',base=str(current),owner=owner,expires=expires,started=started);old_again=bridge('own',base=str(retained),owner=owner,expires=expires,started=started);assert len(new_again['files'])==2 and len(old_again['files'])==2
     assert status('/login',503,old_m['ownerSHA256'])['pass']
