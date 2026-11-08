@@ -184,6 +184,41 @@ jobs:
           set -e
           test "$rc" = 2 && grep -q 'HOLD: operator script integrity' <<<"$out"
           printf '{"canonicalHold":true,"unknownArguments":"HOLD","entryWiring":"B1146_PHASE=HOLD_PREFLIGHT_BLOCKED_NO_MUTATION","rollbackWithoutInstall":"HOLD","pinnedHelperDrift":"HOLD","payloadTamper":"HOLD","wrapperTamper":"HOLD"}\n' | tee "$RUNNER_TEMP/sandbox.json"
+      - name: The exact owner commands end to end in the sandbox - report reservation after 1108, detached worker, mode export, EXIT relay
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          sudo -u icaffeco unzip -o -q /tmp/b1146-operator.zip -d /home/icaffeco/ald1n-project
+          mkdir -p /tmp/b1146-shims
+          command -v git > /tmp/b1146-shims/real-git
+          printf '%s\n' '#!/bin/bash' 'if test "${3-}" = fetch; then printf "SANDBOX_GIT_FETCH_STUBBED=%s\n" "$*"; exit 0; fi' 'exec "$(cat /tmp/b1146-shims/real-git)" "$@"' > /tmp/b1146-shims/git
+          chmod 755 /tmp/b1146-shims /tmp/b1146-shims/git
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1146-shims:$PATH" "$@"; }
+          as mkdir -p /home/icaffeco/.ald1n-stage
+          as git -C /home/icaffeco/ald1n-project remote add origin https://github.com/AldinAga/ald1n-project
+          as bash -c 'printf "sandbox predecessor\n" > /home/icaffeco/ald1n-project/docs/operations/1108-SANDBOX-PREDECESSOR.md'
+          ops=/home/icaffeco/ald1n-project/docs/operations
+          for mode in install rollback; do
+            arg=(); label=LEGAL-OVERLAY; final_rx='^B1146_PHASE="HOLD_PREFLIGHT_BLOCKED"$'
+            if test "$mode" = rollback; then arg=(--rollback); label=LEGAL-OVERLAY-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+            set +e
+            out="$(timeout 600 sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1146-shims:$PATH" bash /home/icaffeco/ald1n-project/incoming/b1146-legal-overlay.sh "${arg[@]}" 2>&1)"; rc=$?
+            set -e
+            printf '%s\n' "$out" | tail -n 30
+            report="$(sudo ls "$ops" | grep -E "^1109-B1146-${label}-[0-9]{8}-[0-9]{6}\.md$")"
+            test "$rc" = 2
+            body="$(sudo cat "$ops/$report")"
+            grep -qx "OPERATOR_MODE=$mode" <<<"$body"
+            grep -qx "B1146_MODE=$mode" <<<"$body"
+            grep -qE "$final_rx" <<<"$body"
+            test "$(grep -c '^EXIT=' <<<"$body")" = 1 && test "$(tail -n 2 <<<"$body" | head -n 1)" = 'EXIT=2'
+            grep -q '^SANDBOX_GIT_FETCH_STUBBED=' <<<"$body"
+            grep -q "^REPORT=$ops/$report$" <<<"$out"
+            if sudo grep -q $'\033' "$ops/$report"; then echo 'escape byte in the report'; exit 2; fi
+            test ! -e /home/icaffeco/.ald1n-stage/report-sequence.lock
+            sudo rm -f "$ops/$report"
+          done
+          printf '{"ownerCommandInstall":"REPORT_1109_WORKER_HOLD_EXIT_2","ownerCommandRollback":"REPORT_1109_ROLLBACK_WORKER_HOLD_EXIT_2","modeExported":true,"lockReleased":true}\n' | tee "$RUNNER_TEMP/owner-commands.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -194,6 +229,7 @@ jobs:
             ${{ runner.temp }}/package.json
             ${{ runner.temp }}/members.txt
             ${{ runner.temp }}/sandbox.json
+            ${{ runner.temp }}/owner-commands.json
             ${{ runner.temp }}/b1146/server.log
           retention-days: 14
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

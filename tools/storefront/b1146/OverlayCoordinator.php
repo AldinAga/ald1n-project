@@ -416,8 +416,9 @@ final class OverlayCoordinator
 
     private function approvalNotice(?array $before,?array $after):void
     {
-        $this->emit('MERCHANT_APPROVAL',['before'=>$before,'after'=>$after,'resetByThisInstall'=>($before['approvalDigestMatchesFingerprint']??false)===true&&($after['approvalDigestMatchesFingerprint']??true)===false]);
-        echo 'OWNER_NOTICE_MERCHANT_APPROVAL=THE_MERCHANT_APPROVAL_IS_RESET_THE_LEGAL_TEXTS_ARE_NOW_PART_OF_WHAT_THE_OWNER_SIGNS_REVIEW_THE_TERMS_AT_/admin/settings/public-storefront_AND_CONFIRM_THE_APPROVAL_AGAIN_BEFORE_THE_STOREFRONT_CAN_BE_TURNED_ON'.PHP_EOL;
+        $reset=($before['approvalDigestMatchesFingerprint']??false)===true&&($after['approvalDigestMatchesFingerprint']??true)===false;
+        $this->emit('MERCHANT_APPROVAL',['before'=>$before,'after'=>$after,'resetByThisInstall'=>$reset]);
+        echo 'OWNER_NOTICE_MERCHANT_APPROVAL='.($reset?'THE_MERCHANT_APPROVAL_IS_RESET':'THE_MERCHANT_APPROVAL_WAS_NOT_VALID_BEFORE_THIS_INSTALL').'_THE_LEGAL_TEXTS_ARE_NOW_PART_OF_WHAT_THE_OWNER_SIGNS_REVIEW_THE_TERMS_AT_/admin/settings/public-storefront_AND_CONFIRM_THE_APPROVAL_AGAIN_BEFORE_THE_STOREFRONT_CAN_BE_TURNED_ON'.PHP_EOL;
     }
 
     private function accept():void
