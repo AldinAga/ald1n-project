@@ -120,13 +120,24 @@ $probe=lastLine($out,'WEB_CONFIG_PROBE');check($probe['label']==='unclamped'&&$p
 $out=$expect('SUCCESS_RERUN',$run(),0,'CLOSED_UNCLAMPED');check(str_contains($out,'ALREADY_UNCLAMPED_NO_REPEAT=true')&&$count('SELECT COUNT(*) FROM backup_runs')===1&&$count('SELECT COUNT(*) FROM migrations')===71,'RERUN_NO_REPEAT');
 $results['success']=['phase'=>'CLOSED_UNCLAMPED','rerun'=>'ALREADY_UNCLAMPED_NO_REPEAT','pretend'=>lastLine($out,'B1145_RESULT')];
 
-// 2. Backup failure and verify failure: HOLD, nothing else changed, persistent across runs, then converge.
-foreach(['BACKUP_FAIL'=>$dumpFail,'VERIFY_FAIL'=>$dumpTiny] as $case=>$marker){
-    $reset();touch($marker);
-    foreach([1,2] as $n){$out=$expect($case.'_'.$n,$run(),2,'HOLD_BACKUP_FAILED');$clamped($case);check($count('SELECT COUNT(*) FROM migrations')===68,$case.'_MIGRATED');}
-    check(str_contains($out,$case==='BACKUP_FAIL'?'HOLD_CODE_DETAIL="BACKUP_CREATE_FAILED"':'HOLD_CODE_DETAIL="BACKUP_VERIFY_FAILED"'),$case.'_CODE');
-    unlink($marker);$expect($case.'_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped($case);$results[strtolower($case)]='HOLD_TWICE_THEN_CONVERGED';
-}
+// 2. Backup failures. Every one is a HOLD with nothing else changed. The app's own retention (exactly 2 restore-ready
+// completed backups, verified inside app:backup-create) shapes which HOLD code a failed verification produces.
+$completed=static fn():int=>$count("SELECT COUNT(*) FROM backup_runs WHERE status='completed'");
+$held=static function(string $case,array $r,string $code)use($expect,$clamped,$count):void{$out=$expect($case,$r,2,'HOLD_BACKUP_FAILED');$clamped($case);check($count('SELECT COUNT(*) FROM migrations')===68,$case.'_MIGRATED');check(str_contains($out,'HOLD_CODE_DETAIL="'.$code.'"'),$case.'_CODE_'.$code);};
+// 2a. The dump itself fails: BACKUP_CREATE_FAILED on every run, then converge.
+$reset();touch($dumpFail);foreach([1,2] as $n)$held('BACKUP_FAIL_'.$n,$run(),'BACKUP_CREATE_FAILED');check($completed()===0,'BACKUP_FAIL_NO_COMPLETED');
+unlink($dumpFail);$expect('BACKUP_FAIL_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('BACKUP_FAIL');$results['backupFail']='HOLD_TWICE_THEN_CONVERGED';
+// 2b. No earlier backups and the new dump is unverifiable: VERIFY_FAILED. That backup stays "completed", so the next
+// create is refused by the app's retention guard (two restore-ready backups not found): BACKUP_CREATE_FAILED.
+$reset();touch($dumpTiny);$held('VERIFY_FAIL_EMPTY_1',$run(),'BACKUP_VERIFY_FAILED');check($completed()===1,'VERIFY_FAIL_EMPTY_ROW');
+$held('VERIFY_FAIL_EMPTY_2',$run(),'BACKUP_CREATE_FAILED');check($completed()===1,'VERIFY_FAIL_EMPTY_RETENTION_GUARD');unlink($dumpTiny);
+$results['verifyFailNoEarlierBackups']='VERIFY_FAILED_THEN_APP_RETENTION_REFUSES_CREATE';
+// 2c. Production-like: two restore-ready daily backups exist. The app's retention prunes the unverifiable new backup
+// itself, so its run row is gone: BACKUP_RUN_NOT_COMPLETED. Both daily backups survive; then converge.
+$reset();$artisan(['app:backup-create','--type=daily']);$artisan(['app:backup-create','--type=daily']);check($completed()===2,'VERIFY_FAIL_DAILIES');touch($dumpTiny);
+foreach([1,2] as $n){$held('VERIFY_FAIL_PROD_'.$n,$run(),'BACKUP_RUN_NOT_COMPLETED');check($completed()===2&&$count("SELECT COUNT(*) FROM backup_runs WHERE status='completed' AND backup_type='daily'")===2,'VERIFY_FAIL_PROD_DAILIES_KEPT');}
+unlink($dumpTiny);$expect('VERIFY_FAIL_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('VERIFY_FAIL');
+check($completed()===2&&$count("SELECT COUNT(*) FROM backup_runs WHERE status='completed' AND backup_type='manual'")===1,'VERIFY_FAIL_CONVERGE_RETENTION');$results['verifyFailWithDailies']='PRUNED_BY_APP_HOLD_TWICE_THEN_CONVERGED';
 
 // 3. --pretend lists a wrong file set (php shim): HOLD before migrate; then converge.
 $reset();touch($fakePretend);$out=$expect('PRETEND_WRONG_SET',$run(),2,'HOLD_PRETEND_UNEXPECTED');$clamped('PRETEND');check($count('SELECT COUNT(*) FROM migrations')===68&&str_contains($out,'PRETEND_LISTS_UNEXPECTED_MIGRATIONS'),'PRETEND_NOT_MIGRATED');

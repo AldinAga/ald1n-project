@@ -35,7 +35,7 @@ Automatskog rollback-a nema. Klampa ostaje, Storefront je zatvoren, a izveštaj 
 ## Napomene
 
 - `--pretend` na ovoj šemi staje na prvoj migraciji, jer pretend ne vraća redove pa `hasTable('orders')` deluje netačno (kod `PUBLIC_ORDER_ACCESS_REQUIRES_EXISTING_ORDERS`). To je očekivano i CI to proverava na pravoj MariaDB 10.11.19. Pravi filter skupa fajlova je `migrate:status`. Ako Laravel ovu grešku upiše u log, to se desi pre početne tačke za proveru loga i ne računa se.
-- Backup komanda posle uspeha zadržava samo 2 najnovija završena backup-a (postojeća politika aplikacije). Ako vam treba duže čuvanje, skinite backup sa servera.
+- Backup komanda posle uspeha zadržava samo 2 najnovija završena backup-a (postojeća politika aplikacije). Ako vam treba duže čuvanje, skinite backup sa servera. Pre brisanja aplikacija proverava stare backup-e. Ako novi backup ne prođe proveru, aplikacija ga sama obriše dok postoje dva ispravna, a skripta staje sa `BACKUP_RUN_NOT_COMPLETED`. Ako ispravnih nema dovoljno, sledeći backup aplikacija odbija (`BACKUP_CREATE_FAILED`). U oba slučaja ništa drugo nije promenjeno; pogledajte backup-e u admin panelu pre novog pokretanja.
 - B1144 posle ovoga više ne pokrećite: njegovi otisci klampe i `.env` više ne važe.
 - `.env` i retained stablo su trajna zavisnost privatnih podataka. Ne pomerajte ih i ne brišite.
 
