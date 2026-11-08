@@ -81,12 +81,22 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l tests/Browser/seed-catalog-visual.php
           node --check tests/Browser/catalog-visual-browser.cjs
-      - name: Focused catalog redesign PHPUnit (SQLite, in-memory)
+      - name: Focused catalog redesign PHPUnit (disposable MariaDB)
+        id: phpunit
+        continue-on-error: true
         working-directory: apps/cms/current
         env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-        run: php vendor/bin/phpunit tests/Feature/PublicCatalogRedesignTest.php tests/Feature/PublicNoScriptCspB872Test.php tests/Feature/StorefrontHtmlOriginBoundaryB899Test.php tests/Feature/PublicLegalPagesB1146Test.php --colors=never
+          LEGACY_DB_HOST: 127.0.0.1
+          LEGACY_DB_PORT: '3306'
+          LEGACY_DB_DATABASE: disabled
+          LEGACY_DB_USERNAME: disabled_qa_legacy
+          LEGACY_DB_PASSWORD: ''
+          SESSION_DRIVER: array
+        run: |
+          set -euo pipefail
+          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test; do
+            php vendor/bin/phpunit -c phpunit.mysql.xml "tests/Feature/$test.php" --colors=never
+          done
       - name: Install disposable Chromium outside repository
         run: |
           set -euo pipefail
@@ -121,6 +131,9 @@ jobs:
           path: /tmp/catalog-visual-screenshots/*.png
           retention-days: 7
           if-no-files-found: warn
+      - name: Enforce focused PHPUnit result
+        if: always()
+        run: test '${{ steps.phpunit.outcome }}' = success
       - name: Production boundary
         if: always()
         run: echo 'CI_DISPOSABLE_ONLY NO_PRODUCTION_DB_CUSTOMER_MAIL_CHECKOUT_DEPLOY'
