@@ -3,10 +3,13 @@ declare(strict_types=1);
 
 /**
  * B1144 lean controlled OFF install. No migrations, environment edits, PHP profile overlays, cPanel calls or public activation.
- * Order: admission -> filesystem scope -> mtime diagnostic -> owned barrier -> scheduler pause -> narrow drain ->
- * local SHA-256 verification -> journaled switch -> web freshness -> CLI boot -> probe-derived barrier hold -> lift ->
- * smokes and log scan -> commit. Any failure after the switch rolls back automatically, and the rollback swap gets the
- * same probe-derived hold before its lift; the commit point is after the post-lift smokes.
+ * Order: admission -> filesystem scope -> mtime diagnostic -> PRE-BARRIER HOST PROBE of the old live tree (every fixed web
+ * gate, hold bound, drain positive control, daily log gate; collect-all, zero downtime on HOLD) -> owned barrier intent ->
+ * candidate barrier -> scheduler pause -> active barrier -> narrow drain -> local SHA-256 verification -> journaled switch ->
+ * web freshness -> CLI boot -> probe-derived barrier hold -> lift -> smokes and log scan -> commit. Any failure after the
+ * switch rolls back automatically. The rollback directory rename depends only on the journal; the restored tree gets its
+ * own freshness probe and hold, with a bounded fallback (pre-switch values, private /login re-check) that never wedges
+ * the site behind the barrier without a documented exit.
  */
 final class InstallCoordinator
 {
@@ -15,6 +18,8 @@ final class InstallCoordinator
     private const CMS_TREE='da8ac0c953e3c6741b921bb9fa660f80d247c55e';
     public const PENDING=['2026_10_23_020000_create_public_order_accesses','2026_10_23_020100_create_public_checkout_attempts','2026_10_24_030000_add_retail_customer_role'];
     public const SMOKES=[['/login',200],['/up',200],['/katalog',404],['/registracija',404],['/korpa',404]];
+    /** Terminal-for-this-run phases that a recovery HOLD must not overwrite: no owned barrier is retained in them, or it is retained on purpose. */
+    private const KEEP_PHASES=['ORIGINAL_RELEASE_AVAILABILITY_HOLD','ORIGINAL_RELEASED_SCHEDULER_PENDING','RESTORED_BARRIER_RETAINED_OPERATOR_LIFT'];
     private array $state=[];
     private string $pointer;
     private mixed $lock;
@@ -25,6 +30,7 @@ final class InstallCoordinator
     private int $drainSeconds=90;
     private array $allowedSapis=['litespeed'];
     private int $probeSamples=3;
+    private int $controlRequests=5;
 
     public function __construct(private string $root,private string $home)
     {
@@ -36,13 +42,14 @@ final class InstallCoordinator
     }
 
     private function emit(string $key,mixed $value):void {echo $key.'='.json_encode($value,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL;}
+    private static function code(Throwable $error):string {$code=$error->getMessage();return preg_match('/^[A-Z0-9_]+$/D',$code)?$code:'UNEXPECTED_'.strtoupper((new ReflectionClass($error))->getShortName());}
     private function identity(string $path):array {clearstatcache(true);$s=stat($path);if(!is_array($s)||is_link($path)||realpath($path)!==$path)throw new RuntimeException('PATH_IDENTITY');return ['dev'=>$s['dev'],'ino'=>$s['ino']];}
     private function active():string {return $this->root.'/apps/cms/current';}
     private function marker():string {return bin2hex(random_bytes(8));}
 
     private function atomicJSON(string $path,array $data):void
     {
-        if(realpath(dirname($path))!==dirname($path)||is_link($path))throw new RuntimeException('STATE_CONFINEMENT');$temporary=$path.'.'.bin2hex(random_bytes(8)).'.next';$handle=fopen($temporary,'x');if($handle===false)throw new RuntimeException('STATE_CREATE');chmod($temporary,0600);$text=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);if(fwrite($handle,$text)!==strlen($text))throw new RuntimeException('STATE_WRITE');fflush($handle);if(function_exists('fsync'))fsync($handle);fclose($handle);if(!rename($temporary,$path))throw new RuntimeException('STATE_RENAME');
+        if(realpath(dirname($path))!==dirname($path)||is_link($path))throw new RuntimeException('STATE_CONFINEMENT');$temporary=$path.'.'.bin2hex(random_bytes(8)).'.next';$handle=@fopen($temporary,'x');if($handle===false)throw new RuntimeException('STATE_CREATE');chmod($temporary,0600);$text=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);if(fwrite($handle,$text)!==strlen($text))throw new RuntimeException('STATE_WRITE');fflush($handle);if(function_exists('fsync'))fsync($handle);fclose($handle);if(!rename($temporary,$path))throw new RuntimeException('STATE_RENAME');
     }
 
     private function save(string $phase):void {$this->state['phase']=$phase;$this->atomicJSON($this->state['private'].'/state.json',$this->state);$this->atomicJSON($this->pointer,['schemaVersion'=>1,'private'=>$this->state['private'],'id'=>$this->state['id']]);$this->emit('RELEASE_PHASE',$phase);}
@@ -70,7 +77,7 @@ final class InstallCoordinator
         if($this->identity($old)!==$this->state['plan']['oldIdentity'])throw new RuntimeException('SCHEDULER_OLD_RELEASE_IDENTITY');
         $path=$this->state['private'].'/scheduler-command.json';$this->atomicJSON($path,['base'=>$old,'action'=>$action,'owner'=>$this->state['owner'],'identity'=>$this->state['plan']['oldIdentity'],'envSHA256'=>$this->state['envSHA256'],'previous'=>$this->state['scheduler']??null]);
         $result=$this->command([$this->php,'-d','opcache.enable=0','-d','opcache.enable_cli=0',$this->root.'/incoming/b1134-scheduler.php',$path],null,120);$receipt=json_decode($result['stdout'],true);
-        if($result['rc']!==0||!is_array($receipt)||($receipt['status']??'')!=='ok')throw new RuntimeException('SCHEDULER_'.$action.'_HOLD');
+        if($result['rc']!==0||!is_array($receipt)||($receipt['status']??'')!=='ok')throw new RuntimeException('SCHEDULER_'.strtoupper($action).'_HOLD');
         $this->emit('TECHNICAL_SCHEDULER_CACHE',['action'=>$action,'rc'=>$result['rc'],'oldApplicationBootstrap'=>true,'directBusinessOrSchemaQueries'=>false]);return $receipt['receipt'];
     }
 
@@ -81,7 +88,10 @@ final class InstallCoordinator
         if(is_link($directories)||realpath($directories)!==$directories||hash_file('sha256',$directories)!=='1e790c20fb9712d416399975d6cbcce3be1bd2dc12ede59a95f2e1cc75ea7e3e')throw new RuntimeException('DIRECTORY_MANIFEST_INTEGRITY');$this->directoryDocument=json_decode(file_get_contents($directories),true,512,JSON_THROW_ON_ERROR);
     }
 
-    /** Pure until B1144Recovery::commit: admission, filesystem scope and the mtime diagnostic write nothing. */
+    /**
+     * Admission, filesystem scope and the mtime diagnostic only read. B1144Recovery::commit then writes the new private
+     * B1144 state namespace (archived predecessor bytes, journal, state); nothing in the application trees changes here.
+     */
     private function prepare():void
     {
         if($this->git(['rev-parse','origin/main:apps/cms/current'])!==self::CMS_TREE)throw new RuntimeException('FRESH_MAIN_CMS_DRIFT');
@@ -109,6 +119,18 @@ final class InstallCoordinator
         $this->emit('OWNED_BARRIER_REIMPOSED',['tree'=>$storage===$this->active().'/storage'?'ACTIVE':'INACTIVE']);
     }
 
+    /**
+     * Both barrier receipts are derived BEFORE any barrier exists, from a private model (same owner, start and expiry give
+     * the same digests), and saved with NEW_MAINTENANCE_INTENT: a crash right after a barrier is created leaves no orphan.
+     */
+    private function planBarriers():void
+    {
+        $model=$this->state['private'].'/barrier-model';foreach([$model,$model.'/storage',$model.'/storage/framework'] as $directory)if(!is_dir($directory)&&!mkdir($directory,0700))throw new RuntimeException('BARRIER_MODEL_CREATE');
+        $m=ReleasePrimitives::ownMaintenance($model.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],null);ReleasePrimitives::releaseMaintenance($m,$model.'/storage');
+        $receipt=function(string $storage)use($m):array{$r=$m;$r['storage']=$storage;$identity=$this->identity($storage);$r['storageDevice']=$identity['dev'];$r['storageInode']=$identity['ino'];$r['files']=[];foreach($m['files'] as $path=>$digest)$r['files'][$storage.'/framework/'.basename($path)]=$digest;return $r;};
+        $this->state['newMaintenance']=$receipt($this->state['plan']['candidate'].'/storage');$this->state['oldMaintenance']=$receipt($this->active().'/storage');
+    }
+
     private function warmup():void
     {
         foreach(['package:discover','view:cache'] as $command){$r=$this->artisan([$command],180);$this->emit('TECHNICAL_CACHE_WARMUP',['command'=>$command,'rc'=>$r['rc'],'outputBytes'=>strlen($r['stdout']),'stderrBytes'=>$r['stderrBytes'],'rawOutputNotExported'=>true]);if($r['rc']!==0)throw new RuntimeException('CANDIDATE_TECHNICAL_WARMUP_FAILED');}
@@ -121,48 +143,103 @@ final class InstallCoordinator
         if(hash_file('sha256',$this->active().'/.env')!==$this->state['envSHA256'])throw new RuntimeException('PRIVATE_ENV_CHANGED');$this->assertGit();
     }
 
-    private function drain():array {$result=LeanGates::drain($this->active().'/public/index.php',$this->drainSeconds);$this->emit('CMS_DRAIN',$result);return $result;}
-
     private function probeRoots():array {$p=$this->state['plan'];return [$p['active'],$p['candidate'],$p['rollback'],$p['failed']];}
 
-    /** Every recorded probe is removed from whichever tree now holds it; foreign bytes at a recorded name are a HOLD. */
+    /** Narrow drain: this CMS's lsphp titles and artisan processes whose arguments or working directory are in a CMS release root. */
+    private function drain():array {$result=LeanGates::drain($this->active().'/public/index.php',$this->probeRoots(),$this->drainSeconds);$this->emit('CMS_DRAIN',$result);return $result;}
+
+    /** Every recorded probe (and its private staging file) is removed from wherever it is; foreign bytes at a recorded public name are a HOLD. */
     private function removeRecordedProbes():void
     {
         $changed=false;
-        foreach($this->state['probes']??[] as $index=>$probe){if(($probe['removed']??false)===true)continue;foreach($this->probeRoots() as $base)if(is_dir($base.'/public'))FreshnessProbe::remove($base.'/public',$probe['name'],$probe['sha256']);$this->state['probes'][$index]['removed']=true;$changed=true;}
+        foreach($this->state['probes']??[] as $index=>$probe){
+            if(($probe['removed']??false)===true)continue;if(is_string($probe['staging']??null))FreshnessProbe::removeStaging($probe['staging']);
+            foreach($this->probeRoots() as $base)if(is_dir($base.'/public'))FreshnessProbe::remove($base.'/public',$probe['name'],$probe['sha256']);$this->state['probes'][$index]['removed']=true;$changed=true;
+        }
         if($changed)$this->atomicJSON($this->state['private'].'/state.json',$this->state);
+    }
+
+    private function expected(string $which):array {$expected=[];foreach($this->state['probeFiles'] as $relative=>$digests)$expected[$relative]=$digests[$which];return $expected;}
+
+    /** Records the probe intent (name, digest, staging path) before writing it, writes it crash-safely, asks it, and always removes it. */
+    private function probeRequests(string $label,array $expected,bool $invalidate,?string $route):array
+    {
+        $public=$this->active().'/public';$this->removeRecordedProbes();FreshnessProbe::assertNoLeftover($public);
+        $probe=FreshnessProbe::plan($this->state['id'],$this->probeRoots(),array_keys($expected));$staging=$this->state['private'].'/probe-'.bin2hex(random_bytes(8)).'.staging';
+        $this->state['probes'][]=['name'=>$probe['name'],'sha256'=>$probe['sha256'],'label'=>$label,'staging'=>$staging];$this->save('FRESHNESS_PROBE_INTENT_'.strtoupper($label));$responses=[];
+        try{FreshnessProbe::write($public.'/'.$probe['name'],$probe['source'],$staging);for($n=0;$n<$this->probeSamples;$n++)$responses[]=$this->web->probe($probe['name'],$probe['token'],$invalidate,$route);}
+        finally{$this->removeRecordedProbes();}
+        return $responses;
+    }
+
+    private function markSwap(string $label,bool $now):void
+    {
+        if($now||!is_int($this->state['swappedAt'][$label]??null)){$this->state['swappedAt'][$label]=time();$this->state['swappedMono'][$label]=FreshnessProbe::monotonic();}
+    }
+
+    /** Drain positive control: GET /login on the live old tree while sampling ps; this CMS's busy title must be seen at least once. */
+    private function drainPositiveControl():array
+    {
+        $index=$this->active().'/public/index.php';$snapshots=[];$statuses=[];$observation=LeanGates::titleObservation($index,[]);
+        for($n=0;$n<$this->controlRequests;$n++){
+            $r=$this->web->sampled('/login',static function()use(&$snapshots):void{$snapshots[]=LeanGates::processes();},$this->marker());$statuses[]=$r['transport']?'TRANSPORT':$r['status'];
+            $observation=LeanGates::titleObservation($index,$snapshots);if($observation['observed'])break;
+        }
+        return $observation+['requests'=>count($statuses),'loginStatuses'=>$statuses];
+    }
+
+    /**
+     * PRE-BARRIER HOST PROBE against the OLD live tree (no invalidation, no hold), over the route the installer will use
+     * later. Collect-all: every gate result and host-derived value is printed even when some fail; then HOLD with zero
+     * downtime, since no barrier exists yet. The probe file is removed on every path.
+     */
+    private function hostPreflight():void
+    {
+        $expected=$this->expected('old');$gates=[];$values=null;$routes=[];$sapis=[];$reach=null;
+        try{
+            foreach($this->probeRequests('preflight',$expected,false,null) as $response){
+                $routes[]=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);$a=FreshnessProbe::assess($response,$this->state['id'],$expected,$this->allowedSapis,false);
+                foreach($a['gates'] as $gate=>$code)if(!array_key_exists($gate,$gates)||$gates[$gate]===null)$gates[$gate]=$code;$sapis[]=$a['values']['sapi'];
+                if($values===null)$values=$a['values'];else foreach(['realpathCacheTtl','revalidateFreq','holdSeconds'] as $key)if(is_int($a['values'][$key])&&(!is_int($values[$key])||$a['values'][$key]>$values[$key]))$values[$key]=$a['values'][$key];
+            }
+        }catch(Throwable $error){$reach=self::code($error);}
+        $gates=['probeReachable'=>$reach]+($gates===[]?array_fill_keys(['scope','sapi','php84','docroot','treeContent','opcacheStatus','scriptsListed','fields','targetedInvalidation','revalidateFreq','realpathIni','holdBound'],'NOT_EVALUATED_PROBE_UNREACHABLE'):$gates);
+        $route=in_array('PUBLIC_TLS_HOSTNAME',$routes,true)?'PUBLIC_TLS_HOSTNAME':($routes[0]??null);
+        try{$control=$this->drainPositiveControl();$gates['drainPositiveControl']=$control['observed']?null:'DRAIN_POSITIVE_CONTROL_NOT_OBSERVED';$gates['liveLogin200']=in_array(200,$control['loginStatuses'],true)?null:'PRE_SWITCH_LOGIN_NOT_200';}
+        catch(Throwable $error){$control=['error'=>self::code($error)];$gates['drainPositiveControl']=self::code($error);$gates['liveLogin200']='NOT_EVALUATED';}
+        $logs=LeanGates::dailyLogs($this->active().'/storage/logs');$gates['dailyLaravelLog']=$logs['dailyFiles']>0?null:'LOG_GATE_NO_DAILY_LARAVEL_LOG';
+        $blockers=array_values(array_unique(array_filter($gates,static fn($code)=>$code!==null)));
+        $report=['gates'=>array_map(static fn($code)=>$code??'PASS',$gates),'values'=>$values,'reachability'=>['route'=>$route,'samples'=>count($routes),'routes'=>$routes,'sapis'=>array_values(array_unique($sapis))],'drainPositiveControl'=>$control,'dailyLog'=>$logs+['explanation'=>'LOG_CHANNEL=daily writes storage/logs/laravel-YYYY-MM-DD.log; without one the post-switch log gate could pass vacuously'],'invalidationRequested'=>false,'barrier'=>'NONE_YET','blockers'=>$blockers];
+        $this->state['hostPreflight']=['route'=>$route,'values'=>$values,'blockers'=>$blockers];$this->emit('HOST_PREFLIGHT',$report);
+        if($blockers!==[]){$this->save('HOST_PREFLIGHT_BLOCKED');throw new RuntimeException('HOST_PREFLIGHT_BLOCKED');}
+        $this->save('HOST_PREFLIGHT_PASSED');
     }
 
     /** Web freshness for the tree now at the active path. The probe name and token never reach output or the report. */
     private function freshness(string $label):array
     {
         $swappedAt=$this->state['swappedAt'][$label]??null;if(!is_int($swappedAt))throw new RuntimeException('BARRIER_HOLD_SWAP_TIME_UNKNOWN');
-        $public=$this->active().'/public';$this->removeRecordedProbes();FreshnessProbe::assertNoLeftover($public);
-        $which=$label==='installed'?'new':'old';$expected=[];foreach($this->state['probeFiles'] as $relative=>$digests)$expected[$relative]=$digests[$which];
-        $probe=FreshnessProbe::plan($this->state['id'],$this->probeRoots(),array_keys($expected));
-        $this->state['probes'][]=['name'=>$probe['name'],'sha256'=>$probe['sha256'],'label'=>$label];$this->save('FRESHNESS_PROBE_INTENT_'.strtoupper($label));
-        try{
-            FreshnessProbe::write($public.'/'.$probe['name'],$probe['source']);$samples=[];
-            for($n=0;$n<$this->probeSamples;$n++){
-                $response=$this->web->probe($probe['name'],$probe['token'],true);$route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);
-                $summary=FreshnessProbe::validate($response,$this->state['id'],$expected,$this->allowedSapis,true);$summary['route']=$route;$samples[]=$summary;
-            }
-            // The barrier stays until every pre-swap realpath entry of every worker has expired and OPcache has revalidated.
-            $probedAt=time();$liftNotBefore=FreshnessProbe::liftNotBefore($swappedAt,$probedAt,$samples);
-            $hold=['swappedAt'=>$swappedAt,'probedAt'=>$probedAt,'liftNotBefore'=>$liftNotBefore,'requiredSecondsAfterSwap'=>$liftNotBefore-$swappedAt,'realpathCacheTtl'=>max(array_column($samples,'realpathCacheTtl')),'realpathCacheSize'=>$samples[0]['realpathCacheSize'],'revalidateFreq'=>max(array_column($samples,'revalidateFreq')),'marginSeconds'=>FreshnessProbe::HOLD_MARGIN,'maxSeconds'=>FreshnessProbe::MAX_HOLD_SECONDS];
-            $result=['label'=>$label,'samples'=>$samples,'hold'=>$hold,'targetedInvalidationOnly'=>true,'globalReset'=>false,'probeRemoved'=>true];
-        }finally{$this->removeRecordedProbes();}
+        $expected=$this->expected($label==='installed'?'new':'old');$samples=[];
+        foreach($this->probeRequests($label,$expected,true,$this->state['hostPreflight']['route']??null) as $response){
+            $route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);
+            $summary=FreshnessProbe::validate($response,$this->state['id'],$expected,$this->allowedSapis,true);$summary['route']=$route;$samples[]=$summary;
+        }
+        // The barrier stays until every pre-swap realpath entry of every worker has expired and OPcache has revalidated.
+        $probedAt=time();$liftNotBefore=FreshnessProbe::liftNotBefore($swappedAt,$probedAt,$samples);
+        $hold=['swappedAt'=>$swappedAt,'probedAt'=>$probedAt,'liftNotBefore'=>$liftNotBefore,'requiredSecondsAfterSwap'=>$liftNotBefore-$swappedAt,'realpathCacheTtl'=>max(array_column($samples,'realpathCacheTtl')),'realpathCacheSize'=>$samples[0]['realpathCacheSize'],'revalidateFreq'=>max(array_column($samples,'revalidateFreq')),'marginSeconds'=>FreshnessProbe::HOLD_MARGIN,'maxSeconds'=>FreshnessProbe::MAX_HOLD_SECONDS];
+        $result=['label'=>$label,'samples'=>$samples,'hold'=>$hold,'targetedInvalidationOnly'=>true,'globalReset'=>false,'probeRemoved'=>true];
         $this->state['freshness'][$label]=$result;$this->emit('WEB_FRESHNESS',$result);
         try{FreshnessProbe::remaining($liftNotBefore);}catch(RuntimeException $error){$this->emit('BARRIER_HOLD_BOUND',['label'=>$label,'remainingSeconds'=>$liftNotBefore-time(),'maxSeconds'=>FreshnessProbe::MAX_HOLD_SECONDS]);throw $error;}
         return $result;
     }
 
-    /** Keeps the owned barrier up to the probe-derived lift time of this swap; nothing is lifted before it. */
+    /** Keeps the owned barrier up to the derived lift time of this swap, on the monotonic clock, with a heartbeat every 15 s. */
     private function holdBarrier(string $label):void
     {
         $hold=$this->state['freshness'][$label]['hold']??null;if(!is_array($hold)||!is_int($hold['liftNotBefore']??null))throw new RuntimeException('BARRIER_HOLD_UNDERIVABLE');
-        $this->emit('BARRIER_HOLD_START',['label'=>$label,'remainingSeconds'=>FreshnessProbe::remaining($hold['liftNotBefore']),'requiredSecondsAfterSwap'=>$hold['requiredSecondsAfterSwap'],'realpathCacheTtl'=>$hold['realpathCacheTtl'],'revalidateFreq'=>$hold['revalidateFreq']]);
-        $receipt=FreshnessProbe::hold($hold['liftNotBefore']);$this->state['freshness'][$label]['hold']['waitedSeconds']=$receipt['waitedSeconds'];$this->state['freshness'][$label]['hold']['heldUntil']=$receipt['heldUntil'];
+        $this->emit('BARRIER_HOLD_START',['label'=>$label,'remainingSeconds'=>FreshnessProbe::remaining($hold['liftNotBefore']),'requiredSecondsAfterSwap'=>$hold['requiredSecondsAfterSwap'],'realpathCacheTtl'=>$hold['realpathCacheTtl'],'revalidateFreq'=>$hold['revalidateFreq'],'heartbeatSeconds'=>15]);
+        $swap=$this->state['swappedMono'][$label]??null;$monotonic=is_array($swap)?['ns'=>$swap['ns']??null,'boot'=>$swap['boot']??null,'requiredSeconds'=>$hold['liftNotBefore']-$hold['swappedAt']]:null;
+        $receipt=FreshnessProbe::hold($hold['liftNotBefore'],$monotonic,$label);foreach(['waitedSeconds','heldUntil','clock'] as $key)$this->state['freshness'][$label]['hold'][$key]=$receipt[$key];
         $this->emit('BARRIER_HOLD',['label'=>$label]+$this->state['freshness'][$label]['hold']);
     }
 
@@ -195,11 +272,12 @@ final class InstallCoordinator
             if($this->state['phase']==='CLOSED_INSTALL'){$this->verifyInstalledFiles();$this->emit('ALREADY_INSTALLED_OFF_NO_REPEAT',self::MAIN);$this->emit('PERMANENT_PRIVATE_DATA_DEPENDENCY_DO_NOT_PRUNE',$this->state['plan']['rollback']);return 0;}
             if(in_array($this->state['phase'],['COMMITTED_OFF','PUBLIC_RELEASED','SCHEDULER_RESTORED'],true))return $this->finishCommitted();
             if(in_array($this->state['phase'],['ROLLED_BACK','ROLLED_BACK_PRE_SWITCH'],true)){$this->emit('PRIOR_ATTEMPT_ROLLED_BACK_NO_AUTOMATIC_REDEPLOY',true);return 2;}
+            if($this->state['phase']==='ORIGINAL_RELEASED_SCHEDULER_PENDING')return $this->resumeSchedulerRelease();
             $this->emit('RECOVERY_OF_EXISTING_TRANSACTION',$this->state['id']);return $this->recover('OPERATOR_RESUMED_INTERRUPTED_INSTALL');
         }
         try{$this->prepare();}catch(Throwable $error){
-            if(!$this->state){$code=$error->getMessage();if(!preg_match('/^[A-Z0-9_]+$/D',$code))$code=get_class($error);$this->emit('HOLD_BEFORE_LIVE_APPLICATION_MUTATION',$code);return 2;}
-            return $this->recover($error->getMessage());
+            if(!$this->state){$this->emit('HOLD_BEFORE_LIVE_APPLICATION_MUTATION',self::code($error));return 2;}
+            return $this->recover(self::code($error));
         }
         return $this->execute();
     }
@@ -208,9 +286,9 @@ final class InstallCoordinator
     {
         try{
             $plan=$this->state['plan'];$active=$this->active();
-            $new=ReleasePrimitives::ownMaintenance($plan['candidate'].'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],null);
-            $old=$new;$old['storage']=$active.'/storage';$identity=$this->identity($old['storage']);$old['storageDevice']=$identity['dev'];$old['storageInode']=$identity['ino'];$old['files']=[];foreach($new['files'] as $path=>$digest)$old['files'][$active.'/storage/framework/'.basename($path)]=$digest;
-            $this->state['newMaintenance']=$new;$this->state['oldMaintenance']=$old;$this->save('CANDIDATE_READY');
+            $this->hostPreflight();
+            $this->planBarriers();$this->save('NEW_MAINTENANCE_INTENT');
+            $new=ReleasePrimitives::ownMaintenance($plan['candidate'].'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],null);if($new['files']!==$this->state['newMaintenance']['files'])throw new RuntimeException('MAINTENANCE_PLAN_MISMATCH');$this->save('CANDIDATE_READY');
             $this->state['schedulerPauseAttempted']=true;$this->save('SCHEDULER_PAUSE_INTENT');$this->state['scheduler']=$this->scheduler('pause');$this->save('SCHEDULER_PAUSED');
             $this->save('MAINTENANCE_INTENT');$actual=ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],null);if($actual['files']!==$this->state['oldMaintenance']['files'])throw new RuntimeException('MAINTENANCE_PLAN_MISMATCH');$this->save('MAINTENANCE_OWNED');
             $this->web->status('/login',503,$this->state['oldMaintenance']['ownerSHA256'],$this->marker(),10);$this->scheduler('verify');$this->save('BARRIER_OBSERVED');
@@ -218,12 +296,12 @@ final class InstallCoordinator
             $this->state['treeVerification']=LeanGates::verifyTree($plan['candidate'],$this->manifest,$this->state['clampedConfigSHA256'],$this->state['preserved']['customHtaccessSHA256'],count($this->manifest['files']));
             if(hash_file('sha256',$active.'/.env')!==$this->state['envSHA256'])throw new RuntimeException('PRIVATE_ENV_CHANGED');$this->assertGit();$this->emit('CANDIDATE_LOCAL_SHA256',$this->state['treeVerification']);$this->save('CANDIDATE_LOCAL_VERIFIED');
             $this->state['logBaseline']=LeanGates::logBaseline($active.'/storage/logs');$this->save('LOG_BASELINE_RECORDED');
-            ReleasePrimitives::switchJournaled($active,$plan['candidate'],$plan['rollback'],$this->state['journal'],$this->state['owner']);$this->state['swappedAt']=['installed'=>time()];$this->save('SWITCHED');$this->warmup();$this->verifyInstalledFiles();
+            ReleasePrimitives::switchJournaled($active,$plan['candidate'],$plan['rollback'],$this->state['journal'],$this->state['owner']);$this->markSwap('installed',true);$this->save('SWITCHED');$this->warmup();$this->verifyInstalledFiles();
             $this->freshness('installed');$this->save('FRESHNESS_VERIFIED');
             $this->cliBoot();$this->verifyInstalledFiles();$this->scheduler('verify');$this->save('CLI_BOOT_VERIFIED');
             $this->holdBarrier('installed');$this->save('BARRIER_LIFT_INTENT');$this->clearMaintenance($this->state['oldMaintenance'],$plan['rollback'].'/storage');$this->clearMaintenance($this->state['newMaintenance'],$active.'/storage');$this->save('BARRIER_LIFTED_SMOKE_PENDING');
             $this->postLiftSmoke();$this->verifyInstalledFiles();$this->save('COMMITTED_OFF');return $this->finishCommitted();
-        }catch(Throwable $error){return $this->recover($error->getMessage());}
+        }catch(Throwable $error){return $this->recover(self::code($error));}
     }
 
     private function finishCommitted():int
@@ -234,27 +312,84 @@ final class InstallCoordinator
             if($this->state['phase']!=='SCHEDULER_RESTORED'){$this->save('PUBLIC_RELEASED');$this->scheduler('release');$this->save('SCHEDULER_RESTORED');}
             $marker=$this->marker();$this->web->status('/login',200,null,$marker);$this->web->status('/katalog',404,null,$marker);$this->assertGit();$this->save('CLOSED_INSTALL');ReleasePrimitives::journalState($this->state['journal'],$this->state['owner'],'CLOSED');
             $this->emit('CONTROLLED_CMS_INSTALL','PASS_MAIN_RUNTIME_WITH_REVIEWED_OFF_CLAMP');$this->emit('PUBLIC_CHECKOUT','UNCONDITIONALLY_OFF_CONFIG_FALSE_NO_ENV_OR_DB_FLAG_CHANGE');$this->emit('PERMANENT_PRIVATE_DATA_DEPENDENCY_DO_NOT_PRUNE',$this->state['plan']['rollback']);$this->emit('COMPLETE_DIRECTORY_SWITCH','TWO_RENAMES_WITH_OWNED_MAINTENANCE_AND_RECOVERY_NOT_A_SINGLE_ATOMIC_TRANSACTION');return 0;
-        }catch(Throwable $error){$this->emit('HOLD_INSTALLED_OFF_FINISH_PENDING',$error->getMessage());return 2;}
+        }catch(Throwable $error){$this->emit('HOLD_INSTALLED_OFF_FINISH_PENDING',self::code($error));return 2;}
     }
 
-    /** Restored original code: barrier back on the old tree, then web freshness against the old file hashes. */
+    /**
+     * Restored original code: barrier back on the old tree, then web freshness against the old file hashes. A failing
+     * restored probe gets one targeted-invalidation retry; if it still fails, a conservative fixed hold derived from the
+     * PRE-SWITCH host values replaces the probe-derived one, and finishOriginal() lifts only after a re-check.
+     */
     private function verifyRestored():void
     {
-        if(is_array($this->state['oldMaintenance']))$this->ensureBarrier($this->state['oldMaintenance'],$this->active().'/storage');
-        $this->freshness('restored');
+        if(is_array($this->state['oldMaintenance']))$this->ensureBarrier($this->state['oldMaintenance'],$this->active().'/storage');$failed=[];
+        for($attempt=1;$attempt<=2;$attempt++){
+            try{$this->freshness('restored');return;}catch(Throwable $error){$failed[]=self::code($error);$this->emit('RESTORED_FRESHNESS_ATTEMPT_FAILED',['attempt'=>$attempt,'code'=>self::code($error)]);}
+        }
+        $pre=$this->state['hostPreflight']['values']??null;if(!is_array($pre)||!is_int($pre['holdSeconds']??null)||$pre['holdSeconds']>FreshnessProbe::MAX_HOLD_SECONDS)throw new RuntimeException('RESTORED_FALLBACK_PRESWITCH_VALUES_MISSING');
+        $now=time();$swappedAt=$this->state['swappedAt']['restored'];$lift=$now+$pre['holdSeconds'];
+        $hold=['swappedAt'=>$swappedAt,'probedAt'=>$now,'liftNotBefore'=>$lift,'requiredSecondsAfterSwap'=>$lift-$swappedAt,'realpathCacheTtl'=>$pre['realpathCacheTtl'],'realpathCacheSize'=>$pre['realpathCacheSize'],'revalidateFreq'=>$pre['revalidateFreq'],'marginSeconds'=>FreshnessProbe::HOLD_MARGIN,'maxSeconds'=>FreshnessProbe::MAX_HOLD_SECONDS,'source'=>'PRE_SWITCH_HOST_PROBE_COUNTED_FROM_NOW'];
+        $this->state['freshness']['restored']=['label'=>'restored','fallback'=>true,'failedAttempts'=>$failed,'hold'=>$hold];
+        $this->emit('RESTORED_FRESHNESS_FALLBACK',['label'=>'restored','failedAttempts'=>$failed,'holdSeconds'=>$pre['holdSeconds'],'liftOnlyAfter'=>'IDENTITY_OLD_TREE_HASHES_AND_PRIVATE_LOGIN_200_BEHIND_BARRIER']);
     }
 
-    private function finishOriginal(bool $switched):int
+    private function operatorLiftCommand():string
+    {
+        $framework=$this->active().'/storage/framework';return 'rm -f '.$framework.'/down '.$framework.'/maintenance.php && bash '.$this->root.'/incoming/b1144-controlled-install.sh';
+    }
+
+    /** After a fallback hold: lift only if the restored old code is what is active AND answers /login 200 behind the barrier. */
+    private function restoredRecheck():void
+    {
+        try{
+            if($this->identity($this->active())!==$this->state['plan']['oldIdentity'])throw new RuntimeException('RESTORED_RECHECK_IDENTITY');
+            foreach($this->expected('old') as $relative=>$digest){$path=$this->active().'/'.$relative;clearstatcache(true,$path);$actual=is_file($path)&&!is_link($path)?hash_file('sha256',$path):null;if($actual!==$digest)throw new RuntimeException('RESTORED_RECHECK_TREE_CONTENT');}
+            $this->web->status('/login',200,null,$this->marker(),3,$this->state['oldMaintenance']['smokeToken']);$this->emit('RESTORED_FALLBACK_RECHECK','PASS_OLD_CODE_LOGIN_200_BEHIND_OWNED_BARRIER');
+        }catch(Throwable $error){
+            $this->save('RESTORED_BARRIER_RETAINED_OPERATOR_LIFT');$this->emit('RESTORED_FALLBACK_RECHECK',self::code($error));
+            $this->emit('OPERATOR_LIFT_COMMAND',$this->operatorLiftCommand());throw new RuntimeException('RESTORED_BARRIER_RETAINED_OPERATOR_LIFT');
+        }
+    }
+
+    private function finishOriginal(bool $switched,bool $operatorLifted=false):int
     {
         $plan=$this->state['plan'];$active=$this->active();if($this->identity($active)!==$plan['oldIdentity'])throw new RuntimeException('ORIGINAL_CODE_REQUIRED_BEFORE_RELEASE');
         $other=is_dir($plan['failed'])?$plan['failed']:$plan['candidate'];if($this->identity($other)!==$plan['candidateIdentity'])throw new RuntimeException('RECOVERY_CANDIDATE_IDENTITY');
-        if($switched)$this->holdBarrier('restored');
+        if($switched&&!$operatorLifted){$this->holdBarrier('restored');if(($this->state['freshness']['restored']['fallback']??false)===true)$this->restoredRecheck();}
         $this->state['originalRelease']=['switched'=>$switched];$this->save('ORIGINAL_RELEASE_INTENT');
-        if(is_array($this->state['newMaintenance']))$this->clearMaintenance($this->state['newMaintenance'],$other.'/storage');if(is_array($this->state['oldMaintenance']))$this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');
+        // The inactive tree is served by nothing: a barrier left there (e.g. next to a foreign file) is reported, never blocking.
+        if(is_array($this->state['newMaintenance']))try{$this->clearMaintenance($this->state['newMaintenance'],$other.'/storage');}catch(Throwable $error){$this->emit('INACTIVE_TREE_BARRIER_NOT_CLEARED',self::code($error));}
+        if(is_array($this->state['oldMaintenance']))$this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');
         $this->save('ORIGINAL_RELEASED_PENDING_HTTP');
         try{$this->web->status('/login',200,null,$this->marker());}catch(Throwable $error){$this->save('ORIGINAL_RELEASE_AVAILABILITY_HOLD');throw $error;}
-        if(($this->state['schedulerPauseAttempted']??false)||$this->state['scheduler']!==null)$this->scheduler('release');$this->assertGit();$this->save($switched?'ROLLED_BACK':'ROLLED_BACK_PRE_SWITCH');
+        return $this->releaseSchedulerAfterOriginal();
+    }
+
+    /** The original site is live and verified; only the scheduler release can remain. Its failure never re-imposes a barrier. */
+    private function releaseSchedulerAfterOriginal():int
+    {
+        $switched=($this->state['originalRelease']['switched']??null)===true;
+        if(($this->state['schedulerPauseAttempted']??false)||$this->state['scheduler']!==null){
+            $this->save('ORIGINAL_RELEASED_SCHEDULER_PENDING');
+            try{$this->scheduler('release');}catch(Throwable $error){$this->emit('SCHEDULER_RELEASE_PENDING_ORIGINAL_SITE_LIVE_NO_BARRIER',self::code($error));return 2;}
+        }
+        $this->assertGit();$this->save($switched?'ROLLED_BACK':'ROLLED_BACK_PRE_SWITCH');
         $this->emit($switched?'ROLLBACK':'ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',$switched?'ORIGINAL_CODE_PRIVATE_DATA_RESTORED_FRESHNESS_AND_HTTP_VERIFIED':true);return 2;
+    }
+
+    /** Re-run in ORIGINAL_RELEASED_SCHEDULER_PENDING: the old code is live without a barrier; only the scheduler release is retried. */
+    private function resumeSchedulerRelease():int
+    {
+        try{
+            if($this->identity($this->active())!==$this->state['plan']['oldIdentity'])throw new RuntimeException('ORIGINAL_CODE_REQUIRED_BEFORE_RELEASE');
+            $this->emit('RESUME_SCHEDULER_RELEASE_ONLY',['barrier'=>'NOT_REIMPOSED']);return $this->releaseSchedulerAfterOriginal();
+        }catch(Throwable $error){$this->emit('RECOVERY_HOLD',self::code($error));return 2;}
+    }
+
+    /** One rollback-prefix step; its failure is reported and the directory rollback proceeds under whatever barrier exists. */
+    private function step(string $name,callable $action):void
+    {
+        try{$action();}catch(Throwable $error){$this->emit('ROLLBACK_PREFIX_STEP',['step'=>$name,'result'=>self::code($error),'rollbackProceeds'=>true]);}
     }
 
     private function recover(string $reason):int
@@ -264,17 +399,28 @@ final class InstallCoordinator
             $this->removeRecordedProbes();$plan=$this->state['plan'];$active=$this->active();$current=is_dir($active)?$this->identity($active):null;
             if($current===$plan['oldIdentity']&&!is_dir($plan['rollback'])){
                 $switched=is_dir($plan['failed']);if(isset($this->state['originalRelease'])&&($this->state['originalRelease']['switched']??null)!==$switched)throw new RuntimeException('RESTORE_PHASE_TOPOLOGY_MISMATCH');
+                if($switched&&($this->state['phase']??'')==='RESTORED_BARRIER_RETAINED_OPERATOR_LIFT'&&is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null){
+                    $this->emit('OPERATOR_LIFTED_RESTORED_BARRIER','NOT_REIMPOSED_LOGIN_AND_SCHEDULER_ONLY');return $this->finishOriginal(true,true);
+                }
                 // Restore time unknown after a crash: counting from now is the conservative choice.
-                if($switched){$this->state['swappedAt']['restored']??=time();$this->verifyRestored();}return $this->finishOriginal($switched);
+                if($switched){$this->markSwap('restored',false);$this->verifyRestored();}return $this->finishOriginal($switched);
             }
             if($current===$plan['candidateIdentity']){
-                // Post-switch (including after the lift): barrier back on both trees, scheduler still paused, CMS drained.
-                $this->save('ROLLBACK_BARRIER_INTENT');$this->ensureBarrier($this->state['newMaintenance'],$active.'/storage');if(is_dir($plan['rollback']))$this->ensureBarrier($this->state['oldMaintenance'],$plan['rollback'].'/storage');
-                $this->save('ROLLBACK_BARRIER_OWNED');$this->scheduler('verify');$this->drain();
+                // Post-switch (including after the lift): barrier back on both trees, then the journaled rename back. Scheduler
+                // verify is report-only and the drain is bounded; neither (nor a failed save or barrier step) blocks the rename.
+                $this->step('ROLLBACK_BARRIER_INTENT',fn()=>$this->save('ROLLBACK_BARRIER_INTENT'));
+                $this->step('BARRIER_ON_NEW_ACTIVE_TREE',fn()=>$this->ensureBarrier($this->state['newMaintenance'],$active.'/storage'));
+                if(is_dir($plan['rollback']))$this->step('BARRIER_ON_RETAINED_OLD_TREE',fn()=>$this->ensureBarrier($this->state['oldMaintenance'],$plan['rollback'].'/storage'));
+                $this->step('ROLLBACK_BARRIER_OWNED',fn()=>$this->save('ROLLBACK_BARRIER_OWNED'));
+                $this->step('SCHEDULER_VERIFY_REPORT_ONLY',fn()=>$this->scheduler('verify'));
+                $this->step('RECOVERY_DRAIN_BOUNDED',fn()=>$this->drain());
             }
             $restore=ReleasePrimitives::recoverSwitch($plan,$this->state['journal'],$this->state['owner'],$plan['failed']);
-            if($restore==='OLD_RESTORED')$this->state['swappedAt']['restored']=time();else $this->state['swappedAt']['restored']??=time();$this->save('OLD_RESTORED_MAINTENANCE_HELD');
+            $this->markSwap('restored',$restore==='OLD_RESTORED');$this->save('OLD_RESTORED_MAINTENANCE_HELD');
             $switched=is_dir($plan['failed']);if($switched)$this->verifyRestored();return $this->finishOriginal($switched);
-        }catch(Throwable $error){if(($this->state['phase']??'')!=='ORIGINAL_RELEASE_AVAILABILITY_HOLD')$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');$this->emit('RECOVERY_HOLD',$error->getMessage());return 2;}
+        }catch(Throwable $error){
+            if(!in_array($this->state['phase']??'',self::KEEP_PHASES,true)){try{$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');}catch(Throwable){$this->emit('RECOVERY_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RERUN_SAME_COMMAND');}}
+            $this->emit('RECOVERY_HOLD',self::code($error));return 2;
+        }
     }
 }
