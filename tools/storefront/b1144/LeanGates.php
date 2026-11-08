@@ -86,12 +86,15 @@ final class LeanGates
         return ['cms'=>$cms,'artisan'=>$artisan,'otherArtisanIgnored'=>$foreignArtisan];
     }
 
-    /** Distinct lsphp titles seen in snapshots and whether THIS CMS's busy title was among them (drain positive control). */
+    /**
+     * Whether THIS CMS's busy title was seen in the snapshots (drain positive control). The report is committed to git,
+     * so other sites' titles are only counted, never printed.
+     */
     public static function titleObservation(string $index,array $snapshots):array
     {
-        $suffix=substr($index,-self::TITLE_SUFFIX_BYTES);$seen=[];$hits=0;
-        foreach($snapshots as $snapshot)foreach($snapshot as $args){$args=rtrim((string)$args);if(!str_starts_with($args,'lsphp'))continue;if(str_starts_with($args,'lsphp:')&&str_ends_with($args,$suffix))$hits++;if(count($seen)<20)$seen[substr($args,0,120)]=true;}
-        return ['expectedTitle'=>'lsphp:'.$suffix,'observed'=>$hits>0,'busyTitleSamples'=>$hits,'snapshots'=>count($snapshots),'lsphpTitlesSeen'=>array_keys($seen)];
+        $suffix=substr($index,-self::TITLE_SUFFIX_BYTES);$distinct=[];$foreign=[];$hits=0;
+        foreach($snapshots as $snapshot)foreach($snapshot as $args){$args=rtrim((string)$args);if(!str_starts_with($args,'lsphp'))continue;$key=hash('sha256',$args);$distinct[$key]=true;if(str_starts_with($args,'lsphp:')&&str_ends_with($args,$suffix))$hits++;else $foreign[$key]=true;}
+        return ['expectedTitle'=>'lsphp:'.$suffix,'observed'=>$hits>0,'busyTitleSamples'=>$hits,'snapshots'=>count($snapshots),'distinctLsphpTitles'=>count($distinct),'otherLsphpTitlesCountedNotPrinted'=>count($foreign)];
     }
 
     /** The log gate needs Laravel daily files (LOG_CHANNEL=daily): laravel-YYYY-MM-DD.log under storage/logs. */

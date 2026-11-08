@@ -116,6 +116,8 @@ PROBE;
         $g['fields']=null;foreach(['invalidationCandidates','invalidated','invalidationFailed','vanishedCachedScripts','validateTimestamps','revalidateFreq'] as $key)if($int($key)===null||$int($key)<0)$g['fields']='FRESHNESS_PROBE_FIELDS';
         $g['targetedInvalidation']=($r['invalidationRequested']??null)!==$invalidationRequested||($r['globalReset']??null)!==false||$int('invalidationFailed')!==0||$int('invalidated')!==$int('invalidationCandidates')?'FRESHNESS_TARGETED_INVALIDATION_FAILED':null;
         $frequency=$int('revalidateFreq');$g['revalidateFreq']=$frequency!==null&&$frequency>60?'FRESHNESS_REVALIDATE_FREQ_UNSUPPORTED':null;
+        // With OPcache on and timestamps not validated, a worker never recompiles a changed file: no hold can make it fresh.
+        $g['validateTimestamps']=$enabled&&$int('validateTimestamps')!==null&&$int('validateTimestamps')!==1?'FRESHNESS_OPCACHE_VALIDATE_TIMESTAMPS_OFF':null;
         $ttl=$r['realpathCacheTtl']??null;$size=$r['realpathCacheSize']??null;
         $readable=is_string($ttl)&&preg_match('/^[0-9]{1,9}$/D',$ttl)===1&&is_string($size)&&preg_match('/^[0-9]{1,12}[KMGkmg]?$/D',$size)===1;$g['realpathIni']=$readable?null:'FRESHNESS_REALPATH_CACHE_UNREADABLE';
         $holdSeconds=$readable?self::holdSeconds((int)$ttl,$enabled,max(0,(int)$frequency)):null;

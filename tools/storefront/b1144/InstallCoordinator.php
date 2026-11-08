@@ -7,9 +7,10 @@ declare(strict_types=1);
  * gate, hold bound, drain positive control, daily log gate; collect-all, zero downtime on HOLD) -> owned barrier intent ->
  * candidate barrier -> scheduler pause -> active barrier -> narrow drain -> local SHA-256 verification -> journaled switch ->
  * web freshness -> CLI boot -> probe-derived barrier hold -> lift -> smokes and log scan -> commit. Any failure after the
- * switch rolls back automatically. The rollback directory rename depends only on the journal; the restored tree gets its
- * own freshness probe and hold, with a bounded fallback (pre-switch values, private /login re-check) that never wedges
- * the site behind the barrier without a documented exit.
+ * switch rolls back automatically. The rollback directory rename needs the journal; probe cleanup, state saves, barrier
+ * steps, scheduler verify and drain before it are reported steps whose failure never stops it. The restored tree gets its
+ * own freshness probe and hold; only when the probe could not report (reachability, realpath ini, hold bound) a bounded
+ * fallback (pre-switch values, private /login re-check) may lift; otherwise the barrier is retained for the operator.
  */
 final class InstallCoordinator
 {
@@ -20,6 +21,10 @@ final class InstallCoordinator
     public const SMOKES=[['/login',200],['/up',200],['/katalog',404],['/registracija',404],['/korpa',404]];
     /** Terminal-for-this-run phases that a recovery HOLD must not overwrite: no owned barrier is retained in them, or it is retained on purpose. */
     private const KEEP_PHASES=['ORIGINAL_RELEASE_AVAILABILITY_HOLD','ORIGINAL_RELEASED_SCHEDULER_PENDING','RESTORED_BARRIER_RETAINED_OPERATOR_LIFT'];
+    /** Phases after the restored (or untouched) original code passed its hold: a re-run continues the release and never re-imposes a barrier. */
+    private const RELEASE_PHASES=['ORIGINAL_RELEASE_INTENT','ORIGINAL_RELEASED_PENDING_HTTP','ORIGINAL_RELEASE_AVAILABILITY_HOLD'];
+    /** Restored-probe failures for which the conservative pre-switch fallback hold is allowed: the probe could not report, not "reported stale". */
+    private const FALLBACK_CODES=['FRESHNESS_PROBE_HTTP_UNAVAILABLE','FRESHNESS_REALPATH_CACHE_UNREADABLE','BARRIER_HOLD_EXCEEDS_BOUND'];
     private array $state=[];
     private string $pointer;
     private mixed $lock;
@@ -52,7 +57,15 @@ final class InstallCoordinator
         if(realpath(dirname($path))!==dirname($path)||is_link($path))throw new RuntimeException('STATE_CONFINEMENT');$temporary=$path.'.'.bin2hex(random_bytes(8)).'.next';$handle=@fopen($temporary,'x');if($handle===false)throw new RuntimeException('STATE_CREATE');chmod($temporary,0600);$text=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);if(fwrite($handle,$text)!==strlen($text))throw new RuntimeException('STATE_WRITE');fflush($handle);if(function_exists('fsync'))fsync($handle);fclose($handle);if(!rename($temporary,$path))throw new RuntimeException('STATE_RENAME');
     }
 
-    private function save(string $phase):void {$this->state['phase']=$phase;$this->atomicJSON($this->state['private'].'/state.json',$this->state);$this->atomicJSON($this->pointer,['schemaVersion'=>1,'private'=>$this->state['private'],'id'=>$this->state['id']]);$this->emit('RELEASE_PHASE',$phase);}
+    /** The in-memory phase changes only once state.json holds it, so the in-memory phase is always the persisted one. */
+    private function save(string $phase):void {$next=$this->state;$next['phase']=$phase;$this->atomicJSON($this->state['private'].'/state.json',$next);$this->state['phase']=$phase;$this->atomicJSON($this->pointer,['schemaVersion'=>1,'private'=>$this->state['private'],'id'=>$this->state['id']]);$this->emit('RELEASE_PHASE',$phase);}
+
+    /** Phase as state.json holds it (the in-memory copy when the file cannot be read). */
+    private function persistedPhase():string
+    {
+        try{$path=$this->state['private'].'/state.json';$saved=json_decode((string)@file_get_contents($path),true,512,JSON_THROW_ON_ERROR);if(is_array($saved)&&is_string($saved['phase']??null))return $saved['phase'];}catch(Throwable){}
+        return (string)($this->state['phase']??'');
+    }
 
     /** No raw application output leaves the host process; report only audited command identity and real RC. */
     private function command(array $argv,?string $cwd=null,int $timeout=120,?array $env=null):array
@@ -189,27 +202,33 @@ final class InstallCoordinator
     }
 
     /**
-     * PRE-BARRIER HOST PROBE against the OLD live tree (no invalidation, no hold), over the route the installer will use
-     * later. Collect-all: every gate result and host-derived value is printed even when some fail; then HOLD with zero
-     * downtime, since no barrier exists yet. The probe file is removed on every path.
+     * PRE-BARRIER HOST PROBE against the OLD live tree, over the route the installer will use later. It requests the same
+     * targeted invalidation the post-switch probes use (per file, only cached scripts under the CMS release trees, never a
+     * reset), so an edge that strips the invalidation header or a failing opcache_invalidate is seen BEFORE any barrier.
+     * Also an artisan census of THIS CMS (counts only). Collect-all: every gate result and host-derived value is printed
+     * even when some fail; then HOLD with zero downtime, since no barrier exists yet. The probe file is removed on every path.
      */
     private function hostPreflight():void
     {
-        $expected=$this->expected('old');$gates=[];$values=null;$routes=[];$sapis=[];$reach=null;
+        $expected=$this->expected('old');$gates=[];$values=null;$routes=[];$sapis=[];$reach=null;$invalidation=['requested'=>true,'reportedRequested'=>[],'candidates'=>0,'invalidated'=>0,'failed'=>0,'vanished'=>0];
         try{
-            foreach($this->probeRequests('preflight',$expected,false,null) as $response){
-                $routes[]=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);$a=FreshnessProbe::assess($response,$this->state['id'],$expected,$this->allowedSapis,false);
+            foreach($this->probeRequests('preflight',$expected,true,null) as $response){
+                $routes[]=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);$a=FreshnessProbe::assess($response,$this->state['id'],$expected,$this->allowedSapis,true);
+                $invalidation['reportedRequested'][]=($response['invalidationRequested']??null)===true;foreach(['candidates'=>'invalidationCandidates','invalidated'=>'invalidated','failed'=>'invalidationFailed','vanished'=>'vanishedCachedScripts'] as $key=>$field)if(is_int($response[$field]??null))$invalidation[$key]+=$response[$field];
                 foreach($a['gates'] as $gate=>$code)if(!array_key_exists($gate,$gates)||$gates[$gate]===null)$gates[$gate]=$code;$sapis[]=$a['values']['sapi'];
                 if($values===null)$values=$a['values'];else foreach(['realpathCacheTtl','revalidateFreq','holdSeconds'] as $key)if(is_int($a['values'][$key])&&(!is_int($values[$key])||$a['values'][$key]>$values[$key]))$values[$key]=$a['values'][$key];
             }
         }catch(Throwable $error){$reach=self::code($error);}
-        $gates=['probeReachable'=>$reach]+($gates===[]?array_fill_keys(['scope','sapi','php84','docroot','treeContent','opcacheStatus','scriptsListed','fields','targetedInvalidation','revalidateFreq','realpathIni','holdBound'],'NOT_EVALUATED_PROBE_UNREACHABLE'):$gates);
+        $gates=['probeReachable'=>$reach]+($gates===[]?array_fill_keys(['scope','sapi','php84','docroot','treeContent','opcacheStatus','scriptsListed','fields','targetedInvalidation','revalidateFreq','validateTimestamps','realpathIni','holdBound'],'NOT_EVALUATED_PROBE_UNREACHABLE'):$gates);
         $route=in_array('PUBLIC_TLS_HOSTNAME',$routes,true)?'PUBLIC_TLS_HOSTNAME':($routes[0]??null);
         try{$control=$this->drainPositiveControl();$gates['drainPositiveControl']=$control['observed']?null:'DRAIN_POSITIVE_CONTROL_NOT_OBSERVED';$gates['liveLogin200']=in_array(200,$control['loginStatuses'],true)?null:'PRE_SWITCH_LOGIN_NOT_200';}
         catch(Throwable $error){$control=['error'=>self::code($error)];$gates['drainPositiveControl']=self::code($error);$gates['liveLogin200']='NOT_EVALUATED';}
         $logs=LeanGates::dailyLogs($this->active().'/storage/logs');$gates['dailyLaravelLog']=$logs['dailyFiles']>0?null:'LOG_GATE_NO_DAILY_LARAVEL_LOG';
+        // Artisan census of THIS CMS before any barrier: a path argument or working directory in a CMS release root (unreadable cwd counts); lsphp request titles and other sites are ignored.
+        try{$census=LeanGates::busy($this->active().'/public/index.php',LeanGates::processes(),getmypid(),$this->probeRoots());$artisan=['artisan'=>$census['artisan'],'otherArtisanIgnored'=>$census['otherArtisanIgnored'],'lsphpRequestTitlesIgnored'=>true];$gates['artisanCensus']=$census['artisan']>0?'PRE_SWITCH_CMS_ARTISAN_RUNNING':null;}
+        catch(Throwable $error){$artisan=['error'=>self::code($error)];$gates['artisanCensus']=self::code($error);}
         $blockers=array_values(array_unique(array_filter($gates,static fn($code)=>$code!==null)));
-        $report=['gates'=>array_map(static fn($code)=>$code??'PASS',$gates),'values'=>$values,'reachability'=>['route'=>$route,'samples'=>count($routes),'routes'=>$routes,'sapis'=>array_values(array_unique($sapis))],'drainPositiveControl'=>$control,'dailyLog'=>$logs+['explanation'=>'LOG_CHANNEL=daily writes storage/logs/laravel-YYYY-MM-DD.log; without one the post-switch log gate could pass vacuously'],'invalidationRequested'=>false,'barrier'=>'NONE_YET','blockers'=>$blockers];
+        $report=['gates'=>array_map(static fn($code)=>$code??'PASS',$gates),'values'=>$values,'reachability'=>['route'=>$route,'samples'=>count($routes),'routes'=>$routes,'sapis'=>array_values(array_unique($sapis))],'drainPositiveControl'=>$control,'artisanCensus'=>$artisan,'dailyLog'=>$logs+['explanation'=>'LOG_CHANNEL=daily writes storage/logs/laravel-YYYY-MM-DD.log; without one the post-switch log gate could pass vacuously'],'invalidationRequested'=>true,'invalidation'=>$invalidation,'barrier'=>'NONE_YET','blockers'=>$blockers];
         $this->state['hostPreflight']=['route'=>$route,'values'=>$values,'blockers'=>$blockers];$this->emit('HOST_PREFLIGHT',$report);
         if($blockers!==[]){$this->save('HOST_PREFLIGHT_BLOCKED');throw new RuntimeException('HOST_PREFLIGHT_BLOCKED');}
         $this->save('HOST_PREFLIGHT_PASSED');
@@ -273,6 +292,7 @@ final class InstallCoordinator
             if(in_array($this->state['phase'],['COMMITTED_OFF','PUBLIC_RELEASED','SCHEDULER_RESTORED'],true))return $this->finishCommitted();
             if(in_array($this->state['phase'],['ROLLED_BACK','ROLLED_BACK_PRE_SWITCH'],true)){$this->emit('PRIOR_ATTEMPT_ROLLED_BACK_NO_AUTOMATIC_REDEPLOY',true);return 2;}
             if($this->state['phase']==='ORIGINAL_RELEASED_SCHEDULER_PENDING')return $this->resumeSchedulerRelease();
+            if(in_array($this->state['phase'],self::RELEASE_PHASES,true)&&is_array($this->state['originalRelease']??null))return $this->resumeOriginalRelease();
             $this->emit('RECOVERY_OF_EXISTING_TRANSACTION',$this->state['id']);return $this->recover('OPERATOR_RESUMED_INTERRUPTED_INSTALL');
         }
         try{$this->prepare();}catch(Throwable $error){
@@ -317,14 +337,19 @@ final class InstallCoordinator
 
     /**
      * Restored original code: barrier back on the old tree, then web freshness against the old file hashes. A failing
-     * restored probe gets one targeted-invalidation retry; if it still fails, a conservative fixed hold derived from the
-     * PRE-SWITCH host values replaces the probe-derived one, and finishOriginal() lifts only after a re-check.
+     * restored probe gets one targeted-invalidation retry. If it still fails only because it could not report
+     * (FALLBACK_CODES), a conservative fixed hold derived from the PRE-SWITCH host values replaces the probe-derived one,
+     * and finishOriginal() lifts only after a re-check. Any other code (stale tree content, failed invalidation, timestamps
+     * off, ...) means the web is NOT proven to serve the restored code: the barrier stays for the operator.
      */
     private function verifyRestored():void
     {
         if(is_array($this->state['oldMaintenance']))$this->ensureBarrier($this->state['oldMaintenance'],$this->active().'/storage');$failed=[];
         for($attempt=1;$attempt<=2;$attempt++){
             try{$this->freshness('restored');return;}catch(Throwable $error){$failed[]=self::code($error);$this->emit('RESTORED_FRESHNESS_ATTEMPT_FAILED',['attempt'=>$attempt,'code'=>self::code($error)]);}
+        }
+        if(array_diff($failed,self::FALLBACK_CODES)!==[]){
+            $this->emit('RESTORED_FRESHNESS_NOT_PROVEN',['failedAttempts'=>$failed,'fallbackAllowedOnlyFor'=>self::FALLBACK_CODES,'barrier'=>'RETAINED']);$this->retainForOperator();
         }
         $pre=$this->state['hostPreflight']['values']??null;if(!is_array($pre)||!is_int($pre['holdSeconds']??null)||$pre['holdSeconds']>FreshnessProbe::MAX_HOLD_SECONDS)throw new RuntimeException('RESTORED_FALLBACK_PRESWITCH_VALUES_MISSING');
         $now=time();$swappedAt=$this->state['swappedAt']['restored'];$lift=$now+$pre['holdSeconds'];
@@ -338,25 +363,37 @@ final class InstallCoordinator
         $framework=$this->active().'/storage/framework';return 'rm -f '.$framework.'/down '.$framework.'/maintenance.php && bash '.$this->root.'/incoming/b1144-controlled-install.sh';
     }
 
-    /** After a fallback hold: lift only if the restored old code is what is active AND answers /login 200 behind the barrier. */
+    /** The owned barrier stays on the restored old code on purpose; only the printed operator command lifts it. */
+    private function retainForOperator():never
+    {
+        $this->save('RESTORED_BARRIER_RETAINED_OPERATOR_LIFT');$this->emit('OPERATOR_LIFT_COMMAND',$this->operatorLiftCommand());throw new RuntimeException('RESTORED_BARRIER_RETAINED_OPERATOR_LIFT');
+    }
+
+    /**
+     * After a fallback hold: lift only if the restored old code is what is active AND answers /login 200 behind the barrier.
+     * The barrier's private pass-through stops working at maintenanceExpires (prepare + 1500 s, baked into the barrier
+     * file); after that the re-check cannot pass, so it is refused without a request and the barrier stays for the operator.
+     */
     private function restoredRecheck():void
     {
         try{
             if($this->identity($this->active())!==$this->state['plan']['oldIdentity'])throw new RuntimeException('RESTORED_RECHECK_IDENTITY');
             foreach($this->expected('old') as $relative=>$digest){$path=$this->active().'/'.$relative;clearstatcache(true,$path);$actual=is_file($path)&&!is_link($path)?hash_file('sha256',$path):null;if($actual!==$digest)throw new RuntimeException('RESTORED_RECHECK_TREE_CONTENT');}
+            if(time()>=$this->state['maintenanceExpires'])throw new RuntimeException('RESTORED_RECHECK_SMOKE_TOKEN_EXPIRED');
             $this->web->status('/login',200,null,$this->marker(),3,$this->state['oldMaintenance']['smokeToken']);$this->emit('RESTORED_FALLBACK_RECHECK','PASS_OLD_CODE_LOGIN_200_BEHIND_OWNED_BARRIER');
-        }catch(Throwable $error){
-            $this->save('RESTORED_BARRIER_RETAINED_OPERATOR_LIFT');$this->emit('RESTORED_FALLBACK_RECHECK',self::code($error));
-            $this->emit('OPERATOR_LIFT_COMMAND',$this->operatorLiftCommand());throw new RuntimeException('RESTORED_BARRIER_RETAINED_OPERATOR_LIFT');
-        }
+        }catch(Throwable $error){$this->emit('RESTORED_FALLBACK_RECHECK',self::code($error));$this->retainForOperator();}
     }
 
-    private function finishOriginal(bool $switched,bool $operatorLifted=false):int
+    /**
+     * $resume: null (normal path: restored hold first), 'OPERATOR_LIFTED' (the operator removed the retained barrier) or
+     * 'RESUMED_RELEASE' (a re-run after the release had already started). Neither resume form holds or re-imposes a barrier.
+     */
+    private function finishOriginal(bool $switched,?string $resume=null):int
     {
         $plan=$this->state['plan'];$active=$this->active();if($this->identity($active)!==$plan['oldIdentity'])throw new RuntimeException('ORIGINAL_CODE_REQUIRED_BEFORE_RELEASE');
         $other=is_dir($plan['failed'])?$plan['failed']:$plan['candidate'];if($this->identity($other)!==$plan['candidateIdentity'])throw new RuntimeException('RECOVERY_CANDIDATE_IDENTITY');
-        if($switched&&!$operatorLifted){$this->holdBarrier('restored');if(($this->state['freshness']['restored']['fallback']??false)===true)$this->restoredRecheck();}
-        $this->state['originalRelease']=['switched'=>$switched];$this->save('ORIGINAL_RELEASE_INTENT');
+        if($switched&&$resume===null){$this->holdBarrier('restored');if(($this->state['freshness']['restored']['fallback']??false)===true)$this->restoredRecheck();}
+        $previous=$this->state['originalRelease']['resume']??null;$this->state['originalRelease']=['switched'=>$switched,'resume'=>$resume==='RESUMED_RELEASE'&&$previous==='OPERATOR_LIFTED'?'OPERATOR_LIFTED':$resume];$this->save('ORIGINAL_RELEASE_INTENT');
         // The inactive tree is served by nothing: a barrier left there (e.g. next to a foreign file) is reported, never blocking.
         if(is_array($this->state['newMaintenance']))try{$this->clearMaintenance($this->state['newMaintenance'],$other.'/storage');}catch(Throwable $error){$this->emit('INACTIVE_TREE_BARRIER_NOT_CLEARED',self::code($error));}
         if(is_array($this->state['oldMaintenance']))$this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');
@@ -374,7 +411,28 @@ final class InstallCoordinator
             try{$this->scheduler('release');}catch(Throwable $error){$this->emit('SCHEDULER_RELEASE_PENDING_ORIGINAL_SITE_LIVE_NO_BARRIER',self::code($error));return 2;}
         }
         $this->assertGit();$this->save($switched?'ROLLED_BACK':'ROLLED_BACK_PRE_SWITCH');
-        $this->emit($switched?'ROLLBACK':'ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',$switched?'ORIGINAL_CODE_PRIVATE_DATA_RESTORED_FRESHNESS_AND_HTTP_VERIFIED':true);return 2;
+        $this->emit($switched?'ROLLBACK':'ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',$switched?$this->rollbackLabel():true);return 2;
+    }
+
+    /** What actually proved the restored code before the lift; the fallback and the operator lift never reuse the normal label. */
+    private function rollbackLabel():string
+    {
+        if(($this->state['originalRelease']['resume']??null)==='OPERATOR_LIFTED')return 'ORIGINAL_CODE_PRIVATE_DATA_RESTORED_OPERATOR_LIFTED_BARRIER_PUBLIC_LOGIN_VERIFIED_FRESHNESS_NOT_PROVEN';
+        if(($this->state['freshness']['restored']['fallback']??false)===true)return 'ORIGINAL_CODE_PRIVATE_DATA_RESTORED_PRESWITCH_FALLBACK_HOLD_PRIVATE_LOGIN_AND_HTTP_VERIFIED_FRESHNESS_PROBE_UNAVAILABLE';
+        return 'ORIGINAL_CODE_PRIVATE_DATA_RESTORED_FRESHNESS_AND_HTTP_VERIFIED';
+    }
+
+    /**
+     * Re-run after ORIGINAL_RELEASE_INTENT, ORIGINAL_RELEASED_PENDING_HTTP or ORIGINAL_RELEASE_AVAILABILITY_HOLD: the hold
+     * for the original code had already passed. Any owned barrier still present is cleared (never re-imposed), public
+     * /login is re-checked and the scheduler release retried; a failing /login stays ORIGINAL_RELEASE_AVAILABILITY_HOLD.
+     */
+    private function resumeOriginalRelease():int
+    {
+        try{
+            $switched=($this->state['originalRelease']['switched']??null)===true;if($switched!==is_dir($this->state['plan']['failed']))throw new RuntimeException('RESTORE_PHASE_TOPOLOGY_MISMATCH');
+            $this->emit('RESUME_ORIGINAL_RELEASE_NO_BARRIER',['phase'=>$this->state['phase'],'switched'=>$switched,'barrier'=>'NOT_REIMPOSED']);return $this->finishOriginal($switched,'RESUMED_RELEASE');
+        }catch(Throwable $error){$this->emit('RECOVERY_HOLD',self::code($error));return 2;}
     }
 
     /** Re-run in ORIGINAL_RELEASED_SCHEDULER_PENDING: the old code is live without a barrier; only the scheduler release is retried. */
@@ -396,12 +454,15 @@ final class InstallCoordinator
     {
         $this->emit('INSTALL_HOLD_REASON',$reason);
         try{
-            $this->removeRecordedProbes();$plan=$this->state['plan'];$active=$this->active();$current=is_dir($active)?$this->identity($active):null;
+            // Probe cleanup writes state.json: a disk or quota failure there is reported and never stops the rename back.
+            $this->step('PROBE_CLEANUP',fn()=>$this->removeRecordedProbes());$plan=$this->state['plan'];$active=$this->active();$current=is_dir($active)?$this->identity($active):null;
             if($current===$plan['oldIdentity']&&!is_dir($plan['rollback'])){
                 $switched=is_dir($plan['failed']);if(isset($this->state['originalRelease'])&&($this->state['originalRelease']['switched']??null)!==$switched)throw new RuntimeException('RESTORE_PHASE_TOPOLOGY_MISMATCH');
                 if($switched&&($this->state['phase']??'')==='RESTORED_BARRIER_RETAINED_OPERATOR_LIFT'&&is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null){
-                    $this->emit('OPERATOR_LIFTED_RESTORED_BARRIER','NOT_REIMPOSED_LOGIN_AND_SCHEDULER_ONLY');return $this->finishOriginal(true,true);
+                    $this->emit('OPERATOR_LIFTED_RESTORED_BARRIER','NOT_REIMPOSED_LOGIN_AND_SCHEDULER_ONLY');return $this->finishOriginal(true,'OPERATOR_LIFTED');
                 }
+                // No rename is pending here: a recorded probe that still could not be removed keeps whatever barrier exists.
+                $this->removeRecordedProbes();
                 // Restore time unknown after a crash: counting from now is the conservative choice.
                 if($switched){$this->markSwap('restored',false);$this->verifyRestored();}return $this->finishOriginal($switched);
             }
@@ -416,10 +477,12 @@ final class InstallCoordinator
                 $this->step('RECOVERY_DRAIN_BOUNDED',fn()=>$this->drain());
             }
             $restore=ReleasePrimitives::recoverSwitch($plan,$this->state['journal'],$this->state['owner'],$plan['failed']);
-            $this->markSwap('restored',$restore==='OLD_RESTORED');$this->save('OLD_RESTORED_MAINTENANCE_HELD');
+            $this->markSwap('restored',$restore==='OLD_RESTORED');
+            // After the rename: a recorded probe that still could not be removed (foreign bytes at its name) keeps the barrier.
+            $this->removeRecordedProbes();$this->save('OLD_RESTORED_MAINTENANCE_HELD');
             $switched=is_dir($plan['failed']);if($switched)$this->verifyRestored();return $this->finishOriginal($switched);
         }catch(Throwable $error){
-            if(!in_array($this->state['phase']??'',self::KEEP_PHASES,true)){try{$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');}catch(Throwable){$this->emit('RECOVERY_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RERUN_SAME_COMMAND');}}
+            if(!in_array($this->persistedPhase(),self::KEEP_PHASES,true)){try{$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');}catch(Throwable){$this->emit('RECOVERY_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RERUN_SAME_COMMAND');}}
             $this->emit('RECOVERY_HOLD',self::code($error));return 2;
         }
     }
