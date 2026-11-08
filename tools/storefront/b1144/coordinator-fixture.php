@@ -71,7 +71,7 @@ function run(array $args,?string $cwd=null):string{$p=proc_open($args,[0=>['pipe
 function probesUnder(array $bases):array{$found=[];foreach($bases as $b)if(is_dir($b.'/public'))foreach(scandir($b.'/public') as $n)if(str_starts_with($n,FreshnessProbe::PREFIX))$found[]=$b.'/public/'.$n;return $found;}
 function barriers(array $bases):array{$found=[];foreach($bases as $b)foreach(['maintenance.php','down'] as $n)if(is_file($b.'/storage/framework/'.$n))$found[]=$b.'/storage/framework/'.$n;return $found;}
 function lastJournal(string $journal):string{$lines=array_values(array_filter(explode("\n",file_get_contents($journal))));return json_decode(end($lines),true)['state'];}
-function line(string $output,string $key):?array{return preg_match('/^'.preg_quote($key,'/').'=(.+)$/m',$output,$m)?json_decode($m[1],true,64,JSON_THROW_ON_ERROR):null;}
+function line(string $output,string $key):mixed{return preg_match('/^'.preg_quote($key,'/').'=(.+)$/m',$output,$m)?json_decode($m[1],true,64,JSON_THROW_ON_ERROR):null;}
 
 $tools=$argv[1];$stage=$argv[2];$payload=$argv[3];$directoryDoc=$argv[4];$base=getenv('RUNNER_TEMP').'/b1144-coordinator';mkdir($base);$base=realpath($base);
 $manifest=json_decode(file_get_contents($payload.'/runtime-manifest.json'),true,512,JSON_THROW_ON_ERROR);$directories=json_decode(file_get_contents($directoryDoc),true,512,JSON_THROW_ON_ERROR)['directories'];

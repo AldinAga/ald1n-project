@@ -80,7 +80,7 @@ def start(opcache):
 def stop():
     server.terminate();server.wait(timeout=10);log.close()
 web={'loopbackPort':tls_port,'publicPort':tls_port,'caFile':str(cert)}
-def status(path,expected,stamp=None,attempts=1):return bridge('status',path=path,expected=expected,stamp=stamp,attempts=attempts,**web)
+def status(path,expected,stamp=None,attempts=1,smokeToken=None):return bridge('status',path=path,expected=expected,stamp=stamp,attempts=attempts,smokeToken=smokeToken,**web)
 roots=[str(current),str(candidate),str(retained),str(failed)]
 # Private 0700 staging directory on the same filesystem: the probe is written there, fsynced and hard-linked into public/.
 staging_dir=work/'private-state';staging_dir.mkdir(mode=0o700);staging_dir.chmod(0o700)
