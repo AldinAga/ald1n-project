@@ -2,6 +2,8 @@ import hashlib,http.client,json,os,pathlib,shutil,socket,sqlite3,ssl,subprocess,
 # Real Laravel runtime behind a real TLS listener for cms.ald1n.com, driven by the real LeanWeb/FreshnessProbe/ReleasePrimitives.
 # Shows the same-path stale-code problem with OPcache, then the targeted invalidation fixing it, on install AND on rollback.
 stage=pathlib.Path(sys.argv[1]);b1144=pathlib.Path(sys.argv[2]).resolve();b1134=pathlib.Path(sys.argv[3]).resolve();base=pathlib.Path(os.environ['RUNNER_TEMP']).resolve()/'b1144-front';base.mkdir()
+# Short, non-default realpath TTL: the barrier hold must be derived from the probe-reported value, not from a constant.
+REALPATH_TTL=30;HOLD_MARGIN=5
 PENDING=['2026_10_23_020000_create_public_order_accesses','2026_10_23_020100_create_public_checkout_attempts','2026_10_24_030000_add_retail_customer_role']
 def sha(data):return hashlib.sha256(data).hexdigest()
 def free():
@@ -21,6 +23,9 @@ stamp=time.time()-3600
 for tree,word in [(current,'OLD'),(candidate,'NEW')]:
     (tree/'app/B1144FreshnessMarker.php').write_text("<?php return '"+word+"-B1144-MARKER';\n");os.utime(tree/'app/B1144FreshnessMarker.php',(stamp,stamp))
     (tree/'public/b1144-marker.php').write_text("<?php echo require __DIR__.'/../app/B1144FreshnessMarker.php';\n");os.utime(tree/'public/b1144-marker.php',(stamp,stamp))
+    # How THIS worker resolves the private .env path, with the exact string Laravel uses (basePath.'/.env'). It never clears the
+    # realpath cache unless asked: op=clear stands in for any application unlink/rename, which PHP follows with a full cache clear.
+    (tree/'public/b1144-realpath.php').write_text("<?php if(($_GET['op']??'')==='clear'){clearstatcache(true);echo 'CLEARED';return;}$env=dirname(__DIR__).'/.env';$real=realpath($env);$bytes=@file_get_contents($env);echo json_encode(['realpath'=>$real,'readable'=>is_string($bytes)&&str_contains($bytes,'APP_KEY=base64:'),'isFile'=>is_file($env)]);\n");os.utime(tree/'public/b1144-realpath.php',(stamp,stamp))
 db=work/'production-like.sqlite';con=sqlite3.connect(db);con.execute('create table migrations (id integer primary key autoincrement not null, migration varchar not null, batch integer not null)')
 names=sorted(p.stem for p in (stage/'database/migrations').glob('*.php'));assert len(names)==71 and all(n in names for n in PENDING),len(names)
 con.executemany('insert into migrations (migration,batch) values (?,1)',[(n,) for n in names if n not in PENDING]);con.commit();con.close()
@@ -66,7 +71,7 @@ server=None;log=None
 def start(opcache):
     global server,log
     port=free();state['backend']=port;log=(work/('server-'+str(opcache)+'.log')).open('wb')
-    server=subprocess.Popen(['php','-d','opcache.enable='+str(int(opcache)),'-d','opcache.enable_cli='+str(int(opcache)),'-d','opcache.validate_timestamps=1','-d','opcache.revalidate_freq=2','-d','opcache.file_update_protection=0','-S','127.0.0.1:'+str(port),'-t',str(current/'public')],stdout=log,stderr=log,cwd=str(current))
+    server=subprocess.Popen(['php','-d','opcache.enable='+str(int(opcache)),'-d','opcache.enable_cli='+str(int(opcache)),'-d','opcache.validate_timestamps=1','-d','opcache.revalidate_freq=2','-d','opcache.file_update_protection=0','-d','realpath_cache_ttl='+str(REALPATH_TTL),'-S','127.0.0.1:'+str(port),'-t',str(current/'public')],stdout=log,stderr=log,cwd=str(current))
     for _ in range(150):
         try:
             if raw('/up')[0] in (200,503):return
@@ -98,45 +103,59 @@ try:
     baseline=bridge('logs-baseline',logs=str(current/'storage/logs'))
     new_m=bridge('own',base=str(candidate),owner=owner,expires=expires,started=started);old_m=bridge('own',base=str(current),owner=owner,expires=expires,started=started)
     barrier=status('/login',503,old_m['ownerSHA256']);assert barrier['pass'],barrier;wrong=status('/login',503,'f'*64);assert not wrong['pass'] and wrong['code']=='PUBLIC_HTTP_SMOKE_503'
-    bridge('switch',current=str(current),candidate=str(candidate),retained=str(retained),journal=str(work/'journal.jsonl'),owner=owner)
+    bridge('switch',current=str(current),candidate=str(candidate),retained=str(retained),journal=str(work/'journal.jsonl'),owner=owner);swapped_install=int(time.time())
     artisan(current,'package:discover');artisan(current,'view:cache')
     time.sleep(2.5);stale=raw('/b1144-marker.php')[1];assert stale=='OLD-B1144-MARKER',('STALE_CODE_NOT_REPRODUCED',stale)
-    installed,denied=freshness(new_hash,'installed');assert installed['pass'],installed;s=installed['summary']
+    installed,denied=freshness(new_hash,'installed');probed_install=int(time.time());assert installed['pass'],installed;s=installed['summary']
     assert installed['route']=='LOOPBACK_TLS_ORIGIN' and s['opcacheEnabled'] is True and s['targetedInvalidations']>=1 and s['globalReset'] is False and s['sapi']=='cli-server' and s['docrootMatches'] is True,s
+    assert s['realpathCacheTtl']==REALPATH_TTL and isinstance(s['realpathCacheSize'],str) and s['holdSeconds']==max(REALPATH_TTL,s['revalidateFreq'])+HOLD_MARGIN,('REALPATH_INI_NOT_REPORTED',s)
     time.sleep(s['waitSeconds']);fresh=raw('/b1144-marker.php')[1];assert fresh=='NEW-B1144-MARKER',('TARGETED_INVALIDATION_DID_NOT_FRESHEN',fresh)
     fallback,_=freshness(new_hash,'installed-fallback',fallback=True);assert fallback['pass'] and fallback['route']=='PUBLIC_TLS_HOSTNAME',fallback
     wrong_sapi,_=freshness(new_hash,'wrong-sapi',sapis=('litespeed',));assert not wrong_sapi['pass'] and wrong_sapi['code']=='FRESHNESS_PROBE_SAPI',wrong_sapi
     stale_tree,_=freshness(old_hash,'wrong-tree');assert not stale_tree['pass'] and stale_tree['code']=='FRESHNESS_PROBE_TREE_CONTENT',stale_tree
     cli=bridge('cli',current=str(current));assert cli['aboutRC']==0 and cli['statusRC']==0 and cli['parsed']=={'ran':68,'pending':PENDING},cli
+    # The coordinator hold, by the product code, from the probe-reported values; the lift comes only after it.
+    hold_install=bridge('hold',swappedAt=swapped_install,probedAt=probed_install,summaries=[s])
+    assert hold_install['liftNotBefore']==max(swapped_install+REALPATH_TTL,probed_install+s['revalidateFreq'])+HOLD_MARGIN and int(time.time())>=hold_install['liftNotBefore'],('INSTALL_HOLD_NOT_DERIVED',hold_install)
     bridge('release',receipt=old_m,base=str(retained));bridge('release',receipt=new_m,base=str(current))
     smokes={}
     for path,expected in [('/login',200),('/up',200),('/katalog',404),('/registracija',404),('/korpa',404)]:
-        r=status(path,expected,attempts=2);smokes[path]=r['pass'];assert r['pass'],(path,r)
+        r=status(path,expected,attempts=1);smokes[path]=r['pass'];assert r['pass'],(path,r)
     scan=bridge('logs-scan',logs=str(current/'storage/logs'),baseline=baseline);assert scan['newErrorLines']==0,(scan,(retained/'storage/logs/laravel.log').read_text()[-3000:] if (retained/'storage/logs/laravel.log').exists() else '')
+    # The live new release resolves .env and storage through the private symlinks into the retained tree. After a cache clear
+    # (any app unlink/rename does one) live traffic caches those resolutions in this worker: the state a rollback inherits.
+    assert raw('/b1144-realpath.php?op=clear')[1]=='CLEARED';assert status('/login',200,attempts=1)['pass'];live_env=json.loads(raw('/b1144-realpath.php')[1])
+    assert live_env['readable'] is True and str(live_env['realpath']).endswith('/tree/retained/.env'),('NEW_RELEASE_ENV_NOT_LINKED',live_env)
     (current/'storage/app/public/after-lift').write_text('new-user-bytes')
     # Live traffic on the new code puts the NEW marker in OPcache; a rollback to the same path must then be proven fresh again.
     assert raw('/b1144-marker.php')[1]=='NEW-B1144-MARKER'
     # Post-lift failure path: barrier back on both trees, swap back, restored-tree freshness, lift, /login 200.
     new_again=bridge('own',base=str(current),owner=owner,expires=expires,started=started);old_again=bridge('own',base=str(retained),owner=owner,expires=expires,started=started);assert len(new_again['files'])==2 and len(old_again['files'])==2
     assert status('/login',503,old_m['ownerSHA256'])['pass']
-    assert bridge('rollback',plan=plan,journal=str(work/'journal.jsonl'),owner=owner,failed=str(failed))['result']=='OLD_RESTORED'
+    assert bridge('rollback',plan=plan,journal=str(work/'journal.jsonl'),owner=owner,failed=str(failed))['result']=='OLD_RESTORED';swapped_restore=int(time.time())
+    # Negative control: right after the swap back, this worker still resolves .env into the now-missing retained path.
+    stale_env=json.loads(raw('/b1144-realpath.php')[1]);assert stale_env['readable'] is False,('STALE_REALPATH_NOT_REPRODUCED',stale_env)
     time.sleep(2.5);stale_back=raw('/b1144-marker.php')[1];assert stale_back=='NEW-B1144-MARKER',('ROLLBACK_STALE_NOT_REPRODUCED',stale_back)
-    restored,_=freshness(old_hash,'restored');assert restored['pass'] and restored['summary']['targetedInvalidations']>=1,restored
-    time.sleep(restored['summary']['waitSeconds']);assert raw('/b1144-marker.php')[1]=='OLD-B1144-MARKER'
+    restored,_=freshness(old_hash,'restored');probed_restore=int(time.time());assert restored['pass'] and restored['summary']['targetedInvalidations']>=1,restored;rs=restored['summary']
+    assert rs['realpathCacheTtl']==REALPATH_TTL,('REALPATH_INI_NOT_REPORTED',rs)
+    time.sleep(rs['waitSeconds']);assert raw('/b1144-marker.php')[1]=='OLD-B1144-MARKER'
+    hold_restore=bridge('hold',swappedAt=swapped_restore,probedAt=probed_restore,summaries=[rs])
+    assert hold_restore['liftNotBefore']==max(swapped_restore+REALPATH_TTL,probed_restore+rs['revalidateFreq'])+HOLD_MARGIN and int(time.time())>=hold_restore['liftNotBefore'],('RESTORE_HOLD_NOT_DERIVED',hold_restore)
     bridge('release',receipt=new_m,base=str(failed));bridge('release',receipt=old_m,base=str(current))
-    first_login=status('/login',200,attempts=2)
+    # Strict: the FIRST /login after the lift passes, one attempt, no waiting beyond the coordinator hold.
+    first_login=status('/login',200,attempts=1)
     if not first_login['pass']:
         logfile=current/'storage/logs/laravel.log';text=logfile.read_text() if logfile.exists() else 'NO_LOG';heads=[l[:700] for l in text.splitlines() if l.startswith('[20')][-4:]
-        print('ROLLBACK_LOGIN_DIAGNOSTIC',json.dumps(first_login),json.dumps(heads),flush=True)
-        time.sleep(125);print('ROLLBACK_LOGIN_AFTER_REALPATH_TTL',json.dumps(status('/login',200)),flush=True)
+        print('ROLLBACK_LOGIN_DIAGNOSTIC',json.dumps(first_login),json.dumps(heads),json.dumps(raw('/b1144-realpath.php')[1]),flush=True)
     assert first_login['pass'];assert (current/'storage/app/public/after-lift').read_text()=='new-user-bytes'
+    healed_env=json.loads(raw('/b1144-realpath.php')[1]);assert healed_env['readable'] is True and str(healed_env['realpath']).endswith('/tree/current/.env'),('REALPATH_NOT_HEALED',healed_env)
     stop()
     # OPcache-off profile: the same probe validates without invalidation candidates and needs no wait.
     start(False)
     off,_=freshness(old_hash,'opcache-off');assert off['pass'] and off['summary']['opcacheEnabled'] is False and off['summary']['targetedInvalidations']==0,off
     assert raw('/b1144-marker.php')[1]=='OLD-B1144-MARKER'
     stop();server=None
-    receipt={'realLaravelRuntime':True,'tlsHostnameCertificateForCmsAld1nCom':True,'sameMtimeSameSizeStaleCodeReproduced':{'install':True,'rollback':True},'targetedInvalidationFreshened':{'install':True,'rollback':True},'loopbackRoute':installed['route'],'fallbackRoute':fallback['route'],'probeDenied404':denied,'probeRemovedAfterUse':True,'probeNameOrTokenPrinted':False,'freshnessSummary':s,'wrongSapi':'HOLD','wrongTree':'HOLD','barrier503WithOwnerStamp':True,'foreignStamp':'HOLD','cliAboutRC':0,'migrateStatus':cli['parsed'],'postLiftSmokes':smokes,'newLogErrorLines':scan['newErrorLines'],'rollbackAfterLift':'OLD_RESTORED_FRESHNESS_VERIFIED_LOGIN_200','opcacheOffProfile':off['summary'],'productionContacted':False}
+    receipt={'realLaravelRuntime':True,'tlsHostnameCertificateForCmsAld1nCom':True,'sameMtimeSameSizeStaleCodeReproduced':{'install':True,'rollback':True},'targetedInvalidationFreshened':{'install':True,'rollback':True},'loopbackRoute':installed['route'],'fallbackRoute':fallback['route'],'probeDenied404':denied,'probeRemovedAfterUse':True,'probeNameOrTokenPrinted':False,'freshnessSummary':s,'wrongSapi':'HOLD','wrongTree':'HOLD','barrier503WithOwnerStamp':True,'foreignStamp':'HOLD','cliAboutRC':0,'migrateStatus':cli['parsed'],'postLiftSmokes':smokes,'newLogErrorLines':scan['newErrorLines'],'rollbackAfterLift':'OLD_RESTORED_FRESHNESS_VERIFIED_LOGIN_200','realpathCacheTtlReported':REALPATH_TTL,'staleEnvRealpathAfterRollbackReproduced':True,'barrierHold':{'install':hold_install,'restore':hold_restore},'firstLoginAfterRestoreLiftAttempts':1,'opcacheOffProfile':off['summary'],'productionContacted':False}
 finally:
     if server is not None and server.poll() is None:server.terminate()
 (base/'front-receipt.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt,indent=2))

@@ -13,12 +13,14 @@ foreach(['LeanGates','FreshnessProbe','B1144Recovery','InstallCoordinator'] as $
 final class FixtureWeb
 {
     public array $fail=[];public array $calls=[];public array $seen=[];public bool $logErrorOnUp=false;public bool $uploadOnLogin=false;public ?string $sapiOverride=null;
+    /** realpathTtl is the REAL ini value of the probe process; realpathOverride replaces the reported raw value per tree label. */
+    public string $realpathTtl='0';public array $realpathOverride=[];public array $times=[];
     public function __construct(private string $active,private array $oldIdentity,private string $harness,private array $compile){}
     private function restored():bool {clearstatcache(true);$s=@stat($this->active);return is_array($s)&&$s['dev']===$this->oldIdentity['dev']&&$s['ino']===$this->oldIdentity['ino'];}
     private function consume(string $key):bool {if(($this->fail[$key]??0)<1)return false;$this->fail[$key]--;return true;}
     public function status(string $path,int $expected,?string $stamp=null,string $marker='',int $attempts=3):void
     {
-        $this->calls[]=$path.'='.$expected;clearstatcache(true);$barrier=$this->active.'/storage/framework/maintenance.php';$body='';
+        $this->calls[]=$path.'='.$expected;$this->times[]=[$path.'='.$expected,time()];clearstatcache(true);$barrier=$this->active.'/storage/framework/maintenance.php';$body='';
         if(is_file($barrier)){$observed=503;$body=(string)file_get_contents($barrier);}else $observed=in_array($path,['/login','/up'],true)?200:404;
         if($this->consume($path.'='.$expected))$observed=$expected===200?500:200;
         if($observed===200&&$path==='/login'&&$this->uploadOnLogin){file_put_contents($this->active.'/storage/app/public/written-while-live','user-bytes');$this->uploadOnLogin=false;}
@@ -32,9 +34,9 @@ final class FixtureWeb
         if($this->consume('probe-'.$label))throw new RuntimeException('FRESHNESS_PROBE_HTTP_UNAVAILABLE');
         $server=['REQUEST_METHOD'=>'GET','HTTP_HOST'=>'cms.ald1n.com','HTTP_X_ALD1N_RELEASE_PROBE'=>$token,'DOCUMENT_ROOT'=>$this->active.'/public']+($invalidate?['HTTP_X_ALD1N_RELEASE_INVALIDATE'=>'YES']:[]);
         $compile=array_values(array_filter(array_map(fn($r)=>$this->active.'/'.$r,$this->compile),'is_file'));
-        $p=proc_open(array_merge(['php','-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.revalidate_freq=0','-d','opcache.file_update_protection=0',$this->harness,$this->active.'/public/'.$name,json_encode($server)],$compile),[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);proc_close($p);
+        $p=proc_open(array_merge(['php','-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.revalidate_freq=0','-d','opcache.file_update_protection=0','-d','realpath_cache_ttl='.$this->realpathTtl,$this->harness,$this->active.'/public/'.$name,json_encode($server)],$compile),[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);proc_close($p);
         if($out==='')throw new RuntimeException('FRESHNESS_PROBE_HTTP_UNAVAILABLE');$data=json_decode($out,true,16,JSON_THROW_ON_ERROR);
-        if($label==='installed'&&$this->sapiOverride!==null)$data['sapi']=$this->sapiOverride;$data['_route']='FIXTURE_CLI_HARNESS';return $data;
+        if($label==='installed'&&$this->sapiOverride!==null)$data['sapi']=$this->sapiOverride;if(array_key_exists($label,$this->realpathOverride))$data['realpathCacheTtl']=$this->realpathOverride[$label];$data['_route']='FIXTURE_CLI_HARNESS';return $data;
     }
 }
 
@@ -102,7 +104,10 @@ $verify=static function(string $case,array $c,int $rc,string $output,FixtureWeb 
         check(barriers([$c['active'],$c['candidate'],$c['retained'],$c['failed']])===[],$case.'_ALL_BARRIERS_RELEASED');
         [$again]=$coordinator($c);[$rc2,$out2]=$rerun($again);check($rc2===($phase==='CLOSED_INSTALL'?0:2)&&str_contains($out2,$phase==='CLOSED_INSTALL'?'ALREADY_INSTALLED_OFF_NO_REPEAT':'PRIOR_ATTEMPT_ROLLED_BACK_NO_AUTOMATIC_REDEPLOY'),$case.'_NO_AUTOMATIC_REDEPLOY');
     }
-    if($phase==='ROLLED_BACK'){check(identity($c['active'])===$c['plan']['oldIdentity']&&identity($c['failed'])===$c['plan']['candidateIdentity']&&!file_exists($c['retained']),$case.'_OLD_CODE_RESTORED');check(isset($s['freshness']['restored'])&&str_contains($output,'"label":"restored"'),$case.'_RESTORED_FRESHNESS');check(lastJournal($c['journal'])==='ROLLED_BACK',$case.'_JOURNAL_ROLLED_BACK');}
+    if($phase==='ROLLED_BACK'){check(identity($c['active'])===$c['plan']['oldIdentity']&&identity($c['failed'])===$c['plan']['candidateIdentity']&&!file_exists($c['retained']),$case.'_OLD_CODE_RESTORED');check(isset($s['freshness']['restored'])&&str_contains($output,'"label":"restored"'),$case.'_RESTORED_FRESHNESS');check(lastJournal($c['journal'])==='ROLLED_BACK',$case.'_JOURNAL_ROLLED_BACK');
+        // The restored code is lifted only after the probe-derived hold counted from the swap back.
+        $hold=$s['freshness']['restored']['hold']??[];$lastLogin=null;foreach($web->times as [$call,$at])if($call==='/login=200')$lastLogin=$at;
+        check(str_contains($output,'BARRIER_HOLD={"label":"restored"')&&is_int($hold['liftNotBefore']??null)&&$hold['liftNotBefore']===max($hold['swappedAt']+$hold['realpathCacheTtl'],$hold['probedAt'])+FreshnessProbe::HOLD_MARGIN&&$lastLogin!==null&&$lastLogin>=$hold['liftNotBefore']&&($hold['heldUntil']??0)>=$hold['liftNotBefore'],$case.'_RESTORED_LIFT_AFTER_PROBE_DERIVED_HOLD');}
     if($phase==='ROLLED_BACK_PRE_SWITCH'){check(identity($c['active'])===$c['plan']['oldIdentity']&&identity($c['candidate'])===$c['plan']['candidateIdentity']&&!file_exists($c['retained'])&&!file_exists($c['failed']),$case.'_CANDIDATE_UNTOUCHED');}
     $actions=is_file($c['root'].'/incoming/scheduler-actions.log')?array_values(array_filter(explode("\n",file_get_contents($c['root'].'/incoming/scheduler-actions.log')))):[];
     if(in_array($phase,['CLOSED_INSTALL','ROLLED_BACK'],true)||($phase==='ROLLED_BACK_PRE_SWITCH'&&$actions!==[]))check(end($actions)==='release',$case.'_SCHEDULER_RELEASED_LAST');
@@ -112,7 +117,7 @@ $verify=static function(string $case,array $c,int $rc,string $output,FixtureWeb 
 
 $receipts=[];
 // Full success, then re-entry.
-$c=$build('success');[$o,$web]=$coordinator($c);$web->uploadOnLogin=true;[$rc,$out]=$execute($c,$o);$receipts['success']=$verify('success',$c,$rc,$out,$web,'CLOSED_INSTALL',0);$s=$saved($c);
+$c=$build('success');[$o,$web]=$coordinator($c);$web->uploadOnLogin=true;$web->realpathTtl='9';[$rc,$out]=$execute($c,$o);$receipts['success']=$verify('success',$c,$rc,$out,$web,'CLOSED_INSTALL',0);$s=$saved($c);
 check(identity($c['active'])===$c['plan']['candidateIdentity']&&identity($c['retained'])===$c['plan']['oldIdentity'],'SUCCESS_SWITCHED');check(lastJournal($c['journal'])==='CLOSED','SUCCESS_JOURNAL_CLOSED');
 check($s['cliBoot']['ran']===68&&$s['cliBoot']['pending']===InstallCoordinator::PENDING&&str_contains($out,'MIGRATE_STATUS_READ_ONLY={"rc":0,"ran":68,"pending":["2026_10_23_020000_create_public_order_accesses","2026_10_23_020100_create_public_checkout_attempts","2026_10_24_030000_add_retail_customer_role"],"migrateExecuted":false}'),'SUCCESS_MIGRATE_STATUS');
 check($s['treeVerification']['verifiedFiles']===8531&&$s['logScan']['newErrorLines']===0&&$s['freshness']['installed']['samples'][0]['treeFilesVerified']===3&&$s['freshness']['installed']['samples'][0]['targetedInvalidations']>=1,'SUCCESS_GATES');
@@ -120,6 +125,11 @@ check(str_contains($out,'CANONICAL_STATIC_CHECK="NOT_RUN_NOT_AN_EXISTING_INSTALL
 $order=$receipts['success']['phases'];foreach([['MAINTENANCE_OWNED','CMS_DRAINED'],['CMS_DRAINED','CANDIDATE_LOCAL_VERIFIED'],['LOG_BASELINE_RECORDED','SWITCHED'],['SWITCHED','FRESHNESS_VERIFIED'],['FRESHNESS_VERIFIED','CLI_BOOT_VERIFIED'],['CLI_BOOT_VERIFIED','BARRIER_LIFTED_SMOKE_PENDING'],['BARRIER_LIFTED_SMOKE_PENDING','COMMITTED_OFF']] as [$a,$b])check(array_search($a,$order,true)<array_search($b,$order,true),'SUCCESS_ORDER_'.$a.'_'.$b);
 $liftIndex=array_search('/login=200',$web->calls,true);check($liftIndex!==false&&array_slice($web->calls,$liftIndex,5)===['/login=200','/up=200','/katalog=404','/registracija=404','/korpa=404'],'SUCCESS_POST_LIFT_SMOKES');check(file_get_contents($c['retained'].'/storage/app/public/written-while-live')==='user-bytes','SUCCESS_LIVE_WRITE_IN_SHARED_STORAGE');
 check($receipts['success']['schedulerActions']===['pause','verify','verify','release'],'SUCCESS_SCHEDULER_SEQUENCE');
+// The hold comes from the probe process's REAL realpath_cache_ttl (9, not the PHP default), counted from the swap, and the lift waits for it.
+$h=$s['freshness']['installed']['hold'];$firstLogin=null;foreach($web->times as [$call,$at])if($call==='/login=200'){$firstLogin=$at;break;}
+check($h['realpathCacheTtl']===9&&$s['freshness']['installed']['samples'][0]['realpathCacheTtl']===9&&$h['swappedAt']===$s['swappedAt']['installed']&&$h['liftNotBefore']===max($h['swappedAt']+9,$h['probedAt'])+FreshnessProbe::HOLD_MARGIN&&$h['heldUntil']>=$h['liftNotBefore']&&$firstLogin!==null&&$firstLogin>=$h['liftNotBefore'],'SUCCESS_HOLD_DERIVED_FROM_PROBE_INI_'.json_encode($h));
+check(str_contains($out,'BARRIER_HOLD_START={"label":"installed"')&&array_search('CLI_BOOT_VERIFIED',$order,true)<array_search('BARRIER_LIFT_INTENT',$order,true)&&strpos($out,'BARRIER_HOLD={"label":"installed"')<strpos($out,'RELEASE_PHASE="BARRIER_LIFT_INTENT"'),'SUCCESS_HOLD_BEFORE_LIFT');
+$receipts['success']['barrierHold']=$h;
 
 // Pre-switch HOLDs: the candidate is never renamed.
 $preSwitch=['barrier-not-observed'=>['web'=>['/login=503'=>1],'reason'=>'PUBLIC_HTTP_SMOKE_503'],'drain-cms-worker'=>['title'=>'cms','reason'=>'CMS_WORKERS_OR_ARTISAN_NOT_DRAINED'],'drain-artisan'=>['title'=>'artisan','reason'=>'CMS_WORKERS_OR_ARTISAN_NOT_DRAINED'],'candidate-tamper'=>['tamper'=>true,'reason'=>'CANDIDATE_LOCAL_SHA256_MISMATCH']];
@@ -147,9 +157,12 @@ $postSwitch=[
     'lift-registracija-200'=>['web'=>['/registracija=404'=>1],'reason'=>'PUBLIC_HTTP_SMOKE_404','lifted'=>true],
     'lift-korpa-200'=>['web'=>['/korpa=404'=>1],'reason'=>'PUBLIC_HTTP_SMOKE_404','lifted'=>true],
     'lift-new-log-error'=>['logError'=>true,'reason'=>'NEW_LARAVEL_LOG_ERRORS_SINCE_SWITCH','lifted'=>true],
+    'realpath-ttl-unreadable'=>['realpath'=>['installed'=>null],'reason'=>'FRESHNESS_REALPATH_CACHE_UNREADABLE','lifted'=>false],
+    'realpath-ttl-not-a-number'=>['realpath'=>['installed'=>'2m'],'reason'=>'FRESHNESS_REALPATH_CACHE_UNREADABLE','lifted'=>false],
+    'hold-exceeds-bound'=>['realpath'=>['installed'=>'100000'],'reason'=>'BARRIER_HOLD_EXCEEDS_BOUND','lifted'=>false],
 ];
 foreach($postSwitch as $case=>$spec){
-    $c=$build($case,$spec['applied']??68);[$o,$web]=$coordinator($c);$web->fail=$spec['web']??[];$web->sapiOverride=$spec['sapi']??null;$web->logErrorOnUp=$spec['logError']??false;$web->uploadOnLogin=$spec['lifted'];
+    $c=$build($case,$spec['applied']??68);[$o,$web]=$coordinator($c);$web->fail=$spec['web']??[];$web->sapiOverride=$spec['sapi']??null;$web->logErrorOnUp=$spec['logError']??false;$web->uploadOnLogin=$spec['lifted'];$web->realpathOverride=$spec['realpath']??[];
     if($spec['leftover']??false)file_put_contents($c['candidate'].'/public/'.FreshnessProbe::PREFIX.str_repeat('e',48).'.php','<?php // leftover from an unknown earlier run');
     putenv('B1144_FIXTURE_ARTISAN_FAIL='.($spec['env']??''));[$rc,$out]=$execute($c,$o);putenv('B1144_FIXTURE_ARTISAN_FAIL');
     $receipts[$case]=$verify($case,$c,$rc,$out,$web,'ROLLED_BACK',2);check($receipts[$case]['holdReason']===$spec['reason'],$case.'_REASON_'.$receipts[$case]['holdReason']);
@@ -157,6 +170,14 @@ foreach($postSwitch as $case=>$spec){
     check(in_array('BARRIER_LIFTED_SMOKE_PENDING',$phases,true)===$spec['lifted'],$case.'_LIFT_STAGE');if($spec['lifted']){check(in_array('ROLLBACK_BARRIER_OWNED',$phases,true)&&str_contains($out,'OWNED_BARRIER_REIMPOSED'),$case.'_BARRIER_REIMPOSED_AFTER_LIFT');check(file_get_contents($c['active'].'/storage/app/public/written-while-live')==='user-bytes',$case.'_LIVE_WRITE_SURVIVES_ROLLBACK');}
     check(array_slice($receipts[$case]['httpCalls'],-1)===['/login=200'],$case.'_ORIGINAL_LOGIN_VERIFIED');
     if($spec['leftover']??false){$left=probesUnder([$c['failed']]);check(count($left)===1&&file_get_contents($left[0])==='<?php // leftover from an unknown earlier run','LEFTOVER_NOT_OVERWRITTEN_OR_DELETED');}
+    if(isset($spec['realpath']))check(!in_array('CLI_BOOT_VERIFIED',$phases,true)&&!str_contains($out,'BARRIER_HOLD={"label":"installed"')&&($spec['reason']!=='BARRIER_HOLD_EXCEEDS_BOUND'||str_contains($out,'BARRIER_HOLD_BOUND={"label":"installed"')),$case.'_INSTALLED_HOLD_FAILS_CLOSED_BEFORE_LIFT');
+}
+
+// Unreadable or out-of-bound hold on the RESTORED code: the barrier stays on the old code; the operator re-run completes the rollback.
+foreach(['restored-realpath-ttl-unreadable'=>[null,'FRESHNESS_REALPATH_CACHE_UNREADABLE'],'restored-hold-exceeds-bound'=>['100000','BARRIER_HOLD_EXCEEDS_BOUND']] as $case=>[$value,$code]){
+    $c=$build($case);[$o,$web]=$coordinator($c);$web->fail=['/login=200'=>1];$web->uploadOnLogin=true;$web->realpathOverride=['restored'=>$value];[$rc,$out]=$execute($c,$o);$s=$saved($c);
+    check($rc===2&&$s['phase']==='HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED'&&str_contains($out,'RECOVERY_HOLD="'.$code.'"')&&identity($c['active'])===$c['plan']['oldIdentity']&&is_file($c['active'].'/storage/framework/maintenance.php')&&probesUnder([$c['active'],$c['failed']])===[]&&!str_contains($out,'BARRIER_HOLD={"label":"restored"')&&!str_contains($out,'RELEASE_PHASE="ORIGINAL_RELEASE_INTENT"'),$case.'_RESTORED_HOLD_FAILS_CLOSED_KEEPS_BARRIER');
+    [$again,$web2]=$coordinator($c);[$rc,$out2]=$rerun($again);$web2->seen=array_merge($web->seen,$web2->seen);$receipts[$case]=$verify($case,$c,$rc,$out.$out2,$web2,'ROLLED_BACK',2)+['firstAttempt'=>'HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED_'.$code,'operatorRerun'=>'ROLLED_BACK'];
 }
 
 // Restored-tree freshness HOLD keeps the barrier on the restored code; the operator re-run completes the rollback.
