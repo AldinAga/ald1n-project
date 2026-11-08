@@ -8,6 +8,16 @@ Its purpose is practical: prevent repeated recovery batches caused by known Clou
 
 Last consolidated: **2026-10-31** (owner M16-first priority, one-command noninteractive safe batches and authenticated B1016 PASS; older release guardrails retained).
 
+## 0ZF. Public Storefront priority and exact runtime-format recovery (owner 2026-11-08)
+
+The primary goal is a stable publicly available Storefront controlled by the existing SuperAdministrator ON/OFF switch at `/admin/settings/public-storefront`. Reuse that implemented control; do not build a duplicate switch or unrelated features. The current critical path is reviewed conditional OFF installation, then actual installed UI/OFF404, mail and registered-buyer readiness, then safe activation through the existing control after applicable release conditions. Controller readiness checks do not replace SMTP, security or other existing release gates.
+
+For the source-reviewed finite 44/45-byte LSAPI title-format recovery, never infer the installed format from a PHP version or a 50-byte observed first argument. Admit only an exact known validated path format freshly calibrated on the same request PID/start/executable through held execution and shutdown phases and its exact idle-prefix transition. Parent/group/cache/drain and all existing installer gates remain separate requirements; unknown or conflicting evidence is HOLD, not an invitation to normalize or broaden title matching.
+
+- Update every affected fixed45/fixed46 title, suffix, idle extraction and group-matching caller consistently with the same validated runtime contract; preserve negative regressions and fail-closed handling.
+- Preserve all original states, terminal pointers, journals, verified candidate and private retained `.env`/storage/upload targets. The B1139 one-shot refresh was consumed; no new signal, restart-marker access or AccountRefresh dependency is implied.
+- Attest each host format, transaction and installation fact only from its actual hosting evidence; source/CI/package approval alone does not prove it. Credit successful stages separately; public activation remains a separate gate.
+
 ## 0ZE. Permanent Subagent Driven and relevant ECC workflow (owner 2026-11-08)
 
 The owner requires Subagent Driven work and applicable installed ECC skills for ongoing Ald1n development, debugging and verification. This is a continuing project rule. Explicit owner decisions and this project's environment, product and release contracts take precedence over generic skill examples.
