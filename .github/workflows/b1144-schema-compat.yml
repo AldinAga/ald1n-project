@@ -1,0 +1,184 @@
+name: B1144 schema compatibility (68-migration production schema, OFF clamp)
+on:
+  push:
+    branches:
+      - codex/b1144-schema-compat-20261108
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: b1144-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  schema-compat:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_b1144_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pisolated-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_b1144_ci
+      DB_USERNAME: root
+      DB_PASSWORD: isolated-ci-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+      MOBILE_PUSH_ENABLED: 'false'
+      OPERATIONAL_EMAIL_NOTIFICATIONS: 'false'
+      PUBLIC_STOREFRONT_ENABLED: 'false'
+      PUBLIC_CHECKOUT_ENABLED: 'false'
+      LEGACY_DB_DATABASE: disabled
+      LEGACY_DB_USERNAME: disabled_qa_legacy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Record exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "CMS_TREE=$(git rev-parse HEAD:apps/cms/current)"
+          echo "MIGRATION_FILES=$(ls apps/cms/current/database/migrations | wc -l)"
+      - name: Static report - identifiers outside the public storefront paths
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd apps/cms/current
+          mkdir -p "$RUNNER_TEMP/b1144-report"
+          out="$RUNNER_TEMP/b1144-report/static-grep.txt"
+          : > "$out"
+          # Excluded (public storefront paths): public controllers/services/models/views/routes,
+          # the three migrations themselves, tests, vendor.
+          excl=(
+            ':(exclude)tests'
+            ':(exclude)vendor'
+            ':(exclude)database/migrations/2026_10_23_020000_create_public_order_accesses.php'
+            ':(exclude)database/migrations/2026_10_23_020100_create_public_checkout_attempts.php'
+            ':(exclude)database/migrations/2026_10_24_030000_add_retail_customer_role.php'
+            ':(exclude)app/Http/Controllers/PublicShopController.php'
+            ':(exclude)app/Http/Controllers/PublicCheckoutController.php'
+            ':(exclude)app/Http/Controllers/PublicOrderAccessController.php'
+            ':(exclude)app/Http/Controllers/PublicBuyerRegistrationController.php'
+            ':(exclude)app/Models/PublicCheckoutAttempt.php'
+            ':(exclude)app/Models/PublicOrderAccess.php'
+            ':(exclude)app/Services/PublicOrderAccessService.php'
+            ':(exclude)app/Services/PublicRetailCheckoutService.php'
+            ':(exclude)resources/views/public-shop'
+          )
+          {
+            echo "== public_order_accesses | public_checkout_attempts | model names (outside excluded public paths) =="
+            git grep -nE 'public_order_accesses|public_checkout_attempts|PublicOrderAccess|PublicCheckoutAttempt' -- . "${excl[@]}" || true
+            echo
+            echo "== role slug customer (quoted) outside excluded public paths =="
+            git grep -nE "['\"]customer['\"]" -- app routes config resources database/seeders "${excl[@]}" || true
+          } >> "$out" 2>&1
+          cat "$out"
+          echo "STATIC_GREP_LINES=$(wc -l < "$out")"
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,pdo_mysql,pdo_sqlite,dom,curl,fileinfo,openssl,tokenizer,xml,xmlwriter,intl,gd,zip,bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install CMS dependencies from composer.lock
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+      - name: Attest disposable MariaDB identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_b1144_ci","root","isolated-ci-only",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]); if($p->query("SELECT DATABASE()")->fetchColumn()!=="ald1n_b1144_ci" || !preg_match("/^10\\.11\\.19-MariaDB/i",$p->query("SELECT VERSION()")->fetchColumn())) exit(31); echo "DISPOSABLE_MARIADB_10_11_19=PASS\\n";'
+      - name: Apply all migrations except the three missing on production
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          mig="$RUNNER_TEMP/mig68"
+          rm -rf "$mig"
+          mkdir -p "$mig"
+          cp database/migrations/*.php "$mig"/
+          rm "$mig/2026_10_23_020000_create_public_order_accesses.php"
+          rm "$mig/2026_10_23_020100_create_public_checkout_attempts.php"
+          rm "$mig/2026_10_24_030000_add_retail_customer_role.php"
+          test "$(ls "$mig" | wc -l)" = 68
+          php artisan migrate --path="$mig" --realpath --force --no-interaction
+          echo "MIGRATED_68=PASS"
+      - name: Assert exactly the three migrations are pending
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan migrate:status --no-ansi | tail -n 12
+          php tests/Support/b1144-assert-migrations.php database/migrations 68 2026_10_23_020000_create_public_order_accesses,2026_10_23_020100_create_public_checkout_attempts,2026_10_24_030000_add_retail_customer_role
+      - name: Seed access roles then drop the customer role to mirror production
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan db:seed --class='Database\Seeders\CoreAccessSeeder' --force --no-interaction
+          php -r '$p=new PDO("mysql:host=127.0.0.1;port=3306;dbname=ald1n_b1144_ci","root","isolated-ci-only",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]); $n=$p->exec("DELETE FROM roles WHERE slug=\"customer\""); echo "CUSTOMER_ROLE_ROWS_REMOVED=".$n."\n"; $c=(int)$p->query("SELECT COUNT(*) FROM roles WHERE slug=\"customer\"")->fetchColumn(); if($c!==0) exit(41); echo "ROLES=".implode(",",$p->query("SELECT slug FROM roles ORDER BY id")->fetchAll(PDO::FETCH_COLUMN))."\n";'
+      - name: Boot kernel and list routes
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan --version
+          php artisan about --no-ansi | head -n 30
+          php artisan route:list --no-ansi > "$RUNNER_TEMP/b1144-report/route-list.txt"
+          echo "ROUTE_LIST_LINES=$(wc -l < "$RUNNER_TEMP/b1144-report/route-list.txt")"
+          php -r 'require "vendor/autoload.php"; $app=require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); if(config("public_storefront.enabled")!==false||config("public_storefront.checkout_enabled")!==false){fwrite(STDERR,"OFF_CLAMP_NOT_APPLIED\n");exit(51);} echo "OFF_CLAMP_CONFIG=PASS\n";'
+      - name: PHPUnit smoke suite on the 68-migration schema
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -uo pipefail
+          export B1144_REPORT_DIR="$RUNNER_TEMP/b1144-report"
+          php artisan test -c phpunit.mysql.xml tests/Feature/B1144SchemaCompatSmokeTest.php --no-ansi
+          rc=$?
+          echo "PHPUNIT_EXIT=$rc"
+          if test -f "$B1144_REPORT_DIR/b1144-routes.txt"; then
+            echo "== route sweep (status path <= cause) =="
+            cat "$B1144_REPORT_DIR/b1144-routes.txt"
+          fi
+          exit $rc
+      - name: Re-assert schema was not touched by the tests
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          php tests/Support/b1144-assert-migrations.php database/migrations 68 2026_10_23_020000_create_public_order_accesses,2026_10_23_020100_create_public_checkout_attempts,2026_10_24_030000_add_retail_customer_role
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1144-evidence
+          path: ${{ runner.temp }}/b1144-report
+          if-no-files-found: warn
