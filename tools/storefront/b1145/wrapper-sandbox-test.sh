@@ -103,4 +103,13 @@ report="$(sed -n 's/^REPORT=//p' "$log" | head -n 1)"
 case "$report" in /home/icaffeco/ald1n-project/docs/operations/1108-B1145-CONTROLLED-MIGRATE-UNCLAMP-*.md|/home/icaffeco/ald1n-project/docs/operations/11[0-9][0-9]-B1145-CONTROLLED-MIGRATE-UNCLAMP-*.md) ;; *) die "PLAIN_REPORT_NAME_$report";; esac
 if grep -q $'\033' "$report"; then die PLAIN_REPORT_HAS_TERMINAL_ESCAPE; fi
 grep -q '^WORKER_PID=[0-9]' "$report" || die PLAIN_NO_WORKER_PID
-printf '{"intReleasesLockAndScratch":true,"termReleasesLockAndScratch":true,"workerSurvivesForegroundHupTerm":true,"workerWroteFinalLines":true,"lateWorkerStartUnconfirmedNoForegroundExit":true,"lateWorkerSingleExitLine":true,"plainRunExit":2,"reportNumberedAfter1107":true,"terminalClearedReportEscapeFree":true}\n'
+
+# Worker mode accepts only the report name the foreground reserves; any other name is refused before the file is opened.
+ops=/home/icaffeco/ald1n-project/docs/operations
+for bad in "$ops/1200-SANDBOX.md" "$ops/1200-B1145-CONTROLLED-MIGRATE-UNCLAMP-2026110-000000.md" "$ops/1200-B1145-CONTROLLED-MIGRATE-UNCLAMP-20261108-000000.mdx.md" "$ops/x1200-B1145-CONTROLLED-MIGRATE-UNCLAMP-20261108-000000.md" "$ops/-B1145-CONTROLLED-MIGRATE-UNCLAMP-20261108-000000.md"; do
+  out="$(REPORT="$bad" bash "$script" --worker 2>&1)"; rc=$?
+  test "$rc" = 2 || die "BAD_REPORT_NAME_RC_$rc"
+  printf '%s\n' "$out" | grep -q 'HOLD: worker report name' || die BAD_REPORT_NAME_NOT_REFUSED
+  test ! -e "$bad" || die BAD_REPORT_NAME_FILE_CREATED
+done
+printf '{"workerReportNameEnforced":true,"intReleasesLockAndScratch":true,"termReleasesLockAndScratch":true,"workerSurvivesForegroundHupTerm":true,"workerWroteFinalLines":true,"lateWorkerStartUnconfirmedNoForegroundExit":true,"lateWorkerSingleExitLine":true,"plainRunExit":2,"reportNumberedAfter1107":true,"terminalClearedReportEscapeFree":true}\n'

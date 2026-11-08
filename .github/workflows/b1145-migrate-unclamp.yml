@@ -133,7 +133,12 @@ jobs:
           as git -C /home/icaffeco/ald1n-project update-ref refs/remotes/origin/main HEAD
           as mkdir -p /home/icaffeco/ald1n-project/docs/operations
           # The worker appends to its report itself (stdout is not the report), so the report file is what is checked.
-          sandbox_report=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md
+          # The worker accepts only the reserved report name <n>-B1145-CONTROLLED-MIGRATE-UNCLAMP-<date>-<time>.md.
+          sandbox_report=/home/icaffeco/ald1n-project/docs/operations/9999-B1145-CONTROLLED-MIGRATE-UNCLAMP-20261108-000000.md
+          set +e
+          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: worker report name' <<<"$out" && test ! -e /home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md
           set +e
           sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
           set -e
@@ -206,6 +211,7 @@ jobs:
           grep -q '"workerSurvivesForegroundHupTerm":true' "$RUNNER_TEMP/wrapper-sandbox.json"
           grep -q '"lateWorkerSingleExitLine":true' "$RUNNER_TEMP/wrapper-sandbox.json"
           grep -q '"reportNumberedAfter1107":true' "$RUNNER_TEMP/wrapper-sandbox.json"
+          grep -q '"workerReportNameEnforced":true' "$RUNNER_TEMP/wrapper-sandbox.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

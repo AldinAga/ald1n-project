@@ -15,6 +15,7 @@ const DB='ald1n_b1145_ci';const DB_PASSWORD='isolated-ci-only';const PORT=8145;
 function check(bool $ok,string $name):void{if(!$ok)throw new RuntimeException('B1145_FIXTURE_'.$name);}
 function sh(array $args,?string $cwd=null,?string $stdin=null,?string $stdout=null):string{$spec=[0=>$stdin===null?['pipe','r']:['file',$stdin,'r'],1=>$stdout===null?['pipe','w']:['file',$stdout,'w'],2=>['pipe','w']];$p=proc_open($args,$spec,$pipes,$cwd);if($stdin===null)fclose($pipes[0]);$out=$stdout===null?stream_get_contents($pipes[1]):'';if($stdout===null)fclose($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[2]);$rc=proc_close($p);if($rc!==0)throw new RuntimeException('B1145_FIXTURE_COMMAND_'.basename($args[0]).'_RC'.$rc.':'.substr($err,-600));return trim((string)$out);}
 function lastLine(string $output,string $key):mixed{return preg_match_all('/^'.preg_quote($key,'/').'=(.+)$/m',$output,$m)?json_decode(end($m[1]),true,64,JSON_THROW_ON_ERROR):null;}
+function firstLine(string $output,string $key):mixed{return preg_match('/^'.preg_quote($key,'/').'=(.+)$/m',$output,$m)?json_decode($m[1],true,64,JSON_THROW_ON_ERROR):null;}
 function rmTree(string $path):void{if(is_link($path)||is_file($path)){unlink($path);return;}if(!is_dir($path))return;foreach(scandir($path) as $n)if($n!=='.'&&$n!=='..')rmTree($path.'/'.$n);rmdir($path);}
 
 $container=getenv('B1145_MARIADB_CONTAINER');check(is_string($container)&&preg_match('/^[a-f0-9]{12,64}$/D',$container)===1,'CONTAINER_ID');
@@ -78,8 +79,8 @@ echo 'REAL_PRETEND_RESUME='.json_encode(['at69'=>$pretendEvidence['resumeAt69'],
 $restoreDb();check($count('SELECT COUNT(*) FROM migrations')===68,'BASELINE_BACK_AT_68');
 
 // Shims: the php shim fakes a wrong --pretend listing, or hangs migrate --force, only while its marker exists.
-$fakePretend=$base.'/fake-pretend';$slowMigrate=$base.'/slow-migrate';$shim=$base.'/php-shim';$realPhp=PHP_BINARY;
-file_put_contents($shim,'#!/bin/sh'."\n".'m=0; f=0; p=0'."\n".'for a in "$@"; do case "$a" in migrate) m=1;; --force) f=1;; --pretend) p=1;; esac; done'."\n".'if [ $m = 1 ] && [ $f = 1 ] && [ $p = 0 ] && [ -e '.$slowMigrate.' ]; then sleep 419; exit 1; fi'."\n".'for a in "$@"; do if [ "$a" = "--pretend" ] && [ -e '.$fakePretend.' ]; then printf "\n   INFO  Running migrations.\n\n  2026_10_23_020000_create_public_order_accesses ....\n  2026_10_23_020100_create_public_checkout_attempts ....\n  2026_10_24_030000_add_retail_customer_role ....\n  2026_11_01_000000_unexpected_fourth_migration ....\n"; exit 0; fi; done'."\n".'exec '.$realPhp.' "$@"'."\n");chmod($shim,0755);
+$fakePretend=$base.'/fake-pretend';$slowMigrate=$base.'/slow-migrate';$slowVerify=$base.'/slow-verify';$shim=$base.'/php-shim';$realPhp=PHP_BINARY;
+file_put_contents($shim,'#!/bin/sh'."\n".'m=0; f=0; p=0; v=0'."\n".'for a in "$@"; do case "$a" in migrate) m=1;; --force) f=1;; --pretend) p=1;; app:backup-verify) v=1;; esac; done'."\n".'if [ $m = 1 ] && [ $f = 1 ] && [ $p = 0 ] && [ -e '.$slowMigrate.' ]; then sleep 419; exit 1; fi'."\n".'if [ $v = 1 ] && [ -e '.$slowVerify.' ]; then sleep 421; exit 1; fi'."\n".'for a in "$@"; do if [ "$a" = "--pretend" ] && [ -e '.$fakePretend.' ]; then printf "\n   INFO  Running migrations.\n\n  2026_10_23_020000_create_public_order_accesses ....\n  2026_10_23_020100_create_public_checkout_attempts ....\n  2026_10_24_030000_add_retail_customer_role ....\n  2026_11_01_000000_unexpected_fourth_migration ....\n"; exit 0; fi; done'."\n".'exec '.$realPhp.' "$@"'."\n");chmod($shim,0755);
 // A quota double for an unprivileged account with a tiny remaining cPanel quota (only on PATH for its own case).
 $quotaDir=$base.'/quota-shim';mkdir($quotaDir);file_put_contents($quotaDir.'/quota','#!/bin/sh'."\n".'printf "Disk quotas for user runner (uid 1001): \n     Filesystem  blocks   quota   limit   grace   files   quota   limit   grace\n      /dev/root 5000000 5100000 5100000       0    1000       0       0       0\n"'."\n");chmod($quotaDir.'/quota',0755);
 
@@ -91,12 +92,12 @@ for($i=0;$i<60&&$http('/up')!==200;$i++)usleep(500000);check($http('/up')===200&
 $private=$home.'/.ald1n-b1145-state';$secrets=$base.'/probe-secrets';$faultLog=$base.'/faults.log';$logDir=$retained.'/storage/logs';
 // Sessions of the fixture database that run SELECT SLEEP (the busy-session double); killed on reset.
 $killSleepers=static function()use($pdo):void{foreach($pdo()->query("SELECT ID FROM information_schema.PROCESSLIST WHERE INFO LIKE 'SELECT SLEEP(%' AND ID<>CONNECTION_ID()")->fetchAll(PDO::FETCH_COLUMN) as $id)$pdo()->exec('KILL '.(int)$id);};
-$leftoverSleeps=static fn():int=>(int)trim((string)shell_exec("ps -eo args= | grep -cE '^sleep (417|419)$' || true"));
-$reset=static function()use($restoreDb,$configPath,$clamp,$retained,$envBytes,$private,$home,$dumpFail,$dumpTiny,$dumpSlow,$fakePretend,$slowMigrate,$secrets,$faultLog,$logDir,$http,$active,$reportPath,$killSleepers):void{
+$leftoverSleeps=static fn():int=>(int)trim((string)shell_exec("ps -eo args= | grep -cE '^sleep (417|419|421)$' || true"));
+$reset=static function()use($restoreDb,$configPath,$clamp,$retained,$envBytes,$private,$home,$dumpFail,$dumpTiny,$dumpSlow,$fakePretend,$slowMigrate,$slowVerify,$secrets,$faultLog,$logDir,$http,$active,$reportPath,$killSleepers):void{
     chmod($retained,0755);chmod(dirname($configPath),0755);$killSleepers();$restoreDb();
     if(hash_file('sha256',$configPath)!==hash('sha256',$clamp)){file_put_contents($configPath,$clamp);chmod($configPath,0644);}
     if(hash_file('sha256',$retained.'/.env')!==hash('sha256',$envBytes)){file_put_contents($retained.'/.env',$envBytes);chmod($retained.'/.env',0640);}
-    rmTree($private);foreach(glob($home.'/cms-backups/*')?:[] as $d)rmTree($d);foreach(array_merge([$dumpFail,$dumpTiny,$dumpSlow,$fakePretend,$slowMigrate,$secrets,$faultLog,$active.'/storage/framework/down'],glob($faultLog.'.*')?:[]) as $f)if(file_exists($f))unlink($f);
+    rmTree($private);foreach(glob($home.'/cms-backups/*')?:[] as $d)rmTree($d);foreach(array_merge([$dumpFail,$dumpTiny,$dumpSlow,$fakePretend,$slowMigrate,$slowVerify,$secrets,$faultLog,$active.'/storage/framework/down'],glob($faultLog.'.*')?:[]) as $f)if(file_exists($f))unlink($f);
     foreach(glob($logDir.'/laravel*.log')?:[] as $f)unlink($f);sleep(3);check($http('/login')===200,'RESET_WARM_LOGIN');
 };
 $configJSON=$base.'/run.json';
@@ -167,6 +168,15 @@ $reset();$artisan(['app:backup-create','--type=daily']);$artisan(['app:backup-cr
 foreach([1,2] as $n){$held('VERIFY_FAIL_PROD_'.$n,$run(),'BACKUP_RUN_NOT_COMPLETED');check($completed()===2&&$count("SELECT COUNT(*) FROM backup_runs WHERE status='completed' AND backup_type='daily'")===2,'VERIFY_FAIL_PROD_DAILIES_KEPT');}
 unlink($dumpTiny);$expect('VERIFY_FAIL_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('VERIFY_FAIL');
 check($completed()===2&&$count("SELECT COUNT(*) FROM backup_runs WHERE status='completed' AND backup_type='manual'")===1,'VERIFY_FAIL_CONVERGE_RETENTION');$results['verifyFailWithDailies']='PRUNED_BY_APP_HOLD_TWICE_THEN_CONVERGED';
+// 2c2. Retention: the newer of two completed backups fails app:backup-verify, the older one verifies. The app's keep-two is
+// met by the new backup plus the older one, so this is NOT a HOLD (only zero verifying is): no owner command, the run
+// converges and the app's own prune removes the corrupt row.
+$reset();$artisan(['app:backup-create','--type=daily']);$artisan(['app:backup-create','--type=daily']);check($completed()===2,'RETENTION_ONE_DAILIES');
+$row=$pdo()->query("SELECT id,database_file,backup_path FROM backup_runs WHERE status='completed' ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);$dbFile=is_file((string)$row['database_file'])?(string)$row['database_file']:$row['backup_path'].'/'.basename((string)$row['database_file']);
+check(is_file($dbFile),'RETENTION_ONE_DUMP_FILE');file_put_contents($dbFile,'corrupt',FILE_APPEND);
+$out=$expect('RETENTION_ONE_VERIFIED',$run(),0,'CLOSED_UNCLAMPED');$unclamped('RETENTION_ONE_VERIFIED');$pre=firstLine($out,'PREFLIGHT');$r=$pre['values']['backupRetention'];
+check($pre['gates']['backupRetentionHealthy']==='PASS'&&$r['blocked']===false&&count($r['verified'])===1&&count($r['failing'])===1&&(int)$r['failing'][0]['id']===(int)$row['id']&&$r['failing'][0]['verifyChildStopped']===null&&$ownerCommands($out)===[]&&$count('SELECT COUNT(*) FROM backup_runs WHERE id='.(int)$row['id'])===0,'RETENTION_ONE_VERIFIED_NOT_BLOCKED');
+$results['retentionOneVerified']='NEWER_CORRUPT_OLDER_VERIFIES_NOT_A_HOLD_CONVERGED_APP_PRUNED_THE_CORRUPT_ROW';
 // 2d. The dump hangs past the backup timeout: the whole child tree is stopped and waited for, HOLD_BACKUP_FAILED is saved
 // with the running-row explanation; the app's row stays "running", so the next run HOLDs in preflight with the same
 // explanation and the owner command; marking the stale row failed converges.
@@ -178,20 +188,39 @@ check($note['kind']==='BACKUP_CHILD_TERMINATED'&&count($note['rowsSinceIntent'][
 foreach([2,3] as $n){$out=$expect('BACKUP_TIMEOUT_'.$n,$run([],[],['backupTimeout'=>8]),2,'HOLD_MIGRATE_PREFLIGHT_BLOCKED');$pre=lastLine($out,'PREFLIGHT');check($pre['gates']['noRunningBackup']==='BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING'&&isset($pre['values']['runningBackups'][0]['gateClearsAt'])&&lastLine($out,'RECOVERY_NOTE')['kind']==='RUNNING_BACKUP_ROW','BACKUP_TIMEOUT_PREFLIGHT_EXPLAINS');$clamped('BACKUP_TIMEOUT_'.$n);$commands=$ownerCommands($out);}
 unlink($dumpSlow);$runOwner($commands,'BACKUP_TIMEOUT');check($running()===0,'BACKUP_TIMEOUT_ROW_MARKED');$expect('BACKUP_TIMEOUT_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('BACKUP_TIMEOUT');
 $results['backupChildTimeout']='TREE_STOPPED_AND_WAITED_HOLD_RUNNING_ROW_EXPLAINED_PREFLIGHT_HOLD_TWICE_OWNER_MARKED_THEN_CONVERGED';
+// 2d2. The verify child of the NEW backup hangs past its bound (php shim): a HOLD WITHOUT the mark-failed owner command
+// (the backup is not proven bad, its row stays completed). The next run's retention walk is stopped the same way: HOLD
+// again, still no owner command. Once verify answers again the plain re-run converges.
+$reset();touch($slowVerify);
+$out=$expect('VERIFY_CHILD_TIMEOUT_1',$run([],[],['verifyTimeout'=>8]),2,'HOLD_BACKUP_FAILED');$clamped('VERIFY_CHILD_TIMEOUT_1');$note=lastLine($out,'RECOVERY_NOTE');
+check(str_contains($out,'HOLD_CODE_DETAIL="BACKUP_VERIFY_CHILD_TERMINATED"')&&$note['kind']==='BACKUP_VERIFY_CHILD_TERMINATED'&&$note['reason']==='CHILD_TIMEOUT'&&$ownerCommands($out)===[]&&lastLine($out,'CHILD_STOPPED')['childExited']===true&&$leftoverSleeps()===0&&$completed()===1&&$count('SELECT COUNT(*) FROM migrations')===68,'VERIFY_CHILD_TIMEOUT_NO_OWNER_COMMAND');
+$out=$expect('VERIFY_CHILD_TIMEOUT_2',$run([],[],['verifyTimeout'=>8]),2,'HOLD_MIGRATE_PREFLIGHT_BLOCKED');$pre=lastLine($out,'PREFLIGHT');$clamped('VERIFY_CHILD_TIMEOUT_2');$f=$pre['values']['backupRetention']['failing'];
+check($pre['gates']['backupRetentionHealthy']==='BACKUP_RETENTION_WOULD_REJECT_NEW_BACKUP'&&count($f)===1&&$f[0]['verifyChildStopped']==='CHILD_TIMEOUT'&&$ownerCommands($out)===[]&&lastLine($out,'RECOVERY_NOTE')['verifyChildStoppedRows']['ids']===[$f[0]['id']]&&$completed()===1&&$leftoverSleeps()===0,'VERIFY_CHILD_TIMEOUT_RETENTION_NO_OWNER_COMMAND');
+unlink($slowVerify);$expect('VERIFY_CHILD_TIMEOUT_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('VERIFY_CHILD_TIMEOUT');
+$results['verifyChildTimeout']='HOLD_NO_OWNER_COMMAND_RETENTION_HOLD_NO_OWNER_COMMAND_THEN_CONVERGED';
 // 2e. H1: the backup of THIS run is re-checked immediately before migrate. A prune of it (row and directory, as the nightly
 // retention does) forces a fresh retake in the same run; a persistent prune is a HOLD with migrate never run; an aged
 // backup (age bound) is retaken too. A backup is never reused across runs.
 $reset();$out=$expect('RECHECK_PRUNED_ONCE',$run(['BEFORE_BACKUP_RECHECK'=>'pruneBackupOnce']),0,'CLOSED_UNCLAMPED');$unclamped('RECHECK_PRUNED_ONCE');
 $r=lastLine($out,'BACKUP_RECHECK_FAILED');check($r['reason']==='ROW_MISSING'&&$r['action']==='RETAKE_A_FRESH_BACKUP'&&lastLine($out,'BACKUP_RECHECKED_BEFORE_MIGRATE')['reverified']===true&&substr_count($out,'B1145_PHASE="BACKUP_VERIFIED"')===2&&$count('SELECT COUNT(*) FROM backup_runs')===1,'RECHECK_PRUNED_ONCE_RETAKEN');
+// The first pre-migration backup is the retaken one that gated migrate, never the backup that failed its recheck.
+$firstIs=static function(string $out,string $case):int{$gated=lastLine($out,'BACKUP_RECHECKED_BEFORE_MIGRATE')['id'];check(lastLine($out,'B1145_RESULT')['firstPreMigrationBackupId']===$gated&&lastLine($out,'FIRST_PRE_MIGRATION_BACKUP')['id']===$gated,$case.'_FIRST_IS_THE_GATING_BACKUP');return $gated;};
+check(firstLine($out,'BACKUP')['id']!==$firstIs($out,'RECHECK_PRUNED_ONCE'),'RECHECK_PRUNED_ONCE_FIRST_NOT_THE_PRUNED_BACKUP');
 $reset();foreach([1,2] as $n){$out=$expect('RECHECK_PRUNED_'.$n,$run(['BEFORE_BACKUP_RECHECK'=>'pruneBackup']),2,'HOLD_BACKUP_RECHECK_FAILED');$clamped('RECHECK_PRUNED_'.$n);check(str_contains($out,'HOLD_CODE_DETAIL="BACKUP_RECHECK_FAILED_BEFORE_MIGRATE"')&&!str_contains($out,'B1145_PHASE="MIGRATE_INTENT"')&&$count('SELECT COUNT(*) FROM migrations')===68,'RECHECK_PRUNED_NO_MIGRATE');}
 $expect('RECHECK_PRUNED_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('RECHECK_PRUNED');
 $reset();$out=$expect('RECHECK_AGED',$run(['BEFORE_BACKUP_RECHECK'=>'ageBackupOnce']),0,'CLOSED_UNCLAMPED');$unclamped('RECHECK_AGED');check(str_starts_with(lastLine($out,'BACKUP_RECHECK_FAILED')['reason'],'OLDER_THAN_')&&substr_count($out,'B1145_PHASE="BACKUP_VERIFIED"')===2,'RECHECK_AGED_RETAKEN');
+check(firstLine($out,'BACKUP')['id']!==$firstIs($out,'RECHECK_AGED'),'RECHECK_AGED_FIRST_NOT_THE_AGED_BACKUP');
 $results['backupRecheck']=['prunedOnce'=>'RETAKEN_IN_THE_SAME_RUN','prunedPersistent'=>'HOLD_TWICE_NO_MIGRATE_THEN_CONVERGED','aged'=>'RETAKEN_IN_THE_SAME_RUN'];
 // 2f. M2: a busy database session immediately before migrate --force (persistent until killed): HOLD, migrate never run.
 $reset();sh(['docker','exec','-d','-e','MYSQL_PWD='.DB_PASSWORD,$container,'mariadb','-uroot',DB,'-e','SELECT SLEEP(900)']);
 for($i=0;$i<40&&$count("SELECT COUNT(*) FROM information_schema.PROCESSLIST WHERE INFO LIKE 'SELECT SLEEP(%'")===0;$i++)usleep(250000);check($count("SELECT COUNT(*) FROM information_schema.PROCESSLIST WHERE INFO LIKE 'SELECT SLEEP(%'")===1,'SLEEPER_STARTED');
-foreach([1,2] as $n){$out=$expect('LOCK_CENSUS_'.$n,$run(),2,'HOLD_MIGRATE_CENSUS_BLOCKED');$clamped('LOCK_CENSUS_'.$n);check(str_contains($out,'HOLD_CODE_DETAIL="DB_SESSIONS_ACTIVE_BEFORE_MIGRATE"')&&lastLine($out,'PRE_MIGRATE_CENSUS')['clean']===false&&$count('SELECT COUNT(*) FROM migrations')===68,'LOCK_CENSUS_HOLD');}
+$heldBackups=[];
+foreach([1,2] as $n){$out=$expect('LOCK_CENSUS_'.$n,$run(),2,'HOLD_MIGRATE_CENSUS_BLOCKED');$clamped('LOCK_CENSUS_'.$n);check(str_contains($out,'HOLD_CODE_DETAIL="DB_SESSIONS_ACTIVE_BEFORE_MIGRATE"')&&lastLine($out,'PRE_MIGRATE_CENSUS')['clean']===false&&$count('SELECT COUNT(*) FROM migrations')===68,'LOCK_CENSUS_HOLD');
+    // A backup of a run that HOLDs before migrate never becomes the first pre-migration backup.
+    $heldBackups[]=lastLine($out,'BACKUP')['id'];check(lastLine($out,'RECOVERY_NOTE')['firstPreMigrationBackup']==='NONE_YET','LOCK_CENSUS_NO_FIRST_BACKUP_BEFORE_MIGRATE_'.$n);}
 $killSleepers();$out=$expect('LOCK_CENSUS_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('LOCK_CENSUS');check(lastLine($out,'PRE_MIGRATE_CENSUS')['clean']===true&&lastLine($out,'PRE_MIGRATE_CENSUS')['databaseSessions']['innodbTrxReadable']===true,'LOCK_CENSUS_CLEAN');
+check(!in_array($firstIs($out,'LOCK_CENSUS_CONVERGE'),$heldBackups,true)&&lastLine($out,'FIRST_PRE_MIGRATION_BACKUP')['stillOnServer']===true&&!str_contains($out,'WARN_FIRST_PRE_MIGRATION_BACKUP='),'LOCK_CENSUS_FIRST_IS_THE_CONVERGING_RUN_BACKUP');
+$results['firstPreMigrationBackupIsTheGatingOne']=['recheckPrunedOrAged'=>'THE_RETAKEN_BACKUP','heldBeforeMigrate'=>'NONE_YET_THEN_THE_CONVERGING_RUN_BACKUP'];
 $results['preMigrateLockCensus']='HOLD_TWICE_THEN_CONVERGED';
 // 2g. M2: migrate --force hangs past its timeout (php shim): stopped and waited for, HOLD_MIGRATION_FAILED saved with the
 // recovery note; persistent twice, then converge.
@@ -241,6 +270,13 @@ unlink($fakePretend);$expect('PRETEND_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$un
 $reset();$pdo()->exec("DELETE FROM migrations WHERE migration='2026_07_21_000003_create_system_tables'");
 foreach([1,2] as $n){$out=$expect('FOURTH_PENDING_'.$n,$run(),2,'HOLD_PREFLIGHT_BLOCKED');$pre=lastLine($out,'PREFLIGHT');check($pre['gates']['migrateStatus']==='MIGRATION_SET_NOT_EXPECTED_FOR_FRESH'&&$pre['applicationFiles']==='NONE'&&$pre['database']==='NONE','FOURTH_PENDING_GATE');$clamped('FOURTH');check($count('SELECT COUNT(*) FROM backup_runs')===0,'FOURTH_NO_BACKUP');}
 $results['fourthPending']='PREFLIGHT_HOLD_TWICE_NO_MUTATION';
+// 4b. An unexpected extra pending migration appears AFTER the preflight: the set re-read right before MIGRATE_INTENT
+// differs from the expected suffix, so it is a HOLD with migrate --force never run; the re-run HOLDs in preflight.
+$reset();$out=$expect('EXTRA_PENDING_BEFORE_MIGRATE',$run(['BEFORE_MIGRATE_FORCE'=>'extraPending']),2,'HOLD_MIGRATE_SET_CHANGED');$clamped('EXTRA_PENDING');$s=lastLine($out,'MIGRATE_SET_RECHECK');
+check($s['ok']===false&&count($s['observed']['pending'])===4&&$s['expectedPending']===MigrateUnclampCoordinator::PENDING&&!str_contains($out,'B1145_PHASE="MIGRATE_INTENT"')&&str_contains($out,'HOLD_CODE_DETAIL="MIGRATION_SET_CHANGED_BEFORE_MIGRATE"')&&lastLine($out,'RECOVERY_NOTE')['kind']==='MIGRATE_SET_CHANGED','EXTRA_PENDING_HOLD');
+check($count('SELECT COUNT(*) FROM migrations')===67&&$count("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='public_order_accesses'")===0,'EXTRA_PENDING_NOT_MIGRATED');
+$out=$expect('EXTRA_PENDING_RERUN',$run(),2,'HOLD_MIGRATE_PREFLIGHT_BLOCKED');check(lastLine($out,'PREFLIGHT')['gates']['migrateStatus']==='MIGRATION_SET_NOT_EXPECTED_FOR_MIGRATE'&&$count('SELECT COUNT(*) FROM migrations')===67,'EXTRA_PENDING_PREFLIGHT_HOLD');$clamped('EXTRA_PENDING_RERUN');
+$results['extraPendingBeforeMigrate']='HOLD_BEFORE_MIGRATE_INTENT_NO_MIGRATE_THEN_PREFLIGHT_HOLD';
 
 // 5. Migration failure in the 2nd migration (partial table) and in the 3rd (legacy role missing): no automatic rollback, clamp kept, converge after the fix.
 $reset();$pdo()->exec('CREATE TABLE public_checkout_attempts (id BIGINT UNSIGNED NOT NULL PRIMARY KEY)');
@@ -253,6 +289,11 @@ $pdo()->exec('DROP TABLE public_checkout_attempts');$out=$expect('MIGRATION2_CON
 $warn=lastLine($out,'WARN_FIRST_PRE_MIGRATION_BACKUP');$first=lastLine($out,'FIRST_PRE_MIGRATION_BACKUP');
 check($warn['id']===$firstId&&str_contains($warn['status'],'REMOVES_IT')&&$first['id']===$firstId&&$first['stillOnServer']===false&&lastLine($out,'B1145_RESULT')['firstPreMigrationBackupId']===$firstId,'MIGRATION2_FIRST_BACKUP_RETENTION_WARNED');
 $results['firstPreMigrationBackup']=['keptAcrossRetries'=>true,'retentionWarned'=>true,'reportedRemovedAfterKeepTwo'=>true];
+// 5b. The HOLD save after a failed migration fails as well: the migration recovery note was already printed before it.
+$reset();$pdo()->exec('CREATE TABLE public_checkout_attempts (id BIGINT UNSIGNED NOT NULL PRIMARY KEY)');
+$out=$expect('MIGRATION_SAVE_FAIL',$run(['BEFORE_HOLD_MIGRATION_FAILED_SAVE'=>'failSave']),2,'MIGRATE_INTENT');$clamped('MIGRATION_SAVE_FAIL');
+check(is_array(lastLine($out,'MIGRATION_RECOVERY_NOTE'))&&lastLine($out,'HOLD_STATE_UNWRITABLE')['code']==='FIXTURE_HOLD_SAVE_FAILED'&&strpos($out,'MIGRATION_RECOVERY_NOTE=')<strpos($out,'HOLD_STATE_UNWRITABLE=')&&lastLine($out,'RECOVERY_NOTE')['kind']==='MIGRATION_FAILED'&&str_contains($out,'HOLD_CODE_DETAIL="MIGRATION_FAILED_NO_AUTOMATIC_ROLLBACK"')&&$count('SELECT COUNT(*) FROM migrations')===69,'MIGRATION_SAVE_FAIL_NOTE_PRINTED');
+$pdo()->exec('DROP TABLE public_checkout_attempts');$expect('MIGRATION_SAVE_FAIL_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('MIGRATION_SAVE_FAIL');$results['migrationHoldSaveFails']='NOTE_PRINTED_BEFORE_THE_FAILED_SAVE_THEN_CONVERGED';
 $reset();$pdo()->exec("UPDATE roles SET slug='legacy-user' WHERE slug='user'");$out=$expect('MIGRATION3',$run(),2,'HOLD_MIGRATION_FAILED');$clamped('MIGRATION3');check($count('SELECT COUNT(*) FROM migrations')===70,'MIGRATION3_RAN_70');
 $pdo()->exec("UPDATE roles SET slug='user' WHERE slug='legacy-user'");$out=$expect('MIGRATION3_CONVERGE',$run(),0,'CLOSED_UNCLAMPED');$unclamped('MIGRATION3');check($count('SELECT COUNT(*) FROM backup_runs')===2,'MIGRATION3_NEW_BACKUP_BEFORE_RETRY');
 $results['migrationFailure']=['second'=>'HOLD_TWICE_RAN_69_THEN_CONVERGED','third'=>'HOLD_RAN_70_NEW_BACKUP_THEN_CONVERGED'];

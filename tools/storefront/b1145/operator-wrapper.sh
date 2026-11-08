@@ -24,6 +24,9 @@ case "$#:${1-}" in 1:--worker) WORKER=1;; esac
 if test "$WORKER" = 1; then
   case "${REPORT-}" in "$ROOT"/docs/operations/*.md) ;; *) printf 'HOLD: worker report context\n'; exit 2;; esac
   test ! -L "$REPORT" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || { printf 'HOLD: worker report context\n'; exit 2; }
+  # Only a report name the foreground reserves: <sequence>-B1145-CONTROLLED-MIGRATE-UNCLAMP-<YYYYmmdd>-<HHMMSS>.md
+  report_name="${REPORT##*/}"
+  [[ "$report_name" =~ ^[0-9]+-B1145-CONTROLLED-MIGRATE-UNCLAMP-[0-9]{8}-[0-9]{6}\.md$ ]] || { printf 'HOLD: worker report name\n'; exit 2; }
   exec >> "$REPORT" 2>&1 < /dev/null
   printf 'WORKER_PID=%s\n' "$$"
 fi

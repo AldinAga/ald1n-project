@@ -43,7 +43,7 @@ final class MigrateUnclampCoordinator
         'public_checkout_attempts'=>['migration'=>'2026_10_23_020100_create_public_checkout_attempts','columns'=>['id','key_hash','request_fingerprint','receipt_token_ciphertext','terms_url','privacy_url','shipping_description','shipping_fee_rsd','merchant_policy_digest','delivery_method','customer_user_id','payment_due_at_snapshot','terms_accepted_at','order_id','created_at','updated_at'],
             'unique'=>[['id'],['key_hash'],['order_id']],'index'=>[],'foreign'=>[['order_id','orders','id','RESTRICT']]],
     ];
-    private const MIGRATE_PHASES=['PREFLIGHT_PASSED','BACKUP_INTENT','BACKUP_CREATED','HOLD_BACKUP_FAILED','BACKUP_VERIFIED','HOLD_PRETEND_UNEXPECTED','HOLD_SCHEDULED_BACKUP_WINDOW','HOLD_BACKUP_RECHECK_FAILED','HOLD_MIGRATE_CENSUS_BLOCKED','MIGRATE_INTENT','HOLD_MIGRATION_FAILED','HOLD_MIGRATION_VERIFY_FAILED','HOLD_MIGRATE_PREFLIGHT_BLOCKED'];
+    private const MIGRATE_PHASES=['PREFLIGHT_PASSED','BACKUP_INTENT','BACKUP_CREATED','HOLD_BACKUP_FAILED','BACKUP_VERIFIED','HOLD_PRETEND_UNEXPECTED','HOLD_SCHEDULED_BACKUP_WINDOW','HOLD_BACKUP_RECHECK_FAILED','HOLD_MIGRATE_CENSUS_BLOCKED','HOLD_MIGRATE_SET_CHANGED','MIGRATE_INTENT','HOLD_MIGRATION_FAILED','HOLD_MIGRATION_VERIFY_FAILED','HOLD_MIGRATE_PREFLIGHT_BLOCKED'];
     private const UNCLAMP_READY=['MIGRATED_VERIFIED','RESTORED_CLAMPED','HOLD_UNCLAMP_PREFLIGHT_BLOCKED'];
     private const IN_FLIGHT=['UNCLAMP_INTENT','CONFIG_UNCLAMPED','ENV_UNCLAMPED','ACCEPTANCE_INTENT','RESTORE_INTENT','RESTORE_INCOMPLETE'];
     private array $state=[];
@@ -442,13 +442,21 @@ final class MigrateUnclampCoordinator
     /**
      * The app's own retention (BackupService::prune) walks completed backups newest first and keeps the first two that
      * verify; with two or more completed rows and fewer than two verifying it throws and marks the NEW backup failed.
-     * Same walk here, read-only: completed rows that fail app:backup-verify while fewer than two verify is a HOLD.
+     * The new backup is one of those two when it verifies, so ONE verifying existing backup is enough. Same walk here,
+     * read-only: one or more completed rows and none of them verifying is a HOLD (the deadlock in which every new backup,
+     * the nightly one included, is marked failed). A verify child stopped by its time or output bound is NOT a verify
+     * failure and never gets the mark-failed owner command.
      */
     private function retention(array $app):array
     {
         $verified=[];$failing=[];$own=array_column($this->state['unverifiableBackups']??[],'id');
-        foreach($app['backups']['completedRuns'] as $run){if(count($verified)>=2)break;if($this->verifyRun((int)$run['id'])['pass'])$verified[]=['id'=>$run['id'],'key'=>$run['key'],'type'=>$run['type']];else $failing[]=['id'=>$run['id'],'key'=>$run['key'],'type'=>$run['type'],'dirPresent'=>$run['dirPresent'],'createdByThisTool'=>in_array($run['id'],$own,true)];}
-        return ['completed'=>count($app['backups']['completedRuns']),'verified'=>$verified,'failing'=>$failing,'blocked'=>$failing!==[]&&count($verified)<2,'walk'=>'NEWEST_FIRST_LIKE_THE_APP_RETENTION'];
+        foreach($app['backups']['completedRuns'] as $run){
+            if(count($verified)>=2)break;$v=$this->verifyRun((int)$run['id']);
+            if($v['pass'])$verified[]=['id'=>$run['id'],'key'=>$run['key'],'type'=>$run['type']];
+            else $failing[]=['id'=>$run['id'],'key'=>$run['key'],'type'=>$run['type'],'dirPresent'=>$run['dirPresent'],'createdByThisTool'=>in_array($run['id'],$own,true),'verifyChildStopped'=>$v['child']??null];
+        }
+        $completed=count($app['backups']['completedRuns']);
+        return ['completed'=>$completed,'verified'=>$verified,'failing'=>$failing,'blocked'=>$completed>=1&&$verified===[],'walk'=>'NEWEST_FIRST_LIKE_THE_APP_RETENTION','rule'=>'THE_NEW_BACKUP_PLUS_ONE_VERIFYING_EXISTING_BACKUP_SATISFY_THE_APP_KEEP_TWO'];
     }
 
     private function verifyRun(int $id):array
@@ -510,9 +518,11 @@ final class MigrateUnclampCoordinator
     {
         $v=$report['values'];$b=$report['blockers'];
         if(in_array('BACKUP_RETENTION_WOULD_REJECT_NEW_BACKUP',$b,true)){
-            $this->recoveryNote('BACKUP_RETENTION',['failing'=>$v['backupRetention']['failing'],'verified'=>$v['backupRetention']['verified'],'why'=>'APP_BACKUP_CREATE_WOULD_MARK_THE_NEW_GOOD_BACKUP_FAILED_AND_EVERY_LATER_CREATE_INCLUDING_THE_NIGHTLY_ONE_WOULD_FAIL',
-                'ownerProcedure'=>'MARK_EACH_LISTED_FAILING_ROW_FAILED_WITH_ITS_OWNER_COMMAND_THEN_RUN_THE_SAME_COMMAND_ITS_DIRECTORY_STAYS_IN_BACKUP_PATH_UNDER_ITS_KEY_AND_MAY_BE_DELETED_AFTERWARDS']);
-            foreach($v['backupRetention']['failing'] as $row)$this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$row['id'].")->where('status','completed')->update(['status'=>'failed','error_message'=>'B1145 owner: failed app:backup-verify'])");
+            $failing=$v['backupRetention']['failing'];$stopped=array_values(array_filter($failing,static fn($r)=>($r['verifyChildStopped']??null)!==null));$failed=array_values(array_filter($failing,static fn($r)=>($r['verifyChildStopped']??null)===null));
+            $this->recoveryNote('BACKUP_RETENTION',['failing'=>$failing,'verified'=>$v['backupRetention']['verified'],'why'=>'NO_COMPLETED_BACKUP_VERIFIES_APP_BACKUP_CREATE_WOULD_MARK_THE_NEW_GOOD_BACKUP_FAILED_AND_EVERY_LATER_CREATE_INCLUDING_THE_NIGHTLY_ONE_WOULD_FAIL',
+                'ownerProcedure'=>'MARK_EACH_ROW_THAT_HAS_AN_OWNER_COMMAND_FAILED_WITH_IT_THEN_RUN_THE_SAME_COMMAND_ITS_DIRECTORY_STAYS_IN_BACKUP_PATH_UNDER_ITS_KEY_AND_MAY_BE_DELETED_AFTERWARDS',
+                'verifyChildStoppedRows'=>$stopped===[]?'NONE':['ids'=>array_column($stopped,'id'),'meaning'=>'APP_BACKUP_VERIFY_WAS_STOPPED_BY_ITS_TIME_OR_OUTPUT_BOUND_THE_ROW_IS_NOT_PROVEN_BAD_NO_OWNER_COMMAND','next'=>'DO_NOT_MARK_IT_FAILED_RUN_THE_SAME_COMMAND_LATER_WHEN_THE_SERVER_IS_QUIET']]);
+            foreach($failed as $row)$this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$row['id'].")->where('status','completed')->update(['status'=>'failed','error_message'=>'B1145 owner: failed app:backup-verify'])");
         }
         if(in_array('BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING',$b,true)&&isset($v['runningBackups'])){
             $this->recoveryNote('RUNNING_BACKUP_ROW',['rows'=>$v['runningBackups'],'ownerProcedure'=>'IF_NO_BACKUP_PROCESS_IS_RUNNING_PS_SHOWS_NO_ARTISAN_OR_DUMP_MARK_THE_STALE_ROW_FAILED_WITH_ITS_OWNER_COMMAND_OR_WAIT_UNTIL_GATE_CLEARS_AT']);
@@ -575,16 +585,24 @@ final class MigrateUnclampCoordinator
         $createdAt=hrtime(true);$this->state['backup']=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'ranAtBackup'=>$ran,'verified'=>false,'createdAt'=>time()];$this->save('BACKUP_CREATED');
         $verify=$this->verifyRun($run['id']);
         $this->emit('BACKUP',['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'status'=>$verify['pass']?'VERIFIED':'VERIFY_FAILED','verifyRC'=>$verify['rc'],'createSeconds'=>round(($createdAt-$started)/1e9,1),'verifySeconds'=>round($verify['seconds'],1)]);
+        if(!$verify['pass']&&isset($verify['child'])){
+            // The verify child was stopped by its time or output bound: the backup is NOT proven bad, so no mark-failed command.
+            $this->save('HOLD_BACKUP_FAILED');
+            $this->recoveryNote('BACKUP_VERIFY_CHILD_TERMINATED',['id'=>$run['id'],'key'=>$key,'createdByThisTool'=>true,'reason'=>$verify['child'],'child'=>$this->lastChildStop,'migrateExecuted'=>false,'why'=>'APP_BACKUP_VERIFY_WAS_STOPPED_BY_ITS_TIME_OR_OUTPUT_BOUND_THE_BACKUP_IS_NOT_PROVEN_BAD',
+                'ownerProcedure'=>'DO_NOT_MARK_THIS_ROW_FAILED_CHECK_THE_SERVER_LOAD_THEN_RUN_THE_SAME_COMMAND_IT_VERIFIES_THIS_ROW_AGAIN_BEFORE_A_NEW_BACKUP']);
+            throw new RuntimeException('BACKUP_VERIFY_CHILD_TERMINATED');
+        }
         if(!$verify['pass']){
             // Remember exactly which backup of THIS tool failed verification: it stays "completed" and blocks the app's retention.
             $this->state['unverifiableBackups'][]=['id'=>$run['id'],'key'=>$key,'at'=>time()];$this->save('HOLD_BACKUP_FAILED');
-            $this->recoveryNote('BACKUP_VERIFY_FAILED',['id'=>$run['id'],'key'=>$key,'createdByThisTool'=>true,'child'=>$verify['child']??null,'why'=>'WHILE_THIS_COMPLETED_ROW_FAILS_VERIFY_AND_FEWER_THAN_TWO_OTHER_BACKUPS_VERIFY_THE_APP_REJECTS_EVERY_NEW_BACKUP_INCLUDING_THE_NIGHTLY_ONE','ownerProcedure'=>'MARK_THIS_ROW_FAILED_WITH_THE_OWNER_COMMAND_THEN_FIX_THE_CAUSE_AND_RUN_THE_SAME_COMMAND']);
+            $this->recoveryNote('BACKUP_VERIFY_FAILED',['id'=>$run['id'],'key'=>$key,'createdByThisTool'=>true,'why'=>'WHILE_THIS_COMPLETED_ROW_FAILS_VERIFY_AND_NO_OTHER_BACKUP_VERIFIES_THE_APP_REJECTS_EVERY_NEW_BACKUP_INCLUDING_THE_NIGHTLY_ONE','ownerProcedure'=>'MARK_THIS_ROW_FAILED_WITH_THE_OWNER_COMMAND_THEN_FIX_THE_CAUSE_AND_RUN_THE_SAME_COMMAND']);
             $this->ownerCommand("DB::table('backup_runs')->where('id',".(int)$run['id'].")->where('status','completed')->update(['status'=>'failed','error_message'=>'B1145 owner: failed app:backup-verify'])");
-            throw new RuntimeException(isset($verify['child'])?'BACKUP_VERIFY_CHILD_TERMINATED':'BACKUP_VERIFY_FAILED');
+            throw new RuntimeException('BACKUP_VERIFY_FAILED');
         }
         $this->processBackup=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'createdAt'=>$createdAt,'verifySeconds'=>$verify['seconds']];$this->state['backup']['verified']=true;
-        // The FIRST verified pre-migration backup (68 ran) is kept in state for every later recovery note and never overwritten.
-        if($ran===self::RAN_BEFORE&&!isset($this->state['firstPreMigrationBackup']))$this->state['firstPreMigrationBackup']=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'verifiedAt'=>time()];
+        // firstPreMigrationBackup is NOT set here: it is set in migrate(), right before MIGRATE_INTENT of the first migrate,
+        // from the backup that actually gated it (a backup that later fails its recheck, or one of a run that HOLDs before
+        // migrate, never becomes it).
         $this->save('BACKUP_VERIFIED');
     }
 
@@ -611,7 +629,8 @@ final class MigrateUnclampCoordinator
     {
         $first=$this->state['firstPreMigrationBackup']??null;if($first===null)return;$ids=array_column($app['backups']['completedRuns'],'id');$position=array_search($first['id'],$ids,true);
         if($position===false)$this->emit('WARN_FIRST_PRE_MIGRATION_BACKUP',['id'=>$first['id'],'key'=>$first['key'],'status'=>'ALREADY_REMOVED_BY_APP_RETENTION_COPY_THE_OFF_SERVER_COPY_IF_YOU_HAVE_ONE']);
-        elseif($position>=1)$this->emit('WARN_FIRST_PRE_MIGRATION_BACKUP',['id'=>$first['id'],'key'=>$first['key'],'status'=>'THE_APP_RETENTION_REMOVES_IT_WHEN_THIS_BACKUP_COMPLETES_COPY_IT_OFF_THE_SERVER_FIRST_IF_IT_IS_NEEDED','newerCompleted'=>$position]);
+        elseif($position>=1)$this->emit('WARN_FIRST_PRE_MIGRATION_BACKUP',['id'=>$first['id'],'key'=>$first['key'],'status'=>'THE_APP_RETENTION_REMOVES_IT_WHEN_THIS_BACKUP_COMPLETES_COPY_IT_OFF_THE_SERVER_FIRST_IF_IT_IS_NEEDED','newerCompleted'=>$position,
+            'laterBackups'=>'A_BACKUP_TAKEN_AT_69_OR_70_RAN_STILL_HOLDS_EVERY_ORIGINAL_ROW_THE_RUN_IS_NOT_STOPPED_FOR_THIS_WARNING']);
     }
 
     /**
@@ -668,14 +687,27 @@ final class MigrateUnclampCoordinator
                 $this->backup($ran);
             }
             $this->scheduleCheck($this->appState('state'),'BEFORE_MIGRATE_FORCE',1);$this->fault('BEFORE_MIGRATE_FORCE');
+            // The migration set is read once more right before MIGRATE_INTENT: exactly the expected remaining pending suffix.
+            $expected=array_slice(self::PENDING,$ran-self::RAN_BEFORE);
+            try{$now=$this->migrationStatus();$same=$now['ran']===$ran&&$now['pending']===$expected&&$pending===$expected;}catch(Throwable $e){$now=['error'=>self::code($e)];$same=false;}
+            if(!$same){
+                $this->emit('MIGRATE_SET_RECHECK',['ok'=>false,'expectedRan'=>$ran,'expectedPending'=>$expected,'observed'=>$now,'migrateExecuted'=>false]);$this->save('HOLD_MIGRATE_SET_CHANGED');
+                $this->recoveryNote('MIGRATE_SET_CHANGED',['expectedPending'=>$expected,'observed'=>$now,'migrateExecuted'=>false,'next'=>'FIND_WHAT_CHANGED_THE_MIGRATIONS_TABLE_OR_FILES_THE_SAME_COMMAND_HOLDS_IN_PREFLIGHT_UNTIL_ONLY_THE_EXPECTED_MIGRATIONS_ARE_PENDING']);
+                throw new RuntimeException('MIGRATION_SET_CHANGED_BEFORE_MIGRATE');
+            }
+            $this->emit('MIGRATE_SET_RECHECK',['ok'=>true,'ran'=>$ran,'pending'=>$expected]);
+            // The FIRST pre-migration backup is the backup that gated the first migrate --force; it is never overwritten later.
+            if(($this->state['migrateAttempted']??false)!==true)$this->state['firstPreMigrationBackup']=['id'=>$this->processBackup['id'],'key'=>$this->processBackup['key'],'sizeBytes'=>$this->processBackup['sizeBytes'],'ranAtBackup'=>$ran,'gatedFirstMigrateAt'=>time()];
             $this->state['migrateAttempted']=true;$this->save('MIGRATE_INTENT');$child=null;
             try{$m=$this->artisan(['migrate','--force'],$this->migrateTimeout);}catch(Throwable $e){$child=['reason'=>self::code($e)]+($this->lastChildStop??[]);$m=['rc'=>null];}
             try{$status=$this->migrationStatus();}catch(Throwable $e){$status=['ran'=>null,'pending'=>null,'error'=>self::code($e)];}
             $this->emit('MIGRATE',['rc'=>$m['rc'],'ran'=>$status['ran'],'pending'=>$status['pending'],'childTerminated'=>$child,'seedFreshRollbackOrRefresh'=>false,'rawOutputNotExported'=>true]);
             if($child!==null||$m['rc']!==0||$status['pending']!==[]||$status['ran']!==self::RAN_BEFORE+3){
-                $this->save('HOLD_MIGRATION_FAILED');$schema=null;try{$schema=self::schemaConstraintGaps($this->appState('state')['schema']??[]);}catch(Throwable){}
+                $schema=null;try{$schema=self::schemaConstraintGaps($this->appState('state')['schema']??[]);}catch(Throwable){}
+                // The note is printed BEFORE the HOLD save, and a failing save never suppresses it.
                 $this->emit('MIGRATION_RECOVERY_NOTE',['automaticRollback'=>false,'clamp'=>'IN_PLACE_STOREFRONT_CLOSED','backupId'=>$this->state['backup']['id']??null,'firstPreMigrationBackupId'=>$this->state['firstPreMigrationBackup']['id']??null,'ran'=>$status['ran'],'pending'=>$status['pending'],'childTerminated'=>$child,'schemaConstraints'=>$schema,
                     'next'=>'READ_THE_LARAVEL_LOG_FIX_THE_CAUSE_THEN_RUN_THE_SAME_COMMAND_AGAIN_IT_CHECKS_EVERY_TABLE_CONSTRAINT_TAKES_A_NEW_BACKUP_AND_RUNS_ONLY_WHAT_IS_STILL_PENDING_OR_RESTORE_THE_VERIFIED_BACKUP_ON_A_SEPARATE_DATABASE_FIRST']);
+                try{$this->fault('BEFORE_HOLD_MIGRATION_FAILED_SAVE');$this->save('HOLD_MIGRATION_FAILED');}catch(Throwable $e){$this->emit('HOLD_STATE_UNWRITABLE',['code'=>self::code($e),'savedPhase'=>$this->state['phase']??null,'next'=>'FIX_DISK_OR_PERMISSIONS_THEN_RUN_THE_SAME_COMMAND_IT_RESUMES_FROM_MIGRATE_STATUS_AND_TAKES_A_NEW_BACKUP']);}
                 $this->recoveryNote('MIGRATION_FAILED',['childTerminated'=>$child!==null,'ran'=>$status['ran'],'pending'=>$status['pending']]);
                 throw new RuntimeException($child!==null?'MIGRATE_CHILD_TERMINATED_NO_AUTOMATIC_ROLLBACK':'MIGRATION_FAILED_NO_AUTOMATIC_ROLLBACK');
             }

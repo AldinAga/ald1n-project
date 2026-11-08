@@ -58,6 +58,10 @@ $set('fault',static function(string $point)use($actions,$cfg,$pdo,$prune,$once,$
             'pruneBackupOnce'=>$once('pruned')?$prune():null,
             // Ages the in-process backup by one hour (monotonic clock), once.
             'ageBackupOnce'=>$once('aged')?(static function()use($o):void{$p=new ReflectionProperty($o,'processBackup');$b=$p->getValue($o);$b['createdAt']-=3600000000000;$p->setValue($o,$b);})():null,
+            // An unexpected extra pending migration appears after the preflight (its migrations row disappears).
+            'extraPending'=>$pdo()->exec("DELETE FROM migrations WHERE migration='2026_07_21_000003_create_system_tables'"),
+            // The HOLD save fails (disk or permissions): the recovery note must already be printed.
+            'failSave'=>throw new RuntimeException('FIXTURE_HOLD_SAVE_FAILED'),
             default=>throw new RuntimeException('FIXTURE_UNKNOWN_ACTION'),
         };
     }
