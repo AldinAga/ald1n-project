@@ -1,14 +1,15 @@
-name: B1142 native canonical44 calibration RED (NO DEPLOY)
+name: B1142 finite-format conditional OFF installer (NO DEPLOY)
 on:
   push:
     branches: [codex/b1131-stage-helper-ci-20261104]
     paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1142/**']
 permissions:
   contents: read
+  actions: read
 jobs:
-  native-calibration-red:
+  focused-controlled-off:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -17,16 +18,80 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
-          extensions: curl
+          extensions: opcache,pdo_sqlite,sqlite3,mbstring,dom,curl,gd,intl,bcmath,zip
           coverage: none
-      - name: Exercise unchanged actual calibration and real owned process guard
+      - name: Syntax, portable shell and exact reused coordinator scope
         run: |
           set -euo pipefail
-          python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1135" red | tee "$RUNNER_TEMP/b1142-red.json"
+          for file in tools/storefront/b1142/*.php; do php -l "$file"; done
+          bash -n tools/storefront/b1142/operator-wrapper.sh
+          if grep -nE '<\(|>\(|/dev/fd|python3' tools/storefront/b1142/operator-wrapper.sh; then exit 2; fi
+          if grep -nE 'AccountRefresh|lsphp_restart|account-refresh' tools/storefront/b1142/operator-entry.php tools/storefront/b1142/InstallCoordinator.php; then exit 2; fi
+          python3 - <<'PY'
+          import pathlib
+          old=pathlib.Path('tools/storefront/b1139/InstallCoordinator.php').read_text()
+          a=old.index("$this->state['accountRefresh']=AccountRefresh::run(")
+          b=old.index("$this->save('WORKER_VISIBILITY_CALIBRATED');",a)
+          expected=(old[:a]+"$this->state['visibility']=$this->web->calibrateVisibility();"+old[b:]).replace('B1139','B1142').replace('b1139','b1142').replace("'/b1134-webcache-","'/b1142-webcache-").replace("'/b1134-sentinel-","'/b1142-sentinel-")
+          assert pathlib.Path('tools/storefront/b1142/InstallCoordinator.php').read_text()==expected
+          print('COORDINATOR_ONLY_NAMESPACE_AND_REMOVAL_OF_REFRESH=PASS')
+          PY
+      - name: Finite format, marker, sealed state, receipt and process boundaries
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1142/conformance-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" | tee "$RUNNER_TEMP/b1142-conformance.json"
+      - name: Actual old RED and new native process HTTPS calibration with negative gates
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1135" red | tee "$RUNNER_TEMP/b1142-native-red.json"
+          python3 tools/storefront/b1142/native-fixture.py "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1142" green | tee "$RUNNER_TEMP/b1142-native-green.json"
+      - name: Exact four-generation terminal admission and no-repeat state reentry
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1142/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1142-admission.json"
+          php tools/storefront/b1142/reentry-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" | tee "$RUNNER_TEMP/b1142-reentry.txt"
+      - name: Reuse authenticated exact existing runtime solely for transaction and endpoint checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/b1142-runtime"
+          mkdir -p "$work/payload" "$work/stage"
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
+          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
+          WORK="$work" python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile,zipfile
+          root=pathlib.Path(os.environ['WORK'])
+          with zipfile.ZipFile(root/'runtime.zip') as archive:
+              assert set(archive.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
+              for entry in archive.infolist():
+                  assert entry.file_size<=64*1024*1024
+                  (root/'payload'/entry.filename).write_bytes(archive.read(entry))
+          assert hashlib.sha256((root/'payload/cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
+          with tarfile.open(root/'payload/cms-runtime.tar.gz') as archive:
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in archive.getmembers())
+              archive.extractall(root/'stage',filter='data')
+          PY
+      - name: Existing owned transaction, post-switch rollback, interrupted gap and terminal reentry
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1142/coordinator-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" "$RUNNER_TEMP/b1142-runtime/stage" "$RUNNER_TEMP/b1142-runtime/payload" "$GITHUB_WORKSPACE/tools/storefront/b1134/runtime-directories.json" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1142-coordinator.json"
+      - name: Actual immutable endpoint auth, memory/disk cache, OFF web and rollback
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1142/front-http-fixture.py "$RUNNER_TEMP/b1142-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1142/FrontCacheEndpoint.php" "$GITHUB_WORKSPACE/tools/storefront/b1134"
+          cp "$RUNNER_TEMP/b1134-front/front-receipt.json" "$RUNNER_TEMP/b1142-endpoint.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: b1142-native-red
-          path: ${{ runner.temp }}/b1142-red.json
-          if-no-files-found: error
+          name: b1142-controlled-off-evidence
+          path: |
+            ${{ runner.temp }}/b1142-conformance.json
+            ${{ runner.temp }}/b1142-native-red.json
+            ${{ runner.temp }}/b1142-native-green.json
+            ${{ runner.temp }}/b1142-admission.json
+            ${{ runner.temp }}/b1142-reentry.txt
+            ${{ runner.temp }}/b1142-coordinator.json
+            ${{ runner.temp }}/b1142-endpoint.json
+          if-no-files-found: warn
           retention-days: 7
