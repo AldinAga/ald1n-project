@@ -149,6 +149,8 @@ jobs:
           set -e
           out="$(sudo cat "$sandbox_report")"
           test "$rc" = 2 && grep -qx 'HOLD_CODE=PACKAGE_FILE_INTEGRITY' <<<"$out"
+          # Removed so the report sequence of the next step still starts right after 1107.
+          as rm -f "$sandbox_report"
           set +e
           sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" REPORT=/tmp/elsewhere.md bash "$script" --worker > /dev/null 2>&1; rc=$?
           set -e
