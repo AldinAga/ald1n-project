@@ -174,13 +174,21 @@ jobs:
           if test "${3-}" = fetch; then printf 'SANDBOX_GIT_FETCH_STUBBED=%s\n' "$*"; exit 0; fi
           exec "$(cat /tmp/b1144-shims/real-git)" "$@"
           SHIM
-          chmod 755 /tmp/b1144-shims /tmp/b1144-shims/php /tmp/b1144-shims/git
+          # setsid is delayed past the foreground's 60 s WORKER_PID window only while /tmp/b1144-slow-start exists (late worker start).
+          command -v setsid > /tmp/b1144-shims/real-setsid
+          cat > /tmp/b1144-shims/setsid <<'SHIM'
+          #!/bin/bash
+          if test -e /tmp/b1144-slow-start; then sleep 75; fi
+          exec "$(cat /tmp/b1144-shims/real-setsid)" "$@"
+          SHIM
+          chmod 755 /tmp/b1144-shims /tmp/b1144-shims/php /tmp/b1144-shims/git /tmp/b1144-shims/setsid
           as mkdir -p /home/icaffeco/.ald1n-stage
           as bash -c 'printf "sandbox predecessor\n" > /home/icaffeco/ald1n-project/docs/operations/1104-SANDBOX-PREDECESSOR.md'
           as git -C /home/icaffeco/ald1n-project remote add origin https://github.com/AldinAga/ald1n-project
           install -m 0755 tools/storefront/b1144/wrapper-sandbox-test.sh /tmp/b1144-wrapper-sandbox-test.sh
           as bash /tmp/b1144-wrapper-sandbox-test.sh | tee "$RUNNER_TEMP/wrapper-sandbox.json"
           grep -q '"workerSurvivesForegroundHupTerm":true' "$RUNNER_TEMP/wrapper-sandbox.json"
+          grep -q '"lateWorkerSingleExitLine":true' "$RUNNER_TEMP/wrapper-sandbox.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

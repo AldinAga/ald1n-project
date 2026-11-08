@@ -68,6 +68,27 @@ grep -qx 'HOLD_CODE=RUNTIME_MANIFEST_INTEGRITY' "$report" || die DETACH_UNEXPECT
 grep -qx 'EXIT=2' "$report" || die DETACH_NO_EXIT_LINE
 if grep -q 'WORKER_STOPPED_BY_SIGNAL' "$report"; then die DETACH_WORKER_GOT_SIGNAL; fi
 
+# Late worker start (setsid delayed 75 s): the foreground writes WORKER_START_UNCONFIRMED and NO EXIT line; the worker,
+# once it starts, writes the only EXIT line of the report.
+: > /tmp/b1144-slow-start
+log="$logs/foreground-late.log"
+bash "$script" > "$log" 2>&1; rc=$?
+test "$rc" = 2 || die "LATE_FOREGROUND_RC_$rc"
+report="$(sed -n 's/^REPORT=//p' "$log" | head -n 1)"
+test -f "$report" || die LATE_REPORT_MISSING
+grep -q '^WORKER_START_UNCONFIRMED=' "$report" || die LATE_NO_UNCONFIRMED_LINE
+if grep -q '^EXIT=' "$report"; then die LATE_FOREGROUND_WROTE_EXIT; fi
+if grep -q 'WORKER_DID_NOT_START' "$report"; then die LATE_OLD_LINE; fi
+grep -q '^FOREGROUND_STOPPED_WORKER_START_UNCONFIRMED' "$log" || die LATE_NO_FOREGROUND_LINE
+test ! -e "$lock" || die LATE_LOCK_LEFT
+test "$(scratch_count)" = 0 || die LATE_SCRATCH_LEFT
+rm -f /tmp/b1144-slow-start
+wait_for "grep -q '^EXIT=[0-9]' '$report'" 90 || die LATE_WORKER_NEVER_FINISHED
+sleep 1
+test "$(grep -c '^EXIT=' "$report")" = 1 || die LATE_EXIT_LINES_NOT_ONE
+grep -q '^WORKER_PID=[0-9]' "$report" || die LATE_NO_WORKER_PID
+grep -qx 'B1144_FINAL=HOLD' "$report" || die LATE_NO_FINAL_LINE
+
 # Undisturbed run: the foreground follows the report to the worker's EXIT line and returns it.
 log="$logs/foreground-plain.log"
 bash "$script" > "$log" 2>&1; rc=$?
@@ -76,4 +97,4 @@ grep -qx 'B1144_FINAL=HOLD' "$log" || die PLAIN_NO_FINAL_LINE
 grep -qx 'EXIT=2' "$log" || die PLAIN_NO_EXIT_LINE
 test ! -e "$lock" || die PLAIN_LOCK_LEFT
 test "$(scratch_count)" = 0 || die PLAIN_SCRATCH_LEFT
-printf '{"intReleasesLockAndScratch":true,"termReleasesLockAndScratch":true,"workerSurvivesForegroundHupTerm":true,"workerWroteFinalLines":true,"plainRunExit":2}\n'
+printf '{"intReleasesLockAndScratch":true,"termReleasesLockAndScratch":true,"workerSurvivesForegroundHupTerm":true,"workerWroteFinalLines":true,"lateWorkerStartUnconfirmedNoForegroundExit":true,"lateWorkerSingleExitLine":true,"plainRunExit":2}\n'
