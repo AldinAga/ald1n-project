@@ -10,6 +10,8 @@ final class FreshnessProbe
 {
     public const PREFIX='ald1n-b1144-';
     public const LIFETIME=1800;
+    public const HOLD_MARGIN=5;
+    public const MAX_HOLD_SECONDS=600;
 
     public static function assertNoLeftover(string $public):void
     {
@@ -52,8 +54,9 @@ if($invalidate&&$enabled){
     }
 }
 $hashes=[];foreach($files as $relative){$full=__DIR__.'/../'.$relative;$hashes[$relative]=is_file($full)&&!is_link($full)?hash_file('sha256',$full):null;}
-$ini=strtolower(trim((string)ini_get('opcache.enable')));
-echo json_encode(['kind'=>'B1144_FRESHNESS_PROBE','id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'opcacheLoaded'=>extension_loaded('Zend OPcache'),'opcacheIniEnabled'=>in_array($ini,['1','on','yes','true'],true),'opcacheEnabled'=>$enabled,'statusAccess'=>is_array($status),'scriptsListed'=>$scripts!==null,'validateTimestamps'=>(int)ini_get('opcache.validate_timestamps'),'revalidateFreq'=>(int)ini_get('opcache.revalidate_freq'),'fileCache'=>(string)ini_get('opcache.file_cache')!=='','fileCacheOnly'=>(int)ini_get('opcache.file_cache_only')===1,'invalidationRequested'=>$invalidate,'invalidationCandidates'=>$candidates,'invalidated'=>$invalidated,'invalidationFailed'=>$failed,'vanishedCachedScripts'=>$vanished,'globalReset'=>false,'files'=>$hashes],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+$ini=strtolower(trim((string)ini_get('opcache.enable')));$realpathTtl=ini_get('realpath_cache_ttl');$realpathSize=ini_get('realpath_cache_size');
+// Raw ini strings: the installer derives the barrier hold from them. Worker realpath caches are per process and are NOT cleared here.
+echo json_encode(['kind'=>'B1144_FRESHNESS_PROBE','id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'realpathCacheTtl'=>is_string($realpathTtl)?$realpathTtl:null,'realpathCacheSize'=>is_string($realpathSize)?$realpathSize:null,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'opcacheLoaded'=>extension_loaded('Zend OPcache'),'opcacheIniEnabled'=>in_array($ini,['1','on','yes','true'],true),'opcacheEnabled'=>$enabled,'statusAccess'=>is_array($status),'scriptsListed'=>$scripts!==null,'validateTimestamps'=>(int)ini_get('opcache.validate_timestamps'),'revalidateFreq'=>(int)ini_get('opcache.revalidate_freq'),'fileCache'=>(string)ini_get('opcache.file_cache')!=='','fileCacheOnly'=>(int)ini_get('opcache.file_cache_only')===1,'invalidationRequested'=>$invalidate,'invalidationCandidates'=>$candidates,'invalidated'=>$invalidated,'invalidationFailed'=>$failed,'vanishedCachedScripts'=>$vanished,'globalReset'=>false,'files'=>$hashes],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
 PROBE;
         return strtr($template,$replace)."\n";
     }
@@ -89,6 +92,39 @@ PROBE;
         foreach(['invalidationCandidates','invalidated','invalidationFailed','vanishedCachedScripts','validateTimestamps','revalidateFreq'] as $key)if(!is_int($r[$key]??null)||$r[$key]<0)throw new RuntimeException('FRESHNESS_PROBE_FIELDS');
         if(($r['invalidationRequested']??null)!==$invalidationRequested||($r['globalReset']??null)!==false||$r['invalidationFailed']!==0||$r['invalidated']!==$r['invalidationCandidates'])throw new RuntimeException('FRESHNESS_TARGETED_INVALIDATION_FAILED');
         if($r['revalidateFreq']>60)throw new RuntimeException('FRESHNESS_REVALIDATE_FREQ_UNSUPPORTED');
-        return ['sapi'=>$r['sapi'],'php'=>$r['php'],'docrootMatches'=>true,'treeFilesVerified'=>count($expectedFiles),'opcacheLoaded'=>($r['opcacheLoaded']??null)===true,'opcacheEnabled'=>$enabled,'validateTimestamps'=>$r['validateTimestamps'],'revalidateFreq'=>$r['revalidateFreq'],'fileCache'=>($r['fileCache']??null)===true,'targetedInvalidations'=>$r['invalidated'],'vanishedCachedScripts'=>$r['vanishedCachedScripts'],'globalReset'=>false,'waitSeconds'=>$r['revalidateFreq']+2];
+        $ttl=$r['realpathCacheTtl']??null;$size=$r['realpathCacheSize']??null;
+        if(!is_string($ttl)||!preg_match('/^[0-9]{1,9}$/D',$ttl)||!is_string($size)||!preg_match('/^[0-9]{1,12}[KMGkmg]?$/D',$size))throw new RuntimeException('FRESHNESS_REALPATH_CACHE_UNREADABLE');
+        $ttl=(int)$ttl;
+        return ['sapi'=>$r['sapi'],'php'=>$r['php'],'docrootMatches'=>true,'treeFilesVerified'=>count($expectedFiles),'opcacheLoaded'=>($r['opcacheLoaded']??null)===true,'opcacheEnabled'=>$enabled,'validateTimestamps'=>$r['validateTimestamps'],'revalidateFreq'=>$r['revalidateFreq'],'fileCache'=>($r['fileCache']??null)===true,'targetedInvalidations'=>$r['invalidated'],'vanishedCachedScripts'=>$r['vanishedCachedScripts'],'globalReset'=>false,'waitSeconds'=>$r['revalidateFreq']+2,'realpathCacheTtl'=>$ttl,'realpathCacheSize'=>$size,'holdSeconds'=>max($ttl,$enabled?$r['revalidateFreq']:0)+self::HOLD_MARGIN];
+    }
+
+    /**
+     * Earliest second at which the owned barrier may be lifted after a directory swap. Each web worker keeps its own
+     * realpath cache (realpath_cache_ttl) of resolutions made BEFORE the swap, e.g. ".env" -> the retained tree; only
+     * expiry clears it in other workers. Under the barrier no application request creates new entries, so every stale
+     * entry is gone once realpath_cache_ttl has passed since the swap. The OPcache revalidation window runs from the probe.
+     */
+    public static function liftNotBefore(int $swappedAt,int $probedAt,array $summaries):int
+    {
+        if($summaries===[]||$swappedAt<=0||$probedAt<$swappedAt)throw new RuntimeException('BARRIER_HOLD_UNDERIVABLE');$ttl=0;$frequency=0;
+        foreach($summaries as $s){
+            if(!is_array($s)||!is_int($s['realpathCacheTtl']??null)||$s['realpathCacheTtl']<0||!is_int($s['revalidateFreq']??null)||$s['revalidateFreq']<0||!is_bool($s['opcacheEnabled']??null))throw new RuntimeException('FRESHNESS_REALPATH_CACHE_UNREADABLE');
+            $ttl=max($ttl,$s['realpathCacheTtl']);if($s['opcacheEnabled'])$frequency=max($frequency,$s['revalidateFreq']);
+        }
+        return max($swappedAt+$ttl,$probedAt+$frequency)+self::HOLD_MARGIN;
+    }
+
+    /** Seconds still to hold; a hold longer than the bound is refused (rollback after install, retained barrier after restore). */
+    public static function remaining(int $liftNotBefore,?int $now=null):int
+    {
+        $left=$liftNotBefore-($now??time());if($left>self::MAX_HOLD_SECONDS)throw new RuntimeException('BARRIER_HOLD_EXCEEDS_BOUND');return max(0,$left);
+    }
+
+    /** Sleeps until $liftNotBefore; the bound is re-checked on every wake-up (a clock step back cannot extend it silently). */
+    public static function hold(int $liftNotBefore):array
+    {
+        $started=time();self::remaining($liftNotBefore,$started);
+        while(($left=self::remaining($liftNotBefore))>0)sleep(min($left,15));
+        return ['liftNotBefore'=>$liftNotBefore,'waitedSeconds'=>time()-$started,'heldUntil'=>time()];
     }
 }
