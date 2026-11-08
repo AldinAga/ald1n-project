@@ -126,7 +126,8 @@ try:
     bridge('release',receipt=new_m,base=str(failed));bridge('release',receipt=old_m,base=str(current))
     first_login=status('/login',200,attempts=2)
     if not first_login['pass']:
-        logfile=current/'storage/logs/laravel.log';print('ROLLBACK_LOGIN_DIAGNOSTIC',json.dumps(first_login),logfile.read_text()[-2500:] if logfile.exists() else 'NO_LOG',flush=True)
+        logfile=current/'storage/logs/laravel.log';text=logfile.read_text() if logfile.exists() else 'NO_LOG';heads=[l[:700] for l in text.splitlines() if l.startswith('[20')][-4:]
+        print('ROLLBACK_LOGIN_DIAGNOSTIC',json.dumps(first_login),json.dumps(heads),flush=True)
         time.sleep(125);print('ROLLBACK_LOGIN_AFTER_REALPATH_TTL',json.dumps(status('/login',200)),flush=True)
     assert first_login['pass'];assert (current/'storage/app/public/after-lift').read_text()=='new-user-bytes'
     stop()
