@@ -5,10 +5,14 @@ on:
     paths: ['.github/workflows/b1131-stage-helper.yml', 'tools/storefront/b1143/**']
 permissions:
   contents: read
+  actions: read
 jobs:
   uncached-green:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -17,7 +21,7 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
-          extensions: opcache,curl
+          extensions: opcache,pdo_sqlite,sqlite3,mbstring,dom,curl,gd,intl,bcmath,zip
           coverage: none
       - name: Source syntax and portable operator shell
         run: |
@@ -31,6 +35,53 @@ jobs:
         run: python3 tools/storefront/b1143/uncached-http-fixture.py tools/storefront/b1143/FrontCacheEndpoint.php | tee "$RUNNER_TEMP/http.json"
       - name: Actual warmed memory and disk code, startup-off and ignored-off controls
         run: python3 tools/storefront/b1143/startup-cache-fixture.py | tee "$RUNNER_TEMP/startup.json"
+      - name: Strict marker, process, profile seal and receipt negative boundaries
+        run: php tools/storefront/b1143/conformance-fixture.php tools/storefront/b1143 | tee "$RUNNER_TEMP/conformance.json"
+      - name: Owned native process calibration under explicit simulated uncached SAPI
+        run: |
+          set -euo pipefail
+          native_root="$(mktemp -d /tmp/b1143-native.XXXXXX)"
+          chmod 755 "$native_root"
+          mkdir -p "$native_root/source/tools" "$native_root/source/new"
+          cp tools/storefront/b1143/native-parent.php tools/storefront/b1143/native-worker.php tools/storefront/b1143/native-client.php tools/storefront/b1143/native-fixture.py "$native_root/source/tools/"
+          cp tools/storefront/b1143/HostWebControl.php "$native_root/source/new/"
+          chmod -R a-w "$native_root/source"
+          sudo useradd --system --user-group --no-create-home --home-dir "$native_root/home" --shell /usr/sbin/nologin b1143qa
+          sudo install -d -o b1143qa -g b1143qa -m 700 "$native_root/home" "$native_root/work"
+          sudo -u b1143qa env -i PATH="$PATH" HOME="$native_root/home" RUNNER_TEMP="$native_root/work" python3 "$native_root/source/tools/native-fixture.py" "$native_root/source/tools" "$native_root/source/new" green | tee "$RUNNER_TEMP/native.json"
+      - name: Exact B1142 terminal continuation retaining all five ancestors and candidate
+        run: php tools/storefront/b1143/recovery-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1142" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/admission.json"
+      - name: Reuse authenticated exact existing runtime solely for transaction and endpoint checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/b1143-runtime"
+          mkdir -p "$work/payload" "$work/stage"
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
+          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
+          WORK="$work" python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile,zipfile
+          root=pathlib.Path(os.environ['WORK'])
+          with zipfile.ZipFile(root/'runtime.zip') as archive:
+              assert set(archive.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
+              for entry in archive.infolist():
+                  assert entry.file_size<=64*1024*1024
+                  (root/'payload'/entry.filename).write_bytes(archive.read(entry))
+          assert hashlib.sha256((root/'payload/cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
+          with tarfile.open(root/'payload/cms-runtime.tar.gz') as archive:
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in archive.getmembers())
+              archive.extractall(root/'stage',filter='data')
+          PY
+      - name: Existing owned transaction, post-switch rollback, interrupted gap and terminal reentry
+        run: |
+          set -euo pipefail
+          php tools/storefront/b1143/coordinator-fixture.php "$GITHUB_WORKSPACE/tools/storefront/b1143" "$RUNNER_TEMP/b1143-runtime/stage" "$RUNNER_TEMP/b1143-runtime/payload" "$GITHUB_WORKSPACE/tools/storefront/b1134/runtime-directories.json" "$GITHUB_WORKSPACE/tools/storefront/b1134" | tee "$RUNNER_TEMP/b1143-coordinator.json"
+      - name: Actual immutable endpoint auth, memory/disk cache, OFF web and rollback
+        run: |
+          set -euo pipefail
+          python3 tools/storefront/b1143/front-http-fixture.py "$RUNNER_TEMP/b1143-runtime/stage" "$GITHUB_WORKSPACE/tools/storefront/b1143/FrontCacheEndpoint.php" "$GITHUB_WORKSPACE/tools/storefront/b1134"
+          cp "$RUNNER_TEMP/b1134-front/front-receipt.json" "$RUNNER_TEMP/b1143-endpoint.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -39,4 +90,9 @@ jobs:
             ${{ runner.temp }}/profile.json
             ${{ runner.temp }}/http.json
             ${{ runner.temp }}/startup.json
+            ${{ runner.temp }}/conformance.json
+            ${{ runner.temp }}/native.json
+            ${{ runner.temp }}/admission.json
+            ${{ runner.temp }}/b1143-coordinator.json
+            ${{ runner.temp }}/b1143-endpoint.json
           retention-days: 7

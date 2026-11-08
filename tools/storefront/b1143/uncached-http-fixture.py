@@ -23,6 +23,24 @@ try:
     except urllib.error.HTTPError as error:status=error.code;body=error.read().decode()
     assert status==200,('STARTUP_DISABLED_PROFILE_MUST_BE_SUPPORTED',status,body)
     receipt=json.loads(body);assert receipt['opcacheEnabled'] is False and receipt['executionProfile']=='UNCACHED_CMS'
-    print(json.dumps({'startupDisabledActualEndpoint':True,'simulatedStartupConfiguration':True,'productionExecution':False}))
+    def rpc(action,auth=True):
+        nonce=secrets.token_hex(16);headers={'Content-Type':'application/json'}
+        if auth:headers['X-Ald1n-Release-Token']=token
+        req=urllib.request.Request('http://127.0.0.1:'+str(port)+'/',data=json.dumps({'action':action,'nonce':nonce}).encode(),headers=headers)
+        try:
+            with opener.open(req,timeout=10) as r:status=r.status;text=r.read().decode()
+        except urllib.error.HTTPError as r:status=r.code;text=r.read().decode()
+        return status,json.loads(text),nonce
+    assert rpc('probe',False)[0]==403
+    assert rpc('invalidate')[0]==403 and rpc('reset')[0]==403
+    for literal in ['A','B']:
+        dep=incoming/('b1143-witness-'+job+'-dependency.php');main=incoming/('b1143-witness-'+job+'.php')
+        dep.write_text('<?php return '+json.dumps(literal)+';');dep.chmod(0o600)
+        main.write_text('<?php return ['+json.dumps(literal)+',require __DIR__.'+json.dumps('/'+dep.name)+'];');main.chmod(0o600)
+        cfg['witness']={'path':str(main),'sha256':sha(main.read_bytes()),'dependency':str(dep),'dependencySHA256':sha(dep.read_bytes()),'literal':literal}
+        payload=json.dumps(cfg,separators=(',',':'));env.write_text(json.dumps({'payload':payload,'hmac':hmac.new(key.encode(),payload.encode(),hashlib.sha256).hexdigest()}))
+        status,item,nonce=rpc('witness');assert status==200 and item['executedWitness']==[literal,literal] and item['nonce']==nonce,(status,item)
+    cfg['witness']['literal']='A';payload=json.dumps(cfg,separators=(',',':'));env.write_text(json.dumps({'payload':payload,'hmac':hmac.new(key.encode(),payload.encode(),hashlib.sha256).hexdigest()}));assert rpc('witness')[0]==409
+    print(json.dumps({'startupDisabledActualEndpoint':True,'sameURIExecutedMainAndDependencyAB':True,'staleExpectedLiteralHolds':True,'noAuthAndCacheMutationDenied':True,'simulatedStartupConfiguration':True,'productionExecution':False}))
 finally:
     server.terminate();server.wait(timeout=5);log.close()

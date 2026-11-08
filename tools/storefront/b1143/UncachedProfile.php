@@ -13,9 +13,9 @@ final class UncachedProfile
     {
         $h=fopen($path,'x');if($h===false)throw new RuntimeException('UNCACHED_CREATE');$owned=fstat($h);$ok=false;try{if(!chmod($path,$mode)||fwrite($h,$bytes)!==strlen($bytes)||!fflush($h)||(function_exists('fsync')&&!fsync($h)))throw new RuntimeException('UNCACHED_DURABLE_WRITE');if(!fclose($h))throw new RuntimeException('UNCACHED_CLOSE');$h=null;$s=self::checked($path);if(($s['mode']&0777)!==$mode)throw new RuntimeException('UNCACHED_MODE');$ok=true;}finally{if(is_resource($h))fclose($h);if(!$ok){$s=@lstat($path);if(is_array($s)&&$s['dev']===$owned['dev']&&$s['ino']===$owned['ino']&&!is_link($path))unlink($path);}}
     }
-    private static function replace(string $path,string $expected,string $bytes,int $mode):void
+    private static function replace(string $path,string $expected,string $bytes,int $mode,?string $scratch=null):void
     {
-        $original=self::checked($path);if(hash_file('sha256',$path)!==$expected)throw new RuntimeException('UNCACHED_CONFIG_DRIFT');$tmp=$path.'.b1143-'.bin2hex(random_bytes(8));$owned=null;try{self::create($tmp,$bytes,$mode);$owned=lstat($tmp);$now=self::checked($path);if($now['dev']!==$original['dev']||$now['ino']!==$original['ino']||hash_file('sha256',$path)!==$expected||!rename($tmp,$path))throw new RuntimeException('UNCACHED_CONFIG_RENAME');}finally{if($owned!==null){$s=@lstat($tmp);if(is_array($s)&&$s['dev']===$owned['dev']&&$s['ino']===$owned['ino']&&!is_link($tmp))unlink($tmp);}}
+        $original=self::checked($path);if(hash_file('sha256',$path)!==$expected)throw new RuntimeException('UNCACHED_CONFIG_DRIFT');$tmp=($scratch??dirname($path)).'/b1143-owned-'.bin2hex(random_bytes(8)).'.next';$owned=null;try{self::create($tmp,$bytes,$mode);$owned=lstat($tmp);$now=self::checked($path);if($now['dev']!==$original['dev']||$now['ino']!==$original['ino']||hash_file('sha256',$path)!==$expected||!rename($tmp,$path))throw new RuntimeException('UNCACHED_CONFIG_RENAME');}finally{if($owned!==null){$s=@lstat($tmp);if(is_array($s)&&$s['dev']===$owned['dev']&&$s['ino']===$owned['ino']&&!is_link($tmp))unlink($tmp);}}
     }
     /** Input is the bounded private DomainInfo response, never printed or archived in an operation report. */
     public static function topology(array $response,string $public):array
@@ -37,7 +37,7 @@ final class UncachedProfile
     }
     public static function apply(array $profile,string $label,string $base):void
     {
-        $e=self::entry($profile,$label,$base);$path=$base.'/public/.htaccess';self::checked($path);$sha=hash_file('sha256',$path);if($sha===$e['overlaySHA256'])return;if($sha!==$e['originalSHA256'])throw new RuntimeException('UNCACHED_CONFIG_DRIFT');self::replace($path,$sha,file_get_contents($e['archive']).self::BLOCK,$e['mode']);
+        $e=self::entry($profile,$label,$base);$path=$base.'/public/.htaccess';self::checked($path);$sha=hash_file('sha256',$path);if($sha===$e['overlaySHA256'])return;if($sha!==$e['originalSHA256'])throw new RuntimeException('UNCACHED_CONFIG_DRIFT');self::replace($path,$sha,file_get_contents($e['archive']).self::BLOCK,$e['mode'],dirname($e['archive']));
     }
     public static function assertApplied(array $profile,string $label,string $base):void
     {
@@ -45,7 +45,7 @@ final class UncachedProfile
     }
     public static function restore(array $profile,string $label,string $base):void
     {
-        $e=self::entry($profile,$label,$base);$path=$base.'/public/.htaccess';self::checked($path);$sha=hash_file('sha256',$path);if($sha===$e['originalSHA256'])return;if($sha!==$e['overlaySHA256'])throw new RuntimeException('UNCACHED_CONFIG_DRIFT');self::replace($path,$sha,file_get_contents($e['archive']),$e['mode']);
+        $e=self::entry($profile,$label,$base);$path=$base.'/public/.htaccess';self::checked($path);$sha=hash_file('sha256',$path);if($sha===$e['originalSHA256'])return;if($sha!==$e['overlaySHA256'])throw new RuntimeException('UNCACHED_CONFIG_DRIFT');self::replace($path,$sha,file_get_contents($e['archive']),$e['mode'],dirname($e['archive']));
     }
     public static function witness(string $incoming,string $id,string $literal):array
     {

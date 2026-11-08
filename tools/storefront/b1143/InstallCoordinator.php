@@ -160,25 +160,43 @@ final class InstallCoordinator
         }catch(Throwable $error){$this->emit('HOLD_INSTALLED_OFF_FINISH_PENDING',$error->getMessage());return 2;}
     }
 
+    /** Code is already original before the original PHP profile can be restored. */
+    private function finishOriginalProfile(bool $switched):int
+    {
+        $plan=$this->state['plan'];$active=$this->active();if($this->identity($active)!==$plan['oldIdentity'])throw new RuntimeException('ORIGINAL_CODE_REQUIRED_BEFORE_CONFIG_RESTORE');
+        $other=is_dir($plan['failed'])?$plan['failed']:$plan['candidate'];if($this->identity($other)!==$plan['candidateIdentity'])throw new RuntimeException('RECOVERY_CANDIDATE_IDENTITY');
+        $this->state['originalProfileRestore']=['switched'=>$switched];$this->save('ORIGINAL_PROFILE_RESTORE_INTENT');
+        try{
+            $this->cleanupMapping();if(is_array($this->state['newMaintenance']))$this->clearMaintenance($this->state['newMaintenance'],$other.'/storage');if(is_array($this->state['oldMaintenance']))$this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');
+            if(isset($this->state['uncached'])){UncachedProfile::restore($this->state['uncached'],'candidate',$other);UncachedProfile::restore($this->state['uncached'],'old',$active);}
+            $this->save('ORIGINAL_PROFILE_RESTORED_PENDING_HTTP');if($this->web===null)$this->mapping('revoked');$this->web->publicStatus('/login',200);$this->web->cleanupStatus();
+            if(($this->state['schedulerPauseAttempted']??false)||$this->state['scheduler']!==null)$this->scheduler('release');$this->assertGit();$this->save($switched?'ROLLED_BACK':'ROLLED_BACK_PRE_SWITCH');
+            $this->emit($switched?'ROLLBACK':'ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',$switched?'ORIGINAL_CODE_PRIVATE_DATA_AND_PROFILE_RESTORED_HTTP_VERIFIED':true);return 2;
+        }catch(Throwable $error){
+            if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true){UncachedProfile::apply($this->state['uncached'],'old',$active);$this->mapping('preflight');if(is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());$this->save('UNCACHED_OLD_PROFILE_REAPPLIED_HOLD');}
+            if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)!==true)$this->save('ORIGINAL_PROFILE_AVAILABILITY_HOLD');throw $error;
+        }
+    }
+
     private function recover(string $reason):int
     {
         $this->emit('INSTALL_HOLD_REASON',$reason);
         try{
             $plan=$this->state['plan'];$active=$this->active();$current=is_dir($active)?$this->identity($active):null;
             if($current===$plan['oldIdentity']&&!is_dir($plan['rollback'])){
-                if(isset($this->state['uncached'])){UncachedProfile::restore($this->state['uncached'],'old',$active);UncachedProfile::restore($this->state['uncached'],'candidate',$plan['candidate']);}$this->cleanupMapping();if(is_array($this->state['oldMaintenance']))$this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');if(is_array($this->state['newMaintenance'])&&is_dir($plan['candidate'].'/storage'))$this->clearMaintenance($this->state['newMaintenance'],$plan['candidate'].'/storage');
-                if(($this->state['schedulerPauseAttempted']??false)||$this->state['scheduler']!==null||in_array($this->state['phase'],['SCHEDULER_PAUSE_INTENT','SCHEDULER_PAUSED','MAINTENANCE_INTENT','MAINTENANCE_OWNED','WORKER_VISIBILITY_CALIBRATED','PRE_UNCACHED_CENSUS_INTENT','OLD_UNCACHED_CENSUS_VERIFIED'],true))$this->scheduler('release');$this->assertGit();$this->save('ROLLED_BACK_PRE_SWITCH');$this->emit('ORIGINAL_APPLICATION_CODE_VENDOR_UNTOUCHED',true);return 2;
+                $switched=is_dir($plan['failed']);if(isset($this->state['originalProfileRestore'])){
+                    if(($this->state['originalProfileRestore']['switched']??null)!==$switched)throw new RuntimeException('RESTORE_PHASE_TOPOLOGY_MISMATCH');
+                    if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true){UncachedProfile::apply($this->state['uncached'],'old',$active);$this->mapping('preflight');if(is_array($this->state['oldMaintenance'])&&$this->existingMaintenance($this->state['oldMaintenance'],$active.'/storage')===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());
+                        if(($this->state['uncachedFreshness']['samePathFreshnessProven']??false)===true){unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);}}
+                }
+                return $this->finishOriginalProfile($switched);
             }
             if($current===$plan['candidateIdentity']){
-                // Keep admission blocked before touching the installed candidate again.
                 $present=$this->existingMaintenance($this->state['newMaintenance'],$active.'/storage');if($present===null)ReleasePrimitives::ownMaintenance($active.'/storage',$this->state['owner'],$this->state['maintenanceExpires'],$this->state['maintenanceStart'],$this->webContext());
-                unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->scheduler('verify');$this->web->setPhase('installed',InstallFileOps::phpCensus($active));$this->web->verifyFiles();
+                UncachedProfile::assertApplied($this->state['uncached'],'candidate',$active);unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->scheduler('verify');$this->web->setPhase('installed',InstallFileOps::phpCensus($active));$this->web->verifyFiles();
             }
             ReleasePrimitives::recoverSwitch($plan,$this->state['journal'],$this->state['owner'],$plan['failed']);$this->save('OLD_RESTORED_MAINTENANCE_HELD');
-            unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->web->setPhase('rollback',InstallFileOps::phpCensus($active));$this->web->verifyFiles();$this->web->request('probe');$this->web->publicStatus('/login',200,null,true);HostProcessGuard::quiet($active,$this->state['visibility']);$this->cleanupMapping();UncachedProfile::restore($this->state['uncached'],'old',$active);$other=is_dir($plan['failed'])?$plan['failed']:$plan['candidate'];UncachedProfile::restore($this->state['uncached'],'candidate',$other);$this->save('ORIGINAL_CONFIG_RESTORED_AFTER_CODE');
-            if(is_dir($plan['failed'].'/storage'))$this->clearMaintenance($this->state['newMaintenance'],$plan['failed'].'/storage');
-            elseif(is_dir($plan['candidate'].'/storage'))$this->clearMaintenance($this->state['newMaintenance'],$plan['candidate'].'/storage');
-            $this->clearMaintenance($this->state['oldMaintenance'],$active.'/storage');$this->scheduler('release');$this->assertGit();$this->save('ROLLED_BACK');$this->emit('ROLLBACK','ORIGINAL_CODE_VENDOR_AND_PRIVATE_DATA_RESTORED_NO_FLAG_OR_DB_MIGRATION');return 2;
-        }catch(Throwable $error){$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');$this->emit('RECOVERY_HOLD',$error->getMessage());return 2;}
+            UncachedProfile::assertApplied($this->state['uncached'],'old',$active);unset($this->state['visibility']);$this->mapping();$this->state['visibility']=$this->web->calibrateVisibility();HostProcessGuard::quiet($active,$this->state['visibility']);$this->web->setPhase('rollback',InstallFileOps::phpCensus($active));$this->web->verifyFiles();$this->web->request('probe');$this->web->publicStatus('/login',200,null,true);HostProcessGuard::quiet($active,$this->state['visibility']);return $this->finishOriginalProfile(is_dir($plan['failed']));
+        }catch(Throwable $error){if(($this->state['phase']??'')!=='ORIGINAL_PROFILE_AVAILABILITY_HOLD')$this->save('HOLD_RECOVERY_OWNED_MAINTENANCE_RETAINED');$this->emit('RECOVERY_HOLD',$error->getMessage());return 2;}
     }
 }
