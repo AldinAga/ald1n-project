@@ -37,7 +37,7 @@
 <div class="shop-field shop-field-search">
 <label for="f-q">Pretraga</label>
 <span class="shop-input-icon"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-<input id="f-q" name="q" type="search" maxlength="80" value="{{ request('q') }}" placeholder="Naziv, model ili SKU" autocomplete="off"></span>
+<input id="f-q" name="q" type="search" maxlength="80" value="{{ request('q') }}" placeholder="Naziv ili SKU" autocomplete="off"></span>
 </div>
 <div class="shop-field">
 <label for="f-brand">Brend</label>
