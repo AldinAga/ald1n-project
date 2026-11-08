@@ -25,5 +25,8 @@ try{
     $db=$app->make('db')->connection();$db->select('select 1 as ok');
     $review=$app->make(App\Services\PublicMerchantPolicyService::class)->review();
     $settings=$app->make(App\Services\SettingsService::class);$digest=trim((string)$settings->get('public_checkout_approval_digest',''));$fingerprint=(string)($review['fingerprint']??'');
-    echo json_encode(['ok'=>true,'approved'=>($review['approved']??null)===true,'complete'=>($review['complete']??null)===true,'issues'=>is_array($review['issues']??null)?count($review['issues']):null,'approvalDigestPresent'=>$digest!=='','approvalDigestMatchesFingerprint'=>$digest!==''&&$fingerprint!==''&&hash_equals($digest,$fingerprint),'legalTextsInFingerprint'=>array_key_exists('legal_texts_digest',(array)($review['policy']??[])),'signatureReported'=>is_array($review['signature']??null)],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    // The pre-B1146 formula over the same policy snapshot: the PR 152 code adds legal_texts_digest inside fingerprint(), so the
+    // live fingerprint differs from it exactly when the legal texts are part of what the owner signs.
+    $policy=(array)($review['policy']??[]);unset($policy['methods'],$policy['deliveries']);$oldFormula=hash('sha256',json_encode($policy,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+    echo json_encode(['ok'=>true,'approved'=>($review['approved']??null)===true,'complete'=>($review['complete']??null)===true,'issues'=>is_array($review['issues']??null)?count($review['issues']):null,'approvalDigestPresent'=>$digest!=='','approvalDigestMatchesFingerprint'=>$digest!==''&&$fingerprint!==''&&hash_equals($digest,$fingerprint),'legalTextsInFingerprint'=>$fingerprint!==''&&!hash_equals($oldFormula,$fingerprint),'signatureReported'=>is_array($review['signature']??null)],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
 }catch(Throwable){$fail('APP_CHECK_BOOT_OR_DATABASE_UNAVAILABLE');}
