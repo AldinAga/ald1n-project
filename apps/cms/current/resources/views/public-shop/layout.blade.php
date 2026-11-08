@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0b1226" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
-<title>@yield('title', 'Katalog') · {{ config('app.name', 'Ald1n') }}</title>
+<title>@yield('title', 'Katalog') · {{ \App\Support\PublicCatalogPresentation::SITE_NAME }}</title>
 <link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=20261108' }}">
 @stack('head')
 </head>

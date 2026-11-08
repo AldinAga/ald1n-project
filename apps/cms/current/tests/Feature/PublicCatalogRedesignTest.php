@@ -107,7 +107,7 @@ final class PublicCatalogRedesignTest extends TestCase
 
         self::assertSame(self::STRICT_CSP, $response->headers->get('Content-Security-Policy'));
         self::assertSame(1, substr_count($html, '<h1'));
-        self::assertStringContainsString('<title>Katalog artikala · ', $html);
+        self::assertStringContainsString('<title>Katalog artikala · AP.Computers</title>', $html);
         self::assertStringContainsString('<meta name="description" content="Katalog AP.Computers: 6 artikala sa punim prodajnim cenama i trenutnim stanjem lagera. Kategorije: Laptopovi.">', $html);
         self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $html);
         self::assertStringContainsString('<meta property="og:url" content="https://cms.ald1n.com/katalog">', $html);

@@ -86,6 +86,13 @@ async function open(page, url, label, problems) {
         const top = await page.locator('.shop-back-to-top').boundingBox();
         check(top && top.y > 0 && top.y + top.height <= 900, tag + ' back-to-top visible after scrolling ' + JSON.stringify(top));
         await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-scrolled.png'), animations: 'disabled'});
+        // Keyboard focus ring on the back-to-top button (focus + key press => :focus-visible).
+        await page.locator('.shop-back-to-top').focus();
+        await page.keyboard.press('Shift');
+        await pause(150);
+        await page.screenshot({path: path.join(dir, 'focus-top-' + tag + '.png'), animations: 'disabled'});
+        const ring = await page.locator('.shop-back-to-top').evaluate(el => getComputedStyle(el).outlineStyle + ' ' + getComputedStyle(el).outlineWidth);
+        check(ring.startsWith('solid 3px'), tag + ' back-to-top focus ring ' + ring);
 
         if (width === 1280) {
           await page.evaluate(() => window.scrollTo({top: 0, behavior: 'instant'}));
@@ -93,6 +100,11 @@ async function open(page, url, label, problems) {
           await pause(700);
           await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-hover.png'), animations: 'allow'});
           await page.mouse.move(1, 1);
+          const add = page.locator('.shop-product .shop-button').first();
+          await add.focus();
+          await page.keyboard.press('Shift');
+          await pause(150);
+          await page.screenshot({path: path.join(dir, 'focus-add-' + tag + '.png'), animations: 'disabled'});
         }
 
         if (width !== 768) {
@@ -113,6 +125,31 @@ async function open(page, url, label, problems) {
         await context.close();
         // Stay well inside the real public image/browse limiters.
         await pause(scheme === 'dark' && width === 1280 ? 61000 : 2000);
+      }
+    }
+    // Measured WCAG colour contrast with axe-core. Script injection needs a
+    // separate CSP-bypassing context; every CSP assertion above ran without it.
+    await pause(61000);
+    const axePath = path.join(root, 'node_modules', 'axe-core', 'axe.min.js');
+    for (const scheme of schemes) {
+      for (const width of [375, 1280]) {
+        const context = await browser.newContext({viewport: {width, height: 900}, colorScheme: scheme, bypassCSP: true, reducedMotion: 'reduce'});
+        const page = await context.newPage();
+        for (const url of ['/katalog', '/katalog?q=Synthetic&brand_id=1&stock=available&sort=price_asc']) {
+          await page.goto(base + url, {waitUntil: 'networkidle', timeout: 45000});
+          await page.addScriptTag({path: axePath});
+          const result = await page.evaluate(async () => {
+            const r = await window.axe.run(document, {runOnly: ['color-contrast']});
+            return {
+              violations: r.violations.flatMap(v => v.nodes.map(n => n.target.join(' ') + ' :: ' + ((n.any[0] && n.any[0].message) || ''))),
+              incomplete: r.incomplete.reduce((a, v) => a + v.nodes.length, 0),
+              passes: r.passes.reduce((a, v) => a + v.nodes.length, 0),
+            };
+          });
+          console.log('AXE_CONTRAST ' + scheme + '-' + width + ' ' + url + ' passes=' + result.passes + ' incomplete=' + result.incomplete + ' violations=' + result.violations.length);
+          check(result.violations.length === 0, 'contrast ' + scheme + '-' + width + ' ' + url + ' ' + JSON.stringify(result.violations.slice(0, 6)));
+        }
+        await context.close();
       }
     }
     if (failures.length) throw new Error(failures.length + ' defects: ' + failures.join(' | '));
