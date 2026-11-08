@@ -9,7 +9,12 @@ for scenario,width in profiles:
  class Proxy(http.server.BaseHTTPRequestHandler):
   def log_message(self,*args):pass
   def do_POST(self):
-   body=self.rfile.read(int(self.headers.get('Content-Length','0')));c=http.client.HTTPConnection('127.0.0.1',backend,timeout=20);c.request('POST',self.path,body,dict(self.headers));r=c.getresponse();data=r.read();observed.append({'action':json.loads(body).get('action'),'status':r.status});self.send_response(r.status);self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);c.close()
+   body=self.rfile.read(int(self.headers.get('Content-Length','0')));c=http.client.HTTPConnection('127.0.0.1',backend,timeout=20);c.request('POST',self.path,body,dict(self.headers));r=c.getresponse();data=r.read();observed.append({'action':json.loads(body).get('action'),'status':r.status})
+   try:
+    self.send_response(r.status);self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
+   except (ssl.SSLEOFError,BrokenPipeError,ConnectionResetError):
+    if scenario in ['44','45']:raise
+   finally:c.close()
  cert=case/'cert.pem';key=case/'key.pem';subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(key),'-out',str(cert),'-subj','/CN=127.0.0.1','-addext','subjectAltName=IP:127.0.0.1','-days','1'],check=True,capture_output=True);proxy=http.server.ThreadingHTTPServer(('127.0.0.1',tls),Proxy);context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(cert,key);proxy.socket=context.wrap_socket(proxy.socket,server_side=True);threading.Thread(target=proxy.serve_forever,daemon=True).start()
  try:
   assert __import__('select').select([parent.stdout],[],[],7)[0],'BOUNDED_PARENT_READY';assert parent.stdout.readline().strip()=='READY';origin='https://127.0.0.1:'+str(tls);assert __import__('urllib.parse').parse.urlparse(origin).hostname=='127.0.0.1';env={k:v for k,v in os.environ.items() if k.lower() not in ['http_proxy','https_proxy','all_proxy']};env['NO_PROXY']='127.0.0.1,localhost';command=case/'client.json';command.write_text(json.dumps({'origin':origin,'private':str(private),'key':secrets.token_hex(32),'token':token,'config':cfg}));run=subprocess.run(['php','-d','curl.cainfo='+str(cert),str(tools/'native-client.php'),str(client),str(command)],capture_output=True,text=True,timeout=22,env=env);receipt=json.loads(run.stdout.strip().splitlines()[-1]);assert receipt['fixtureSAPIIsSimulated'];until=time.monotonic()+6
@@ -18,11 +23,12 @@ for scenario,width in profiles:
   if mode=='red':assert run.returncode==2 and receipt['code']=='WEB_VISIBILITY_TIMEOUT',(run.returncode,receipt,run.stderr)
   elif scenario in ['44','45']:assert run.returncode==0 and receipt['calibrated'] and receipt['width']==width,(run.returncode,receipt,run.stderr)
   else:
-   expected={'width-change':'LSAPI_CALIBRATION_FORMAT_OR_IDENTITY_CHANGED','prefix-change':'LSAPI_CALIBRATION_FORMAT_OR_IDENTITY_CHANGED','missing-shutdown':'WEB_PROCESS_VISIBILITY_UNSUPPORTED','no-idle':'WEB_VISIBILITY_TIMEOUT','absent':'WEB_VISIBILITY_TIMEOUT','epoch-change':'WEB_RECEIPT_PROCESS_CACHE_GROUP','pid-reuse':'LSAPI_CALIBRATION_IDENTITY_CHANGED','done-foreign-pid':'LSAPI_CALIBRATION_IDENTITY_CHANGED','receipt-foreign-pid':'WEB_PROCESS_VISIBILITY_UNSUPPORTED'}[scenario];assert run.returncode==2 and receipt['code']==expected,(scenario,run.returncode,receipt,run.stderr)
+   expected={'width-change':'LSAPI_CALIBRATION_FORMAT_OR_IDENTITY_CHANGED','prefix-change':'LSAPI_CALIBRATION_FORMAT_OR_IDENTITY_CHANGED','missing-shutdown':'WEB_PROCESS_VISIBILITY_UNSUPPORTED','no-idle':'WEB_VISIBILITY_TIMEOUT','absent':'OWNED_PROCESS_UNREADABLE','epoch-change':'WEB_RECEIPT_PROCESS_CACHE_GROUP','pid-reuse':'LSAPI_CALIBRATION_IDENTITY_CHANGED','done-foreign-pid':'LSAPI_CALIBRATION_IDENTITY_CHANGED','receipt-foreign-pid':'WEB_PROCESS_VISIBILITY_UNSUPPORTED'}[scenario];assert run.returncode==2 and receipt['code']==expected,(scenario,run.returncode,receipt,run.stderr)
+  if scenario=='absent':assert receipt.get('ownedIssueCategories',{}).get('lsphp_zombie')==1 and receipt['fixtureStage']=='calibration','EXITED_WORKER_MUST_HOLD_AS_UNREADABLE_ZOMBIE'
   until=time.monotonic()+1
   while not any(r['action']=='visibility' and r['status']==200 for r in observed) and time.monotonic()<until:time.sleep(.01)
   assert any(r['action']=='visibility' and r['status']==200 for r in observed),'VISIBILITY_HTTP200_REQUIRED'
-  results.append({'scenario':scenario,'width':width,'expectedOldFailure':mode=='red','ownedCensusIsolatedUser':True,'nativeFixtureTitleAndStagesVerified':controls,'receipt':receipt})
+  results.append({'scenario':scenario,'width':width,'expectedOldFailure':mode=='red','ownedCensusIsolatedUser':True,'visibilityBackendHTTP200':True,'exitFixtureObservedAsZombie':scenario=='absent','nativeFixtureTitleAndStagesVerified':controls,'receipt':receipt})
  finally:
   stop.write_text('stop');proxy.shutdown();proxy.server_close()
   try:parent.communicate(timeout=4)
