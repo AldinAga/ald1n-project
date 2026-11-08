@@ -124,6 +124,8 @@ try:
     cli=bridge('cli',current=str(current));assert cli['aboutRC']==0 and cli['statusRC']==0 and cli['parsed']=={'ran':68,'pending':PENDING},cli
     # The coordinator hold, by the product code, from the probe-reported values; the lift comes only after it.
     hold_install=bridge('hold',swappedAt=swapped_install,probedAt=probed_install,summaries=[s])
+    # Heartbeat lines go to the report, never into the bridge JSON; the gates fixture proves their cadence.
+    assert isinstance(hold_install['heartbeatLines'],int) and hold_install['clock']=='WALL',('HOLD_RECEIPT',hold_install)
     assert hold_install['liftNotBefore']==max(swapped_install+REALPATH_TTL,probed_install+s['revalidateFreq'])+HOLD_MARGIN and int(time.time())>=hold_install['liftNotBefore'],('INSTALL_HOLD_NOT_DERIVED',hold_install)
     bridge('release',receipt=old_m,base=str(retained));bridge('release',receipt=new_m,base=str(current))
     smokes={}
