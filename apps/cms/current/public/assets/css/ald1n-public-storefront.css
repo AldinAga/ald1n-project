@@ -342,7 +342,7 @@ a.shop-page:hover{border-color:var(--accent);background:var(--surface-2)}
 
 /* ---------- Responsive ---------- */
 @media (min-width:1100px){
-  .shop-filters{display:grid;grid-template-columns:minmax(220px,1.7fr) repeat(3,minmax(130px,1fr)) auto auto;align-items:end}
+  .shop-filters{display:grid;grid-template-columns:minmax(200px,1.3fr) repeat(3,minmax(150px,1fr)) auto auto;align-items:end}
   .shop-filter-actions{flex-wrap:nowrap}
 }
 @media (max-width:1180px){.shop-products{grid-template-columns:repeat(3,minmax(0,1fr))}}
