@@ -101,6 +101,7 @@ printf 'REPORT=%s\nWORKER_STARTED_DETACHED=YES; an SSH drop or Ctrl-C now does n
 offset=0
 pid=''
 waited=0
+unconfirmed=0
 while :; do
   size="$(wc -c < "$REPORT")"; size="${size//[!0-9]/}"
   if test -n "$size" && test "$size" -gt "$offset"; then
@@ -112,14 +113,21 @@ while :; do
   if test -n "$pid" && ! kill -0 "$pid" 2>/dev/null && ! grep -q '^EXIT=[0-9]' "$REPORT"; then
     printf 'WORKER_ENDED_WITHOUT_EXIT_LINE=HOLD\nEXIT=2\n' >> "$REPORT"
   fi
+  # No WORKER_PID after 60 s: the worker may still start later and then writes its own EXIT line, so none is written here.
   if test -z "$pid" && test "$waited" -ge 60; then
-    printf 'WORKER_DID_NOT_START=HOLD\nEXIT=2\n' >> "$REPORT"
+    printf 'WORKER_START_UNCONFIRMED=NO_WORKER_PID_AFTER_60_SECONDS_THE_WORKER_MAY_STILL_RUN_DO_NOT_RERUN\n' >> "$REPORT"
+    unconfirmed=1
+    break
   fi
   sleep 2
   waited=$((waited + 2))
 done
 size="$(wc -c < "$REPORT")"; size="${size//[!0-9]/}"
 if test "$size" -gt "$offset"; then tail -c +"$((offset + 1))" "$REPORT" | head -c "$((size - offset))"; fi
+if test "$unconfirmed" = 1; then
+  printf 'REPORT=%s\nFOREGROUND_STOPPED_WORKER_START_UNCONFIRMED; follow with: tail -f %s\n' "$REPORT" "$REPORT"
+  exit 2
+fi
 result="$(sed -n 's/^EXIT=\([0-9][0-9]*\)$/\1/p' "$REPORT" | tail -n 1)"
 printf 'REPORT=%s\n' "$REPORT"
 exit "${result:-2}"
