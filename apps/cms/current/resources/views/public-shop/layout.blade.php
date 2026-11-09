@@ -22,7 +22,7 @@
 <meta name="theme-color" content="#0e1317" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)">
 @endif
-<title>@yield('title', 'Katalog') · {{ \App\Support\PublicCatalogPresentation::SITE_NAME }}</title>
+<title>@yield('title', 'Katalog') · {{ $shopBrand['brand'] }}</title>
 @if($shopBrand['favicon'])<link rel="icon" href="{{ $shopBrand['favicon']['href'] }}" type="{{ $shopBrand['favicon']['type'] }}">@endif
 <link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611091' }}">
 @stack('head')
@@ -58,7 +58,7 @@
 <a class="shop-nav-cart" href="{{ route('public-shop.cart', [], false) }}"@if(request()->routeIs('public-shop.cart')) aria-current="page"@endif><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 1.9-1.5L21 8H6.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg><span>Korpa</span></a>
 </nav>
 @endif
-<form class="shop-theme" method="post" action="{{ route('public-shop.theme', [], false) }}">@csrf
+<form class="shop-theme" method="post" action="{{ route('public-shop.theme', [], false) }}">
 <input type="hidden" name="back" value="{{ request()->getRequestUri() }}">
 <div class="shop-theme-group" role="group" aria-label="Tema prikaza">
 @foreach(\App\Support\PublicStorefrontAppearance::THEME_LABELS as $themeKey => $themeLabel)

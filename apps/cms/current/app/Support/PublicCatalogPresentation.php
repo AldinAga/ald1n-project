@@ -17,6 +17,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 final class PublicCatalogPresentation
 {
+    /** Fallback shop name; the live one is PublicStorefrontAppearance::brandName(). */
     public const SITE_NAME = 'AP.Computers';
 
     public const SORT_LABELS = [
@@ -85,7 +86,7 @@ final class PublicCatalogPresentation
                 break;
             }
         }
-        $description = 'Katalog '.self::SITE_NAME.': '.SerbianPlural::articles($catalogTotal)
+        $description = 'Katalog '.PublicStorefrontAppearance::brandName().': '.SerbianPlural::articles($catalogTotal)
             .' sa punim prodajnim cenama i trenutnim stanjem lagera.';
         if ($categoryNames !== []) {
             $description .= ' Kategorije: '.implode(', ', $categoryNames).'.';
@@ -105,6 +106,8 @@ final class PublicCatalogPresentation
 
         return [
             'title' => $title,
+            // One brand source with the header, footer and <title>.
+            'site_name' => PublicStorefrontAppearance::brandName(),
             'description' => $description,
             'canonical' => $canonical,
             // Free-text search results are thin, unbounded URL variants:
@@ -246,7 +249,7 @@ final class PublicCatalogPresentation
             'name' => $title,
             'description' => $description,
             'inLanguage' => 'sr',
-            'isPartOf' => ['@type' => 'WebSite', 'name' => self::SITE_NAME, 'url' => $base.'/'],
+            'isPartOf' => ['@type' => 'WebSite', 'name' => PublicStorefrontAppearance::brandName(), 'url' => $base.'/'],
         ];
         if ($crumb !== null) {
             // A trail needs two levels: Katalog > brand or category. The last

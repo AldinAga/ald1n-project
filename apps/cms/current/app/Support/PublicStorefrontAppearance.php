@@ -35,6 +35,8 @@ final class PublicStorefrontAppearance
 
     private const DEFAULT_SITE_NAME = 'Ald1n CMS';
 
+    private const MEMO = 'public_storefront.branding';
+
     private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
     private const FAVICON_TYPES = ['png' => 'image/png', 'ico' => 'image/x-icon'];
@@ -58,15 +60,28 @@ final class PublicStorefrontAppearance
         if (!is_string($value) || $value === '' || strlen($value) > 2048) {
             return self::DEFAULT_BACK;
         }
-        // Printable URI characters only: no backslash, space, quote, angle
-        // bracket, fragment or control character anywhere.
-        if (preg_match('~^/[A-Za-z0-9\-._\~!$&\'()*+,;=:@%/?]*$~D', $value) !== 1) {
+        [$path, $query] = array_pad(explode('?', $value, 2), 2, null);
+        // The path is plain printable URI text: no encoded byte, backslash,
+        // space, quote, angle bracket, fragment, control character or empty
+        // segment.
+        if (preg_match('~^/[A-Za-z0-9\-._\~!$&\'()*+,;=:@/]*$~D', $path) !== 1 || str_contains($path, '//')) {
             return self::DEFAULT_BACK;
         }
-        $path = explode('?', $value, 2)[0];
-        // The path itself is plain: no encoded byte at all, no empty segment.
-        if (str_contains($path, '%') || str_contains($path, '//')) {
-            return self::DEFAULT_BACK;
+        if ($query !== null) {
+            // Browsers may send filter text raw ("q=a[b]", "|", "^"). Every
+            // byte outside the safe query set is percent-encoded instead of
+            // dropping the filters; an existing %XX escape stays as it is.
+            // Encoded, nothing can end the query, start a fragment or split
+            // the Location header.
+            $query = (string) preg_replace_callback(
+                '~%(?![0-9A-Fa-f]{2})|[^A-Za-z0-9\-._\~!$&\'()*+,;=:@/?%]~',
+                static fn (array $m): string => rawurlencode($m[0]),
+                $query,
+            );
+            $value = $path.'?'.$query;
+            if (strlen($value) > 2048) {
+                return self::DEFAULT_BACK;
+            }
         }
         $parts = parse_url($value);
         if (!is_array($parts) || isset($parts['scheme']) || isset($parts['host']) || isset($parts['user'])
@@ -90,6 +105,43 @@ final class PublicStorefrontAppearance
      * @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,favicon:?array{href:string,type:string}}
      */
     public static function branding(): array
+    {
+        // Resolved once per request: the layout, the page title and the
+        // catalog SEO all ask, and the file checks behind a logo (exists,
+        // image size) should not repeat. The memo lives on the request, so
+        // a settings change shows on the very next page.
+        $request = null;
+        try {
+            $request = app('request');
+        } catch (Throwable) {
+            $request = null;
+        }
+        if ($request instanceof Request) {
+            $cached = $request->attributes->get(self::MEMO);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+        $branding = self::resolveBranding();
+        if ($request instanceof Request) {
+            $request->attributes->set(self::MEMO, $branding);
+        }
+
+        return $branding;
+    }
+
+    /**
+     * The one shop name for the header, footer, page titles and SEO data:
+     * Podešavanja > site_name, or AP.Computers while it is empty or still
+     * the CMS default.
+     */
+    public static function brandName(): string
+    {
+        return self::branding()['brand'];
+    }
+
+    /** @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,favicon:?array{href:string,type:string}} */
+    private static function resolveBranding(): array
     {
         $settings = [];
         try {

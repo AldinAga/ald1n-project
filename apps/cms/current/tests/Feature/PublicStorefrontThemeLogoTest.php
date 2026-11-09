@@ -99,9 +99,11 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringContainsString('<meta name="color-scheme" content="dark light">', $html);
         self::assertStringContainsString('<form class="shop-theme" method="post" action="/tema">', $html);
         self::assertStringContainsString('<input type="hidden" name="back" value="/katalog?sort=price_asc">', $html);
-        // The theme form carries its own CSRF token (attribute order free).
+        // The theme form is CSRF-exempt and carries no token; the cart forms
+        // on the same page keep theirs.
         self::assertSame(1, preg_match('~<form class="shop-theme"[^>]*>(.*?)</form>~s', $html, $themeForm));
-        self::assertMatchesRegularExpression('~<input(?=[^>]*\bname="_token")(?=[^>]*\bvalue="[A-Za-z0-9]{40}")[^>]*>~', $themeForm[1]);
+        self::assertStringNotContainsString('_token', $themeForm[1]);
+        self::assertMatchesRegularExpression('~<input(?=[^>]*\bname="_token")(?=[^>]*\bvalue="[A-Za-z0-9]{40}")[^>]*>~', $html);
         self::assertStringContainsString('role="group" aria-label="Tema prikaza"', $html);
         self::assertSame(3, substr_count($html, 'class="shop-theme-option"'));
         self::assertStringContainsString('name="theme" value="system" class="shop-theme-option" aria-pressed="true"', $html);
@@ -268,7 +270,53 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertSame($back, $response->headers->get('Location'));
     }
 
-    public function test_theme_route_is_a_throttled_csrf_protected_web_post_without_login(): void
+    public function test_only_the_theme_switch_is_exempt_from_csrf(): void
+    {
+        $csrf = app(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+        $inExcept = new \ReflectionMethod($csrf, 'inExceptArray');
+        $inExcept->setAccessible(true);
+        self::assertTrue($inExcept->invoke($csrf, \Illuminate\Http\Request::create('/tema', 'POST')));
+        foreach (['/korpa/dodaj/1', '/korpa', '/porucivanje', '/registracija', '/login', '/logout', '/tema/x', '/temaa'] as $uri) {
+            self::assertFalse($inExcept->invoke($csrf, \Illuminate\Http\Request::create($uri, 'POST')), $uri);
+        }
+    }
+
+    public function test_switch_works_without_a_session_or_token(): void
+    {
+        // A first visit with cookies blocked or an expired session: no
+        // session cookie, no token. The switch still answers 303, not 419.
+        $response = $this->flushSession()
+            ->post('http://localhost/tema', ['theme' => 'light', 'back' => '/korpa']);
+        $response->assertStatus(303);
+        self::assertSame('/korpa', $response->headers->get('Location'));
+        $response->assertCookie(PublicStorefrontAppearance::COOKIE, 'light');
+    }
+
+    public static function rawQueryBackPaths(): array
+    {
+        return [
+            'raw brackets' => ['/katalog?q=a[b]', '/katalog?q=a%5Bb%5D'],
+            'already encoded brackets' => ['/katalog?q=a%5Bb%5D', '/katalog?q=a%5Bb%5D'],
+            'pipe and caret' => ['/katalog?q=a|b^c&sort=price_asc', '/katalog?q=a%7Cb%5Ec&sort=price_asc'],
+            'space and quote' => ['/katalog?q=a b"c', '/katalog?q=a%20b%22c'],
+            'utf-8 text' => ['/katalog?q=Šabac', '/katalog?q=%C5%A0abac'],
+            'hash stays in the query' => ['/katalog?q=a#b', '/katalog?q=a%23b'],
+            'backslash in the query' => ['/katalog?q=a\\b', '/katalog?q=a%5Cb'],
+            'line break in the query' => ["/katalog?q=a\r\nSet-Cookie: x=1", '/katalog?q=a%0D%0ASet-Cookie:%20x=1'],
+            'lone percent' => ['/katalog?q=100%', '/katalog?q=100%25'],
+            'product page' => ['/katalog/lenovo-x1?ref=[1]', '/katalog/lenovo-x1?ref=%5B1%5D'],
+        ];
+    }
+
+    #[DataProvider('rawQueryBackPaths')]
+    public function test_filters_with_raw_query_characters_survive_the_switch(string $back, string $expected): void
+    {
+        $response = $this->post('/tema', ['theme' => 'dark', 'back' => $back])->assertStatus(303);
+        self::assertSame($expected, $response->headers->get('Location'));
+        self::assertSame($expected, PublicStorefrontAppearance::safeBackPath($back));
+    }
+
+    public function test_theme_route_is_a_throttled_web_post_without_login(): void
     {
         $route = Route::getRoutes()->getByName('public-shop.theme');
         self::assertNotNull($route);
@@ -440,8 +488,45 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringContainsString('<span class="shop-brand-mark" aria-hidden="true">RŠ</span>', $brand);
         self::assertStringContainsString('Radnja &lt;Šabac&gt; &amp; Co <span>Javni katalog</span>', $brand);
         self::assertStringContainsString('<p>Radnja &lt;Šabac&gt; &amp; Co · Javni katalog', $html);
-        // The page title and SEO keep the catalog's site name.
+        // One brand source: page title, Open Graph, hero eyebrow, meta
+        // description and JSON-LD use the same resolved name, escaped.
+        self::assertStringContainsString('· Radnja &lt;Šabac&gt; &amp; Co</title>', $html);
+        self::assertStringContainsString('<meta property="og:site_name" content="Radnja &lt;Šabac&gt; &amp; Co">', $html);
+        self::assertStringContainsString('<p class="eyebrow">Katalog Radnja &lt;Šabac&gt; &amp; Co</p>', $html);
+        self::assertStringContainsString('<meta name="description" content="Katalog Radnja &lt;Šabac&gt; &amp; Co: ', $html);
+        self::assertStringContainsString('"isPartOf":{"@type":"WebSite","name":"Radnja <Šabac> & Co"', $html);
+        self::assertStringNotContainsString('AP.Computers', $html);
+        self::assertStringNotContainsString('<Šabac>', $html);
+
+        foreach (['/katalog/glass-syn-1', '/korpa', '/uslovi-prodaje'] as $uri) {
+            self::assertStringContainsString('· Radnja &lt;Šabac&gt; &amp; Co</title>',
+                (string) $this->get($uri)->assertOk()->getContent(), $uri);
+        }
+    }
+
+    public function test_default_cms_site_name_falls_back_to_ap_computers_everywhere(): void
+    {
+        $this->settings(['site_name' => 'Ald1n CMS']);
+        $html = (string) $this->get('/katalog')->assertOk()->getContent();
         self::assertStringContainsString('· AP.Computers</title>', $html);
+        self::assertStringContainsString('<meta property="og:site_name" content="AP.Computers">', $html);
+        self::assertStringContainsString('<p class="eyebrow">Katalog AP.Computers</p>', $html);
+        self::assertStringContainsString('"isPartOf":{"@type":"WebSite","name":"AP.Computers"', $html);
+        self::assertStringNotContainsString('Ald1n CMS', $html);
+    }
+
+    public function test_branding_is_resolved_once_per_request(): void
+    {
+        $this->settings(['site_logo_light_path' => $this->asset('memo.png'), 'site_name' => 'Memo Shop']);
+        $first = PublicStorefrontAppearance::branding();
+        // A file vanishing mid-request does not change the page it is part of.
+        Storage::disk('public')->delete('site-assets/memo.png');
+        self::assertSame($first, PublicStorefrontAppearance::branding());
+        self::assertSame('Memo Shop', PublicStorefrontAppearance::brandName());
+        // The next request resolves again and sees the missing file.
+        $brand = $this->brandLink((string) $this->get('/katalog')->assertOk()->getContent());
+        self::assertStringNotContainsString('<img', $brand);
+        self::assertStringContainsString('Memo Shop', $brand);
     }
 
     public function test_settings_failure_falls_back_to_the_brand_mark(): void

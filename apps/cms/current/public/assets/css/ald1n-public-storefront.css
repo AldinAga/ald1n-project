@@ -10,7 +10,7 @@
  * prefers-color-scheme; without a preference the brand default is dark.
  *
  * Readability first: every text container is a dense translucent surface
- * (light 0.80-0.90, dark 0.82-0.92 opacity) over a calm background, so
+ * (light 0.80-0.96, dark 0.82-0.96 opacity) over a calm background, so
  * text keeps WCAG AA even over the ambient glows. Without backdrop-filter,
  * with reduced transparency, more contrast or forced colors the surfaces
  * become fully opaque.
@@ -23,18 +23,22 @@
   --font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
   --font-display:"Segoe UI Variable Display","SF Pro Display","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   --bg:#0d1216;
-  --glow-1:rgba(88,122,176,.24);
-  --glow-2:rgba(168,142,118,.14);
-  --glow-3:rgba(104,98,168,.13);
+  --glow-1:rgba(88,122,176,.28);
+  --glow-2:rgba(126,104,206,.24);
+  --glow-3:rgba(72,150,176,.20);
+  --glow-4:rgba(196,140,108,.14);
   --surface-solid:#182026;
   --glass:rgba(24,32,38,.84);
-  --glass-strong:rgba(15,21,26,.92);
+  --glass-strong:rgba(15,21,26,.96);
   --glass-soft:rgba(30,40,47,.82);
   --glass-hover:rgba(34,45,53,.90);
   --field:#111820;
   --border:rgba(206,222,234,.13);
   --border-strong:rgba(206,222,234,.26);
-  --edge-light:rgba(255,255,255,.08);
+  --edge-light:rgba(255,255,255,.13);
+  --sheen:rgba(255,255,255,.06);
+  --rim:rgba(255,255,255,.10);
+  --btn-gloss:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 52%);
   --text:#eef2f5;
   --text-2:#c8d2d9;
   --text-3:#a7b4bd;
@@ -86,18 +90,21 @@
 :root[data-theme=light]{
   color-scheme:light;
   --bg:#edf0f4;
-  --glow-1:rgba(110,142,200,.26);
-  --glow-2:rgba(198,170,144,.22);
-  --glow-3:rgba(150,140,210,.16);
+  --glow-1:rgba(110,142,200,.30);
+  --glow-2:rgba(150,128,226,.26);
+  --glow-3:rgba(96,176,198,.24);
+  --glow-4:rgba(222,170,132,.24);
   --surface-solid:#ffffff;
   --glass:rgba(255,255,255,.84);
-  --glass-strong:rgba(250,251,253,.90);
+  --glass-strong:rgba(250,251,253,.96);
   --glass-soft:rgba(255,255,255,.80);
   --glass-hover:rgba(255,255,255,.94);
   --field:#ffffff;
   --border:rgba(24,40,58,.11);
   --border-strong:rgba(24,40,58,.22);
   --edge-light:rgba(255,255,255,.95);
+  --sheen:rgba(255,255,255,.70);
+  --rim:rgba(255,255,255,.85);
   --text:#121b24;
   --text-2:#33404c;
   --text-3:#495663;
@@ -143,18 +150,21 @@
   :root:not([data-theme=dark]){
     color-scheme:light;
     --bg:#edf0f4;
-    --glow-1:rgba(110,142,200,.26);
-    --glow-2:rgba(198,170,144,.22);
-    --glow-3:rgba(150,140,210,.16);
+    --glow-1:rgba(110,142,200,.30);
+    --glow-2:rgba(150,128,226,.26);
+    --glow-3:rgba(96,176,198,.24);
+    --glow-4:rgba(222,170,132,.24);
     --surface-solid:#ffffff;
     --glass:rgba(255,255,255,.84);
-    --glass-strong:rgba(250,251,253,.90);
+    --glass-strong:rgba(250,251,253,.96);
     --glass-soft:rgba(255,255,255,.80);
     --glass-hover:rgba(255,255,255,.94);
     --field:#ffffff;
     --border:rgba(24,40,58,.11);
     --border-strong:rgba(24,40,58,.22);
     --edge-light:rgba(255,255,255,.95);
+    --sheen:rgba(255,255,255,.70);
+    --rim:rgba(255,255,255,.85);
     --text:#121b24;
     --text-2:#33404c;
     --text-3:#495663;
@@ -203,23 +213,23 @@
   --glass-fill:var(--glass);
   --glass-fill-strong:var(--glass-strong);
   --glass-fill-soft:var(--glass-soft);
-  --glass-fx:blur(18px) saturate(160%);
-  --glass-fx-strong:blur(22px) saturate(180%);
+  --glass-fx:blur(24px) saturate(185%);
+  --glass-fx-strong:blur(30px) saturate(210%);
 }
 @supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
-  :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid)}
+  :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid);--sheen:transparent}
 }
 @media (prefers-reduced-transparency:reduce){
-  :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid);--glass-hover:var(--surface-solid);--glass-fx:none;--glass-fx-strong:none;--glow-1:transparent;--glow-2:transparent;--glow-3:transparent}
+  :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid);--glass-hover:var(--surface-solid);--glass-fx:none;--glass-fx-strong:none;--glow-1:transparent;--glow-2:transparent;--glow-3:transparent;--glow-4:transparent;--sheen:transparent;--rim:transparent;--btn-gloss:none}
 }
 @media (prefers-contrast:more){
-  :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid);--glass-hover:var(--surface-solid);--glass-fx:none;--glass-fx-strong:none;--glow-1:transparent;--glow-2:transparent;--glow-3:transparent;--text-2:var(--text);--text-3:var(--text);--border:var(--border-strong);--stage-text:#1e2731}
+  :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid);--glass-hover:var(--surface-solid);--glass-fx:none;--glass-fx-strong:none;--glow-1:transparent;--glow-2:transparent;--glow-3:transparent;--glow-4:transparent;--sheen:transparent;--rim:transparent;--btn-gloss:none;--text-2:var(--text);--text-3:var(--text);--border:var(--border-strong);--stage-text:#1e2731}
 }
 
 /* ---------- Base ---------- */
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--bg)}
-body.public-retail{position:relative;margin:0;min-width:0;min-height:100vh;color:var(--text);background:radial-gradient(1100px 620px at 4% -6%,var(--glow-1),transparent 64%),radial-gradient(900px 560px at 100% 2%,var(--glow-2),transparent 62%),radial-gradient(1000px 700px at 70% 1400px,var(--glow-3),transparent 66%),var(--bg);background-repeat:no-repeat;font:16px/1.6 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+body.public-retail{position:relative;margin:0;min-width:0;min-height:100vh;color:var(--text);background:radial-gradient(1100px 620px at 4% -6%,var(--glow-1),transparent 64%),radial-gradient(900px 620px at 100% 4%,var(--glow-2),transparent 64%),radial-gradient(1000px 760px at 12% 980px,var(--glow-3),transparent 66%),radial-gradient(900px 700px at 88% 1700px,var(--glow-4),transparent 66%),var(--bg);background-repeat:no-repeat;font:16px/1.6 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
 a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.07em}
 a:hover{text-decoration-thickness:.12em}
 h1,h2,h3{font-family:var(--font-display);letter-spacing:-.015em;color:var(--text)}
@@ -227,6 +237,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 img{max-width:100%}
 button{cursor:pointer;min-height:44px;padding:11px 20px;border:1px solid transparent;border-radius:var(--radius-sm);color:var(--btn-text);background:var(--btn-bg);font-weight:650;letter-spacing:.005em;box-shadow:var(--btn-shadow)}
 button:hover{background-color:var(--btn-bg-hover)}
+button:not(.shop-theme-option):not(.shop-nav-button):not(.shop-button-subtle),.shop-button,.shop-checkout-link,.shop-page.is-current{background-image:var(--btn-gloss)}
 button:active{transform:translateY(1px)}
 :focus-visible{outline:3px solid var(--focus);outline-offset:3px}
 .wrap{width:min(1320px,calc(100% - 40px));margin-inline:auto;min-width:0}
@@ -241,9 +252,20 @@ button:active{transform:translateY(1px)}
    which keeps scrolling smooth on phones with long product lists. */
 .shop-filters,.shop-product,.shop-empty,.shop-detail-content,.shop-cart-items,.shop-checkout-total,.legal-nav,.legal-article,.legal-card,.shop-page,.shop-trust li{background-color:var(--glass-fill)}
 .shop-filters,.shop-empty,.shop-detail-content,.shop-cart-items,.legal-nav,.legal-article{-webkit-backdrop-filter:var(--glass-fx);backdrop-filter:var(--glass-fx)}
+/* Liquid Glass light: a soft top sheen and a bright specular rim. The sheen
+   fades out within the first third of a panel, so it never lowers the text
+   contrast of the dense fill below it; the fallbacks switch both off. */
+.shop-filters,.shop-product-body,.shop-empty,.shop-detail-content,.shop-cart-items,.shop-checkout-total,.legal-nav,.legal-article,.shop-trust li,.shop-chip,.shop-page:not(.is-current):not(.is-gap){background-image:linear-gradient(180deg,var(--sheen),rgba(255,255,255,0) 38%)}
+.shop-filters,.shop-detail-content,.shop-cart-items,.shop-checkout-total,.legal-nav,.legal-article,.shop-empty{box-shadow:inset 0 1px 0 var(--rim),inset 0 0 0 1px rgba(255,255,255,.02),var(--shadow-card)}
+.shop-product::after{content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;pointer-events:none;box-shadow:inset 0 1px 0 var(--rim),inset 1px 0 0 rgba(255,255,255,.03),inset -1px 0 0 rgba(255,255,255,.03)}
+/* Larger screens with a pointer: cards blur the ambient light too. Phones
+   keep the dense fill without a filter for smooth scrolling. */
+@media (min-width:900px) and (hover:hover){
+  .shop-product{-webkit-backdrop-filter:var(--glass-fx);backdrop-filter:var(--glass-fx)}
+}
 
 /* ---------- Header ---------- */
-.shop-header{position:relative;z-index:30;border-bottom:1px solid var(--border);background-color:var(--glass-fill-strong);-webkit-backdrop-filter:var(--glass-fx-strong);backdrop-filter:var(--glass-fx-strong);box-shadow:var(--shadow-header)}
+.shop-header{position:relative;z-index:30;border-bottom:1px solid var(--border);background-color:var(--glass-fill-strong);background-image:linear-gradient(180deg,var(--sheen),rgba(255,255,255,0) 70%);-webkit-backdrop-filter:var(--glass-fx-strong);backdrop-filter:var(--glass-fx-strong);box-shadow:var(--shadow-header)}
 .shop-nav{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;grid-template-areas:"brand menu theme";align-items:center;min-height:72px;gap:12px 18px}
 .shop-brand{grid-area:brand;display:inline-flex;align-items:center;gap:12px;min-height:44px;text-decoration:none;color:var(--text);min-width:0;border-radius:var(--radius-sm)}
 .shop-brand-mark{display:grid;place-items:center;flex:0 0 auto;width:40px;height:40px;border-radius:13px;background:linear-gradient(150deg,#4a6fe0,#2c47a8);color:#ffffff;font:800 15px/1 var(--font-display);letter-spacing:.02em;box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 8px 20px -10px rgba(40,72,190,.9)}
@@ -306,7 +328,7 @@ button:active{transform:translateY(1px)}
 
 /* ---------- Filter bar ---------- */
 .shop-filter-panel{margin-bottom:28px}
-.shop-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 14px;padding:18px;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card)}
+.shop-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 14px;padding:18px;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .shop-field{display:grid;gap:6px;flex:1 1 170px;min-width:0}
 .shop-field-search{flex:2.2 1 260px}
 .shop-field label{font-size:13px;font-weight:620;letter-spacing:.02em;color:var(--text-2)}
@@ -376,7 +398,7 @@ button:active{transform:translateY(1px)}
 .shop-details-link svg{flex:0 0 auto}
 
 /* ---------- Empty state ---------- */
-.shop-empty{display:grid;justify-items:center;gap:6px;padding:clamp(40px,7vw,72px) 20px;border:1px dashed var(--border-strong);border-radius:var(--radius-lg);text-align:center;box-shadow:0 1px 0 var(--edge-light) inset}
+.shop-empty{display:grid;justify-items:center;gap:6px;padding:clamp(40px,7vw,72px) 20px;border:1px dashed var(--border-strong);border-radius:var(--radius-lg);text-align:center;box-shadow:inset 0 1px 0 var(--rim)}
 .shop-empty-icon{display:grid;place-items:center;width:64px;height:64px;margin-bottom:8px;border-radius:50%;background:var(--accent-soft);color:var(--accent)}
 .shop-empty h3{margin:0;font-size:clamp(19px,2.2vw,23px)}
 .shop-empty p{margin:0 0 14px;color:var(--text-2);max-width:46ch}
@@ -398,7 +420,7 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 .shop-detail-image{border:1px solid var(--border);border-radius:var(--radius-lg);display:grid;place-items:center;min-height:350px;padding:24px;background-color:var(--stage);background-image:radial-gradient(120% 90% at 50% 40%,var(--stage) 55%,var(--stage-2));overflow:hidden;box-shadow:var(--shadow-card)}
 .shop-detail-image img{width:100%;height:auto;max-height:600px;object-fit:contain;mix-blend-mode:multiply}
 .shop-detail-image .no-image{color:var(--stage-text)}
-.shop-detail-content{border:1px solid var(--border);border-radius:var(--radius-lg);padding:26px;min-width:0;box-shadow:var(--shadow-card)}
+.shop-detail-content{border:1px solid var(--border);border-radius:var(--radius-lg);padding:26px;min-width:0;box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .shop-detail-content h1{line-height:1.25;overflow-wrap:anywhere}
 .shop-detail-content h2{font-size:20px;margin:26px 0 10px}
 .shop-detail-content>h2:first-child{margin-top:0}
@@ -418,7 +440,7 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 .shop-alert.error{background:var(--error-bg);border-color:var(--error-border);color:var(--error-text)}
 
 /* ---------- Cart and checkout ---------- */
-.shop-cart-items{border:1px solid var(--border);border-radius:var(--radius-lg);padding:4px 22px;box-shadow:var(--shadow-card)}
+.shop-cart-items{border:1px solid var(--border);border-radius:var(--radius-lg);padding:4px 22px;box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .shop-cart-item{display:grid;grid-template-columns:minmax(0,2fr) minmax(110px,1fr) 100px 140px;gap:16px;align-items:center;border-bottom:1px solid var(--border);padding:20px 0;min-width:0}
 .shop-cart-items .shop-cart-item:last-child{border-bottom:0}
 .shop-cart-item h2{font-size:19px;overflow-wrap:anywhere}
@@ -426,7 +448,7 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 .shop-cart-item label{display:grid;gap:6px}
 .shop-button-subtle{background:var(--ghost-bg-hover);color:var(--text);border:1px solid var(--border-strong);box-shadow:none}
 .shop-button-subtle:hover{background:var(--ghost-bg-hover);border-color:var(--accent)}
-.shop-checkout-total{margin:18px 0 0;padding:18px 22px;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card)}
+.shop-checkout-total{margin:18px 0 0;padding:18px 22px;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .shop-checkout-total p{color:var(--text-2)}
 .shop-checkout-total strong{color:var(--text)}
 .shop-checkout label:not(.shop-choice){display:grid;gap:6px;margin:12px 0;color:var(--text-2);font-weight:600;font-size:14px}
@@ -458,11 +480,11 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 
 /* ---------- Legal pages ---------- */
 .legal-shell{display:grid;grid-template-columns:minmax(200px,260px) minmax(0,1fr);gap:28px;padding:34px 0;align-items:start}
-.legal-nav{position:sticky;top:92px;display:grid;gap:4px;border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--shadow-card)}
+.legal-nav{position:sticky;top:92px;display:grid;gap:4px;border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .legal-nav a{display:flex;align-items:center;min-height:40px;padding:8px 12px;border-radius:10px;color:var(--text-2);text-decoration:none}
 .legal-nav a:hover{background:var(--ghost-bg-hover);color:var(--text)}
 .legal-nav a[aria-current=page]{background:var(--accent-soft);color:var(--text);font-weight:650;box-shadow:0 0 0 1px var(--border) inset}
-.legal-article{max-width:80ch;min-width:0;overflow-wrap:anywhere;padding:clamp(20px,3.4vw,40px);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card)}
+.legal-article{max-width:80ch;min-width:0;overflow-wrap:anywhere;padding:clamp(20px,3.4vw,40px);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .legal-article h1{font-size:clamp(28px,3.6vw,42px);line-height:1.2;margin:4px 0 18px}
 .legal-article h2{font-size:21px;margin:34px 0 10px;color:var(--text)}
 .legal-article h3{font-size:18px;margin:24px 0 8px}
@@ -601,6 +623,8 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 @media (forced-colors:active){
   .shop-header,.shop-footer,.shop-filters,.shop-product,.shop-empty,.shop-detail-content,.shop-cart-items,.shop-checkout-total,.legal-nav,.legal-article,.legal-card,.shop-page,.shop-trust li,.shop-chip{-webkit-backdrop-filter:none;backdrop-filter:none;background:Canvas;color:CanvasText;border-color:CanvasText}
   .shop-back-to-top{border:2px solid ButtonText;background:ButtonFace;color:ButtonText}
+  .shop-product::after{display:none}
+  button,.shop-button,.shop-checkout-link,.shop-page.is-current{background-image:none}
   .shop-hero-catalog h1{background:none;color:CanvasText}
   .shop-toggle input{opacity:1;position:static}
   .shop-toggle-track{display:none}

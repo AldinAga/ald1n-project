@@ -9,7 +9,7 @@
 @if($seo['prev'])<link rel="prev" href="{{ $seo['prev'] }}">@endif
 @if($seo['next'])<link rel="next" href="{{ $seo['next'] }}">@endif
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="{{ \App\Support\PublicCatalogPresentation::SITE_NAME }}">
+<meta property="og:site_name" content="{{ $seo['site_name'] }}">
 <meta property="og:locale" content="sr_RS">
 <meta property="og:title" content="{{ $seo['title'] }}">
 <meta property="og:description" content="{{ $seo['description'] }}">
@@ -21,7 +21,7 @@
 @section('content')
 @php($sortValue = in_array(request('sort'), array_keys(\App\Support\PublicCatalogPresentation::SORT_LABELS), true) ? request('sort') : 'newest')
 <section class="shop-hero shop-hero-catalog" aria-labelledby="katalog-naslov">
-<p class="eyebrow">Katalog {{ \App\Support\PublicCatalogPresentation::SITE_NAME }}</p>
+<p class="eyebrow">Katalog {{ $seo['site_name'] }}</p>
 <h1 id="katalog-naslov">Pronađi svoj sledeći uređaj.</h1>
 <p class="shop-hero-lead">Uz svaki artikal prikazujemo punu prodajnu cenu i trenutno stanje lagera.</p>
 <ul class="shop-trust" aria-label="Ukratko o katalogu">

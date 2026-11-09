@@ -46,6 +46,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'api/*',
+            // Storefront theme switch (POST /tema). A forged cross-site
+            // request can only set a light/dark/system display cookie and
+            // redirect to a same-origin catalog page: no account, cart, order
+            // or setting changes. Without a token the switch keeps working
+            // when the session has expired or cookies are blocked, instead of
+            // showing a 419 page. The route stays POST-only and throttled,
+            // with a strict theme allowlist and a safe relative return path.
+            'tema',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
