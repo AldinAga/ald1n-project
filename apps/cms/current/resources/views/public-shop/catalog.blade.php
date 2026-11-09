@@ -125,9 +125,13 @@ Nema rezultata
 @else
 <div class="shop-empty">
 <span class="shop-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" focusable="false"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M20 20l-3.5-3.5M8.5 11h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+@if($seo['has_filters'])
 <h3>Nema artikala koji odgovaraju filterima.</h3>
 <p>Probaj drugi pojam ili ukloni neki od aktivnih filtera.</p>
-@if($seo['has_filters'])<a class="shop-button" href="{{ $seo['catalog_path'] }}">Prikaži sve artikle</a>@endif
+<a class="shop-button" href="{{ $seo['catalog_path'] }}">Prikaži sve artikle</a>
+@else
+<h3>U katalogu trenutno nema artikala.</h3>
+@endif
 </div>
 @endif
 

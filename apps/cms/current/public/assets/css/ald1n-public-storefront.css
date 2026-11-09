@@ -384,9 +384,10 @@ a.shop-page:hover{border-color:var(--accent);background:var(--surface-2)}
   .shop-nav nav a.shop-nav-cart{margin-left:2px;padding:8px 12px}
   .shop-nav-cart span{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .shop-cart-item{grid-template-columns:1fr}
-  /* One column: brand, category and sort selects show their full labels. */
-  .shop-filters{grid-template-columns:minmax(0,1fr)}
 }
+/* One column up to large phones (428-430px): brand, category and sort
+   selects show their full labels. */
+@media (max-width:480px){.shop-filters{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){.legal-facts div,.legal-form .legal-line{grid-template-columns:1fr;gap:2px}}
 
 /* ---------- Motion (opt-in only) ---------- */
@@ -421,7 +422,10 @@ a.shop-page:hover{border-color:var(--accent);background:var(--surface-2)}
    page end, so the focus ring (6px) and the shadow (16px) fit inside the
    clip box without overflow-clip-margin, which WebKit does not support. */
 .shop-top-rail{position:absolute;right:max(0px,calc(env(safe-area-inset-right,0px) - 16px));bottom:0;box-sizing:border-box;width:80px;padding-inline:16px;height:max(0px,calc(100% - 200vh + 72px));overflow:clip;pointer-events:none;z-index:40}
-.shop-back-to-top{position:sticky;top:calc(100vh - 64px - env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:1px solid var(--top-border);background:var(--top-bg);color:#ffffff;font-size:22px;font-weight:700;line-height:1;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:auto}
+.shop-back-to-top{position:sticky;top:calc(100vh - 64px - env(safe-area-inset-bottom,0px));top:calc(100dvh - 64px - env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:1px solid var(--top-border);background:var(--top-bg);color:#ffffff;font-size:22px;font-weight:700;line-height:1;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:auto}
+/* Without overflow:clip (Safari before 16) the rail cannot hide the button
+   on short pages, so it is left out there. */
+@supports not (overflow:clip){.shop-top-rail{display:none}}
 .shop-back-to-top:hover{background:var(--top-bg-hover)}
 /* Keyboard focus always shows the link, also on short pages where the rail
    hides it: fixed positioning escapes the rail's clip box. */

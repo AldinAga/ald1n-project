@@ -184,13 +184,38 @@ final class PublicCatalogRedesignTest extends TestCase
         self::assertArrayNotHasKey('@id', $stock);
     }
 
-    public function test_search_results_are_noindex_follow_with_plain_canonical(): void
+    public function test_search_results_are_noindex_follow_without_canonical(): void
     {
         $this->product('ThinkPad Search Hit', 70000);
         $html = (string) $this->get('/katalog?q=ThinkPad')->assertOk()->getContent();
         self::assertSame(1, substr_count($html, 'name="robots"'));
         self::assertStringContainsString('<meta name="robots" content="noindex,follow">', $html);
+        self::assertStringNotContainsString('rel="canonical"', $html);
+        self::assertStringNotContainsString('og:url', $html);
+        self::assertStringContainsString('ThinkPad Search Hit', $html);
+    }
+
+    public function test_invalid_page_values_fall_back_to_page_one_with_plain_canonical(): void
+    {
+        $this->product('Fallback Laptop', 50000);
+        foreach (['abc', '-1', '0'] as $value) {
+            $html = (string) $this->get('/katalog?page='.$value)->assertOk()->getContent();
+            self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $html, $value);
+            self::assertStringContainsString('Prikazano 1–1 od 1 artikla', $html, $value);
+        }
+    }
+
+    public function test_empty_catalog_without_filters_is_200(): void
+    {
+        $html = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringContainsString('Nema rezultata', $html);
         self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $html);
+        self::assertStringNotContainsString('name="robots"', $html);
+        self::assertStringNotContainsString('Prikaži sve artikle', $html);
+        self::assertStringContainsString('U katalogu trenutno nema artikala.', $html);
+        self::assertStringNotContainsString('aktivnih filtera', $html);
+        $this->get('/katalog?page=1')->assertOk();
+        $this->get('/katalog?page=2')->assertNotFound();
     }
 
     public function test_page_past_the_last_returns_404(): void
@@ -236,7 +261,7 @@ final class PublicCatalogRedesignTest extends TestCase
         $valid = [
             'https://cms.ald1n.com' => 'https://cms.ald1n.com',
             'https://cms.ald1n.com/' => 'https://cms.ald1n.com',
-            'https://CMS.ald1n.com:8443' => 'https://cms.ald1n.com:8443',
+            'https://CMS.ald1n.com' => 'https://cms.ald1n.com',
         ];
         foreach ($valid as $url => $expected) {
             config()->set('app.url', $url);
@@ -244,7 +269,7 @@ final class PublicCatalogRedesignTest extends TestCase
         }
         foreach (['http://cms.ald1n.com', 'https://cms.ald1n.com/shop', 'https://cms.ald1n.com/?x=1', 'https://cms.ald1n.com#a',
             'https://user:pw@cms.ald1n.com', 'https://', 'ftp://cms.ald1n.com', 'not a url', '', '//cms.ald1n.com',
-            'https://cms.ald1n.com?', 'https://bad_host.example'] as $url) {
+            'https://cms.ald1n.com?', 'https://bad_host.example', 'https://cms.ald1n.com:8443', 'https://CMS.ald1n.com:443/'] as $url) {
             config()->set('app.url', $url);
             self::assertNull(PublicCatalogPresentation::baseUrl(), $url);
         }
@@ -284,9 +309,13 @@ final class PublicCatalogRedesignTest extends TestCase
         self::assertStringContainsString('href="/katalog?brand_id='.$this->brand->id.'&amp;stock=available&amp;sort=price_desc"', $html);
         self::assertStringContainsString('<a class="shop-reset" href="/katalog">Poništi filtere</a>', $html);
         self::assertStringContainsString('<option value="price_desc" selected>', $html);
-        // Filtered views consolidate on the plain catalog canonical.
-        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $html);
+        // A search view is noindex and carries no canonical.
+        self::assertStringNotContainsString('rel="canonical"', $html);
         self::assertStringNotContainsString('https://cms.ald1n.com/katalog?', $html);
+        // Filtered views without a search term consolidate on the plain catalog canonical.
+        $brandOnly = (string) $this->get('/katalog?brand_id='.$this->brand->id.'&sort=price_desc')->assertOk()->getContent();
+        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $brandOnly);
+        self::assertStringNotContainsString('https://cms.ald1n.com/katalog?', $brandOnly);
         self::assertStringContainsString('<title>Pretraga „ThinkPad“ · Katalog · ', $html);
     }
 

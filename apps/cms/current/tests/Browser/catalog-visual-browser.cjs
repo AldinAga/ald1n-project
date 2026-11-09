@@ -53,8 +53,13 @@ async function open(page, url, label, problems, checkImages = true) {
   // rail), and on pages shorter than two screens the button stays hidden.
   const end = await pageEnd(page);
   check(end.sh <= Math.max(end.ih, end.footerEnd) + 1, label + ' extra scroll below the footer ' + JSON.stringify(end));
+  // Unscrolled and unfocused the button is never on screen.
+  check(end.visibleTop === 0, label + ' back-to-top shows before scrolling ' + JSON.stringify(end));
   if (end.sh < 2 * end.ih - 72) {
     check(end.visible === 0, label + ' back-to-top shows on a short page ' + JSON.stringify(end));
+  } else if (end.sh >= 2 * end.ih) {
+    // Between the two thresholds the button is still sliding in, partly clipped.
+    check(end.visible >= 40, label + ' back-to-top missing at the end of a long page ' + JSON.stringify(end));
   }
   return end;
 }
@@ -63,18 +68,26 @@ async function open(page, url, label, problems, checkImages = true) {
 async function pageEnd(page) {
   return page.evaluate(() => {
     const de = document.documentElement;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    // Rendered visibility of the button itself: its own box against the
+    // viewport, confirmed by hit-testing its centre (a clipped button
+    // loses the hit test even when its box overlaps the viewport).
+    const shown = () => {
+      const btn = document.querySelector('.shop-back-to-top');
+      if (!btn) return 0;
+      const b = btn.getBoundingClientRect();
+      const inView = Math.max(0, Math.min(b.bottom, window.innerHeight) - Math.max(b.top, 0));
+      if (inView === 0) return 0;
+      const hit = document.elementFromPoint(b.left + b.width / 2, Math.min(b.top + b.height / 2, window.innerHeight - 1));
+      return hit && hit.closest('.shop-back-to-top') ? Math.round(inView) : 0;
+    };
+    window.scrollTo({top: 0, behavior: 'instant'});
+    const visibleTop = shown();
     window.scrollTo({top: de.scrollHeight, behavior: 'instant'});
     const footer = document.querySelector('.shop-footer');
     const footerEnd = footer ? Math.ceil(footer.getBoundingClientRect().bottom + window.scrollY) : 0;
-    const rail = document.querySelector('.shop-top-rail');
-    const btn = document.querySelector('.shop-back-to-top');
-    let visible = 0;
-    if (rail && btn) {
-      const r = rail.getBoundingClientRect();
-      const b = btn.getBoundingClientRect();
-      visible = Math.max(0, Math.min(r.bottom, b.bottom, window.innerHeight) - Math.max(r.top, b.top, 0));
-    }
-    const out = {sh: de.scrollHeight, ih: window.innerHeight, footerEnd, visible};
+    const visible = shown();
+    const out = {sh: de.scrollHeight, ih: window.innerHeight, footerEnd, visibleTop, visible};
     window.scrollTo({top: 0, behavior: 'instant'});
     return out;
   });
@@ -176,6 +189,30 @@ async function focusTop(page, tag, file) {
         await pause(scheme === 'dark' && width === 1280 ? 61000 : 2000);
       }
     }
+    // Large phones (430px): the filter selects show their full labels.
+    for (const scheme of schemes) {
+      const context = await browser.newContext({viewport: {width: 430, height: 932}, colorScheme: scheme, deviceScaleFactor: 1});
+      const page = await context.newPage();
+      const tag = scheme + '-430';
+      await open(page, '/katalog', 'catalog ' + tag, []);
+      const cut = await page.evaluate(() => {
+        const ctx = document.createElement('canvas').getContext('2d');
+        return [...document.querySelectorAll('.shop-filters select')].filter(sel => {
+          const cs = getComputedStyle(sel);
+          ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+          const text = sel.options[sel.selectedIndex].text;
+          const room = sel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+          return ctx.measureText(text).width > room;
+        }).map(sel => sel.id);
+      });
+      check(cut.length === 0, tag + ' truncated select labels ' + JSON.stringify(cut));
+      await page.locator('.shop-filter-panel').scrollIntoViewIfNeeded();
+      await page.screenshot({path: path.join(dir, 'catalog-' + tag + '-filters.png'), animations: 'disabled'});
+      summary.push(tag);
+      await context.close();
+      await pause(2000);
+    }
+
     // Measured WCAG colour contrast with axe-core. Script injection needs a
     // separate CSP-bypassing context; every CSP assertion above ran without it.
     await pause(61000);

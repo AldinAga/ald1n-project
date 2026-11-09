@@ -92,7 +92,9 @@ final class PublicCatalogPresentation
         }
 
         $canonical = null;
-        if ($base !== null) {
+        // A noindex search page gets no canonical: the two would send
+        // conflicting signals. Every other view keeps one.
+        if ($base !== null && !isset($active['q'])) {
             // Filtered and sorted views consolidate on the unfiltered catalog;
             // plain pagination keeps its own page URL.
             $canonical = $base.$catalogPath.($active === [] && $current > 1 ? '?page='.$current : '');
@@ -149,8 +151,8 @@ final class PublicCatalogPresentation
     }
 
     /**
-     * The configured public origin: https, a host, an optional port and
-     * nothing else. Any other APP_URL yields null and absolute URLs are omitted.
+     * The configured public origin: https and a host, with no port, path,
+     * credentials, query or fragment. Any other APP_URL yields null and absolute URLs are omitted.
      */
     public static function baseUrl(): ?string
     {
@@ -161,12 +163,12 @@ final class PublicCatalogPresentation
         }
         $host = strtolower($parts['host'] ?? '');
         if ($host === '' || !preg_match('~^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$~', $host)
-            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+            || isset($parts['port']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
             || !in_array($parts['path'] ?? '', ['', '/'], true) || str_contains($url, '?') || str_contains($url, '#')) {
             return null;
         }
 
-        return 'https://'.$host.(isset($parts['port']) ? ':'.(int) $parts['port'] : '');
+        return 'https://'.$host;
     }
 
     /** @param array<string,mixed> $filters @return array<string,string|int> */
