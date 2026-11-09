@@ -1,6 +1,8 @@
 # Catalog redesign visual QA (NO DEPLOY). Author: Ald1n <https://ald1n.com>
 # Renders the synthetic public catalog and shared shop pages in disposable
-# Chromium at 375/768/1280 in dark and light, then keeps the PNG screenshots.
+# Chromium and WebKit at 375/430/768/1280 in system-dark, system-light and
+# both forced themes, with and without a site logo; measures text contrast
+# and runs axe colour-contrast, then keeps the PNG screenshots.
 name: Catalog visual QA screenshots (NO DEPLOY)
 on:
   pull_request:
@@ -13,6 +15,12 @@ on:
       - 'apps/cms/current/tests/Browser/seed-catalog-visual.php'
       - 'apps/cms/current/tests/Browser/catalog-visual-browser.cjs'
       - 'apps/cms/current/tests/Feature/PublicCatalogRedesignTest.php'
+      - 'apps/cms/current/tests/Feature/PublicStorefrontThemeLogoTest.php'
+      - 'apps/cms/current/app/Support/PublicStorefrontAppearance.php'
+      - 'apps/cms/current/app/Http/Controllers/PublicThemeController.php'
+      - 'apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php'
+      - 'apps/cms/current/app/Providers/AppServiceProvider.php'
+      - 'apps/cms/current/routes/web.php'
       - '.github/workflows/catalog-visual-qa.yml'
 permissions:
   contents: read
@@ -22,7 +30,7 @@ concurrency:
 jobs:
   screenshots:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 90
     services:
       mariadb:
         image: mariadb:10.11.19
@@ -95,7 +103,7 @@ jobs:
           APP_URL: https://cms.ald1n.com
         run: |
           set -euo pipefail
-          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test; do
+          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontThemeLogoTest; do
             php vendor/bin/phpunit -c phpunit.mysql.xml "tests/Feature/$test.php" --colors=never
           done
       - name: Install disposable Chromium outside repository
@@ -104,7 +112,7 @@ jobs:
           mkdir -p "$PLAYWRIGHT_NODE_ROOT"
           npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1 axe-core@4.10.3
           "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium webkit
-      - name: Render synthetic catalog in dark and light at 375/768/1280
+      - name: Render shop pages in four theme modes at 375/430/768/1280, with and without a logo
         working-directory: apps/cms/current
         run: |
           set -euo pipefail
@@ -112,6 +120,7 @@ jobs:
           test "$DB_DATABASE" = ald1n_test
           php artisan migrate:fresh --force --no-ansi
           php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php artisan storage:link --no-ansi
           php tests/Browser/seed-catalog-visual.php
           php artisan serve --host=127.0.0.1 --port=8124 > "$RUNNER_TEMP/catalog-visual-server.log" 2>&1 &
           SERVER_PID=$!
