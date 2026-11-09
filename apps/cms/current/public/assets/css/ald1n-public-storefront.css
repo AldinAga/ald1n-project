@@ -29,6 +29,7 @@
   --glow-4:rgba(196,140,108,.20);
   --surface-solid:#182026;
   --glass:rgba(24,32,38,.76);
+  --glass-dense:rgba(24,32,38,.84);
   --glass-strong:rgba(15,21,26,.96);
   --glass-soft:rgba(30,40,47,.72);
   --glass-hover:rgba(34,45,53,.90);
@@ -96,6 +97,7 @@
   --glow-4:rgba(232,168,124,.32);
   --surface-solid:#ffffff;
   --glass:rgba(255,255,255,.74);
+  --glass-dense:rgba(255,255,255,.86);
   --glass-strong:rgba(250,251,253,.96);
   --glass-soft:rgba(255,255,255,.70);
   --glass-hover:rgba(255,255,255,.94);
@@ -156,6 +158,7 @@
     --glow-4:rgba(232,168,124,.32);
     --surface-solid:#ffffff;
     --glass:rgba(255,255,255,.74);
+    --glass-dense:rgba(255,255,255,.86);
     --glass-strong:rgba(250,251,253,.96);
     --glass-soft:rgba(255,255,255,.70);
     --glass-hover:rgba(255,255,255,.94);
@@ -215,6 +218,9 @@
   --glass-fill-soft:var(--glass-soft);
   --glass-fx:blur(24px) saturate(185%);
   --glass-fx-strong:blur(30px) saturate(210%);
+}
+@media (max-width:899px),(hover:none){
+  :root{--glass-fill:var(--glass-dense)}
 }
 @supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
   :root[data-theme]{--glass-fill:var(--surface-solid);--glass-fill-strong:var(--surface-solid);--glass-fill-soft:var(--surface-solid);--sheen:transparent}
