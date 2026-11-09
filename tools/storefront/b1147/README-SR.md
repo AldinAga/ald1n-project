@@ -2,6 +2,19 @@
 
 Autor paketa: Ald1n <https://ald1n.com>
 
+## Prvi pokušaj (Report1111)
+
+Prvo pokretanje 09.11.2026 (Report1111, paket sa `52512d63`) stalo je u preflight-u sa
+`HOLD_PREFLIGHT_BLOCKED` i `OLD_STATE_SMOKE_FAILED`, `EXIT=2`. Nijedan fajl nije promenjen.
+Uzrok je bio u našoj proveri: očekivala je da pravne stranice budu indeksabilne dok je prodavnica
+uključena. Server za svaki odgovor šalje `X-Robots-Tag: noindex, nofollow, noarchive` iz
+`apps/cms/current/public/.htaccess`. To je i vaša odluka: prodavnica se ne indeksira. Nova verzija
+to sada traži na svakoj javnoj stranici prodavnice i na pravnim stranicama.
+
+Skripta je promenjena, pa se menja i heš paketa. Otpremite ponovo oba fajla, novi
+`b1147-operator.zip` i `b1147-operator.zip.sha256`, proverite i raspakujte ZIP preko starih fajlova i pokrenite istu
+komandu. Stari paket ponovo bi stao na istom mestu, zato ga ne pokrećite.
+
 ## Pre pokretanja proverite sami
 
 1. Postavite `b1147-operator.zip` i `b1147-operator.zip.sha256` u `/home/icaffeco` i proverite ZIP.
@@ -89,6 +102,14 @@ kruga provera, plus 5 minuta rezerve, a najmanje 30 minuta. Ako je backup bliže
 'none'`. Sortiranje po ceni vraća 200, nepoznato sortiranje nikad 500, a `?page=999` vraća 404.
 Osam pravnih stranica, `/login`, `/up`, `/korpa` i `/registracija` vraćaju 200. CSS sadrži nova
 pravila. U `laravel.log` nema novih grešaka, a svih 8546 fajlova ima tačan digest.
+
+Pravne stranice, `/katalog` sa sortiranjem i stranicama, `/korpa` i `/registracija` moraju imati
+`X-Robots-Tag` sa `noindex`, pre i posle instalacije. Ako to zaglavlje nestane (izmenjen
+`.htaccess` ili pravilo u Cloudflare-u), pre instalacije staje se sa `HOLD_PREFLIGHT_BLOCKED` i
+kodom `NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES`. Ako nestane posle instalacije, fajlovi
+ostaju, jer je kod ispravan, a kraj je `HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED`. Vratite zaglavlje
+i pokrenite istu komandu. Pri vraćanju na staro dobijate samo upozorenje
+`OWNER_NOTICE_NOINDEX_MISSING`.
 
 Ako bilo šta padne, sami vraćamo stare fajlove bajt po bajt i ponovo proveravamo staro stanje
 (`HOLD_ROLLED_BACK_OLD_STATE_VERIFIED`). Uspešan kraj je

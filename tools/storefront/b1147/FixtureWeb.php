@@ -13,7 +13,28 @@ final class CatalogFixtureWeb
      * answers 429 with Retry-After: 3 (the public-shop-browse throttle behind a shared edge IP); the file holds how many
      * such answers remain, or ALWAYS.
      */
-    public function __construct(private int $port,private string $secrets,private ?string $dropCsp=null,private ?string $dropJsonLd=null,private ?string $rate429=null){}
+    public function __construct(private int $port,private string $secrets,private ?string $dropCsp=null,private ?string $dropJsonLd=null,private ?string $rate429=null,private ?string $htaccess=null,private ?string $noHtaccess=null){}
+
+    /** Response headers that the smokes read, keyed like CatalogWeb::result(). */
+    private const HTACCESS_KEYS=['x-robots-tag'=>'robots','content-security-policy'=>'csp','x-frame-options'=>'frame','content-type'=>'contentType'];
+
+    /**
+     * The `Header always set NAME "VALUE"` lines of the REAL public/.htaccess of the active tree (production runs it under
+     * LiteSpeed with mod_headers; `php -S` ignores .htaccess). `set` replaces any header of that name the app sent, on
+     * every response including static files, so the double applies it to every fetched response the same way.
+     */
+    public static function htaccessHeaders(string $file):array
+    {
+        $text=(string)file_get_contents($file);preg_match_all('/^\s*Header\s+always\s+set\s+([A-Za-z0-9-]+)\s+"([^"]*)"\s*$/mi',$text,$m,PREG_SET_ORDER);
+        $out=[];foreach($m as $x)$out[strtolower($x[1])]=$x[2];if(!isset($out['x-robots-tag']))throw new RuntimeException('FIXTURE_HTACCESS_HAS_NO_X_ROBOTS_TAG');return $out;
+    }
+
+    private function applyHtaccess(array $r):array
+    {
+        if($this->htaccess===null||($this->noHtaccess!==null&&is_file($this->noHtaccess)))return $r;
+        foreach(self::htaccessHeaders($this->htaccess) as $name=>$value)if(isset(self::HTACCESS_KEYS[$name])){$k=self::HTACCESS_KEYS[$name];$r[$k]=$k==='contentType'?$value:[$value];}
+        $r['htaccessHeadersApplied']=true;return $r;
+    }
 
     public static function get(int $port,string $target,array $headers=[],?string $post=null):array
     {
@@ -28,9 +49,9 @@ final class CatalogFixtureWeb
     {
         if((in_array($path,CatalogOverlayCoordinator::LEGAL,true)||in_array($path,CatalogOverlayCoordinator::SHOP,true))&&$this->rate429!==null&&is_file($this->rate429)){
             $left=trim((string)file_get_contents($this->rate429));
-            if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->rate429,(string)((int)$left-1));$h=CatalogWeb::headers();$h['retry'][]='3';return CatalogWeb::result(false,429,$h,'Too Many Attempts.');}
+            if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->rate429,(string)((int)$left-1));$h=CatalogWeb::headers();$h['retry'][]='3';return $this->applyHtaccess(CatalogWeb::result(false,429,$h,'Too Many Attempts.'));}
         }
-        $r=self::get($this->port,CatalogWeb::target($path,$query,$marker));unset($r['cookies'],$r['location']);
+        $r=$this->applyHtaccess(self::get($this->port,CatalogWeb::target($path,$query,$marker)));unset($r['cookies'],$r['location']);
         if($this->dropCsp!==null&&is_file($this->dropCsp))$r['csp']=[];
         if($this->dropJsonLd!==null&&is_file($this->dropJsonLd))$r['body']=(string)preg_replace('~<script type="application/ld\+json">.*?</script>~s','',$r['body']);
         return $r;

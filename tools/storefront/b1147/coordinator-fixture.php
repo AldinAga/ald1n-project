@@ -47,6 +47,8 @@ ReleasePrimitives::preservePrivate($old,$candidate,$retained);rename($old,$retai
 check(is_link($active.'/.env')&&is_link($active.'/storage/logs'),'TOPOLOGY_SYMLINKS');check(hash_file('sha256',$active.'/config/public_storefront.php')===CatalogOverlayCoordinator::CONFIG_SHA,'CONFIG_IS_STAGED_ORIGINAL_AFTER_B1145');
 $stageDir=$home.'/.ald1n-stage/b1131-ef3f927.6hh7mU';mkdir($stageDir.'/verification',0755,true);copy($payloadDir.'/runtime-manifest.json',$stageDir.'/verification/runtime-manifest.json');
 $htaccess=hash_file('sha256',$active.'/public/.htaccess');
+// The web double applies the Header lines of this file; it must be the repo's real production .htaccess.
+check($htaccess===hash_file('sha256',dirname($tools,3).'/apps/cms/current/public/.htaccess')&&str_contains(strtolower((string)(CatalogFixtureWeb::htaccessHeaders($active.'/public/.htaccess')['x-robots-tag']??'')),'noindex'),'ACTIVE_HTACCESS_IS_THE_REAL_ONE_WITH_X_ROBOTS_TAG_NOINDEX');
 
 // The B1145 terminal state and a Report1108-shaped terminal report (the predecessor of B1146).
 $b1145Base=$home.'/.ald1n-b1145-state';mkdir($b1145Base,0700);$b1145Id=bin2hex(random_bytes(16));mkdir($b1145Base.'/'.$b1145Id,0700);
@@ -76,9 +78,9 @@ $status=static fn(string $target):int=>CatalogFixtureWeb::get(PORT,$target)['sta
 for($i=0;$i<60&&$status('/up')!==200;$i++)usleep(500000);check($status('/up')===200&&$status('/katalog')===404&&$status('/pravne-informacije')===404,'REAL_LARAVEL_SERVED_PRE_B1146');
 
 $private=$home.'/.ald1n-b1147-state';$private1146=$home.'/.ald1n-b1146-state';$secrets=$base.'/probe-secrets';$faultLog=$base.'/faults.log';$stepLog=$base.'/steps.jsonl';$logDir=$retained.'/storage/logs';$configJSON=$base.'/run.json';$safeNow=strtotime('2026-11-11 13:00:00 UTC');
-$dropCsp=$base.'/drop-csp';$dropJsonLd=$base.'/drop-json-ld';$busyPidFile=$base.'/busy.pid';$allOutput='';file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','',FILE_APPEND);
-$run=static function(array $actions=[],string $mode='install',array $overrides=[])use($configJSON,$tools,$b1146,$b1145,$b1144,$b1134,$root,$home,$private,$private1146,$stageDir,$incoming,$secrets,$faultLog,$stepLog,$logDir,$safeNow,$dropCsp,$dropJsonLd,$busyPidFile,&$allOutput):array{
-    file_put_contents($configJSON,json_encode(['overrides'=>$overrides,'dropCsp'=>$dropCsp,'dropJsonLd'=>$dropJsonLd,'rate429'=>dirname($dropCsp).'/rate-429','db'=>['mysql:host=127.0.0.1;port=3306;dbname='.DB,'root',DB_PASSWORD],'busyPidFile'=>$busyPidFile,'tools'=>$tools,'b1146'=>$b1146,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'root'=>$root,'home'=>$home,'base'=>$private,'pointer'=>$private.'/current.json','stage'=>$stageDir,'b1146Base'=>$private1146,
+$dropCsp=$base.'/drop-csp';$dropJsonLd=$base.'/drop-json-ld';$noHtaccess=$base.'/no-htaccess-headers';$busyPidFile=$base.'/busy.pid';$allOutput='';file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','',FILE_APPEND);
+$run=static function(array $actions=[],string $mode='install',array $overrides=[])use($configJSON,$tools,$b1146,$b1145,$b1144,$b1134,$root,$home,$private,$private1146,$stageDir,$incoming,$secrets,$faultLog,$stepLog,$logDir,$safeNow,$dropCsp,$dropJsonLd,$noHtaccess,$busyPidFile,&$allOutput):array{
+    file_put_contents($configJSON,json_encode(['overrides'=>$overrides,'dropCsp'=>$dropCsp,'dropJsonLd'=>$dropJsonLd,'rate429'=>dirname($dropCsp).'/rate-429','noHtaccess'=>$noHtaccess,'db'=>['mysql:host=127.0.0.1;port=3306;dbname='.DB,'root',DB_PASSWORD],'busyPidFile'=>$busyPidFile,'tools'=>$tools,'b1146'=>$b1146,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'root'=>$root,'home'=>$home,'base'=>$private,'pointer'=>$private.'/current.json','stage'=>$stageDir,'b1146Base'=>$private1146,
         'appStateScript'=>$incoming.'/b1145-app-state.php','routesScript'=>$incoming.'/b1146-app-check.php','catalogScript'=>$incoming.'/b1147-app-check.php','php'=>PHP_BINARY,'allowedSapis'=>['cli-server'],
         'censusSeconds'=>20,'minFreeBytes'=>268435456,'scheduleGate'=>true,'fixedNow'=>$safeNow,'incoming'=>$incoming,'mode'=>$mode,'port'=>PORT,'secrets'=>$secrets,'faultLog'=>$faultLog,'stepLog'=>$stepLog,'logDir'=>$logDir,'actions'=>$actions],JSON_UNESCAPED_SLASHES));
     [$rc,$out,$err]=child(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$tools.'/fixture-run.php',$configJSON]);
@@ -111,7 +113,7 @@ $shopOn();sleep(3);check($status('/katalog')===200&&$status('/katalog?page=999')
 $results['b1146']=['final'=>CatalogOverlayCoordinator::B1146_PASS,'report'=>'1109'];
 
 $reset=static function()use($private,$secrets,$faultLog,$stepLog,$logDir,$artisan,$tree,$status,$dropCsp,$dropJsonLd):void{
-    rmTree($private);foreach(array_merge([$secrets,$faultLog,$stepLog,$dropCsp,$dropJsonLd,dirname($dropCsp).'/rate-429'],glob($logDir.'/laravel*.log')?:[]) as $f)if(file_exists($f))unlink($f);file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','');$artisan(['cache:clear']);
+    rmTree($private);foreach(array_merge([$secrets,$faultLog,$stepLog,$dropCsp,$dropJsonLd,dirname($dropCsp).'/rate-429',dirname($dropCsp).'/no-htaccess-headers'],glob($logDir.'/laravel*.log')?:[]) as $f)if(file_exists($f))unlink($f);file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','');$artisan(['cache:clear']);
     check($tree()==='PRE','RESET_TREE_PRE');sleep(3);check($status('/login')===200,'RESET_WARM_LOGIN');
 };
 $allSteps=static function():array{$a=[];for($n=1;$n<=8;$n++)$a['AFTER_STEP_'.$n]=['stepSmoke'];$a['AFTER_INVALIDATE']=['stepSmoke'];return $a;};
@@ -164,7 +166,9 @@ foreach(['noRouteCache','routeCache'] as $variant){
     check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$tree()==='INSTALLED','INSTALL_PASS_'.$variant);check($steps['points']===9&&$steps['bad']===[],'EVERY_STEP_SERVES_'.$variant.':'.implode(',',$steps['bad']));
     [$s,$by]=$smokeRows($o);check($s['state']==='INSTALLED'&&$s['failed']===[]&&$s['shop']['open']===true,'SMOKES_PASS_'.$variant);
     check($by['/katalog']['jsonLd']==='PASS'&&$by['/katalog']['layoutMarker']===true&&$by['/katalog']['catalogMarker']===true&&$by['/katalog?page=999']['observed']===404&&$by['/katalog?sort=price_asc']['observed']===200&&in_array($by['/katalog?sort=ald1n_unknown']['observed'],[302,422],true)&&$by[CatalogOverlayCoordinator::CSS_PATH]['cssMarker']===true&&$by['/korpa']['observed']===200,'CATALOG_SMOKES_'.$variant);
-    check(count(array_filter($s['rows'],static fn($r)=>in_array($r['check'],CatalogOverlayCoordinator::LEGAL,true)&&$r['result']==='PASS'&&$r['layoutMarker']===true))===8,'LEGAL_200_NEW_LAYOUT_'.$variant);
+    check(count(array_filter($s['rows'],static fn($r)=>in_array($r['check'],CatalogOverlayCoordinator::LEGAL,true)&&$r['result']==='PASS'&&$r['layoutMarker']===true&&$r['noindex']===true))===8,'LEGAL_200_NEW_LAYOUT_NOINDEX_'.$variant);
+    // The real .htaccess header is present with the shop ON (as on production, Report1111): noindex asserted and PASS.
+    check($s['noindexMissing']===[]&&$by['/katalog']['noindex']===true&&$by['/katalog?page=999']['noindex']===true&&$by['/korpa']['noindex']===true&&$by['/registracija']['noindex']===true&&str_ends_with($by['/katalog']['expected'],'_NOINDEX'),'NOINDEX_ASSERTED_WITH_THE_SHOP_ON_'.$variant);
     $cli=lastLine($o,'CATALOG_CLI_CHECK');check($cli['presentationAutoloaded']===true&&$cli['appUrlHttpsOrigin']===true,'CLI_CLASSES_'.$variant);
     check($routeCacheSHA()===$cacheBefore&&$shopFlag()==='1','ROUTE_CACHE_AND_SHOP_UNTOUCHED_'.$variant);
     check(!str_contains($o,'globalReset":true')&&str_contains($o,'"label":"installed-invalidate"'),'TARGETED_INVALIDATION_ONLY_'.$variant);
@@ -232,6 +236,20 @@ foreach(['noRouteCache','routeCache'] as $variant){
         $shopOn();[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED','RESUMED_AFTER_SHOP_ON');
         [$rc,$o]=$run([],'rollback');check($rc===0&&$tree()==='PRE','SHOP_OFF_CASE_CLEANUP');$reset();
         $results[$variant]['shopOffDuringAcceptance']='HOLD_NO_PASS_CLAIM_RESUMED_AFTER_SHOP_ON';
+        // Owner policy, no indexing: the server-wide .htaccess header removed (switch file; the app alone sends noindex only
+        // while the shop is OFF, so with the shop ON the public pages are indexable). Preflight: HOLD, nothing changed.
+        touch($noHtaccess);[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');[$s,$by]=$smokeRows($o);
+        check($rc===2&&lastLine($o,'B1147_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES',$p['blockers'],true)&&$s['failed']===[]&&$by['/pravne-informacije']['result']==='FAIL_NOINDEX_POLICY_HEADER_MISSING'&&array_diff(CatalogOverlayCoordinator::LEGAL,$s['noindexMissing'])===[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','NOINDEX_MISSING_PREFLIGHT_HOLD');unlink($noHtaccess);$reset();
+        // Removed between the install and its acceptance: every code check passes, so HOLD with the exact files kept (no
+        // rollback); the same command HOLDs again while the header is missing and PASSes once it is back.
+        [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['noHtaccess']]);[$s,$by]=$smokeRows($o);
+        check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES"'&&$s['failed']===[]&&array_diff(CatalogOverlayCoordinator::LEGAL,$s['noindexMissing'])===[]&&!str_contains($o,'OVERLAY_ROLLBACK=')&&str_contains($o,'ACTIVE_TREE_INSTALLED_UNVERIFIED=')&&str_contains((string)(lastLine($o,'OWNER_NEXT_STEPS')[0]??''),'X-ROBOTS-TAG_NOINDEX')&&$tree()==='INSTALLED','NOINDEX_MISSING_INSTALLED_HOLD_FILES_KEPT');
+        [$rc,$o]=$run();check($rc===2&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$tree()==='INSTALLED','NOINDEX_STILL_MISSING_RESUME_HOLDS');
+        unlink($noHtaccess);[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$tree()==='INSTALLED','NOINDEX_BACK_RESUMED_PASS');
+        // Missing during a rollback's old-state smokes: the exact restore completes, the owner is told.
+        [$rc,$o]=$run(['BEFORE_SMOKES_OLD'=>['noHtaccess']],'rollback');
+        check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&str_contains($o,'OWNER_NOTICE_NOINDEX_MISSING=')&&$tree()==='PRE','NOINDEX_MISSING_ROLLBACK_COMPLETES_WITH_NOTICE');@unlink($noHtaccess);$reset();
+        $results[$variant]['noindexPolicy']=['preflight'=>'HOLD_NOTHING_CHANGED','installed'=>'HOLD_FILES_KEPT_RESUME_HOLDS_THEN_PASS','rollback'=>'PASS_WITH_OWNER_NOTICE'];
         // SIGKILL in the hold right before the new classes go: a fresh process resuming the rollback must still hold (timed
         // from the saved wall-clock time of the last restore), not remove group A at once.
         [$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','INSTALL_BEFORE_HOLD_KILL');

@@ -84,7 +84,7 @@ final class CatalogOverlayCoordinator
     private const RETRY_AFTER_CAP=65;
     /** Upper bound of the GETs in one smoke batch (2 system, 8 legal, the CSS, at most 7 shop requests, 1 spare). */
     private const SMOKE_GETS=19;
-    private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED'];
+    private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED','NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES'];
     private bool $scheduleGate=true;
     private ?int $fixedNow=null;
     private int $scheduleNeedSeconds=1800;
@@ -466,9 +466,19 @@ final class CatalogOverlayCoordinator
     /**
      * Public GET smokes; no product, cart or account is written. The expectations follow the shop state read right before
      * this batch (the installer never changes it) and $installed (new code) or not (old code):
-     * always: /login and /up 200; the 8 legal pages 200 with noindex exactly while the shop is OFF (the legal controller
-     * sends X-Robots-Tag only then), CSP script-src 'none', DENY and the layout marker
-     * exactly when $installed (legal pages render the public layout, so the new marker proves the new class loads);
+     * always: /login and /up 200; the 8 legal pages 200 with CSP script-src 'none', DENY and the layout marker
+     * exactly when $installed (legal pages render the public layout, so the new marker proves the new class loads).
+     * Owner policy: the shop is never indexed. The server-wide public/.htaccess sets X-Robots-Tag "noindex, nofollow,
+     * noarchive" on every response (Header always set replaces the app header, so the app rule "noindex only while the
+     * shop is OFF" is not what production sends: Report1111, also /up in Report1109). Every public shop and legal page
+     * (the 8 legal pages, /katalog with its sorted and paged views, /korpa, /registracija; with the shop OFF the shop
+     * paths) must carry an X-Robots-Tag with noindex in both states. A check that passes in every other respect but lacks
+     * it is FAIL_NOINDEX_POLICY_HEADER_MISSING and the batch ends with NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES: a
+     * server or edge policy problem, not a code one (preflight HOLDs, an installed acceptance HOLDs with the exact files
+     * kept, a rollback completes with an owner notice). Nothing else in the stack is assumed away: CSP and X-Frame-Options come from the app (the .htaccess sets neither),
+     * Cache-Control, Content-Type and the encoding are not asserted (curl sends no Accept-Encoding, so the body is
+     * identity-coded and the markers are read as sent), every request carries a unique cache-busting marker, and the
+     * Cloudflare status is used only to call a stale edge copy of the CSS INCONCLUSIVE;
      * the CSS carries the new selector exactly when $installed (an edge-cached copy without it is INCONCLUSIVE, never PASS);
      * shop ON: /katalog 200 scriptless with both markers exactly when $installed and, installed, one parsable
      * CollectionPage JSON-LD block; ?sort=price_asc 200 (installed); an unknown sort 302/422 (validation, never 5xx);
@@ -479,14 +489,19 @@ final class CatalogOverlayCoordinator
     {
         $state=$installed?'INSTALLED':'OLD';$this->fault('BEFORE_SMOKES_'.$state);$shop=$this->shop();$m=$this->markers;$marker=bin2hex(random_bytes(8));$rows=[];$failed=[];$inconclusive=[];$limited=[];$this->limitBatch=['limited'=>false,'waited'=>0];
         // A response still 429 after its retries proves nothing about the code: INCONCLUSIVE, never PASS and never FAIL.
-        $add=function(string $label,array $r,string $expected,bool $pass,array $facts=[])use(&$rows,&$failed,&$limited):void{
+        // $policy: a public shop or legal page that must carry X-Robots-Tag noindex (owner policy, see above).
+        $noindexMissing=[];
+        $add=function(string $label,array $r,string $expected,bool $pass,array $facts=[],bool $policy=false)use(&$rows,&$failed,&$limited,&$noindexMissing):void{
+            if($policy)$expected.='_NOINDEX';
             if(($r['rateLimited']??false)===true){$rows[]=['check'=>$label,'expected'=>$expected,'observed'=>429,'result'=>'INCONCLUSIVE_RATE_LIMITED_429','attempts'=>$r['attempts'],'waitedSeconds'=>$r['waitedSeconds'],'skippedSharedLimiter'=>$r['skippedSharedLimiter']??false];$limited[]=$label;return;}
-            $rows[]=['check'=>$label,'expected'=>$expected,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$pass?'PASS':'FAIL','attempts'=>$r['attempts']]+$facts;if(!$pass)$failed[]=$label;};
+            $noindex=CatalogWeb::noindex($r['robots']);$facts=['noindex'=>$noindex]+$facts;$result=$pass?'PASS':'FAIL';
+            if($pass&&$policy&&!$noindex){$result='FAIL_NOINDEX_POLICY_HEADER_MISSING';$noindexMissing[]=$label;}
+            $rows[]=['check'=>$label,'expected'=>$expected,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$result,'attempts'=>$r['attempts']]+$facts;if(!$pass)$failed[]=$label;};
         $lt=static fn(array $r):bool=>!$r['transport']&&$r['status']>0&&$r['status']<500;
         foreach(self::SYSTEM as $p){$r=$this->get($p,[],$marker);$add($p,$r,'200',!$r['transport']&&$r['status']===200);}
         foreach(self::LEGAL as $p){
-            $r=$this->get($p,[],$marker);$f=['noindex'=>CatalogWeb::noindex($r['robots']),'cspScriptSrcNone'=>CatalogWeb::scriptless($r['csp']),'frameDeny'=>CatalogWeb::frameDeny($r['frame']),'layoutMarker'=>str_contains($r['body'],$m['layout'])];
-            $add($p,$r,'200_'.($shop['open']?'INDEXABLE':'NOINDEX').'_CSP_DENY_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['noindex']===!$shop['open']&&$f['cspScriptSrcNone']&&$f['frameDeny']&&$f['layoutMarker']===$installed,$f);
+            $r=$this->get($p,[],$marker);$f=['cspScriptSrcNone'=>CatalogWeb::scriptless($r['csp']),'frameDeny'=>CatalogWeb::frameDeny($r['frame']),'layoutMarker'=>str_contains($r['body'],$m['layout'])];
+            $add($p,$r,'200_CSP_DENY_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['cspScriptSrcNone']&&$f['frameDeny']&&$f['layoutMarker']===$installed,$f,true);
         }
         $this->fault('DURING_SMOKES_'.$state);
         $r=$this->get(self::CSS_PATH,[],$marker);$has=str_contains($r['body'],$m['css']);$ok=!$r['transport']&&$r['status']===200;
@@ -494,21 +509,24 @@ final class CatalogOverlayCoordinator
         else $add(self::CSS_PATH,$r,'200_CSS_'.($installed?'NEW':'OLD'),$ok&&$has===$installed,['cfCache'=>$r['cfCache'],'cssMarker'=>$has]);
         if($shop['open']){
             $r=$this->get('/katalog',[],$marker);$f=['cspScriptSrcNone'=>CatalogWeb::scriptless($r['csp']),'layoutMarker'=>str_contains($r['body'],$m['layout']),'catalogMarker'=>str_contains($r['body'],$m['catalog']),'jsonLd'=>$installed?(CatalogWeb::jsonLdProblem($r['body'])??'PASS'):'NOT_EXPECTED_OLD_CODE'];
-            $add('/katalog',$r,'200_CSP_MARKERS_'.($installed?'NEW_JSON_LD':'OLD'),!$r['transport']&&$r['status']===200&&$f['cspScriptSrcNone']&&$f['layoutMarker']===$installed&&$f['catalogMarker']===$installed&&(!$installed||$f['jsonLd']==='PASS'),$f);
-            $r=$this->get('/katalog',['sort'=>'price_asc'],$marker);$add('/katalog?sort=price_asc',$r,$installed?'200':'BELOW_500',$installed?(!$r['transport']&&$r['status']===200):$lt($r));
-            $r=$this->get('/katalog',['sort'=>'ald1n_unknown'],$marker);$add('/katalog?sort=ald1n_unknown',$r,'302_OR_422',!$r['transport']&&in_array($r['status'],[302,422],true));
-            $r=$this->get('/katalog',['page'=>'999'],$marker);$add('/katalog?page=999',$r,$installed?'404':'BELOW_500',$installed?(!$r['transport']&&$r['status']===404):$lt($r));
-            $r=$this->get('/korpa',[],$marker);$f=['layoutMarker'=>str_contains($r['body'],$m['layout'])];$add('/korpa',$r,'200_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['layoutMarker']===$installed,$f);
-            $r=$this->get('/registracija',[],$marker);$add('/registracija',$r,'200',!$r['transport']&&$r['status']===200);
+            $add('/katalog',$r,'200_CSP_MARKERS_'.($installed?'NEW_JSON_LD':'OLD'),!$r['transport']&&$r['status']===200&&$f['cspScriptSrcNone']&&$f['layoutMarker']===$installed&&$f['catalogMarker']===$installed&&(!$installed||$f['jsonLd']==='PASS'),$f,true);
+            $r=$this->get('/katalog',['sort'=>'price_asc'],$marker);$add('/katalog?sort=price_asc',$r,$installed?'200':'BELOW_500',$installed?(!$r['transport']&&$r['status']===200):$lt($r),[],true);
+            $r=$this->get('/katalog',['sort'=>'ald1n_unknown'],$marker);$add('/katalog?sort=ald1n_unknown',$r,'302_OR_422',!$r['transport']&&in_array($r['status'],[302,422],true),[],true);
+            $r=$this->get('/katalog',['page'=>'999'],$marker);$add('/katalog?page=999',$r,$installed?'404':'BELOW_500',$installed?(!$r['transport']&&$r['status']===404):$lt($r),[],true);
+            $r=$this->get('/korpa',[],$marker);$f=['layoutMarker'=>str_contains($r['body'],$m['layout'])];$add('/korpa',$r,'200_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['layoutMarker']===$installed,$f,true);
+            $r=$this->get('/registracija',[],$marker);$add('/registracija',$r,'200',!$r['transport']&&$r['status']===200,[],true);
+            // A redirect to the sign-in page or a 404: noindex recorded, not asserted (not a page a search engine lists).
             $r=$this->get('/porucivanje',[],$marker);$add('/porucivanje',$r,'302_OR_404',!$r['transport']&&in_array($r['status'],[302,404],true));
-        }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',!$r['transport']&&$r['status']===404);}
+        }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',!$r['transport']&&$r['status']===404,[],$p!=='/porucivanje');}
         // A failed check is judged against the shop state of the whole batch: if the owner changed it meanwhile, the
         // expectations were wrong for part of the batch and nothing is proven (no rollback of exact files on that basis).
         $shopAfter=null;if($failed!==[]){try{$shopAfter=$this->shop();}catch(Throwable $e){$shopAfter=['unreadable'=>self::code($e)];}}
-        $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$state,'shop'=>$shop,'shopAfterFailure'=>$shopAfter,'rows'=>$rows,'failed'=>$failed,'inconclusive'=>$inconclusive,'rateLimited'=>$limited,'rateLimitWaitedSeconds'=>$this->limitBatch['waited'],'batch'=>$retried?2:1,'requestsWrite'=>'NONE_GET_ONLY']);
+        $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$state,'shop'=>$shop,'shopAfterFailure'=>$shopAfter,'rows'=>$rows,'failed'=>$failed,'inconclusive'=>$inconclusive,'rateLimited'=>$limited,'rateLimitWaitedSeconds'=>$this->limitBatch['waited'],'batch'=>$retried?2:1,'noindexPolicy'=>'OWNER_POLICY_NO_INDEXING_X_ROBOTS_TAG_NOINDEX_REQUIRED_ON_PUBLIC_SHOP_AND_LEGAL_PAGES_SENT_BY_THE_SERVER_WIDE_PUBLIC_HTACCESS','noindexMissing'=>$noindexMissing,'requestsWrite'=>'NONE_GET_ONLY']);
         if($inconclusive!==[])$this->state['cssEdgeStale']=true;
         if($failed!==[]&&$shopAfter!==$shop)throw new RuntimeException('SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED');
         if($failed!==[])throw new RuntimeException($installed?'INSTALLED_SMOKE_FAILED':'OLD_STATE_SMOKE_FAILED');
+        // Every code check passed; only the server/edge noindex header is missing: never PASS, never a rollback of exact files.
+        if($noindexMissing!==[])throw new RuntimeException('NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES');
         if($limited!==[]){
             if(!$retried){$this->emit('SMOKES_RATE_LIMITED_PAUSE',['seconds'=>$this->rateLimitPauseSeconds,'paths'=>$limited,'next'=>'THE_WHOLE_BATCH_ONCE_MORE']);sleep($this->rateLimitPauseSeconds);return $this->smokes($installed,true);}
             throw new RuntimeException('SMOKES_RATE_LIMITED_429');
@@ -765,7 +783,11 @@ final class CatalogOverlayCoordinator
             // A rate-limited old-state smoke proves nothing either way; with the files exact (checked above and by the tree
             // digest below) it is reported to the owner and never turns an exact restore into ROLLBACK_INCOMPLETE.
             // A shop switch flipped during the batch: the old state is judged once more against the state read now.
-            try{try{$this->smokes(false);}catch(Throwable $e){if(self::code($e)!=='SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED')throw $e;$this->emit('OLD_STATE_SMOKES_REPEATED','THE_SHOP_STATE_CHANGED_DURING_THE_BATCH');$this->smokes(false);}}catch(Throwable $e){if(self::code($e)!=='SMOKES_RATE_LIMITED_429')throw $e;$this->state['rollbackSmokesRateLimited']=true;$this->emit('OWNER_NOTICE_RATE_LIMITED','THE_RESTORED_FILES_ARE_EXACT_BUT_THE_SITE_ANSWERED_429_TO_THE_SMOKES_OPEN_https://cms.ald1n.com/katalog_AND_ONE_LEGAL_PAGE_YOURSELF');}
+            try{try{$this->smokes(false);}catch(Throwable $e){if(self::code($e)!=='SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED')throw $e;$this->emit('OLD_STATE_SMOKES_REPEATED','THE_SHOP_STATE_CHANGED_DURING_THE_BATCH');$this->smokes(false);}}catch(Throwable $e){
+                // Server or edge facts, not the restored code: reported to the owner, the exact restore still completes.
+                if(self::code($e)==='NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES'){$this->state['rollbackNoindexMissing']=true;$this->emit('OWNER_NOTICE_NOINDEX_MISSING','THE_RESTORED_FILES_ARE_EXACT_BUT_PUBLIC_PAGES_ARE_SERVED_WITHOUT_X-ROBOTS-TAG_NOINDEX_RESTORE_THE_HEADER_LINE_IN_apps/cms/current/public/.htaccess_OR_THE_CLOUDFLARE_RULE_THAT_REMOVES_IT');}
+                elseif(self::code($e)==='SMOKES_RATE_LIMITED_429'){$this->state['rollbackSmokesRateLimited']=true;$this->emit('OWNER_NOTICE_RATE_LIMITED','THE_RESTORED_FILES_ARE_EXACT_BUT_THE_SITE_ANSWERED_429_TO_THE_SMOKES_OPEN_https://cms.ald1n.com/katalog_AND_ONE_LEGAL_PAGE_YOURSELF');}
+                else throw $e;}
             $this->probeRun('restored-fresh',false,false,true);
             $tree=LeanGates::verifyTree($this->active(),$this->b1146Manifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::B1146_TREE_FILES);$this->emit('ACTIVE_TREE_AFTER_ROLLBACK',$tree+['equalsManifestPlusB1146'=>true]);
             $this->approvalReport('after-rollback');
@@ -934,7 +956,10 @@ final class CatalogOverlayCoordinator
             if($exact){
                 $this->state['unverifiedReason']=$code;$this->save('ACCEPTANCE_NOT_VERIFIED');$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';
                 $this->emit('HOLD_INSTALLED_NOT_VERIFIED',['reason'=>$code,'files'=>'ALL_8_HOLD_EXACTLY_THE_PAYLOAD','rollback'=>'NOT_STARTED_THE_FILES_ARE_CORRECT','shopSwitch'=>'NOT_WRITTEN']);
-                $this->emit('OWNER_NEXT_STEPS',[$code==='SMOKES_RATE_LIMITED_429'?'1_THE_SITE_ANSWERED_429_TO_THE_CHECKS_WAIT_A_FEW_MINUTES_(LOW_TRAFFIC)':'1_THE_SHOP_STATE_CHANGED_DURING_THE_CHECKS_TURN_THE_SHOP_ON_AGAIN_IN_THE_ADMIN','2_THEN_RUN_THE_SAME_COMMAND_AGAIN_IT_REPEATS_ONLY_THE_ACCEPTANCE_CHECKS_NO_FILE_IS_CHANGED','3_OR_RESTORE_THE_OLD_FILES=bash /home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh --rollback',$this->purgeStep()]);
+                $first=match($code){'SMOKES_RATE_LIMITED_429'=>'1_THE_SITE_ANSWERED_429_TO_THE_CHECKS_WAIT_A_FEW_MINUTES_(LOW_TRAFFIC)',
+                    'NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES'=>'1_PUBLIC_PAGES_ARE_SERVED_WITHOUT_X-ROBOTS-TAG_NOINDEX_RESTORE_THE_HEADER_LINE_IN_apps/cms/current/public/.htaccess_OR_THE_CLOUDFLARE_RULE_THAT_REMOVES_IT_(THE_OWNER_POLICY_IS_NO_INDEXING)',
+                    default=>'1_THE_SHOP_STATE_CHANGED_DURING_THE_CHECKS_TURN_THE_SHOP_ON_AGAIN_IN_THE_ADMIN'};
+                $this->emit('OWNER_NEXT_STEPS',[$first,'2_THEN_RUN_THE_SAME_COMMAND_AGAIN_IT_REPEATS_ONLY_THE_ACCEPTANCE_CHECKS_NO_FILE_IS_CHANGED','3_OR_RESTORE_THE_OLD_FILES=bash /home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh --rollback',$this->purgeStep()]);
                 return 2;
             }
         }
