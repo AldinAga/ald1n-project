@@ -236,7 +236,7 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // from the saved wall-clock time of the last restore), not remove group A at once.
         [$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','INSTALL_BEFORE_HOLD_KILL');
         [$rc,$o]=$run(['DURING_HOLD_rollback-before-new-classes'=>['kill']],'rollback');check($rc!==0&&$tree()==='MIXED'&&is_file($active.'/app/Support/PublicCatalogPresentation.php'),'KILLED_IN_THE_HOLD_BEFORE_THE_NEW_CLASSES');
-        [$rc,$o]=$run([],'rollback',['censusSeconds'=>1]);$h=null;foreach(explode("\n",$o) as $line)if(str_starts_with($line,'OVERLAY_HOLD_START=')&&str_contains($line,'"label":"rollback-before-new-classes"'))$h=json_decode(substr($line,19),true);
+        [$rc,$o]=$run([],'rollback');$h=null;foreach(explode("\n",$o) as $line)if(str_starts_with($line,'OVERLAY_HOLD_START=')&&str_contains($line,'"label":"rollback-before-new-classes"'))$h=json_decode(substr($line,19),true);
         check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&is_array($h)&&$h['clock']==='SAVED_WALL_CLOCK_OF_THE_LAST_CHANGE'&&$h['remainingSeconds']>0,'RESUMED_ROLLBACK_STILL_HOLDS_BEFORE_THE_NEW_CLASSES');$reset();
         $results[$variant]['killInRollbackHold']='FRESH_PROCESS_HELD_FROM_THE_SAVED_WALL_CLOCK_THEN_PASS';
         // One restore fails (step 4, the controller): steps 1..4 stay installed, 5..8 are old again (an exact install
