@@ -10,9 +10,16 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
- * Scriptless storefront theme switch (Sistem / Svetla / Tamna). Stores only
- * the chosen keyword in a first-party cookie and returns to the same page by
- * a relative, strictly validated path. No login, shop data or session state.
+ * Storefront theme switch (Sistem / Svetla / Tamna), the no-JavaScript path.
+ * With JavaScript the layout's theme script switches instantly and writes
+ * the same cookie itself. Stores only the chosen keyword in a first-party
+ * cookie and returns to the same page by a relative, strictly validated
+ * path. No login, shop data or session state.
+ *
+ * The cookie is plain text and not HttpOnly, the same as the one the theme
+ * script writes: it is a display preference (light, dark or system) with no
+ * access, identity or session meaning, and the server reads it through a
+ * strict allowlist.
  *
  * @author Ald1n <https://ald1n.com>
  */
@@ -35,7 +42,7 @@ final class PublicThemeController extends Controller
             '/',
             null,
             $secure,
-            true,
+            false,
             false,
             Cookie::SAMESITE_LAX,
         ));

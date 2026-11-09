@@ -8,6 +8,10 @@
 // back-to-top regressions, axe colour-contrast violations and on any text
 // whose measured contrast against the real rendered backdrop (pixels of a
 // screenshot taken with all text made transparent) is below WCAG AA.
+// B1149: the icon-only theme switch changes the theme in place (no reload,
+// no request to /tema) through the one nonce'd script, the choice survives a
+// reload, the no-JavaScript form still posts to /tema, and every theme icon
+// keeps at least 3:1 against its rendered button background.
 // Author: Ald1n <https://ald1n.com>
 const assert = require('node:assert/strict');
 const cp = require('node:child_process');
@@ -88,7 +92,15 @@ async function open(page, url, label, problems, checkImages = true) {
   const response = await page.goto(base + url, {waitUntil: 'networkidle', timeout: 45000});
   assert.equal(response.status(), 200, label + ' HTTP');
   const csp = response.headers()['content-security-policy'] || '';
-  assert(csp.includes("script-src 'none'"), label + ' scriptless CSP');
+  const nonce = (/(?:^|; )script-src 'nonce-([A-Za-z0-9+\/]{22}==)'; /.exec(csp) || [])[1];
+  assert(nonce && csp.includes("script-src-elem 'nonce-" + nonce + "';") && csp.includes("script-src-attr 'none'")
+    && !/unsafe-inline|unsafe-eval|strict-dynamic/.test(csp), label + ' strict nonce CSP ' + csp);
+  if (await page.evaluate(() => typeof document.scripts === 'object').catch(() => false)) {
+    const runnable = await page.evaluate(() => [...document.scripts].filter(s => s.type !== 'application/ld+json')
+      .map(s => ({src: s.src, nonce: s.nonce, theme: s.textContent.includes('shop_theme')})));
+    check(runnable.length === 1 && runnable[0].src === '' && runnable[0].nonce === nonce && runnable[0].theme,
+      label + ' exactly one nonce theme script ' + JSON.stringify(runnable));
+  }
   check((response.headers()['vary'] || '').toLowerCase().includes('cookie'), label + ' Vary: Cookie');
   // Bring every lazy image into view once so full-page shots show them.
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -188,6 +200,9 @@ async function assertBranding(page, mode, logo, label) {
         const r = b.getBoundingClientRect();
         return Math.min(Math.round(r.width), Math.round(r.height));
       }),
+      group: Math.round((document.querySelector('.shop-theme-group') || document.body).getBoundingClientRect().width),
+      names: [...document.querySelectorAll('.shop-theme-option')].map(b => b.getAttribute('aria-label') + '|' + b.getAttribute('title')),
+      labelsShown: [...document.querySelectorAll('.shop-theme-label')].filter(l => l.getBoundingClientRect().width > 2).length,
       logos: imgs('.shop-brand .shop-logo'),
       footer: imgs('.shop-footer-logo'),
       mark: shown(document.querySelector('.shop-brand-mark')),
@@ -198,6 +213,9 @@ async function assertBranding(page, mode, logo, label) {
   check(st.scheme === mode.resolved, label + ' resolved colour scheme ' + st.scheme);
   check(st.pressed.length === 1 && st.pressed[0] === mode.theme, label + ' pressed theme button ' + JSON.stringify(st.pressed));
   check(st.buttons.length === 3 && st.buttons.every(size => size >= 44), label + ' theme buttons 44px ' + JSON.stringify(st.buttons));
+  // Icon only: no visible text, compact group, Serbian names and tooltips.
+  check(st.labelsShown === 0 && st.group <= 150, label + ' icon-only compact theme group ' + st.group + 'px labels=' + st.labelsShown);
+  check(st.names.join() === 'Sistemska tema|Sistemska tema,Svetla tema|Svetla tema,Tamna tema|Tamna tema', label + ' theme button names ' + st.names.join());
   const variant = 'visual-logo-' + mode.resolved + '.png';
   if (logo) {
     check(st.logos.length === 1 && st.logos[0].src.endsWith('/storage/site-assets/' + variant) && st.logos[0].ok
@@ -359,6 +377,54 @@ async function measureContrast(page, label) {
   console.log('GLASS_CONTRAST ' + label + ' runs=' + result.checked + ' min=' + result.min + ' fails=' + result.fails.length + ' lowest=' + result.lowest);
 }
 
+// Non-text contrast of the three theme icons (WCAG 1.4.11, 3:1): the icon
+// colour against the pixels of its own button with the icons hidden.
+async function iconContrast(page, label) {
+  await page.evaluate(() => {
+    window.scrollTo({top: 0, behavior: 'instant'});
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  });
+  await page.mouse.move(1, 1);
+  const icons = await page.evaluate(() => [...document.querySelectorAll('.shop-theme-option svg')].map(svg => {
+    const r = svg.getBoundingClientRect();
+    const m = /rgba?\(([^)]+)\)/.exec(getComputedStyle(svg).color);
+    svg.style.setProperty('visibility', 'hidden', 'important');
+    return {value: svg.closest('button').value, pressed: svg.closest('button').getAttribute('aria-pressed'),
+      x: r.left, y: r.top, w: r.width, h: r.height, color: m ? m[1].split(/[\s,\/]+/).filter(Boolean).map(Number) : null};
+  }));
+  await pause(80);
+  const png = await page.screenshot({animations: 'disabled'});
+  const out = await page.evaluate(async ({b64, icons}) => {
+    for (const svg of document.querySelectorAll('.shop-theme-option svg')) svg.style.removeProperty('visibility');
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
+    ctx.drawImage(img, 0, 0);
+    const scale = img.naturalWidth / window.innerWidth;
+    const lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const lum = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    return icons.map(i => {
+      if (!i.color) return {value: i.value, ratio: 0};
+      const a = i.color.length > 3 ? i.color[3] : 1;
+      const data = ctx.getImageData(Math.floor(i.x * scale), Math.floor(i.y * scale), Math.max(1, Math.ceil(i.w * scale)), Math.max(1, Math.ceil(i.h * scale))).data;
+      const ratios = [];
+      for (let k = 0; k < data.length; k += 4) {
+        const l1 = lum(i.color[0] * a + data[k] * (1 - a), i.color[1] * a + data[k + 1] * (1 - a), i.color[2] * a + data[k + 2] * (1 - a));
+        const l2 = lum(data[k], data[k + 1], data[k + 2]);
+        ratios.push((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05));
+      }
+      ratios.sort((p, q) => p - q);
+      return {value: i.value, pressed: i.pressed, ratio: Number(ratios[Math.floor(ratios.length * 0.03)].toFixed(2))};
+    });
+  }, {b64: png.toString('base64'), icons});
+  console.log('ICON_CONTRAST ' + label + ' ' + out.map(o => o.value + (o.pressed === 'true' ? '*' : '') + '=' + o.ratio).join(' '));
+  check(out.length === 3 && out.every(o => o.ratio >= 3), label + ' theme icon contrast ' + JSON.stringify(out));
+}
+
 // axe-core colour-contrast. Script injection needs a separate CSP-bypassing
 // context; every CSP assertion runs in the strict contexts without it.
 async function axeContrast(page, url, label) {
@@ -378,56 +444,126 @@ async function axeContrast(page, url, label) {
   // by the pixel measurement above, which checks every text run.
   console.log('AXE_CONTRAST ' + label + ' passes=' + result.passes + ' incomplete=' + result.incomplete + ' violations=' + result.violations.length);
   check(result.violations.length === 0, 'axe contrast ' + label + ' ' + JSON.stringify(result.violations.slice(0, 6)));
+  // The icon-only theme buttons: name, ARIA state, contrast and target size.
+  const icons = await page.evaluate(async () => {
+    const r = await window.axe.run({include: [['.shop-theme']]}, {runOnly: ['button-name', 'aria-allowed-attr', 'aria-valid-attr-value', 'color-contrast', 'target-size', 'nested-interactive']});
+    return {violations: r.violations.map(v => v.id + ':' + v.nodes.length), passes: r.passes.map(v => v.id).join(',')};
+  });
+  console.log('AXE_THEME_BUTTONS ' + label + ' passes=' + icons.passes + ' violations=' + icons.violations.length);
+  check(icons.violations.length === 0, 'axe theme buttons ' + label + ' ' + JSON.stringify(icons.violations));
 }
 
-// Real theme switch round trip: click Svetla/Tamna/Sistem in the header
-// (POST /tema, 303 back to the same page) and keep the encrypted cookies for
-// the matrix contexts.
-async function themeCookies(browserType, engine) {
+// B1149 theme switch. With JavaScript: a click on Svetla/Tamna/Sistem changes
+// data-theme, aria-pressed and the colours in place, with no navigation and
+// no request at all, writes the plain shop_theme cookie and survives a
+// reload. Without JavaScript: the same buttons post to /tema (303 back to
+// the same page) and the next page renders the chosen theme.
+async function themeSwitch(browserType, engine) {
   const browser = await browserType.launch({headless: true});
-  const out = {};
   try {
-    const context = await browser.newContext({viewport: {width: 1280, height: 900}, colorScheme: 'dark'});
+    const context = await browser.newContext({viewport: {width: 1280, height: 900}, colorScheme: 'dark', deviceScaleFactor: 1});
     const page = await context.newPage();
-    track(page);
+    const problems = [];
+    watch(page, problems);
+    let navigations = 0;
+    const requests = [];
+    page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations++; });
+    // A logo variant that becomes visible may lazy-load its image; that is
+    // not a page load. Everything else (document, form post, fetch) counts.
+    page.on('request', req => { if (req.resourceType() !== 'image') requests.push(req.resourceType() + ' ' + req.method() + ' ' + req.url()); });
     await budget(1, 0);
     await page.goto(base + '/korpa', {waitUntil: 'networkidle'});
-    for (const theme of ['light', 'dark', 'system']) {
-      await budget(2, 0);
-      // The page is already on /korpa, so wait for the POST and the follow-up
-      // GET of the redirect target, not for the URL.
-      const posted = page.waitForResponse(res => res.url() === base + '/tema' && res.request().method() === 'POST', {timeout: 15000});
-      const back = page.waitForResponse(res => res.url() === base + '/korpa' && res.request().method() === 'GET', {timeout: 15000});
-      await Promise.all([posted, back, page.locator('.shop-theme-option[value="' + theme + '"]').click()]);
-      const res = await posted;
-      check(res.status() === 303 && res.headers()['location'] === '/korpa', engine + ' /tema answers 303 to /korpa ' + res.status() + ' ' + res.headers()['location']);
-      await page.waitForLoadState('load');
-      await page.waitForLoadState('networkidle');
+    await page.evaluate(() => { window.__b1149SamePage = true; });
+    const startNavs = navigations;
+    const url = page.url();
+    const colours = {};
+    for (const theme of ['light', 'dark', 'system', 'light']) {
+      const before = requests.length;
+      const started = Date.now();
+      await page.locator('.shop-theme-option[value="' + theme + '"]').click();
+      await page.waitForFunction(t => document.documentElement.dataset.theme === t, theme, {timeout: 2000})
+        .catch(() => {});
+      const ms = Date.now() - started;
+      await pause(300);
       const st = await page.evaluate(() => ({
         theme: document.documentElement.dataset.theme,
         pressed: [...document.querySelectorAll('.shop-theme-option[aria-pressed="true"]')].map(b => b.value),
+        scheme: getComputedStyle(document.documentElement).colorScheme,
+        meta: document.querySelector('meta[name="color-scheme"]').getAttribute('content'),
+        text: getComputedStyle(document.body).color,
+        same: window.__b1149SamePage === true,
+        cookie: document.cookie,
       }));
-      check(st.theme === theme && st.pressed.join() === theme, engine + ' switch to ' + theme + ' ' + JSON.stringify(st));
+      const resolved = theme === 'system' ? 'dark' : theme;
+      colours[theme] = st.text;
+      check(st.theme === theme && st.pressed.join() === theme && st.scheme === resolved,
+        engine + ' instant switch to ' + theme + ' ' + JSON.stringify(st));
+      check(st.same && navigations === startNavs && page.url() === url,
+        engine + ' switch to ' + theme + ' reloaded or navigated ' + JSON.stringify({same: st.same, navigations, startNavs, url: page.url()}));
+      check(requests.length === before, engine + ' switch to ' + theme + ' made requests ' + JSON.stringify(requests.slice(before)));
+      check(st.cookie.split('; ').includes('shop_theme=' + theme), engine + ' script cookie ' + st.cookie);
       const cookie = (await context.cookies()).find(c => c.name === 'shop_theme');
-      // WebKit on Linux does not always report sameSite; PHPUnit covers the server flags.
-      check(cookie && cookie.httpOnly && (engine !== 'chromium' || cookie.sameSite === 'Lax') && cookie.path === '/' && cookie.expires > Date.now() / 1000 + 300 * 86400,
-        engine + ' shop_theme cookie flags ' + JSON.stringify(cookie && {...cookie, value: '…'}));
-      if (cookie) out[theme] = cookie;
-      if (theme === 'dark') await page.screenshot({path: shot(engine + '-theme-switch-dark-1280'), animations: 'disabled'});
+      check(cookie && cookie.value === theme && !cookie.httpOnly && !cookie.secure && cookie.path === '/'
+        && (engine !== 'chromium' || cookie.sameSite === 'Lax') && cookie.expires > Date.now() / 1000 + 300 * 86400,
+      engine + ' shop_theme cookie after ' + theme + ' ' + JSON.stringify(cookie));
+      console.log('THEME_INSTANT ' + engine + ' ' + theme + ' applied_in_ms=' + ms + ' requests=' + (requests.length - before) + ' navigations=' + (navigations - startNavs));
+      if (theme === 'dark' || (theme === 'light' && colours.dark)) {
+        await page.screenshot({path: shot(engine + '-theme-instant-' + theme + '-1280'), animations: 'disabled'});
+      }
     }
+    check(colours.light !== colours.dark, engine + ' colours changed with the theme ' + JSON.stringify(colours));
+    check(!requests.some(r => r.includes('/tema')), engine + ' a request reached /tema with JavaScript on');
+
+    // The choice is kept across a real reload (server renders it, no flash).
+    await budget(1, 0);
+    const reloaded = await page.reload({waitUntil: 'networkidle'});
+    const html = await reloaded.text();
+    const after = await page.evaluate(() => ({theme: document.documentElement.dataset.theme, same: window.__b1149SamePage === true,
+      pressed: [...document.querySelectorAll('.shop-theme-option[aria-pressed="true"]')].map(b => b.value)}));
+    check(html.includes('<html lang="sr" data-theme="light">') && after.theme === 'light' && after.pressed.join() === 'light' && !after.same,
+      engine + ' reload keeps the light choice ' + JSON.stringify(after));
+    // Keyboard: Space on the focused Tamna button switches in place too.
+    await page.locator('.shop-theme-option[value="dark"]').focus();
+    await page.keyboard.press('Space');
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark', null, {timeout: 2000}).catch(() => {});
+    check(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', engine + ' keyboard switch to dark');
+    await page.screenshot({path: shot(engine + '-theme-focus-dark-1280'), clip: {x: 980, y: 0, width: 300, height: 90}, animations: 'disabled'});
+    const seen = problems.splice(0);
+    check(seen.length === 0, engine + ' theme switch console/CSP problems ' + JSON.stringify(seen.slice(0, 6)));
     await context.close();
+
+    // JavaScript disabled: the form fallback.
+    const noJs = await browser.newContext({viewport: {width: 375, height: 800}, colorScheme: 'dark', javaScriptEnabled: false, deviceScaleFactor: 1});
+    const np = await noJs.newPage();
+    track(np);
+    await budget(1, 0);
+    await np.goto(base + '/korpa', {waitUntil: 'networkidle'});
+    for (const theme of ['light', 'system']) {
+      await budget(2, 0);
+      const posted = np.waitForResponse(res => res.url() === base + '/tema' && res.request().method() === 'POST', {timeout: 15000});
+      const back = np.waitForResponse(res => res.url() === base + '/korpa' && res.request().method() === 'GET', {timeout: 15000});
+      await Promise.all([posted, back, np.locator('.shop-theme-option[value="' + theme + '"]').click()]);
+      const res = await posted;
+      check(res.status() === 303 && res.headers()['location'] === '/korpa', engine + ' no-JS /tema answers 303 to /korpa ' + res.status() + ' ' + res.headers()['location']);
+      const body = await (await back).text();
+      check(body.includes('<html lang="sr" data-theme="' + theme + '">') && body.includes('value="' + theme + '" class="shop-theme-option" aria-pressed="true"'),
+        engine + ' no-JS page renders ' + theme);
+      await np.waitForLoadState('networkidle');
+      const cookie = (await noJs.cookies()).find(c => c.name === 'shop_theme');
+      check(cookie && cookie.value === theme && !cookie.httpOnly && cookie.path === '/', engine + ' no-JS cookie ' + JSON.stringify(cookie));
+      if (theme === 'light') await np.screenshot({path: shot(engine + '-theme-nojs-light-375'), animations: 'disabled'});
+    }
+    console.log('THEME_NOJS_FALLBACK ' + engine + ' PASS');
+    await noJs.close();
   } finally {
     await browser.close();
   }
-  return out;
 }
 
-async function context(browser, mode, width, cookies, extra = {}) {
+async function context(browser, mode, width, extra = {}) {
   const ctx = await browser.newContext({viewport: {width, height: 900}, colorScheme: mode.scheme, deviceScaleFactor: 1, ...extra});
-  if (mode.cookie) {
-    const c = cookies[mode.cookie];
-    await ctx.addCookies([{name: c.name, value: c.value, domain: c.domain, path: c.path, expires: c.expires, httpOnly: c.httpOnly, secure: c.secure, sameSite: c.sameSite}]);
-  }
+  // The same plain cookie the theme script and /tema write.
+  if (mode.cookie) await ctx.addCookies([{name: 'shop_theme', value: mode.cookie, url: base, sameSite: 'Lax'}]);
   return ctx;
 }
 
@@ -435,13 +571,13 @@ const summary = [];
 
 // One engine, one logo state: every mode x width x page with screenshots,
 // theme/logo assertions and measured contrast, then axe in bypass contexts.
-async function matrix(browserType, engine, {widths, pages, logo, extras, cookies}) {
+async function matrix(browserType, engine, {widths, pages, logo, extras}) {
   const browser = await browserType.launch({headless: true});
   const tagLogo = logo ? 'logo' : 'nologo';
   try {
     for (const mode of MODES) {
       for (const width of widths) {
-        const ctx = await context(browser, mode, width, cookies);
+        const ctx = await context(browser, mode, width);
         const page = await ctx.newPage();
         const problems = [];
         watch(page, problems);
@@ -451,6 +587,8 @@ async function matrix(browserType, engine, {widths, pages, logo, extras, cookies
           const end = await open(page, p.url, label, problems, engine === 'chromium');
           await assertBranding(page, mode, logo, label);
           if (p.key === 'catalog') {
+            await iconContrast(page, label);
+            if (width === 375) await page.screenshot({path: shot(tag + '-header-375'), clip: {x: 0, y: 0, width: 375, height: 140}, animations: 'disabled'});
             check(await page.locator('h1').count() === 1, label + ' single h1');
             const alts = await page.locator('.shop-products img').evaluateAll(imgs => imgs.map(img => img.alt));
             check(alts.length > 0 && alts.every(alt => alt.trim().length > 3), label + ' meaningful alt text');
@@ -533,7 +671,7 @@ async function matrix(browserType, engine, {widths, pages, logo, extras, cookies
         summary.push(tag);
         await ctx.close();
 
-        const axeCtx = await context(browser, mode, width, cookies, {bypassCSP: true, reducedMotion: 'reduce'});
+        const axeCtx = await context(browser, mode, width, {bypassCSP: true, reducedMotion: 'reduce'});
         const axePage = await axeCtx.newPage();
         track(axePage);
         for (const p of pages) await axeContrast(axePage, p.url, p.key + ' ' + tag);
@@ -546,14 +684,14 @@ async function matrix(browserType, engine, {widths, pages, logo, extras, cookies
 }
 
 // Preference fallbacks: more contrast and forced colours (solid surfaces).
-async function preferencePass(cookies) {
+async function preferencePass() {
   const browser = await chromium.launch({headless: true});
   try {
     for (const [name, extra] of [['contrast-more', {contrast: 'more'}], ['forced-colors', {forcedColors: 'active'}]]) {
       for (const mode of MODES.slice(0, 2)) {
         let ctx;
         try {
-          ctx = await context(browser, mode, 1280, cookies, extra);
+          ctx = await context(browser, mode, 1280, extra);
         } catch (error) {
           console.log('PREFERENCE_PASS_SKIPPED ' + name + ' ' + error.message.slice(0, 120));
           continue;
@@ -563,7 +701,9 @@ async function preferencePass(cookies) {
         watch(page, problems);
         const tag = 'chromium-logo-' + name + '-' + mode.name + '-1280';
         await open(page, '/katalog', 'catalog ' + tag, problems);
+        await iconContrast(page, 'catalog ' + tag);
         await page.screenshot({path: shot(tag + '-catalog-fold'), animations: 'disabled'});
+        await page.screenshot({path: shot(tag + '-theme-buttons'), clip: {x: 1000, y: 0, width: 280, height: 90}, animations: 'disabled'});
         await open(page, '/uslovi-prodaje', 'legal ' + tag, problems);
         await page.screenshot({path: shot(tag + '-legal-terms'), animations: 'disabled'});
         if (name === 'contrast-more') {
@@ -587,21 +727,20 @@ function branding(state) {
 
 (async () => {
   branding('on');
-  const cookies = await themeCookies(chromium, 'chromium');
-  assert(cookies.light && cookies.dark, 'THEME_COOKIES_MISSING');
+  await themeSwitch(chromium, 'chromium');
   const all = [375, 430, 768, 1280];
-  await matrix(chromium, 'chromium', {widths: all, pages: PAGES, logo: true, extras: true, cookies});
-  await preferencePass(cookies);
+  await matrix(chromium, 'chromium', {widths: all, pages: PAGES, logo: true, extras: true});
+  await preferencePass();
 
-  const wkCookies = await themeCookies(webkit, 'webkit');
+  await themeSwitch(webkit, 'webkit');
   // Image loading is covered in Chromium. Headless WebKit defers far lazy
   // images past the quick scroll pass, so this pass checks layout, theme,
   // logo, back-to-top and contrast; any HTTP error still fails.
-  await matrix(webkit, 'webkit', {widths: [375, 1280], pages: PAGES, logo: true, extras: false, cookies: wkCookies.light ? wkCookies : cookies});
+  await matrix(webkit, 'webkit', {widths: [375, 1280], pages: PAGES, logo: true, extras: false});
 
   branding('off');
-  await matrix(chromium, 'chromium', {widths: [375, 1280], pages: [PAGES[0], PAGES[3]], logo: false, extras: false, cookies});
-  await matrix(webkit, 'webkit', {widths: [375], pages: [PAGES[0]], logo: false, extras: false, cookies: wkCookies.light ? wkCookies : cookies});
+  await matrix(chromium, 'chromium', {widths: [375, 1280], pages: [PAGES[0], PAGES[3]], logo: false, extras: false});
+  await matrix(webkit, 'webkit', {widths: [375], pages: [PAGES[0]], logo: false, extras: false});
   branding('on');
 
   if (failures.length) throw new Error(failures.length + ' defects: ' + failures.join(' | '));

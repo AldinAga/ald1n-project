@@ -12,12 +12,15 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\{Cache,Hash,Route,Storage};
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\ShopThemeScript;
 use Tests\TestCase;
 
 /**
- * Storefront Liquid Glass shell: scriptless theme switch (POST /tema with a
- * first-party shop_theme cookie and a strictly relative return path) and the
- * site logo, footer logo and favicon from Podešavanja > Izgled sajta.
+ * Storefront Liquid Glass shell: theme switch (B1149: icon buttons, one
+ * nonce'd script switches instantly; without JavaScript POST /tema sets the
+ * plain first-party shop_theme cookie and returns to a strictly relative
+ * path) and the site logo, footer logo and favicon from Podešavanja >
+ * Izgled sajta.
  * Synthetic rows and a faked public disk only; no orders are written.
  *
  * @author Ald1n <https://ald1n.com>
@@ -25,12 +28,6 @@ use Tests\TestCase;
 final class PublicStorefrontThemeLogoTest extends TestCase
 {
     use RefreshDatabase;
-
-    private const STRICT_CSP = "default-src 'none'; base-uri 'none'; object-src 'none'; ".
-        "frame-ancestors 'none'; form-action 'self'; ".
-        "script-src 'none'; script-src-attr 'none'; script-src-elem 'none'; ".
-        "style-src 'self'; img-src 'self' data:; font-src 'self' data:; ".
-        "connect-src 'none'; frame-src 'none'; worker-src 'none'; media-src 'none'";
 
     /** 120x30 px PNG (ratio 4:1). */
     private const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAHgAAAAeCAIAAABoq03CAAAARUlEQVR42u3QQQ0AAAgEoItjHGMbyxbOBxsJSPVwIApEi0a0aNEWRItGtGjRFkSLRrRo0YgWjWjRohEtGtGiRSNaNKI/WrZQlQDSSGEmAAAAAElFTkSuQmCC';
@@ -92,7 +89,7 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         $response = $this->get('/katalog?sort=price_asc')->assertOk();
         $html = (string) $response->getContent();
 
-        self::assertSame(self::STRICT_CSP, $response->headers->get('Content-Security-Policy'));
+        $nonce = ShopThemeScript::assertStrictPolicy($response->headers->get('Content-Security-Policy'));
         self::assertStringContainsString('Cookie', (string) $response->headers->get('Vary'));
         self::assertStringStartsWith('<!doctype html>', $html);
         self::assertStringContainsString('<html lang="sr" data-theme="system">', $html);
@@ -104,19 +101,21 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertSame(1, preg_match('~<form class="shop-theme"[^>]*>(.*?)</form>~s', $html, $themeForm));
         self::assertStringNotContainsString('_token', $themeForm[1]);
         self::assertMatchesRegularExpression('~<input(?=[^>]*\bname="_token")(?=[^>]*\bvalue="[A-Za-z0-9]{40}")[^>]*>~', $html);
-        self::assertStringContainsString('role="group" aria-label="Tema prikaza"', $html);
+        self::assertStringContainsString('<div class="shop-theme-group" role="group" aria-label="Tema">', $html);
         self::assertSame(3, substr_count($html, 'class="shop-theme-option"'));
-        self::assertStringContainsString('name="theme" value="system" class="shop-theme-option" aria-pressed="true"', $html);
-        self::assertStringContainsString('name="theme" value="light" class="shop-theme-option" aria-pressed="false"', $html);
-        self::assertStringContainsString('name="theme" value="dark" class="shop-theme-option" aria-pressed="false"', $html);
-        foreach (['Sistem', 'Svetla', 'Tamna'] as $label) {
-            self::assertStringContainsString('<span class="shop-theme-label">'.$label.'</span></button>', $html);
+        // Icon-only buttons: accessible name, tooltip and visually hidden text,
+        // all in Serbian; each is still a real submit button for the no-JS path.
+        foreach (['system' => ['Sistemska tema', 'true'], 'light' => ['Svetla tema', 'false'], 'dark' => ['Tamna tema', 'false']] as $key => [$name, $pressed]) {
+            self::assertStringContainsString('<button type="submit" name="theme" value="'.$key.'" class="shop-theme-option" aria-pressed="'.$pressed.'" aria-label="'.$name.'" title="'.$name.'">', $html);
+            self::assertStringContainsString('<span class="shop-theme-label">'.$name.'</span></button>', $html);
         }
-        // Scriptless contract: no inline style, no handler, only the ld+json block.
+        self::assertSame(3, substr_count($themeForm[1], '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">'));
+        // No inline style, no handler; besides ld+json only the nonce'd theme script.
         self::assertStringNotContainsString(' style=', $html);
         self::assertDoesNotMatchRegularExpression('~\son[a-z]+=~i', $html);
-        self::assertSame(1, preg_match_all('~<script\b~i', $html));
-        self::assertStringContainsString('<script type="application/ld+json">', $html);
+        $rest = ShopThemeScript::strip($html, $nonce);
+        self::assertSame(1, preg_match_all('~<script\b~i', $rest));
+        self::assertStringContainsString('<script type="application/ld+json">', $rest);
         self::assertStringContainsString('class="shop-back-to-top" href="#vrh" aria-label="Nazad na vrh stranice"', $html);
     }
 
@@ -135,7 +134,7 @@ final class PublicStorefrontThemeLogoTest extends TestCase
     public function test_layout_renders_the_theme_from_the_cookie(string $cookie, string $expected, string $scheme): void
     {
         foreach (['/katalog', '/katalog/glass-syn-1', '/korpa', '/pravne-informacije', '/uslovi-prodaje'] as $uri) {
-            $html = (string) $this->withCookie(PublicStorefrontAppearance::COOKIE, $cookie)->get($uri)->assertOk()->getContent();
+            $html = (string) $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, $cookie)->get($uri)->assertOk()->getContent();
             self::assertStringContainsString('<html lang="sr" data-theme="'.$expected.'">', $html, $uri);
             self::assertStringContainsString($scheme, $html, $uri);
             self::assertStringContainsString('value="'.$expected.'" class="shop-theme-option" aria-pressed="true"', $html, $uri);
@@ -144,18 +143,21 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         }
     }
 
-    public function test_theme_switch_sets_a_lax_http_only_cookie_and_returns_to_the_same_relative_page(): void
+    public function test_theme_switch_sets_a_plain_lax_cookie_and_returns_to_the_same_relative_page(): void
     {
         // Plain HTTP on purpose (CI suites may set an https APP_URL): the
         // Secure flag follows the request scheme, covered by the next test.
         $response = $this->post('http://localhost/tema', ['theme' => 'dark', 'back' => '/katalog?q=ThinkPad&sort=price_asc&page=2']);
         $response->assertStatus(303);
         self::assertSame('/katalog?q=ThinkPad&sort=price_asc&page=2', $response->headers->get('Location'));
-        $response->assertCookie(PublicStorefrontAppearance::COOKIE, 'dark');
+        $response->assertPlainCookie(PublicStorefrontAppearance::COOKIE, 'dark');
         $cookie = collect($response->headers->getCookies())
             ->first(static fn ($c) => $c->getName() === PublicStorefrontAppearance::COOKIE);
         self::assertNotNull($cookie);
-        self::assertTrue($cookie->isHttpOnly());
+        // B1149: same plain, script-readable cookie the theme script writes.
+        self::assertSame('dark', $cookie->getValue());
+        self::assertFalse($cookie->isHttpOnly());
+        self::assertFalse($cookie->isRaw());
         self::assertSame('lax', $cookie->getSameSite());
         self::assertSame('/', $cookie->getPath());
         self::assertNull($cookie->getDomain());
@@ -164,7 +166,7 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
 
         // The real browser round trip: the next page carries the choice.
-        $this->withCookie(PublicStorefrontAppearance::COOKIE, 'dark')->get('/katalog')
+        $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, 'dark')->get('/katalog')
             ->assertOk()->assertSee('<html lang="sr" data-theme="dark">', false);
     }
 
@@ -242,7 +244,7 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         ])->post('/tema', ['theme' => 'light', 'back' => $back]);
         $response->assertStatus(303);
         self::assertSame('/katalog', $response->headers->get('Location'));
-        $response->assertCookie(PublicStorefrontAppearance::COOKIE, 'light');
+        $response->assertPlainCookie(PublicStorefrontAppearance::COOKIE, 'light');
     }
 
     public static function allowedBackPaths(): array
@@ -289,7 +291,7 @@ final class PublicStorefrontThemeLogoTest extends TestCase
             ->post('http://localhost/tema', ['theme' => 'light', 'back' => '/korpa']);
         $response->assertStatus(303);
         self::assertSame('/korpa', $response->headers->get('Location'));
-        $response->assertCookie(PublicStorefrontAppearance::COOKIE, 'light');
+        $response->assertPlainCookie(PublicStorefrontAppearance::COOKIE, 'light');
     }
 
     public static function rawQueryBackPaths(): array
@@ -346,6 +348,60 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         $this->get('/katalog')->assertNotFound();
     }
 
+    public function test_theme_cookie_is_exempt_from_encryption_and_still_allowlisted(): void
+    {
+        $encrypter = app(\Illuminate\Cookie\Middleware\EncryptCookies::class);
+        self::assertTrue($encrypter->isDisabled(PublicStorefrontAppearance::COOKIE));
+        // Only the display preference: the session and XSRF cookies stay encrypted.
+        foreach ([(string) config('session.cookie'), 'XSRF-TOKEN', 'shop_theme_x', 'Shop_theme'] as $name) {
+            self::assertFalse($encrypter->isDisabled($name), $name);
+        }
+
+        // The value the theme script writes is read as it is.
+        $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, 'light')->get('/korpa')
+            ->assertOk()->assertSee('<html lang="sr" data-theme="light">', false);
+        // A B1148 (encrypted) cookie or any other foreign value is not a
+        // theme keyword and renders the system theme.
+        $this->withCookie(PublicStorefrontAppearance::COOKIE, 'dark')->get('/korpa')
+            ->assertOk()->assertSee('<html lang="sr" data-theme="system">', false);
+        foreach (['dark; Secure', ' dark', 'DARK', 'dark%00', str_repeat('d', 300)] as $value) {
+            $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, $value)->get('/korpa')
+                ->assertOk()->assertSee('<html lang="sr" data-theme="system">', false);
+        }
+    }
+
+    public function test_each_shop_page_has_one_theme_script_with_a_fresh_per_request_nonce(): void
+    {
+        $seen = [];
+        foreach (['/katalog', '/katalog?q=Glass', '/katalog/glass-syn-1', '/korpa', '/pravne-informacije', '/uslovi-prodaje', '/kolacici'] as $uri) {
+            $response = $this->get($uri)->assertOk();
+            $nonce = ShopThemeScript::assertStrictPolicy($response->headers->get('Content-Security-Policy'));
+            $rest = ShopThemeScript::strip((string) $response->getContent(), $nonce, $uri);
+            // Nothing else may execute: no other inline or external script.
+            preg_match_all('~<script\b[^>]*>~i', $rest, $open);
+            foreach ($open[0] as $tag) {
+                self::assertSame('<script type="application/ld+json">', $tag, $uri);
+            }
+            self::assertStringNotContainsString(' src="http', $rest, $uri);
+            $seen[] = $nonce;
+        }
+        self::assertCount(count($seen), array_unique($seen), 'nonce reused across requests');
+    }
+
+    public function test_registration_keeps_turnstile_and_allows_only_the_same_nonce(): void
+    {
+        $response = $this->get('/registracija')->assertOk();
+        $policy = (string) $response->headers->get('Content-Security-Policy');
+        $nonce = ShopThemeScript::nonceFromPolicy(str_replace('https://challenges.cloudflare.com ', '', $policy));
+        self::assertStringContainsString("script-src https://challenges.cloudflare.com 'nonce-{$nonce}'; ", $policy);
+        self::assertStringContainsString("script-src-elem https://challenges.cloudflare.com 'nonce-{$nonce}'; ", $policy);
+        self::assertStringContainsString("script-src-attr 'none'", $policy);
+        self::assertStringNotContainsString("'unsafe-inline'", $policy);
+        self::assertStringNotContainsString("'strict-dynamic'", $policy);
+        self::assertStringNotContainsString("'self' 'nonce", $policy);
+        ShopThemeScript::strip((string) $response->getContent(), $nonce, '/registracija');
+    }
+
     // ----------------------------------------------------------------- logo
 
     public function test_without_configured_assets_the_built_in_brand_mark_stays(): void
@@ -382,7 +438,7 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringNotContainsString('src="http', $html);
         // Product LCP keeps the only high fetch priority.
         self::assertLessThanOrEqual(1, substr_count($html, 'fetchpriority="high"'));
-        self::assertSame(self::STRICT_CSP, $response->headers->get('Content-Security-Policy'));
+        ShopThemeScript::strip($html, ShopThemeScript::assertStrictPolicy($response->headers->get('Content-Security-Policy')));
     }
 
     public function test_a_single_configured_logo_serves_both_themes(): void
@@ -441,7 +497,8 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringNotContainsString('shop-footer-logo', $html);
         self::assertStringNotContainsString('evil.example', $html);
         self::assertStringNotContainsString('.env', $html);
-        self::assertSame(1, preg_match_all('~<script\b~i', $html));
+        $rest = ShopThemeScript::stripFromMarkup($html, $path);
+        self::assertSame(1, preg_match_all('~<script\b~i', $rest));
     }
 
     public function test_footer_logo_follows_the_footer_flag(): void

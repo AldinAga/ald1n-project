@@ -31,6 +31,9 @@ final class PublicStorefrontAppearance
 
     public const THEME_LABELS = ['system' => 'Sistem', 'light' => 'Svetla', 'dark' => 'Tamna'];
 
+    /** Accessible names of the icon-only theme buttons. */
+    public const THEME_NAMES = ['system' => 'Sistemska tema', 'light' => 'Svetla tema', 'dark' => 'Tamna tema'];
+
     public const DEFAULT_BACK = '/katalog';
 
     private const DEFAULT_SITE_NAME = 'Ald1n CMS';
