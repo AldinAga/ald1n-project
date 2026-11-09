@@ -40,7 +40,7 @@ final class GlassOverlayCoordinator
     public const B1147_PASS='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED';
     public const RAN=71;
     /** The reviewed storefront glass head (PR 155); the payload is git show SOURCE_COMMIT:<path>. */
-    public const SOURCE_COMMIT='8b00a8bf75fac8694158df532f6578c611cca1e4';
+    public const SOURCE_COMMIT='560828458974a56a8f7173b986a40d46629e4d8b';
     /** The pre-state: the B1147 catalog payload (PR 154 head), installed over main eabe16af (= B1146). */
     public const BASE_COMMIT='764bf5135ad6241d64f728e4b141cc2713dc6c48';
     public const MAIN_COMMIT='eabe16af8c19fade882e25c70425eb43c3e17ed9';

@@ -9,7 +9,7 @@ permissions:
   actions: read
 env:
   # The reviewed storefront glass head (PR 155); package.php refuses any other value than GlassOverlayCoordinator::SOURCE_COMMIT.
-  GLASS_SOURCE: 8b00a8bf75fac8694158df532f6578c611cca1e4
+  GLASS_SOURCE: 560828458974a56a8f7173b986a40d46629e4d8b
 jobs:
   glass-overlay:
     runs-on: ubuntu-24.04

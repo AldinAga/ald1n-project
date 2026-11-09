@@ -31,7 +31,7 @@ $corrupt=static function()use($cfg):void{$p=json_decode((string)file_get_content
 // The POST is CI-only evidence (the shipped smokes never POST): before the route step it is 404, after it 303 with the
 // shop_theme cookie; a 419 (CSRF), 429 (no limiter) or 5xx at any point is a wrong order.
 $stepSmoke=static function(string $point)use($cfg):void{
-    $row=['point'=>$point];foreach(['/up','/login','/katalog','/pravne-informacije'] as $p)$row['anon'][$p]=GlassFixtureWeb::get($cfg['port'],$p)['status'];
+    $row=['point'=>$point];foreach(['/up','/login','/katalog','/katalog/b1148-ci-1','/pravne-informacije'] as $p)$row['anon'][$p]=GlassFixtureWeb::get($cfg['port'],$p)['status'];
     $t=GlassFixtureWeb::get($cfg['port'],'/tema',['Content-Type: application/x-www-form-urlencoded'],'theme=dark&back=%2Fkatalog');$row['themePost']=$t['status'];$row['themeCookie']=isset($t['cookies']['shop_theme']);
     file_put_contents($cfg['stepLog'],json_encode($row,JSON_UNESCAPED_SLASHES)."\n",FILE_APPEND);
 };

@@ -161,7 +161,7 @@ check(file_get_contents($ctl)===$original."\n// foreign local edit\n"&&!is_file(
 // 7. Preflight facts with the old tree: the theme route, limiter and classes absent; the owner branding INFO (never a gate).
 [$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$th=allLines($o,'THEME_ROUTE_CLI_CHECK')[0]??null;$br=allLines($o,'INFO_STOREFRONT_BRANDING')[0]??null;
 check(is_array($th)&&$th['themeRoute']===false&&$th['themeLimiterRegistered']===false&&$th['appearanceAutoloaded']===false&&$th['routeListThemeRoutes']===0&&$th['routesCached']===false,'OLD_STATE_THEME_ROUTE_ABSENT');
-check(is_array($br)&&$br['gate']===false&&($br['facts']['ok']??null)===true&&$br['facts']['rule']==='SHIPPED_PAYLOAD'&&in_array($br['facts']['siteName'],['EMPTY','CMS_DEFAULT_ALD1N_CMS','CUSTOM'],true)&&$br['facts']['logoLight']['set']===false,'BRANDING_INFO_FROM_THE_SHIPPED_RULE');
+check(is_array($br)&&$br['gate']===false&&!isset($br['facts']['unreadable'])&&$br['facts']['rule']==='SHIPPED_PAYLOAD'&&in_array($br['facts']['siteName'],['EMPTY','CMS_DEFAULT_ALD1N_CMS','CUSTOM'],true)&&$br['facts']['logoLight']['set']===false,'BRANDING_INFO_FROM_THE_SHIPPED_RULE');
 check($tree()==='PRE'&&!str_contains($o,'OVERLAY_STEP='),'PREFLIGHT_FACTS_NOTHING_CHANGED');$reset();$results['preflightFacts']=['themeRoute'=>'ABSENT','branding'=>'INFO_ONLY'];
 
 // 8. With the shop OFF a fresh install HOLDs; the switch is never written.
