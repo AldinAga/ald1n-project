@@ -1,4 +1,12 @@
-# CURRENT 2026-11-08 — B1143 VERIFIED CMS-ONLY UNCACHED OFF PACKET; HOST EXECUTION PENDING
+# CURRENT 2026-11-10 — STOREFRONT LIVE: B1144 TO B1148 INSTALLED, MAIN EQUALS PRODUCTION
+
+Production runs main `eca7755c6efe05143a6d3cd19f8c9e70b9ee3515` (its `apps/cms/current` tree equals the code installed by B1147 and B1148). The public storefront is ON (owner switch, merchant approval valid), indexing stays disabled by the server-wide `public/.htaccess` X-Robots-Tag noindex (owner policy). Owner-run SSH scripts, in order: B1144 install (Report1106), B1145 migrate and unclamp (1108), B1146 legal pages (1109), B1147 catalog redesign (1112; the first run 1111 was a preflight HOLD without change), B1148 Liquid Glass, theme switcher and shared logo (1113). Read-only checks: 1105, 1107, 1110. Reports 1104 to 1113 are archived next to this file; see [owner authorizations and change list](OWNER-AUTHORIZATIONS-B1144-B1148-20261110.md).
+
+Open: lawyer review of the legal texts (Zakon o zaštiti potrošača 35/2026), `shop_theme` cookie text, silent skip of an invalid logo upload, OWASP/ASVS census and CSP issue #101, SMTP admin page. Do not re-run B1144 to B1147 on the host.
+
+---
+
+# PREVIOUS 2026-11-08 — B1143 VERIFIED CMS-ONLY UNCACHED OFF PACKET; HOST EXECUTION PENDING
 
 Owner-requestedprogresscheckpoint Report1103: frozenhelpercf92aa6a16536cfed44ce30aad5ad8513ab6fbc7/tree8271f406cb433d2fdd996c83f522a88730470f46; finalCI42433711578/job128587940609 all16SUCCESS/provider13598905338 ZIP54b094ed2500489693d59f1ed7e72cb10abfedff8a3334306631052daa7f856a verifiedbefore8receipts; independent0critical/high/medium and root11fileZIPauditPASS. ZIP36020bytes/SHA71fe86db07cd1c45fc43b779cda28bf3f0ac11be4fea3e851fe00328675a96cc. WrapperactualSHAb57ca2bfd24cb80a08788dea4e497791a77f626bc1398d7d877f576209cec47c/normalized994f97cbbdf30e914eb5321eabf2e44ffed8ac1b3f908d30848b0db93072936e. [Delivery report](https://github.com/AldinAga/ald1n-project/blob/main/docs/operations/1103-B1143-CMS-UNCACHED-OFF-DELIVERY-20261108.md). [Project Drive packet](https://drive.google.com/file/d/1JHTdHUFfNxS5fUpf1TqxEfY7t0o9XtNJ/view).
 
