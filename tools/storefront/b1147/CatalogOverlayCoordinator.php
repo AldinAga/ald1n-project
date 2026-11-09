@@ -404,7 +404,8 @@ final class CatalogOverlayCoordinator
     /**
      * Public GET smokes; no product, cart or account is written. The expectations follow the shop state read right before
      * this batch (the installer never changes it) and $installed (new code) or not (old code):
-     * always: /login and /up 200; the 8 legal pages 200 with noindex, CSP script-src 'none', DENY and the layout marker
+     * always: /login and /up 200; the 8 legal pages 200 with noindex exactly while the shop is OFF (the legal controller
+     * sends X-Robots-Tag only then), CSP script-src 'none', DENY and the layout marker
      * exactly when $installed (legal pages render the public layout, so the new marker proves the new class loads);
      * the CSS carries the new selector exactly when $installed (an edge-cached copy without it is INCONCLUSIVE, never PASS);
      * shop ON: /katalog 200 scriptless with both markers exactly when $installed and, installed, one parsable
@@ -420,7 +421,7 @@ final class CatalogOverlayCoordinator
         foreach(self::SYSTEM as $p){$r=$this->get($p,[],$marker);$add($p,$r,'200',!$r['transport']&&$r['status']===200);}
         foreach(self::LEGAL as $p){
             $r=$this->get($p,[],$marker);$f=['noindex'=>CatalogWeb::noindex($r['robots']),'cspScriptSrcNone'=>CatalogWeb::scriptless($r['csp']),'frameDeny'=>CatalogWeb::frameDeny($r['frame']),'layoutMarker'=>str_contains($r['body'],$m['layout'])];
-            $add($p,$r,'200_NOINDEX_CSP_DENY_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['noindex']&&$f['cspScriptSrcNone']&&$f['frameDeny']&&$f['layoutMarker']===$installed,$f);
+            $add($p,$r,'200_'.($shop['open']?'INDEXABLE':'NOINDEX').'_CSP_DENY_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['noindex']===!$shop['open']&&$f['cspScriptSrcNone']&&$f['frameDeny']&&$f['layoutMarker']===$installed,$f);
         }
         $r=$this->get(self::CSS_PATH,[],$marker);$has=str_contains($r['body'],$m['css']);$ok=!$r['transport']&&$r['status']===200;
         if($ok&&$has!==$installed&&CatalogWeb::edgeCached($r['cfCache'])){$inconclusive[]=self::CSS_PATH;$rows[]=['check'=>self::CSS_PATH,'expected'=>'200_CSS_'.($installed?'NEW':'OLD'),'observed'=>$r['status'],'result'=>'INCONCLUSIVE_EDGE_CACHED_COPY','cfCache'=>$r['cfCache'],'cssMarker'=>$has,'attempts'=>$r['attempts']];}
