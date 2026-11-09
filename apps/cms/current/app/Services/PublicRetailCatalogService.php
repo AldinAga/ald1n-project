@@ -53,6 +53,25 @@ final class PublicRetailCatalogService
         switch ($filters['sort'] ?? '') {
             case 'name':
                 $query->orderBy('name')->orderBy('id'); break;
+            case 'price_asc':
+            case 'price_desc':
+                // price_amount mixes RSD and EUR rows: compare the RSD amount
+                // the cart would charge (same rule as priceRsd()). Rows with
+                // no RSD equivalent (unset rate, other currency) sort last.
+                $rate = $this->settings->eurRsdRate();
+                $direction = $filters['sort'] === 'price_desc' ? 'desc' : 'asc';
+                if ($rate !== null && is_finite($rate) && $rate > 0) {
+                    $expression = "CASE WHEN price_currency = 'RSD' THEN price_amount "
+                        ."WHEN price_currency = 'EUR' THEN price_amount * ? ELSE NULL END";
+                    $bindings = [$rate];
+                } else {
+                    $expression = "CASE WHEN price_currency = 'RSD' THEN price_amount ELSE NULL END";
+                    $bindings = [];
+                }
+                $query->orderByRaw('('.$expression.') IS NULL', $bindings)
+                    ->orderByRaw('('.$expression.') '.$direction, $bindings)
+                    ->orderByDesc('id');
+                break;
             default:
                 $query->orderByDesc('id');
         }

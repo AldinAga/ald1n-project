@@ -102,6 +102,10 @@ Route::name('public-shop.')->group(function (): void {
         ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.update');
     Route::delete('/korpa/{product}', [\App\Http\Controllers\PublicShopController::class, 'remove'])
         ->whereNumber('product')->middleware('throttle:public-shop-cart-write')->name('cart.remove');
+    // Scriptless theme choice for the storefront and legal pages. Only sets
+    // a first-party preference cookie; independent of the storefront switch.
+    Route::post('/tema', \App\Http\Controllers\PublicThemeController::class)
+        ->middleware('throttle:public-shop-theme')->name('theme');
 });
 
 // Static legal information pages. Always available (merchant settings need

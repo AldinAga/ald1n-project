@@ -330,6 +330,10 @@ final class AppServiceProvider extends ServiceProvider
         ]);
         RateLimiter::for('public-shop-private', static fn (Request $request): Limit =>
             Limit::perMinute(30)->by('public-shop-private|'.$request->ip()));
+        // Storefront theme switch: own bucket, never shared with login or
+        // registration throttles that use anonymous numeric limits.
+        RateLimiter::for('public-shop-theme', static fn (Request $request): Limit =>
+            Limit::perMinute(20)->by('public-shop-theme|'.$request->ip()));
 
         RateLimiter::for('admin-write', static function (Request $request): Limit {
             $actor = $request->user()?->getAuthIdentifier() ?? $request->ip();

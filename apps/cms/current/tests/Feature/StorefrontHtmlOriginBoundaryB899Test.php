@@ -88,7 +88,8 @@ final class StorefrontHtmlOriginBoundaryB899Test extends TestCase
         $html=$this->hostile()->get('/katalog')->assertOk()->getContent();
         self::assertIsString($html);
         $this->assertOriginFree($html);
-        self::assertStringContainsString('href="/assets/css/ald1n-public-storefront.css"',$html);
+        // Relative first-party stylesheet; a static ?v= cache-buster only.
+        self::assertMatchesRegularExpression('~href="/assets/css/ald1n-public-storefront\.css(\?v=[0-9]+)?"~',$html);
         self::assertStringContainsString('href="/katalog"',$html);
         self::assertStringContainsString('href="/korpa"',$html);
         self::assertStringContainsString('action="/katalog"',$html);

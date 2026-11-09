@@ -26,11 +26,19 @@ final class PublicShopController extends Controller
         $filters = $request->validate([
             'q' => ['nullable','string','max:80'],
             'brand_id'=>['nullable','integer','min:1'], 'category_id'=>['nullable','integer','min:1'],
-            'stock'=>['nullable','in:available'], 'sort'=>['nullable','in:name,newest'],
+            'stock'=>['nullable','in:available'], 'sort'=>['nullable','in:name,newest,price_asc,price_desc'],
         ]);
         $page = $catalog->search($filters);
+        // A page past the last one is not an empty listing: answer 404 so it
+        // is never indexed as a soft-404 copy of the catalog.
+        abort_if($page->currentPage() > max(1, $page->lastPage()), 404);
         $page->getCollection()->transform(static fn (Product $p) => $catalog->present($p));
-        return view('public-shop.catalog', ['page'=>$page, 'filters'=>$catalog->filters()]);
+        $lists = $catalog->filters();
+        return view('public-shop.catalog', [
+            'page'=>$page,
+            'filters'=>$lists,
+            'seo'=>\App\Support\PublicCatalogPresentation::build($page, $filters, $lists, $catalog->available()->count()),
+        ]);
     }
 
     public function show(string $slug, PublicRetailCatalogService $catalog): View
