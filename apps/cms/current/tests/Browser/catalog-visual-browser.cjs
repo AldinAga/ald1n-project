@@ -312,6 +312,7 @@ async function measureContrast(page, label) {
     const lum = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
     const fails = [];
     let min = Infinity;
+    let lowest = null;
     for (const t of texts) {
       let worst = Infinity;
       for (const c of t.colors) {
@@ -338,10 +339,11 @@ async function measureContrast(page, label) {
         worst = Math.min(worst, ratios[Math.floor(ratios.length * 0.03)]);
       }
       if (worst === Infinity) continue;
+      if (worst < min) lowest = t.name + ' "' + t.text + '"';
       min = Math.min(min, worst);
       if (worst < t.need) fails.push(t.name + ' "' + t.text + '" ' + worst.toFixed(2) + '<' + t.need);
     }
-    return {checked: texts.length, min: min === Infinity ? null : Number(min.toFixed(2)), fails};
+    return {checked: texts.length, min: min === Infinity ? null : Number(min.toFixed(2)), lowest, fails};
   }, {b64: png.toString('base64'), texts: runs.texts});
   const lumOf = c => [c[0], c[1], c[2]].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
     .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
@@ -354,7 +356,7 @@ async function measureContrast(page, label) {
   check(runs.overImage.length === 0, label + ' text over an image ' + JSON.stringify(runs.overImage.slice(0, 5)));
   check(result.checked > 5, label + ' contrast measured too few text runs ' + result.checked);
   check(result.fails.length === 0, label + ' measured contrast ' + JSON.stringify(result.fails.slice(0, 8)));
-  console.log('GLASS_CONTRAST ' + label + ' runs=' + result.checked + ' min=' + result.min + ' fails=' + result.fails.length);
+  console.log('GLASS_CONTRAST ' + label + ' runs=' + result.checked + ' min=' + result.min + ' fails=' + result.fails.length + ' lowest=' + result.lowest);
 }
 
 // axe-core colour-contrast. Script injection needs a separate CSP-bypassing

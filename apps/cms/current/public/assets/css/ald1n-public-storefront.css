@@ -93,7 +93,7 @@
   --bg:#edf0f4;
   --glow-1:rgba(104,140,214,.40);
   --glow-2:rgba(150,124,232,.36);
-  --glow-3:rgba(84,178,204,.34);
+  --glow-3:rgba(84,178,204,.26);
   --glow-4:rgba(232,168,124,.32);
   --surface-solid:#ffffff;
   --glass:rgba(255,255,255,.74);
@@ -112,7 +112,7 @@
   --text-3:#3f4a56;
   --heading-from:#121b24;
   --heading-to:#2b4fbd;
-  --accent:#2a4dbb;
+  --accent:#2546ad;
   --accent-soft:rgba(42,77,187,.09);
   --btn-bg:#2d50bf;
   --btn-bg-hover:#2746aa;
@@ -154,7 +154,7 @@
     --bg:#edf0f4;
     --glow-1:rgba(104,140,214,.40);
     --glow-2:rgba(150,124,232,.36);
-    --glow-3:rgba(84,178,204,.34);
+    --glow-3:rgba(84,178,204,.26);
     --glow-4:rgba(232,168,124,.32);
     --surface-solid:#ffffff;
     --glass:rgba(255,255,255,.74);
@@ -173,7 +173,7 @@
     --text-3:#3f4a56;
     --heading-from:#121b24;
     --heading-to:#2b4fbd;
-    --accent:#2a4dbb;
+    --accent:#2546ad;
     --accent-soft:rgba(42,77,187,.09);
     --btn-bg:#2d50bf;
     --btn-bg-hover:#2746aa;
