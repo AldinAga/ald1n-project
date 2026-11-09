@@ -170,7 +170,7 @@ jobs:
           set -e
           out="$(sudo cat "$sandbox_report")"
           printf '%s\n' "$out"
-          test "$rc" = 2 && grep -qx 'B1147_FINAL=HOLD' <<<"$out" && grep -qx 'B1147_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=afa0c704a1c4ad096918f904b98a77e223398e22$' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NONE"' <<<"$out" && grep -q '^WORKER_PID=[0-9]' <<<"$out" && grep -q 'B1146_REPORT1109_MISSING' <<<"$out"
+          test "$rc" = 2 && grep -qx 'B1147_FINAL=HOLD' <<<"$out" && grep -qx 'B1147_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=afa0c704a1c4ad096918f904b98a77e223398e22$' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NO_PRODUCT_CART_OR_SWITCH_WRITES_SESSIONS_AND_APP_CACHE_ONLY"' <<<"$out" && grep -q '^WORKER_PID=[0-9]' <<<"$out" && grep -q 'B1146_REPORT1109_MISSING' <<<"$out"
           if sudo grep -q $'\033' "$sandbox_report"; then echo 'escape byte in the report'; exit 2; fi
           as rm -f "$sandbox_report"
           # Rollback without any install is refused.

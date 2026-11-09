@@ -31,7 +31,7 @@ final class CatalogWeb
     /** One GET: status, transport error, security headers, Cloudflare cache status and at most MAX_BODY body bytes. */
     public function fetch(string $path,array $query,string $marker):array
     {
-        $target=self::target($path,$query,$marker);$h=['robots'=>[],'csp'=>[],'frame'=>[],'cf'=>[],'type'=>[]];$body='';$over=false;
+        $target=self::target($path,$query,$marker);$h=self::headers();$body='';$over=false;
         $curl=curl_init('https://'.$this->host.($this->port===443?'':':'.$this->port).$target);
         $options=[CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>25,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_NOPROXY=>'*',CURLOPT_USERAGENT=>'Ald1n-B1147-owned-release',CURLOPT_HTTPHEADER=>['Host: '.$this->host,'Cache-Control: no-cache'],
             CURLOPT_HEADERFUNCTION=>static function($c,string $line)use(&$h):int{self::header($h,$line);return strlen($line);},
@@ -40,15 +40,26 @@ final class CatalogWeb
         return self::result($error!==0||$over,$status,$h,$body);
     }
 
+    private const HEADERS=['robots'=>'X-Robots-Tag','csp'=>'Content-Security-Policy','frame'=>'X-Frame-Options','cf'=>'CF-Cache-Status','type'=>'Content-Type','retry'=>'Retry-After'];
+
+    /** The empty header collection (shared with the CI web double). */
+    public static function headers():array {return array_fill_keys(array_keys(self::HEADERS),[]);}
+
     /** Collects the response headers that the smokes assess (shared with the CI web double). */
     public static function header(array &$h,string $line):void
     {
-        foreach(['robots'=>'X-Robots-Tag','csp'=>'Content-Security-Policy','frame'=>'X-Frame-Options','cf'=>'CF-Cache-Status','type'=>'Content-Type'] as $k=>$name)if(preg_match('/^'.preg_quote($name,'/').':\s*(.*?)\s*$/i',$line,$m))$h[$k][]=$m[1];
+        foreach(self::HEADERS as $k=>$name)if(preg_match('/^'.preg_quote($name,'/').':\s*(.*?)\s*$/i',$line,$m))$h[$k][]=$m[1];
+    }
+
+    /** Retry-After in whole seconds (delta form only; an HTTP date or garbage gives null). */
+    public static function retryAfter(array $values):?int
+    {
+        $v=trim((string)end($values));return $values!==[]&&preg_match('/^[0-9]{1,6}$/D',$v)?(int)$v:null;
     }
 
     public static function result(bool $transport,int $status,array $h,string $body):array
     {
-        return ['status'=>$transport?0:$status,'transport'=>$transport,'robots'=>$h['robots'],'csp'=>$h['csp'],'frame'=>$h['frame'],'cfCache'=>$h['cf']===[]?null:strtoupper((string)end($h['cf'])),'contentType'=>$h['type']===[]?null:(string)end($h['type']),'body'=>$transport?'':$body,'bytes'=>strlen($body)];
+        return ['status'=>$transport?0:$status,'transport'=>$transport,'robots'=>$h['robots'],'csp'=>$h['csp'],'frame'=>$h['frame'],'cfCache'=>$h['cf']===[]?null:strtoupper((string)end($h['cf'])),'contentType'=>$h['type']===[]?null:(string)end($h['type']),'retryAfter'=>self::retryAfter($h['retry']??[]),'body'=>$transport?'':$body,'bytes'=>strlen($body)];
     }
 
     public function probe(string $name,string $token,bool $invalidate,?string $route=null):array {return $this->lean->probe($name,$token,$invalidate,$route);}

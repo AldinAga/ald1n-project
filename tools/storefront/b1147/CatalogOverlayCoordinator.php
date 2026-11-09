@@ -70,6 +70,15 @@ final class CatalogOverlayCoordinator
     private ?int $runStartNs=null;
     /** Wall-clock budget from the start of this run to the first change; beyond it the run HOLDs before any change. */
     private int $budgetSeconds=900;
+    /**
+     * The shop routes run behind throttle:public-shop-browse (120 per minute per ip(); without TrustProxies that key can be
+     * a shared Cloudflare edge address). Every smoke GET is paced (about 85 per minute at most from this tool), a 429 honours
+     * Retry-After (capped), and a smoke batch still limited after one whole-batch retry is INCONCLUSIVE, never a failure.
+     */
+    private int $paceMicros=700000;
+    private int $rateLimitPauseSeconds=65;
+    private const RETRY_AFTER_CAP=65;
+    private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED'];
     private bool $scheduleGate=true;
     private ?int $fixedNow=null;
     private int $scheduleNeedSeconds=1800;
@@ -394,11 +403,20 @@ final class CatalogOverlayCoordinator
 
     private function changed():void {$this->lastChangeNs=hrtime(true);}
 
-    /** One GET with up to 3 attempts on a transport error, 429 or an edge/gateway status. */
+    /**
+     * One paced GET with up to 4 attempts on a transport error, 429 or an edge/gateway status. A 429 waits Retry-After
+     * (6 s when absent, at most RETRY_AFTER_CAP); a response still 429 after the last attempt is marked rateLimited.
+     */
     private function get(string $path,array $query,string $marker):array
     {
-        for($attempt=1;$attempt<=3;$attempt++){$r=$this->web->fetch($path,$query,$marker);if(!$r['transport']&&!in_array($r['status'],[429,502,503,504,520,521,522,523,524,525,526,527],true))break;if($attempt<3)usleep($r['status']===429?6000000:2000000);}
-        return $r+['attempts'=>$attempt];
+        $waited=0;$limited=false;
+        for($attempt=1;$attempt<=4;$attempt++){
+            if($this->paceMicros>0)usleep($this->paceMicros);
+            $r=$this->web->fetch($path,$query,$marker);$limited=!$r['transport']&&$r['status']===429;
+            if(!$r['transport']&&!$limited&&!in_array($r['status'],[502,503,504,520,521,522,523,524,525,526,527],true))break;
+            if($attempt<4){$s=$limited?min(self::RETRY_AFTER_CAP,max(1,$r['retryAfter']??6)):2;$waited+=$s;sleep($s);}
+        }
+        return $r+['attempts'=>min($attempt,4),'rateLimited'=>$limited,'waitedSeconds'=>$waited];
     }
 
     /**
@@ -413,10 +431,13 @@ final class CatalogOverlayCoordinator
      * ?page=999 404 (installed); /korpa 200 with the layout marker; /registracija 200; /porucivanje 302 (sign-in) or 404
      * (checkout not ready); shop OFF: the 4 shop paths 404. Old-state variants of the new-only checks only require < 500.
      */
-    private function smokes(bool $installed):array
+    private function smokes(bool $installed,bool $retried=false):array
     {
-        $this->fault('BEFORE_SMOKES_'.($installed?'INSTALLED':'OLD'));$shop=$this->shop();$m=$this->markers;$marker=bin2hex(random_bytes(8));$rows=[];$failed=[];$inconclusive=[];
-        $add=function(string $label,array $r,string $expected,bool $pass,array $facts=[])use(&$rows,&$failed):void{$rows[]=['check'=>$label,'expected'=>$expected,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$pass?'PASS':'FAIL','attempts'=>$r['attempts']]+$facts;if(!$pass)$failed[]=$label;};
+        $this->fault('BEFORE_SMOKES_'.($installed?'INSTALLED':'OLD'));$shop=$this->shop();$m=$this->markers;$marker=bin2hex(random_bytes(8));$rows=[];$failed=[];$inconclusive=[];$limited=[];
+        // A response still 429 after its retries proves nothing about the code: INCONCLUSIVE, never PASS and never FAIL.
+        $add=function(string $label,array $r,string $expected,bool $pass,array $facts=[])use(&$rows,&$failed,&$limited):void{
+            if(($r['rateLimited']??false)===true){$rows[]=['check'=>$label,'expected'=>$expected,'observed'=>429,'result'=>'INCONCLUSIVE_RATE_LIMITED_429','attempts'=>$r['attempts'],'waitedSeconds'=>$r['waitedSeconds']];$limited[]=$label;return;}
+            $rows[]=['check'=>$label,'expected'=>$expected,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$pass?'PASS':'FAIL','attempts'=>$r['attempts']]+$facts;if(!$pass)$failed[]=$label;};
         $lt=static fn(array $r):bool=>!$r['transport']&&$r['status']>0&&$r['status']<500;
         foreach(self::SYSTEM as $p){$r=$this->get($p,[],$marker);$add($p,$r,'200',!$r['transport']&&$r['status']===200);}
         foreach(self::LEGAL as $p){
@@ -436,9 +457,14 @@ final class CatalogOverlayCoordinator
             $r=$this->get('/registracija',[],$marker);$add('/registracija',$r,'200',!$r['transport']&&$r['status']===200);
             $r=$this->get('/porucivanje',[],$marker);$add('/porucivanje',$r,'302_OR_404',!$r['transport']&&in_array($r['status'],[302,404],true));
         }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',!$r['transport']&&$r['status']===404);}
-        $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$installed?'INSTALLED':'OLD','shop'=>$shop,'rows'=>$rows,'failed'=>$failed,'inconclusive'=>$inconclusive,'requestsWrite'=>'NONE_GET_ONLY']);
+        $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$installed?'INSTALLED':'OLD','shop'=>$shop,'rows'=>$rows,'failed'=>$failed,'inconclusive'=>$inconclusive,'rateLimited'=>$limited,'batch'=>$retried?2:1,'requestsWrite'=>'NONE_GET_ONLY']);
         if($inconclusive!==[])$this->state['cssEdgeStale']=true;
-        if($failed!==[])throw new RuntimeException($installed?'INSTALLED_SMOKE_FAILED':'OLD_STATE_SMOKE_FAILED');return $rows;
+        if($failed!==[])throw new RuntimeException($installed?'INSTALLED_SMOKE_FAILED':'OLD_STATE_SMOKE_FAILED');
+        if($limited!==[]){
+            if(!$retried){$this->emit('SMOKES_RATE_LIMITED_PAUSE',['seconds'=>$this->rateLimitPauseSeconds,'paths'=>$limited,'next'=>'THE_WHOLE_BATCH_ONCE_MORE']);sleep($this->rateLimitPauseSeconds);return $this->smokes($installed,true);}
+            throw new RuntimeException('SMOKES_RATE_LIMITED_429');
+        }
+        return $rows;
     }
 
     /** The 11 B1146 route names stay registered, the route cache mode and bytes are unchanged (this overlay changes no route). */
@@ -447,6 +473,34 @@ final class CatalogOverlayCoordinator
         $r=$this->helper($this->routesScript,['routes']);$now=$this->routeCacheFiles();$this->emit('ROUTES_CHECK',$r+['routeCacheUnchanged'=>$now===$cacheBefore]);
         if($r['b1146RouteNamesPresent']!==self::B1146_ROUTE_NAMES||$r['storefrontSettingsRoute']!==true)throw new RuntimeException('B1146_ROUTES_NOT_ALL_PRESENT');
         if($r['routesCached']!==($cacheBefore!==[])||$now!==$cacheBefore)throw new RuntimeException('ROUTE_CACHE_CHANGED');return $r;
+    }
+
+    /** The merchant approval facts from the pinned b1146-app-check approval mode (read-only SELECTs). */
+    private static function approvalFacts(array $r):array
+    {
+        if(($r['ok']??null)!==true)throw new RuntimeException('MERCHANT_APPROVAL_UNREADABLE');
+        return ['approved'=>$r['approved']??null,'complete'=>$r['complete']??null,'digestPresent'=>$r['approvalDigestPresent']??null,'digestMatchesFingerprint'=>$r['approvalDigestMatchesFingerprint']??null];
+    }
+
+    /** Prints the approval before (preflight) and now; informational, the approval is never written. */
+    private function approvalReport(string $label):void
+    {
+        $before=$this->state['approvalBefore']??null;try{$after=self::approvalFacts($this->helper($this->routesScript,['approval']));}catch(Throwable $e){$after=self::code($e);}
+        $this->emit('MERCHANT_APPROVAL',['label'=>$label,'before'=>$before,'after'=>$after,'ok'=>$before!==null&&$before===$after?'UNCHANGED':'CHANGED_OR_UNREADABLE_REVIEW_IT_IN_THE_ADMIN','writtenByThisTool'=>false]);
+    }
+
+    /** The shop state now equals the state recorded at the preflight and is ON; otherwise the catalog checks prove nothing. */
+    private function requireRecordedShop(string $point):array
+    {
+        $shop=$this->shop();$this->emit('SHOP_STATE_CHECK',['point'=>$point,'shop'=>$shop]);
+        if(!$shop['open']||$shop!==array_diff_key($this->state['shopRecorded']??[],['writtenByThisTool'=>true]))throw new RuntimeException('SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED');
+        return $shop;
+    }
+
+    /** The measured web hold (max(realpath_cache_ttl, revalidate_freq) + 5), used between groups where stale bytecode could meet new code. */
+    private function viewHold():int
+    {
+        return max(1,min(FreshnessProbe::MAX_HOLD_SECONDS,(int)($this->state['holdSeconds']??FreshnessProbe::MAX_HOLD_SECONDS)));
     }
 
     /** CLI: the new classes load through composer exactly when $installed, and APP_URL is an origin the shipped rule accepts. */
@@ -495,10 +549,12 @@ final class CatalogOverlayCoordinator
         $v['headroom']=$try('diskHeadroom',fn()=>$this->headroom());
         $v['artisanCensus']=$chain!==null?$try('noRunningCmsArtisan',fn()=>$this->census()):null;if(!array_key_exists('noRunningCmsArtisan',$g))$g['noRunningCmsArtisan']='NOT_EVALUATED_CHAIN';
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id'])&&$v['caches']!==null){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$installed,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_TARGETS';
+        // Recorded before any change and compared after: none of the 8 files feeds the merchant approval digest.
+        $v['merchantApproval']=$try('merchantApprovalRead',fn()=>self::approvalFacts($this->helper($this->routesScript,['approval'])));
         $try('liveSmokes',fn()=>$this->smokes($installed));
         $blockers=array_values(array_unique(array_filter($g,static fn($c)=>$c!==null)));
         if(isset($v['shop']))$this->state['shopRecorded']=$v['shop'];
-        $report=['stage'=>$stage,'gates'=>array_map(static fn($c)=>$c??'PASS',$g),'values'=>$v,'blockers'=>$blockers,'applicationFiles'=>'NONE','database'=>'NONE','shopSwitch'=>'READ_ONLY','transientProbe'=>'WRITTEN_AND_REMOVED','privateState'=>'B1147_NAMESPACE_ONLY'];$this->emit('PREFLIGHT',$report);return $report;
+        $report=['stage'=>$stage,'gates'=>array_map(static fn($c)=>$c??'PASS',$g),'values'=>$v,'blockers'=>$blockers,'applicationFiles'=>'NONE','database'=>'NO_PRODUCT_CART_OR_SWITCH_WRITES_SESSIONS_AND_APP_CACHE_ONLY','shopSwitch'=>'READ_ONLY','transientProbe'=>'WRITTEN_AND_REMOVED','privateState'=>'B1147_NAMESPACE_ONLY'];$this->emit('PREFLIGHT',$report);return $report;
     }
 
     /** null = composer autoload is not authoritative; otherwise the blocker code (authoritative, or the autoloader is unreadable). */
@@ -536,7 +592,7 @@ final class CatalogOverlayCoordinator
             $files[$s['n']]=['path'=>$s['path'],'kind'=>'modified','copy'=>$copy,'sha256'=>$s['preSHA256'],'size'=>strlen($bytes),'mode'=>$st['mode']&0777,'gid'=>$st['gid'],'mtime'=>$st['mtime']];
         }
         $this->state['backup']=['directory'=>$dir,'files'=>$files];$this->state['cache']=['routeCacheFiles'=>$preflight['values']['caches']['routeCacheFiles'],'viewsCached'=>$preflight['values']['caches']['viewsCached']];
-        $this->state['groupPauseSeconds']=(int)($preflight['values']['web']['revalidateFreq']??2)+1;$doc=$dir.'/manifest.json';if(is_file($doc))unlink($doc);AtomicFile::privateCopy($doc,json_encode(['batch'=>'B1147','files'=>array_values($files),'routeCacheDigests'=>$this->state['cache']['routeCacheFiles']],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+        $this->state['groupPauseSeconds']=(int)($preflight['values']['web']['revalidateFreq']??2)+1;$this->state['holdSeconds']=(int)($preflight['values']['web']['holdSeconds']??FreshnessProbe::MAX_HOLD_SECONDS);$this->state['approvalBefore']=$preflight['values']['merchantApproval']??null;$doc=$dir.'/manifest.json';if(is_file($doc))unlink($doc);AtomicFile::privateCopy($doc,json_encode(['batch'=>'B1147','files'=>array_values($files),'routeCacheDigests'=>$this->state['cache']['routeCacheFiles']],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
         $this->fault('AFTER_BACKUP_COPIES');
         $this->emit('PER_FILE_BACKUP',['directory'=>$dir,'modifiedFilesCopied'=>count(array_filter($files,static fn($f)=>$f['kind']==='modified')),'newFilesRecordedAbsent'=>count(array_filter($files,static fn($f)=>$f['kind']==='new')),'routeCacheFilesRecorded'=>count($this->state['cache']['routeCacheFiles']),'mode'=>'0600','manifestSHA256'=>hash_file('sha256',$doc)]);
         $this->save('BACKED_UP');$this->fault('AFTER_BACKUP');
@@ -561,7 +617,9 @@ final class CatalogOverlayCoordinator
         // request never combines new bytecode of a later group with still-cached old bytecode of an earlier one.
         $pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));
         foreach($this->plan as $s){
-            if($group!==null&&$group!==$s['group']){$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);}$group=$s['group'];
+            // The views come last and only after the full measured hold: by then every worker has dropped the cached old
+            // controller, service and stylesheet state, so a new view never renders against old code (the shop is ON).
+            if($group!==null&&$group!==$s['group']){if($s['group']==='D')$this->hold('before-views',$this->viewHold());else{$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);}}$group=$s['group'];
             $this->fault('BEFORE_STEP_'.$s['n']);$t=$this->target($s);$bytes=$this->payload($s);$this->state['applied'][$s['n']]='PENDING';
             if($s['kind']==='new'){
                 // A new file or directory takes the group of its parent directory, like the rest of the tree.
@@ -577,9 +635,12 @@ final class CatalogOverlayCoordinator
     private function accept():void
     {
         $this->save('ACCEPTANCE_INTENT');$first=$this->probeRun('installed-invalidate',true,true,false);$this->fault('AFTER_INVALIDATE');$this->hold('installed',(int)$first['holdSeconds']);
-        $this->smokes(true);$this->probeRun('installed-fresh',true,false,true);$this->routesCheck($this->state['cache']['routeCacheFiles']);$this->catalogCheck(true);
+        // The catalog checks (/katalog, JSON-LD, page=999) run only with the shop ON as recorded; checked before and after.
+        $this->requireRecordedShop('BEFORE_INSTALLED_SMOKES');$this->smokes(true);$this->fault('AFTER_SMOKES_INSTALLED');$this->requireRecordedShop('AFTER_INSTALLED_SMOKES');
+        $this->probeRun('installed-fresh',true,false,true);$this->routesCheck($this->state['cache']['routeCacheFiles']);$this->catalogCheck(true);
         $scan=LeanGates::newLogErrors($this->active().'/storage/logs',$this->state['logBaseline']);$this->emit('LARAVEL_LOG_SINCE_INSTALL',$scan);if($scan['newErrorLines']!==0)throw new RuntimeException('NEW_LARAVEL_LOG_ERRORS_SINCE_INSTALL');
         $tree=LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::INSTALLED_TREE_FILES);$this->emit('ACTIVE_TREE_AFTER_INSTALL',$tree+['manifestPlusB1146PlusB1147'=>true]);
+        $this->approvalReport('after-install');$this->requireRecordedShop('BEFORE_INSTALLED_PASS');
         $this->save('INSTALLED_PASS');
     }
 
@@ -609,7 +670,11 @@ final class CatalogOverlayCoordinator
             foreach(array_reverse($this->plan) as $s){
                 // Exact reverse of the install order, stopping at the FIRST failed restore: the tree is then always an exact
                 // install prefix (steps 1..n installed, everything after n back to old), a state the install itself passed.
-                if($group!==null&&$group!==$s['group']&&$restored+$removed>0)sleep($pause);$group=$s['group'];
+                // A new file is removed in its own later step group: a worker still holding the new compiled catalog view
+                // (which includes the new pagination view) must first revalidate the restored catalog view. The new classes
+                // (group A) go only after the full measured hold, once no worker can still run the new controller or views.
+                $key=$s['group'].($s['kind']==='new'?'-NEW':'');
+                if($group!==null&&$group!==$key&&$restored+$removed>0){if($s['group']==='A')$this->hold('rollback-before-new-classes',$this->viewHold());else{$this->emit('ROLLBACK_GROUP_PAUSE',['after'=>$group,'before'=>$key,'seconds'=>$pause]);sleep($pause);}}$group=$key;
                 try{
                     $this->fault('BEFORE_RESTORE_'.$s['n']);$c=$this->classify($s);$t=$this->target($s);
                     if($s['kind']==='modified'){
@@ -628,8 +693,13 @@ final class CatalogOverlayCoordinator
         }
         if($problems===[])try{
             $t=$this->targets();if(!$t['preState'])throw new RuntimeException('ROLLBACK_TARGETS_NOT_PRE_STATE');$this->routesCheck($this->state['cache']['routeCacheFiles']??[]);$this->catalogCheck(false);
-            $first=$this->probeRun('restored-invalidate',false,true,false);$this->hold('restored',(int)$first['holdSeconds']);$this->smokes(false);$this->probeRun('restored-fresh',false,false,true);
+            $first=$this->probeRun('restored-invalidate',false,true,false);$this->hold('restored',(int)$first['holdSeconds']);
+            // A rate-limited old-state smoke proves nothing either way; with the files exact (checked above and by the tree
+            // digest below) it is reported to the owner and never turns an exact restore into ROLLBACK_INCOMPLETE.
+            try{$this->smokes(false);}catch(Throwable $e){if(self::code($e)!=='SMOKES_RATE_LIMITED_429')throw $e;$this->state['rollbackSmokesRateLimited']=true;$this->emit('OWNER_NOTICE_RATE_LIMITED','THE_RESTORED_FILES_ARE_EXACT_BUT_THE_SITE_ANSWERED_429_TO_THE_SMOKES_OPEN_https://cms.ald1n.com/katalog_AND_ONE_LEGAL_PAGE_YOURSELF');}
+            $this->probeRun('restored-fresh',false,false,true);
             $tree=LeanGates::verifyTree($this->active(),$this->b1146Manifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::B1146_TREE_FILES);$this->emit('ACTIVE_TREE_AFTER_ROLLBACK',$tree+['equalsManifestPlusB1146'=>true]);
+            $this->approvalReport('after-rollback');
         }catch(Throwable $e){$problems[]=self::code($e);}
         if($problems!==[]){
             try{$this->save('ROLLBACK_INCOMPLETE');}catch(Throwable){$this->emit('ROLLBACK_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RUN_THE_SAME_COMMAND');}
@@ -747,7 +817,7 @@ final class CatalogOverlayCoordinator
         try{
             $phase=$this->state['phase'];
             if($this->mode==='rollback'){
-                if(!in_array($phase,['INSTALLED_PASS','ROLLBACK_INCOMPLETE','ROLLBACK_INTENT','ACCEPTANCE_INTENT','FILES_INSTALLED','INSTALL_INTENT','BACKED_UP'],true)){$this->emit('HOLD_NOTHING_TO_ROLL_BACK',['phase'=>$phase]);return 2;}
+                if(!in_array($phase,['INSTALLED_PASS','ACCEPTANCE_NOT_VERIFIED','ROLLBACK_INCOMPLETE','ROLLBACK_INTENT','ACCEPTANCE_INTENT','FILES_INSTALLED','INSTALL_INTENT','BACKED_UP'],true)){$this->emit('HOLD_NOTHING_TO_ROLL_BACK',['phase'=>$phase]);return 2;}
                 $this->state['chain']??=$this->chain();
                 $blockers=$this->rollbackGates(true);
                 if($blockers!==[]){$this->emit('HOLD_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'CLEAR_THE_BLOCKERS_THEN_RUN_THE_SAME_COMMAND']);$this->manualNoteIfTouched($blockers);return 2;}
@@ -755,6 +825,7 @@ final class CatalogOverlayCoordinator
                 $this->cssNotice();$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep(),'2_THE_OLD_LAYOUT_LINKS_THE_BARE_CSS_URL_SO_ITS_PURGE_MATTERS_MOST','3_THE_SHOP_STAYS_IN_THE_STATE_YOU_SET_THIS_TOOL_NEVER_CHANGES_IT']);return 0;
             }
             if($phase==='INSTALLED_PASS')return $this->alreadyInstalled();
+            if($phase==='ACCEPTANCE_NOT_VERIFIED')return $this->resumeAcceptance();
             if(in_array($phase,self::IN_FLIGHT,true)){
                 $this->emit('RESUMED_INTERRUPTED_INSTALL',['phase'=>$phase]);$this->state['chain']??=$this->chain();
                 $blockers=$this->rollbackGates(false);if($blockers!==[]){$this->emit('HOLD_RESUMED_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'RUN_THE_SAME_COMMAND_AGAIN_WHEN_THE_BLOCKERS_ARE_GONE']);$this->manualNoteIfTouched($blockers);return 2;}
@@ -768,9 +839,39 @@ final class CatalogOverlayCoordinator
             // recorded, the scheduled-backup window re-checked and no B1146 run. Any failure is a HOLD with nothing changed.
             try{$this->census();$this->beforeFirstChange();}catch(Throwable $e){$p['blockers']=[self::code($e)];return $this->hold2('HOLD_PREFLIGHT_BLOCKED',$p);}
             $this->backup($p);
-            try{$this->install();$this->accept();}catch(Throwable $e){$code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);$ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep()]);return 2;}
+            try{$this->install();$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
             return $this->finish('PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED');
         }catch(Throwable $e){$this->emit('HOLD_CODE_DETAIL',self::code($e));return 2;}
+    }
+
+    /**
+     * An install or acceptance failure rolls back, except when the acceptance could not be judged (persistent 429, or the
+     * shop state changed during the checks) while all 8 files hold exactly the payload: then the correct files stay, the run
+     * HOLDs, and the same command later repeats only the acceptance (or --rollback restores the old files).
+     */
+    private function acceptanceFailed(Throwable $e):int
+    {
+        $code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);
+        if(in_array($code,self::UNVERIFIED_CODES,true)&&($this->state['phase']??'')==='ACCEPTANCE_INTENT'){
+            try{$exact=$this->targets()['installed']===true;}catch(Throwable){$exact=false;}
+            if($exact){
+                $this->state['unverifiedReason']=$code;$this->save('ACCEPTANCE_NOT_VERIFIED');$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';
+                $this->emit('HOLD_INSTALLED_NOT_VERIFIED',['reason'=>$code,'files'=>'ALL_8_HOLD_EXACTLY_THE_PAYLOAD','rollback'=>'NOT_STARTED_THE_FILES_ARE_CORRECT','shopSwitch'=>'NOT_WRITTEN']);
+                $this->emit('OWNER_NEXT_STEPS',[$code==='SMOKES_RATE_LIMITED_429'?'1_THE_SITE_ANSWERED_429_TO_THE_CHECKS_WAIT_A_FEW_MINUTES_(LOW_TRAFFIC)':'1_THE_SHOP_STATE_CHANGED_DURING_THE_CHECKS_TURN_THE_SHOP_ON_AGAIN_IN_THE_ADMIN','2_THEN_RUN_THE_SAME_COMMAND_AGAIN_IT_REPEATS_ONLY_THE_ACCEPTANCE_CHECKS_NO_FILE_IS_CHANGED','3_OR_RESTORE_THE_OLD_FILES=bash /home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh --rollback',$this->purgeStep()]);
+                return 2;
+            }
+        }
+        $ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep()]);return 2;
+    }
+
+    /** ACCEPTANCE_NOT_VERIFIED: the same command repeats only the acceptance, with the shop ON as recorded and no artisan run. */
+    private function resumeAcceptance():int
+    {
+        $this->emit('RESUMED_ACCEPTANCE_ONLY',['reason'=>$this->state['unverifiedReason']??null]);$this->state['chain']??=$this->chain();
+        try{$this->census();$this->requireRecordedShop('BEFORE_RESUMED_ACCEPTANCE');}catch(Throwable $e){$this->emit('HOLD_ACCEPTANCE_NOT_RESUMED',['blockers'=>[self::code($e)],'filesChanged'=>'NONE','next'=>'TURN_THE_SHOP_ON_AS_BEFORE_OR_WAIT_FOR_THE_ARTISAN_RUN_THEN_RUN_THE_SAME_COMMAND_OR_USE_--rollback']);$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';return 2;}
+        if($this->targets()['installed']!==true){$ok=$this->restore('RESUMED_ACCEPTANCE_FILES_NOT_EXACT');$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
+        try{$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
+        return $this->finish('PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED');
     }
 }
 

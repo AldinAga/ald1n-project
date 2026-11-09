@@ -78,7 +78,7 @@ for($i=0;$i<60&&$status('/up')!==200;$i++)usleep(500000);check($status('/up')===
 $private=$home.'/.ald1n-b1147-state';$private1146=$home.'/.ald1n-b1146-state';$secrets=$base.'/probe-secrets';$faultLog=$base.'/faults.log';$stepLog=$base.'/steps.jsonl';$logDir=$retained.'/storage/logs';$configJSON=$base.'/run.json';$safeNow=strtotime('2026-11-11 13:00:00 UTC');
 $dropCsp=$base.'/drop-csp';$dropJsonLd=$base.'/drop-json-ld';$busyPidFile=$base.'/busy.pid';$allOutput='';file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','',FILE_APPEND);
 $run=static function(array $actions=[],string $mode='install',array $overrides=[])use($configJSON,$tools,$b1146,$b1145,$b1144,$b1134,$root,$home,$private,$private1146,$stageDir,$incoming,$secrets,$faultLog,$stepLog,$logDir,$safeNow,$dropCsp,$dropJsonLd,$busyPidFile,&$allOutput):array{
-    file_put_contents($configJSON,json_encode(['overrides'=>$overrides,'dropCsp'=>$dropCsp,'dropJsonLd'=>$dropJsonLd,'busyPidFile'=>$busyPidFile,'tools'=>$tools,'b1146'=>$b1146,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'root'=>$root,'home'=>$home,'base'=>$private,'pointer'=>$private.'/current.json','stage'=>$stageDir,'b1146Base'=>$private1146,
+    file_put_contents($configJSON,json_encode(['overrides'=>$overrides,'dropCsp'=>$dropCsp,'dropJsonLd'=>$dropJsonLd,'rate429'=>dirname($dropCsp).'/rate-429','db'=>['mysql:host=127.0.0.1;port=3306;dbname='.DB,'root',DB_PASSWORD],'busyPidFile'=>$busyPidFile,'tools'=>$tools,'b1146'=>$b1146,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'root'=>$root,'home'=>$home,'base'=>$private,'pointer'=>$private.'/current.json','stage'=>$stageDir,'b1146Base'=>$private1146,
         'appStateScript'=>$incoming.'/b1145-app-state.php','routesScript'=>$incoming.'/b1146-app-check.php','catalogScript'=>$incoming.'/b1147-app-check.php','php'=>PHP_BINARY,'allowedSapis'=>['cli-server'],
         'censusSeconds'=>20,'minFreeBytes'=>268435456,'scheduleGate'=>true,'fixedNow'=>$safeNow,'incoming'=>$incoming,'mode'=>$mode,'port'=>PORT,'secrets'=>$secrets,'faultLog'=>$faultLog,'stepLog'=>$stepLog,'logDir'=>$logDir,'actions'=>$actions],JSON_UNESCAPED_SLASHES));
     [$rc,$out,$err]=child(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$tools.'/fixture-run.php',$configJSON]);
@@ -111,7 +111,7 @@ $shopOn();sleep(3);check($status('/katalog')===200&&$status('/katalog?page=999')
 $results['b1146']=['final'=>CatalogOverlayCoordinator::B1146_PASS,'report'=>'1109'];
 
 $reset=static function()use($private,$secrets,$faultLog,$stepLog,$logDir,$artisan,$tree,$status,$dropCsp,$dropJsonLd):void{
-    rmTree($private);foreach(array_merge([$secrets,$faultLog,$stepLog,$dropCsp,$dropJsonLd],glob($logDir.'/laravel*.log')?:[]) as $f)if(file_exists($f))unlink($f);file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','');$artisan(['cache:clear']);
+    rmTree($private);foreach(array_merge([$secrets,$faultLog,$stepLog,$dropCsp,$dropJsonLd,dirname($dropCsp).'/rate-429'],glob($logDir.'/laravel*.log')?:[]) as $f)if(file_exists($f))unlink($f);file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','');$artisan(['cache:clear']);
     check($tree()==='PRE','RESET_TREE_PRE');sleep(3);check($status('/login')===200,'RESET_WARM_LOGIN');
 };
 $allSteps=static function():array{$a=[];for($n=1;$n<=8;$n++)$a['AFTER_STEP_'.$n]=['stepSmoke'];$a['AFTER_INVALIDATE']=['stepSmoke'];return $a;};
@@ -169,6 +169,7 @@ foreach(['noRouteCache','routeCache'] as $variant){
     check($routeCacheSHA()===$cacheBefore&&$shopFlag()==='1','ROUTE_CACHE_AND_SHOP_UNTOUCHED_'.$variant);
     check(!str_contains($o,'globalReset":true')&&str_contains($o,'"label":"installed-invalidate"'),'TARGETED_INVALIDATION_ONLY_'.$variant);
     $next=(array)lastLine($o,'OWNER_NEXT_STEPS');check(count($next)===5&&$next[0]===$purgeStep&&str_starts_with((string)$next[4],'ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh --rollback'),'OWNER_NEXT_STEPS_COMPLETE_'.$variant);
+    check(str_contains($o,'"label":"before-views"')&&(lastLine($o,'MERCHANT_APPROVAL')['ok']??null)==='UNCHANGED'&&str_contains($o,'"database":"NO_PRODUCT_CART_OR_SWITCH_WRITES_SESSIONS_AND_APP_CACHE_ONLY"'),'VIEWS_AFTER_MEASURED_HOLD_APPROVAL_UNCHANGED_'.$variant);
     check(str_contains($body('/katalog'),$package['markers']['layout'])&&str_contains($body(CatalogOverlayCoordinator::CSS_PATH.'?v='.$package['cssVersion']),$package['markers']['css']),'NEW_CATALOG_SERVED_'.$variant);
     $results[$variant]['install']=['final'=>lastRaw($o,'B1147_FINAL'),'stepSmokePoints'=>$steps['points'],'jsonLd'=>'PASS','page999'=>404];
 
@@ -187,6 +188,8 @@ foreach(['noRouteCache','routeCache'] as $variant){
     [$rc,$o]=$run([],'rollback',$variant==='noRouteCache'?['fixedNow'=>$conflictNow,'ignoreSchedule'=>true]:[]);
     check($variant!=='noRouteCache'||str_contains($o,'SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE'),'SCHEDULE_OVERRIDE_USED');
     check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore&&!is_file($active.'/app/Support/PublicCatalogPresentation.php')&&$shopFlag()==='1','OWNER_ROLLBACK_'.$variant);
+    // Rollback order: group D modified views, then the new pagination view in its own later group, ..., the new classes last after the measured hold.
+    $pD=strpos($o,'"before":"D-NEW"');$pA=strpos($o,'"label":"rollback-before-new-classes"');check($pD!==false&&$pA!==false&&$pD<$pA&&(lastLine($o,'MERCHANT_APPROVAL')['ok']??null)==='UNCHANGED','ROLLBACK_GROUPS_AND_APPROVAL_'.$variant);
     check(in_array($purgeStep,(array)lastLine($o,'OWNER_NEXT_STEPS'),true),'CSS_PURGE_AFTER_ROLLBACK_'.$variant);
     [$s,$by]=$smokeRows($o);check($s['state']==='OLD'&&$s['shop']['open']===true&&$by['/katalog']['layoutMarker']===false&&$status('/katalog')===200&&$status('/katalog?page=999')<500,'OLD_STATE_SERVED_'.$variant);
     $results[$variant]['ownerRollback']=['final'=>'PASS_ROLLED_BACK_BY_OWNER','shopOn'=>true,'routeCacheBytesUnchanged'=>true];$reset();
@@ -200,6 +203,28 @@ foreach(['noRouteCache','routeCache'] as $variant){
         [$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','REINSTALL_AFTER_ROLLBACK');$shopOff();
         [$rc,$o]=$run([],'rollback');[$s,$by]=$smokeRows($o);check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&$s['shop']['open']===false&&$by['/katalog']['observed']===404&&$by['/pravne-informacije']['layoutMarker']===false&&$shopFlag()===null,'ROLLBACK_WITH_SHOP_OFF');$shopOn();$reset();
         $results[$variant]['rollbackShopOff']='PASS_ROLLED_BACK_BY_OWNER_SWITCH_NOT_WRITTEN';
+        // 429 from the public-shop-browse throttle (shared edge IP): two 429 answers to /katalog are waited out via Retry-After.
+        $rateFile=dirname($dropCsp).'/rate-429';
+        [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimit2']]);[$s,$by]=$smokeRows($o);
+        check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$by['/katalog']['result']==='PASS'&&$by['/katalog']['attempts']===3,'TRANSIENT_429_WAITED_OUT');
+        [$rc,$o]=$run([],'rollback');check($rc===0&&$tree()==='PRE','TRANSIENT_429_CLEANUP');@unlink($rateFile);$reset();
+        // A persistent 429 in the installed smokes: one whole-batch retry, then HOLD with the exact files kept (no rollback);
+        // the same command later repeats only the acceptance; a persistent 429 after a rollback never makes it incomplete.
+        [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimitAlways']]);
+        check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SMOKES_RATE_LIMITED_429"'&&str_contains($o,'SMOKES_RATE_LIMITED_PAUSE=')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&lastLine($o,'B1147_PHASE')==='ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED','PERSISTENT_429_HOLD_NO_ROLLBACK');
+        @unlink($rateFile);
+        [$rc,$o]=$run();check($rc===0&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$tree()==='INSTALLED','RESUMED_ACCEPTANCE_PASS');
+        [$rc,$o]=$run(['BEFORE_SMOKES_OLD'=>['rateLimitAlways']],'rollback');
+        check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&str_contains($o,'OWNER_NOTICE_RATE_LIMITED=')&&lastLine($o,'B1147_PHASE')==='ROLLED_BACK'&&$tree()==='PRE','ROLLBACK_429_NOT_INCOMPLETE');@unlink($rateFile);$reset();
+        $results[$variant]['rateLimit429']=['transient'=>'WAITED_OUT_PASS','persistentInstall'=>'HOLD_FILES_KEPT_THEN_RESUMED_ACCEPTANCE_PASS','persistentRollback'=>'PASS_ROLLED_BACK_WITH_OWNER_NOTICE'];
+        // The owner turns the shop OFF while the acceptance runs: no PASS claim, HOLD with the exact files; the resume waits for
+        // the shop to be ON again; the switch is never written by the tool.
+        [$rc,$o]=$run(['AFTER_SMOKES_INSTALLED'=>['shopOff']]);
+        check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED"'&&$tree()==='INSTALLED'&&$shopFlag()===null,'SHOP_OFF_DURING_ACCEPTANCE_HOLD');
+        [$rc,$o]=$run();check($rc===2&&str_contains($o,'HOLD_ACCEPTANCE_NOT_RESUMED=')&&$tree()==='INSTALLED'&&$shopFlag()===null,'RESUME_REFUSED_WHILE_SHOP_OFF');
+        $shopOn();[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED','RESUMED_AFTER_SHOP_ON');
+        [$rc,$o]=$run([],'rollback');check($rc===0&&$tree()==='PRE','SHOP_OFF_CASE_CLEANUP');$reset();
+        $results[$variant]['shopOffDuringAcceptance']='HOLD_NO_PASS_CLAIM_RESUMED_AFTER_SHOP_ON';
         // One restore fails (step 4, the controller): steps 1..4 stay installed, 5..8 are old again (an exact install
         // prefix). The manual block, run exactly as pasted, restores the old state; the same command then verifies it.
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_4'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');$note=lastLine($o,'RECOVERY_NOTE');
