@@ -69,6 +69,10 @@ function watch(page, problems) {
   // Without a configured favicon the browser's automatic /favicon.ico 404 is not a page defect.
   const ignored = url => /\/favicon\.ico$/.test(url || '');
   page.on('console', msg => {
+    // Playwright's own screenshot helper stylesheet (caret/animation
+    // hiding) is refused by the strict CSP in WebKit; that is the harness,
+    // not the page.
+    if (/Refused to apply a stylesheet/.test(msg.text()) && page.context().browser().browserType().name() === 'webkit') return;
     if (msg.type() === 'error' && !ignored(msg.location().url)) problems.push('console: ' + msg.text().slice(0, 200));
   });
   page.on('response', res => {
@@ -235,7 +239,12 @@ async function measureContrast(page, label) {
       if (!node.nodeValue.trim()) continue;
       const el = node.parentElement;
       // Screen-reader-only text is clipped to 1px but its Range rects are not.
-      if (!el || el.closest('script,style,noscript,option,select,textarea,title,.sr-only')) continue;
+      // The skip link (off-screen until focused) and the back-to-top arrow
+      // (fixed, outside the document flow) are checked by their own focus tests.
+      if (!el || el.closest('script,style,noscript,option,select,textarea,title,.sr-only,.skip,.shop-back-to-top,.shop-top-rail')) continue;
+      // Punctuation alone (a comma after an inline chip) has a glyph box that
+      // takes in the neighbour's border; it is read as part of its sentence.
+      if (!/[\p{L}\p{N}]/u.test(node.nodeValue)) continue;
       const box = el.getBoundingClientRect();
       if (box.width <= 2 || box.height <= 2) continue;
       const cs = getComputedStyle(el);

@@ -531,6 +531,8 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
   .wrap{width:calc(100% - 32px)}
   .shop-products{grid-template-columns:minmax(0,1fr)}
   .shop-results-bar{align-items:flex-start;flex-direction:column}
+  /* Phones: the logo carries the brand; the subtitle would wrap beside it. */
+  .shop-brand-text span,.shop-brand-sub{display:none}
 }
 @media (max-width:420px){
   .wrap{width:calc(100% - 24px)}

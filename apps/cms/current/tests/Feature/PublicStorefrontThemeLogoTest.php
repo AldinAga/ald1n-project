@@ -144,7 +144,9 @@ final class PublicStorefrontThemeLogoTest extends TestCase
 
     public function test_theme_switch_sets_a_lax_http_only_cookie_and_returns_to_the_same_relative_page(): void
     {
-        $response = $this->post('/tema', ['theme' => 'dark', 'back' => '/katalog?q=ThinkPad&sort=price_asc&page=2']);
+        // Plain HTTP on purpose (CI suites may set an https APP_URL): the
+        // Secure flag follows the request scheme, covered by the next test.
+        $response = $this->post('http://localhost/tema', ['theme' => 'dark', 'back' => '/katalog?q=ThinkPad&sort=price_asc&page=2']);
         $response->assertStatus(303);
         self::assertSame('/katalog?q=ThinkPad&sort=price_asc&page=2', $response->headers->get('Location'));
         $response->assertCookie(PublicStorefrontAppearance::COOKIE, 'dark');
