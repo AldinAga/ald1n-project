@@ -121,7 +121,7 @@ $prefix=static function(int $k)use($plan,$active):void{foreach($plan as $s){$t=$
 $block=static function(string $o):array{check(preg_match("/^bash -e <<'B1147_RECOVERY'\n(.*?)\nB1147_RECOVERY$/ms",$o,$m)===1,'RECOVERY_BLOCK_PRESENT');return explode("\n",$m[1]);};
 $kindOf=static function(string $l):?string{$last=preg_match("/'([^']*)'$/",$l,$m)?$m[1]:null;
     if(in_array($l,['set -euo pipefail','umask 022','echo B1147_MANUAL_RECOVERY_BLOCK_DONE'],true))return null;if(str_starts_with($l,'printf ')&&str_contains($l,'| sha256sum --check --strict --quiet -'))return 'verify';
-    if(str_starts_with($l,'install -m ')&&str_contains($l,' -g '))return 'install:'.$last;if(str_starts_with($l,'rm -f -- '))return 'rm:'.$last;if(str_starts_with($l,'rmdir --ignore-fail-on-non-empty -- '))return 'rmdir';if(str_contains($l,' artisan view:clear --no-interaction'))return 'view';return 'other';};
+    if(str_starts_with($l,'install -m ')&&str_contains($l,' -g '))return 'install:'.$last;if(str_starts_with($l,'rm -f -- '))return 'rm:'.$last;if(str_starts_with($l,'rmdir --ignore-fail-on-non-empty -- '))return 'rmdir';if(preg_match('/^sleep [0-9]+$/D',$l))return 'sleep';if(str_contains($l,' artisan view:clear --no-interaction'))return 'view';return 'other';};
 $runBlock=static function(array $lines):array{$p=proc_open(['bash','-e'],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fwrite($pipes[0],implode("\n",$lines)."\n");fclose($pipes[0]);$out=stream_get_contents($pipes[1]).stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);return ['rc'=>proc_close($p),'out'=>$out];};
 $conflictNow=(new DateTimeImmutable('2026-11-11 02:10:00',new DateTimeZone('Europe/Belgrade')))->getTimestamp();
 $smokeRows=static function(string $o):array{$s=lastLine($o,'PUBLIC_HTTP_SMOKES');$by=[];foreach($s['rows'] as $r)$by[$r['check']]=$r;return [$s,$by];};
@@ -206,12 +206,17 @@ foreach(['noRouteCache','routeCache'] as $variant){
         // 429 from the public-shop-browse throttle (shared edge IP): two 429 answers to /katalog are waited out via Retry-After.
         $rateFile=dirname($dropCsp).'/rate-429';
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimit2']]);[$s,$by]=$smokeRows($o);
-        check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$by['/katalog']['result']==='PASS'&&$by['/katalog']['attempts']===3,'TRANSIENT_429_WAITED_OUT');
+        check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$by['/pravne-informacije']['result']==='PASS'&&$by['/pravne-informacije']['attempts']===3&&$by['/katalog']['result']==='PASS','TRANSIENT_429_WAITED_OUT');
         [$rc,$o]=$run([],'rollback');check($rc===0&&$tree()==='PRE','TRANSIENT_429_CLEANUP');@unlink($rateFile);$reset();
         // A persistent 429 in the installed smokes: one whole-batch retry, then HOLD with the exact files kept (no rollback);
         // the same command later repeats only the acceptance; a persistent 429 after a rollback never makes it incomplete.
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimitAlways']]);
-        check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SMOKES_RATE_LIMITED_429"'&&str_contains($o,'SMOKES_RATE_LIMITED_PAUSE=')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&lastLine($o,'B1147_PHASE')==='ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED','PERSISTENT_429_HOLD_NO_ROLLBACK');
+        check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SMOKES_RATE_LIMITED_429"'&&str_contains($o,'SMOKES_RATE_LIMITED_PAUSE=')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&lastLine($o,'B1147_PHASE')==='ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED'&&str_contains($o,'ACTIVE_TREE_INSTALLED_UNVERIFIED='),'PERSISTENT_429_HOLD_NO_ROLLBACK');
+        // The real per-batch cap and the shared-limiter skip: the first throttled GET (a legal page) waits Retry-After twice
+        // (3 + 3 s within the 7 s budget), a third wait would exceed it, so it stops at attempt 3; every later throttled GET
+        // (legal pages and shop paths) is skipped without a request; /login, /up and the CSS are still fetched.
+        [$s,$by]=$smokeRows($o);$skipped=array_filter($s['rows'],static fn($r)=>($r['skippedSharedLimiter']??false)===true&&$r['attempts']===0);
+        check($by['/pravne-informacije']['attempts']===3&&$by['/pravne-informacije']['waitedSeconds']===6&&count($skipped)===14&&$s['rateLimitWaitedSeconds']===6&&$by['/login']['result']==='PASS'&&$by[CatalogOverlayCoordinator::CSS_PATH]['result']==='PASS','RATE_LIMIT_CAP_AND_SHARED_KEY_SKIP');
         @unlink($rateFile);
         [$rc,$o]=$run();check($rc===0&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED'&&$tree()==='INSTALLED','RESUMED_ACCEPTANCE_PASS');
         [$rc,$o]=$run(['BEFORE_SMOKES_OLD'=>['rateLimitAlways']],'rollback');
@@ -219,19 +224,31 @@ foreach(['noRouteCache','routeCache'] as $variant){
         $results[$variant]['rateLimit429']=['transient'=>'WAITED_OUT_PASS','persistentInstall'=>'HOLD_FILES_KEPT_THEN_RESUMED_ACCEPTANCE_PASS','persistentRollback'=>'PASS_ROLLED_BACK_WITH_OWNER_NOTICE'];
         // The owner turns the shop OFF while the acceptance runs: no PASS claim, HOLD with the exact files; the resume waits for
         // the shop to be ON again; the switch is never written by the tool.
-        [$rc,$o]=$run(['AFTER_SMOKES_INSTALLED'=>['shopOff']]);
+        // Turned OFF in the middle of the batch (after the legal pages, before the shop paths): the shop paths answer 404,
+        // the failures are judged against the changed state, so HOLD, never a rollback of the exact files.
+        [$rc,$o]=$run(['DURING_SMOKES_INSTALLED'=>['shopOff']]);
         check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED"'&&$tree()==='INSTALLED'&&$shopFlag()===null,'SHOP_OFF_DURING_ACCEPTANCE_HOLD');
         [$rc,$o]=$run();check($rc===2&&str_contains($o,'HOLD_ACCEPTANCE_NOT_RESUMED=')&&$tree()==='INSTALLED'&&$shopFlag()===null,'RESUME_REFUSED_WHILE_SHOP_OFF');
         $shopOn();[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED','RESUMED_AFTER_SHOP_ON');
         [$rc,$o]=$run([],'rollback');check($rc===0&&$tree()==='PRE','SHOP_OFF_CASE_CLEANUP');$reset();
         $results[$variant]['shopOffDuringAcceptance']='HOLD_NO_PASS_CLAIM_RESUMED_AFTER_SHOP_ON';
+        // SIGKILL in the hold right before the new classes go: a fresh process resuming the rollback must still hold (timed
+        // from the saved wall-clock time of the last restore), not remove group A at once.
+        [$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','INSTALL_BEFORE_HOLD_KILL');
+        [$rc,$o]=$run(['DURING_HOLD_rollback-before-new-classes'=>['kill']],'rollback');check($rc!==0&&$tree()==='MIXED'&&is_file($active.'/app/Support/PublicCatalogPresentation.php'),'KILLED_IN_THE_HOLD_BEFORE_THE_NEW_CLASSES');
+        [$rc,$o]=$run([],'rollback',['censusSeconds'=>1]);$h=null;foreach(explode("\n",$o) as $line)if(str_starts_with($line,'OVERLAY_HOLD_START=')&&str_contains($line,'"label":"rollback-before-new-classes"'))$h=json_decode(substr($line,19),true);
+        check($rc===0&&lastRaw($o,'B1147_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&is_array($h)&&$h['clock']==='SAVED_WALL_CLOCK_OF_THE_LAST_CHANGE'&&$h['remainingSeconds']>0,'RESUMED_ROLLBACK_STILL_HOLDS_BEFORE_THE_NEW_CLASSES');$reset();
+        $results[$variant]['killInRollbackHold']='FRESH_PROCESS_HELD_FROM_THE_SAVED_WALL_CLOCK_THEN_PASS';
         // One restore fails (step 4, the controller): steps 1..4 stay installed, 5..8 are old again (an exact install
         // prefix). The manual block, run exactly as pasted, restores the old state; the same command then verifies it.
         [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_4'=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');$note=lastLine($o,'RECOVERY_NOTE');
         check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===4&&$rf['exactInstallPrefixKept']==='STEPS_1_TO_4_INSTALLED_LATER_STEPS_RESTORED'&&$rf['modifiedRestored']===3&&$rf['newRemoved']===1&&$note['kind']==='ROLLBACK_INCOMPLETE','PARTIAL_ROLLBACK_STOPS_AT_STEP_4');
         $prefix(4);sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/up')===200,'PREFIX_4_SERVES');
         $lines=$block($o);$kinds=array_values(array_filter(array_map($kindOf,$lines)));$expected=[];
-        foreach(array_reverse($plan) as $s)if($s['n']<=4&&$s['kind']==='modified')array_push($expected,'verify','install:'.$active.'/'.$s['path']);foreach(array_reverse($plan) as $s)if($s['n']<=4&&$s['kind']==='new')$expected[]='rm:'.$active.'/'.$s['path'];$expected[]='view';
+        // The automatic order: reverse install order with a sleep at each group boundary (view:clear first before the new
+        // pagination view); here steps 4, 3 (group B) then the full hold, then the new classes 2, 1; view:clear last.
+        $lastKey=null;foreach(array_reverse($plan) as $s){if($s['n']>4)continue;$key=$s['group'].($s['kind']==='new'?'-NEW':'');if($lastKey!==null&&$lastKey!==$key){if($key==='D-NEW')$expected[]='view';$expected[]='sleep';}$lastKey=$key;if($s['kind']==='modified')array_push($expected,'verify','install:'.$active.'/'.$s['path']);else $expected[]='rm:'.$active.'/'.$s['path'];}$expected[]='view';
+        check(in_array('sleep',$expected,true),'EXPECTED_BLOCK_HAS_THE_HOLD_BEFORE_THE_NEW_CLASSES');
         check($kinds===$expected,'RECOVERY_BLOCK_EXACT_REVERSE_ORDER:'.json_encode($kinds));
         $manual=$runBlock($lines);check($manual['rc']===0&&str_contains($manual['out'],'B1147_MANUAL_RECOVERY_BLOCK_DONE')&&$tree()==='PRE','MANUAL_BLOCK_RESTORES_OLD_STATE:'.substr($manual['out'],-400));
         [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1147_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','AFTER_MANUAL_BLOCK_VERIFIED');$reset();

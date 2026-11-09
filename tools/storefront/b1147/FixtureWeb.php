@@ -9,8 +9,9 @@ declare(strict_types=1);
 final class CatalogFixtureWeb
 {
     /**
-     * $rate429: while this file exists, /katalog requests answer 429 with Retry-After: 1 (the public-shop-browse throttle
-     * behind a shared edge IP); the file holds how many such answers remain, or ALWAYS.
+     * $rate429: while this file exists, every throttled route (the 8 legal pages and the shop paths, one limiter key)
+     * answers 429 with Retry-After: 3 (the public-shop-browse throttle behind a shared edge IP); the file holds how many
+     * such answers remain, or ALWAYS.
      */
     public function __construct(private int $port,private string $secrets,private ?string $dropCsp=null,private ?string $dropJsonLd=null,private ?string $rate429=null){}
 
@@ -25,9 +26,9 @@ final class CatalogFixtureWeb
 
     public function fetch(string $path,array $query,string $marker):array
     {
-        if($path==='/katalog'&&$this->rate429!==null&&is_file($this->rate429)){
+        if((in_array($path,CatalogOverlayCoordinator::LEGAL,true)||in_array($path,CatalogOverlayCoordinator::SHOP,true))&&$this->rate429!==null&&is_file($this->rate429)){
             $left=trim((string)file_get_contents($this->rate429));
-            if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->rate429,(string)((int)$left-1));$h=CatalogWeb::headers();$h['retry'][]='1';return CatalogWeb::result(false,429,$h,'Too Many Attempts.');}
+            if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->rate429,(string)((int)$left-1));$h=CatalogWeb::headers();$h['retry'][]='3';return CatalogWeb::result(false,429,$h,'Too Many Attempts.');}
         }
         $r=self::get($this->port,CatalogWeb::target($path,$query,$marker));unset($r['cookies'],$r['location']);
         if($this->dropCsp!==null&&is_file($this->dropCsp))$r['csp']=[];

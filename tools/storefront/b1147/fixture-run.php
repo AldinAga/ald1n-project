@@ -17,8 +17,9 @@ $package=json_decode((string)file_get_contents($cfg['incoming'].'/b1147-package.
 $o=(new ReflectionClass(CatalogOverlayCoordinator::class))->newInstanceWithoutConstructor();
 $set=static function(string $name,mixed $value)use($o):void{(new ReflectionProperty($o,$name))->setValue($o,$value);};
 foreach(['root','home','base','pointer','stage','b1146Base','appStateScript','routesScript','catalogScript','php','allowedSapis','censusSeconds','minFreeBytes','scheduleGate','fixedNow','incoming','mode'] as $key)$set($key,$cfg[$key]);
-// Explicit doubles for CI time only: shorter request pacing and whole-batch 429 pause (production: 0.7 s and 65 s).
-$set('ignoreSchedule',false);$set('paceMicros',150000);$set('rateLimitPauseSeconds',3);(new ReflectionMethod($o,'load'))->invoke($o,$package,$cfg['incoming']);foreach((array)($cfg['overrides']??[]) as $key=>$value)$set($key,$value);
+// Explicit doubles for CI time only, scaled down but run through the real logic: request pacing, whole-batch 429 pause and
+// per-batch 429 budget (production: 0.7 s, 65 s, 120 s; the fixture answers Retry-After: 3, so the 7 s budget allows two waits).
+$set('ignoreSchedule',false);$set('paceMicros',150000);$set('rateLimitPauseSeconds',3);$set('rateLimitCapSeconds',7);(new ReflectionMethod($o,'load'))->invoke($o,$package,$cfg['incoming']);foreach((array)($cfg['overrides']??[]) as $key=>$value)$set($key,$value);
 $set('web',new CatalogFixtureWeb($cfg['port'],$cfg['secrets'],$cfg['dropCsp'],$cfg['dropJsonLd'],$cfg['rate429']));
 // The owner turning the shop OFF in the admin while the run is in its checks (fixture: the row deleted, the app cache cleared).
 $shopOff=static function()use($cfg):void{$active=$cfg['root'].'/apps/cms/current';(new PDO($cfg['db'][0],$cfg['db'][1],$cfg['db'][2],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]))->exec("DELETE FROM settings WHERE setting_key='public_storefront_open'");shell_exec('cd '.escapeshellarg($active).' && '.escapeshellarg(PHP_BINARY).' -d opcache.enable=0 artisan cache:clear --no-interaction > /dev/null 2>&1');};

@@ -72,6 +72,17 @@ ostaju instalirani (tačni su), a kraj je `HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIE
 dešava ako neko isključi prodavnicu dok provere traju. Tada ponovo pokrenite istu komandu: ona
 ponovi samo provere, bez izmene fajlova. Ili vratite staro sa `--rollback`.
 
+Sa 429 rad traje duže. Sve rute prodavnice dele isto ograničenje, pa posle prvog upornog 429
+ostale ne pitamo, nego ih beležimo kao neproverene. Po jednoj rundi provera čekamo na 429 najviše
+120 sekundi, između dve runde 65 sekundi. Jedan krug provera tako traje najviše oko 7,5 minuta,
+a ceo rad u najgorem slučaju oko 30 minuta. Pre nego što zadrži instalaciju bez potvrde, alat
+proverava sve što ne ide preko ograničenih ruta: svežinu PHP procesa, `laravel.log`, digest svih
+8546 fajlova i katalog preko CLI-ja. Ako nešto od toga padne, vraća staro.
+
+Zato start traži dovoljno vremena do sledećeg backup-a: 4 puta izmereno čekanje, plus dva najduža
+kruga provera, plus 5 minuta rezerve, a najmanje 30 minuta. Ako je backup bliže, kraj je
+`HOLD_PREFLIGHT_BLOCKED` i ništa nije promenjeno. Isto pravilo važi kada samo ponavljate provere.
+
 ## Šta proveravamo sami (samo GET zahtevi)
 
 `/katalog` vraća 200 sa novim izgledom, jednim ispravnim JSON-LD blokom i CSP `script-src

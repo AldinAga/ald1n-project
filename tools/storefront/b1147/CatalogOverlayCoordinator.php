@@ -77,7 +77,13 @@ final class CatalogOverlayCoordinator
      */
     private int $paceMicros=700000;
     private int $rateLimitPauseSeconds=65;
+    /** Total 429 waiting per smoke batch; the throttled routes share one limiter key, so after one GET stays 429 the rest are skipped. */
+    private int $rateLimitCapSeconds=120;
+    /** The 429 state of the current smoke batch: whether the shared limiter is known exhausted and the seconds waited. */
+    private array $limitBatch=['limited'=>false,'waited'=>0];
     private const RETRY_AFTER_CAP=65;
+    /** Upper bound of the GETs in one smoke batch (2 system, 8 legal, the CSS, at most 7 shop requests, 1 spare). */
+    private const SMOKE_GETS=19;
     private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED'];
     private bool $scheduleGate=true;
     private ?int $fixedNow=null;
@@ -392,16 +398,26 @@ final class CatalogOverlayCoordinator
         if(!$collect&&$a['failures']!==[])throw new RuntimeException($a['failures'][0]);return $result;
     }
 
-    /** Waits on the monotonic clock until $seconds have passed since the last change; heartbeat every 15 s. */
+    /**
+     * Waits until $seconds have passed since the last tree change; heartbeat every 15 s. A change made by this process is
+     * timed on the monotonic clock; otherwise (a fresh process resuming a rollback or an acceptance) the wall-clock time of
+     * the last change saved in the state is used, clamped to [0, $seconds] so a clock jump can never shorten the wait below
+     * zero or stretch it beyond $seconds; without any saved change the full $seconds are waited.
+     */
     private function hold(string $label,int $seconds):void
     {
-        if($seconds<0||$seconds>FreshnessProbe::MAX_HOLD_SECONDS)throw new RuntimeException('OVERLAY_HOLD_EXCEEDS_BOUND');$since=$this->lastChangeNs??hrtime(true);$deadline=$since+$seconds*1000000000;$beat=hrtime(true)+15000000000;
-        $this->emit('OVERLAY_HOLD_START',['label'=>$label,'seconds'=>$seconds,'remainingSeconds'=>max(0,(int)ceil(($deadline-hrtime(true))/1e9)),'clock'=>'MONOTONIC']);
+        if($seconds<0||$seconds>FreshnessProbe::MAX_HOLD_SECONDS)throw new RuntimeException('OVERLAY_HOLD_EXCEEDS_BOUND');
+        if($this->lastChangeNs!==null){$deadline=$this->lastChangeNs+$seconds*1000000000;$clock='MONOTONIC_THIS_PROCESS';}
+        else{$at=$this->state['lastTreeChangeAt']??null;$rest=is_int($at)?max(0,min($seconds,$at+$seconds-time())):$seconds;$deadline=hrtime(true)+$rest*1000000000;$clock=is_int($at)?'SAVED_WALL_CLOCK_OF_THE_LAST_CHANGE':'FULL_NO_SAVED_CHANGE';}
+        $beat=hrtime(true)+15000000000;
+        $this->emit('OVERLAY_HOLD_START',['label'=>$label,'seconds'=>$seconds,'remainingSeconds'=>max(0,(int)ceil(($deadline-hrtime(true))/1e9)),'clock'=>$clock]);
+        $this->fault('DURING_HOLD_'.$label);
         while(($rest=$deadline-hrtime(true))>0){usleep((int)max(1000,intdiv(min($rest,max(0,$beat-hrtime(true)),1000000000),1000)));if(hrtime(true)>=$beat&&hrtime(true)<$deadline){$this->emit('OVERLAY_HOLD_HEARTBEAT',['label'=>$label,'remainingSeconds'=>(int)ceil(($deadline-hrtime(true))/1e9)]);$beat+=15000000000;}}
         $this->emit('OVERLAY_HOLD',['label'=>$label,'seconds'=>$seconds,'done'=>true]);
     }
 
-    private function changed():void {$this->lastChangeNs=hrtime(true);}
+    /** Every tree change: the monotonic time for this process and the wall-clock time in the saved state (for a fresh process). */
+    private function changed():void {$this->lastChangeNs=hrtime(true);$this->state['lastTreeChangeAt']=time();$this->persist();}
 
     /**
      * One paced GET with up to 4 attempts on a transport error, 429 or an edge/gateway status. A 429 waits Retry-After
@@ -409,14 +425,42 @@ final class CatalogOverlayCoordinator
      */
     private function get(string $path,array $query,string $marker):array
     {
+        $throttled=in_array($path,self::LEGAL,true)||in_array($path,self::SHOP,true);
+        // The shared limiter is already exhausted in this batch: no request, no wait (INCONCLUSIVE, never PASS or FAIL).
+        if($throttled&&$this->limitBatch['limited'])return ['status'=>429,'transport'=>false,'robots'=>[],'csp'=>[],'frame'=>[],'cfCache'=>null,'contentType'=>null,'retryAfter'=>null,'body'=>'','bytes'=>0,'attempts'=>0,'rateLimited'=>true,'waitedSeconds'=>0,'skippedSharedLimiter'=>true];
         $waited=0;$limited=false;
         for($attempt=1;$attempt<=4;$attempt++){
             if($this->paceMicros>0)usleep($this->paceMicros);
             $r=$this->web->fetch($path,$query,$marker);$limited=!$r['transport']&&$r['status']===429;
             if(!$r['transport']&&!$limited&&!in_array($r['status'],[502,503,504,520,521,522,523,524,525,526,527],true))break;
-            if($attempt<4){$s=$limited?min(self::RETRY_AFTER_CAP,max(1,$r['retryAfter']??6)):2;$waited+=$s;sleep($s);}
+            if($attempt<4){
+                $s=$limited?min(self::RETRY_AFTER_CAP,max(1,$r['retryAfter']??6)):2;
+                // The per-batch 429 budget: a wait that would exceed it is not taken; the limiter counts as exhausted.
+                if($limited&&$this->limitBatch['waited']+$s>$this->rateLimitCapSeconds)break;
+                if($limited)$this->limitBatch['waited']+=$s;$waited+=$s;sleep($s);
+            }
         }
-        return $r+['attempts'=>min($attempt,4),'rateLimited'=>$limited,'waitedSeconds'=>$waited];
+        if($limited)$this->limitBatch['limited']=true;
+        return $r+['attempts'=>min($attempt,4),'rateLimited'=>$limited,'waitedSeconds'=>$waited,'skippedSharedLimiter'=>false];
+    }
+
+    /**
+     * The worst-case wall time of one smokes() call: two batches (each the 429 budget, the pacing of every GET and a 60 s
+     * margin for slow answers) and the pause between them.
+     */
+    private function smokeCapSeconds():int
+    {
+        $batch=$this->rateLimitCapSeconds+(int)ceil(self::SMOKE_GETS*$this->paceMicros/1000000)+60;return 2*$batch+$this->rateLimitPauseSeconds;
+    }
+
+    /**
+     * The scheduled-backup window this run needs: the hold before the views and after the install, a full smokes() call,
+     * and, if the acceptance fails, the rollback's holds before the new classes and after the restore plus its smokes, with
+     * 300 s for artisan, probes and pauses. Never below the default 30 minutes.
+     */
+    private function requiredWindowSeconds(int $holdSeconds):int
+    {
+        return max(1800,4*$holdSeconds+2*$this->smokeCapSeconds()+300);
     }
 
     /**
@@ -433,10 +477,10 @@ final class CatalogOverlayCoordinator
      */
     private function smokes(bool $installed,bool $retried=false):array
     {
-        $this->fault('BEFORE_SMOKES_'.($installed?'INSTALLED':'OLD'));$shop=$this->shop();$m=$this->markers;$marker=bin2hex(random_bytes(8));$rows=[];$failed=[];$inconclusive=[];$limited=[];
+        $state=$installed?'INSTALLED':'OLD';$this->fault('BEFORE_SMOKES_'.$state);$shop=$this->shop();$m=$this->markers;$marker=bin2hex(random_bytes(8));$rows=[];$failed=[];$inconclusive=[];$limited=[];$this->limitBatch=['limited'=>false,'waited'=>0];
         // A response still 429 after its retries proves nothing about the code: INCONCLUSIVE, never PASS and never FAIL.
         $add=function(string $label,array $r,string $expected,bool $pass,array $facts=[])use(&$rows,&$failed,&$limited):void{
-            if(($r['rateLimited']??false)===true){$rows[]=['check'=>$label,'expected'=>$expected,'observed'=>429,'result'=>'INCONCLUSIVE_RATE_LIMITED_429','attempts'=>$r['attempts'],'waitedSeconds'=>$r['waitedSeconds']];$limited[]=$label;return;}
+            if(($r['rateLimited']??false)===true){$rows[]=['check'=>$label,'expected'=>$expected,'observed'=>429,'result'=>'INCONCLUSIVE_RATE_LIMITED_429','attempts'=>$r['attempts'],'waitedSeconds'=>$r['waitedSeconds'],'skippedSharedLimiter'=>$r['skippedSharedLimiter']??false];$limited[]=$label;return;}
             $rows[]=['check'=>$label,'expected'=>$expected,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$pass?'PASS':'FAIL','attempts'=>$r['attempts']]+$facts;if(!$pass)$failed[]=$label;};
         $lt=static fn(array $r):bool=>!$r['transport']&&$r['status']>0&&$r['status']<500;
         foreach(self::SYSTEM as $p){$r=$this->get($p,[],$marker);$add($p,$r,'200',!$r['transport']&&$r['status']===200);}
@@ -444,6 +488,7 @@ final class CatalogOverlayCoordinator
             $r=$this->get($p,[],$marker);$f=['noindex'=>CatalogWeb::noindex($r['robots']),'cspScriptSrcNone'=>CatalogWeb::scriptless($r['csp']),'frameDeny'=>CatalogWeb::frameDeny($r['frame']),'layoutMarker'=>str_contains($r['body'],$m['layout'])];
             $add($p,$r,'200_'.($shop['open']?'INDEXABLE':'NOINDEX').'_CSP_DENY_LAYOUT_'.($installed?'NEW':'OLD'),!$r['transport']&&$r['status']===200&&$f['noindex']===!$shop['open']&&$f['cspScriptSrcNone']&&$f['frameDeny']&&$f['layoutMarker']===$installed,$f);
         }
+        $this->fault('DURING_SMOKES_'.$state);
         $r=$this->get(self::CSS_PATH,[],$marker);$has=str_contains($r['body'],$m['css']);$ok=!$r['transport']&&$r['status']===200;
         if($ok&&$has!==$installed&&CatalogWeb::edgeCached($r['cfCache'])){$inconclusive[]=self::CSS_PATH;$rows[]=['check'=>self::CSS_PATH,'expected'=>'200_CSS_'.($installed?'NEW':'OLD'),'observed'=>$r['status'],'result'=>'INCONCLUSIVE_EDGE_CACHED_COPY','cfCache'=>$r['cfCache'],'cssMarker'=>$has,'attempts'=>$r['attempts']];}
         else $add(self::CSS_PATH,$r,'200_CSS_'.($installed?'NEW':'OLD'),$ok&&$has===$installed,['cfCache'=>$r['cfCache'],'cssMarker'=>$has]);
@@ -457,8 +502,12 @@ final class CatalogOverlayCoordinator
             $r=$this->get('/registracija',[],$marker);$add('/registracija',$r,'200',!$r['transport']&&$r['status']===200);
             $r=$this->get('/porucivanje',[],$marker);$add('/porucivanje',$r,'302_OR_404',!$r['transport']&&in_array($r['status'],[302,404],true));
         }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',!$r['transport']&&$r['status']===404);}
-        $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$installed?'INSTALLED':'OLD','shop'=>$shop,'rows'=>$rows,'failed'=>$failed,'inconclusive'=>$inconclusive,'rateLimited'=>$limited,'batch'=>$retried?2:1,'requestsWrite'=>'NONE_GET_ONLY']);
+        // A failed check is judged against the shop state of the whole batch: if the owner changed it meanwhile, the
+        // expectations were wrong for part of the batch and nothing is proven (no rollback of exact files on that basis).
+        $shopAfter=null;if($failed!==[]){try{$shopAfter=$this->shop();}catch(Throwable $e){$shopAfter=['unreadable'=>self::code($e)];}}
+        $this->emit('PUBLIC_HTTP_SMOKES',['state'=>$state,'shop'=>$shop,'shopAfterFailure'=>$shopAfter,'rows'=>$rows,'failed'=>$failed,'inconclusive'=>$inconclusive,'rateLimited'=>$limited,'rateLimitWaitedSeconds'=>$this->limitBatch['waited'],'batch'=>$retried?2:1,'requestsWrite'=>'NONE_GET_ONLY']);
         if($inconclusive!==[])$this->state['cssEdgeStale']=true;
+        if($failed!==[]&&$shopAfter!==$shop)throw new RuntimeException('SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED');
         if($failed!==[])throw new RuntimeException($installed?'INSTALLED_SMOKE_FAILED':'OLD_STATE_SMOKE_FAILED');
         if($limited!==[]){
             if(!$retried){$this->emit('SMOKES_RATE_LIMITED_PAUSE',['seconds'=>$this->rateLimitPauseSeconds,'paths'=>$limited,'next'=>'THE_WHOLE_BATCH_ONCE_MORE']);sleep($this->rateLimitPauseSeconds);return $this->smokes($installed,true);}
@@ -550,6 +599,13 @@ final class CatalogOverlayCoordinator
         $v['headroom']=$try('diskHeadroom',fn()=>$this->headroom());
         $v['artisanCensus']=$chain!==null?$try('noRunningCmsArtisan',fn()=>$this->census()):null;if(!array_key_exists('noRunningCmsArtisan',$g))$g['noRunningCmsArtisan']='NOT_EVALUATED_CHAIN';
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id'])&&$v['caches']!==null){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$installed,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_TARGETS';
+        // Time bound: the whole run, including a worst-case 429 acceptance and a rollback, must end before the next scheduled
+        // backup. The measured hold sets the need; the window check is repeated with it (and again before the first change).
+        if(isset($v['web']['holdSeconds'])){
+            $need=$this->requiredWindowSeconds((int)$v['web']['holdSeconds']);$v['timeBound']=['holdSeconds'=>(int)$v['web']['holdSeconds'],'smokeCapSeconds'=>$this->smokeCapSeconds(),'requiredWindowSeconds'=>$need,'rule'=>'4*HOLD+2*SMOKE_CAP+300<=WINDOW'];
+            $this->scheduleNeedSeconds=max($this->scheduleNeedSeconds,$need);
+            if($this->scheduleGate&&$app!==null){$s=$try('scheduleWindowFitsTimeBound',fn()=>$this->scheduleState($app));$v['scheduleTimeBound']=$s;if($s!==null&&$s['conflict']!==null)$g['scheduleWindowFitsTimeBound']='SCHEDULED_BACKUP_WITHIN_THE_'.$need.'_SECONDS_THIS_RUN_MAY_NEED';}
+        }else $g['timeBound']='NOT_EVALUATED_WEB_PROBE';
         // Recorded before any change and compared after: none of the 8 files feeds the merchant approval digest.
         $v['merchantApproval']=$try('merchantApprovalRead',fn()=>self::approvalFacts($this->helper($this->routesScript,['approval'])));
         $try('liveSmokes',fn()=>$this->smokes($installed));
@@ -674,9 +730,20 @@ final class CatalogOverlayCoordinator
                 // A new file is removed in its own later step group: a worker still holding the new compiled catalog view
                 // (which includes the new pagination view) must first revalidate the restored catalog view. The new classes
                 // (group A) go only after the full measured hold, once no worker can still run the new controller or views.
-                $key=$s['group'].($s['kind']==='new'?'-NEW':'');
-                if($group!==null&&$group!==$key&&$restored+$removed>0){if($s['group']==='A')$this->hold('rollback-before-new-classes',$this->viewHold());else{$this->emit('ROLLBACK_GROUP_PAUSE',['after'=>$group,'before'=>$key,'seconds'=>$pause]);sleep($pause);}}$group=$key;
+                // Every boundary waits, also in a fresh process resuming a rollback (hold() then times the wait from the
+                // saved wall-clock time of the last change, so an old change costs nothing and a recent one is waited out).
+                // Before the new pagination view goes, the compiled views are cleared, so no worker renders a compiled
+                // catalog view that still includes it once the pause has passed.
+                $key=$s['group'].($s['kind']==='new'?'-NEW':'');$boundary=$group!==null&&$group!==$key;$group=$key;
                 try{
+                    if($boundary){
+                        if($s['group']==='A')$this->hold('rollback-before-new-classes',$this->viewHold());
+                        else{
+                            // Only while the new view is still there: clearing views counts as a change, so a resumed rollback
+                            // whose pagination view is already gone keeps the saved clock of the earlier change.
+                            $clear=$key==='D-NEW'&&$this->classify($s)['state']==='payload';if($clear)$this->refreshViews();
+                            $this->emit('ROLLBACK_GROUP_PAUSE',['before'=>$key,'seconds'=>$pause,'viewsClearedFirst'=>$clear]);$this->hold('rollback-pause-'.$key,$pause);}
+                    }
                     $this->fault('BEFORE_RESTORE_'.$s['n']);$c=$this->classify($s);$t=$this->target($s);
                     if($s['kind']==='modified'){
                         if($c['state']==='payload'){$b=$backup['files'][$s['n']];$bytes=AtomicFile::readPrivate($b['copy'],$b['sha256']);CatalogFiles::replace($t,$bytes,$b['mode'],$b['gid'],$this->recordTemp(CatalogFiles::tempFor($t)),$s['payloadSHA256']);$restored++;$this->changed();}
@@ -697,7 +764,8 @@ final class CatalogOverlayCoordinator
             $first=$this->probeRun('restored-invalidate',false,true,false);$this->hold('restored',(int)$first['holdSeconds']);
             // A rate-limited old-state smoke proves nothing either way; with the files exact (checked above and by the tree
             // digest below) it is reported to the owner and never turns an exact restore into ROLLBACK_INCOMPLETE.
-            try{$this->smokes(false);}catch(Throwable $e){if(self::code($e)!=='SMOKES_RATE_LIMITED_429')throw $e;$this->state['rollbackSmokesRateLimited']=true;$this->emit('OWNER_NOTICE_RATE_LIMITED','THE_RESTORED_FILES_ARE_EXACT_BUT_THE_SITE_ANSWERED_429_TO_THE_SMOKES_OPEN_https://cms.ald1n.com/katalog_AND_ONE_LEGAL_PAGE_YOURSELF');}
+            // A shop switch flipped during the batch: the old state is judged once more against the state read now.
+            try{try{$this->smokes(false);}catch(Throwable $e){if(self::code($e)!=='SHOP_STATE_CHANGED_DURING_ACCEPTANCE_CATALOG_NOT_VERIFIED')throw $e;$this->emit('OLD_STATE_SMOKES_REPEATED','THE_SHOP_STATE_CHANGED_DURING_THE_BATCH');$this->smokes(false);}}catch(Throwable $e){if(self::code($e)!=='SMOKES_RATE_LIMITED_429')throw $e;$this->state['rollbackSmokesRateLimited']=true;$this->emit('OWNER_NOTICE_RATE_LIMITED','THE_RESTORED_FILES_ARE_EXACT_BUT_THE_SITE_ANSWERED_429_TO_THE_SMOKES_OPEN_https://cms.ald1n.com/katalog_AND_ONE_LEGAL_PAGE_YOURSELF');}
             $this->probeRun('restored-fresh',false,false,true);
             $tree=LeanGates::verifyTree($this->active(),$this->b1146Manifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::B1146_TREE_FILES);$this->emit('ACTIVE_TREE_AFTER_ROLLBACK',$tree+['equalsManifestPlusB1146'=>true]);
             $this->approvalReport('after-rollback');
@@ -726,9 +794,10 @@ final class CatalogOverlayCoordinator
 
     /**
      * The recovery note: every target's state and ONE manual block (a quoted heredoc run by `bash -e`, so the first failing
-     * line stops the block). Exact reverse install order: the modified files (each backup copy sha256-verified right before
-     * it is installed), then the new files, then their now-empty directories, then view:clear with the PHP binary of this
-     * tool. The shop may stay ON: these files change no data and no route.
+     * line stops the block). The automatic rollback order: exact reverse install order (each backup copy sha256-verified
+     * right before it is installed, each new file removed), a sleep at every group boundary, view:clear before the new
+     * pagination view goes, the full measured hold before the new classes, then the now-empty directories and view:clear
+     * with the PHP binary of this tool. The shop may stay ON: these files change no data and no route.
      * $kind ROLLBACK_INCOMPLETE: a rollback ran and stopped. ROLLBACK_NOT_STARTED_MANUAL_ONLY: a gate stopped it before any
      * restore; nothing was attempted and the block is for the owner only.
      */
@@ -738,17 +807,22 @@ final class CatalogOverlayCoordinator
         foreach($this->plan as $s){try{$now=$this->classify($s)['state'];}catch(Throwable){$now='UNREADABLE';}$b=$this->state['backup']['files'][$s['n']]??null;$files[$s['n']]=['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'now'=>$now,'backupCopy'=>$b['copy']??null,'sha256'=>$b['sha256']??null,'mode'=>isset($b['mode'])?sprintf('%04o',$b['mode']):null,'gid'=>$b['gid']??null];}
         $record=is_array($this->state['backup']['files']??null);
         $next=$kind==='ROLLBACK_INCOMPLETE'?'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RETRIES_THE_ROLLBACK_FIRST':'NOTHING_WAS_ATTEMPTED_CLEAR_THE_BLOCKERS_AND_RUN_THE_SAME_COMMAND';
-        $this->emit('RECOVERY_NOTE',['kind'=>$kind,'problems'=>$problems,'files'=>array_values($files),'backupDirectory'=>$this->state['backup']['directory']??null,'backupRecord'=>$record?'PRESENT':'MISSING_NEW_FILES_ARE_NOT_REMOVED_BY_THE_BLOCK','privateCopies'=>'KEPT_0600','next'=>$next,'manualBlock'=>'ONLY_IF_THE_SAME_COMMAND_KEEPS_FAILING_THE_SHOP_MAY_STAY_ON','order'=>'EXACT_REVERSE_INSTALL_ORDER_MODIFIED_FILES_THEN_NEW_FILES_THEN_EMPTY_NEW_DIRECTORIES_THEN_VIEW_CLEAR']);
-        $lines=['set -euo pipefail','umask 022'];
+        $this->emit('RECOVERY_NOTE',['kind'=>$kind,'problems'=>$problems,'files'=>array_values($files),'backupDirectory'=>$this->state['backup']['directory']??null,'backupRecord'=>$record?'PRESENT':'MISSING_NEW_FILES_ARE_NOT_REMOVED_BY_THE_BLOCK','privateCopies'=>'KEPT_0600','next'=>$next,'manualBlock'=>'ONLY_IF_THE_SAME_COMMAND_KEEPS_FAILING_THE_SHOP_MAY_STAY_ON','order'=>'THE_AUTOMATIC_ROLLBACK_ORDER_REVERSE_INSTALL_ORDER_WITH_A_SLEEP_AT_EACH_GROUP_BOUNDARY_VIEW_CLEAR_BEFORE_THE_NEW_PAGINATION_VIEW_THE_FULL_HOLD_BEFORE_THE_NEW_CLASSES_THEN_VIEW_CLEAR']);
+        $lines=['set -euo pipefail','umask 022'];$view='cd '.$q($a).' && '.$q($this->php).' -d opcache.enable=0 -d opcache.enable_cli=0 artisan view:clear --no-interaction';
+        $pause=max(1,min(61,(int)($this->state['groupPauseSeconds']??3)));$last=null;
+        // The same order and waits as the automatic rollback: reverse install order, the new pagination view in its own later
+        // group after view:clear and a pause, a pause at every group boundary, the full measured hold before the new classes.
         foreach(array_reverse($files) as $f){
-            $t=$a.'/'.$f['path'];
-            if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null){$lines[]='printf '.$q('%s  %s\n').' '.$q((string)$f['sha256']).' '.$q((string)$f['backupCopy']).' | sha256sum --check --strict --quiet -';$lines[]='install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$q((string)$f['backupCopy']).' '.$q($t);}
-            elseif($f['kind']==='modified'&&$f['now']==='payload'){$lines[]='echo '.$q('NO_BACKUP_COPY_FOR '.$t.' STOP').' >&2';$lines[]='exit 2';}
+            $t=$a.'/'.$f['path'];$key=$f['group'].($f['kind']==='new'?'-NEW':'');$act=[];
+            if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null)$act=['printf '.$q('%s  %s\n').' '.$q((string)$f['sha256']).' '.$q((string)$f['backupCopy']).' | sha256sum --check --strict --quiet -','install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$q((string)$f['backupCopy']).' '.$q($t)];
+            elseif($f['kind']==='modified'&&$f['now']==='payload')$act=['echo '.$q('NO_BACKUP_COPY_FOR '.$t.' STOP').' >&2','exit 2'];
+            elseif($f['kind']==='new'&&$f['now']==='payload'&&$record)$act=['rm -f -- '.$q($t)];
             elseif($f['kind']==='modified'&&$f['now']==='absent')echo 'OWNER_INSPECT: '.$t.' IS_MISSING_NOT_REMOVED_BY_B1147_THE_OLD_BYTES_ARE_IN '.($f['backupCopy']??'NO_BACKUP_COPY').' SHA256 '.($f['sha256']??'UNKNOWN').PHP_EOL;
             elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1147'.PHP_EOL;
+            if($act===[])continue;
+            if($last!==null&&$last!==$key){if($f['group']==='A')$lines[]='sleep '.$this->viewHold();else{if($key==='D-NEW')$lines[]=$view;$lines[]='sleep '.$pause;}}
+            $last=$key;array_push($lines,...$act);
         }
-        // New files after every modified file: the restored old callers no longer need them.
-        foreach(array_reverse($files) as $f)if($f['kind']==='new'&&$f['now']==='payload'&&$record)$lines[]='rm -f -- '.$q($a.'/'.$f['path']);
         if($record)foreach(array_reverse($this->state['createdDirs']??[]) as $dir)if(is_dir($dir)&&!is_link($dir))$lines[]='rmdir --ignore-fail-on-non-empty -- '.$q($dir);
         $lines[]='cd '.$q($a).' && '.$q($this->php).' -d opcache.enable=0 -d opcache.enable_cli=0 artisan view:clear --no-interaction';$lines[]='echo B1147_MANUAL_RECOVERY_BLOCK_DONE';
         echo 'OWNER_COMMAND_BLOCK=PASTE_EVERYTHING_FROM_THE_bash_-e_LINE_TO_THE_B1147_RECOVERY_LINE_INTO_THE_SSH_SHELL_IT_STOPS_AT_THE_FIRST_FAILING_LINE'.PHP_EOL;
@@ -855,6 +929,8 @@ final class CatalogOverlayCoordinator
         $code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);
         if(in_array($code,self::UNVERIFIED_CODES,true)&&($this->state['phase']??'')==='ACCEPTANCE_INTENT'){
             try{$exact=$this->targets()['installed']===true;}catch(Throwable){$exact=false;}
+            // Everything that needs no throttled route and no particular shop state must still pass before the files stay.
+            if($exact)try{$this->unthrottledChecks();}catch(Throwable $f){$exact=false;$code=self::code($f);$this->emit('UNTHROTTLED_CHECK_FAILED',$code);}
             if($exact){
                 $this->state['unverifiedReason']=$code;$this->save('ACCEPTANCE_NOT_VERIFIED');$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';
                 $this->emit('HOLD_INSTALLED_NOT_VERIFIED',['reason'=>$code,'files'=>'ALL_8_HOLD_EXACTLY_THE_PAYLOAD','rollback'=>'NOT_STARTED_THE_FILES_ARE_CORRECT','shopSwitch'=>'NOT_WRITTEN']);
@@ -865,11 +941,29 @@ final class CatalogOverlayCoordinator
         $ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep()]);return 2;
     }
 
-    /** ACCEPTANCE_NOT_VERIFIED: the same command repeats only the acceptance, with the shop ON as recorded and no artisan run. */
+    /** The acceptance checks that need neither a throttled route nor the shop: fresh probe, routes, CLI classes, log, tree. */
+    private function unthrottledChecks():void
+    {
+        $this->probeRun('unverified-fresh',true,false,true);$this->routesCheck($this->state['cache']['routeCacheFiles']);$this->catalogCheck(true);
+        $scan=LeanGates::newLogErrors($this->active().'/storage/logs',$this->state['logBaseline']);$this->emit('LARAVEL_LOG_SINCE_INSTALL',$scan);if($scan['newErrorLines']!==0)throw new RuntimeException('NEW_LARAVEL_LOG_ERRORS_SINCE_INSTALL');
+        $tree=LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::INSTALLED_TREE_FILES);$this->emit('ACTIVE_TREE_INSTALLED_UNVERIFIED',$tree+['manifestPlusB1146PlusB1147'=>true]);
+    }
+
+    /**
+     * ACCEPTANCE_NOT_VERIFIED: the same command repeats only the acceptance, after the same gates as an owner rollback
+     * (no CMS artisan run, no backup running or due, no B1146 run) and with the shop ON as recorded. The log is judged from
+     * a fresh baseline taken at the resume.
+     */
     private function resumeAcceptance():int
     {
         $this->emit('RESUMED_ACCEPTANCE_ONLY',['reason'=>$this->state['unverifiedReason']??null]);$this->state['chain']??=$this->chain();
-        try{$this->census();$this->requireRecordedShop('BEFORE_RESUMED_ACCEPTANCE');}catch(Throwable $e){$this->emit('HOLD_ACCEPTANCE_NOT_RESUMED',['blockers'=>[self::code($e)],'filesChanged'=>'NONE','next'=>'TURN_THE_SHOP_ON_AS_BEFORE_OR_WAIT_FOR_THE_ARTISAN_RUN_THEN_RUN_THE_SAME_COMMAND_OR_USE_--rollback']);$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';return 2;}
+        try{
+            $app=$this->helper($this->appStateScript,['state']);if(($app['backups']['table']??null)!==true||($app['backups']['running']??null)!==0)throw new RuntimeException('BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING');
+            $this->scheduleNeedSeconds=max($this->scheduleNeedSeconds,$this->requiredWindowSeconds($this->viewHold()));
+            if($this->scheduleGate){$s=$this->scheduleState($app);if($s['conflict']!==null)throw new RuntimeException('SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_WAIT');}
+            $this->b1146Idle();$this->census();$this->requireRecordedShop('BEFORE_RESUMED_ACCEPTANCE');
+            $this->state['logBaseline']=LeanGates::logBaseline($this->active().'/storage/logs');$this->persist();
+        }catch(Throwable $e){$this->emit('HOLD_ACCEPTANCE_NOT_RESUMED',['blockers'=>[self::code($e)],'filesChanged'=>'NONE','next'=>'TURN_THE_SHOP_ON_AS_BEFORE_OR_WAIT_FOR_THE_ARTISAN_RUN_THEN_RUN_THE_SAME_COMMAND_OR_USE_--rollback']);$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';return 2;}
         if($this->targets()['installed']!==true){$ok=$this->restore('RESUMED_ACCEPTANCE_FILES_NOT_EXACT');$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
         try{$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
         return $this->finish('PASS_INSTALLED_CATALOG_OVERLAY_SHOP_STATE_UNCHANGED');
