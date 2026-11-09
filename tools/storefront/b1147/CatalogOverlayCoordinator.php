@@ -478,7 +478,8 @@ final class CatalogOverlayCoordinator
     /** The merchant approval facts from the pinned b1146-app-check approval mode (read-only SELECTs). */
     private static function approvalFacts(array $r):array
     {
-        if(($r['ok']??null)!==true)throw new RuntimeException('MERCHANT_APPROVAL_UNREADABLE');
+        // helper() already required ok=true (and removed it); the approval fields must be present booleans.
+        if(!is_bool($r['approved']??null)||!is_bool($r['approvalDigestMatchesFingerprint']??null))throw new RuntimeException('MERCHANT_APPROVAL_UNREADABLE');
         return ['approved'=>$r['approved']??null,'complete'=>$r['complete']??null,'digestPresent'=>$r['approvalDigestPresent']??null,'digestMatchesFingerprint'=>$r['approvalDigestMatchesFingerprint']??null];
     }
 
