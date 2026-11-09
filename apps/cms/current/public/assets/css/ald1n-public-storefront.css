@@ -10,7 +10,7 @@
  * prefers-color-scheme; without a preference the brand default is dark.
  *
  * Readability first: every text container is a dense translucent surface
- * (light 0.80-0.96, dark 0.82-0.96 opacity) over a calm background, so
+ * (light 0.70-0.96, dark 0.72-0.96 opacity) over soft ambient light, so
  * text keeps WCAG AA even over the ambient glows. Without backdrop-filter,
  * with reduced transparency, more contrast or forced colors the surfaces
  * become fully opaque.
@@ -23,14 +23,14 @@
   --font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
   --font-display:"Segoe UI Variable Display","SF Pro Display","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   --bg:#0d1216;
-  --glow-1:rgba(88,122,176,.28);
-  --glow-2:rgba(126,104,206,.24);
-  --glow-3:rgba(72,150,176,.20);
-  --glow-4:rgba(196,140,108,.14);
+  --glow-1:rgba(88,122,196,.36);
+  --glow-2:rgba(126,104,216,.32);
+  --glow-3:rgba(64,156,184,.28);
+  --glow-4:rgba(196,140,108,.20);
   --surface-solid:#182026;
-  --glass:rgba(24,32,38,.84);
+  --glass:rgba(24,32,38,.76);
   --glass-strong:rgba(15,21,26,.96);
-  --glass-soft:rgba(30,40,47,.82);
+  --glass-soft:rgba(30,40,47,.72);
   --glass-hover:rgba(34,45,53,.90);
   --field:#111820;
   --border:rgba(206,222,234,.13);
@@ -90,14 +90,14 @@
 :root[data-theme=light]{
   color-scheme:light;
   --bg:#edf0f4;
-  --glow-1:rgba(110,142,200,.30);
-  --glow-2:rgba(150,128,226,.26);
-  --glow-3:rgba(96,176,198,.24);
-  --glow-4:rgba(222,170,132,.24);
+  --glow-1:rgba(104,140,214,.40);
+  --glow-2:rgba(150,124,232,.36);
+  --glow-3:rgba(84,178,204,.34);
+  --glow-4:rgba(232,168,124,.32);
   --surface-solid:#ffffff;
-  --glass:rgba(255,255,255,.84);
+  --glass:rgba(255,255,255,.74);
   --glass-strong:rgba(250,251,253,.96);
-  --glass-soft:rgba(255,255,255,.80);
+  --glass-soft:rgba(255,255,255,.70);
   --glass-hover:rgba(255,255,255,.94);
   --field:#ffffff;
   --border:rgba(24,40,58,.11);
@@ -150,14 +150,14 @@
   :root:not([data-theme=dark]){
     color-scheme:light;
     --bg:#edf0f4;
-    --glow-1:rgba(110,142,200,.30);
-    --glow-2:rgba(150,128,226,.26);
-    --glow-3:rgba(96,176,198,.24);
-    --glow-4:rgba(222,170,132,.24);
+    --glow-1:rgba(104,140,214,.40);
+    --glow-2:rgba(150,124,232,.36);
+    --glow-3:rgba(84,178,204,.34);
+    --glow-4:rgba(232,168,124,.32);
     --surface-solid:#ffffff;
-    --glass:rgba(255,255,255,.84);
+    --glass:rgba(255,255,255,.74);
     --glass-strong:rgba(250,251,253,.96);
-    --glass-soft:rgba(255,255,255,.80);
+    --glass-soft:rgba(255,255,255,.70);
     --glass-hover:rgba(255,255,255,.94);
     --field:#ffffff;
     --border:rgba(24,40,58,.11);

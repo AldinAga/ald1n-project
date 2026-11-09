@@ -494,7 +494,11 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringContainsString('<meta property="og:site_name" content="Radnja &lt;Šabac&gt; &amp; Co">', $html);
         self::assertStringContainsString('<p class="eyebrow">Katalog Radnja &lt;Šabac&gt; &amp; Co</p>', $html);
         self::assertStringContainsString('<meta name="description" content="Katalog Radnja &lt;Šabac&gt; &amp; Co: ', $html);
-        self::assertStringContainsString('"isPartOf":{"@type":"WebSite","name":"Radnja <Šabac> & Co"', $html);
+        // JSON-LD escapes markup characters as unicode escapes (backslash u003C ...).
+        $jsonName = json_encode('Radnja <Šabac> & Co', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
+        self::assertStringContainsString('"isPartOf":{"@type":"WebSite","name":'.$jsonName, $html);
+        self::assertStringContainsString(chr(92).'u003CŠabac'.chr(92).'u003E '.chr(92).'u0026 Co', (string) $jsonName);
+        self::assertStringNotContainsString('"name":"Radnja <', $html);
         self::assertStringNotContainsString('AP.Computers', $html);
         self::assertStringNotContainsString('<Šabac>', $html);
 
