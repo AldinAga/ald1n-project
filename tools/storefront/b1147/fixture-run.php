@@ -41,6 +41,8 @@ $set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$c
             'corruptBackup'=>$corrupt(),
             'dropCsp'=>touch($cfg['dropCsp']),
             'dropJsonLd'=>touch($cfg['dropJsonLd']),
+            // The negative switches apply to the installed smokes only; the old-state smokes of the rollback see real headers.
+            'clearDrops'=>array_map(static fn(string $f):bool=>!is_file($f)||unlink($f),[$cfg['dropCsp'],$cfg['dropJsonLd']]),
             default=>throw new RuntimeException('FIXTURE_UNKNOWN_ACTION'),
         };
     }
