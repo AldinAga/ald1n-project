@@ -5,7 +5,8 @@ declare(strict_types=1);
 /**
  * Disposable CI-only fixture for the catalog visual QA screenshots:
  * 46 synthetic products over three pages, long names, missing images,
- * out-of-stock rows, EUR and RSD prices, white-background and dark images.
+ * out-of-stock rows, EUR and RSD prices, white-background and dark images,
+ * and a synthetic light/dark logo pair with favicon (toggle: --logo=on|off).
  * Refuses to run anywhere except the pinned localhost MariaDB test database.
  *
  * @author Ald1n <https://ald1n.com>
@@ -28,13 +29,75 @@ if ($app->environment() !== 'testing' || $db->getDriverName() !== 'mysql'
     fwrite(STDERR, "CATALOG_VISUAL_HOLD_DISPOSABLE_ENV_REQUIRED\n");
     exit(3);
 }
-if (Product::query()->exists()) {
-    fwrite(STDERR, "CATALOG_VISUAL_HOLD_NONEMPTY_DB\n");
-    exit(5);
-}
 if (!function_exists('imagecreatetruecolor')) {
     fwrite(STDERR, "CATALOG_VISUAL_HOLD_GD_REQUIRED\n");
     exit(6);
+}
+
+/**
+ * Synthetic site branding as set in Podešavanja > Izgled sajta: a logo for
+ * the light theme, one for the dark theme (transparent PNG) and a favicon on
+ * the public disk. "--logo=off" clears them so the built-in brand mark shows.
+ */
+$branding = static function (bool $on): void {
+    $settings = app(App\Services\SettingsService::class);
+    if (!$on) {
+        $settings->putMany(['site_logo_light_path' => '', 'site_logo_dark_path' => '', 'site_logo_path' => '',
+            'site_favicon_path' => '', 'site_footer_show_logo' => '0'], null);
+
+        return;
+    }
+    $logo = static function (array $ink, array $mark): string {
+        $small = imagecreatetruecolor(150, 36);
+        imagesavealpha($small, true);
+        imagealphablending($small, false);
+        imagefill($small, 0, 0, imagecolorallocatealpha($small, 0, 0, 0, 127));
+        imagealphablending($small, true);
+        imagefilledrectangle($small, 2, 4, 30, 32, imagecolorallocate($small, $mark[0], $mark[1], $mark[2]));
+        imagestring($small, 5, 8, 10, 'AP', imagecolorallocate($small, 255, 255, 255));
+        imagestring($small, 5, 38, 10, 'AP.Computers', imagecolorallocate($small, $ink[0], $ink[1], $ink[2]));
+        $big = imagecreatetruecolor(300, 72);
+        imagesavealpha($big, true);
+        imagealphablending($big, false);
+        imagefill($big, 0, 0, imagecolorallocatealpha($big, 0, 0, 0, 127));
+        imagecopyresampled($big, $small, 0, 0, 0, 0, 300, 72, 150, 36);
+        ob_start();
+        imagepng($big);
+        imagedestroy($small);
+        imagedestroy($big);
+
+        return (string) ob_get_clean();
+    };
+    $icon = imagecreatetruecolor(64, 64);
+    imagefill($icon, 0, 0, imagecolorallocate($icon, 45, 80, 191));
+    imagestring($icon, 5, 23, 24, 'AP', imagecolorallocate($icon, 255, 255, 255));
+    ob_start();
+    imagepng($icon);
+    imagedestroy($icon);
+    $favicon = (string) ob_get_clean();
+    $disk = Storage::disk('public');
+    $disk->put('site-assets/visual-logo-light.png', $logo([18, 27, 36], [45, 80, 191]));
+    $disk->put('site-assets/visual-logo-dark.png', $logo([238, 242, 245], [74, 111, 224]));
+    $disk->put('site-assets/visual-favicon.png', $favicon);
+    $settings->putMany([
+        'site_logo_light_path' => 'site-assets/visual-logo-light.png',
+        'site_logo_dark_path' => 'site-assets/visual-logo-dark.png',
+        'site_favicon_path' => 'site-assets/visual-favicon.png',
+        'site_logo_alt' => 'AP.Computers',
+        'site_header_logo_height' => '40',
+        'site_footer_show_logo' => '1',
+    ], null);
+};
+foreach (array_slice($argv, 1) as $arg) {
+    if ($arg === '--logo=on' || $arg === '--logo=off') {
+        $branding($arg === '--logo=on');
+        echo 'CATALOG_VISUAL_BRANDING='.substr($arg, 7)."\n";
+        exit(0);
+    }
+}
+if (Product::query()->exists()) {
+    fwrite(STDERR, "CATALOG_VISUAL_HOLD_NONEMPTY_DB\n");
+    exit(5);
 }
 
 $admin = User::query()->create([
@@ -162,4 +225,5 @@ foreach (array_reverse($rows) as $n => [$name, $brand, $category, $price, $curre
         ]);
     }
 }
-echo 'CATALOG_VISUAL_FIXTURE=PASS products='.Product::query()->count()."\n";
+$branding(true);
+echo 'CATALOG_VISUAL_FIXTURE=PASS products='.Product::query()->count()." branding=on\n";

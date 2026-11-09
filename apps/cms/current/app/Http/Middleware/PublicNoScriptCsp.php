@@ -49,6 +49,8 @@ final class PublicNoScriptCsp
                 "style-src 'self'; img-src 'self' data: https://challenges.cloudflare.com; ".
                 "font-src 'self' data:; connect-src 'self' https://challenges.cloudflare.com; ".
                 "frame-src https://challenges.cloudflare.com; worker-src 'none'; media-src 'none'");
+            // The storefront theme comes from the shop_theme cookie.
+            $response->setVary('Cookie', false);
             return $response;
         }
 
@@ -70,6 +72,9 @@ final class PublicNoScriptCsp
             "style-src 'self'; img-src 'self' data:; font-src 'self' data:; ".
             "connect-src 'none'; frame-src 'none'; worker-src 'none'; media-src 'none'");
         $response->headers->set('X-Frame-Options', 'DENY');
+        // The layout's data-theme comes from the shop_theme cookie: any cache
+        // that ignores Cache-Control must still key these pages by Cookie.
+        $response->setVary('Cookie', false);
 
         return $response;
     }
