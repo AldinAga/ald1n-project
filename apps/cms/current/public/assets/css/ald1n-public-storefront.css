@@ -583,9 +583,6 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 /* ---------- Motion (opt-in only) ---------- */
 @media (prefers-reduced-motion:no-preference){
   html{scroll-behavior:smooth}
-  /* B1149: the instant theme switch fades the page background only; text
-     colours change at once, so nothing is ever drawn at low contrast. */
-  html,body.public-retail{transition:background-color .2s ease}
   .shop-product{transition:transform .32s var(--ease),box-shadow .32s var(--ease),border-color .32s var(--ease),background-color .32s var(--ease)}
   .shop-image img{transition:transform .6s var(--ease)}
   .shop-button,button,.shop-details-link,.shop-chip,.shop-page,.shop-menu a,.shop-filters input,.shop-filters select,.shop-theme-option,.legal-card,.legal-nav a{transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}

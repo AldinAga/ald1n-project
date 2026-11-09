@@ -360,6 +360,8 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         // The value the theme script writes is read as it is.
         $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, 'light')->get('/korpa')
             ->assertOk()->assertSee('<html lang="sr" data-theme="light">', false);
+        // Test cookies persist across requests: start the next ones clean.
+        $this->unencryptedCookies = [];
         // A B1148 (encrypted) cookie or any other foreign value is not a
         // theme keyword and renders the system theme.
         $this->withCookie(PublicStorefrontAppearance::COOKIE, 'dark')->get('/korpa')
@@ -368,6 +370,44 @@ final class PublicStorefrontThemeLogoTest extends TestCase
             $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, $value)->get('/korpa')
                 ->assertOk()->assertSee('<html lang="sr" data-theme="system">', false);
         }
+    }
+
+    public function test_an_unusable_theme_cookie_is_removed_once_and_a_valid_one_is_left_alone(): void
+    {
+        $find = static fn ($response) => collect($response->headers->getCookies())
+            ->first(static fn ($c) => $c->getName() === PublicStorefrontAppearance::COOKIE);
+
+        // The B1148 cookie (encrypted, HttpOnly) and any other foreign value.
+        foreach (['/korpa', '/katalog', '/katalog/glass-syn-1', '/uslovi-prodaje', '/registracija'] as $uri) {
+            foreach (['encrypted' => null, 'garbage' => 'eyJpdiI6IjEyMyJ9', 'empty' => ''] as $kind => $value) {
+                $response = $value === null
+                    ? $this->withCookie(PublicStorefrontAppearance::COOKIE, 'dark')->get('http://localhost'.$uri)
+                    : $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, $value)->get('http://localhost'.$uri);
+                $response->assertOk();
+                $cookie = $find($response);
+                self::assertNotNull($cookie, $uri.' '.$kind);
+                self::assertTrue($cookie->isCleared(), $uri.' '.$kind);
+                self::assertSame('', (string) $cookie->getValue(), $uri.' '.$kind);
+                self::assertSame('/', $cookie->getPath(), $uri.' '.$kind);
+                self::assertNull($cookie->getDomain(), $uri.' '.$kind);
+                self::assertFalse($cookie->isHttpOnly(), $uri.' '.$kind);
+                self::assertFalse($cookie->isSecure(), $uri.' '.$kind);
+                $this->flushHeaders();
+                $this->defaultCookies = [];
+                $this->unencryptedCookies = [];
+            }
+        }
+        // Over HTTPS the removal is Secure, like the cookie /tema writes there.
+        $secure = $find($this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, 'x')->get('https://cms.ald1n.com/korpa')->assertOk());
+        self::assertTrue($secure !== null && $secure->isCleared() && $secure->isSecure());
+        $this->unencryptedCookies = [];
+
+        // A valid value, or no cookie at all, gets no Set-Cookie for the theme.
+        foreach (['light', 'dark', 'system'] as $theme) {
+            self::assertNull($find($this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, $theme)->get('/korpa')->assertOk()), $theme);
+            $this->unencryptedCookies = [];
+        }
+        self::assertNull($find($this->get('/korpa')->assertOk()));
     }
 
     public function test_each_shop_page_has_one_theme_script_with_a_fresh_per_request_nonce(): void

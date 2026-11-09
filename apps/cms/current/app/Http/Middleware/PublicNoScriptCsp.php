@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\PublicStorefrontAppearance;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -59,6 +60,7 @@ final class PublicNoScriptCsp
                 "frame-src https://challenges.cloudflare.com; worker-src 'none'; media-src 'none'");
             // The storefront theme comes from the shop_theme cookie.
             $response->setVary('Cookie', false);
+            self::clearStaleTheme($request, $response);
             return $response;
         }
 
@@ -84,8 +86,18 @@ final class PublicNoScriptCsp
         // The layout's data-theme comes from the shop_theme cookie: any cache
         // that ignores Cache-Control must still key these pages by Cookie.
         $response->setVary('Cookie', false);
+        self::clearStaleTheme($request, $response);
 
         return $response;
+    }
+
+    /** B1149: remove an unusable (e.g. old encrypted HttpOnly) theme cookie. */
+    private static function clearStaleTheme(Request $request, Response $response): void
+    {
+        $stale = PublicStorefrontAppearance::staleThemeCookie($request);
+        if ($stale !== null) {
+            $response->headers->setCookie($stale);
+        }
     }
 
     /**

@@ -471,8 +471,15 @@ async function themeSwitch(browserType, engine) {
     // A logo variant that becomes visible may lazy-load its image; that is
     // not a page load. Everything else (document, form post, fetch) counts.
     page.on('request', req => { if (req.resourceType() !== 'image') requests.push(req.resourceType() + ' ' + req.method() + ' ' + req.url()); });
+    // An existing visitor: the B1148 cookie was encrypted and HttpOnly, which
+    // a script write cannot replace. The first shop page removes it.
+    await context.addCookies([{name: 'shop_theme', value: 'eyJpdiI6IkIxMTQ4LXN5bnRoZXRpYyJ9', url: base, httpOnly: true, sameSite: 'Lax',
+      expires: Math.floor(Date.now() / 1000) + 200 * 86400}]);
     await budget(1, 0);
     await page.goto(base + '/korpa', {waitUntil: 'networkidle'});
+    const stale = (await context.cookies()).find(c => c.name === 'shop_theme');
+    check(!stale, engine + ' old HttpOnly theme cookie removed ' + JSON.stringify(stale));
+    check(await page.evaluate(() => document.documentElement.dataset.theme) === 'system', engine + ' old cookie renders the system theme');
     await page.evaluate(() => { window.__b1149SamePage = true; });
     const startNavs = navigations;
     const url = page.url();

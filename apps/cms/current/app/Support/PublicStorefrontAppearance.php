@@ -8,11 +8,13 @@ use App\Services\SettingsService;
 use App\Services\SiteAssetUrlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Cookie;
 use Throwable;
 
 /**
- * View model for the scriptless public storefront layout: the visitor's theme
- * choice (first-party cookie, no JavaScript) and the site branding configured
+ * View model for the public storefront layout: the visitor's theme choice
+ * (plain first-party cookie, written by the theme script or POST /tema) and
+ * the site branding configured
  * in Podešavanja > Izgled sajta (logo pair, favicon, alt text, logo height,
  * footer logo flag, site name).
  *
@@ -50,6 +52,27 @@ final class PublicStorefrontAppearance
         $value = $request->cookie(self::COOKIE);
 
         return is_string($value) && in_array($value, self::THEMES, true) ? $value : 'system';
+    }
+
+    /**
+     * B1149: an expired shop_theme cookie when the request carries a value
+     * that is not a theme keyword, for example the encrypted HttpOnly cookie
+     * B1148 wrote. Browsers ignore a script write over an HttpOnly cookie of
+     * the same name, so the server removes it once; the next click is then
+     * stored. Same name, path and host-only scope as the cookie we write
+     * (no session.domain fallback). A valid value gets no Set-Cookie.
+     */
+    public static function staleThemeCookie(Request $request): ?Cookie
+    {
+        if (!$request->cookies->has(self::COOKIE)) {
+            return null;
+        }
+        $value = $request->cookies->get(self::COOKIE);
+        if (is_string($value) && in_array($value, self::THEMES, true)) {
+            return null;
+        }
+
+        return Cookie::create(self::COOKIE, '', 1, '/', null, $request->isSecure(), false, false, Cookie::SAMESITE_LAX);
     }
 
     /**
