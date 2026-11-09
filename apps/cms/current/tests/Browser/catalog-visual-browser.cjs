@@ -234,7 +234,10 @@ async function measureContrast(page, label) {
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (!node.nodeValue.trim()) continue;
       const el = node.parentElement;
-      if (!el || el.closest('script,style,noscript,option,select,textarea,title')) continue;
+      // Screen-reader-only text is clipped to 1px but its Range rects are not.
+      if (!el || el.closest('script,style,noscript,option,select,textarea,title,.sr-only')) continue;
+      const box = el.getBoundingClientRect();
+      if (box.width <= 2 || box.height <= 2) continue;
       const cs = getComputedStyle(el);
       if (cs.visibility !== 'visible' || parseFloat(cs.opacity) < 0.05) continue;
       const range = document.createRange();
@@ -279,6 +282,9 @@ async function measureContrast(page, label) {
       }
       if (/^(IMG|SVG|svg)$/.test(el.tagName)) el.style.setProperty('visibility', 'hidden', 'important');
     }
+    // The fixed back-to-top button would be painted over footer text in a
+    // full-page capture; it is never part of the measured text backdrop.
+    for (const el of document.querySelectorAll('.shop-back-to-top,.shop-top-rail')) el.style.setProperty('visibility', 'hidden', 'important');
     return out;
   });
   await pause(120);
@@ -377,13 +383,14 @@ async function themeCookies(browserType, engine) {
     await page.goto(base + '/korpa', {waitUntil: 'networkidle'});
     for (const theme of ['light', 'dark', 'system']) {
       await budget(2, 0);
-      const posted = page.waitForResponse(res => res.url() === base + '/tema' && res.request().method() === 'POST');
-      await Promise.all([
-        page.waitForURL(url => url.pathname === '/korpa' && url.search === '', {timeout: 15000}),
-        page.locator('.shop-theme-option[value="' + theme + '"]').click(),
-      ]);
+      // The page is already on /korpa, so wait for the POST and the follow-up
+      // GET of the redirect target, not for the URL.
+      const posted = page.waitForResponse(res => res.url() === base + '/tema' && res.request().method() === 'POST', {timeout: 15000});
+      const back = page.waitForResponse(res => res.url() === base + '/korpa' && res.request().method() === 'GET', {timeout: 15000});
+      await Promise.all([posted, back, page.locator('.shop-theme-option[value="' + theme + '"]').click()]);
       const res = await posted;
       check(res.status() === 303 && res.headers()['location'] === '/korpa', engine + ' /tema answers 303 to /korpa ' + res.status() + ' ' + res.headers()['location']);
+      await page.waitForLoadState('load');
       await page.waitForLoadState('networkidle');
       const st = await page.evaluate(() => ({
         theme: document.documentElement.dataset.theme,
@@ -391,7 +398,8 @@ async function themeCookies(browserType, engine) {
       }));
       check(st.theme === theme && st.pressed.join() === theme, engine + ' switch to ' + theme + ' ' + JSON.stringify(st));
       const cookie = (await context.cookies()).find(c => c.name === 'shop_theme');
-      check(cookie && cookie.httpOnly && cookie.sameSite === 'Lax' && cookie.path === '/' && cookie.expires > Date.now() / 1000 + 300 * 86400,
+      // WebKit on Linux does not always report sameSite; PHPUnit covers the server flags.
+      check(cookie && cookie.httpOnly && (engine !== 'chromium' || cookie.sameSite === 'Lax') && cookie.path === '/' && cookie.expires > Date.now() / 1000 + 300 * 86400,
         engine + ' shop_theme cookie flags ' + JSON.stringify(cookie && {...cookie, value: '…'}));
       if (cookie) out[theme] = cookie;
       if (theme === 'dark') await page.screenshot({path: shot(engine + '-theme-switch-dark-1280'), animations: 'disabled'});
