@@ -1,0 +1,263 @@
+name: B1147 catalog overlay (NO DEPLOY)
+on:
+  push:
+    branches: [codex/b1147-catalog-overlay-20261109]
+    paths: ['.github/workflows/b1147-catalog-overlay.yml', 'tools/storefront/b1147/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  catalog-overlay:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 120
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_b1147_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pisolated-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: opcache,pdo_mysql,mysqli,pdo_sqlite,sqlite3,mbstring,dom,curl,gd,intl,bcmath,zip,posix
+          coverage: none
+      - name: Pin cms.ald1n.com to loopback so CI can never reach production
+        run: |
+          set -euo pipefail
+          printf '\n127.0.0.1 cms.ald1n.com\n::1 cms.ald1n.com\n' | sudo tee -a /etc/hosts >/dev/null
+          python3 -c 'import socket,sys;a={i[4][0] for i in socket.getaddrinfo("cms.ald1n.com",443)};print(sorted(a));sys.exit(0 if a and a<={"127.0.0.1","::1"} else 2)'
+      - name: Syntax, portable operator shell, pinned helpers and forbidden mechanisms absent from shipped code
+        run: |
+          set -euo pipefail
+          for f in tools/storefront/b1147/*.php tools/storefront/b1146/*.php tools/storefront/b1145/*.php tools/storefront/b1144/*.php tools/storefront/b1134/*.php; do php -l "$f"; done
+          w=tools/storefront/b1147/operator-wrapper.sh
+          bash -n "$w"
+          if grep -nE '<\(|>\(|/dev/fd|python3' "$w"; then exit 2; fi
+          grep -q 'setsid nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &' "$w"
+          # AGENTS rule 26: the terminal clear is the first command after the shebang and the comment block.
+          test "$(grep -v '^#' "$w" | head -n 1)" = "clear 2>/dev/null || printf '\033c'"
+          grep -q 'exec >> "$REPORT" 2>&1 < /dev/null' "$w"
+          grep -q 'if($highest<1109)exit(2)' "$w"
+          printf '%s\n' \
+            '9dce8324bd4464a1689918775736bcd3a850f2b1c2b1b0ca7e130a9e486da12b  tools/storefront/b1134/InstallFileOps.php' \
+            '20ba7d5baa2affa719f8e858a5d5c6e89d46341cb20d2dbef4d8cfb2ca64b077  tools/storefront/b1134/ReleasePrimitives.php' \
+            '1e790c20fb9712d416399975d6cbcce3be1bd2dc12ede59a95f2e1cc75ea7e3e  tools/storefront/b1134/runtime-directories.json' \
+            '7e62150fcad0884255ddb3c18063f5e2a23852a3eb0fdecb978c2955392ccf6e  tools/storefront/b1144/LeanGates.php' \
+            '3dbf4762e419d8df053fa7e642bd1b85df07d66dbffdb94fe0d8d5cdc1b50616  tools/storefront/b1144/FreshnessProbe.php' \
+            '54a04bc4dea81d56ad5fe0e6b25a141d4a86acf803f6df95f1c5d2b7adff6a73  tools/storefront/b1144/LeanWeb.php' \
+            '04a4bbd13b8aef346247d8641445ccb9f0a2d7fd3f26f7a03723724fc0132f69  tools/storefront/b1145/EnvFlags.php' \
+            '642ddede76db8f1ea66bfc6a8d1ad74c894a70b665204cac4c96de17e97113a5  tools/storefront/b1145/AppState.php' \
+            '46b159fbeab6c4f849dbb1a9291bbf13245b511ea58fd51646f26f28caa53fb9  tools/storefront/b1145/MigrateUnclampCoordinator.php' \
+            'abcc9c64c6b9918d180afd387ec917a4924e1ce28c0099c0bbdae500e811c01f  tools/storefront/b1146/OverlayProbe.php' \
+            '68b4b2af5ad5a6399991adf474cfc753abf77a483fb12d2c1669a4b307ce2c2b  tools/storefront/b1146/AppCheck.php' \
+            | sha256sum --check --strict
+          # The B1146 tooling is the reviewed afa0c704 copy, byte for byte (it installs B1146 for real in the fixture).
+          git diff --quiet afa0c704a1c4ad096918f904b98a77e223398e22 HEAD -- tools/storefront/b1134 tools/storefront/b1144 tools/storefront/b1145 tools/storefront/b1146
+          shipped='tools/storefront/b1147/operator-entry.php tools/storefront/b1147/CatalogOverlayCoordinator.php tools/storefront/b1147/CatalogWeb.php tools/storefront/b1147/AppCheck.php tools/storefront/b1147/operator-wrapper.sh'
+          if grep -niE '/usr/local/cpanel|uapi|DomainInfo|opcache_reset|php_flag|HostProcessGuard|--seed|migrate:fresh|migrate:rollback|migrate:refresh|migrate:reset|db:wipe|config:cache|view:cache|route:cache|route:clear|public_storefront_open|Mail::|mail\(|CURLOPT_POST|CURLOPT_CUSTOMREQUEST' $shipped; then exit 2; fi
+          if grep -n $'\r' $shipped tools/storefront/b1147/README-SR.md; then exit 2; fi
+      - name: Reuse authenticated exact existing runtime
+        id: runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/b1147-runtime"
+          mkdir -p "$work/payload" "$work/stage"
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
+          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
+          WORK="$work" python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile,zipfile
+          root=pathlib.Path(os.environ['WORK'])
+          with zipfile.ZipFile(root/'runtime.zip') as archive:
+              assert set(archive.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
+              for entry in archive.infolist():
+                  assert entry.file_size<=64*1024*1024
+                  (root/'payload'/entry.filename).write_bytes(archive.read(entry))
+          assert hashlib.sha256((root/'payload/cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
+          assert hashlib.sha256((root/'payload/runtime-manifest.json').read_bytes()).hexdigest()=='d737387e60a981b3b404e0980d9b70cb95b6e1d506a39211981d49dcd12be4c6'
+          with tarfile.open(root/'payload/cms-runtime.tar.gz') as archive:
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in archive.getmembers())
+              archive.extractall(root/'stage',filter='data')
+          PY
+      - name: Build the B1146 ZIP (fixture predecessor) and the B1147 operator ZIP from git (PR 154 diff must equal the coded file set)
+        id: package
+        run: |
+          set -euo pipefail
+          manifest="$RUNNER_TEMP/b1147-runtime/payload/runtime-manifest.json"
+          php tools/storefront/b1146/package.php "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/tools/storefront/b1146" "$GITHUB_WORKSPACE/tools/storefront/b1134" "$GITHUB_WORKSPACE/tools/storefront/b1144" "$GITHUB_WORKSPACE/tools/storefront/b1145" "$manifest" "$RUNNER_TEMP/package-b1146" 84facde9ff138d1e7dd0de7af5c811d800b0ccfe > "$RUNNER_TEMP/package-b1146.json"
+          git diff --no-renames --name-status eabe16af8c19fade882e25c70425eb43c3e17ed9 764bf5135ad6241d64f728e4b141cc2713dc6c48 -- apps/cms/current
+          b() { php tools/storefront/b1147/package.php "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/tools/storefront/b1147" "$GITHUB_WORKSPACE/tools/storefront/b1134" "$GITHUB_WORKSPACE/tools/storefront/b1144" "$GITHUB_WORKSPACE/tools/storefront/b1145" "$GITHUB_WORKSPACE/tools/storefront/b1146" "$manifest" "$1" afa0c704a1c4ad096918f904b98a77e223398e22; }
+          b "$RUNNER_TEMP/package" | tee "$RUNNER_TEMP/package.json"
+          (cd "$RUNNER_TEMP/package" && sha256sum --check --strict b1147-operator.zip.sha256)
+          unzip -Z1 "$RUNNER_TEMP/package/b1147-operator.zip" | sort > "$RUNNER_TEMP/members.txt"
+          cat "$RUNNER_TEMP/members.txt"
+          if grep -vE '^incoming/b1147-[A-Za-z0-9._-]+$' "$RUNNER_TEMP/members.txt"; then exit 2; fi
+          test "$(wc -l < "$RUNNER_TEMP/members.txt")" = 17
+          test "$(grep -c '^incoming/b1147-payload-0[1-8]\.bin$' "$RUNNER_TEMP/members.txt")" = 8
+          grep -q '"cssVersion": "202611082"' "$RUNNER_TEMP/package.json"
+          # Two builds give the same bytes.
+          b "$RUNNER_TEMP/package-again" > /dev/null
+          cmp "$RUNNER_TEMP/package/b1147-operator.zip" "$RUNNER_TEMP/package-again/b1147-operator.zip"
+      - name: Real coordinator on Laravel + MariaDB 10.11.19 after a real B1146 install, shop ON - refusals, per-step smokes, re-run, rollbacks, forced failure, kill, both route-cache variants
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          s="$GITHUB_WORKSPACE/tools/storefront"
+          php "$s/b1147/coordinator-fixture.php" "$s/b1147" "$s/b1146" "$s/b1145" "$s/b1144" "$s/b1134" "$RUNNER_TEMP/b1147-runtime/stage" "$RUNNER_TEMP/b1147-runtime/payload" "$s/b1134/runtime-directories.json" "$RUNNER_TEMP/package-b1146/b1146-operator.zip" "$RUNNER_TEMP/package/b1147-operator.zip" | tee "$RUNNER_TEMP/coordinator.log"
+          tail -n 200 "$RUNNER_TEMP/coordinator.log" | sed -n '/^{/,$p' > "$RUNNER_TEMP/coordinator.json"
+          grep -q '"b1147Fixture": "PASS"' "$RUNNER_TEMP/coordinator.json"
+      - name: Operator wrapper in a sandbox /home/icaffeco - integrity, canonical HOLD, entry wiring, pinned drift, tamper
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          sudo useradd --create-home --home-dir /home/icaffeco --shell /bin/bash icaffeco
+          sudo chmod 755 /home/icaffeco
+          install -m 0644 "$RUNNER_TEMP/package/b1147-operator.zip" /tmp/b1147-operator.zip
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" "$@"; }
+          as mkdir -p /home/icaffeco/ald1n-project/incoming
+          as unzip -q /tmp/b1147-operator.zip -d /home/icaffeco/ald1n-project
+          for pair in b1134/InstallFileOps.php:b1134-files.php b1144/LeanGates.php:b1144-gates.php b1144/FreshnessProbe.php:b1144-probe.php b1144/LeanWeb.php:b1144-web.php b1145/EnvFlags.php:b1145-env.php b1145/AppState.php:b1145-app-state.php b1145/MigrateUnclampCoordinator.php:b1145-coordinator.php b1146/OverlayProbe.php:b1146-probe.php b1146/AppCheck.php:b1146-app-check.php; do
+            install -m 0644 "tools/storefront/${pair%%:*}" "/tmp/${pair##*:}"
+            as cp "/tmp/${pair##*:}" "/home/icaffeco/ald1n-project/incoming/${pair##*:}"
+          done
+          script=/home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          printf '%s\n' "$out"
+          test "$rc" = 2 && grep -q 'HOLD: canonical reports or successful stage unavailable$' <<<"$out"
+          set +e
+          out="$(as bash "$script" --unexpected 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          # The schedule override exists only together with --rollback.
+          for bad in "--ignore-schedule" "--ignore-schedule --rollback" "--rollback --ignore-schedule --x"; do
+            set +e
+            out="$(as bash "$script" $bad 2>&1)"; rc=$?
+            set -e
+            test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          done
+          as git init -q -b main /home/icaffeco/ald1n-project
+          as git -C /home/icaffeco/ald1n-project -c user.name=Sandbox -c user.email=sandbox@example.invalid commit -q --allow-empty -m sandbox
+          as git -C /home/icaffeco/ald1n-project update-ref refs/remotes/origin/main HEAD
+          as mkdir -p /home/icaffeco/ald1n-project/docs/operations
+          sandbox_report=/home/icaffeco/ald1n-project/docs/operations/9999-B1147-CATALOG-OVERLAY-20261109-000000.md
+          set +e
+          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1147_MODE=install REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: worker report name' <<<"$out" && test ! -e /home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md
+          # No CMS here: the real entry and coordinator run, every preflight gate is printed and the run HOLDs with nothing changed.
+          set +e
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1147_MODE=install REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+          set -e
+          out="$(sudo cat "$sandbox_report")"
+          printf '%s\n' "$out"
+          test "$rc" = 2 && grep -qx 'B1147_FINAL=HOLD' <<<"$out" && grep -qx 'B1147_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=afa0c704a1c4ad096918f904b98a77e223398e22$' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NONE"' <<<"$out" && grep -q '^WORKER_PID=[0-9]' <<<"$out" && grep -q 'B1146_REPORT1109_MISSING' <<<"$out"
+          if sudo grep -q $'\033' "$sandbox_report"; then echo 'escape byte in the report'; exit 2; fi
+          as rm -f "$sandbox_report"
+          # Rollback without any install is refused.
+          set +e
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1147_MODE=rollback REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+          set -e
+          out="$(sudo cat "$sandbox_report")"
+          test "$rc" = 2 && grep -q '^HOLD_NOTHING_TO_ROLL_BACK=' <<<"$out"
+          as rm -f "$sandbox_report"
+          # A changed pinned helper on the host (here the B1146 probe) is refused before any code of it runs.
+          as cp /home/icaffeco/ald1n-project/incoming/b1146-probe.php /tmp/b1146-probe.saved
+          as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1146-probe.php'
+          set +e
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1147_MODE=install REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+          set -e
+          out="$(sudo cat "$sandbox_report")"
+          test "$rc" = 2 && grep -qx 'HOLD_CODE=PACKAGE_FILE_INTEGRITY' <<<"$out"
+          as rm -f "$sandbox_report"
+          as cp /tmp/b1146-probe.saved /home/icaffeco/ald1n-project/incoming/b1146-probe.php
+          as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1147-payload-07.bin'
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: package integrity' <<<"$out"
+          as bash -c 'printf "# tamper\n" >> /home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh'
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: operator script integrity' <<<"$out"
+          printf '{"canonicalHold":true,"unknownArguments":"HOLD","entryWiring":"B1147_PHASE=HOLD_PREFLIGHT_BLOCKED_NO_MUTATION","rollbackWithoutInstall":"HOLD","pinnedHelperDrift":"HOLD","payloadTamper":"HOLD","wrapperTamper":"HOLD"}\n' | tee "$RUNNER_TEMP/sandbox.json"
+      - name: The exact owner commands end to end in the sandbox - report reservation after 1109, detached worker, mode export, EXIT relay
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          sudo -u icaffeco unzip -o -q /tmp/b1147-operator.zip -d /home/icaffeco/ald1n-project
+          mkdir -p /tmp/b1147-shims
+          command -v git > /tmp/b1147-shims/real-git
+          printf '%s\n' '#!/bin/bash' 'if test "${3-}" = fetch; then printf "SANDBOX_GIT_FETCH_STUBBED=%s\n" "$*"; exit 0; fi' 'exec "$(cat /tmp/b1147-shims/real-git)" "$@"' > /tmp/b1147-shims/git
+          chmod 755 /tmp/b1147-shims /tmp/b1147-shims/git
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1147-shims:$PATH" "$@"; }
+          as mkdir -p /home/icaffeco/.ald1n-stage
+          as git -C /home/icaffeco/ald1n-project remote add origin https://github.com/AldinAga/ald1n-project
+          as bash -c 'printf "sandbox predecessor\n" > /home/icaffeco/ald1n-project/docs/operations/1109-SANDBOX-PREDECESSOR.md'
+          ops=/home/icaffeco/ald1n-project/docs/operations
+          for variant in install rollback rollback-ignore-schedule; do
+            mode=$variant; ignore=0; arg=(); label=CATALOG-OVERLAY; final_rx='^B1147_PHASE="HOLD_PREFLIGHT_BLOCKED"$'
+            if test "$variant" = rollback; then arg=(--rollback); label=CATALOG-OVERLAY-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+            if test "$variant" = rollback-ignore-schedule; then mode=rollback; ignore=1; arg=(--rollback --ignore-schedule); label=CATALOG-OVERLAY-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+            set +e
+            out="$(timeout 600 sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1147-shims:$PATH" bash /home/icaffeco/ald1n-project/incoming/b1147-catalog-overlay.sh "${arg[@]}" 2>&1)"; rc=$?
+            set -e
+            printf '%s\n' "$out" | tail -n 30
+            report="$(sudo ls "$ops" | grep -E "^1110-B1147-${label}-[0-9]{8}-[0-9]{6}\.md$")"
+            test "$rc" = 2
+            body="$(sudo cat "$ops/$report")"
+            grep -qx "OPERATOR_MODE=$mode" <<<"$body"
+            grep -qx "B1147_MODE=$mode" <<<"$body"
+            grep -qx "OPERATOR_IGNORE_SCHEDULE=$ignore" <<<"$body"
+            grep -qx "B1147_IGNORE_SCHEDULE=$ignore" <<<"$body"
+            grep -qE "$final_rx" <<<"$body"
+            test "$(grep -c '^EXIT=' <<<"$body")" = 1 && test "$(tail -n 2 <<<"$body" | head -n 1)" = 'EXIT=2'
+            grep -q '^SANDBOX_GIT_FETCH_STUBBED=' <<<"$body"
+            grep -q "^REPORT=$ops/$report$" <<<"$out"
+            if sudo grep -q $'\033' "$ops/$report"; then echo 'escape byte in the report'; exit 2; fi
+            test ! -e /home/icaffeco/.ald1n-stage/report-sequence.lock
+            sudo rm -f "$ops/$report"
+          done
+          printf '{"ownerCommandInstall":"REPORT_1110_WORKER_HOLD_EXIT_2","ownerCommandRollback":"REPORT_1110_ROLLBACK_WORKER_HOLD_EXIT_2","ownerCommandRollbackIgnoreSchedule":"REPORT_1110_ROLLBACK_WORKER_HOLD_EXIT_2_OVERRIDE_EXPORTED","modeExported":true,"lockReleased":true}\n' | tee "$RUNNER_TEMP/owner-commands.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: b1147-catalog-overlay-evidence
+          path: |
+            ${{ runner.temp }}/coordinator.json
+            ${{ runner.temp }}/coordinator.log
+            ${{ runner.temp }}/package.json
+            ${{ runner.temp }}/package-b1146.json
+            ${{ runner.temp }}/members.txt
+            ${{ runner.temp }}/sandbox.json
+            ${{ runner.temp }}/owner-commands.json
+            ${{ runner.temp }}/b1147/server.log
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ success() }}
+        with:
+          name: b1147-operator-package
+          path: |
+            ${{ runner.temp }}/package/b1147-operator.zip
+            ${{ runner.temp }}/package/b1147-operator.zip.sha256
+          retention-days: 30
