@@ -269,6 +269,7 @@
                     <a href="{{ route('admin.settings.documents.index') }}"><x-icon name="file-text" />PDF i fakturisanje</a>
                     @if(request()->user()?->hasRole('superadmin'))<a href="{{ route('admin.settings.modules.index') }}"><x-icon name="sliders" />Moduli</a>@endif
                     <a href="{{ route('admin.settings.order-emails.index') }}"><x-icon name="mail" />E-mail obaveštenja</a>
+                    @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.smtp.index') }}" data-nav-smtp-settings><x-icon name="mail" />E-mail (SMTP)</a>@endif
                     <span data-module-visibility="{{ $moduleVisibility->enabled('automation') ? '1' : '0' }}">@can('automation.manage')<a href="{{ route('admin.settings.automation.index') }}"><x-icon name="cog" />Automatizacija</a>@endcan</span>
                     <a href="{{ route('admin.settings.appearance') }}"><x-icon name="monitor" />Izgled sajta i prijave</a>
                     <a href="{{ route('admin.settings.turnstile.index') }}"><x-icon name="shield" />Cloudflare Turnstile</a>

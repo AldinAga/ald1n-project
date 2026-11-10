@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\MailRuntimeConfigurator;
+use App\Services\SmtpMailSettingsService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -21,6 +23,9 @@ final class SendTestMailCommand extends Command
             return self::FAILURE;
         }
 
+        if (app(MailRuntimeConfigurator::class)->apply() === 'database') {
+            $this->line('SMTP iz baze aktivan (Podešavanja > E-mail (SMTP)); poruka ide preko tog servera.');
+        }
         $mailer = (string) config('mail.default');
         if (in_array($mailer, ['log', 'array'], true)) {
             $this->error('MAIL_MAILER mora biti smtp ili sendmail za stvarno slanje poruka.');
@@ -35,7 +40,9 @@ final class SendTestMailCommand extends Command
                 }
             );
         } catch (Throwable $exception) {
-            $this->error('Test poruka nije poslata: '.$exception->getMessage());
+            // The raw transport message can echo the SMTP username or server banner.
+            $this->error('Test poruka nije poslata: '.SmtpMailSettingsService::label(SmtpMailSettingsService::classify($exception))
+                .' ('.class_basename($exception).')');
             return self::FAILURE;
         }
 
