@@ -531,6 +531,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->middleware('throttle:admin-write')->name('smtp.update');
             Route::post('/smtp/test', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'test'])
                 ->middleware('throttle:smtp-test')->name('smtp.test');
+            Route::post('/smtp/disable', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'disable'])
+                ->middleware('throttle:admin-write')->name('smtp.disable');
             Route::delete('/smtp/password', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'clearPassword'])
                 ->middleware('throttle:admin-write')->name('smtp.password.destroy');
             Route::get('/turnstile', [TurnstileSettingsController::class, 'index'])->name('turnstile.index');

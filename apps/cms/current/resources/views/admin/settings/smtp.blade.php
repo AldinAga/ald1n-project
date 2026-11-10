@@ -15,6 +15,7 @@
         'unavailable' => 'Podešavanja iz baze trenutno nisu dostupna.',
     ];
     $notices = (array) session('smtp_notices', []);
+    $passkeyHint = 'Ako nemate lozinku (prijava samo pristupnim ključem), postavite je preko resetovanja lozinke.';
 @endphp
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Komunikacija'])
 <div class="page-heading">
@@ -49,6 +50,7 @@
                         Za trenutna podešavanja probni e-mail još nije uspeo.
                     @endif
                     Svaka promena servera ili lozinke isključuje prekidač dok novi probni e-mail ne uspe.
+                    Promena adrese <code>MAIL_FROM_ADDRESS</code> ili pošiljaoca potvrda registracije Kupca takođe poništava probni e-mail: slanje se tada vraća na <code>.env</code> dok novi probni e-mail ne uspe.
                 </p>
 
                 <label class="field-span-2">
@@ -75,12 +77,12 @@
 
                 <label>
                     <span>Korisničko ime</span>
-                    <input name="smtp_username" maxlength="254" autocomplete="off" spellcheck="false" value="{{ old('smtp_username', $smtp['username']) }}" placeholder="noreply@example.com">
+                    <input name="smtp_username" id="smtp_username" maxlength="254" autocomplete="off" spellcheck="false" value="{{ old('smtp_username', $smtp['username']) }}" placeholder="noreply@example.com">
                 </label>
 
                 <label>
                     <span>Lozinka</span>
-                    <input type="password" name="smtp_password" maxlength="255" autocomplete="off" value="" placeholder="{{ $smtp['password_stored'] ? 'Lozinka je sačuvana' : 'Unesite lozinku' }}">
+                    <input type="password" name="smtp_password" id="smtp_password" maxlength="255" autocomplete="new-password" value="" placeholder="{{ $smtp['password_stored'] ? 'Lozinka je sačuvana' : 'Unesite lozinku' }}">
                     <small class="muted">
                         @if($smtp['password_stored'] && $smtp['password_readable'])
                             Lozinka je sačuvana. Prazno polje zadržava sačuvanu lozinku samo dok se host, port, enkripcija i korisničko ime ne menjaju.
@@ -98,16 +100,24 @@
                     <input type="number" name="smtp_timeout" min="1" max="{{ \App\Services\SmtpMailSettingsService::TIMEOUT_MAX }}" inputmode="numeric" autocomplete="off" value="{{ old('smtp_timeout', $smtp['timeout']) }}" placeholder="{{ \App\Services\SmtpMailSettingsService::DEFAULT_TIMEOUT }}">
                     <small class="muted">Najviše {{ \App\Services\SmtpMailSettingsService::TIMEOUT_MAX }} sekundi, podrazumevano {{ \App\Services\SmtpMailSettingsService::DEFAULT_TIMEOUT }}.</small>
                 </label>
-
-                <label class="field-span-2">
+            </div>
+            <fieldset class="form-section" data-smtp-reauth>
+                <legend><strong>Potvrda identiteta</strong></legend>
+                {{-- Decoy pairs password managers with your login, not with the SMTP fields above. --}}
+                <input type="text" class="sr-only" name="smtp_reauth_username" id="smtp_reauth_username" autocomplete="username" value="{{ $testRecipient }}" readonly tabindex="-1" aria-hidden="true">
+                <label for="current_password">
                     <span>Vaša trenutna lozinka (SuperAdmin)</span>
-                    <input type="password" name="current_password" maxlength="255" autocomplete="current-password" value="">
-                    <small class="muted">Obavezna za promenu servera ili lozinke i za uključivanje prekidača.</small>
+                    <input type="password" name="current_password" id="current_password" maxlength="255" autocomplete="current-password" value="">
+                    <small class="muted">Obavezna za promenu servera ili lozinke i za uključivanje prekidača. Isključivanje prekidača ne traži lozinku.</small>
+                    <small class="muted">{{ $passkeyHint }}</small>
                     @error('current_password')<small class="field-error" role="alert">{{ $message }}</small>@enderror
                 </label>
-            </div>
+            </fieldset>
             <div class="form-actions">
                 <button class="button button-primary button-large" type="submit">Sačuvaj SMTP podešavanja</button>
+                @if($smtp['enabled'])
+                    <button class="button button-danger" type="submit" form="smtp-disable" data-smtp-disable>Isključi odmah</button>
+                @endif
                 @if($smtp['password_stored'])
                     <button class="button button-danger" type="submit" form="smtp-clear-password">Obriši lozinku</button>
                 @endif
@@ -182,9 +192,11 @@
             <h2>Probni e-mail</h2>
             <p class="muted">Šalje kratku poruku na vašu adresu <strong>{{ $testRecipient }}</strong> sa <strong>sačuvanim</strong> podešavanjima (i kada je prekidač isključen). Prvo sačuvajte izmene.</p>
             <p class="muted">Proverava pošiljaoca <code>MAIL_FROM_ADDRESS</code> i, ako je potvrđen i različit, pošiljaoca potvrda registracije Kupca (tada stižu dve poruke). Ako probni e-mail ne uspe, prekidač se isključuje.</p>
-            <label>
+            <input type="text" class="sr-only" name="smtp_reauth_username" id="smtp_test_reauth_username" form="smtp-send-test" autocomplete="username" value="{{ $testRecipient }}" readonly tabindex="-1" aria-hidden="true">
+            <label for="smtp_test_current_password">
                 <span>Vaša trenutna lozinka (SuperAdmin)</span>
-                <input type="password" name="current_password" form="smtp-send-test" maxlength="255" autocomplete="current-password" value="">
+                <input type="password" name="current_password" id="smtp_test_current_password" form="smtp-send-test" maxlength="255" autocomplete="current-password" value="">
+                <small class="muted">{{ $passkeyHint }}</small>
             </label>
             <button class="button button-secondary" type="submit" form="smtp-send-test">Pošalji probni e-mail</button>
         </section>
@@ -194,6 +206,11 @@
 <form id="smtp-send-test" method="post" action="{{ route('admin.settings.smtp.test') }}" hidden>
     @csrf
 </form>
+@if($smtp['enabled'])
+<form id="smtp-disable" method="post" action="{{ route('admin.settings.smtp.disable') }}" hidden>
+    @csrf
+</form>
+@endif
 @if($smtp['password_stored'])
 <form id="smtp-clear-password" method="post" action="{{ route('admin.settings.smtp.password.destroy') }}" hidden>
     @csrf

@@ -76,6 +76,7 @@ final class SmtpSettingsPageTest extends TestCase
             $this->actingAs($user)->put('/admin/settings/smtp', $this->payload())->assertForbidden();
             $this->actingAs($user)->post('/admin/settings/smtp/test', $this->confirm())->assertForbidden();
             $this->actingAs($user)->delete('/admin/settings/smtp/password')->assertForbidden();
+            $this->actingAs($user)->post('/admin/settings/smtp/disable')->assertForbidden();
         }
         self::assertFalse(app(SettingsService::class)->hasStoredValue('smtp_host'));
 
@@ -111,7 +112,7 @@ final class SmtpSettingsPageTest extends TestCase
             ->assertSee('Obriši lozinku')
             ->assertDontSee(self::SECRET)
             ->assertDontSee($stored);
-        self::assertStringContainsString('name="smtp_password" maxlength="255" autocomplete="off" value=""', (string) $page->getContent());
+        self::assertStringContainsString('name="smtp_password" id="smtp_password" maxlength="255" autocomplete="new-password" value=""', (string) $page->getContent());
 
         // Same server, blank password: the stored one stays (timeout is not a server field).
         $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_password' => '', 'smtp_timeout' => '8']))
@@ -346,6 +347,142 @@ final class SmtpSettingsPageTest extends TestCase
         foreach ($this->logged as $line) {
             self::assertStringNotContainsString(self::OWNER_PASSWORD, $line);
         }
+    }
+
+    public function test_unchecking_the_switch_is_saved_even_when_the_rest_is_rejected(): void
+    {
+        $settings = app(SettingsService::class);
+
+        // Failed re-confirmation plus a stale host from old() or autofill.
+        $this->enableTested();
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload([
+            'smtp_enabled' => '0', 'smtp_host' => 'stale.example.net', 'smtp_password' => '', 'current_password' => 'Wrong-Password-1',
+        ]))->assertRedirect('/admin/settings/smtp')
+            ->assertSessionHasErrors('current_password')
+            ->assertSessionHas('smtp_notices');
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        self::assertSame('env', app(MailRuntimeConfigurator::class)->apply());
+        // Nothing else in the rejected request was applied.
+        self::assertSame('192.0.2.25', $settings->get('smtp_host'));
+        self::assertSame(self::SECRET, $settings->getSecret('smtp_password'));
+        self::assertSame('ok', $settings->get('smtp_last_test_result'));
+
+        // A validation error in the same request does not block the OFF either.
+        $this->enableTested();
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload([
+            'smtp_enabled' => '0', 'smtp_host' => 'http://bad host', 'current_password' => '',
+        ]))->assertSessionHasErrors('smtp_host');
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        self::assertSame('192.0.2.25', $settings->get('smtp_host'));
+
+        // A rejected request that keeps the switch checked leaves it ON.
+        $this->enableTested();
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload([
+            'smtp_enabled' => '1', 'smtp_host' => 'stale.example.net', 'smtp_password' => '', 'current_password' => 'Wrong-Password-1',
+        ]))->assertSessionHasErrors('current_password')->assertSessionMissing('smtp_notices');
+        self::assertSame('1', $settings->get('smtp_enabled'));
+
+        self::assertSame(2, AuditLog::query()->where('action', 'settings.smtp.disabled')->count());
+    }
+
+    public function test_dedicated_off_action_needs_no_password_and_touches_nothing_else(): void
+    {
+        $route = app('router')->getRoutes()->getByName('admin.settings.smtp.disable');
+        self::assertNotNull($route);
+        self::assertSame(['POST'], $route->methods());
+        self::assertContains('throttle:admin-write', $route->gatherMiddleware());
+
+        $this->enableTested();
+        $this->actingAs($this->owner)->get('/admin/settings/smtp')->assertOk()
+            ->assertSee('Isključi odmah')->assertSee(route('admin.settings.smtp.disable'), false);
+
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/disable')
+            ->assertRedirect('/admin/settings/smtp')->assertSessionHasNoErrors()->assertSessionHas('status');
+        $settings = app(SettingsService::class);
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        self::assertSame('env', app(MailRuntimeConfigurator::class)->apply());
+        self::assertSame('192.0.2.25', $settings->get('smtp_host'));
+        self::assertSame(self::SECRET, $settings->getSecret('smtp_password'));
+        self::assertTrue(app(SmtpMailSettingsService::class)->testPassedForCurrentSettings());
+        $audit = AuditLog::query()->where('action', 'settings.smtp.disabled')->sole();
+        self::assertSame('button', $audit->metadata_json['via']);
+
+        $this->actingAs($this->owner)->get('/admin/settings/smtp')->assertOk()->assertDontSee('Isključi odmah');
+    }
+
+    public function test_reauth_failures_are_rate_limited_before_the_hash_check(): void
+    {
+        $fake = $this->fakeTransport(null);
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload())->assertSessionHasNoErrors();
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->actingAs($this->owner)->post('/admin/settings/smtp/test', ['current_password' => 'Wrong-Password-'.$attempt])
+                ->assertSessionHasErrors('smtp_test');
+            self::assertStringContainsString('ispravnu trenutnu lozinku', (string) session('errors')->first('smtp_test'));
+        }
+        // Even the correct password is refused while locked out.
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
+        $message = (string) session('errors')->first('smtp_test');
+        self::assertStringContainsString('Previše neuspešnih potvrda lozinke', $message);
+        self::assertMatchesRegularExpression('/za \d+ min\./', $message);
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_port' => '587', 'smtp_encryption' => 'tls']))
+            ->assertSessionHasErrors('current_password');
+        self::assertStringContainsString('Previše neuspešnih', (string) session('errors')->first('current_password'));
+        self::assertSame('465', app(SettingsService::class)->get('smtp_port'));
+
+        self::assertSame([], $fake->configs);
+        self::assertSame(2, AuditLog::query()->where('action', 'settings.smtp.reauth_throttled')->count());
+        self::assertSame(5, AuditLog::query()->where('action', 'settings.smtp.reauth_failed')->count());
+        foreach (AuditLog::query()->get() as $row) {
+            self::assertStringNotContainsString('Wrong-Password-', (string) json_encode($row->toArray()));
+            self::assertStringNotContainsString(self::OWNER_PASSWORD, (string) json_encode($row->toArray()));
+        }
+    }
+
+    public function test_form_fields_steer_password_managers_away_from_the_smtp_credentials(): void
+    {
+        $html = (string) $this->actingAs($this->owner)->get('/admin/settings/smtp')->assertOk()
+            ->assertSee('Potvrda identiteta')
+            ->assertSee('Ako nemate lozinku (prijava samo pristupnim ključem), postavite je preko resetovanja lozinke.')
+            ->getContent();
+
+        self::assertStringContainsString('name="smtp_username" id="smtp_username" maxlength="254" autocomplete="off"', $html);
+        self::assertStringContainsString('name="smtp_password" id="smtp_password" maxlength="255" autocomplete="new-password"', $html);
+        $decoy = 'name="smtp_reauth_username" id="smtp_reauth_username" autocomplete="username" value="smtp-owner@example.test" readonly';
+        $current = 'name="current_password" id="current_password" maxlength="255" autocomplete="current-password"';
+        self::assertStringContainsString($decoy, $html);
+        self::assertStringContainsString($current, $html);
+        self::assertStringContainsString('form="smtp-send-test" autocomplete="username"', $html);
+        self::assertStringContainsString('id="smtp_test_current_password" form="smtp-send-test" maxlength="255" autocomplete="current-password"', $html);
+
+        // Order: SMTP fields, then the identity block with the decoy right before the current password.
+        $smtpPassword = strpos($html, 'name="smtp_password"');
+        $fieldset = strpos($html, 'data-smtp-reauth');
+        $decoyAt = strpos($html, $decoy);
+        $currentAt = strpos($html, $current);
+        self::assertNotFalse($smtpPassword);
+        self::assertTrue($smtpPassword < $fieldset && $fieldset < $decoyAt && $decoyAt < $currentAt);
+        // Exactly one decoy belongs to the settings form; the other one to the test form.
+        self::assertSame(1, preg_match_all('/<input[^>]+name="smtp_reauth_username"(?![^>]*form=)/', $html));
+        self::assertSame(2, substr_count($html, 'name="smtp_reauth_username"'));
+    }
+
+    public function test_changing_the_from_address_or_registration_sender_voids_the_passing_test(): void
+    {
+        $this->enableTested();
+        self::assertSame('database', app(MailRuntimeConfigurator::class)->apply());
+
+        config()->set('mail.from.address', 'other@ald1n.com');
+        self::assertSame('env', app(MailRuntimeConfigurator::class)->apply());
+        self::assertSame('not_tested', app(MailRuntimeConfigurator::class)->reason());
+        config()->set('mail.from.address', 'noreply@ald1n.com');
+        self::assertSame('database', app(MailRuntimeConfigurator::class)->apply());
+
+        app(SettingsService::class)->putMany(['public_registration_sender_name' => 'Novo ime'], $this->owner->id);
+        self::assertSame('env', app(MailRuntimeConfigurator::class)->apply());
+        self::assertFalse(app(SmtpMailSettingsService::class)->testPassedForCurrentSettings());
+        $this->actingAs($this->owner)->get('/admin/settings/smtp')->assertOk()
+            ->assertSee('Probni e-mail još nije uspeo za sačuvana podešavanja.');
     }
 
     public function test_password_spaces_survive_but_other_secrets_keep_trimming(): void

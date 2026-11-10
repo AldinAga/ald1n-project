@@ -91,8 +91,11 @@ final class SmtpMailSettingsService
     }
 
     /**
-     * Identifies the saved connection (host, port, encryption, username and
-     * the stored password ciphertext). Only a digest of the ciphertext is used.
+     * Identifies what the test e-mail verified: host, port, encryption,
+     * username, a digest of the stored password ciphertext, MAIL_FROM_ADDRESS
+     * and the registration sender identity and approval. Changing any of them
+     * voids a passing test. Read straight from settings (no mailer lookups),
+     * because the runtime configurator calls this on every apply.
      */
     public function connectionFingerprint(): string
     {
@@ -104,6 +107,14 @@ final class SmtpMailSettingsService
             $stored['encryption'],
             trim($stored['username']),
             $this->settings->secretDigest('smtp_password'),
+            mb_strtolower(trim((string) config('mail.from.address'))),
+            [
+                mb_strtolower(trim((string) $this->settings->get('public_registration_sender_address', ''))),
+                trim((string) $this->settings->get('public_registration_sender_name', '')),
+                (string) $this->settings->get('public_registration_sender_digest', ''),
+                (string) $this->settings->get('public_registration_sender_approved_by', ''),
+                (string) $this->settings->get('public_registration_sender_approved_at', ''),
+            ],
         ]));
     }
 

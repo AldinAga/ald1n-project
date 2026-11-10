@@ -12,7 +12,7 @@ use App\Services\SettingsService;
 use App\Services\SmtpMailSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -43,6 +43,13 @@ final class SmtpSettingsController extends Controller
     ];
 
     private const SERVER_CHANGED_NOTICE = 'Zbog promene servera lozinka mora ponovo da se unese.';
+
+    private const REAUTH_INVALID = 'invalid';
+
+    /** Re-confirmation failures per user before a lockout of REAUTH_DECAY_SECONDS. */
+    private const REAUTH_MAX_FAILURES = 5;
+
+    private const REAUTH_DECAY_SECONDS = 900;
 
     public function index(Request $request, SmtpMailSettingsService $smtp, MailRuntimeConfigurator $runtime): View
     {
@@ -144,8 +151,13 @@ final class SmtpSettingsController extends Controller
             }
         });
 
+        // Unchecking the switch is an emergency OFF: it is saved even when the
+        // rest of the request is rejected (stale or autofilled fields).
+        $offIntent = $before['enabled'] && !$enabled;
+
         if ($validator->fails()) {
-            return $this->backWithErrors($request, $validator->errors()->toArray());
+            return $this->backWithErrors($request, $validator->errors()->toArray(),
+                $offIntent && $this->switchOff($request, $settings, $runtime, $audit, 'update_rejected'));
         }
 
         $host = mb_strtolower(trim((string) $request->input('smtp_host', '')));
@@ -176,15 +188,15 @@ final class SmtpSettingsController extends Controller
         $connectionChanged = $serverChanged || $password !== '';
         $enabling = $enabled && !$before['enabled'];
 
-        if (($connectionChanged || $enabling) && !$this->currentPasswordConfirmed($request)) {
-            $audit->log('settings.smtp.reauth_failed', 'E-mail (SMTP)', null, null, null, [
-                'action' => 'update',
-                'changed_fields' => $changed,
-            ], user: $request->user(), level: 'warning');
-
-            return $this->backWithErrors($request, [
-                'current_password' => ['Za promenu servera, lozinke ili uključivanje unesite ispravnu trenutnu lozinku vašeg naloga.'],
-            ]);
+        if ($connectionChanged || $enabling) {
+            $refusal = $this->reauthenticate($request, $audit, 'update', $changed);
+            if ($refusal !== null) {
+                return $this->backWithErrors($request, [
+                    'current_password' => [$refusal === self::REAUTH_INVALID
+                        ? 'Za promenu servera, lozinke ili uključivanje unesite ispravnu trenutnu lozinku vašeg naloga.'
+                        : $refusal],
+                ], $offIntent && $this->switchOff($request, $settings, $runtime, $audit, 'update_rejected'));
+            }
         }
 
         $values = [
@@ -293,12 +305,11 @@ final class SmtpSettingsController extends Controller
         $user = $request->user();
         $redirect = redirect()->route('admin.settings.smtp.index');
 
-        if (!$this->currentPasswordConfirmed($request)) {
-            $audit->log('settings.smtp.reauth_failed', 'E-mail (SMTP)', null, null, null, [
-                'action' => 'test',
-            ], user: $user, level: 'warning');
-
-            return $redirect->withErrors(['smtp_test' => 'Probni e-mail nije poslat: unesite ispravnu trenutnu lozinku vašeg naloga.']);
+        $refusal = $this->reauthenticate($request, $audit, 'test');
+        if ($refusal !== null) {
+            return $redirect->withErrors(['smtp_test' => 'Probni e-mail nije poslat: '.($refusal === self::REAUTH_INVALID
+                ? 'unesite ispravnu trenutnu lozinku vašeg naloga.'
+                : $refusal)]);
         }
 
         $stored = $smtp->stored();
@@ -345,28 +356,98 @@ final class SmtpSettingsController extends Controller
         return $redirect->withErrors(['smtp_test' => $message]);
     }
 
-    private function currentPasswordConfirmed(Request $request): bool
-    {
-        $given = $request->input('current_password');
-        $hash = (string) ($request->user()?->password_hash ?? '');
+    /** Emergency OFF: posts only the OFF intent and needs no password. */
+    public function disable(
+        Request $request,
+        SettingsService $settings,
+        MailRuntimeConfigurator $runtime,
+        AuditLogger $audit,
+    ): RedirectResponse {
+        $this->authorizeOwner($request);
+        $this->switchOff($request, $settings, $runtime, $audit, 'button');
 
-        if (!is_string($given) || $given === '' || strlen($given) > 255 || $hash === '') {
-            return false;
+        return redirect()->route('admin.settings.smtp.index')
+            ->with('status', 'Prekidač „Koristi SMTP podešavanja iz baze“ je isključen. Slanje koristi .env podešavanja.');
+    }
+
+    /**
+     * Confirms the SuperAdmin's current password. Returns null when confirmed,
+     * REAUTH_INVALID for a missing or wrong password, or a Serbian
+     * throttle message. The typed value is never logged or audited.
+     *
+     * @param list<string> $changed
+     */
+    private function reauthenticate(Request $request, AuditLogger $audit, string $action, array $changed = []): ?string
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $key = 'smtp-reauth|'.$user->getAuthIdentifier();
+
+        // Checked before any hash comparison.
+        if (RateLimiter::tooManyAttempts($key, self::REAUTH_MAX_FAILURES)) {
+            $minutes = max(1, (int) ceil(RateLimiter::availableIn($key) / 60));
+            $audit->log('settings.smtp.reauth_throttled', 'E-mail (SMTP)', null, null, null, [
+                'action' => $action,
+            ], user: $user, level: 'warning');
+
+            return 'Previše neuspešnih potvrda lozinke. Pokušajte ponovo za '.$minutes.' min.';
         }
-        try {
-            return Hash::check($given, $hash);
-        } catch (\Throwable) {
-            return false;
+
+        $given = $request->input('current_password');
+        $hash = (string) ($user->password_hash ?? '');
+        $confirmed = false;
+        if (is_string($given) && $given !== '' && strlen($given) <= 255 && $hash !== '') {
+            // Same verifier as the login form (password_verify accepts every PHP hash format).
+            $confirmed = password_verify($given, $hash);
+            if (!$confirmed) {
+                RateLimiter::hit($key, self::REAUTH_DECAY_SECONDS);
+            }
         }
+        if ($confirmed) {
+            RateLimiter::clear($key);
+
+            return null;
+        }
+
+        $metadata = ['action' => $action];
+        if ($changed !== []) {
+            $metadata['changed_fields'] = $changed;
+        }
+        $audit->log('settings.smtp.reauth_failed', 'E-mail (SMTP)', null, null, null, $metadata, user: $user, level: 'warning');
+
+        return self::REAUTH_INVALID;
+    }
+
+    /** Saves smtp_enabled=0 only; returns true when the switch was ON. */
+    private function switchOff(Request $request, SettingsService $settings, MailRuntimeConfigurator $runtime, AuditLogger $audit, string $via): bool
+    {
+        $wasOn = $settings->get('smtp_enabled', '0') === '1';
+        if ($wasOn) {
+            try {
+                $settings->putMany(['smtp_enabled' => '0'], (int) $request->user()->getAuthIdentifier());
+            } finally {
+                $settings->forgetCache();
+            }
+            $audit->log('settings.smtp.disabled', 'E-mail (SMTP)', null, null, null, [
+                'via' => $via,
+            ], user: $request->user());
+        }
+        $runtime->apply();
+
+        return $wasOn;
     }
 
     /** @param array<string,list<string>|string> $errors */
-    private function backWithErrors(Request $request, array $errors): RedirectResponse
+    private function backWithErrors(Request $request, array $errors, bool $switchedOff = false): RedirectResponse
     {
         // Neither password is ever flashed back as old input.
-        return redirect()->route('admin.settings.smtp.index')
+        $redirect = redirect()->route('admin.settings.smtp.index')
             ->withErrors($errors)
-            ->withInput($request->except(['smtp_password', 'current_password', '_token', '_method']));
+            ->withInput($request->except(['smtp_password', 'current_password', 'smtp_reauth_username', '_token', '_method']));
+
+        return $switchedOff
+            ? $redirect->with('smtp_notices', ['Prekidač je isključen i slanje koristi .env podešavanja. Ostale izmene nisu sačuvane.'])
+            : $redirect;
     }
 
     private function authorizeOwner(Request $request): void
