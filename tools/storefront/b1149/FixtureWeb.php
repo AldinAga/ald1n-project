@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 final class StorefrontFixtureWeb
 {
-    private const HTACCESS_KEYS=['x-robots-tag'=>'robots','content-security-policy'=>'csp','x-frame-options'=>'frame','content-type'=>'contentType','vary'=>'vary'];
+    private const HTACCESS_KEYS=['x-robots-tag'=>'robots','content-security-policy'=>'csp','x-frame-options'=>'frame','content-type'=>'contentType','vary'=>'vary','x-content-type-options'=>'nosniff'];
 
     public function __construct(private int $port,private string $secrets,private array $switches,private string $htaccess,private string $probeRoute='FIXTURE_LOOPBACK_HTTP_CLI_SERVER'){}
 
@@ -41,7 +41,7 @@ final class StorefrontFixtureWeb
             $left=trim((string)file_get_contents($this->switches['rate429']));
             if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->switches['rate429'],(string)((int)$left-1));$h=StorefrontWeb::headers();$h['retry'][]='3';return $this->applyHtaccess(StorefrontWeb::result(false,429,$h,'Too Many Attempts.'));}
         }
-        $r=$this->applyHtaccess(self::get($this->port,StorefrontWeb::target($path,$query,$marker),[],null,$method));unset($r['cookies'],$r['location']);
+        $r=$this->applyHtaccess(self::get($this->port,StorefrontWeb::target($path,$query,$marker),[],null,$method));unset($r['cookies']);
         if($this->on('dropVaryAll')||(!$origin&&$this->on('dropVaryEdge')))$r['vary']=[];
         if($origin)return $r;
         if($this->on('dropCsp'))$r['csp']=[];

@@ -34,7 +34,7 @@ final class StorefrontWeb
     public static function target(string $path,array $query,?string $marker):string
     {
         if(!preg_match('~^/[A-Za-z0-9/._-]*$~D',$path)||str_contains($path,'..')||str_contains($path,'//')||($marker!==null&&!preg_match('/^[a-f0-9]{0,32}$/D',$marker)))throw new RuntimeException('SMOKE_PATH');
-        foreach($query as $k=>$v)if(!in_array($k,self::QUERY_KEYS,true)||!is_string($v)||!preg_match('/^[A-Za-z0-9_]{1,24}$/D',$v))throw new RuntimeException('SMOKE_QUERY');
+        foreach($query as $k=>$v)if(!in_array($k,self::QUERY_KEYS,true)||!is_string($v)||!preg_match('/^[A-Za-z0-9_-]{1,40}$/D',$v))throw new RuntimeException('SMOKE_QUERY');
         if(isset($query['v'])&&(!self::versionable($path)||count($query)!==1||$marker!==null))throw new RuntimeException('SMOKE_QUERY_VERSIONED_STATIC_ONLY');
         if($marker===null&&!isset($query['v']))throw new RuntimeException('SMOKE_MARKER_REQUIRED');
         $q=$marker===null?$query:$query+['ald1n_release_check'=>$marker];return $path.'?'.http_build_query($q,'','&',PHP_QUERY_RFC3986);
@@ -109,7 +109,7 @@ final class StorefrontWeb
     /** The first /site-assets/<file>[?v=<version>] URL of a page body as ['path'=>..., 'query'=>[]|['v'=>...]], or null. */
     public static function siteAssetUrl(string $html):?array
     {
-        if(preg_match('~(?:src|href)="(/site-assets/[A-Za-z0-9_/.-]{1,160})(?:\?v=([A-Za-z0-9_]{1,24}))?"~',$html,$m)!==1)return null;
+        if(preg_match('~(?:src|href)="(/site-assets/[A-Za-z0-9_/.-]{1,160})(?:\?v=([A-Za-z0-9_-]{1,40}))?"~',$html,$m)!==1)return null;
         return ['path'=>$m[1],'query'=>isset($m[2])&&$m[2]!==''?['v'=>$m[2]]:[]];
     }
 
