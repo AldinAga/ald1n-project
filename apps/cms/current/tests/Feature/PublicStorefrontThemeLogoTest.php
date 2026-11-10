@@ -122,21 +122,25 @@ final class PublicStorefrontThemeLogoTest extends TestCase
     public static function storedThemes(): array
     {
         return [
-            'light' => ['light', 'light', '<meta name="color-scheme" content="light">'],
-            'dark' => ['dark', 'dark', '<meta name="color-scheme" content="dark">'],
-            'system' => ['system', 'system', '<meta name="color-scheme" content="dark light">'],
-            'unknown value' => ['sepia', 'system', '<meta name="color-scheme" content="dark light">'],
-            'markup injection' => ['"><b>x', 'system', '<meta name="color-scheme" content="dark light">'],
+            'light' => ['light', 'light', '<meta name="color-scheme" content="light">', '#eef1f5', '#eef1f5'],
+            'dark' => ['dark', 'dark', '<meta name="color-scheme" content="dark">', '#0e1317', '#0e1317'],
+            'system' => ['system', 'system', '<meta name="color-scheme" content="dark light">', '#0e1317', '#eef1f5'],
+            'unknown value' => ['sepia', 'system', '<meta name="color-scheme" content="dark light">', '#0e1317', '#eef1f5'],
+            'markup injection' => ['"><b>x', 'system', '<meta name="color-scheme" content="dark light">', '#0e1317', '#eef1f5'],
         ];
     }
 
     #[DataProvider('storedThemes')]
-    public function test_layout_renders_the_theme_from_the_cookie(string $cookie, string $expected, string $scheme): void
+    public function test_layout_renders_the_theme_from_the_cookie(string $cookie, string $expected, string $scheme, string $barDark, string $barLight): void
     {
         foreach (['/katalog', '/katalog/glass-syn-1', '/korpa', '/pravne-informacije', '/uslovi-prodaje'] as $uri) {
             $html = (string) $this->withUnencryptedCookie(PublicStorefrontAppearance::COOKIE, $cookie)->get($uri)->assertOk()->getContent();
             self::assertStringContainsString('<html lang="sr" data-theme="'.$expected.'">', $html, $uri);
             self::assertStringContainsString($scheme, $html, $uri);
+            // Always two theme-color metas, so the theme script can retint the browser bar.
+            self::assertSame(2, substr_count($html, '<meta name="theme-color"'), $uri);
+            self::assertStringContainsString('<meta name="theme-color" content="'.$barDark.'" media="(prefers-color-scheme: dark)">', $html, $uri);
+            self::assertStringContainsString('<meta name="theme-color" content="'.$barLight.'" media="(prefers-color-scheme: light)">', $html, $uri);
             self::assertStringContainsString('value="'.$expected.'" class="shop-theme-option" aria-pressed="true"', $html, $uri);
             self::assertSame(1, substr_count($html, 'aria-pressed="true"'), $uri);
             self::assertStringNotContainsString('<b>x', $html, $uri);
@@ -408,6 +412,20 @@ final class PublicStorefrontThemeLogoTest extends TestCase
             $this->unencryptedCookies = [];
         }
         self::assertNull($find($this->get('/korpa')->assertOk()));
+    }
+
+    public function test_catalog_and_product_pages_carrying_a_nonce_are_never_stored(): void
+    {
+        foreach (['/katalog', '/katalog?q=Glass&sort=price_asc', '/katalog/glass-syn-1'] as $uri) {
+            $response = $this->get($uri)->assertOk();
+            ShopThemeScript::assertStrictPolicy($response->headers->get('Content-Security-Policy'));
+            self::assertSame('max-age=0, no-store, private', (string) $response->headers->get('Cache-Control'), $uri);
+            self::assertSame('no-cache', $response->headers->get('Pragma'), $uri);
+            self::assertStringContainsString('Cookie', (string) $response->headers->get('Vary'), $uri);
+        }
+        // An unknown product is a 404, also not stored.
+        $missing = $this->get('/katalog/nema-takvog-artikla')->assertNotFound();
+        self::assertStringContainsString('no-store', (string) $missing->headers->get('Cache-Control'));
     }
 
     public function test_each_shop_page_has_one_theme_script_with_a_fresh_per_request_nonce(): void

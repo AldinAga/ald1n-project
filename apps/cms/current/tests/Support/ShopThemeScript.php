@@ -59,6 +59,9 @@ final class ShopThemeScript
         $body = $m[2];
         Assert::assertStringContainsString("d.cookie='shop_theme='+t+'; path=/; max-age=31536000; SameSite=Lax'", $body, $context);
         Assert::assertLessThan(1536, strlen($body), $context);
+        // Browser bar colour and back/forward-cache restore (B1149 round 2).
+        Assert::assertStringContainsString("g=d.querySelectorAll('meta[name=\"theme-color\"]')", $body, $context);
+        Assert::assertStringContainsString("window.addEventListener('pageshow',function(e){if(!e.persisted)return;", $body, $context);
         foreach (['eval', 'Function(', 'innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'fetch', 'XMLHttpRequest', 'import(', 'src=', '://', 'setTimeout', 'setInterval'] as $forbidden) {
             Assert::assertStringNotContainsString($forbidden, $body, $context.' '.$forbidden);
         }

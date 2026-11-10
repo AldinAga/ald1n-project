@@ -11,17 +11,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 @if($shopClosed)<meta name="robots" content="noindex,nofollow">@endif
 <meta name="referrer" content="strict-origin-when-cross-origin">
-@if($shopTheme === 'light')
-<meta name="color-scheme" content="light">
-<meta name="theme-color" content="#eef1f5">
-@elseif($shopTheme === 'dark')
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0e1317">
-@else
-<meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#0e1317" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)">
-@endif
+<meta name="color-scheme" content="{{ ['light' => 'light', 'dark' => 'dark'][$shopTheme] ?? 'dark light' }}">
+{{-- Always two theme-color metas (one per OS scheme) so the theme script can retint the browser bar; a forced theme uses one colour for both. --}}
+<meta name="theme-color" content="{{ $shopTheme === 'light' ? '#eef1f5' : '#0e1317' }}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="{{ $shopTheme === 'dark' ? '#0e1317' : '#eef1f5' }}" media="(prefers-color-scheme: light)">
 <title>@yield('title', 'Katalog') · {{ $shopBrand['brand'] }}</title>
 @if($shopBrand['favicon'])<link rel="icon" href="{{ $shopBrand['favicon']['href'] }}" type="{{ $shopBrand['favicon']['type'] }}">@endif
 <link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611101' }}">
@@ -93,7 +86,7 @@
 <p>{{ $shopBrand['brand'] }} · Javni katalog · Prodajna cena bez korisničke provizije</p>
 </div></footer>
 <div class="shop-top-rail"><a class="shop-back-to-top" href="#vrh" aria-label="Nazad na vrh stranice" title="Nazad na vrh stranice"><span aria-hidden="true">↑</span></a></div>
-{{-- B1149: the only script on shop pages. Switches the theme in place and stores the choice; without JavaScript the form posts to /tema. --}}
-<script nonce="{{ request()->attributes->get('_csp_nonce') }}">(function(){try{var d=document,h=d.documentElement,m=d.querySelector('meta[name="color-scheme"]'),b=d.querySelectorAll('.shop-theme-option'),c={light:'light',dark:'dark',system:'dark light'},i;var set=function(t){h.setAttribute('data-theme',t);if(m)m.setAttribute('content',c[t]);for(i=0;i<b.length;i++)b[i].setAttribute('aria-pressed',b[i].value===t?'true':'false');try{d.cookie='shop_theme='+t+'; path=/; max-age=31536000; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}};for(i=0;i<b.length;i++)b[i].addEventListener('click',function(e){var t=this.value;if(!Object.prototype.hasOwnProperty.call(c,t))return;e.preventDefault();set(t)})}catch(e){}})();</script>
+{{-- B1149: the only script on shop pages. Switches the theme (colours, buttons, browser bar) in place and stores the choice; re-applies the stored choice when the back/forward cache restores a page; without JavaScript the form posts to /tema. --}}
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">(function(){try{var d=document,h=d.documentElement,m=d.querySelector('meta[name="color-scheme"]'),g=d.querySelectorAll('meta[name="theme-color"]'),b=d.querySelectorAll('.shop-theme-option'),c={light:'light',dark:'dark',system:'dark light'},i;var set=function(t,k){h.setAttribute('data-theme',t);if(m)m.setAttribute('content',c[t]);if(g.length===2){g[0].setAttribute('content',t==='light'?'#eef1f5':'#0e1317');g[1].setAttribute('content',t==='dark'?'#0e1317':'#eef1f5')}for(i=0;i<b.length;i++)b[i].setAttribute('aria-pressed',b[i].value===t?'true':'false');if(k)return;try{d.cookie='shop_theme='+t+'; path=/; max-age=31536000; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}};for(i=0;i<b.length;i++)b[i].addEventListener('click',function(e){var t=this.value;if(!Object.prototype.hasOwnProperty.call(c,t))return;e.preventDefault();set(t)});window.addEventListener('pageshow',function(e){if(!e.persisted)return;var s=null;try{s=/(?:^|; )shop_theme=(light|dark|system)(?:;|$)/.exec(d.cookie)}catch(x){}set(s?s[1]:'system',1)})}catch(e){}})();</script>
 </body>
 </html>

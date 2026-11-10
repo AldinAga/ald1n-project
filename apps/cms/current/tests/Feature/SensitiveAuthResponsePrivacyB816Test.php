@@ -85,11 +85,13 @@ final class SensitiveAuthResponsePrivacyB816Test extends TestCase
         self::assertSame(1,User::query()->count());
     }
 
-    public function test_public_catalog_retains_public_caching_boundary(): void
+    public function test_public_catalog_keeps_its_referrer_policy_and_is_never_stored(): void
     {
+        // B1149 deliberately replaces the earlier cacheable boundary: the
+        // catalog now carries a per-request CSP nonce, so it is never stored.
         $response = $this->get('/katalog')->assertOk();
         self::assertSame('same-origin', $response->headers->get('Referrer-Policy'));
-        self::assertStringNotContainsString('no-store',
-            (string) $response->headers->get('Cache-Control'));
+        self::assertSame('max-age=0, no-store, private', (string) $response->headers->get('Cache-Control'));
+        self::assertSame('no-cache', $response->headers->get('Pragma'));
     }
 }

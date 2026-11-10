@@ -24,7 +24,9 @@ final class SecurityHeaders
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
         $headers->set('Content-Security-Policy', "base-uri 'none'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; script-src 'nonce-{$nonce}'; script-src-attr 'none'");
 
-        // Successful public overrides are scriptless or separately restrict registration.
+        // Successful public shop pages get their own stricter CSP from
+        // PublicNoScriptCsp (one nonce'd theme script, B1149); registration
+        // has its own Turnstile policy. Their cache headers are set below.
         $publicPolicy = $request->isMethod('GET') && $response->getStatusCode() === 200
             && $request->routeIs('public-shop.catalog', 'public-shop.show', 'public-shop.cart',
                 'public-shop.checkout', 'public-shop.order.show', 'public-shop.register');
@@ -46,6 +48,16 @@ final class SecurityHeaders
             $headers->set('Cache-Control', 'private, no-store, max-age=0');
             $headers->set('Pragma', 'no-cache');
             $headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        }
+
+        // B1149: catalog and product pages carry this response's CSP nonce
+        // (and a CSRF token in the add-to-cart forms). No cache may store and
+        // replay them, so they are never stored, like cart and checkout.
+        // Robots headers stay as they are (noindex is set by .htaccess).
+        if ($request->routeIs('public-shop.catalog', 'public-shop.show')
+            && str_starts_with(strtolower((string) $headers->get('Content-Type')), 'text/html')) {
+            $headers->set('Cache-Control', 'private, no-store, max-age=0');
+            $headers->set('Pragma', 'no-cache');
         }
 
         // Guest order pages contain a bearer credential in the path.

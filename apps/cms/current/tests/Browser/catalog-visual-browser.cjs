@@ -500,8 +500,12 @@ async function themeSwitch(browserType, engine) {
         text: getComputedStyle(document.body).color,
         same: window.__b1149SamePage === true,
         cookie: document.cookie,
+        bar: [...document.querySelectorAll('meta[name="theme-color"]')].map(m => m.getAttribute('content')).join(),
       }));
       const resolved = theme === 'system' ? 'dark' : theme;
+      // The mobile browser bar follows the theme (dark-OS meta, light-OS meta).
+      const bar = {light: '#eef1f5,#eef1f5', dark: '#0e1317,#0e1317', system: '#0e1317,#eef1f5'}[theme];
+      check(st.bar === bar, engine + ' theme-color after ' + theme + ' ' + st.bar);
       colours[theme] = st.text;
       check(st.theme === theme && st.pressed.join() === theme && st.scheme === resolved,
         engine + ' instant switch to ' + theme + ' ' + JSON.stringify(st));
@@ -534,6 +538,33 @@ async function themeSwitch(browserType, engine) {
     await page.keyboard.press('Space');
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark', null, {timeout: 2000}).catch(() => {});
     check(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', engine + ' keyboard switch to dark');
+
+    // Back/forward cache: a restored page re-applies the stored choice. The
+    // handler is driven with a real PageTransitionEvent (persisted) after the
+    // cookie changed elsewhere; a non-persisted pageshow changes nothing.
+    const restored = await page.evaluate(() => {
+      const state = () => ({theme: document.documentElement.dataset.theme,
+        pressed: [...document.querySelectorAll('.shop-theme-option[aria-pressed="true"]')].map(b => b.value).join(),
+        bar: [...document.querySelectorAll('meta[name="theme-color"]')].map(m => m.getAttribute('content')).join()});
+      document.cookie = 'shop_theme=light; path=/; max-age=600; SameSite=Lax';
+      window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: false}));
+      const fresh = state();
+      window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}));
+      return {fresh, restored: state()};
+    });
+    check(restored.fresh.theme === 'dark' && restored.restored.theme === 'light' && restored.restored.pressed === 'light'
+      && restored.restored.bar === '#eef1f5,#eef1f5', engine + ' pageshow restore ' + JSON.stringify(restored));
+    // A real back navigation: the previous page shows the theme chosen on the
+    // next one, whether the browser restores it from bfcache or reloads it.
+    await page.evaluate(() => { window.addEventListener('pageshow', e => { window.__b1149Persisted = e.persisted; }); });
+    await budget(2, 2);
+    await page.goto(base + '/pravne-informacije', {waitUntil: 'networkidle'});
+    await page.locator('.shop-theme-option[value="dark"]').click();
+    await page.goBack({waitUntil: 'networkidle'});
+    const back = await page.evaluate(() => ({theme: document.documentElement.dataset.theme, persisted: window.__b1149Persisted === true,
+      pressed: [...document.querySelectorAll('.shop-theme-option[aria-pressed="true"]')].map(b => b.value).join()}));
+    check(back.theme === 'dark' && back.pressed === 'dark', engine + ' back navigation keeps the newer choice ' + JSON.stringify(back));
+    console.log('THEME_BACK_FORWARD ' + engine + ' theme=' + back.theme + ' bfcache_restore=' + back.persisted);
     await page.screenshot({path: shot(engine + '-theme-focus-dark-1280'), clip: {x: 980, y: 0, width: 300, height: 90}, animations: 'disabled'});
     const seen = problems.splice(0);
     check(seen.length === 0, engine + ' theme switch console/CSP problems ' + JSON.stringify(seen.slice(0, 6)));
