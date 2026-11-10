@@ -250,17 +250,34 @@ async function productChecks(page, product, mode, width, engine, tag) {
     if (engine === 'chromium') {
       const box = await page.locator('.shop-gallery-viewport').boundingBox();
       const cdp = await page.context().newCDPSession(page);
-      // From the last photo only one direction can move; the CDP sign
-      // convention is not stable across versions, so try one sign and, if
-      // the gallery did not move, the other. It must land exactly one back.
-      for (const sign of [-1, 1]) {
-        await cdp.send('Input.synthesizeScrollGesture', {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2),
-          xDistance: sign * Math.round(box.width * 0.7), yDistance: 0, gestureSourceType: 'touch', speed: 1600});
+      // Real touch input: finger down in the photo, drag 60% to the right,
+      // lift. (Input.synthesizeScrollGesture never moved this scroller in
+      // headless Chromium, in either direction.)
+      await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+      const y = Math.round(box.y + box.height / 2);
+      const x0 = Math.round(box.x + box.width * 0.2);
+      const dx = Math.round(box.width * 0.6);
+      await cdp.send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: x0, y}]});
+      for (let i = 1; i <= 12; i++) {
+        await cdp.send('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: [{x: x0 + Math.round(dx * i / 12), y}]});
+        await pause(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+      await waitScroll(page);
+      st = await galleryState(page);
+      let how = 'touch';
+      if (st.visible === last) {
+        // Touch emulation did not scroll here: verify the same snap with a
+        // horizontal trackpad swipe and say so in the log.
+        how = 'wheel';
+        await page.mouse.move(box.x + box.width / 2, y);
+        await page.mouse.wheel(-Math.round(box.width * 0.7), 0);
         await waitScroll(page);
         st = await galleryState(page);
-        if (st.visible !== last) break;
       }
+      console.log('GALLERY_SWIPE ' + tag + ' via=' + how + ' visible=' + st.visible);
       check(st.visible === last - 1, tag + ' swipe right shows the previous photo ' + st.visible);
+      await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: false}).catch(() => {});
       await cdp.detach();
     } else {
       await page.locator('.shop-gallery-viewport').hover();
