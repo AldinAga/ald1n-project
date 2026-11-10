@@ -594,7 +594,7 @@ final class StorefrontInstallCoordinator
      * every public shop and legal page must carry it in both states, else NOINDEX_POLICY_HEADER_MISSING (an edge/server fact:
      * preflight HOLDs, an installed acceptance HOLDs with the exact files kept, a rollback completes with an owner notice).
      * shop ON: /katalog 200 with the CSP shape of the state, the layout marker and the gallery stylesheet link exactly when
-     * installed, one parsable CollectionPage JSON-LD block, Cache-Control private and no-store (both states), installed
+     * installed, one parsable CollectionPage JSON-LD block, Cache-Control private and no-store (installed only: new in B1149, the old state is just recorded), installed
      * Vary: Cookie (if the edge hides the header the origin is asked once over loopback TLS: origin without it FAILS, origin
      * unreachable is UNVERIFIED); ?sort=price_asc 200, an unknown sort 302/422, ?page=999 404, /korpa 200, /registracija 200,
      * /porucivanje 302 or 404, one product page (the first /katalog/<slug> link) 200 with the CSP shape, private/no-store and
@@ -640,7 +640,7 @@ final class StorefrontInstallCoordinator
         if($shop['open']){
             $r=$this->get('/katalog',[],$marker);$vary=StorefrontWeb::varyCookie($r['vary']);
             $f=['cspShape'=>$shape($r),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>StorefrontWeb::privateNoStore($r['cache']),'jsonLd'=>CatalogWeb::jsonLdProblem($r['body'])??'PASS','varyCookie'=>$vary];
-            $pass=$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']===$installed&&$f['galleryLink']===$installed&&$f['cacheControlPrivateNoStore']&&$f['jsonLd']==='PASS';
+            $pass=$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']===$installed&&$f['galleryLink']===$installed&&(!$installed||$f['cacheControlPrivateNoStore'])&&$f['jsonLd']==='PASS';
             if($pass&&$installed&&!$vary){
                 // The edge may rewrite Vary: the origin itself is asked once over loopback TLS (the B1144 probe route).
                 if(($this->state['probeRoute']??null)==='LOOPBACK_TLS_ORIGIN'){$o=$this->get('/katalog',[],$marker,'GET',true);$f['originVaryCookie']=!$o['transport']&&$o['status']===200&&StorefrontWeb::varyCookie($o['vary']);$f['originObserved']=$o['transport']?'TRANSPORT':$o['status'];
@@ -656,7 +656,7 @@ final class StorefrontInstallCoordinator
             $r=$this->get('/registracija',[],$marker);$add('/registracija',$r,'200',$ok($r,200),[],true);
             $r=$this->get('/porucivanje',[],$marker);$add('/porucivanje',$r,'302_OR_404',!$r['transport']&&in_array($r['status'],[302,404],true));
             if($product!==null){$r=$this->get($product,[],$marker);$f=['cspShape'=>$shape($r),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>StorefrontWeb::privateNoStore($r['cache'])];
-                $add('PRODUCT_PAGE_FIRST_CATALOG_LINK',$r,'200_CSP_LAYOUT_PRIVATE_NO_STORE_'.($installed?'NEW_GALLERY':'OLD'),$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']===$installed&&$f['galleryLink']===$installed&&$f['cacheControlPrivateNoStore'],$f,true);}
+                $add('PRODUCT_PAGE_FIRST_CATALOG_LINK',$r,'200_CSP_LAYOUT_PRIVATE_NO_STORE_'.($installed?'NEW_GALLERY':'OLD'),$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']===$installed&&$f['galleryLink']===$installed&&(!$installed||$f['cacheControlPrivateNoStore']),$f,true);}
             else $rows[]=['check'=>'PRODUCT_PAGE_FIRST_CATALOG_LINK','result'=>'INFO_NO_PRODUCT_LINK_ON_THE_CATALOG_PAGE_NOT_CHECKED'];
         }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',$ok($r,404),[],$p!=='/porucivanje');}
         if($installed&&$shop['open']){
