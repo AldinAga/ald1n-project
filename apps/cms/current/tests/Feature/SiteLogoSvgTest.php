@@ -338,6 +338,7 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame((string) strlen($bytes), $response->headers->get('Content-Length'));
         self::assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
         self::assertSame(SiteAssetController::CSP, $response->headers->get('Content-Security-Policy'));
+        self::assertSame('cross-origin', $response->headers->get('Cross-Origin-Resource-Policy'));
         foreach (['public', 'max-age=31536000', 'immutable'] as $directive) {
             self::assertStringContainsString($directive, (string) $response->headers->get('Cache-Control'));
         }
@@ -356,6 +357,25 @@ final class SiteLogoSvgTest extends TestCase
         $byDate->assertStatus(304);
         $this->flushHeaders();
         $this->withHeaders(['If-None-Match' => '"stale"'])->get($url)->assertOk();
+    }
+
+    public function test_asset_route_has_its_own_rate_limit_key_and_does_not_consume_the_registration_limit(): void
+    {
+        $this->withMiddleware(ThrottleRequests::class);
+        $path = $this->png();
+        for ($i = 0; $i < 8; $i++) {
+            $this->get('/site-assets/'.basename($path))->assertOk()->assertHeader('X-RateLimit-Limit', '600');
+        }
+
+        // Registration POST is limited to 5 per 10 minutes per guest IP; the
+        // logo requests above must not have used any of it.
+        self::assertNotSame(429, $this->post('/registracija', [])->getStatusCode());
+        $statuses = [];
+        for ($i = 0; $i < 5; $i++) {
+            $statuses[] = $this->post('/registracija', [])->getStatusCode();
+        }
+        self::assertNotContains(429, array_slice($statuses, 0, 4));
+        self::assertSame(429, $statuses[4], 'the registration limit itself is still active in this test');
     }
 
     public function test_raster_route_refuses_content_that_does_not_match_the_extension(): void

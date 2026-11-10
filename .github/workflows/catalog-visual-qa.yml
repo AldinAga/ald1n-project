@@ -22,6 +22,13 @@ on:
       - 'apps/cms/current/app/Providers/AppServiceProvider.php'
       - 'apps/cms/current/routes/web.php'
       - '.github/workflows/catalog-visual-qa.yml'
+      - 'apps/cms/current/app/Services/SvgSanitizer.php'
+      - 'apps/cms/current/app/Services/SiteLogoAssetService.php'
+      - 'apps/cms/current/app/Services/SiteAssetUrlService.php'
+      - 'apps/cms/current/app/Http/Controllers/SiteAssetController.php'
+      - 'apps/cms/current/tests/Browser/seed-svg-logo-visual.php'
+      - 'apps/cms/current/tests/Browser/svg-logo-visual-browser.cjs'
+      - 'apps/cms/current/tests/Feature/SiteLogoSvgTest.php'
 permissions:
   contents: read
 concurrency:

@@ -81,7 +81,9 @@ final class SiteAssetController extends Controller
         $headers->set('X-Content-Type-Options', 'nosniff');
         $headers->set('Content-Security-Policy', self::CSP);
         $headers->set('X-Frame-Options', 'DENY');
-        $headers->set('Cross-Origin-Resource-Policy', 'same-site');
+        // Like the former /storage files: webmail and app WebViews may embed
+        // the logo cross-site. The CSP sandbox and nosniff keep SVG inert.
+        $headers->set('Cross-Origin-Resource-Policy', 'cross-origin');
     }
 
     private function notFound(): Response

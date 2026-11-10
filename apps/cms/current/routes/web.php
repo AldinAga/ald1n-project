@@ -126,7 +126,9 @@ foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
 // switch: the admin and login layouts use the same files.
 Route::get('/site-assets/{file}', \App\Http\Controllers\SiteAssetController::class)
     ->where('file', \App\Services\SiteLogoAssetService::FILE_PATTERN)
-    ->middleware('throttle:600,1')
+    // Own limiter key: an unnamed throttle shares the guest IP counter with
+    // the other unnamed limits (e.g. registration POST 5/10 min).
+    ->middleware('throttle:600,1,site-assets')
     ->withoutMiddleware([
         \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
