@@ -3,7 +3,7 @@
 @section('title',$product['name'])
 @push('head')
 @if($schemaJson)<script type="application/ld+json">{!! $schemaJson !!}</script>@endif
-<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611103">
+<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611104">
 @endpush
 @section('content')
 @php($photoCount = count($gallery))
@@ -49,7 +49,7 @@
 @php($photoAlt = \App\Support\PublicProductImages::alt($product['name'], $product['brand'], $n, $photoCount))
 <dialog class="shop-lightbox" id="uvecano-{{ $n }}" popover aria-label="{{ $photoAlt }}">
 <div class="shop-lightbox-bar">
-<p class="shop-lightbox-title">{{ $product['name'] }}@if($photoCount > 1) <span>· {{ $n }} / {{ $photoCount }}</span>@endif</p>
+<p class="shop-lightbox-title"><span class="shop-lightbox-name">{{ $product['name'] }}</span>@if($photoCount > 1) <span class="shop-lightbox-count">{{ $n }} / {{ $photoCount }}</span>@endif</p>
 <button type="button" class="shop-lightbox-close" popovertarget="uvecano-{{ $n }}" popovertargetaction="hide" commandfor="uvecano-{{ $n }}" command="close" autofocus><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Zatvori</span></button>
 </div>
 <div class="shop-lightbox-stage"><img src="{{ $photo['large'] }}" alt="{{ $photoAlt }}" width="{{ $photo['large_width'] }}" height="{{ $photo['large_height'] }}" loading="lazy" decoding="async"></div>
