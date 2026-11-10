@@ -139,18 +139,18 @@ final class SmtpMailRuntimeTest extends TestCase
 
         // Another process (the admin page) saves new settings.
         app(SettingsService::class)->putMany(['smtp_host' => '192.0.2.31'], $this->owner->id);
-        event(new JobProcessing('database', Mockery::mock(Job::class)));
+        event(new JobProcessing('database', $this->job()));
         $second = $manager->mailer('smtp');
         self::assertNotSame($first, $second);
         self::assertSame('192.0.2.31', $second->getSymfonyTransport()->getStream()->getHost());
 
         // Unchanged settings keep the cached mailer.
-        event(new JobProcessing('database', Mockery::mock(Job::class)));
+        event(new JobProcessing('database', $this->job()));
         self::assertSame($second, $manager->mailer('smtp'));
 
         // Switching OFF restores the exact .env configuration in the worker.
         app(SettingsService::class)->putMany(['smtp_enabled' => '0'], $this->owner->id);
-        event(new JobProcessing('database', Mockery::mock(Job::class)));
+        event(new JobProcessing('database', $this->job()));
         self::assertSame('log', config('mail.default'));
         self::assertSame('env-smtp.example.test', config('mail.mailers.smtp.host'));
         self::assertSame('env-smtp.example.test', $manager->mailer('smtp')->getSymfonyTransport()->getStream()->getHost());
@@ -180,6 +180,16 @@ final class SmtpMailRuntimeTest extends TestCase
         $all = app(SettingsService::class)->all();
         self::assertArrayNotHasKey('smtp_password', $all);
         self::assertStringNotContainsString('Runtime-Secret-1', json_encode($all) ?: '');
+    }
+
+    /** A queued job as the worker sees it; framework listeners read its payload. */
+    private function job(): Job
+    {
+        $job = Mockery::mock(Job::class);
+        $job->shouldReceive('payload')->andReturn([]);
+        $job->shouldIgnoreMissing();
+
+        return $job;
     }
 
     /** @param array<string,string> $change */
