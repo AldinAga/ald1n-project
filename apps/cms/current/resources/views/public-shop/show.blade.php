@@ -3,13 +3,13 @@
 @section('title',$product['name'])
 @push('head')
 @if($schemaJson)<script type="application/ld+json">{!! $schemaJson !!}</script>@endif
-<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611102">
+<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611103">
 @endpush
 @section('content')
 @php($photoCount = count($gallery))
 <p><a class="shop-back-link" href="{{ route('public-shop.catalog', [], false) }}">← Nazad na katalog</a></p>
 <div class="shop-detail">
-<div class="shop-gallery{{ $photoCount > 1 ? ' is-multi' : '' }}{{ $photoCount > 0 ? ' shop-ratio-'.$gallery[0]['ratio'] : ' is-empty' }}">
+<div class="shop-gallery{{ $photoCount > 1 ? ' is-multi' : '' }}{{ $photoCount > 0 ? ' shop-ratio-'.\App\Support\PublicProductImages::galleryRatio($gallery) : ' is-empty' }}">
 @if($photoCount === 0)
 <div class="shop-gallery-empty"><span class="no-image"><svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M4 17l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Fotografija nije dostupna</span></span></div>
 @else

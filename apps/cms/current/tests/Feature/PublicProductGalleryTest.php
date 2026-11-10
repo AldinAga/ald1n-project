@@ -171,7 +171,8 @@ final class PublicProductGalleryTest extends TestCase
         }
         // Real derivative width, not the 512px long edge, for the portrait primary.
         self::assertSame([358, 512], self::derivativeSize($images[0], 'thumbnail'));
-        self::assertStringContainsString('shop-ratio-r34', $html);
+        // Mixed portrait and landscape photos share a square stage.
+        self::assertStringContainsString('<div class="shop-gallery is-multi shop-ratio-r11">', $html);
         self::assertSame(1, substr_count($html, 'fetchpriority="high"'));
         self::assertSame(1, preg_match('~<li class="shop-slide" id="slika-1">.*?loading="eager"~s', $html));
         self::assertSame(5, preg_match_all('~<li class="shop-slide" id="slika-[2-6]">.*?<img [^>]*loading="lazy"~s', $html));
@@ -195,6 +196,8 @@ final class PublicProductGalleryTest extends TestCase
         self::assertSame(2, substr_count($html, 'alt="Punjač 65W – Lenovo"'));
         self::assertStringContainsString('id="uvecano-1" popover', $html);
         self::assertStringContainsString('/katalog/slika/'.$images[0]->id.'?r=display', $html);
+        // A lone portrait keeps a portrait stage (no landscape box around it).
+        self::assertStringContainsString('<div class="shop-gallery shop-ratio-r34">', $html);
     }
 
     public function test_product_without_images_keeps_the_placeholder_and_no_schema_image(): void

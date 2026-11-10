@@ -52,12 +52,13 @@
 .shop-image .no-image{width:100%;border-radius:var(--photo-radius);background:var(--photo-bed);color:var(--text-3);box-shadow:0 0 0 1px var(--photo-ring) inset}
 /* Cards of one row share the photo row height (subgrid), so titles, prices
    and buttons stay aligned when a portrait poster sits next to a landscape
-   photo; each photo stays centred in that row. */
+   photo; the photos of a row share one baseline right above the titles. */
 @supports (grid-template-rows:subgrid){
   .shop-products{row-gap:0}
   .shop-product-cell{grid-row:span 2;display:grid;grid-template-rows:subgrid;row-gap:0;margin-bottom:clamp(14px,1.8vw,22px)}
   .shop-product{grid-row:span 2;display:grid;grid-template-rows:subgrid;row-gap:0}
-  .shop-product>.shop-image{align-self:center}
+  .shop-product>.shop-image{align-self:end}
+  .shop-product>.shop-image img{align-self:end}
 }
 @media (prefers-reduced-motion:no-preference) and (hover:hover){
   .shop-product:hover .shop-image img{transform:scale(1.02)}

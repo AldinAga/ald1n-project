@@ -147,6 +147,32 @@ final class PublicProductImages
         return $best;
     }
 
+    /**
+     * One stage ratio for the whole gallery: halfway (in log space) between
+     * the narrowest and the widest photo, so a mixed set lands on a square
+     * stage and neither a poster nor a landscape shot is boxed into the
+     * other's shape. An all-portrait set keeps the portrait stage.
+     *
+     * @param list<array<string,mixed>> $gallery
+     */
+    public static function galleryRatio(array $gallery): string
+    {
+        $logs = [];
+        foreach ($gallery as $photo) {
+            $w = (int) $photo['large_width'];
+            $h = (int) $photo['large_height'];
+            if ($w > 0 && $h > 0) {
+                $logs[] = log(min(4 / 3, max(0.75, $w / $h)));
+            }
+        }
+        if ($logs === []) {
+            return 'r43';
+        }
+        $mid = exp((min($logs) + max($logs)) / 2);
+
+        return self::ratio((int) round($mid * 10000), 10000);
+    }
+
     /** "Name – Brand", plus ", slika N od M" when the product has several photos. */
     public static function alt(string $name, string $brand, int $position, int $total): string
     {
