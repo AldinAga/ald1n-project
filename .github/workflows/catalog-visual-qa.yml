@@ -138,9 +138,10 @@ jobs:
             sleep 1
           done
           test "$READY" = 1 || { echo 'CATALOG_VISUAL_HTTP_BOOT_HOLD'; tail -n 20 "$RUNNER_TEMP/catalog-visual-server.log"; exit 5; }
-          node tests/Browser/catalog-visual-browser.cjs
           # Product photos and gallery on the same fixture and server.
           node tests/Browser/product-gallery-browser.cjs
+          sleep 62 # fresh public-shop throttle window for the next script
+          node tests/Browser/catalog-visual-browser.cjs
       - name: Keep synthetic screenshots only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
