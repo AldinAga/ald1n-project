@@ -58,11 +58,11 @@ $set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$c
             'busy'=>$busy(),
             'corruptBackup'=>$corrupt(),
             'mailChange'=>$mailChange(),
-            'dropCsp','dropJsonLd','dropVaryEdge','dropVaryAll','noHtaccess'=>touch($sw[$action]),
+            'dropCsp','dropJsonLd','dropVaryEdge','dropVaryAll','noHtaccess','rogueScript'=>touch($sw[$action]),
             'rateLimit2'=>file_put_contents($sw['rate429'],'2'),
             'rateLimitAlways'=>file_put_contents($sw['rate429'],'ALWAYS'),
             'shopOff'=>$shopOff(),
-            'clearDrops'=>array_map(static fn(string $f):bool=>!is_file($f)||unlink($f),[$sw['dropCsp'],$sw['dropJsonLd'],$sw['dropVaryEdge'],$sw['dropVaryAll']]),
+            'clearDrops'=>array_map(static fn(string $f):bool=>!is_file($f)||unlink($f),[$sw['dropCsp'],$sw['dropJsonLd'],$sw['dropVaryEdge'],$sw['dropVaryAll'],$sw['rogueScript']]),
             default=>throw new RuntimeException('FIXTURE_UNKNOWN_ACTION'),
         };
     }

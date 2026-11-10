@@ -101,6 +101,15 @@ proveru života: `/up`, `/login`, jedna pravna stranica, `/katalog` sa noindex-o
 `GET /tema` 405. Tu ne proveravamo ništa novo. Ako padne, instalacija staje i vraća staro stanje.
 Odgovor 429 je neodlučan i instalacija ide dalje. Pun smoke je na kraju, posle poslednjeg fajla.
 
+## Posle izveštaja 1114
+
+Izveštaj 1114 je stao pre bilo kakve izmene (`OLD_STATE_SMOKE_FAILED`). CSP zaglavlje je bilo
+tačno. Pala je naša provera tela stranice: Cloudflare u svaki HTML ubacuje dve svoje skripte
+(dekoder e-mail adresa pod `/cdn-cgi/` i učitavač sa `window.__CF$cv$params`), a provera ih je
+brojala kao skripte sajta. Sada brojimo samo skripte koje piše server; Cloudflare-ove ispisujemo
+kao `edgeInjectedScripts`. Raspakujte novi ZIP preko starog i pokrenite istu komandu. Sledeći
+izveštaj je 1115.
+
 ## Šta proveravamo na kraju (GET i jedan HEAD, bez POST-a, bez prijave)
 
 - Javne stranice, katalog i proizvod: 200, noindex, jedna nonce skripta čiji se nonce poklapa sa

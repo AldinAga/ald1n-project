@@ -6,7 +6,7 @@ declare(strict_types=1);
  * (production runs them under LiteSpeed; `php -S` ignores .htaccess), unless the noHtaccess switch file exists.
  * Negative switches (files): dropCsp (CSP headers dropped), dropJsonLd (JSON-LD block removed), dropVaryEdge (the Vary
  * header removed from edge responses only, the origin route still sends it), dropVaryAll (removed from every response),
- * rate429 (every throttled route answers 429 with Retry-After: 3; the file holds the count left, or ALWAYS).
+ * rogueScript (one extra non-edge script in every HTML page), rate429 (every throttled route answers 429 with Retry-After: 3; the file holds the count left, or ALWAYS).
  * The origin route ($origin=true) is the same loopback server without the edge switches. Not shipped.
  * @author Ald1n <https://ald1n.com>
  */
@@ -44,6 +44,14 @@ final class StorefrontFixtureWeb
         $r=$this->applyHtaccess(self::get($this->port,StorefrontWeb::target($path,$query,$marker),[],null,$method));unset($r['cookies']);
         if($this->on('dropVaryAll')||(!$origin&&$this->on('dropVaryEdge')))$r['vary']=[];
         if($origin)return $r;
+        // Production HTML passes the Cloudflare edge, which injects its e-mail decoder and its JavaScript-detections loader and
+        // copies a CSP nonce onto them. Always on (as in production); rogueScript adds a script that is NOT an edge script.
+        if(str_starts_with(strtolower((string)$r['contentType']),'text/html')&&str_contains($r['body'],'</body>')){
+            $n=preg_match("/script-src 'nonce-([^']+)'/",implode(' ',$r['csp']),$x)===1?' nonce="'.$x[1].'"':'';
+            $inject='<script data-cfasync="false"'.$n.' src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script'.$n.'>(function(){function c(){var d={};d.innerHTML="window.__CF$cv$params={r:\'a587f2bbac120380\',t:\'MTc5NDM0NDAyMg==\'};";}c();})();</script>';
+            if($this->on('rogueScript'))$inject.='<script'.$n.'>window.rogue=1</script>';
+            $r['body']=str_replace('</body>',$inject.'</body>',$r['body']);
+        }
         if($this->on('dropCsp'))$r['csp']=[];
         if($this->on('dropJsonLd'))$r['body']=(string)preg_replace('~<script type="application/ld\+json">.*?</script>~s','',$r['body']);
         return $r;

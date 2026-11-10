@@ -583,6 +583,8 @@ final class StorefrontInstallCoordinator
      * Public smokes; no product, cart, account, theme or setting is written, nobody logs in (GET and one HEAD only). The
      * expectations follow the shop state read right before this batch (never changed by this tool) and $installed (new
      * B1149 code) or not (old = B1148 code):
+     * Scripts are counted as the origin wrote them: production HTML passes the Cloudflare edge, which injects its e-mail decoder
+     * and JavaScript-detections loader into every page (StorefrontWeb::scripts); those are reported, never counted as app scripts.
      * always: /login and /up 200; the 8 legal pages 200 with DENY and noindex; their CSP is script-src 'none' with no script
      * in the page when old, and exactly one nonce'd script (script-src and script-src-elem 'nonce-<same value as the
      * <script nonce> of the page>', script-src-attr 'none', no 'self'/'unsafe-inline'/'strict-dynamic') when installed; the
@@ -616,7 +618,7 @@ final class StorefrontInstallCoordinator
         $shape=static fn(array $r):bool=>$installed?StorefrontWeb::nonceScript($r['csp'],$r['body']):(CatalogWeb::scriptless($r['csp'])&&StorefrontWeb::scriptCount($r['body'])===0);
         foreach(self::SYSTEM as $p){$r=$this->get($p,[],$marker);$add($p,$r,'200',$ok($r,200));}
         foreach(self::LEGAL as $p){
-            $r=$this->get($p,[],$marker);$f=['cspShape'=>$shape($r),'frameDeny'=>CatalogWeb::frameDeny($r['frame']),'layoutMarker'=>str_contains($r['body'],$m['layout'])];
+            $r=$this->get($p,[],$marker);$f=['cspShape'=>$shape($r),'frameDeny'=>CatalogWeb::frameDeny($r['frame']),'layoutMarker'=>str_contains($r['body'],$m['layout']),'originScripts'=>StorefrontWeb::scriptCount($r['body']),'edgeInjectedScripts'=>StorefrontWeb::edgeScriptCount($r['body'])];
             $add($p,$r,'200_CSP_DENY_LAYOUT_'.($installed?'NEW_NONCE_SCRIPT':'OLD_SCRIPTLESS'),$ok($r,200)&&$f['cspShape']&&$f['frameDeny']&&$f['layoutMarker']===$installed,$f,true);
         }
         $this->fault('DURING_SMOKES_'.$state);
@@ -639,7 +641,7 @@ final class StorefrontInstallCoordinator
         $product=null;$logo=null;
         if($shop['open']){
             $r=$this->get('/katalog',[],$marker);$vary=StorefrontWeb::varyCookie($r['vary']);
-            $f=['cspShape'=>$shape($r),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>StorefrontWeb::privateNoStore($r['cache']),'jsonLd'=>CatalogWeb::jsonLdProblem($r['body'])??'PASS','varyCookie'=>$vary];
+            $f=['cspShape'=>$shape($r),'originScripts'=>StorefrontWeb::scriptCount($r['body']),'edgeInjectedScripts'=>StorefrontWeb::edgeScriptCount($r['body']),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>StorefrontWeb::privateNoStore($r['cache']),'jsonLd'=>CatalogWeb::jsonLdProblem($r['body'])??'PASS','varyCookie'=>$vary];
             $pass=$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']===$installed&&$f['galleryLink']===$installed&&(!$installed||$f['cacheControlPrivateNoStore'])&&$f['jsonLd']==='PASS';
             if($pass&&$installed&&!$vary){
                 // The edge may rewrite Vary: the origin itself is asked once over loopback TLS (the B1144 probe route).

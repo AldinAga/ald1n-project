@@ -81,13 +81,37 @@ final class StorefrontWeb
         foreach($csp as $v)if(preg_match("/(?:^|;)\s*default-src\s+'none'\s*(?:;|$)/i",(string)$v)===1&&preg_match('/(?:^|;)\s*sandbox\s*(?:;|$)/i',(string)$v)===1)return true;return false;
     }
 
-    /** Number of executable <script> elements: every script that is not a JSON-LD data block. */
-    public static function scriptCount(string $html):int {return (int)preg_match_all('~<script\b(?![^>]*type="application/ld\+json")~i',$html);}
+    /**
+     * The <script> elements of a page as [attributes, body], JSON-LD data blocks left out, split into the scripts the ORIGIN
+     * wrote ("app") and the ones the Cloudflare edge injects into every HTML response in production ("edge"): the e-mail
+     * obfuscation decoder (src under /cdn-cgi/) and the inline JavaScript-detections loader (window.__CF$cv$params). Cloudflare
+     * copies a CSP nonce onto its own scripts, so they are recognised by src or body, never by their attributes. Under
+     * script-src 'none' the browser blocks them; they say nothing about the application code. Anything else is an app script.
+     */
+    public static function scripts(string $html):array
+    {
+        $out=['app'=>[],'edge'=>[]];if(!preg_match_all('~<script\b([^>]*)>(.*?)</script\s*>~is',$html,$m,PREG_SET_ORDER))$m=[];
+        foreach($m as [$all,$attrs,$body]){
+            if(preg_match('~\btype="application/ld\+json"~i',$attrs)===1)continue;
+            $edge=preg_match('~\bsrc="/cdn-cgi/[A-Za-z0-9/._-]+"~',$attrs)===1&&trim($body)===''||(preg_match('~\bsrc=~i',$attrs)!==1&&str_contains($body,'window.__CF$cv$params'));
+            $out[$edge?'edge':'app'][]=[trim($attrs),$body];
+        }
+        // An opening tag without its closing tag is never ignored: it counts as an app script.
+        $open=(int)preg_match_all('~<script\b(?![^>]*type="application/ld\+json")~i',$html);for($i=count($out['app'])+count($out['edge']);$i<$open;$i++)$out['app'][]=['UNCLOSED',''];
+        return $out;
+    }
+
+    /** Number of executable scripts the origin wrote (edge-injected Cloudflare scripts and JSON-LD blocks not counted). */
+    public static function scriptCount(string $html):int {return count(self::scripts($html)['app']);}
+
+    /** Number of Cloudflare edge-injected scripts (INFO only). */
+    public static function edgeScriptCount(string $html):int {return count(self::scripts($html)['edge']);}
 
     /**
      * The new shop policy: exactly one nonce'd script. A CSP value with script-src and script-src-elem both exactly
      * 'nonce-<22 base64 chars>==' (no 'self', 'unsafe-inline', 'unsafe-eval', 'strict-dynamic' or origin) and script-src-attr 'none',
-     * and the page holds exactly one executable script, whose nonce attribute is that very value.
+     * and the page holds exactly one executable script written by the origin, whose only attribute is that very nonce (scripts
+     * the Cloudflare edge injects are not origin output, see scripts()).
      */
     public static function nonceScript(array $csp,string $html):bool
     {
@@ -95,7 +119,7 @@ final class StorefrontWeb
             $v=(string)$v;
             if(preg_match("/(?:^|;)\s*script-src\s+'nonce-([A-Za-z0-9+\/]{22}==)'\s*(?:;|$)/i",$v,$m)!==1)continue;
             if(preg_match("/(?:^|;)\s*script-src-elem\s+'nonce-".preg_quote($m[1],'/')."'\s*(?:;|$)/i",$v)!==1||preg_match("/(?:^|;)\s*script-src-attr\s+'none'\s*(?:;|$)/i",$v)!==1)continue;
-            if(self::scriptCount($html)===1&&substr_count($html,'<script nonce="'.$m[1].'">')===1)return true;
+            $app=self::scripts($html)['app'];if(count($app)===1&&$app[0][0]==='nonce="'.$m[1].'"')return true;
         }
         return false;
     }
