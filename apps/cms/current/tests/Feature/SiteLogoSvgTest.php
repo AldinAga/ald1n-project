@@ -300,7 +300,7 @@ final class SiteLogoSvgTest extends TestCase
         $this->upload(['site_logo_light' => UploadedFile::fake()->createWithContent('new.svg', self::BENIGN)])->assertSessionHasNoErrors();
         Storage::disk('public')->assertExists($shared);
         $this->actingAs($this->owner)->from('/admin/settings/appearance')->delete('/admin/settings/appearance/assets/logo-dark')->assertRedirect();
-        Storage::disk('public')->assertExists($shared, 'still the PDF logo');
+        Storage::disk('public')->assertExists($shared); // still the PDF logo
 
         // Only an issued order document's logo snapshot is left.
         app(SettingsService::class)->putMany(['documents_logo_path' => '', 'site_favicon_path' => $shared], (int) $this->owner->id);
@@ -315,7 +315,7 @@ final class SiteLogoSvgTest extends TestCase
             \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
         }
         $this->actingAs($this->owner)->from('/admin/settings/appearance')->delete('/admin/settings/appearance/assets/favicon')->assertRedirect();
-        Storage::disk('public')->assertExists($shared, 'an issued document still points at it');
+        Storage::disk('public')->assertExists($shared); // an issued document still points at it
         self::assertTrue(SiteLogoAssetService::stillReferenced($shared, []));
 
         \Illuminate\Support\Facades\DB::table('order_documents')->where('document_number', 'SVG-REF-1')->delete();
