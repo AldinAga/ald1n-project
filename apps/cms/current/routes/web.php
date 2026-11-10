@@ -135,6 +135,8 @@ Route::get('/site-assets/{file}', \App\Http\Controllers\SiteAssetController::cla
         \Illuminate\Session\Middleware\StartSession::class,
         \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        // Laravel 13 web group CSRF middleware (adds the XSRF-TOKEN cookie).
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
     ])
     ->name('site-assets.show');
 

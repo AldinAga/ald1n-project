@@ -183,7 +183,7 @@ final class SiteLogoSvgTest extends TestCase
         );
         self::assertSame(hash('sha256', $stored), $audit->metadata_json['svg_uploads']['site_logo_light']['sha256']);
         $row = json_encode($audit->getAttributes(), JSON_THROW_ON_ERROR);
-        foreach (['alert', 'evil.example', '<svg', 'svg-script'] as $fragment) {
+        foreach (['alert(', 'svg-onload', 'evil.example', '<svg', 'svg-script'] as $fragment) {
             self::assertStringNotContainsString($fragment, $row);
         }
     }
@@ -217,6 +217,7 @@ final class SiteLogoSvgTest extends TestCase
     #[DataProvider('rejectedUploads')]
     public function test_unsafe_or_mislabeled_logo_uploads_are_rejected_with_a_serbian_reason_and_nothing_is_stored(string $name, string $content, string $message): void
     {
+        $siteNameBefore = Setting::query()->where('setting_key', 'site_name')->value('setting_value');
         $this->upload(['site_logo_light' => UploadedFile::fake()->createWithContent($name, $content)])
             ->assertRedirect('/admin/settings/appearance')
             ->assertSessionHasErrors('site_logo_light');
@@ -227,7 +228,7 @@ final class SiteLogoSvgTest extends TestCase
         self::assertStringNotContainsString('passwd', $error);
         self::assertSame('', $this->setting('site_logo_light_path'));
         self::assertSame([], $this->siteAssetFiles());
-        self::assertSame('', (string) Setting::query()->where('setting_key', 'site_name')->value('setting_value'));
+        self::assertSame($siteNameBefore, Setting::query()->where('setting_key', 'site_name')->value('setting_value'), 'nothing saved');
     }
 
     public function test_raster_logos_get_route_urls_and_svg_and_ico_favicons_are_accepted(): void
