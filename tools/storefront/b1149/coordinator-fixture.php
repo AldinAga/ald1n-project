@@ -205,8 +205,9 @@ $results+=['censusBeforeBackup'=>'HOLD_NOTHING_WRITTEN','nothingApplied'=>'NO_RE
 // the order prevents.
 $wrong=[];
 foreach(['routes/web.php'=>'routes','app/Http/Middleware/PublicNoScriptCsp.php'=>'csp'] as $path=>$key){
-    $s=$stepOf($path);$file=$active.'/'.$path;$orig=(string)file_get_contents($file);file_put_contents($file,(string)file_get_contents($s['payload']));$artisan(['view:clear']);sleep(4);
-    $wrong[$key]=['katalog'=>$status('/katalog'),'legal'=>$status('/pravne-informacije')];file_put_contents($file,$orig);$artisan(['view:clear']);sleep(4);
+    $s=$stepOf($path);$file=$active.'/'.$path;$orig=(string)file_get_contents($file);file_put_contents($file,(string)file_get_contents($s['payload']));sleep(4);
+    // No artisan here: with the routes file alone even the CLI cannot boot (Invalid route action), which is part of the finding.
+    $wrong[$key]=['katalog'=>$status('/katalog'),'legal'=>$status('/pravne-informacije')];file_put_contents($file,$orig);sleep(4);
     check($wrong[$key]['katalog']===500&&$wrong[$key]['legal']===500,'WRONG_ORDER_'.strtoupper($key).'_FIRST_BREAKS_PUBLIC_PAGES:'.json_encode($wrong[$key]));check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$tree()==='PRE','WRONG_ORDER_CONTROL_RESTORED_'.$key);
 }
 $reset();$results['wrongOrderControls']=$wrong+['meaning'=>'THE_STEP_SMOKES_BELOW_CAN_FAIL'];
