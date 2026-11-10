@@ -53,6 +53,11 @@ final class StorefrontHtmlOriginBoundaryB899Test extends TestCase
             'price_amount'=>12500,'price_currency'=>'RSD',
             'stock_quantity'=>4,'status'=>'active','created_by'=>$this->owner->id,
         ]);
+        // A real file: rows whose file is gone are not shown on the storefront.
+        $png=imagecreatetruecolor(4,3);
+        ob_start();
+        imagepng($png);
+        Storage::disk('public')->put('products/'.$this->product->id.'/sample.png',(string) ob_get_clean());
         $this->image=ProductImage::query()->create([
             'product_id'=>$this->product->id,
             'storage_disk'=>'public',
