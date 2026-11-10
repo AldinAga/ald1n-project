@@ -12,7 +12,7 @@ declare(strict_types=1);
  * digest check of every modified file) -> per-file backup into the private B1149 namespace -> install in the reviewed
  * dependency order, one group at a time with a revalidation pause between:
  * A the 11 new classes, B changed services/support/commands, C controllers, D middleware, E routes/web.php, F bootstrap/app.php,
- * then the full measured hold and G the views and CSS (public layout, catalog, product, both stylesheets, then the admin views),
+ * then the full measured hold and G the CSS and views (both stylesheets first, so a page never links a new URL whose CSS is still old; then public layout, catalog, product, then the admin views),
  * H bootstrap/providers.php LAST (it activates MailSettingsServiceProvider), each file via same-directory temp + fsync + rename
  * (link for a new file, so nothing is ever clobbered) -> route:clear, view:clear, queue:restart (never a cache build) ->
  * targeted per-file opcache_invalidate through token-gated temporary probes (the pinned probe takes at most 40 targets, so the
@@ -73,8 +73,8 @@ final class StorefrontInstallCoordinator
         ['app/Http/Middleware/SecurityHeaders.php','modified','D'],['app/Http/Middleware/PublicNoScriptCsp.php','modified','D'],
         ['routes/web.php','modified','E'],
         ['bootstrap/app.php','modified','F'],
-        ['resources/views/public-shop/layout.blade.php','modified','G'],['resources/views/public-shop/catalog.blade.php','modified','G'],['resources/views/public-shop/show.blade.php','modified','G'],
         ['public/assets/css/ald1n-public-gallery.css','new','G'],['public/assets/css/ald1n-public-storefront.css','modified','G'],
+        ['resources/views/public-shop/layout.blade.php','modified','G'],['resources/views/public-shop/catalog.blade.php','modified','G'],['resources/views/public-shop/show.blade.php','modified','G'],
         ['resources/views/admin/settings/partials/svg-logo-panel.blade.php','new','G'],['resources/views/admin/settings/smtp.blade.php','new','G'],
         ['resources/views/layouts/app.blade.php','modified','G'],['resources/views/admin/settings/appearance.blade.php','modified','G'],['resources/views/admin/settings/index.blade.php','modified','G'],
         ['bootstrap/providers.php','modified','H'],
@@ -748,17 +748,24 @@ final class StorefrontInstallCoordinator
      */
     private function envCheck(string $label):array
     {
-        $r=$this->helper($this->featureScript,['env']);$this->emit('ENVIRONMENT_CLI_CHECK',['label'=>$label]+$r);
+        $r=$this->helper($this->featureScript,['env',$this->mailKey()]);$this->emit('ENVIRONMENT_CLI_CHECK',['label'=>$label]+array_diff_key($r,['mailFingerprintHMAC'=>true]));
         foreach(self::EXTENSIONS as $x)if(($r['extensions'][$x]??false)!==true)throw new RuntimeException('PHP_EXTENSION_MISSING_IN_CLI_'.strtoupper($x));
         if(($r['extensions']['gd']??false)!==true&&($r['extensions']['imagick']??false)!==true)throw new RuntimeException('PHP_EXTENSION_MISSING_IN_CLI_GD_OR_IMAGICK');
         return $r;
     }
 
+    /** The per-run random HMAC key; it lives only in the private 0600 state file and is never printed. */
+    private function mailKey():string
+    {
+        if(!is_string($this->state['mailKey']??null)||preg_match('/^[a-f0-9]{64}$/D',$this->state['mailKey'])!==1){$this->state['mailKey']=bin2hex(random_bytes(32));}
+        return $this->state['mailKey'];
+    }
+
     /** The effective mail transport must be byte-for-byte the same after the install as before it (the new provider reads settings only). */
     private function mailFingerprintUnchanged(string $point):void
     {
-        $now=$this->helper($this->featureScript,['env'])['mailFingerprintSHA256']??null;$before=$this->state['mailFingerprintSHA256']??null;
-        $this->emit('MAIL_TRANSPORT_FINGERPRINT',['point'=>$point,'unchanged'=>is_string($now)&&$now===$before,'valuesPrinted'=>false,'testMailSent'=>false,'smtpSettingsRead'=>'FINGERPRINT_ONLY']);
+        $now=$this->helper($this->featureScript,['env',$this->mailKey()])['mailFingerprintHMAC']??null;$before=$this->state['mailFingerprintHMAC']??null;
+        $this->emit('MAIL_TRANSPORT_FINGERPRINT',['point'=>$point,'status'=>is_string($now)&&$now===$before?'MAIL_TRANSPORT_UNCHANGED':'MAIL_TRANSPORT_CHANGED','unchanged'=>is_string($now)&&$now===$before,'valuesPrinted'=>false,'testMailSent'=>false,'smtpSettingsRead'=>'FINGERPRINT_ONLY']);
         if(!is_string($now)||!is_string($before)||$now!==$before)throw new RuntimeException('MAIL_TRANSPORT_FINGERPRINT_CHANGED');
     }
 
@@ -793,9 +800,9 @@ final class StorefrontInstallCoordinator
             $g['noRunningBackup']=$app['backups']['table']===true&&$app['backups']['running']===0?null:'BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING';
             if($this->scheduleGate){$s=$try('outsideScheduledBackupWindow',fn()=>$this->scheduleState($app));$v['schedule']=$s;if($s!==null&&$s['conflict']!==null)$g['outsideScheduledBackupWindow']='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']);}
         }else foreach(['shopStateRecorded','noRunningBackup','outsideScheduledBackupWindow'] as $gate)$g[$gate]='NOT_EVALUATED_APP_STATE';
-        $env=$try('environmentCli',fn()=>$this->envCheck('preflight-'.$stage));$v['environment']=$env;
+        $env=$try('environmentCli',fn()=>$this->envCheck('preflight-'.$stage));$v['environment']=$env===null?null:array_diff_key($env,['mailFingerprintHMAC'=>true]);
         $g['appUrlHttpsOrigin']=$env===null?'NOT_EVALUATED_ENVIRONMENT_CLI':(($env['appUrlHttpsOrigin']??false)===true?null:'APP_URL_NOT_A_BARE_HTTPS_ORIGIN_JSON_LD_WOULD_BE_MISSING');
-        if($env!==null&&!$installed)$this->state['mailFingerprintSHA256']=$env['mailFingerprintSHA256'];
+        if($env!==null&&!$installed)$this->state['mailFingerprintHMAC']=$env['mailFingerprintHMAC'];
         $v['features']=$try('featureCliState',fn()=>$this->featureCheck($installed));
         $v['routes']=$try('b1146LegalRoutesNoRouteCache',fn()=>$this->routesCheck());
         $v['headroom']=$try('diskHeadroom',fn()=>$this->headroom());

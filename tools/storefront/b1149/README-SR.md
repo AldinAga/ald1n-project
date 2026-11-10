@@ -16,7 +16,9 @@ Dobijate:
   koja nosi nonce te stranice. Bez JavaScript-a prekidač teme i dalje radi kroz `POST /tema`.
 
 Skripta ne čita, ne menja i ne testira SMTP podešavanja i ne šalje mejl. Poredi samo heš
-efektivnog mail transporta pre i posle instalacije (`MAIL_TRANSPORT_FINGERPRINT`). Ako se razlikuje,
+efektivnog mail transporta pre i posle instalacije. Otisak je HMAC sa nasumičnim ključem tog
+pokretanja i živi samo u privatnom `state.json` (0600); u izveštaj ide samo status
+`MAIL_TRANSPORT_UNCHANGED` ili `MAIL_TRANSPORT_CHANGED`. Ako se razlikuje,
 vraća staro stanje.
 
 ## Redosled (obavezan)
@@ -24,8 +26,8 @@ vraća staro stanje.
 A nove klase (SvgSanitizer, SiteLogoAssetService, SiteLogoFile, SMTP servisi, MailSettingsServiceProvider,
 PublicProductImages i PublicProductImageFiles), B izmenjeni servisi i četiri komande, C kontroleri,
 D `SecurityHeaders` pa `PublicNoScriptCsp`, E `routes/web.php`, F `bootstrap/app.php`, pa puno
-čekanje i G pogledi i CSS (javni layout, katalog, proizvod, galerija, storefront CSS, pa admin
-pogledi), na kraju H `bootstrap/providers.php`. Posle: `route:clear`, `view:clear`, `queue:restart`
+čekanje i G CSS i pogledi (prvo galerijski i storefront CSS, da nijedna stranica ne linkuje novi
+URL dok je CSS još star; zatim javni layout, katalog, proizvod, pa admin pogledi), na kraju H `bootstrap/providers.php`. Posle: `route:clear`, `view:clear`, `queue:restart`
 i ciljano osvežavanje OPcache-a po fajlu. Keš ruta ne postoji i ne pravimo ga.
 
 Drugačiji redosled ruši sajt. `routes/web.php` traži `SiteLogoAssetService::FILE_PATTERN`,
@@ -35,7 +37,9 @@ Drugačiji redosled ruši sajt. `routes/web.php` traži `SiteLogoAssetService::F
 `MailSettingsServiceProvider`, pa dugme za probni mejl radi tek kad se poslednji fajl postavi.
 
 Pre-stanje je sadržaj `main` `eca7755c`, onakav kakvog su ga B1146, B1147 i B1148 instalirali.
-Svaki od 27 izmenjenih fajlova mora imati tačan digest iz dva nezavisna izvora (git i živo stablo).
+Pri građenju paketa digest svakog od 27 izmenjenih fajlova (git blob iz `eca7755c`) mora da se
+poklopi sa digestom iz runtime manifesta ili B1148 payload-a; inače se paket ne gradi. Poređenje
+sa živim stablom na serveru radi tek skripta na hostu, pre prve izmene.
 
 ## Pre pokretanja proverite sami
 
@@ -64,7 +68,10 @@ Svaki od 27 izmenjenih fajlova mora imati tačan digest iz dva nezavisna izvora 
    proverava u CLI-ju. Web PHP proverite sami (stranica sa `phpinfo` ili `php -m` za isti PHP
    profil), jer skripta ne može da ga pita.
 5. Prodavnica je uključena, saobraćaj je mali, a do backup-a (02:30 svaki dan, 03:10 nedeljom,
-   Europe/Belgrade) imate bar 45 minuta.
+   Europe/Belgrade). Potrebno vreme skripta sama izračuna: u izveštaju
+   (`PREFLIGHT`) pročitajte `timeBound.requiredWindowSeconds` (oko 39 minuta, nikad manje od 30)
+   i proverite da do 02:30 (nedeljom do 03:10) ima bar toliko vremena. Skripta staje pre izmene
+   ako ga nema.
 
 ## Šta pokrećete
 
@@ -101,8 +108,9 @@ Odgovor 429 je neodlučan i instalacija ide dalje. Pun smoke je na kraju, posle 
 - `/site-assets/<logo>` koji katalog linkuje: 200, `nosniff`, sandbox CSP (`default-src 'none'; sandbox`),
   noindex. Ako logo nije postavljen, red je `INFO` i ne smeta.
 - Gost na `/admin/settings/smtp`: 302 na prijavu. Ne prijavljujemo se na produkciji.
-- Novi i stari CSS (`?v=202611101` i `?v=202611106`), `/tema` GET i HEAD 405.
-- Rute `site-assets.show` i `admin.settings.smtp.index`, provajder, nove klase, hesh mail transporta,
+- Storefront CSS: stari URL je `?v=202611091`, novi `?v=202611101`. Galerijski CSS je nov
+  (`?v=202611106`) i pre instalacije ne postoji. `/tema` GET i HEAD 405.
+- Rute `site-assets.show` i `admin.settings.smtp.index`, provajder, nove klase, status mail transporta (bez ikakvog heša u izveštaju),
   `laravel.log` bez novih grešaka i svih 8564 fajla sa tačnim digestom.
 
 Ako nešto padne, sami vraćamo stare fajlove obrnutim redom: prvo `providers.php`, pa pogledi, pa
@@ -120,14 +128,25 @@ Uspešan kraj je `B1149_FINAL=PASS_INSTALLED_STOREFRONT_ROLLOUT_SHOP_STATE_UNCHA
 Dok to ne uradite, stare kvadratne renditions se odbijaju i prodavnica servira original. To je
 sporije, ali ispravno.
 
-1. Proverite Imagick u CLI-ju i u web PHP-u (`php -m | grep -i imagick`, pa isto u web profilu).
-2. Probni prolaz bez izmena: `php artisan app:product-image-optimize`
-3. Backup postojećih renditions:
+Sve komande idu iz direktorijuma CMS-a i sa istim PHP binarnim kao instalacija:
+
+```
+cd /home/icaffeco/ald1n-project/apps/cms/current
+PHP="$(command -v php)"
+```
+
+1. Obrada traži Imagick ili GD sa `imagewebp`. Proverite isto u CLI-ju i u web PHP-u:
+   `"$PHP" -r "var_dump(extension_loaded('imagick')||function_exists('imagewebp'));"`
+   Mora da piše `bool(true)`. Ako obrada javi `PRODUCT_IMAGE_OPTIMIZE_PROCESSOR=UNAVAILABLE`,
+   nijedna slika nije obrađena: stanite i javite nam.
+2. Probni prolaz bez izmena: `"$PHP" artisan app:product-image-optimize`
+3. Backup postojećih renditions (iz istog direktorijuma):
    `tar -czf ~/product-images-optimized-$(date +%Y%m%d).tar.gz -C storage/app/public/products _optimized`
 4. Prava obrada, sa niskim prioritetom:
-   `nice -n 19 php artisan app:product-image-optimize --apply --force --chunk=10`
-5. Ako se prekine, pokrenite istu komandu ponovo. Na kraju mora da piše `FAILED=0`.
-6. Provera: `SELECT COUNT(*), AVG(file_size), MAX(file_size) FROM product_images;`
+   `nice -n 19 "$PHP" artisan app:product-image-optimize --apply --force --chunk=10`
+5. Ako se prekine, pokrenite istu komandu ponovo. Uspeh dokazuje samo `FAILED=0` na kraju ispisa.
+6. SQL `SELECT COUNT(*), AVG(file_size), MAX(file_size) FROM product_images;` meri veličine
+   originala. Ne dokazuje da je obrada uspela; služi samo za procenu veličine posla.
 
 ### 2. Cloudflare
 
@@ -161,7 +180,8 @@ bash /home/icaffeco/ald1n-project/incoming/b1149-installer.sh --rollback
 
 Prodavnica može ostati uključena. Ako je backup blizu, a vraćanje ne može da čeka, dodajte
 `--ignore-schedule` (preskače samo proveru backup termina). Kraj je `PASS_ROLLED_BACK_BY_OWNER`.
-Posle vraćanja očistite u Cloudflare-u oba CSS URL-a i `/site-assets/*`.
+Posle vraćanja očistite u Cloudflare-u `https://cms.ald1n.com/assets/css/ald1n-public-storefront.css?v=202611091`,
+isti URL bez `?v=`, `https://cms.ald1n.com/assets/css/ald1n-public-gallery.css` i `/site-assets/*`.
 
 Ako vraćanje stane na pola, izveštaj ima `RECOVERY_NOTE` i blok od `bash -e <<'B1149_RECOVERY'`
 do `B1149_RECOVERY`. Prvo pokrenite istu komandu još jednom; blok nalepite ceo samo ako to ne
@@ -189,7 +209,7 @@ Posle B1149 ne pokrećite B1144, B1145, B1146, B1147 ni B1148, ni njihov `--roll
 | `PER_FILE_BACKUP` | 27 kopija, 16 novih fajlova zabeleženo kao odsutni |
 | `OVERLAY_STEP` | 43 koraka, grupe A do H |
 | `FEATURE_CLI_CHECK` | nove klase, rute i provajder prisutni |
-| `MAIL_TRANSPORT_FINGERPRINT` | `unchanged: true` |
+| `MAIL_TRANSPORT_FINGERPRINT` | `status: MAIL_TRANSPORT_UNCHANGED` |
 | `PUBLIC_HTTP_SMOKES` (INSTALLED) | `failed: []`, nonce skripta, private/no-store, galerija, logo, gost 302 |
 | `ACTIVE_TREE_AFTER_INSTALL` | 8564 fajla |
 | `MERCHANT_APPROVAL` | `UNCHANGED` |
