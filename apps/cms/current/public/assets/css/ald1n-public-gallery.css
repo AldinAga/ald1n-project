@@ -89,9 +89,9 @@
 .shop-slide-step.is-off{visibility:hidden}
 
 /* Thumbnail strip: one row that scrolls sideways on narrow screens. */
-.shop-thumbs{display:flex;gap:10px;margin:12px 0 0;padding:4px 2px 6px;list-style:none;overflow-x:auto;scrollbar-width:thin;scroll-target-group:auto}
+.shop-thumbs{position:relative;display:flex;gap:10px;margin:12px 0 0;padding:4px 2px 6px;list-style:none;overflow-x:auto;scrollbar-width:thin;scroll-target-group:auto}
 .shop-thumbs li{flex:0 0 auto}
-.shop-thumb{display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;width:76px;height:76px;padding:3px;border:2px solid var(--border);border-radius:12px;background:var(--photo-bed);text-decoration:none}
+.shop-thumb{position:relative;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;width:76px;height:76px;padding:3px;border:2px solid var(--border);border-radius:12px;background:var(--photo-bed);text-decoration:none}
 .shop-thumb img{width:auto;height:auto;max-width:100%;max-height:100%;border-radius:8px;object-fit:contain}
 .shop-thumb:hover{border-color:var(--border-strong)}
 .shop-thumb:focus-visible{outline:3px solid var(--focus);outline-offset:2px}

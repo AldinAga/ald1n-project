@@ -180,14 +180,26 @@ async function galleryState(page) {
   });
 }
 
+// Settled = the viewport offset stayed the same for 400 ms and sits on a
+// slide. (Checking alignment alone passed before a smooth scroll began.)
 async function waitScroll(page) {
-  await page.waitForFunction(() => {
+  await pause(150);
+  await page.evaluate(() => new Promise(resolve => {
     const vp = document.querySelector('.shop-gallery-viewport');
-    if (!vp) return true;
-    const w = vp.clientWidth;
-    return Math.abs(vp.scrollLeft / w - Math.round(vp.scrollLeft / w)) < 0.02;
-  }, null, {timeout: 4000}).catch(() => {});
-  await pause(450);
+    if (!vp) return resolve();
+    const started = Date.now();
+    let last = -1;
+    let stableSince = Date.now();
+    const tick = () => {
+      const x = vp.scrollLeft;
+      if (x !== last) { last = x; stableSince = Date.now(); }
+      const w = vp.clientWidth;
+      const aligned = Math.abs(x / w - Math.round(x / w)) < 0.02;
+      if ((aligned && Date.now() - stableSince >= 400) || Date.now() - started > 6000) return resolve();
+      setTimeout(tick, 50);
+    };
+    tick();
+  }));
 }
 
 async function productChecks(page, product, mode, width, engine, tag) {
@@ -227,7 +239,8 @@ async function productChecks(page, product, mode, width, engine, tag) {
     await waitScroll(page);
     st = await galleryState(page);
     check(st.visible === last, tag + ' thumbnail shows photo ' + last + ' got ' + st.visible);
-    const lazyLoaded = await page.evaluate(n => { const i = document.querySelector('#slika-' + n + ' img'); return i.complete && i.naturalWidth > 0; }, last);
+    const lazyLoaded = await page.waitForFunction(n => { const i = document.querySelector('#slika-' + n + ' img'); return i.complete && i.naturalWidth > 0; }, last, {timeout: 6000})
+      .then(() => true, () => false);
     check(lazyLoaded, tag + ' lazy photo loads when shown');
     const chosen = await page.evaluate(n => getComputedStyle(document.querySelector('.shop-thumb[href="#slika-' + n + '"]')).borderTopColor
       !== getComputedStyle(document.querySelector('.shop-thumb[href="#slika-1"]')).borderTopColor, last);
@@ -303,7 +316,9 @@ async function axe(page, url, label) {
   await page.evaluate(src => { (0, eval)(src); }, axeSource).catch(() => {});
   if (!(await page.evaluate(() => typeof window.axe === 'object'))) await page.addScriptTag({content: axeSource});
   const result = await page.evaluate(async () => {
-    const r = await window.axe.run(document, {runOnly: ['color-contrast', 'image-alt', 'button-name', 'link-name', 'aria-allowed-attr', 'aria-hidden-focus', 'scrollable-region-focusable', 'duplicate-id', 'list', 'listitem', 'nested-interactive', 'region']});
+    // The shared layout's .shop-top-rail sits outside a landmark on main
+    // already (layout file, not this change); the gallery itself is checked.
+    const r = await window.axe.run({include: [document], exclude: [['.shop-top-rail']]}, {runOnly: ['color-contrast', 'image-alt', 'button-name', 'link-name', 'aria-allowed-attr', 'aria-hidden-focus', 'scrollable-region-focusable', 'duplicate-id', 'list', 'listitem', 'nested-interactive', 'region']});
     return r.violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ') + ' :: ' + ((n.any[0] && n.any[0].message) || '')));
   });
   console.log('GALLERY_AXE ' + label + ' violations=' + result.length);

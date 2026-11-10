@@ -3,7 +3,7 @@
 @section('title',$product['name'])
 @push('head')
 @if($schemaJson)<script type="application/ld+json">{!! $schemaJson !!}</script>@endif
-<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611101">
+<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611102">
 @endpush
 @section('content')
 @php($photoCount = count($gallery))
