@@ -39,6 +39,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(PublicNoScriptCsp::class);
         $middleware->append(SecurityHeaders::class);
 
+        // Leading or trailing spaces can be part of an SMTP password.
+        $middleware->trimStrings(except: ['smtp_password']);
+
         $middleware->alias([
             'active' => EnsureActiveUser::class,
             'tracked-session' => EnsureTrackedPortalSession::class,

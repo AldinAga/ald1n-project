@@ -8,11 +8,15 @@ use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\MailRuntimeConfigurator;
+use App\Services\PublicRegistrationMailSenderService;
 use App\Services\SettingsService;
+use App\Services\SmtpMailSettingsService;
 use App\Services\SmtpTestTransportFactory;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -20,12 +24,14 @@ use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\TransportInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\RawMessage;
 use Tests\TestCase;
 
 /**
  * SuperAdmin "E-mail (SMTP)" page: access, validation, write-only password,
- * audit hygiene and the sanitized test e-mail.
+ * re-confirmation, credential redirect protection, test-gated switch, audit
+ * hygiene and the sanitized test e-mail.
  *
  * @author Ald1n <https://ald1n.com>
  */
@@ -34,6 +40,10 @@ final class SmtpSettingsPageTest extends TestCase
     use RefreshDatabase;
 
     private const SECRET = 'Synthetic-SMTP-P4ss!word';
+
+    private const OWNER_PASSWORD = 'OnlySynthetic123!';
+
+    private const SERVER_NOTICE = 'Zbog promene servera lozinka mora ponovo da se unese.';
 
     private User $owner;
 
@@ -44,7 +54,7 @@ final class SmtpSettingsPageTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
-        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        $this->withoutMiddleware(ThrottleRequests::class);
         config()->set('mail.default', 'array');
         config()->set('mail.from.address', 'noreply@ald1n.com');
         config()->set('mail.from.name', 'Ald1n CMS');
@@ -64,7 +74,7 @@ final class SmtpSettingsPageTest extends TestCase
             $user = $this->person('smtp-'.$role, $role);
             $this->actingAs($user)->get('/admin/settings/smtp')->assertForbidden();
             $this->actingAs($user)->put('/admin/settings/smtp', $this->payload())->assertForbidden();
-            $this->actingAs($user)->post('/admin/settings/smtp/test')->assertForbidden();
+            $this->actingAs($user)->post('/admin/settings/smtp/test', $this->confirm())->assertForbidden();
             $this->actingAs($user)->delete('/admin/settings/smtp/password')->assertForbidden();
         }
         self::assertFalse(app(SettingsService::class)->hasStoredValue('smtp_host'));
@@ -76,6 +86,9 @@ final class SmtpSettingsPageTest extends TestCase
             ->assertSee('E-mail (SMTP)')
             ->assertSee('Koristi SMTP podešavanja iz baze')
             ->assertSee('Pošalji probni e-mail')
+            ->assertSee('Vaša trenutna lozinka (SuperAdmin)')
+            ->assertSee('ne pokušava ponovo')
+            ->assertSee('najviše 5 puta')
             ->assertSee('MAIL_MAILER=array');
         $this->actingAs($this->owner)->get('/admin/settings')->assertOk()
             ->assertSee(route('admin.settings.smtp.index'), false)
@@ -100,11 +113,11 @@ final class SmtpSettingsPageTest extends TestCase
             ->assertDontSee($stored);
         self::assertStringContainsString('name="smtp_password" maxlength="255" autocomplete="off" value=""', (string) $page->getContent());
 
-        // A blank password keeps the stored one.
-        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_password' => '', 'smtp_timeout' => '20']))
+        // Same server, blank password: the stored one stays (timeout is not a server field).
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_password' => '', 'smtp_timeout' => '8']))
             ->assertSessionHasNoErrors();
         self::assertSame(self::SECRET, app(SettingsService::class)->getSecret('smtp_password'));
-        self::assertSame('20', app(SettingsService::class)->get('smtp_timeout'));
+        self::assertSame('8', app(SettingsService::class)->get('smtp_timeout'));
 
         $this->assertNoSecretAnywhere();
     }
@@ -120,6 +133,7 @@ final class SmtpSettingsPageTest extends TestCase
 
         $old = (array) session('_old_input', []);
         self::assertArrayNotHasKey('smtp_password', $old);
+        self::assertArrayNotHasKey('current_password', $old);
         self::assertSame('http://bad host', $old['smtp_host'] ?? null);
         $errors = json_encode(session('errors')?->getBag('default')->toArray(), JSON_UNESCAPED_UNICODE);
         self::assertStringNotContainsString(self::SECRET, (string) $errors);
@@ -141,30 +155,212 @@ final class SmtpSettingsPageTest extends TestCase
             ['smtp_host' => 'metadata.google.internal'],
             ['smtp_host' => 'mail.example.com:587'],
             ['smtp_host' => 'smtp://mail.example.com'],
+            // Numeric forms some resolvers read as 169.254.169.254.
+            ['smtp_host' => '2852039166'],
+            ['smtp_host' => '0251.0376.0251.0376'],
+            ['smtp_host' => '0xa9.0xfe.0xa9.0xfe'],
+            ['smtp_host' => '169.254.43518'],
+            // IPv6 metadata and embedded link-local forms.
+            ['smtp_host' => 'fd00:ec2::254'],
+            ['smtp_host' => '64:ff9b::a9fe:a9fe'],
+            ['smtp_host' => '2002:a9fe:a9fe::1'],
             ['smtp_host' => ''],
         ] as $change) {
-            $this->put('/admin/settings/smtp', $this->payload($change))->assertSessionHasErrors('smtp_host');
+            $this->put('/admin/settings/smtp', $this->payload($change + ['smtp_enabled' => '1']))
+                ->assertSessionHasErrors('smtp_host');
         }
-        foreach (['0', '65536', 'abc', ''] as $port) {
+        foreach (['0', '65536', 'abc'] as $port) {
             $this->put('/admin/settings/smtp', $this->payload(['smtp_port' => $port]))->assertSessionHasErrors('smtp_port');
         }
-        foreach (['', 'starttls', 'TLS'] as $encryption) {
+        $this->put('/admin/settings/smtp', $this->payload(['smtp_port' => '', 'smtp_enabled' => '1']))->assertSessionHasErrors('smtp_port');
+        foreach (['starttls', 'TLS'] as $encryption) {
             $this->put('/admin/settings/smtp', $this->payload(['smtp_encryption' => $encryption]))->assertSessionHasErrors('smtp_encryption');
         }
-        $this->put('/admin/settings/smtp', $this->payload(['smtp_password' => '']))->assertSessionHasErrors('smtp_password');
-        $this->put('/admin/settings/smtp', $this->payload(['smtp_timeout' => '120']))->assertSessionHasErrors('smtp_timeout');
+        $this->put('/admin/settings/smtp', $this->payload(['smtp_encryption' => '', 'smtp_enabled' => '1']))->assertSessionHasErrors('smtp_encryption');
+        foreach (['11', '60', '0'] as $timeout) {
+            $this->put('/admin/settings/smtp', $this->payload(['smtp_timeout' => $timeout]))->assertSessionHasErrors('smtp_timeout');
+        }
         $this->put('/admin/settings/smtp', $this->payload(['smtp_username' => "user\r\nX"]))->assertSessionHasErrors('smtp_username');
+        $this->put('/admin/settings/smtp', $this->payload(['smtp_password' => '    ']))->assertSessionHasErrors('smtp_password');
         self::assertFalse(app(SettingsService::class)->hasStoredValue('smtp_host'));
 
-        foreach (['mail.ald1n.com', '127.0.0.1', '::1', 'localhost'] as $host) {
+        // Loopback and private ranges stay allowed (cPanel exim on the same host).
+        foreach (['mail.ald1n.com', '127.0.0.1', '::1', 'localhost', '10.0.0.5', '192.168.1.10', '64:ff9b::c000:219'] as $host) {
             $this->put('/admin/settings/smtp', $this->payload(['smtp_host' => $host, 'smtp_password' => self::SECRET]))
                 ->assertSessionHasNoErrors();
             self::assertSame($host, app(SettingsService::class)->get('smtp_host'));
         }
 
         // Disabled drafts may stay incomplete, but a given host is still checked.
-        $this->put('/admin/settings/smtp', ['smtp_host' => '', 'smtp_port' => '', 'smtp_encryption' => ''])->assertSessionHasNoErrors();
-        $this->put('/admin/settings/smtp', ['smtp_host' => '169.254.169.254'])->assertSessionHasErrors('smtp_host');
+        $this->put('/admin/settings/smtp', ['smtp_host' => '', 'smtp_port' => '', 'smtp_encryption' => ''] + $this->confirm())
+            ->assertSessionHasNoErrors();
+        $this->put('/admin/settings/smtp', ['smtp_host' => '169.254.169.254'] + $this->confirm())->assertSessionHasErrors('smtp_host');
+    }
+
+    public function test_plaintext_auth_is_refused_unless_the_host_is_loopback(): void
+    {
+        $this->actingAs($this->owner);
+        foreach (['192.0.2.25', 'mail.ald1n.com', '10.0.0.5'] as $host) {
+            $this->put('/admin/settings/smtp', $this->payload(['smtp_host' => $host, 'smtp_encryption' => 'none', 'smtp_port' => '25']))
+                ->assertSessionHasErrors('smtp_encryption');
+        }
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('smtp_host'));
+
+        foreach (['127.0.0.1', '127.10.0.2', '::1', 'localhost'] as $host) {
+            $this->put('/admin/settings/smtp', $this->payload(['smtp_host' => $host, 'smtp_encryption' => 'none', 'smtp_port' => '25']))
+                ->assertSessionHasNoErrors();
+        }
+        // Without a username no credentials travel, so 'none' is allowed anywhere.
+        $this->put('/admin/settings/smtp', $this->payload([
+            'smtp_host' => '192.0.2.25', 'smtp_encryption' => 'none', 'smtp_port' => '25', 'smtp_username' => '', 'smtp_password' => '',
+        ]))->assertSessionHasNoErrors();
+
+        // A direct database write that bypasses the form is still refused at runtime and test time.
+        $fake = $this->fakeTransport(null);
+        app(SettingsService::class)->putMany(['smtp_username' => 'noreply@ald1n.com'], $this->owner->id);
+        app(SettingsService::class)->putSecret('smtp_password', self::SECRET, $this->owner->id);
+        self::assertSame('insecure_auth', app(SmtpMailSettingsService::class)->connectionConfig()['reason']);
+        $this->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
+        self::assertSame('insecure_auth', app(SettingsService::class)->get('smtp_last_test_result'));
+        self::assertSame([], $fake->sent);
+    }
+
+    public function test_server_change_without_new_password_clears_it_and_switches_off(): void
+    {
+        $fake = $this->fakeTransport(null);
+        $this->enableTested();
+        self::assertSame('1', app(SettingsService::class)->get('smtp_enabled'));
+        self::assertSame('database', app(MailRuntimeConfigurator::class)->apply());
+
+        foreach ([
+            ['smtp_host' => 'attacker.example.net'],
+            ['smtp_port' => '587', 'smtp_encryption' => 'tls'],
+            ['smtp_username' => 'other@ald1n.com'],
+        ] as $change) {
+            // Restore a tested, enabled state, then change one server field with a blank password.
+            $this->enableTested();
+            $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload($change + ['smtp_enabled' => '1', 'smtp_password' => '']))
+                ->assertRedirect('/admin/settings/smtp')
+                ->assertSessionHasNoErrors()
+                ->assertSessionHas('smtp_notices', fn (array $notices): bool => in_array(self::SERVER_NOTICE, $notices, true));
+
+            $settings = app(SettingsService::class);
+            self::assertFalse($settings->hasSecret('smtp_password'), 'stored password must be cleared');
+            self::assertNull($settings->getSecret('smtp_password'));
+            self::assertSame('0', $settings->get('smtp_enabled'), 'switch must be OFF after a server change');
+            self::assertSame('', $settings->get('smtp_last_test_result'));
+            self::assertSame('', $settings->get('smtp_last_test_fingerprint'));
+            self::assertSame('env', app(MailRuntimeConfigurator::class)->apply());
+        }
+        $this->actingAs($this->owner)->get('/admin/settings/smtp')->assertOk()->assertSee(self::SERVER_NOTICE);
+
+        // The test e-mail is refused until a password exists again: nothing reaches a transport.
+        $sentBefore = count($fake->sent);
+        $configsBefore = count($fake->configs);
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())
+            ->assertSessionHasErrors('smtp_test');
+        self::assertStringContainsString('Lozinka nije sačuvana', (string) session('errors')->first('smtp_test'));
+        self::assertSame('password_missing', app(SettingsService::class)->get('smtp_last_test_result'));
+        self::assertCount($sentBefore, $fake->sent);
+        self::assertCount($configsBefore, $fake->configs);
+
+        // A server change together with a new password keeps the new password.
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_host' => '192.0.2.26', 'smtp_password' => self::SECRET.'-2']))
+            ->assertSessionHasNoErrors()->assertSessionMissing('smtp_notices');
+        self::assertSame(self::SECRET.'-2', app(SettingsService::class)->getSecret('smtp_password'));
+        $this->assertNoSecretAnywhere();
+    }
+
+    public function test_switch_goes_on_only_after_a_successful_test_of_the_saved_connection(): void
+    {
+        $fake = $this->fakeTransport(null);
+        $settings = app(SettingsService::class);
+
+        // First save with the switch ON: saved, but the switch stays OFF.
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_enabled' => '1']))
+            ->assertSessionHasNoErrors()->assertSessionHas('smtp_notices');
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        self::assertSame('192.0.2.25', $settings->get('smtp_host'));
+
+        // A failed test keeps it OFF.
+        $fake->failure = new TransportException('Connection could not be established with host "ssl://192.0.2.25:465" (Connection refused)');
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_enabled' => '1', 'smtp_password' => '']))
+            ->assertSessionHas('smtp_notices');
+        self::assertSame('0', $settings->get('smtp_enabled'));
+
+        // A successful test, then turning ON requires the current password.
+        $fake->failure = null;
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasNoErrors();
+        self::assertTrue(app(SmtpMailSettingsService::class)->testPassedForCurrentSettings());
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_enabled' => '1', 'smtp_password' => '', 'current_password' => '']))
+            ->assertSessionHasErrors('current_password');
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_enabled' => '1', 'smtp_password' => '']))
+            ->assertSessionHasNoErrors()->assertSessionMissing('smtp_notices');
+        self::assertSame('1', $settings->get('smtp_enabled'));
+        self::assertSame('database', app(MailRuntimeConfigurator::class)->apply());
+
+        // Re-entering the password is a connection edit: the test result is void and the switch goes OFF.
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_enabled' => '1', 'smtp_password' => self::SECRET]))
+            ->assertSessionHasNoErrors();
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        self::assertFalse(app(SmtpMailSettingsService::class)->testPassedForCurrentSettings());
+
+        // A test that fails while ON switches it OFF.
+        $this->enableTested();
+        $fake->failure = new TransportException('Connection could not be established (Connection timed out)');
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
+        self::assertStringContainsString('Prekidač je isključen', (string) session('errors')->first('smtp_test'));
+        self::assertSame('0', $settings->get('smtp_enabled'));
+        self::assertSame('env', app(MailRuntimeConfigurator::class)->apply());
+    }
+
+    public function test_connection_changes_and_test_mail_require_the_current_password(): void
+    {
+        $fake = $this->fakeTransport(null);
+        foreach (['', 'Wrong-Password-1'] as $given) {
+            $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['current_password' => $given]))
+                ->assertRedirect('/admin/settings/smtp')
+                ->assertSessionHasErrors('current_password');
+            self::assertArrayNotHasKey('current_password', (array) session('_old_input', []));
+        }
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('smtp_host'));
+        self::assertFalse(app(SettingsService::class)->hasSecret('smtp_password'));
+
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload())->assertSessionHasNoErrors();
+        foreach ([[], ['current_password' => 'Wrong-Password-1']] as $body) {
+            $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $body)
+                ->assertSessionHasErrors('smtp_test');
+        }
+        self::assertSame([], $fake->configs, 'no connection may be opened without re-confirmation');
+        self::assertSame('', app(SettingsService::class)->get('smtp_last_test_result'));
+        // Two refused saves and two refused tests.
+        self::assertSame(4, AuditLog::query()->where('action', 'settings.smtp.reauth_failed')->count());
+
+        // Non-connection edits (timeout, switching OFF) do not need it.
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_password' => '', 'smtp_timeout' => '5', 'current_password' => '']))
+            ->assertSessionHasNoErrors();
+        self::assertSame('5', app(SettingsService::class)->get('smtp_timeout'));
+        $this->assertNoSecretAnywhere();
+        foreach ($this->logged as $line) {
+            self::assertStringNotContainsString(self::OWNER_PASSWORD, $line);
+        }
+    }
+
+    public function test_password_spaces_survive_but_other_secrets_keep_trimming(): void
+    {
+        $spaced = '  spaced Synthetic pass  ';
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_password' => $spaced]))
+            ->assertSessionHasNoErrors();
+        self::assertSame($spaced, app(SettingsService::class)->getSecret('smtp_password'));
+
+        $fake = $this->fakeTransport(null);
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasNoErrors();
+        self::assertSame($spaced, $fake->configs[0]['password']);
+
+        app(SettingsService::class)->putSecret('synthetic_other_secret', '  trimmed-value  ', $this->owner->id);
+        self::assertSame('trimmed-value', app(SettingsService::class)->getSecret('synthetic_other_secret'));
     }
 
     public function test_audit_records_field_names_and_target_hash_only(): void
@@ -178,7 +374,7 @@ final class SmtpSettingsPageTest extends TestCase
         $updated = AuditLog::query()->where('action', 'settings.smtp.updated')->sole();
         $metadata = $updated->metadata_json;
         self::assertIsArray($metadata);
-        self::assertEqualsCanonicalizing(['enabled', 'host', 'port', 'encryption', 'username', 'password'], $metadata['changed_fields']);
+        self::assertEqualsCanonicalizing(['host', 'port', 'encryption', 'username', 'password'], $metadata['changed_fields']);
         self::assertSame(hash('sha256', '192.0.2.25:465:noreply@ald1n.com'), $metadata['target_sha256']);
         self::assertNull($updated->before_json);
         self::assertNull($updated->after_json);
@@ -193,10 +389,10 @@ final class SmtpSettingsPageTest extends TestCase
     {
         $fake = $this->fakeTransport(null);
         $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload([
-            'smtp_enabled' => '0', 'smtp_password' => self::SECRET, 'smtp_timeout' => '45',
+            'smtp_password' => self::SECRET, 'smtp_timeout' => '8',
         ]))->assertSessionHasNoErrors();
 
-        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', [
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm() + [
             'to' => 'attacker@example.test', 'recipient' => 'attacker@example.test', 'smtp_host' => '10.0.0.1',
         ])->assertRedirect('/admin/settings/smtp')
             ->assertSessionHasNoErrors()
@@ -204,10 +400,11 @@ final class SmtpSettingsPageTest extends TestCase
 
         self::assertCount(1, $fake->sent);
         self::assertSame(['smtp-owner@example.test'], $fake->recipients);
+        self::assertSame(['noreply@ald1n.com'], $fake->froms);
         self::assertSame('192.0.2.25', $fake->configs[0]['host']);
         self::assertSame(465, $fake->configs[0]['port']);
         self::assertSame('smtps', $fake->configs[0]['scheme']);
-        self::assertSame(10, $fake->configs[0]['timeout']);
+        self::assertSame(8, $fake->configs[0]['timeout']);
         self::assertSame(self::SECRET, $fake->configs[0]['password']);
 
         self::assertSame('ok', app(SettingsService::class)->get('smtp_last_test_result'));
@@ -218,6 +415,37 @@ final class SmtpSettingsPageTest extends TestCase
         $this->assertNoSecretAnywhere();
     }
 
+    public function test_test_mail_also_verifies_the_approved_registration_sender(): void
+    {
+        $address = 'registracija@example.test';
+        $name = 'Ald1n prodavnica';
+        app(SettingsService::class)->putMany([
+            'public_registration_sender_address' => $address,
+            'public_registration_sender_name' => $name,
+            'public_registration_sender_digest' => PublicRegistrationMailSenderService::fingerprint($address, $name),
+            'public_registration_sender_approved_by' => (string) $this->owner->id,
+            'public_registration_sender_approved_at' => now()->toISOString(),
+        ], $this->owner->id);
+        self::assertTrue(app(PublicRegistrationMailSenderService::class)->status()['approved']);
+
+        $fake = $this->fakeTransport(null);
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload())->assertSessionHasNoErrors();
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasNoErrors();
+        self::assertSame(['noreply@ald1n.com', $address], $fake->froms);
+        self::assertSame(['smtp-owner@example.test', 'smtp-owner@example.test'], $fake->recipients);
+
+        // The server accepts MAIL_FROM_ADDRESS but rejects the registration sender.
+        $fake->failure = new TransportException('Expected response code "250" but got code "553", with message "553 sender is not allowed".');
+        $fake->failFrom = $address;
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
+        $message = (string) session('errors')->first('smtp_test');
+        self::assertStringContainsString('Pošiljalac odbijen', $message);
+        self::assertStringContainsString('potvrda registracije', $message);
+        self::assertStringNotContainsString($address, $message);
+        self::assertSame('registration_sender_rejected', app(SettingsService::class)->get('smtp_last_test_result'));
+        self::assertFalse(app(SmtpMailSettingsService::class)->testPassedForCurrentSettings());
+    }
+
     /** @return iterable<string,array{0:string,1:string,2:string}> */
     public static function transportFailures(): iterable
     {
@@ -225,7 +453,7 @@ final class SmtpSettingsPageTest extends TestCase
         yield 'timeout' => ['Connection could not be established with host "ssl://192.0.2.25:465": stream_socket_client(): Unable to connect to ssl://192.0.2.25:465 (Connection timed out)', 'timeout', 'Isteklo je vreme'];
         yield 'tls' => ['Connection could not be established with host "ssl://192.0.2.25:465": stream_socket_client(): SSL operation failed with code 1. OpenSSL Error messages: error:0A000086:SSL routines::certificate verify failed', 'tls', 'TLS/SSL veza'];
         yield 'auth' => ['Failed to authenticate on SMTP server with username "noreply@ald1n.com" using the following authenticators: "LOGIN", "PLAIN". Authenticator "LOGIN" returned "Expected response code "235" but got code "535", with message "535 Incorrect authentication data".".', 'auth', 'Prijava na SMTP server nije uspela'];
-        yield 'sender' => ['Expected response code "250" but got code "550", with message "550 Sender verify failed".', 'sender_rejected', 'odbio pošiljaoca'];
+        yield 'sender' => ['Expected response code "250" but got code "550", with message "550 Sender verify failed".', 'sender_rejected', 'Pošiljalac odbijen'];
         yield 'dns' => ['Connection could not be established with host "ssl://mail.invalid:465": stream_socket_client(): php_network_getaddresses: getaddrinfo for mail.invalid failed: Name or service not known', 'dns', 'Host nije pronađen'];
         yield 'unknown' => ['220-server.example.net ESMTP Exim 4.98 banner #7 unexpected', 'unknown', 'ne prepoznajemo'];
     }
@@ -237,7 +465,7 @@ final class SmtpSettingsPageTest extends TestCase
         $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload(['smtp_password' => self::SECRET]))
             ->assertSessionHasNoErrors();
 
-        $this->actingAs($this->owner)->post('/admin/settings/smtp/test')
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())
             ->assertRedirect('/admin/settings/smtp')
             ->assertSessionHasErrors('smtp_test');
         $message = (string) session('errors')->first('smtp_test');
@@ -260,22 +488,54 @@ final class SmtpSettingsPageTest extends TestCase
     public function test_test_mail_refuses_incomplete_settings_and_link_local_targets(): void
     {
         $fake = $this->fakeTransport(null);
-        $this->actingAs($this->owner)->post('/admin/settings/smtp/test')->assertSessionHasErrors('smtp_test');
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
         self::assertSame('incomplete', app(SettingsService::class)->get('smtp_last_test_result'));
 
         // A metadata address that bypassed the form (direct DB write) is still refused.
-        app(SettingsService::class)->putMany(['smtp_host' => '169.254.169.254', 'smtp_port' => '25', 'smtp_encryption' => 'none'], $this->owner->id);
-        $this->actingAs($this->owner)->post('/admin/settings/smtp/test')->assertSessionHasErrors('smtp_test');
-        self::assertSame([], $fake->sent);
+        foreach (['169.254.169.254', 'fd00:ec2::254', '2852039166'] as $host) {
+            app(SettingsService::class)->putMany(['smtp_host' => $host, 'smtp_port' => '25', 'smtp_encryption' => 'none'], $this->owner->id);
+            $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertSessionHasErrors('smtp_test');
+        }
+        self::assertSame([], $fake->configs);
+        self::assertTrue(SmtpMailSettingsService::blockedIp('64:ff9b::a9fe:a9fe'));
+        self::assertTrue(SmtpMailSettingsService::blockedIp('2002:a9fe:a9fe::1'));
+        self::assertFalse(SmtpMailSettingsService::blockedIp('2002:c000:0219::1'));
+        self::assertFalse(SmtpMailSettingsService::blockedIp('::1'));
+        self::assertFalse(SmtpMailSettingsService::blockedIp('10.0.0.5'));
     }
 
-    public function test_test_mail_route_is_throttled_and_requires_csrf_stack(): void
+    public function test_test_mail_route_is_throttled_and_returns_429(): void
     {
         $route = app('router')->getRoutes()->getByName('admin.settings.smtp.test');
         self::assertNotNull($route);
         self::assertSame(['POST'], $route->methods());
         self::assertContains('throttle:smtp-test', $route->gatherMiddleware());
         self::assertContains('web', $route->gatherMiddleware());
+
+        // Re-enable the real throttle middleware that setUp() bypassed.
+        $this->app->forgetInstance(ThrottleRequests::class);
+        $fake = $this->fakeTransport(null);
+        $this->actingAs($this->owner)->put('/admin/settings/smtp', $this->payload())->assertSessionHasNoErrors();
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertRedirect('/admin/settings/smtp');
+        }
+        $this->actingAs($this->owner)->post('/admin/settings/smtp/test', $this->confirm())->assertStatus(429);
+        self::assertCount(3, $fake->sent);
+    }
+
+    private function enableTested(): void
+    {
+        $settings = app(SettingsService::class);
+        $settings->putMany([
+            'smtp_enabled' => '0', 'smtp_host' => '192.0.2.25', 'smtp_port' => '465',
+            'smtp_encryption' => 'ssl', 'smtp_username' => 'noreply@ald1n.com', 'smtp_timeout' => '',
+        ], $this->owner->id);
+        $settings->putSecret('smtp_password', self::SECRET, $this->owner->id);
+        $settings->putMany([
+            'smtp_enabled' => '1',
+            'smtp_last_test_result' => 'ok',
+            'smtp_last_test_fingerprint' => app(SmtpMailSettingsService::class)->connectionFingerprint(),
+        ], $this->owner->id);
     }
 
     private function assertNoSecretAnywhere(): void
@@ -289,18 +549,25 @@ final class SmtpSettingsPageTest extends TestCase
         self::assertStringNotContainsString(self::SECRET, (string) json_encode(session()->all()));
     }
 
+    /** @return array<string,string> */
+    private function confirm(): array
+    {
+        return ['current_password' => self::OWNER_PASSWORD];
+    }
+
     /** @param array<string,string> $change @return array<string,string> */
     private function payload(array $change = []): array
     {
         // 192.0.2.0/24 is TEST-NET-1: an IP literal needs no DNS lookup in CI.
         return array_replace([
-            'smtp_enabled' => '1',
+            'smtp_enabled' => '0',
             'smtp_host' => '192.0.2.25',
             'smtp_port' => '465',
             'smtp_encryption' => 'ssl',
             'smtp_username' => 'noreply@ald1n.com',
             'smtp_password' => self::SECRET,
             'smtp_timeout' => '',
+            'current_password' => self::OWNER_PASSWORD,
         ], $change);
     }
 
@@ -313,23 +580,30 @@ final class SmtpSettingsPageTest extends TestCase
             public array $sent = [];
             /** @var list<string> */
             public array $recipients = [];
+            /** @var list<string> */
+            public array $froms = [];
 
-            public function __construct(private readonly ?\Throwable $failure) {}
+            /** When set, only messages From this address fail. */
+            public ?string $failFrom = null;
+
+            public function __construct(public ?\Throwable $failure) {}
 
             public function create(array $config): TransportInterface
             {
                 $this->configs[] = $config;
-                $outer = $this;
 
-                return new class($outer, $this->failure) implements TransportInterface {
-                    public function __construct(private readonly object $outer, private readonly ?\Throwable $failure) {}
+                return new class($this) implements TransportInterface {
+                    public function __construct(private readonly object $outer) {}
 
                     public function send(RawMessage $message, ?Envelope $envelope = null): ?SentMessage
                     {
-                        if ($this->failure !== null) {
-                            throw $this->failure;
+                        $from = $message instanceof Email ? ($message->getFrom()[0] ?? null)?->getAddress() : null;
+                        if ($this->outer->failure !== null
+                            && ($this->outer->failFrom === null || $this->outer->failFrom === $from)) {
+                            throw $this->outer->failure;
                         }
                         $this->outer->sent[] = $message;
+                        $this->outer->froms[] = (string) $from;
                         foreach ($message->getTo() as $address) {
                             $this->outer->recipients[] = $address->getAddress();
                         }
@@ -356,7 +630,7 @@ final class SmtpSettingsPageTest extends TestCase
             'username' => $name,
             'email' => $name.'@example.test',
             'first_name' => 'Synthetic',
-            'password_hash' => Hash::make('OnlySynthetic123!'),
+            'password_hash' => Hash::make(self::OWNER_PASSWORD),
             'status' => 'active',
         ]);
     }

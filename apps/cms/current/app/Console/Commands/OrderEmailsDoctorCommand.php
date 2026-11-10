@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\MailRuntimeConfigurator;
 use App\Services\OrderEmailDispatcher;
 use App\Services\ProductAnnouncementService;
 use App\Services\SettingsService;
@@ -54,6 +55,9 @@ final class OrderEmailsDoctorCommand extends Command
         $this->line(($scheduleReady ? '<fg=green>PASS</>' : '<fg=red>FAIL</>').' scheduler za e-mail outbox');
         $failed = $failed || !$scheduleReady;
 
+        if (app(MailRuntimeConfigurator::class)->apply() === 'database') {
+            $this->line('INFO SMTP iz baze aktivan (Podešavanja > E-mail (SMTP)); mailer ispod je smtp iz baze.');
+        }
         $from = trim((string) config('mail.from.address'));
         $mailer = trim((string) config('mail.default'));
         $mailReady = $from !== '' && $mailer !== '';

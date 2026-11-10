@@ -170,6 +170,7 @@ final class SettingsService
         'smtp_last_test_at' => '',
         'smtp_last_test_result' => '',
         'smtp_last_test_by' => '',
+        'smtp_last_test_fingerprint' => '',
     ];
 
     /** @return array<string,string> */
@@ -239,6 +240,14 @@ final class SettingsService
         return trim((string) ($this->raw()[$key] ?? '')) !== '';
     }
 
+    /** sha256 of the stored ciphertext ('' when none); never the plain value. */
+    public function secretDigest(string $key): string
+    {
+        $encrypted = trim((string) ($this->raw()[$key] ?? ''));
+
+        return $encrypted === '' ? '' : hash('sha256', $encrypted);
+    }
+
     public function eurRsdRate(): ?float
     {
         $value = $this->get('eur_rsd_rate');
@@ -261,7 +270,8 @@ final class SettingsService
 
     public function putSecret(string $key, string $value, ?int $userId): void
     {
-        $value = trim($value);
+        // Spaces are part of an SMTP password; other secrets keep trimming.
+        if ($key !== 'smtp_password') $value = trim($value);
         if ($value === '') return;
 
         $this->putMany([$key => Crypt::encryptString($value)], $userId);

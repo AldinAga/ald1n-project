@@ -7,10 +7,14 @@
     $enabledChecked = old('_smtp_form') !== null ? old('smtp_enabled') === '1' : $smtp['enabled'];
     $reasonLabels = [
         'disabled' => 'Prekidač „Koristi SMTP podešavanja iz baze“ je isključen.',
-        'incomplete' => 'SMTP podešavanja iz baze nisu potpuna (host, port, enkripcija ili lozinka).',
+        'incomplete' => 'SMTP podešavanja iz baze nisu potpuna (host, port ili enkripcija).',
+        'password_missing' => 'Lozinka nije sačuvana. Unesite je i pošaljite probni e-mail.',
+        'insecure_auth' => 'Bez enkripcije lozinka bi išla nešifrovano. Izaberite SSL ili TLS.',
+        'not_tested' => 'Probni e-mail još nije uspeo za sačuvana podešavanja.',
         'password_unreadable' => 'Sačuvana lozinka ne može da se dešifruje. Unesite je ponovo.',
         'unavailable' => 'Podešavanja iz baze trenutno nisu dostupna.',
     ];
+    $notices = (array) session('smtp_notices', []);
 @endphp
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Komunikacija'])
 <div class="page-heading">
@@ -20,6 +24,10 @@
         <p>Podesite SMTP server za sve poruke koje CMS šalje. Dok je prekidač isključen, slanje radi tačno kao do sada, preko <code>.env</code> fajla.</p>
     </div>
 </div>
+
+@foreach($notices as $notice)
+    <div class="alert error" role="alert" data-smtp-notice>{{ $notice }}</div>
+@endforeach
 
 <form method="post" action="{{ route('admin.settings.smtp.update') }}" class="admin-form-grid settings-primary-form" autocomplete="off" data-smtp-settings-form>
     @csrf
@@ -33,6 +41,15 @@
                     <input type="checkbox" name="smtp_enabled" value="1" @checked($enabledChecked)>
                     <span>Koristi SMTP podešavanja iz baze</span>
                 </label>
+                <p class="field-span-2 muted" data-smtp-switch-rule>
+                    Prekidač može da se uključi tek kada probni e-mail uspe sa sačuvanim podešavanjima.
+                    @if($testPassed)
+                        Probni e-mail je uspeo za trenutna podešavanja.
+                    @else
+                        Za trenutna podešavanja probni e-mail još nije uspeo.
+                    @endif
+                    Svaka promena servera ili lozinke isključuje prekidač dok novi probni e-mail ne uspe.
+                </p>
 
                 <label class="field-span-2">
                     <span>Host</span>
@@ -51,8 +68,9 @@
                         <option value="" @selected($selectedEncryption === '') disabled>Izaberite enkripciju</option>
                         <option value="ssl" @selected($selectedEncryption === 'ssl')>SSL (implicitni TLS, obično port 465)</option>
                         <option value="tls" @selected($selectedEncryption === 'tls')>TLS (STARTTLS, obično port 587)</option>
-                        <option value="none" @selected($selectedEncryption === 'none')>Bez enkripcije</option>
+                        <option value="none" @selected($selectedEncryption === 'none')>Bez enkripcije (samo localhost)</option>
                     </select>
+                    <small class="muted">Bez enkripcije, sa korisničkim imenom, dozvoljeno je samo za localhost (127.0.0.1, ::1).</small>
                 </label>
 
                 <label>
@@ -65,7 +83,7 @@
                     <input type="password" name="smtp_password" maxlength="255" autocomplete="off" value="" placeholder="{{ $smtp['password_stored'] ? 'Lozinka je sačuvana' : 'Unesite lozinku' }}">
                     <small class="muted">
                         @if($smtp['password_stored'] && $smtp['password_readable'])
-                            Lozinka je sačuvana. Prazno polje zadržava sačuvanu lozinku.
+                            Lozinka je sačuvana. Prazno polje zadržava sačuvanu lozinku samo dok se host, port, enkripcija i korisničko ime ne menjaju.
                         @elseif($smtp['password_stored'])
                             Sačuvana lozinka ne može da se dešifruje. Unesite je ponovo.
                         @else
@@ -77,7 +95,15 @@
 
                 <label>
                     <span>Vreme čekanja (sekundi, opciono)</span>
-                    <input type="number" name="smtp_timeout" min="1" max="60" inputmode="numeric" autocomplete="off" value="{{ old('smtp_timeout', $smtp['timeout']) }}" placeholder="{{ \App\Services\SmtpMailSettingsService::DEFAULT_TIMEOUT }}">
+                    <input type="number" name="smtp_timeout" min="1" max="{{ \App\Services\SmtpMailSettingsService::TIMEOUT_MAX }}" inputmode="numeric" autocomplete="off" value="{{ old('smtp_timeout', $smtp['timeout']) }}" placeholder="{{ \App\Services\SmtpMailSettingsService::DEFAULT_TIMEOUT }}">
+                    <small class="muted">Najviše {{ \App\Services\SmtpMailSettingsService::TIMEOUT_MAX }} sekundi, podrazumevano {{ \App\Services\SmtpMailSettingsService::DEFAULT_TIMEOUT }}.</small>
+                </label>
+
+                <label class="field-span-2">
+                    <span>Vaša trenutna lozinka (SuperAdmin)</span>
+                    <input type="password" name="current_password" maxlength="255" autocomplete="current-password" value="">
+                    <small class="muted">Obavezna za promenu servera ili lozinke i za uključivanje prekidača.</small>
+                    @error('current_password')<small class="field-error" role="alert">{{ $message }}</small>@enderror
                 </label>
             </div>
             <div class="form-actions">
@@ -86,6 +112,13 @@
                     <button class="button button-danger" type="submit" form="smtp-clear-password">Obriši lozinku</button>
                 @endif
             </div>
+        </section>
+
+        <section class="panel form-section" data-smtp-delivery-note>
+            <h2>Kada slanje ne uspe</h2>
+            <p class="muted">SMTP iz baze predaje poruku direktno serveru. Za razliku od sendmail/exim slanja, CMS ne čuva poruku u lokalnom redu i ne pokušava ponovo kada server ne odgovori ili je odbije.</p>
+            <p class="muted">E-mail obaveštenja o porudžbinama ostaju u outbox-u i pokušavaju se ponovo, najviše 5 puta. Potvrda registracije Kupca se ne šalje ponovo: Kupac vidi poruku da registracija trenutno nije dostupna. Greške slanja kod porudžbina i registracije upisuju se u log aplikacije.</p>
+            <p class="muted">CMS ne prebacuje slanje automatski na <code>.env</code> način slanja. Isključite prekidač ako želite da se vratite na <code>.env</code>.</p>
         </section>
 
         <section class="panel form-section">
@@ -148,6 +181,11 @@
         <section class="panel form-section">
             <h2>Probni e-mail</h2>
             <p class="muted">Šalje kratku poruku na vašu adresu <strong>{{ $testRecipient }}</strong> sa <strong>sačuvanim</strong> podešavanjima (i kada je prekidač isključen). Prvo sačuvajte izmene.</p>
+            <p class="muted">Proverava pošiljaoca <code>MAIL_FROM_ADDRESS</code> i, ako je potvrđen i različit, pošiljaoca potvrda registracije Kupca (tada stižu dve poruke). Ako probni e-mail ne uspe, prekidač se isključuje.</p>
+            <label>
+                <span>Vaša trenutna lozinka (SuperAdmin)</span>
+                <input type="password" name="current_password" form="smtp-send-test" maxlength="255" autocomplete="current-password" value="">
+            </label>
             <button class="button button-secondary" type="submit" form="smtp-send-test">Pošalji probni e-mail</button>
         </section>
     </aside>
