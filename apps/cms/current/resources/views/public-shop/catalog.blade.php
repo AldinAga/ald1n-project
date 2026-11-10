@@ -17,7 +17,7 @@
 <meta name="twitter:title" content="{{ $seo['title'] }}">
 <meta name="twitter:description" content="{{ $seo['description'] }}">
 @if($seo['schema_json'])<script type="application/ld+json">{!! $seo['schema_json'] !!}</script>@endif
-<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611105">
+<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611106">
 @endpush
 @section('content')
 @php($sortValue = in_array(request('sort'), array_keys(\App\Support\PublicCatalogPresentation::SORT_LABELS), true) ? request('sort') : 'newest')

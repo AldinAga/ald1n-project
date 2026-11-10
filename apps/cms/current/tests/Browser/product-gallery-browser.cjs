@@ -120,7 +120,17 @@ async function catalogChecks(page, mode, width, tag) {
       srcset: img ? img.getAttribute('srcset') : null,
       current: img ? img.currentSrc : null,
       natural: img ? [img.naturalWidth, img.naturalHeight] : null,
-      rendered: r ? [Math.round(r.width), Math.round(r.height)] : null,
+      // Real pixel width of the file the browser chose: its srcset "w"
+      // descriptor (naturalWidth is divided by the srcset density).
+      fileW: img ? (() => {
+        const chosen = new URL(img.currentSrc, location.href).pathname + new URL(img.currentSrc, location.href).search;
+        for (const part of (img.getAttribute('srcset') || '').split(',')) {
+          const [url, w] = part.trim().split(/\s+/);
+          if (url === chosen && /^\d+w$/.test(w || '')) return parseInt(w, 10);
+        }
+        return img.naturalWidth;
+      })() : null,
+      rendered: r ? [Math.round(img.clientWidth), Math.round(img.clientHeight)] : null,
       ratio: (stage.className.match(/shop-ratio-(r\d+)/) || [])[1] || null,
       radius: img ? parseFloat(getComputedStyle(img).borderTopLeftRadius) : null,
       titleTop: Math.round(title.top + window.scrollY),
@@ -134,8 +144,9 @@ async function catalogChecks(page, mode, width, tag) {
     check(c.fill >= 0.9, tag + ' photo fills its stage ' + JSON.stringify(c));
     check(c.blend === 'normal', tag + ' no multiply blend ' + c.blend);
     check(c.radius >= 8, tag + ' rounded photo corners ' + c.radius);
-    // No upscaling: the rendered photo is never larger than the chosen file.
-    check(c.rendered[0] <= c.natural[0] + 1, tag + ' photo not upscaled ' + JSON.stringify(c));
+    // No upscaling: the photo is never drawn wider (in CSS px) than the
+    // pixel width of the file the browser chose.
+    check(c.rendered[0] <= c.fileW + 1, tag + ' photo not upscaled ' + JSON.stringify(c));
   }
   check(withImg.some(c => c.ratio === 'r34' || c.ratio === 'r45'), tag + ' portrait cards get a portrait stage ' + JSON.stringify(st.map(c => c.ratio)));
   // Cards use the 512px thumbnail rendition; only the fixture product

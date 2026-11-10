@@ -49,6 +49,10 @@
    max 100%), so a small rendition is not upscaled. */
 .shop-image{aspect-ratio:var(--photo-ratio,4/5);display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;padding:10px 10px 0;background:none;border-bottom:0;overflow:visible}
 .shop-image img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;mix-blend-mode:normal;border-radius:var(--photo-radius);box-shadow:0 0 0 1px var(--photo-ring),var(--photo-shadow);background:var(--photo-bed)}
+/* With renditions the card fills the stage width. Its "sizes" hint is set
+   low on purpose (a DPR-2 screen then picks the 512px file), so the size
+   must not come from the intrinsic srcset width. */
+.shop-image img[srcset]{width:100%}
 .shop-image .no-image{width:100%;border-radius:var(--photo-radius);background:var(--photo-bed);color:var(--text-3);box-shadow:0 0 0 1px var(--photo-ring) inset}
 /* Cards of one row share the photo row height (subgrid), so titles, prices
    and buttons stay aligned when a portrait poster sits next to a landscape
