@@ -364,6 +364,12 @@ final class SiteLogoSvgTest extends TestCase
     public function test_asset_route_has_its_own_rate_limit_key_and_does_not_consume_the_registration_limit(): void
     {
         $this->withMiddleware(ThrottleRequests::class);
+        // The CI cache store outlives one test; start both counters empty.
+        $guest = sha1('|127.0.0.1');
+        RateLimiter::clear($guest);
+        RateLimiter::clear('site-assets'.$guest);
+        $sharedBefore = 0;
+        $ownBefore = 0;
         $path = $this->png();
         for ($i = 0; $i < 8; $i++) {
             $this->get('/site-assets/'.basename($path))->assertOk()->assertHeader('X-RateLimit-Limit', '600');
@@ -372,11 +378,10 @@ final class SiteLogoSvgTest extends TestCase
         // ThrottleRequests keys a guest by sha1(domain|ip) plus the optional
         // prefix. The unprefixed key is the one the registration POST
         // (throttle:5,10) counts on; the logo requests must not touch it.
-        $guest = sha1('|127.0.0.1');
-        self::assertSame(8, RateLimiter::attempts('site-assets'.$guest));
-        self::assertSame(0, RateLimiter::attempts($guest));
+        self::assertSame($ownBefore + 8, RateLimiter::attempts('site-assets'.$guest));
+        self::assertSame($sharedBefore, RateLimiter::attempts($guest));
         $this->post('/registracija', []);
-        self::assertSame(1, RateLimiter::attempts($guest), 'the registration limiter itself counts on the shared key');
+        self::assertSame($sharedBefore + 1, RateLimiter::attempts($guest), 'the registration limiter itself counts on the shared key');
     }
 
     public function test_raster_route_refuses_content_that_does_not_match_the_extension(): void
