@@ -34,14 +34,16 @@ $mailChange=static function()use($cfg):void{$env=$cfg['home'].'/.ald1n-b1134-ret
 // anonymous statuses, the logo URL taken from the catalog page, the guest SMTP page, and one CI-only POST /tema (303 with the cookie
 // at every point: the route has existed since B1148; a 419 (CSRF), 429 (no limiter) or 5xx at any point is a wrong order).
 $stepSmoke=static function(string $point)use($cfg):void{
-    $row=['point'=>$point];$group=str_starts_with($point,'GROUP_DONE_')||$point==='AFTER_INVALIDATE';
-    foreach(['/up','/login','/pravne-informacije'] as $p)$row['anon'][$p]=StorefrontFixtureWeb::get($cfg['port'],$p)['status'];
-    $cat=StorefrontFixtureWeb::get($cfg['port'],'/katalog');$row['anon']['/katalog']=$cat['status'];
-    if($group)$row['anon']['/katalog/b1149-ci-1']=StorefrontFixtureWeb::get($cfg['port'],'/katalog/b1149-ci-1')['status'];
-    $logo=StorefrontWeb::siteAssetUrl($cat['body']);$row['logoLinked']=$logo!==null;
+    $row=['point'=>$point];$group=str_starts_with($point,'GROUP_DONE_')||$point==='AFTER_INVALIDATE';$n=str_starts_with($point,'AFTER_STEP_')?(int)substr($point,11):0;
+    foreach(['/up','/login'] as $p)$row['anon'][$p]=StorefrontFixtureWeb::get($cfg['port'],$p)['status'];
+    // The browse limiter allows 120 per minute: a catalog GET at every third step and at the late steps (middleware, routes, bootstrap, views, providers), the full set at group points.
+    $cat=null;if($group||$n%3===0||$n>=29){$cat=StorefrontFixtureWeb::get($cfg['port'],'/katalog');$row['anon']['/katalog']=$cat['status'];}
+    if($group){$row['anon']['/pravne-informacije']=StorefrontFixtureWeb::get($cfg['port'],'/pravne-informacije')['status'];$row['anon']['/katalog/b1149-ci-1']=StorefrontFixtureWeb::get($cfg['port'],'/katalog/b1149-ci-1')['status'];}
+    $logo=$cat===null?null:StorefrontWeb::siteAssetUrl($cat['body']);$row['logoLinked']=$logo!==null;
     $row['logoStatus']=$logo===null?null:StorefrontFixtureWeb::get($cfg['port'],$logo['path'].($logo['query']===[]?'':'?v='.$logo['query']['v']))['status'];
     $row['smtpGuest']=StorefrontFixtureWeb::get($cfg['port'],'/admin/settings/smtp')['status'];
-    $t=StorefrontFixtureWeb::get($cfg['port'],'/tema',['Content-Type: application/x-www-form-urlencoded'],'theme=dark&back=%2Fkatalog');$row['themePost']=$t['status'];$row['themeCookie']=isset($t['cookies']['shop_theme']);
+    // The theme limiter allows 20 POSTs per minute: one CI-only POST at the group points only.
+    if($group){$t=StorefrontFixtureWeb::get($cfg['port'],'/tema',['Content-Type: application/x-www-form-urlencoded'],'theme=dark&back=%2Fkatalog');$row['themePost']=$t['status'];$row['themeCookie']=isset($t['cookies']['shop_theme']);}
     file_put_contents($cfg['stepLog'],json_encode($row,JSON_UNESCAPED_SLASHES)."\n",FILE_APPEND);
 };
 $sw=$cfg['switches'];

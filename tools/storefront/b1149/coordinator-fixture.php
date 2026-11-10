@@ -214,7 +214,7 @@ $reset();$results['wrongOrderControls']=$wrong+['meaning'=>'THE_STEP_SMOKES_BELO
 // 12. Install with a smoke after every step and every group boundary.
 [$rc,$o]=$run($allSteps());$rows=$stepRows();echo 'STEP_SMOKES='.json_encode($rows,JSON_UNESCAPED_SLASHES).PHP_EOL;
 check($rc===0&&lastRaw($o,'B1149_FINAL')==='PASS_INSTALLED_STOREFRONT_ROLLOUT_SHOP_STATE_UNCHANGED'&&$tree()==='INSTALLED','INSTALL_PASS');
-$points=array_column($rows,'point');check(count($rows)===52&&$points[0]==='AFTER_STEP_1'&&end($points)==='AFTER_INVALIDATE','EVERY_STEP_AND_GROUP_SMOKED:'.implode(',',$points));
+$points=array_column($rows,'point');check(count($rows)===52&&count(array_filter($rows,static fn($r)=>array_key_exists('themePost',$r)))===9&&$points[0]==='AFTER_STEP_1'&&end($points)==='AFTER_INVALIDATE','EVERY_STEP_AND_GROUP_SMOKED:'.implode(',',$points));
 $routeStep=$stepOf('routes/web.php')['n'];$bad=[];$routeFiles=false;$routeSettled=false;
 // The web workers revalidate every few seconds: right after the routes step the new route table may or may not be seen yet
 // (404 or 302), from the group boundary after it (pause >= revalidate_freq + 1) it must be. The logo is linked only once the
@@ -222,7 +222,7 @@ $routeStep=$stepOf('routes/web.php')['n'];$bad=[];$routeFiles=false;$routeSettle
 foreach($rows as $r){
     foreach($r['anon'] as $p=>$st)if($st!==200)$bad[]=$r['point'].' '.$p.' '.$st;
     if($r['point']==='AFTER_STEP_'.$routeStep)$routeFiles=true;if($r['point']==='GROUP_DONE_E')$routeSettled=true;
-    if($r['themePost']!==303||$r['themeCookie']!==true)$bad[]=$r['point'].' POST /tema '.$r['themePost'];
+    if(array_key_exists('themePost',$r)&&($r['themePost']!==303||$r['themeCookie']!==true))$bad[]=$r['point'].' POST /tema '.$r['themePost'];
     if($r['logoLinked']===true&&$r['logoStatus']!==200)$bad[]=$r['point'].' linked logo '.var_export($r['logoStatus'],true);
     if(!$routeFiles&&($r['smtpGuest']!==404||$r['logoLinked']===true))$bad[]=$r['point'].' new route seen before the route step: smtp '.$r['smtpGuest'];
     if($routeFiles&&!in_array($r['smtpGuest'],[404,302],true))$bad[]=$r['point'].' guest SMTP page '.$r['smtpGuest'];
@@ -270,6 +270,10 @@ check(in_array($purgeBack,(array)lastLine($o,'OWNER_NEXT_STEPS'),true),'CLOUDFLA
 sleep(3);check($status('/katalog')===200&&$themePost('theme=dark&back=%2Fkatalog')['status']===303&&$status('/site-assets/'.$logoName)===404,'OLD_STATE_THEME_ROUTE_KEPT_NEW_ROUTES_GONE');
 $results['rollbackInScheduleWindow']='HOLD_MANUAL_ONLY_BLOCK_THEN_IGNORE_SCHEDULE_PASS';$reset();
 
+// 14b. A liveness smoke after a group that fails (the shop pages lose their noindex header after group B): the install is rolled back at once.
+[$rc,$o]=$run(['GROUP_DONE_B'=>['noHtaccess']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_B"'&&count($ls)===2&&$ls[0]['after']==='A'&&$ls[0]['failed']===[]&&$ls[1]['after']==='B'&&in_array('/katalog',$ls[1]['failed'],true)&&lastRaw($o,'B1149_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MID_INSTALL_LIVENESS_FAILURE_ROLLED_BACK');
+@unlink($switches['noHtaccess']);$reset();$results['groupLiveness']='PASS_AFTER_EVERY_GROUP_AND_A_FAILURE_AFTER_GROUP_B_ROLLED_BACK';
 // 15. Forced acceptance failure (a new ERROR line in laravel.log): automatic rollback to the verified old state.
 [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError']]);check($rc===2&&lastRaw($o,'B1149_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"NEW_LARAVEL_LOG_ERRORS_SINCE_INSTALL"'&&$tree()==='PRE'&&lastLine($o,'B1149_PHASE')==='ROLLED_BACK','FORCED_FAILURE_ROLLED_BACK');
 check($status('/katalog')===200&&$status('/pravne-informacije')===200,'FORCED_FAILURE_OLD_SERVED');$results['forcedFailure']='ROLLED_BACK';

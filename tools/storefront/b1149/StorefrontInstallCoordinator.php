@@ -122,6 +122,8 @@ final class StorefrontInstallCoordinator
     private int $rateLimitCapSeconds=120;
     private array $limitBatch=['limited'=>false,'waited'=>0];
     private const RETRY_AFTER_CAP=65;
+    /** Worst-case wall time of one liveness smoke after a group (5 pages at 0.7 s pacing, 25 s timeout each, no 429 waiting). */
+    private const LIVENESS_SECONDS=60;
     /** Upper bound of the requests in one smoke batch: 2 system, 8 legal, 4 CSS, 2 /tema, 1 SMTP page, 1 logo, 12 shop, 1 origin Vary, spare. */
     private const SMOKE_GETS=34;
     private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_STOREFRONT_NOT_VERIFIED','NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES','VARY_COOKIE_NOT_VERIFIABLE_EDGE_HIDES_IT_AND_NO_ORIGIN_ROUTE'];
@@ -552,7 +554,29 @@ final class StorefrontInstallCoordinator
      */
     private function requiredWindowSeconds(int $holdSeconds):int
     {
-        return max(1800,5*$holdSeconds+2*$this->smokeCapSeconds()+14*$this->groupPause()+300);
+        return max(1800,5*$holdSeconds+2*$this->smokeCapSeconds()+14*$this->groupPause()+7*self::LIVENESS_SECONDS+300);
+    }
+
+    /**
+     * Liveness-only smoke after each install group, once the web workers have revalidated it (the group pause or the full hold):
+     * /up and /login 200; one legal page 200 with noindex; with the shop ON /katalog 200 with noindex and the first product page 200;
+     * GET /tema 405. No new-feature assertion (that is the acceptance). A failure stops the install, which rolls back through the
+     * normal path; a 429 is inconclusive and the install continues; a changed shop switch is not judged here.
+     */
+    private function liveness(string $after):void
+    {
+        $marker=bin2hex(random_bytes(8));$shop=$this->shop();$rows=[];$failed=[];$limited=[];
+        $one=function(string $label,string $path,string $method,int $want,bool $noindex)use(&$rows,&$failed,&$limited,$marker):?array{
+            if($this->paceMicros>0)usleep($this->paceMicros);$r=$this->web->fetch($path,[],$marker,$method,false);
+            if(!$r['transport']&&$r['status']===429){$limited[]=$label;$rows[]=['check'=>$label,'result'=>'INCONCLUSIVE_RATE_LIMITED_429'];return null;}
+            $pass=!$r['transport']&&$r['status']===$want&&(!$noindex||CatalogWeb::noindex($r['robots']));
+            $rows[]=['check'=>$label,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$pass?'PASS':'FAIL'];if(!$pass)$failed[]=$label;return $r;};
+        $one('/up','/up','GET',200,false);$one('/login','/login','GET',200,false);$one('/pravne-informacije','/pravne-informacije','GET',200,true);
+        if($shop['open']){$c=$one('/katalog','/katalog','GET',200,true);$p=$c!==null&&$c['status']===200?StorefrontWeb::productPath($c['body']):null;if($p!==null)$one('PRODUCT_PAGE_FIRST_CATALOG_LINK',$p,'GET',200,true);}
+        $one('GET /tema',self::THEME_PATH,'GET',405,false);
+        $judged=$failed;if($failed!==[]){try{if($this->shop()!==$shop)$judged=[];}catch(Throwable){$judged=[];}}
+        $this->emit('GROUP_LIVENESS_SMOKE',['after'=>$after,'shop'=>$shop,'rows'=>$rows,'failed'=>$judged,'rateLimited'=>$limited,'assertions'=>'LIVENESS_ONLY_NO_NEW_FEATURE']);
+        if($judged!==[])throw new RuntimeException('GROUP_SMOKE_FAILED_AFTER_'.$after);
     }
 
     /**
@@ -859,7 +883,7 @@ final class StorefrontInstallCoordinator
         foreach($this->plan as $s){
             // The views come after the full measured hold: by then every worker runs the new classes, controllers, middleware, routes
             // (site-assets.show, admin.settings.smtp.index) and bootstrap, so no view renders without its route; providers.php is last.
-            if($group!==null&&$group!==$s['group']){if($s['group']==='G')$this->hold('before-views',$this->viewHold());else{$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);}$this->fault('GROUP_DONE_'.$group);}$group=$s['group'];
+            if($group!==null&&$group!==$s['group']){if($s['group']==='G')$this->hold('before-views',$this->viewHold());else{$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);}$this->fault('GROUP_DONE_'.$group);$this->liveness($group);}$group=$s['group'];
             $this->fault('BEFORE_STEP_'.$s['n']);$t=$this->target($s);$bytes=$this->payload($s);$this->state['applied'][$s['n']]='PENDING';
             if($s['kind']==='new'){
                 $dir=dirname($t);if(!is_dir($dir)){if(!is_dir(dirname($dir)))throw new RuntimeException('TARGET_PARENT_MISSING');$this->state['createdDirs'][]=$dir;$this->persist();if(!mkdir($dir,0755))throw new RuntimeException('TARGET_DIRECTORY_CREATE');chmod($dir,0755);$pg=stat(dirname($dir))['gid'];if(stat($dir)['gid']!==$pg)@chgrp($dir,$pg);clearstatcache(true,$dir);if(stat($dir)['gid']!==$pg)throw new RuntimeException('OVERLAY_DIRECTORY_GID_NOT_PRESERVABLE');}
