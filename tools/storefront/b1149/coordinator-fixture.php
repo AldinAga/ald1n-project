@@ -357,7 +357,10 @@ $laterModified=count(array_filter($plan,static fn($s)=>$s['n']>$k&&$s['kind']===
 check($rc===2&&lastRaw($o,'B1149_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===$k&&$rf['exactInstallPrefixKept']==='STEPS_1_TO_'.$k.'_INSTALLED_LATER_STEPS_RESTORED'&&$rf['modifiedRestored']===$laterModified&&$rf['newRemoved']===$laterNew&&$note['kind']==='ROLLBACK_INCOMPLETE','PARTIAL_ROLLBACK_STOPS_AT_STEP_'.$k);
 $prefix($k);sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/up')===200,'PREFIX_'.$k.'_SERVES');
 $lines=$block($o);$kinds=array_values(array_filter(array_map($kindOf,$lines)));$expected=[];$lastKey=null;
-foreach(array_reverse($plan) as $s){if($s['n']>$k)continue;$key=$s['group'];if($lastKey!==null&&$lastKey!==$key){if($lastKey==='G')$expected[]='view';$expected[]='sleep';}$lastKey=$key;if($s['kind']==='modified')array_push($expected,'verify','install:'.$active.'/'.$s['path']);else $expected[]='rm:'.$active.'/'.$s['path'];}$expected[]='view';
+foreach(array_reverse($plan) as $s){if($s['n']>$k)continue;$key=$s['group'];if($lastKey!==null&&$lastKey!==$key){if($lastKey==='G')$expected[]='view';$expected[]='sleep';}$lastKey=$key;if($s['kind']==='modified')array_push($expected,'verify','install:'.$active.'/'.$s['path']);else $expected[]='rm:'.$active.'/'.$s['path'];}
+// Directories the install had to create (read from the saved state, not assumed) are removed when empty, before the final view:clear.
+$ptr=json_decode((string)file_get_contents($private.'/current.json'),true);$created=json_decode((string)file_get_contents($ptr['private'].'/state.json'),true)['createdDirs']??[];check(count($created)>=1&&in_array($active.'/app/Rules',$created,true),'INSTALL_CREATED_APP_RULES_DIRECTORY');
+foreach($created as $unused)$expected[]='rmdir';$expected[]='view';
 check(count(array_keys($expected,'sleep',true))===5,'EXPECTED_BLOCK_HAS_A_SLEEP_AT_EVERY_GROUP_BOUNDARY');
 check($kinds===$expected,'RECOVERY_BLOCK_EXACT_REVERSE_ORDER:'.json_encode($kinds));
 $manual=$runBlock($lines);check($manual['rc']===0&&str_contains($manual['out'],'B1149_MANUAL_RECOVERY_BLOCK_DONE')&&$tree()==='PRE','MANUAL_BLOCK_RESTORES_OLD_STATE:'.substr($manual['out'],-400));
