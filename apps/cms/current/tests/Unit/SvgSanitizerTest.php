@@ -283,4 +283,90 @@ final class SvgSanitizerTest extends TestCase
         self::assertSame(['script' => 1, 'event_handler' => 2, 'external_reference' => 1], $first->removed);
         self::assertSame(4, $first->removedTotal());
     }
+
+    public function test_use_amplification_chain_is_cut_and_the_result_is_stable(): void
+    {
+        // Classic "billion laughs" for <use>: every level references the
+        // previous one ten times, so 10 levels would render 10^10 rectangles
+        // from a 1 KB file.
+        $levels = '<defs><g id="l0"><rect width="1" height="1"/></g>';
+        for ($level = 1; $level <= 10; $level++) {
+            $levels .= '<g id="l'.$level.'">'.str_repeat('<use href="#l'.($level - 1).'"/>', 10).'</g>';
+        }
+        $svg = $this->wrap($levels.'</defs><use href="#l10"/>');
+
+        try {
+            $this->sanitizer->sanitize($svg);
+            self::fail('more than '.SvgSanitizer::MAX_USE.' use elements must be refused');
+        } catch (SvgSanitizerException $exception) {
+            self::assertSame(SvgSanitizer::REJECT_TOO_COMPLEX, $exception->reason);
+        }
+
+        // Below the count limit, use-of-use is removed: only the use that
+        // points at plain shapes survives.
+        $small = $this->wrap('<defs><g id="a"><rect width="1" height="1"/></g>'
+            .'<g id="b"><use href="#a"/><use href="#a"/></g><g id="c"><use href="#b"/><use href="#b"/></g></defs>'
+            .'<use href="#c"/><use href="#a" x="5"/><use id="self" href="#self"/>');
+        $result = $this->sanitizer->sanitize($small);
+        $document = $this->reparse($result->svg);
+        $hrefs = [];
+        foreach ($document->getElementsByTagNameNS(SvgSanitizer::SVG_NS, 'use') as $use) {
+            $hrefs[] = $use->getAttribute('href');
+        }
+        self::assertSame(['#a', '#a', '#a'], $hrefs, 'only uses whose target holds no other use remain');
+        self::assertSame(4, $result->removed['reference'] ?? 0, 'c->b, b->a (x2 kept), #c, #self');
+        self::assertSame($result->svg, $this->sanitizer->sanitize($result->svg)->svg, 'idempotent');
+        self::assertSame([], $this->sanitizer->sanitize($result->svg)->removed);
+    }
+
+    public function test_nested_pattern_references_and_uses_inside_patterns_are_removed(): void
+    {
+        $svg = $this->wrap('<defs>'
+            .'<pattern id="p1" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="1" height="1" fill="#000"/></pattern>'
+            .'<pattern id="p2" width="2" height="2" patternUnits="userSpaceOnUse" fill="url(#p1)"><rect width="2" height="2" fill="url(#p1)"/><use href="#dot"/></pattern>'
+            .'<pattern id="p3" href="#p1" patternTransform="scale(2)"/>'
+            .'<g id="dot"><circle r="1"/></g><g id="tile"><rect width="3" height="3" fill="url(#p1)"/></g><g id="holder"><pattern id="p4" width="1" height="1"><rect width="1" height="1"/></pattern></g>'
+            .'</defs><rect x="10" width="20" height="20" fill="url(#p2)"/><use href="#tile"/><use href="#holder"/><use href="#p1"/>');
+        $result = $this->sanitizer->sanitize($svg);
+        $document = $this->reparse($result->svg);
+
+        $patterns = [];
+        foreach ($document->getElementsByTagNameNS(SvgSanitizer::SVG_NS, 'pattern') as $pattern) {
+            $patterns[$pattern->getAttribute('id')] = $pattern;
+        }
+        // Inside p2: the pattern paint and the use are gone, the shape stays.
+        self::assertFalse($patterns['p2']->hasAttribute('fill'));
+        self::assertSame(0, $patterns['p2']->getElementsByTagNameNS(SvgSanitizer::SVG_NS, 'use')->length);
+        self::assertSame(1, $patterns['p2']->getElementsByTagNameNS(SvgSanitizer::SVG_NS, 'rect')->length);
+        self::assertFalse($patterns['p2']->getElementsByTagNameNS(SvgSanitizer::SVG_NS, 'rect')->item(0)?->hasAttribute('fill'));
+        // Pattern attribute inheritance (Inkscape) is not tiling and stays.
+        self::assertSame('#p1', $patterns['p3']->getAttribute('href'));
+        // A pattern used as paint outside patterns is fine.
+        self::assertStringContainsString('fill="url(#p2)"', $result->svg);
+        // Uses pointing at a pattern or at a group holding one are removed.
+        $hrefs = [];
+        foreach ($document->getElementsByTagNameNS(SvgSanitizer::SVG_NS, 'use') as $use) {
+            $hrefs[] = $use->getAttribute('href');
+        }
+        self::assertSame(['#tile'], $hrefs);
+        self::assertSame(5, $result->removed['reference'] ?? 0);
+        self::assertSame($result->svg, $this->sanitizer->sanitize($result->svg)->svg, 'idempotent');
+    }
+
+    public function test_expanded_size_of_kept_uses_is_bounded(): void
+    {
+        // 100 uses (the maximum) of a 300-element group: 30,000 rendered
+        // elements from a 400-element file.
+        $group = '<g id="big">'.str_repeat('<rect width="1" height="1"/>', 300).'</g>';
+        $svg = $this->wrap('<defs>'.$group.'</defs>'.str_repeat('<use href="#big"/>', 100));
+        try {
+            $this->sanitizer->sanitize($svg);
+            self::fail('expanded size above '.SvgSanitizer::MAX_EXPANDED_ELEMENTS.' must be refused');
+        } catch (SvgSanitizerException $exception) {
+            self::assertSame(SvgSanitizer::REJECT_TOO_COMPLEX, $exception->reason);
+        }
+        // The same group used a few times is an ordinary logo.
+        $ok = $this->sanitizer->sanitize($this->wrap('<defs>'.$group.'</defs>'.str_repeat('<use href="#big"/>', 3)));
+        self::assertSame(3, substr_count($ok->svg, '<use '));
+    }
 }

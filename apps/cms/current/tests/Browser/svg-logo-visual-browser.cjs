@@ -41,7 +41,8 @@ async function routeHeaders(request, src, label) {
   check(h['content-type'] === 'image/svg+xml', label + ' content-type ' + h['content-type']);
   check(h['x-content-type-options'] === 'nosniff', label + ' nosniff');
   check(h['content-security-policy'] === CSP, label + ' csp ' + h['content-security-policy']);
-  check((h['cache-control'] || '').includes('immutable'), label + ' cache-control ' + h['cache-control']);
+  const cache = h['cache-control'] || '';
+  check(cache.includes('must-revalidate') && !cache.includes('immutable'), label + ' cache-control ' + cache);
   check(!('set-cookie' in h), label + ' must not set a cookie');
   return (await response.body()).toString('utf8');
 }
@@ -65,7 +66,7 @@ async function storefront(browser) {
     });
     const shown = st.logos.filter(l => l.visible);
     check(st.logos.length === 2, scheme + ' expected a light and a dark logo ' + JSON.stringify(st.logos));
-    check(st.logos.every(l => /^\/site-assets\/[A-Za-z0-9_-]{20,64}\.svg\?v=[a-f0-9]+$/.test(l.src) && l.ok), scheme + ' logos load from the route ' + JSON.stringify(st.logos));
+    check(st.logos.every(l => /^\/site-assets\/[A-Za-z0-9_-]{20,64}\.svg\?v=[a-f0-9]+-[a-f0-9]+-s[0-9]+$/.test(l.src) && l.ok), scheme + ' logos load from the route ' + JSON.stringify(st.logos));
     check(shown.length === 1 && shown[0].cls.includes('shop-logo-' + scheme) && shown[0].h >= 24 && shown[0].w > shown[0].h,
       scheme + ' visible variant ' + JSON.stringify(shown));
     check(st.icon && st.icon.type === 'image/svg+xml' && st.icon.href.startsWith('/site-assets/'), scheme + ' favicon ' + JSON.stringify(st.icon));

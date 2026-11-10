@@ -38,6 +38,20 @@ final class SvgSanitizer
 
     public const MAX_DEPTH = 32;
 
+    /**
+     * Bump whenever the output of sanitize() can change. It is part of the
+     * served-SVG cache key and of the site-assets URL version, so stored
+     * files are cleaned again and browsers fetch the new form (Cloudflare:
+     * purge /site-assets/* after a bump).
+     */
+    public const VERSION = '2';
+
+    /** Most <use> elements an SVG logo may keep. */
+    public const MAX_USE = 100;
+
+    /** Elements after expanding every kept <use> once (amplification bound). */
+    public const MAX_EXPANDED_ELEMENTS = 20000;
+
     public const REJECT_TOO_LARGE = 'too_large';
     public const REJECT_TOO_COMPLEX = 'too_complex';
     public const REJECT_TOO_DEEP = 'too_deep';
@@ -52,7 +66,7 @@ final class SvgSanitizer
     /** Removal categories reported to the user and the audit log (counts only). */
     public const REMOVED_CATEGORIES = [
         'script', 'event_handler', 'external_reference', 'embedded_content',
-        'animation', 'style', 'element', 'attribute', 'comment',
+        'animation', 'style', 'reference', 'element', 'attribute', 'comment',
     ];
 
     private const XLINK_NS = 'http://www.w3.org/1999/xlink';
@@ -192,6 +206,7 @@ final class SvgSanitizer
         }
         $this->elements = 1;
         $this->copyChildren($root, $svg, 1, $nullNamespace, 'svg');
+        $this->limitReferences($svg);
 
         if ($this->drawable === 0) {
             throw new SvgSanitizerException(self::REJECT_EMPTY);
@@ -486,6 +501,118 @@ final class SvgSanitizer
         ksort($attributes, SORT_STRING);
 
         return [$attributes, (float) $viewBox[2], (float) $viewBox[3]];
+    }
+
+    /**
+     * Reference amplification limits on the cleaned tree. At most MAX_USE
+     * <use> elements; a <use> whose target is or contains a <use> or a
+     * <pattern> is removed (no use-of-use chains or cycles); inside a
+     * pattern, <use> elements and url() references to another pattern are
+     * removed (no pattern-in-pattern tiling). Every decision is taken on the
+     * tree before any removal and only shrinks it, so the result is stable
+     * under a second sanitize().
+     */
+    private function limitReferences(DOMElement $root): void
+    {
+        $elements = [$root];
+        foreach ($root->getElementsByTagName('*') as $element) {
+            $elements[] = $element;
+        }
+        $byId = [];
+        $uses = [];
+        foreach ($elements as $element) {
+            if ($element->hasAttribute('id')) {
+                $byId[$element->getAttribute('id')][] = $element;
+            }
+            if ($element->localName === 'use') {
+                $uses[] = $element;
+            }
+        }
+        if (count($uses) > self::MAX_USE) {
+            throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
+        }
+
+        $contains = static fn (DOMElement $element, string $name): bool => $element->localName === $name
+            || $element->getElementsByTagName($name)->length > 0;
+        $inPattern = static function (DOMElement $element): bool {
+            for ($parent = $element->parentNode; $parent instanceof DOMElement; $parent = $parent->parentNode) {
+                if ($parent->localName === 'pattern') {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+        $targetsPattern = static function (string $value) use ($byId): bool {
+            if (preg_match('/^(?:url\(#('.self::FRAGMENT.')\)|#('.self::FRAGMENT.'))/', $value, $m) !== 1) {
+                return false;
+            }
+            foreach ($byId[$m[1] !== '' ? $m[1] : $m[2]] ?? [] as $target) {
+                if ($target->localName === 'pattern') {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        $dropElements = [];
+        $dropAttributes = [];
+        $expanded = count($elements);
+        foreach ($uses as $use) {
+            if ($inPattern($use)) {
+                $dropElements[] = $use;
+                continue;
+            }
+            $bad = false;
+            $size = 0;
+            foreach ($byId[substr($use->getAttribute('href'), 1)] ?? [] as $target) {
+                if ($contains($target, 'use') || $contains($target, 'pattern')) {
+                    $bad = true;
+                }
+                $size = max($size, 1 + $target->getElementsByTagName('*')->length);
+            }
+            if ($bad) {
+                $dropElements[] = $use;
+            } else {
+                $expanded += $size;
+            }
+        }
+        foreach ($elements as $element) {
+            $isPattern = $element->localName === 'pattern';
+            if (!$isPattern && !$inPattern($element)) {
+                continue;
+            }
+            // A pattern's own href (attribute inheritance, as Inkscape
+            // writes it) is kept; only paint references are tiling.
+            $names = $isPattern ? self::URL_ATTRIBUTES : [...self::URL_ATTRIBUTES, 'href'];
+            foreach ($names as $name) {
+                if ($element->hasAttribute($name) && $targetsPattern($element->getAttribute($name))) {
+                    $dropAttributes[] = [$element, $name];
+                }
+            }
+        }
+        if ($expanded > self::MAX_EXPANDED_ELEMENTS) {
+            throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
+        }
+
+        foreach ($dropAttributes as [$element, $name]) {
+            $element->removeAttribute($name);
+            $this->remove('reference');
+        }
+        foreach ($dropElements as $element) {
+            if ($element->parentNode !== null) {
+                $element->parentNode->removeChild($element);
+                $this->remove('reference');
+            }
+        }
+
+        $this->drawable = 0;
+        foreach (array_merge([$root], iterator_to_array($root->getElementsByTagName('*'))) as $element) {
+            if (in_array($element->localName, self::DRAWABLE_ELEMENTS, true)) {
+                $this->drawable++;
+            }
+        }
     }
 
     private function elementCategory(string $name): string

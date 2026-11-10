@@ -294,7 +294,7 @@ final class SystemSettingsController extends Controller
         $path = trim((string) ($values['documents_logo_path'] ?? ''));
         $logoUrl = null;
         if ($path !== '') {
-            try { $logoUrl = Storage::disk('public')->url($path); } catch (Throwable) { $logoUrl = null; }
+            try { $logoUrl = app(\App\Services\SiteLogoAssetService::class)->assetUrl($path) ?? Storage::disk('public')->url($path); } catch (Throwable) { $logoUrl = null; }
         }
         return $this->jsonNoStore(['data' => [
             'settings' => $this->pick($values, self::DOCUMENT_KEYS),

@@ -13,23 +13,29 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Site logo and favicon files (Podešavanja > Izgled sajta), raster or SVG.
+ * Site logo, favicon, login background and PDF logo files: upload checks and
+ * the URLs and bytes of the site-assets.show route.
  *
  * Upload: the real content decides, not the name or the browser's MIME.
- * A PNG/JPEG/WebP/ICO must carry its own signature and match its extension;
- * an SVG must pass SvgSanitizer and only the sanitized bytes are stored
- * (never the original), under site-assets/<40 random chars>.svg.
+ * A file with a known image extension must carry that format's signature (a
+ * PNG renamed to .svg and an SVG renamed to .png are refused). A file with no
+ * or an unknown extension (the Android app may send a content:// name such as
+ * "image:1000") is typed by its content: PNG/JPEG/WebP/ICO magic bytes, or
+ * markup that passes SvgSanitizer. Only the sanitized bytes of an SVG are
+ * stored, and every logo is stored under a random name with the extension of
+ * its real type.
  *
- * Serving: every site asset whose stored name matches the strict pattern
- * (site-assets/<random>.<png|jpg|jpeg|webp|ico|svg>, plus the raster login
- * backgrounds in site-assets/login/ and site-assets/login/slides/) is linked
- * through the site-assets.show route, never through /storage: on the
- * production host the /storage symlink chain no longer resolves at the origin.
- * Raster files are streamed after their signature is checked against the
- * extension. An SVG is re-sanitized on every cache miss (keyed by mtime and
- * size, so a file changed on disk is cleaned again before it is served) and
- * gets image/svg+xml, nosniff and a sandboxed CSP that also applies when the
- * file is opened directly. Only URL generation changes; stored paths stay.
+ * Serving: every stored name that matches the strict pattern (site-assets/,
+ * site-assets/login/, site-assets/login/slides/ and the PDF logos in
+ * document-assets/) is linked through the site-assets.show route, never
+ * through /storage: on the production host the /storage symlink chain no
+ * longer resolves at the origin. URLs carry ?v=<version>; the version is the
+ * file mtime (plus the sanitizer version for SVG), so the route can refuse
+ * any other value without reading the file. Raster files are streamed after a
+ * signature check of the first bytes. An SVG is re-sanitized on every cache
+ * miss (keyed by mtime, size and sanitizer version) and served with
+ * image/svg+xml, nosniff and a sandboxed CSP. Only URL generation changes;
+ * stored paths stay as they are.
  *
  * Places that cannot render SVG get a defined fallback: PDF documents use the
  * dedicated raster PDF logo or the built-in mark (FlowPdfLayout only embeds
@@ -42,14 +48,17 @@ final class SiteLogoAssetService
     public const ROUTE = 'site-assets.show';
 
     /**
-     * Route parameter pattern, relative to site-assets/: a random stored name
-     * (Laravel's hashName or this service's SVG name), optionally in the
-     * login background directories. Nothing else is reachable.
+     * Route parameter pattern: a random stored name (Laravel's hashName, this
+     * service's names, or the PDF logo's pdf-logo-<uuid>), optionally in the
+     * login background directories or "documents/" (= document-assets/).
      */
-    public const FILE_PATTERN = '(?:login/(?:slides/)?)?[A-Za-z0-9_-]{20,64}\.(?:png|jpe?g|webp|ico|svg)';
+    public const FILE_PATTERN = '(?:login/(?:slides/)?|documents/)?[A-Za-z0-9_-]{20,64}\.(?:png|jpe?g|webp|ico|svg)';
 
     /** Largest raster file the route streams (login backgrounds allow 8 MB). */
     public const MAX_RASTER_BYTES = 8 * 1024 * 1024;
+
+    /** Bytes read for the signature and finfo check of a served raster file. */
+    private const SNIFF_BYTES = 4096;
 
     public const KIND_LOGO = 'logo';
 
@@ -58,6 +67,14 @@ final class SiteLogoAssetService
     private const EXTENSIONS = [
         self::KIND_LOGO => ['png', 'jpg', 'jpeg', 'webp', 'svg'],
         self::KIND_FAVICON => ['png', 'ico', 'svg'],
+    ];
+
+    /**
+     * Image extensions the client name is trusted to claim (and checked
+     * against). Any other extension, or none, means "type it by content".
+     */
+    private const KNOWN_IMAGE_EXTENSIONS = [
+        'png', 'jpg', 'jpeg', 'jpe', 'webp', 'ico', 'svg', 'svgz', 'gif', 'bmp', 'tif', 'tiff', 'avif', 'heic', 'heif',
     ];
 
     private const CONTENT_TYPES = [
@@ -69,6 +86,9 @@ final class SiteLogoAssetService
         'svg' => 'image/svg+xml',
     ];
 
+    /** Signature name => stored extension. */
+    private const SIGNATURE_EXTENSIONS = ['png' => 'png', 'jpeg' => 'jpg', 'webp' => 'webp', 'ico' => 'ico'];
+
     /** Setting keys whose SVG files the route may serve. */
     private const SERVABLE_KEYS = ['site_logo_light_path', 'site_logo_dark_path', 'site_favicon_path', 'site_logo_path'];
 
@@ -77,7 +97,7 @@ final class SiteLogoAssetService
     /** Short reason code => Serbian message (shown after the field label). */
     public const MESSAGES = [
         SvgSanitizer::REJECT_TOO_LARGE => 'SVG je prevelik (najviše 200 KB).',
-        SvgSanitizer::REJECT_TOO_COMPLEX => 'SVG je previše složen (najviše 5.000 elemenata).',
+        SvgSanitizer::REJECT_TOO_COMPLEX => 'SVG je previše složen (najviše 5.000 elemenata i 100 use referenci).',
         SvgSanitizer::REJECT_TOO_DEEP => 'SVG ima previše ugnežđenih nivoa (najviše 32).',
         SvgSanitizer::REJECT_INVALID_ENCODING => 'SVG nije ispravno kodiran (dozvoljen je samo UTF-8).',
         SvgSanitizer::REJECT_INVALID_XML => 'nije ispravan SVG (XML sadržaj je oštećen).',
@@ -100,6 +120,7 @@ final class SiteLogoAssetService
         'embedded_content' => 'ugrađeni sadržaj (slike, HTML)',
         'animation' => 'animacije',
         'style' => 'CSS stilovi',
+        'reference' => 'ugnežđene use/pattern reference',
         'element' => 'ostali nedozvoljeni elementi',
         'attribute' => 'ostali nedozvoljeni atributi',
         'comment' => 'komentari',
@@ -124,16 +145,46 @@ final class SiteLogoAssetService
         return preg_match('~^site-assets/[A-Za-z0-9_-]{20,64}\.svg$~D', trim((string) $path)) === 1;
     }
 
+    /** Route parameter for a stored path, or null when the route cannot serve it. */
+    public static function routeFile(?string $path): ?string
+    {
+        $path = trim((string) $path);
+        $file = match (true) {
+            str_starts_with($path, 'site-assets/') => substr($path, strlen('site-assets/')),
+            str_starts_with($path, 'document-assets/') => 'documents/'.substr($path, strlen('document-assets/')),
+            default => null,
+        };
+        if ($file === null || preg_match('~^'.self::FILE_PATTERN.'$~D', $file) !== 1
+            || str_starts_with($file, 'documents/documents/') || str_starts_with($file, 'login/documents/')) {
+            return null;
+        }
+        $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        // SVG is accepted for logos and the favicon only (site-assets/ root);
+        // PDF logos are JPEG/PNG/WebP.
+        if ($extension === 'svg' && !self::isSvgPath($path)) {
+            return null;
+        }
+        if (str_starts_with($file, 'documents/') && !in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            return null;
+        }
+
+        return $file;
+    }
+
+    /** Stored path on the public disk for a route parameter, or null. */
+    public static function storagePath(string $file): ?string
+    {
+        $path = str_starts_with($file, 'documents/')
+            ? 'document-assets/'.substr($file, strlen('documents/'))
+            : 'site-assets/'.$file;
+
+        return self::routeFile($path) === $file ? $path : null;
+    }
+
     /** Whether the site-assets.show route can serve this stored path. */
     public static function isRoutable(?string $path): bool
     {
-        $path = trim((string) $path);
-        if (preg_match('~^site-assets/'.self::FILE_PATTERN.'$~D', $path) !== 1) {
-            return false;
-        }
-
-        // SVG is accepted for logos and the favicon only, never in login/.
-        return !str_ends_with(strtolower($path), '.svg') || self::isSvgPath($path);
+        return self::routeFile($path) !== null;
     }
 
     public static function inputLabel(string $input): string
@@ -156,75 +207,34 @@ final class SiteLogoAssetService
      */
     public function inspect(UploadedFile $file, string $kind): ?string
     {
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        if (!in_array($extension, self::EXTENSIONS[$kind] ?? [], true)) {
-            return 'unsupported_type';
-        }
-        $bytes = $this->read($file, $extension === 'svg' ? SvgSanitizer::MAX_BYTES : 8 * 1024 * 1024);
-        if ($bytes === null) {
-            return $extension === 'svg' ? SvgSanitizer::REJECT_TOO_LARGE : 'unreadable';
-        }
-        $signature = self::rasterSignature($bytes);
+        $resolved = $this->resolve($file, $kind);
 
-        if ($extension === 'svg') {
-            if ($signature !== null || !self::looksLikeMarkup($bytes)) {
-                return 'extension_mismatch';
-            }
-            try {
-                $this->sanitizer->sanitize($bytes);
-            } catch (SvgSanitizerException $exception) {
-                return $exception->reason;
-            }
-
-            return null;
-        }
-
-        // An SVG (or any markup) under a raster name is refused, as is a
-        // raster whose signature belongs to another format.
-        if (self::looksLikeMarkup($bytes)) {
-            return 'extension_mismatch';
-        }
-        $expected = ['png' => 'png', 'jpg' => 'jpeg', 'jpeg' => 'jpeg', 'webp' => 'webp', 'ico' => 'ico'][$extension];
-        if ($signature !== $expected) {
-            return $signature === null ? 'invalid_image' : 'extension_mismatch';
-        }
-        if ($expected === 'ico') {
-            // ICO header: reserved 0, type 1, at least one image entry.
-            return strlen($bytes) >= 22 && unpack('v', substr($bytes, 4, 2))[1] >= 1 ? null : 'invalid_image';
-        }
-        $mime = '';
-        try {
-            $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
-        } catch (Throwable) {
-            $mime = '';
-        }
-        if ($mime !== 'image/'.$expected) {
-            return 'invalid_image';
-        }
-        $size = @getimagesizefromstring($bytes);
-        if (!is_array($size) || ($size[0] ?? 0) < 1 || ($size[1] ?? 0) < 1) {
-            return 'invalid_image';
-        }
-
-        return null;
+        return is_array($resolved) ? null : $resolved;
     }
 
     /**
      * Stores an already validated upload on the public disk and returns its
-     * path. SVG: the sanitized bytes only, under a random name.
+     * path: site-assets/<40 random chars>.<real type>. SVG: the sanitized
+     * bytes only.
      */
     public function store(UploadedFile $file, string $input): string
     {
-        if (strtolower((string) $file->getClientOriginalExtension()) !== 'svg') {
-            return (string) $file->storePublicly('site-assets', 'public');
+        $kind = $input === 'site_favicon' ? self::KIND_FAVICON : self::KIND_LOGO;
+        $resolved = $this->resolve($file, $kind);
+        if (!is_array($resolved)) {
+            throw new \RuntimeException('Site logo upload was not validated.');
         }
-        $bytes = $this->read($file, SvgSanitizer::MAX_BYTES);
-        $clean = $this->sanitizer->sanitize((string) $bytes);
-        $path = 'site-assets/'.Str::random(40).'.svg';
-        if (!Storage::disk('public')->put($path, $clean->svg, ['visibility' => 'public'])) {
-            throw new \RuntimeException('SVG logo could not be stored.');
+        [$extension, $bytes] = $resolved;
+        $path = 'site-assets/'.Str::random(40).'.'.$extension;
+        $content = $bytes;
+        if ($extension === 'svg') {
+            $clean = $this->sanitizer->sanitize($bytes);
+            $content = $clean->svg;
+            $this->storedSvgs[$input] = ['sha256' => $clean->sha256(), 'removed' => $clean->removed];
         }
-        $this->storedSvgs[$input] = ['sha256' => $clean->sha256(), 'removed' => $clean->removed];
+        if (!Storage::disk('public')->put($path, $content, ['visibility' => 'public'])) {
+            throw new \RuntimeException('Site logo could not be stored.');
+        }
 
         return $path;
     }
@@ -267,26 +277,50 @@ final class SiteLogoAssetService
     }
 
     /**
-     * site-assets.show URL for a stored site asset, or null when the path is
-     * not routable. With $requireFile the file must exist (null otherwise);
-     * the ?v= version is the file's mtime, so a file rewritten in place gets
-     * a new URL despite the immutable cache.
+     * Version a URL of this stored file must carry: mtime and size in hex,
+     * plus the sanitizer version for SVG. Null when the file is missing.
+     */
+    public function version(string $path): ?string
+    {
+        try {
+            $disk = Storage::disk('public');
+            if (!$disk->exists($path)) {
+                return null;
+            }
+            return self::versionOf($path, (int) $disk->lastModified($path), (int) $disk->size($path));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** "<mtime hex>-<size hex>", plus "-s<sanitizer version>" for SVG. */
+    private static function versionOf(string $path, int $mtime, int $size): string
+    {
+        $version = dechex($mtime).'-'.dechex($size);
+
+        return self::isSvgPath($path) ? $version.'-s'.SvgSanitizer::VERSION : $version;
+    }
+
+    /**
+     * site-assets.show URL for a stored asset, or null when the path is not
+     * routable. With $requireFile the file must exist; otherwise a missing
+     * file still gets its (unversioned) URL, which answers 404.
      */
     public function assetUrl(string $path, bool $absolute = true, bool $requireFile = true): ?string
     {
         $path = trim($path);
-        if (!self::isRoutable($path)) {
+        $file = self::routeFile($path);
+        if ($file === null) {
             return null;
         }
-        $parameters = ['file' => substr($path, strlen('site-assets/'))];
+        $parameters = ['file' => $file];
+        $version = $this->version($path);
+        if ($version !== null) {
+            $parameters['v'] = $version;
+        } elseif ($requireFile) {
+            return null;
+        }
         try {
-            $disk = Storage::disk('public');
-            if ($disk->exists($path)) {
-                $parameters['v'] = dechex((int) $disk->lastModified($path));
-            } elseif ($requireFile) {
-                return null;
-            }
-
             return route(self::ROUTE, $parameters, $absolute);
         } catch (Throwable) {
             return null;
@@ -294,45 +328,61 @@ final class SiteLogoAssetService
     }
 
     /**
-     * Bytes and content type of a stored raster asset the route may stream,
-     * or null. The content must carry the signature of its extension (and,
-     * for PNG/JPEG/WebP, the matching finfo type), so a renamed or replaced
-     * file on disk is not served under a wrong type.
+     * What the route needs before reading any content: type, size, mtime,
+     * version and ETag of a stored file. Raster files must also carry the
+     * signature (and finfo type) of their extension in the first bytes; an
+     * SVG must be configured as a site logo or favicon right now.
      *
-     * @return array{bytes:string,type:string,mtime:int}|null
+     * @return array{path:string,type:string,size:int,mtime:int,version:string,etag:string,svg:bool}|null
      */
-    public function rasterServable(string $path): ?array
+    public function describe(string $path, ?SettingsService $settings = null): ?array
     {
-        $path = trim($path);
-        if (!self::isRoutable($path) || self::isSvgPath($path)) {
+        $file = self::routeFile($path);
+        if ($file === null) {
             return null;
         }
+        $svg = self::isSvgPath($path);
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        $expected = ['png' => 'png', 'jpg' => 'jpeg', 'jpeg' => 'jpeg', 'webp' => 'webp', 'ico' => 'ico'][$extension] ?? null;
-        if ($expected === null) {
-            return null;
-        }
         try {
             $disk = Storage::disk('public');
             if (!$disk->exists($path)) {
                 return null;
             }
             $size = (int) $disk->size($path);
-            if ($size < 1 || $size > self::MAX_RASTER_BYTES) {
+            $mtime = (int) $disk->lastModified($path);
+            if ($size < 1 || $size > ($svg ? SvgSanitizer::MAX_BYTES : self::MAX_RASTER_BYTES)) {
                 return null;
             }
-            $bytes = (string) $disk->get($path);
-            if (self::rasterSignature($bytes) !== $expected) {
-                return null;
-            }
-            if ($expected !== 'ico') {
-                $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
-                if ($mime !== 'image/'.$expected) {
+            if ($svg) {
+                if ($settings === null || !$this->isConfigured($path, $settings)) {
                     return null;
                 }
+            } elseif (!$this->rasterHeadMatches($disk->readStream($path), $extension)) {
+                return null;
             }
+        } catch (Throwable) {
+            return null;
+        }
+        $version = self::versionOf($path, $mtime, $size);
 
-            return ['bytes' => $bytes, 'type' => self::CONTENT_TYPES[$extension], 'mtime' => (int) $disk->lastModified($path)];
+        return [
+            'path' => $path,
+            'type' => self::CONTENT_TYPES[$extension],
+            'size' => $size,
+            'mtime' => $mtime,
+            'version' => $version,
+            'etag' => '"'.$version.'"',
+            'svg' => $svg,
+        ];
+    }
+
+    /** Local filesystem path of a stored file (for streaming), or null. */
+    public function localPath(string $path): ?string
+    {
+        try {
+            $local = Storage::disk('public')->path($path);
+
+            return is_file($local) ? $local : null;
         } catch (Throwable) {
             return null;
         }
@@ -340,8 +390,8 @@ final class SiteLogoAssetService
 
     /**
      * Sanitized bytes to serve for a stored SVG logo, or null. The stored
-     * file is cleaned again (cached per mtime and size); a file that no
-     * longer passes is not served at all.
+     * file is cleaned again (cached per mtime, size and sanitizer version); a
+     * file that no longer passes is not served at all.
      */
     public function servable(string $path): ?string
     {
@@ -357,7 +407,7 @@ final class SiteLogoAssetService
             if ($size < 1 || $size > SvgSanitizer::MAX_BYTES) {
                 return null;
             }
-            $key = 'site-logo-svg:'.hash('sha256', $path.'|'.$disk->lastModified($path).'|'.$size);
+            $key = 'site-logo-svg:'.SvgSanitizer::VERSION.':'.hash('sha256', $path.'|'.$disk->lastModified($path).'|'.$size);
             $clean = $this->remember($key, function () use ($disk, $path): string {
                 $raw = (string) $disk->get($path);
                 try {
@@ -382,7 +432,7 @@ final class SiteLogoAssetService
         }
     }
 
-    /** Whether a stored file name may be served: configured as a site logo or favicon right now. */
+    /** Whether a stored SVG may be served: configured as a site logo or favicon right now. */
     public function isConfigured(string $path, SettingsService $settings): bool
     {
         try {
@@ -457,6 +507,153 @@ final class SiteLogoAssetService
         }
 
         return null;
+    }
+
+    /**
+     * Stored asset settings whose value is a relative site-assets/ or
+     * document-assets/ path the route cannot serve (a name outside the
+     * strict pattern). Those keep their former /storage URL.
+     *
+     * @param array<string,mixed> $settings
+     * @return array<string,string> setting key => stored path
+     */
+    public static function unroutableStoredPaths(array $settings): array
+    {
+        $found = [];
+        foreach ($settings as $key => $value) {
+            $value = trim((string) $value);
+            if ((str_ends_with((string) $key, '_path'))
+                && (str_starts_with($value, 'site-assets/') || str_starts_with($value, 'document-assets/'))
+                && !self::isRoutable($value)) {
+                $found[(string) $key] = $value;
+            }
+        }
+        ksort($found);
+
+        return $found;
+    }
+
+    /**
+     * Extension of the upload's real type and its bytes, or a reason code.
+     *
+     * @return array{0:string,1:string}|string
+     */
+    private function resolve(UploadedFile $file, string $kind): array|string
+    {
+        $allowed = self::EXTENSIONS[$kind] ?? [];
+        $claimed = strtolower((string) $file->getClientOriginalExtension());
+        $trusted = in_array($claimed, self::KNOWN_IMAGE_EXTENSIONS, true);
+        if ($trusted && !in_array($claimed, $allowed, true)) {
+            return 'unsupported_type';
+        }
+        $limit = $claimed === 'svg' ? SvgSanitizer::MAX_BYTES : 8 * 1024 * 1024;
+        $bytes = $this->read($file, $limit);
+        if ($bytes === null) {
+            return $claimed === 'svg' ? SvgSanitizer::REJECT_TOO_LARGE : 'unreadable';
+        }
+        $signature = self::rasterSignature($bytes);
+        $markup = self::looksLikeMarkup($bytes);
+
+        if (!$trusted) {
+            // No usable extension: the content decides.
+            if ($signature !== null) {
+                $extension = self::SIGNATURE_EXTENSIONS[$signature] ?? null;
+                if ($extension === null || !in_array($extension, $allowed, true)) {
+                    return 'unsupported_type';
+                }
+                $problem = $this->rasterProblem($bytes, $signature);
+
+                return $problem ?? [$extension, $bytes];
+            }
+            if ($markup && in_array('svg', $allowed, true)) {
+                if (strlen($bytes) > SvgSanitizer::MAX_BYTES) {
+                    return SvgSanitizer::REJECT_TOO_LARGE;
+                }
+
+                return $this->svgProblem($bytes) ?? ['svg', $bytes];
+            }
+
+            return 'unsupported_type';
+        }
+
+        if ($claimed === 'svg') {
+            if ($signature !== null || !$markup) {
+                return 'extension_mismatch';
+            }
+
+            return $this->svgProblem($bytes) ?? ['svg', $bytes];
+        }
+
+        // An SVG (or any markup) under a raster name is refused, as is a
+        // raster whose signature belongs to another format.
+        if ($markup) {
+            return 'extension_mismatch';
+        }
+        $expected = ['png' => 'png', 'jpg' => 'jpeg', 'jpeg' => 'jpeg', 'webp' => 'webp', 'ico' => 'ico'][$claimed];
+        if ($signature !== $expected) {
+            return $signature === null ? 'invalid_image' : 'extension_mismatch';
+        }
+        $problem = $this->rasterProblem($bytes, $expected);
+
+        return $problem ?? [self::SIGNATURE_EXTENSIONS[$expected], $bytes];
+    }
+
+    private function svgProblem(string $bytes): ?string
+    {
+        try {
+            $this->sanitizer->sanitize($bytes);
+        } catch (SvgSanitizerException $exception) {
+            return $exception->reason;
+        }
+
+        return null;
+    }
+
+    private function rasterProblem(string $bytes, string $signature): ?string
+    {
+        if ($signature === 'ico') {
+            // ICO header: reserved 0, type 1, at least one image entry.
+            return strlen($bytes) >= 22 && unpack('v', substr($bytes, 4, 2))[1] >= 1 ? null : 'invalid_image';
+        }
+        try {
+            $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
+        } catch (Throwable) {
+            $mime = '';
+        }
+        if ($mime !== 'image/'.$signature) {
+            return 'invalid_image';
+        }
+        $size = @getimagesizefromstring($bytes);
+        if (!is_array($size) || ($size[0] ?? 0) < 1 || ($size[1] ?? 0) < 1) {
+            return 'invalid_image';
+        }
+
+        return null;
+    }
+
+    /** @param resource|null $stream */
+    private function rasterHeadMatches($stream, string $extension): bool
+    {
+        if (!is_resource($stream)) {
+            return false;
+        }
+        try {
+            $head = (string) fread($stream, self::SNIFF_BYTES);
+        } finally {
+            fclose($stream);
+        }
+        $expected = ['png' => 'png', 'jpg' => 'jpeg', 'jpeg' => 'jpeg', 'webp' => 'webp', 'ico' => 'ico'][$extension] ?? null;
+        if ($expected === null || self::rasterSignature($head) !== $expected) {
+            return false;
+        }
+        if ($expected === 'ico') {
+            return strlen($head) >= 6 && unpack('v', substr($head, 4, 2))[1] >= 1;
+        }
+        try {
+            return (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($head) === 'image/'.$expected;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function remember(string $key, \Closure $callback): string

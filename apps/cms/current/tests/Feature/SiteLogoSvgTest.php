@@ -124,6 +124,22 @@ final class SiteLogoSvgTest extends TestCase
         return (string) $errors->getBag('default')->first($field);
     }
 
+    /** Body of a route response; raster files are streamed (BinaryFileResponse). */
+    private function body(\Illuminate\Testing\TestResponse $response): string
+    {
+        $base = $response->baseResponse;
+        if ($base instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
+            return (string) file_get_contents($base->getFile()->getPathname());
+        }
+
+        return (string) $response->getContent();
+    }
+
+    private function url(string $path): string
+    {
+        return (string) app(SiteAssetUrlService::class)->url($path);
+    }
+
     /** @return list<string> */
     private function siteAssetFiles(): array
     {
@@ -170,7 +186,7 @@ final class SiteLogoSvgTest extends TestCase
         self::assertStringContainsString('Logo za svetlu temu (SVG) je očišćen pre čuvanja. Uklonjeno – skripte: 1, obrađivači događaja (on…): 2, spoljne veze: 2, ugrađeni sadržaj (slike, HTML): 2.', $html);
         self::assertStringContainsString('data-svg-logo-preview', $html);
         self::assertSame(2, substr_count($html, 'alt="Sačuvani logo na '));
-        self::assertMatchesRegularExpression('~<img src="https?://[^"]+/site-assets/'.preg_quote(basename($path), '~').'\?v=[a-f0-9]+" alt="Sačuvani logo na svetloj pozadini"~', $html);
+        self::assertMatchesRegularExpression('~<img src="https?://[^"]+/site-assets/'.preg_quote(basename($path), '~').'\?v=[a-z0-9-]+" alt="Sačuvani logo na svetloj pozadini"~', $html);
         self::assertStringContainsString('SVG se automatski čisti od skripti i spoljnih veza', $html);
         self::assertStringContainsString('accept=".png,.jpg,.jpeg,.webp,.svg"', $html);
         self::assertStringContainsString('accept=".png,.ico,.svg"', $html);
@@ -241,12 +257,12 @@ final class SiteLogoSvgTest extends TestCase
         $dark = $this->setting('site_logo_dark_path');
         self::assertMatchesRegularExpression('~^site-assets/[A-Za-z0-9]{40}\.png$~D', $dark);
         $darkUrl = (string) app(SiteAssetUrlService::class)->url($dark);
-        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-f0-9]+$~D', $darkUrl);
+        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-z0-9-]+$~D', $darkUrl);
         self::assertStringNotContainsString('/storage/', $darkUrl);
         $favicon = $this->setting('site_favicon_path');
         self::assertMatchesRegularExpression('~^site-assets/[A-Za-z0-9]{40}\.ico$~D', $favicon);
         $this->get($darkUrl)->assertOk()->assertHeader('Content-Type', 'image/png');
-        $this->get('/site-assets/'.basename($favicon))->assertOk()->assertHeader('Content-Type', 'image/x-icon');
+        $this->get($this->url($favicon))->assertOk()->assertHeader('Content-Type', 'image/x-icon');
 
         $this->upload(['site_favicon' => UploadedFile::fake()->createWithContent('favicon.svg', self::BENIGN)])->assertSessionHasNoErrors();
         self::assertTrue(SiteLogoAssetService::isSvgPath($this->setting('site_favicon_path')));
@@ -280,7 +296,7 @@ final class SiteLogoSvgTest extends TestCase
     {
         $path = $this->storedSvg();
         $url = (string) app(SiteAssetUrlService::class)->url($path);
-        self::assertMatchesRegularExpression('~/site-assets/'.preg_quote(basename($path), '~').'\?v=[a-f0-9]+$~D', $url);
+        self::assertMatchesRegularExpression('~/site-assets/'.preg_quote(basename($path), '~').'\?v=[a-z0-9-]+$~D', $url);
         self::assertStringNotContainsString('/storage/', $url);
 
         $response = $this->get($url)->assertOk();
@@ -290,13 +306,18 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame("default-src 'none'; style-src 'unsafe-inline'; sandbox", $response->headers->get('Content-Security-Policy'));
         self::assertSame(SiteAssetController::CSP, $response->headers->get('Content-Security-Policy'));
         self::assertSame('inline; filename="logo.svg"', $response->headers->get('Content-Disposition'));
+        // SVG: short, revalidated cache (a sanitizer fix must reach browsers).
         $cache = (string) $response->headers->get('Cache-Control');
-        foreach (['public', 'max-age=31536000', 'immutable'] as $directive) {
+        foreach (['public', 'max-age=86400', 'must-revalidate'] as $directive) {
             self::assertStringContainsString($directive, $cache);
         }
+        self::assertStringNotContainsString('immutable', $cache);
         self::assertSame([], $response->headers->getCookies(), 'no session or XSRF cookie on a publicly cached image');
         $etag = (string) $response->headers->get('ETag');
-        self::assertMatchesRegularExpression('~^"[a-f0-9]{32}"$~D', $etag);
+        $disk = Storage::disk('public');
+        $version = dechex($disk->lastModified($path)).'-'.dechex($disk->size($path)).'-s'.SvgSanitizer::VERSION;
+        self::assertSame('"'.$version.'"', $etag, 'mtime, size and sanitizer version, no content hash');
+        self::assertStringEndsWith('?v='.$version, $url);
 
         $notModified = $this->withHeaders(['If-None-Match' => $etag])->get($url);
         $notModified->assertStatus(304);
@@ -304,11 +325,17 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame(SiteAssetController::CSP, $notModified->headers->get('Content-Security-Policy'));
         self::assertSame($etag, $notModified->headers->get('ETag'));
 
-        // Names are random, so the long cache holds without the version too.
+        // A missing, stale or extra query is redirected to the current URL.
         $this->flushHeaders();
-        $unversioned = $this->get('/site-assets/'.basename($path))->assertOk();
-        self::assertStringContainsString('immutable', (string) $unversioned->headers->get('Cache-Control'));
-        self::assertSame($etag, $unversioned->headers->get('ETag'));
+        foreach (['', '?v=1', '?v='.$version.'&x=1', '?v='.dechex($disk->lastModified($path)).'-'.dechex($disk->size($path)).'-s0'] as $query) {
+            $redirect = $this->get('/site-assets/'.basename($path).$query);
+            $redirect->assertStatus(302);
+            self::assertSame($url, $redirect->headers->get('Location'), $query);
+            self::assertSame('', $redirect->getContent());
+            self::assertSame(SiteAssetController::CSP, $redirect->headers->get('Content-Security-Policy'));
+            self::assertStringNotContainsString('immutable', (string) $redirect->headers->get('Cache-Control'));
+            self::assertSame([], $redirect->headers->getCookies());
+        }
     }
 
     /** @return array<string,array{0:string,1:string,2:string}> extension, content type, bytes */
@@ -332,10 +359,11 @@ final class SiteLogoSvgTest extends TestCase
         $path = 'site-assets/'.Str::random(40).'.'.$extension;
         Storage::disk('public')->put($path, $bytes);
         $url = (string) app(SiteAssetUrlService::class)->url($path);
-        self::assertMatchesRegularExpression('~/site-assets/'.preg_quote(basename($path), '~').'\?v=[a-f0-9]+$~D', $url);
+        self::assertMatchesRegularExpression('~/site-assets/'.preg_quote(basename($path), '~').'\?v=[a-z0-9-]+$~D', $url);
 
         $response = $this->get($url)->assertOk();
-        self::assertSame($bytes, $response->getContent());
+        self::assertInstanceOf(\Symfony\Component\HttpFoundation\BinaryFileResponse::class, $response->baseResponse, 'rasters are streamed');
+        self::assertSame($bytes, $this->body($response));
         self::assertSame($type, $response->headers->get('Content-Type'));
         self::assertSame((string) strlen($bytes), $response->headers->get('Content-Length'));
         self::assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
@@ -347,7 +375,8 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame([], $response->headers->getCookies());
         self::assertArrayNotHasKey('set-cookie', $response->headers->all());
         $etag = (string) $response->headers->get('ETag');
-        self::assertSame('"'.substr(hash('sha256', $bytes), 0, 32).'"', $etag);
+        $disk = Storage::disk('public');
+        self::assertSame('"'.dechex($disk->lastModified($path)).'-'.dechex(strlen($bytes)).'"', $etag);
         $lastModified = (string) $response->headers->get('Last-Modified');
         self::assertMatchesRegularExpression('~ GMT$~', $lastModified);
 
@@ -370,9 +399,9 @@ final class SiteLogoSvgTest extends TestCase
         RateLimiter::clear('site-assets'.$guest);
         $sharedBefore = 0;
         $ownBefore = 0;
-        $path = $this->png();
+        $url = $this->url($this->png());
         for ($i = 0; $i < 8; $i++) {
-            $this->get('/site-assets/'.basename($path))->assertOk()->assertHeader('X-RateLimit-Limit', '600');
+            $this->get($url)->assertOk()->assertHeader('X-RateLimit-Limit', '600');
         }
 
         // ThrottleRequests keys a guest by sha1(domain|ip) plus the optional
@@ -415,11 +444,24 @@ final class SiteLogoSvgTest extends TestCase
             $this->get($url)->assertOk()->assertHeader('Content-Type', 'image/png');
         }
 
-        // Stored names outside the strict pattern keep the previous URL; SVG
-        // never falls back to /storage; external and legacy media unchanged.
+        // Stored names outside the strict pattern (hand-named files, SVG
+        // outside the root) keep exactly the previous /storage URL and are
+        // logged; external and legacy media are unchanged.
+        \Illuminate\Support\Facades\Log::spy();
         self::assertStringEndsWith('/storage/site-assets/logo-light.png', (string) $assets->url('site-assets/logo-light.png'));
-        self::assertNull($assets->url('site-assets/logo.svg'));
-        self::assertNull($assets->url('site-assets/login/'.Str::random(40).'.svg'));
+        self::assertStringEndsWith('/storage/site-assets/logo.svg', (string) $assets->url('site-assets/logo.svg'));
+        $nestedSvg = 'site-assets/login/'.Str::random(40).'.svg';
+        self::assertStringEndsWith('/storage/'.$nestedSvg, (string) $assets->url($nestedSvg));
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'legacy /storage URL') && $context === ['path' => 'site-assets/logo.svg'])
+            ->once();
+        self::assertSame(
+            ['site_logo_dark_path' => 'site-assets/logo.svg', 'site_logo_light_path' => 'site-assets/logo-light.png'],
+            SiteLogoAssetService::unroutableStoredPaths([
+                'site_logo_light_path' => 'site-assets/logo-light.png', 'site_logo_dark_path' => 'site-assets/logo.svg',
+                'site_favicon_path' => $background, 'site_name' => 'site-assets/x', 'documents_logo_path' => '',
+            ]),
+        );
         self::assertSame('https://cdn.example.test/logo.png', $assets->url('https://cdn.example.test/logo.png'));
         config()->set('services.legacy_media.base_url', 'https://legacy.example.test/media/');
         self::assertSame('https://legacy.example.test/media/uploads/logo.png', $assets->url('uploads/logo.png'));
@@ -484,34 +526,119 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame(SiteAssetController::CSP, $response->headers->get('Content-Security-Policy'));
         self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
 
-        // A file outside site-assets/ root (login dir) never gets a URL.
+        // An SVG outside the site-assets/ root (login dir) never gets a route URL.
         $nested = 'site-assets/login/'.Str::random(40).'.svg';
         Storage::disk('public')->put($nested, (new SvgSanitizer())->sanitize(self::BENIGN)->svg);
         app(SettingsService::class)->putMany(['site_logo_light_path' => $nested], null);
-        self::assertNull(app(SiteAssetUrlService::class)->url($nested));
+        self::assertStringNotContainsString('/site-assets/login/', (string) app(SiteLogoAssetService::class)->assetUrl($nested));
+        $this->get('/site-assets/'.substr($nested, strlen('site-assets/')))->assertNotFound();
 
         foreach (['site_logo_dark_path', 'site_favicon_path'] as $key) {
             $path = $this->storedSvg($key);
-            $this->get('/site-assets/'.basename($path))->assertOk();
+            $this->get($this->url($path))->assertOk();
         }
     }
 
     public function test_a_file_tampered_on_disk_is_re_sanitized_before_it_is_served(): void
     {
         $path = $this->storedSvg();
-        $this->get('/site-assets/'.basename($path))->assertOk();
+        $before = $this->url($path);
+        $this->get($before)->assertOk();
 
         Storage::disk('public')->put($path, self::HOSTILE);
-        $served = (string) $this->get('/site-assets/'.basename($path))->assertOk()->getContent();
+        $after = $this->url($path);
+        self::assertNotSame($before, $after, 'the size is part of the version');
+        $this->get($before)->assertRedirect($after);
+        $served = (string) $this->get($after)->assertOk()->getContent();
         self::assertSame((new SvgSanitizer())->sanitize(self::HOSTILE)->svg, $served);
         foreach (['<script', 'alert', 'onload', 'evil.example', 'foreignObject'] as $fragment) {
             self::assertStringNotContainsStringIgnoringCase($fragment, $served);
         }
 
         Storage::disk('public')->put($path, '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/passwd">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><text>&x;</text></svg>');
-        $refused = $this->get('/site-assets/'.basename($path));
+        $refused = $this->get($this->url($path));
         $refused->assertNotFound();
         self::assertStringNotContainsString('root:', (string) $refused->getContent());
+    }
+
+    /** @return array<string,array{0:string,1:string,2:string,3:string}> input, client name, content, stored extension */
+    public static function contentTypedUploads(): array
+    {
+        $png = (string) base64_decode(self::PNG);
+        $ico = "\x00\x00\x01\x00\x01\x00".pack('CCCCvvVV', 16, 16, 0, 0, 1, 32, strlen($png), 22).$png;
+
+        return [
+            'android content name, png' => ['site_logo_light', 'image:1000', $png, 'png'],
+            'dotted camera name, jpeg' => ['site_logo_dark', 'IMG.2026.11', (string) base64_decode(self::JPEG), 'jpg'],
+            'no extension, svg' => ['site_logo_light', 'logo', self::BENIGN, 'svg'],
+            'unknown extension, webp' => ['site_logo_light', 'shared.bin', (string) base64_decode(self::WEBP), 'webp'],
+            'no extension, ico favicon' => ['site_favicon', 'icon', $ico, 'ico'],
+            'no extension, svg favicon' => ['site_favicon', 'favicon', self::BENIGN, 'svg'],
+        ];
+    }
+
+    #[DataProvider('contentTypedUploads')]
+    public function test_uploads_without_a_usable_extension_are_typed_by_content(string $input, string $name, string $content, string $extension): void
+    {
+        $this->upload([$input => UploadedFile::fake()->createWithContent($name, $content)])->assertSessionHasNoErrors();
+        $key = $input.'_path';
+        $path = $this->setting($key);
+        self::assertMatchesRegularExpression('~^site-assets/[A-Za-z0-9]{40}\.'.$extension.'$~D', $path);
+        $stored = (string) Storage::disk('public')->get($path);
+        self::assertSame($extension === 'svg' ? (new SvgSanitizer())->sanitize($content)->svg : $content, $stored);
+        $served = $this->get($this->url($path))->assertOk();
+        self::assertSame($stored, $this->body($served));
+    }
+
+    public function test_uploads_without_a_usable_extension_are_refused_when_the_content_is_not_an_allowed_image(): void
+    {
+        foreach ([
+            ['site_logo_light', 'image:1001', '<html><body><script>alert(1)</script></body></html>', 'nije ispravan SVG'],
+            ['site_logo_light', 'blob', 'GIF89a'.str_repeat("\0", 20), 'PNG, JPG, WEBP ili SVG'],
+            ['site_logo_light', 'IMG.2026.12', 'plain synthetic text', 'PNG, JPG, WEBP ili SVG'],
+            ['site_logo_light', 'note.txt', self::HOSTILE.'x', 'nije ispravan SVG'],
+            ['site_favicon', 'icon', (string) base64_decode(self::JPEG), 'PNG, ICO ili SVG'],
+        ] as [$input, $name, $content, $message]) {
+            $this->upload([$input => UploadedFile::fake()->createWithContent($name, $content)])->assertSessionHasErrors($input);
+            self::assertStringContainsString($message, $this->firstError($input), $name);
+            self::assertSame([], $this->siteAssetFiles(), $name);
+        }
+    }
+
+    public function test_pdf_logo_urls_use_the_route_in_admin_and_api_and_svg_is_never_served_from_documents(): void
+    {
+        $path = 'document-assets/pdf-logo-'.Str::uuid()->toString().'.jpg';
+        $jpeg = (string) base64_decode(self::JPEG);
+        Storage::disk('public')->put($path, $jpeg);
+        app(SettingsService::class)->putMany(['documents_logo_path' => $path], (int) $this->owner->id);
+        $url = $this->url($path);
+        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/documents/'.preg_quote(basename($path), '~').'\?v=[a-z0-9-]+$~D', $url);
+        $served = $this->get($url)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        self::assertSame($jpeg, $this->body($served));
+
+        $html = (string) $this->actingAs($this->owner)->get('/admin/settings/documents')->assertOk()->getContent();
+        self::assertStringContainsString(e($url), $html);
+        self::assertStringNotContainsString('/storage/'.$path, $html);
+
+        Sanctum::actingAs($this->owner, ['*']);
+        $this->getJson('/api/v1/admin/system-settings/documents')->assertOk()->assertJsonPath('data.document_logo_url', $url);
+
+        $svg = 'document-assets/'.Str::random(40).'.svg';
+        Storage::disk('public')->put($svg, (new SvgSanitizer())->sanitize(self::BENIGN)->svg);
+        $this->get('/site-assets/documents/'.basename($svg))->assertNotFound();
+        $this->get('/site-assets/documents/documents/'.basename($path))->assertNotFound();
+    }
+
+    public function test_asset_route_works_while_the_storefront_is_closed(): void
+    {
+        config()->set('public_storefront.enabled', false);
+        app(SettingsService::class)->putMany(['public_storefront_open' => '0'], null);
+        $svg = $this->storedSvg();
+        $png = $this->png();
+        $this->get($this->url($svg))->assertOk()->assertHeader('Content-Type', 'image/svg+xml');
+        $this->get($this->url($png))->assertOk()->assertHeader('Content-Type', 'image/png');
+        // The login page (no storefront needed) still links the logo through the route.
+        self::assertStringContainsString('/site-assets/'.basename($svg).'?v=', (string) $this->get('/login')->assertOk()->getContent());
     }
 
     // ------------------------------------------------------------- consumers
@@ -530,11 +657,11 @@ final class SiteLogoSvgTest extends TestCase
         $response = $this->get('/katalog')->assertOk();
         $html = (string) $response->getContent();
         $lightSrc = '/site-assets/'.basename($light).'?v=';
-        self::assertMatchesRegularExpression('~<img class="shop-logo shop-logo-light" src="'.preg_quote($lightSrc, '~').'[a-f0-9]+" alt="AP.Computers" height="40" width="160"~', $html);
-        self::assertMatchesRegularExpression('~<img class="shop-logo shop-logo-dark" src="/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-f0-9]+" alt="AP.Computers" height="40" width="160"~', $html);
+        self::assertMatchesRegularExpression('~<img class="shop-logo shop-logo-light" src="'.preg_quote($lightSrc, '~').'[a-z0-9-]+" alt="AP.Computers" height="40" width="160"~', $html);
+        self::assertMatchesRegularExpression('~<img class="shop-logo shop-logo-dark" src="/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-z0-9-]+" alt="AP.Computers" height="40" width="160"~', $html);
         self::assertStringNotContainsString('/storage/site-assets/', $html);
-        self::assertMatchesRegularExpression('~<img class="shop-footer-logo shop-logo-light" src="'.preg_quote($lightSrc, '~').'[a-f0-9]+"~', $html);
-        self::assertMatchesRegularExpression('~<link rel="icon" href="/site-assets/'.preg_quote(basename($favicon), '~').'\?v=[a-f0-9]+" type="image/svg\+xml">~', $html);
+        self::assertMatchesRegularExpression('~<img class="shop-footer-logo shop-logo-light" src="'.preg_quote($lightSrc, '~').'[a-z0-9-]+"~', $html);
+        self::assertMatchesRegularExpression('~<link rel="icon" href="/site-assets/'.preg_quote(basename($favicon), '~').'\?v=[a-z0-9-]+" type="image/svg\+xml">~', $html);
         self::assertStringNotContainsString('/storage/'.$light, $html);
         self::assertStringNotContainsString('<svg xmlns', $html, 'uploaded SVG is never inlined');
         self::assertStringNotContainsString('<object', $html);
@@ -547,7 +674,7 @@ final class SiteLogoSvgTest extends TestCase
         // A raster favicon keeps its own type on the route URL.
         $png = $this->png();
         app(SettingsService::class)->putMany(['site_favicon_path' => $png], (int) $this->owner->id);
-        self::assertMatchesRegularExpression('~<link rel="icon" href="/site-assets/'.preg_quote(basename($png), '~').'\?v=[a-f0-9]+" type="image/png">~', (string) $this->get('/katalog')->getContent());
+        self::assertMatchesRegularExpression('~<link rel="icon" href="/site-assets/'.preg_quote(basename($png), '~').'\?v=[a-z0-9-]+" type="image/png">~', (string) $this->get('/katalog')->getContent());
     }
 
     public function test_admin_layout_login_page_and_appearance_preview_use_the_svg_route(): void
@@ -557,12 +684,12 @@ final class SiteLogoSvgTest extends TestCase
         $favicon = $this->storedSvg('site_favicon_path');
 
         $login = (string) $this->get('/login')->assertOk()->getContent();
-        self::assertMatchesRegularExpression('~<img class="auth-logo" src="[^"]*/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-f0-9]+"~', $login);
-        self::assertMatchesRegularExpression('~data-logo-light="[^"]*/site-assets/'.preg_quote(basename($light), '~').'\?v=[a-f0-9]+"~', $login);
-        self::assertMatchesRegularExpression('~<link rel="icon" href="[^"]*/site-assets/'.preg_quote(basename($favicon), '~').'\?v=[a-f0-9]+">~', $login);
+        self::assertMatchesRegularExpression('~<img class="auth-logo" src="[^"]*/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-z0-9-]+"~', $login);
+        self::assertMatchesRegularExpression('~data-logo-light="[^"]*/site-assets/'.preg_quote(basename($light), '~').'\?v=[a-z0-9-]+"~', $login);
+        self::assertMatchesRegularExpression('~<link rel="icon" href="[^"]*/site-assets/'.preg_quote(basename($favicon), '~').'\?v=[a-z0-9-]+">~', $login);
 
         $admin = (string) $this->actingAs($this->owner)->get('/admin/settings/appearance')->assertOk()->getContent();
-        self::assertMatchesRegularExpression('~<img id="siteHeaderLogo" class="site-header-logo" src="[^"]*/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-f0-9]+"~', $admin);
+        self::assertMatchesRegularExpression('~<img id="siteHeaderLogo" class="site-header-logo" src="[^"]*/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-z0-9-]+"~', $admin);
         self::assertMatchesRegularExpression('~<div class="asset-preview light">\s*<img src="[^"]*/site-assets/'.preg_quote(basename($light), '~').'~', $admin);
         self::assertSame(4, substr_count($admin, 'alt="Sačuvani logo na '), 'both logos on the light and the dark swatch');
         self::assertStringNotContainsString('/storage/site-assets/'.basename($light), $admin);
@@ -578,10 +705,10 @@ final class SiteLogoSvgTest extends TestCase
         Sanctum::actingAs($this->owner, ['*']);
 
         $json = $this->getJson('/api/v1/admin/system-settings/appearance')->assertOk();
-        self::assertMatchesRegularExpression('~/site-assets/'.preg_quote(basename($light), '~').'\?v=[a-f0-9]+$~D', (string) $json->json('data.assets.logo_light_url'));
+        self::assertMatchesRegularExpression('~/site-assets/'.preg_quote(basename($light), '~').'\?v=[a-z0-9-]+$~D', (string) $json->json('data.assets.logo_light_url'));
         $json->assertJsonPath('data.assets.logo_light_content_type', 'image/svg+xml');
         $darkUrl = (string) $json->json('data.assets.logo_dark_url');
-        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-f0-9]+$~D', $darkUrl);
+        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-z0-9-]+$~D', $darkUrl);
         $this->get($darkUrl)->assertOk()->assertHeader('Content-Type', 'image/png');
         $json->assertJsonPath('data.assets.logo_dark_content_type', 'image/png');
         $json->assertJsonPath('data.assets.favicon_url', null);
@@ -608,7 +735,7 @@ final class SiteLogoSvgTest extends TestCase
             (string) $assets->emailLogoUrl(['site_logo_light_path' => $svg, 'documents_logo_path' => 'document-assets/pdf-logo-synthetic.jpg']),
         );
         $png = $this->png();
-        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($png), '~').'\?v=[a-f0-9]+$~D', (string) $assets->emailLogoUrl(['site_logo_light_path' => $png]));
+        self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($png), '~').'\?v=[a-z0-9-]+$~D', (string) $assets->emailLogoUrl(['site_logo_light_path' => $png]));
         self::assertNull($assets->emailLogoUrl(['site_logo_light_path' => 'https://evil.example/logo.png']));
     }
 
