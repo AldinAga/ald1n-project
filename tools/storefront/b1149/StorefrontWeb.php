@@ -93,7 +93,9 @@ final class StorefrontWeb
         $out=['app'=>[],'edge'=>[]];if(!preg_match_all('~<script\b([^>]*)>(.*?)</script\s*>~is',$html,$m,PREG_SET_ORDER))$m=[];
         foreach($m as [$all,$attrs,$body]){
             if(preg_match('~\btype="application/ld\+json"~i',$attrs)===1)continue;
-            $edge=preg_match('~\bsrc="/cdn-cgi/[A-Za-z0-9/._-]+"~',$attrs)===1&&trim($body)===''||(preg_match('~\bsrc=~i',$attrs)!==1&&str_contains($body,'window.__CF$cv$params'));
+            // Every real src attribute of the tag (data-src and the like are not src); a path with ".." is never an edge path.
+            $nsrc=(int)preg_match_all('~(?<![\w-])src\s*=\s*(?:"([^"]*)"|\S*)~i',$attrs,$srcs);$src=$nsrc===1?(string)$srcs[1][0]:null;
+            $edge=($nsrc===1&&preg_match('~^/cdn-cgi/(?:scripts|challenge-platform)/[A-Za-z0-9/._-]+$~D',$src)===1&&!str_contains($src,'..')&&trim($body)==='')||($nsrc===0&&str_contains($body,'window.__CF$cv$params'));
             $out[$edge?'edge':'app'][]=[trim($attrs),$body];
         }
         // An opening tag without its closing tag is never ignored: it counts as an app script.

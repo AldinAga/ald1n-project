@@ -45,10 +45,11 @@ final class StorefrontFixtureWeb
         if($this->on('dropVaryAll')||(!$origin&&$this->on('dropVaryEdge')))$r['vary']=[];
         if($origin)return $r;
         // Production HTML passes the Cloudflare edge, which injects its e-mail decoder and its JavaScript-detections loader and
-        // copies a CSP nonce onto them. Always on (as in production); rogueScript adds a script that is NOT an edge script.
+        // copies a CSP nonce onto them. As in production: the JavaScript-detections loader on every page, the e-mail decoder only on pages
+        // with an e-mail address (here: the legal pages), so pages carry one or two edge scripts. rogueScript adds a script that is NOT an edge script.
         if(str_starts_with(strtolower((string)$r['contentType']),'text/html')&&str_contains($r['body'],'</body>')){
             $n=preg_match("/script-src 'nonce-([^']+)'/",implode(' ',$r['csp']),$x)===1?' nonce="'.$x[1].'"':'';
-            $inject='<script data-cfasync="false"'.$n.' src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script'.$n.'>(function(){function c(){var d={};d.innerHTML="window.__CF$cv$params={r:\'a587f2bbac120380\',t:\'MTc5NDM0NDAyMg==\'};";}c();})();</script>';
+            $inject=(in_array($path,StorefrontInstallCoordinator::LEGAL,true)?'<script data-cfasync="false"'.$n.' src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>':'').'<script'.$n.'>(function(){function c(){var d={};d.innerHTML="window.__CF$cv$params={r:\'a587f2bbac120380\',t:\'MTc5NDM0NDAyMg==\'};";}c();})();</script>';
             if($this->on('rogueScript'))$inject.='<script'.$n.'>window.rogue=1</script>';
             $r['body']=str_replace('</body>',$inject.'</body>',$r['body']);
         }

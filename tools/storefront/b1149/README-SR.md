@@ -81,7 +81,7 @@ bash /home/icaffeco/ald1n-project/incoming/b1149-installer.sh
 ```
 
 Radnik ide u pozadini, a izveštaj se upisuje u
-`docs/operations/<broj>-B1149-INSTALLER-<datum>-<vreme>.md` (sledeći broj je 1114). Ako se SSH
+`docs/operations/<broj>-B1149-INSTALLER-<datum>-<vreme>.md` (sledeći broj je 1115; 1114 je iskorišćen). Ako se SSH
 prekine, posao se nastavlja (`tail -f` na izveštaj). Obično traje 12 do 16 minuta. Uz uporni 429
 traje duže, a najgori slučaj zajedno sa vraćanjem je oko 40 minuta. Toliko vremena do sledećeg
 backup-a skripta i traži, inače staje pre bilo kakve izmene.
@@ -104,11 +104,15 @@ Odgovor 429 je neodlučan i instalacija ide dalje. Pun smoke je na kraju, posle 
 ## Posle izveštaja 1114
 
 Izveštaj 1114 je stao pre bilo kakve izmene (`OLD_STATE_SMOKE_FAILED`). CSP zaglavlje je bilo
-tačno. Pala je naša provera tela stranice: Cloudflare u svaki HTML ubacuje dve svoje skripte
-(dekoder e-mail adresa pod `/cdn-cgi/` i učitavač sa `window.__CF$cv$params`), a provera ih je
-brojala kao skripte sajta. Sada brojimo samo skripte koje piše server; Cloudflare-ove ispisujemo
-kao `edgeInjectedScripts`. Raspakujte novi ZIP preko starog i pokrenite istu komandu. Sledeći
-izveštaj je 1115.
+tačno. Pala je naša provera tela stranice: Cloudflare u svaki HTML ubacuje svoj učitavač sa
+`window.__CF$cv$params`, a na stranicama sa e-mail adresom i dekoder pod `/cdn-cgi/scripts/`
+(jedna ili dve skripte po stranici). Provera ih je brojala kao skripte sajta. Sada brojimo samo
+skripte koje piše server; Cloudflare-ove ispisujemo kao `edgeInjectedScripts`. Raspakujte novi
+ZIP preko starog i pokrenite istu komandu. Sledeći izveštaj je 1115.
+
+Od pokretanja do kraja izveštaja 1115 ne menjajte Cloudflare podešavanja (Rocket Loader, Web
+Analytics, Email Obfuscation). Svaka nova skripta koju Cloudflare ubaci tokom provera izgleda
+kao skripta sajta i zaustavlja instalaciju ili je vraća na staro.
 
 ## Šta proveravamo na kraju (GET i jedan HEAD, bez POST-a, bez prijave)
 
@@ -205,11 +209,11 @@ ruta, OPcache ne resetujemo nego ciljano osvežavamo ovih 43 fajla, šablone sam
 
 Posle B1149 ne pokrećite B1144, B1145, B1146, B1147 ni B1148, ni njihov `--rollback`.
 
-## Šablon izveštaja (popunjavamo iz `1114-B1149-INSTALLER-*.md`)
+## Šablon izveštaja (popunjavamo iz `1115-B1149-INSTALLER-*.md`)
 
 | Polje | Vrednost |
 | --- | --- |
-| Broj izveštaja i vreme | 1114, datum i vreme početka |
+| Broj izveštaja i vreme | 1115, datum i vreme početka |
 | Glava izvora | `7e7481582fa0be3e95503a81b316be63836e508c` |
 | Pre-stanje | main `eca7755c` |
 | Ishod | `B1149_FINAL=...` i `EXIT=...` |
