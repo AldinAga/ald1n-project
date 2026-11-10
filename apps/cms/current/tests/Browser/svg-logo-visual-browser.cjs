@@ -34,6 +34,20 @@ const XXE = '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/
   + '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><text>&x;</text></svg>';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAHgAAAAeCAIAAABoq03CAAAARUlEQVR42u3QQQ0AAAgEoItjHGMbyxbOBxsJSPVwIApEi0a0aNEWRItGtGjRFkSLRrRo0YgWjWjRohEtGtGiRSNaNKI/WrZQlQDSSGEmAAAAAElFTkSuQmCC', 'base64');
 
+function maskFan(branching, depth) {
+  let defs = '';
+  for (let i = 0; i < depth; i++) {
+    let inner = '';
+    for (let j = 0; j < branching; j++) {
+      const ref = i + 1 < depth ? ' mask="url(#m' + (i + 1) + ')"' : '';
+      inner += '<rect x="' + j + '" y="0" width="10" height="10" fill="#fff"' + ref + '/>';
+    }
+    defs += '<mask id="m' + i + '" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">' + inner + '</mask>';
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs>' + defs
+    + '</defs><rect width="100" height="100" fill="#000" mask="url(#m0)"/></svg>';
+}
+
 async function routeHeaders(request, src, label) {
   const response = await request.get(new URL(src, base).toString());
   const h = response.headers();
@@ -108,6 +122,30 @@ async function admin(browser) {
       check(!served.includes(bad), 'served hostile SVG still contains ' + bad);
     }
     check(served.includes('Hostile cleaned'), 'benign text kept in the cleaned SVG');
+  }
+
+  // Nested mask fan-out (4 shapes per mask, depth 8, each shape masked by
+  // the next mask): the stored file is neutralised and must render fast.
+  const fan = await upload('mask-fanout-neutralised', {name: 'fan.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(maskFan(4, 8))});
+  check(fan.includes('ugnežđene use/pattern reference'), 'mask fan-out notice ' + fan.slice(0, 400));
+  const fanSrc = await page.locator('[data-svg-logo-preview] img').first().getAttribute('src');
+  if (fanSrc) {
+    const served = await routeHeaders(ctx.request, fanSrc, 'mask fan-out served');
+    check((served.match(/mask="url\(/g) || []).length === 1, 'only the top-level mask reference remains');
+    const probe = await ctx.newPage();
+    await probe.setContent('<!doctype html><body></body>');
+    const elapsed = await probe.evaluate(async src => {
+      const img = new Image();
+      const start = performance.now();
+      img.src = src;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = 400; c.height = 400;
+      c.getContext('2d').drawImage(img, 0, 0, 400, 400);
+      return performance.now() - start;
+    }, new URL(fanSrc, base).toString());
+    check(elapsed < 1000, 'neutralised mask fan-out renders in under 1 s, took ' + Math.round(elapsed) + ' ms');
+    await probe.close();
   }
 
   const xxe = await upload('xxe-rejected', {name: 'xxe.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(XXE)});

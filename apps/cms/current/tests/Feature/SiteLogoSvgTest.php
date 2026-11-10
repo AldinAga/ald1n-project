@@ -290,6 +290,42 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame('', $this->setting('site_logo_light_path'));
     }
 
+    public function test_replacing_or_removing_a_slot_keeps_a_file_another_slot_or_document_still_uses(): void
+    {
+        // One uploaded file used as the light logo, the dark logo and the PDF logo.
+        $this->upload(['site_logo_light' => UploadedFile::fake()->createWithContent('shared.png', (string) base64_decode(self::PNG))])->assertSessionHasNoErrors();
+        $shared = $this->setting('site_logo_light_path');
+        app(SettingsService::class)->putMany(['site_logo_dark_path' => $shared, 'documents_logo_path' => $shared], (int) $this->owner->id);
+
+        $this->upload(['site_logo_light' => UploadedFile::fake()->createWithContent('new.svg', self::BENIGN)])->assertSessionHasNoErrors();
+        Storage::disk('public')->assertExists($shared);
+        $this->actingAs($this->owner)->from('/admin/settings/appearance')->delete('/admin/settings/appearance/assets/logo-dark')->assertRedirect();
+        Storage::disk('public')->assertExists($shared, 'still the PDF logo');
+
+        // Only an issued order document's logo snapshot is left.
+        app(SettingsService::class)->putMany(['documents_logo_path' => '', 'site_favicon_path' => $shared], (int) $this->owner->id);
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        try {
+            \Illuminate\Support\Facades\DB::table('order_documents')->insert([
+                'order_id' => 999999, 'document_type' => 'invoice', 'document_number' => 'SVG-REF-1', 'status' => 'issued',
+                'issued_at' => now(), 'subtotal_rsd' => 0, 'total_rsd' => 0, 'company_name' => 'AP.Computers',
+                'customer_name' => 'Krajnji kupac', 'company_logo_path' => $shared, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        } finally {
+            \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+        }
+        $this->actingAs($this->owner)->from('/admin/settings/appearance')->delete('/admin/settings/appearance/assets/favicon')->assertRedirect();
+        Storage::disk('public')->assertExists($shared, 'an issued document still points at it');
+        self::assertTrue(SiteLogoAssetService::stillReferenced($shared, []));
+
+        \Illuminate\Support\Facades\DB::table('order_documents')->where('document_number', 'SVG-REF-1')->delete();
+        self::assertFalse(SiteLogoAssetService::stillReferenced($shared, app(SettingsService::class)->all()));
+        // Nothing references the replaced SVG any more once its slot changes.
+        $svg = $this->setting('site_logo_light_path');
+        $this->upload(['site_logo_light' => UploadedFile::fake()->createWithContent('third.png', (string) base64_decode(self::PNG))])->assertSessionHasNoErrors();
+        Storage::disk('public')->assertMissing($svg);
+    }
+
     // ------------------------------------------------------------- serving
 
     public function test_svg_route_serves_sanitized_bytes_with_sandboxed_headers_and_etag(): void
@@ -334,7 +370,15 @@ final class SiteLogoSvgTest extends TestCase
             self::assertSame('/site-assets/'.basename($path).'?v='.$version, $redirect->headers->get('Location'), $query);
             self::assertSame('', $redirect->getContent());
             self::assertSame(SiteAssetController::CSP, $redirect->headers->get('Content-Security-Policy'));
-            self::assertStringNotContainsString('immutable', (string) $redirect->headers->get('Cache-Control'));
+            $redirectCache = (string) $redirect->headers->get('Cache-Control');
+            self::assertStringContainsString('no-store', $redirectCache, 'a cached 301 could loop behind a query-ignoring cache');
+            self::assertStringContainsString('private', $redirectCache);
+            foreach (['public', 'immutable', 's-maxage'] as $directive) {
+                self::assertStringNotContainsString($directive, $redirectCache);
+            }
+            self::assertFalse($redirect->headers->has('ETag'));
+            self::assertFalse($redirect->headers->has('Last-Modified'));
+            self::assertFalse($redirect->headers->has('Expires') && strtotime((string) $redirect->headers->get('Expires')) > time());
             self::assertSame([], $redirect->headers->getCookies());
         }
     }
@@ -655,6 +699,22 @@ final class SiteLogoSvgTest extends TestCase
         Storage::disk('public')->put($svg, (new SvgSanitizer())->sanitize(self::BENIGN)->svg);
         $this->get('/site-assets/documents/'.basename($svg))->assertNotFound();
         $this->get('/site-assets/documents/documents/'.basename($path))->assertNotFound();
+
+        // document-assets/ holds other files: only the exact PDF logo name is served.
+        $uuid = Str::uuid()->toString();
+        $png = (string) base64_decode(self::PNG);
+        foreach ([
+            Str::random(40).'.jpg' => $jpeg,
+            'pdf-logo-'.$uuid.'.png' => $png,
+            'pdf-logo-'.strtoupper($uuid).'.jpg' => $jpeg,
+            'pdf-logo-'.$uuid.'x.jpg' => $jpeg,
+            'invoice-'.$uuid.'.jpg' => $jpeg,
+        ] as $name => $bytes) {
+            Storage::disk('public')->put('document-assets/'.$name, $bytes);
+            self::assertFalse(SiteLogoAssetService::isRoutable('document-assets/'.$name), $name);
+            $this->get('/site-assets/documents/'.$name)->assertNotFound();
+            $this->get('/site-assets/documents/'.$name.'?v=1')->assertNotFound();
+        }
     }
 
     public function test_asset_route_works_while_the_storefront_is_closed(): void

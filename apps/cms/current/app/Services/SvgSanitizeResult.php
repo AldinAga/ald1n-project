@@ -12,12 +12,16 @@ namespace App\Services;
  */
 final class SvgSanitizeResult
 {
-    /** @param array<string,int> $removed category => count, only categories with a count above zero */
+    /**
+     * @param array<string,int> $removed category => count, only categories with a count above zero
+     * @param int $referenceRenders extra element renders caused by references (see SvgSanitizer::MAX_REFERENCE_RENDERS)
+     */
     public function __construct(
         public readonly string $svg,
         public readonly array $removed,
         public readonly float $width,
         public readonly float $height,
+        public readonly int $referenceRenders = 0,
     ) {
     }
 

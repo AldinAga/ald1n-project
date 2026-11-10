@@ -43,7 +43,11 @@ final class SiteAssetController extends Controller
      */
     public const SVG_CACHE_CONTROL = 'public, max-age=86400, must-revalidate';
 
-    public const REDIRECT_CACHE_CONTROL = 'public, max-age=300';
+    /**
+     * Never stored: if an edge cache ignored the query string, a cached 301
+     * from /x to /x?v=… would answer /x?v=… too and loop.
+     */
+    public const REDIRECT_CACHE_CONTROL = 'no-store, max-age=0, private';
 
     public function __invoke(Request $request, string $file, SiteLogoAssetService $assets, SettingsService $settings): Response
     {

@@ -359,14 +359,130 @@ final class SvgSanitizerTest extends TestCase
         // elements from a 400-element file.
         $group = '<g id="big">'.str_repeat('<rect width="1" height="1"/>', 300).'</g>';
         $svg = $this->wrap('<defs>'.$group.'</defs>'.str_repeat('<use href="#big"/>', 100));
-        try {
-            $this->sanitizer->sanitize($svg);
-            self::fail('expanded size above '.SvgSanitizer::MAX_EXPANDED_ELEMENTS.' must be refused');
-        } catch (SvgSanitizerException $exception) {
-            self::assertSame(SvgSanitizer::REJECT_TOO_COMPLEX, $exception->reason);
-        }
+        $this->assertRefused($svg, 'weighted renders above '.SvgSanitizer::MAX_REFERENCE_RENDERS);
         // The same group used a few times is an ordinary logo.
         $ok = $this->sanitizer->sanitize($this->wrap('<defs>'.$group.'</defs>'.str_repeat('<use href="#big"/>', 3)));
         self::assertSame(3, substr_count($ok->svg, '<use '));
+        self::assertSame(3 * 301, $ok->referenceRenders);
+    }
+
+    private function assertRefused(string $svg, string $why): void
+    {
+        try {
+            $this->sanitizer->sanitize($svg);
+            self::fail('must be refused: '.$why);
+        } catch (SvgSanitizerException $exception) {
+            self::assertSame(SvgSanitizer::REJECT_TOO_COMPLEX, $exception->reason, $why);
+        }
+    }
+
+    /** The reviewer's sample: every shape inside mask k is masked by mask k+1. */
+    private static function maskFan(int $branching, int $depth): string
+    {
+        $defs = '';
+        for ($i = 0; $i < $depth; $i++) {
+            $inner = '';
+            for ($j = 0; $j < $branching; $j++) {
+                $attr = $i + 1 < $depth ? ' mask="url(#m'.($i + 1).')"' : '';
+                $inner .= '<rect x="'.$j.'" y="0" width="10" height="10" fill="#fff"'.$attr.'/>';
+            }
+            $defs .= '<mask id="m'.$i.'" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">'.$inner.'</mask>';
+        }
+
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs>'.$defs.'</defs>'
+            .'<rect width="100" height="100" fill="#000" mask="url(#m0)"/></svg>';
+    }
+
+    /** @return array<string,array{0:int,1:int}> branching, depth */
+    public static function neutralisedMaskFans(): array
+    {
+        return ['k4 d6' => [4, 6], 'k4 d8' => [4, 8], 'k4 d10' => [4, 10], 'k8 d8' => [8, 8], 'k8 d10' => [8, 10]];
+    }
+
+    #[DataProvider('neutralisedMaskFans')]
+    public function test_nested_mask_fan_out_is_neutralised_to_one_level(int $branching, int $depth): void
+    {
+        $result = $this->sanitizer->sanitize(self::maskFan($branching, $depth));
+        self::assertSame(1, substr_count($result->svg, 'mask="url('), 'only the top-level reference remains');
+        self::assertSame($depth, substr_count($result->svg, '<mask '), 'definitions are kept, inert');
+        self::assertSame($branching * ($depth - 1), $result->removed['reference'] ?? 0);
+        // The root rect renders mask m0 once: m0 and its shapes.
+        self::assertSame(1 + $branching, $result->referenceRenders);
+        $again = $this->sanitizer->sanitize($result->svg);
+        self::assertSame($result->svg, $again->svg, 'idempotent');
+        self::assertSame([], $again->removed);
+    }
+
+    public function test_deep_mask_fan_out_and_too_many_definitions_are_refused(): void
+    {
+        $this->assertRefused(self::maskFan(4, 30), 'depth 30: more than 20 definitions');
+        $this->assertRefused(self::maskFan(8, 30), 'depth 30, branching 8');
+        $this->assertRefused($this->wrap(str_repeat('<clipPath><rect width="1" height="1"/></clipPath>', 21)), '21 clipPaths');
+        $this->assertRefused(
+            $this->wrap('<clipPath id="c"><rect width="1" height="1"/></clipPath>'.str_repeat('<rect width="1" height="1" clip-path="url(#c)"/>', 201)),
+            '201 elements applying a clip-path',
+        );
+        // Gradient paint is constant cost and not counted.
+        $gradient = $this->sanitizer->sanitize($this->wrap('<linearGradient id="g"><stop offset="0"/></linearGradient>'
+            .str_repeat('<rect width="1" height="1" fill="url(#g)"/>', 1000)));
+        self::assertSame(0, $gradient->referenceRenders);
+    }
+
+    public function test_indirect_pattern_mask_loops_are_neutralised_and_cycles_refused(): void
+    {
+        // pattern -> mask -> pattern: references inside definitions are stripped.
+        $loop = $this->wrap('<defs><pattern id="pa" width="4" height="4"><rect width="2" height="2" mask="url(#mb)"/></pattern>'
+            .'<mask id="mb"><rect width="4" height="4" fill="url(#pa)"/><use href="#pa"/></mask></defs>'
+            .'<rect width="20" height="20" fill="url(#pa)"/><rect x="20" width="20" height="20" mask="url(#mb)"/>');
+        $result = $this->sanitizer->sanitize($loop);
+        $document = $this->reparse($result->svg);
+        foreach (['pattern', 'mask'] as $container) {
+            foreach ($document->getElementsByTagNameNS(SvgSanitizer::SVG_NS, $container)->item(0)?->getElementsByTagNameNS(SvgSanitizer::SVG_NS, '*') ?? [] as $inner) {
+                foreach (['mask', 'clip-path', 'fill', 'stroke', 'href'] as $attribute) {
+                    self::assertStringNotContainsString('url(', $inner->getAttribute($attribute), $container.' '.$attribute);
+                }
+                self::assertNotSame('use', $inner->localName);
+            }
+        }
+        self::assertSame(3, $result->removed['reference'] ?? 0);
+        self::assertSame($result->svg, $this->sanitizer->sanitize($result->svg)->svg, 'idempotent');
+
+        // Cycles outside definitions are refused.
+        $this->assertRefused($this->wrap('<linearGradient id="g1" href="#g2"/><linearGradient id="g2" href="#g1"/><rect width="1" height="1" fill="url(#g1)"/>'), 'gradient href cycle');
+        $this->assertRefused($this->wrap('<pattern id="p1" href="#p2" width="1" height="1"/><pattern id="p2" href="#p1" width="1" height="1"/><rect width="1" height="1" fill="url(#p1)"/>'), 'pattern href cycle');
+        $this->assertRefused($this->wrap('<g id="a"><rect width="1" height="1" fill="url(#a)"/></g>'), 'reference to an ancestor');
+
+        // A long gradient inheritance chain without a cycle is an ordinary logo.
+        $chain = '<linearGradient id="g0"><stop offset="0" stop-color="#000"/></linearGradient>';
+        for ($i = 1; $i <= 50; $i++) {
+            $chain .= '<linearGradient id="g'.$i.'" href="#g'.($i - 1).'"/>';
+        }
+        $ok = $this->sanitizer->sanitize($this->wrap('<defs>'.$chain.'</defs><rect width="1" height="1" fill="url(#g50)"/>'));
+        self::assertSame(0, $ok->referenceRenders);
+    }
+
+    public function test_reference_cost_function_multiplies_through_the_graph(): void
+    {
+        // Raw (not neutralised) fan-out: cost grows as branching^depth.
+        $cost = static function (string $svg): int {
+            $document = new DOMDocument();
+            $document->loadXML($svg, LIBXML_NONET);
+
+            return SvgSanitizer::referenceRenders($document->documentElement);
+        };
+        // depth 3, branching 2: m2 = 3; each m1 shape 1+3, m1 = 9; m0 = 1+2*(1+9) = 21;
+        // defs 34, root rect 22, svg 57; 12 elements -> 45 extra renders.
+        self::assertSame(45, $cost(self::maskFan(2, 3)));
+        self::assertSame(0, $cost('<svg xmlns="http://www.w3.org/2000/svg"><rect/><g><circle/></g></svg>'));
+        // A symbol with 2 shapes used 3 times: 3 * 3.
+        self::assertSame(9, $cost('<svg xmlns="http://www.w3.org/2000/svg"><symbol id="s"><rect/><circle/></symbol>'
+            .'<use href="#s"/><use href="#s"/><use href="#s"/></svg>'));
+        // The depth-10 fan-out is refused by the cost limit without evaluating 4^10 paths.
+        try {
+            $cost(self::maskFan(4, 10));
+            self::fail('raw depth-10 fan-out must exceed the cost limit');
+        } catch (SvgSanitizerException $exception) {
+            self::assertSame(SvgSanitizer::REJECT_TOO_COMPLEX, $exception->reason);
+        }
     }
 }

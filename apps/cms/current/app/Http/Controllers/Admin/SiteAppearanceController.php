@@ -332,8 +332,12 @@ final class SiteAppearanceController extends Controller
             throw $exception;
         }
 
+        $current = $settings->all();
         foreach (array_unique($deleteAfterCommit) as $path) {
-            Storage::disk('public')->delete($path);
+            // Kept while another slot or an issued document still uses it.
+            if (!\App\Services\SiteLogoAssetService::stillReferenced($path, $current)) {
+                Storage::disk('public')->delete($path);
+            }
         }
 
         $audit->log('settings.appearance.updated', 'Izgled sajta', null, $before, $settings->all(), $logoAssets->finishUpload());
@@ -471,7 +475,7 @@ final class SiteAppearanceController extends Controller
             $key = $map[$asset];
             $old = (string) $settings->get($key, '');
             $settings->putMany([$key => ''], (int) $request->user()->getAuthIdentifier());
-            if (str_starts_with($old, 'site-assets/')) {
+            if (str_starts_with($old, 'site-assets/') && !\App\Services\SiteLogoAssetService::stillReferenced($old, $settings->all())) {
                 Storage::disk('public')->delete($old);
             }
             $audit->log('settings.appearance.asset_removed', 'Izgled sajta', null, [$key => $old], [$key => '']);
@@ -521,7 +525,7 @@ final class SiteAppearanceController extends Controller
         }
 
         $settings->putMany($values, (int) $request->user()->getAuthIdentifier());
-        if (str_starts_with($path, 'site-assets/login/')) {
+        if (str_starts_with($path, 'site-assets/login/') && !\App\Services\SiteLogoAssetService::stillReferenced($path, $settings->all())) {
             Storage::disk('public')->delete($path);
         }
         $audit->log('settings.login_appearance.asset_removed', 'Pozadina prijave', null, $before, $settings->all());

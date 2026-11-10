@@ -44,13 +44,33 @@ final class SvgSanitizer
      * files are cleaned again and browsers fetch the new form (Cloudflare:
      * purge /site-assets/* after a bump).
      */
-    public const VERSION = '2';
+    public const VERSION = '3';
 
     /** Most <use> elements an SVG logo may keep. */
     public const MAX_USE = 100;
 
-    /** Elements after expanding every kept <use> once (amplification bound). */
-    public const MAX_EXPANDED_ELEMENTS = 20000;
+    /** Most mask, clipPath, pattern and marker definitions. */
+    public const MAX_REFERENCE_DEFINITIONS = 20;
+
+    /** Most elements that apply a mask, clip-path or pattern paint. */
+    public const MAX_REFERENCING_ELEMENTS = 200;
+
+    /**
+     * Extra element renders caused by references (use, mask, clip-path,
+     * pattern paint, pattern inheritance), counted through the whole
+     * reference graph: every reference adds the full weighted cost of its
+     * target subtree. Gradients add nothing (constant cost) but are walked
+     * for cycles.
+     */
+    public const MAX_REFERENCE_RENDERS = 2000;
+
+    /** Definitions whose content is only ever rendered through a reference. */
+    private const REFERENCE_CONTAINERS = ['mask', 'clipPath', 'pattern', 'marker'];
+
+    /** Attributes that reference another element of the document. */
+    private const REFERENCE_ATTRIBUTES = ['fill', 'stroke', 'clip-path', 'mask', 'href'];
+
+    private const GRADIENTS = ['linearGradient', 'radialGradient'];
 
     public const REJECT_TOO_LARGE = 'too_large';
     public const REJECT_TOO_COMPLEX = 'too_complex';
@@ -206,7 +226,7 @@ final class SvgSanitizer
         }
         $this->elements = 1;
         $this->copyChildren($root, $svg, 1, $nullNamespace, 'svg');
-        $this->limitReferences($svg);
+        $referenceRenders = $this->limitReferences($svg);
 
         if ($this->drawable === 0) {
             throw new SvgSanitizerException(self::REJECT_EMPTY);
@@ -229,7 +249,7 @@ final class SvgSanitizer
             }
         }
 
-        return new SvgSanitizeResult($result, $removed, $width, $height);
+        return new SvgSanitizeResult($result, $removed, $width, $height, $referenceRenders);
     }
 
     private function parse(string $xml): DOMDocument
@@ -504,100 +524,67 @@ final class SvgSanitizer
     }
 
     /**
-     * Reference amplification limits on the cleaned tree. At most MAX_USE
-     * <use> elements; a <use> whose target is or contains a <use> or a
-     * <pattern> is removed (no use-of-use chains or cycles); inside a
-     * pattern, <use> elements and url() references to another pattern are
-     * removed (no pattern-in-pattern tiling). Every decision is taken on the
-     * tree before any removal and only shrinks it, so the result is stable
-     * under a second sanitize().
+     * Reference amplification limits on the cleaned tree.
+     *
+     * 1. Neutralise (decided on the tree before any removal, so a second
+     *    sanitize() finds nothing to do): inside a mask, clipPath, pattern
+     *    or marker every <use> is removed and every reference attribute
+     *    (mask, clip-path, url() fill/stroke, href) is stripped; on the
+     *    definition element itself mask, clip-path and url() paint are
+     *    stripped (a pattern keeps its own href, Inkscape's attribute
+     *    inheritance). A <use> whose target is or contains a <use> or a
+     *    <pattern> is removed.
+     * 2. Refuse (on the final tree): more than MAX_USE uses, more than
+     *    MAX_REFERENCE_DEFINITIONS definitions, more than
+     *    MAX_REFERENCING_ELEMENTS elements applying a mask, clip-path or
+     *    pattern, any cycle in the full reference graph, or more than
+     *    MAX_REFERENCE_RENDERS weighted extra renders.
+     *
+     * @return int weighted extra renders of the accepted tree
      */
-    private function limitReferences(DOMElement $root): void
+    private function limitReferences(DOMElement $root): int
     {
-        $elements = [$root];
-        foreach ($root->getElementsByTagName('*') as $element) {
-            $elements[] = $element;
-        }
-        $byId = [];
-        $uses = [];
-        foreach ($elements as $element) {
-            if ($element->hasAttribute('id')) {
-                $byId[$element->getAttribute('id')][] = $element;
-            }
-            if ($element->localName === 'use') {
-                $uses[] = $element;
-            }
-        }
-        if (count($uses) > self::MAX_USE) {
+        $elements = self::elementsOf($root);
+        if (count(array_filter($elements, static fn (DOMElement $e): bool => $e->localName === 'use')) > self::MAX_USE) {
             throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
         }
-
-        $contains = static fn (DOMElement $element, string $name): bool => $element->localName === $name
-            || $element->getElementsByTagName($name)->length > 0;
-        $inPattern = static function (DOMElement $element): bool {
-            for ($parent = $element->parentNode; $parent instanceof DOMElement; $parent = $parent->parentNode) {
-                if ($parent->localName === 'pattern') {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-        $targetsPattern = static function (string $value) use ($byId): bool {
-            if (preg_match('/^(?:url\(#('.self::FRAGMENT.')\)|#('.self::FRAGMENT.'))/', $value, $m) !== 1) {
-                return false;
-            }
-            foreach ($byId[$m[1] !== '' ? $m[1] : $m[2]] ?? [] as $target) {
-                if ($target->localName === 'pattern') {
-                    return true;
-                }
-            }
-
-            return false;
-        };
+        $byId = self::idMap($elements);
 
         $dropElements = [];
         $dropAttributes = [];
-        $expanded = count($elements);
-        foreach ($uses as $use) {
-            if ($inPattern($use)) {
-                $dropElements[] = $use;
-                continue;
-            }
-            $bad = false;
-            $size = 0;
-            foreach ($byId[substr($use->getAttribute('href'), 1)] ?? [] as $target) {
-                if ($contains($target, 'use') || $contains($target, 'pattern')) {
-                    $bad = true;
-                }
-                $size = max($size, 1 + $target->getElementsByTagName('*')->length);
-            }
-            if ($bad) {
-                $dropElements[] = $use;
-            } else {
-                $expanded += $size;
-            }
-        }
         foreach ($elements as $element) {
-            $isPattern = $element->localName === 'pattern';
-            if (!$isPattern && !$inPattern($element)) {
+            $name = $element->localName;
+            $inside = self::insideContainer($element);
+            if ($inside) {
+                if ($name === 'use') {
+                    $dropElements[] = $element;
+                    continue;
+                }
+                foreach (self::REFERENCE_ATTRIBUTES as $attribute) {
+                    if ($element->hasAttribute($attribute) && self::isReference($attribute, $element->getAttribute($attribute))) {
+                        $dropAttributes[] = [$element, $attribute];
+                    }
+                }
                 continue;
             }
-            // A pattern's own href (attribute inheritance, as Inkscape
-            // writes it) is kept; only paint references are tiling.
-            $names = $isPattern ? self::URL_ATTRIBUTES : [...self::URL_ATTRIBUTES, 'href'];
-            foreach ($names as $name) {
-                if ($element->hasAttribute($name) && $targetsPattern($element->getAttribute($name))) {
-                    $dropAttributes[] = [$element, $name];
+            if (in_array($name, self::REFERENCE_CONTAINERS, true)) {
+                foreach (['fill', 'stroke', 'clip-path', 'mask'] as $attribute) {
+                    if ($element->hasAttribute($attribute) && self::isReference($attribute, $element->getAttribute($attribute))) {
+                        $dropAttributes[] = [$element, $attribute];
+                    }
+                }
+            }
+            if ($name === 'use') {
+                foreach (self::targets($element->getAttribute('href'), $byId) as $target) {
+                    if (self::containsName($target, 'use') || self::containsName($target, 'pattern')) {
+                        $dropElements[] = $element;
+                        break;
+                    }
                 }
             }
         }
-        if ($expanded > self::MAX_EXPANDED_ELEMENTS) {
-            throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
-        }
-
-        foreach ($dropAttributes as [$element, $name]) {
-            $element->removeAttribute($name);
+        foreach ($dropAttributes as [$element, $attribute]) {
+            $element->removeAttribute($attribute);
             $this->remove('reference');
         }
         foreach ($dropElements as $element) {
@@ -607,12 +594,150 @@ final class SvgSanitizer
             }
         }
 
-        $this->drawable = 0;
-        foreach (array_merge([$root], iterator_to_array($root->getElementsByTagName('*'))) as $element) {
-            if (in_array($element->localName, self::DRAWABLE_ELEMENTS, true)) {
-                $this->drawable++;
+        $elements = self::elementsOf($root);
+        $this->drawable = count(array_filter($elements, static fn (DOMElement $e): bool => in_array($e->localName, self::DRAWABLE_ELEMENTS, true)));
+
+        return self::referenceRenders($root);
+    }
+
+    /**
+     * Refusal checks and the weighted cost of the reference graph of a
+     * cleaned tree: cost(element) = 1 + cost of its child elements + the
+     * cost of every element it references (gradients: 0). A reference back
+     * into the element's own render path is a cycle. Returns the extra
+     * renders, cost(root) minus the number of elements.
+     *
+     * @throws SvgSanitizerException
+     */
+    public static function referenceRenders(DOMElement $root): int
+    {
+        $elements = self::elementsOf($root);
+        $byId = self::idMap($elements);
+        $definitions = 0;
+        $referencing = 0;
+        foreach ($elements as $element) {
+            if (in_array($element->localName, self::REFERENCE_CONTAINERS, true)) {
+                $definitions++;
+            }
+            foreach (['mask', 'clip-path', 'fill', 'stroke'] as $attribute) {
+                if (!$element->hasAttribute($attribute) || !self::isReference($attribute, $element->getAttribute($attribute))) {
+                    continue;
+                }
+                foreach (self::targets($element->getAttribute($attribute), $byId) as $target) {
+                    if (!in_array($target->localName, self::GRADIENTS, true)) {
+                        $referencing++;
+                        break 2;
+                    }
+                }
             }
         }
+        if ($definitions > self::MAX_REFERENCE_DEFINITIONS || $referencing > self::MAX_REFERENCING_ELEMENTS) {
+            throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
+        }
+
+        $limit = self::MAX_REFERENCE_RENDERS + count($elements);
+        $memo = [];
+        $stack = [];
+        $cost = static function (DOMElement $element) use (&$cost, &$memo, &$stack, $byId, $limit): int {
+            $key = spl_object_id($element);
+            if (isset($memo[$key])) {
+                return $memo[$key];
+            }
+            if (isset($stack[$key])) {
+                throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
+            }
+            $stack[$key] = true;
+            $total = 1;
+            foreach ($element->childNodes as $child) {
+                if ($child instanceof DOMElement) {
+                    $total += $cost($child);
+                }
+            }
+            foreach (self::REFERENCE_ATTRIBUTES as $attribute) {
+                if (!$element->hasAttribute($attribute) || !self::isReference($attribute, $element->getAttribute($attribute))) {
+                    continue;
+                }
+                foreach (self::targets($element->getAttribute($attribute), $byId) as $target) {
+                    $weight = $cost($target);
+                    if (!in_array($target->localName, self::GRADIENTS, true)) {
+                        $total += $weight;
+                    }
+                }
+            }
+            unset($stack[$key]);
+            if ($total > $limit) {
+                throw new SvgSanitizerException(self::REJECT_TOO_COMPLEX);
+            }
+
+            return $memo[$key] = $total;
+        };
+
+        return $cost($root) - count($elements);
+    }
+
+    /** @return list<DOMElement> the root and every descendant element, in document order */
+    private static function elementsOf(DOMElement $root): array
+    {
+        $elements = [$root];
+        foreach ($root->getElementsByTagName('*') as $element) {
+            $elements[] = $element;
+        }
+
+        return $elements;
+    }
+
+    /**
+     * @param list<DOMElement> $elements
+     * @return array<string,list<DOMElement>>
+     */
+    private static function idMap(array $elements): array
+    {
+        $byId = [];
+        foreach ($elements as $element) {
+            if ($element->hasAttribute('id')) {
+                $byId[$element->getAttribute('id')][] = $element;
+            }
+        }
+
+        return $byId;
+    }
+
+    private static function insideContainer(DOMElement $element): bool
+    {
+        for ($parent = $element->parentNode; $parent instanceof DOMElement; $parent = $parent->parentNode) {
+            if (in_array($parent->localName, self::REFERENCE_CONTAINERS, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function containsName(DOMElement $element, string $name): bool
+    {
+        return $element->localName === $name || $element->getElementsByTagName($name)->length > 0;
+    }
+
+    /** Whether an attribute value points at another element (url(#id) or, for href, #id). */
+    private static function isReference(string $attribute, string $value): bool
+    {
+        return $attribute === 'href' ? str_starts_with(trim($value), '#') : str_contains(strtolower($value), 'url(');
+    }
+
+    /**
+     * Every element carrying the referenced id (all duplicates, so removing
+     * elements can only shrink the set).
+     *
+     * @param array<string,list<DOMElement>> $byId
+     * @return list<DOMElement>
+     */
+    private static function targets(string $value, array $byId): array
+    {
+        if (preg_match('/^\s*(?:url\(\s*[\'"]?#('.self::FRAGMENT.')|#('.self::FRAGMENT.'))/', $value, $m) !== 1) {
+            return [];
+        }
+
+        return $byId[($m[1] ?? '') !== '' ? $m[1] : ($m[2] ?? '')] ?? [];
     }
 
     private function elementCategory(string $name): string

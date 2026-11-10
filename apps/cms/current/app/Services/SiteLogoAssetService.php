@@ -48,11 +48,15 @@ final class SiteLogoAssetService
     public const ROUTE = 'site-assets.show';
 
     /**
-     * Route parameter pattern: a random stored name (Laravel's hashName, this
-     * service's names, or the PDF logo's pdf-logo-<uuid>), optionally in the
-     * login background directories or "documents/" (= document-assets/).
+     * Route parameter pattern: a random stored name (Laravel's hashName or
+     * this service's names), optionally in the login background
+     * directories, or "documents/" + exactly the name
+     * DocumentSettingsController::storePdfLogo writes (pdf-logo-<uuid>.jpg).
      */
-    public const FILE_PATTERN = '(?:login/(?:slides/)?|documents/)?[A-Za-z0-9_-]{20,64}\.(?:png|jpe?g|webp|ico|svg)';
+    public const FILE_PATTERN = '(?:(?:login/(?:slides/)?)?[A-Za-z0-9_-]{20,64}\.(?:png|jpe?g|webp|ico|svg)|'.self::PDF_LOGO_PATTERN.')';
+
+    /** documents/ route parameter of a stored PDF logo. */
+    private const PDF_LOGO_PATTERN = 'documents/pdf-logo-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg';
 
     /** Largest raster file the route streams (login backgrounds allow 8 MB). */
     public const MAX_RASTER_BYTES = 8 * 1024 * 1024;
@@ -97,7 +101,7 @@ final class SiteLogoAssetService
     /** Short reason code => Serbian message (shown after the field label). */
     public const MESSAGES = [
         SvgSanitizer::REJECT_TOO_LARGE => 'SVG je prevelik (najviše 200 KB).',
-        SvgSanitizer::REJECT_TOO_COMPLEX => 'SVG je previše složen (najviše 5.000 elemenata i 100 use referenci).',
+        SvgSanitizer::REJECT_TOO_COMPLEX => 'SVG je previše složen (najviše 5.000 elemenata; use, mask, clipPath i pattern reference su ograničene).',
         SvgSanitizer::REJECT_TOO_DEEP => 'SVG ima previše ugnežđenih nivoa (najviše 32).',
         SvgSanitizer::REJECT_INVALID_ENCODING => 'SVG nije ispravno kodiran (dozvoljen je samo UTF-8).',
         SvgSanitizer::REJECT_INVALID_XML => 'nije ispravan SVG (XML sadržaj je oštećen).',
@@ -154,17 +158,15 @@ final class SiteLogoAssetService
             str_starts_with($path, 'document-assets/') => 'documents/'.substr($path, strlen('document-assets/')),
             default => null,
         };
-        if ($file === null || preg_match('~^'.self::FILE_PATTERN.'$~D', $file) !== 1
-            || str_starts_with($file, 'documents/documents/') || str_starts_with($file, 'login/documents/')) {
+        if ($file === null || preg_match('~^'.self::FILE_PATTERN.'$~D', $file) !== 1) {
             return null;
         }
-        $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        // SVG is accepted for logos and the favicon only (site-assets/ root);
-        // PDF logos are JPEG/PNG/WebP.
-        if ($extension === 'svg' && !self::isSvgPath($path)) {
+        // document-assets/ holds other files too: only the PDF logo name.
+        if (str_starts_with($file, 'documents/') && preg_match('~^'.self::PDF_LOGO_PATTERN.'$~D', $file) !== 1) {
             return null;
         }
-        if (str_starts_with($file, 'documents/') && !in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+        // SVG is accepted for logos and the favicon only (site-assets/ root).
+        if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'svg' && !self::isSvgPath($path)) {
             return null;
         }
 
@@ -507,6 +509,39 @@ final class SiteLogoAssetService
         }
 
         return null;
+    }
+
+    /**
+     * Whether a stored file is still used after a slot was replaced or
+     * cleared: by another appearance or document setting, or by an issued
+     * order document's logo snapshot. On any doubt (query failure) the
+     * answer is yes, so the file is kept.
+     *
+     * @param array<string,mixed> $settings current (saved) settings
+     */
+    public static function stillReferenced(string $path, array $settings): bool
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return false;
+        }
+        $keys = [
+            'site_logo_light_path', 'site_logo_dark_path', 'site_favicon_path', 'site_logo_path', 'documents_logo_path',
+            'login_background_image_path', 'login_background_fallback_path',
+        ];
+        for ($slot = 1; $slot <= 8; $slot++) {
+            $keys[] = 'login_background_slide_'.$slot.'_path';
+        }
+        foreach ($keys as $key) {
+            if (trim((string) ($settings[$key] ?? '')) === $path) {
+                return true;
+            }
+        }
+        try {
+            return \App\Models\OrderDocument::query()->where('company_logo_path', $path)->exists();
+        } catch (Throwable) {
+            return true;
+        }
     }
 
     /**
