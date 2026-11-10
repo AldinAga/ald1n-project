@@ -10,6 +10,7 @@ use App\Services\SettingsService;
 use App\Services\SiteAssetUrlService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -20,9 +21,40 @@ final class SiteAppearanceController extends Controller
 {
     private const LOGIN_SLIDE_SLOTS = 8;
 
+    /**
+     * Upload fields: label (Serbian, names the field), accepted types and limit in KB.
+     *
+     * @var array<string,array{label:string,types:string,max_kb:int}>
+     */
+    private const UPLOAD_FIELDS = [
+        'site_logo_light' => ['label' => 'Logo za svetlu temu', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 4096],
+        'site_logo_dark' => ['label' => 'Logo za tamnu temu', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 4096],
+        'site_favicon' => ['label' => 'Favicon', 'types' => 'PNG ili ICO', 'max_kb' => 1024],
+        'login_background_image' => ['label' => 'Pozadina prijave', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 8192],
+        'login_background_fallback' => ['label' => 'Rezervna slika pozadine', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 8192],
+        'login_slideshow_images' => ['label' => 'Slika za slideshow', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 8192],
+    ];
+
+    /** @var array<string,string> */
+    private const SAVED_ASSET_NAMES = [
+        'site_logo_light_path' => 'logo za svetlu temu',
+        'site_logo_dark_path' => 'logo za tamnu temu',
+        'site_favicon_path' => 'favicon',
+        'login_background_image_path' => 'pozadina prijave',
+        'login_background_fallback_path' => 'rezervna slika pozadine',
+    ];
+
     public function index(Request $request, SettingsService $settings, SiteAssetUrlService $assets): View
     {
         $values = $settings->all();
+        $assetStatus = [];
+        foreach (['logo_light' => 'site_logo_light_path', 'logo_dark' => 'site_logo_dark_path', 'favicon' => 'site_favicon_path'] as $name => $key) {
+            $assetStatus[$name] = $this->assetStatus((string) ($values[$key] ?? ''), $assets);
+        }
+        $uploadTooLarge = $request->query('upload') === 'too-large'
+            ? 'Otpremanje nije uspelo: zahtev je veći od ograničenja servera (post_max_size = '
+                .$this->iniLimit('post_max_size').'). Ništa nije sačuvano. Logo može imati najviše 4 MB, favicon 1 MB.'
+            : null;
         $slides = [];
 
         for ($slot = 1; $slot <= self::LOGIN_SLIDE_SLOTS; $slot++) {
@@ -41,6 +73,9 @@ final class SiteAppearanceController extends Controller
             'logoLightUrl' => $assets->url($values['site_logo_light_path']),
             'logoDarkUrl' => $assets->url($values['site_logo_dark_path']),
             'faviconUrl' => $assets->url($values['site_favicon_path']),
+            'assetStatus' => $assetStatus,
+            'uploadTooLarge' => $uploadTooLarge,
+            'uploadHints' => array_map(fn (array $field): string => $this->uploadHint($field), self::UPLOAD_FIELDS),
             'canManageLoginBackground' => $this->canManageLoginBackground($request),
             'loginBackgroundImageUrl' => $assets->url($values['login_background_image_path'] ?? ''),
             'loginBackgroundFallbackUrl' => $assets->url($values['login_background_fallback_path'] ?? ''),
@@ -68,6 +103,10 @@ final class SiteAppearanceController extends Controller
         if ($loginBackgroundTouched) {
             $this->authorizeLoginBackground($request);
         }
+
+        // An upload PHP marked as failed (size limit, partial, disk) must be
+        // reported, never skipped while the rest of the form is saved.
+        $this->assertUploadsArrived($request);
 
         $data = $request->validate([
             'site_name' => ['required', 'string', 'max:120'],
@@ -98,7 +137,7 @@ final class SiteAppearanceController extends Controller
             'login_background_slide_active.*' => ['integer', 'min:1', 'max:8'],
             'login_background_slide_order' => ['nullable', 'array'],
             'login_background_slide_order.*' => ['nullable', 'integer', 'min:1', 'max:99'],
-        ]);
+        ], $this->uploadMessages());
 
         $before = $settings->all();
         $values = [
@@ -299,7 +338,118 @@ final class SiteAppearanceController extends Controller
 
         $audit->log('settings.appearance.updated', 'Izgled sajta', null, $before, $settings->all());
 
-        return back()->with('status', 'Izgled sajta je sačuvan.');
+        $saved = [];
+        foreach (self::SAVED_ASSET_NAMES as $key => $name) {
+            if (isset($values[$key]) && in_array($values[$key], $storedNewPaths, true)) {
+                $saved[] = $name;
+            }
+        }
+        $slideCount = 0;
+        for ($slot = 1; $slot <= self::LOGIN_SLIDE_SLOTS; $slot++) {
+            $slideKey = 'login_background_slide_'.$slot.'_path';
+            if (isset($values[$slideKey]) && in_array($values[$slideKey], $storedNewPaths, true)) {
+                $slideCount++;
+            }
+        }
+        if ($slideCount > 0) {
+            $saved[] = $slideCount === 1 ? '1 slika za slideshow' : $slideCount.' slike za slideshow';
+        }
+
+        return back()->with('status', $saved === []
+            ? 'Izgled sajta je sačuvan.'
+            : 'Izgled sajta je sačuvan. Otpremljeno: '.implode(', ', $saved).'.');
+    }
+
+    private function assertUploadsArrived(Request $request): void
+    {
+        foreach (self::UPLOAD_FIELDS as $input => $field) {
+            $files = $request->file($input);
+            foreach (is_array($files) ? $files : [$files] as $file) {
+                if ($file instanceof UploadedFile && !$file->isValid()) {
+                    throw ValidationException::withMessages([
+                        $input => $field['label'].': '.$this->uploadErrorReason($file->getError(), $field['max_kb']),
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function uploadErrorReason(int $error, int $maxKb): string
+    {
+        $limit = $this->sizeLabel($maxKb);
+
+        return match ($error) {
+            UPLOAD_ERR_INI_SIZE => 'datoteka je veća od ograničenja servera (upload_max_filesize = '
+                .$this->iniLimit('upload_max_filesize').'). Ovde je dozvoljeno najviše '.$limit.'.',
+            UPLOAD_ERR_FORM_SIZE => 'datoteka je veća od dozvoljene veličine forme. Dozvoljeno je najviše '.$limit.'.',
+            UPLOAD_ERR_PARTIAL => 'datoteka je samo delimično otpremljena. Pokušajte ponovo.',
+            UPLOAD_ERR_NO_TMP_DIR => 'server nema privremeni direktorijum za otpremanje. Obratite se hostingu.',
+            UPLOAD_ERR_CANT_WRITE => 'server nije mogao da upiše datoteku na disk. Obratite se hostingu.',
+            UPLOAD_ERR_EXTENSION => 'PHP ekstenzija na serveru je zaustavila otpremanje.',
+            default => 'otpremanje nije uspelo. Pokušajte ponovo.',
+        };
+    }
+
+    /** @return array<string,string> */
+    private function uploadMessages(): array
+    {
+        $messages = [];
+        foreach (self::UPLOAD_FIELDS as $input => $field) {
+            $attribute = $input === 'login_slideshow_images' ? $input.'.*' : $input;
+            $text = $field['label'].': '.$this->uploadHint($field).'.';
+            foreach (['file', 'mimes', 'max', 'uploaded'] as $rule) {
+                $messages[$attribute.'.'.$rule] = $text;
+            }
+        }
+
+        return $messages;
+    }
+
+    /** @param array{label:string,types:string,max_kb:int} $field */
+    private function uploadHint(array $field): string
+    {
+        return 'dozvoljeni formati su '.$field['types'].', najviše '.$this->sizeLabel($field['max_kb']).'; SVG nije podržan';
+    }
+
+    private function sizeLabel(int $kb): string
+    {
+        return ($kb % 1024 === 0 ? ($kb / 1024).' MB' : $kb.' KB').' ('.$kb.' KB)';
+    }
+
+    private function iniLimit(string $key): string
+    {
+        $value = trim((string) ini_get($key));
+
+        return preg_match('/^\d+[KMGkmg]?$/', $value) === 1 ? $value : 'nepoznato';
+    }
+
+    /** @return array{state:string,label:string,url:?string,path:string} */
+    private function assetStatus(string $path, SiteAssetUrlService $assets): array
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return ['state' => 'none', 'label' => 'Nije postavljen', 'url' => null, 'path' => ''];
+        }
+        $url = null;
+        try {
+            $url = $assets->url($path);
+        } catch (Throwable) {
+            $url = null;
+        }
+        if (str_starts_with($path, 'site-assets/')) {
+            $present = false;
+            try {
+                $present = Storage::disk('public')->exists($path);
+            } catch (Throwable) {
+                $present = false;
+            }
+
+            return $present
+                ? ['state' => 'present', 'label' => 'Datoteka postoji na disku', 'url' => $url, 'path' => $path]
+                : ['state' => 'missing', 'label' => 'Datoteka nedostaje na disku', 'url' => $url, 'path' => $path];
+        }
+
+        return ['state' => 'external', 'label' => 'Spoljna adresa (nije proverena)', 'url' => $url, 'path' => $path];
     }
 
     public function removeAsset(Request $request, string $asset, SettingsService $settings, AuditLogger $audit): RedirectResponse

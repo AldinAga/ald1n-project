@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\LegacyReadOnlyGuard;
+use App\Services\MailRuntimeConfigurator;
 use App\Services\TurnstileService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Console\Command;
@@ -235,6 +236,12 @@ final class DeploymentCheckCommand extends Command
             $runtimeOk = $this->repairRuntimeDirectories();
             $databaseOk = $this->repairProductionDatabase();
             $repairFailed = !$runtimeOk || !$databaseOk;
+        }
+
+        // Mail checks below describe the effective transport, including the
+        // optional database SMTP settings (never prints credentials).
+        if (app(MailRuntimeConfigurator::class)->apply() === 'database') {
+            $this->line('INFO SMTP iz baze aktivan (Podešavanja > E-mail (SMTP)); provera e-maila opisuje tu konfiguraciju.');
         }
 
         $turnstileEnabled = $turnstile->enabled();

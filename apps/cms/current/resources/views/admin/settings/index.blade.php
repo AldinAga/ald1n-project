@@ -140,6 +140,12 @@
                     <span class="settings-hub-icon"><x-icon name="mail" /></span>
                     <span><strong>E-mail obaveštenja</strong><small>Događaji, intervali, primaoci i dokumenti koji se šalju.</small></span>
                 </a>
+                @if($settingsUser?->hasRole('superadmin'))
+                <a class="settings-hub-card" href="{{ route('admin.settings.smtp.index') }}" data-settings-item data-settings-keywords="smtp email e-mail server slanje pošte lozinka cpanel noreply">
+                    <span class="settings-hub-icon"><x-icon name="mail" /></span>
+                    <span><strong>E-mail (SMTP)</strong><small>SMTP server za slanje poruka, šifrovana lozinka i probni e-mail.</small></span>
+                </a>
+                @endif
                 @can('automation.manage')
                 <a class="settings-hub-card" href="{{ route('admin.settings.automation.index') }}" data-settings-item data-settings-keywords="automatizacija upozorenja alert digest scheduler">
                     <span class="settings-hub-icon"><x-icon name="cog" /></span>
