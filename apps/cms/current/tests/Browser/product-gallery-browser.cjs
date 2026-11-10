@@ -250,10 +250,16 @@ async function productChecks(page, product, mode, width, engine, tag) {
     if (engine === 'chromium') {
       const box = await page.locator('.shop-gallery-viewport').boundingBox();
       const cdp = await page.context().newCDPSession(page);
-      await cdp.send('Input.synthesizeScrollGesture', {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2),
-        xDistance: Math.round(box.width * 0.7), yDistance: 0, gestureSourceType: 'touch', speed: 1600});
-      await waitScroll(page);
-      st = await galleryState(page);
+      // From the last photo only one direction can move; the CDP sign
+      // convention is not stable across versions, so try one sign and, if
+      // the gallery did not move, the other. It must land exactly one back.
+      for (const sign of [-1, 1]) {
+        await cdp.send('Input.synthesizeScrollGesture', {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2),
+          xDistance: sign * Math.round(box.width * 0.7), yDistance: 0, gestureSourceType: 'touch', speed: 1600});
+        await waitScroll(page);
+        st = await galleryState(page);
+        if (st.visible !== last) break;
+      }
       check(st.visible === last - 1, tag + ' swipe right shows the previous photo ' + st.visible);
       await cdp.detach();
     } else {
