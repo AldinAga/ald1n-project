@@ -119,6 +119,23 @@ foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
         ->middleware('throttle:public-shop-browse')->name('legal.'.$legalKey);
 }
 
+// Site logos, favicon and login backgrounds (SiteLogoAssetService), served
+// without the /storage symlink. Public like the logo itself, throttled,
+// strict stored-name pattern, SVG re-sanitized; no session or cookies so the
+// long public cache never stores a Set-Cookie. Independent of the storefront
+// switch: the admin and login layouts use the same files.
+Route::get('/site-assets/{file}', \App\Http\Controllers\SiteAssetController::class)
+    ->where('file', \App\Services\SiteLogoAssetService::FILE_PATTERN)
+    ->middleware('throttle:600,1')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+    ])
+    ->name('site-assets.show');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
         ->middleware('throttle:public-shop-browse')->name('public-shop.register');

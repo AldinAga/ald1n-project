@@ -48,7 +48,7 @@ final class SiteAppearanceController extends Controller
         ]);
     }
 
-    public function update(Request $request, SettingsService $settings, AuditLogger $audit): RedirectResponse
+    public function update(Request $request, SettingsService $settings, AuditLogger $audit, \App\Services\SiteLogoAssetService $logoAssets): RedirectResponse
     {
         $loginBackgroundTouched = $request->hasAny([
             'login_background_mode',
@@ -82,9 +82,9 @@ final class SiteAppearanceController extends Controller
             'site_footer_link_2_url' => ['nullable', 'url', 'max:500'],
             'site_footer_link_3_label' => ['nullable', 'string', 'max:80'],
             'site_footer_link_3_url' => ['nullable', 'url', 'max:500'],
-            'site_logo_light' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
-            'site_logo_dark' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
-            'site_favicon' => ['nullable', 'file', 'mimes:png,ico', 'max:1024'],
+            'site_logo_light' => ['bail', 'nullable', 'file', 'max:4096', \App\Rules\SiteLogoFile::logo()],
+            'site_logo_dark' => ['bail', 'nullable', 'file', 'max:4096', \App\Rules\SiteLogoFile::logo()],
+            'site_favicon' => ['bail', 'nullable', 'file', 'max:1024', \App\Rules\SiteLogoFile::favicon()],
             'login_background_mode' => ['sometimes', 'required', Rule::in(['default', 'image', 'slideshow', 'youtube'])],
             'login_background_image' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
             'login_background_fallback' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
@@ -229,7 +229,7 @@ final class SiteAppearanceController extends Controller
                     continue;
                 }
                 $old = (string) ($before[$key] ?? '');
-                $path = $file->storePublicly('site-assets', 'public');
+                $path = $logoAssets->store($file, $input);
                 $values[$key] = $path;
                 $storedNewPaths[] = $path;
                 if (str_starts_with($old, 'site-assets/')) {
@@ -297,7 +297,7 @@ final class SiteAppearanceController extends Controller
             Storage::disk('public')->delete($path);
         }
 
-        $audit->log('settings.appearance.updated', 'Izgled sajta', null, $before, $settings->all());
+        $audit->log('settings.appearance.updated', 'Izgled sajta', null, $before, $settings->all(), $logoAssets->finishUpload());
 
         return back()->with('status', 'Izgled sajta je sačuvan.');
     }

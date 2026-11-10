@@ -201,6 +201,10 @@ final class SystemSettingsController extends Controller
                 'logo_light_url' => $assets->url($values['site_logo_light_path'] ?? ''),
                 'logo_dark_url' => $assets->url($values['site_logo_dark_path'] ?? ''),
                 'favicon_url' => $assets->url($values['site_favicon_path'] ?? ''),
+                // Content type hints: image/svg+xml means render with react-native-svg.
+                'logo_light_content_type' => \App\Services\SiteLogoAssetService::contentType($values['site_logo_light_path'] ?? ''),
+                'logo_dark_content_type' => \App\Services\SiteLogoAssetService::contentType($values['site_logo_dark_path'] ?? ''),
+                'favicon_content_type' => \App\Services\SiteLogoAssetService::contentType($values['site_favicon_path'] ?? ''),
                 'login_background_url' => $assets->url($values['login_background_image_path'] ?? ''),
                 'login_fallback_url' => $assets->url($values['login_background_fallback_path'] ?? ''),
                 'slides' => $slides,
@@ -208,7 +212,8 @@ final class SystemSettingsController extends Controller
             'can_manage_login_background' => $request->user()?->hasRole('superadmin') === true,
             'upload_limits' => [
                 'images' => ['mime_types' => ['image/png', 'image/jpeg', 'image/webp'], 'max_bytes' => 8 * 1024 * 1024],
-                'favicon' => ['mime_types' => ['image/png', 'image/x-icon', 'image/vnd.microsoft.icon'], 'max_bytes' => 1024 * 1024],
+                'logos' => ['mime_types' => ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], 'max_bytes' => 4 * 1024 * 1024, 'svg_max_bytes' => \App\Services\SvgSanitizer::MAX_BYTES],
+                'favicon' => ['mime_types' => ['image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/svg+xml'], 'max_bytes' => 1024 * 1024, 'svg_max_bytes' => \App\Services\SvgSanitizer::MAX_BYTES],
             ],
         ]]);
     }

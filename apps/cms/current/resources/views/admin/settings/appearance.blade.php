@@ -34,23 +34,24 @@
 
         <section class="panel form-section">
             <h2>Logotipi i favicon</h2>
+            @include('admin.settings.partials.svg-logo-panel')
             <div class="asset-setting-grid">
                 <article class="asset-setting-card">
                     <strong>Logo za svetlu temu</strong>
                     <div class="asset-preview light">@if($logoLightUrl)<img src="{{ $logoLightUrl }}" alt="">@else<span>Nije postavljen</span>@endif</div>
-                    <input type="file" name="site_logo_light" accept=".png,.jpg,.jpeg,.webp">
+                    <input type="file" name="site_logo_light" accept=".png,.jpg,.jpeg,.webp,.svg">
                     @if($settings['site_logo_light_path'])<button class="button button-danger button-small" type="submit" form="remove-logo-light">Ukloni</button>@endif
                 </article>
                 <article class="asset-setting-card">
                     <strong>Logo za tamnu temu</strong>
                     <div class="asset-preview dark">@if($logoDarkUrl)<img src="{{ $logoDarkUrl }}" alt="">@else<span>Nije postavljen</span>@endif</div>
-                    <input type="file" name="site_logo_dark" accept=".png,.jpg,.jpeg,.webp">
+                    <input type="file" name="site_logo_dark" accept=".png,.jpg,.jpeg,.webp,.svg">
                     @if($settings['site_logo_dark_path'])<button class="button button-danger button-small" type="submit" form="remove-logo-dark">Ukloni</button>@endif
                 </article>
                 <article class="asset-setting-card">
                     <strong>Favicon</strong>
                     <div class="asset-preview favicon">@if($faviconUrl)<img src="{{ $faviconUrl }}" alt="">@else<span>Nije postavljen</span>@endif</div>
-                    <input type="file" name="site_favicon" accept=".png,.ico">
+                    <input type="file" name="site_favicon" accept=".png,.ico,.svg">
                     @if($settings['site_favicon_path'])<button class="button button-danger button-small" type="submit" form="remove-favicon">Ukloni</button>@endif
                 </article>
             </div>

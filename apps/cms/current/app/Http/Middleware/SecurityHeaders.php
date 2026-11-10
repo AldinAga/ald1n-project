@@ -79,6 +79,12 @@ final class SecurityHeaders
             $headers->set('Cache-Control', 'no-store, private');
         }
 
+        // Site assets (logos, favicon, sanitized SVG) keep their own
+        // sandboxed policy (no script, no external fetch) over the baseline.
+        if ($request->routeIs('site-assets.show')) {
+            \App\Http\Controllers\SiteAssetController::applySecurityHeaders($headers);
+        }
+
         return $response;
     }
 }
