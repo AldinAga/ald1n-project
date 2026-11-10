@@ -64,7 +64,7 @@ Svaki od 27 izmenjenih fajlova mora imati tačan digest iz dva nezavisna izvora 
    proverava u CLI-ju. Web PHP proverite sami (stranica sa `phpinfo` ili `php -m` za isti PHP
    profil), jer skripta ne može da ga pita.
 5. Prodavnica je uključena, saobraćaj je mali, a do backup-a (02:30 svaki dan, 03:10 nedeljom,
-   Europe/Belgrade) imate bar 35 minuta.
+   Europe/Belgrade) imate bar 45 minuta.
 
 ## Šta pokrećete
 
@@ -75,8 +75,8 @@ bash /home/icaffeco/ald1n-project/incoming/b1149-installer.sh
 
 Radnik ide u pozadini, a izveštaj se upisuje u
 `docs/operations/<broj>-B1149-INSTALLER-<datum>-<vreme>.md` (sledeći broj je 1114). Ako se SSH
-prekine, posao se nastavlja (`tail -f` na izveštaj). Obično traje 10 do 13 minuta. Uz uporni 429
-traje duže, a najgori slučaj zajedno sa vraćanjem je oko 32 minuta. Toliko vremena do sledećeg
+prekine, posao se nastavlja (`tail -f` na izveštaj). Obično traje 12 do 16 minuta. Uz uporni 429
+traje duže, a najgori slučaj zajedno sa vraćanjem je oko 40 minuta. Toliko vremena do sledećeg
 backup-a skripta i traži, inače staje pre bilo kakve izmene.
 
 ## Šta proveravamo pre početka
@@ -87,7 +87,14 @@ isključena, ako radi artisan komanda, ako je backup blizu, ako nema mesta na di
 ako je composer autoload autoritativan, ako APP_URL nije čist https origin, ako u CLI-ju fali
 neka PHP ekstenzija ili ako javne stranice nemaju `X-Robots-Tag: noindex`.
 
-## Šta proveravamo posle (GET i jedan HEAD, bez POST-a, bez prijave)
+## Smoke posle svake grupe i na kraju
+
+Posle svake od prvih sedam grupa, kad se grupa ustali (pauza ili puno čekanje), radimo kratku
+proveru života: `/up`, `/login`, jedna pravna stranica, `/katalog` sa noindex-om, prvi proizvod i
+`GET /tema` 405. Tu ne proveravamo ništa novo. Ako padne, instalacija staje i vraća staro stanje.
+Odgovor 429 je neodlučan i instalacija ide dalje. Pun smoke je na kraju, posle poslednjeg fajla.
+
+## Šta proveravamo na kraju (GET i jedan HEAD, bez POST-a, bez prijave)
 
 - Javne stranice, katalog i proizvod: 200, noindex, jedna nonce skripta čiji se nonce poklapa sa
   zaglavljem, `Cache-Control` sa `private` i `no-store`, link ka galerijskom CSS-u.
