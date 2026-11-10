@@ -12,24 +12,20 @@ use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
+use Tests\Support\ShopThemeScript;
 use Tests\TestCase;
 
 /**
  * Catalog redesign: semantic markup, alt text, schema.org data block,
- * filter chips, empty state, pagination links, price sort and an
- * unchanged scriptless CSP. Synthetic rows only; no orders are written.
+ * filter chips, empty state, pagination links, price sort and the strict
+ * CSP (B1149: only the nonce'd theme script runs). Synthetic rows only; no
+ * orders are written.
  *
  * @author Ald1n <https://ald1n.com>
  */
 final class PublicCatalogRedesignTest extends TestCase
 {
     use RefreshDatabase;
-
-    private const STRICT_CSP = "default-src 'none'; base-uri 'none'; object-src 'none'; ".
-        "frame-ancestors 'none'; form-action 'self'; ".
-        "script-src 'none'; script-src-attr 'none'; script-src-elem 'none'; ".
-        "style-src 'self'; img-src 'self' data:; font-src 'self' data:; ".
-        "connect-src 'none'; frame-src 'none'; worker-src 'none'; media-src 'none'";
 
     private User $owner;
     private Brand $brand;
@@ -92,6 +88,7 @@ final class PublicCatalogRedesignTest extends TestCase
     /** @return array<string,mixed> */
     private function schemaFrom(string $html): array
     {
+        $html = ShopThemeScript::stripFromMarkup($html);
         self::assertSame(1, preg_match_all('~<script\b~i', $html));
         self::assertSame(1, preg_match('~<script type="application/ld\+json">(.*?)</script>~s', $html, $m));
 
@@ -106,7 +103,7 @@ final class PublicCatalogRedesignTest extends TestCase
         $response = $this->get('/katalog')->assertOk();
         $html = (string) $response->getContent();
 
-        self::assertSame(self::STRICT_CSP, $response->headers->get('Content-Security-Policy'));
+        ShopThemeScript::strip((string) $response->getContent(), ShopThemeScript::assertStrictPolicy($response->headers->get('Content-Security-Policy')));
         self::assertSame(1, substr_count($html, '<h1'));
         self::assertStringContainsString('<title>Katalog artikala · AP.Computers</title>', $html);
         self::assertStringContainsString('<meta name="description" content="Katalog AP.Computers: 6 artikala sa punim prodajnim cenama i trenutnim stanjem lagera. Kategorije: Laptopovi.">', $html);
@@ -143,7 +140,7 @@ final class PublicCatalogRedesignTest extends TestCase
 
         self::assertStringNotContainsString('poison.redesign.synthetic.invalid', $html);
         self::assertStringNotContainsString('forwarded.redesign.synthetic.invalid', $html);
-        self::assertSame(1, substr_count(strtolower($html), '</script>'));
+        self::assertSame(1, substr_count(strtolower(ShopThemeScript::stripFromMarkup($html)), '</script>'));
         $schema = $this->schemaFrom($html);
         self::assertSame('https://schema.org', $schema['@context']);
         self::assertSame('CollectionPage', $schema['@type']);
@@ -278,7 +275,7 @@ final class PublicCatalogRedesignTest extends TestCase
         $this->product('Safe Laptop', 50000);
         $html = (string) $this->get('/katalog')->assertOk()->getContent();
         self::assertStringNotContainsString('rel="canonical"', $html);
-        self::assertStringNotContainsString('<script', $html);
+        self::assertStringNotContainsString('<script', ShopThemeScript::stripFromMarkup($html));
         self::assertStringNotContainsString('podfolder', $html);
     }
 
@@ -289,7 +286,7 @@ final class PublicCatalogRedesignTest extends TestCase
         $html = (string) $this->get('/katalog')->assertOk()->getContent();
         self::assertStringNotContainsString('rel="canonical"', $html);
         self::assertStringNotContainsString('application/ld+json', $html);
-        self::assertStringNotContainsString('<script', $html);
+        self::assertStringNotContainsString('<script', ShopThemeScript::stripFromMarkup($html));
     }
 
     public function test_active_filter_chips_reset_link_and_relative_removal_urls(): void

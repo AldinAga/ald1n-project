@@ -21,6 +21,9 @@ on:
       - 'apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php'
       - 'apps/cms/current/app/Providers/AppServiceProvider.php'
       - 'apps/cms/current/routes/web.php'
+      - 'apps/cms/current/bootstrap/app.php'
+      - 'apps/cms/current/app/Http/Middleware/SecurityHeaders.php'
+      - 'apps/cms/current/tests/Support/ShopThemeScript.php'
       - '.github/workflows/catalog-visual-qa.yml'
 permissions:
   contents: read

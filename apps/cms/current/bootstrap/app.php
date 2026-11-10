@@ -44,6 +44,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => RequirePermission::class,
         ]);
 
+        // B1149: the storefront theme cookie is written by the shop's theme
+        // script as well as by POST /tema, so it is stored as plain text.
+        // It only ever holds light|dark|system and is read through a strict
+        // allowlist; anything else renders the system theme.
+        $middleware->encryptCookies(except: [
+            'shop_theme',
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'api/*',
             // Storefront theme switch (POST /tema). A forged cross-site

@@ -11,12 +11,14 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\{Hash,Mail,Storage};
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\ShopThemeScript;
 use Tests\TestCase;
 
 /**
  * B872-B875: real Laravel HTTP on synthetic MariaDB.
  * No real SMTP/payment/customer data, remote browser, or production activation.
  * This is a bounded no-script CSP scope, NOT ASVS V3.4.3 global PASS.
+ * B1149: the only script allowed is the shop layout's nonce'd theme switch.
  */
 final class PublicNoScriptCspB872Test extends TestCase
 {
@@ -87,8 +89,9 @@ final class PublicNoScriptCspB872Test extends TestCase
     {
         config()->set('app.url','https://cms.ald1n.com');
         $response=$this->get($uri)->assertOk();
-        $this->assertStrict($response);
-        $html=strtolower((string)$response->getContent());
+        $nonce=$this->assertStrict($response);
+        $raw=ShopThemeScript::strip((string)$response->getContent(),$nonce,$uri);
+        $html=strtolower($raw);
         // Only the catalog may carry exactly one schema.org data block. A
         // type="application/ld+json" element is never executed; every other
         // <script> form (src, inline JS, other types) stays forbidden.
@@ -97,7 +100,7 @@ final class PublicNoScriptCspB872Test extends TestCase
             self::assertSame(['<script type="application/ld+json">'],$open[0]);
             self::assertSame(1,substr_count($html,'</script>'));
             self::assertSame(1,preg_match('~<script type="application/ld\+json">(.*?)</script>~s',
-                (string)$response->getContent(),$block));
+                $raw,$block));
             self::assertIsArray(json_decode($block[1],true,512,JSON_THROW_ON_ERROR));
             $html=str_replace(strtolower($block[0]),'',$html);
         }
@@ -239,12 +242,14 @@ final class PublicNoScriptCspB872Test extends TestCase
         self::assertDatabaseCount('orders',0);
     }
 
-    private function assertStrict(TestResponse $response): void
+    private function assertStrict(TestResponse $response): string
     {
         $policy=(string)$response->headers->get('Content-Security-Policy');
+        $nonce=ShopThemeScript::assertStrictPolicy($policy);
+        ShopThemeScript::strip((string)$response->getContent(),$nonce);
         foreach ([
-            "default-src 'none'", "script-src 'none'",
-            "script-src-attr 'none'", "script-src-elem 'none'",
+            "default-src 'none'", "script-src 'nonce-".$nonce."'",
+            "script-src-attr 'none'", "script-src-elem 'nonce-".$nonce."'",
             "base-uri 'none'", "object-src 'none'",
             "frame-ancestors 'none'", "frame-src 'none'",
             "form-action 'self'", "style-src 'self'",
@@ -256,6 +261,10 @@ final class PublicNoScriptCspB872Test extends TestCase
         $response->assertHeader('X-Frame-Options','DENY');
         $response->assertHeader('X-Content-Type-Options','nosniff');
         self::assertFalse($response->headers->has('Content-Security-Policy-Report-Only'));
+        self::assertStringNotContainsString("'strict-dynamic'",$policy);
+        self::assertStringNotContainsString("'self' 'nonce",$policy);
+
+        return $nonce;
     }
 
     private function assertGlobalOnly(TestResponse $response): void
