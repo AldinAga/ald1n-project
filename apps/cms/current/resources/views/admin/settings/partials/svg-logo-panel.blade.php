@@ -1,7 +1,11 @@
 {{-- SVG logo support on Izgled sajta: accepted formats, the "SVG je očišćen" note (counts only) and the saved logos on a light and a dark swatch. Images only through <img>. Author: Ald1n <https://ald1n.com> --}}
 @php
     $svgLogoNotes = array_values(array_filter((array) session('site_logo_svg_notice', []), 'is_string'));
-    $svgLogoPreview = array_values(array_unique(array_filter([$logoLightUrl ?? null, $logoDarkUrl ?? null])));
+    // Only saved files that exist on disk; a missing one is reported by its card, never shown as a broken image.
+    $svgLogoPreview = array_values(array_unique(array_filter([
+        (($assetStatus['logo_light']['state'] ?? '') !== 'missing') ? ($logoLightUrl ?? null) : null,
+        (($assetStatus['logo_dark']['state'] ?? '') !== 'missing') ? ($logoDarkUrl ?? null) : null,
+    ])));
 @endphp
 <p class="muted" data-svg-logo-hint>Logo: PNG, JPG, WEBP ili SVG. Favicon: PNG, ICO ili SVG. SVG može imati najviše 200 KB; SVG se automatski čisti od skripti i spoljnih veza i čuva se samo očišćena verzija.</p>
 @foreach($svgLogoNotes as $svgLogoNote)
