@@ -178,7 +178,9 @@ final class ProductImageDerivativeService
             $width = max(1, $image->getImageWidth());
             $height = max(1, $image->getImageHeight());
             if (max($width, $height) > $maxEdge) {
-                $image->thumbnailImage($maxEdge, $maxEdge, true, true);
+                // Fit inside the box, keep the photo's own ratio: no padded
+                // square canvas (the GD path never padded either).
+                $image->thumbnailImage($maxEdge, $maxEdge, true, false);
             }
             $image->stripImage();
             $image->setImageFormat('webp');

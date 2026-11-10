@@ -93,7 +93,7 @@ final class PublicNoScriptCspB872Test extends TestCase
         // type="application/ld+json" element is never executed; every other
         // <script> form (src, inline JS, other types) stays forbidden.
         preg_match_all('~<script\b[^>]*>~',$html,$open);
-        if ($uri==='/katalog') {
+        if (in_array($uri,['/katalog','/katalog/b872-scriptless'],true)) {
             self::assertSame(['<script type="application/ld+json">'],$open[0]);
             self::assertSame(1,substr_count($html,'</script>'));
             self::assertSame(1,preg_match('~<script type="application/ld\+json">(.*?)</script>~s',

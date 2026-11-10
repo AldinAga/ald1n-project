@@ -7,6 +7,11 @@ name: Catalog visual QA screenshots (NO DEPLOY)
 on:
   pull_request:
     paths:
+      - 'apps/cms/current/public/assets/css/ald1n-public-gallery.css'
+      - 'apps/cms/current/app/Support/PublicProductImages.php'
+      - 'apps/cms/current/app/Support/PublicProductImageFiles.php'
+      - 'apps/cms/current/tests/Browser/product-gallery-browser.cjs'
+      - 'apps/cms/current/tests/Feature/PublicProductGalleryTest.php'
       - 'apps/cms/current/resources/views/public-shop/**'
       - 'apps/cms/current/public/assets/css/ald1n-public-storefront.css'
       - 'apps/cms/current/app/Support/PublicCatalogPresentation.php'
@@ -89,6 +94,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l tests/Browser/seed-catalog-visual.php
           node --check tests/Browser/catalog-visual-browser.cjs
+          node --check tests/Browser/product-gallery-browser.cjs
       - name: Focused catalog redesign PHPUnit (disposable MariaDB)
         id: phpunit
         continue-on-error: true
@@ -103,7 +109,7 @@ jobs:
           APP_URL: https://cms.ald1n.com
         run: |
           set -euo pipefail
-          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontThemeLogoTest; do
+          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontThemeLogoTest PublicProductGalleryTest StorefrontMediaPathBoundaryB893Test PublicMediaCacheAndCartRedirectB877Test; do
             php vendor/bin/phpunit -c phpunit.mysql.xml "tests/Feature/$test.php" --colors=never
           done
       - name: Install disposable Chromium outside repository
@@ -133,6 +139,8 @@ jobs:
           done
           test "$READY" = 1 || { echo 'CATALOG_VISUAL_HTTP_BOOT_HOLD'; tail -n 20 "$RUNNER_TEMP/catalog-visual-server.log"; exit 5; }
           node tests/Browser/catalog-visual-browser.cjs
+          # Product photos and gallery on the same fixture and server.
+          node tests/Browser/product-gallery-browser.cjs
       - name: Keep synthetic screenshots only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

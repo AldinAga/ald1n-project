@@ -1,0 +1,187 @@
+/*
+ * Storefront product photos: catalog card photo and the product page
+ * gallery. Loaded after ald1n-public-storefront.css by the catalog and
+ * product views only, so it overrides the earlier neutral "image stage"
+ * (light frame, fixed 4:3 box, multiply blend) without editing that file.
+ *
+ * CSS only. The pages run with CSP script-src 'none' and style-src 'self':
+ * no inline style, the photo ratio comes as a server-chosen class
+ * (.shop-ratio-r34 ... .shop-ratio-r43, clamped 3:4 to 4:3).
+ * Gallery: a scroll-snap track (swipe, arrow keys on the focused gallery),
+ * thumbnail links to #slika-N, a counter inside every slide and a native
+ * enlarge dialog (invoker command show-modal, popover as the fallback).
+ * Author: Ald1n <https://ald1n.com>
+ */
+
+/* ---------- Photo tokens ---------- */
+:root{
+  --photo-bed:rgba(255,255,255,.035);
+  --photo-ring:rgba(255,255,255,.10);
+  --photo-shadow:0 1px 2px rgba(0,0,0,.35),0 14px 30px -18px rgba(0,0,0,.85);
+  --photo-radius:14px;
+  --thumb-ring:var(--accent);
+  --lightbox-bg:rgba(7,10,13,.94);
+}
+:root[data-theme=light]{
+  --photo-bed:#fbf9f6;
+  --photo-ring:rgba(24,40,58,.10);
+  --photo-shadow:0 1px 2px rgba(18,27,36,.08),0 14px 28px -20px rgba(18,27,36,.45);
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme=dark]){
+    --photo-bed:#fbf9f6;
+    --photo-ring:rgba(24,40,58,.10);
+    --photo-shadow:0 1px 2px rgba(18,27,36,.08),0 14px 28px -20px rgba(18,27,36,.45);
+  }
+}
+
+/* ---------- Ratio classes (server-chosen from the real photo size) ---------- */
+.shop-ratio-r34{--photo-ratio:3/4}
+.shop-ratio-r45{--photo-ratio:4/5}
+.shop-ratio-r11{--photo-ratio:1/1}
+.shop-ratio-r54{--photo-ratio:5/4}
+.shop-ratio-r43{--photo-ratio:4/3}
+
+/* ---------- Catalog card photo ----------
+   The photo sits on the card's own surface with a thin even mat, rounded
+   corners and a soft shadow: no separate light stage, no hairline between
+   photo and text. It is never larger than its file (width/height auto,
+   max 100%), so a small rendition is not upscaled. */
+.shop-image{aspect-ratio:var(--photo-ratio,4/5);display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;padding:10px 10px 0;background:none;border-bottom:0;overflow:visible}
+.shop-image img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;mix-blend-mode:normal;border-radius:var(--photo-radius);box-shadow:0 0 0 1px var(--photo-ring),var(--photo-shadow);background:var(--photo-bed)}
+.shop-image .no-image{width:100%;border-radius:var(--photo-radius);background:var(--photo-bed);color:var(--text-3);box-shadow:0 0 0 1px var(--photo-ring) inset}
+/* Cards of one row share the photo row height (subgrid), so titles, prices
+   and buttons stay aligned when a portrait poster sits next to a landscape
+   photo; each photo stays centred in that row. */
+@supports (grid-template-rows:subgrid){
+  .shop-products{row-gap:0}
+  .shop-product-cell{grid-row:span 2;display:grid;grid-template-rows:subgrid;row-gap:0;margin-bottom:clamp(14px,1.8vw,22px)}
+  .shop-product{grid-row:span 2;display:grid;grid-template-rows:subgrid;row-gap:0}
+  .shop-product>.shop-image{align-self:center}
+}
+@media (prefers-reduced-motion:no-preference) and (hover:hover){
+  .shop-product:hover .shop-image img{transform:scale(1.02)}
+}
+
+/* ---------- Product page gallery ---------- */
+.shop-detail{align-items:start}
+.shop-gallery{position:relative;min-width:0;padding:12px;border:1px solid var(--border);border-radius:var(--radius-lg);background-color:var(--glass-fill);background-image:linear-gradient(180deg,var(--sheen),rgba(255,255,255,0) 38%);box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
+.shop-gallery-empty{display:grid;place-items:center;aspect-ratio:4/3;border-radius:var(--photo-radius);background:var(--photo-bed);box-shadow:0 0 0 1px var(--photo-ring) inset}
+.shop-gallery-empty .no-image{color:var(--text-3);font-size:14px}
+.shop-gallery-viewport{position:relative;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;border-radius:var(--photo-radius)}
+.shop-gallery-viewport::-webkit-scrollbar{display:none}
+.shop-gallery-viewport:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.shop-gallery-track{display:flex;margin:0;padding:0;list-style:none}
+.shop-slide{flex:0 0 100%;min-width:0;scroll-snap-align:center;scroll-snap-stop:always;scroll-margin-top:16px}
+@media (min-width:720px){.shop-slide{scroll-margin-top:92px}}
+.shop-slide-figure{display:grid;gap:10px;margin:0}
+/* The whole photo is the enlarge control (no text over the photo; the
+   magnifier is an icon only). */
+.public-retail .shop-gallery button.shop-slide-zoom{position:relative;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;width:100%;aspect-ratio:var(--photo-ratio,4/5);max-height:min(76vh,720px);min-height:0;margin:0;padding:0;border:0;border-radius:var(--photo-radius);background:var(--photo-bed);background-image:none;box-shadow:0 0 0 1px var(--photo-ring) inset;color:var(--text);cursor:zoom-in;transform:none;font:inherit}
+.public-retail .shop-gallery button.shop-slide-zoom:hover{background:var(--photo-bed)}
+.public-retail .shop-gallery button.shop-slide-zoom:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
+.shop-slide-zoom img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--photo-radius)}
+.shop-slide-zoom-icon{position:absolute;right:12px;bottom:12px;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--glass-fill-strong);color:var(--text);box-shadow:0 0 0 1px var(--border-strong),0 6px 16px -8px rgba(0,0,0,.6);opacity:.92}
+.shop-slide-bar{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;min-height:44px}
+.shop-slide-count{text-align:center;font-size:14px;font-weight:620;color:var(--text-2);font-variant-numeric:tabular-nums}
+.shop-slide-step{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:var(--text);text-decoration:none;background:var(--ghost-bg);box-shadow:0 0 0 1px var(--border) inset}
+.shop-slide-step:hover{background:var(--ghost-bg-hover);box-shadow:0 0 0 1px var(--accent) inset}
+.shop-slide-step.is-off{visibility:hidden}
+
+/* Thumbnail strip: one row that scrolls sideways on narrow screens. */
+.shop-thumbs{display:flex;gap:10px;margin:12px 0 0;padding:4px 2px 6px;list-style:none;overflow-x:auto;scrollbar-width:thin;scroll-target-group:auto}
+.shop-thumbs li{flex:0 0 auto}
+.shop-thumb{display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;width:76px;height:76px;padding:3px;border:2px solid var(--border);border-radius:12px;background:var(--photo-bed);text-decoration:none}
+.shop-thumb img{width:auto;height:auto;max-width:100%;max-height:100%;border-radius:8px;object-fit:contain}
+.shop-thumb:hover{border-color:var(--border-strong)}
+.shop-thumb:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+@media (max-width:420px){.shop-thumb{width:64px;height:64px}}
+/* The chosen photo (last thumbnail link followed; the first one before any
+   choice). Up to twelve photos, the gallery cap. Not used where
+   :target-current tracks the visible slide (next block). */
+@supports selector(:has(*)) and (not selector(:target-current)){
+  .shop-gallery:not(:has(.shop-slide:target)) .shop-thumbs li:nth-child(1) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(1):target) .shop-thumbs li:nth-child(1) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(2):target) .shop-thumbs li:nth-child(2) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(3):target) .shop-thumbs li:nth-child(3) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(4):target) .shop-thumbs li:nth-child(4) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(5):target) .shop-thumbs li:nth-child(5) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(6):target) .shop-thumbs li:nth-child(6) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(7):target) .shop-thumbs li:nth-child(7) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(8):target) .shop-thumbs li:nth-child(8) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(9):target) .shop-thumbs li:nth-child(9) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(10):target) .shop-thumbs li:nth-child(10) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(11):target) .shop-thumbs li:nth-child(11) .shop-thumb,
+  .shop-gallery:has(.shop-slide:nth-child(12):target) .shop-thumbs li:nth-child(12) .shop-thumb{border-color:var(--thumb-ring);box-shadow:0 6px 16px -10px rgba(0,0,0,.6)}
+}
+/* Where supported, the thumbnails follow the visible slide also after a
+   swipe or arrow-key scroll (scroll-target-group, Chromium 140+). */
+@supports selector(:target-current){
+  .shop-gallery .shop-thumbs li .shop-thumb.shop-thumb{border-color:var(--border);box-shadow:none}
+  .shop-gallery .shop-thumbs li .shop-thumb.shop-thumb:target-current{border-color:var(--thumb-ring);box-shadow:0 6px 16px -10px rgba(0,0,0,.6)}
+}
+
+/* ---------- Enlarge dialog ----------
+   Shown by the invoker command (modal dialog: focus stays inside, Esc and
+   the close button close it, focus returns to the photo) or, in browsers
+   without invoker commands, as a popover (Esc and close button). The
+   display value is set only for the open states so the closed dialog keeps
+   the browser's display:none. */
+.shop-lightbox[open]{display:grid}
+.shop-lightbox:popover-open{display:grid}
+.shop-lightbox{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));border:0;grid-template-rows:auto minmax(0,1fr);gap:10px;background:var(--lightbox-bg);color:#eef2f5;overflow:hidden}
+.shop-lightbox::backdrop{background:rgba(0,0,0,.55)}
+.shop-lightbox-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.shop-lightbox-title{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650;color:#eef2f5}
+.shop-lightbox-title span{color:#c8d2d9;font-weight:560;font-variant-numeric:tabular-nums}
+.public-retail .shop-lightbox button.shop-lightbox-close{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-height:48px;padding:10px 18px;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:rgba(255,255,255,.10);background-image:none;color:#ffffff;box-shadow:none;font-weight:650}
+.public-retail .shop-lightbox button.shop-lightbox-close:hover{background:rgba(255,255,255,.18)}
+.public-retail .shop-lightbox button.shop-lightbox-close:focus-visible{outline:3px solid #9fd0ff;outline-offset:2px}
+.shop-lightbox-stage{display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;min-height:0;overflow:hidden}
+.shop-lightbox-stage img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
+/* Without dialog and popover support the photo is not a control. */
+@supports not selector(:popover-open){
+  .public-retail .shop-gallery button.shop-slide-zoom{cursor:default}
+  .shop-slide-zoom-icon{display:none}
+}
+
+/* ---------- Layout ---------- */
+@media (max-width:720px){
+  .shop-gallery{padding:8px;border-radius:var(--radius)}
+  .public-retail .shop-gallery button.shop-slide-zoom{max-height:none}
+}
+
+/* ---------- Motion (opt-in only) ---------- */
+@media (prefers-reduced-motion:no-preference){
+  .shop-gallery-viewport{scroll-behavior:smooth}
+  .shop-thumb,.shop-slide-step{transition:box-shadow .18s ease,background-color .18s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  .shop-gallery-viewport{scroll-behavior:auto}
+}
+
+/* ---------- More contrast, forced colours, print ---------- */
+@media (prefers-contrast:more){
+  :root[data-theme]{--photo-ring:var(--border-strong);--photo-bed:var(--surface-solid)}
+  .shop-gallery{background-color:var(--surface-solid);background-image:none}
+  .shop-slide-count{color:var(--text)}
+}
+@media (forced-colors:active){
+  .shop-gallery{background:Canvas;color:CanvasText;border-color:CanvasText}
+  .shop-image img,.shop-slide-zoom img,.shop-thumb img{box-shadow:none;border:1px solid CanvasText}
+  .public-retail .shop-gallery button.shop-slide-zoom{border:1px solid ButtonText;background:Canvas}
+  .shop-slide-zoom-icon{forced-color-adjust:none;background:ButtonFace;color:ButtonText;border:1px solid ButtonText}
+  /* Thumbnails keep their authored border colours so the chosen one
+     (border in --thumb-ring) stays distinguishable. */
+  :root[data-theme]{--thumb-ring:Highlight}
+  .shop-thumb{forced-color-adjust:none;background:Canvas;border-color:GrayText}
+  .shop-lightbox{background:Canvas;color:CanvasText}
+  .shop-lightbox-title,.shop-lightbox-title span{color:CanvasText}
+  .public-retail .shop-lightbox button.shop-lightbox-close{border:2px solid ButtonText;background:ButtonFace;color:ButtonText}
+}
+@media print{
+  .shop-thumbs,.shop-slide-bar,.shop-slide-zoom-icon,.shop-lightbox{display:none}
+  .shop-gallery{border:0;box-shadow:none;background:#ffffff;padding:0}
+  .shop-gallery-track{display:block}
+  .shop-slide:not(:first-child){display:none}
+}

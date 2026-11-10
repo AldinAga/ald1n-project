@@ -12,6 +12,9 @@ use Illuminate\Validation\ValidationException;
 
 final class PublicRetailCatalogService
 {
+    /** Image columns the public photo view model needs (PublicProductImages). */
+    private const PHOTO_COLUMNS = 'id,product_id,storage_disk,file_path,file_hash,is_primary,sort_order';
+
     public function __construct(private readonly SettingsService $settings) {}
 
     /** @return Builder<Product> */
@@ -30,7 +33,7 @@ final class PublicRetailCatalogService
     {
         $q = trim((string) ($filters['q'] ?? ''));
         $query = $this->available()->with([
-            'brand:id,name', 'images:id,product_id',
+            'brand:id,name', 'images:'.self::PHOTO_COLUMNS,
         ]);
         if ($q !== '') {
             $term = '%'.addcslashes(mb_substr($q, 0, 80), '\\%_').'%';
@@ -86,7 +89,7 @@ final class PublicRetailCatalogService
     public function bySlug(string $slug): Product
     {
         return $this->available()->where('slug', $slug)
-            ->with(['brand:id,name','images:id,product_id',
+            ->with(['brand:id,name','images:'.self::PHOTO_COLUMNS,
                 'specificationValues.field', 'categories:id,name,status'])->firstOrFail();
     }
 

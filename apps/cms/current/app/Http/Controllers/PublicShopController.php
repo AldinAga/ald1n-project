@@ -7,9 +7,10 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Services\PublicCartService;
 use App\Services\PublicRetailCatalogService;
+use App\Support\PublicProductImageFiles;
+use App\Support\PublicProductImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -32,7 +33,8 @@ final class PublicShopController extends Controller
         // A page past the last one is not an empty listing: answer 404 so it
         // is never indexed as a soft-404 copy of the catalog.
         abort_if($page->currentPage() > max(1, $page->lastPage()), 404);
-        $page->getCollection()->transform(static fn (Product $p) => $catalog->present($p));
+        $page->getCollection()->transform(static fn (Product $p) => $catalog->present($p)
+            + ['photo' => PublicProductImages::card($p)]);
         $lists = $catalog->filters();
         return view('public-shop.catalog', [
             'page'=>$page,
@@ -45,8 +47,12 @@ final class PublicShopController extends Controller
     {
         $this->guarded();
         $product = $catalog->bySlug($slug);
+        $presented = $catalog->present($product);
+        $gallery = PublicProductImages::gallery($product);
         return view('public-shop.show', [
-            'product'=>$catalog->present($product),
+            'product'=>$presented,
+            'gallery'=>$gallery,
+            'schemaJson'=>PublicProductImages::productSchemaJson($presented, $gallery),
             'specifications'=>$product->specificationValues
                 ->filter(static fn ($v) => $v->field !== null && (string) ($v->value_text ?? '') !== '')
                 ->map(static fn ($v) => [
@@ -56,44 +62,37 @@ final class PublicShopController extends Controller
         ]);
     }
 
-    public function media(ProductImage $image): BinaryFileResponse
+    public function media(Request $request, ProductImage $image): BinaryFileResponse
     {
         $this->guarded();
         $product = $image->product()->firstOrFail();
         abort_unless(Product::query()->publiclyVisible()->where('price_amount','>',0)
             ->whereKey($product->id)->exists(), 404);
 
-        $disk = (string) $image->storage_disk;
-        $relative = ltrim(str_replace('\\','/',trim((string) $image->file_path)), '/');
-        abort_if($relative === '' || in_array('..',explode('/',$relative),true),404);
-        if ($disk === 'legacy') {
-            abort_unless(str_starts_with($relative,'uploads/products/'),404);
-            $configuredRoot = trim((string) config('services.legacy_media.root'));
-            $root = $configuredRoot !== '' ? realpath($configuredRoot) : false;
-            $allowed = is_string($root) ? realpath($root.'/uploads/products') : false;
-            $full = is_string($root) ? realpath($root.'/'.$relative) : false;
-        } elseif ($disk === 'public') {
-            abort_unless(str_starts_with($relative,'products/'.(int) $product->id.'/'),404);
-            $root = realpath(Storage::disk('public')->path(''));
-            $allowed = is_string($root) ? realpath($root.'/products/'.(int)$product->id) : false;
-            $full = is_string($root) ? realpath($root.'/'.$relative) : false;
-        } else abort(404);
-        // B893: realpath() on the allowed directory may itself resolve a
-        // symbolic link outside the approved root. The existing leaf-path
-        // check alone would then serve images from that external directory.
-        abort_unless(is_string($root) && is_string($allowed),404);
-        $rootPrefix=rtrim($root,DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
-        abort_unless(str_starts_with($allowed,$rootPrefix),404);
-        if ($disk === 'public') {
-            // A public product directory cannot alias another product's
-            // real directory even if both happen to reside on this disk.
-            $expected=$rootPrefix.'products'.DIRECTORY_SEPARATOR.(int)$product->id;
-            abort_unless(hash_equals($expected,$allowed),404);
+        // Optional WebP rendition (?r=thumbnail|display). Any other value,
+        // or an array, is a 404; a rendition that does not exist (yet)
+        // falls back to the gated original below.
+        if ($request->query->has('r')) {
+            $rendition = $request->query->all()['r'] ?? null;
+            abort_unless(is_string($rendition) && in_array($rendition, PublicProductImageFiles::RENDITIONS, true), 404);
+            $derived = PublicProductImageFiles::derivative($image, (int) $product->id, $rendition);
+            if ($derived !== null && (mime_content_type($derived) ?: '') === 'image/webp') {
+                return $this->imageFile($derived, 'image/webp');
+            }
         }
-        abort_unless(is_string($full)&&is_file($full)
-            &&str_starts_with($full,rtrim($allowed,DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR),404);
+
+        // B893 path boundary (legacy root, own products/{id} directory, no
+        // symlink escape), unchanged, now in PublicProductImageFiles.
+        $full = PublicProductImageFiles::original($image, (int) $product->id);
+        abort_unless(is_string($full), 404);
         $mime=mime_content_type($full) ?: '';
         abort_unless(in_array($mime,['image/jpeg','image/png','image/webp'],true),404);
+
+        return $this->imageFile($full, $mime);
+    }
+
+    private function imageFile(string $full, string $mime): BinaryFileResponse
+    {
         return response()->file($full, [
             'Content-Type'=>$mime,
             // B877: emergency OFF must revoke dynamically gated media for

@@ -332,6 +332,36 @@ final class PublicProductGalleryTest extends TestCase
         self::assertSame($product->id, (int) $images[0]->product_id);
     }
 
+    public function test_square_padded_legacy_rendition_is_never_shown_for_a_portrait_photo(): void
+    {
+        // Imagick renditions made before this change were padded to a
+        // 512x512 canvas. Such a file must not reach the card or gallery.
+        [, $images] = $this->product('gallery-padded', 'Plakat stari derivat', [[800, 1131]]);
+        $thumbPath = Storage::disk('public')->path(ProductImageDerivativeService::relativePaths($images[0])['thumbnail']);
+        if (function_exists('imagewebp')) {
+            $padded = imagecreatetruecolor(512, 512);
+            imagefill($padded, 0, 0, imagecolorallocate($padded, 255, 255, 255));
+            self::assertTrue(imagewebp($padded, $thumbPath, 80));
+            imagedestroy($padded);
+        } else {
+            $padded = new \Imagick();
+            $padded->newImage(512, 512, new \ImagickPixel('white'));
+            $padded->setImageFormat('webp');
+            self::assertTrue($padded->writeImage($thumbPath));
+        }
+        clearstatcache();
+        self::assertSame([512, 512], self::derivativeSize($images[0], 'thumbnail'));
+        $id = $images[0]->id;
+
+        $catalog = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringNotContainsString('/katalog/slika/'.$id.'?r=thumbnail', $catalog);
+        self::assertStringContainsString('src="/katalog/slika/'.$id.'?r=display"', $catalog);
+        self::assertStringContainsString('width="800" height="1131"', $catalog);
+        $page = (string) $this->get('/katalog/gallery-padded')->assertOk()->getContent();
+        self::assertStringNotContainsString('?r=thumbnail', $page);
+        self::assertStringContainsString('src="/katalog/slika/'.$id.'?r=display"', $page);
+    }
+
     public function test_catalog_card_uses_thumbnail_srcset_real_dimensions_and_ratio_class(): void
     {
         [, $poster] = $this->product('gallery-card-poster', 'Plakat kartica', [[800, 1131], [1200, 900]]);
