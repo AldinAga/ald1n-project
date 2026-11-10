@@ -11,7 +11,7 @@ use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
-use Illuminate\Support\Facades\{Hash,Storage};
+use Illuminate\Support\Facades\{Hash,RateLimiter,Storage};
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -305,6 +305,7 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame($etag, $notModified->headers->get('ETag'));
 
         // Names are random, so the long cache holds without the version too.
+        $this->flushHeaders();
         $unversioned = $this->get('/site-assets/'.basename($path))->assertOk();
         self::assertStringContainsString('immutable', (string) $unversioned->headers->get('Cache-Control'));
         self::assertSame($etag, $unversioned->headers->get('ETag'));
@@ -368,15 +369,14 @@ final class SiteLogoSvgTest extends TestCase
             $this->get('/site-assets/'.basename($path))->assertOk()->assertHeader('X-RateLimit-Limit', '600');
         }
 
-        // Registration POST is limited to 5 per 10 minutes per guest IP; the
-        // logo requests above must not have used any of it.
-        self::assertNotSame(429, $this->post('/registracija', [])->getStatusCode());
-        $statuses = [];
-        for ($i = 0; $i < 5; $i++) {
-            $statuses[] = $this->post('/registracija', [])->getStatusCode();
-        }
-        self::assertNotContains(429, array_slice($statuses, 0, 4));
-        self::assertSame(429, $statuses[4], 'the registration limit itself is still active in this test');
+        // ThrottleRequests keys a guest by sha1(domain|ip) plus the optional
+        // prefix. The unprefixed key is the one the registration POST
+        // (throttle:5,10) counts on; the logo requests must not touch it.
+        $guest = sha1('|127.0.0.1');
+        self::assertSame(8, RateLimiter::attempts('site-assets'.$guest));
+        self::assertSame(0, RateLimiter::attempts($guest));
+        $this->post('/registracija', []);
+        self::assertSame(1, RateLimiter::attempts($guest), 'the registration limiter itself counts on the shared key');
     }
 
     public function test_raster_route_refuses_content_that_does_not_match_the_extension(): void
