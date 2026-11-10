@@ -18,6 +18,7 @@ final class SettingsService
     /** @var list<string> */
     private const SENSITIVE_KEYS = [
         'turnstile_secret_key',
+        'smtp_password',
     ];
 
     /** @var array<string,string> */
@@ -158,6 +159,17 @@ final class SettingsService
         'product_email_new_items_enabled' => '0',
         'product_email_new_items_interval_minutes' => '0',
         'automation_last_error' => '',
+        // Optional database SMTP transport. OFF keeps the .env mailer as is.
+        // The password lives only in smtp_password, encrypted (SENSITIVE_KEYS).
+        'smtp_enabled' => '0',
+        'smtp_host' => '',
+        'smtp_port' => '',
+        'smtp_encryption' => '',
+        'smtp_username' => '',
+        'smtp_timeout' => '',
+        'smtp_last_test_at' => '',
+        'smtp_last_test_result' => '',
+        'smtp_last_test_by' => '',
     ];
 
     /** @return array<string,string> */
@@ -219,6 +231,12 @@ final class SettingsService
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /** True when an encrypted value is stored, even if it can no longer be decrypted. */
+    public function hasSecret(string $key): bool
+    {
+        return trim((string) ($this->raw()[$key] ?? '')) !== '';
     }
 
     public function eurRsdRate(): ?float

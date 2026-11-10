@@ -59,8 +59,9 @@ final class PublicRegistrationMailSenderService
                 ->whereHas('role',static fn ($q)=>$q->where('slug','superadmin'))->exists();
         // A production log/array transport silently drops real email.
         // CI may use array: it is not production evidence.
+        // The database SMTP page (when ON and complete) counts as smtp.
         $transportReady=!app()->environment('production')
-            || in_array((string)config('mail.default'),['smtp','sendmail'],true);
+            || in_array(app(MailRuntimeConfigurator::class)->effectiveDefaultMailer(),['smtp','sendmail'],true);
         return [
             'address'=>$address,'name'=>$name,'configured'=>$configured,
             'approved'=>$approved,'transport_ready'=>$transportReady,

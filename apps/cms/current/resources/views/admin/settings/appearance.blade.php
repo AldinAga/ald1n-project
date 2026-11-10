@@ -19,6 +19,9 @@
 <div class="page-heading">
     <div><span class="eyebrow">Podešavanja</span><h1>Izgled sajta</h1><p>Podesi identitet, footer i vizuelni doživljaj stranice za prijavu.</p></div>
 </div>
+@if($uploadTooLarge ?? null)
+    <div class="alert error" role="alert" data-upload-too-large>{{ $uploadTooLarge }}</div>
+@endif
 <form method="post" action="{{ route('admin.settings.appearance.update') }}" enctype="multipart/form-data" class="admin-form-grid settings-primary-form">
     @csrf
     @method('put')
@@ -35,25 +38,34 @@
         <section class="panel form-section">
             <h2>Logotipi i favicon</h2>
             <div class="asset-setting-grid">
-                <article class="asset-setting-card">
-                    <strong>Logo za svetlu temu</strong>
-                    <div class="asset-preview light">@if($logoLightUrl)<img src="{{ $logoLightUrl }}" alt="">@else<span>Nije postavljen</span>@endif</div>
-                    <input type="file" name="site_logo_light" accept=".png,.jpg,.jpeg,.webp">
-                    @if($settings['site_logo_light_path'])<button class="button button-danger button-small" type="submit" form="remove-logo-light">Ukloni</button>@endif
-                </article>
-                <article class="asset-setting-card">
-                    <strong>Logo za tamnu temu</strong>
-                    <div class="asset-preview dark">@if($logoDarkUrl)<img src="{{ $logoDarkUrl }}" alt="">@else<span>Nije postavljen</span>@endif</div>
-                    <input type="file" name="site_logo_dark" accept=".png,.jpg,.jpeg,.webp">
-                    @if($settings['site_logo_dark_path'])<button class="button button-danger button-small" type="submit" form="remove-logo-dark">Ukloni</button>@endif
-                </article>
-                <article class="asset-setting-card">
-                    <strong>Favicon</strong>
-                    <div class="asset-preview favicon">@if($faviconUrl)<img src="{{ $faviconUrl }}" alt="">@else<span>Nije postavljen</span>@endif</div>
-                    <input type="file" name="site_favicon" accept=".png,.ico">
-                    @if($settings['site_favicon_path'])<button class="button button-danger button-small" type="submit" form="remove-favicon">Ukloni</button>@endif
-                </article>
+                @foreach([
+                    ['key' => 'logo_light', 'title' => 'Logo za svetlu temu', 'input' => 'site_logo_light', 'accept' => '.png,.jpg,.jpeg,.webp', 'preview' => 'light', 'url' => $logoLightUrl, 'path' => $settings['site_logo_light_path'], 'remove' => 'remove-logo-light'],
+                    ['key' => 'logo_dark', 'title' => 'Logo za tamnu temu', 'input' => 'site_logo_dark', 'accept' => '.png,.jpg,.jpeg,.webp', 'preview' => 'dark', 'url' => $logoDarkUrl, 'path' => $settings['site_logo_dark_path'], 'remove' => 'remove-logo-dark'],
+                    ['key' => 'favicon', 'title' => 'Favicon', 'input' => 'site_favicon', 'accept' => '.png,.ico', 'preview' => 'favicon', 'url' => $faviconUrl, 'path' => $settings['site_favicon_path'], 'remove' => 'remove-favicon'],
+                ] as $asset)
+                    @php $status = $assetStatus[$asset['key']] ?? ['state' => 'none', 'label' => 'Nije postavljen', 'url' => null, 'path' => '']; @endphp
+                    <article class="asset-setting-card" data-asset-status="{{ $status['state'] }}">
+                        <strong>{{ $asset['title'] }}</strong>
+                        <div class="asset-preview {{ $asset['preview'] }}">
+                            @if($asset['url'] && $status['state'] !== 'missing')<img src="{{ $asset['url'] }}" alt="Trenutno sačuvan: {{ mb_strtolower($asset['title']) }}">@else<span>{{ $status['state'] === 'missing' ? 'Datoteka nedostaje na disku' : 'Nije postavljen' }}</span>@endif
+                        </div>
+                        @if($status['state'] !== 'none')
+                            <small class="muted" style="overflow-wrap:anywhere">
+                                <span class="status-badge status-{{ $status['state'] === 'present' ? 'active' : ($status['state'] === 'missing' ? 'archived' : 'draft') }}">{{ $status['label'] }}</span>
+                                @if($status['url'])<br><a href="{{ $status['url'] }}" target="_blank" rel="noopener noreferrer">{{ \Illuminate\Support\Str::limit($status['url'], 70) }}</a>@endif
+                            </small>
+                        @endif
+                        <label>
+                            <span class="sr-only">{{ $asset['title'] }}: izaberite datoteku</span>
+                            <input type="file" name="{{ $asset['input'] }}" accept="{{ $asset['accept'] }}" aria-describedby="hint-{{ $asset['input'] }}">
+                        </label>
+                        <small class="muted" id="hint-{{ $asset['input'] }}">{{ \Illuminate\Support\Str::ucfirst($uploadHints[$asset['input']] ?? '') }}.</small>
+                        @error($asset['input'])<small class="field-error" role="alert">{{ $message }}</small>@enderror
+                        @if($asset['path'])<button class="button button-danger button-small" type="submit" form="{{ $asset['remove'] }}">Ukloni</button>@endif
+                    </article>
+                @endforeach
             </div>
+            <p class="muted">Ukupna veličina jednog snimanja ne sme preći ograničenje servera (post_max_size). SVG logo nije podržan; sačuvajte ga kao PNG ili WEBP.</p>
         </section>
 
         @if($canManageLoginBackground)
@@ -103,7 +115,8 @@
                             @if($loginBackgroundImageUrl)<img src="{{ $loginBackgroundImageUrl }}" alt="" data-current-login-image>@else<span>Nije postavljena</span>@endif
                         </div>
                         <input type="file" name="login_background_image" accept=".png,.jpg,.jpeg,.webp" data-login-image-input>
-                        <small class="muted">PNG/JPG/WebP, do 8 MB.</small>
+                        <small class="muted">{{ \Illuminate\Support\Str::ucfirst($uploadHints['login_background_image'] ?? '') }}.</small>
+                        @error('login_background_image')<small class="field-error" role="alert">{{ $message }}</small>@enderror
                         @if($settings['login_background_image_path'] ?? '')<button class="button button-danger button-small" type="submit" form="remove-login-background">Ukloni</button>@endif
                     </article>
 
@@ -113,7 +126,8 @@
                             @if($loginBackgroundFallbackUrl)<img src="{{ $loginBackgroundFallbackUrl }}" alt="" data-current-login-fallback>@else<span>Nije postavljena</span>@endif
                         </div>
                         <input type="file" name="login_background_fallback" accept=".png,.jpg,.jpeg,.webp" data-login-fallback-input>
-                        <small class="muted">Koristi se za mobilni prikaz i kao bezbedna rezerva.</small>
+                        <small class="muted">Koristi se za mobilni prikaz i kao bezbedna rezerva. {{ \Illuminate\Support\Str::ucfirst($uploadHints['login_background_fallback'] ?? '') }}.</small>
+                        @error('login_background_fallback')<small class="field-error" role="alert">{{ $message }}</small>@enderror
                         @if($settings['login_background_fallback_path'] ?? '')<button class="button button-danger button-small" type="submit" form="remove-login-fallback">Ukloni</button>@endif
                     </article>
                 </div>
@@ -122,6 +136,7 @@
                     <div class="section-heading-row compact">
                         <div><strong>Slideshow slike</strong><p class="muted">Najviše 8 slika. Redosled je manji broj → ranije prikazivanje.</p></div>
                         <input type="file" name="login_slideshow_images[]" accept=".png,.jpg,.jpeg,.webp" multiple data-login-slides-input>
+                        <small class="muted">{{ \Illuminate\Support\Str::ucfirst($uploadHints['login_slideshow_images'] ?? '') }}, do 8 slika.</small>
                     </div>
                     <input type="hidden" name="login_background_slide_state_present" value="1">
                     <div class="login-slide-admin-grid">

@@ -526,6 +526,13 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/system-health/run', [SystemHealthController::class, 'run'])->middleware(['permission:system.health','throttle:admin-write'])->name('system-health.run');
             Route::post('/system-health/backup', [SystemHealthController::class, 'backup'])->middleware(['permission:backups.manage','throttle:backup'])->name('system-health.backup');
             Route::post('/system-health/prune', [SystemHealthController::class, 'prune'])->middleware(['permission:backups.manage','throttle:admin-write'])->name('system-health.prune');
+            Route::get('/smtp', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'index'])->name('smtp.index');
+            Route::put('/smtp', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'update'])
+                ->middleware('throttle:admin-write')->name('smtp.update');
+            Route::post('/smtp/test', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'test'])
+                ->middleware('throttle:smtp-test')->name('smtp.test');
+            Route::delete('/smtp/password', [\App\Http\Controllers\Admin\SmtpSettingsController::class, 'clearPassword'])
+                ->middleware('throttle:admin-write')->name('smtp.password.destroy');
             Route::get('/turnstile', [TurnstileSettingsController::class, 'index'])->name('turnstile.index');
             Route::put('/turnstile', [TurnstileSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('turnstile.update');
             Route::get('/appearance', [SiteAppearanceController::class, 'index'])->name('appearance');

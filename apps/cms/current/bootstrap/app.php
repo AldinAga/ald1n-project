@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +61,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             static fn (Request $request, \Throwable $exception): bool => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // The SMTP password is never flashed back as old input.
+        $exceptions->dontFlash(['smtp_password']);
+
+        // PHP drops the whole body when post_max_size is exceeded, before the
+        // session starts. Only the appearance upload page gets a friendly,
+        // allowlisted message through a fixed query flag; nothing is echoed.
+        $exceptions->render(static function (PostTooLargeException $exception, Request $request) {
+            if ($request->expectsJson() || !$request->is('admin/settings/appearance')) {
+                return null;
+            }
+
+            return new RedirectResponse('/admin/settings/appearance?upload=too-large', 303);
+        });
 
         $exceptions->render(static function (ValidationException $exception, Request $request) {
             // Laravel's routing pipeline turns exceptions into responses before
