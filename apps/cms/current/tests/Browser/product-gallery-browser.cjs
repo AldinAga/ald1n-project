@@ -62,7 +62,13 @@ async function budget(html, img) {
 
 function watch(page, problems) {
   page.on('console', msg => {
-    if (/Refused to apply a stylesheet/.test(msg.text()) && page.context().browser().browserType().name() === 'webkit') return;
+    // Playwright injects an inline <style> to freeze animations and hide the
+    // caret for page.screenshot({animations: 'disabled'}). The page CSP
+    // (style-src 'self') refuses it, and only WebKit logs that refusal as an
+    // error. Only that inline-style message is skipped: a refused external
+    // stylesheet names its URL instead of 'unsafe-inline' and still fails.
+    if (page.context().browser().browserType().name() === 'webkit'
+      && /Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline'/.test(msg.text())) return;
     if (msg.type() === 'error' && !/\/favicon\.ico$/.test(msg.location().url || '')) problems.push('console: ' + msg.text().slice(0, 200));
   });
   page.on('response', res => {
@@ -160,7 +166,7 @@ async function galleryState(page) {
     const visible = vp ? slides.findIndex(s => Math.abs(s.getBoundingClientRect().left - vr.left) < 4) + 1 : 0;
     const counter = visible > 0 ? (slides[visible - 1].querySelector('.shop-slide-count') || {textContent: ''}).textContent.trim() : '';
     const first = document.querySelector('.shop-slide img');
-    const zoom = document.querySelector('.shop-slide-zoom');
+    const zoom = document.querySelector('.shop-slide-stage');
     return {
       slides: slides.length,
       thumbs: document.querySelectorAll('.shop-thumb').length,

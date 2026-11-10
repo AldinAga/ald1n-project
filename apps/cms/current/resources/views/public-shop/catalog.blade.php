@@ -17,7 +17,7 @@
 <meta name="twitter:title" content="{{ $seo['title'] }}">
 <meta name="twitter:description" content="{{ $seo['description'] }}">
 @if($seo['schema_json'])<script type="application/ld+json">{!! $seo['schema_json'] !!}</script>@endif
-<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611104">
+<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611105">
 @endpush
 @section('content')
 @php($sortValue = in_array(request('sort'), array_keys(\App\Support\PublicCatalogPresentation::SORT_LABELS), true) ? request('sort') : 'newest')
@@ -95,7 +95,7 @@ Nema rezultata
 @php($photo = $p['photo'] ?? null)
 <a class="shop-image{{ $photo ? ' shop-ratio-'.$photo['ratio'] : '' }}" href="{{ $detailUrl }}" tabindex="-1" aria-hidden="true">
 @if($photo)
-<img src="{{ $photo['src'] }}"@if($photo['srcset']) srcset="{{ $photo['srcset'] }}" sizes="(max-width: 560px) 100vw, (max-width: 860px) 50vw, (max-width: 1180px) 34vw, 340px"@endif alt="{{ $alt }}" width="{{ $photo['width'] }}" height="{{ $photo['height'] }}" decoding="async" @if($loop->index < 4) loading="eager"@if($loop->first) fetchpriority="high"@endif @else loading="lazy" @endif>
+<img src="{{ $photo['src'] }}"@if($photo['srcset']) srcset="{{ $photo['srcset'] }}" sizes="(max-width: 560px) 68vw, (max-width: 1180px) 32vw, 256px"@endif alt="{{ $alt }}" width="{{ $photo['width'] }}" height="{{ $photo['height'] }}" decoding="async" @if($loop->index < 4) loading="eager"@if($loop->first) fetchpriority="high"@endif @else loading="lazy" @endif>
 @else
 <span class="no-image"><svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M4 17l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Fotografija nije dostupna</span></span>
 @endif

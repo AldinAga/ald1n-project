@@ -1,9 +1,9 @@
-{{-- Public product page. Scriptless gallery: scroll-snap slides (swipe, arrow keys on the focused gallery), thumbnail links, a counter in every slide and a native enlarge dialog (popover / invoker command). The only <script> is a non-executable ld+json data block. Author: Ald1n <https://ald1n.com> --}}
+{{-- Public product page. The gallery needs no JavaScript: scroll-snap slides (swipe, arrow keys on the focused gallery), thumbnail links, a counter in every slide and a native enlarge dialog (popover / invoker command). This view adds only a non-executable ld+json data block; any executable script (such as the theme switcher) comes from the shared layout under its CSP nonce. Author: Ald1n <https://ald1n.com> --}}
 @extends('public-shop.layout')
 @section('title',$product['name'])
 @push('head')
 @if($schemaJson)<script type="application/ld+json">{!! $schemaJson !!}</script>@endif
-<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611104">
+<link rel="stylesheet" href="/assets/css/ald1n-public-gallery.css?v=202611105">
 @endpush
 @section('content')
 @php($photoCount = count($gallery))
@@ -20,11 +20,13 @@
 @php($photoAlt = \App\Support\PublicProductImages::alt($product['name'], $product['brand'], $n, $photoCount))
 <li class="shop-slide" id="slika-{{ $n }}">
 <figure class="shop-slide-figure">
-<button type="button" class="shop-slide-zoom" popovertarget="uvecano-{{ $n }}" commandfor="uvecano-{{ $n }}" command="show-modal" aria-haspopup="dialog">
+<div class="shop-slide-stage">
 <img src="{{ $photo['large'] }}"@if($photo['srcset']) srcset="{{ $photo['srcset'] }}" sizes="(max-width: 720px) 100vw, 680px"@endif alt="{{ $photoAlt }}" width="{{ $photo['large_width'] }}" height="{{ $photo['large_height'] }}" decoding="async" @if($loop->first) loading="eager" fetchpriority="high"@else loading="lazy"@endif>
+<button type="button" class="shop-slide-zoom" popovertarget="uvecano-{{ $n }}" commandfor="uvecano-{{ $n }}" command="show-modal" aria-haspopup="dialog">
 <span class="shop-slide-zoom-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" focusable="false"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5L20 20M10.5 7.8v5.4M7.8 10.5h5.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-<span class="sr-only">Uvećaj fotografiju</span>
+<span class="sr-only">Uvećaj fotografiju{{ $photoCount > 1 ? ' '.$n.' od '.$photoCount : '' }}</span>
 </button>
+</div>
 @if($photoCount > 1)
 <figcaption class="shop-slide-bar">
 @if($n > 1)<a class="shop-slide-step" href="#slika-{{ $n - 1 }}" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>@else<span class="shop-slide-step is-off" aria-hidden="true"></span>@endif
@@ -40,7 +42,7 @@
 @if($photoCount > 1)
 <ul class="shop-thumbs" aria-label="Izbor fotografije">
 @foreach($gallery as $photo)
-<li><a class="shop-thumb" href="#slika-{{ $loop->iteration }}"><img src="{{ $photo['src'] }}" alt="" width="{{ $photo['width'] }}" height="{{ $photo['height'] }}" decoding="async" fetchpriority="low"><span class="sr-only">Prikaži sliku {{ $loop->iteration }} od {{ $photoCount }}</span></a></li>
+<li><a class="shop-thumb" href="#slika-{{ $loop->iteration }}"><img src="{{ $photo['src'] }}" alt="" width="{{ $photo['width'] }}" height="{{ $photo['height'] }}" loading="lazy" decoding="async" fetchpriority="low"><span class="sr-only">Prikaži sliku {{ $loop->iteration }} od {{ $photoCount }}</span></a></li>
 @endforeach
 </ul>
 @endif

@@ -238,6 +238,75 @@ final class ProductImageDerivativeService
         $image->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
     }
 
+    /**
+     * EXIF orientation (1-8) of a JPEG, read from the APP1 header without
+     * the exif extension; 1 for anything else or anything unreadable.
+     */
+    public static function exifOrientation(string $path): int
+    {
+        $data = @file_get_contents($path, false, null, 0, 131072);
+        if (!is_string($data) || strlen($data) < 4 || substr($data, 0, 2) !== "\xFF\xD8") {
+            return 1;
+        }
+        $pos = 2;
+        $len = strlen($data);
+        while ($pos + 4 <= $len && $data[$pos] === "\xFF") {
+            $marker = ord($data[$pos + 1]);
+            $size = unpack('n', substr($data, $pos + 2, 2))[1];
+            if ($marker === 0xDA || $size < 2) {
+                break;
+            }
+            if ($marker === 0xE1 && substr($data, $pos + 4, 6) === "Exif\0\0") {
+                $tiff = substr($data, $pos + 10, $size - 8);
+                $le = substr($tiff, 0, 2) === 'II';
+                if (!$le && substr($tiff, 0, 2) !== 'MM') {
+                    return 1;
+                }
+                $u16 = static fn (int $o): int => strlen($tiff) >= $o + 2 ? unpack($le ? 'v' : 'n', substr($tiff, $o, 2))[1] : -1;
+                $u32 = static fn (int $o): int => strlen($tiff) >= $o + 4 ? unpack($le ? 'V' : 'N', substr($tiff, $o, 4))[1] : -1;
+                $ifd = $u32(4);
+                $count = $ifd > 0 ? $u16($ifd) : -1;
+                for ($i = 0; $i < $count && $i < 64; $i++) {
+                    $entry = $ifd + 2 + 12 * $i;
+                    if ($u16($entry) === 0x0112) {
+                        $value = $u16($entry + 8);
+                        return $value >= 1 && $value <= 8 ? $value : 1;
+                    }
+                }
+                return 1;
+            }
+            $pos += 2 + $size;
+        }
+
+        return 1;
+    }
+
+    /** Applies an EXIF orientation to a GD image (imagerotate turns counter-clockwise). */
+    public static function orientGd(\GdImage $image, int $orientation): \GdImage
+    {
+        if (in_array($orientation, [2, 5, 7], true)) {
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+        } elseif ($orientation === 4) {
+            imageflip($image, IMG_FLIP_VERTICAL);
+        }
+        $angle = match ($orientation) {
+            3 => 180,
+            5, 8 => 90,
+            6, 7 => -90,
+            default => 0,
+        };
+        if ($angle === 0) {
+            return $image;
+        }
+        $turned = imagerotate($image, $angle, 0);
+        if ($turned === false) {
+            return $image;
+        }
+        imagedestroy($image);
+
+        return $turned;
+    }
+
     private function renderWithGd(string $source, string $target, int $maxEdge, int $quality): void
     {
         if (!extension_loaded('gd') || !function_exists('imagewebp')) {
@@ -258,6 +327,10 @@ final class ProductImageDerivativeService
         $input = @$create($source);
         if ($input === false) {
             throw new RuntimeException('Originalna fotografija nije mogla biti otvorena.');
+        }
+        if ($mime === 'image/jpeg') {
+            // GD ignores EXIF; bake the camera rotation in like the Imagick path.
+            $input = self::orientGd($input, self::exifOrientation($source));
         }
         $width = max(1, imagesx($input));
         $height = max(1, imagesy($input));

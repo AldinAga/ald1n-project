@@ -6,6 +6,7 @@ namespace App\Support;
 
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Services\ProductImageDerivativeService;
 use Throwable;
 
 /**
@@ -34,21 +35,36 @@ final class PublicProductImages
     /** Ratio buckets, clamped to 3:4 ... 4:3. */
     private const RATIOS = ['r34' => 0.75, 'r45' => 0.8, 'r11' => 1.0, 'r54' => 1.25, 'r43' => 4 / 3];
 
-    /** The card photo: the product's first (primary) image. */
+    /** The card photo: the product's first image that can actually be served. */
     public static function card(Product $product): ?array
     {
-        $image = $product->images->first();
+        foreach ($product->images as $image) {
+            $photo = $image instanceof ProductImage ? self::photo($image, (int) $product->id) : null;
+            if ($photo !== null) {
+                return $photo;
+            }
+        }
 
-        return $image instanceof ProductImage ? self::photo($image, (int) $product->id) : null;
+        return null;
     }
 
-    /** @return list<array<string,mixed>> every public photo of the product, primary first */
+    /**
+     * Every servable photo of the product, primary first. A row whose file
+     * is gone (no original and no rendition on disk) is left out, so it
+     * never becomes a broken slide, a counter step or a JSON-LD image.
+     *
+     * @return list<array<string,mixed>>
+     */
     public static function gallery(Product $product): array
     {
         $photos = [];
-        foreach ($product->images->take(self::GALLERY_LIMIT) as $image) {
-            if ($image instanceof ProductImage) {
-                $photos[] = self::photo($image, (int) $product->id);
+        foreach ($product->images as $image) {
+            if (count($photos) >= self::GALLERY_LIMIT) {
+                break;
+            }
+            $photo = $image instanceof ProductImage ? self::photo($image, (int) $product->id) : null;
+            if ($photo !== null) {
+                $photos[] = $photo;
             }
         }
 
@@ -58,16 +74,27 @@ final class PublicProductImages
     /**
      * small: the card / thumbnail file (thumbnail rendition when present),
      * large: the slide / enlarged file (display rendition when present).
-     * Without renditions both are the gated original, as before.
+     * Without renditions both are the gated original, as before. Null when
+     * neither the original nor a rendition can be served from disk.
      *
-     * @return array{id:int,src:string,width:int,height:int,srcset:?string,large:string,large_width:int,large_height:int,ratio:string}
+     * @return array{id:int,src:string,width:int,height:int,srcset:?string,large:string,large_width:int,large_height:int,ratio:string}|null
      */
-    public static function photo(ProductImage $image, int $productId): array
+    public static function photo(ProductImage $image, int $productId): ?array
     {
         $id = (int) $image->getKey();
         try {
-            $originalSize = PublicProductImageFiles::size(PublicProductImageFiles::original($image, $productId));
+            $originalPath = PublicProductImageFiles::original($image, $productId);
+            if ($originalPath !== null && !in_array(mime_content_type($originalPath) ?: '', ['image/jpeg', 'image/png', 'image/webp'], true)) {
+                $originalPath = null; // the media route would answer 404
+            }
+            $originalSize = PublicProductImageFiles::size($originalPath);
+            if ($originalSize !== null && $originalPath !== null
+                && in_array(ProductImageDerivativeService::exifOrientation($originalPath), [5, 6, 7, 8], true)) {
+                // Displayed turned by 90 degrees: compare and lay out upright.
+                $originalSize = [$originalSize[1], $originalSize[0]];
+            }
         } catch (Throwable) {
+            $originalPath = null;
             $originalSize = null;
         }
         $renditions = [];
@@ -82,6 +109,9 @@ final class PublicProductImages
             }
         }
         if ($renditions === []) {
+            if ($originalPath === null) {
+                return null;
+            }
             $size = $originalSize ?? self::FALLBACK;
             $renditions['original'] = [self::url($id, null), $size[0], $size[1]];
         }
@@ -110,8 +140,9 @@ final class PublicProductImages
      * (512x512 / 1600x1600 with a filled background); serving one would put
      * bars inside the photo, so the next rendition or the original is used
      * until `php artisan app:product-image-optimize --apply --force` remakes
-     * them. A 90-degree EXIF turn (rendition auto-oriented, original header
-     * not) also counts as the same shape. Unknown original size: trusted.
+     * them. The original size is already turned upright by its EXIF
+     * orientation, so a sideways GD rendition made before EXIF support is
+     * refused the same way. Unknown original size: trusted.
      *
      * @param array{0:int,1:int} $rendition
      * @param array{0:int,1:int}|null $original
@@ -121,10 +152,8 @@ final class PublicProductImages
         if ($original === null) {
             return true;
         }
-        $r = log($rendition[0] / $rendition[1]);
-        $o = log($original[0] / $original[1]);
 
-        return abs($r - $o) < 0.025 || abs($r + $o) < 0.025;
+        return abs(log($rendition[0] / $rendition[1]) - log($original[0] / $original[1])) < 0.025;
     }
 
     /** Nearest ratio bucket for the photo, clamped between 3:4 and 4:3. */

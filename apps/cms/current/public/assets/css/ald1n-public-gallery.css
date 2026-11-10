@@ -75,12 +75,14 @@
 .shop-slide{flex:0 0 100%;min-width:0;scroll-snap-align:center;scroll-snap-stop:always;scroll-margin-top:16px}
 @media (min-width:720px){.shop-slide{scroll-margin-top:92px}}
 .shop-slide-figure{display:grid;gap:10px;margin:0}
-/* The whole photo is the enlarge control (no text over the photo; the
-   magnifier is an icon only). */
-.public-retail .shop-gallery button.shop-slide-zoom{position:relative;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;width:100%;aspect-ratio:var(--photo-ratio,4/5);max-height:min(76vh,720px);min-height:0;margin:0;padding:0;border:0;border-radius:var(--photo-radius);background:var(--photo-bed);background-image:none;box-shadow:0 0 0 1px var(--photo-ring) inset;color:var(--text);cursor:zoom-in;transform:none;font:inherit}
-.public-retail .shop-gallery button.shop-slide-zoom:hover{background:var(--photo-bed)}
+/* The stage holds the photo; the enlarge control is a transparent button
+   laid over it (no text over the photo; the magnifier is an icon only).
+   Without popover support the button is removed, the photo stays. */
+.shop-slide-stage{position:relative;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;width:100%;aspect-ratio:var(--photo-ratio,4/5);max-height:min(76vh,720px);min-height:0;border-radius:var(--photo-radius);background:var(--photo-bed);box-shadow:0 0 0 1px var(--photo-ring) inset}
+.shop-slide-stage img{grid-area:1/1;display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--photo-radius)}
+.public-retail .shop-gallery button.shop-slide-zoom{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;border-radius:var(--photo-radius);background:transparent;background-image:none;box-shadow:none;color:var(--text);cursor:zoom-in;transform:none;font:inherit}
+.public-retail .shop-gallery button.shop-slide-zoom:hover{background:transparent}
 .public-retail .shop-gallery button.shop-slide-zoom:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
-.shop-slide-zoom img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--photo-radius)}
 .shop-slide-zoom-icon{position:absolute;right:12px;bottom:12px;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--glass-fill-strong);color:var(--text);box-shadow:0 0 0 1px var(--border-strong),0 6px 16px -8px rgba(0,0,0,.6);opacity:.92}
 .shop-slide-bar{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;min-height:44px}
 .shop-slide-count{text-align:center;font-size:14px;font-weight:620;color:var(--text-2);font-variant-numeric:tabular-nums}
@@ -140,16 +142,16 @@
 .public-retail .shop-lightbox button.shop-lightbox-close:focus-visible{outline:3px solid #9fd0ff;outline-offset:2px}
 .shop-lightbox-stage{display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;min-height:0;overflow:hidden}
 .shop-lightbox-stage img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
-/* Without dialog and popover support the photo is not a control. */
+/* Without popover support the enlarge control could not open anything:
+   it is removed (not shown, not focusable); the photo stays. */
 @supports not selector(:popover-open){
-  .public-retail .shop-gallery button.shop-slide-zoom{cursor:default}
-  .shop-slide-zoom-icon{display:none}
+  .public-retail .shop-gallery button.shop-slide-zoom{display:none}
 }
 
 /* ---------- Layout ---------- */
 @media (max-width:720px){
   .shop-gallery{padding:8px;border-radius:var(--radius)}
-  .public-retail .shop-gallery button.shop-slide-zoom{max-height:none}
+  .shop-slide-stage{max-height:none}
 }
 
 /* ---------- Motion (opt-in only) ---------- */
@@ -169,8 +171,12 @@
 }
 @media (forced-colors:active){
   .shop-gallery{background:Canvas;color:CanvasText;border-color:CanvasText}
-  .shop-image img,.shop-slide-zoom img,.shop-thumb img{box-shadow:none;border:1px solid CanvasText}
-  .public-retail .shop-gallery button.shop-slide-zoom{border:1px solid ButtonText;background:Canvas}
+  .shop-image img,.shop-slide-stage img,.shop-thumb img{box-shadow:none;border:1px solid CanvasText}
+  .shop-slide-stage{background:Canvas;box-shadow:none;border:1px solid CanvasText}
+  /* The overlay button keeps a transparent fill (a forced ButtonFace fill
+     would hide the photo) and a system-colour focus ring. */
+  .public-retail .shop-gallery button.shop-slide-zoom{forced-color-adjust:none;background:transparent;border:0}
+  .public-retail .shop-gallery button.shop-slide-zoom:focus-visible{outline-color:Highlight}
   .shop-slide-zoom-icon{forced-color-adjust:none;background:ButtonFace;color:ButtonText;border:1px solid ButtonText}
   /* Thumbnails keep their authored border colours so the chosen one
      (border in --thumb-ring) stays distinguishable. */
@@ -181,7 +187,7 @@
   .public-retail .shop-lightbox button.shop-lightbox-close{border:2px solid ButtonText;background:ButtonFace;color:ButtonText}
 }
 @media print{
-  .shop-thumbs,.shop-slide-bar,.shop-slide-zoom-icon,.shop-lightbox{display:none}
+  .shop-thumbs,.shop-slide-bar,.shop-slide-zoom,.shop-lightbox{display:none}
   .shop-gallery{border:0;box-shadow:none;background:#ffffff;padding:0}
   .shop-gallery-track{display:block}
   .shop-slide:not(:first-child){display:none}

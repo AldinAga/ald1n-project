@@ -385,5 +385,169 @@ final class PublicProductGalleryTest extends TestCase
         self::assertSame(1, substr_count($html, 'fetchpriority="high"'));
         self::assertStringNotContainsString('style=', $html);
         self::assertStringContainsString('alt="Plakat kartica – Lenovo"', $html);
+        // Sized so a DPR-2 screen picks the 512px thumbnail for a landscape card.
+        self::assertStringContainsString('sizes="(max-width: 560px) 68vw, (max-width: 1180px) 32vw, 256px"', $html);
+    }
+
+    /** Removes the original file and every rendition of an image row, keeping the row. */
+    private static function loseFiles(ProductImage $image): void
+    {
+        app(ProductImageDerivativeService::class)->delete($image);
+        Storage::disk('public')->delete((string) $image->file_path);
+        clearstatcache();
+    }
+
+    public function test_image_row_without_any_file_is_left_out_of_card_gallery_counter_and_schema(): void
+    {
+        [, $images] = $this->product('gallery-gap', 'Rupa u galeriji', [[1200, 900], [900, 1200], [1000, 1000]]);
+        self::loseFiles($images[1]);
+        $gone = $images[1]->id;
+
+        $html = (string) $this->get('/katalog/gallery-gap')->assertOk()->getContent();
+        self::assertSame(2, substr_count($html, '<li class="shop-slide"'));
+        self::assertSame(2, substr_count($html, 'class="shop-thumb"'));
+        self::assertSame(2, substr_count($html, '<dialog class="shop-lightbox"'));
+        self::assertStringContainsString('Slika 2 od 2', $html);
+        self::assertStringNotContainsString('od 3', $html);
+        self::assertStringNotContainsString('/katalog/slika/'.$gone, $html);
+        self::assertStringContainsString('src="/katalog/slika/'.$images[2]->id.'?r=display"', $html);
+        $schema = self::dataBlocks($html)[0];
+        self::assertSame([
+            'https://cms.ald1n.com/katalog/slika/'.$images[0]->id.'?r=display',
+            'https://cms.ald1n.com/katalog/slika/'.$images[2]->id.'?r=display',
+        ], $schema['image']);
+
+        // The primary file gone: the card falls through to the next servable photo.
+        self::loseFiles($images[0]);
+        $catalog = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringNotContainsString('/katalog/slika/'.$images[0]->id, $catalog);
+        self::assertStringContainsString('src="/katalog/slika/'.$images[2]->id.'?r=thumbnail"', $catalog);
+    }
+
+    public function test_product_whose_image_files_are_all_missing_shows_the_placeholder(): void
+    {
+        [, $images] = $this->product('gallery-lost', 'Izgubljene fotografije', [[1200, 900], [900, 1200], [1000, 1000]]);
+        foreach ($images as $image) {
+            self::loseFiles($image);
+        }
+
+        $html = (string) $this->get('/katalog/gallery-lost')->assertOk()->getContent();
+        self::assertStringContainsString('<div class="shop-gallery is-empty">', $html);
+        self::assertStringContainsString('Fotografija nije dostupna', $html);
+        self::assertStringNotContainsString('shop-slide', $html);
+        self::assertStringNotContainsString('<dialog', $html);
+        self::assertStringNotContainsString('/katalog/slika/', $html);
+        self::assertArrayNotHasKey('image', self::dataBlocks($html)[0]);
+
+        $catalog = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringContainsString('Izgubljene fotografije', $catalog);
+        self::assertStringNotContainsString('/katalog/slika/', $catalog);
+        self::assertStringContainsString('Fotografija nije dostupna', $catalog);
+    }
+
+    public function test_thumbnail_strip_images_load_lazily_and_the_zoom_control_sits_beside_the_photo(): void
+    {
+        $this->product('gallery-lazy', 'Lenja traka', [[1200, 900], [900, 1200], [1000, 1000], [1400, 700]]);
+        $html = (string) $this->get('/katalog/gallery-lazy')->assertOk()->getContent();
+
+        preg_match_all('~<a class="shop-thumb" href="#slika-\d+"><img [^>]*>~', $html, $thumbs);
+        self::assertCount(4, $thumbs[0]);
+        foreach ($thumbs[0] as $tag) {
+            self::assertStringContainsString('loading="lazy"', $tag);
+            self::assertStringContainsString('decoding="async"', $tag);
+        }
+        self::assertSame(1, substr_count($html, 'fetchpriority="high"'));
+        // The photo is not inside the button, so hiding the button (no
+        // popover support) never hides the photo.
+        self::assertSame(0, preg_match('~<button[^>]*shop-slide-zoom[^>]*>(?:(?!</button>).)*<img~s', $html));
+        self::assertSame(4, substr_count($html, '<span class="sr-only">Uvećaj fotografiju '));
+        self::assertStringContainsString('<span class="sr-only">Uvećaj fotografiju 4 od 4</span>', $html);
+    }
+
+    /** A JPEG with an EXIF APP1 segment that only carries Orientation. */
+    private static function jpegWithOrientation(int $w, int $h, int $orientation): string
+    {
+        $im = imagecreatetruecolor($w, $h);
+        imagefill($im, 0, 0, imagecolorallocate($im, 30, 60, 200));
+        imagefilledrectangle($im, 0, 0, 7, 7, imagecolorallocate($im, 255, 0, 0));
+        ob_start();
+        imagejpeg($im, null, 95);
+        imagedestroy($im);
+        $jpeg = (string) ob_get_clean();
+        $tiff = 'II'.pack('v', 42).pack('V', 8).pack('v', 1)
+            .pack('v', 0x0112).pack('v', 3).pack('V', 1).pack('v', $orientation).pack('v', 0)
+            .pack('V', 0);
+        $app1 = "Exif\0\0".$tiff;
+
+        return "\xFF\xD8\xFF\xE1".pack('n', strlen($app1) + 2).$app1.substr($jpeg, 2);
+    }
+
+    public function test_exif_orientation_is_read_and_applied_to_gd_renditions(): void
+    {
+        $dir = Storage::disk('public')->path('exif-probe');
+        if (!is_dir($dir)) mkdir($dir, 0775, true);
+        foreach ([1, 3, 6, 8] as $o) {
+            file_put_contents($dir.'/o'.$o.'.jpg', self::jpegWithOrientation(40, 20, $o));
+            self::assertSame($o, ProductImageDerivativeService::exifOrientation($dir.'/o'.$o.'.jpg'));
+        }
+        $plain = self::png(10, 10, [1, 2, 3]);
+        file_put_contents($dir.'/plain.png', $plain);
+        self::assertSame(1, ProductImageDerivativeService::exifOrientation($dir.'/plain.png'));
+
+        // 6 = turn 90 degrees clockwise: 40x20 becomes 20x40, the red top-left corner goes top-right.
+        $red = static function (\GdImage $im, int $x, int $y): bool {
+            $c = imagecolorsforindex($im, imagecolorat($im, $x, $y));
+            return $c['red'] > 200 && $c['blue'] < 80;
+        };
+        $turned = ProductImageDerivativeService::orientGd(imagecreatefromjpeg($dir.'/o6.jpg'), 6);
+        self::assertSame([20, 40], [imagesx($turned), imagesy($turned)]);
+        self::assertTrue($red($turned, 17, 2));
+        self::assertFalse($red($turned, 2, 2));
+        $back = ProductImageDerivativeService::orientGd(imagecreatefromjpeg($dir.'/o8.jpg'), 8);
+        self::assertSame([20, 40], [imagesx($back), imagesy($back)]);
+        self::assertTrue($red($back, 2, 37));
+        $flip = ProductImageDerivativeService::orientGd(imagecreatefromjpeg($dir.'/o3.jpg'), 3);
+        self::assertSame([40, 20], [imagesx($flip), imagesy($flip)]);
+        self::assertTrue($red($flip, 37, 17));
+    }
+
+    public function test_rotated_jpeg_gets_upright_renditions_and_a_sideways_old_rendition_is_refused(): void
+    {
+        $product = Product::query()->create([
+            'sku' => 'GALLERY-EXIF', 'slug' => 'gallery-exif', 'name' => 'Okrenuta fotografija',
+            'description' => 'Sintetički artikal.', 'price_amount' => 9990, 'price_currency' => 'RSD',
+            'stock_quantity' => 2, 'status' => 'active', 'brand_id' => $this->brand->id, 'created_by' => $this->owner->id,
+        ]);
+        // Stored 400x200, EXIF 6: a phone photo that is 200x400 upright.
+        $bytes = self::jpegWithOrientation(400, 200, 6);
+        $path = 'products/'.$product->id.'/phone.jpg';
+        Storage::disk('public')->put($path, $bytes);
+        $image = ProductImage::query()->create([
+            'product_id' => $product->id, 'storage_disk' => 'public', 'file_path' => $path,
+            'original_filename' => 'phone.jpg', 'mime_type' => 'image/jpeg', 'file_size' => strlen($bytes),
+            'file_hash' => hash('sha256', $bytes), 'sort_order' => 1, 'is_primary' => true,
+        ]);
+        app(ProductImageDerivativeService::class)->ensure($image);
+        // Upright on both engines (Imagick auto-orients, GD now applies EXIF).
+        self::assertSame([200, 400], self::derivativeSize($image, 'thumbnail'));
+        self::assertSame([200, 400], self::derivativeSize($image, 'display'));
+
+        $catalog = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertStringContainsString('src="/katalog/slika/'.$image->id.'?r=thumbnail"', $catalog);
+        self::assertStringContainsString('width="200" height="400"', $catalog);
+        self::assertStringContainsString('shop-image shop-ratio-r34', $catalog);
+
+        // A sideways rendition left by the old GD code is not shown; the
+        // original is served instead (browsers apply its EXIF turn).
+        foreach (ProductImageDerivativeService::relativePaths($image) as $rendition) {
+            $sideways = imagecreatetruecolor(400, 200);
+            self::assertTrue(imagewebp($sideways, Storage::disk('public')->path($rendition), 80));
+            imagedestroy($sideways);
+        }
+        clearstatcache();
+        $page = (string) $this->get('/katalog/gallery-exif')->assertOk()->getContent();
+        self::assertStringNotContainsString('?r=', $page);
+        self::assertStringContainsString('src="/katalog/slika/'.$image->id.'"', $page);
+        self::assertStringContainsString('width="200" height="400"', $page);
     }
 }
