@@ -53,9 +53,12 @@ final class SiteAssetController extends Controller
             return $this->notFound();
         }
 
-        if ((string) $request->query('v', '') !== $asset['version'] || count($request->query()) !== 1) {
-            $response = new Response('', 302, [
-                'Location' => route(SiteLogoAssetService::ROUTE, ['file' => $file, 'v' => $asset['version']]),
+        $version = $request->query('v');
+        if (!is_string($version) || $version !== $asset['version'] || count($request->query()) !== 1) {
+            // Permanent for this URL variant; relative, so a cached redirect
+            // never depends on the Host or scheme the origin saw.
+            $response = new Response('', 301, [
+                'Location' => route(SiteLogoAssetService::ROUTE, ['file' => $file, 'v' => $asset['version']], false),
                 'Cache-Control' => self::REDIRECT_CACHE_CONTROL,
             ]);
             self::applySecurityHeaders($response->headers);

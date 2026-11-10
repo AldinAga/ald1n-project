@@ -327,10 +327,11 @@ final class SiteLogoSvgTest extends TestCase
 
         // A missing, stale or extra query is redirected to the current URL.
         $this->flushHeaders();
-        foreach (['', '?v=1', '?v='.$version.'&x=1', '?v='.dechex($disk->lastModified($path)).'-'.dechex($disk->size($path)).'-s0'] as $query) {
+        $stale = '?v='.dechex($disk->lastModified($path)).'-'.dechex($disk->size($path)).'-s0';
+        foreach (['', '?v=1', '?v='.$version.'&x=1', $stale, '?v[]=1', '?v[]='.$version] as $query) {
             $redirect = $this->get('/site-assets/'.basename($path).$query);
-            $redirect->assertStatus(302);
-            self::assertSame($url, $redirect->headers->get('Location'), $query);
+            $redirect->assertStatus(301);
+            self::assertSame('/site-assets/'.basename($path).'?v='.$version, $redirect->headers->get('Location'), $query);
             self::assertSame('', $redirect->getContent());
             self::assertSame(SiteAssetController::CSP, $redirect->headers->get('Content-Security-Policy'));
             self::assertStringNotContainsString('immutable', (string) $redirect->headers->get('Cache-Control'));
@@ -388,6 +389,10 @@ final class SiteLogoSvgTest extends TestCase
         $byDate->assertStatus(304);
         $this->flushHeaders();
         $this->withHeaders(['If-None-Match' => '"stale"'])->get($url)->assertOk();
+        $this->flushHeaders();
+        // A malformed version (array) is a wrong version, never an error.
+        $this->get('/site-assets/'.basename($path).'?v[]=1')->assertStatus(301)
+            ->assertHeader('Location', parse_url($url, PHP_URL_PATH).'?'.parse_url($url, PHP_URL_QUERY));
     }
 
     public function test_asset_route_has_its_own_rate_limit_key_and_does_not_consume_the_registration_limit(): void
@@ -548,7 +553,8 @@ final class SiteLogoSvgTest extends TestCase
         Storage::disk('public')->put($path, self::HOSTILE);
         $after = $this->url($path);
         self::assertNotSame($before, $after, 'the size is part of the version');
-        $this->get($before)->assertRedirect($after);
+        $this->get($before)->assertStatus(301)
+            ->assertHeader('Location', parse_url($after, PHP_URL_PATH).'?'.parse_url($after, PHP_URL_QUERY));
         $served = (string) $this->get($after)->assertOk()->getContent();
         self::assertSame((new SvgSanitizer())->sanitize(self::HOSTILE)->svg, $served);
         foreach (['<script', 'alert', 'onload', 'evil.example', 'foreignObject'] as $fragment) {
@@ -588,6 +594,28 @@ final class SiteLogoSvgTest extends TestCase
         self::assertSame($extension === 'svg' ? (new SvgSanitizer())->sanitize($content)->svg : $content, $stored);
         $served = $this->get($this->url($path))->assertOk();
         self::assertSame($stored, $this->body($served));
+    }
+
+    public function test_mobile_api_upload_without_extensions_is_typed_by_content_and_served(): void
+    {
+        // The Android app posts multipart to the API, which delegates to the
+        // web controller; content:// picks often carry no extension.
+        Sanctum::actingAs($this->owner, ['*']);
+        $json = $this->post('/api/v1/admin/system-settings/appearance', [
+            'site_name' => 'AP.Computers',
+            'site_logo_alt' => 'AP.Computers',
+            'site_header_logo_height' => 40,
+            'site_footer_layout' => 'split',
+            'site_logo_light' => UploadedFile::fake()->createWithContent('image:1000', (string) base64_decode(self::PNG)),
+            'site_logo_dark' => UploadedFile::fake()->createWithContent('logo', self::BENIGN),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        self::assertMatchesRegularExpression('~^site-assets/[A-Za-z0-9]{40}\.png$~D', $this->setting('site_logo_light_path'));
+        self::assertMatchesRegularExpression('~^site-assets/[A-Za-z0-9]{40}\.svg$~D', $this->setting('site_logo_dark_path'));
+        $json->assertJsonPath('data.assets.logo_light_content_type', 'image/png');
+        $json->assertJsonPath('data.assets.logo_dark_content_type', 'image/svg+xml');
+        $this->get((string) $json->json('data.assets.logo_light_url'))->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->get((string) $json->json('data.assets.logo_dark_url'))->assertOk()->assertHeader('Content-Type', 'image/svg+xml');
     }
 
     public function test_uploads_without_a_usable_extension_are_refused_when_the_content_is_not_an_allowed_image(): void
