@@ -47,7 +47,7 @@ final class MediaInstallCoordinator
     public const FINAL_PASS='PASS_INSTALLED_PRODUCT_MEDIA_ROUTE_SHOP_STATE_UNCHANGED';
     public const RAN=71;
     /** The reviewed payload head of codex/product-media-route-20261112; the payload is git show SOURCE_COMMIT:<path>. */
-    public const SOURCE_COMMIT='59a77a54928cd3a36db179fbe905325dd8dd2f9b';
+    public const SOURCE_COMMIT='14e628ba61b77e3c6854bed100c634d1999b5f33';
     /** The pre-state: the B1149 source 7e748158, whose apps/cms/current (without tests) equals the live tree after B1149 (asserted at build time). */
     public const BASE_COMMIT='7e7481582fa0be3e95503a81b316be63836e508c';
     /**
@@ -79,7 +79,6 @@ final class MediaInstallCoordinator
      */
     public const STEPS=[
         ['app/Support/ProductMediaUrl.php','new','A'],['app/Http/Controllers/SignedProductMediaController.php','new','A'],
-        ['app/Providers/AppServiceProvider.php','modified','B'],
         ['routes/web.php','modified','E'],
         ['app/Models/ProductImage.php','modified','G'],
         ['app/Console/Commands/ProductMediaDoctorCommand.php','modified','H'],

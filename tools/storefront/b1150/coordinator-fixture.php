@@ -75,7 +75,7 @@ sh(['git','init','--quiet','-b','main'],$root);sh(['git','-c','user.name=Fixture
 foreach([$zip1146,$zip1147,$zip1148,$zip1149,$zipPath] as $z)sh(['unzip','-q','-n',$z,'-d',$root]);$incoming=$root.'/incoming';
 foreach(['b1134/InstallFileOps.php'=>'b1134-files.php','b1144/LeanGates.php'=>'b1144-gates.php','b1144/FreshnessProbe.php'=>'b1144-probe.php','b1144/LeanWeb.php'=>'b1144-web.php','b1145/EnvFlags.php'=>'b1145-env.php','b1145/AppState.php'=>'b1145-app-state.php','b1145/MigrateUnclampCoordinator.php'=>'b1145-coordinator.php'] as $from=>$to)copy(dirname($tools).'/'.$from,$incoming.'/'.$to);
 $package=json_decode((string)file_get_contents($incoming.'/b1150-package.json'),true,64,JSON_THROW_ON_ERROR);foreach($package['files'] as $n=>$d)check(hash_file('sha256',$incoming.'/'.$n)===$d,'PACKAGE_FILE_'.$n);$plan=MediaInstallCoordinator::plan($package,$incoming);check(count($plan)===count(MediaInstallCoordinator::STEPS),'PLAN_MATCHES_STEPS');
-check(count($plan)===6&&count(array_filter($plan,static fn($s)=>$s['kind']==='new'))===2&&implode(',',array_column($plan,'group'))==='A,A,B,E,G,H','PLAN_IS_THE_SIX_COORDINATED_FILES_IN_GROUP_ORDER_A_A_B_E_G_H');
+check(count($plan)===5&&count(array_filter($plan,static fn($s)=>$s['kind']==='new'))===2&&implode(',',array_column($plan,'group'))==='A,A,E,G,H','PLAN_IS_THE_FIVE_COORDINATED_FILES_IN_GROUP_ORDER_A_A_E_G_H');
 // The helpers the B1150 package pins are the very bytes the earlier ZIPs delivered (the host copies must match).
 foreach(['b1146-probe.php','b1146-app-check.php','b1147-web.php','b1147-app-check.php','b1147-coordinator.php','b1148-web.php','b1148-app-check.php','b1148-coordinator.php','b1149-web.php','b1149-app-check.php','b1149-coordinator.php'] as $n)check(isset($package['files'][$n]),'PINS_'.$n);
 $pkg1148=json_decode((string)file_get_contents($incoming.'/b1148-package.json'),true,64,JSON_THROW_ON_ERROR);foreach(['b1148-web.php','b1148-app-check.php','b1148-coordinator.php','b1147-web.php','b1147-app-check.php','b1147-coordinator.php'] as $n)check($pkg1148['files'][$n]===$package['files'][$n],'B1148_HELPER_PIN_EQUALS_B1148_ZIP_'.$n);
@@ -297,19 +297,24 @@ check($by['/katalog']['varyCookie']===true&&$by['/katalog']['noindex']===true&&$
 check(($by[$cssV]['result']??'PASS')==='PASS'&&($by[$galV]['result']??'PASS')==='PASS'&&$by[MediaInstallCoordinator::CSS_PATH]['cssMarker']===true,'CSS_SMOKES');
 check($by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['result']==='PASS'&&$by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['galleryLink']===true&&$by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['cacheControlPrivateNoStore']===true&&$by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['cspShape']===true,'PRODUCT_SMOKE');
 check(count(array_filter($s['rows'],static fn($r)=>in_array($r['check'],MediaInstallCoordinator::LEGAL,true)&&$r['result']==='PASS'&&$r['layoutMarker']===true&&$r['cspShape']===true&&$r['noindex']===true))===8&&$s['noindexMissing']===[],'LEGAL_200_NONCE_SCRIPT_NOINDEX');
-// The media route (installed): the smoke rows, or the data-dependent INFO when the catalog shows no product image.
-foreach(['MEDIA_ROUTE_IMAGE','MEDIA_ROUTE_BAD_SIGNATURE','PUBLIC_IMAGE_ROUTE'] as $k)check($rowOk($by,$k),'MEDIA_SMOKE_ROW_'.$k.':'.json_encode($by[$k]??null));
-check(!$imagesVisible||(($by['MEDIA_ROUTE_IMAGE']['result']??'')==='PASS'&&($by['MEDIA_ROUTE_BAD_SIGNATURE']['result']??'')==='PASS'),'MEDIA_ROUTE_EXERCISED_WHEN_IMAGES_ARE_VISIBLE');
-// The real response as a browser gets it (CI only): the signed URL of the catalog, a tampered signature, the public image route.
+// The media route (installed). The public catalog links no signed URL (it uses /katalog/slika/...), so the media-sample hook is the only
+// source: every media row must PASS (the fixture has two product images with files, so INFO is not acceptable here).
+foreach(['PRODUCT_IMAGE_URL_ACCESSOR','MEDIA_ROUTE_IMAGE','MEDIA_ROUTE_NOT_MODIFIED','MEDIA_ROUTE_BAD_SIGNATURE','MEDIA_ROUTE_MISSING_SIGNATURE','MEDIA_ROUTE_UNKNOWN_IMAGE'] as $k)check(($by[$k]['result']??'')==='PASS','MEDIA_SMOKE_ROW_'.$k.':'.json_encode($by[$k]??null));
+check($by['PUBLIC_IMAGE_ROUTE']['result']==='PASS'||str_starts_with((string)$by['PUBLIC_IMAGE_ROUTE']['result'],'INFO'),'PUBLIC_IMAGE_ROUTE_ROW:'.json_encode($by['PUBLIC_IMAGE_ROUTE']));
+check(str_contains($o,'PRODUCT_MEDIA_DOCTOR={"label":"after-install","rc":0,"ready":true,"failLines":0'),'PRODUCT_MEDIA_DOCTOR_AFTER_INSTALL_RC0');
+// The real response as a browser gets it (CI only).
 $cat=MediaFixtureWeb::get(PORT,'/katalog');check(MediaWeb::nonceScript($cat['csp'],$cat['body'])&&preg_match("/script-src 'nonce-[A-Za-z0-9+\/]{22}=='; script-src-attr 'none'/",implode(' ',$cat['csp']))===1,'NONCE_SCRIPT_CSP_AS_SERVED');
-$mu=MediaWeb::mediaUrl($cat['body']);
-if($imagesVisible){
-    check($mu!==null&&MediaWeb::storageImageCount($cat['body'])===0,'CATALOG_IMAGES_USE_THE_MEDIA_ROUTE_NOT_STORAGE');
-    $mt=$mu['path'].'?'.http_build_query($mu['query'],'','&',PHP_QUERY_RFC3986);$mg=MediaFixtureWeb::get(PORT,$mt);
-    check($mg['status']===200&&str_starts_with(strtolower((string)$mg['contentType']),'image/')&&MediaWeb::nosniff($mg['nosniff'])&&MediaWeb::immutablePrivateCache($mg['cache'])&&($mg['setCookie']??[])===[]&&$mg['cookies']===[],'MEDIA_ROUTE_SERVED_SIGNED_IMMUTABLE_NO_COOKIE');
-    $badQuery=$mu['query'];$badQuery['s']=substr($badQuery['s'],0,-1).($badQuery['s'][strlen($badQuery['s'])-1]==='A'?'B':'A');
-    check(MediaFixtureWeb::get(PORT,$mu['path'].'?'.http_build_query($badQuery,'','&',PHP_QUERY_RFC3986))['status']===404&&MediaFixtureWeb::get(PORT,$mu['path'].'?v='.rawurlencode((string)$mu['query']['v']))['status']===404,'MEDIA_ROUTE_BAD_OR_MISSING_SIGNATURE_404');
-}
+$hook=json_decode(sh(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$incoming.'/b1150-app-check.php',$active,'media-sample'],$active),true,16,JSON_THROW_ON_ERROR);
+check(($hook['urlNull']??-1)===0&&$hook['imageCount']===2&&is_array($hook['sample']),'HOOK_TWO_IMAGES_NO_NULL_URL:'.json_encode($hook['urlNull']??null));
+$mu=$hook['sample'];$mt=$mu['path'].'?'.http_build_query($mu['query'],'','&',PHP_QUERY_RFC3986);$mg=MediaFixtureWeb::get(PORT,$mt);
+check($mg['status']===200&&$mg['cookies']===[]&&MediaWeb::mediaCacheControl($mg['cache'])&&MediaWeb::strongEtag($mg['etag'])&&MediaWeb::crossOriginPolicy($mg['corp'])&&MediaWeb::nosniff($mg['nosniff'])&&in_array(strtolower(trim(explode(';',(string)$mg['contentType'])[0])),['image/jpeg','image/png','image/webp'],true),'MEDIA_ROUTE_SERVED_AS_SPECIFIED:'.json_encode([$mg['status'],$mg['cache'],$mg['etag'],$mg['corp'],$mg['contentType']]));
+check(MediaFixtureWeb::get(PORT,$mt,['If-None-Match: '.$mg['etag'][0]])['status']===304,'MEDIA_ROUTE_304_ON_ETAG');
+$badQuery=$mu['query'];$badQuery['s']=substr($badQuery['s'],0,-1).(substr($badQuery['s'],-1)==='a'?'b':'a');$badUrl=$mu['path'].'?'.http_build_query($badQuery,'','&',PHP_QUERY_RFC3986);
+// A valid signature is never limited and a bad one is always a bare 404, also after more than 120 bad requests in the minute (no 429).
+$badStatuses=[];for($i=0;$i<130;$i++)$badStatuses[]=MediaFixtureWeb::get(PORT,$badUrl)['status'];
+check(count(array_unique($badStatuses))===1&&$badStatuses[0]===404,'BAD_SIGNATURE_ALWAYS_404_NEVER_429:'.json_encode(array_count_values($badStatuses)));
+check(MediaFixtureWeb::get(PORT,$mt)['status']===200,'VALID_SIGNATURE_STILL_200_AFTER_130_BAD_REQUESTS');
+check(MediaFixtureWeb::get(PORT,$mu['path'].'?v='.rawurlencode((string)$mu['query']['v']))['status']===404&&MediaFixtureWeb::get(PORT,'/media/p/'.(int)explode('/',$mu['path'])[3].'/huge?v='.$mu['query']['v'].'&s='.$mu['query']['s'])['status']===404,'MEDIA_ROUTE_MISSING_SIGNATURE_AND_UNKNOWN_RENDITION_404');
 $pi=MediaWeb::publicImagePath($cat['body']);if($pi!==null)check($status($pi)===200,'PUBLIC_IMAGE_ROUTE_STAYS_200');
 $cat2=MediaFixtureWeb::get(PORT,'/katalog');preg_match("/script-src 'nonce-([^']+)'/",implode(' ',$cat['csp']),$n1);preg_match("/script-src 'nonce-([^']+)'/",implode(' ',$cat2['csp']),$n2);check($n1[1]!==$n2[1],'NONCE_DIFFERS_PER_REQUEST');
 $fe=lastLine($o,'FEATURE_CLI_CHECK');check($fe['expectInstalled']===true&&$fe['themeRoutePostOnly']===true&&$fe['routesCached']===false&&($fe['routeList'][MediaInstallCoordinator::MEDIA_ROUTE_NAME]??null)===1&&($fe['routeList']['site-assets.show']??null)===1&&($fe['routeList']['admin.settings.smtp.index']??null)===1,'CLI_FEATURES_AFTER_INSTALL:'.json_encode($fe));

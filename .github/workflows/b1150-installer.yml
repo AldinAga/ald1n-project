@@ -138,30 +138,92 @@ jobs:
           test "$(git rev-parse --verify "$B1150_SOURCE^{commit}")" = "$B1150_SOURCE"
           test "$(grep -o "SOURCE_COMMIT='[a-f0-9]*'" tools/storefront/b1150/MediaInstallCoordinator.php)" = "SOURCE_COMMIT='$B1150_SOURCE'"
           git merge-base --is-ancestor "$B1149_SOURCE" "$B1150_SOURCE"
-      - name: Reuse authenticated exact existing runtime
+      - name: Rebuild the inert runtime bundle of ef3f927b (the 7-day artifact 13363389798 has expired) and pin its manifest digest
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         id: runtime
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The bundle is built exactly as the B1130 job of b1082-storefront-current-main.yml built it (same source commit, same composer
+          # 2.11.1, same locked dependencies, same manifest layout). The manifest holds the sha256 of every file, so the pinned manifest
+          # digest d737387e... proves the rebuilt tree is byte for byte the tree that is on the host. The tar.gz itself carries a gzip
+          # timestamp and is not byte-reproducible; nothing downstream pins its digest (the stage is made from the manifest).
           work="$RUNNER_TEMP/b1150-runtime"
-          mkdir -p "$work/payload" "$work/stage"
-          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' https://api.github.com/repos/AldinAga/ald1n-project/actions/artifacts/13363389798/zip -o "$work/runtime.zip"
-          echo "3e06da1172178f2bf96224fe49d62c8b3114c1b90784432a2200889542ec2f2c  $work/runtime.zip" | sha256sum --check --strict
-          WORK="$work" python3 - <<'PY'
-          import hashlib,os,pathlib,tarfile,zipfile
-          root=pathlib.Path(os.environ['WORK'])
-          with zipfile.ZipFile(root/'runtime.zip') as archive:
-              assert set(archive.namelist())=={'cms-runtime.tar.gz','runtime-manifest.json','build-receipt.json','bundle.sha256'}
-              for entry in archive.infolist():
-                  assert entry.file_size<=64*1024*1024
-                  (root/'payload'/entry.filename).write_bytes(archive.read(entry))
-          assert hashlib.sha256((root/'payload/cms-runtime.tar.gz').read_bytes()).hexdigest()=='be650042d5d4573871790d082e376d88d3408fe6862907b8dada1cd2015a9488'
-          assert hashlib.sha256((root/'payload/runtime-manifest.json').read_bytes()).hexdigest()=='d737387e60a981b3b404e0980d9b70cb95b6e1d506a39211981d49dcd12be4c6'
-          with tarfile.open(root/'payload/cms-runtime.tar.gz') as archive:
-              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in archive.getmembers())
-              archive.extractall(root/'stage',filter='data')
+          mkdir -p "$work/payload" "$work/stage" "$work/build/runtime"
+          export B1130_BUILD="$work/build" B1130_HEAD_SHA=ef3f927b77ba573881c2b6dba341732c417e6725 B1130_OUT="$work/payload" B1130_WS="$GITHUB_WORKSPACE"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          work=pathlib.Path(os.environ['B1130_BUILD']); dest=work/'runtime'; ws=os.environ['B1130_WS']
+          source=os.environ['B1130_HEAD_SHA']; prefix='apps/cms/current/'
+          roots=('app/','bootstrap/','config/','database/migrations/','database/seeders/','resources/','routes/','public/','bin/')
+          files={'artisan','composer.json','composer.lock','VERSION','RELEASE-TAG','CHANGELOG.md'}
+          entries=subprocess.check_output(['git','-C',ws,'ls-tree','-r','-z',source,prefix]).split(b'\0')
+          selected=[]
+          for raw in entries:
+              if not raw: continue
+              meta,name=raw.decode().split('\t',1); mode,kind,blob=meta.split(); rel=name.removeprefix(prefix)
+              if rel not in files and not rel.startswith(roots): continue
+              parts=pathlib.PurePosixPath(rel).parts
+              assert not rel.startswith('/') and '..' not in parts and '\\' not in rel,rel
+              assert mode in ('100644','100755') and kind=='blob',(rel,mode,kind)
+              assert not any(x in ('storage','node_modules','.git','tests','test','fixtures') or x.startswith('.env') for x in parts),rel
+              if rel.startswith('bootstrap/cache/'): continue
+              assert not rel.endswith(('.sql','.sql.gz','.gpg','.p12','.pfx','.key','.sqlite','.sqlite3','.dump')),rel
+              body=subprocess.check_output(['git','-C',ws,'cat-file','blob',blob])
+              target=dest/rel; target.parent.mkdir(parents=True,exist_ok=True); target.write_bytes(body); target.chmod(0o755 if mode=='100755' else 0o644)
+              selected.append({'path':rel,'blob':blob,'sha256':hashlib.sha256(body).hexdigest()})
+          assert files.issubset({x['path'] for x in selected}),files
+          assert hashlib.sha256((dest/'composer.lock').read_bytes()).hexdigest()=='4937d2e652bd41f83005faebfa5f238e4425db3a02506985695b4f3da2b8613b'
+          (work/'source-files.json').write_text(json.dumps(selected,indent=2))
+          PY
+          curl --fail --silent --show-error --location https://getcomposer.org/download/2.11.1/composer.phar --output "$work/build/composer.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $work/build/composer.phar" | sha256sum --check --strict
+          export COMPOSER_HOME="$work/build/composer-home" COMPOSER_CACHE_DIR="$work/build/composer-cache"
+          php "$work/build/composer.phar" install --working-dir="$work/build/runtime" --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction --optimize-autoloader --no-progress
+          php "$work/build/composer.phar" check-platform-reqs --working-dir="$work/build/runtime" --no-dev
+          (cd "$work/build/runtime" && php -r 'require "vendor/autoload.php";foreach(json_decode(file_get_contents("vendor/composer/installed.json"),true,512,JSON_THROW_ON_ERROR)["packages"] as $package){$name=$package["name"];echo $name,"\t",Composer\InstalledVersions::getPrettyVersion($name),"\n";}') > "$work/build/installed-versions.tsv"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,re,stat,subprocess,tarfile
+          work=pathlib.Path(os.environ['B1130_BUILD']); root=work/'runtime'; out=pathlib.Path(os.environ['B1130_OUT']); ws=os.environ['B1130_WS']
+          source=os.environ['B1130_HEAD_SHA']; lock=json.loads((root/'composer.lock').read_text())
+          expected={p['name']:p['version'] for p in lock['packages']}
+          actual={}
+          for line in (work/'installed-versions.tsv').read_text().splitlines():
+              name,version=line.split('\t'); actual[name]=version
+          project=json.loads((root/'composer.json').read_text())['name']; actual.pop(project,None)
+          assert actual==expected,{'missing':sorted(set(expected)-set(actual)),'extra':sorted(set(actual)-set(expected)),'different':[n for n in expected.keys() & actual.keys() if expected[n]!=actual[n]]}
+          for item in json.loads((work/'source-files.json').read_text()):
+              assert hashlib.sha256((root/item['path']).read_bytes()).hexdigest()==item['sha256'],item['path']
+          installed=json.loads((root/'vendor/composer/installed.json').read_text())
+          assert installed.get('dev') is False and not installed.get('dev-package-names'),installed.get('dev')
+          files=[]; dirs=[]; total=0
+          for item in sorted(root.rglob('*')):
+              rel=item.relative_to(root).as_posix(); parts=pathlib.PurePosixPath(rel).parts; mode=item.lstat().st_mode
+              assert not item.is_symlink() and (stat.S_ISDIR(mode) or stat.S_ISREG(mode)),rel
+              assert not rel.startswith('/') and '..' not in parts and '\\' not in rel,rel
+              assert not any(p.startswith('.env') or p in ('.git','node_modules','storage','tests','test','fixtures','__fixtures__') for p in parts),rel
+              assert not rel.startswith('bootstrap/cache/'),rel
+              if item.is_dir(): dirs.append(rel); continue
+              assert item.stat().st_nlink==1,rel
+              assert not rel.endswith(('.sql','.sql.gz','.gpg','.p12','.pfx','.key','.sqlite','.sqlite3','.dump')),rel
+              content=item.read_bytes(); size=len(content); assert size<=16*1024*1024,rel
+              total+=size; files.append({'path':rel,'size':size,'sha256':hashlib.sha256(content).hexdigest()})
+          assert 0<len(files)<=30000 and total<=192*1024*1024,(len(files),total)
+          archive=out/'cms-runtime.tar.gz'
+          with tarfile.open(archive,'w:gz',format=tarfile.PAX_FORMAT) as tar:
+              for rel in dirs+[f['path'] for f in files]:
+                  p=root/rel; info=tar.gettarinfo(str(p),arcname=rel); info.uid=info.gid=0; info.uname=info.gname=''; info.mtime=0
+                  if info.isfile():
+                      with p.open('rb') as stream: tar.addfile(info,stream)
+                  else: tar.addfile(info)
+          tree=subprocess.check_output(['git','-C',ws,'rev-parse',source+'^{tree}'],text=True).strip()
+          manifest={'schemaVersion':1,'sourceCommit':source,'sourceTree':tree,'composerLockSHA256':hashlib.sha256((root/'composer.lock').read_bytes()).hexdigest(),'prodPackages':expected,'files':files,'totalFiles':len(files),'totalBytes':total,'archiveRoot':'CMS relative','productionMutation':False,'deploymentAuthorized':False,'storefrontActivationAuthorized':False}
+          (out/'runtime-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          print(json.dumps({'files':len(files),'bytes':total,'manifestSHA256':hashlib.sha256((out/'runtime-manifest.json').read_bytes()).hexdigest()}))
+          assert len(files)==8531,len(files)
+          assert hashlib.sha256((out/'runtime-manifest.json').read_bytes()).hexdigest()=='d737387e60a981b3b404e0980d9b70cb95b6e1d506a39211981d49dcd12be4c6','MANIFEST_DIGEST_DIFFERS_FROM_THE_ONE_ON_THE_HOST'
+          with tarfile.open(archive) as tar:
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in tar.getmembers())
+              tar.extractall(work.parent/'stage',filter='data')
           PY
       - name: Build the B1146 to B1149 ZIPs (fixture predecessors) and the B1150 operator ZIP from git (the source diff must equal the coded STEPS set)
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
