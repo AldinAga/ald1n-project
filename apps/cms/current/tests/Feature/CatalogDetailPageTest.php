@@ -21,6 +21,7 @@ final class CatalogDetailPageTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
+        config()->set('app.key', 'base64:'.base64_encode(str_repeat('k', 32)));
     }
 
     public function test_superadmin_can_open_product_detail_by_slug(): void
@@ -56,7 +57,11 @@ final class CatalogDetailPageTest extends TestCase
 
         $response = $this->actingAs($user)->get('/catalog/'.$product->slug);
 
-        $response->assertOk()->assertSee(route('media.product', ['image' => $image->id]), false);
+        // The legacy file is shown through the signed, login-free route, so the
+        // mobile app and e-mail can load the same address.
+        $url = (string) ProductImage::query()->findOrFail($image->id)->url; // reloaded: DB defaults (rotation) are part of the version
+        self::assertMatchesRegularExpression('~/media/p/'.$image->id.'/original\?v=[a-f0-9]{16}&s=[a-f0-9]{32}$~D', $url);
+        $response->assertOk()->assertSee(e($url), false);
     }
 
     public function test_invalid_image_record_does_not_turn_product_detail_into_server_error(): void

@@ -42,9 +42,9 @@ final class PublicStorefrontAppearance
 
     private const MEMO = 'public_storefront.branding';
 
-    private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+    private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
 
-    private const FAVICON_TYPES = ['png' => 'image/png', 'ico' => 'image/x-icon'];
+    private const FAVICON_TYPES = ['png' => 'image/png', 'ico' => 'image/x-icon', 'svg' => 'image/svg+xml'];
 
     /** Theme stored in the visitor's cookie; anything unknown means system. */
     public static function theme(Request $request): string
@@ -213,7 +213,8 @@ final class PublicStorefrontAppearance
         }
         $width = null;
         try {
-            $size = @getimagesize(Storage::disk('public')->path((string) $path));
+            $size = @getimagesize(Storage::disk('public')->path((string) $path))
+                ?: app(\App\Services\SiteLogoAssetService::class)->svgDimensions((string) $path);
             if (is_array($size) && $size[0] > 0 && $size[1] > 0) {
                 $width = max(1, min(640, (int) round($height * $size[0] / $size[1])));
             }
@@ -232,7 +233,7 @@ final class PublicStorefrontAppearance
             return null;
         }
 
-        return ['href' => $href, 'type' => self::FAVICON_TYPES[strtolower(pathinfo($href, PATHINFO_EXTENSION))]];
+        return ['href' => $href, 'type' => self::FAVICON_TYPES[strtolower(pathinfo(trim((string) $path), PATHINFO_EXTENSION))]];
     }
 
     /**
@@ -251,6 +252,12 @@ final class PublicStorefrontAppearance
             return null;
         }
         try {
+            // Stored names go through the site-assets.show route (relative,
+            // versioned); SVG never falls back to /storage.
+            $routed = app(\App\Services\SiteLogoAssetService::class)->assetUrl($path, false);
+            if ($routed !== null || strtolower($m[1]) === 'svg') {
+                return $routed;
+            }
             if (!Storage::disk('public')->exists($path)) {
                 return null;
             }

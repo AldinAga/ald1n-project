@@ -7,6 +7,11 @@ name: Catalog visual QA screenshots (NO DEPLOY)
 on:
   pull_request:
     paths:
+      - 'apps/cms/current/public/assets/css/ald1n-public-gallery.css'
+      - 'apps/cms/current/app/Support/PublicProductImages.php'
+      - 'apps/cms/current/app/Support/PublicProductImageFiles.php'
+      - 'apps/cms/current/tests/Browser/product-gallery-browser.cjs'
+      - 'apps/cms/current/tests/Feature/PublicProductGalleryTest.php'
       - 'apps/cms/current/resources/views/public-shop/**'
       - 'apps/cms/current/public/assets/css/ald1n-public-storefront.css'
       - 'apps/cms/current/app/Support/PublicCatalogPresentation.php'
@@ -25,6 +30,13 @@ on:
       - 'apps/cms/current/app/Http/Middleware/SecurityHeaders.php'
       - 'apps/cms/current/tests/Support/ShopThemeScript.php'
       - '.github/workflows/catalog-visual-qa.yml'
+      - 'apps/cms/current/app/Services/SvgSanitizer.php'
+      - 'apps/cms/current/app/Services/SiteLogoAssetService.php'
+      - 'apps/cms/current/app/Services/SiteAssetUrlService.php'
+      - 'apps/cms/current/app/Http/Controllers/SiteAssetController.php'
+      - 'apps/cms/current/tests/Browser/seed-svg-logo-visual.php'
+      - 'apps/cms/current/tests/Browser/svg-logo-visual-browser.cjs'
+      - 'apps/cms/current/tests/Feature/SiteLogoSvgTest.php'
 permissions:
   contents: read
 concurrency:
@@ -92,6 +104,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php -l tests/Browser/seed-catalog-visual.php
           node --check tests/Browser/catalog-visual-browser.cjs
+          node --check tests/Browser/product-gallery-browser.cjs
       - name: Focused catalog redesign PHPUnit (disposable MariaDB)
         id: phpunit
         continue-on-error: true
@@ -106,7 +119,7 @@ jobs:
           APP_URL: https://cms.ald1n.com
         run: |
           set -euo pipefail
-          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontThemeLogoTest; do
+          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontThemeLogoTest PublicProductGalleryTest StorefrontMediaPathBoundaryB893Test PublicMediaCacheAndCartRedirectB877Test; do
             php vendor/bin/phpunit -c phpunit.mysql.xml "tests/Feature/$test.php" --colors=never
           done
       - name: Install disposable Chromium outside repository
@@ -135,7 +148,30 @@ jobs:
             sleep 1
           done
           test "$READY" = 1 || { echo 'CATALOG_VISUAL_HTTP_BOOT_HOLD'; tail -n 20 "$RUNNER_TEMP/catalog-visual-server.log"; exit 5; }
+          # Product photos and gallery on the same fixture and server.
+          node tests/Browser/product-gallery-browser.cjs
+          sleep 62 # fresh public-shop throttle window for the next script
           node tests/Browser/catalog-visual-browser.cjs
+      - name: SVG logo pair in light and dark, hostile admin upload cleaned or refused
+        working-directory: apps/cms/current
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_DATABASE" = ald1n_test
+          php -l tests/Browser/seed-svg-logo-visual.php
+          node --check tests/Browser/svg-logo-visual-browser.cjs
+          php tests/Browser/seed-svg-logo-visual.php
+          php artisan serve --host=127.0.0.1 --port=8124 > "$RUNNER_TEMP/svg-logo-visual-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8124/katalog; then READY=1; break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          test "$READY" = 1 || { echo 'SVG_LOGO_VISUAL_HTTP_BOOT_HOLD'; tail -n 20 "$RUNNER_TEMP/svg-logo-visual-server.log"; exit 5; }
+          node tests/Browser/svg-logo-visual-browser.cjs
       - name: Keep synthetic screenshots only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

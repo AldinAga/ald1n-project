@@ -37,11 +37,12 @@
 
         <section class="panel form-section">
             <h2>Logotipi i favicon</h2>
+            @include('admin.settings.partials.svg-logo-panel')
             <div class="asset-setting-grid">
                 @foreach([
-                    ['key' => 'logo_light', 'title' => 'Logo za svetlu temu', 'input' => 'site_logo_light', 'accept' => '.png,.jpg,.jpeg,.webp', 'preview' => 'light', 'url' => $logoLightUrl, 'path' => $settings['site_logo_light_path'], 'remove' => 'remove-logo-light'],
-                    ['key' => 'logo_dark', 'title' => 'Logo za tamnu temu', 'input' => 'site_logo_dark', 'accept' => '.png,.jpg,.jpeg,.webp', 'preview' => 'dark', 'url' => $logoDarkUrl, 'path' => $settings['site_logo_dark_path'], 'remove' => 'remove-logo-dark'],
-                    ['key' => 'favicon', 'title' => 'Favicon', 'input' => 'site_favicon', 'accept' => '.png,.ico', 'preview' => 'favicon', 'url' => $faviconUrl, 'path' => $settings['site_favicon_path'], 'remove' => 'remove-favicon'],
+                    ['key' => 'logo_light', 'title' => 'Logo za svetlu temu', 'input' => 'site_logo_light', 'accept' => '.png,.jpg,.jpeg,.webp,.svg', 'preview' => 'light', 'url' => $logoLightUrl, 'path' => $settings['site_logo_light_path'], 'remove' => 'remove-logo-light'],
+                    ['key' => 'logo_dark', 'title' => 'Logo za tamnu temu', 'input' => 'site_logo_dark', 'accept' => '.png,.jpg,.jpeg,.webp,.svg', 'preview' => 'dark', 'url' => $logoDarkUrl, 'path' => $settings['site_logo_dark_path'], 'remove' => 'remove-logo-dark'],
+                    ['key' => 'favicon', 'title' => 'Favicon', 'input' => 'site_favicon', 'accept' => '.png,.ico,.svg', 'preview' => 'favicon', 'url' => $faviconUrl, 'path' => $settings['site_favicon_path'], 'remove' => 'remove-favicon'],
                 ] as $asset)
                     @php $status = $assetStatus[$asset['key']] ?? ['state' => 'none', 'label' => 'Nije postavljen', 'url' => null, 'path' => '']; @endphp
                     <article class="asset-setting-card" data-asset-status="{{ $status['state'] }}">
@@ -65,7 +66,7 @@
                     </article>
                 @endforeach
             </div>
-            <p class="muted">Ukupna veličina jednog snimanja ne sme preći ograničenje servera (post_max_size). SVG logo nije podržan; sačuvajte ga kao PNG ili WEBP.</p>
+            <p class="muted">Ukupna veličina jednog snimanja ne sme preći ograničenje servera (post_max_size).</p>
         </section>
 
         @if($canManageLoginBackground)

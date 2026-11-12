@@ -11,7 +11,7 @@ use App\Support\SerbianPlural;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\{Hash,Storage};
 use Tests\Support\ShopThemeScript;
 use Tests\TestCase;
 
@@ -34,6 +34,7 @@ final class PublicCatalogRedesignTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('public');
         $this->seed(CoreAccessSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
         config()->set('app.url', 'https://cms.ald1n.com');
@@ -72,6 +73,11 @@ final class PublicCatalogRedesignTest extends TestCase
             $product->categories()->attach($this->category->id);
         }
         if ($image) {
+            // A real file: rows whose file is gone are not shown on the storefront.
+            $png = imagecreatetruecolor(600, 450);
+            ob_start();
+            imagepng($png);
+            Storage::disk('public')->put('products/'.$product->id.'/a.png', (string) ob_get_clean());
             ProductImage::query()->create([
                 'product_id' => $product->id,
                 'storage_disk' => 'public',

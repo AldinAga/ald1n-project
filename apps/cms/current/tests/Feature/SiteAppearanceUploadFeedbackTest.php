@@ -76,17 +76,18 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
         }
     }
 
-    public function test_svg_and_oversized_logo_get_serbian_message_with_types_and_limit(): void
+    public function test_unusable_svg_and_oversized_logo_get_serbian_message_with_types_and_limit(): void
     {
+        // SVG is accepted (sanitized); one without dimensions or content is
+        // refused with a named Serbian reason (SiteLogoSvgTest covers the rest).
         $svg = UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
         $this->actingAs($this->admin)->from('/admin/settings/appearance')
             ->put('/admin/settings/appearance', $this->form(['site_logo_light' => $svg]))
             ->assertSessionHasErrors('site_logo_light');
         $message = (string) session('errors')->first('site_logo_light');
-        self::assertStringContainsString('Logo za svetlu temu', $message);
-        self::assertStringContainsString('PNG, JPG, JPEG ili WEBP', $message);
-        self::assertStringContainsString('4 MB (4096 KB)', $message);
-        self::assertStringContainsString('SVG nije podržan', $message);
+        self::assertStringStartsWith('Logo za svetlu temu: ', $message);
+        self::assertStringContainsString('SVG nema dimenzije', $message);
+        self::assertStringNotContainsString('nije podržan', $message);
 
         $big = UploadedFile::fake()->image('logo.png', 20, 20)->size(5000);
         $this->actingAs($this->admin)->from('/admin/settings/appearance')
@@ -94,13 +95,14 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
             ->assertSessionHasErrors('site_logo_dark');
         $message = (string) session('errors')->first('site_logo_dark');
         self::assertStringContainsString('Logo za tamnu temu', $message);
+        self::assertStringContainsString('PNG, JPG, WEBP ili SVG', $message);
         self::assertStringContainsString('4 MB (4096 KB)', $message);
 
         $favicon = UploadedFile::fake()->image('icon.jpg', 16, 16);
         $this->actingAs($this->admin)->from('/admin/settings/appearance')
             ->put('/admin/settings/appearance', $this->form(['site_favicon' => $favicon]))
             ->assertSessionHasErrors('site_favicon');
-        self::assertStringContainsString('PNG ili ICO', (string) session('errors')->first('site_favicon'));
+        self::assertStringContainsString('PNG, ICO ili SVG', (string) session('errors')->first('site_favicon'));
         self::assertSame([], Storage::disk('public')->allFiles());
     }
 
@@ -136,8 +138,11 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
             ->assertSee('Datoteka postoji na disku')
             ->assertSee('data-asset-status="missing"', false)
             ->assertSee('data-asset-status="present"', false)
-            ->assertSee('Dozvoljeni formati su PNG, JPG, JPEG ili WEBP, najviše 4 MB (4096 KB); SVG nije podržan.')
-            ->assertSee('Dozvoljeni formati su PNG ili ICO, najviše 1 MB (1024 KB); SVG nije podržan.');
+            ->assertSee('Dozvoljeni formati su PNG, JPG, WEBP ili SVG, najviše 4 MB (4096 KB); SVG (do 200 KB) se automatski čisti od skripti i spoljnih veza.')
+            ->assertSee('Dozvoljeni formati su PNG, ICO ili SVG, najviše 1 MB (1024 KB); SVG (do 200 KB) se automatski čisti od skripti i spoljnih veza.')
+            ->assertDontSee('SVG nije podržan')
+            ->assertSee('accept=".png,.jpg,.jpeg,.webp,.svg"', false)
+            ->assertSee('accept=".png,.ico,.svg"', false);
         self::assertStringContainsString(Storage::disk('public')->url('site-assets/present-dark.png'), (string) $response->getContent());
         // A missing file is not rendered as a broken image.
         self::assertStringNotContainsString('src="'.Storage::disk('public')->url('site-assets/missing-light.png').'"', (string) $response->getContent());

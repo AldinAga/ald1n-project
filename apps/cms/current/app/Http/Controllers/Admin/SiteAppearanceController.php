@@ -24,12 +24,12 @@ final class SiteAppearanceController extends Controller
     /**
      * Upload fields: label (Serbian, names the field), accepted types and limit in KB.
      *
-     * @var array<string,array{label:string,types:string,max_kb:int}>
+     * @var array<string,array{label:string,types:string,max_kb:int,svg?:bool}>
      */
     private const UPLOAD_FIELDS = [
-        'site_logo_light' => ['label' => 'Logo za svetlu temu', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 4096],
-        'site_logo_dark' => ['label' => 'Logo za tamnu temu', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 4096],
-        'site_favicon' => ['label' => 'Favicon', 'types' => 'PNG ili ICO', 'max_kb' => 1024],
+        'site_logo_light' => ['label' => 'Logo za svetlu temu', 'types' => 'PNG, JPG, WEBP ili SVG', 'max_kb' => 4096, 'svg' => true],
+        'site_logo_dark' => ['label' => 'Logo za tamnu temu', 'types' => 'PNG, JPG, WEBP ili SVG', 'max_kb' => 4096, 'svg' => true],
+        'site_favicon' => ['label' => 'Favicon', 'types' => 'PNG, ICO ili SVG', 'max_kb' => 1024, 'svg' => true],
         'login_background_image' => ['label' => 'Pozadina prijave', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 8192],
         'login_background_fallback' => ['label' => 'Rezervna slika pozadine', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 8192],
         'login_slideshow_images' => ['label' => 'Slika za slideshow', 'types' => 'PNG, JPG, JPEG ili WEBP', 'max_kb' => 8192],
@@ -83,7 +83,7 @@ final class SiteAppearanceController extends Controller
         ]);
     }
 
-    public function update(Request $request, SettingsService $settings, AuditLogger $audit): RedirectResponse
+    public function update(Request $request, SettingsService $settings, AuditLogger $audit, \App\Services\SiteLogoAssetService $logoAssets): RedirectResponse
     {
         $loginBackgroundTouched = $request->hasAny([
             'login_background_mode',
@@ -121,9 +121,9 @@ final class SiteAppearanceController extends Controller
             'site_footer_link_2_url' => ['nullable', 'url', 'max:500'],
             'site_footer_link_3_label' => ['nullable', 'string', 'max:80'],
             'site_footer_link_3_url' => ['nullable', 'url', 'max:500'],
-            'site_logo_light' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
-            'site_logo_dark' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
-            'site_favicon' => ['nullable', 'file', 'mimes:png,ico', 'max:1024'],
+            'site_logo_light' => ['bail', 'nullable', 'file', 'max:4096', \App\Rules\SiteLogoFile::logo()],
+            'site_logo_dark' => ['bail', 'nullable', 'file', 'max:4096', \App\Rules\SiteLogoFile::logo()],
+            'site_favicon' => ['bail', 'nullable', 'file', 'max:1024', \App\Rules\SiteLogoFile::favicon()],
             'login_background_mode' => ['sometimes', 'required', Rule::in(['default', 'image', 'slideshow', 'youtube'])],
             'login_background_image' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
             'login_background_fallback' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
@@ -268,7 +268,7 @@ final class SiteAppearanceController extends Controller
                     continue;
                 }
                 $old = (string) ($before[$key] ?? '');
-                $path = $file->storePublicly('site-assets', 'public');
+                $path = $logoAssets->store($file, $input);
                 $values[$key] = $path;
                 $storedNewPaths[] = $path;
                 if (str_starts_with($old, 'site-assets/')) {
@@ -332,11 +332,15 @@ final class SiteAppearanceController extends Controller
             throw $exception;
         }
 
+        $current = $settings->all();
         foreach (array_unique($deleteAfterCommit) as $path) {
-            Storage::disk('public')->delete($path);
+            // Kept while another slot or an issued document still uses it.
+            if (!\App\Services\SiteLogoAssetService::stillReferenced($path, $current)) {
+                Storage::disk('public')->delete($path);
+            }
         }
 
-        $audit->log('settings.appearance.updated', 'Izgled sajta', null, $before, $settings->all());
+        $audit->log('settings.appearance.updated', 'Izgled sajta', null, $before, $settings->all(), $logoAssets->finishUpload());
 
         $saved = [];
         foreach (self::SAVED_ASSET_NAMES as $key => $name) {
@@ -397,7 +401,10 @@ final class SiteAppearanceController extends Controller
         foreach (self::UPLOAD_FIELDS as $input => $field) {
             $attribute = $input === 'login_slideshow_images' ? $input.'.*' : $input;
             $text = $field['label'].': '.$this->uploadHint($field).'.';
-            foreach (['file', 'mimes', 'max', 'uploaded'] as $rule) {
+            // Logo and favicon types are checked by content (SiteLogoFile),
+            // which brings its own message; there is no mimes rule for them.
+            $rules = ($field['svg'] ?? false) ? ['file', 'max', 'uploaded'] : ['file', 'mimes', 'max', 'uploaded'];
+            foreach ($rules as $rule) {
                 $messages[$attribute.'.'.$rule] = $text;
             }
         }
@@ -405,10 +412,14 @@ final class SiteAppearanceController extends Controller
         return $messages;
     }
 
-    /** @param array{label:string,types:string,max_kb:int} $field */
+    /** @param array{label:string,types:string,max_kb:int,svg?:bool} $field */
     private function uploadHint(array $field): string
     {
-        return 'dozvoljeni formati su '.$field['types'].', najviše '.$this->sizeLabel($field['max_kb']).'; SVG nije podržan';
+        $hint = 'dozvoljeni formati su '.$field['types'].', najviše '.$this->sizeLabel($field['max_kb']);
+
+        return ($field['svg'] ?? false)
+            ? $hint.'; SVG (do 200 KB) se automatski čisti od skripti i spoljnih veza'
+            : $hint;
     }
 
     private function sizeLabel(int $kb): string
@@ -464,7 +475,7 @@ final class SiteAppearanceController extends Controller
             $key = $map[$asset];
             $old = (string) $settings->get($key, '');
             $settings->putMany([$key => ''], (int) $request->user()->getAuthIdentifier());
-            if (str_starts_with($old, 'site-assets/')) {
+            if (str_starts_with($old, 'site-assets/') && !\App\Services\SiteLogoAssetService::stillReferenced($old, $settings->all())) {
                 Storage::disk('public')->delete($old);
             }
             $audit->log('settings.appearance.asset_removed', 'Izgled sajta', null, [$key => $old], [$key => '']);
@@ -514,7 +525,7 @@ final class SiteAppearanceController extends Controller
         }
 
         $settings->putMany($values, (int) $request->user()->getAuthIdentifier());
-        if (str_starts_with($path, 'site-assets/login/')) {
+        if (str_starts_with($path, 'site-assets/login/') && !\App\Services\SiteLogoAssetService::stillReferenced($path, $settings->all())) {
             Storage::disk('public')->delete($path);
         }
         $audit->log('settings.login_appearance.asset_removed', 'Pozadina prijave', null, $before, $settings->all());

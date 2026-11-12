@@ -119,6 +119,51 @@ foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
         ->middleware('throttle:public-shop-browse')->name('legal.'.$legalKey);
 }
 
+// Site logos, favicon and login backgrounds (SiteLogoAssetService), served
+// without the /storage symlink. Public like the logo itself, throttled,
+// strict stored-name pattern, SVG re-sanitized; no session or cookies so the
+// long public cache never stores a Set-Cookie. Independent of the storefront
+// switch: the admin and login layouts use the same files.
+Route::get('/site-assets/{file}', \App\Http\Controllers\SiteAssetController::class)
+    ->where('file', \App\Services\SiteLogoAssetService::FILE_PATTERN)
+    // Own limiter key: an unnamed throttle shares the guest IP counter with
+    // the other unnamed limits (e.g. registration POST 5/10 min).
+    ->middleware('throttle:600,1,site-assets')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        // Laravel 13 web group CSRF middleware (adds the XSRF-TOKEN cookie).
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ])
+    ->name('site-assets.show');
+
+// Product photos for the admin catalog, the mobile app and e-mail, served
+// without the /storage symlink and without a login: the URL carries an HMAC
+// signature (ProductMediaUrl) and a file version, so it is stable between
+// responses and changes when the photo does. No session or cookies (an image
+// request from the app has no cookie jar; a Set-Cookie would also defeat
+// caching). No throttle middleware: a request with a valid signature is cheap
+// and legitimate, and a shared client IP (proxy or CDN edge) must not let
+// bad signatures lock the photos out; the controller counts bad ones itself.
+// The storefront keeps its own gated public-shop.media route, and
+// media.product stays as the signed-in route for legacy files.
+Route::get('/media/p/{image}/{rendition}', \App\Http\Controllers\SignedProductMediaController::class)
+    ->whereNumber('image')
+    ->where('rendition', implode('|', \App\Support\ProductMediaUrl::RENDITIONS))
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        // Laravel 13 web group CSRF middleware (adds the XSRF-TOKEN cookie).
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ])
+    ->name('media.product.signed');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
         ->middleware('throttle:public-shop-browse')->name('public-shop.register');
