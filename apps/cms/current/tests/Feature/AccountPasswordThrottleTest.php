@@ -81,7 +81,15 @@ final class AccountPasswordThrottleTest extends TestCase
         $this->change(self::OLD)->assertRedirect();
         self::assertTrue(Hash::check(self::OLD, (string) $user->fresh()->password_hash));
 
-        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $start = Carbon::now();
+        Carbon::setTestNow($start->copy()->addMinutes(14));
+        $this->change(self::OLD)->assertRedirect();
+        self::assertStringContainsString('Previše neuspešnih pokušaja',
+            (string) session('errors')->first('current_password'));
+        self::assertTrue(Hash::check(self::OLD, (string) $user->fresh()->password_hash),
+            'Still locked after 14 minutes.');
+
+        Carbon::setTestNow($start->copy()->addMinutes(16));
         $this->change(self::OLD)->assertSessionHasNoErrors();
         self::assertTrue(Hash::check(self::NEW, (string) $user->fresh()->password_hash),
             'After the lockout window the correct password works again.');
@@ -98,6 +106,47 @@ final class AccountPasswordThrottleTest extends TestCase
         $other = $this->login($this->person('throttle-bystander'));
         $this->change(self::OLD)->assertSessionHasNoErrors();
         self::assertTrue(Hash::check(self::NEW, (string) $other->fresh()->password_hash));
+    }
+
+    public function test_web_and_api_share_one_budget(): void
+    {
+        $user = $this->login($this->person('throttle-shared'));
+        $token = $user->createToken('throttle-test', ['*'])->plainTextToken;
+
+        for ($i = 1; $i <= 3; $i++) {
+            $this->change('web-wrong-'.$i)->assertSessionHasErrors(['current_password' => 'Trenutna lozinka nije ispravna.']);
+        }
+        for ($i = 1; $i <= 2; $i++) {
+            $this->withToken($token)->putJson('/api/v1/me/password', $this->body('api-wrong-'.$i))
+                ->assertStatus(422)->assertJsonValidationErrors('current_password');
+        }
+
+        // 3 web + 2 API wrong guesses used the whole budget: both channels refuse the right password.
+        $this->withToken($token)->putJson('/api/v1/me/password', $this->body(self::OLD))
+            ->assertStatus(422)
+            ->assertJsonPath('errors.current_password.0', fn (string $m): bool => str_starts_with($m, 'Previše neuspešnih pokušaja'));
+        $this->change(self::OLD)->assertRedirect();
+        self::assertStringContainsString('Previše neuspešnih pokušaja',
+            (string) session('errors')->first('current_password'));
+        self::assertTrue(Hash::check(self::OLD, (string) $user->fresh()->password_hash));
+        self::assertSame(1, AuditLog::query()->where('action', 'account.password_change_throttled')->count(),
+            'Logged once, when the lock starts.');
+    }
+
+    public function test_api_correct_password_works_after_a_mistake_and_clears_the_counter(): void
+    {
+        $user = $this->person('throttle-api-ok');
+        $token = $user->createToken('throttle-test', ['*'])->plainTextToken;
+
+        $this->withToken($token)->putJson('/api/v1/me/password', $this->body('typo'))->assertStatus(422);
+        $this->withToken($token)->putJson('/api/v1/me/password', $this->body(self::OLD))->assertOk();
+        self::assertTrue(Hash::check(self::NEW, (string) $user->fresh()->password_hash));
+    }
+
+    /** @return array<string,string> */
+    private function body(string $current, string $new = self::NEW): array
+    {
+        return ['current_password' => $current, 'password' => $new, 'password_confirmation' => $new];
     }
 
     private function change(string $current, string $new = self::NEW): \Illuminate\Testing\TestResponse

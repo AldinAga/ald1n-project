@@ -137,23 +137,41 @@ final class PublicMerchantSettingsController extends Controller
         $owner=$request->user();
         $before=$merchant->review();
 
-        // Validated data is always saved as a draft; the approval is a
-        // separate step that is only granted when the terms are complete and
-        // match what the page showed. A refused approval never discards the
-        // draft. Data, revocation and (when granted) attestation are one
-        // atomic DB write, so a partially saved policy cannot inherit the
-        // signature of old terms.
+        // The page sends the fingerprint of the state it showed. While it
+        // matches the stored state, valid input is always saved as a draft and
+        // the approval is a separate step, granted only for complete terms;
+        // a refused approval never discards the draft. Data, revocation and
+        // (when granted) attestation are one atomic DB write, so a partially
+        // saved policy cannot inherit the signature of old terms.
+        // When the fingerprint no longer matches (second tab, double click,
+        // another admin) nothing is written and the existing approval is left
+        // alone: the submitted values are either already saved (a repeated
+        // submit) or older than the stored ones (they are returned to the form).
         $approvalRequested=($data['merchant_approval']??null)==='1';
         $refusal=null;
+        $stale=false;
+        $identical=false;
         try {
-        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner,$shownFingerprint,$approvalRequested,&$refusal): void {
-            // The owner signs only the state the page showed. If identity,
-            // legal texts, bank accounts or terms changed elsewhere after the
-            // page loaded, the draft is still saved but nothing is approved.
-            $refusal=null; // the transaction may be retried
-            if ($approvalRequested
-                && ($shownFingerprint==='' || !hash_equals($merchant->review()['fingerprint'],$shownFingerprint))) {
-                $refusal='Podaci su sačuvani. Odobrenje nije potvrđeno jer su se uslovi promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.';
+        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner,$shownFingerprint,$approvalRequested,&$refusal,&$stale,&$identical): void {
+            // The transaction may be retried: start from a clean outcome.
+            $refusal=null;
+            $current=$merchant->review();
+            // A form that sends no fingerprint can still save a plain draft;
+            // it can never approve.
+            $stale=$shownFingerprint!==''
+                ? !hash_equals($current['fingerprint'],$shownFingerprint)
+                : $approvalRequested;
+            $identical=false;
+            if ($stale) {
+                $stored=$current['policy'];
+                $identical=$stored['methods']===$methods && $stored['deliveries']===$deliveries
+                    && $stored['bank_account_id']===$account
+                    && $stored['terms_url']===trim((string)($data['terms_url']??''))
+                    && $stored['privacy_url']===trim((string)($data['privacy_url']??''))
+                    && $stored['shipping_fee_rsd']===trim((string)($data['shipping_fee_rsd']??''))
+                    && $stored['shipping_description']===trim((string)($data['shipping_description']??''))
+                    && $stored['support_email']===trim((string)($data['support_email']??''));
+                return;
             }
             $values=[
                 'public_checkout_terms_url'=>trim((string)($data['terms_url']??'')),
@@ -169,7 +187,7 @@ final class PublicMerchantSettingsController extends Controller
                 'public_checkout_approved_by'=>'',
             ];
             $settings->putMany($values,(int)$owner->id);
-            if ($approvalRequested && $refusal===null) {
+            if ($approvalRequested) {
                 $review=$merchant->review();
                 if (!$review['complete']) {
                     $missing=array_map(
@@ -192,6 +210,18 @@ final class PublicMerchantSettingsController extends Controller
             // policy drafts cached after a failed attestation/rollback; after
             // success force a fresh read of the new approval signature.
             $settings->forgetCache();
+        }
+        if ($stale) {
+            $notice='Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.';
+            if ($identical) {
+                // Repeated submit of what is already stored; leave it as it is.
+                return $merchant->review()['approved'] || !$approvalRequested
+                    ? back()->with('status','Podešavanja su već sačuvana. Ništa nije promenjeno.')
+                    : back()->with('approval_refused',$notice);
+            }
+
+            return back()->withInput()->with('approval_refused',
+                $notice.' Tvoj unos je zadržan u formi i nije sačuvan.');
         }
         $after=$merchant->review();
         // Record whether a human actually attested to these EXACT terms, but

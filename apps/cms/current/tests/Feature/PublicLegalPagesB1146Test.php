@@ -410,16 +410,17 @@ final class PublicLegalPagesB1146Test extends TestCase
             'payment_methods' => ['cash_on_delivery'], 'delivery_methods' => ['courier', 'customer_pickup'],
             'support_email' => 'podrska@example.test', 'bank_account_id' => '', 'merchant_approval' => '1',
         ];
-        $stale = 'Podaci su sačuvani. Odobrenje nije potvrđeno jer su se uslovi promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.';
+        $stale = 'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.'
+            .' Tvoj unos je zadržan u formi i nije sačuvan.';
         $this->actingAs($this->owner)->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $shown])
-            ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('approval_refused', $stale);
+            ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('approval_refused', $stale)
+            ->assertSessionHasInput('terms_url', 'https://cms.ald1n.com/uslovi-prodaje');
         $this->put('/admin/settings/public-storefront', $payload)->assertSessionHas('approval_refused', $stale);
         $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => str_repeat('0', 64)])
             ->assertSessionHas('approval_refused', $stale);
-        // Changed in B-merchant-draft: a refused approval keeps the draft.
-        self::assertSame('https://cms.ald1n.com/uslovi-prodaje',
-            app(SettingsService::class)->get('public_checkout_terms_url'),
-            'A refused approval must still keep the submitted draft.');
+        // A submit built on an out-of-date page writes nothing (no draft either).
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_terms_url'),
+            'A stale submit must not persist the submitted values.');
         self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
 
         $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $this->shownFingerprint()])

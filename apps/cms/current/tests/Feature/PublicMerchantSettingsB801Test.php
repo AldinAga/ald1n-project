@@ -201,6 +201,93 @@ final class PublicMerchantSettingsB801Test extends TestCase
         self::assertFalse(app(\App\Services\PublicStorefrontStateService::class)->isOpen());
     }
 
+    public function test_repeated_submit_of_the_same_form_keeps_the_approval(): void
+    {
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $settings=app(SettingsService::class);
+        $merchant=app(PublicMerchantPolicyService::class);
+        self::assertTrue($merchant->review()['approved']);
+        $digest=$settings->get('public_checkout_approval_digest');
+        $approvedAt=$settings->get('public_checkout_approved_at');
+        self::assertNotSame('',$digest);
+
+        // Double click / second tab: the same body, still carrying the old fingerprint.
+        $this->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionMissing('approval_refused')
+            ->assertSessionHas('status','Podešavanja su već sačuvana. Ništa nije promenjeno.');
+        self::assertTrue($merchant->review()['approved'],'The repeated submit must not revoke the approval.');
+        self::assertSame($digest,$settings->get('public_checkout_approval_digest'));
+        self::assertSame($approvedAt,$settings->get('public_checkout_approved_at'));
+        self::assertSame(1,\App\Models\AuditLog::query()
+            ->where('action','settings.public_checkout_policy_updated')->count());
+    }
+
+    public function test_out_of_date_tab_with_other_values_writes_nothing_and_keeps_the_approval(): void
+    {
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $merchant=app(PublicMerchantPolicyService::class);
+        self::assertTrue($merchant->review()['approved']);
+
+        $older=array_replace($payload,['support_email'=>'older-tab@example.test']);
+        $this->put('/admin/settings/public-storefront',$older)
+            ->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionHas('approval_refused',
+                'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.'
+                .' Tvoj unos je zadržan u formi i nije sačuvan.')
+            ->assertSessionHasInput('support_email','older-tab@example.test');
+        self::assertSame('retail@example.test',
+            app(SettingsService::class)->get('public_checkout_support_email'),'Nothing from the old tab is written.');
+        self::assertTrue($merchant->review()['approved'],'The approval given in the newer request stays.');
+        self::assertSame(1,\App\Models\AuditLog::query()
+            ->where('action','settings.public_checkout_policy_updated')->count());
+
+        // Same stale tab without approval is refused the same way.
+        unset($older['merchant_approval']);
+        $this->put('/admin/settings/public-storefront',$older)->assertSessionHas('approval_refused');
+        self::assertSame('retail@example.test',
+            app(SettingsService::class)->get('public_checkout_support_email'));
+    }
+
+    public function test_every_checklist_code_has_a_label_for_the_missing_items_message(): void
+    {
+        $settings=app(SettingsService::class);
+        $codes=[];
+        // State A: every field wrong and no methods; state B: methods that need
+        // pickup/own delivery and a bank account.
+        $settings->putMany([
+            'documents_company_name'=>'','public_checkout_terms_url'=>'http://insecure.example',
+            'public_checkout_privacy_url'=>'','public_checkout_shipping_description'=>'',
+            'public_checkout_shipping_fee_rsd'=>'5','public_checkout_support_email'=>'',
+            'public_checkout_payment_methods'=>'','public_checkout_delivery_methods'=>'',
+            'public_checkout_bank_account_id'=>'',
+        ],$this->superadmin->id);
+        $codes=array_merge($codes,app(PublicMerchantPolicyService::class)->review()['issue_codes']);
+        $settings->putMany([
+            'public_checkout_payment_methods'=>'bank_transfer,cash',
+            'public_checkout_delivery_methods'=>'courier',
+        ],$this->superadmin->id);
+        $codes=array_merge($codes,app(PublicMerchantPolicyService::class)->review()['issue_codes']);
+        $codes=array_values(array_unique($codes));
+        sort($codes);
+
+        $expected=['bank_account','cash_delivery','delivery_methods','identity','payment_methods',
+            'privacy_url','shipping_description','shipping_fee','support_email','terms_url'];
+        self::assertSame($expected,$codes,'review() produced a code this test does not know: add a label.');
+        $labels=(new \ReflectionClassConstant(
+            \App\Http\Controllers\Admin\PublicMerchantSettingsController::class,'ISSUE_LABELS'))->getValue();
+        $labelCodes=array_keys($labels);
+        sort($labelCodes);
+        self::assertSame($expected,$labelCodes);
+        foreach ($labels as $code=>$label) {
+            self::assertNotSame('',trim($label),$code);
+        }
+    }
+
     public function test_input_that_fails_validation_saves_nothing_and_grants_nothing(): void
     {
         foreach ([

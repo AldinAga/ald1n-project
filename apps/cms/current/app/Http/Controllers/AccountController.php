@@ -6,11 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Models\NotificationPreference;
 use App\Services\AuditLogger;
+use App\Services\PasswordChangeThrottle;
 use App\Services\PortalSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -18,12 +18,6 @@ use Illuminate\View\View;
 
 final class AccountController extends Controller
 {
-    /** Wrong current-password attempts per user and IP before a lockout. */
-    private const PASSWORD_MAX_FAILURES = 5;
-
-    /** Lockout window in seconds (15 minutes), same as the SMTP re-confirmation. */
-    private const PASSWORD_DECAY_SECONDS = 900;
-
     public function show(Request $request, PortalSessionService $sessions): View
     {
         $user = $request->user()->loadMissing(['role', 'group', 'notificationPreference']);
@@ -116,36 +110,27 @@ final class AccountController extends Controller
         return back()->with('status', 'Postavke obaveštenja su sačuvane.');
     }
 
-    public function password(Request $request, AuditLogger $audit, PortalSessionService $sessions): RedirectResponse
+    public function password(Request $request, AuditLogger $audit, PortalSessionService $sessions, PasswordChangeThrottle $throttle): RedirectResponse
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
         ]);
         $user = $request->user();
-        // Only wrong guesses count (per user + IP). Checked before any hash
-        // comparison, so a locked-out caller cannot keep guessing; a correct
-        // password clears the counter and is never blocked by older mistakes.
-        $key = 'account-password|'.$user->getAuthIdentifier().'|'.($request->ip() ?? 'unknown');
-        if (RateLimiter::tooManyAttempts($key, self::PASSWORD_MAX_FAILURES)) {
-            $minutes = max(1, (int) ceil(RateLimiter::availableIn($key) / 60));
-            $audit->log(
-                'account.password_change_throttled',
-                'Moj nalog',
-                $user,
-                user: $user,
-                request: $request,
-                level: 'warning',
-            );
-
-            return back()->withErrors(['current_password' => 'Previše neuspešnih pokušaja. Pokušajte ponovo za '.$minutes.' min.']);
+        // Budget shared with PUT /api/v1/me/password (per user). A locked
+        // account refuses even the correct password before any hash check;
+        // the attempt is counted BEFORE the comparison so parallel requests
+        // cannot all pass on the same count; a correct change clears it.
+        if ($throttle->tooManyAttempts($user)) {
+            return back()->withErrors(['current_password' => $throttle->message($user)]);
         }
+        $throttle->hit($user);
         if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
-            RateLimiter::hit($key, self::PASSWORD_DECAY_SECONDS);
+            $throttle->failed($user, $request, 'web');
 
             return back()->withErrors(['current_password' => 'Trenutna lozinka nije ispravna.']);
         }
-        RateLimiter::clear($key);
+        $throttle->clear($user);
         $user->forceFill([
             'password_hash' => Hash::make((string) $data['password']),
             'password_changed_at' => now(),
