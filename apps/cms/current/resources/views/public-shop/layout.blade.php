@@ -21,6 +21,8 @@
 @stack('head')
 </head>
 <body class="public-retail">
+{{-- Cloudflare Email Address Obfuscation rewrites addresses into data-cfemail and injects a decoder script that this page's CSP (one nonce'd script) blocks, so visitors would read "[email protected]" instead of the trader's address. The email_off pair, closed before the nonce'd script, switches it off for the whole page body. Never nest a second pair inside. --}}
+<!--email_off-->
 <span id="vrh" class="shop-top-anchor"></span>
 <a class="skip" href="#content">Preskoči navigaciju</a>
 <header class="shop-header"><div class="wrap shop-nav">
@@ -86,6 +88,7 @@
 <p>{{ $shopBrand['brand'] }} · Javni katalog · Prodajna cena bez korisničke provizije</p>
 </div></footer>
 <div class="shop-top-rail"><a class="shop-back-to-top" href="#vrh" aria-label="Nazad na vrh stranice" title="Nazad na vrh stranice"><span aria-hidden="true">↑</span></a></div>
+<!--/email_off-->
 {{-- B1149: the only script on shop pages. Switches the theme (colours, buttons, browser bar) in place and stores the choice; re-applies the stored choice when the back/forward cache restores a page; without JavaScript the form posts to /tema. --}}
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">(function(){try{var d=document,h=d.documentElement,m=d.querySelector('meta[name="color-scheme"]'),g=d.querySelectorAll('meta[name="theme-color"]'),b=d.querySelectorAll('.shop-theme-option'),c={light:'light',dark:'dark',system:'dark light'},i;var set=function(t,k){h.setAttribute('data-theme',t);if(m)m.setAttribute('content',c[t]);if(g.length===2){g[0].setAttribute('content',t==='light'?'#eef1f5':'#0e1317');g[1].setAttribute('content',t==='dark'?'#0e1317':'#eef1f5')}for(i=0;i<b.length;i++)b[i].setAttribute('aria-pressed',b[i].value===t?'true':'false');if(k)return;try{d.cookie='shop_theme='+t+'; path=/; max-age=31536000; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}};for(i=0;i<b.length;i++)b[i].addEventListener('click',function(e){var t=this.value;if(!Object.prototype.hasOwnProperty.call(c,t))return;e.preventDefault();set(t)});window.addEventListener('pageshow',function(e){if(!e.persisted)return;var s=null;try{s=/(?:^|; )shop_theme=(light|dark|system)(?:;|$)/.exec(d.cookie)}catch(x){}set(s?s[1]:'system',1)})}catch(e){}})();</script>
 </body>
