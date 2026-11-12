@@ -8,6 +8,8 @@ use App\Models\ProductImage;
 use App\Support\ProductMediaUrl;
 use App\Support\PublicProductImageFiles;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,7 +38,9 @@ final class SignedProductMediaController extends Controller
     /** The version in the URL changes with the file, so the bytes never change under one URL. */
     public const CACHE_CONTROL = 'private, max-age=604800, immutable';
 
-    private const MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    private const BAD_REQUESTS_PER_MINUTE = 120;
+
+    private const MIME_TYPES =['image/jpeg', 'image/png', 'image/webp'];
 
     public function __invoke(Request $request, string $image, string $rendition): Response
     {
@@ -45,7 +49,7 @@ final class SignedProductMediaController extends Controller
         $signature = $request->query('s');
         if ($id < 1 || !is_string($version) || !is_string($signature)
             || !ProductMediaUrl::valid($id, $rendition, $version, $signature)) {
-            return $this->notFound();
+            return $this->rejected($request);
         }
 
         try {
@@ -86,7 +90,8 @@ final class SignedProductMediaController extends Controller
             'Last-Modified' => gmdate('D, d M Y H:i:s', $modified).' GMT',
         ];
 
-        // Conditional request first: no file is opened for a 304.
+        // Conditional request first: the file was only located and stat'ed
+        // above; it is not opened or read for a 304.
         $probe = new Response('', 200, $headers);
         if ($probe->isNotModified($request)) {
             self::applySecurityHeaders($probe->headers);
@@ -109,6 +114,27 @@ final class SignedProductMediaController extends Controller
         $headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
         // Webmail and app WebViews load the photo cross-site.
         $headers->set('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
+
+    /**
+     * A bad shape or signature: same 404 as every other failure, no database
+     * query. Only these requests are counted per client address (the address
+     * may be a shared proxy or CDN edge, so a valid signature is never
+     * limited); crossing the threshold changes nothing for the client and
+     * writes one log line per minute window.
+     */
+    private function rejected(Request $request): Response
+    {
+        try {
+            $hits = RateLimiter::hit('product-media-bad|'.($request->ip() ?? 'unknown'), 60);
+            if ($hits === self::BAD_REQUESTS_PER_MINUTE + 1) {
+                Log::warning('Mnogo zahteva za /media/p/ sa losim potpisom sa iste adrese.', ['ip' => $request->ip()]);
+            }
+        } catch (Throwable) {
+            // Counting must never turn a 404 into an error.
+        }
+
+        return $this->notFound();
     }
 
     private function notFound(): Response

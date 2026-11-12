@@ -30,23 +30,38 @@ final class ProductMediaUrl
     /** 128 bits of the HMAC, hex. Null when there is no application key. */
     public static function signature(int $imageId, string $rendition, string $version): ?string
     {
-        $appKey = (string) config('app.key');
+        return self::sign((string) config('app.key'), $imageId, $rendition, $version);
+    }
+
+    /**
+     * New URLs are always signed with the current key; a URL signed with a
+     * key listed in APP_PREVIOUS_KEYS (after a key rotation) still opens.
+     */
+    public static function valid(int $imageId, string $rendition, string $version, string $signature): bool
+    {
+        if (preg_match(self::VERSION_PATTERN, $version) !== 1 || preg_match(self::SIGNATURE_PATTERN, $signature) !== 1) {
+            return false;
+        }
+        $keys = array_merge([(string) config('app.key')], array_map('strval', (array) config('app.previous_keys', [])));
+        $valid = false;
+        foreach ($keys as $key) {
+            $expected = self::sign($key, $imageId, $rendition, $version);
+            if ($expected !== null && hash_equals($expected, $signature)) {
+                $valid = true;
+            }
+        }
+
+        return $valid;
+    }
+
+    private static function sign(string $appKey, int $imageId, string $rendition, string $version): ?string
+    {
         if ($appKey === '' || $imageId < 1 || !in_array($rendition, self::RENDITIONS, true)) {
             return null;
         }
         $key = hash_hmac('sha256', self::KEY_CONTEXT, $appKey);
 
         return substr(hash_hmac('sha256', $imageId.'|'.$rendition.'|'.$version, $key), 0, 32);
-    }
-
-    public static function valid(int $imageId, string $rendition, string $version, string $signature): bool
-    {
-        if (preg_match(self::VERSION_PATTERN, $version) !== 1 || preg_match(self::SIGNATURE_PATTERN, $signature) !== 1) {
-            return false;
-        }
-        $expected = self::signature($imageId, $rendition, $version);
-
-        return $expected !== null && hash_equals($expected, $signature);
     }
 
     /** A 16 hex character version made from any seed string. */

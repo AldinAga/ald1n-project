@@ -13,6 +13,7 @@ use App\Support\ProductMediaUrl;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -312,6 +313,112 @@ final class SignedProductMediaRouteTest extends TestCase
             self::assertStringContainsString(e((string) $image->url), $html, $page);
             self::assertStringNotContainsString('/storage/products/', $html, $page);
         }
+    }
+
+    public function test_svg_html_and_gif_files_are_never_served_even_with_a_valid_signature(): void
+    {
+        $files = [
+            'svg' => '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><script>alert(1)</script></svg>',
+            'html' => '<!DOCTYPE html><html><body><script>alert(1)</script></body></html>',
+            'gif' => base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'),
+        ];
+        foreach ($files as $extension => $content) {
+            $product = $this->product('active');
+            $path = 'products/'.$product->id.'/not-a-photo.'.$extension;
+            Storage::disk('public')->put($path, $content);
+            $image = ProductImage::query()->create([
+                'product_id' => $product->id, 'storage_disk' => 'public', 'file_path' => $path, 'original_filename' => 'x.'.$extension,
+                'mime_type' => 'image/png', 'file_size' => strlen($content), 'file_hash' => hash('sha256', $content), 'sort_order' => 1, 'is_primary' => true,
+            ]);
+            self::assertNotNull($image->url, $extension);
+
+            foreach (['original', 'thumbnail', 'display'] as $rendition) {
+                $version = ProductMediaUrl::version($extension.$rendition);
+                $signature = ProductMediaUrl::signature($image->id, $rendition, $version);
+                $this->get('/media/p/'.$image->id.'/'.$rendition.'?v='.$version.'&s='.$signature)->assertNotFound();
+            }
+        }
+    }
+
+    public function test_bad_signatures_are_counted_but_never_block_a_valid_request_from_the_same_address(): void
+    {
+        [, $image] = $this->publicImage();
+        $key = 'product-media-bad|127.0.0.1';
+        RateLimiter::clear($key);
+        $bad = '/media/p/'.$image->id.'/original?v='.str_repeat('a', 16).'&s='.str_repeat('0', 32);
+
+        for ($i = 0; $i < 130; $i++) {
+            self::assertSame(404, $this->get($bad)->getStatusCode());
+        }
+
+        self::assertSame(130, RateLimiter::attempts($key), 'every rejected request is counted');
+        $again = $this->get($bad);
+        self::assertSame(404, $again->getStatusCode());
+        self::assertSame('Not found', $again->getContent(), 'over the threshold the answer is the same bare 404, not a 429');
+        $this->fetch($image->url)->assertOk();
+        self::assertSame(131, RateLimiter::attempts($key), 'a valid request is not counted');
+    }
+
+    public function test_without_an_application_key_there_are_no_urls_and_the_route_is_404(): void
+    {
+        [, $image] = $this->publicImage();
+        $url = (string) $image->url;
+        $this->fetch($url)->assertOk();
+
+        config()->set('app.key', '');
+        config()->set('app.previous_keys', []);
+
+        self::assertNull(ProductImage::query()->findOrFail($image->id)->url);
+        self::assertNull(ProductImage::query()->findOrFail($image->id)->thumbnail_url);
+        $this->fetch($url)->assertNotFound();
+        self::assertNull(ProductMediaUrl::signature($image->id, 'original', str_repeat('a', 16)));
+    }
+
+    public function test_signature_matches_a_fixed_independently_computed_vector(): void
+    {
+        // Computed outside the application:
+        //   key = hash_hmac('sha256', 'ald1n-product-media-v1', 'base64:' . base64_encode(str_repeat('k', 32)))
+        //   s   = substr(hash_hmac('sha256', '42|thumbnail|0123456789abcdef', key), 0, 32)
+        config()->set('app.key', 'base64:a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=');
+
+        self::assertSame('70a109d6d94cc80f3d261dcbf9a0d2f2', ProductMediaUrl::signature(42, 'thumbnail', '0123456789abcdef'));
+        self::assertTrue(ProductMediaUrl::valid(42, 'thumbnail', '0123456789abcdef', '70a109d6d94cc80f3d261dcbf9a0d2f2'));
+        self::assertFalse(ProductMediaUrl::valid(43, 'thumbnail', '0123456789abcdef', '70a109d6d94cc80f3d261dcbf9a0d2f2'));
+        self::assertFalse(ProductMediaUrl::valid(42, 'display', '0123456789abcdef', '70a109d6d94cc80f3d261dcbf9a0d2f2'));
+    }
+
+    public function test_head_request_answers_200_without_a_body(): void
+    {
+        [, $image] = $this->publicImage();
+        $parts = parse_url((string) $image->url);
+
+        $response = $this->call('HEAD', $parts['path'].'?'.$parts['query']);
+
+        $response->assertOk();
+        self::assertSame('image/png', $response->headers->get('Content-Type'));
+        self::assertEmpty($response->getContent());
+        self::assertSame([], $response->headers->getCookies());
+    }
+
+    public function test_url_signed_with_a_previous_key_still_opens_but_new_urls_use_the_current_key(): void
+    {
+        [, $image] = $this->publicImage();
+        $oldKey = (string) config('app.key');
+        $oldUrl = (string) $image->url;
+        $newKey = 'base64:'.base64_encode(str_repeat('n', 32));
+
+        config()->set('app.key', $newKey);
+        config()->set('app.previous_keys', []);
+        $this->fetch($oldUrl)->assertNotFound();
+
+        config()->set('app.previous_keys', [$oldKey]);
+        $this->fetch($oldUrl)->assertOk();
+        $fresh = (string) ProductImage::query()->findOrFail($image->id)->url;
+        self::assertNotSame($oldUrl, $fresh, 'generation uses the current key only');
+        $this->fetch($fresh)->assertOk();
+
+        config()->set('app.previous_keys', ['base64:'.base64_encode(str_repeat('z', 32))]);
+        $this->fetch($oldUrl)->assertNotFound();
     }
 
     private function publicImage(string $status = 'active'): array

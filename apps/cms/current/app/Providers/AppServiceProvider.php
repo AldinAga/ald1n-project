@@ -322,11 +322,6 @@ final class AppServiceProvider extends ServiceProvider
             Limit::perMinute(120)->by('public-shop-browse|'.$request->ip()));
         RateLimiter::for('public-shop-images', static fn (Request $request): Limit =>
             Limit::perMinute(300)->by('public-shop-images|'.$request->ip()));
-        // Signed product photos (/media/p/...): the admin catalog loads 20+
-        // photos per page and the gallery up to 24, so the budget is generous;
-        // own bucket, never shared with the storefront or login limits.
-        RateLimiter::for('product-media', static fn (Request $request): Limit =>
-            Limit::perMinute(600)->by('product-media|'.$request->ip()));
         RateLimiter::for('public-shop-cart-write', static fn (Request $request): Limit =>
             Limit::perMinute(30)->by('public-shop-cart-write|'.$request->ip()));
         RateLimiter::for('public-shop-checkout', static fn (Request $request): array => [
