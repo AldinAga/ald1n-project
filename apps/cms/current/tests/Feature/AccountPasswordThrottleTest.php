@@ -10,6 +10,7 @@ use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 /**
@@ -106,6 +107,22 @@ final class AccountPasswordThrottleTest extends TestCase
         $other = $this->login($this->person('throttle-bystander'));
         $this->change(self::OLD)->assertSessionHasNoErrors();
         self::assertTrue(Hash::check(self::NEW, (string) $other->fresh()->password_hash));
+    }
+
+    public function test_attempt_is_counted_before_the_password_is_compared(): void
+    {
+        $user = $this->login($this->person('throttle-order'));
+        $seen = null;
+        Hash::partialMock()->shouldReceive('check')->with('probe-guess', \Mockery::any())
+            ->andReturnUsing(function () use (&$seen, $user): bool {
+                $seen = RateLimiter::attempts('account-password|'.$user->id);
+
+                return false;
+            });
+
+        $this->change('probe-guess')->assertSessionHasErrors('current_password');
+
+        self::assertSame(1, $seen, 'The counter must already include this request while the hash is compared.');
     }
 
     public function test_web_and_api_share_one_budget(): void
