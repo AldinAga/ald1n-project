@@ -12,6 +12,7 @@ use App\Http\Resources\Api\V1\NotificationPreferenceResource;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Services\AccountSessionService;
 use App\Services\AuditLogger;
+use App\Services\PasswordChangeThrottle;
 use App\Services\UserNotificationPreferenceService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -72,15 +73,24 @@ final class AccountController extends Controller
         return new NotificationPreferenceResource($preference);
     }
 
-    public function password(UpdatePasswordRequest $request, AuditLogger $audit): JsonResponse
+    public function password(UpdatePasswordRequest $request, AuditLogger $audit, PasswordChangeThrottle $throttle): JsonResponse
     {
         $user = $request->user();
         $data = $request->validated();
+        // Same per-user budget as the web form; counted before the comparison.
+        $attempt = $throttle->begin($user);
+        if ($attempt === null) {
+            throw ValidationException::withMessages([
+                'current_password' => [$throttle->message($user)],
+            ]);
+        }
         if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
+            $throttle->failed($user, $request, 'api', $attempt);
             throw ValidationException::withMessages([
                 'current_password' => ['Trenutna lozinka nije ispravna.'],
             ]);
         }
+        $throttle->clear($user);
 
         $user->forceFill([
             'password_hash' => Hash::make((string) $data['password']),

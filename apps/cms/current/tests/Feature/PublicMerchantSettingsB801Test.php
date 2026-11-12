@@ -101,9 +101,18 @@ final class PublicMerchantSettingsB801Test extends TestCase
             $payload=$this->data($invalid+['merchant_approval'=>'1']);
             $this->actingAs($this->superadmin)
                 ->put('/admin/settings/public-storefront',$payload)
-                ->assertRedirect()->assertSessionHasErrors('merchant_approval');
-            self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_terms_url'),
-                'An invalid signed attempt must not persist partial merchant settings.');
+                ->assertRedirect()->assertSessionHasNoErrors()
+                ->assertSessionHas('approval_refused',
+                    static fn (string $message): bool => str_starts_with($message,
+                        'Podaci su sačuvani. Odobrenje nije potvrđeno jer nedostaje: '));
+            // Changed in B-merchant-draft: the valid input is kept as a draft,
+            // only the approval is refused (it used to roll everything back).
+            $settings=app(SettingsService::class);
+            self::assertSame($payload['terms_url'],$settings->get('public_checkout_terms_url'),
+                'A refused approval must still keep the submitted draft.');
+            self::assertSame('',$settings->get('public_checkout_approval_digest'));
+            self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved'],
+                'An incomplete or unsafe policy cannot be attested.');
         }
 
         $account=BankAccount::query()->create([
@@ -143,6 +152,234 @@ final class PublicMerchantSettingsB801Test extends TestCase
             self::fail('Changed merchant identity cannot inherit prior owner approval.');
         } catch (ValidationException $e) {
             self::assertArrayHasKey('checkout',$e->errors());
+        }
+    }
+
+    public function test_refused_approval_keeps_the_draft_and_names_what_is_missing(): void
+    {
+        $payload=$this->data([
+            'merchant_approval'=>'1','terms_url'=>'','shipping_description'=>'',
+            'support_email'=>'draft-kept@example.test',
+        ]);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionHas('approval_refused',
+                'Podaci su sačuvani. Odobrenje nije potvrđeno jer nedostaje: '
+                .'HTTPS adresa uslova prodaje, opis uslova dostave.');
+
+        $settings=app(SettingsService::class);
+        self::assertSame('draft-kept@example.test',$settings->get('public_checkout_support_email'));
+        self::assertSame('https://cms.ald1n.com/privatnost',$settings->get('public_checkout_privacy_url'));
+        self::assertSame('',$settings->get('public_checkout_approval_digest'));
+        self::assertSame('',$settings->get('public_checkout_approved_by'));
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
+
+        $this->get('/admin/settings/public-storefront')->assertOk()
+            ->assertSee('Odobrenje nije potvrđeno jer nedostaje: HTTPS adresa uslova prodaje, opis uslova dostave.')
+            ->assertSee('draft-kept@example.test');
+    }
+
+    public function test_refused_approval_still_revokes_an_older_approval_and_store_stays_locked(): void
+    {
+        $this->actingAs($this->superadmin)
+            ->put('/admin/settings/public-storefront',$this->data(['merchant_approval'=>'1']))
+            ->assertRedirect()->assertSessionHasNoErrors();
+        self::assertTrue(app(PublicMerchantPolicyService::class)->review()['approved']);
+
+        $this->put('/admin/settings/public-storefront',
+            $this->data(['merchant_approval'=>'1','privacy_url'=>'']))
+            ->assertSessionHas('approval_refused');
+        $settings=app(SettingsService::class);
+        self::assertSame('',$settings->get('public_checkout_privacy_url'),'The edit itself is kept.');
+        self::assertSame('',$settings->get('public_checkout_approval_digest'));
+        self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
+
+        config()->set('public_storefront.enabled',true);
+        config()->set('public_storefront.checkout_enabled',true);
+        $this->post('/admin/settings/public-storefront/toggle',['enabled'=>'1'])
+            ->assertSessionHasErrors('enabled');
+        self::assertFalse(app(\App\Services\PublicStorefrontStateService::class)->isOpen());
+    }
+
+    public function test_repeated_submit_of_the_same_form_keeps_the_approval(): void
+    {
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $settings=app(SettingsService::class);
+        $merchant=app(PublicMerchantPolicyService::class);
+        self::assertTrue($merchant->review()['approved']);
+        $digest=$settings->get('public_checkout_approval_digest');
+        $approvedAt=$settings->get('public_checkout_approved_at');
+        self::assertNotSame('',$digest);
+
+        // Double click / second tab: the same body, still carrying the old fingerprint.
+        $this->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionMissing('approval_refused')
+            ->assertSessionHas('status','Podešavanja su već sačuvana. Ništa nije promenjeno.');
+        self::assertTrue($merchant->review()['approved'],'The repeated submit must not revoke the approval.');
+        self::assertSame($digest,$settings->get('public_checkout_approval_digest'));
+        self::assertSame($approvedAt,$settings->get('public_checkout_approved_at'));
+        self::assertSame(1,\App\Models\AuditLog::query()
+            ->where('action','settings.public_checkout_policy_updated')->count());
+    }
+
+    public function test_out_of_date_tab_with_other_values_writes_nothing_and_keeps_the_approval(): void
+    {
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $merchant=app(PublicMerchantPolicyService::class);
+        self::assertTrue($merchant->review()['approved']);
+
+        $older=array_replace($payload,['support_email'=>'older-tab@example.test']);
+        $this->put('/admin/settings/public-storefront',$older)
+            ->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionHas('approval_refused',
+                'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.'
+                .' Tvoj unos je ostao u formi i nije sačuvan. Dok ne učitaš stranicu iznova, ponovno slanje ostaje odbijeno.')
+            ->assertSessionHasInput('support_email','older-tab@example.test');
+        self::assertSame('retail@example.test',
+            app(SettingsService::class)->get('public_checkout_support_email'),'Nothing from the old tab is written.');
+        self::assertTrue($merchant->review()['approved'],'The approval given in the newer request stays.');
+        self::assertSame(1,\App\Models\AuditLog::query()
+            ->where('action','settings.public_checkout_policy_updated')->count());
+
+        // Same stale tab without approval is refused the same way.
+        unset($older['merchant_approval']);
+        $this->put('/admin/settings/public-storefront',$older)->assertSessionHas('approval_refused');
+        self::assertSame('retail@example.test',
+            app(SettingsService::class)->get('public_checkout_support_email'));
+    }
+
+    public function test_each_differing_field_with_an_old_fingerprint_is_stale_not_already_saved(): void
+    {
+        $account=BankAccount::query()->create([
+            'label'=>'Stale Bank','recipient_name'=>'Test Merchant',
+            'account_number'=>'160000000000000002',
+            'account_number_display'=>'160-0000000000000-02','is_active'=>true,
+        ]);
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $merchant=app(PublicMerchantPolicyService::class);
+        self::assertTrue($merchant->review()['approved']);
+        $stored=$merchant->policy();
+
+        // Control: the very same body is a harmless repeat.
+        $this->put('/admin/settings/public-storefront',$payload)
+            ->assertSessionHas('status','Podešavanja su već sačuvana. Ništa nije promenjeno.');
+
+        $variants=[
+            'terms_url'=>['terms_url'=>'https://cms.ald1n.com/drugi-uslovi'],
+            'privacy_url'=>['privacy_url'=>'https://cms.ald1n.com/druga-privatnost'],
+            'payment_methods'=>['payment_methods'=>['bank_transfer']],
+            'delivery_methods'=>['delivery_methods'=>['courier']],
+            'bank_account_id'=>['bank_account_id'=>(string)$account->id],
+            'shipping_fee_rsd'=>['shipping_fee_rsd'=>'0.00'],
+            'shipping_description'=>['shipping_description'=>'Drugi opis dostave.'],
+            'support_email'=>['support_email'=>'drugi@example.test'],
+        ];
+        self::assertSame(8,count($variants));
+        foreach ($variants as $field=>$change) {
+            $this->put('/admin/settings/public-storefront',array_replace($payload,$change))
+                ->assertRedirect()->assertSessionMissing('status')
+                ->assertSessionHas('approval_refused',
+                    static fn (string $m): bool => str_starts_with($m,'Uslovi su se promenili posle učitavanja stranice.'));
+            self::assertSame($stored,$merchant->policy(),"A stale submit that changes $field must write nothing.");
+            self::assertTrue($merchant->review()['approved'],"...and keep the approval ($field).");
+        }
+    }
+
+    public function test_after_a_stale_answer_the_form_keeps_the_old_fingerprint_and_no_approval_tick(): void
+    {
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $old=$payload['approval_fingerprint'];
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $merchant=app(PublicMerchantPolicyService::class);
+        $stored=$merchant->policy();
+        self::assertNotSame($old,$merchant->review()['fingerprint']);
+
+        // An older tab: every payment method unticked, approval ticked, other email.
+        $older=array_replace($payload,['support_email'=>'older@example.test','delivery_methods'=>['courier']]);
+        unset($older['payment_methods']);
+        $this->put('/admin/settings/public-storefront',$older)->assertSessionHas('approval_refused');
+        self::assertArrayNotHasKey('merchant_approval',session()->getOldInput());
+
+        $html=$this->get('/admin/settings/public-storefront')->assertOk()->getContent();
+        self::assertSame(1,preg_match('/name="approval_fingerprint" value="([0-9a-f]{64})"/',$html,$m));
+        self::assertSame($old,$m[1],'The form must keep the fingerprint it was built on.');
+        self::assertSame(1,preg_match('/<input[^>]*name="merchant_approval"[^>]*>/s',$html,$tick));
+        self::assertStringNotContainsString('checked',$tick[0],'The approval tick is not carried back.');
+        self::assertStringContainsString('value="older@example.test"',$html);
+        $payment=[];
+        preg_match_all('/<input[^>]*name="payment_methods\[\]"[^>]*>/s',$html,$payment);
+        self::assertNotEmpty($payment[0]);
+        foreach ($payment[0] as $box) {
+            self::assertStringNotContainsString('checked',$box,'Unticked payment methods stay unticked after the redirect.');
+        }
+        self::assertSame(1,preg_match('/<input[^>]*name="delivery_methods\[\]"[^>]*value="courier"[^>]*>/s',$html,$courier));
+        self::assertStringContainsString('checked',$courier[0]);
+
+        // Sending what the form now holds (user ticks approval again) stays stale and writes nothing.
+        $again=array_replace($older,['approval_fingerprint'=>$m[1],'merchant_approval'=>'1']);
+        $this->put('/admin/settings/public-storefront',$again)->assertSessionHas('approval_refused');
+        self::assertSame($stored,$merchant->policy());
+        self::assertTrue($merchant->review()['approved']);
+    }
+
+    public function test_every_checklist_code_has_a_label_for_the_missing_items_message(): void
+    {
+        $settings=app(SettingsService::class);
+        $codes=[];
+        // State A: every field wrong and no methods; state B: methods that need
+        // pickup/own delivery and a bank account.
+        $settings->putMany([
+            'documents_company_name'=>'','public_checkout_terms_url'=>'http://insecure.example',
+            'public_checkout_privacy_url'=>'','public_checkout_shipping_description'=>'',
+            'public_checkout_shipping_fee_rsd'=>'5','public_checkout_support_email'=>'',
+            'public_checkout_payment_methods'=>'','public_checkout_delivery_methods'=>'',
+            'public_checkout_bank_account_id'=>'',
+        ],$this->superadmin->id);
+        $codes=array_merge($codes,app(PublicMerchantPolicyService::class)->review()['issue_codes']);
+        $settings->putMany([
+            'public_checkout_payment_methods'=>'bank_transfer,cash',
+            'public_checkout_delivery_methods'=>'courier',
+        ],$this->superadmin->id);
+        $codes=array_merge($codes,app(PublicMerchantPolicyService::class)->review()['issue_codes']);
+        $codes=array_values(array_unique($codes));
+        sort($codes);
+
+        $expected=['bank_account','cash_delivery','delivery_methods','identity','payment_methods',
+            'privacy_url','shipping_description','shipping_fee','support_email','terms_url'];
+        self::assertSame($expected,$codes,'review() produced a code this test does not know: add a label.');
+        $labels=(new \ReflectionClassConstant(
+            \App\Http\Controllers\Admin\PublicMerchantSettingsController::class,'ISSUE_LABELS'))->getValue();
+        $labelCodes=array_keys($labels);
+        sort($labelCodes);
+        self::assertSame($expected,$labelCodes);
+        foreach ($labels as $code=>$label) {
+            self::assertNotSame('',trim($label),$code);
+        }
+    }
+
+    public function test_input_that_fails_validation_saves_nothing_and_grants_nothing(): void
+    {
+        foreach ([
+            'support_email'=>['support_email'=>'not-an-email'],
+            'shipping_fee_rsd'=>['shipping_fee_rsd'=>'abc'],
+            'payment_methods.0'=>['payment_methods'=>['not-a-method']],
+            'terms_url'=>['terms_url'=>'not a url'],
+        ] as $errorKey=>$invalid) {
+            $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',
+                $this->data($invalid+['merchant_approval'=>'1']))
+                ->assertRedirect()->assertSessionHasErrors($errorKey)
+                ->assertSessionMissing('approval_refused');
+            self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_support_email'),
+                'Invalid input must not be stored as a draft.');
+            self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_approved_by'));
         }
     }
 

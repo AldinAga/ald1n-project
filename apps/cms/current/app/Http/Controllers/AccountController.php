@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\NotificationPreference;
 use App\Services\AuditLogger;
+use App\Services\PasswordChangeThrottle;
 use App\Services\PortalSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -109,16 +110,26 @@ final class AccountController extends Controller
         return back()->with('status', 'Postavke obaveštenja su sačuvane.');
     }
 
-    public function password(Request $request, AuditLogger $audit, PortalSessionService $sessions): RedirectResponse
+    public function password(Request $request, AuditLogger $audit, PortalSessionService $sessions, PasswordChangeThrottle $throttle): RedirectResponse
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
         ]);
         $user = $request->user();
+        // Budget shared with PUT /api/v1/me/password (per user). The attempt is
+        // counted before the comparison; a locked account refuses even the
+        // correct password; a correct change clears the counter.
+        $attempt = $throttle->begin($user);
+        if ($attempt === null) {
+            return back()->withErrors(['current_password' => $throttle->message($user)]);
+        }
         if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
+            $throttle->failed($user, $request, 'web', $attempt);
+
             return back()->withErrors(['current_password' => 'Trenutna lozinka nije ispravna.']);
         }
+        $throttle->clear($user);
         $user->forceFill([
             'password_hash' => Hash::make((string) $data['password']),
             'password_changed_at' => now(),
