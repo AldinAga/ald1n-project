@@ -1,4 +1,6 @@
-# CURRENT 2026-11-12 — B1150 PRODUCT MEDIA ROUTE INSTALLED (REPORT 1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
+# CURRENT 2026-11-12 — B1151 LEGAL E-MAIL, MERCHANT DRAFT AND PASSWORD THROTTLE INSTALLED (REPORT 1117); B1150 PRODUCT MEDIA ROUTE (1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
+
+Report1117 (B1151): `B1151_FINAL=PASS_INSTALLED_LEGAL_EMAIL_MERCHANT_DRAFT_PASSWORD_THROTTLE_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 6 files (1 new, 5 modified): legal support e-mail visible, merchant draft kept, password change throttled. Shop switch, SMTP settings, route count (568), migrations, composer, env and config unchanged; no test mail sent and no password endpoint called. Owner next steps are in the report: check a legal page in a private window (support e-mail readable). The password throttle was not exercised by this tool. Rollback: `--rollback` (shop may stay on). [Report1117](1117-B1151-INSTALLER-20261112-222807.md)
 
 Report1116 (B1150): `B1150_FINAL=PASS_INSTALLED_PRODUCT_MEDIA_ROUTE_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 5 files (2 new, 3 modified) adds the signed session-less product image route `/media/p/`. Shop switch, SMTP settings, migrations, composer, env and config unchanged; no test mail sent. Owner next steps are in the report: check the catalog and a product page in a private window, then close the retained directories only after that check. Rollback: `--rollback` (shop may stay on). [Report1116](1116-B1150-INSTALLER-20261112-194512.md)
 
