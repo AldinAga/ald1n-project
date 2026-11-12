@@ -18,6 +18,20 @@ use Illuminate\View\View;
 
 final class PublicMerchantSettingsController extends Controller
 {
+    /** Short names for the checklist codes of PublicMerchantPolicyService::review(). */
+    private const ISSUE_LABELS=[
+        'identity'=>'naziv, adresa, grad i PIB trgovca',
+        'terms_url'=>'HTTPS adresa uslova prodaje',
+        'privacy_url'=>'HTTPS adresa politike privatnosti',
+        'shipping_description'=>'opis uslova dostave',
+        'shipping_fee'=>'trošak dostave odobren kao 0 RSD',
+        'support_email'=>'e-mail za podršku kupcima',
+        'payment_methods'=>'način plaćanja',
+        'delivery_methods'=>'način dostave',
+        'cash_delivery'=>'lično preuzimanje ili sopstvena dostava za plaćanje pri preuzimanju',
+        'bank_account'=>'aktivan žiro račun za bankovni transfer',
+    ];
+
     public function index(Request $request, PublicMerchantPolicyService $merchant,
         PublicRegistrationMailSenderService $registrationMail): View
     {
@@ -123,17 +137,22 @@ final class PublicMerchantSettingsController extends Controller
         $owner=$request->user();
         $before=$merchant->review();
 
-        // All data, attestation and revocation are one atomic DB write. A
-        // partially saved policy cannot inherit the signature of old terms.
+        // Validated data is always saved as a draft; the approval is a
+        // separate step that is only granted when the terms are complete and
+        // match what the page showed. A refused approval never discards the
+        // draft. Data, revocation and (when granted) attestation are one
+        // atomic DB write, so a partially saved policy cannot inherit the
+        // signature of old terms.
+        $approvalRequested=($data['merchant_approval']??null)==='1';
+        $refusal=null;
         try {
-        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner,$shownFingerprint): void {
+        DB::transaction(function () use ($settings,$merchant,$data,$methods,$deliveries,$account,$owner,$shownFingerprint,$approvalRequested,&$refusal): void {
             // The owner signs only the state the page showed. If identity,
             // legal texts, bank accounts or terms changed elsewhere after the
-            // page loaded, refuse before writing anything.
-            if (($data['merchant_approval']??null)==='1'
+            // page loaded, the draft is still saved but nothing is approved.
+            if ($approvalRequested
                 && ($shownFingerprint==='' || !hash_equals($merchant->review()['fingerprint'],$shownFingerprint))) {
-                throw ValidationException::withMessages(['merchant_approval'=>
-                    'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.']);
+                $refusal='Podaci su sačuvani. Odobrenje nije potvrđeno jer su se uslovi promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.';
             }
             $values=[
                 'public_checkout_terms_url'=>trim((string)($data['terms_url']??'')),
@@ -149,11 +168,15 @@ final class PublicMerchantSettingsController extends Controller
                 'public_checkout_approved_by'=>'',
             ];
             $settings->putMany($values,(int)$owner->id);
-            if (($data['merchant_approval']??null)==='1') {
+            if ($approvalRequested && $refusal===null) {
                 $review=$merchant->review();
                 if (!$review['complete']) {
-                    throw ValidationException::withMessages(['merchant_approval'=>
-                        'Nije moguće potvrditi nepotpune uslove. Proveri kontrolnu listu.']);
+                    $missing=array_map(
+                        static fn (string $code): string => self::ISSUE_LABELS[$code]??$code,
+                        $review['issue_codes']);
+                    $refusal='Podaci su sačuvani. Odobrenje nije potvrđeno jer nedostaje: '
+                        .implode(', ',$missing).'.';
+                    return;
                 }
                 $settings->putMany([
                     'public_checkout_approval_digest'=>$review['fingerprint'],
@@ -176,9 +199,14 @@ final class PublicMerchantSettingsController extends Controller
             'SuperAdministrator je ažurirao uslove javnog poručivanja.',
             null,
             ['fingerprint'=>$before['fingerprint'],'approved'=>$before['approved']],
-            ['fingerprint'=>$after['fingerprint'],'approved'=>$after['approved']],
+            ['fingerprint'=>$after['fingerprint'],'approved'=>$after['approved'],
+                'approval_refused'=>$refusal!==null],
             user:$owner,
         );
+
+        if ($refusal!==null) {
+            return back()->with('approval_refused',$refusal);
+        }
 
         return back()->with('status',$after['approved']
             ? 'Poslovni uslovi su potvrđeni. Produkciono poručivanje ostaje odvojeno zaključano.'

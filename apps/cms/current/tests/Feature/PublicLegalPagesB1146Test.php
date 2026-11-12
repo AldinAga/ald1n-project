@@ -410,14 +410,16 @@ final class PublicLegalPagesB1146Test extends TestCase
             'payment_methods' => ['cash_on_delivery'], 'delivery_methods' => ['courier', 'customer_pickup'],
             'support_email' => 'podrska@example.test', 'bank_account_id' => '', 'merchant_approval' => '1',
         ];
+        $stale = 'Podaci su sačuvani. Odobrenje nije potvrđeno jer su se uslovi promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.';
         $this->actingAs($this->owner)->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $shown])
-            ->assertRedirect()->assertSessionHasErrors(['merchant_approval' =>
-                'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.']);
-        $this->put('/admin/settings/public-storefront', $payload)->assertSessionHasErrors('merchant_approval');
+            ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('approval_refused', $stale);
+        $this->put('/admin/settings/public-storefront', $payload)->assertSessionHas('approval_refused', $stale);
         $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => str_repeat('0', 64)])
-            ->assertSessionHasErrors('merchant_approval');
-        self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_terms_url'),
-            'A refused approval must not persist the submitted draft.');
+            ->assertSessionHas('approval_refused', $stale);
+        // Changed in B-merchant-draft: a refused approval keeps the draft.
+        self::assertSame('https://cms.ald1n.com/uslovi-prodaje',
+            app(SettingsService::class)->get('public_checkout_terms_url'),
+            'A refused approval must still keep the submitted draft.');
         self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
 
         $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $this->shownFingerprint()])

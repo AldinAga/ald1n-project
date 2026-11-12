@@ -19,6 +19,9 @@
 @if(session('status'))
     <div class="alert alert-success" role="status">{{ session('status') }}</div>
 @endif
+@if(session('approval_refused'))
+    <div class="alert alert-warning" role="alert">{{ session('approval_refused') }}</div>
+@endif
 @if($errors->any())
     <div class="alert alert-danger" role="alert">
         <strong>Neke stavke zahtevaju proveru:</strong>
