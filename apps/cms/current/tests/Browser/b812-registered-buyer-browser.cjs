@@ -49,7 +49,9 @@ async function openOk(page,where,label){
   assert(measure.scrollWidth<=measure.width+2,
     label+' horizontal overflow '+JSON.stringify(measure));
   if(where.startsWith('/katalog')){
-    const image=page.locator('img[src^="/katalog/slika/"]');
+    // First match = the card / gallery photo; the product page also holds a
+    // hidden enlarge-dialog copy of the same file later in the DOM.
+    const image=page.locator('img[src^="/katalog/slika/"]').first();
     await image.scrollIntoViewIfNeeded();
     await image.evaluate(img=>img.decode());
     assert.deepEqual(await image.evaluate(img=>({

@@ -1,5 +1,5 @@
 <!doctype html>
-{{-- Public storefront layout. Scriptless: theme (Sistem/Svetla/Tamna) is a server-side cookie choice, logos switch through CSS only. Author: Ald1n <https://ald1n.com> --}}
+{{-- Public storefront layout. Theme (Sistem/Svetla/Tamna): icon buttons; one nonce'd script switches instantly, the form posts to /tema without JavaScript; the server renders data-theme from the shop_theme cookie, so there is no flash. Logos switch through CSS only. Author: Ald1n <https://ald1n.com> --}}
 @php($shopTheme = \App\Support\PublicStorefrontAppearance::theme(request()))
 @php($shopBrand = \App\Support\PublicStorefrontAppearance::branding())
 @php($shopClosed = $hideShopNav ?? !app(\App\Services\PublicStorefrontStateService::class)->isOpen())
@@ -11,23 +11,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 @if($shopClosed)<meta name="robots" content="noindex,nofollow">@endif
 <meta name="referrer" content="strict-origin-when-cross-origin">
-@if($shopTheme === 'light')
-<meta name="color-scheme" content="light">
-<meta name="theme-color" content="#eef1f5">
-@elseif($shopTheme === 'dark')
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0e1317">
-@else
-<meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#0e1317" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)">
-@endif
+<meta name="color-scheme" content="{{ ['light' => 'light', 'dark' => 'dark'][$shopTheme] ?? 'dark light' }}">
+{{-- Always two theme-color metas (one per OS scheme) so the theme script can retint the browser bar; a forced theme uses one colour for both. --}}
+<meta name="theme-color" content="{{ $shopTheme === 'light' ? '#eef1f5' : '#0e1317' }}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="{{ $shopTheme === 'dark' ? '#0e1317' : '#eef1f5' }}" media="(prefers-color-scheme: light)">
 <title>@yield('title', 'Katalog') · {{ $shopBrand['brand'] }}</title>
 @if($shopBrand['favicon'])<link rel="icon" href="{{ $shopBrand['favicon']['href'] }}" type="{{ $shopBrand['favicon']['type'] }}">@endif
-<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611091' }}">
+<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611101' }}">
 @stack('head')
 </head>
 <body class="public-retail">
+{{-- Cloudflare Email Address Obfuscation rewrites addresses into data-cfemail and injects a decoder script that this page's CSP (one nonce'd script) blocks, so visitors would read "[email protected]" instead of the trader's address. The email_off pair, closed before the nonce'd script, switches it off for the whole page body. Never nest a second pair inside. --}}
+<!--email_off-->
 <span id="vrh" class="shop-top-anchor"></span>
 <a class="skip" href="#content">Preskoči navigaciju</a>
 <header class="shop-header"><div class="wrap shop-nav">
@@ -60,9 +55,9 @@
 @endif
 <form class="shop-theme" method="post" action="{{ route('public-shop.theme', [], false) }}">
 <input type="hidden" name="back" value="{{ request()->getRequestUri() }}">
-<div class="shop-theme-group" role="group" aria-label="Tema prikaza">
-@foreach(\App\Support\PublicStorefrontAppearance::THEME_LABELS as $themeKey => $themeLabel)
-<button type="submit" name="theme" value="{{ $themeKey }}" class="shop-theme-option" aria-pressed="{{ $shopTheme === $themeKey ? 'true' : 'false' }}" title="Tema: {{ $themeLabel }}">
+<div class="shop-theme-group" role="group" aria-label="Tema">
+@foreach(\App\Support\PublicStorefrontAppearance::THEME_NAMES as $themeKey => $themeLabel)
+<button type="submit" name="theme" value="{{ $themeKey }}" class="shop-theme-option" aria-pressed="{{ $shopTheme === $themeKey ? 'true' : 'false' }}" aria-label="{{ $themeLabel }}" title="{{ $themeLabel }}">
 @if($themeKey === 'system')<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 20.5h7M12 16.5v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
 @elseif($themeKey === 'light')<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
 @else<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M20.5 13.4A8.6 8.6 0 1 1 10.6 3.5a6.7 6.7 0 0 0 9.9 9.9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
@@ -93,5 +88,8 @@
 <p>{{ $shopBrand['brand'] }} · Javni katalog · Prodajna cena bez korisničke provizije</p>
 </div></footer>
 <div class="shop-top-rail"><a class="shop-back-to-top" href="#vrh" aria-label="Nazad na vrh stranice" title="Nazad na vrh stranice"><span aria-hidden="true">↑</span></a></div>
+<!--/email_off-->
+{{-- B1149: the only script on shop pages. Switches the theme (colours, buttons, browser bar) in place and stores the choice; re-applies the stored choice when the back/forward cache restores a page; without JavaScript the form posts to /tema. --}}
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">(function(){try{var d=document,h=d.documentElement,m=d.querySelector('meta[name="color-scheme"]'),g=d.querySelectorAll('meta[name="theme-color"]'),b=d.querySelectorAll('.shop-theme-option'),c={light:'light',dark:'dark',system:'dark light'},i;var set=function(t,k){h.setAttribute('data-theme',t);if(m)m.setAttribute('content',c[t]);if(g.length===2){g[0].setAttribute('content',t==='light'?'#eef1f5':'#0e1317');g[1].setAttribute('content',t==='dark'?'#0e1317':'#eef1f5')}for(i=0;i<b.length;i++)b[i].setAttribute('aria-pressed',b[i].value===t?'true':'false');if(k)return;try{d.cookie='shop_theme='+t+'; path=/; max-age=31536000; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}};for(i=0;i<b.length;i++)b[i].addEventListener('click',function(e){var t=this.value;if(!Object.prototype.hasOwnProperty.call(c,t))return;e.preventDefault();set(t)});window.addEventListener('pageshow',function(e){if(!e.persisted)return;var s=null;try{s=/(?:^|; )shop_theme=(light|dark|system)(?:;|$)/.exec(d.cookie)}catch(x){}set(s?s[1]:'system',1)})}catch(e){}})();</script>
 </body>
 </html>

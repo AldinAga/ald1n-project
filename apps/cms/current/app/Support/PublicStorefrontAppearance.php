@@ -8,11 +8,13 @@ use App\Services\SettingsService;
 use App\Services\SiteAssetUrlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Cookie;
 use Throwable;
 
 /**
- * View model for the scriptless public storefront layout: the visitor's theme
- * choice (first-party cookie, no JavaScript) and the site branding configured
+ * View model for the public storefront layout: the visitor's theme choice
+ * (plain first-party cookie, written by the theme script or POST /tema) and
+ * the site branding configured
  * in Podešavanja > Izgled sajta (logo pair, favicon, alt text, logo height,
  * footer logo flag, site name).
  *
@@ -31,15 +33,18 @@ final class PublicStorefrontAppearance
 
     public const THEME_LABELS = ['system' => 'Sistem', 'light' => 'Svetla', 'dark' => 'Tamna'];
 
+    /** Accessible names of the icon-only theme buttons. */
+    public const THEME_NAMES = ['system' => 'Sistemska tema', 'light' => 'Svetla tema', 'dark' => 'Tamna tema'];
+
     public const DEFAULT_BACK = '/katalog';
 
     private const DEFAULT_SITE_NAME = 'Ald1n CMS';
 
     private const MEMO = 'public_storefront.branding';
 
-    private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+    private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
 
-    private const FAVICON_TYPES = ['png' => 'image/png', 'ico' => 'image/x-icon'];
+    private const FAVICON_TYPES = ['png' => 'image/png', 'ico' => 'image/x-icon', 'svg' => 'image/svg+xml'];
 
     /** Theme stored in the visitor's cookie; anything unknown means system. */
     public static function theme(Request $request): string
@@ -47,6 +52,27 @@ final class PublicStorefrontAppearance
         $value = $request->cookie(self::COOKIE);
 
         return is_string($value) && in_array($value, self::THEMES, true) ? $value : 'system';
+    }
+
+    /**
+     * B1149: an expired shop_theme cookie when the request carries a value
+     * that is not a theme keyword, for example the encrypted HttpOnly cookie
+     * B1148 wrote. Browsers ignore a script write over an HttpOnly cookie of
+     * the same name, so the server removes it once; the next click is then
+     * stored. Same name, path and host-only scope as the cookie we write
+     * (no session.domain fallback). A valid value gets no Set-Cookie.
+     */
+    public static function staleThemeCookie(Request $request): ?Cookie
+    {
+        if (!$request->cookies->has(self::COOKIE)) {
+            return null;
+        }
+        $value = $request->cookies->get(self::COOKIE);
+        if (is_string($value) && in_array($value, self::THEMES, true)) {
+            return null;
+        }
+
+        return Cookie::create(self::COOKIE, '', 1, '/', null, $request->isSecure(), false, false, Cookie::SAMESITE_LAX);
     }
 
     /**
@@ -187,7 +213,8 @@ final class PublicStorefrontAppearance
         }
         $width = null;
         try {
-            $size = @getimagesize(Storage::disk('public')->path((string) $path));
+            $size = @getimagesize(Storage::disk('public')->path((string) $path))
+                ?: app(\App\Services\SiteLogoAssetService::class)->svgDimensions((string) $path);
             if (is_array($size) && $size[0] > 0 && $size[1] > 0) {
                 $width = max(1, min(640, (int) round($height * $size[0] / $size[1])));
             }
@@ -206,7 +233,7 @@ final class PublicStorefrontAppearance
             return null;
         }
 
-        return ['href' => $href, 'type' => self::FAVICON_TYPES[strtolower(pathinfo($href, PATHINFO_EXTENSION))]];
+        return ['href' => $href, 'type' => self::FAVICON_TYPES[strtolower(pathinfo(trim((string) $path), PATHINFO_EXTENSION))]];
     }
 
     /**
@@ -225,6 +252,12 @@ final class PublicStorefrontAppearance
             return null;
         }
         try {
+            // Stored names go through the site-assets.show route (relative,
+            // versioned); SVG never falls back to /storage.
+            $routed = app(\App\Services\SiteLogoAssetService::class)->assetUrl($path, false);
+            if ($routed !== null || strtolower($m[1]) === 'svg') {
+                return $routed;
+            }
             if (!Storage::disk('public')->exists($path)) {
                 return null;
             }

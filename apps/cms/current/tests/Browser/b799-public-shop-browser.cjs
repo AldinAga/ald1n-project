@@ -19,19 +19,37 @@ fs.mkdirSync(dir,{recursive:true});
 async function checkScriptlessPolicy(page,response,label){
   const headers=response.headers();
   const policy=headers['content-security-policy']||'';
-  for(const directive of ["script-src 'none'","script-src-attr 'none'","script-src-elem 'none'","frame-ancestors 'none'"]){
+  // B1149: the only allowed script is the layout's theme switch, carrying
+  // this response's nonce; no 'self', 'unsafe-inline' or external origin.
+  const nonce=(/(?:^|; )script-src 'nonce-([A-Za-z0-9+/]{22}==)'; /.exec(policy)||[])[1];
+  assert(nonce,label+' missing per-request script nonce');
+  for(const directive of ["script-src 'nonce-"+nonce+"';","script-src-attr 'none'","script-src-elem 'nonce-"+nonce+"';","frame-ancestors 'none'","default-src 'none'"]){
     assert(policy.includes(directive),label+' missing '+directive);
   }
+  for(const banned of ["'unsafe-inline'","'unsafe-eval'","'strict-dynamic'","'self' 'nonce","https:"]){
+    assert(!policy.includes(banned),label+' policy has '+banned);
+  }
+  const scripts=await page.evaluate(()=>[...document.scripts].map(s=>({type:s.type,src:s.src,nonce:s.nonce,theme:s.textContent.includes('shop_theme')})));
+  const runnable=scripts.filter(s=>s.type!=='application/ld+json');
+  assert.equal(runnable.length,1,label+' exactly one runnable script '+JSON.stringify(scripts));
+  assert.deepEqual(runnable[0],{type:'',src:'',nonce,theme:true},label+' theme script nonce');
   assert.equal(headers['x-frame-options'],'DENY',label+' framing');
   assert.equal(headers['x-content-type-options'],'nosniff',label+' MIME');
   assert.equal(headers['access-control-allow-origin'],undefined,label+' public CORS');
   const executed=await page.evaluate(()=>{
     delete window.__b1099Inline;
     delete window.__b1099Handler;
+    delete window.__b1149Forged;
     const script=document.createElement('script');
     script.textContent='window.__b1099Inline=true;';
     document.head.append(script);
     script.remove();
+    const forged=document.createElement('script');
+    forged.setAttribute('nonce','AAAAAAAAAAAAAAAAAAAAAA==');
+    forged.textContent='window.__b1149Forged=true;';
+    document.head.append(forged);
+    forged.remove();
+    if(window.__b1149Forged===true)return {inline:'forged nonce ran',handler:false};
     const button=document.createElement('button');
     button.type='button';
     button.setAttribute('onclick','window.__b1099Handler=true;');

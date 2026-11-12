@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\MailRuntimeConfigurator;
 use Illuminate\Console\Command;
 
 final class MailDoctorCommand extends Command
@@ -13,10 +14,19 @@ final class MailDoctorCommand extends Command
 
     public function handle(): int
     {
+        // Report the effective transport: the database SMTP settings win over
+        // .env while they are switched ON and tested. No secret is printed.
+        $runtime = app(MailRuntimeConfigurator::class);
+        $source = $runtime->apply();
         $mailer = (string) config('mail.default');
         $failed = false;
 
-        $this->line('MAIL_MAILER: '.$mailer);
+        if ($source === 'database') {
+            $this->line('Izvor: SMTP iz baze aktivan (Podešavanja > E-mail (SMTP)); .env MAIL_MAILER='.$runtime->envDefaultMailer());
+            $this->line('Efektivni mailer: '.$mailer);
+        } else {
+            $this->line('MAIL_MAILER: '.$mailer);
+        }
         $this->line('Pošiljalac: '.(string) config('mail.from.address').' / '.(string) config('mail.from.name'));
 
         if (!in_array($mailer, ['smtp', 'sendmail'], true)) {

@@ -20,6 +20,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\ShopThemeScript;
 use Tests\TestCase;
 
 /**
@@ -79,7 +80,9 @@ final class PublicLegalPagesB1146Test extends TestCase
             $response = $this->get($uri)->assertOk();
             $html = $response->getContent();
             $response->assertHeader('X-Robots-Tag', 'noindex, nofollow');
-            self::assertStringNotContainsString('<script', strtolower($html), $uri);
+            // B1149: besides the nonce'd theme switch nothing is a script.
+            self::assertStringNotContainsString('<script', strtolower(ShopThemeScript::strip($html,
+                ShopThemeScript::assertStrictPolicy($response->headers->get('Content-Security-Policy')), $uri)), $uri);
             self::assertStringNotContainsString('B1146 Tajni Artikal', $html, $uri);
             self::assertStringNotContainsString('B1146-LEAK-PROBE', $html, $uri);
             self::assertStringNotContainsString('98765', $html, $uri);
@@ -198,7 +201,7 @@ final class PublicLegalPagesB1146Test extends TestCase
         self::assertTrue(app(PublicLegalTextStore::class)->isCustom('terms'));
 
         $html = $this->get('/uslovi-prodaje')->assertOk()->getContent();
-        self::assertStringNotContainsString('<script', strtolower($html));
+        self::assertStringNotContainsString('<script', strtolower(ShopThemeScript::stripFromMarkup($html)));
         self::assertStringNotContainsString('<img', strtolower($html));
         self::assertDoesNotMatchRegularExpression('/href\s*=\s*["\']?\s*javascript/i', $html);
         self::assertStringContainsString('[opasno](javascript:alert(1)', $html, 'Unsafe link stays plain text.');
@@ -371,10 +374,13 @@ final class PublicLegalPagesB1146Test extends TestCase
         foreach (['/pravne-informacije', '/podaci-o-trgovcu', '/uslovi-prodaje', '/pravo-na-odustanak', '/kolacici'] as $uri) {
             $response = $this->get($uri)->assertOk();
             $csp = (string) $response->headers->get('Content-Security-Policy');
-            self::assertStringContainsString("script-src 'none'", $csp, $uri);
+            // B1149: exactly the strict policy; the only script it allows is
+            // the theme switch carrying this response's nonce.
+            $nonce = ShopThemeScript::assertStrictPolicy($csp);
+            ShopThemeScript::strip((string) $response->getContent(), $nonce, $uri);
             self::assertStringContainsString("frame-ancestors 'none'", $csp, $uri);
             self::assertStringContainsString("default-src 'none'", $csp, $uri);
-            self::assertStringNotContainsString('nonce-', $csp, $uri);
+            self::assertSame(2, substr_count($csp, "'nonce-".$nonce."'"), $uri);
             $response->assertHeader('X-Frame-Options', 'DENY');
             self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'), $uri);
         }
@@ -404,14 +410,17 @@ final class PublicLegalPagesB1146Test extends TestCase
             'payment_methods' => ['cash_on_delivery'], 'delivery_methods' => ['courier', 'customer_pickup'],
             'support_email' => 'podrska@example.test', 'bank_account_id' => '', 'merchant_approval' => '1',
         ];
+        $stale = 'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.'
+            .' Tvoj unos je ostao u formi i nije sačuvan. Dok ne učitaš stranicu iznova, ponovno slanje ostaje odbijeno.';
         $this->actingAs($this->owner)->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $shown])
-            ->assertRedirect()->assertSessionHasErrors(['merchant_approval' =>
-                'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.']);
-        $this->put('/admin/settings/public-storefront', $payload)->assertSessionHasErrors('merchant_approval');
+            ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('approval_refused', $stale)
+            ->assertSessionHasInput('terms_url', 'https://cms.ald1n.com/uslovi-prodaje');
+        $this->put('/admin/settings/public-storefront', $payload)->assertSessionHas('approval_refused', $stale);
         $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => str_repeat('0', 64)])
-            ->assertSessionHasErrors('merchant_approval');
+            ->assertSessionHas('approval_refused', $stale);
+        // A submit built on an out-of-date page writes nothing (no draft either).
         self::assertFalse(app(SettingsService::class)->hasStoredValue('public_checkout_terms_url'),
-            'A refused approval must not persist the submitted draft.');
+            'A stale submit must not persist the submitted values.');
         self::assertFalse(app(PublicMerchantPolicyService::class)->review()['approved']);
 
         $this->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $this->shownFingerprint()])

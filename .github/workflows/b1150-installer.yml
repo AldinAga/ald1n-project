@@ -1,0 +1,425 @@
+# B1150 product media route installer. CI only, nothing is deployed.
+#
+# PAYLOAD GATE (read this first). The payload files are written by another writer on codex/product-media-route-20261112
+# (base 7e748158) and are not final yet. Until the orchestrator fills the placeholders, the step with id "payload" is the ONLY
+# red step of this job; every later step is skipped (not red) because it needs steps.payload.outcome == 'success'. When the
+# placeholders are filled the gate turns green and everything runs. Nothing has to be removed afterwards.
+# B1150_FILL, what the orchestrator fills (nothing in this file; B1150_SOURCE is read from the coordinator by the gate step):
+#   1. tools/storefront/b1150/MediaInstallCoordinator.php: STEPS (path, kind, group) with the marker B1150_FILL_STEPS_EMPTY removed,
+#      SOURCE_COMMIT and MEDIA_ROUTE_NAME (MAIN_COMMIT defaults to the base 7e748158).
+#   2. tools/storefront/b1150/AppCheck.php: the media-sample hook (required; package.php refuses the stub).
+#   3. Confirm with the media writer: MediaWeb.php MEDIA_PATH_PATTERN / MEDIA_URL_PATTERN (the URL shape) and the smoke status codes.
+name: B1150 product media route installer (NO DEPLOY)
+on:
+  push:
+    branches: [codex/b1150-installer-20261112]
+    paths: ['.github/workflows/b1150-installer.yml', 'tools/storefront/b1150/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  # (B1150_SOURCE, the payload head commit, is read from MediaInstallCoordinator::SOURCE_COMMIT by the payload gate step and exported to the later steps.)
+  # The B1149 payload head the live tree was built from, and the B1149 operator tooling head (bf5ac045).
+  B1149_SOURCE: 7e7481582fa0be3e95503a81b316be63836e508c
+  B1149_TOOLING: bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0
+jobs:
+  installer:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 240
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: isolated-ci-only
+          MARIADB_DATABASE: ald1n_b1150_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -pisolated-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Fetch the chain commits (B1146 base, B1146-B1149 heads, main eca7755c, tooling bases 6558e7a1 and bf5ac045) by SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=$auth" fetch --no-tags origin \
+            77a3efeabf59281fd820b4afffa14c4ebc209049 ef3f927b77ba573881c2b6dba341732c417e6725 eabe16af8c19fade882e25c70425eb43c3e17ed9 \
+            764bf5135ad6241d64f728e4b141cc2713dc6c48 560828458974a56a8f7173b986a40d46629e4d8b eca7755c6efe05143a6d3cd19f8c9e70b9ee3515 \
+            55d06b9cc010c976dfc56743763dbfeb09b87acf 7e7481582fa0be3e95503a81b316be63836e508c c41f78fcd0382c2f161a717a0061d5883d641730 \
+            6558e7a1584c58753af8b2bdfc7c0c7274d8f291 84facde9ff138d1e7dd0de7af5c811d800b0ccfe afa0c704a1c4ad096918f904b98a77e223398e22 \
+            bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0
+          for c in 77a3efeabf59281fd820b4afffa14c4ebc209049 ef3f927b77ba573881c2b6dba341732c417e6725 eabe16af8c19fade882e25c70425eb43c3e17ed9 764bf5135ad6241d64f728e4b141cc2713dc6c48 560828458974a56a8f7173b986a40d46629e4d8b eca7755c6efe05143a6d3cd19f8c9e70b9ee3515 55d06b9cc010c976dfc56743763dbfeb09b87acf 7e7481582fa0be3e95503a81b316be63836e508c c41f78fcd0382c2f161a717a0061d5883d641730 6558e7a1584c58753af8b2bdfc7c0c7274d8f291 bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0; do
+            test "$(git rev-parse --verify "$c^{commit}")" = "$c"
+          done
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: opcache,pdo_mysql,mysqli,pdo_sqlite,sqlite3,mbstring,dom,libxml,fileinfo,curl,gd,intl,bcmath,zip,posix
+          coverage: none
+      - name: Pin cms.ald1n.com to loopback so CI can never reach production
+        run: |
+          set -euo pipefail
+          printf '\n127.0.0.1 cms.ald1n.com\n::1 cms.ald1n.com\n' | sudo tee -a /etc/hosts >/dev/null
+          python3 -c 'import socket,sys;a={i[4][0] for i in socket.getaddrinfo("cms.ald1n.com",443)};print(sorted(a));sys.exit(0 if a and a<={"127.0.0.1","::1"} else 2)'
+      - name: Syntax, portable operator shell, pinned helpers, tooling base and forbidden mechanisms absent from shipped code
+        run: |
+          set -euo pipefail
+          for f in tools/storefront/b1150/*.php tools/storefront/b1149/*.php tools/storefront/b1148/*.php tools/storefront/b1147/*.php tools/storefront/b1146/*.php tools/storefront/b1145/*.php tools/storefront/b1144/*.php tools/storefront/b1134/*.php; do php -l "$f"; done
+          w=tools/storefront/b1150/operator-wrapper.sh
+          bash -n "$w"
+          if grep -nE '<\(|>\(|/dev/fd|python3' "$w"; then exit 2; fi
+          grep -q 'setsid nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &' "$w"
+          test "$(grep -v '^#' "$w" | head -n 1)" = "clear 2>/dev/null || printf '\033c'"
+          grep -q 'exec >> "$REPORT" 2>&1 < /dev/null' "$w"
+          grep -q 'if($highest<1115)exit(2)' "$w"
+          printf '%s\n' \
+            '9dce8324bd4464a1689918775736bcd3a850f2b1c2b1b0ca7e130a9e486da12b  tools/storefront/b1134/InstallFileOps.php' \
+            '20ba7d5baa2affa719f8e858a5d5c6e89d46341cb20d2dbef4d8cfb2ca64b077  tools/storefront/b1134/ReleasePrimitives.php' \
+            '1e790c20fb9712d416399975d6cbcce3be1bd2dc12ede59a95f2e1cc75ea7e3e  tools/storefront/b1134/runtime-directories.json' \
+            '7e62150fcad0884255ddb3c18063f5e2a23852a3eb0fdecb978c2955392ccf6e  tools/storefront/b1144/LeanGates.php' \
+            '3dbf4762e419d8df053fa7e642bd1b85df07d66dbffdb94fe0d8d5cdc1b50616  tools/storefront/b1144/FreshnessProbe.php' \
+            '54a04bc4dea81d56ad5fe0e6b25a141d4a86acf803f6df95f1c5d2b7adff6a73  tools/storefront/b1144/LeanWeb.php' \
+            '04a4bbd13b8aef346247d8641445ccb9f0a2d7fd3f26f7a03723724fc0132f69  tools/storefront/b1145/EnvFlags.php' \
+            '642ddede76db8f1ea66bfc6a8d1ad74c894a70b665204cac4c96de17e97113a5  tools/storefront/b1145/AppState.php' \
+            '46b159fbeab6c4f849dbb1a9291bbf13245b511ea58fd51646f26f28caa53fb9  tools/storefront/b1145/MigrateUnclampCoordinator.php' \
+            'abcc9c64c6b9918d180afd387ec917a4924e1ce28c0099c0bbdae500e811c01f  tools/storefront/b1146/OverlayProbe.php' \
+            '68b4b2af5ad5a6399991adf474cfc753abf77a483fb12d2c1669a4b307ce2c2b  tools/storefront/b1146/AppCheck.php' \
+            'c4e4c0935b4c14e7fbee1089243f5be4784c5b25c5c0a62d11551d5dfa1461ce  tools/storefront/b1147/CatalogWeb.php' \
+            '278b03d1914580063a71f4f12c99e741376fbedb268e4570614dc3ccf3213b73  tools/storefront/b1147/AppCheck.php' \
+            'd52bf4d475d3b3b1e6bd33fb6e766d24414b19b0fb3ee4dc0e9cdce59ed9cde9  tools/storefront/b1147/CatalogOverlayCoordinator.php' \
+            '69bbdca104bfcbc62948e06a464fcaff55b5bf100a7ab513299fb19d00600c7c  tools/storefront/b1148/GlassWeb.php' \
+            '0951b1ca3e9fcf6b7a2c722ce412903b593a9aa0b63dca5200f810a54c39e16a  tools/storefront/b1148/AppCheck.php' \
+            '332a13a5014845051aea3ffa68591b6075d798e94be5428e3cb288d222d3641b  tools/storefront/b1148/GlassOverlayCoordinator.php' \
+            '3742a8c1100f9d7bab9c4c489cc2e22d789a4d954fb47e01eeb112c52067e1d3  tools/storefront/b1149/StorefrontInstallCoordinator.php' \
+            'c090e207891fe0e70efaaa6c09ffb6eb00b44c475ccf4acc5790ac672a07c2ca  tools/storefront/b1149/StorefrontWeb.php' \
+            'da100fde8e75fd0885e81366bc95d695f01bbedf31842dccec5fa5b2baa7aed3  tools/storefront/b1149/AppCheck.php' \
+            | sha256sum --check --strict
+          # The B1134-B1149 tooling is the reviewed bf5ac045 copy (B1149 PASS, Report1115), byte for byte; it installs B1146 to B1149 for real below.
+          git diff --quiet bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0 HEAD -- tools/storefront/b1134 tools/storefront/b1144 tools/storefront/b1145 tools/storefront/b1146 tools/storefront/b1147 tools/storefront/b1148 tools/storefront/b1149
+          shipped='tools/storefront/b1150/operator-entry.php tools/storefront/b1150/MediaInstallCoordinator.php tools/storefront/b1150/MediaWeb.php tools/storefront/b1150/AppCheck.php tools/storefront/b1150/operator-wrapper.sh'
+          if grep -niE '/usr/local/cpanel|uapi|DomainInfo|opcache_reset|php_flag|HostProcessGuard|--seed|migrate:fresh|migrate:rollback|migrate:refresh|migrate:reset|db:wipe|config:cache|view:cache|route:cache|public_storefront_open|Mail::|mail\(|CURLOPT_POST|CURLOPT_CUSTOMREQUEST|->set\(' $shipped; then exit 2; fi
+          if grep -n $'\r' $shipped tools/storefront/b1150/README-SR.md; then exit 2; fi
+          # No numbered operation report may ride along: the owner's wrapper would number the live report one higher.
+          if git ls-files docs/operations | grep -E '/(111[6-9]|11[2-9][0-9])-'; then exit 2; fi
+      - name: PAYLOAD GATE - EXPECTED RED UNTIL THE ORCHESTRATOR FILLS STEPS + SOURCE_COMMIT (B1150_FILL)
+        id: payload
+        continue-on-error: false
+        run: |
+          set -euo pipefail
+          c=tools/storefront/b1150/MediaInstallCoordinator.php
+          pending=0
+          if grep -q "SOURCE_COMMIT='0000000000000000000000000000000000000000'" "$c"; then echo "::error::B1150_FILL pending: SOURCE_COMMIT is still the all-zero placeholder in $c"; pending=1; fi
+          if grep -q 'B1150_FILL_STEPS_EMPTY' "$c"; then echo "::error::B1150_FILL pending: STEPS is empty (marker B1150_FILL_STEPS_EMPTY still present) in $c"; pending=1; fi
+          if grep -q "MEDIA_ROUTE_NAME='B1150_FILL_ROUTE_NAME'" "$c"; then echo "::error::B1150_FILL pending: MEDIA_ROUTE_NAME is still the placeholder in $c"; pending=1; fi
+          if grep -q "'hook'=>'NOT_FILLED_IN'" tools/storefront/b1150/AppCheck.php; then echo '::error::B1150_FILL pending: the media-sample hook in AppCheck.php is still the stub'; pending=1; fi
+          if test "$pending" = 0; then src="$(grep -o "SOURCE_COMMIT='[a-f0-9]\{40\}'" "$c" | head -n 1 | cut -d"'" -f2)"; test -n "$src"; echo "B1150_SOURCE=$src" >> "$GITHUB_ENV"; fi
+          if test "$pending" = 1; then echo 'PAYLOAD PENDING: this red step is expected until the payload commit and the file list are filled in; all later steps are skipped on purpose.'; exit 1; fi
+      - name: Fetch the B1150 payload head by SHA
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=$auth" fetch --no-tags origin "$B1150_SOURCE"
+          test "$(git rev-parse --verify "$B1150_SOURCE^{commit}")" = "$B1150_SOURCE"
+          test "$(grep -o "SOURCE_COMMIT='[a-f0-9]*'" tools/storefront/b1150/MediaInstallCoordinator.php)" = "SOURCE_COMMIT='$B1150_SOURCE'"
+          git merge-base --is-ancestor "$B1149_SOURCE" "$B1150_SOURCE"
+      - name: Rebuild the inert runtime bundle of ef3f927b (the 7-day artifact 13363389798 has expired) and pin its manifest digest
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
+        id: runtime
+        run: |
+          set -euo pipefail
+          # The bundle is built exactly as the B1130 job of b1082-storefront-current-main.yml built it (same source commit, same composer
+          # 2.11.1, same locked dependencies, same manifest layout). The manifest holds the sha256 of every file, so the pinned manifest
+          # digest d737387e... proves the rebuilt tree is byte for byte the tree that is on the host. The tar.gz itself carries a gzip
+          # timestamp and is not byte-reproducible; nothing downstream pins its digest (the stage is made from the manifest).
+          work="$RUNNER_TEMP/b1150-runtime"
+          mkdir -p "$work/payload" "$work/stage" "$work/build/runtime"
+          export B1130_BUILD="$work/build" B1130_HEAD_SHA=ef3f927b77ba573881c2b6dba341732c417e6725 B1130_OUT="$work/payload" B1130_WS="$GITHUB_WORKSPACE"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          work=pathlib.Path(os.environ['B1130_BUILD']); dest=work/'runtime'; ws=os.environ['B1130_WS']
+          source=os.environ['B1130_HEAD_SHA']; prefix='apps/cms/current/'
+          roots=('app/','bootstrap/','config/','database/migrations/','database/seeders/','resources/','routes/','public/','bin/')
+          files={'artisan','composer.json','composer.lock','VERSION','RELEASE-TAG','CHANGELOG.md'}
+          entries=subprocess.check_output(['git','-C',ws,'ls-tree','-r','-z',source,prefix]).split(b'\0')
+          selected=[]
+          for raw in entries:
+              if not raw: continue
+              meta,name=raw.decode().split('\t',1); mode,kind,blob=meta.split(); rel=name.removeprefix(prefix)
+              if rel not in files and not rel.startswith(roots): continue
+              parts=pathlib.PurePosixPath(rel).parts
+              assert not rel.startswith('/') and '..' not in parts and '\\' not in rel,rel
+              assert mode in ('100644','100755') and kind=='blob',(rel,mode,kind)
+              assert not any(x in ('storage','node_modules','.git','tests','test','fixtures') or x.startswith('.env') for x in parts),rel
+              if rel.startswith('bootstrap/cache/'): continue
+              assert not rel.endswith(('.sql','.sql.gz','.gpg','.p12','.pfx','.key','.sqlite','.sqlite3','.dump')),rel
+              body=subprocess.check_output(['git','-C',ws,'cat-file','blob',blob])
+              target=dest/rel; target.parent.mkdir(parents=True,exist_ok=True); target.write_bytes(body); target.chmod(0o755 if mode=='100755' else 0o644)
+              selected.append({'path':rel,'blob':blob,'sha256':hashlib.sha256(body).hexdigest()})
+          assert files.issubset({x['path'] for x in selected}),files
+          assert hashlib.sha256((dest/'composer.lock').read_bytes()).hexdigest()=='4937d2e652bd41f83005faebfa5f238e4425db3a02506985695b4f3da2b8613b'
+          (work/'source-files.json').write_text(json.dumps(selected,indent=2))
+          PY
+          curl --fail --silent --show-error --location https://getcomposer.org/download/2.11.1/composer.phar --output "$work/build/composer.phar"
+          echo "6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c  $work/build/composer.phar" | sha256sum --check --strict
+          export COMPOSER_HOME="$work/build/composer-home" COMPOSER_CACHE_DIR="$work/build/composer-cache"
+          php "$work/build/composer.phar" install --working-dir="$work/build/runtime" --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction --optimize-autoloader --no-progress
+          php "$work/build/composer.phar" check-platform-reqs --working-dir="$work/build/runtime" --no-dev
+          (cd "$work/build/runtime" && php -r 'require "vendor/autoload.php";foreach(json_decode(file_get_contents("vendor/composer/installed.json"),true,512,JSON_THROW_ON_ERROR)["packages"] as $package){$name=$package["name"];echo $name,"\t",Composer\InstalledVersions::getPrettyVersion($name),"\n";}') > "$work/build/installed-versions.tsv"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,re,stat,subprocess,tarfile
+          work=pathlib.Path(os.environ['B1130_BUILD']); root=work/'runtime'; out=pathlib.Path(os.environ['B1130_OUT']); ws=os.environ['B1130_WS']
+          source=os.environ['B1130_HEAD_SHA']; lock=json.loads((root/'composer.lock').read_text())
+          expected={p['name']:p['version'] for p in lock['packages']}
+          actual={}
+          for line in (work/'installed-versions.tsv').read_text().splitlines():
+              name,version=line.split('\t'); actual[name]=version
+          project=json.loads((root/'composer.json').read_text())['name']; actual.pop(project,None)
+          assert actual==expected,{'missing':sorted(set(expected)-set(actual)),'extra':sorted(set(actual)-set(expected)),'different':[n for n in expected.keys() & actual.keys() if expected[n]!=actual[n]]}
+          for item in json.loads((work/'source-files.json').read_text()):
+              assert hashlib.sha256((root/item['path']).read_bytes()).hexdigest()==item['sha256'],item['path']
+          installed=json.loads((root/'vendor/composer/installed.json').read_text())
+          assert installed.get('dev') is False and not installed.get('dev-package-names'),installed.get('dev')
+          files=[]; dirs=[]; total=0
+          for item in sorted(root.rglob('*')):
+              rel=item.relative_to(root).as_posix(); parts=pathlib.PurePosixPath(rel).parts; mode=item.lstat().st_mode
+              assert not item.is_symlink() and (stat.S_ISDIR(mode) or stat.S_ISREG(mode)),rel
+              assert not rel.startswith('/') and '..' not in parts and '\\' not in rel,rel
+              assert not any(p.startswith('.env') or p in ('.git','node_modules','storage','tests','test','fixtures','__fixtures__') for p in parts),rel
+              assert not rel.startswith('bootstrap/cache/'),rel
+              if item.is_dir(): dirs.append(rel); continue
+              assert item.stat().st_nlink==1,rel
+              assert not rel.endswith(('.sql','.sql.gz','.gpg','.p12','.pfx','.key','.sqlite','.sqlite3','.dump')),rel
+              content=item.read_bytes(); size=len(content); assert size<=16*1024*1024,rel
+              total+=size; files.append({'path':rel,'size':size,'sha256':hashlib.sha256(content).hexdigest()})
+          assert 0<len(files)<=30000 and total<=192*1024*1024,(len(files),total)
+          archive=out/'cms-runtime.tar.gz'
+          with tarfile.open(archive,'w:gz',format=tarfile.PAX_FORMAT) as tar:
+              for rel in dirs+[f['path'] for f in files]:
+                  p=root/rel; info=tar.gettarinfo(str(p),arcname=rel); info.uid=info.gid=0; info.uname=info.gname=''; info.mtime=0
+                  if info.isfile():
+                      with p.open('rb') as stream: tar.addfile(info,stream)
+                  else: tar.addfile(info)
+          tree=subprocess.check_output(['git','-C',ws,'rev-parse',source+'^{tree}'],text=True).strip()
+          manifest={'schemaVersion':1,'sourceCommit':source,'sourceTree':tree,'composerLockSHA256':hashlib.sha256((root/'composer.lock').read_bytes()).hexdigest(),'prodPackages':expected,'files':files,'totalFiles':len(files),'totalBytes':total,'archiveRoot':'CMS relative','productionMutation':False,'deploymentAuthorized':False,'storefrontActivationAuthorized':False}
+          (out/'runtime-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          print(json.dumps({'files':len(files),'bytes':total,'manifestSHA256':hashlib.sha256((out/'runtime-manifest.json').read_bytes()).hexdigest()}))
+          assert len(files)==8531,len(files)
+          assert hashlib.sha256((out/'runtime-manifest.json').read_bytes()).hexdigest()=='d737387e60a981b3b404e0980d9b70cb95b6e1d506a39211981d49dcd12be4c6','MANIFEST_DIGEST_DIFFERS_FROM_THE_ONE_ON_THE_HOST'
+          with tarfile.open(archive) as tar:
+              assert all((m.isfile() or m.isdir()) and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in tar.getmembers())
+              tar.extractall(work.parent/'stage',filter='data')
+          PY
+      - name: Build the B1146 to B1149 ZIPs (fixture predecessors) and the B1150 operator ZIP from git (the source diff must equal the coded STEPS set)
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
+        id: package
+        run: |
+          set -euo pipefail
+          s="$GITHUB_WORKSPACE/tools/storefront"
+          manifest="$RUNNER_TEMP/b1150-runtime/payload/runtime-manifest.json"
+          php "$s/b1146/package.php" "$GITHUB_WORKSPACE" "$s/b1146" "$s/b1134" "$s/b1144" "$s/b1145" "$manifest" "$RUNNER_TEMP/package-b1146" 84facde9ff138d1e7dd0de7af5c811d800b0ccfe > "$RUNNER_TEMP/package-b1146.json"
+          php "$s/b1147/package.php" "$GITHUB_WORKSPACE" "$s/b1147" "$s/b1134" "$s/b1144" "$s/b1145" "$s/b1146" "$manifest" "$RUNNER_TEMP/package-b1147" afa0c704a1c4ad096918f904b98a77e223398e22 > "$RUNNER_TEMP/package-b1147.json"
+          php "$s/b1148/package.php" "$GITHUB_WORKSPACE" "$s/b1148" "$s/b1134" "$s/b1144" "$s/b1145" "$s/b1146" "$s/b1147" "$manifest" "$RUNNER_TEMP/package-b1148" c41f78fcd0382c2f161a717a0061d5883d641730 560828458974a56a8f7173b986a40d46629e4d8b > "$RUNNER_TEMP/package-b1148.json"
+          # B1149 exactly as the owner's ZIP was built: helper source 6558e7a1, payload head 7e748158.
+          php "$s/b1149/package.php" "$GITHUB_WORKSPACE" "$s/b1149" "$s/b1134" "$s/b1144" "$s/b1145" "$s/b1146" "$s/b1147" "$s/b1148" "$manifest" "$RUNNER_TEMP/package-b1149" 6558e7a1584c58753af8b2bdfc7c0c7274d8f291 "$B1149_SOURCE" > "$RUNNER_TEMP/package-b1149.json"
+          steps="$(php -r 'preg_match("/public const STEPS=\[(.*?)\n    \];/s",file_get_contents($argv[1]),$b);echo preg_match_all("/\[\x27[^\x27]+\x27,\x27(?:new|modified)\x27,\x27[A-H]\x27\]/",$b[1]);' tools/storefront/b1150/MediaInstallCoordinator.php)"
+          echo "STEPS=$steps"
+          test "$steps" -ge 1
+          echo "$steps" > "$RUNNER_TEMP/steps-count.txt"
+          git diff --no-renames --name-status "$B1149_SOURCE" "$B1150_SOURCE" | grep -vE $'\t(apps/cms/current/tests/|apps/cms/current/bin/|\\.github/workflows/|docs/)' | tee "$RUNNER_TEMP/source-diff.txt"
+          test "$(wc -l < "$RUNNER_TEMP/source-diff.txt")" = "$steps"
+          if grep -E $'\tapps/cms/current/(database|config)/|\tapps/cms/current/composer\\.' "$RUNNER_TEMP/source-diff.txt"; then exit 2; fi
+          b() { php "$s/b1150/package.php" "$GITHUB_WORKSPACE" "$s/b1150" "$s/b1134" "$s/b1144" "$s/b1145" "$s/b1146" "$s/b1147" "$s/b1148" "$s/b1149" "$manifest" "$1" bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0 "$B1150_SOURCE"; }
+          b "$RUNNER_TEMP/package" | tee "$RUNNER_TEMP/package.json"
+          (cd "$RUNNER_TEMP/package" && sha256sum --check --strict b1150-operator.zip.sha256)
+          unzip -Z1 "$RUNNER_TEMP/package/b1150-operator.zip" | sort > "$RUNNER_TEMP/members.txt"
+          cat "$RUNNER_TEMP/members.txt"
+          if grep -vE '^incoming/b1150-[A-Za-z0-9._-]+$' "$RUNNER_TEMP/members.txt"; then exit 2; fi
+          # 9 fixed members (installer.sh, installer.php, coordinator, web, app-check, README, package.json, provenance.json, package.sha256) plus one payload per step (B1149: 52 = 9 + 43).
+          test "$(wc -l < "$RUNNER_TEMP/members.txt")" = "$((steps + 9))"
+          test "$(grep -cE '^incoming/b1150-payload-[0-9]{2}\.bin$' "$RUNNER_TEMP/members.txt")" = "$steps"
+          test "$(wc -l < "$RUNNER_TEMP/package/b1150-digests.tsv")" = "$((steps + 1))"
+          cp "$RUNNER_TEMP/package/b1150-digests.tsv" "$RUNNER_TEMP/digests.tsv"
+          # Two builds give the same bytes.
+          b "$RUNNER_TEMP/package-again" > /dev/null
+          cmp "$RUNNER_TEMP/package/b1150-operator.zip" "$RUNNER_TEMP/package-again/b1150-operator.zip"
+          cmp "$RUNNER_TEMP/package/b1150-digests.tsv" "$RUNNER_TEMP/package-again/b1150-digests.tsv"
+      - name: Real coordinator on Laravel + MariaDB 10.11.19 after real B1146 to B1149 installs, shop ON - refusals, per-step and per-group smokes, media route, re-run, rollbacks, 429, noindex, Vary, kills
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          s="$GITHUB_WORKSPACE/tools/storefront"
+          php "$s/b1150/coordinator-fixture.php" "$s/b1150" "$s/b1149" "$s/b1148" "$s/b1147" "$s/b1146" "$s/b1145" "$s/b1144" "$s/b1134" "$RUNNER_TEMP/b1150-runtime/stage" "$RUNNER_TEMP/b1150-runtime/payload" "$s/b1134/runtime-directories.json" "$RUNNER_TEMP/package-b1146/b1146-operator.zip" "$RUNNER_TEMP/package-b1147/b1147-operator.zip" "$RUNNER_TEMP/package-b1148/b1148-operator.zip" "$RUNNER_TEMP/package-b1149/b1149-operator.zip" "$RUNNER_TEMP/package/b1150-operator.zip" > "$RUNNER_TEMP/coordinator.log" 2>&1 || { tail -n 400 "$RUNNER_TEMP/coordinator.log"; exit 2; }
+          tail -n 120 "$RUNNER_TEMP/coordinator.log"
+          tail -n 200 "$RUNNER_TEMP/coordinator.log" | sed -n '/^{/,$p' > "$RUNNER_TEMP/coordinator.json"
+          grep -q '"b1150Fixture": "PASS"' "$RUNNER_TEMP/coordinator.json"
+      - name: Operator wrapper in a sandbox /home/icaffeco - integrity, canonical HOLD, entry wiring, pinned drift, tamper
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          sudo useradd --create-home --home-dir /home/icaffeco --shell /bin/bash icaffeco
+          sudo chmod 755 /home/icaffeco
+          install -m 0644 "$RUNNER_TEMP/package/b1150-operator.zip" /tmp/b1150-operator.zip
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" "$@"; }
+          as mkdir -p /home/icaffeco/ald1n-project/incoming
+          as unzip -q /tmp/b1150-operator.zip -d /home/icaffeco/ald1n-project
+          for pair in b1134/InstallFileOps.php:b1134-files.php b1144/LeanGates.php:b1144-gates.php b1144/FreshnessProbe.php:b1144-probe.php b1144/LeanWeb.php:b1144-web.php b1145/EnvFlags.php:b1145-env.php b1145/AppState.php:b1145-app-state.php b1145/MigrateUnclampCoordinator.php:b1145-coordinator.php b1146/OverlayProbe.php:b1146-probe.php b1146/AppCheck.php:b1146-app-check.php b1147/CatalogWeb.php:b1147-web.php b1147/AppCheck.php:b1147-app-check.php b1147/CatalogOverlayCoordinator.php:b1147-coordinator.php b1148/GlassWeb.php:b1148-web.php b1148/AppCheck.php:b1148-app-check.php b1148/GlassOverlayCoordinator.php:b1148-coordinator.php b1149/StorefrontWeb.php:b1149-web.php b1149/AppCheck.php:b1149-app-check.php b1149/StorefrontInstallCoordinator.php:b1149-coordinator.php; do
+            install -m 0644 "tools/storefront/${pair%%:*}" "/tmp/${pair##*:}"
+            as cp "/tmp/${pair##*:}" "/home/icaffeco/ald1n-project/incoming/${pair##*:}"
+          done
+          script=/home/icaffeco/ald1n-project/incoming/b1150-installer.sh
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          printf '%s\n' "$out"
+          test "$rc" = 2 && grep -q 'HOLD: canonical reports or successful stage unavailable$' <<<"$out"
+          set +e
+          out="$(as bash "$script" --unexpected 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          for bad in "--ignore-schedule" "--ignore-schedule --rollback" "--rollback --ignore-schedule --x"; do
+            set +e
+            out="$(as bash "$script" $bad 2>&1)"; rc=$?
+            set -e
+            test "$rc" = 2 && grep -q 'unknown arguments' <<<"$out"
+          done
+          as git init -q -b main /home/icaffeco/ald1n-project
+          as git -C /home/icaffeco/ald1n-project -c user.name=Sandbox -c user.email=sandbox@example.invalid commit -q --allow-empty -m sandbox
+          as git -C /home/icaffeco/ald1n-project update-ref refs/remotes/origin/main HEAD
+          as mkdir -p /home/icaffeco/ald1n-project/docs/operations
+          sandbox_report=/home/icaffeco/ald1n-project/docs/operations/9999-B1150-INSTALLER-20261112-000000.md
+          set +e
+          out="$(sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1150_MODE=install REPORT=/home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md bash "$script" --worker 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: worker report name' <<<"$out" && test ! -e /home/icaffeco/ald1n-project/docs/operations/9999-SANDBOX.md
+          # No CMS here: the real entry and coordinator run, every preflight gate is printed and the run HOLDs with nothing changed.
+          set +e
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1150_MODE=install REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+          set -e
+          out="$(sudo cat "$sandbox_report")"
+          printf '%s\n' "$out"
+          test "$rc" = 2 && grep -qx 'B1150_FINAL=HOLD' <<<"$out" && grep -qx 'B1150_PHASE="HOLD_PREFLIGHT_BLOCKED"' <<<"$out" && grep -q '^HELPER_SOURCE_SHA=bf5ac045' <<<"$out" && grep -q '"applicationFiles":"NONE","database":"NO_PRODUCT_CART_OR_SWITCH_WRITES_SESSIONS_AND_APP_CACHE_ONLY"' <<<"$out" && grep -q '^WORKER_PID=[0-9]' <<<"$out" && grep -q 'B1149_REPORT1115_MISSING' <<<"$out"
+          if sudo grep -q $'\033' "$sandbox_report"; then echo 'escape byte in the report'; exit 2; fi
+          as rm -f "$sandbox_report"
+          set +e
+          sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1150_MODE=rollback REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+          set -e
+          out="$(sudo cat "$sandbox_report")"
+          test "$rc" = 2 && grep -q '^HOLD_NOTHING_TO_ROLL_BACK=' <<<"$out"
+          as rm -f "$sandbox_report"
+          # A changed pinned helper on the host (B1146 probe, B1147 web, B1148 web, B1149 coordinator) is refused before any code of it runs.
+          for helper in b1146-probe.php b1147-web.php b1148-web.php b1149-coordinator.php; do
+            as cp "/home/icaffeco/ald1n-project/incoming/$helper" "/tmp/$helper.saved"
+            as bash -c "printf '\n' >> /home/icaffeco/ald1n-project/incoming/$helper"
+            set +e
+            sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1150_MODE=install REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+            set -e
+            out="$(sudo cat "$sandbox_report")"
+            test "$rc" = 2 && grep -qx 'HOLD_CODE=PACKAGE_FILE_INTEGRITY' <<<"$out"
+            as rm -f "$sandbox_report"
+            as cp "/tmp/$helper.saved" "/home/icaffeco/ald1n-project/incoming/$helper"
+          done
+          # A missing B1148 or B1149 helper is refused too.
+          for missing in b1148-app-check.php b1149-app-check.php; do
+            as mv "/home/icaffeco/ald1n-project/incoming/$missing" "/tmp/$missing.moved"
+            set +e
+            sudo -u icaffeco env -i HOME=/home/icaffeco PATH="$PATH" B1150_MODE=install REPORT="$sandbox_report" bash "$script" --worker > /dev/null 2>&1; rc=$?
+            set -e
+            out="$(sudo cat "$sandbox_report")"
+            test "$rc" = 2 && grep -qx 'HOLD_CODE=PACKAGE_FILE_INTEGRITY' <<<"$out"
+            as rm -f "$sandbox_report"
+            sudo -u icaffeco mv "/tmp/$missing.moved" "/home/icaffeco/ald1n-project/incoming/$missing"
+          done
+          as bash -c 'printf "\n" >> /home/icaffeco/ald1n-project/incoming/b1150-payload-01.bin'
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: package integrity' <<<"$out"
+          as bash -c 'printf "# tamper\n" >> /home/icaffeco/ald1n-project/incoming/b1150-installer.sh'
+          set +e
+          out="$(as bash "$script" 2>&1)"; rc=$?
+          set -e
+          test "$rc" = 2 && grep -q 'HOLD: operator script integrity' <<<"$out"
+          printf '{"canonicalHold":true,"unknownArguments":"HOLD","entryWiring":"B1150_PHASE=HOLD_PREFLIGHT_BLOCKED_NO_MUTATION","rollbackWithoutInstall":"HOLD","pinnedHelperDrift":"HOLD_B1146_B1147_B1148_AND_B1149","missingHelper":"HOLD","payloadTamper":"HOLD","wrapperTamper":"HOLD"}\n' | tee "$RUNNER_TEMP/sandbox.json"
+      - name: The exact owner commands end to end in the sandbox - report reservation after 1115, detached worker, mode export, EXIT relay
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' && steps.package.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          sudo -u icaffeco unzip -o -q /tmp/b1150-operator.zip -d /home/icaffeco/ald1n-project
+          mkdir -p /tmp/b1150-shims
+          command -v git > /tmp/b1150-shims/real-git
+          printf '%s\n' '#!/bin/bash' 'if test "${3-}" = fetch; then printf "SANDBOX_GIT_FETCH_STUBBED=%s\n" "$*"; exit 0; fi' 'exec "$(cat /tmp/b1150-shims/real-git)" "$@"' > /tmp/b1150-shims/git
+          chmod 755 /tmp/b1150-shims /tmp/b1150-shims/git
+          as() { sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1150-shims:$PATH" "$@"; }
+          as mkdir -p /home/icaffeco/.ald1n-stage
+          as git -C /home/icaffeco/ald1n-project remote add origin https://github.com/AldinAga/ald1n-project
+          as bash -c 'printf "sandbox predecessor\n" > /home/icaffeco/ald1n-project/docs/operations/1115-SANDBOX-PREDECESSOR.md'
+          ops=/home/icaffeco/ald1n-project/docs/operations
+          for variant in install rollback rollback-ignore-schedule; do
+            mode=$variant; ignore=0; arg=(); label=INSTALLER; final_rx='^B1150_PHASE="HOLD_PREFLIGHT_BLOCKED"$'
+            if test "$variant" = rollback; then arg=(--rollback); label=INSTALLER-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+            if test "$variant" = rollback-ignore-schedule; then mode=rollback; ignore=1; arg=(--rollback --ignore-schedule); label=INSTALLER-ROLLBACK; final_rx='^HOLD_NOTHING_TO_ROLL_BACK='; fi
+            set +e
+            out="$(timeout 600 sudo -u icaffeco env -i HOME=/home/icaffeco PATH="/tmp/b1150-shims:$PATH" bash /home/icaffeco/ald1n-project/incoming/b1150-installer.sh "${arg[@]}" 2>&1)"; rc=$?
+            set -e
+            printf '%s\n' "$out" | tail -n 30
+            report="$(sudo ls "$ops" | grep -E "^1116-B1150-${label}-[0-9]{8}-[0-9]{6}\.md$")"
+            test "$rc" = 2
+            body="$(sudo cat "$ops/$report")"
+            grep -qx "OPERATOR_MODE=$mode" <<<"$body"
+            grep -qx "B1150_MODE=$mode" <<<"$body"
+            grep -qx "OPERATOR_IGNORE_SCHEDULE=$ignore" <<<"$body"
+            grep -qx "B1150_IGNORE_SCHEDULE=$ignore" <<<"$body"
+            grep -qE "$final_rx" <<<"$body"
+            test "$(grep -c '^EXIT=' <<<"$body")" = 1 && test "$(tail -n 2 <<<"$body" | head -n 1)" = 'EXIT=2'
+            grep -q '^SANDBOX_GIT_FETCH_STUBBED=' <<<"$body"
+            grep -q "^REPORT=$ops/$report$" <<<"$out"
+            if sudo grep -q $'\033' "$ops/$report"; then echo 'escape byte in the report'; exit 2; fi
+            test ! -e /home/icaffeco/.ald1n-stage/report-sequence.lock
+            sudo rm -f "$ops/$report"
+          done
+          printf '{"ownerCommandInstall":"REPORT_1116_WORKER_HOLD_EXIT_2","ownerCommandRollback":"REPORT_1116_ROLLBACK_WORKER_HOLD_EXIT_2","ownerCommandRollbackIgnoreSchedule":"REPORT_1116_ROLLBACK_WORKER_HOLD_EXIT_2_OVERRIDE_EXPORTED","modeExported":true,"lockReleased":true}\n' | tee "$RUNNER_TEMP/owner-commands.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: b1150-installer-evidence
+          path: |
+            ${{ runner.temp }}/coordinator.json
+            ${{ runner.temp }}/coordinator.log
+            ${{ runner.temp }}/package.json
+            ${{ runner.temp }}/package-b1146.json
+            ${{ runner.temp }}/package-b1147.json
+            ${{ runner.temp }}/package-b1148.json
+            ${{ runner.temp }}/package-b1149.json
+            ${{ runner.temp }}/source-diff.txt
+            ${{ runner.temp }}/digests.tsv
+            ${{ runner.temp }}/members.txt
+            ${{ runner.temp }}/sandbox.json
+            ${{ runner.temp }}/owner-commands.json
+            ${{ runner.temp }}/b1150/server.log
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ success() && steps.payload.outcome == 'success' }}
+        with:
+          name: b1150-operator-package
+          path: |
+            ${{ runner.temp }}/package/b1150-operator.zip
+            ${{ runner.temp }}/package/b1150-operator.zip.sha256
+            ${{ runner.temp }}/package/b1150-digests.tsv
+          retention-days: 30

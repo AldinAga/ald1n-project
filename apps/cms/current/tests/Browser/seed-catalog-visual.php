@@ -122,14 +122,39 @@ foreach (['Laptopovi', 'Punjači i adapteri', 'Grafičke karte'] as $i => $name)
     $categories[$name] = Category::query()->create(['name' => $name, 'slug' => 'visual-cat-'.$i, 'status' => 'active', 'sort_order' => $i]);
 }
 
-/** Draws a synthetic product photo; $style: white|dark|portrait|wide. */
+/** Draws a synthetic product photo; $style: white|dark|portrait|wide|poster|posterdark. */
 $draw = static function (string $style, int $seed): string {
     [$w, $h] = match ($style) {
         'portrait' => [700, 1000],
         'wide' => [1400, 700],
+        'poster', 'posterdark' => [1131, 1600],
         default => [1200, 900],
     };
     $im = imagecreatetruecolor($w, $h);
+    if ($style === 'poster' || $style === 'posterdark') {
+        // Flyer-style A-format promo image, like most real shop photos: a
+        // full-bleed colour field, a headline band, the product, a price tag.
+        $dark = $style === 'posterdark';
+        imagefill($im, 0, 0, $dark ? imagecolorallocate($im, 14, 18, 30) : imagecolorallocate($im, 246, 244, 240));
+        $band = imagecolorallocate($im, 40 + ($seed * 41) % 160, 70, 190 - ($seed * 29) % 120);
+        imagefilledrectangle($im, 0, 0, $w, 300, $band);
+        imagefilledrectangle($im, 80, 90, 760, 150, imagecolorallocate($im, 255, 255, 255));
+        imagefilledrectangle($im, 80, 180, 540, 215, imagecolorallocate($im, 220, 228, 255));
+        $body = $dark ? imagecolorallocate($im, 210, 216, 228) : imagecolorallocate($im, 52, 58, 70);
+        imagefilledrectangle($im, 190, 470, 940, 1000, $body);
+        imagefilledrectangle($im, 225, 505, 905, 965, $band);
+        imagefilledpolygon($im, [120, 1100, 1010, 1100, 940, 1000, 190, 1000], imagecolorallocate($im, 130, 138, 156));
+        imagefilledellipse($im, 900, 1360, 330, 330, imagecolorallocate($im, 236, 86, 52));
+        imagefilledrectangle($im, 80, 1420, 640, 1470, $dark ? imagecolorallocate($im, 90, 100, 120) : imagecolorallocate($im, 190, 194, 204));
+        for ($i = 0; $i < 6; $i++) {
+            imagestring($im, 5, 90, 1250 + $i * 22, 'AP.Computers promo '.$seed.' / '.$i, $dark ? imagecolorallocate($im, 230, 232, 240) : imagecolorallocate($im, 30, 34, 44));
+        }
+        ob_start();
+        imagejpeg($im, null, 86);
+        imagedestroy($im);
+
+        return (string) ob_get_clean();
+    }
     if ($style === 'dark') {
         for ($y = 0; $y < $h; $y++) {
             $c = (int) (18 + 30 * $y / $h);
@@ -178,7 +203,7 @@ $rows = [
     ['Lenovo IdeaPad Slim 5', 'Lenovo', 'Laptopovi', 749, 'EUR', 1, 'dark'],
     ['Adapter za napajanje 90W sa produženim kablom i zamenljivim vrhovima za sve popularne modele', 'Generic', 'Punjači i adapteri', 3990, 'RSD', 0, 'portrait'],
 ];
-$styles = ['white', 'white', 'dark', 'portrait', 'wide', null];
+$styles = ['poster', 'white', 'dark', 'portrait', 'wide', null];
 for ($i = 9; $i <= 46; $i++) {
     $brand = array_keys($brands)[$i % 6];
     $category = array_keys($categories)[$i % 3];
@@ -193,6 +218,24 @@ for ($i = 9; $i <= 46; $i++) {
     ];
 }
 
+// Gallery fixtures (product page): extra photos after the primary one.
+// visual-product-43 has 6 (posters, white, dark, wide, portrait),
+// visual-product-44 has 3, visual-product-42 and -45 keep exactly 1 and
+// visual-product-40 has none. visual-product-39 gets no WebP renditions,
+// so the original-file fallback is rendered too.
+$extra = [
+    43 => ['poster', 'white', 'wide', 'portrait', 'posterdark'],
+    44 => ['white', 'dark'],
+];
+$rows[1][6] = 'poster';
+$rows[2][6] = 'posterdark';
+$withoutRenditions = [39];
+$derivatives = app(App\Services\ProductImageDerivativeService::class);
+if (!$derivatives->supported()) {
+    fwrite(STDERR, "CATALOG_VISUAL_HOLD_WEBP_REQUIRED\n");
+    exit(7);
+}
+$images = 0;
 $disk = Storage::disk('public');
 foreach (array_reverse($rows) as $n => [$name, $brand, $category, $price, $currency, $stock, $style]) {
     $product = Product::query()->create([
@@ -208,22 +251,30 @@ foreach (array_reverse($rows) as $n => [$name, $brand, $category, $price, $curre
         'created_by' => $admin->id,
     ]);
     $product->categories()->attach($categories[$category]->id);
-    if ($style !== null) {
-        $bytes = $draw($style, $n);
-        $path = 'products/'.$product->id.'/visual.png';
+    $photos = $style === null ? [] : array_merge([$style], $extra[$n] ?? []);
+    foreach ($photos as $k => $photoStyle) {
+        $bytes = $draw($photoStyle, $n + $k);
+        $jpeg = str_starts_with($photoStyle, 'poster');
+        $file = ($k === 0 ? 'visual' : 'visual-'.$k).($jpeg ? '.jpg' : '.png');
+        $path = 'products/'.$product->id.'/'.$file;
         $disk->put($path, $bytes);
-        ProductImage::query()->create([
+        $image = ProductImage::query()->create([
             'product_id' => $product->id,
             'storage_disk' => 'public',
             'file_path' => $path,
-            'original_filename' => 'visual.png',
-            'mime_type' => 'image/png',
+            'original_filename' => $file,
+            'mime_type' => $jpeg ? 'image/jpeg' : 'image/png',
             'file_size' => strlen($bytes),
             'file_hash' => hash('sha256', $bytes),
-            'sort_order' => 1,
-            'is_primary' => true,
+            'sort_order' => $k + 1,
+            'is_primary' => $k === 0,
         ]);
+        if (!in_array($n, $withoutRenditions, true)) {
+            // Real 512px / 1600px WebP renditions, as ProductImageOptimizeCommand makes them.
+            $derivatives->ensure($image);
+        }
+        $images++;
     }
 }
 $branding(true);
-echo 'CATALOG_VISUAL_FIXTURE=PASS products='.Product::query()->count()." branding=on\n";
+echo 'CATALOG_VISUAL_FIXTURE=PASS products='.Product::query()->count().' images='.$images." branding=on\n";
