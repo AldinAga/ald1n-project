@@ -34,14 +34,14 @@ final class MediaFixtureWeb
         return MediaWeb::result($error!==0,$status,$h,is_string($body)?$body:'')+['cookies'=>$cookies,'location'=>$location];
     }
 
-    public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false):array
+    public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false,array $headers=[]):array
     {
         $throttled=in_array($path,MediaInstallCoordinator::LEGAL,true)||in_array($path,MediaInstallCoordinator::SHOP,true)||str_starts_with($path,'/katalog/');
         if(!$origin&&$throttled&&$this->on('rate429')){
             $left=trim((string)file_get_contents($this->switches['rate429']));
             if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->switches['rate429'],(string)((int)$left-1));$h=MediaWeb::headers();$h['retry'][]='3';return $this->applyHtaccess(MediaWeb::result(false,429,$h,'Too Many Attempts.'));}
         }
-        $r=$this->applyHtaccess(self::get($this->port,MediaWeb::target($path,$query,$marker),[],null,$method));unset($r['cookies']);
+        $r=$this->applyHtaccess(self::get($this->port,MediaWeb::target($path,$query,$marker),$headers,null,$method));unset($r['cookies']);
         if($this->on('dropVaryAll')||(!$origin&&$this->on('dropVaryEdge')))$r['vary']=[];
         if($origin)return $r;
         // Production HTML passes the Cloudflare edge, which injects its e-mail decoder and its JavaScript-detections loader and

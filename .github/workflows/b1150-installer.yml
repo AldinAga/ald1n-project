@@ -179,7 +179,7 @@ jobs:
           echo "STEPS=$steps"
           test "$steps" -ge 1
           echo "$steps" > "$RUNNER_TEMP/steps-count.txt"
-          git diff --no-renames --name-status "$B1149_SOURCE" "$B1150_SOURCE" | grep -vE $'\t(apps/cms/current/tests/|\\.github/workflows/|docs/)' | tee "$RUNNER_TEMP/source-diff.txt"
+          git diff --no-renames --name-status "$B1149_SOURCE" "$B1150_SOURCE" | grep -vE $'\t(apps/cms/current/tests/|apps/cms/current/bin/|\\.github/workflows/|docs/)' | tee "$RUNNER_TEMP/source-diff.txt"
           test "$(wc -l < "$RUNNER_TEMP/source-diff.txt")" = "$steps"
           if grep -E $'\tapps/cms/current/(database|config)/|\tapps/cms/current/composer\\.' "$RUNNER_TEMP/source-diff.txt"; then exit 2; fi
           b() { php "$s/b1150/package.php" "$GITHUB_WORKSPACE" "$s/b1150" "$s/b1134" "$s/b1144" "$s/b1145" "$s/b1146" "$s/b1147" "$s/b1148" "$s/b1149" "$manifest" "$1" bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0 "$B1150_SOURCE"; }

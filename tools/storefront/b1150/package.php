@@ -16,7 +16,7 @@ declare(strict_types=1);
  *   B1148, B1147, B1146, else the runtime manifest; the source is printed per file), and each new path is absent everywhere;
  * - the B1149 markers are in the final bytes and in the pre-state bytes of the layout, CSS and views (they hold in both states), the
  *   gallery stylesheet link keeps one and the same ?v= in the catalog and product views, and the dependency facts behind the
- *   install order (B1150_FILL below) hold in the new bytes.
+ *   install order (the $facts list below) hold in the new bytes.
  * The B1134-B1149 helpers already on the host are verified by digest (package.json), not redelivered.
  * Besides the ZIP it writes b1150-digests.tsv (path, kind, group, pre digest, pre-state source, payload digest) next to it.
  * Usage: php package.php <repo root> <b1150 dir> <b1134 dir> <b1144 dir> <b1145 dir> <b1146 dir> <b1147 dir> <b1148 dir> <b1149 dir> <runtime-manifest.json> <output dir> <helper source commit> <source commit>
@@ -25,7 +25,7 @@ declare(strict_types=1);
 [$self,$repo,$tools,$b1134,$b1144,$b1145,$b1146,$b1147,$b1148,$b1149,$manifestPath,$out,$helper,$sourceArg]=$argv+array_fill(0,14,null);
 if(!is_dir((string)$repo.'/.git')&&!is_file((string)$repo.'/.git'))throw new RuntimeException('PACKAGE_REPO');if(!is_dir((string)$tools)||!is_dir((string)$b1149)||!is_file((string)$manifestPath)||!preg_match('/^[a-f0-9]{40}$/D',(string)$helper)||!preg_match('/^[a-f0-9]{40}$/D',(string)$sourceArg))throw new RuntimeException('PACKAGE_ARGUMENTS');if(!is_dir($out)&&!mkdir($out,0755,true))throw new RuntimeException('PACKAGE_OUTPUT');
 require $b1134.'/InstallFileOps.php';require $b1144.'/FreshnessProbe.php';require $b1144.'/LeanGates.php';require $b1144.'/LeanWeb.php';require $b1145.'/EnvFlags.php';require $b1145.'/MigrateUnclampCoordinator.php';require $b1146.'/OverlayProbe.php';require $b1146.'/OverlayWeb.php';require $b1146.'/OverlayCoordinator.php';require $b1147.'/CatalogWeb.php';require $b1147.'/CatalogOverlayCoordinator.php';require $b1148.'/GlassWeb.php';require $b1148.'/GlassOverlayCoordinator.php';require $b1149.'/StorefrontInstallCoordinator.php';require $tools.'/MediaWeb.php';require $tools.'/MediaInstallCoordinator.php';
-if(MediaInstallCoordinator::STEPS===[]||MediaInstallCoordinator::SOURCE_COMMIT===str_repeat('0',40))throw new RuntimeException('B1150_PAYLOAD_NOT_FILLED_IN_STEPS_AND_SOURCE_COMMIT_ARE_B1150_FILL');
+if(MediaInstallCoordinator::STEPS===[]||MediaInstallCoordinator::SOURCE_COMMIT===str_repeat('0',40))throw new RuntimeException('B1150_PAYLOAD_NOT_FILLED_IN_STEPS_OR_SOURCE_COMMIT');
 const CMS='apps/cms/current/';const B1146_BASE='77a3efea';const INSTALLED='ef3f927b77ba573881c2b6dba341732c417e6725';
 const MARKERS=MediaInstallCoordinator::MARKERS;
 $source=MediaInstallCoordinator::SOURCE_COMMIT;$base=MediaInstallCoordinator::BASE_COMMIT;$main=MediaInstallCoordinator::MAIN_COMMIT;$store=MediaInstallCoordinator::STOREFRONT_COMMIT;$storeBase=MediaInstallCoordinator::STOREFRONT_BASE_COMMIT;$storeMain=MediaInstallCoordinator::STOREFRONT_MAIN_COMMIT;$glass=MediaInstallCoordinator::GLASS_COMMIT;$catalog=MediaInstallCoordinator::CATALOG_COMMIT;$legal=MediaInstallCoordinator::LEGAL_COMMIT;
@@ -84,7 +84,7 @@ foreach(StorefrontInstallCoordinator::STEPS as [$p,$kind]){
 }
 
 // The B1150 file set: the whole diff BASE..SOURCE minus the CMS tests, the CI workflows and docs; nothing else may remain.
-$whole=$diff($base,$source,null);$excluded=[];foreach(array_keys($whole) as $p)if(str_starts_with($p,CMS.'tests/')||str_starts_with($p,'.github/workflows/')||str_starts_with($p,'docs/')){$excluded[]=$p;unset($whole[$p]);}
+$whole=$diff($base,$source,null);$excluded=[];foreach(array_keys($whole) as $p)if(str_starts_with($p,CMS.'tests/')||str_starts_with($p,CMS.'bin/')||str_starts_with($p,'.github/workflows/')||str_starts_with($p,'docs/')){$excluded[]=$p;unset($whole[$p]);}
 $d=$cms($whole);$expected=[];foreach(MediaInstallCoordinator::STEPS as [$p,$kind])$expected[$p]=$kind==='new'?'A':'M';ksort($expected,SORT_STRING);
 if($d!==$expected){fwrite(STDERR,json_encode(['diff'=>$d,'expected'=>$expected],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);throw new RuntimeException('PACKAGE_FILE_SET_DIFFERS_FROM_THE_SOURCE_DIFF');}
 if(count($expected)!==count(MediaInstallCoordinator::STEPS))throw new RuntimeException('PACKAGE_STEPS_HAVE_A_DUPLICATE_PATH');
@@ -125,7 +125,8 @@ $cssVersion=$version($final($layout),'ald1n-public-storefront.css');$oldCssVersi
 $galleryVersion=$version($final($catalogView),'ald1n-public-gallery.css');if($galleryVersion!==$version($final($show),'ald1n-public-gallery.css')||$galleryVersion!==$version($before($catalogView),'ald1n-public-gallery.css')||$galleryVersion!==$version($before($show),'ald1n-public-gallery.css'))throw new RuntimeException('PACKAGE_GALLERY_VERSION_DIFFERS');
 // Optional (B1150_OPTIONAL): the dependency facts behind the install order, in the shipped bytes (needle present in the new bytes, absent from the old where the file is modified),
 // path => [needles]. Example: 'routes/web.php'=>["->name('<MEDIA_ROUTE_NAME>')"], a controller class the route needs, a service method a view calls. Empty = only the route name below is asserted.
-$facts=[];
+$facts=['routes/web.php'=>["->name('media.product.signed')",'throttle:product-media','SignedProductMediaController::class','ProductMediaUrl::RENDITIONS'],'app/Providers/AppServiceProvider.php'=>["RateLimiter::for('product-media'"],'app/Models/ProductImage.php'=>["route('media.product.signed'",'ProductMediaUrl::signature'],
+    'app/Http/Controllers/SignedProductMediaController.php'=>['ProductMediaUrl::valid','immutable'],'app/Support/ProductMediaUrl.php'=>['const RENDITIONS'],'app/Console/Commands/ProductMediaDoctorCommand.php'=>['/media/p/']];
 foreach($facts as $p=>$needles)foreach($needles as $needle)if(!isset($new[$p])||!str_contains($new[$p],$needle)||(($old[$p]??null)!==null&&str_contains($old[$p],$needle)))throw new RuntimeException('PACKAGE_ORDER_FACT_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$p.'_'.$needle)));
 // The payload must contain the route name the coordinator and the CLI helper look for.
 $routeFile='routes/web.php';if(isset($new[$routeFile])&&!str_contains($new[$routeFile],"'".MediaInstallCoordinator::MEDIA_ROUTE_NAME."'")&&!str_contains($new[$routeFile],'"'.MediaInstallCoordinator::MEDIA_ROUTE_NAME.'"'))throw new RuntimeException('PACKAGE_MEDIA_ROUTE_NAME_NOT_IN_ROUTES_WEB');

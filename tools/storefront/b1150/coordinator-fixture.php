@@ -75,7 +75,7 @@ sh(['git','init','--quiet','-b','main'],$root);sh(['git','-c','user.name=Fixture
 foreach([$zip1146,$zip1147,$zip1148,$zip1149,$zipPath] as $z)sh(['unzip','-q','-n',$z,'-d',$root]);$incoming=$root.'/incoming';
 foreach(['b1134/InstallFileOps.php'=>'b1134-files.php','b1144/LeanGates.php'=>'b1144-gates.php','b1144/FreshnessProbe.php'=>'b1144-probe.php','b1144/LeanWeb.php'=>'b1144-web.php','b1145/EnvFlags.php'=>'b1145-env.php','b1145/AppState.php'=>'b1145-app-state.php','b1145/MigrateUnclampCoordinator.php'=>'b1145-coordinator.php'] as $from=>$to)copy(dirname($tools).'/'.$from,$incoming.'/'.$to);
 $package=json_decode((string)file_get_contents($incoming.'/b1150-package.json'),true,64,JSON_THROW_ON_ERROR);foreach($package['files'] as $n=>$d)check(hash_file('sha256',$incoming.'/'.$n)===$d,'PACKAGE_FILE_'.$n);$plan=MediaInstallCoordinator::plan($package,$incoming);check(count($plan)===count(MediaInstallCoordinator::STEPS),'PLAN_MATCHES_STEPS');
-// B1150_FILL: once STEPS is filled, assert the coded count here (new + modified) and that the plan holds no b1149 payload name.
+check(count($plan)===6&&count(array_filter($plan,static fn($s)=>$s['kind']==='new'))===2&&implode(',',array_column($plan,'group'))==='A,A,B,E,G,H','PLAN_IS_THE_SIX_COORDINATED_FILES_IN_GROUP_ORDER_A_A_B_E_G_H');
 // The helpers the B1150 package pins are the very bytes the earlier ZIPs delivered (the host copies must match).
 foreach(['b1146-probe.php','b1146-app-check.php','b1147-web.php','b1147-app-check.php','b1147-coordinator.php','b1148-web.php','b1148-app-check.php','b1148-coordinator.php','b1149-web.php','b1149-app-check.php','b1149-coordinator.php'] as $n)check(isset($package['files'][$n]),'PINS_'.$n);
 $pkg1148=json_decode((string)file_get_contents($incoming.'/b1148-package.json'),true,64,JSON_THROW_ON_ERROR);foreach(['b1148-web.php','b1148-app-check.php','b1148-coordinator.php','b1147-web.php','b1147-app-check.php','b1147-coordinator.php'] as $n)check($pkg1148['files'][$n]===$package['files'][$n],'B1148_HELPER_PIN_EQUALS_B1148_ZIP_'.$n);
@@ -166,22 +166,23 @@ sleep(3);check($status('/katalog')===200&&$status('/admin/settings/smtp')===302&
 $results['chain']=['b1146'=>'REAL_PASS_REPORT1109','b1147'=>'REAL_PASS_REPORT1112','b1148'=>'REAL_PASS_REPORT1113','b1149'=>'REAL_PASS_REPORT1115','decoy1114'=>'IGNORED','shop'=>'ON'];
 $envFile=$retained.'/.env';$envOriginal=(string)file_get_contents($envFile);
 
-// B1150_FILL (synthetic product images): two product_images rows per the catalog migrations (product_id, file_path,
+// Synthetic product images: two product_images rows per the catalog migrations (product_id, file_path,
 // original_filename, mime_type, file_size, sort_order, is_primary, storage_disk, file_hash) and two PNG files under the retained
 // public disk. The storage_disk value 'public' and the path layout products/<name>.png are ASSUMPTIONS that were not verified
 // against PublicProductImageFiles; if the catalog does not show them the media smokes record INFO_NO_PRODUCT_IMAGES and the
 // media route stays unexercised until this block is corrected. Nothing below fails the run by itself.
 try{
     $productIds=$pdo()->query("SELECT id FROM products WHERE slug IN ('b1150-ci-1','b1150-ci-2') ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);$dir=$retained.'/storage/app/public/products';if(!is_dir($dir))mkdir($dir,0755,true);
+    // PublicProductImageFiles::original(): a public file must live under products/<product id>/ (checked with realpath).
     $ins=$pdo()->prepare("INSERT INTO product_images (product_id,file_path,original_filename,mime_type,file_size,sort_order,is_primary,storage_disk,file_hash,created_at) VALUES (?,?,?,'image/png',?,0,1,'public',?,NOW())");
-    foreach($productIds as $i=>$pid){$img=imagecreatetruecolor(320,240);imagefill($img,0,0,imagecolorallocate($img,40+60*$i,120,200-60*$i));ob_start();imagepng($img);$png=(string)ob_get_clean();$name='b1150-ci-'.($i+1).'.png';file_put_contents($dir.'/'.$name,$png);$ins->execute([(int)$pid,'products/'.$name,$name,strlen($png),hash('sha256',$png)]);}
+    foreach($productIds as $i=>$pid){$img=imagecreatetruecolor(320,240);imagefill($img,0,0,imagecolorallocate($img,40+60*$i,120,200-60*$i));ob_start();imagepng($img);$png=(string)ob_get_clean();$name='b1150-ci-'.($i+1).'.png';$pdir=$dir.'/'.(int)$pid;if(!is_dir($pdir))mkdir($pdir,0755,true);file_put_contents($pdir.'/'.$name,$png);$ins->execute([(int)$pid,'products/'.(int)$pid.'/'.$name,$name,strlen($png),hash('sha256',$png)]);}
     $artisan(['cache:clear']);$imagesInserted=count($productIds);
-}catch(Throwable $e){$imagesInserted=0;$results['productImages']='B1150_FILL_NOT_INSERTED_'.get_class($e);}
-sleep(3);$oldCatalog=$body('/katalog');$imagesVisible=MediaWeb::storageImageCount($oldCatalog)+MediaWeb::mediaLinkCount($oldCatalog)>0;
-$results['productImages']=($results['productImages']??'')!==''?$results['productImages']:($imagesVisible?'VISIBLE_ON_THE_CATALOG':'INSERTED_BUT_NOT_VISIBLE_B1150_FILL_REVIEW_THE_BLOCK');
+}catch(Throwable $e){$imagesInserted=0;$results['productImages']='NOT_INSERTED_'.get_class($e);}
+sleep(3);$oldCatalog=$body('/katalog');$imagesVisible=$imagesInserted>0;
+$results['productImages']=($results['productImages']??'')!==''?$results['productImages']:($imagesVisible?'VISIBLE_ON_THE_CATALOG':'INSERTED_BUT_NOT_COUNTED');
 
 // The B1150 plan is filled by the orchestrator: with no coded step this fixture cannot judge anything below.
-check($plan!==[],'B1150_FILL_STEPS_EMPTY_THE_PAYLOAD_IS_NOT_SUPPLIED_YET');
+check($plan!==[],'THE_B1150_PLAN_IS_EMPTY');check($imagesInserted===2,'TWO_SYNTHETIC_PRODUCT_IMAGES_INSERTED');
 $groups=array_values(array_unique(array_column($plan,'group')));sort($groups);$hasViews=in_array('G',$groups,true);$hasClasses=in_array('A',$groups,true);
 $viewSteps=array_values(array_filter($plan,static fn($s)=>$s['group']==='G'));$lowerSteps=array_values(array_filter($plan,static fn($s)=>$s['group']<'G'));$classSteps=array_values(array_filter($plan,static fn($s)=>$s['group']==='A'));
 $newSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='new'));$firstModified=null;foreach($plan as $s)if($s['kind']==='modified'){$firstModified=$s;break;}
@@ -258,10 +259,20 @@ check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FA
 check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&lastRaw($o,'B1150_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_CSP_ROLLED_BACK');$reset();
 $results+=['censusBeforeBackup'=>'HOLD_NOTHING_WRITTEN','nothingApplied'=>'NO_REFRESH_NO_WEB_WORK','timeBudget'=>'HOLD','missingJsonLd'=>'ROLLED_BACK','missingCsp'=>'ROLLED_BACK'];
 
-// 11. B1150_FILL (wrong-order negative controls): once STEPS is coded, put each file whose caller or callee lives in another
-// group alone onto the old tree (no artisan, as in B1149: a routes file alone breaks even the CLI), expect the public pages to
-// 500 (or the media link to 404), then restore it. NOT executed while the payload is unknown.
-$results['wrongOrderControls']='B1150_FILL_NOT_RUN_PAYLOAD_SPECIFIC';
+// 11. Wrong-order negative controls (fixture only, never the tool), the two the order prevents:
+// (a) routes/web.php alone: it names SignedProductMediaController and ProductMediaUrl, which do not exist yet, so every public page 500s
+// (no artisan here: with the routes file alone even the CLI cannot boot);
+// (b) the ProductImage model alone: route('media.product.signed') does not exist, the model swallows the exception, and every image URL
+// silently becomes null with no error anywhere. Only the media-sample hook of the helper sees it (urlNull > 0): this is why the
+// acceptance asserts the accessor.
+$wrong=[];
+$s=$stepOf('routes/web.php');$file=$active.'/'.$s['path'];$orig=(string)file_get_contents($file);file_put_contents($file,(string)file_get_contents($s['payload']));sleep(4);
+$wrong['routes']=['katalog'=>$status('/katalog'),'legal'=>$status('/pravne-informacije')];file_put_contents($file,$orig);sleep(4);
+check($wrong['routes']['katalog']===500&&$wrong['routes']['legal']===500,'WRONG_ORDER_ROUTES_FIRST_BREAKS_PUBLIC_PAGES:'.json_encode($wrong['routes']));check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$tree()==='PRE','WRONG_ORDER_CONTROL_RESTORED_ROUTES');
+$s=$stepOf('app/Models/ProductImage.php');$file=$active.'/'.$s['path'];$orig=(string)file_get_contents($file);file_put_contents($file,(string)file_get_contents($s['payload']));
+$hook=json_decode(sh(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$incoming.'/b1150-app-check.php',$active,'media-sample'],$active),true,16,JSON_THROW_ON_ERROR);file_put_contents($file,$orig);
+check(($hook['ok']??false)===true&&is_int($hook['urlNull']??null)&&$hook['urlNull']>=1&&($hook['sample']??null)===null,'WRONG_ORDER_MODEL_FIRST_SILENT_NULL_SEEN_BY_THE_HOOK:'.json_encode($hook));check($tree()==='PRE','WRONG_ORDER_CONTROL_RESTORED_MODEL');
+$reset();$results['wrongOrderControls']=$wrong+['modelFirst'=>'ALL_IMAGE_URLS_NULL_WITHOUT_ANY_ERROR','meaning'=>'THE_STEP_SMOKES_BELOW_CAN_FAIL'];
 
 // 12. Install with a smoke after every step and every group boundary.
 [$rc,$o]=$run($allSteps());$rows=$stepRows();echo 'STEP_SMOKES='.json_encode($rows,JSON_UNESCAPED_SLASHES).PHP_EOL;
@@ -316,7 +327,7 @@ check($status('/site-assets/not-a-valid-name.png')===404&&$status('/site-assets/
 $t=$themePost('theme=dark&back=%2Fkatalog');check($t['status']===303&&$t['location']==='/katalog'&&isset($t['cookies']['shop_theme']),'THEME_POST_303_COOKIE');
 check(str_contains($body('/katalog',['Cookie: shop_theme='.$t['cookies']['shop_theme']]),'data-theme="dark"')&&str_contains($body('/katalog'),'data-theme="system"'),'THEME_COOKIE_RENDERS_DATA_THEME');
 check(str_contains($body($cssV),$markers['css'])&&str_contains($body($galV),$markers['gallery']),'CSS_SERVED');
-$results['install']=['final'=>lastRaw($o,'B1150_FINAL'),'stepSmokePoints'=>count($rows),'b1149Storefront'=>'INTACT_THROUGHOUT','guestSmtp'=>'302_THROUGHOUT','themePost'=>'303_AT_GROUP_POINTS','mediaRoute'=>$imagesVisible?'EXERCISED':'NOT_EXERCISED_NO_VISIBLE_PRODUCT_IMAGE_B1150_FILL','mailFingerprint'=>'UNCHANGED'];
+$results['install']=['final'=>lastRaw($o,'B1150_FINAL'),'stepSmokePoints'=>count($rows),'b1149Storefront'=>'INTACT_THROUGHOUT','guestSmtp'=>'302_THROUGHOUT','themePost'=>'303_AT_GROUP_POINTS','mediaRoute'=>$imagesVisible?'EXERCISED':'NOT_EXERCISED_NO_PRODUCT_IMAGE','mailFingerprint'=>'UNCHANGED'];
 
 // 13. Idempotent re-run.
 [$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1150_FINAL')==='PASS_ALREADY_INSTALLED'&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='INSTALLED','IDEMPOTENT_RERUN');$results['rerun']='PASS_ALREADY_INSTALLED';

@@ -21,9 +21,12 @@ final class MediaWeb
 {
     public const MAX_BODY=4194304;
     private const QUERY_KEYS=['sort','page','v','s'];
-    /** B1150_FILL: the shape of the signed media URL path; the {image} and {rendition} segments are assumed to be [A-Za-z0-9_-]. */
-    public const MEDIA_PATH_PATTERN='~^/media/p/[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,40}$~D';
-    public const MEDIA_URL_PATTERN='~(/media/p/[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,40})\?([A-Za-z0-9_.=&%-]{1,400})~';
+    /** The signed media URL of routes/web.php (62 route: whereNumber image, rendition original|display|thumbnail, ?v=<16 hex>&s=<32 hex>). */
+    public const MEDIA_PATH_PATTERN='~^/media/p/[1-9][0-9]{0,17}/(?:original|display|thumbnail)$~D';
+    public const MEDIA_URL_PATTERN='~(/media/p/[1-9][0-9]{0,17}/(?:original|display|thumbnail))\?([A-Za-z0-9_.=&%-]{1,400})~';
+    public const VERSION_PATTERN='/\A[a-f0-9]{16}\z/D';
+    public const SIGNATURE_PATTERN='/\A[a-f0-9]{32}\z/D';
+    public const MEDIA_MAX_AGE=604800;
     private LeanWeb $lean;
 
     public function __construct(private string $host='cms.ald1n.com',private int $port=443,private ?string $caFile=null)
@@ -54,12 +57,14 @@ final class MediaWeb
     }
 
     /** The CatalogWeb headers plus Vary, Cache-Control, X-Content-Type-Options, Location and the NAMES of Set-Cookie headers. */
-    public static function headers():array {return CatalogWeb::headers()+['vary'=>[],'cache'=>[],'nosniff'=>[],'location'=>[],'setCookie'=>[]];}
+    public static function headers():array {return CatalogWeb::headers()+['vary'=>[],'cache'=>[],'nosniff'=>[],'location'=>[],'setCookie'=>[],'etag'=>[],'corp'=>[]];}
 
     public static function header(array &$h,string $line):void
     {
         CatalogWeb::header($h,$line);
         if(preg_match('/^Set-Cookie:\s*([^=;\s]+)=/i',$line,$m))$h['setCookie'][]=$m[1];
+        if(preg_match('/^ETag:\s*(\S+)\s*$/i',$line,$m))$h['etag'][]=$m[1];
+        if(preg_match('/^Cross-Origin-Resource-Policy:\s*(.*?)\s*$/i',$line,$m))$h['corp'][]=$m[1];
         if(preg_match('/^Vary:\s*(.*?)\s*$/i',$line,$m))$h['vary'][]=$m[1];
         if(preg_match('/^Cache-Control:\s*(.*?)\s*$/i',$line,$m))$h['cache'][]=$m[1];
         if(preg_match('/^X-Content-Type-Options:\s*(.*?)\s*$/i',$line,$m))$h['nosniff'][]=$m[1];
@@ -68,7 +73,17 @@ final class MediaWeb
 
     public static function result(bool $transport,int $status,array $h,string $body):array
     {
-        return CatalogWeb::result($transport,$status,$h,$body)+['vary'=>$h['vary']??[],'cache'=>$h['cache']??[],'nosniff'=>$h['nosniff']??[],'location'=>$h['location']===[]?null:(string)end($h['location']),'cfRay'=>$h['cfRay']??false,'setCookie'=>$h['setCookie']??[]];
+        return CatalogWeb::result($transport,$status,$h,$body)+['vary'=>$h['vary']??[],'cache'=>$h['cache']??[],'nosniff'=>$h['nosniff']??[],'location'=>$h['location']===[]?null:(string)end($h['location']),'cfRay'=>$h['cfRay']??false,'setCookie'=>$h['setCookie']??[],'etag'=>$h['etag']??[],'corp'=>$h['corp']??[]];
+    }
+
+    /**
+     * The Cache-Control of a signed product image as a SET of directives (Symfony sorts them, so the string order means nothing):
+     * exactly private, max-age=604800 and immutable.
+     */
+    public static function mediaCacheControl(array $cache):bool
+    {
+        $d=[];foreach($cache as $v)foreach(explode(',',(string)$v) as $x){$x=strtolower(trim($x));if($x!=='')$d[]=$x;}
+        sort($d);return $d===['immutable','max-age='.self::MEDIA_MAX_AGE,'private'];
     }
 
     /** Cache-Control carries private, a positive max-age and immutable (any order, any other directive; public or no-store contradict it). */
@@ -78,6 +93,12 @@ final class MediaWeb
         return isset($t['private'],$t['immutable'])&&!isset($t['public'])&&!isset($t['no-store'])&&isset($t['max-age'])&&is_string($t['max-age'])&&ctype_digit($t['max-age'])&&(int)$t['max-age']>0;
     }
 
+    /** Exactly one quoted strong ETag (the controller sends "<32 hex>"). */
+    public static function strongEtag(array $etag):bool {return count($etag)===1&&preg_match('/\A"[a-f0-9]{32}"\z/D',(string)$etag[0])===1;}
+
+    /** Exactly one Cross-Origin-Resource-Policy header and it is cross-origin (webmail and app WebViews load the photo cross-site). */
+    public static function crossOriginPolicy(array $corp):bool {return count($corp)===1&&strtolower(trim((string)$corp[0]))==='cross-origin';}
+
     /**
      * The first signed product image URL of a page body as ['path'=>'/media/p/<image>/<rendition>', 'query'=>['v'=>..., 's'=>...]], or
      * null. HTML entities are decoded first (&amp; in href/src/srcset); only a URL with exactly the query keys v and s counts.
@@ -86,7 +107,7 @@ final class MediaWeb
     {
         if(preg_match_all(self::MEDIA_URL_PATTERN,html_entity_decode($html,ENT_QUOTES|ENT_HTML5),$all,PREG_SET_ORDER))foreach($all as [,$path,$q]){
             parse_str($q,$parsed);$keys=array_keys($parsed);sort($keys);
-            if($keys===['s','v']&&is_string($parsed['v'])&&is_string($parsed['s'])&&preg_match('/^[A-Za-z0-9_.=-]{1,160}$/D',$parsed['v'])===1&&preg_match('/^[A-Za-z0-9_.=-]{1,160}$/D',$parsed['s'])===1)return ['path'=>$path,'query'=>['v'=>$parsed['v'],'s'=>$parsed['s']]];
+            if($keys===['s','v']&&is_string($parsed['v'])&&is_string($parsed['s'])&&preg_match(self::VERSION_PATTERN,$parsed['v'])===1&&preg_match(self::SIGNATURE_PATTERN,$parsed['s'])===1)return ['path'=>$path,'query'=>['v'=>$parsed['v'],'s'=>$parsed['s']]];
         }
         return null;
     }
@@ -94,7 +115,7 @@ final class MediaWeb
     /** Number of /media/p/<image>/<rendition> occurrences in a page body (links, srcset candidates). */
     public static function mediaLinkCount(string $html):int
     {
-        return (int)preg_match_all('~/media/p/[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,40}~',html_entity_decode($html,ENT_QUOTES|ENT_HTML5));
+        return (int)preg_match_all('~/media/p/[1-9][0-9]{0,17}/(?:original|display|thumbnail)~',html_entity_decode($html,ENT_QUOTES|ENT_HTML5));
     }
 
     /** Number of src, srcset and data-src attributes that point at a /storage/ URL (the site-assets legacy logo path is not a product image). */
@@ -195,12 +216,12 @@ final class MediaWeb
      * One request. $method GET or HEAD; $origin true resolves cms.ald1n.com:443 to 127.0.0.1 (loopback TLS to the origin,
      * the route the B1144 freshness probe uses), so no edge sits in between. Status, transport error, headers, body.
      */
-    public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false):array
+    public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false,array $headers=[]):array
     {
         if(!in_array($method,['GET','HEAD'],true))throw new RuntimeException('SMOKE_METHOD');
         $target=self::target($path,$query,$marker);$h=self::headers();$body='';$over=false;
         $curl=curl_init('https://'.$this->host.($this->port===443?'':':'.$this->port).$target);
-        $options=[CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>25,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_NOPROXY=>'*',CURLOPT_USERAGENT=>'Ald1n-B1150-owned-release',CURLOPT_HTTPHEADER=>['Host: '.$this->host,'Cache-Control: no-cache'],
+        $options=[CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>25,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_NOPROXY=>'*',CURLOPT_USERAGENT=>'Ald1n-B1150-owned-release',CURLOPT_HTTPHEADER=>array_merge(['Host: '.$this->host,'Cache-Control: no-cache'],array_values(array_filter($headers,static fn($x)=>is_string($x)&&preg_match('/^If-None-Match: "[A-Za-z0-9]{1,64}"$/D',$x)===1))),
             CURLOPT_HEADERFUNCTION=>static function($c,string $line)use(&$h):int{self::header($h,$line);if(preg_match('/^CF-RAY:/i',$line))$h['cfRay']=true;return strlen($line);},
             CURLOPT_WRITEFUNCTION=>static function($c,string $chunk)use(&$body,&$over):int{if(strlen($body)+strlen($chunk)>self::MAX_BODY){$over=true;return 0;}$body.=$chunk;return strlen($chunk);}];
         if($method==='HEAD')$options[CURLOPT_NOBODY]=true;if($origin)$options[CURLOPT_RESOLVE]=[$this->host.':'.$this->port.':127.0.0.1'];

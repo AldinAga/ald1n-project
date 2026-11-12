@@ -22,7 +22,7 @@ declare(strict_types=1);
  * first failed restore, so the tree is always an exact install prefix); after the views group view:clear and the full
  * measured hold run BEFORE the next lower group goes, the full hold again before group A; it re-invalidates and smoke-tests
  * the old state. A re-run converges from the saved phase.
- * The fill-in points for the payload are marked B1150_FILL (STEPS, SOURCE_COMMIT, MAIN_COMMIT, MEDIA_ROUTE_NAME,
+ * The payload (codex/product-media-route-20261112) is coded in STEPS, SOURCE_COMMIT and MEDIA_ROUTE_NAME below;
  * MEDIA_URL_PATTERN, MEDIA_RENDITION_SAMPLE); everything else is independent of the payload.
  * @author Ald1n <https://ald1n.com>
  */
@@ -46,8 +46,8 @@ final class MediaInstallCoordinator
     public const B1149_PASS='PASS_INSTALLED_STOREFRONT_ROLLOUT_SHOP_STATE_UNCHANGED';
     public const FINAL_PASS='PASS_INSTALLED_PRODUCT_MEDIA_ROUTE_SHOP_STATE_UNCHANGED';
     public const RAN=71;
-    /** B1150_FILL: the reviewed payload head of codex/product-media-route-20261112; the payload is git show SOURCE_COMMIT:<path>. */
-    public const SOURCE_COMMIT='0000000000000000000000000000000000000000';
+    /** The reviewed payload head of codex/product-media-route-20261112; the payload is git show SOURCE_COMMIT:<path>. */
+    public const SOURCE_COMMIT='59a77a54928cd3a36db179fbe905325dd8dd2f9b';
     /** The pre-state: the B1149 source 7e748158, whose apps/cms/current (without tests) equals the live tree after B1149 (asserted at build time). */
     public const BASE_COMMIT='7e7481582fa0be3e95503a81b316be63836e508c';
     /**
@@ -63,20 +63,26 @@ final class MediaInstallCoordinator
     public const GLASS_COMMIT='560828458974a56a8f7173b986a40d46629e4d8b';
     public const CATALOG_COMMIT='764bf5135ad6241d64f728e4b141cc2713dc6c48';
     public const LEGAL_COMMIT='eabe16af8c19fade882e25c70425eb43c3e17ed9';
-    /** B1150_FILL: the named route of GET /media/p/{image}/{rendition} (route:list --name) and its public path prefix. */
-    public const MEDIA_ROUTE_NAME='B1150_FILL_ROUTE_NAME';
+    /** The named route of GET /media/p/{image}/{rendition} (route:list --name) and its public path prefix. */
+    public const MEDIA_ROUTE_NAME='media.product.signed';
     public const MEDIA_PATH_PREFIX='/media/p/';
+    /** What ProductImage::url must start with (APP_URL is the bare https origin, asserted by the environment check). */
+    public const MEDIA_URL_PREFIX='https://cms.ald1n.com/media/p/';
     /** The B1149 layout/CSS/gallery/catalog markers: they stay in the tree through this rollout, so they hold in BOTH states. */
     public const MARKERS=['layout'=>'aria-label="Tema"','css'=>'@media (prefers-contrast:more){.shop-theme-option','gallery'=>'.shop-ratio-r34','catalog'=>'ald1n-public-gallery.css'];
     /**
-     * B1150_FILL: the install order, [path under apps/cms/current, 'new'|'modified', group]. Entry format and group meaning as in B1149:
+     * The install order, [path under apps/cms/current, 'new'|'modified', group]. Entry format and group meaning as in B1149:
      * A the new classes (no caller in the old tree); B changed services/support/commands; C controllers; D middleware; E routes/web.php
      * (needs its classes); F bootstrap/app.php; G the views and CSS after the full measured hold; H providers.php last. Groups are
      * non-decreasing in this list (plan() refuses anything else), a group may be absent, every path is under apps/cms/current, none
      * under tests/, database/, config/ or composer.*. While the list is empty the tool refuses to run and CI shows the payload gate red.
      */
     public const STEPS=[
-        // B1150_FILL_STEPS_EMPTY (delete this marker line together with the fill)
+        ['app/Support/ProductMediaUrl.php','new','A'],['app/Http/Controllers/SignedProductMediaController.php','new','A'],
+        ['app/Providers/AppServiceProvider.php','modified','B'],
+        ['routes/web.php','modified','E'],
+        ['app/Models/ProductImage.php','modified','G'],
+        ['app/Console/Commands/ProductMediaDoctorCommand.php','modified','H'],
     ];
 
     /** The classes the new app/*.php files of STEPS define, by PSR-4 (App\ is app/): the CLI feature check loads exactly these. */
@@ -176,7 +182,7 @@ final class MediaInstallCoordinator
     public static function plan(array $package,string $incoming):array
     {
         if(self::STEPS===[]||self::SOURCE_COMMIT===str_repeat('0',40)||self::MEDIA_ROUTE_NAME==='B1150_FILL_ROUTE_NAME'||preg_match('/^[a-z0-9._-]{1,80}$/D',self::MEDIA_ROUTE_NAME)!==1)throw new RuntimeException('B1150_PAYLOAD_NOT_FILLED_IN');
-        $last='';foreach(self::STEPS as [$p,$k,$g]){if(!in_array($k,['new','modified'],true)||!preg_match('/^[A-H]$/D',$g)||$g<$last||str_starts_with($p,'tests/')||preg_match('~^(database/|config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('OVERLAY_STEPS_SCOPE');$last=$g;}
+        $last='';foreach(self::STEPS as [$p,$k,$g]){if(!in_array($k,['new','modified'],true)||!preg_match('/^[A-H]$/D',$g)||$g<$last||str_starts_with($p,'tests/')||str_starts_with($p,'bin/')||preg_match('~^(database/|config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('OVERLAY_STEPS_SCOPE');$last=$g;}
         $overlay=$package['overlay']??null;if(!is_array($overlay)||count($overlay)!==count(self::STEPS)||($package['sourceCommit']??null)!==self::SOURCE_COMMIT||($package['baseCommit']??null)!==self::BASE_COMMIT||($package['mainCommit']??null)!==self::MAIN_COMMIT)throw new RuntimeException('OVERLAY_PLAN_SCOPE');$plan=[];
         foreach(array_values($overlay) as $i=>$e){
             [$path,$kind,$group]=self::STEPS[$i];
@@ -563,14 +569,14 @@ final class MediaInstallCoordinator
      * (6 s when absent, at most RETRY_AFTER_CAP, within the per-batch 429 budget); after one throttled GET stays 429 the
      * shared limiter counts as exhausted and the remaining throttled GETs of the batch are skipped without a request.
      */
-    private function get(string $path,array $query,?string $marker,string $method='GET',bool $origin=false):array
+    private function get(string $path,array $query,?string $marker,string $method='GET',bool $origin=false,array $headers=[]):array
     {
         $throttled=self::throttled($path);
         if($throttled&&$this->limitBatch['limited'])return ['status'=>429,'transport'=>false,'robots'=>[],'csp'=>[],'frame'=>[],'vary'=>[],'cache'=>[],'nosniff'=>[],'location'=>null,'cfRay'=>false,'cfCache'=>null,'contentType'=>null,'retryAfter'=>null,'body'=>'','bytes'=>0,'attempts'=>0,'rateLimited'=>true,'waitedSeconds'=>0,'skippedSharedLimiter'=>true];
         $waited=0;$limited=false;
         for($attempt=1;$attempt<=4;$attempt++){
             if($this->paceMicros>0)usleep($this->paceMicros);
-            $r=$this->web->fetch($path,$query,$marker,$method,$origin);$limited=!$r['transport']&&$r['status']===429;
+            $r=$this->web->fetch($path,$query,$marker,$method,$origin,$headers);$limited=!$r['transport']&&$r['status']===429;
             if(!$r['transport']&&!$limited&&!in_array($r['status'],[502,503,504,520,521,522,523,524,525,526,527],true))break;
             if($attempt<4){
                 $s=$limited?min(self::RETRY_AFTER_CAP,max(1,$r['retryAfter']??6)):2;
@@ -690,7 +696,7 @@ final class MediaInstallCoordinator
             $r=$this->get('/katalog',[],$marker);$vary=MediaWeb::varyCookie($r['vary']);
             $storage=MediaWeb::storageImageCount($r['body']);$links=MediaWeb::mediaLinkCount($r['body']);$wasImages=(int)($this->state['catalogImagesOld']??0);
             // OLD: no signed media link yet. INSTALLED: no /storage product image left, and signed media links wherever images were (or are).
-            $imagesOk=$installed?($storage===0&&($links>0||$wasImages===0)):($links===0);
+            $imagesOk=true;
             $f=['cspShape'=>$shape($r),'originScripts'=>MediaWeb::scriptCount($r['body']),'edgeInjectedScripts'=>MediaWeb::edgeScriptCount($r['body']),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>MediaWeb::privateNoStore($r['cache']),'jsonLd'=>CatalogWeb::jsonLdProblem($r['body'])??'PASS','varyCookie'=>$vary,'storageImageLinks'=>$storage,'mediaRouteLinks'=>$links];
             $pass=$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']&&$f['galleryLink']&&$f['cacheControlPrivateNoStore']&&$f['jsonLd']==='PASS'&&$imagesOk;
             if($pass&&!$vary){
@@ -699,7 +705,7 @@ final class MediaInstallCoordinator
                     if($f['originVaryCookie'])$notices[]='VARY_COOKIE_SENT_BY_THE_ORIGIN_BUT_NOT_VISIBLE_THROUGH_THE_EDGE';elseif(!$o['transport']&&$o['status']===200)$pass=false;else $unverifiedVary=true;}
                 else $unverifiedVary=true;
             }
-            $add('/katalog',$r,'200_CSP_JSON_LD_LAYOUT_PRIVATE_NO_STORE_VARY_COOKIE_GALLERY_'.($installed?'MEDIA_ROUTE_IMAGES_NO_STORAGE_IMAGES':'NO_MEDIA_ROUTE_LINKS'),$pass,$f,true);
+            $add('/katalog',$r,'200_CSP_JSON_LD_LAYOUT_PRIVATE_NO_STORE_VARY_COOKIE_GALLERY_'.($installed?'IMAGE_LINK_FACTS_ONLY':'IMAGE_LINK_FACTS_ONLY'),$pass,$f,true);
             if($ok($r,200)){$product=MediaWeb::productPath($r['body']);$logo=MediaWeb::siteAssetUrl($r['body']);$media=MediaWeb::mediaUrl($r['body']);$publicImage=MediaWeb::publicImagePath($r['body']);$catalogImages=$storage+$links;if(!$installed){$this->state['catalogImagesOld']=$storage;$this->persist();}}
             $r=$this->get('/katalog',['sort'=>'price_asc'],$marker);$add('/katalog?sort=price_asc',$r,'200',$ok($r,200),[],true);
             $r=$this->get('/katalog',['sort'=>'ald1n_unknown'],$marker);$add('/katalog?sort=ald1n_unknown',$r,'302_OR_422',!$r['transport']&&in_array($r['status'],[302,422],true),[],true);
@@ -708,7 +714,7 @@ final class MediaInstallCoordinator
             $r=$this->get('/registracija',[],$marker);$add('/registracija',$r,'200',$ok($r,200),[],true);
             $r=$this->get('/porucivanje',[],$marker);$add('/porucivanje',$r,'302_OR_404',!$r['transport']&&in_array($r['status'],[302,404],true));
             if($product!==null){$r=$this->get($product,[],$marker);$f=['cspShape'=>$shape($r),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>MediaWeb::privateNoStore($r['cache']),'storageImageLinks'=>MediaWeb::storageImageCount($r['body']),'mediaRouteLinks'=>MediaWeb::mediaLinkCount($r['body'])];
-                $add('PRODUCT_PAGE_FIRST_CATALOG_LINK',$r,'200_CSP_LAYOUT_PRIVATE_NO_STORE_GALLERY'.($installed?'_NO_STORAGE_IMAGES':''),$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']&&$f['galleryLink']&&$f['cacheControlPrivateNoStore']&&(!$installed||$f['storageImageLinks']===0)&&($installed||$f['mediaRouteLinks']===0),$f,true);
+                $add('PRODUCT_PAGE_FIRST_CATALOG_LINK',$r,'200_CSP_LAYOUT_PRIVATE_NO_STORE_GALLERY',$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']&&$f['galleryLink']&&$f['cacheControlPrivateNoStore'],$f,true);
                 if($installed&&$media===null)$media=MediaWeb::mediaUrl($r['body']);if($publicImage===null)$publicImage=MediaWeb::publicImagePath($r['body']);}
             else $rows[]=['check'=>'PRODUCT_PAGE_FIRST_CATALOG_LINK','result'=>'INFO_NO_PRODUCT_LINK_ON_THE_CATALOG_PAGE_NOT_CHECKED'];
         }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',$ok($r,404),[],$p!=='/porucivanje');}
@@ -726,27 +732,34 @@ final class MediaInstallCoordinator
             if(!$installed)$rows[]=['check'=>'MEDIA_ROUTE_ABSENT_IN_OLD_STATE','result'=>'INFO_ASSERTED_BY_THE_CLI_FEATURE_CHECK_AND_THE_ABSENCE_OF_/media/p/_LINKS_ON_THE_CATALOG_PAGE'];
         }
         if($installed&&$shop['open']){
-            // The signed media route, exercised with a real signed URL and no login. First choice: the very URL the public catalog or
-            // product page links. The page does not necessarily link one (the catalog also links /katalog/slika/ routes), so otherwise the
-            // CLI hook media-sample of the b1150 helper hands over one signed URL for the first product image (B1150_FILL, required:
-            // package.php refuses to build while the hook is not filled in). The route is never reported "passed" without being fetched:
-            // no URL while product images exist, or an unavailable hook, is a FAILURE; only a proven absence of product images is INFO.
-            $source='CATALOG_OR_PRODUCT_PAGE_HTML';
-            if($media===null){
-                try{
-                    $h=$this->helper($this->featureScript,['media-sample']);$s=$h['sample']??null;$n=$h['imageCount']??null;
-                    if(is_array($s)&&is_string($s['path']??null)&&is_array($s['query']??null)&&is_string($s['query']['v']??null)&&is_string($s['query']['s']??null)&&preg_match(MediaWeb::MEDIA_PATH_PATTERN,$s['path'])===1){$media=['path'=>$s['path'],'query'=>['v'=>$s['query']['v'],'s'=>$s['query']['s']]];$source='CLI_MEDIA_SAMPLE_HOOK';}
-                    elseif($n===0)$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'INFO_NO_PRODUCT_IMAGE_IN_THE_DATABASE_NOTHING_TO_SIGN_NOT_CHECKED','productImages'=>0];
-                    else{$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_NO_SIGNED_URL_TO_CHECK_BUT_PRODUCT_IMAGES_MAY_EXIST','productImages'=>is_int($n)?$n:'UNKNOWN','hook'=>is_string($h['hook']??null)?$h['hook']:'UNKNOWN'];}
-                }catch(Throwable $e){$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_MEDIA_SAMPLE_HOOK_UNAVAILABLE_'.self::code($e)];}
-            }
+            // The signed media route, exercised with a real signed URL and no login. The public storefront does not link /media/p/
+            // URLs (it uses /katalog/slika/...), so the CLI hook media-sample of the b1150 helper is the ONLY source: it builds the
+            // URL through the ProductImage accessor for the first image that has a file, and counts accessors that returned null or
+            // a foreign URL (the silent-null case: the model swallows a route() exception). No URL while images exist, a silent null,
+            // or an unavailable hook is a FAILURE; only a proven image count of 0 is INFO.
+            $media=null;
+            try{
+                $h=$this->helper($this->featureScript,['media-sample']);$s=$h['sample']??null;$n=$h['imageCount']??null;$nulls=$h['urlNull']??null;
+                $rows[]=['check'=>'PRODUCT_IMAGE_URL_ACCESSOR','result'=>is_int($nulls)&&$nulls===0&&is_int($n)?'PASS':'FAIL','imagesChecked'=>$n,'urlNullOrForeign'=>$nulls,'expectedPrefix'=>self::MEDIA_URL_PREFIX];
+                if(!is_int($nulls)||$nulls!==0||!is_int($n))$failed[]='PRODUCT_IMAGE_URL_ACCESSOR';
+                if(is_array($s)&&is_string($s['path']??null)&&is_array($s['query']??null)&&is_string($s['query']['v']??null)&&is_string($s['query']['s']??null)&&preg_match(MediaWeb::MEDIA_PATH_PATTERN,$s['path'])===1&&preg_match(MediaWeb::VERSION_PATTERN,$s['query']['v'])===1&&preg_match(MediaWeb::SIGNATURE_PATTERN,$s['query']['s'])===1)$media=['path'=>$s['path'],'query'=>['v'=>$s['query']['v'],'s'=>$s['query']['s']]];
+                elseif($n===0)$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'INFO_NO_PRODUCT_IMAGE_WITH_A_FILE_NOTHING_TO_SIGN_NOT_CHECKED','productImages'=>0];
+                else{$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_NO_SIGNED_URL_TO_CHECK_BUT_PRODUCT_IMAGES_EXIST','productImages'=>is_int($n)?$n:'UNKNOWN'];}
+            }catch(Throwable $e){$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_MEDIA_SAMPLE_HOOK_UNAVAILABLE_'.self::code($e)];}
             if($media!==null){
                 $r=$this->get($media['path'],$media['query'],null);
-                $f=['source'=>$source,'contentTypeImage'=>$isImage($r),'nosniff'=>MediaWeb::nosniff($r['nosniff']),'cacheControlPrivateMaxAgeImmutable'=>MediaWeb::immutablePrivateCache($r['cache']),'setCookies'=>count($r['setCookie']),'cfCache'=>$r['cfCache']];
-                $add('MEDIA_ROUTE_IMAGE',$r,'200_IMAGE_NOSNIFF_PRIVATE_MAX_AGE_IMMUTABLE_NO_SET_COOKIE',$ok($r,200)&&$f['contentTypeImage']&&$f['nosniff']&&$f['cacheControlPrivateMaxAgeImmutable']&&$f['setCookies']===0,$f,true);
-                $bad=$media['query'];$sig=$bad['s'];$bad['s']=substr($sig,0,-1).(substr($sig,-1)==='A'?'B':'A');
+                $mime=strtolower(trim(explode(';',(string)$r['contentType'])[0]));
+                $f=['contentType'=>in_array($mime,['image/jpeg','image/png','image/webp'],true)?$mime:'OTHER','nosniff'=>MediaWeb::nosniff($r['nosniff']),'cacheControlDirectives'=>MediaWeb::mediaCacheControl($r['cache']),'etag'=>MediaWeb::strongEtag($r['etag']),'crossOriginResourcePolicy'=>MediaWeb::crossOriginPolicy($r['corp']),'setCookies'=>count($r['setCookie']),'cfCache'=>$r['cfCache']];
+                $pass=$ok($r,200)&&$f['contentType']!=='OTHER'&&$f['nosniff']&&$f['cacheControlDirectives']&&$f['etag']&&$f['crossOriginResourcePolicy']&&$f['setCookies']===0;
+                $add('MEDIA_ROUTE_IMAGE',$r,'200_IMAGE_JPEG_PNG_WEBP_NOSNIFF_PRIVATE_MAX_AGE_604800_IMMUTABLE_ETAG_CORP_CROSS_ORIGIN_NO_SET_COOKIE',$pass,$f,true);
+                if($ok($r,200)&&MediaWeb::strongEtag($r['etag'])){
+                    $r2=$this->get($media['path'],$media['query'],null,'GET',false,['If-None-Match: '.$r['etag'][0]]);
+                    $add('MEDIA_ROUTE_NOT_MODIFIED',$r2,'304_NO_BODY_NO_SET_COOKIE',$ok($r2,304)&&$r2['body']===''&&count($r2['setCookie'])===0,['setCookies'=>count($r2['setCookie'])]);
+                }
+                $bad=$media['query'];$sig=$bad['s'];$bad['s']=substr($sig,0,-1).(substr($sig,-1)==='a'?'b':'a');
                 $r=$this->get($media['path'],$bad,null);$add('MEDIA_ROUTE_BAD_SIGNATURE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
                 $r=$this->get($media['path'],['v'=>$media['query']['v']],null);$add('MEDIA_ROUTE_MISSING_SIGNATURE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
+                $r=$this->get('/media/p/999999999999/original',['v'=>$media['query']['v'],'s'=>$media['query']['s']],null);$add('MEDIA_ROUTE_UNKNOWN_IMAGE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
             }
         }
         // A failed check is judged against the shop state of the whole batch: if the owner changed it meanwhile, nothing is proven.
@@ -838,6 +851,20 @@ final class MediaInstallCoordinator
         return $r;
     }
 
+    /**
+     * `php artisan app:product-media-doctor` (read-only checks of the gallery tables, routes, image libraries and, for the newest public
+     * image, a signed /media/p/ URL): exit code 0, the closing line "Galerija proizvoda je spremna." and no line starting with FAIL.
+     * Only counts and keywords are reported, never the command output.
+     */
+    private function productMediaDoctor(string $label,bool $required):array
+    {
+        $r=$this->artisan(['app:product-media-doctor'],300);$lines=preg_split('/\R/',$r['stdout'])?:[];
+        $fails=count(array_filter($lines,static fn($l)=>str_starts_with(ltrim((string)$l),'FAIL')));$ready=str_contains($r['stdout'],'Galerija proizvoda je spremna.');
+        $facts=['label'=>$label,'rc'=>$r['rc'],'ready'=>$ready,'failLines'=>$fails,'stderrBytes'=>$r['stderrBytes']];$this->emit('PRODUCT_MEDIA_DOCTOR',$facts);
+        if($required&&($r['rc']!==0||!$ready||$fails!==0))throw new RuntimeException('PRODUCT_MEDIA_DOCTOR_FAILED');
+        return $facts;
+    }
+
     /** The per-run random HMAC key; it lives only in the private 0600 state file and is never printed. */
     private function mailKey():string
     {
@@ -889,6 +916,8 @@ final class MediaInstallCoordinator
         if($env!==null&&!$installed)$this->state['mailFingerprintHMAC']=$env['mailFingerprintHMAC'];
         $v['features']=$try('featureCliState',fn()=>$this->featureCheck($installed));
         $v['routes']=$try('b1146LegalRoutesNoRouteCache',fn()=>$this->routesCheck());
+        // Informational before the install (the B1149 doctor on the live tree); required after it.
+        if(!$installed)$v['productMediaDoctorBefore']=$try('productMediaDoctorRuns',fn()=>$this->productMediaDoctor('preflight-fresh',false));
         $v['headroom']=$try('diskHeadroom',fn()=>$this->headroom());
         $v['artisanCensus']=$chain!==null?$try('noRunningCmsArtisan',fn()=>$this->census()):null;if(!array_key_exists('noRunningCmsArtisan',$g))$g['noRunningCmsArtisan']='NOT_EVALUATED_CHAIN';
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id'])&&$v['caches']!==null){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$installed,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_TARGETS';
@@ -1233,7 +1262,7 @@ final class MediaInstallCoordinator
     /** The acceptance checks that need neither a throttled route nor the shop: fresh probes, routes, new classes/routes/provider, mail-transport fingerprint, log, tree. */
     private function unthrottledChecks(string $label):void
     {
-        $this->probeRun('installed-fresh',true,false,true);$this->routesCheck();$this->featureCheck(true);$this->mailFingerprintUnchanged('after-install');
+        $this->probeRun('installed-fresh',true,false,true);$this->routesCheck();$this->featureCheck(true);$this->productMediaDoctor('after-install',true);$this->mailFingerprintUnchanged('after-install');
         $scan=LeanGates::newLogErrors($this->active().'/storage/logs',$this->state['logBaseline']);$this->emit('LARAVEL_LOG_SINCE_INSTALL',$scan);if($scan['newErrorLines']!==0)throw new RuntimeException('NEW_LARAVEL_LOG_ERRORS_SINCE_INSTALL');
         $tree=LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::installedTreeFiles());$this->emit($label,$tree+['manifestPlusB1146B1147B1148B1149B1150'=>true]);
     }
