@@ -71,7 +71,8 @@ final class LegalAccountInstallCoordinator
      * The install order, [path under apps/cms/current, 'new'|'modified', group, source key E|T]. Groups of this rollout: A the new class (no caller in the
      * old tree); B the two account controllers that call it (API first); C the merchant settings view and controller, installed back to back (the view
      * first: a new view with the old controller is harmless, the new controller with the old view would re-render a fresh fingerprint after a refused
-     * submit); D the public shop layout last. Groups are non-decreasing in this list (plan() refuses anything else), every path is under
+     * submit; best effort only, because OPcache revalidates controller bytecode after revalidate_freq, the rollback has a real pause between the two);
+     * D the public shop layout last. Groups are non-decreasing in this list (plan() refuses anything else), every path is under
      * apps/cms/current, none under tests/, database/, config/ or composer.*.
      */
     public const STEPS=[

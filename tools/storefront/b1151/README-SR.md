@@ -44,12 +44,15 @@ Klasa (A), pa dva kontrolera za nalog, prvo API pa veb (B). Pre sledeće grupe i
 125 s, jer je C prva grupa sa prikazom. U grupi C idu jedan za drugim, bez pauze, prvo prikaz pa
 kontroler. Novi prikaz uz stari kontroler je bezopasan. Novi kontroler uz stari prikaz nije: posle
 odbijenog zastarelog slanja stari prikaz bi ponovo ispisao svež otisak stanja i sledeće slanje bi
-sačuvalo zastarele unose. Na kraju ide izgled prodavnice (D), pa `route:clear`, `view:clear` i
-`queue:restart`. Posle svake grupe radimo kratak smoke, a između grupa pauzu dok veb radnici
-osveže fajlove.
+sačuvalo zastarele unose. Takav redosled je najbolji mogući bez pauze: OPcache veb radnika osvežava
+fajlove tek posle `revalidate_freq` (oko 2 s), pa radnik kratko može da vidi novi kontroler uz stari
+kompajlirani prikaz. To važi samo za stranicu podešavanja trgovca u adminu. Na kraju ide izgled
+prodavnice (D), pa `route:clear`, `view:clear` i `queue:restart`. Posle svake grupe radimo kratak
+smoke, a između grupa pauzu dok veb radnici osveže fajlove.
 
-Vraćanje ide obrnuto: prvo D, pa unutar C kontroler, pauza i tek onda prikaz, zatim `view:clear` i
-puno čekanje, pa B, pa puno čekanje, pa klasa A kao poslednja. Svaki fajl ide kroz privremeni fajl u
+Vraćanje ide obrnuto: prvo D, pa unutar C kontroler, pauza i tek onda prikaz (ovde pauza daje
+garanciju da stari prikaz nikad ne radi uz novi kontroler), zatim `view:clear` i puno čekanje, pa
+B, pa puno čekanje, pa klasa A kao poslednja. Svaki fajl ide kroz privremeni fajl u
 istom direktorijumu, `fsync` i `rename` (`link` za nov fajl). OPcache osvežavamo ciljano, po fajlu.
 Keš ruta ne postoji i ne pravimo ga.
 
