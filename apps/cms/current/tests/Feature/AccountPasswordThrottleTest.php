@@ -126,6 +126,24 @@ final class AccountPasswordThrottleTest extends TestCase
         self::assertSame(1, $seen, 'The counter must already include this request while the hash is compared.');
     }
 
+    public function test_api_attempt_is_counted_before_the_password_is_compared(): void
+    {
+        $user = $this->person('throttle-order-api');
+        $token = $user->createToken('throttle-test', ['*'])->plainTextToken;
+        $seen = null;
+        Hash::partialMock()->shouldReceive('check')->with('probe-guess', \Mockery::any())
+            ->andReturnUsing(function () use (&$seen, $user): bool {
+                $seen = RateLimiter::attempts('account-password|'.$user->id);
+
+                return false;
+            });
+
+        $this->withToken($token)->putJson('/api/v1/me/password', $this->body('probe-guess'))
+            ->assertStatus(422)->assertJsonValidationErrors('current_password');
+
+        self::assertSame(1, $seen, 'The counter must already include this request while the hash is compared.');
+    }
+
     public function test_web_and_api_share_one_budget(): void
     {
         $user = $this->login($this->person('throttle-shared'));
