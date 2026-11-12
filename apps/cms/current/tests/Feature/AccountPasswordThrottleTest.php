@@ -9,6 +9,7 @@ use App\Models\User;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
@@ -142,6 +143,9 @@ final class AccountPasswordThrottleTest extends TestCase
         $this->withToken($token)->putJson('/api/v1/me/password', $this->body(self::OLD))
             ->assertStatus(422)
             ->assertJsonPath('errors.current_password.0', fn (string $m): bool => str_starts_with($m, 'Previše neuspešnih pokušaja'));
+        // The API call switched the default guard to sanctum; go back to the browser session.
+        $this->flushHeaders();
+        Auth::shouldUse('web');
         $this->change(self::OLD)->assertRedirect();
         self::assertStringContainsString('Previše neuspešnih pokušaja',
             (string) session('errors')->first('current_password'));
