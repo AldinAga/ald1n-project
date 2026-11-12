@@ -150,6 +150,7 @@ final class PublicMerchantSettingsController extends Controller
             // The owner signs only the state the page showed. If identity,
             // legal texts, bank accounts or terms changed elsewhere after the
             // page loaded, the draft is still saved but nothing is approved.
+            $refusal=null; // the transaction may be retried
             if ($approvalRequested
                 && ($shownFingerprint==='' || !hash_equals($merchant->review()['fingerprint'],$shownFingerprint))) {
                 $refusal='Podaci su sačuvani. Odobrenje nije potvrđeno jer su se uslovi promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.';

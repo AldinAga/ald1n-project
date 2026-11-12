@@ -102,7 +102,9 @@ final class PublicMerchantSettingsB801Test extends TestCase
             $this->actingAs($this->superadmin)
                 ->put('/admin/settings/public-storefront',$payload)
                 ->assertRedirect()->assertSessionHasNoErrors()
-                ->assertSessionHas('approval_refused');
+                ->assertSessionHas('approval_refused',
+                    static fn (string $message): bool => str_starts_with($message,
+                        'Podaci su sačuvani. Odobrenje nije potvrđeno jer nedostaje: '));
             // Changed in B-merchant-draft: the valid input is kept as a draft,
             // only the approval is refused (it used to roll everything back).
             $settings=app(SettingsService::class);
