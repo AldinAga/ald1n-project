@@ -4,12 +4,11 @@
 # (base 7e748158) and are not final yet. Until the orchestrator fills the placeholders, the step with id "payload" is the ONLY
 # red step of this job; every later step is skipped (not red) because it needs steps.payload.outcome == 'success'. When the
 # placeholders are filled the gate turns green and everything runs. Nothing has to be removed afterwards.
-# B1150_FILL, what the orchestrator fills (all in the repo, none in this file except line "B1150_SOURCE"):
-#   1. tools/storefront/b1150/MediaInstallCoordinator.php: STEPS (path, kind, group) and the marker B1150_FILL_STEPS_EMPTY removed,
-#      SOURCE_COMMIT, MAIN_COMMIT.
-#   2. this file: env B1150_SOURCE (the payload head commit, same value as SOURCE_COMMIT) and the second B1150_FILL fetch line is
-#      already generic (it fetches B1150_SOURCE).
-#   3. tools/storefront/b1150/AppCheck.php and MediaWeb.php: route name, class list, media URL shape (their own B1150_FILL markers).
+# B1150_FILL, what the orchestrator fills (nothing in this file; B1150_SOURCE is read from the coordinator by the gate step):
+#   1. tools/storefront/b1150/MediaInstallCoordinator.php: STEPS (path, kind, group) with the marker B1150_FILL_STEPS_EMPTY removed,
+#      SOURCE_COMMIT and MEDIA_ROUTE_NAME (MAIN_COMMIT defaults to the base 7e748158).
+#   2. tools/storefront/b1150/AppCheck.php: the media-sample hook (required; package.php refuses the stub).
+#   3. Confirm with the media writer: MediaWeb.php MEDIA_PATH_PATTERN / MEDIA_URL_PATTERN (the URL shape) and the smoke status codes.
 name: B1150 product media route installer (NO DEPLOY)
 on:
   push:
@@ -20,8 +19,7 @@ permissions:
   contents: read
   actions: read
 env:
-  # B1150_FILL: payload head commit (package.php refuses any other value than MediaInstallCoordinator::SOURCE_COMMIT).
-  B1150_SOURCE: 0000000000000000000000000000000000000000
+  # (B1150_SOURCE, the payload head commit, is read from MediaInstallCoordinator::SOURCE_COMMIT by the payload gate step and exported to the later steps.)
   # The B1149 payload head the live tree was built from, and the B1149 operator tooling head (bf5ac045).
   B1149_SOURCE: 7e7481582fa0be3e95503a81b316be63836e508c
   B1149_TOOLING: bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0
@@ -125,7 +123,9 @@ jobs:
           pending=0
           if grep -q "SOURCE_COMMIT='0000000000000000000000000000000000000000'" "$c"; then echo "::error::B1150_FILL pending: SOURCE_COMMIT is still the all-zero placeholder in $c"; pending=1; fi
           if grep -q 'B1150_FILL_STEPS_EMPTY' "$c"; then echo "::error::B1150_FILL pending: STEPS is empty (marker B1150_FILL_STEPS_EMPTY still present) in $c"; pending=1; fi
-          if test "$B1150_SOURCE" = 0000000000000000000000000000000000000000; then echo '::error::B1150_FILL pending: env B1150_SOURCE in b1150-installer.yml is the all-zero placeholder'; pending=1; fi
+          if grep -q "MEDIA_ROUTE_NAME='B1150_FILL_ROUTE_NAME'" "$c"; then echo "::error::B1150_FILL pending: MEDIA_ROUTE_NAME is still the placeholder in $c"; pending=1; fi
+          if grep -q "'hook'=>'NOT_FILLED_IN'" tools/storefront/b1150/AppCheck.php; then echo '::error::B1150_FILL pending: the media-sample hook in AppCheck.php is still the stub'; pending=1; fi
+          if test "$pending" = 0; then src="$(grep -o "SOURCE_COMMIT='[a-f0-9]\{40\}'" "$c" | head -n 1 | cut -d"'" -f2)"; test -n "$src"; echo "B1150_SOURCE=$src" >> "$GITHUB_ENV"; fi
           if test "$pending" = 1; then echo 'PAYLOAD PENDING: this red step is expected until the payload commit and the file list are filled in; all later steps are skipped on purpose.'; exit 1; fi
       - name: Fetch the B1150 payload head by SHA
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}

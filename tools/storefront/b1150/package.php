@@ -123,13 +123,14 @@ $version=static function(string $text,string $file):string{if(preg_match_all('~'
 $cssVersion=$version($final($layout),'ald1n-public-storefront.css');$oldCssVersion=$version($before($layout),'ald1n-public-storefront.css');
 // The gallery stylesheet link is not touched by B1150: one and the same ?v= in both views and in both states.
 $galleryVersion=$version($final($catalogView),'ald1n-public-gallery.css');if($galleryVersion!==$version($final($show),'ald1n-public-gallery.css')||$galleryVersion!==$version($before($catalogView),'ald1n-public-gallery.css')||$galleryVersion!==$version($before($show),'ald1n-public-gallery.css'))throw new RuntimeException('PACKAGE_GALLERY_VERSION_DIFFERS');
-// B1150_FILL: the dependency facts behind the install order, in the shipped bytes (needle present in the new bytes, absent from the old where the file is modified),
-// path => [needles]. Example: 'routes/web.php'=>["->name('<MEDIA_ROUTE_NAME>')"], a controller class the route needs, a service method a view calls.
+// Optional (B1150_OPTIONAL): the dependency facts behind the install order, in the shipped bytes (needle present in the new bytes, absent from the old where the file is modified),
+// path => [needles]. Example: 'routes/web.php'=>["->name('<MEDIA_ROUTE_NAME>')"], a controller class the route needs, a service method a view calls. Empty = only the route name below is asserted.
 $facts=[];
 foreach($facts as $p=>$needles)foreach($needles as $needle)if(!isset($new[$p])||!str_contains($new[$p],$needle)||(($old[$p]??null)!==null&&str_contains($old[$p],$needle)))throw new RuntimeException('PACKAGE_ORDER_FACT_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$p.'_'.$needle)));
 // The payload must contain the route name the coordinator and the CLI helper look for.
 $routeFile='routes/web.php';if(isset($new[$routeFile])&&!str_contains($new[$routeFile],"'".MediaInstallCoordinator::MEDIA_ROUTE_NAME."'")&&!str_contains($new[$routeFile],'"'.MediaInstallCoordinator::MEDIA_ROUTE_NAME.'"'))throw new RuntimeException('PACKAGE_MEDIA_ROUTE_NAME_NOT_IN_ROUTES_WEB');
-if(substr_count($bytes['b1150-app-check.php'],"const MEDIA_ROUTE_NAME='".MediaInstallCoordinator::MEDIA_ROUTE_NAME."';")!==1)throw new RuntimeException('PACKAGE_APP_CHECK_ROUTE_NAME_DIFFERS_FROM_THE_COORDINATOR');
+// The media-sample hook is the proof of the route when the pages link no signed URL: a package with the stub is refused.
+if(str_contains($bytes['b1150-app-check.php'],"'hook'=>'NOT_FILLED_IN'"))throw new RuntimeException('PACKAGE_APP_CHECK_MEDIA_SAMPLE_HOOK_NOT_FILLED_IN');
 $files=[];foreach($pins as $name=>[,$digest])$files[$name]=$digest;foreach($bytes as $name=>$data)$files[$name]=hash('sha256',$data);ksort($files,SORT_STRING);
 $common=['schemaVersion'=>1,'batch'=>'B1150','sourceCommit'=>$source,'baseCommit'=>$base,'mainCommit'=>$main,'storefrontCommit'=>$store,'storefrontBaseCommit'=>$storeBase,'storefrontMainCommit'=>$storeMain,'glassCommit'=>$glass,'catalogCommit'=>$catalog,'legalCommit'=>$legal,'b1146BaseCommit'=>$b1146Base,'installedSourceCommit'=>INSTALLED,'helperSource'=>$helper];
 $bytes['b1150-package.json']=json_encode($common+['overlay'=>$overlay,'b1146Overlay'=>$b1146Overlay,'b1147Overlay'=>$b1147Overlay,'b1148Overlay'=>$b1148Overlay,'b1149Overlay'=>$b1149Overlay,'markers'=>MARKERS,'cssVersion'=>$cssVersion,'oldCssVersion'=>$oldCssVersion,'galleryVersion'=>$galleryVersion,'files'=>$files],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";

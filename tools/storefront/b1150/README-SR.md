@@ -6,8 +6,8 @@ Ovaj paket je napravljen i proveren samo u CI-ju. Na produkciji još nije pokren
 
 ## Šta se instalira
 
-Instaliramo B1150_FILL_COUNT fajlova (broj se upisuje kad je payload gotov), svi pod
-`apps/cms/current`. Nema migracija, nema izmena `composer`-a, `.env`-a ni `config/`, testove ne
+Instaliramo fajlove iz liste `STEPS` (tačan broj novih i izmenjenih fajlova piše u liniji
+`B1150_RESULT` u izveštaju), svi pod `apps/cms/current`. Nema migracija, nema izmena `composer`-a, `.env`-a ni `config/`, testove ne
 instaliramo.
 
 Slike artikala prelaze sa `/storage` URL-ova na novu potpisanu Laravel rutu
@@ -105,12 +105,15 @@ Pun smoke ne zahteva prijavu, koristi samo GET i jedan HEAD:
 
 - Sve što je B1149 postavio ostaje: nonce skripta, galerija, `private, no-store` na katalogu,
   `/site-assets/` logo, gost na `/admin/settings/smtp` dobija 302 na prijavu.
-- URL slike uzimamo iz javnog HTML-a stranice `/katalog`. GET na njega daje 200, `image/*`,
-  `nosniff`, `Cache-Control` sa `private`, `max-age` i `immutable`, i nijedan `Set-Cookie`.
-- Isti URL sa izmenjenim potpisom daje 404.
+- URL slike uzimamo iz javnog HTML-a stranice `/katalog` ili prve stranice artikla. GET na njega
+  daje 200, `image/*`, `nosniff`, `Cache-Control` sa `private`, `max-age` i `immutable`, i nijedan
+  `Set-Cookie`.
+- Isti URL sa izmenjenim potpisom, i bez potpisa, daje 404 bez `Set-Cookie`.
 - Javna `/katalog/slika/...` ruta ostaje 200.
-- Ako katalog ne prikazuje nijednu sliku artikla, provere rute su `INFO` i ne smetaju. Tada
-  rutu dokazuje CLI pomoćnik `media-sample` u `b1150-app-check.php`, ako je popunjen.
+- Ako stranice ne povezuju potpisani URL, CLI pomoćnik `media-sample` u `b1150-app-check.php`
+  izda jedan potpisani URL za prvu sliku artikla iz baze (samo čitanje). Bez URL-a, a sa slikama u
+  bazi, instalacija pada i vraća staro stanje. Samo kad u bazi nema nijedne slike artikla, provera
+  rute je `INFO` (nema šta da se potpiše).
 - Rute iz B1146 do B1149 ostaju, nova ruta postoji, `laravel.log` nema novih grešaka, status mail
   transporta je nepromenjen i svih fajlova u stablu ima tačan digest.
 
