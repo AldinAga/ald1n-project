@@ -181,6 +181,16 @@ final class AccountPasswordThrottleTest extends TestCase
 
     private function person(string $username): User
     {
+        $user = $this->newUser($username);
+        // The limiter store is the file cache and survives between runs, while
+        // database ids start again at 1: never inherit a counter from a past run.
+        RateLimiter::clear('account-password|'.$user->id);
+
+        return $user;
+    }
+
+    private function newUser(string $username): User
+    {
         return User::query()->create([
             'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
             'username' => $username,
