@@ -51,7 +51,10 @@ try{
         $mail=(array)config('mail');$default=(string)($mail['default']??'');$mailer=(array)(($mail['mailers']??[])[$default]??[]);
         $fingerprint=hash_hmac('sha256',json_encode(['default'=>$default,'transport'=>$mailer['transport']??null,'host'=>$mailer['host']??null,'port'=>$mailer['port']??null,'encryption'=>$mailer['encryption']??($mailer['scheme']??null),'timeout'=>$mailer['timeout']??null,
             'usernameSha'=>hash('sha256',(string)($mailer['username']??'')),'passwordSha'=>hash('sha256',(string)($mailer['password']??'')),'from'=>$mail['from']??null,'mailers'=>array_keys((array)($mail['mailers']??[]))],JSON_THROW_ON_ERROR),(string)$arg1);
-        echo json_encode(['ok'=>true,'extensions'=>$ext,'phpVersionOk'=>PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500,'appUrlHttpsOrigin'=>$origin,'mailTransportKind'=>is_string($mailer['transport']??null)?$mailer['transport']:'UNKNOWN','mailFingerprintHMAC'=>$fingerprint],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+        // The cache store the rate limiters use (config cache.limiter, else the default store): the driver keyword only, never a connection value.
+        $store=config('cache.limiter')??config('cache.default');$driver=is_string($store)?config('cache.stores.'.$store.'.driver'):null;
+        $limiterStore=is_string($driver)&&in_array($driver,['redis','file','database','array','memcached','apc','dynamodb','octane','null'],true)?$driver:'other';
+        echo json_encode(['ok'=>true,'limiterStore'=>$limiterStore,'extensions'=>$ext,'phpVersionOk'=>PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500,'appUrlHttpsOrigin'=>$origin,'mailTransportKind'=>is_string($mailer['transport']??null)?$mailer['transport']:'UNKNOWN','mailFingerprintHMAC'=>$fingerprint],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
     if($mode==='media-sample'){
         // The first product image that has a file, as the ProductImage accessor builds its URL (the call every admin page and the app make),
