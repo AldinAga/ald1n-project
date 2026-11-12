@@ -238,7 +238,7 @@ final class PublicMerchantSettingsB801Test extends TestCase
             ->assertRedirect()->assertSessionHasNoErrors()
             ->assertSessionHas('approval_refused',
                 'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.'
-                .' Tvoj unos je zadržan u formi i nije sačuvan.')
+                .' Tvoj unos je ostao u formi i nije sačuvan. Dok ne učitaš stranicu iznova, ponovno slanje ostaje odbijeno.')
             ->assertSessionHasInput('support_email','older-tab@example.test');
         self::assertSame('retail@example.test',
             app(SettingsService::class)->get('public_checkout_support_email'),'Nothing from the old tab is written.');
@@ -251,6 +251,83 @@ final class PublicMerchantSettingsB801Test extends TestCase
         $this->put('/admin/settings/public-storefront',$older)->assertSessionHas('approval_refused');
         self::assertSame('retail@example.test',
             app(SettingsService::class)->get('public_checkout_support_email'));
+    }
+
+    public function test_each_differing_field_with_an_old_fingerprint_is_stale_not_already_saved(): void
+    {
+        $account=BankAccount::query()->create([
+            'label'=>'Stale Bank','recipient_name'=>'Test Merchant',
+            'account_number'=>'160000000000000002',
+            'account_number_display'=>'160-0000000000000-02','is_active'=>true,
+        ]);
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $merchant=app(PublicMerchantPolicyService::class);
+        self::assertTrue($merchant->review()['approved']);
+        $stored=$merchant->policy();
+
+        // Control: the very same body is a harmless repeat.
+        $this->put('/admin/settings/public-storefront',$payload)
+            ->assertSessionHas('status','Podešavanja su već sačuvana. Ništa nije promenjeno.');
+
+        $variants=[
+            'terms_url'=>['terms_url'=>'https://cms.ald1n.com/drugi-uslovi'],
+            'privacy_url'=>['privacy_url'=>'https://cms.ald1n.com/druga-privatnost'],
+            'payment_methods'=>['payment_methods'=>['bank_transfer']],
+            'delivery_methods'=>['delivery_methods'=>['courier']],
+            'bank_account_id'=>['bank_account_id'=>(string)$account->id],
+            'shipping_fee_rsd'=>['shipping_fee_rsd'=>'0.00'],
+            'shipping_description'=>['shipping_description'=>'Drugi opis dostave.'],
+            'support_email'=>['support_email'=>'drugi@example.test'],
+        ];
+        self::assertSame(8,count($variants));
+        foreach ($variants as $field=>$change) {
+            $this->put('/admin/settings/public-storefront',array_replace($payload,$change))
+                ->assertRedirect()->assertSessionMissing('status')
+                ->assertSessionHas('approval_refused',
+                    static fn (string $m): bool => str_starts_with($m,'Uslovi su se promenili posle učitavanja stranice.'));
+            self::assertSame($stored,$merchant->policy(),"A stale submit that changes $field must write nothing.");
+            self::assertTrue($merchant->review()['approved'],"...and keep the approval ($field).");
+        }
+    }
+
+    public function test_after_a_stale_answer_the_form_keeps_the_old_fingerprint_and_no_approval_tick(): void
+    {
+        $payload=$this->data(['merchant_approval'=>'1']);
+        $old=$payload['approval_fingerprint'];
+        $this->actingAs($this->superadmin)->put('/admin/settings/public-storefront',$payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $merchant=app(PublicMerchantPolicyService::class);
+        $stored=$merchant->policy();
+        self::assertNotSame($old,$merchant->review()['fingerprint']);
+
+        // An older tab: every payment method unticked, approval ticked, other email.
+        $older=array_replace($payload,['support_email'=>'older@example.test','delivery_methods'=>['courier']]);
+        unset($older['payment_methods']);
+        $this->put('/admin/settings/public-storefront',$older)->assertSessionHas('approval_refused');
+        self::assertArrayNotHasKey('merchant_approval',session()->getOldInput());
+
+        $html=$this->get('/admin/settings/public-storefront')->assertOk()->getContent();
+        self::assertSame(1,preg_match('/name="approval_fingerprint" value="([0-9a-f]{64})"/',$html,$m));
+        self::assertSame($old,$m[1],'The form must keep the fingerprint it was built on.');
+        self::assertSame(1,preg_match('/<input[^>]*name="merchant_approval"[^>]*>/s',$html,$tick));
+        self::assertStringNotContainsString('checked',$tick[0],'The approval tick is not carried back.');
+        self::assertStringContainsString('value="older@example.test"',$html);
+        $payment=[];
+        preg_match_all('/<input[^>]*name="payment_methods\[\]"[^>]*>/s',$html,$payment);
+        self::assertNotEmpty($payment[0]);
+        foreach ($payment[0] as $box) {
+            self::assertStringNotContainsString('checked',$box,'Unticked payment methods stay unticked after the redirect.');
+        }
+        self::assertSame(1,preg_match('/<input[^>]*name="delivery_methods\[\]"[^>]*value="courier"[^>]*>/s',$html,$courier));
+        self::assertStringContainsString('checked',$courier[0]);
+
+        // Sending what the form now holds (user ticks approval again) stays stale and writes nothing.
+        $again=array_replace($older,['approval_fingerprint'=>$m[1],'merchant_approval'=>'1']);
+        $this->put('/admin/settings/public-storefront',$again)->assertSessionHas('approval_refused');
+        self::assertSame($stored,$merchant->policy());
+        self::assertTrue($merchant->review()['approved']);
     }
 
     public function test_every_checklist_code_has_a_label_for_the_missing_items_message(): void

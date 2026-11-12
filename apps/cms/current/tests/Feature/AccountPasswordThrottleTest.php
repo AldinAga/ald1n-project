@@ -53,6 +53,8 @@ final class AccountPasswordThrottleTest extends TestCase
         self::assertTrue(Hash::check(self::OLD, (string) $user->fresh()->password_hash),
             'A locked-out request must not change the password, even with the right current password.');
         self::assertSame(1, AuditLog::query()->where('action', 'account.password_change_throttled')->count());
+        self::assertSame('web', AuditLog::query()->where('action', 'account.password_change_throttled')
+            ->sole()->metadata_json['channel']);
     }
 
     public function test_one_or_two_mistakes_do_not_block_a_legitimate_change_and_success_resets_the_counter(): void
@@ -170,6 +172,8 @@ final class AccountPasswordThrottleTest extends TestCase
         self::assertTrue(Hash::check(self::OLD, (string) $user->fresh()->password_hash));
         self::assertSame(1, AuditLog::query()->where('action', 'account.password_change_throttled')->count(),
             'Logged once, when the lock starts.');
+        self::assertSame('api', AuditLog::query()->where('action', 'account.password_change_throttled')
+            ->sole()->metadata_json['channel'], 'The fifth wrong guess came through the API.');
     }
 
     public function test_api_correct_password_works_after_a_mistake_and_clears_the_counter(): void
@@ -178,7 +182,10 @@ final class AccountPasswordThrottleTest extends TestCase
         $token = $user->createToken('throttle-test', ['*'])->plainTextToken;
 
         $this->withToken($token)->putJson('/api/v1/me/password', $this->body('typo'))->assertStatus(422);
+        self::assertSame(1, RateLimiter::attempts('account-password|'.$user->id));
         $this->withToken($token)->putJson('/api/v1/me/password', $this->body(self::OLD))->assertOk();
+        self::assertSame(0, RateLimiter::attempts('account-password|'.$user->id),
+            'A correct change through the API clears the counter.');
         self::assertTrue(Hash::check(self::NEW, (string) $user->fresh()->password_hash));
     }
 
@@ -200,8 +207,9 @@ final class AccountPasswordThrottleTest extends TestCase
     private function person(string $username): User
     {
         $user = $this->newUser($username);
-        // The limiter store is the file cache and survives between runs, while
-        // database ids start again at 1: never inherit a counter from a past run.
+        // Limiter counters live in the file cache (config cache.limiter), which a
+        // test run does not reset. An earlier run may have left a counter under
+        // this user id, so start this user from zero.
         RateLimiter::clear('account-password|'.$user->id);
 
         return $user;

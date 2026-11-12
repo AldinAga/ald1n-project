@@ -78,14 +78,14 @@ final class AccountController extends Controller
         $user = $request->user();
         $data = $request->validated();
         // Same per-user budget as the web form; counted before the comparison.
-        if ($throttle->tooManyAttempts($user)) {
+        $attempt = $throttle->begin($user);
+        if ($attempt === null) {
             throw ValidationException::withMessages([
                 'current_password' => [$throttle->message($user)],
             ]);
         }
-        $throttle->hit($user);
         if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
-            $throttle->failed($user, $request, 'api');
+            $throttle->failed($user, $request, 'api', $attempt);
             throw ValidationException::withMessages([
                 'current_password' => ['Trenutna lozinka nije ispravna.'],
             ]);

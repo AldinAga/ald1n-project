@@ -15,9 +15,15 @@ use Illuminate\Support\Facades\RateLimiter;
  * The key is the user only: behind the CDN the client IP is not reliable, and
  * a per-IP bucket would give a stolen session five guesses per address.
  *
- * Usage: refuse when tooManyAttempts(); call hit() BEFORE comparing the
- * password so parallel requests cannot all pass the check on the same count;
- * call clear() after a correct change, which resets the whole counter.
+ * Usage: begin() before comparing the password (it counts the attempt and
+ * tells whether this one is still allowed), failed() after a wrong password,
+ * clear() after a correct one. The window of 15 minutes starts at the first
+ * attempt; later attempts, refused ones included, do not extend it.
+ *
+ * Counting is one increment-and-read on the limiter cache store
+ * (config cache.limiter, the file store by default). The file store does not
+ * make that increment strictly atomic, so a burst of truly simultaneous
+ * requests can exceed the limit by a few before the counter catches up.
  */
 final class PasswordChangeThrottle
 {
@@ -28,9 +34,16 @@ final class PasswordChangeThrottle
 
     public function __construct(private readonly AuditLogger $audit) {}
 
-    public function tooManyAttempts(User $user): bool
+    /**
+     * Counts this attempt. Returns its number (1..MAX_ATTEMPTS) when it may go
+     * on to the password comparison, or null when the account is locked, in
+     * which case even the correct password is refused.
+     */
+    public function begin(User $user): ?int
     {
-        return RateLimiter::tooManyAttempts($this->key($user), self::MAX_ATTEMPTS);
+        $attempt = RateLimiter::hit($this->key($user), self::DECAY_SECONDS);
+
+        return $attempt <= self::MAX_ATTEMPTS ? $attempt : null;
     }
 
     public function message(User $user): string
@@ -40,24 +53,19 @@ final class PasswordChangeThrottle
         return 'Previše neuspešnih pokušaja. Pokušajte ponovo za '.$minutes.' min.';
     }
 
-    public function hit(User $user): void
-    {
-        RateLimiter::hit($this->key($user), self::DECAY_SECONDS);
-    }
-
     public function clear(User $user): void
     {
         RateLimiter::clear($this->key($user));
     }
 
     /**
-     * Call after a wrong current password. Writes the audit entry once, by the
-     * request whose wrong guess uses the last attempt (the lock starts there);
-     * later refused requests are not logged.
+     * Call after a wrong current password. Writes the audit entry only for the
+     * attempt that uses the last of the budget, i.e. when the lock starts;
+     * refused requests are not logged.
      */
-    public function failed(User $user, Request $request, string $channel): void
+    public function failed(User $user, Request $request, string $channel, int $attempt): void
     {
-        if (RateLimiter::attempts($this->key($user)) !== self::MAX_ATTEMPTS) {
+        if ($attempt !== self::MAX_ATTEMPTS) {
             return;
         }
         $this->audit->log(

@@ -117,16 +117,15 @@ final class AccountController extends Controller
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
         ]);
         $user = $request->user();
-        // Budget shared with PUT /api/v1/me/password (per user). A locked
-        // account refuses even the correct password before any hash check;
-        // the attempt is counted BEFORE the comparison so parallel requests
-        // cannot all pass on the same count; a correct change clears it.
-        if ($throttle->tooManyAttempts($user)) {
+        // Budget shared with PUT /api/v1/me/password (per user). The attempt is
+        // counted before the comparison; a locked account refuses even the
+        // correct password; a correct change clears the counter.
+        $attempt = $throttle->begin($user);
+        if ($attempt === null) {
             return back()->withErrors(['current_password' => $throttle->message($user)]);
         }
-        $throttle->hit($user);
         if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
-            $throttle->failed($user, $request, 'web');
+            $throttle->failed($user, $request, 'web', $attempt);
 
             return back()->withErrors(['current_password' => 'Trenutna lozinka nije ispravna.']);
         }

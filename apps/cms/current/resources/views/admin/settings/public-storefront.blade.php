@@ -4,7 +4,12 @@
 @section('content')
 @php
     $policy = $review['policy'];
-    $selectedMethods = (array) old('payment_methods', $policy['methods']);
+    // The hidden fingerprint is always posted, so its presence in the old input
+    // means this form was submitted: show exactly what was sent, including an
+    // unticked list (an unticked checkbox group sends no key at all).
+    $formResubmitted = old('approval_fingerprint') !== null;
+    $selectedMethods = $formResubmitted ? (array) old('payment_methods', []) : $policy['methods'];
+    $selectedDeliveries = $formResubmitted ? (array) old('delivery_methods', []) : $policy['deliveries'];
 @endphp
 <div class="page-heading">
     <div>
@@ -257,7 +262,7 @@
                     <span>Dostupni načini dostave</span>
                     @foreach(\App\Support\PublicRetailOptions::DELIVERY as $code=>$label)
                     <label><input type="checkbox" name="delivery_methods[]" value="{{ $code }}"
-                        @checked(in_array($code,(array)old('delivery_methods',$policy['deliveries']),true))> {{ $label }}</label>
+                        @checked(in_array($code,$selectedDeliveries,true))> {{ $label }}</label>
                     @endforeach
                 </div>
                 <label class="field">
@@ -296,8 +301,10 @@
             <p class="muted"><strong>Potvrda još nije moguća:</strong> prvo ispuni stavke iz kontrolne liste.</p>
             @endunless
             <p class="muted">Ako sačuvaš bez potvrde, prethodna potvrda se povlači. Javno poručivanje ostaje zaključano.</p>
-            {{-- Exact state shown on this page. Approval is refused if anything changed elsewhere since loading. --}}
-            <input type="hidden" name="approval_fingerprint" value="{{ $review['fingerprint'] }}" data-approval-fingerprint>
+            {{-- Exact state shown on this page. Approval is refused if anything changed elsewhere since loading.
+                 After a refused (stale) submit the OLD fingerprint is kept, so sending the form again stays
+                 stale until the page is loaded anew. --}}
+            <input type="hidden" name="approval_fingerprint" value="{{ old('approval_fingerprint', $review['fingerprint']) }}" data-approval-fingerprint>
             <label>
                 <input type="checkbox" name="merchant_approval" value="1"
                        @checked(old('merchant_approval')==='1')>

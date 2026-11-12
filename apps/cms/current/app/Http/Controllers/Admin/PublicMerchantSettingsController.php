@@ -220,8 +220,11 @@ final class PublicMerchantSettingsController extends Controller
                     : back()->with('approval_refused',$notice);
             }
 
-            return back()->withInput()->with('approval_refused',
-                $notice.' Tvoj unos je zadržan u formi i nije sačuvan.');
+            // The approval tick is not carried back, and the form keeps the
+            // fingerprint it was built on: sending it again stays stale until
+            // the page is loaded anew (GET).
+            return back()->withInput($request->except('merchant_approval'))->with('approval_refused',
+                $notice.' Tvoj unos je ostao u formi i nije sačuvan. Dok ne učitaš stranicu iznova, ponovno slanje ostaje odbijeno.');
         }
         $after=$merchant->review();
         // Record whether a human actually attested to these EXACT terms, but

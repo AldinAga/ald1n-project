@@ -411,7 +411,7 @@ final class PublicLegalPagesB1146Test extends TestCase
             'support_email' => 'podrska@example.test', 'bank_account_id' => '', 'merchant_approval' => '1',
         ];
         $stale = 'Uslovi su se promenili posle učitavanja stranice. Osveži stranicu, proveri uslove i potvrdi ponovo.'
-            .' Tvoj unos je zadržan u formi i nije sačuvan.';
+            .' Tvoj unos je ostao u formi i nije sačuvan. Dok ne učitaš stranicu iznova, ponovno slanje ostaje odbijeno.';
         $this->actingAs($this->owner)->put('/admin/settings/public-storefront', $payload + ['approval_fingerprint' => $shown])
             ->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('approval_refused', $stale)
             ->assertSessionHasInput('terms_url', 'https://cms.ald1n.com/uslovi-prodaje');
