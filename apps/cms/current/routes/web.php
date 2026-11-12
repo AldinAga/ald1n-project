@@ -140,6 +140,28 @@ Route::get('/site-assets/{file}', \App\Http\Controllers\SiteAssetController::cla
     ])
     ->name('site-assets.show');
 
+// Product photos for the admin catalog, the mobile app and e-mail, served
+// without the /storage symlink and without a login: the URL carries an HMAC
+// signature (ProductMediaUrl) and a file version, so it is stable between
+// responses and changes when the photo does. No session or cookies (an image
+// request from the app has no cookie jar; a Set-Cookie would also defeat
+// caching). The storefront keeps its own gated public-shop.media route, and
+// media.product stays as the signed-in route for legacy files.
+Route::get('/media/p/{image}/{rendition}', \App\Http\Controllers\SignedProductMediaController::class)
+    ->whereNumber('image')
+    ->where('rendition', implode('|', \App\Support\ProductMediaUrl::RENDITIONS))
+    ->middleware('throttle:product-media')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        // Laravel 13 web group CSRF middleware (adds the XSRF-TOKEN cookie).
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ])
+    ->name('media.product.signed');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/registracija', [\App\Http\Controllers\PublicBuyerRegistrationController::class, 'create'])
         ->middleware('throttle:public-shop-browse')->name('public-shop.register');

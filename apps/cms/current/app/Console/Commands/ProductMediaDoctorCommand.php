@@ -67,8 +67,9 @@ final class ProductMediaDoctorCommand extends Command
                 if (!Storage::disk('public')->exists($path)) {
                     $this->error('FAIL Poslednji javni zapis slike nema fajl: '.$path.'.');
                     $failed = true;
-                } elseif (!is_string($sample->url) || !str_contains($sample->url, 'v=')) {
-                    $this->error('FAIL URL slike nema cache-busting verziju.');
+                } elseif (!is_string($sample->url)
+                    || preg_match('~/media/p/\d+/original\?v=[a-f0-9]{16}&s=[a-f0-9]{32}$~D', $sample->url) !== 1) {
+                    $this->error('FAIL URL slike nije potpisana /media/p/ ruta sa cache-busting verzijom (potreban je APP_KEY).');
                     $failed = true;
                 } elseif (!is_string($sample->download_url) || $sample->download_url === '') {
                     $this->error('FAIL Slika nema sigurnu download rutu.');

@@ -21,7 +21,7 @@ $access = $source('app/Services/CatalogAccessService.php');
 $check('Puna rezolucija ima autentifikovanu download rutu', str_contains($routes, "media/product/{image}/download") && str_contains($routes, "name('media.product.download')"));
 $check('Download proverava pristup katalogu ili vlasništvo', str_contains($download, 'canManageImages') && str_contains($download, 'canView') && str_contains($download, 'response()->download'));
 $check('Download štiti public i legacy putanje', str_contains($download, "str_starts_with(\$relative, 'products/')") && str_contains($download, "str_starts_with(\$relative, 'uploads/products/')") && str_contains($download, "str_contains(\$relative, '..')"));
-$check('Model slike daje download URL i cache-busted prikaz', str_contains($imageModel, 'getDownloadUrlAttribute') && str_contains($imageModel, "'v='.") && str_contains($imageModel, 'file_hash'));
+$check('Model slike daje download URL i cache-busted prikaz', str_contains($imageModel, 'getDownloadUrlAttribute') && str_contains($imageModel, "'v' => \$version") && str_contains($imageModel, 'media.product.signed') && str_contains($imageModel, 'file_hash'));
 $check('Catalog access servis ostaje vlasnički ograničen', str_contains($access, 'canManageImages') && str_contains($access, 'canManage($product, $user)'));
 
 $service = $source('app/Services/ProductImageService.php');
