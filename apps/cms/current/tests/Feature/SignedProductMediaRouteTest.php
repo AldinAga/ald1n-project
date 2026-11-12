@@ -421,6 +421,28 @@ final class SignedProductMediaRouteTest extends TestCase
         $this->fetch($oldUrl)->assertNotFound();
     }
 
+    public function test_a_signature_made_with_an_empty_key_is_rejected_even_when_previous_keys_has_an_empty_entry(): void
+    {
+        [, $image] = $this->publicImage();
+        config()->set('app.previous_keys', ['']);
+        $version = ProductMediaUrl::version('empty-key');
+        // Computed here with an empty application key, independently of ProductMediaUrl.
+        $key = hash_hmac('sha256', 'ald1n-product-media-v1', '');
+        $forged = substr(hash_hmac('sha256', $image->id.'|original|'.$version, $key), 0, 32);
+
+        self::assertFalse(ProductMediaUrl::valid($image->id, 'original', $version, $forged));
+        $this->get('/media/p/'.$image->id.'/original?v='.$version.'&s='.$forged)->assertNotFound();
+        $this->fetch($image->url)->assertOk();
+    }
+
+    public function test_only_known_renditions_can_be_signed(): void
+    {
+        self::assertNull(ProductMediaUrl::signature(42, 'huge', '0123456789abcdef'));
+        self::assertNull(ProductMediaUrl::signature(42, '', '0123456789abcdef'));
+        self::assertNull(ProductMediaUrl::signature(0, 'original', '0123456789abcdef'));
+        self::assertNotNull(ProductMediaUrl::signature(42, 'original', '0123456789abcdef'));
+    }
+
     private function publicImage(string $status = 'active'): array
     {
         $product = $this->product($status);
