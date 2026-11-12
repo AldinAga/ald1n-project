@@ -31,6 +31,7 @@ final class SignedProductMediaRouteTest extends TestCase
     use RefreshDatabase;
 
     private string $legacyRoot = '';
+    private User $owner;
 
     protected function setUp(): void
     {
@@ -42,6 +43,11 @@ final class SignedProductMediaRouteTest extends TestCase
         $this->legacyRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'ald1n-legacy-media-'.bin2hex(random_bytes(6));
         mkdir($this->legacyRoot.'/uploads/products', 0777, true);
         config()->set('services.legacy_media.root', $this->legacyRoot);
+        $this->owner = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id'),
+            'username' => 'media-owner', 'email' => 'media-owner@test.local',
+            'password_hash' => Hash::make('Secret123!'), 'status' => 'active',
+        ]);
     }
 
     protected function tearDown(): void
@@ -332,7 +338,7 @@ final class SignedProductMediaRouteTest extends TestCase
 
         return Product::query()->create([
             'sku' => 'MEDIA-'.$n.'-'.bin2hex(random_bytes(3)), 'slug' => 'media-'.$n.'-'.bin2hex(random_bytes(3)),
-            'name' => 'Media artikal '.$n, 'price_amount' => 1000, 'price_currency' => 'RSD', 'stock_quantity' => 1, 'status' => $status,
+            'name' => 'Media artikal '.$n, 'description' => 'Opis artikla', 'created_by' => $this->owner->id, 'price_amount' => 1000, 'price_currency' => 'RSD', 'stock_quantity' => 1, 'status' => $status,
         ]);
     }
 
