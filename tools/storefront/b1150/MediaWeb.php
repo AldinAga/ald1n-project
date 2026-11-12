@@ -27,6 +27,7 @@ final class MediaWeb
     public const VERSION_PATTERN='/\A[a-f0-9]{16}\z/D';
     public const SIGNATURE_PATTERN='/\A[a-f0-9]{32}\z/D';
     public const MEDIA_MAX_AGE=604800;
+    public const MEDIA_MAX_BODY=12582912;
     private LeanWeb $lean;
 
     public function __construct(private string $host='cms.ald1n.com',private int $port=443,private ?string $caFile=null)
@@ -220,10 +221,12 @@ final class MediaWeb
     {
         if(!in_array($method,['GET','HEAD'],true))throw new RuntimeException('SMOKE_METHOD');
         $target=self::target($path,$query,$marker);$h=self::headers();$body='';$over=false;
+        // A signed product image may be a photo of up to 10 MiB (the upload limit) and a rendition falls back to the original: 12 MiB for those.
+        $limit=preg_match(self::MEDIA_PATH_PATTERN,$path)===1?self::MEDIA_MAX_BODY:self::MAX_BODY;
         $curl=curl_init('https://'.$this->host.($this->port===443?'':':'.$this->port).$target);
         $options=[CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>25,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_NOPROXY=>'*',CURLOPT_USERAGENT=>'Ald1n-B1150-owned-release',CURLOPT_HTTPHEADER=>array_merge(['Host: '.$this->host,'Cache-Control: no-cache'],array_values(array_filter($headers,static fn($x)=>is_string($x)&&preg_match('/^If-None-Match: "[A-Za-z0-9]{1,64}"$/D',$x)===1))),
             CURLOPT_HEADERFUNCTION=>static function($c,string $line)use(&$h):int{self::header($h,$line);if(preg_match('/^CF-RAY:/i',$line))$h['cfRay']=true;return strlen($line);},
-            CURLOPT_WRITEFUNCTION=>static function($c,string $chunk)use(&$body,&$over):int{if(strlen($body)+strlen($chunk)>self::MAX_BODY){$over=true;return 0;}$body.=$chunk;return strlen($chunk);}];
+            CURLOPT_WRITEFUNCTION=>static function($c,string $chunk)use(&$body,&$over,$limit):int{if(strlen($body)+strlen($chunk)>$limit){$over=true;return 0;}$body.=$chunk;return strlen($chunk);}];
         if($method==='HEAD')$options[CURLOPT_NOBODY]=true;if($origin)$options[CURLOPT_RESOLVE]=[$this->host.':'.$this->port.':127.0.0.1'];
         if($this->caFile!==null)$options[CURLOPT_CAINFO]=$this->caFile;curl_setopt_array($curl,$options);curl_exec($curl);$status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE);$error=curl_errno($curl);curl_close($curl);
         return self::result($error!==0||$over,$status,$h,$body);

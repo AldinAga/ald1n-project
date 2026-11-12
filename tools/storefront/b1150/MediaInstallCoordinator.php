@@ -645,15 +645,15 @@ final class MediaInstallCoordinator
      * over loopback TLS: origin without it FAILS, origin unreachable is UNVERIFIED); ?sort=price_asc 200, an unknown sort
      * 302/422, ?page=999 404, /korpa 200, /registracija 200, /porucivanje 302 or 404, one product page (the first /katalog/<slug>
      * link) 200; the /site-assets/ logo answers 200 with nosniff, a sandboxed CSP and noindex (no logo link: INFO).
-     * Product images (the point of B1150), read from the public catalog HTML only:
-     * OLD: no /media/p/ link on the page (the product images are /storage URLs; their count is recorded in the state);
-     * INSTALLED: no /storage product image URL left; when the old state showed images (or the page shows media links now) at
-     * least one signed /media/p/ URL must be on the page, and the very URL the page links answers 200 with image/*, nosniff,
-     * Cache-Control private + max-age + immutable, noindex and NO Set-Cookie (no session); the same URL with a changed
-     * signature and without the signature answers 404 with no Set-Cookie. When the pages link no signed URL, the CLI hook
-     * media-sample of the b1150 helper hands over one for the first product image; no URL while product images exist (or an
-     * unavailable hook) FAILS, only a proven image count of 0 is INFO. The public /katalog/slika/<...> image route linked by
-     * the catalog stays 200 with image/* in both states.
+     * Product images (the point of B1150). The public pages do not link signed URLs (the storefront uses /katalog/slika/...), so
+     * the page only contributes facts (/storage and /media/p/ link counts, never judged). INSTALLED only: the CLI hook media-sample
+     * of the b1150 helper hands over signed URLs for the first product image that has a file. The GET (with the body) is made on
+     * the thumbnail URL, which is small unless the rendition falls back to the original (body limit 12 MiB, above the 10 MiB
+     * upload limit); the original is checked with HEAD (headers only). 200, image/jpeg|png|webp, nosniff, ETag, CORP cross-origin,
+     * the directive SET private + max-age=604800 + immutable, noindex and NO Set-Cookie; If-None-Match gives 304; a changed
+     * signature, no signature and an unknown image give 404 with no Set-Cookie. No signed URL while images exist, a null or
+     * foreign accessor URL, or an unavailable hook FAILS; only a proven count of 0 images is INFO. The public /katalog/slika/<...>
+     * image route linked by the catalog stays 200 with image/* in both states.
      * shop OFF: the 4 shop paths 404. The logo markup depends on the owner's settings and is otherwise never asserted.
      */
     private function smokes(bool $installed,bool $retried=false):array
@@ -690,14 +690,12 @@ final class MediaInstallCoordinator
         // The SMTP admin page for a guest (B1149): never logged in; the auth middleware redirects to the login page in both states.
         $r=$this->get(self::SMTP_PATH,[],$marker);$loc=(string)($r['location']??'');$f=['location'=>$loc===''?null:(str_contains($loc,'/login')?'LOGIN':'OTHER')];
         $add(self::SMTP_PATH,$r,'302_TO_LOGIN_GUEST',$ok($r,302)&&$f['location']==='LOGIN',$f);
-        $product=null;$logo=null;$media=null;$publicImage=null;$catalogImages=null;
+        $product=null;$logo=null;$publicImage=null;
         if($shop['open']){
             $r=$this->get('/katalog',[],$marker);$vary=MediaWeb::varyCookie($r['vary']);
-            $storage=MediaWeb::storageImageCount($r['body']);$links=MediaWeb::mediaLinkCount($r['body']);$wasImages=(int)($this->state['catalogImagesOld']??0);
-            // OLD: no signed media link yet. INSTALLED: no /storage product image left, and signed media links wherever images were (or are).
-            $imagesOk=true;
+            $storage=MediaWeb::storageImageCount($r['body']);$links=MediaWeb::mediaLinkCount($r['body']);
             $f=['cspShape'=>$shape($r),'originScripts'=>MediaWeb::scriptCount($r['body']),'edgeInjectedScripts'=>MediaWeb::edgeScriptCount($r['body']),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>MediaWeb::privateNoStore($r['cache']),'jsonLd'=>CatalogWeb::jsonLdProblem($r['body'])??'PASS','varyCookie'=>$vary,'storageImageLinks'=>$storage,'mediaRouteLinks'=>$links];
-            $pass=$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']&&$f['galleryLink']&&$f['cacheControlPrivateNoStore']&&$f['jsonLd']==='PASS'&&$imagesOk;
+            $pass=$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']&&$f['galleryLink']&&$f['cacheControlPrivateNoStore']&&$f['jsonLd']==='PASS';
             if($pass&&!$vary){
                 // The edge may rewrite Vary: the origin itself is asked once over loopback TLS (the B1144 probe route).
                 if(($this->state['probeRoute']??null)==='LOOPBACK_TLS_ORIGIN'){$o=$this->get('/katalog',[],$marker,'GET',true);$f['originVaryCookie']=!$o['transport']&&$o['status']===200&&MediaWeb::varyCookie($o['vary']);$f['originObserved']=$o['transport']?'TRANSPORT':$o['status'];
@@ -705,7 +703,7 @@ final class MediaInstallCoordinator
                 else $unverifiedVary=true;
             }
             $add('/katalog',$r,'200_CSP_JSON_LD_LAYOUT_PRIVATE_NO_STORE_VARY_COOKIE_GALLERY_'.($installed?'IMAGE_LINK_FACTS_ONLY':'IMAGE_LINK_FACTS_ONLY'),$pass,$f,true);
-            if($ok($r,200)){$product=MediaWeb::productPath($r['body']);$logo=MediaWeb::siteAssetUrl($r['body']);$media=MediaWeb::mediaUrl($r['body']);$publicImage=MediaWeb::publicImagePath($r['body']);$catalogImages=$storage+$links;if(!$installed){$this->state['catalogImagesOld']=$storage;$this->persist();}}
+            if($ok($r,200)){$product=MediaWeb::productPath($r['body']);$logo=MediaWeb::siteAssetUrl($r['body']);$publicImage=MediaWeb::publicImagePath($r['body']);}
             $r=$this->get('/katalog',['sort'=>'price_asc'],$marker);$add('/katalog?sort=price_asc',$r,'200',$ok($r,200),[],true);
             $r=$this->get('/katalog',['sort'=>'ald1n_unknown'],$marker);$add('/katalog?sort=ald1n_unknown',$r,'302_OR_422',!$r['transport']&&in_array($r['status'],[302,422],true),[],true);
             $r=$this->get('/katalog',['page'=>'999'],$marker);$add('/katalog?page=999',$r,'404',$ok($r,404),[],true);
@@ -714,7 +712,7 @@ final class MediaInstallCoordinator
             $r=$this->get('/porucivanje',[],$marker);$add('/porucivanje',$r,'302_OR_404',!$r['transport']&&in_array($r['status'],[302,404],true));
             if($product!==null){$r=$this->get($product,[],$marker);$f=['cspShape'=>$shape($r),'layoutMarker'=>str_contains($r['body'],$m['layout']),'galleryLink'=>str_contains($r['body'],$m['catalog']),'cacheControlPrivateNoStore'=>MediaWeb::privateNoStore($r['cache']),'storageImageLinks'=>MediaWeb::storageImageCount($r['body']),'mediaRouteLinks'=>MediaWeb::mediaLinkCount($r['body'])];
                 $add('PRODUCT_PAGE_FIRST_CATALOG_LINK',$r,'200_CSP_LAYOUT_PRIVATE_NO_STORE_GALLERY',$ok($r,200)&&$f['cspShape']&&$f['layoutMarker']&&$f['galleryLink']&&$f['cacheControlPrivateNoStore'],$f,true);
-                if($installed&&$media===null)$media=MediaWeb::mediaUrl($r['body']);if($publicImage===null)$publicImage=MediaWeb::publicImagePath($r['body']);}
+                if($publicImage===null)$publicImage=MediaWeb::publicImagePath($r['body']);}
             else $rows[]=['check'=>'PRODUCT_PAGE_FIRST_CATALOG_LINK','result'=>'INFO_NO_PRODUCT_LINK_ON_THE_CATALOG_PAGE_NOT_CHECKED'];
         }else foreach(self::SHOP as $p){$r=$this->get($p,[],$marker);$add($p,$r,'404_SHOP_OFF',$ok($r,404),[],$p!=='/porucivanje');}
         if($shop['open']){
@@ -736,29 +734,34 @@ final class MediaInstallCoordinator
             // URL through the ProductImage accessor for the first image that has a file, and counts accessors that returned null or
             // a foreign URL (the silent-null case: the model swallows a route() exception). No URL while images exist, a silent null,
             // or an unavailable hook is a FAILURE; only a proven image count of 0 is INFO.
-            $media=null;
+            $media=null;$original=null;
+            $signed=static fn(mixed $s):?array=>is_array($s)&&is_string($s['path']??null)&&is_array($s['query']??null)&&is_string($s['query']['v']??null)&&is_string($s['query']['s']??null)&&preg_match(MediaWeb::MEDIA_PATH_PATTERN,$s['path'])===1&&preg_match(MediaWeb::VERSION_PATTERN,$s['query']['v'])===1&&preg_match(MediaWeb::SIGNATURE_PATTERN,$s['query']['s'])===1?['path'=>$s['path'],'query'=>['v'=>$s['query']['v'],'s'=>$s['query']['s']]]:null;
             try{
-                $h=$this->helper($this->featureScript,['media-sample']);$s=$h['sample']??null;$n=$h['imageCount']??null;$nulls=$h['urlNull']??null;
+                $h=$this->helper($this->featureScript,['media-sample']);$n=$h['imageCount']??null;$nulls=$h['urlNull']??null;
                 $rows[]=['check'=>'PRODUCT_IMAGE_URL_ACCESSOR','result'=>is_int($nulls)&&$nulls===0&&is_int($n)?'PASS':'FAIL','imagesChecked'=>$n,'urlNullOrForeign'=>$nulls,'expectedPrefix'=>self::MEDIA_URL_PREFIX];
                 if(!is_int($nulls)||$nulls!==0||!is_int($n))$failed[]='PRODUCT_IMAGE_URL_ACCESSOR';
-                if(is_array($s)&&is_string($s['path']??null)&&is_array($s['query']??null)&&is_string($s['query']['v']??null)&&is_string($s['query']['s']??null)&&preg_match(MediaWeb::MEDIA_PATH_PATTERN,$s['path'])===1&&preg_match(MediaWeb::VERSION_PATTERN,$s['query']['v'])===1&&preg_match(MediaWeb::SIGNATURE_PATTERN,$s['query']['s'])===1)$media=['path'=>$s['path'],'query'=>['v'=>$s['query']['v'],'s'=>$s['query']['s']]];
+                // The body is fetched on the thumbnail URL (small, or the original when no WebP rendition exists: the body limit of a media GET is 12 MiB,
+                // above the 10 MiB upload limit); the original URL is only checked with HEAD, headers without a body.
+                $original=$signed($h['sample']??null);$media=$signed($h['thumbnail']??null);
+                if($original!==null&&$media!==null){}
                 elseif($n===0)$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'INFO_NO_PRODUCT_IMAGE_WITH_A_FILE_NOTHING_TO_SIGN_NOT_CHECKED','productImages'=>0];
-                else{$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_NO_SIGNED_URL_TO_CHECK_BUT_PRODUCT_IMAGES_EXIST','productImages'=>is_int($n)?$n:'UNKNOWN'];}
+                else{$media=$original=null;$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_NO_SIGNED_URL_TO_CHECK_BUT_PRODUCT_IMAGES_EXIST','productImages'=>is_int($n)?$n:'UNKNOWN'];}
             }catch(Throwable $e){$failed[]='MEDIA_ROUTE_IMAGE';$rows[]=['check'=>'MEDIA_ROUTE_IMAGE','result'=>'FAIL_MEDIA_SAMPLE_HOOK_UNAVAILABLE_'.self::code($e)];}
-            if($media!==null){
-                $r=$this->get($media['path'],$media['query'],null);
-                $mime=strtolower(trim(explode(';',(string)$r['contentType'])[0]));
-                $f=['contentType'=>in_array($mime,['image/jpeg','image/png','image/webp'],true)?$mime:'OTHER','nosniff'=>MediaWeb::nosniff($r['nosniff']),'cacheControlDirectives'=>MediaWeb::mediaCacheControl($r['cache']),'etag'=>MediaWeb::strongEtag($r['etag']),'crossOriginResourcePolicy'=>MediaWeb::crossOriginPolicy($r['corp']),'setCookies'=>count($r['setCookie']),'cfCache'=>$r['cfCache']];
-                $pass=$ok($r,200)&&$f['contentType']!=='OTHER'&&$f['nosniff']&&$f['cacheControlDirectives']&&$f['etag']&&$f['crossOriginResourcePolicy']&&$f['setCookies']===0;
-                $add('MEDIA_ROUTE_IMAGE',$r,'200_IMAGE_JPEG_PNG_WEBP_NOSNIFF_PRIVATE_MAX_AGE_604800_IMMUTABLE_ETAG_CORP_CROSS_ORIGIN_NO_SET_COOKIE',$pass,$f,true);
-                if($ok($r,200)&&MediaWeb::strongEtag($r['etag'])){
-                    $r2=$this->get($media['path'],$media['query'],null,'GET',false,['If-None-Match: '.$r['etag'][0]]);
+            $mediaFacts=static function(array $r):array{$mime=strtolower(trim(explode(';',(string)$r['contentType'])[0]));return ['contentType'=>in_array($mime,['image/jpeg','image/png','image/webp'],true)?$mime:'OTHER','nosniff'=>MediaWeb::nosniff($r['nosniff']),'cacheControlDirectives'=>MediaWeb::mediaCacheControl($r['cache']),'etag'=>MediaWeb::strongEtag($r['etag']),'crossOriginResourcePolicy'=>MediaWeb::crossOriginPolicy($r['corp']),'setCookies'=>count($r['setCookie']),'cfCache'=>$r['cfCache']];};
+            $mediaPass=static fn(array $r,array $f):bool=>!$r['transport']&&$r['status']===200&&$f['contentType']!=='OTHER'&&$f['nosniff']&&$f['cacheControlDirectives']&&$f['etag']&&$f['crossOriginResourcePolicy']&&$f['setCookies']===0;
+            if($media!==null&&$original!==null){
+                $r=$rImg=$this->get($media['path'],$media['query'],null);$f=$mediaFacts($r);
+                $add('MEDIA_ROUTE_IMAGE',$r,'200_IMAGE_JPEG_PNG_WEBP_NOSNIFF_PRIVATE_MAX_AGE_604800_IMMUTABLE_ETAG_CORP_CROSS_ORIGIN_NO_SET_COOKIE',$mediaPass($r,$f),$f+['rendition'=>'thumbnail','bodyBytes'=>$r['bytes']],true);
+                $r=$this->get($original['path'],$original['query'],null,'HEAD');$f=$mediaFacts($r);
+                $add('MEDIA_ROUTE_ORIGINAL_HEAD',$r,'200_HEADERS_ONLY_NO_BODY_SAME_HEADERS',$mediaPass($r,$f)&&$r['body']==='',$f+['rendition'=>'original'],true);
+                if($ok($rImg,200)&&MediaWeb::strongEtag($rImg['etag'])){
+                    $r2=$this->get($media['path'],$media['query'],null,'GET',false,['If-None-Match: '.$rImg['etag'][0]]);
                     $add('MEDIA_ROUTE_NOT_MODIFIED',$r2,'304_NO_BODY_NO_SET_COOKIE',$ok($r2,304)&&$r2['body']===''&&count($r2['setCookie'])===0,['setCookies'=>count($r2['setCookie'])]);
                 }
                 $bad=$media['query'];$sig=$bad['s'];$bad['s']=substr($sig,0,-1).(substr($sig,-1)==='a'?'b':'a');
                 $r=$this->get($media['path'],$bad,null);$add('MEDIA_ROUTE_BAD_SIGNATURE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
                 $r=$this->get($media['path'],['v'=>$media['query']['v']],null);$add('MEDIA_ROUTE_MISSING_SIGNATURE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
-                $r=$this->get('/media/p/999999999999/original',['v'=>$media['query']['v'],'s'=>$media['query']['s']],null);$add('MEDIA_ROUTE_UNKNOWN_IMAGE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
+                $r=$this->get('/media/p/999999999999/thumbnail',['v'=>$media['query']['v'],'s'=>$media['query']['s']],null);$add('MEDIA_ROUTE_UNKNOWN_IMAGE',$r,'404_NO_SET_COOKIE',$ok($r,404)&&count($r['setCookie'])===0,['setCookies'=>count($r['setCookie'])]);
             }
         }
         // A failed check is judged against the shop state of the whole batch: if the owner changed it meanwhile, nothing is proven.
@@ -917,8 +920,11 @@ final class MediaInstallCoordinator
         if($env!==null&&!$installed)$this->state['mailFingerprintHMAC']=$env['mailFingerprintHMAC'];
         $v['features']=$try('featureCliState',fn()=>$this->featureCheck($installed));
         $v['routes']=$try('b1146LegalRoutesNoRouteCache',fn()=>$this->routesCheck());
-        // Informational before the install (the B1149 doctor on the live tree); required after it.
-        if(!$installed)$v['productMediaDoctorBefore']=$try('productMediaDoctorRuns',fn()=>$this->productMediaDoctor('preflight-fresh',false));
+        // The doctor is a gate in the preflight too: every check of the live B1149 doctor (tables, columns, routes, GD or Imagick, the file of the
+        // newest public image, a versioned /storage URL, the download route) is a fact about the environment or the data and passes on a healthy
+        // production, so a FAIL there is a HOLD with nothing changed (an install that would only be rolled back after the acceptance doctor
+        // failed for the same reason). Nothing is ignored. After the install the new doctor (signed /media/p/ URL check) is the judge.
+        $v['productMediaDoctor']=$try('productMediaDoctorBeforeAnyChange',fn()=>$this->productMediaDoctor('preflight-'.$stage,true));
         $v['headroom']=$try('diskHeadroom',fn()=>$this->headroom());
         $v['artisanCensus']=$chain!==null?$try('noRunningCmsArtisan',fn()=>$this->census()):null;if(!array_key_exists('noRunningCmsArtisan',$g))$g['noRunningCmsArtisan']='NOT_EVALUATED_CHAIN';
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id'])&&$v['caches']!==null){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$installed,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_TARGETS';

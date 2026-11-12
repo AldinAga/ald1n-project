@@ -48,6 +48,8 @@ gradi. Poređenje sa živim stablom radi skripta na hostu, pre prve izmene.
 
 ## Pre pokretanja proverite sami
 
+Komandu `php artisan app:product-media-doctor` ne morate da pokrećete ručno. Preflight je pokreće i staje bez izmena ako padne.
+
 1. Postavite `b1150-operator.zip` i `b1150-operator.zip.sha256` u `/home/icaffeco`. Komanda mora
    da ispiše `b1150-operator.zip: OK`:
 
@@ -112,8 +114,7 @@ ako radi artisan komanda, ako je backup blizu, ako nema mesta na disku ili u kvo
 composer autoload autoritativan, ako APP_URL nije čist https origin, ako u CLI-ju fali PHP
 ekstenzija ili ako javne stranice nemaju `X-Robots-Tag: noindex`.
 
-U preflight-u pokrećemo i `php artisan app:product-media-doctor`. Tada je to samo informacija:
-izveštaj ima red `PRODUCT_MEDIA_DOCTOR` sa `label: preflight-fresh`, i on ne zaustavlja instalaciju.
+U preflight-u pokrećemo i `php artisan app:product-media-doctor`. Ako padne (`rc` nije 0, ima reda `FAIL` ili fali završna linija), kraj je `HOLD` bez ijedne izmene. Sve provere živog doktora su provere okruženja i podataka (tabele, kolone, rute, GD ili Imagick, fajl najnovije javne slike, verzionisani `/storage` URL, ruta za preuzimanje), pa ih ne preskačemo. Izveštaj ima red `PRODUCT_MEDIA_DOCTOR` sa `label: preflight-fresh`.
 
 Čitamo i koji cache store koriste ograničivači (`limiterStore` u izveštaju: `redis`, `file`,
 `database` ili `array`). Samo ime drajvera, nijedna vrednost konekcije. Ni to ne zaustavlja
@@ -140,7 +141,7 @@ Pun smoke ne zahteva prijavu, koristi samo GET i jedan HEAD:
   koja ima fajl (samo čitanje), i broji slike čiji je URL prazan ili ne počinje sa
   `https://cms.ald1n.com/media/p/`. Svaka takva slika je greška: tako hvatamo slučaj kad model
   tiho vrati prazan URL.
-- GET na taj URL daje 200, `image/jpeg`, `image/png` ili `image/webp`, `nosniff`, `ETag`,
+- Telo čitamo sa `thumbnail` URL-a iste slike (limit tela 12 MiB, iznad ograničenja uploada od 10 MiB, jer se rendicija može vratiti na original). `original` proveravamo samo sa HEAD zahtevom, bez tela. GET daje 200, `image/jpeg`, `image/png` ili `image/webp`, `nosniff`, `ETag`,
   `Cross-Origin-Resource-Policy: cross-origin`, direktive `private`, `max-age=604800` i `immutable`
   (proveravamo ih kao skup, redosled nije bitan), i nijedan `Set-Cookie`.
 - Isti zahtev sa `If-None-Match` daje 304. Izmenjen potpis, odsutan potpis i nepoznata slika daju

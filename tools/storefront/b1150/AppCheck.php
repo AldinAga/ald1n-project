@@ -60,7 +60,7 @@ try{
         // The first product image that has a file, as the ProductImage accessor builds its URL (the call every admin page and the app make),
         // split into path and query; plus how many image rows with a usable path were looked at and how many of them got a null or foreign
         // URL (the silent-null case: the model swallows a route() exception). Read-only SELECTs and file_exists, at most 500 rows.
-        $prefix='https://cms.ald1n.com/media/p/';$sample=null;$checked=0;$nulls=0;
+        $prefix='https://cms.ald1n.com/media/p/';$sample=null;$thumbnail=null;$checked=0;$nulls=0;
         foreach(App\Models\ProductImage::query()->orderBy('id')->limit(500)->get() as $image){
             $disk=trim((string)$image->storage_disk);$path=ltrim(str_replace('\\','/',trim((string)$image->file_path)),'/');
             if(!in_array($disk,['public','legacy'],true)||$path===''||in_array('..',explode('/',$path),true))continue;
@@ -68,10 +68,16 @@ try{
             if(!is_string($url)||!str_starts_with($url,$prefix)){$nulls++;continue;}
             if($sample===null&&($disk==='legacy'||Illuminate\Support\Facades\Storage::disk('public')->exists($path))){
                 $parts=parse_url($url);parse_str((string)($parts['query']??''),$q);
-                if(is_string($parts['path']??null)&&is_string($q['v']??null)&&is_string($q['s']??null)&&count($q)===2)$sample=['path'=>$parts['path'],'query'=>['v'=>$q['v'],'s'=>$q['s']]];
+                if(is_string($parts['path']??null)&&is_string($q['v']??null)&&is_string($q['s']??null)&&count($q)===2){
+                    $sample=['path'=>$parts['path'],'query'=>['v'=>$q['v'],'s'=>$q['s']]];
+                    // The thumbnail URL of the same image, signed by the application's own signer (the rendition falls back to the original
+                    // when no WebP file exists, so the smoke can read a body without ever depending on a large original).
+                    $tid=(int)$image->getKey();$ts=App\Support\ProductMediaUrl::signature($tid,'thumbnail',$q['v']);
+                    if($ts!==null){$tu=parse_url(route('media.product.signed',['image'=>$tid,'rendition'=>'thumbnail','v'=>$q['v'],'s'=>$ts]));parse_str((string)($tu['query']??''),$tq);if(is_string($tu['path']??null)&&is_string($tq['v']??null)&&is_string($tq['s']??null))$thumbnail=['path'=>$tu['path'],'query'=>['v'=>$tq['v'],'s'=>$tq['s']]];}
+                }
             }
         }
-        echo json_encode(['ok'=>true,'sample'=>$sample,'imageCount'=>$sample===null?0:$checked,'urlNull'=>$nulls,'hook'=>'PRODUCT_IMAGE_ACCESSOR'],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+        echo json_encode(['ok'=>true,'sample'=>$sample,'thumbnail'=>$thumbnail,'imageCount'=>$sample===null?0:$checked,'urlNull'=>$nulls,'hook'=>'PRODUCT_IMAGE_ACCESSOR'],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
     $loaded=0;foreach($newClasses as $c)if(class_exists($c,true))$loaded++;
     $b1149Loaded=0;foreach(B1149_CLASSES as $c)if(class_exists($c,true))$b1149Loaded++;
