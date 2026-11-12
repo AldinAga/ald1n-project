@@ -1,4 +1,18 @@
-# CURRENT 2026-11-10 — STOREFRONT LIVE: B1144 TO B1148 INSTALLED, MAIN EQUALS PRODUCTION
+# CURRENT 2026-11-12 — B1151 LEGAL E-MAIL, MERCHANT DRAFT AND PASSWORD THROTTLE INSTALLED (REPORT 1117); B1150 PRODUCT MEDIA ROUTE (1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
+
+Report1117 (B1151): `B1151_FINAL=PASS_INSTALLED_LEGAL_EMAIL_MERCHANT_DRAFT_PASSWORD_THROTTLE_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 6 files (1 new, 5 modified): legal support e-mail visible, merchant draft kept, password change throttled. Shop switch, SMTP settings, route count (568), migrations, composer, env and config unchanged; no test mail sent and no password endpoint called. Owner next steps are in the report: check a legal page in a private window (support e-mail readable). The password throttle was not exercised by this tool. Rollback: `--rollback` (shop may stay on). [Report1117](1117-B1151-INSTALLER-20261112-222807.md)
+
+Report1116 (B1150): `B1150_FINAL=PASS_INSTALLED_PRODUCT_MEDIA_ROUTE_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 5 files (2 new, 3 modified) adds the signed session-less product image route `/media/p/`. Shop switch, SMTP settings, migrations, composer, env and config unchanged; no test mail sent. Owner next steps are in the report: check the catalog and a product page in a private window, then close the retained directories only after that check. Rollback: `--rollback` (shop may stay on). [Report1116](1116-B1150-INSTALLER-20261112-194512.md)
+
+Report1114 (first B1149 run): `B1149_PHASE=HOLD_PREFLIGHT_BLOCKED`, blocker `OLD_STATE_SMOKE_FAILED`, EXIT=2, no mutation. Cause: the check counted scripts injected by Cloudflare, not application code. [Report1114](1114-B1149-INSTALLER-20261110-211309.md)
+
+Report1115: `B1149_FINAL=PASS_INSTALLED_STOREFRONT_ROLLOUT_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 43 files (16 new, 27 modified) for the storefront SVG logo, SMTP settings and product gallery. Payload source commit `7e7481582fa0be3e95503a81b316be63836e508c`. [Report1115](1115-B1149-INSTALLER-20261111-002309.md)
+
+12.11.2026 the owner ran `chmod o+x` on `~/.ald1n-b1134-retained` and `~/.ald1n-b1134-retained/99111dcf09304b97aac05be0ef6ee1ee`, and `chmod o-rwx` on `retained/storage/app/private` and `retained/storage/logs`, so that /storage works again for product images. The permanent fix is B1150.
+
+---
+
+# PREVIOUS 2026-11-10 — STOREFRONT LIVE: B1144 TO B1148 INSTALLED, MAIN EQUALS PRODUCTION
 
 Production runs main `eca7755c6efe05143a6d3cd19f8c9e70b9ee3515` (its `apps/cms/current` tree equals the code installed by B1147 and B1148). The public storefront is ON (owner switch, merchant approval valid), indexing stays disabled by the server-wide `public/.htaccess` X-Robots-Tag noindex (owner policy). Owner-run SSH scripts, in order: B1144 install (Report1106), B1145 migrate and unclamp (1108), B1146 legal pages (1109), B1147 catalog redesign (1112; the first run 1111 was a preflight HOLD without change), B1148 Liquid Glass, theme switcher and shared logo (1113). Read-only checks: 1105, 1107, 1110. Reports 1104 to 1113 are archived next to this file; see [owner authorizations and change list](OWNER-AUTHORIZATIONS-B1144-B1148-20261110.md).
 
