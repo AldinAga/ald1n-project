@@ -1,4 +1,6 @@
-# CURRENT 2026-11-12 — B1149 STOREFRONT ROLLOUT INSTALLED (REPORT 1115); REPORT 1114 PREFLIGHT HOLD
+# CURRENT 2026-11-12 — B1150 PRODUCT MEDIA ROUTE INSTALLED (REPORT 1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
+
+Report1116 (B1150): `B1150_FINAL=PASS_INSTALLED_PRODUCT_MEDIA_ROUTE_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 5 files (2 new, 3 modified) adds the signed session-less product image route `/media/p/`. Shop switch, SMTP settings, migrations, composer, env and config unchanged; no test mail sent. Owner next steps are in the report: check the catalog and a product page in a private window, then close the retained directories only after that check. Rollback: `--rollback` (shop may stay on). [Report1116](1116-B1150-INSTALLER-20261112-194512.md)
 
 Report1114 (first B1149 run): `B1149_PHASE=HOLD_PREFLIGHT_BLOCKED`, blocker `OLD_STATE_SMOKE_FAILED`, EXIT=2, no mutation. Cause: the check counted scripts injected by Cloudflare, not application code. [Report1114](1114-B1149-INSTALLER-20261110-211309.md)
 
