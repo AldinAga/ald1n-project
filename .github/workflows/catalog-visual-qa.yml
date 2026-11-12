@@ -21,6 +21,7 @@ on:
       - 'apps/cms/current/tests/Browser/catalog-visual-browser.cjs'
       - 'apps/cms/current/tests/Feature/PublicCatalogRedesignTest.php'
       - 'apps/cms/current/tests/Feature/PublicStorefrontThemeLogoTest.php'
+      - 'apps/cms/current/tests/Feature/PublicStorefrontEmailOffTest.php'
       - 'apps/cms/current/app/Support/PublicStorefrontAppearance.php'
       - 'apps/cms/current/app/Http/Controllers/PublicThemeController.php'
       - 'apps/cms/current/app/Http/Middleware/PublicNoScriptCsp.php'
@@ -119,7 +120,7 @@ jobs:
           APP_URL: https://cms.ald1n.com
         run: |
           set -euo pipefail
-          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontThemeLogoTest PublicProductGalleryTest StorefrontMediaPathBoundaryB893Test PublicMediaCacheAndCartRedirectB877Test; do
+          for test in PublicCatalogRedesignTest PublicNoScriptCspB872Test StorefrontHtmlOriginBoundaryB899Test PublicLegalPagesB1146Test PublicStorefrontEmailOffTest PublicStorefrontThemeLogoTest PublicProductGalleryTest StorefrontMediaPathBoundaryB893Test PublicMediaCacheAndCartRedirectB877Test; do
             php vendor/bin/phpunit -c phpunit.mysql.xml "tests/Feature/$test.php" --colors=never
           done
       - name: Install disposable Chromium outside repository
