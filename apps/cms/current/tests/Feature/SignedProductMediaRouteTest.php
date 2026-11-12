@@ -275,10 +275,8 @@ final class SignedProductMediaRouteTest extends TestCase
             'password_hash' => Hash::make('Secret123!'), 'status' => 'active',
         ]);
 
-        $rows = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/products?per_page=50')->assertOk()->json('data');
+        $json = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/products/'.$product->slug)->assertOk()->json('data');
         $this->app['auth']->forgetGuards();
-        $json = collect($rows)->firstWhere('id', $product->id);
-        self::assertIsArray($json, 'the product is listed with its images');
         self::assertCount(1, $json['images']);
 
         $urls = [

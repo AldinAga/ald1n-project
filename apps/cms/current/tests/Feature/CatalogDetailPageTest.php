@@ -59,7 +59,7 @@ final class CatalogDetailPageTest extends TestCase
 
         // The legacy file is shown through the signed, login-free route, so the
         // mobile app and e-mail can load the same address.
-        $url = (string) $image->url;
+        $url = (string) ProductImage::query()->findOrFail($image->id)->url; // reloaded: DB defaults (rotation) are part of the version
         self::assertMatchesRegularExpression('~/media/p/'.$image->id.'/original\?v=[a-f0-9]{16}&s=[a-f0-9]{32}$~D', $url);
         $response->assertOk()->assertSee(e($url), false);
     }
