@@ -500,8 +500,10 @@ final class SiteLogoAssetService
                 continue;
             }
             try {
-                if (Storage::disk('public')->exists($path)) {
-                    return $this->assetUrl($path) ?? Storage::disk('public')->url($path);
+                // Only the site-assets route: /storage does not resolve at the origin.
+                $url = $this->assetUrl($path);
+                if ($url !== null) {
+                    return $url;
                 }
             } catch (Throwable) {
                 continue;

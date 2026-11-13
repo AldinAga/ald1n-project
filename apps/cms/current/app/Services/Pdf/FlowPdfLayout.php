@@ -50,7 +50,7 @@ final class FlowPdfLayout
 
     private function logo(): void
     {
-        $info = $this->logo !== '' && is_file($this->logo) ? @getimagesize($this->logo) : false;
+        $info = self::isRasterLogo($this->logo) ? @getimagesize($this->logo) : false;
         if (is_array($info) && ($info[0] ?? 0) > 0 && ($info[1] ?? 0) > 0) {
             // Deliberate neutral tile. Preserve artwork/color/aspect; no recoloring.
             $this->pdf->roundedRect(36, 22, 60, 44, 7, '#ffffff');
@@ -62,6 +62,20 @@ final class FlowPdfLayout
         }
         $this->pdf->roundedRect(36, 22, 60, 44, 7, '#f59e0b');
         $this->pdf->text(66, 26, 'A', 26, true, '#172033', 'center');
+    }
+
+    /**
+     * Allowlist by content, not by name: only a file that starts with a JPEG
+     * or PNG signature may reach the PDF writer. SVG (or anything else)
+     * never does, whatever its extension; the built-in mark is drawn instead.
+     */
+    private static function isRasterLogo(string $path): bool
+    {
+        if ($path === '' || !is_file($path)) return false;
+        $head = @file_get_contents($path, false, null, 0, 8);
+        if (!is_string($head)) return false;
+
+        return str_starts_with($head, "\xFF\xD8\xFF") || str_starts_with($head, "\x89PNG\r\n\x1a\n");
     }
 
     private function pageFooter(): void

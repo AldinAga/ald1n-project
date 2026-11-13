@@ -817,14 +817,37 @@ final class SiteLogoSvgTest extends TestCase
         $svg = $this->storedSvg('site_logo_light_path');
         self::assertNull($assets->emailLogoUrl(['site_logo_light_path' => $svg, 'documents_logo_path' => '']));
 
+        $pdfLogo = 'document-assets/pdf-logo-'.Str::uuid()->toString().'.jpg';
+        Storage::disk('public')->put($pdfLogo, (string) base64_decode(self::JPEG));
+        $emailUrl = (string) $assets->emailLogoUrl(['site_logo_light_path' => $svg, 'documents_logo_path' => $pdfLogo]);
+        self::assertStringContainsString('/site-assets/documents/'.basename($pdfLogo), $emailUrl);
+        self::assertStringNotContainsString('/storage/', $emailUrl);
+
+        // A hand-named file the route cannot serve is skipped, never linked through /storage.
         Storage::disk('public')->put('document-assets/pdf-logo-synthetic.jpg', 'jpeg-bytes');
-        self::assertStringEndsWith(
-            '/storage/document-assets/pdf-logo-synthetic.jpg',
-            (string) $assets->emailLogoUrl(['site_logo_light_path' => $svg, 'documents_logo_path' => 'document-assets/pdf-logo-synthetic.jpg']),
-        );
+        self::assertNull($assets->emailLogoUrl(['site_logo_light_path' => $svg, 'documents_logo_path' => 'document-assets/pdf-logo-synthetic.jpg']));
         $png = $this->png();
         self::assertMatchesRegularExpression('~^https?://[^/]+/site-assets/'.preg_quote(basename($png), '~').'\?v=[a-z0-9-]+$~D', (string) $assets->emailLogoUrl(['site_logo_light_path' => $png]));
         self::assertNull($assets->emailLogoUrl(['site_logo_light_path' => 'https://evil.example/logo.png']));
+    }
+
+    public function test_pdf_logo_preview_has_no_storage_fallback_for_missing_or_unroutable_files(): void
+    {
+        $paths = ['document-assets/pdf-logo-'.Str::uuid()->toString().'.jpg', 'document-assets/hand-named.jpg'];
+        Storage::disk('public')->put($paths[1], (string) base64_decode(self::JPEG));
+
+        // Web first, API second: Sanctum::actingAs swaps the default guard for the rest of the test.
+        foreach ($paths as $path) {
+            app(SettingsService::class)->putMany(['documents_logo_path' => $path], (int) $this->owner->id);
+            $html = (string) $this->actingAs($this->owner)->get('/admin/settings/documents')->assertOk()->getContent();
+            self::assertStringNotContainsString('/storage/', $html, $path);
+            self::assertStringNotContainsString('alt="PDF logo"', $html, $path);
+        }
+        foreach ($paths as $path) {
+            app(SettingsService::class)->putMany(['documents_logo_path' => $path], (int) $this->owner->id);
+            Sanctum::actingAs($this->owner, ['*']);
+            $this->getJson('/api/v1/admin/system-settings/documents')->assertOk()->assertJsonPath('data.document_logo_url', null);
+        }
     }
 
     public function test_pdf_documents_fall_back_to_the_built_in_mark_for_an_svg_site_logo(): void
