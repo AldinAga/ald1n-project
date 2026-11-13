@@ -16,7 +16,8 @@ use Tests\TestCase;
 
 /**
  * PUT /account/password must not let a logged-in caller guess the current
- * password without limit. Only wrong guesses count (5 per user + IP / 15 min).
+ * password without limit. Only wrong guesses count (5 per user / 15 min; the key is the user
+ * id alone, not user + IP, and web and API share it).
  */
 final class AccountPasswordThrottleTest extends TestCase
 {
@@ -187,6 +188,23 @@ final class AccountPasswordThrottleTest extends TestCase
         self::assertSame(0, RateLimiter::attempts('account-password|'.$user->id),
             'A correct change through the API clears the counter.');
         self::assertTrue(Hash::check(self::NEW, (string) $user->fresh()->password_hash));
+    }
+
+    public function test_web_current_password_longer_than_4096_is_rejected_before_hashing_or_counting(): void
+    {
+        $user = $this->login($this->person('throttle-cap'));
+
+        $this->change(str_repeat('a', 4097))
+            ->assertSessionHasErrors('current_password');
+        self::assertNotSame('Trenutna lozinka nije ispravna.', session('errors')->first('current_password'),
+            'The oversize value must fail validation, not reach the password comparison.');
+        self::assertSame(0, RateLimiter::attempts('account-password|'.$user->id),
+            'A request rejected by validation must not reach the throttle or the hash comparison.');
+
+        // Boundary: exactly 4096 passes validation and is then an ordinary wrong guess.
+        $this->change(str_repeat('a', 4096))
+            ->assertSessionHasErrors(['current_password' => 'Trenutna lozinka nije ispravna.']);
+        self::assertSame(1, RateLimiter::attempts('account-password|'.$user->id));
     }
 
     /** @return array<string,string> */

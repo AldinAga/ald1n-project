@@ -206,7 +206,8 @@ final class DocumentSettingsController extends Controller
         try {
             // /storage does not resolve at the origin; routable PDF logos
             // (document-assets/pdf-logo-<uuid>) use the site-assets route.
-            return app(\App\Services\SiteLogoAssetService::class)->assetUrl($path) ?? Storage::disk('public')->url($path);
+            // A missing or unroutable file gets no preview instead of a dead /storage link.
+            return app(\App\Services\SiteLogoAssetService::class)->assetUrl($path);
         } catch (Throwable) {
             return null;
         }

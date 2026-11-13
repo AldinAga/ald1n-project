@@ -108,6 +108,43 @@ final class PasswordResetTest extends TestCase
         $this->post('/reset-password', $payload)->assertSessionHasErrors('token');
     }
 
+    public function test_mailed_reset_link_origin_comes_from_app_url_not_the_request_host(): void
+    {
+        config(['app.url' => 'https://cms.example.test']);
+        Notification::fake();
+        $user = $this->createUser();
+
+        // An absolute URI is required: the test client otherwise rebuilds
+        // HTTP_HOST from the app.url base and discards a Host header.
+        $this->post('http://evil.example/forgot-password', ['email' => $user->email], [
+            'Host' => 'evil.example',
+            'X-Forwarded-Host' => 'evil-forwarded.example',
+        ])->assertRedirect()->assertSessionHas('status');
+
+        // Control: the forged host really became the request root. Generated
+        // URLs are pinned to APP_URL by PinAppUrlOrigin, so the request itself
+        // is the place to observe the forged origin.
+        self::assertSame('http://evil.example', request()->root());
+
+        $mailed = null;
+        $token = null;
+        Notification::assertSentTo(
+            $user,
+            ResetPasswordNotification::class,
+            static function (ResetPasswordNotification $notification) use ($user, &$mailed, &$token): bool {
+                $token = $notification->token;
+                $mailed = $notification->toMail($user)->actionUrl;
+
+                return true;
+            }
+        );
+
+        self::assertIsString($token);
+        self::assertSame(80, strlen($token));
+        // Origin from APP_URL; path and token unchanged; no query added.
+        self::assertSame('https://cms.example.test/reset-password/'.$token, $mailed);
+    }
+
     private function createUser(): User
     {
         return User::query()->create([
