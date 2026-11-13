@@ -409,6 +409,21 @@ check(!str_contains($o,'wrong-origin.invalid'),'NO_MISMATCHING_VALUE_IN_THE_REPO
 [$rc,$o]=$run(['GROUP_DONE_D'=>['appUrlWrong'],'SAVED_ROLLBACK_INTENT'=>['appUrlRestore']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');$lastLive=end($ls);$liveRows=[];foreach($lastLive['rows'] as $r)$liveRows[$r['check']]=$r['result']??null;
 check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_D"'&&$lastLive['after']==='D'&&in_array('ORIGIN_PIN_LOCATION',$lastLive['failed'],true)&&($liveRows['/up']??null)==='PASS'&&($liveRows['/login']??null)==='PASS'&&str_contains($o,'ROLLBACK_AFTER_BOOTSTRAP={"bootstrapIsOld":true}')&&lastRaw($o,'B1152_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&hash_file('sha256',$bootFile)===$bootStep['preSHA256'],'WRONG_ORIGIN_RIGHT_AFTER_BOOTSTRAP_ROLLED_BACK_BOOTSTRAP_FIRST:'.json_encode([$lastLive['failed'],$liveRows]));
 check(!str_contains($o,'wrong-origin.invalid'),'NO_WRONG_ORIGIN_VALUE_IN_THE_REPORT');$reset();
+// (g) The PREFLIGHT reads the web worker's app.url too. APP_URL absent from the server environment and from .env: the config default literal is used (source CONFIG_DEFAULT) and passes.
+file_put_contents($envFile,(string)preg_replace('/^APP_URL=.*\R/m','',$envOriginal));check(!str_contains((string)file_get_contents($envFile),'APP_URL='),'FIXTURE_ENV_WITHOUT_APP_URL');
+[$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$p=lastLine($o,'PREFLIGHT');$wc=lastLine($o,'WEB_APP_URL_CHECK');
+check($rc===2&&$p['blockers']===[]&&is_array($wc)&&$wc['webAppUrlSource']==='CONFIG_DEFAULT'&&$wc['webAppUrlExact']===true&&$wc['webAppUrlOrigin']==='https://cms.ald1n.com'&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','ABSENT_APP_URL_USES_THE_CONFIG_DEFAULT_AND_PASSES_THE_PREFLIGHT:'.json_encode([$p['blockers'],$wc]));$reset();
+// (h) Two conflicting APP_URL lines in .env: ambiguous, a HOLD before any write (nothing guessed).
+file_put_contents($envFile,$envOriginal."APP_URL=http://cms.ald1n.com\n");
+[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
+check($rc===2&&in_array('LOAD_PROBE_APP_URL_AMBIGUOUS_IN_DOTENV',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','DUPLICATE_CONFLICTING_APP_URL_IS_A_PREFLIGHT_HOLD:'.json_encode($p['blockers']));$reset();
+// (i) Two agreeing APP_URL lines are fine; an interpolated value is refused.
+file_put_contents($envFile,$envOriginal."APP_URL=https://cms.ald1n.com\n");[$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$wc=lastLine($o,'WEB_APP_URL_CHECK');
+check($rc===2&&$wc['webAppUrlExact']===true&&$wc['failures']===[]&&!str_contains($o,'PER_FILE_BACKUP='),'DUPLICATE_AGREEING_APP_URL_PASSES_THE_WEB_CHECK');$reset();
+file_put_contents($envFile,(string)preg_replace('/^APP_URL=.*$/m','APP_URL=${APP_NAME}',$envOriginal));
+[$rc,$o]=$run();$wc=lastLine($o,'WEB_APP_URL_CHECK');
+check($rc===2&&in_array('LOAD_PROBE_APP_URL_INTERPOLATION',$wc['failures'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','INTERPOLATED_APP_URL_IS_A_PREFLIGHT_HOLD');$reset();
+$results['webAppUrlPreflight']=['absent'=>'CONFIG_DEFAULT_PASS','duplicateConflicting'=>'HOLD','duplicateAgreeing'=>'PASS','interpolation'=>'HOLD'];
 $results['webAppUrlMismatch']='STOPPED_BEFORE_BOOTSTRAP_A_TO_C_RESTORED';$results['wrongOriginAfterBootstrap']='ROLLED_BACK_BOOTSTRAP_FIRST';
 $results['orderControls']=['bootstrapBeforeClasses'=>'SEEN_BY_THE_HELPER_AND_A_REAL_500_THEN_RESTORED','oneClassAlone'=>'NOT_THE_PAIR','classesAlone'=>'HARMLESS_LOAD_AND_ANSWER','coordinatorRefusesWithAMissingClass'=>'HOLD_ROLLED_BACK_NEVER_WRITTEN','coordinatorRefusesWithoutTheWebProof'=>'HOLD_ROLLED_BACK_NEVER_WRITTEN'];
 

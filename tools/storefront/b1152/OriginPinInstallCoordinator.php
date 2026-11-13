@@ -678,6 +678,23 @@ final class OriginPinInstallCoordinator
      * application's own autoloader (vendor/autoload.php, PSR-4) and reports the file and its digest. Read-only, nothing is called, nothing is booted.
      * The class files themselves are the ones the full hold already covered (the hold runs from the last tree change, which is after group A).
      */
+    /**
+     * The same token-gated web probe with NO class list: only the app.url the web worker sees (read the way Laravel reads it, nothing booted, see LoadProbe) must be
+     * exactly the pinned origin. Used by the PREFLIGHT (a mismatch is a HOLD before any write); the five-request class proof before bootstrap/app.php checks it again.
+     */
+    private function webAppUrlCheck(string $label):array
+    {
+        $this->cleanupRecorded();FreshnessProbe::assertNoLeftover($this->active().'/public');
+        $plan=OriginPinLoadProbe::plan($this->state['id'],[],$this->expectedAppUrl);$staging=$this->state['private'].'/probe-'.bin2hex(random_bytes(8)).'.staging';
+        $this->state['probes'][]=['name'=>$plan['name'],'sha256'=>$plan['sha256'],'label'=>$label,'staging'=>$staging];$this->persist();
+        try{FreshnessProbe::write($this->active().'/public/'.$plan['name'],$plan['source'],$staging);$response=$this->web->probe($plan['name'],$plan['token'],false,null);}finally{$this->cleanupRecorded();}
+        $route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);
+        $a=OriginPinLoadProbe::assess($response,$this->state['id'],[],$this->allowedSapis,posix_geteuid());
+        $this->emit('WEB_APP_URL_CHECK',['label'=>$label,'route'=>$route,'gates'=>array_map(static fn($c)=>$c??'PASS',$a['gates'])]+array_intersect_key($a['values'],array_flip(['sapi','webEuidIsOperator','webAppUrlExact','webAppUrlOrigin','webAppUrlSource']))+['probeRemoved'=>true,'failures'=>$a['failures']]);
+        if($a['failures']!==[])throw new RuntimeException($a['failures'][0]);
+        return $a['values'];
+    }
+
     private function webClassProof(string $label):array
     {
         $classes=$this->newClassFiles();$values=[];
@@ -1168,6 +1185,8 @@ final class OriginPinInstallCoordinator
         $v['headroom']=$try('diskHeadroom',fn()=>$this->headroom());
         $v['artisanCensus']=$chain!==null?$try('noRunningCmsArtisan',fn()=>$this->census()):null;if(!array_key_exists('noRunningCmsArtisan',$g))$g['noRunningCmsArtisan']='NOT_EVALUATED_CHAIN';
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id'])&&$v['caches']!==null){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$installed,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_TARGETS';
+        // The web worker's own app.url must be the pinned origin too (the CLI gate above reads the same files but not the server environment): a HOLD before any write.
+        if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id']))$v['webAppUrl']=$try('webAppUrlPinned',fn()=>$this->webAppUrlCheck('preflight-'.$stage));else $g['webAppUrlPinned']='NOT_EVALUATED_TARGETS';
         if(isset($v['web']['holdSeconds'])){
             $this->state['groupPauseSeconds']=(int)($v['web']['revalidateFreq']??2)+1;
             $need=$this->requiredWindowSeconds((int)$v['web']['holdSeconds']);$v['timeBound']=['holdSeconds'=>(int)$v['web']['holdSeconds'],'groupPauseSeconds'=>$this->groupPause(),'smokeCapSeconds'=>$this->smokeCapSeconds(),'requiredWindowSeconds'=>$need,'rule'=>'5*HOLD+2*SMOKE_CAP+14*PAUSE+7*LIVENESS(180)+5*WEB_PROOF(30)+300<=WINDOW'];

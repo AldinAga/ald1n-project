@@ -57,8 +57,13 @@ nove klase mogu učitati, svaki zahtev bi bio 500, i `/up` takođe. Zato:
 3. Posle čekanja pet puta zaredom (svaki zahtev mora da prođe) privremena probna stranica, koju servira
    **veb SAPI** (ne CLI), učitava obe klase kroz isti composer autoloader koji koristi aplikacija i javlja
    iz kog fajla su došle i koji im je SHA-256. Ista stranica čita `APP_URL` onako kako ga čita Laravel
-   (vrednost iz okruženja servera ima prednost, inače prva linija `APP_URL` iz `.env`), bez podizanja
-   aplikacije, i javlja samo da li je tačno `https://cms.ald1n.com` i origin (bez putanje i podataka za
+   (vrednost iz okruženja servera ima prednost, inače linije `APP_URL` iz `.env`; BOM i CR se
+   uklanjaju), bez podizanja aplikacije. Više linija sa različitim originima je dvosmisleno
+   (`LOAD_PROBE_APP_URL_AMBIGUOUS_IN_DOTENV`), vrednost sa `${` se odbija
+   (`LOAD_PROBE_APP_URL_INTERPOLATION`). Kad `APP_URL` nema nigde, važi podrazumevana vrednost iz
+   `config/app.php`, koju čitamo kao tekst jednim strogim izrazom (izvor `CONFIG_DEFAULT`); ako se ne
+   može pročitati jednoznačno, to je neslaganje. Ista provera (bez klasa) radi i u preflight-u, pa je
+   neslaganje `HOLD` pre ijedne izmene. Probna stranica javlja samo da li je tačno `https://cms.ald1n.com` i origin (bez putanje i podataka za
    prijavu). Ako veb radnik vidi drugačiju vrednost nego CLI, staje se pre `bootstrap/app.php` i vraćaju se
    A do C. Probna stranica ima token u zaglavlju, radi samo za GET, proverava Host, ističe i odmah se
    briše. Ništa ne poziva i ne podiže aplikaciju.
@@ -132,7 +137,8 @@ moraju da budu tačno oni digesti koje su recenzenti potvrdili. Inače se paket 
 
 Skripta računa potreban prozor po pravilu `5 x čekanje + 2 x smoke + 14 x pauza + 7 x provera
 života (do 180 s svaka, za server koji visi) + 5 x probni zahtev (do 30 s) + 300 s`, nikad manje od
-30 minuta. Sa čekanjem od 125 s to je oko 40 minuta bez backup-a.
+30 minuta. Sa čekanjem od 125 s, pauzom od 3 s i granicom od 485 s za jedan smoke to je 3347 s, oko 55 minuta
+bez backup-a (to je gornja granica za server koji visi, ne očekivano trajanje).
 Tačnu vrednost pročitajte u `PREFLIGHT` izveštaju, polje `timeBound.requiredWindowSeconds`. Ako
 backup upada u prozor, skripta staje pre prve izmene.
 

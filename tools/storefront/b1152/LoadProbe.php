@@ -19,7 +19,7 @@ final class OriginPinLoadProbe
     /** $classes: fully qualified class name => [absolute path of the file it must come from, sha256 of the shipped bytes]. */
     public static function plan(string $id,array $classes,string $origin,?int $now=null):array
     {
-        if(!preg_match('/^[a-f0-9]{32}$/D',$id)||$classes===[]||count($classes)>self::MAX_CLASSES||preg_match('~^https://[a-z0-9.-]{1,120}$~D',$origin)!==1)throw new RuntimeException('LOAD_PROBE_PLAN_SCOPE');
+        if(!preg_match('/^[a-f0-9]{32}$/D',$id)||count($classes)>self::MAX_CLASSES||preg_match('~^https://[a-z0-9.-]{1,120}$~D',$origin)!==1)throw new RuntimeException('LOAD_PROBE_PLAN_SCOPE');
         foreach($classes as $name=>$want)if(!is_string($name)||!preg_match('/^App\\\\[A-Za-z0-9_\\\\]{1,200}$/D',$name)||!is_array($want)||count($want)!==2||!is_string($want[0])||!str_starts_with($want[0],'/')||str_contains($want[0],'/../')||preg_match('/[\x00-\x1f\x7f]/',$want[0])||!is_string($want[1])||!preg_match('/^[a-f0-9]{64}$/D',$want[1]))throw new RuntimeException('LOAD_PROBE_CLASS_SCOPE');
         $name=FreshnessProbe::PREFIX.bin2hex(random_bytes(24)).'.php';$token=bin2hex(random_bytes(32));$expires=($now??time())+FreshnessProbe::LIFETIME;
         $source=self::source($id,hash('sha256',$token),$expires,$classes,$origin);return ['name'=>$name,'token'=>$token,'expires'=>$expires,'source'=>$source,'sha256'=>hash('sha256',$source)];
@@ -38,13 +38,29 @@ header('Content-Type: application/json; charset=utf-8');header('Cache-Control: p
 $classes=__CLASSES__;$docroot=realpath((string)($_SERVER['DOCUMENT_ROOT']??''));$here=realpath(__DIR__);
 $autoload=realpath(__DIR__.'/../vendor/autoload.php');$autoloaded=false;
 if(is_string($autoload)&&is_file($autoload)){try{require_once $autoload;$autoloaded=true;}catch(Throwable){$autoloaded=false;}}
-// The app.url this web worker sees, WITHOUT booting the application: Laravel's own precedence (a value in the server environment wins, otherwise the first
-// APP_URL line of the .env file). Only a boolean and the origin (scheme://host[:port], credentials, path and query dropped) are reported, never the raw value.
-$rawUrl=null;$urlSource='NONE';
+// The app.url this web worker sees, WITHOUT booting the application and WITHOUT guessing: a value in the server environment wins; otherwise every APP_URL line of the
+// .env file is read (UTF-8 BOM and CR stripped); several lines with different normalized origins are AMBIGUOUS, a value with ${ (interpolation) is refused; with no value
+// at all the app uses the default literal of env('APP_URL', '<literal>') in config/app.php, read as text by one strict pattern (no eval), else UNREADABLE.
+// Only a boolean, the origin (scheme://host[:port]; credentials, path and query dropped), the source and a fixed reason code are reported, never the raw value.
+$rawUrl=null;$urlSource='NONE';$urlReason=null;
+$normOrigin=static function(string $u):?string{$pu=parse_url($u);return is_array($pu)&&isset($pu['scheme'],$pu['host'])&&preg_match('/^[a-z0-9.-]{1,120}$/D',strtolower($pu['host']))===1&&in_array(strtolower($pu['scheme']),['http','https'],true)?strtolower($pu['scheme']).'://'.strtolower($pu['host']).(isset($pu['port'])?':'.(int)$pu['port']:''):null;};
 foreach(['SERVER'=>$_SERVER['APP_URL']??null,'ENV'=>$_ENV['APP_URL']??null,'GETENV'=>getenv('APP_URL')] as $k=>$v)if(is_string($v)&&$v!==''){$rawUrl=$v;$urlSource='SERVER_ENVIRONMENT';break;}
-if($rawUrl===null){$envFile=__DIR__.'/../.env';if(is_file($envFile)&&is_readable($envFile))foreach(file($envFile,FILE_IGNORE_NEW_LINES)?:[] as $line){if(preg_match('/^\s*(?:export\s+)?APP_URL\s*=\s*(.*)$/',$line,$m)===1){$v=trim($m[1]);if($v!==''&&($v[0]==='"'||$v[0]==="'")){$end=strpos($v,$v[0],1);$v=$end===false?substr($v,1):substr($v,1,$end-1);}else{$v=trim((string)preg_replace('/\s+#.*$/','',$v));}$rawUrl=$v;$urlSource='DOTENV_FILE';break;}}}
-$urlOrigin=null;if(is_string($rawUrl)){$pu=parse_url($rawUrl);if(is_array($pu)&&isset($pu['scheme'],$pu['host'])&&preg_match('/^[a-z0-9.-]{1,120}$/D',strtolower($pu['host']))===1&&in_array(strtolower($pu['scheme']),['http','https'],true))$urlOrigin=strtolower($pu['scheme']).'://'.strtolower($pu['host']).(isset($pu['port'])?':'.(int)$pu['port']:'');}
-$urlExact=is_string($rawUrl)&&hash_equals(__ORIGIN__,$rawUrl);
+if($rawUrl===null){
+    $vals=[];$envFile=__DIR__.'/../.env';
+    if(is_file($envFile)&&is_readable($envFile)){$txt=(string)file_get_contents($envFile);if(str_starts_with($txt,"\xEF\xBB\xBF"))$txt=substr($txt,3);
+        foreach(preg_split('/\r\n|\n|\r/',$txt)?:[] as $line){if(preg_match('/^\s*(?:export\s+)?APP_URL\s*=\s*(.*)$/',$line,$m)===1){$v=trim($m[1]);if($v!==''&&($v[0]==='"'||$v[0]==="'")){$end=strpos($v,$v[0],1);$v=$end===false?substr($v,1):substr($v,1,$end-1);}else{$v=trim((string)preg_replace('/\s+#.*$/','',$v));}$vals[]=$v;}}}
+    if($vals!==[]){
+        $urlSource='DOTENV_FILE';$rawUrl=$vals[0];
+        foreach($vals as $v)if(str_contains($v,'${'))$urlReason='LOAD_PROBE_APP_URL_INTERPOLATION';
+        if($urlReason===null&&count($vals)>1&&count(array_unique(array_map(static fn($v)=>$normOrigin($v)??'INVALID#'.$v,$vals)))>1)$urlReason='LOAD_PROBE_APP_URL_AMBIGUOUS_IN_DOTENV';
+    }else{
+        $cfg=@file_get_contents(__DIR__.'/../config/app.php');$mm=[];
+        if(is_string($cfg)&&preg_match_all("/'url'\s*=>\s*env\(\s*'APP_URL'\s*,\s*'([^'\\\\]*)'\s*\)/",$cfg,$mm)===1){$rawUrl=$mm[1][0];$urlSource='CONFIG_DEFAULT';}
+        else{$urlSource='CONFIG_DEFAULT';$urlReason='LOAD_PROBE_APP_URL_CONFIG_DEFAULT_UNREADABLE';}
+    }
+}
+$urlOrigin=is_string($rawUrl)?$normOrigin($rawUrl):null;
+$urlExact=is_string($rawUrl)&&$urlReason===null&&hash_equals(__ORIGIN__,$rawUrl);
 $out=[];
 foreach($classes as $name=>$want){
     $loaded=false;$file=null;$sha=null;
@@ -52,7 +68,7 @@ foreach($classes as $name=>$want){
     $out[$name]=['loaded'=>$loaded,'fromExpectedFile'=>is_string($file)&&hash_equals($want[0],$file),'sha256'=>$sha];
 }
 $status=function_exists('opcache_get_status')?@opcache_get_status(false):false;$enabled=is_array($status)&&!empty($status['opcache_enabled']);
-echo json_encode(['kind'=>__KIND__,'id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'euid'=>function_exists('posix_geteuid')?posix_geteuid():null,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'autoloaded'=>$autoloaded,'opcacheEnabled'=>$enabled,'appUrlExact'=>$urlExact,'appUrlOrigin'=>$urlOrigin,'appUrlSource'=>$urlSource,'classes'=>$out],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+echo json_encode(['kind'=>__KIND__,'id'=>__ID__,'php'=>PHP_VERSION,'sapi'=>PHP_SAPI,'euid'=>function_exists('posix_geteuid')?posix_geteuid():null,'docrootMatches'=>$docroot!==false&&$here!==false&&hash_equals($docroot,$here),'autoloaded'=>$autoloaded,'opcacheEnabled'=>$enabled,'appUrlExact'=>$urlExact,'appUrlOrigin'=>$urlOrigin,'appUrlSource'=>$urlSource,'appUrlReason'=>$urlReason,'classes'=>$out],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
 PROBE;
         return strtr($template,$replace)."\n";
     }
@@ -67,16 +83,17 @@ PROBE;
         $g['docroot']=($r['docrootMatches']??null)===true?null:'LOAD_PROBE_DOCROOT';
         $g['autoloader']=($r['autoloaded']??null)===true?null:'LOAD_PROBE_AUTOLOADER_UNAVAILABLE_IN_THE_WEB_SAPI';
         // The web worker's own app.url must be exactly the pinned origin: otherwise the middleware would pin every URL to a wrong origin.
-        $g['appUrl']=($r['appUrlExact']??null)===true?null:'LOAD_PROBE_APP_URL_NOT_THE_PINNED_ORIGIN';
+        $reason=in_array($r['appUrlReason']??null,['LOAD_PROBE_APP_URL_AMBIGUOUS_IN_DOTENV','LOAD_PROBE_APP_URL_INTERPOLATION','LOAD_PROBE_APP_URL_CONFIG_DEFAULT_UNREADABLE'],true)?$r['appUrlReason']:'LOAD_PROBE_APP_URL_NOT_THE_PINNED_ORIGIN';
+        $g['appUrl']=($r['appUrlExact']??null)===true?null:$reason;
         $got=is_array($r['classes']??null)?$r['classes']:[];$notLoaded=[];$wrong=[];
         foreach($classes as $name=>$want){
             $c=$got[$name]??null;
             if(!is_array($c)||($c['loaded']??null)!==true){$notLoaded[]=$name;continue;}
             if(($c['fromExpectedFile']??null)!==true||($c['sha256']??null)!==$want[1])$wrong[]=$name;
         }
-        if(count($got)!==count($classes))$notLoaded[]='CLASS_SET';
+        if(count($got)!==count($classes))$notLoaded[]='CLASS_SET'; // (an empty class list is the app.url-only check of the preflight)
         $g['classesLoadable']=$notLoaded===[]?null:'WEB_SAPI_CLASS_NOT_LOADABLE';$g['classesPayload']=$wrong===[]?null:'WEB_SAPI_CLASS_NOT_THE_PAYLOAD_FILE';
-        $values=['php'=>is_string($r['php']??null)?$r['php']:null,'sapi'=>is_string($r['sapi']??null)?$r['sapi']:null,'webEuidIsOperator'=>$euid===null?null:$euid===$operatorEuid,'autoloaded'=>($r['autoloaded']??null)===true,'webAppUrlExact'=>($r['appUrlExact']??null)===true,'webAppUrlOrigin'=>is_string($r['appUrlOrigin']??null)&&preg_match('~^https?://[a-z0-9.:-]{1,130}$~D',$r['appUrlOrigin'])===1?$r['appUrlOrigin']:null,'webAppUrlSource'=>in_array($r['appUrlSource']??null,['SERVER_ENVIRONMENT','DOTENV_FILE','NONE'],true)?$r['appUrlSource']:null,'opcacheEnabled'=>($r['opcacheEnabled']??null)===true,'classes'=>count($classes),'classesLoadedInTheWebSapi'=>count($classes)-count($notLoaded),'classesFromThePayloadFile'=>count($classes)-count($notLoaded)-count($wrong)];
+        $values=['php'=>is_string($r['php']??null)?$r['php']:null,'sapi'=>is_string($r['sapi']??null)?$r['sapi']:null,'webEuidIsOperator'=>$euid===null?null:$euid===$operatorEuid,'autoloaded'=>($r['autoloaded']??null)===true,'webAppUrlExact'=>($r['appUrlExact']??null)===true,'webAppUrlOrigin'=>is_string($r['appUrlOrigin']??null)&&preg_match('~^https?://[a-z0-9.:-]{1,130}$~D',$r['appUrlOrigin'])===1?$r['appUrlOrigin']:null,'webAppUrlSource'=>in_array($r['appUrlSource']??null,['SERVER_ENVIRONMENT','DOTENV_FILE','CONFIG_DEFAULT','NONE'],true)?$r['appUrlSource']:null,'opcacheEnabled'=>($r['opcacheEnabled']??null)===true,'classes'=>count($classes),'classesLoadedInTheWebSapi'=>count($classes)-count($notLoaded),'classesFromThePayloadFile'=>count($classes)-count($notLoaded)-count($wrong)];
         return ['gates'=>$g,'failures'=>array_values(array_filter($g,static fn($c)=>$c!==null)),'values'=>$values];
     }
 }
