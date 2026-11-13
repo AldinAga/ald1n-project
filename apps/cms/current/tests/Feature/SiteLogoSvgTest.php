@@ -833,16 +833,18 @@ final class SiteLogoSvgTest extends TestCase
 
     public function test_pdf_logo_preview_has_no_storage_fallback_for_missing_or_unroutable_files(): void
     {
-        foreach (['document-assets/pdf-logo-'.Str::uuid()->toString().'.jpg', 'document-assets/hand-named.jpg'] as $path) {
-            if ($path === 'document-assets/hand-named.jpg') {
-                Storage::disk('public')->put($path, (string) base64_decode(self::JPEG));
-            }
-            app(SettingsService::class)->putMany(['documents_logo_path' => $path], (int) $this->owner->id);
+        $paths = ['document-assets/pdf-logo-'.Str::uuid()->toString().'.jpg', 'document-assets/hand-named.jpg'];
+        Storage::disk('public')->put($paths[1], (string) base64_decode(self::JPEG));
 
+        // Web first, API second: Sanctum::actingAs swaps the default guard for the rest of the test.
+        foreach ($paths as $path) {
+            app(SettingsService::class)->putMany(['documents_logo_path' => $path], (int) $this->owner->id);
             $html = (string) $this->actingAs($this->owner)->get('/admin/settings/documents')->assertOk()->getContent();
             self::assertStringNotContainsString('/storage/', $html, $path);
             self::assertStringNotContainsString('alt="PDF logo"', $html, $path);
-
+        }
+        foreach ($paths as $path) {
+            app(SettingsService::class)->putMany(['documents_logo_path' => $path], (int) $this->owner->id);
             Sanctum::actingAs($this->owner, ['*']);
             $this->getJson('/api/v1/admin/system-settings/documents')->assertOk()->assertJsonPath('data.document_logo_url', null);
         }
