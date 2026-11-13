@@ -61,7 +61,7 @@ nove klase mogu učitati, svaki zahtev bi bio 500, i `/up` takođe. Zato:
 4. Tek tada se piše `bootstrap/app.php`. Koordinator odbija taj korak ako neka nova klasa nije tačno
    na svom mestu ili ako dokaz iz tačke 3 nije prošao u ovom pokretanju.
 5. Posle D ide jedna pauza da veb radnici osveže fajl, pa odmah smoke (`/up`, `/login`, jedna pravna
-   stranica, `/katalog`, `GET /tema` 405). Ako pad, prvi se vraća `bootstrap/app.php`, pre bilo
+   stranica, `/katalog`, `GET /tema` 405). Ako padne, prvi se vraća `bootstrap/app.php`, pre bilo
    čega drugog. Tek posle toga idu `route:clear`, `view:clear` i `queue:restart`.
 
 Vraćanje ide obrnuto: prvo `bootstrap/app.php`, puno čekanje, pa C, pauza, pa B, puno čekanje, pa
@@ -113,8 +113,11 @@ moraju da budu tačno oni digesti koje su recenzenti potvrdili. Inače se paket 
 
    Moraju da daju `becac22c0582f69338a27bf5acd82aa3e6583d846f939c9b4bb079300fee8872` i
    `6842828a326e0397022479c6cd6a46ebf6da04a40326b7c03be5facffe8182ec`. To su digesti git bloba iz
-   `origin/main`. Nismo mogli da potvrdimo da je ZIP koji ste pokrenuli nosio baš te bajtove, pa je
-   ovo jedino mesto gde se pretpostavka proverava.
+   `origin/main` i krajnje glave grane B1151 (`934c49cc`, 12.11.2026 20:58). Nismo mogli da potvrdimo da
+   je ZIP koji ste pokrenuli nosio baš te bajtove, pa je ovo jedino mesto gde se pretpostavka proverava.
+   Ako koordinator na hostu daje `827cafc804efeb583cb4b88815451a2766013c2ccc36e028d841c25bd7ae3284`,
+   ZIP je građen iz ranijeg commita `6ca4579f` (razlika je samo komentar). Tada je kraj bezbedan
+   `HOLD_CODE=PACKAGE_FILE_INTEGRITY` bez izmena, a pin se menja u paketu, ne na hostu.
 5. `APP_URL` u `.env` je tačno `https://cms.ald1n.com` (bez kose crte na kraju). Skripta to proverava
    i staje bez izmena ako nije.
 6. Prodavnica je uključena, saobraćaj je mali, a do backup-a (02:30 svaki dan, 03:10 nedeljom,
@@ -150,7 +153,7 @@ nijedan purge: stranice prodavnice šalju `private, no-store`, a adresa CSS-a se
 Svih 8567 fajlova mora imati tačan digest (manifest plus B1146 do B1151), a svaki izmenjeni fajl
 tačno staru verziju. Staje se i ako postoji keš ruta, ako je prodavnica isključena, ako radi artisan
 komanda, ako je backup blizu, ako nema mesta na disku ili u kvoti, ako je composer autoload
-autoritativan (nove klase bi se tada ne bi našle), ako efektivni `config('app.url')` nije tačno
+autoritativan (nove klase se tada ne bi našle), ako efektivni `config('app.url')` nije tačno
 `https://cms.ald1n.com`, ako je konfiguracija keširana, ako u CLI-ju fali PHP ekstenzija ili ako javne
 stranice nemaju `X-Robots-Tag: noindex`.
 

@@ -374,7 +374,9 @@ $results+=['censusBeforeBackup'=>'HOLD_NOTHING_WRITTEN','nothingApplied'=>'NO_RE
 // 11. Order negative controls (fixture only, never the tool). bootstrap/app.php names PinAppUrlOrigin::class: live before the classes load, every request
 // (/up included) is a 500. The password endpoints sit behind a login and are not requested; the helper and /up show the wrong order.
 $helperFeatures=static fn():array=>json_decode(sh(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$incoming.'/b1152-app-check.php',$active,'features',json_encode(OriginPinInstallCoordinator::newClasses(),JSON_THROW_ON_ERROR),OriginPinInstallCoordinator::MEDIA_ROUTE_NAME,OriginPinInstallCoordinator::EXPECTED_APP_URL,json_encode(OriginPinInstallCoordinator::SOURCE_MARKERS,JSON_THROW_ON_ERROR)],$active),true,16,JSON_THROW_ON_ERROR);
-$bootFile=$active.'/'.$bootStep['path'];$bootOrig=(string)file_get_contents($bootFile);check(hash('sha256',$bootOrig)===$bootStep['preSHA256'],'BOOTSTRAP_IS_THE_PRE_STATE_BEFORE_THE_CONTROLS');
+$bootFile=$active.'/'.$bootStep['path'];$bootOrig=(string)file_get_contents($bootFile);
+// Everything before the deliberate control (the whole B1146-B1151 replay and every case above) must have left no fatal error in the web server log.
+check(substr_count((string)file_get_contents($base.'/server.log'),'PHP Fatal error')===0,'NO_FATAL_IN_THE_SERVER_LOG_BEFORE_THE_DELIBERATE_CONTROL');check(hash('sha256',$bootOrig)===$bootStep['preSHA256'],'BOOTSTRAP_IS_THE_PRE_STATE_BEFORE_THE_CONTROLS');
 // (a) the new bootstrap/app.php with NO class in the tree: the helper sees it, and the web server really answers 500 (so the control can fail), then it is put back.
 file_put_contents($bootFile,(string)file_get_contents($bootStep['payload']));sleep(5);$fa=$helperFeatures();$upBad=$status('/up');$loginBad=$status('/login');file_put_contents($bootFile,$bootOrig);sleep(5);
 check($fa['bootstrapNamesPin']===true&&$fa['middlewareGlobal']===true&&$fa['newClassesLoaded']===0&&$fa['originConfiguredIsExpected']===false,'WRONG_ORDER_BOOTSTRAP_BEFORE_THE_CLASSES_SEEN_BY_THE_HELPER:'.json_encode($fa));
