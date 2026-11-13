@@ -254,10 +254,11 @@ TXT;
 Kolačić je mala datoteka koju sajt čuva u vašem pregledaču.
 
 ## Koje kolačiće koristimo
-Koristimo samo kolačiće neophodne za rad sajta:
+Koristimo kolačiće neophodne za rad sajta i jedan kolačić za izgled prodavnice:
 - kolačić sesije, koji pamti prijavu i sadržaj korpe dok ste na sajtu;
 - XSRF-TOKEN, koji štiti obrasce od lažnih zahteva;
-- kolačić „Zapamti me”, samo ako ga sami uključite pri prijavi.
+- kolačić „Zapamti me”, samo ako ga sami uključite pri prijavi;
+- shop_theme, kolačić podešavanja. Pamti vaš izbor teme prodavnice: sistemska, svetla ili tamna. Čuva samo jednu reč (system, light ili dark). Postavlja se tek kada izaberete temu, važi godinu dana i ne sadrži podatke o vama. Šalje se sa oznakom SameSite=Lax, a na HTTPS vezi i sa oznakom Secure. Nije HttpOnly, jer ga čita skripta koja menja temu. Ako ga obrišete, prodavnica prati temu vašeg uređaja.
 
 Ne koristimo analitičke ni marketinške kolačiće.
 

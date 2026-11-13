@@ -65,6 +65,30 @@ final class PublicLegalPagesB1146Test extends TestCase
         $this->actingAs($admin)->get('/admin/settings/public-storefront')->assertForbidden();
     }
 
+    public function test_cookie_page_documents_the_shop_theme_cookie_as_it_is_actually_set(): void
+    {
+        $response = $this->get('/kolacici')->assertOk()
+            ->assertSee('shop_theme')
+            ->assertSee('Pamti vaš izbor teme prodavnice')
+            ->assertSee('Postavlja se tek kada izaberete temu')
+            ->assertSee('važi godinu dana')
+            ->assertSee('Ne koristimo analitičke ni marketinške kolačiće.');
+        self::assertStringNotContainsString('Koristimo samo kolačiće neophodne', $response->getContent());
+
+        // The text must match what the code really sends.
+        config()->set('public_storefront.enabled', true);
+        $switch = $this->post('https://cms.ald1n.com/tema', ['theme' => 'dark', 'back' => '/kolacici']);
+        $switch->assertStatus(303);
+        $cookie = collect($switch->headers->getCookies())
+            ->first(static fn ($c) => $c->getName() === 'shop_theme');
+        self::assertNotNull($cookie);
+        self::assertSame('dark', $cookie->getValue());
+        self::assertSame('lax', $cookie->getSameSite());
+        self::assertFalse($cookie->isHttpOnly());
+        self::assertTrue($cookie->isSecure());
+        self::assertEqualsWithDelta(now()->addYear()->getTimestamp(), $cookie->getExpiresTime(), 120);
+    }
+
     public function test_every_legal_page_is_public_while_closed_and_shows_trader_data(): void
     {
         Product::query()->create([
