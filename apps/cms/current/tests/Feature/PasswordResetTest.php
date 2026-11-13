@@ -114,7 +114,9 @@ final class PasswordResetTest extends TestCase
         Notification::fake();
         $user = $this->createUser();
 
-        $this->post('/forgot-password', ['email' => $user->email], [
+        // An absolute URI is required: the test client otherwise rebuilds
+        // HTTP_HOST from the app.url base and discards a Host header.
+        $this->post('http://evil.example/forgot-password', ['email' => $user->email], [
             'Host' => 'evil.example',
             'X-Forwarded-Host' => 'evil-forwarded.example',
         ])->assertRedirect()->assertSessionHas('status');
