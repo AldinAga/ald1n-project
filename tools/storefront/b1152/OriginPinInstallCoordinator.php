@@ -212,8 +212,14 @@ final class OriginPinInstallCoordinator
     private int $rateLimitCapSeconds=120;
     private array $limitBatch=['limited'=>false,'waited'=>0];
     private const RETRY_AFTER_CAP=65;
-    /** Worst-case wall time of one liveness smoke after a group (5 pages at 0.7 s pacing, 25 s timeout each, no 429 waiting). */
-    private const LIVENESS_SECONDS=60;
+    /**
+     * Worst-case wall time of one liveness smoke after a group against a HANGING server: up to 6 requests (/up, /login, a legal page, /katalog, the first product
+     * page, /tema; plus the origin-pin redirect check after D, so 7 at most), each up to the 25 s curl timeout plus the 0.7 s pacing, no 429 waiting: 7 x 25.7 = 180 s.
+     */
+    private const LIVENESS_SECONDS=180;
+    /** The web-SAPI class proof: this many separate probe requests, all must pass; each is bounded by the 25 s timeout of the pinned client plus the probe file handling. */
+    private const WEB_PROOF_REQUESTS=5;
+    private const WEB_PROOF_SECONDS=30;
     /** Upper bound of the requests in one smoke batch: 2 system, 8 legal, 4 CSS, 2 /tema, 2 guest admin pages, 1 logo, 12 shop, 1 origin Vary, spare. */
     private const SMOKE_GETS=42;
     private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_STOREFRONT_NOT_VERIFIED','NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES','VARY_COOKIE_NOT_VERIFIABLE_EDGE_HIDES_IT_AND_NO_ORIGIN_ROUTE'];
@@ -674,16 +680,22 @@ final class OriginPinInstallCoordinator
      */
     private function webClassProof(string $label):array
     {
-        $this->cleanupRecorded();FreshnessProbe::assertNoLeftover($this->active().'/public');$classes=$this->newClassFiles();
+        $classes=$this->newClassFiles();$values=[];
         if($classes===[])throw new RuntimeException('WEB_CLASS_PROOF_NO_CLASSES');
-        $plan=OriginPinLoadProbe::plan($this->state['id'],$classes);$staging=$this->state['private'].'/probe-'.bin2hex(random_bytes(8)).'.staging';
-        $this->state['probes'][]=['name'=>$plan['name'],'sha256'=>$plan['sha256'],'label'=>$label,'staging'=>$staging];$this->persist();
-        try{FreshnessProbe::write($this->active().'/public/'.$plan['name'],$plan['source'],$staging);$response=$this->web->probe($plan['name'],$plan['token'],false,null);}finally{$this->cleanupRecorded();}
-        $route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);
-        $a=OriginPinLoadProbe::assess($response,$this->state['id'],$classes,$this->allowedSapis,posix_geteuid());
-        $this->emit('WEB_CLASS_LOAD_PROOF',['label'=>$label,'route'=>$route,'gates'=>array_map(static fn($c)=>$c??'PASS',$a['gates'])]+$a['values']+['probeRemoved'=>true,'failures'=>$a['failures']]);
-        if($a['failures']!==[])throw new RuntimeException($a['failures'][0]);
-        $this->state['webClassProof']=['label'=>$label,'at'=>time(),'classes'=>array_keys($classes)];$this->persist();return $a['values'];
+        // WEB_PROOF_REQUESTS separate probe requests (each its own token-gated file), ALL must pass: the classes load and come from the payload files, and the web
+        // worker's own app.url (read the way Laravel reads it, nothing booted) is exactly the pinned origin. A failure stops the install BEFORE bootstrap/app.php.
+        for($i=1;$i<=self::WEB_PROOF_REQUESTS;$i++){
+            $this->cleanupRecorded();FreshnessProbe::assertNoLeftover($this->active().'/public');
+            $plan=OriginPinLoadProbe::plan($this->state['id'],$classes,$this->expectedAppUrl);$staging=$this->state['private'].'/probe-'.bin2hex(random_bytes(8)).'.staging';
+            $this->state['probes'][]=['name'=>$plan['name'],'sha256'=>$plan['sha256'],'label'=>$label.'-'.$i,'staging'=>$staging];$this->persist();
+            try{FreshnessProbe::write($this->active().'/public/'.$plan['name'],$plan['source'],$staging);$response=$this->web->probe($plan['name'],$plan['token'],false,null);}finally{$this->cleanupRecorded();}
+            $route=is_string($response['_route']??null)?$response['_route']:'UNKNOWN';unset($response['_route']);
+            $a=OriginPinLoadProbe::assess($response,$this->state['id'],$classes,$this->allowedSapis,posix_geteuid());
+            $this->emit('WEB_CLASS_LOAD_PROOF',['label'=>$label,'request'=>$i,'of'=>self::WEB_PROOF_REQUESTS,'route'=>$route,'gates'=>array_map(static fn($c)=>$c??'PASS',$a['gates'])]+$a['values']+['probeRemoved'=>true,'failures'=>$a['failures']]);
+            if($a['failures']!==[])throw new RuntimeException($a['failures'][0]);
+            $values=$a['values'];
+        }
+        $this->state['webClassProof']=['label'=>$label,'at'=>time(),'requests'=>self::WEB_PROOF_REQUESTS,'classes'=>array_keys($classes)];$this->persist();return $values;
     }
 
     /**
@@ -777,7 +789,7 @@ final class OriginPinInstallCoordinator
      */
     private function requiredWindowSeconds(int $holdSeconds):int
     {
-        return max(1800,5*$holdSeconds+2*$this->smokeCapSeconds()+14*$this->groupPause()+7*self::LIVENESS_SECONDS+300);
+        return max(1800,5*$holdSeconds+2*$this->smokeCapSeconds()+14*$this->groupPause()+7*self::LIVENESS_SECONDS+self::WEB_PROOF_REQUESTS*self::WEB_PROOF_SECONDS+300);
     }
 
     /**
@@ -797,6 +809,12 @@ final class OriginPinInstallCoordinator
         $one('/up','/up','GET',200,false);$one('/login','/login','GET',200,false);$one('/pravne-informacije','/pravne-informacije','GET',200,true);
         if($shop['open']){$c=$one('/katalog','/katalog','GET',200,true);$p=$c!==null&&$c['status']===200?MediaWeb::productPath($c['body']):null;if($p!==null)$one('PRODUCT_PAGE_FIRST_CATALOG_LINK',$p,'GET',200,true);}
         $one('GET /tema',self::THEME_PATH,'GET',405,false);
+        // Right after bootstrap/app.php (group D) the origin pin itself is asserted at once: the guest redirect must be on the pinned origin (https here, relative accepted).
+        // A wrong origin fails like a 5xx and rolls bootstrap/app.php back first; a 429 stays inconclusive.
+        if($after===self::BOOTSTRAP_GROUP){
+            $r=$one('ORIGIN_PIN_'.self::SMTP_PATH,self::SMTP_PATH,'GET',302,false);
+            if($r!==null&&!in_array(self::locationKind((string)($r['location']??''),$this->expectedAppUrl),['PINNED_ORIGIN','RELATIVE'],true)){$failed[]='ORIGIN_PIN_LOCATION';$rows[]=['check'=>'ORIGIN_PIN_LOCATION','observed'=>self::locationKind((string)($r['location']??''),$this->expectedAppUrl),'result'=>'FAIL'];}
+        }
         $judged=$failed;if($failed!==[]){try{if($this->shop()!==$shop)$judged=[];}catch(Throwable){$judged=[];}}
         $this->emit('GROUP_LIVENESS_SMOKE',['after'=>$after,'shop'=>$shop,'rows'=>$rows,'failed'=>$judged,'rateLimited'=>$limited,'assertions'=>'LIVENESS_ONLY_NO_NEW_FEATURE']);
         if($judged!==[])throw new RuntimeException('GROUP_SMOKE_FAILED_AFTER_'.$after);
@@ -1152,7 +1170,7 @@ final class OriginPinInstallCoordinator
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id'])&&$v['caches']!==null){$web=$try('webProbe',fn()=>$this->probeRun('preflight-'.$stage,$installed,false,false,true));$v['web']=$web;if($web!==null&&$web['failures']!==[])$g['webProbe']=$web['failures'][0];}else $g['webProbe']='NOT_EVALUATED_TARGETS';
         if(isset($v['web']['holdSeconds'])){
             $this->state['groupPauseSeconds']=(int)($v['web']['revalidateFreq']??2)+1;
-            $need=$this->requiredWindowSeconds((int)$v['web']['holdSeconds']);$v['timeBound']=['holdSeconds'=>(int)$v['web']['holdSeconds'],'groupPauseSeconds'=>$this->groupPause(),'smokeCapSeconds'=>$this->smokeCapSeconds(),'requiredWindowSeconds'=>$need,'rule'=>'5*HOLD+2*SMOKE_CAP+14*PAUSE+300<=WINDOW'];
+            $need=$this->requiredWindowSeconds((int)$v['web']['holdSeconds']);$v['timeBound']=['holdSeconds'=>(int)$v['web']['holdSeconds'],'groupPauseSeconds'=>$this->groupPause(),'smokeCapSeconds'=>$this->smokeCapSeconds(),'requiredWindowSeconds'=>$need,'rule'=>'5*HOLD+2*SMOKE_CAP+14*PAUSE+7*LIVENESS(180)+5*WEB_PROOF(30)+300<=WINDOW'];
             $this->scheduleNeedSeconds=max($this->scheduleNeedSeconds,$need);
             if($this->scheduleGate&&$app!==null){$s=$try('scheduleWindowFitsTimeBound',fn()=>$this->scheduleState($app));$v['scheduleTimeBound']=$s;if($s!==null&&$s['conflict']!==null)$g['scheduleWindowFitsTimeBound']='SCHEDULED_BACKUP_WITHIN_THE_'.$need.'_SECONDS_THIS_RUN_MAY_NEED';}
         }else $g['timeBound']='NOT_EVALUATED_WEB_PROBE';
@@ -1434,7 +1452,7 @@ final class OriginPinInstallCoordinator
     private function finish(string $final):int
     {
         $new=count(array_filter($this->plan,static fn($s)=>$s['kind']==='new'));
-        $this->final=$final;$this->emit('B1152_RESULT',['overlay'=>'APP_URL_ORIGIN_PIN_AND_PDF_LOGO_RASTER_GUARD_'.count($this->plan).'_FILES','baseCommit'=>self::BASE_COMMIT,'mainCommit'=>self::MAIN_COMMIT,'urlCommit'=>self::URL_COMMIT,'pdfCommit'=>self::PDF_COMMIT,'newFiles'=>$new,'modifiedFiles'=>count($this->plan)-$new,'appUrl'=>'EXACTLY_'.$this->expectedAppUrl.'_VERIFIED_BEFORE_ANY_CHANGE','newRoutes'=>'NONE_ROUTE_COUNT_'.$this->expectedRoutes.'_UNCHANGED','passwordEndpoints'=>'NEVER_CALLED_NO_LOGIN','passwordReset'=>'NEVER_REQUESTED_NO_MAIL_SENT','pdfGeneration'=>'NOT_EXERCISED','tests'=>'NOT_INSTALLED','shopSwitch'=>'READ_ONLY_NOT_WRITTEN','smtpSettings'=>'NOT_READ_NOT_WRITTEN_NO_TEST_MAIL_ONLY_A_TRANSPORT_FINGERPRINT','routeCache'=>'NONE','migrations'=>'NONE','composer'=>'NONE','env'=>'UNCHANGED','config'=>'UNCHANGED','queue'=>'RESTARTED_VIA_ARTISAN_queue:restart','opcache'=>'TARGETED_PER_FILE_INVALIDATION_ONLY','backupDirectory'=>$this->state['backup']['directory']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE']);
+        $this->final=$final;$this->emit('B1152_RESULT',['overlay'=>'APP_URL_ORIGIN_PIN_AND_PDF_LOGO_RASTER_GUARD_'.count($this->plan).'_FILES','baseCommit'=>self::BASE_COMMIT,'mainCommit'=>self::MAIN_COMMIT,'urlCommit'=>self::URL_COMMIT,'pdfCommit'=>self::PDF_COMMIT,'newFiles'=>$new,'modifiedFiles'=>count($this->plan)-$new,'appUrl'=>'EXACTLY_'.$this->expectedAppUrl.'_VERIFIED_BEFORE_ANY_CHANGE','newRoutes'=>'NONE_ROUTE_COUNT_'.$this->expectedRoutes.'_UNCHANGED','legalEmailCheck'=>'INFO_ONLY_IN_THIS_TOOL_NO_LAYOUT_OR_LEGAL_FILE_IS_IN_THE_PAYLOAD','passwordEndpoints'=>'NEVER_CALLED_NO_LOGIN','passwordReset'=>'NEVER_REQUESTED_NO_MAIL_SENT','pdfGeneration'=>'NOT_EXERCISED','tests'=>'NOT_INSTALLED','shopSwitch'=>'READ_ONLY_NOT_WRITTEN','smtpSettings'=>'NOT_READ_NOT_WRITTEN_NO_TEST_MAIL_ONLY_A_TRANSPORT_FINGERPRINT','routeCache'=>'NONE','migrations'=>'NONE','composer'=>'NONE','env'=>'UNCHANGED','config'=>'UNCHANGED','queue'=>'RESTARTED_VIA_ARTISAN_queue:restart','opcache'=>'TARGETED_PER_FILE_INVALIDATION_ONLY','backupDirectory'=>$this->state['backup']['directory']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE']);
         $this->cssNotice();
         $this->emit('OWNER_NEXT_STEPS',array_merge([$this->purgeStep(),
             '2_LOG_IN_ON_THE_WEB_AND_IN_THE_ANDROID_APP_AND_CHECK_THAT_YOU_STAY_ON_'.parse_url($this->expectedAppUrl,PHP_URL_HOST).'_(THIS_TOOL_NEVER_LOGS_IN)',

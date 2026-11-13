@@ -378,7 +378,8 @@ $bootFile=$active.'/'.$bootStep['path'];$bootOrig=(string)file_get_contents($boo
 // Everything before the deliberate control (the whole B1146-B1151 replay and every case above) must have left no fatal error in the web server log.
 check(substr_count((string)file_get_contents($base.'/server.log'),'PHP Fatal error')===0,'NO_FATAL_IN_THE_SERVER_LOG_BEFORE_THE_DELIBERATE_CONTROL');check(hash('sha256',$bootOrig)===$bootStep['preSHA256'],'BOOTSTRAP_IS_THE_PRE_STATE_BEFORE_THE_CONTROLS');
 // (a) the new bootstrap/app.php with NO class in the tree: the helper sees it, and the web server really answers 500 (so the control can fail), then it is put back.
-file_put_contents($bootFile,(string)file_get_contents($bootStep['payload']));sleep(5);$fa=$helperFeatures();$upBad=$status('/up');$loginBad=$status('/login');file_put_contents($bootFile,$bootOrig);sleep(5);
+// The waits cover the realpath cache TTL of the test server (10 s) plus the OPcache revalidation (2 s): the same measured hold the tool itself uses (15 s).
+file_put_contents($bootFile,(string)file_get_contents($bootStep['payload']));sleep(16);$fa=$helperFeatures();$upBad=$status('/up');$loginBad=$status('/login');file_put_contents($bootFile,$bootOrig);sleep(16);
 check($fa['bootstrapNamesPin']===true&&$fa['middlewareGlobal']===true&&$fa['newClassesLoaded']===0&&$fa['originConfiguredIsExpected']===false,'WRONG_ORDER_BOOTSTRAP_BEFORE_THE_CLASSES_SEEN_BY_THE_HELPER:'.json_encode($fa));
 check($upBad===500&&$loginBad===500,'WRONG_ORDER_BOOTSTRAP_BEFORE_THE_CLASSES_IS_A_REAL_500_ON_UP_AND_LOGIN:'.json_encode([$upBad,$loginBad]));
 check(hash_file('sha256',$bootFile)===$bootStep['preSHA256']&&$status('/up')===200&&$status('/login')===200,'WRONG_ORDER_CONTROL_RESTORED');
@@ -398,6 +399,17 @@ foreach(['removeClass'=>'BOOTSTRAP_REFUSED_A_NEW_CLASS_IS_NOT_IN_PLACE','clearPr
     check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"'.$code.'"'&&!str_contains($o,'OVERLAY_STEP={"n":'.$bootStep['n'].',')&&lastRaw($o,'B1152_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&hash_file('sha256',$bootFile)===$bootStep['preSHA256']&&$stateOf($bootStep)==='pre','BOOTSTRAP_REFUSED_'.$action.':'.substr($o,-600));
     $reset();
 }
+// (e) The web worker sees a different app.url than the CLI (the CLI preflight passed; the .env changes after step 8, as a server-level variable could differ): the
+// five-request web proof refuses, bootstrap/app.php is NEVER written and A to C are restored. The exact APP_URL is put back when the rollback starts.
+[$rc,$o]=$run(['AFTER_STEP_'.$logoSteps[count($logoSteps)-1]['n']=>['appUrlHttp'],'SAVED_ROLLBACK_INTENT'=>['appUrlRestore']]);$wp=lastLine($o,'WEB_CLASS_LOAD_PROOF');
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"LOAD_PROBE_APP_URL_NOT_THE_PINNED_ORIGIN"'&&is_array($wp)&&$wp['request']===1&&$wp['webAppUrlExact']===false&&$wp['webAppUrlOrigin']==='http://cms.ald1n.com'&&in_array('LOAD_PROBE_APP_URL_NOT_THE_PINNED_ORIGIN',$wp['failures'],true)&&!str_contains($o,'OVERLAY_STEP={"n":'.$bootStep['n'].',')&&lastRaw($o,'B1152_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&hash_file('sha256',$bootFile)===$bootStep['preSHA256'],'WEB_SIDE_APP_URL_MISMATCH_STOPS_BEFORE_BOOTSTRAP_AND_RESTORES:'.substr($o,-500));
+check(!str_contains($o,'wrong-origin.invalid'),'NO_MISMATCHING_VALUE_IN_THE_REPORT');$reset();
+// (f) Right after bootstrap/app.php the pin points at a WRONG origin (every other check is fine: /up and /login answer 200): the origin assertion of the liveness smoke
+// fails like a 5xx and bootstrap/app.php is the first file restored.
+[$rc,$o]=$run(['GROUP_DONE_D'=>['appUrlWrong'],'SAVED_ROLLBACK_INTENT'=>['appUrlRestore']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');$lastLive=end($ls);$liveRows=[];foreach($lastLive['rows'] as $r)$liveRows[$r['check']]=$r['result']??null;
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_D"'&&$lastLive['after']==='D'&&in_array('ORIGIN_PIN_LOCATION',$lastLive['failed'],true)&&($liveRows['/up']??null)==='PASS'&&($liveRows['/login']??null)==='PASS'&&str_contains($o,'ROLLBACK_AFTER_BOOTSTRAP={"bootstrapIsOld":true}')&&lastRaw($o,'B1152_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&hash_file('sha256',$bootFile)===$bootStep['preSHA256'],'WRONG_ORIGIN_RIGHT_AFTER_BOOTSTRAP_ROLLED_BACK_BOOTSTRAP_FIRST:'.json_encode([$lastLive['failed'],$liveRows]));
+check(!str_contains($o,'wrong-origin.invalid'),'NO_WRONG_ORIGIN_VALUE_IN_THE_REPORT');$reset();
+$results['webAppUrlMismatch']='STOPPED_BEFORE_BOOTSTRAP_A_TO_C_RESTORED';$results['wrongOriginAfterBootstrap']='ROLLED_BACK_BOOTSTRAP_FIRST';
 $results['orderControls']=['bootstrapBeforeClasses'=>'SEEN_BY_THE_HELPER_AND_A_REAL_500_THEN_RESTORED','oneClassAlone'=>'NOT_THE_PAIR','classesAlone'=>'HARMLESS_LOAD_AND_ANSWER','coordinatorRefusesWithAMissingClass'=>'HOLD_ROLLED_BACK_NEVER_WRITTEN','coordinatorRefusesWithoutTheWebProof'=>'HOLD_ROLLED_BACK_NEVER_WRITTEN'];
 
 // 12. Install with a smoke after every step and every group boundary.
@@ -431,6 +443,7 @@ $pauses=allLines($o,'OVERLAY_GROUP_PAUSE');$live=allLines($o,'GROUP_LIVENESS_SMO
 $pHold=strpos($o,'"label":"before-bootstrap"');$pProof=strpos($o,'WEB_CLASS_LOAD_PROOF=');$pLiveC=strpos($o,'GROUP_LIVENESS_SMOKE={"after":"C"');
 check($holdsInstall===['before-bootstrap']&&$pHold>$posOf(8)&&$pHold<$posOf(9)&&$pProof>$pHold&&$pProof<$posOf(9)&&$pLiveC>$pProof&&$pLiveC<$posOf(9)&&implode(',',array_map(static fn($x)=>$x['after'].'>'.$x['before'],$pauses))==='A>B,B>C,D>ACCEPTANCE'&&implode(',',array_column($live,'after'))==='A,B,C,D'&&array_filter($live,static fn($x)=>$x['failed']!==[])===[],'ONE_FULL_HOLD_BEFORE_BOOTSTRAP_THEN_THE_WEB_PROOF_THEN_THE_C_SMOKE_THEN_D_PAUSES_ELSEWHERE:'.json_encode([$holdsInstall,$pauses]));
 // The proof as emitted: both classes loaded in the WEB SAPI (the cli-server of the fixture), through the autoloader, from the payload files.
+check(preg_match_all('/^WEB_CLASS_LOAD_PROOF=/m',$o)===5&&count(array_filter(allLines($o,'WEB_CLASS_LOAD_PROOF'),static fn($x)=>$x['failures']===[]&&$x['webAppUrlExact']===true&&$x['webAppUrlOrigin']==='https://cms.ald1n.com'))===5,'FIVE_WEB_PROOF_REQUESTS_ALL_PASS_AND_THE_WEB_APP_URL_IS_THE_PINNED_ORIGIN');
 $wp=lastLine($o,'WEB_CLASS_LOAD_PROOF');check(is_array($wp)&&$wp['label']==='before-bootstrap'&&$wp['classes']===2&&$wp['classesLoadedInTheWebSapi']===2&&$wp['classesFromThePayloadFile']===2&&$wp['autoloaded']===true&&$wp['sapi']==='cli-server'&&$wp['webEuidIsOperator']===true&&$wp['failures']===[]&&$wp['probeRemoved']===true&&!str_contains(json_encode($wp),'/home/'),'WEB_SAPI_CLASS_PROOF_PASSED:'.json_encode($wp));
 // The hold really elapsed between the last C file (and so group A) and D: wall time between the smoke after step 2 (A) and the smoke after step 9 is at least the measured hold.
 $pfl=allLines($o,'PREFLIGHT')[0];$measured=(int)$pfl['values']['web']['holdSeconds'];$tAt=static function(string $pt)use($rows):float{foreach($rows as $r)if($r['point']===$pt)return (float)$r['t'];throw new RuntimeException('B1152_FIXTURE_NO_POINT_'.$pt);};

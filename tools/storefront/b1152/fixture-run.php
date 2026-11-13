@@ -38,6 +38,9 @@ $corrupt=static function()use($cfg):void{$p=json_decode((string)file_get_content
 $mailChange=static function()use($cfg):void{$env=$cfg['home'].'/.ald1n-b1134-retained/'.str_repeat('d',32).'/retained/.env';$t=(string)file_get_contents($env);file_put_contents($env,str_replace('MAIL_MAILER=array','MAIL_MAILER=log',$t));};
 // Negative controls of the order guard: the second new class (the middleware) vanishes right before bootstrap/app.php, or the proof of this run is forgotten.
 $removeClass=static function()use($active):void{$f=$active.'/app/Http/Middleware/PinAppUrlOrigin.php';if(!is_file($f)||!unlink($f))throw new RuntimeException('FIXTURE_REMOVE_CLASS');};
+// APP_URL of the retained .env, as the web worker AND the CLI read it: a different http origin (a web-side mismatch after the CLI preflight), a wrong https origin
+// (the pin would then point every redirect at it), and the restore of the exact fixture value (the rollback verification needs the real APP_URL again).
+$setAppUrl=static function(string $value)use($cfg):void{$env=$cfg['home'].'/.ald1n-b1134-retained/'.str_repeat('d',32).'/retained/.env';$t=(string)file_get_contents($env);$n=preg_replace('/^APP_URL=.*$/m','APP_URL='.$value,$t,-1,$c);if($c!==1||!is_string($n))throw new RuntimeException('FIXTURE_APP_URL_LINE');file_put_contents($env,$n);};
 $clearProof=static function()use($o):void{$p=new ReflectionProperty($o,'state');$st=$p->getValue($o);unset($st['webClassProof']);$p->setValue($o,$st);};
 // Far below the browse throttle (120/min): at most one throttled GET per step point, the full set at group points. Records the
 // anonymous statuses, a timestamp (taken first, right after the tree change the fault point follows), the logo URL taken from the catalog page, the guest admin
@@ -63,7 +66,7 @@ $stepSmoke=static function(string $point)use($cfg,$edgeWeb):void{
     file_put_contents($cfg['stepLog'],json_encode($row,JSON_UNESCAPED_SLASHES)."\n",FILE_APPEND);
 };
 $sw=$cfg['switches'];
-$set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$corrupt,$shopOff,$mailChange,$removeClass,$clearProof,$sw):void{
+$set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$corrupt,$shopOff,$mailChange,$removeClass,$clearProof,$setAppUrl,$sw):void{
     foreach((array)($actions[$point]??[]) as $action){
         file_put_contents($cfg['faultLog'],$point.' '.$action."\n",FILE_APPEND);
         match($action){
@@ -76,6 +79,9 @@ $set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$c
             'mailChange'=>$mailChange(),
             'removeClass'=>$removeClass(),
             'clearProof'=>$clearProof(),
+            'appUrlHttp'=>$setAppUrl('http://cms.ald1n.com'),
+            'appUrlWrong'=>$setAppUrl('https://wrong-origin.invalid'),
+            'appUrlRestore'=>$setAppUrl('https://cms.ald1n.com'),
             'dropCsp','dropJsonLd','dropVaryEdge','dropVaryAll','noHtaccess','rogueScript','edgeKeepsEmailOff'=>touch($sw[$action]),
             'rateLimit2'=>file_put_contents($sw['rate429'],'2'),
             'rateLimitAlways'=>file_put_contents($sw['rate429'],'ALWAYS'),

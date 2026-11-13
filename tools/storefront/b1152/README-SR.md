@@ -54,14 +54,19 @@ nove klase mogu učitati, svaki zahtev bi bio 500, i `/up` takođe. Zato:
 1. Prvo idu obe klase (A). Dok `bootstrap/app.php` ne bude zamenjen, niko ih ne poziva.
 2. Zatim B i C, pa puno čekanje od 125 s (izmereno: `max(realpath_cache_ttl, revalidate_freq) + 5`).
    Čekanje se računa od poslednje izmene u stablu, pa uvek obuhvata i grupu A.
-3. Posle čekanja privremena probna stranica, koju servira **veb SAPI** (ne CLI), učitava obe klase
-   kroz isti composer autoloader koji koristi aplikacija i javlja iz kog fajla su došle i koji im je
-   SHA-256. Probna stranica ima token u zaglavlju, radi samo za GET, proverava Host, ističe i odmah se
+3. Posle čekanja pet puta zaredom (svaki zahtev mora da prođe) privremena probna stranica, koju servira
+   **veb SAPI** (ne CLI), učitava obe klase kroz isti composer autoloader koji koristi aplikacija i javlja
+   iz kog fajla su došle i koji im je SHA-256. Ista stranica čita `APP_URL` onako kako ga čita Laravel
+   (vrednost iz okruženja servera ima prednost, inače prva linija `APP_URL` iz `.env`), bez podizanja
+   aplikacije, i javlja samo da li je tačno `https://cms.ald1n.com` i origin (bez putanje i podataka za
+   prijavu). Ako veb radnik vidi drugačiju vrednost nego CLI, staje se pre `bootstrap/app.php` i vraćaju se
+   A do C. Probna stranica ima token u zaglavlju, radi samo za GET, proverava Host, ističe i odmah se
    briše. Ništa ne poziva i ne podiže aplikaciju.
 4. Tek tada se piše `bootstrap/app.php`. Koordinator odbija taj korak ako neka nova klasa nije tačno
    na svom mestu ili ako dokaz iz tačke 3 nije prošao u ovom pokretanju.
 5. Posle D ide jedna pauza da veb radnici osveže fajl, pa odmah smoke (`/up`, `/login`, jedna pravna
-   stranica, `/katalog`, `GET /tema` 405). Ako padne, prvi se vraća `bootstrap/app.php`, pre bilo
+   stranica, `/katalog`, `GET /tema` 405) i odmah provera pina: gost na `/admin/settings/smtp` mora dobiti
+   `Location` na `https://cms.ald1n.com/login`. Pogrešan origin pada kao 5xx. Ako padne, prvi se vraća `bootstrap/app.php`, pre bilo
    čega drugog. Tek posle toga idu `route:clear`, `view:clear` i `queue:restart`.
 
 Vraćanje ide obrnuto: prvo `bootstrap/app.php`, puno čekanje, pa C, pauza, pa B, puno čekanje, pa
@@ -126,7 +131,8 @@ moraju da budu tačno oni digesti koje su recenzenti potvrdili. Inače se paket 
 ### Prozor i trajanje
 
 Skripta računa potreban prozor po pravilu `5 x čekanje + 2 x smoke + 14 x pauza + 7 x provera
-života + 300 s`, nikad manje od 30 minuta. Sa čekanjem od 125 s to je oko 40 minuta bez backup-a.
+života (do 180 s svaka, za server koji visi) + 5 x probni zahtev (do 30 s) + 300 s`, nikad manje od
+30 minuta. Sa čekanjem od 125 s to je oko 40 minuta bez backup-a.
 Tačnu vrednost pročitajte u `PREFLIGHT` izveštaju, polje `timeBound.requiredWindowSeconds`. Ako
 backup upada u prozor, skripta staje pre prve izmene.
 
@@ -186,7 +192,9 @@ krajnje tačke za lozinku.
   tačno `https://cms.ald1n.com/login`. Apsolutna adresa na bilo kom drugom hostu obara proveru. U
   starom stanju prihvatamo i pravi host sa običnim `http`, jer stari kod prati šemu zahteva.
 - Novo: ako forma za prijavu ima apsolutni `action`, mora biti na tom originu.
-- Red `LEGAL_EMAIL_STATE` je samo informacija: broj ostataka Cloudflare obfuskacije na pravnim
+- Red `LEGAL_EMAIL_STATE` je samo informacija i u ovom alatu nikad ne obara instalaciju: u paketu nema
+  nijednog fajla izgleda ni pravnog teksta, pa B1151 provera e-maila ovde ne može da se promeni.
+  U izveštaju to piše i u redu `B1152_RESULT` (`legalEmailCheck`). Brojimo ostatke Cloudflare obfuskacije na pravnim
   stranicama treba da bude isti kao pre instalacije (izgled i pravni tekst nisu u paketu).
 - Posle instalacije: `app:product-media-doctor` vraća kod 0, nema novih grešaka u `laravel.log`,
   prekidač prodavnice je nepromenjen, odobrenje trgovca je nepromenjeno, status mail transporta je
