@@ -26,7 +26,9 @@ final class ResetPasswordNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $url = route('password.reset', ['token' => $this->token]);
+        // Reset bearer links must never inherit an untrusted Host header.
+        $url = rtrim((string) config('app.url'), '/')
+            .route('password.reset', ['token' => $this->token], false);
         $mobileUrl = 'ald1n://reset-password?token='.rawurlencode($this->token);
         $name = method_exists($notifiable, 'displayName')
             ? $notifiable->displayName()

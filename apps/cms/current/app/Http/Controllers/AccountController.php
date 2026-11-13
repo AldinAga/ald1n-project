@@ -113,7 +113,7 @@ final class AccountController extends Controller
     public function password(Request $request, AuditLogger $audit, PortalSessionService $sessions, PasswordChangeThrottle $throttle): RedirectResponse
     {
         $data = $request->validate([
-            'current_password' => ['required', 'string'],
+            'current_password' => ['required', 'string', 'max:4096'],
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
         ]);
         $user = $request->user();
