@@ -121,9 +121,10 @@ final class PasswordResetTest extends TestCase
             'X-Forwarded-Host' => 'evil-forwarded.example',
         ])->assertRedirect()->assertSessionHas('status');
 
-        // Control: the forged host really became the request root, so a plain
-        // route() call would have produced an attacker-controlled origin.
-        self::assertStringStartsWith('http://evil.example/', route('password.reset', ['token' => 'probe']));
+        // Control: the forged host really became the request root. Generated
+        // URLs are pinned to APP_URL by PinAppUrlOrigin, so the request itself
+        // is the place to observe the forged origin.
+        self::assertSame('http://evil.example', request()->root());
 
         $mailed = null;
         $token = null;

@@ -6,6 +6,7 @@ use App\Http\Middleware\AttachRequestId;
 use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsureRuntimeDirectories;
 use App\Http\Middleware\EnsureTrackedPortalSession;
+use App\Http\Middleware\PinAppUrlOrigin;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\PublicNoScriptCsp;
 use App\Http\Middleware\SecurityHeaders;
@@ -34,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(EnsureRuntimeDirectories::class);
         $middleware->prepend(AttachRequestId::class);
+        // Absolute URLs take their origin from APP_URL, not the Host header.
+        $middleware->prepend(PinAppUrlOrigin::class);
         // On response unwind, the global baseline applies first; the
         // audited storefront-only no-script policy narrows it afterwards.
         $middleware->append(PublicNoScriptCsp::class);
