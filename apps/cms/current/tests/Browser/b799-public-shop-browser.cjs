@@ -84,7 +84,9 @@ async function startIndependentServer(){
   // The main Chromium workflow already serves :8124. A different PHP process
   // on :8125 is mandatory: one artisan serve instance is single-threaded.
   const proc=spawn('php',['artisan','serve','--host=127.0.0.1','--port=8125'],{
-    cwd:process.cwd(),env:process.env,detached:true,stdio:'ignore'
+    // Generated URLs are pinned to APP_URL, so the second process must be
+    // configured with its own public origin, exactly like a real deployment.
+    cwd:process.cwd(),env:{...process.env,APP_URL:raceBase},detached:true,stdio:'ignore'
   });
   for(let i=0;i<100;i++){
     if(proc.exitCode!==null)throw new Error('B799_RACE_SECOND_HTTP_PROCESS_EXIT');
