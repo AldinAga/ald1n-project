@@ -1,4 +1,10 @@
-# CURRENT 2026-11-12 — B1151 LEGAL E-MAIL, MERCHANT DRAFT AND PASSWORD THROTTLE INSTALLED (REPORT 1117); B1150 PRODUCT MEDIA ROUTE (1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
+# CURRENT 2026-11-13 — B1152 APP URL ORIGIN PIN AND PDF LOGO RASTER GUARD INSTALLED (REPORT 1118); B1151 LEGAL E-MAIL, MERCHANT DRAFT AND PASSWORD THROTTLE INSTALLED (REPORT 1117); B1150 PRODUCT MEDIA ROUTE (1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
+
+Report1118 (B1152): `B1152_FINAL=PASS_INSTALLED_APP_URL_ORIGIN_PIN_PDF_LOGO_RASTER_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 9 files (2 new, 7 modified): the application URL is pinned to the origin https://cms.ald1n.com, and the PDF logo raster guard and the new classes are loaded. Shop switch, SMTP settings, route count (568), migrations, composer, env and config unchanged. The installer did not call a password endpoint, did not request a reset and did not generate a PDF. Queue restarted. Owner next steps are in the report: log in on the web and in the Android app and check you stay on cms.ald1n.com; request one password reset for your own account and check the link starts with https://cms.ald1n.com; open one PDF document and check the logo. Do not rerun B1144 to B1151. Rollback: `--rollback` (shop may stay on). [Report1118](1118-B1152-INSTALLER-20261113-193458.md)
+
+---
+
+# PREVIOUS 2026-11-12 — B1151 LEGAL E-MAIL, MERCHANT DRAFT AND PASSWORD THROTTLE INSTALLED (REPORT 1117); B1150 PRODUCT MEDIA ROUTE (1116); B1149 ROLLOUT (1115); REPORT 1114 PREFLIGHT HOLD
 
 Report1117 (B1151): `B1151_FINAL=PASS_INSTALLED_LEGAL_EMAIL_MERCHANT_DRAFT_PASSWORD_THROTTLE_SHOP_STATE_UNCHANGED`, EXIT=0. Overlay of 6 files (1 new, 5 modified): legal support e-mail visible, merchant draft kept, password change throttled. Shop switch, SMTP settings, route count (568), migrations, composer, env and config unchanged; no test mail sent and no password endpoint called. Owner next steps are in the report: check a legal page in a private window (support e-mail readable). The password throttle was not exercised by this tool. Rollback: `--rollback` (shop may stay on). [Report1117](1117-B1151-INSTALLER-20261112-222807.md)
 
