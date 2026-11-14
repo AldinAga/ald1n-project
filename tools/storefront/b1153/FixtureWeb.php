@@ -71,7 +71,7 @@ final class LogoCatalogFixtureWeb
             $left=trim((string)file_get_contents($this->switches['rate429']));
             if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->switches['rate429'],(string)((int)$left-1));$h=MediaWeb::headers();$h['retry'][]='3';return $this->applyHtaccess(MediaWeb::result(false,429,$h,'Too Many Attempts.'));}
         }
-        $r=$this->applyHtaccess(self::get($this->port,MediaWeb::target($path,$query,$marker),$headers,null,$method));unset($r['cookies']);
+        $r=$this->applyHtaccess(self::get($this->port,LogoCatalogWeb::target($path,$query,$marker),$headers,null,$method));unset($r['cookies']);
         if($this->on('dropVaryAll')||(!$origin&&$this->on('dropVaryEdge')))$r['vary']=[];
         if($origin)return $r;
         // Production HTML passes the Cloudflare edge, which injects its e-mail decoder and its JavaScript-detections loader and

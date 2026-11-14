@@ -290,7 +290,7 @@ final class LogoCatalogInstallCoordinator
         if($ignoreSchedule&&$mode!=='rollback')throw new RuntimeException('OPERATOR_SCHEDULE_OVERRIDE');
         if($root!=='/home/icaffeco/ald1n-project'||$home!=='/home/icaffeco'||realpath($root)!==$root||realpath($home)!==$home||!function_exists('posix_geteuid')||!extension_loaded('curl')||PHP_VERSION_ID<80401||PHP_VERSION_ID>=80500)throw new RuntimeException('HOST_PROFILE');
         $this->base=$home.'/.ald1n-b1153-state';$this->pointer=$this->base.'/current.json';$this->stage=$home.'/.ald1n-stage/b1131-ef3f927.6hh7mU';$this->b1146Base=$home.'/.ald1n-b1146-state';$this->b1147Base=$home.'/.ald1n-b1147-state';$this->b1148Base=$home.'/.ald1n-b1148-state';$this->b1149Base=$home.'/.ald1n-b1149-state';$this->b1150Base=$home.'/.ald1n-b1150-state';$this->b1151Base=$home.'/.ald1n-b1151-state';$this->b1152Base=$home.'/.ald1n-b1152-state';
-        $this->appStateScript=$incoming.'/b1145-app-state.php';$this->routesScript=$incoming.'/b1146-app-check.php';$this->featureScript=$incoming.'/b1153-app-check.php';$this->web=new MediaWeb();
+        $this->appStateScript=$incoming.'/b1145-app-state.php';$this->routesScript=$incoming.'/b1146-app-check.php';$this->featureScript=$incoming.'/b1153-app-check.php';$this->web=new LogoCatalogWeb();
         $this->load($package,$incoming);putenv('GIT_OPTIONAL_LOCKS=0');
         if(!in_array($mode,['install','rollback'],true))throw new RuntimeException('OPERATOR_MODE');
     }
@@ -1702,4 +1702,42 @@ final class LogoCatalogFiles
     {
         clearstatcache(true,$target);if(is_link($target)||!is_file($target)||hash_file('sha256',$target)!==$sha256)throw new RuntimeException('OVERLAY_REMOVE_FOREIGN_CONTENT');if(!unlink($target))throw new RuntimeException('OVERLAY_REMOVE');self::syncDirectory(dirname($target));
     }
+}
+
+/**
+ * The HTTP client of B1153: the pinned B1150 client (MediaWeb) for every request, plus the two catalog layout queries per_page and view, which its
+ * allowlist (sort, page, v, s) refuses. Only GET and HEAD, only /katalog, per_page only digits and view only lowercase letters, the release marker is
+ * always sent, no redirect is followed, nothing is ever sent but a request line and the pinned headers; the same host, TLS options and body limit as MediaWeb.
+ * The path, the marker and the rest of the query are still judged by MediaWeb::target.
+ */
+final class LogoCatalogWeb
+{
+    private MediaWeb $inner;
+    public function __construct(){$this->inner=new MediaWeb();}
+
+    private static function extra(array $query):array {return array_intersect_key($query,['per_page'=>1,'view'=>1]);}
+
+    public static function target(string $path,array $query,?string $marker):string
+    {
+        $extra=self::extra($query);if($extra===[])return MediaWeb::target($path,$query,$marker);$rest=array_diff_key($query,$extra);
+        if($path!=='/katalog'||$marker===null)throw new RuntimeException('SMOKE_QUERY_CATALOG_LAYOUT_ONLY');
+        foreach($extra as $k=>$v)if(!is_string($v)||preg_match($k==='per_page'?'/^[0-9]{1,4}$/D':'/^[a-z]{1,10}$/D',$v)!==1)throw new RuntimeException('SMOKE_QUERY');
+        MediaWeb::target($path,$rest,$marker);
+        return $path.'?'.http_build_query($rest+$extra+['ald1n_release_check'=>$marker],'','&',PHP_QUERY_RFC3986);
+    }
+
+    public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false,array $headers=[]):array
+    {
+        if(self::extra($query)===[])return $this->inner->fetch($path,$query,$marker,$method,$origin,$headers);
+        if(!in_array($method,['GET','HEAD'],true))throw new RuntimeException('SMOKE_METHOD');if($origin||$headers!==[])throw new RuntimeException('SMOKE_CATALOG_LAYOUT_PLAIN_GET_ONLY');
+        $target=self::target($path,$query,$marker);$h=MediaWeb::headers();$body='';$over=false;
+        $curl=curl_init('https://cms.ald1n.com'.$target);
+        curl_setopt_array($curl,[CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>25,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_NOPROXY=>'*',CURLOPT_USERAGENT=>'Ald1n-B1153-owned-release',CURLOPT_HTTPHEADER=>['Host: cms.ald1n.com','Cache-Control: no-cache'],
+            CURLOPT_HEADERFUNCTION=>static function($c,string $line)use(&$h):int{MediaWeb::header($h,$line);if(preg_match('/^CF-RAY:/i',$line))$h['cfRay']=true;return strlen($line);},
+            CURLOPT_WRITEFUNCTION=>static function($c,string $chunk)use(&$body,&$over):int{if(strlen($body)+strlen($chunk)>MediaWeb::MAX_BODY){$over=true;return 0;}$body.=$chunk;return strlen($chunk);}]+($method==='HEAD'?[CURLOPT_NOBODY=>true]:[]));
+        curl_exec($curl);$status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE);$error=curl_errno($curl);curl_close($curl);
+        return MediaWeb::result($error!==0||$over,$status,$h,$body);
+    }
+
+    public function probe(string $name,string $token,bool $invalidate,?string $route=null):array {return $this->inner->probe($name,$token,$invalidate,$route);}
 }

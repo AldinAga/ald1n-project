@@ -191,7 +191,9 @@ pre i posle, a živi `php artisan app:product-media-doctor` i dalje mora da pro�
 ## Smoke
 
 Pun smoke ne zahteva prijavu, koristi samo GET i jedan HEAD. Nikad ne šaljemo formu i ne zovemo
-krajnje tačke za lozinku. Novo u odnosu na B1152:
+krajnje tačke za lozinku. Zakačeni klijent iz B1150 ne dozvoljava upite `per_page` i `view`, pa za njih
+postoji mala dodatna klasa u koordinatoru: isti host i TLS, samo GET i HEAD, samo `/katalog`, `per_page` samo cifre,
+`view` samo mala slova. Novo u odnosu na B1152:
 
 - `/up` 200, stranica za prijavu 200.
 - `/katalog` 200. U novom stanju sadrži formu `shop-perpage` i prekidač `shop-view-group`, u starom ih
