@@ -1,0 +1,183 @@
+# Admin visual QA harness and baseline (NO DEPLOY). Author: Ald1n <https://ald1n.com>
+# Renders the real admin pages of every module in disposable Chromium and WebKit at
+# 375/430/768/1280, light and dark, against synthetic data on disposable MariaDB.
+# Records contrast / overflow / structural violations as admin-visual-baseline.json
+# (never fails on them) and fails only on infrastructure problems. Strict mode:
+# set ADMIN_VISUAL_STRICT=1 or ADMIN_VISUAL_STRICT_MODULES=orders,reports in this job's env.
+name: Admin visual QA (NO DEPLOY)
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/admin-visual-qa.yml'
+      - 'apps/cms/current/resources/views/**'
+      - 'apps/cms/current/public/assets/**'
+      - 'apps/cms/current/tests/Browser/admin-visual-qa.cjs'
+      - 'apps/cms/current/tests/Browser/admin-visual-qa-report.cjs'
+      - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
+  push:
+    paths:
+      - '.github/workflows/admin-visual-qa.yml'
+      - 'apps/cms/current/resources/views/**'
+      - 'apps/cms/current/public/assets/**'
+      - 'apps/cms/current/tests/Browser/admin-visual-qa.cjs'
+      - 'apps/cms/current/tests/Browser/admin-visual-qa-report.cjs'
+      - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: admin-visual-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  admin-visual:
+    name: Disposable Laravel 13 / PHP 8.4 / MariaDB 10.11.19, Chromium + WebKit in parallel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      mariadb:
+        image: mariadb:10.11.19
+        env:
+          MARIADB_ROOT_PASSWORD: admin-visual-ci-only
+          MARIADB_DATABASE: ald1n_admin_visual_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -padmin-visual-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_URL: http://127.0.0.1:8125
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: ald1n_admin_visual_ci
+      DB_USERNAME: root
+      DB_PASSWORD: admin-visual-ci-only
+      CACHE_STORE: array
+      SESSION_DRIVER: file
+      # This isolated localhost HTTP server must not inherit production-only cookies.
+      SESSION_SECURE_COOKIE: 'false'
+      SESSION_DOMAIN: ''
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      TURNSTILE_ENABLED: 'false'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+      PHP_CLI_SERVER_WORKERS: '4'
+      ADMIN_VISUAL_CI: '1'
+      ADMIN_VISUAL_BASE_URL: http://127.0.0.1:8125
+      # Strict switches (baseline run leaves both empty):
+      # ADMIN_VISUAL_STRICT: '1'
+      # ADMIN_VISUAL_STRICT_MODULES: 'orders,reports'
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Set up Node 22 for browser tests only
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install isolated Laravel dependencies
+        working-directory: apps/cms/current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_HOST" = 127.0.0.1
+          test "$DB_DATABASE" = ald1n_admin_visual_ci
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force
+          php -l tests/Browser/seed-admin-visual-qa.php
+          node --check tests/Browser/admin-visual-qa.cjs
+          node --check tests/Browser/admin-visual-qa-report.cjs
+      - name: Install disposable Chromium and WebKit outside repository
+        shell: bash
+        env:
+          PLAYWRIGHT_NODE_ROOT: ${{ runner.temp }}/ald1n-admin-visual-playwright
+        run: |
+          set -euo pipefail
+          mkdir -p "$PLAYWRIGHT_NODE_ROOT"
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1 axe-core@4.10.3
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Seed synthetic data, boot Laravel, render the admin matrix
+        shell: bash
+        working-directory: apps/cms/current
+        env:
+          ADMIN_VISUAL_FIXTURES_PATH: ${{ runner.temp }}/ald1n-admin-visual-fixtures.json
+          ADMIN_VISUAL_ARTIFACT_DIR: ${{ runner.temp }}/ald1n-admin-visual-artifacts
+          PLAYWRIGHT_NODE_ROOT: ${{ runner.temp }}/ald1n-admin-visual-playwright
+        run: |
+          set -euo pipefail
+          test "$APP_ENV" = testing
+          test "$DB_DATABASE" = ald1n_admin_visual_ci
+          test "$SESSION_SECURE_COOKIE" = false
+          test -z "$SESSION_DOMAIN"
+          mkdir -p "$ADMIN_VISUAL_ARTIFACT_DIR"
+          php artisan migrate:fresh --force --no-ansi
+          php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
+          php tests/Browser/seed-admin-visual-qa.php
+          php artisan serve --host=127.0.0.1 --port=8125 > "$RUNNER_TEMP/ald1n-admin-visual-php-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:8125/login; then READY=1; break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          test "$READY" = 1 || { echo "FAIL: isolated Laravel browser server not ready"; tail -n 60 "$RUNNER_TEMP/ald1n-admin-visual-php-server.log"; exit 1; }
+          # Both engines in parallel (read-only against the same server); exit codes collected separately.
+          RC=0
+          ADMIN_VISUAL_BROWSER=chromium node tests/Browser/admin-visual-qa.cjs > "$RUNNER_TEMP/admin-visual-chromium.log" 2>&1 &
+          PID_C=$!
+          ADMIN_VISUAL_BROWSER=webkit node tests/Browser/admin-visual-qa.cjs > "$RUNNER_TEMP/admin-visual-webkit.log" 2>&1 &
+          PID_W=$!
+          wait "$PID_C" || RC=1
+          wait "$PID_W" || RC=1
+          tail -n 40 "$RUNNER_TEMP/admin-visual-chromium.log" || true
+          tail -n 40 "$RUNNER_TEMP/admin-visual-webkit.log" || true
+          cp "$RUNNER_TEMP"/admin-visual-*.log "$ADMIN_VISUAL_ARTIFACT_DIR"/ || true
+          node tests/Browser/admin-visual-qa-report.cjs "$ADMIN_VISUAL_ARTIFACT_DIR" || RC=1
+          exit "$RC"
+      - name: Save screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: admin-visual-screenshots-${{ github.sha }}
+          path: ${{ runner.temp }}/ald1n-admin-visual-artifacts/screenshots/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Save baseline JSON and summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: admin-visual-baseline-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/ald1n-admin-visual-artifacts/*.json
+            ${{ runner.temp }}/ald1n-admin-visual-artifacts/*.md
+            ${{ runner.temp }}/ald1n-admin-visual-artifacts/*.log
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Confirm no production access required
+        if: always()
+        shell: bash
+        run: |
+          echo 'PRODUCTION_SOURCE_MUTATION=NO'
+          echo 'PRODUCTION_DB_MUTATION=NO'
+          echo 'OTA=NO'
+          echo 'NATIVE_BUILD=NO'
+          echo 'DEPLOY=NO'
