@@ -102,6 +102,8 @@ jobs:
       - name: Actual Expo SDK58 dependency contract check (read-only detector)
         working-directory: apps/mobile/current
         shell: bash
+        env:
+          EXPO_PUBLIC_APP_ENV: development # explicit dev runtime path; app.config.js has no default runtime
         run: |
           set -Eeuo pipefail
           node node_modules/expo/bin/cli install --check

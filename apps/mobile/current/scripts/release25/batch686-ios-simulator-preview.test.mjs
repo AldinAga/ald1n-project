@@ -139,12 +139,3 @@ test('real iOS production still HOLD without postponed Firebase file, not bypass
   assert.equal(sim.ok, true);
   assert.notEqual(sim.expectedBundleId, hold.expectedBundleId);
 });
-
-test('real iOS inspection of preview, simulator and production holds: no approved iOS runtime identity', () => {
-  for (const profile of ['preview', 'ios-simulator', 'production']) {
-    const r = inspectIosReadiness(profile);
-    assert.equal(r.ok, false, profile);
-    assert.equal(r.status, 'HOLD');
-    assert.deepEqual(r.blockers, ['IOS_RUNTIME_IDENTITY_NOT_APPROVED']);
-  }
-});

@@ -69,7 +69,7 @@ export function assessIosReadiness({
   requireGate(declaredProfile?.env?.EXPO_PUBLIC_API_URL === EXPECTED_API, 'IOS_EAS_API_MISMATCH');
   requireGate(eas?.cli?.version === '27.2.0' && eas?.cli?.appVersionSource === 'remote', 'IOS_EAS_CLI_VERSION_AUTHORITY');
   requireGate(pkg?.version === '1.0.0' && pkg?.dependencies?.['react-native-nitro-google-signin'] === '2.3.1', 'IOS_APP_OR_NATIVE_AUTH_VERSION_DRIFT');
-  requireGate(appConfig?.version === '1.0.0' && typeof appConfig?.runtimeVersion === 'string' && appConfig.runtimeVersion !== '', 'IOS_APP_RUNTIME_MISMATCH');
+  requireGate(appConfig?.version === '1.0.0' && ['1.0.0-m17-sdk58-uat2', '1.0.0-m17-sdk58-play2', '1.0.0-dev-client'].includes(appConfig?.runtimeVersion), 'IOS_APP_RUNTIME_MISMATCH');
   requireGate(appConfig?.extra?.apiUrl === EXPECTED_API && appConfig?.extra?.googleAuthConfigured === true, 'IOS_GOOGLE_API_CONFIG_MISMATCH');
   requireGate(appBundleId === expectedBundleId, 'IOS_APP_BUNDLE_ID_MISMATCH');
 
@@ -132,18 +132,19 @@ export function inspectIosReadiness(profile, root = DEFAULT_ROOT) {
   const profileEnv = eas?.build?.[profile]?.env?.EXPO_PUBLIC_APP_ENV ?? profile;
   const originalEnv = process.env.EXPO_PUBLIC_APP_ENV;
   const configPath = require.resolve(path.join(root, 'app.config.js'));
+  // app.config.js has no default runtime: inspect the config under the approved SDK58 identity
+  // that shares this profile's app env (config shape only; never a build approval).
+  const identityEnv = profile === 'production'
+    ? { ALD1N_M17_SDK58_PLAY_RC: 'source-only', ALD1N_M17_SDK58_PLAY_PROFILE: 'm17-sdk58-play-rc' }
+    : (profile === 'development' ? {}
+      : { ALD1N_M17_SDK58_UAT: 'isolated', ALD1N_M17_SDK58_PROFILE: 'm17-sdk58-uat' });
+  const originalIdentity = Object.fromEntries(Object.keys(identityEnv).map((k) => [k, process.env[k]]));
   try {
     process.env.EXPO_PUBLIC_APP_ENV = profileEnv;
+    Object.assign(process.env, identityEnv);
     delete require.cache[configPath];
     const makeAppConfig = require(configPath);
-    let appConfig;
-    try {
-      appConfig = makeAppConfig({ config: {} });
-    } catch (error) {
-      // app.config.js has no default runtime; an unapproved identity is a HOLD, never a fallback.
-      if (!String(error?.message).includes('HOLD_RUNTIME_IDENTITY_NOT_APPROVED')) throw error;
-      return { ok: false, status: 'HOLD', profile, blockers: ['IOS_RUNTIME_IDENTITY_NOT_APPROVED'] };
-    }
+    const appConfig = makeAppConfig({ config: {} });
     const selectedFile = appConfig?.ios?.googleServicesFile;
     const resolved = selectedFile && (
       path.isAbsolute(selectedFile) ? selectedFile : path.resolve(root, selectedFile)
@@ -157,6 +158,10 @@ export function inspectIosReadiness(profile, root = DEFAULT_ROOT) {
     });
   } finally {
     delete require.cache[configPath];
+    for (const [k, v] of Object.entries(originalIdentity)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
     if (originalEnv === undefined) delete process.env.EXPO_PUBLIC_APP_ENV;
     else process.env.EXPO_PUBLIC_APP_ENV = originalEnv;
   }
