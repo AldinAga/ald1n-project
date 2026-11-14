@@ -1,5 +1,5 @@
 {
-  "$description": "Kobalt: one palette for the storefront, the admin CMS and the Android app. Source of truth for the values is apps/cms/current/public/assets/css/ald1n-public-storefront.css and ald1n-public-gallery.css (tokens only, no component rules). Format: DTCG ($value/$type), keys sorted. Colours are CSS strings exactly as the storefront writes them. Dimensions are plain numbers; the unit comes from $type (dimension = px, duration = ms) or from the com.ald1n.unit extension. Shadow layers use numbers in px plus an inset flag. Status mapping from storefront names: ok=ok, off=off, info=alert, danger=error, warning=draft; dot=the storefront dot colour (ok, off) or the border colour (alert, error, draft); warning.strong=draft-strong.",
+  "$description": "Kobalt: one palette for the storefront, the admin CMS and the Android app. Source of truth for the values is apps/cms/current/public/assets/css/ald1n-public-storefront.css and ald1n-public-gallery.css (tokens only, no component rules). Format: DTCG ($value/$type), keys sorted. Colours are CSS strings exactly as the storefront writes them. Dimensions are plain numbers; the unit comes from $type (dimension = px, duration = ms) or from the com.ald1n.unit extension. Shadow layers use numbers in px plus an inset flag. Parity with the storefront CSS is checked token by token for colours, shadows, gradient, radius, blur, motion, focus, size and typography; the space scale is derived and not covered. Status mapping from storefront names: ok=ok, off=off, info=alert, danger=error, warning=draft; dot=the storefront dot colour (ok, off) or the border colour (alert, error, draft); warning.strong=draft-strong.",
   "blur": {
     "$description": "Backdrop filter. standard = --glass-fx (blur(24px) saturate(185%)), strong = --glass-fx-strong (blur(30px) saturate(210%)).",
     "standard": {
@@ -238,7 +238,7 @@
     }
   },
   "motion": {
-    "$description": "Durations in ms, easing as cubic-bezier x1,y1,x2,y2. standard = --ease; basic = the CSS keyword ease that the storefront uses for the 180ms colour transitions. rise = card fade-in, lift = hero lift and image zoom, stagger = delay step.",
+    "$description": "Durations in ms, easing as cubic-bezier x1,y1,x2,y2. standard = --ease; basic = the CSS keyword ease (value defined by the CSS Easing spec, not by the storefront) that the storefront uses for the 180ms colour transitions; parity checks the keyword is used there. rise = card fade-in, lift = hero lift and image zoom, stagger = delay step.",
     "duration": {
       "$type": "duration",
       "base": { "$value": 220 },
@@ -339,7 +339,8 @@
     "touchTarget": { "$value": 44 }
   },
   "space": {
-    "$description": "4-based scale; the key is the value in px. Mapped storefront values: 4, 8, 12, 16, 20, 24, 28, 40, 48, 72 (nav min-height), 80 (footer margin). Not mapped, off the 4-grid, kept as they are in the storefront CSS: 6, 10, 14, 18, 22, 26, 30, 34. Fluid clamp() values are not tokens.",
+    "$description": "DERIVED, not part of the storefront parity claim: a 4-based scale chosen by us, the key is the value in px. The storefront has no spacing tokens, only literal paddings and gaps. Storefront values it was derived from: 4, 8, 12, 16, 20, 24, 28, 40, 48, 72 (nav min-height), 80 (footer margin). Not mapped, off the 4-grid, kept as they are in the storefront CSS: 6, 10, 14, 18, 22, 26, 30, 34. Fluid clamp() values are not tokens.",
+    "$extensions": { "com.ald1n.source": "derived" },
     "$type": "dimension",
     "4": { "$value": 4 },
     "8": { "$value": 8 },

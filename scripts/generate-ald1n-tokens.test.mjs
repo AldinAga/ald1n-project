@@ -14,10 +14,13 @@ import {
   PARITY_SHADOWS,
   PATHS,
   ROOT,
+  TYPE_PARITY,
   build,
   contrastRatio,
   evaluateGates,
   leaves,
+  over,
+  parseColor,
   loadTokens,
   parity,
   run,
@@ -106,7 +109,9 @@ test('light and dark are both present and have the same token set', () => {
   assert.ok(names('dark').length >= 62);
   const ts = readRoot(PATHS.ts);
   assert.match(ts, /export const kobaltDark = /);
-  assert.match(ts, /export const kobaltLight: KobaltPalette = /);
+  assert.match(ts, /export const kobaltLight = \{[\s\S]*?\n\} as const;/);
+  assert.match(ts, /export const kobaltDark = \{[\s\S]*?\n\} as const;/);
+  assert.match(ts, /export const kobaltScale = \{[\s\S]*?\n\} as const;/);
   assert.deepEqual(MODES, ['dark', 'light']);
   // The theme selectors are the only ones that set colours: no admin-only attribute is required.
   const selectors = css.split('\n').filter((l) => /^\s*:root/.test(l));
@@ -120,10 +125,102 @@ test('contrast function against known pairs', () => {
   assert.throws(() => contrastRatio('rgba(0,0,0,.5)', '#ffffff'), /opaque/);
 });
 
-test('storefront parity: Kobalt equals the storefront in both modes', () => {
+test('storefront parity: every token except the derived space scale equals the value in its storefront rule', () => {
   const errors = parity(fresh(), readRoot(PATHS.storefront), readRoot(PATHS.gallery));
   assert.deepEqual(errors, []);
   assert.ok(Object.keys(PARITY_COLORS).length >= 57 && Object.keys(PARITY_SHADOWS).length === 5, 'mapping floor');
+  assert.ok(TYPE_PARITY.length >= 42, 'typography rows floor');
+  // Only the space group may be derived; every other leaf was compared.
+  const derived = [...leaves(fresh())].filter((l) => l.source === 'derived').map((l) => l.full[0]);
+  assert.ok(derived.length >= 11 && derived.every((g) => g === 'space'));
+});
+
+test('parity mutations on scale tokens: typography, radius.pill, easing.basic, focus, size, motion, blur', () => {
+  const sf = readRoot(PATHS.storefront);
+  const ga = readRoot(PATHS.gallery);
+  const mutate = (path, value) => {
+    const t = clone(fresh());
+    let n = t;
+    const keys = path.split('.');
+    keys.slice(0, -1).forEach((k) => (n = n[k]));
+    n[keys.at(-1)].$value = value;
+    return parity(t, sf, ga);
+  };
+  const cases = [
+    ['typography.fontSize.xl3', 24],
+    ['typography.fontSize.xsPlus', 12],
+    ['typography.fontWeight.stock', 650],
+    ['typography.fontWeight.regular', 500],
+    ['typography.lineHeight.lead', 1.5],
+    ['typography.lineHeight.body', 1.5],
+    ['typography.letterSpacing.display', -0.02],
+    ['typography.letterSpacing.normal', 0.01],
+    ['typography.fontFamily.sans', 'system-ui'],
+    ['radius.pill', 998],
+    ['radius.photo', 15],
+    ['motion.easing.basic', [0.25, 0.1, 0.25, 0.9]],
+    ['motion.easing.standard', [0.2, 0.8, 0.2, 0.9]],
+    ['motion.duration.stagger', 50],
+    ['motion.duration.fast', 190],
+    ['focus.offsetInset', 2],
+    ['size.control', 49],
+    ['size.touchTarget', 45],
+    ['blur.strong.saturate', 200],
+  ];
+  for (const [path, value] of cases) {
+    assert.ok(mutate(path, value).some((e) => e.includes(path)), `mutating ${path} must fail the parity check`);
+  }
+  // The same drift on the storefront side (the token stays, the CSS moves).
+  const sfCases = [
+    ['border-radius:999px;color:var(--text-2)', 'border-radius:998px;color:var(--text-2)', 'radius.pill'],
+    ['.shop-price{margin:0;font-size:23px', '.shop-price{margin:0;font-size:22px', 'typography.fontSize.xl3'],
+    ['font-weight:640;width:fit-content', 'font-weight:600;width:fit-content', 'typography.fontWeight.stock'],
+    ['line-height:1.55;color:var(--text-2)', 'line-height:1.5;color:var(--text-2)', 'typography.lineHeight.lead'],
+    ['letter-spacing:-.03em;font-weight:780', 'letter-spacing:-.02em;font-weight:780', 'typography.letterSpacing.display'],
+    ['background-color .18s ease', 'background-color .19s ease', 'motion.duration.fast'],
+    ['background-color .18s ease', 'background-color .18s ease-in', 'motion.duration.fast'],
+    ['outline-offset:3px}', 'outline-offset:4px}', 'focus.offset'],
+  ];
+  for (const [from, to, token] of sfCases) {
+    assert.ok(sf.includes(from), `fixture text present: ${from}`);
+    assert.ok(parity(fresh(), sf.replace(from, to), ga).some((e) => e.includes(token)), `storefront drift in ${token}`);
+  }
+  // Only the space group may carry the derived marker.
+  const td = clone(fresh());
+  td.radius.$extensions = { 'com.ald1n.source': 'derived' };
+  assert.ok(parity(td, sf, ga).some((e) => e.includes('marked derived but radius')));
+  // The derived space scale is excluded from the claim: changing it does not fail, and it cannot be un-marked silently.
+  assert.deepEqual(mutate('space.16', 17), []);
+  const t = clone(fresh());
+  delete t.space.$extensions;
+  assert.ok(parity(t, sf, ga).some((e) => e.includes('space.16 has no parity check')));
+});
+
+test('parity reads the rule a value belongs to, not any match in the file', () => {
+  const ga = readRoot(PATHS.gallery);
+  const sf = readRoot(PATHS.storefront);
+  // Same declaration text in an unrelated rule does not satisfy size.control (48px, .shop-button).
+  const a = sf.replace('.shop-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px', '.shop-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:47px');
+  assert.notEqual(a, sf);
+  assert.ok(parity(fresh(), a, ga).some((e) => e.includes('size.control')), 'min-height:48px elsewhere in the file must not count');
+  // A renamed selector means the rule is missing: reported, not skipped.
+  const b = sf.replace('.eyebrow{', '.eyebrow-x{');
+  assert.ok(parity(fresh(), b, ga).some((e) => e.includes('typography.fontSize.xsPlus') && e.includes('need exactly 1')));
+  // A second rule with the same selector in the same context is ambiguous.
+  const c = sf + '\n.eyebrow{font-size:99px}\n';
+  assert.ok(parity(fresh(), c, ga).some((e) => e.includes('2 rules match')));
+});
+
+test('parity does not depend on how the CSS is formatted', () => {
+  const ga = readRoot(PATHS.gallery);
+  const sf = readRoot(PATHS.storefront);
+  const minified = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').replace(/ ?([{};,:>]) ?/g, '$1');
+  const expanded = (s) => s.replace(/\{/g, ' {\n  ').replace(/;/g, ';\n  ').replace(/\}/g, '\n}\n');
+  for (const fn of [minified, expanded]) {
+    assert.deepEqual(parity(fresh(), fn(sf), fn(ga)), [], fn.name);
+  }
+  // Minified and expanded must still catch drift.
+  assert.ok(parity(fresh(), minified(sf).replace('--accent:#a9c3ff;', '--accent:#a9c3fe;'), minified(ga)).some((e) => e.includes('accent.link')));
 });
 
 test('parity mutations: a changed token, a changed storefront value, an unmapped property, a divergent system block', () => {
@@ -163,9 +260,9 @@ test('gate mutations: a failing pair fails, the allow-list accepts it only with 
   const t = clone(fresh());
   t.color.dark.text.primary.$value = '#777777'; // far below 7:1 on the dense glass
   const bad = evaluateGates(t, {});
-  assert.ok(bad.errors.some((e) => e.includes('dark: text.primary on dense glass over page')), 'gate fires');
+  assert.ok(bad.errors.some((e) => e.includes('dark: text.primary on every glass surface')), 'gate fires');
   assert.equal(bad.errors.length, 1, 'only that pair fails');
-  const hit = bad.results.find((r) => r.id === 'dark: text.primary on dense glass over page');
+  const hit = bad.results.find((r) => r.id === 'dark: text.primary on every glass surface');
 
   const ok = evaluateGates(t, { [hit.id]: { ratio: hit.shown, reason: 'synthetic' } });
   assert.deepEqual(ok.errors, [], 'listed gap is accepted');
@@ -173,7 +270,7 @@ test('gate mutations: a failing pair fails, the allow-list accepts it only with 
   const moved = evaluateGates(t, { [hit.id]: { ratio: '1.00', reason: 'synthetic' } });
   assert.ok(moved.errors.some((e) => e.includes('Known gap moved')), 'wrong ratio rejected');
 
-  const stale = evaluateGates(fresh(), { 'dark: text.primary on dense glass over page': { ratio: '14.99', reason: 'synthetic' } });
+  const stale = evaluateGates(fresh(), { 'dark: text.primary on every glass surface': { ratio: '12.28', reason: 'synthetic' } });
   assert.ok(stale.errors.some((e) => e.includes('Stale known gap') && e.includes('now passes')), 'passing pair listed');
 
   const unknown = evaluateGates(fresh(), { 'dark: no such gate': { ratio: '1.00', reason: 'synthetic' } });
@@ -183,6 +280,21 @@ test('gate mutations: a failing pair fails, the allow-list accepts it only with 
   const t2 = clone(fresh());
   t2.color.dark.status.ok.text.$value = '#5a6a62';
   assert.ok(evaluateGates(t2, {}).errors.some((e) => e.includes('status.ok.text')));
+
+  // The dense glass over the plain page is not the worst case: a grey that passes there
+  // fails on glass.hover over the strongest glow, and the report names that surface.
+  const t4 = clone(fresh());
+  t4.color.dark.text.tertiary.$value = '#889096';
+  const denseOnly = contrastRatio('#889096', over(parseColor('rgba(24,32,38,.84)'), parseColor('#0d1216')));
+  assert.ok(denseOnly >= 4.5, 'the old dense-only gate would have passed');
+  const r4 = evaluateGates(t4, {});
+  const hit4 = r4.results.find((r) => r.id === 'dark: text.tertiary on every glass surface');
+  assert.ok(r4.errors.some((e) => e.includes('text.tertiary')), 'worst-surface gate fails');
+  assert.equal(hit4.worst, 'glass.hover over page+glow.1');
+
+  // The glow backdrop matters on its own: light focus ring is weakest over a glow.
+  const rLight = evaluateGates(fresh()).results.find((r) => r.id === 'light: focus.ring on page background');
+  assert.equal(rLight.worst, 'page+glow.1');
 
   // Focus ring gate.
   const t3 = clone(fresh());

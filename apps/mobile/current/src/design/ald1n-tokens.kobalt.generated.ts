@@ -206,11 +206,9 @@ export const kobaltDark = {
       },
     ],
   },
-};
+} as const;
 
-export type KobaltPalette = typeof kobaltDark;
-
-export const kobaltLight: KobaltPalette = {
+export const kobaltLight = {
   accent: {
     link: "#2546ad",
     soft: "rgba(42, 77, 187, 0.09)",
@@ -416,7 +414,7 @@ export const kobaltLight: KobaltPalette = {
       },
     ],
   },
-};
+} as const;
 
 export const kobaltScale = {
   blur: {
@@ -540,14 +538,27 @@ export const kobaltScale = {
       title: 1.35,
     },
   },
-};
+} as const;
 
 export const kobaltModes = ['dark', 'light'] as const;
 
 export type KobaltMode = (typeof kobaltModes)[number];
 
+// Same shape as the dark palette with the literal values widened, so light and dark can be compared.
+type Widen<T> = T extends string
+  ? string
+  : T extends number
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends readonly (infer U)[]
+        ? readonly Widen<U>[]
+        : { readonly [K in keyof T]: Widen<T[K]> };
+
+export type KobaltPalette = Widen<typeof kobaltDark>;
+
 export const kobalt = {
-  dark: kobaltDark,
-  light: kobaltLight,
+  dark: kobaltDark satisfies KobaltPalette,
+  light: kobaltLight satisfies KobaltPalette,
   scale: kobaltScale,
-};
+} as const;

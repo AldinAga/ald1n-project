@@ -70,10 +70,11 @@ export function* leaves(node, full = [], meta = {}) {
   const m = {
     type: node.$type ?? meta.type,
     unit: node.$extensions?.[UNIT_KEY] ?? meta.unit,
+    source: node.$extensions?.['com.ald1n.source'] ?? meta.source,
   };
   if (isToken(node)) {
     const mode = MODE_GROUPS.includes(full[0]) ? full[1] : null;
-    yield { full, mode, type: m.type, unit: m.unit, value: node.$value };
+    yield { full, mode, type: m.type, unit: m.unit, source: m.source, value: node.$value };
     return;
   }
   for (const k of sortedKeys(node)) {
@@ -168,6 +169,8 @@ export function contrastRatio(fg, bg) {
  */
 export const KNOWN_GAPS = {};
 
+const GLASS_SURFACES = ['standard', 'dense', 'soft', 'hover', 'strong'];
+
 export function evaluateGates(tokens, knownGaps = KNOWN_GAPS) {
   const results = [];
   for (const mode of MODES) {
@@ -178,28 +181,51 @@ export function evaluateGates(tokens, knownGaps = KNOWN_GAPS) {
       return resolveColor(tokens, n.$value);
     };
     const page = parseColor(val('surface', 'page'));
-    const dense = over(parseColor(val('glass', 'dense')), page);
-    const add = (label, fg, bg, min) => {
-      const fgEff = fg[3] === 1 ? fg : over(fg, bg);
-      const ratio = contrastRatio(fgEff, bg);
-      results.push({ id: `${mode}: ${label}`, mode, label, ratio, min });
+    // Backdrops under the glass: the plain page and the page with one glow at full strength.
+    const backdrops = [{ name: 'page', rgb: page }];
+    for (const n of [1, 2, 3, 4]) {
+      backdrops.push({ name: `page+glow.${n}`, rgb: over(parseColor(val('glow', String(n))), page) });
+    }
+    // Every glass surface text can sit on.
+    const surfaces = GLASS_SURFACES.map((s) => ({ name: `glass.${s}`, fill: parseColor(val('glass', s)) }));
+    /** Minimum ratio over all surface x backdrop pairs; names the worst pair. */
+    const addOnGlass = (label, fg, min, under) => {
+      let worst = null;
+      for (const b of backdrops) {
+        for (const s of surfaces) {
+          const base = over(s.fill, b.rgb);
+          const bg = under ? over(under, base) : base;
+          const ratio = contrastRatio(fg[3] === 1 ? fg : over(fg, bg), bg);
+          if (!worst || ratio < worst.ratio) worst = { ratio, where: `${s.name} over ${b.name}` };
+        }
+      }
+      results.push({ id: `${mode}: ${label}`, mode, label, ratio: worst.ratio, min, worst: worst.where });
+    };
+    const add = (label, fg, bg, min, worst) => {
+      results.push({ id: `${mode}: ${label}`, mode, label, ratio: contrastRatio(fg, bg), min, worst });
     };
     const text = (k) => parseColor(val('text', k));
-    add('text.primary on dense glass over page', text('primary'), dense, 7);
-    add('text.secondary on dense glass over page', text('secondary'), dense, 4.5);
-    add('text.tertiary on dense glass over page', text('tertiary'), dense, 4.5);
-    add('accent.link on dense glass over page', parseColor(val('accent', 'link')), dense, 4.5);
+    addOnGlass('text.primary on every glass surface', text('primary'), 7);
+    addOnGlass('text.secondary on every glass surface', text('secondary'), 4.5);
+    addOnGlass('text.tertiary on every glass surface', text('tertiary'), 4.5);
+    addOnGlass('accent.link on every glass surface', parseColor(val('accent', 'link')), 4.5);
     const on = parseColor(val('button', 'primary', 'on'));
-    add('button.primary.on on button.primary.bg', on, parseColor(val('button', 'primary', 'bg')), 4.5);
-    add('button.primary.on on button.primary.hover', on, parseColor(val('button', 'primary', 'hover')), 4.5);
+    add('button.primary.on on button.primary.bg', on, parseColor(val('button', 'primary', 'bg')), 4.5, 'opaque');
+    add('button.primary.on on button.primary.hover', on, parseColor(val('button', 'primary', 'hover')), 4.5, 'opaque');
     for (const s of sortedKeys(c.status)) {
-      const bg = over(parseColor(val('status', s, 'bg')), dense);
-      add(`status.${s}.text on status.${s}.bg over dense glass`, parseColor(val('status', s, 'text')), bg, 4.5);
+      const bg = parseColor(val('status', s, 'bg'));
+      addOnGlass(`status.${s}.text on status.${s}.bg over every glass surface`, parseColor(val('status', s, 'text')), 4.5, bg);
       if (c.status[s].strong) {
-        add(`status.${s}.strong on status.${s}.bg over dense glass`, parseColor(val('status', s, 'strong')), bg, 4.5);
+        addOnGlass(`status.${s}.strong on status.${s}.bg over every glass surface`, parseColor(val('status', s, 'strong')), 4.5, bg);
       }
     }
-    add('focus.ring on page background', parseColor(val('focus', 'ring')), page, 3);
+    // The ring is drawn at the edge of an element, over the page and its glows.
+    let ring = null;
+    for (const b of backdrops) {
+      const r = contrastRatio(parseColor(val('focus', 'ring')), b.rgb);
+      if (!ring || r < ring.ratio) ring = { ratio: r, where: b.name };
+    }
+    results.push({ id: `${mode}: focus.ring on page background`, mode, label: 'focus.ring on page background', ratio: ring.ratio, min: 3, worst: ring.where });
   }
   const errors = [];
   for (const r of results) {
@@ -583,23 +609,34 @@ export function buildTs(tokens) {
 // - shadow layers use the React Native boxShadow shape; boxShadow needs the New Architecture.
 // - angleCssDeg is a CSS angle (0 = up); React Native has no CSS gradient angle.
 
-export const kobaltDark = ${tsLit(palette('dark'))};
+export const kobaltDark = ${tsLit(palette('dark'))} as const;
 
-export type KobaltPalette = typeof kobaltDark;
+export const kobaltLight = ${tsLit(palette('light'))} as const;
 
-export const kobaltLight: KobaltPalette = ${tsLit(palette('light'))};
-
-export const kobaltScale = ${tsLit(scale)};
+export const kobaltScale = ${tsLit(scale)} as const;
 
 export const kobaltModes = ['dark', 'light'] as const;
 
 export type KobaltMode = (typeof kobaltModes)[number];
 
+// Same shape as the dark palette with the literal values widened, so light and dark can be compared.
+type Widen<T> = T extends string
+  ? string
+  : T extends number
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends readonly (infer U)[]
+        ? readonly Widen<U>[]
+        : { readonly [K in keyof T]: Widen<T[K]> };
+
+export type KobaltPalette = Widen<typeof kobaltDark>;
+
 export const kobalt = {
-  dark: kobaltDark,
-  light: kobaltLight,
+  dark: kobaltDark satisfies KobaltPalette,
+  light: kobaltLight satisfies KobaltPalette,
   scale: kobaltScale,
-};
+} as const;
 `;
 }
 
@@ -678,50 +715,319 @@ export const PARITY_SHADOWS = {
 
 export const PARITY_GRADIENTS = { buttonGloss: 'btn-gloss' };
 
-/** Custom properties in the theme blocks that are deliberately not tokens. */
+/** Property names in the theme blocks that are deliberately not colour tokens. */
 export const NOT_TOKENISED = {
   chevron: 'inline SVG data URI whose stroke is a literal colour; stays in the component CSS',
-  font: 'typography.fontFamily.sans (checked in the scale parity)',
-  'font-display': 'typography.fontFamily.display (checked in the scale parity)',
-  radius: 'radius.md (checked in the scale parity)',
-  'radius-lg': 'radius.lg (checked in the scale parity)',
-  'radius-sm': 'radius.sm (checked in the scale parity)',
-  ease: 'motion.easing.standard (checked in the scale parity)',
-  'photo-radius': 'radius.photo (checked in the scale parity)',
+  font: 'typography.fontFamily.sans (checked against the same property)',
+  'font-display': 'typography.fontFamily.display (checked against the same property)',
+  radius: 'radius.md (checked against the same property)',
+  'radius-lg': 'radius.lg (checked against the same property)',
+  'radius-sm': 'radius.sm (checked against the same property)',
+  ease: 'motion.easing.standard (checked against the same property)',
+  'photo-radius': 'radius.photo (checked against the same property)',
 };
 
-function declarations(body) {
+/** Groups the JSON may mark as derived (a design decision with no single storefront source). */
+export const DERIVED_GROUPS = ['space'];
+
+/** The CSS keyword `ease` is defined by the CSS Easing spec, not by the storefront. */
+const CSS_EASE = [0.25, 0.1, 0.25, 1];
+
+/* ------------------------------------------------------------------ */
+/* Minimal CSS parser: rules with their @media/@supports context       */
+/* ------------------------------------------------------------------ */
+
+/** Normalise a selector or an at-rule prelude so formatting does not matter. */
+export function normPrelude(s) {
+  const t = s.trim();
+  if (t.startsWith('@')) return t.replace(/\s+/g, '');
+  return t.replace(/["']/g, '').replace(/\s+/g, ' ').replace(/\s*([,>+~])\s*/g, '$1');
+}
+
+function parseDecls(body) {
   const out = {};
-  for (const m of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) out[m[1]] = m[2].trim();
+  const push = (s) => {
+    const k = s.indexOf(':');
+    if (k > 0) out[s.slice(0, k).trim().toLowerCase()] = s.slice(k + 1).trim();
+  };
+  let start = 0;
+  let q = null;
+  let paren = 0;
+  for (let j = 0; j < body.length; j++) {
+    const ch = body[j];
+    if (q) {
+      if (ch === '\\') j++;
+      else if (ch === q) q = null;
+    } else if (ch === '"' || ch === "'") q = ch;
+    else if (ch === '(') paren++;
+    else if (ch === ')') paren--;
+    else if (ch === ';' && paren <= 0) {
+      push(body.slice(start, j));
+      start = j + 1;
+    }
+  }
+  push(body.slice(start));
   return out;
 }
 
-/** The three theme blocks of a storefront-style stylesheet. */
-export function themeBlocks(css) {
-  const dark = /:root\{([^}]*)\}/.exec(css);
-  const light = /:root\[data-theme=light\]\{([^}]*)\}/.exec(css);
-  const system = /@media \(prefers-color-scheme:light\)\{\s*:root:not\(\[data-theme=dark\]\)\{([^}]*)\}/.exec(css);
-  if (!dark || !light || !system) throw new Error('Theme blocks not found in stylesheet');
-  return { dark: declarations(dark[1]), light: declarations(light[1]), system: declarations(system[1]) };
+/** Parses a stylesheet into [{ctx, selector, decls}]. @keyframes and other at-rules are skipped. */
+export function parseCss(source) {
+  const text = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [];
+  let i = 0;
+
+  function scanTo(stops) {
+    let q = null;
+    let paren = 0;
+    for (; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '\\') i++;
+        else if (ch === q) q = null;
+      } else if (ch === '"' || ch === "'") q = ch;
+      else if (ch === '(') paren++;
+      else if (ch === ')') paren--;
+      else if (paren <= 0 && stops.includes(ch)) return;
+    }
+  }
+
+  function blockBody() {
+    const start = i;
+    let q = null;
+    let depth = 1;
+    for (; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '\\') i++;
+        else if (ch === q) q = null;
+      } else if (ch === '"' || ch === "'") q = ch;
+      else if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) {
+        const body = text.slice(start, i);
+        i++;
+        return body;
+      }
+    }
+    throw new Error('Unbalanced braces in CSS');
+  }
+
+  function parseRules(ctx, nested) {
+    while (i < text.length) {
+      const start = i;
+      scanTo('{;}');
+      const prelude = text.slice(start, i).trim();
+      const ch = text[i];
+      if (ch === undefined) return;
+      i++;
+      if (ch === '}') {
+        if (nested) return;
+        continue;
+      }
+      if (ch === ';') continue;
+      if (/^@(media|supports)\b/i.test(prelude)) parseRules([...ctx, normPrelude(prelude)], true);
+      else if (prelude.startsWith('@')) blockBody();
+      else rules.push({ ctx, selector: normPrelude(prelude), decls: parseDecls(blockBody()) });
+    }
+  }
+
+  parseRules([], false);
+  return rules;
+}
+
+/** Exactly one rule with this selector in this context (and, optionally, this property). */
+export function findRule(rules, selector, ctx = [], has = null) {
+  const sel = normPrelude(selector);
+  const c = ctx.map(normPrelude);
+  const hit = rules.filter(
+    (r) => r.selector === sel && r.ctx.length === c.length && r.ctx.every((x, k) => x === c[k]) && (!has || has in r.decls),
+  );
+  if (hit.length !== 1) {
+    throw new Error(`${hit.length} rules match "${selector}"${c.length ? ` in ${c.join(' > ')}` : ''}${has ? ` with ${has}` : ''}, need exactly 1`);
+  }
+  return hit[0];
+}
+
+/** The three theme blocks of a storefront-style stylesheet, found by selector, context and a property they define. */
+export function themeBlocks(css, anchor) {
+  const rules = parseCss(css);
+  const strip = (d) => Object.fromEntries(Object.entries(d).filter(([k]) => k.startsWith('--')).map(([k, v]) => [k.slice(2), v]));
+  const dark = findRule(rules, ':root', [], anchor);
+  const light = findRule(rules, ':root[data-theme=light]', [], anchor);
+  const system = findRule(rules, ':root:not([data-theme=dark])', ['@media (prefers-color-scheme:light)'], anchor);
+  return { dark: strip(dark.decls), light: strip(light.decls), system: strip(system.decls) };
 }
 
 const sameDecls = (a, b) => JSON.stringify(sortedKeys(a).map((k) => [k, a[k]])) === JSON.stringify(sortedKeys(b).map((k) => [k, b[k]]));
 
+/* ------------------------------------------------------------------ */
+/* Scale parity: every value is read from the rule it belongs to       */
+/* ------------------------------------------------------------------ */
+
+const num = (s) => Number(String(s).replace(/(px|em|s)$/, ''));
+
+function fontShorthand(v) {
+  const m = /^(?:(\d{3})\s+)?([\d.]+)px\/([\d.]+)(?:\s|$)/.exec(String(v ?? ''));
+  return m ? { weight: m[1] ? Number(m[1]) : undefined, size: Number(m[2]), lh: Number(m[3]) } : null;
+}
+
+/** What a typography row reads from the rule: the longhand property, else the font shorthand. */
+const READ = {
+  size: (d) => (d['font-size'] !== undefined ? num(d['font-size']) : fontShorthand(d.font)?.size),
+  weight: (d) => (d['font-weight'] !== undefined ? num(d['font-weight']) : fontShorthand(d.font)?.weight),
+  lh: (d) => (d['line-height'] !== undefined ? num(d['line-height']) : fontShorthand(d.font)?.lh),
+  ls: (d) => (d['letter-spacing'] !== undefined ? num(d['letter-spacing']) : undefined),
+};
+
+const SEL_BRAND_SUB = '.shop-brand-text span,.shop-brand-sub';
+const SEL_MENU = '.shop-menu a,.shop-nav-user';
+const SEL_CHECKOUT_INPUT = '.shop-checkout input:not([type=checkbox]):not([type=radio]),.shop-checkout textarea,.shop-checkout select';
+
+/** token path -> [storefront selector (top level), what to read]. */
+export const TYPE_PARITY = [
+  ['typography.fontSize.base', 'body.public-retail', 'size'],
+  ['typography.fontSize.lg', '.shop-brand-text', 'size'],
+  ['typography.fontSize.md', SEL_MENU, 'size'],
+  ['typography.fontSize.mdPlus', '.shop-product-title', 'size'],
+  ['typography.fontSize.sm', '.shop-field label', 'size'],
+  ['typography.fontSize.smPlus', '.shop-chip', 'size'],
+  ['typography.fontSize.xl', '.shop-detail-content h2', 'size'],
+  ['typography.fontSize.xl2', '.legal-article h2', 'size'],
+  ['typography.fontSize.xl3', '.shop-price', 'size'],
+  ['typography.fontSize.xl4', '.shop-price-amount', 'size'],
+  ['typography.fontSize.xs', SEL_BRAND_SUB, 'size'],
+  ['typography.fontSize.xsPlus', '.eyebrow', 'size'],
+  ['typography.fontWeight.black', '.shop-brand-mark', 'weight'],
+  ['typography.fontWeight.bold', '.eyebrow', 'weight'],
+  ['typography.fontWeight.button', 'button', 'weight'],
+  ['typography.fontWeight.display', '.shop-brand-text', 'weight'],
+  ['typography.fontWeight.label', '.shop-field label', 'weight'],
+  ['typography.fontWeight.medium', SEL_BRAND_SUB, 'weight'],
+  ['typography.fontWeight.nav', SEL_MENU, 'weight'],
+  ['typography.fontWeight.numeric', '.shop-trust strong', 'weight'],
+  ['typography.fontWeight.regular', SEL_CHECKOUT_INPUT, 'weight'],
+  ['typography.fontWeight.semibold', '.shop-details-link', 'weight'],
+  ['typography.fontWeight.stock', '.shop-stock', 'weight'],
+  ['typography.lineHeight.body', 'body.public-retail', 'lh'],
+  ['typography.lineHeight.button', '.shop-button', 'lh'],
+  ['typography.lineHeight.caption', SEL_BRAND_SUB, 'lh'],
+  ['typography.lineHeight.detail', '.shop-detail-content h1', 'lh'],
+  ['typography.lineHeight.display', '.shop-hero-catalog h1', 'lh'],
+  ['typography.lineHeight.heading', '.shop-hero h1', 'lh'],
+  ['typography.lineHeight.lead', '.shop-hero-catalog .shop-hero-lead', 'lh'],
+  ['typography.lineHeight.results', '.shop-results', 'lh'],
+  ['typography.lineHeight.snug', '.shop-brand-text', 'lh'],
+  ['typography.lineHeight.title', '.shop-product-title', 'lh'],
+  ['typography.letterSpacing.button', 'button', 'ls'],
+  ['typography.letterSpacing.display', '.shop-hero-catalog h1', 'ls'],
+  ['typography.letterSpacing.eyebrow', '.eyebrow', 'ls'],
+  ['typography.letterSpacing.heading', 'h1,h2,h3', 'ls'],
+  ['typography.letterSpacing.label', '.shop-field label', 'ls'],
+  ['typography.letterSpacing.normal', '.shop-results', 'ls'],
+  ['typography.letterSpacing.price', '.shop-price-amount', 'ls'],
+  ['typography.letterSpacing.sub', SEL_BRAND_SUB, 'ls'],
+  ['typography.letterSpacing.title', '.shop-product-title', 'ls'],
+];
+
+const RM = '@media (prefers-reduced-motion:no-preference)';
+
+function scaleParity(tokens, sfRules, gaRules, errors, covered) {
+  const tok = (p) => getAt(tokens, p.split('.'))?.$value;
+  const eq = (p, want) => {
+    covered.add(p);
+    const got = tok(p);
+    if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`${p}: token ${JSON.stringify(got)} != storefront ${JSON.stringify(want)}`);
+  };
+  /** Run one lookup; a missing or ambiguous rule becomes an error, not a crash. */
+  const attempt = (label, fn) => {
+    try {
+      fn();
+    } catch (e) {
+      errors.push(`${label}: ${e.message}`);
+    }
+  };
+  const sf = (selector, ctx, has) => findRule(sfRules, selector, ctx, has).decls;
+  const match = (decl, re, what) => {
+    const m = re.exec(decl ?? '');
+    if (!m) throw new Error(`${what}: ${re} not found in "${decl}"`);
+    return m;
+  };
+  const ms = (s) => Math.round(Number(s) * 1000);
+
+  attempt('theme root (radius, easing, fonts)', () => {
+    const d = sf(':root', [], '--radius-sm');
+    eq('radius.sm', num(d['--radius-sm']));
+    eq('radius.md', num(d['--radius']));
+    eq('radius.lg', num(d['--radius-lg']));
+    eq('motion.easing.standard', match(d['--ease'], /^cubic-bezier\(([^)]+)\)$/, '--ease')[1].split(',').map(Number));
+    eq('typography.fontFamily.sans', d['--font']);
+    eq('typography.fontFamily.display', d['--font-display']);
+  });
+  attempt('radius.photo', () => eq('radius.photo', num(findRule(gaRules, ':root', [], '--photo-radius').decls['--photo-radius'])));
+  attempt('radius.pill', () => eq('radius.pill', num(sf(SEL_MENU, [], 'border-radius')['border-radius'])));
+  attempt('blur', () => {
+    const d = sf(':root', [], '--glass-fx');
+    for (const [k, prop] of [['standard', '--glass-fx'], ['strong', '--glass-fx-strong']]) {
+      const m = match(d[prop], /^blur\(([\d.]+)px\) saturate\(([\d.]+)%\)$/, prop);
+      eq(`blur.${k}.radius`, Number(m[1]));
+      eq(`blur.${k}.saturate`, Number(m[2]));
+    }
+  });
+  attempt('focus', () => {
+    const base = sf(':focus-visible', [], 'outline');
+    const m = match(base.outline, /^([\d.]+)px solid var\(--focus\)$/, ':focus-visible outline');
+    eq('focus.width', Number(m[1]));
+    eq('focus.offset', num(base['outline-offset']));
+    const inset = sf('.shop-filters input[type=search]:focus-visible,.shop-filters select:focus-visible', [], 'outline-offset');
+    eq('focus.offsetInset', num(inset['outline-offset']));
+  });
+  attempt('size', () => {
+    eq('size.touchTarget', num(sf('button', [], 'min-height')['min-height']));
+    eq('size.control', num(sf('.shop-button', [], 'min-height')['min-height']));
+  });
+  attempt('motion', () => {
+    const fast = sf('.shop-button,button,.shop-details-link,.shop-chip,.shop-page,.shop-menu a,.shop-filters input,.shop-filters select,.shop-theme-option,.legal-card,.legal-nav a', [RM], 'transition').transition;
+    eq('motion.duration.fast', ms(match(fast, /background-color ([\d.]+)s ease(?:,|$)/, 'fast transition')[1]));
+    eq('motion.easing.basic', CSS_EASE); // the storefront uses the keyword `ease` there
+    eq('motion.duration.base', ms(match(sf('.shop-toggle-track,.shop-toggle-track::after', [RM], 'transition').transition, /transform ([\d.]+)s var\(--ease\)/, 'toggle transition')[1]));
+    eq('motion.duration.slow', ms(match(sf('.shop-product', [RM], 'transition').transition, /transform ([\d.]+)s var\(--ease\)/, 'card transition')[1]));
+    eq('motion.duration.rise', ms(match(sf('.shop-product-cell:nth-child(n+5)', [RM], 'animation').animation, /shop-rise ([\d.]+)s var\(--ease\)/, 'rise animation')[1]));
+    eq('motion.duration.lift', ms(match(sf('.shop-hero-catalog>*,.shop-filter-panel,.shop-product-cell:nth-child(-n+4)', [RM], 'animation').animation, /shop-lift ([\d.]+)s var\(--ease\)/, 'lift animation')[1]));
+    eq('motion.duration.stagger', ms(match(sf('.shop-hero-catalog>:nth-child(2),.shop-product-cell:nth-child(2)', [RM], 'animation-delay')['animation-delay'], /^([\d.]+)s$/, 'stagger')[1]));
+  });
+  attempt('fallback.contrast.imageStageText', () => {
+    eq('fallback.contrast.imageStageText', sf(':root[data-theme]', ['@media (prefers-contrast:more)'], '--stage-text')['--stage-text']);
+  });
+  for (const [path, selector, read] of TYPE_PARITY) {
+    attempt(path, () => {
+      covered.add(path);
+      const want = READ[read](sf(selector));
+      if (want === undefined) throw new Error(`rule "${selector}" has no ${read}`);
+      eq(path, want);
+    });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Parity entry point                                                  */
+/* ------------------------------------------------------------------ */
+
 export function parity(tokens, storefrontCss, galleryCss) {
   const errors = [];
-  const sf = themeBlocks(storefrontCss);
-  const ga = themeBlocks(galleryCss);
+  const covered = new Set();
+  const sf = themeBlocks(storefrontCss, '--bg');
+  const ga = themeBlocks(galleryCss, '--photo-bed');
   for (const [name, b] of [['storefront', sf], ['gallery', ga]]) {
     if (!sameDecls(b.system, b.light)) errors.push(`${name}: the system block differs from the light block, so deriving system from light is not allowed`);
   }
+  // Effective light value = dark block overlaid with the light block (--btn-text, --btn-gloss exist in dark only).
   const effective = {
     dark: { ...sf.dark, ...ga.dark },
     light: { ...sf.dark, ...ga.dark, ...sf.light, ...ga.light },
   };
   const mapped = new Set([...Object.values(PARITY_COLORS), ...Object.values(PARITY_SHADOWS), ...Object.values(PARITY_GRADIENTS)]);
 
-  // Forward: every token has a mapping and equals the storefront value.
-  const refFor = (mode) => (full) => {
+  // Forward: every colour, shadow and gradient token has a mapping and equals the storefront value.
+  const refFor = () => (full) => {
     const key = nameParts(full).join('.');
     const prop = PARITY_COLORS[key];
     if (!prop) throw new Error(`No parity mapping for alias target ${key}`);
@@ -740,6 +1046,7 @@ export function parity(tokens, storefrontCss, galleryCss) {
       table = PARITY_GRADIENTS;
       key = l.full.slice(1).join('.');
     } else continue;
+    covered.add(l.full.join('.'));
     const prop = table[key];
     if (!prop) {
       errors.push(`No parity mapping for ${l.full.join('.')}`);
@@ -750,9 +1057,7 @@ export function parity(tokens, storefrontCss, galleryCss) {
       errors.push(`Storefront has no --${prop} (${l.full.join('.')})`);
       continue;
     }
-    let got;
-    if (l.type === 'color' && aliasPath(l.value)) got = `var(${refFor(l.mode)(aliasPath(l.value))})`;
-    else got = cssValue(tokens, l, refFor(l.mode));
+    const got = cssValue(tokens, l, refFor());
     if (got !== want) errors.push(`${l.full.join('.')}: token "${got}" != storefront --${prop} "${want}"`);
   }
 
@@ -768,49 +1073,16 @@ export function parity(tokens, storefrontCss, galleryCss) {
     if (!seen.has(prop)) errors.push(`NOT_TOKENISED lists --${prop}, which is not in the theme blocks`);
   }
 
-  // Scale tokens against the storefront.
-  const scaleErrors = scaleParity(tokens, storefrontCss, sf, ga);
-  errors.push(...scaleErrors);
-  return errors;
-}
+  // Scale, typography, motion, focus, size.
+  scaleParity(tokens, parseCss(storefrontCss), parseCss(galleryCss), errors, covered);
 
-function scaleParity(tokens, css, sf, ga) {
-  const errors = [];
-  const eq = (label, got, want) => {
-    if (got !== want) errors.push(`${label}: token "${got}" != storefront "${want}"`);
-  };
-  const px = (full) => `${getAt(tokens, full).$value}px`;
-  eq('radius.sm', px(['radius', 'sm']), sf.dark['radius-sm']);
-  eq('radius.md', px(['radius', 'md']), sf.dark.radius);
-  eq('radius.lg', px(['radius', 'lg']), sf.dark['radius-lg']);
-  eq('radius.photo', px(['radius', 'photo']), ga.dark['photo-radius']);
-  eq('motion.easing.standard', `cubic-bezier(${getAt(tokens, ['motion', 'easing', 'standard']).$value.map(fmt).join(',')})`, sf.dark.ease);
-  eq('typography.fontFamily.sans', getAt(tokens, ['typography', 'fontFamily', 'sans']).$value, sf.dark.font);
-  eq('typography.fontFamily.display', getAt(tokens, ['typography', 'fontFamily', 'display']).$value, sf.dark['font-display']);
-  const fx = (k) => `blur(${getAt(tokens, ['blur', k, 'radius']).$value}px) saturate(${getAt(tokens, ['blur', k, 'saturate']).$value}%)`;
-  const fxStd = /--glass-fx:([^;]+);/.exec(css)?.[1];
-  const fxStrong = /--glass-fx-strong:([^;]+);/.exec(css)?.[1];
-  eq('blur.standard', fx('standard'), fxStd);
-  eq('blur.strong', fx('strong'), fxStrong);
-  const expectRe = (label, re) => {
-    if (!re.test(css)) errors.push(`${label}: pattern ${re} not found in the storefront`);
-  };
-  const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const f = (k) => getAt(tokens, ['focus', k]).$value;
-  expectRe('focus.width/offset', new RegExp(`:focus-visible\\{outline:${f('width')}px solid var\\(--focus\\);outline-offset:${f('offset')}px\\}`));
-  expectRe('focus.offsetInset', new RegExp(`outline:${f('width')}px solid var\\(--focus\\);outline-offset:${f('offsetInset')}px`));
-  const sz = (k) => getAt(tokens, ['size', k]).$value;
-  expectRe('size.touchTarget', new RegExp(`min-height:${sz('touchTarget')}px`));
-  expectRe('size.control', new RegExp(`min-height:${sz('control')}px`));
-  const d = (k) => getAt(tokens, ['motion', 'duration', k]).$value / 1000;
-  expectRe('duration.fast', new RegExp(`transition:background-color ${esc(fmt(d('fast')))}s ease`));
-  expectRe('duration.base', new RegExp(`transition:transform ${esc(fmt(d('base')))}s var\\(--ease\\)`));
-  expectRe('duration.slow', new RegExp(`transition:transform ${esc(fmt(d('slow')))}s var\\(--ease\\)`));
-  expectRe('duration.rise', new RegExp(`animation:shop-rise ${esc(fmt(d('rise')))}s var\\(--ease\\)`));
-  expectRe('duration.lift', new RegExp(`animation:shop-lift ${esc(fmt(d('lift')))}s var\\(--ease\\)`));
-  expectRe('duration.stagger', new RegExp(`animation-delay:${esc(fmt(d('stagger')))}s`));
-  const hc = /@media \(prefers-contrast:more\)\{\s*:root\[data-theme\]\{[^}]*--stage-text:([^;}]+)/.exec(css)?.[1];
-  eq('fallback.contrast.imageStageText', getAt(tokens, ['fallback', 'contrast', 'imageStageText']).$value, hc);
+  // Coverage: a token is either checked above or explicitly derived. Nothing is silently unchecked.
+  for (const l of leaves(tokens)) {
+    const id = l.full.join('.');
+    if (l.source === 'derived') {
+      if (!DERIVED_GROUPS.includes(l.full[0])) errors.push(`${id} is marked derived but ${l.full[0]} is not in DERIVED_GROUPS`);
+    } else if (!covered.has(id)) errors.push(`${id} has no parity check and is not marked derived`);
+  }
   return errors;
 }
 
@@ -857,7 +1129,7 @@ export function run(argv = process.argv.slice(2), root = ROOT, log = console.log
 
   const gates = evaluateGates(tokens);
   for (const r of gates.results) {
-    log(`${r.pass ? 'PASS' : r.known ? 'GAP ' : 'FAIL'} ${r.id}: ${r.shown}:1 (min ${r.min}:1)`);
+    log(`${r.pass ? 'PASS' : r.known ? 'GAP ' : 'FAIL'} ${r.id}: ${r.shown}:1 (min ${r.min}:1, worst: ${r.worst})`);
   }
   errors.push(...gates.errors);
 
