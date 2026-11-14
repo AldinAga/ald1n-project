@@ -61,8 +61,8 @@ test('native npm builds require signed 16KiB release gates; historic Build25 con
  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@25.0.0'));
  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@24.8.0'));
  assert.equal(eas.cli.version,'27.2.0');
- marker(helper,"const EAS_CLI_VERSION = '25.0.0'");
- marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'25.0.0\'")');
+ marker(helper,"const EAS_CLI_VERSION = '27.2.0'");
+ marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'27.2.0\'")');
 });
 
 test('production build and legacy submit remain explicitly fail closed',()=>{

@@ -332,7 +332,8 @@ Expo project ID: d43b3866-6838-4217-a23e-3dc7f2cc76cc
 Android package: com.ald1n.mobile
 Production API:  https://cms.ald1n.com/api/v1
 App version:     1.0.0
-Current runtime: 1.0.0-build17
+Current runtime: 1.0.0-m17-sdk58-play2 (EAS profile m17-sdk58-play-rc, Expo SDK 58, live Play versionCode 29)
+No default runtime exists: app.config.js throws HOLD_RUNTIME_IDENTITY_NOT_APPROVED without an approved identity.
 ```
 
 Current platform baseline:
@@ -407,7 +408,7 @@ This is an entrypoint rule for EVERY NEW Ald1n chat and operator batch, not an o
 - For CloudLinux-related failures, prefer **one consolidated host audit/recovery batch**, record actual observed versions, paths, RCs and blockers. Do not chain speculative workaround batches.
 - **2026-10-21 Report784 recovery — isolated Expo checkout:** `eas whoami` may PASS before app dependencies exist, while `eas project:info` FAILS loading `expo-router` in `app.config.js`. In a **fresh isolated clone** requiring later TypeScript/validator/Android export, run the approved exact Node22/npm10 **lockfile install `npm ci` before any project-scoped EAS command that loads Expo config plugins**. First perform static source/ref/config checks, then install already-required QA dependencies, then run EAS `project:info` and remote-version reads from the isolated app root. Do not run `eas project:info` on the pristine checkout before dependency install and do not re-clone/re-fetch on a recovery that can safely reuse an exact-SHA clean isolate. Do not install packages merely for an unrelated read-only compatibility query. Keep the isolated checkout under `$HOME` **outside** `/home/icaffeco/ald1n-project`; never create `.ald1n-v15-isolated-*` inside the production repo. Report784 already proved EAS account login and exact source SHA; preserve that evidence and resume at the failed stage.
 
-- Production Android baseline until re-attested: app 1.0.0, versionCode 25, runtime 1.0.0-build17, production channel, com.ald1n.mobile. The latest OTA group and deployed source must always be reverified before mutation. iOS stays deferred by owner.
+- Production Android baseline until re-attested: app 1.0.0, versionCode 29 (live on Google Play, Expo SDK 58, EAS profile m17-sdk58-play-rc, 16 KB alignment done), runtime 1.0.0-m17-sdk58-play2, production channel, com.ald1n.mobile. The latest OTA group and deployed source must always be reverified before mutation. iOS stays deferred by owner.
 - The user expects these rules to be retrieved from GitHub `AGENTS.md` at the **start** of every new Ald1n project chat/batch, together with `docs/operations/000-LATEST.md` and recent reports.
 
 ---
@@ -545,10 +546,10 @@ Before deciding that a native build is required, compare native/runtime-critical
 For JS/TS-only changes compatible with the current runtime:
 
 ```text
-runtimeVersion = 1.0.0-build17
+runtimeVersion = 1.0.0-m17-sdk58-play2
 ```
 
-prefer **EAS Update OTA** instead of a new native build.
+(The SDK 57 runtime 1.0.0-build17 is no longer defined in app.config.js.) prefer **EAS Update OTA** instead of a new native build.
 
 Do not create Build18 merely because source code changed.
 
@@ -1045,7 +1046,7 @@ Before candidate publish:
 [ ] owner = ald1n
 [ ] project ID = d43b3866-6838-4217-a23e-3dc7f2cc76cc
 [ ] Android package = com.ald1n.mobile
-[ ] runtime = 1.0.0-build17 for Build17-compatible OTA
+[ ] runtime = 1.0.0-m17-sdk58-play2 for compatible OTA (no default runtime exists)
 [ ] production API = https://cms.ald1n.com/api/v1
 [ ] source commit pushed and local/remote synchronized
 [ ] EAS whoami succeeds through pinned npm-exec authority

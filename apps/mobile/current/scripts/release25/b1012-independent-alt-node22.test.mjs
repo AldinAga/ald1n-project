@@ -39,7 +39,7 @@ test('release shell preserves owner authorization, lock, exact controller and PA
 
 test('disabled Android production submit helper resolves child node independently', () => {
   assert.ok(submit.includes("const NODE_BIN = '" + node + "'"));
-  assert.ok(submit.includes("const EAS_CLI_VERSION = '25.0.0'"));
+  assert.ok(submit.includes("const EAS_CLI_VERSION = '27.2.0'"));
   assert.ok(submit.includes("PATH: `${path.dirname(NODE_BIN)}${path.delimiter}${process.env.PATH || ''}`"));
   assert.ok(submit.includes("if (mode === '--execute') die('DIRECT_SUBMIT_DISABLED:"));
   assert.ok(!submit.includes(oldNodevenv));

@@ -9,10 +9,9 @@ const validator=fs.readFileSync(path.join(mobile,'scripts/validate-project.mjs')
 const helper=fs.readFileSync(path.join(mobile,'scripts/submit-android-production.mjs'),'utf8');
 const eas=JSON.parse(fs.readFileSync(path.join(mobile,'eas.json'),'utf8'));
 const agents=fs.readFileSync(path.join(root,'AGENTS.md'),'utf8');
-test('EAS27 source migration retains fail-closed historical EAS25 submit helper',()=>{
+test('submit helper pin matches the EAS27 SDK58 line and stays fail-closed',()=>{
   assert.equal(eas.cli.version,'27.2.0');
-  assert.match(agents,/eas-cli@25\.0\.0/);
-  const pin="const EAS_CLI_VERSION = '25.0.0'";
+  const pin="const EAS_CLI_VERSION = '27.2.0'";
   assert.ok(helper.includes(pin));
   assert.ok(validator.includes(`productionSubmitHelper505R.includes("${pin}")`));
   assert.ok(!validator.includes("const EAS_CLI_VERSION = '24.7.0'"));

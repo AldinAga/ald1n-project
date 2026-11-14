@@ -38,8 +38,8 @@ test('SDK58 build wrappers are fail-closed while legacy Build25 submit remains d
   assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@24.8.0'));
   assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@25.0.0'));
   assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@latest'));
-  assert.ok(helper.includes("const EAS_CLI_VERSION = '25.0.0'"));
-  assert.ok(validator.includes("productionSubmitHelper505R.includes(\"const EAS_CLI_VERSION = '25.0.0'\")"));
+  assert.ok(helper.includes("const EAS_CLI_VERSION = '27.2.0'"));
+  assert.ok(validator.includes("productionSubmitHelper505R.includes(\"const EAS_CLI_VERSION = '27.2.0'\")"));
 });
 
 test('Build25 identity and EAS remote app version are untouched', () => {

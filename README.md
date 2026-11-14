@@ -9,9 +9,9 @@ Private monorepo for the Ald1n business platform. The repository contains the La
 | Area | Current baseline |
 | --- | --- |
 | Mobile app | `1.0.0` |
-| Mobile runtime | `1.0.0-build17` |
-| Expo | SDK 57 |
-| React Native | 0.86.x |
+| Mobile runtime | `1.0.0-m17-sdk58-play2` (no default runtime; config fails closed) |
+| Expo | SDK 58 |
+| React Native | 0.88.x |
 | CMS | Laravel 13 / PHP 8.4 |
 | Production API | `https://cms.ald1n.com/api/v1` |
 | Android package | `com.ald1n.mobile` |
@@ -207,10 +207,12 @@ Current production mobile authority:
 ```text
 App:             Ald1n CMS
 Version:         1.0.0
-Runtime:         1.0.0-build17
+Runtime:         1.0.0-m17-sdk58-play2 (EAS profile m17-sdk58-play-rc, Play versionCode 29)
 Android package: com.ald1n.mobile
 Channel:         production
 ```
+
+Local mobile development (`npm start` in `apps/mobile/current`): copy `.env.example` to `.env` first. It sets `EXPO_PUBLIC_APP_ENV=development`, which `app.config.js` requires (runtime `1.0.0-dev-client`); without it the config throws `HOLD_RUNTIME_IDENTITY_NOT_APPROVED`.
 
 A new native build is created only when a native/config/dependency change requires it. Compatible application changes can be released through the matching runtime with the normal release gates and physical-device acceptance.
 
