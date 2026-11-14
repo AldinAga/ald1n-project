@@ -39,7 +39,7 @@ const simulatedArgs = () => ({
 
 test('separate iOS Simulator profile uses preview identity, never production channel or autoIncrement', () => {
   const b = eas.build['ios-simulator'];
-  assert.equal(eas.cli.version, '25.0.0');
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(b.distribution, 'internal');
   assert.equal(b.channel, 'preview');
   assert.equal(b.env.EXPO_PUBLIC_APP_ENV, 'preview');
@@ -106,7 +106,7 @@ test('new simulator command is pinned and always runs local profile gate first; 
     'node scripts/ios-release-readiness.mjs --profile ios-simulator');
   const build = pkg.scripts['build:ios:simulator'];
   assert.ok(build.startsWith('node scripts/ios-release-readiness.mjs --profile ios-simulator && '));
-  assert.ok(build.endsWith('--package=eas-cli@25.0.0 -- eas build --platform ios --profile ios-simulator'));
+  assert.ok(build.endsWith('node scripts/release27/hold-unaudited-native-build.mjs --platform ios --profile ios-simulator'));
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
   assert.ok(pkg.scripts['build:ios:production'].includes('--profile production'));
   assert.ok(appConfigSrc.includes("'1.0.0-build17'"));

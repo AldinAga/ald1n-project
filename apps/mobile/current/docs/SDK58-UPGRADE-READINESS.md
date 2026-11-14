@@ -1,6 +1,8 @@
 # Expo SDK 58 — upgrade readiness (preparation only)
 
-**Status: PLANNED / DEFERRED by owner on 2026-10-21.** This document does not authorize an Expo SDK upgrade, EAS build, OTA, Google Play submission, Android production mutation, CloudLinux deployment, or iOS release.
+**Update 2026-11-14 (facts only; this note does not rewrite the history below):** the SDK 58 upgrade is no longer planned or deferred. Per the owner, Android versionCode 29 is live on Google Play and 16 KB alignment is complete. It is app 1.0.0 on Expo SDK 58, EAS profile `m17-sdk58-play-rc`, runtime `1.0.0-m17-sdk58-play2`, built from commit `6adb3b440b8cfdc068b142a98c418d9d91487f64`. That commit was previously reachable only from the branch of draft PR 128. This branch (`codex/mobile-sdk58-into-main-20261114`) merges that release line into `main` together with the 12 newer `apps/mobile` commits of `main`. Until the owner approves and merges it, `main` still describes Expo SDK 57 / runtime `1.0.0-build17`. Nothing here approves a build, submit or OTA. The text below is the historical 2026-10-21 plan.
+
+**Status: PLANNED / DEFERRED by owner on 2026-10-21 (superseded, see the update above).** This document does not authorize an Expo SDK upgrade, EAS build, OTA, Google Play submission, Android production mutation, CloudLinux deployment, or iOS release.
 
 ## Authority and currently observed state
 

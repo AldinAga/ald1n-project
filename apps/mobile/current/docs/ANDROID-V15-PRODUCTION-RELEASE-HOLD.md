@@ -1,5 +1,7 @@
 # Android v1.5.0 native release candidate — HOLD
 
+**Update 2026-11-14 (facts only):** the v1.5.0 / `1.5.0-native2` candidate described below was not the release that shipped. Per the owner, Android versionCode 29 is live on Google Play and 16 KB alignment is complete. It is app 1.0.0 on Expo SDK 58, EAS profile `m17-sdk58-play-rc`, runtime `1.0.0-m17-sdk58-play2`, built from commit `6adb3b440b8cfdc068b142a98c418d9d91487f64`. This document stays as the historical v1.5 hold record. The `ALD1N_V15_RELEASE_GATE` switch is unchanged and is still not release authorization. The live line is only reproducible with `ALD1N_M17_SDK58_PLAY_RC=source-only` plus profile `m17-sdk58-play-rc`. This note approves no build, submit or OTA.
+
 Source parent: PR #76 head `b5e887c5070d4032ec8cd3d64e3e82d0e4d41380` based on PR #75 exact Build26 integration. New source commit must be taken from latest exact candidate HEAD, never use an older SHA for production builds.
 
 - App version: **1.5.0**; Android package: **com.ald1n.mobile**; Expo project ID: `d43b3866-6838-4217-a23e-3dc7f2cc76cc`.

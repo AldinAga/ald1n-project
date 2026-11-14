@@ -93,12 +93,13 @@ test('five destinations, keyboard dismissal, role access and home emphasis remai
   assert.match(navSource, /homeItem: \{ transform: \[\{ translateY: -9 \}\]/);
 });
 
-test('Build25 must remain native-dependency and runtime identical; no accidental OTA build crossing', () => {
+test('M17 source candidate preserves existing app runtime identity and native bridge; release is separately gated', () => {
   assert.equal(pkg.version, '1.0.0');
-  assert.equal(pkg.dependencies.expo, '~57.0.27');
-  assert.equal(pkg.dependencies['react-native'], '0.86.3');
+  assert.equal(pkg.dependencies.expo, '~58.0.22');
+  assert.equal(pkg.dependencies['react-native'], '0.88.1');
   assert.equal(pkg.dependencies['expo-blur'], undefined);
   assert.equal(pkg.dependencies['react-native-android-liquid-glass'], '0.2.1');
   assert.match(appConfig, /'1\.0\.0-build17'/);
+  assert.match(appConfig, /'1\.5\.0-native2'/);
   assert.doesNotMatch(navSource, /from 'expo-blur'|from 'react-native-android-liquid-glass'/);
 });
