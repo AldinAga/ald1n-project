@@ -19,19 +19,28 @@ const evalJs = [
   'console.log(JSON.stringify({version:v.version,runtimeVersion:v.runtimeVersion,package:v.android.package,projectId:v.extra.eas.projectId,appEnv:v.extra.appEnv}));'
 ].join('');
 
-function evaluate(extraEnv) {
+function run(extraEnv) {
   const env = {...process.env};
   for (const key of ENV_KEYS) delete env[key];
   Object.assign(env, extraEnv);
-  const child = spawnSync(process.execPath, ['-e', evalJs, path.join(mobile,'app.config.js')], {
+  return spawnSync(process.execPath, ['-e', evalJs, path.join(mobile,'app.config.js')], {
     cwd:mobile,env,encoding:'utf8',timeout:15000
   });
+}
+function evaluate(extraEnv) {
+  const child = run(extraEnv);
   assert.equal(child.status, 0, 'dynamic config failed: '+child.stderr);
   return JSON.parse(child.stdout);
 }
+// No SDK57 default runtime: anything but an approved identity must fail closed.
+function assertHeld(extraEnv) {
+  const child = run(extraEnv);
+  assert.notEqual(child.status, 0, 'config must not resolve: '+child.stdout);
+  assert.match(child.stderr, /HOLD_RUNTIME_IDENTITY_NOT_APPROVED/);
+}
 
 test('dedicated v1.5 EAS profile is a store AAB, isolated from ordinary production', () => {
-  assert.equal(eas.cli.version, '25.0.0');
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(original.channel, 'production');
   assert.equal(original.autoIncrement, true);
@@ -50,9 +59,8 @@ test('dedicated v1.5 EAS profile is a store AAB, isolated from ordinary producti
   assert.ok(!JSON.stringify(profile).includes('autoSubmit'));
 });
 
-test('ordinary production without explicit release gate stays Build25', () => {
-  const c=evaluate({...original.env,EAS_BUILD_PROFILE:'production'});
-  assert.deepEqual([c.version,c.runtimeVersion,c.package,c.appEnv],['1.0.0','1.0.0-build17','com.ald1n.mobile','production']);
+test('ordinary production without explicit release gate fails closed (no Build25 default)', () => {
+  assertHeld({...original.env,EAS_BUILD_PROFILE:'production'});
 });
 
 test('dedicated release profile resolves v1.5 even when EAS_BUILD_PROFILE is absent locally', () => {
@@ -74,26 +82,24 @@ test('old production build contract only activates with deliberate explicit gate
 test('rejects missing or wrong release gate, profile marker, or wrong app environment', () => {
   const missingGate={...profile.env};
   delete missingGate.ALD1N_V15_RELEASE_GATE;
-  assert.equal(evaluate(missingGate).version,'1.0.0');
-  assert.equal(evaluate({...profile.env,ALD1N_V15_RELEASE_GATE:'no'}).version,'1.0.0');
-  assert.equal(evaluate({EXPO_PUBLIC_APP_ENV:'production',ALD1N_V15_RELEASE_GATE:'approved',EAS_BUILD_PROFILE:'preview'}).version,'1.0.0');
-  assert.equal(evaluate({...profile.env,EXPO_PUBLIC_APP_ENV:'development'}).version,'1.0.0');
+  assertHeld(missingGate);
+  assertHeld({...profile.env,ALD1N_V15_RELEASE_GATE:'no'});
+  assertHeld({EXPO_PUBLIC_APP_ENV:'production',ALD1N_V15_RELEASE_GATE:'approved',EAS_BUILD_PROFILE:'preview'});
+  assertHeld({...profile.env,EXPO_PUBLIC_APP_ENV:'development'});
 });
 
 test('production profile remains free of auto-submit and native release gate by default', () => {
   assert.deepEqual(eas.submit.production.android,{track:'production',releaseStatus:'completed'});
   assert.equal(original.env.ALD1N_V15_RELEASE_GATE,undefined);
   assert.equal(original.env.ALD1N_V15_RELEASE_PROFILE,undefined);
-  const blocked=evaluate({EXPO_PUBLIC_APP_ENV:'production'});
-  assert.equal(blocked.version,'1.0.0');
-  assert.equal(blocked.runtimeVersion,'1.0.0-build17');
+  assertHeld({EXPO_PUBLIC_APP_ENV:'production'});
 });
 
 test('same require(config) responds to release gate change per invocation, as existing CI expects', () => {
   const script = [
     "const cfg=require(process.argv[1]);",
     "delete process.env.ALD1N_V15_RELEASE_GATE;",
-    "const old=cfg({config:{}});",
+    "let old;try{old=cfg({config:{}})}catch(e){old={version:'HOLD',runtimeVersion:/HOLD_RUNTIME_IDENTITY_NOT_APPROVED/.test(e.message)?'HELD':'ERR'}}",
     "process.env.ALD1N_V15_RELEASE_GATE='approved';",
     "const next=cfg({config:{}});",
     "console.log(JSON.stringify([old.version,old.runtimeVersion,next.version,next.runtimeVersion]));"
@@ -105,5 +111,5 @@ test('same require(config) responds to release gate change per invocation, as ex
     cwd:mobile,env,encoding:'utf8',timeout:15000
   });
   assert.equal(child.status,0,child.stderr);
-  assert.deepEqual(JSON.parse(child.stdout),['1.0.0','1.0.0-build17','1.5.0','1.5.0-native2']);
+  assert.deepEqual(JSON.parse(child.stdout),['HOLD','HELD','1.5.0','1.5.0-native2']);
 });

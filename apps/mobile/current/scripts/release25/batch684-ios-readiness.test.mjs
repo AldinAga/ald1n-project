@@ -157,15 +157,16 @@ test('relative paths, preview-file alias and symlink to repo preview are rejecte
   }
 });
 
-test('all iOS build entrypoints still run preflight before exact EAS CLI25; Android untouched', () => {
-  for (const profile of ['preview', 'production', 'development']) {
-    const cmd = pkg.scripts['build:ios:' + profile];
-    assert.ok(cmd.startsWith('node scripts/ios-release-readiness.mjs --profile ' + profile + ' && '));
-    assert.ok(cmd.includes('--package=eas-cli@25.0.0 -- eas build --platform ios --profile ' + profile));
+test('all iOS native builds run credential preflight before fail-closed release gate', () => {
+  for (const profile of ['preview','production','development']) {
+    const cmd=pkg.scripts['build:ios:'+profile];
+    assert.ok(cmd.startsWith('node scripts/ios-release-readiness.mjs --profile '+profile+' && '));
+    assert.ok(cmd.endsWith('node scripts/release27/hold-unaudited-native-build.mjs --platform ios --profile '+profile));
+    assert.ok(!cmd.includes('-- eas build '));
   }
-  assert.equal(pkg.scripts['preflight:ios:production'], 'node scripts/ios-release-readiness.mjs --profile production');
-  assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
-  assert.ok(pkg.scripts['build:android:preview'].includes('--platform android --profile preview'));
+  assert.equal(pkg.scripts['preflight:ios:production'],'node scripts/ios-release-readiness.mjs --profile production');
+  assert.equal(pkg.scripts['build:android:production'],'node scripts/build25-release-controller.mjs');
+  assert.ok(pkg.scripts['build:android:preview'].includes('node scripts/release27/hold-unaudited-native-build.mjs --platform android --profile preview'));
 });
 
 test('no unknown EAS profile ever passes', () => {

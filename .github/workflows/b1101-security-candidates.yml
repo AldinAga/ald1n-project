@@ -101,7 +101,7 @@ jobs:
           php vendor/bin/phpunit -c phpunit.mysql.xml --colors=never --log-junit "$evidence/candidate-full.xml" > "$evidence/candidate-full.log" 2>&1 || rc=$?
           printf '%s\n' "$rc" > "$evidence/candidate-full.exit"
           tail -n 35 "$evidence/candidate-full.log"
-          php -r '$x=simplexml_load_file($argv[1]);$cases=$x->xpath("//testcase")?:[];if(count($cases)!==719)exit(48);foreach($cases as $c){if(isset($c->failure)||isset($c->error)||isset($c->skipped))exit(49);}echo "B1101_CANDIDATE_FULL717_ZERO_FAILED_SKIPPED=PASS\n";' "$evidence/candidate-full.xml"
+          php -r '$x=simplexml_load_file($argv[1]);$cases=$x->xpath("//testcase")?:[];if(count($cases)<1149)exit(48);foreach($cases as $c){if(isset($c->failure)||isset($c->error)||isset($c->skipped))exit(49);}echo "B1101_CANDIDATE_FULL717_ZERO_FAILED_SKIPPED=PASS\n";' "$evidence/candidate-full.xml"
           test "$rc" = 0
           git diff --exit-code -- app resources routes bootstrap config database tests composer.json
           test "$(git diff --name-only | wc -l)" -le 1

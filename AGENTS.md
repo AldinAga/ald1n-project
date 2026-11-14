@@ -120,7 +120,7 @@ Packaging is not permission to deploy an unapproved Draft, activate flags, run m
 
 ## 0S. Reconciled original acceptance and completed deployment authority (B1095, 2026-11-04)
 
-The original [B1044 receipt](docs/operations/B1044-M17-OWNER-ACCEPTANCE-M10M11-MERGED-80CASE-PASS-20261102.md) and [Issue124 owner acceptance](https://github.com/AldinAga/ald1n-project/issues/124#issuecomment-6585783961) outrank later summaries that accidentally reverted to 11/17. Correct formal acceptance is **12/17 (70.6%)**, CMS10/15, UI6/6. M17 is owner-accepted functional CLOSED; this correction is not new CI acceptance. Signed AAB versionCode29/source6adb3b440b8cfdc068b142a98c418d9d91487f64 and original 16KiB audit are archived by B1044. Physical page-size output, individual device/OAuth matrix and Play rollout/signer continuity are not independently evidenced; do not invent them or repeat a native build. Native SDK58 source remains on its distinct release branch; do not describe it as merged into current SDK57 main.
+The original [B1044 receipt](docs/operations/B1044-M17-OWNER-ACCEPTANCE-M10M11-MERGED-80CASE-PASS-20261102.md) and [Issue124 owner acceptance](https://github.com/AldinAga/ald1n-project/issues/124#issuecomment-6585783961) outrank later summaries that accidentally reverted to 11/17. Correct formal acceptance is **12/17 (70.6%)**, CMS10/15, UI6/6. M17 is owner-accepted functional CLOSED; this correction is not new CI acceptance. Signed AAB versionCode29/source6adb3b440b8cfdc068b142a98c418d9d91487f64 and original 16KiB audit are archived by B1044. Physical page-size output, individual device/OAuth matrix and Play rollout/signer continuity are not independently evidenced; do not invent them or repeat a native build. Native SDK58 source remains on its distinct release branch; do not describe it as merged into current SDK57 main. **Update 2026-11-14:** the SDK58 release line (commit 6adb3b440b8cfdc068b142a98c418d9d91487f64, versionCode 29 per the owner) has been merged into the mobile app on branch `codex/mobile-sdk58-into-main-20261114` together with main's newer mobile commits; the sentence above describes the state before that branch and stays true for `main` until the owner approves and merges it. No build, submit or OTA is authorized by this note.
 
 PR113/115 source integration, B962 twelve-file CloudLinux deployment/additive recovery migration, OPcache/FPM probes and B955/B959 restore evidence are already completed. Do not rerun them because PR111/127 Draft bodies or stale later summaries say pending. B1044 actual merged-source 80tests/586assertions PASS is source/provider-simulation evidence, not external provider delivery acceptance. M10/M11 formal business acceptance remains OPEN for independently authorized real SMTP/Expo/operator delivery/recovery UAT; alerts/recovery stay default OFF. Remaining formal functional tasks: M10,M11,M13,M14,M15. Preserve security/merchant/legal/current-host/source/backup/release gates; no production or native action follows from this correction.
 
@@ -332,7 +332,8 @@ Expo project ID: d43b3866-6838-4217-a23e-3dc7f2cc76cc
 Android package: com.ald1n.mobile
 Production API:  https://cms.ald1n.com/api/v1
 App version:     1.0.0
-Current runtime: 1.0.0-build17
+Current runtime: 1.0.0-m17-sdk58-play2 (EAS profile m17-sdk58-play-rc, Expo SDK 58, live Play versionCode 29)
+No default runtime exists: app.config.js throws HOLD_RUNTIME_IDENTITY_NOT_APPROVED without an approved identity.
 ```
 
 Current platform baseline:
@@ -397,7 +398,7 @@ This is an entrypoint rule for EVERY NEW Ald1n chat and operator batch, not an o
 - **2026-10-21 MySQL 8.4 SQL 1221 cross-family rule (PR78 recovery):** Laravel's PDO driver name is `mysql` for **both** MySQL and MariaDB, but their INSTANT DDL lock syntax differs. **MariaDB 10.11** accepts `ALGORITHM=INSTANT, LOCK=NONE`; **MySQL 8.4** rejects this combination with SQL 1221 and requires `ALGORITHM=INSTANT` with its default lock strategy (do not set `LOCK=NONE`). Use the real `SELECT VERSION()` to choose the *exact* separately tested SQL, and fail closed on unknown versions; retain InnoDB preflight and bounded/restored metadata-lock timeout. This is not permission for a slower `COPY`/`INPLACE` fallback. Real MySQL8.4 negative evidence [CI 39639308774](https://github.com/AldinAga/ald1n-project/actions/runs/39639308774), corrected MySQL8.4 **and** MariaDB10.11.19 success [CI 39640326290](https://github.com/AldinAga/ald1n-project/actions/runs/39640326290). No production DDL was run.
 
 - Node: CloudLinux **Node.js 22** environment `/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node`; npm CLI `/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js`. Always check these exact executables before use. Do not assume shell `node`/`npm` are resolved. No global npm upgrade (`npm install -g`) and no generic `expo install --fix`; never upgrade npm solely because it prints a notice.
-- EAS CLI: pinned `eas-cli@25.0.0` invoked through the canonical Node22/npm exec, subject to the separately approved authenticated production release gates. A CI PASS is not permission to publish OTA, build, or Play submission.
+- EAS CLI: pinned `eas-cli@27.2.0` (matches eas.json) invoked through the canonical Node22/npm exec, subject to the separately approved authenticated production release gates. A CI PASS is not permission to publish OTA, build, or Play submission.
 - JDK: JDK **17** is mandatory for native/signature regression tests; on this host `java`, `jar`, `jarsigner`, and `keytool` may be absent from PATH entirely. Check executable availability and real smoke functionality. If unavailable, a verified portable Temurin JDK17 may be installed in private `$HOME/.ald1n-toolchains` with SHA-256 verification, non-root, no global environment edits. Never bypass failed signature tests.
 - **Owner UX rule (2026-10-21): do not require or suggest a separate manual `sha256sum` command for ordinary operator batch execution.** File integrity checks, when needed, must be done automatically inside the script and reported without a second operator command. This changes the user-facing workflow, NOT the requirement to protect executable source integrity or release provenance. Give the owner one straightforward invocation from the canonical `incoming/` path.
 - **Mandatory CloudLinux delivery review (2026-10-21):** before giving any operator script, statically reject the patterns `<(`, `>(`, `/dev/fd`, `exec > >(`, `done < <(` and any shell process substitution, and run `bash -n` or `sh -n` matching its interpreter. Prior Batch687 and the 2026-10-21 v1.5 batch both failed with `/dev/fd/63`; never repeat this failure. Use `tee` by ordinary pipe with explicit `PIPESTATUS` or a regular report file, not process substitution.
@@ -407,7 +408,7 @@ This is an entrypoint rule for EVERY NEW Ald1n chat and operator batch, not an o
 - For CloudLinux-related failures, prefer **one consolidated host audit/recovery batch**, record actual observed versions, paths, RCs and blockers. Do not chain speculative workaround batches.
 - **2026-10-21 Report784 recovery — isolated Expo checkout:** `eas whoami` may PASS before app dependencies exist, while `eas project:info` FAILS loading `expo-router` in `app.config.js`. In a **fresh isolated clone** requiring later TypeScript/validator/Android export, run the approved exact Node22/npm10 **lockfile install `npm ci` before any project-scoped EAS command that loads Expo config plugins**. First perform static source/ref/config checks, then install already-required QA dependencies, then run EAS `project:info` and remote-version reads from the isolated app root. Do not run `eas project:info` on the pristine checkout before dependency install and do not re-clone/re-fetch on a recovery that can safely reuse an exact-SHA clean isolate. Do not install packages merely for an unrelated read-only compatibility query. Keep the isolated checkout under `$HOME` **outside** `/home/icaffeco/ald1n-project`; never create `.ald1n-v15-isolated-*` inside the production repo. Report784 already proved EAS account login and exact source SHA; preserve that evidence and resume at the failed stage.
 
-- Production Android baseline until re-attested: app 1.0.0, versionCode 25, runtime 1.0.0-build17, production channel, com.ald1n.mobile. The latest OTA group and deployed source must always be reverified before mutation. iOS stays deferred by owner.
+- Production Android baseline until re-attested: app 1.0.0, versionCode 29 (live on Google Play, Expo SDK 58, EAS profile m17-sdk58-play-rc, 16 KB alignment done), runtime 1.0.0-m17-sdk58-play2, production channel, com.ald1n.mobile. The latest OTA group and deployed source must always be reverified before mutation. iOS stays deferred by owner.
 - The user expects these rules to be retrieved from GitHub `AGENTS.md` at the **start** of every new Ald1n project chat/batch, together with `docs/operations/000-LATEST.md` and recent reports.
 
 ---
@@ -478,10 +479,10 @@ Approved pattern:
 
 Do **not** require or probe for a physical/global `eas` binary as a hard prerequisite.
 
-Canonical pinned EAS CLI version for new repository operations (read-only GitHub Actions validated 2026-10-16):
+Canonical pinned EAS CLI version for new repository operations (matches eas.json; the SDK 58 line uses 27.2.0):
 
 ```text
-eas-cli@25.0.0
+eas-cli@27.2.0
 ```
 
 Upgrade from 24.8.0 to **25.0.0**: exact-source Node 22.16 read-only compatibility [CI 38862601089](https://github.com/AldinAga/ald1n-project/actions/runs/38862601089) PASS (CLI version and Update, republish, channel, project, build and submit help/flag contracts). Upstream [v25.0.0 release notes](https://github.com/expo/eas-cli/releases/tag/v25.0.0) list simulator-preview link sharing as the published breaking change. **Authenticated production exact-group read on hosting with CLI 25: PASS** (owner-executed Report683, 2026-10-16; source `6a02eec0d2a800de7db1996adfdc2fd0e69d0cac`, exact production group `37ae8af0-b950-4549-8476-c960e1350866`, no mutation). The production channel/latest GraphQL mapping was **not** rechecked by Report683 and remains a separate gate for every future EAS publish. Do not install globally, run builds/OTA or modify production as part of this upgrade. Future versions require their own isolated compatibility and fail-closed tests.
@@ -489,7 +490,7 @@ Upgrade from 24.8.0 to **25.0.0**: exact-source Node 22.16 read-only compatibili
 Approved invocation:
 
 ```bash
-EAS_SPEC="eas-cli@25.0.0"
+EAS_SPEC="eas-cli@27.2.0"
 "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas --version
 ```
 
@@ -516,7 +517,7 @@ Do not execute project-scoped EAS commands from the monorepo root.
 
 Known historical failure prevented by this rule: `eas update:list` failed when launched from the monorepo root even though authentication worked.
 
-### Command-specific flag policy for eas-cli@25.0.0
+### Command-specific flag policy for eas-cli@27.2.0
 
 The flags are not uniform across EAS subcommands. Use the behavior proven on this hosting, not a blanket flag template.
 
@@ -545,10 +546,10 @@ Before deciding that a native build is required, compare native/runtime-critical
 For JS/TS-only changes compatible with the current runtime:
 
 ```text
-runtimeVersion = 1.0.0-build17
+runtimeVersion = 1.0.0-m17-sdk58-play2
 ```
 
-prefer **EAS Update OTA** instead of a new native build.
+(The SDK 57 runtime 1.0.0-build17 is no longer defined in app.config.js.) prefer **EAS Update OTA** instead of a new native build.
 
 Do not create Build18 merely because source code changed.
 
@@ -1014,7 +1015,7 @@ A new batch should answer these **before touching source**:
 [ ] Is the known .htaccess drift still exactly the known hash/diff?
 [ ] Is my temp directory outside the Git worktree?
 [ ] Am I using canonical Node/npm paths?
-[ ] If EAS is needed, am I using npm exec eas-cli@25.0.0?
+[ ] If EAS is needed, am I using npm exec eas-cli@27.2.0?
 [ ] Will every project-scoped EAS command run from apps/mobile/current?
 [ ] Does the script avoid python3, /dev/fd, and process substitution?
 [ ] Can any expected RC=1 be accidentally trapped by set -e/ERR?
@@ -1045,7 +1046,7 @@ Before candidate publish:
 [ ] owner = ald1n
 [ ] project ID = d43b3866-6838-4217-a23e-3dc7f2cc76cc
 [ ] Android package = com.ald1n.mobile
-[ ] runtime = 1.0.0-build17 for Build17-compatible OTA
+[ ] runtime = 1.0.0-m17-sdk58-play2 for compatible OTA (no default runtime exists)
 [ ] production API = https://cms.ald1n.com/api/v1
 [ ] source commit pushed and local/remote synchronized
 [ ] EAS whoami succeeds through pinned npm-exec authority
@@ -1141,7 +1142,7 @@ Use quarantine/backup before deleting uncertain runtime artifacts.
 These failures have already happened and are now encoded as permanent guards:
 
 1. **Project EAS command from monorepo root** -> collection query failed. Run from Mobile root.
-2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@25.0.0`.
+2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@27.2.0`.
 3. **Local repo one documentation commit behind GitHub** -> preflight mismatch. Verify ancestry/delta and `git merge --ff-only` when safe.
 4. **Temp directory created inside repo** -> checkpoint detected its own temp files as contamination. Temp/lock outside worktree.
 5. **Broad grep for `FAIL`** -> false failure on `Ukupno FAIL: 0`. Parse exact failure semantics.

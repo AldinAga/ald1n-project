@@ -134,7 +134,7 @@ jobs:
           const google=JSON.parse(fs.readFileSync('google-services.json','utf8'));
           const packages=(google.client||[]).map(x=>x.client_info?.android_client_info?.package_name);
           const okay=pkg.name==='ald1n-mobile' && pkg.version==='1.0.0' && pkg.packageManager==='npm@12.2.1' &&
-            pkg.dependencies?.expo==='~58.0.22' && pkg.dependencies?.['react-native']==='0.88.1' &&
+            pkg.dependencies?.expo==='~58.0.25' && pkg.dependencies?.['react-native']==='0.88.1' &&
             pkg.dependencies?.['react-native-nitro-google-signin']==='2.3.1' &&
             pkg.dependencies?.['react-native-nitro-modules']==='0.37.1' &&
             eas.cli?.version==='27.2.0' && eas.cli?.appVersionSource==='remote' &&

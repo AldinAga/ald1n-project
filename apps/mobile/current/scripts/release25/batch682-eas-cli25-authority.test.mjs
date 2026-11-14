@@ -16,28 +16,30 @@ const helper = read(path.join(mobile, 'scripts/submit-android-production.mjs'));
 const validator = read(path.join(mobile, 'scripts/validate-project.mjs'));
 const app = read(path.join(mobile, 'app.config.js'));
 
-test('canonical v25 authority converges across config and guardrails without global EAS installs', () => {
-  assert.equal(eas.cli.version, '25.0.0');
+test('EAS27 project authority preserves historical EAS25 source and safe guards without global EAS installs', () => {
+  assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
-  assert.ok(agents.includes('eas-cli@25.0.0'));
+  assert.ok(agents.includes('eas-cli@27.2.0'));
   assert.ok(agents.includes('CI 38862601089'));
   assert.ok(agents.includes('Authenticated production exact-group read on hosting'));
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
   assert.ok(/^# CURRENT(?: B\d+| \d{4}-\d{2}-\d{2} — B\d+)/.test(index));
   assert.ok(index.includes('Android M16') || index.includes('Android 16KB'));
-  assert.ok(eas.cli.version === '25.0.0' && agents.includes('eas-cli@25.0.0'));
+  assert.ok(eas.cli.version === '27.2.0' && agents.includes('eas-cli@27.2.0'));
 });
 
-test('optional build wrappers, submit helper and validator use only exact EAS CLI25', () => {
-  for (const name of ['build:android:preview','build:ios:preview','build:ios:production','build:android:development','build:ios:development']) {
-    assert.ok(pkg.scripts[name].includes('--package=eas-cli@25.0.0 -- eas build --platform '), name);
+test('SDK58 build wrappers are fail-closed while legacy Build25 submit remains disabled', () => {
+  for (const name of ['build:android:preview','build:ios:preview','build:ios:production','build:android:development','build:ios:development','build:ios:simulator']) {
+    assert.ok(pkg.scripts[name].includes('node scripts/release27/hold-unaudited-native-build.mjs --platform '), name);
+    assert.ok(!pkg.scripts[name].includes('-- eas build '), name);
   }
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
   assert.equal(pkg.scripts['submit:android:production'], 'node scripts/submit-android-production.mjs');
   assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@24.8.0'));
+  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@25.0.0'));
   assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@latest'));
-  assert.ok(helper.includes("const EAS_CLI_VERSION = '25.0.0'"));
-  assert.ok(validator.includes("productionSubmitHelper505R.includes(\"const EAS_CLI_VERSION = '25.0.0'\")"));
+  assert.ok(helper.includes("const EAS_CLI_VERSION = '27.2.0'"));
+  assert.ok(validator.includes("productionSubmitHelper505R.includes(\"const EAS_CLI_VERSION = '27.2.0'\")"));
 });
 
 test('Build25 identity and EAS remote app version are untouched', () => {
@@ -45,7 +47,7 @@ test('Build25 identity and EAS remote app version are untouched', () => {
   assert.equal(eas.build.production.channel, 'production');
   assert.equal(eas.build.production.autoIncrement, true);
   assert.equal(eas.submit.production.android.track, 'production');
-  assert.ok(app.includes("'1.0.0-build17'"));
+  assert.ok(app.includes("'1.0.0-m17-sdk58-play2'") && !app.includes('1.0.0-build17'));
   assert.ok(app.includes("ALD1N_V15_RELEASE_GATE === 'approved'"));
   assert.ok(app.includes('com.ald1n.mobile'));
   assert.ok(!JSON.stringify(pkg.scripts).includes('--auto-submit'));

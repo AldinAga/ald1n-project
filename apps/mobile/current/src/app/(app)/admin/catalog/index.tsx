@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router, type Href } from 'expo-router';
-import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Screen } from '@/components/layout/screen';
@@ -90,7 +90,7 @@ export default function AdminCatalogIndexScreen() {
     if (!allowed || handoffEditId === null) return;
     const productId = handoffEditId;
     let frameId: number | null = null;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const idleId = requestIdleCallback(() => {
       frameId = requestAnimationFrame(() => {
         clearCatalogProductEditHandoff(productId);
         setHandoffEditId(null);
@@ -99,7 +99,7 @@ export default function AdminCatalogIndexScreen() {
     });
 
     return () => {
-      task.cancel();
+      cancelIdleCallback(idleId);
       if (frameId !== null) cancelAnimationFrame(frameId);
     };
   }, [allowed, handoffEditId]);
