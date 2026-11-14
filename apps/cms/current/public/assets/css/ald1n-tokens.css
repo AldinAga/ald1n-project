@@ -1,0 +1,418 @@
+/*
+ * AUTO-GENERATED. Do not edit.
+ * Source:    packages/tokens/ald1n.tokens.json
+ * Generator: node scripts/generate-ald1n-tokens.mjs
+ * Palette:   Kobalt (the storefront palette, shared by storefront, admin CMS and Android app).
+ * Prefix:    --a1-  (no collision with --bg, --ald-*, --lg*)
+ * Author:    Ald1n <https://ald1n.com>
+ *
+ * Theme selectors. Both conventions in use today work without changing either:
+ *
+ *   Storefront  <html data-theme="system|light|dark">, cookie shop_theme.
+ *               "system" follows prefers-color-scheme.
+ *   Admin CMS   <html data-theme="light|dark" data-theme-mode="auto|light|dark">,
+ *               localStorage ald1n-theme-mode. The bootstrap script resolves
+ *               "auto" itself and always writes the resolved light or dark into
+ *               data-theme, so the admin never sets data-theme="system".
+ *
+ *   :root                          dark, the default (also with no attribute)
+ *   :root[data-theme="light"]      light
+ *   :root[data-theme="system"]     light when prefers-color-scheme is light
+ *
+ * data-theme-mode is not needed here: it only records the user's choice, the
+ * resolved value is always in data-theme. Unlike the storefront file, which
+ * also turns light for a page with no attribute, a page with no data-theme is
+ * dark here; both real consumers always set the attribute.
+ *
+ * Fallbacks are token overrides placed after the themes with specificity at
+ * least equal to the light block, so they win in every mode. They replace the
+ * fill and effect aliases (--a1-glass-fill*, --a1-fx*), not the glass tokens
+ * themselves; the storefront does the same. prefers-reduced-transparency and
+ * prefers-contrast: more mirror the storefront rules. The forced-colors layer
+ * is derived: the storefront handles forced colors per component with system
+ * colours, here the same system colours are applied at token level.
+ */
+
+:root {
+  color-scheme: dark;
+  --a1-accent-link: #a9c3ff;
+  --a1-accent-soft: rgba(128,160,238,.17);
+  --a1-back-to-top-bg: #3557c7;
+  --a1-back-to-top-border: #b5c8ff;
+  --a1-back-to-top-hover: #4466d6;
+  --a1-back-to-top-ring: #ffffff;
+  --a1-border-normal: rgba(206,222,234,.13);
+  --a1-border-strong: rgba(206,222,234,.26);
+  --a1-button-ghost-bg: rgba(206,222,234,.07);
+  --a1-button-ghost-hover: rgba(206,222,234,.13);
+  --a1-button-primary-bg: #3557c7;
+  --a1-button-primary-hover: #3e62d6;
+  --a1-button-primary-on: #ffffff;
+  --a1-edge-light: rgba(255,255,255,.13);
+  --a1-edge-rim: rgba(255,255,255,.10);
+  --a1-edge-sheen: rgba(255,255,255,.06);
+  --a1-focus-ring: #9fd0ff;
+  --a1-glass-dense: rgba(24,32,38,.84);
+  --a1-glass-hover: rgba(34,45,53,.90);
+  --a1-glass-soft: rgba(30,40,47,.72);
+  --a1-glass-standard: rgba(24,32,38,.76);
+  --a1-glass-strong: rgba(15,21,26,.96);
+  --a1-glow-1: rgba(88,122,196,.36);
+  --a1-glow-2: rgba(126,104,216,.32);
+  --a1-glow-3: rgba(64,156,184,.28);
+  --a1-glow-4: rgba(196,140,108,.20);
+  --a1-heading-from: #ffffff;
+  --a1-heading-to: #c6d6ff;
+  --a1-image-lightbox-bg: #07090c;
+  --a1-image-photo-bed: rgba(255,255,255,.035);
+  --a1-image-photo-ring: rgba(255,255,255,.10);
+  --a1-image-stage: #e8ecf1;
+  --a1-image-stage-end: #dbe1e8;
+  --a1-image-stage-text: #44505c;
+  --a1-image-thumb-ring: var(--a1-accent-link);
+  --a1-status-danger-bg: #3b1d28;
+  --a1-status-danger-dot: #d7788f;
+  --a1-status-danger-text: #ffe2e9;
+  --a1-status-info-bg: #12332f;
+  --a1-status-info-dot: #4fb7a3;
+  --a1-status-info-text: #d9fbf3;
+  --a1-status-off-bg: rgba(142,154,166,.16);
+  --a1-status-off-dot: #8e9aa6;
+  --a1-status-off-text: #c0c9d2;
+  --a1-status-ok-bg: rgba(95,226,154,.13);
+  --a1-status-ok-dot: #5fe29a;
+  --a1-status-ok-text: #9bf0c0;
+  --a1-status-warning-bg: #3a2d12;
+  --a1-status-warning-dot: #e0b45c;
+  --a1-status-warning-strong: #fff4d8;
+  --a1-status-warning-text: #ffe8bb;
+  --a1-surface-field: #111820;
+  --a1-surface-page: #0d1216;
+  --a1-surface-solid: #182026;
+  --a1-text-primary: #eef2f5;
+  --a1-text-secondary: #c8d2d9;
+  --a1-text-tertiary: #a7b4bd;
+  --a1-shadow-button: 0 1px 0 rgba(255,255,255,.18) inset,0 10px 24px -12px rgba(40,72,190,.85);
+  --a1-shadow-card: 0 1px 0 var(--a1-edge-light) inset,0 18px 40px -26px rgba(0,0,0,.75);
+  --a1-shadow-card-hover: 0 1px 0 var(--a1-edge-light) inset,0 28px 54px -26px rgba(0,0,0,.85);
+  --a1-shadow-header: 0 1px 0 var(--a1-edge-light) inset,0 10px 30px -18px rgba(0,0,0,.7);
+  --a1-shadow-photo: 0 1px 2px rgba(0,0,0,.35),0 14px 30px -18px rgba(0,0,0,.85);
+
+  --a1-blur-standard-radius: 24px;
+  --a1-blur-standard-saturate: 185%;
+  --a1-blur-strong-radius: 30px;
+  --a1-blur-strong-saturate: 210%;
+  --a1-fallback-contrast-image-stage-text: #1e2731;
+  --a1-focus-offset: 3px;
+  --a1-focus-offset-inset: 1px;
+  --a1-focus-width: 3px;
+  --a1-gradient-button-gloss: linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 52%);
+  --a1-motion-duration-base: 220ms;
+  --a1-motion-duration-fast: 180ms;
+  --a1-motion-duration-lift: 600ms;
+  --a1-motion-duration-rise: 550ms;
+  --a1-motion-duration-slow: 320ms;
+  --a1-motion-duration-stagger: 40ms;
+  --a1-motion-easing-basic: cubic-bezier(.25,.1,.25,1);
+  --a1-motion-easing-standard: cubic-bezier(.2,.8,.2,1);
+  --a1-radius-lg: 22px;
+  --a1-radius-md: 16px;
+  --a1-radius-photo: 14px;
+  --a1-radius-pill: 999px;
+  --a1-radius-sm: 12px;
+  --a1-size-control: 48px;
+  --a1-size-touch-target: 44px;
+  --a1-space-4: 4px;
+  --a1-space-8: 8px;
+  --a1-space-12: 12px;
+  --a1-space-16: 16px;
+  --a1-space-20: 20px;
+  --a1-space-24: 24px;
+  --a1-space-28: 28px;
+  --a1-space-40: 40px;
+  --a1-space-48: 48px;
+  --a1-space-72: 72px;
+  --a1-space-80: 80px;
+  --a1-typography-font-family-display: "Segoe UI Variable Display","SF Pro Display","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+  --a1-typography-font-family-sans: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --a1-typography-font-size-base: 16px;
+  --a1-typography-font-size-lg: 19px;
+  --a1-typography-font-size-md: 15px;
+  --a1-typography-font-size-md-plus: 17px;
+  --a1-typography-font-size-sm: 13px;
+  --a1-typography-font-size-sm-plus: 14px;
+  --a1-typography-font-size-xl: 20px;
+  --a1-typography-font-size-xl-2: 21px;
+  --a1-typography-font-size-xl-3: 23px;
+  --a1-typography-font-size-xl-4: 24px;
+  --a1-typography-font-size-xs: 12px;
+  --a1-typography-font-size-xs-plus: 12.5px;
+  --a1-typography-font-weight-black: 800;
+  --a1-typography-font-weight-bold: 700;
+  --a1-typography-font-weight-button: 650;
+  --a1-typography-font-weight-display: 780;
+  --a1-typography-font-weight-label: 620;
+  --a1-typography-font-weight-medium: 500;
+  --a1-typography-font-weight-nav: 560;
+  --a1-typography-font-weight-numeric: 750;
+  --a1-typography-font-weight-regular: 400;
+  --a1-typography-font-weight-semibold: 600;
+  --a1-typography-font-weight-stock: 640;
+  --a1-typography-letter-spacing-button: .005em;
+  --a1-typography-letter-spacing-display: -.03em;
+  --a1-typography-letter-spacing-eyebrow: .12em;
+  --a1-typography-letter-spacing-heading: -.015em;
+  --a1-typography-letter-spacing-label: .02em;
+  --a1-typography-letter-spacing-normal: 0em;
+  --a1-typography-letter-spacing-price: -.02em;
+  --a1-typography-letter-spacing-sub: .04em;
+  --a1-typography-letter-spacing-title: -.01em;
+  --a1-typography-line-height-body: 1.6;
+  --a1-typography-line-height-button: 1.2;
+  --a1-typography-line-height-caption: 1.3;
+  --a1-typography-line-height-detail: 1.25;
+  --a1-typography-line-height-display: 1.04;
+  --a1-typography-line-height-heading: 1.12;
+  --a1-typography-line-height-lead: 1.55;
+  --a1-typography-line-height-results: 1.4;
+  --a1-typography-line-height-snug: 1.15;
+  --a1-typography-line-height-title: 1.35;
+
+  --a1-glass-fill: var(--a1-glass-standard);
+  --a1-glass-fill-strong: var(--a1-glass-strong);
+  --a1-glass-fill-soft: var(--a1-glass-soft);
+  --a1-fx: blur(var(--a1-blur-standard-radius)) saturate(var(--a1-blur-standard-saturate));
+  --a1-fx-strong: blur(var(--a1-blur-strong-radius)) saturate(var(--a1-blur-strong-saturate));
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --a1-accent-link: #2546ad;
+  --a1-accent-soft: rgba(42,77,187,.09);
+  --a1-back-to-top-bg: #1f3f99;
+  --a1-back-to-top-border: #ffffff;
+  --a1-back-to-top-hover: #2a4fb8;
+  --a1-back-to-top-ring: #121b24;
+  --a1-border-normal: rgba(24,40,58,.11);
+  --a1-border-strong: rgba(24,40,58,.22);
+  --a1-button-ghost-bg: rgba(24,40,58,.05);
+  --a1-button-ghost-hover: rgba(24,40,58,.09);
+  --a1-button-primary-bg: #2d50bf;
+  --a1-button-primary-hover: #2746aa;
+  --a1-button-primary-on: #ffffff;
+  --a1-edge-light: rgba(255,255,255,.95);
+  --a1-edge-rim: rgba(255,255,255,.85);
+  --a1-edge-sheen: rgba(255,255,255,.70);
+  --a1-focus-ring: #1d4fd6;
+  --a1-glass-dense: rgba(255,255,255,.86);
+  --a1-glass-hover: rgba(255,255,255,.94);
+  --a1-glass-soft: rgba(255,255,255,.70);
+  --a1-glass-standard: rgba(255,255,255,.74);
+  --a1-glass-strong: rgba(250,251,253,.96);
+  --a1-glow-1: rgba(104,140,214,.40);
+  --a1-glow-2: rgba(150,124,232,.36);
+  --a1-glow-3: rgba(84,178,204,.26);
+  --a1-glow-4: rgba(232,168,124,.32);
+  --a1-heading-from: #121b24;
+  --a1-heading-to: #2b4fbd;
+  --a1-image-lightbox-bg: #07090c;
+  --a1-image-photo-bed: #fbf9f6;
+  --a1-image-photo-ring: rgba(24,40,58,.10);
+  --a1-image-stage: #f4f6f9;
+  --a1-image-stage-end: #e8ecf1;
+  --a1-image-stage-text: #4c5864;
+  --a1-image-thumb-ring: var(--a1-accent-link);
+  --a1-status-danger-bg: #fdecef;
+  --a1-status-danger-dot: #c4415f;
+  --a1-status-danger-text: #5c1426;
+  --a1-status-info-bg: #e5f6f2;
+  --a1-status-info-dot: #2f9e88;
+  --a1-status-info-text: #0d3b33;
+  --a1-status-off-bg: #eceff4;
+  --a1-status-off-dot: #7c879a;
+  --a1-status-off-text: #475263;
+  --a1-status-ok-bg: #e4f5ea;
+  --a1-status-ok-dot: #16a34a;
+  --a1-status-ok-text: #11653a;
+  --a1-status-warning-bg: #fff4dc;
+  --a1-status-warning-dot: #c58a1a;
+  --a1-status-warning-strong: #3d2800;
+  --a1-status-warning-text: #5c3d00;
+  --a1-surface-field: #ffffff;
+  --a1-surface-page: #edf0f4;
+  --a1-surface-solid: #ffffff;
+  --a1-text-primary: #121b24;
+  --a1-text-secondary: #33404c;
+  --a1-text-tertiary: #3f4a56;
+  --a1-shadow-button: 0 1px 0 rgba(255,255,255,.22) inset,0 10px 22px -12px rgba(36,64,170,.7);
+  --a1-shadow-card: 0 1px 0 var(--a1-edge-light) inset,0 1px 2px rgba(18,27,36,.05),0 16px 34px -24px rgba(18,27,36,.32);
+  --a1-shadow-card-hover: 0 1px 0 var(--a1-edge-light) inset,0 2px 4px rgba(18,27,36,.06),0 26px 46px -24px rgba(18,27,36,.4);
+  --a1-shadow-header: 0 1px 0 var(--a1-edge-light) inset,0 8px 26px -18px rgba(18,27,36,.35);
+  --a1-shadow-photo: 0 1px 2px rgba(18,27,36,.08),0 14px 28px -20px rgba(18,27,36,.45);
+}
+
+@media (prefers-color-scheme: light) {
+:root[data-theme="system"] {
+  color-scheme: light;
+  --a1-accent-link: #2546ad;
+  --a1-accent-soft: rgba(42,77,187,.09);
+  --a1-back-to-top-bg: #1f3f99;
+  --a1-back-to-top-border: #ffffff;
+  --a1-back-to-top-hover: #2a4fb8;
+  --a1-back-to-top-ring: #121b24;
+  --a1-border-normal: rgba(24,40,58,.11);
+  --a1-border-strong: rgba(24,40,58,.22);
+  --a1-button-ghost-bg: rgba(24,40,58,.05);
+  --a1-button-ghost-hover: rgba(24,40,58,.09);
+  --a1-button-primary-bg: #2d50bf;
+  --a1-button-primary-hover: #2746aa;
+  --a1-button-primary-on: #ffffff;
+  --a1-edge-light: rgba(255,255,255,.95);
+  --a1-edge-rim: rgba(255,255,255,.85);
+  --a1-edge-sheen: rgba(255,255,255,.70);
+  --a1-focus-ring: #1d4fd6;
+  --a1-glass-dense: rgba(255,255,255,.86);
+  --a1-glass-hover: rgba(255,255,255,.94);
+  --a1-glass-soft: rgba(255,255,255,.70);
+  --a1-glass-standard: rgba(255,255,255,.74);
+  --a1-glass-strong: rgba(250,251,253,.96);
+  --a1-glow-1: rgba(104,140,214,.40);
+  --a1-glow-2: rgba(150,124,232,.36);
+  --a1-glow-3: rgba(84,178,204,.26);
+  --a1-glow-4: rgba(232,168,124,.32);
+  --a1-heading-from: #121b24;
+  --a1-heading-to: #2b4fbd;
+  --a1-image-lightbox-bg: #07090c;
+  --a1-image-photo-bed: #fbf9f6;
+  --a1-image-photo-ring: rgba(24,40,58,.10);
+  --a1-image-stage: #f4f6f9;
+  --a1-image-stage-end: #e8ecf1;
+  --a1-image-stage-text: #4c5864;
+  --a1-image-thumb-ring: var(--a1-accent-link);
+  --a1-status-danger-bg: #fdecef;
+  --a1-status-danger-dot: #c4415f;
+  --a1-status-danger-text: #5c1426;
+  --a1-status-info-bg: #e5f6f2;
+  --a1-status-info-dot: #2f9e88;
+  --a1-status-info-text: #0d3b33;
+  --a1-status-off-bg: #eceff4;
+  --a1-status-off-dot: #7c879a;
+  --a1-status-off-text: #475263;
+  --a1-status-ok-bg: #e4f5ea;
+  --a1-status-ok-dot: #16a34a;
+  --a1-status-ok-text: #11653a;
+  --a1-status-warning-bg: #fff4dc;
+  --a1-status-warning-dot: #c58a1a;
+  --a1-status-warning-strong: #3d2800;
+  --a1-status-warning-text: #5c3d00;
+  --a1-surface-field: #ffffff;
+  --a1-surface-page: #edf0f4;
+  --a1-surface-solid: #ffffff;
+  --a1-text-primary: #121b24;
+  --a1-text-secondary: #33404c;
+  --a1-text-tertiary: #3f4a56;
+  --a1-shadow-button: 0 1px 0 rgba(255,255,255,.22) inset,0 10px 22px -12px rgba(36,64,170,.7);
+  --a1-shadow-card: 0 1px 0 var(--a1-edge-light) inset,0 1px 2px rgba(18,27,36,.05),0 16px 34px -24px rgba(18,27,36,.32);
+  --a1-shadow-card-hover: 0 1px 0 var(--a1-edge-light) inset,0 2px 4px rgba(18,27,36,.06),0 26px 46px -24px rgba(18,27,36,.4);
+  --a1-shadow-header: 0 1px 0 var(--a1-edge-light) inset,0 8px 26px -18px rgba(18,27,36,.35);
+  --a1-shadow-photo: 0 1px 2px rgba(18,27,36,.08),0 14px 28px -20px rgba(18,27,36,.45);
+}
+}
+
+/* Phones and touch screens: cards use the dense fill (storefront rule). */
+@media (max-width: 899px), (hover: none) {
+:root {
+  --a1-glass-fill: var(--a1-glass-dense);
+}
+}
+
+/* Fallback: no backdrop-filter (same condition as the storefront, for Safari). */
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+:root,
+:root[data-theme] {
+  --a1-glass-fill: var(--a1-surface-solid);
+  --a1-glass-fill-strong: var(--a1-surface-solid);
+  --a1-glass-fill-soft: var(--a1-surface-solid);
+  --a1-edge-sheen: transparent;
+}
+}
+
+/* Fallback: reduced transparency. */
+@media (prefers-reduced-transparency: reduce) {
+:root,
+:root[data-theme] {
+  --a1-glass-fill: var(--a1-surface-solid);
+  --a1-glass-fill-strong: var(--a1-surface-solid);
+  --a1-glass-fill-soft: var(--a1-surface-solid);
+  --a1-glass-hover: var(--a1-surface-solid);
+  --a1-fx: none;
+  --a1-fx-strong: none;
+  --a1-glow-1: transparent;
+  --a1-glow-2: transparent;
+  --a1-glow-3: transparent;
+  --a1-glow-4: transparent;
+  --a1-edge-sheen: transparent;
+  --a1-edge-rim: transparent;
+  --a1-gradient-button-gloss: none;
+}
+}
+
+/* Fallback: more contrast. */
+@media (prefers-contrast: more) {
+:root,
+:root[data-theme] {
+  --a1-glass-fill: var(--a1-surface-solid);
+  --a1-glass-fill-strong: var(--a1-surface-solid);
+  --a1-glass-fill-soft: var(--a1-surface-solid);
+  --a1-glass-hover: var(--a1-surface-solid);
+  --a1-fx: none;
+  --a1-fx-strong: none;
+  --a1-glow-1: transparent;
+  --a1-glow-2: transparent;
+  --a1-glow-3: transparent;
+  --a1-glow-4: transparent;
+  --a1-edge-sheen: transparent;
+  --a1-edge-rim: transparent;
+  --a1-gradient-button-gloss: none;
+  --a1-text-secondary: var(--a1-text-primary);
+  --a1-text-tertiary: var(--a1-text-primary);
+  --a1-border-normal: var(--a1-border-strong);
+  --a1-image-stage-text: var(--a1-fallback-contrast-image-stage-text);
+}
+}
+
+/* Fallback: forced colors (derived, see header). */
+@media (forced-colors: active) {
+:root,
+:root[data-theme] {
+  --a1-surface-page: Canvas;
+  --a1-surface-solid: Canvas;
+  --a1-surface-field: Canvas;
+  --a1-glass-fill: Canvas;
+  --a1-glass-fill-strong: Canvas;
+  --a1-glass-fill-soft: Canvas;
+  --a1-glass-hover: Canvas;
+  --a1-text-primary: CanvasText;
+  --a1-text-secondary: CanvasText;
+  --a1-text-tertiary: CanvasText;
+  --a1-border-normal: CanvasText;
+  --a1-border-strong: CanvasText;
+  --a1-accent-link: LinkText;
+  --a1-button-primary-bg: ButtonFace;
+  --a1-button-primary-hover: ButtonFace;
+  --a1-button-primary-on: ButtonText;
+  --a1-back-to-top-bg: ButtonFace;
+  --a1-back-to-top-hover: ButtonFace;
+  --a1-back-to-top-border: ButtonText;
+  --a1-focus-ring: Highlight;
+  --a1-fx: none;
+  --a1-fx-strong: none;
+  --a1-glow-1: transparent;
+  --a1-glow-2: transparent;
+  --a1-glow-3: transparent;
+  --a1-glow-4: transparent;
+  --a1-edge-sheen: transparent;
+  --a1-edge-rim: transparent;
+  --a1-gradient-button-gloss: none;
+}
+}

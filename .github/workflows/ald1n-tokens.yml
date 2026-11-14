@@ -1,0 +1,33 @@
+name: Kobalt tokens generator, contrast gates and storefront parity (NO DEPLOY)
+# Author: Ald1n <https://ald1n.com>
+# Pull requests only, like the sibling source-QA workflows: one run per head SHA.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/tokens/**'
+      - 'scripts/generate-ald1n-tokens.mjs'
+      - 'scripts/generate-ald1n-tokens.test.mjs'
+      - 'apps/cms/current/public/assets/css/ald1n-tokens.css'
+      - 'apps/mobile/current/src/design/ald1n-tokens.kobalt.generated.ts'
+      - 'apps/cms/current/public/assets/css/ald1n-public-storefront.css'
+      - 'apps/cms/current/public/assets/css/ald1n-public-gallery.css'
+      - '.github/workflows/ald1n-tokens.yml'
+permissions:
+  contents: read
+jobs:
+  tokens:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: Tests
+        run: node --test scripts/generate-ald1n-tokens.test.mjs
+      - name: Outputs in sync, contrast gates, storefront parity
+        run: node scripts/generate-ald1n-tokens.mjs --check
