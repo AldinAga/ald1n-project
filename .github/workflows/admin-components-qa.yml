@@ -1,0 +1,59 @@
+# Admin component library visual and accessibility QA (NO DEPLOY). Author: Ald1n <https://ald1n.com>
+# Renders the static gallery (tests/Browser/fixtures/admin-components.html) in
+# disposable Chromium and WebKit at 375/430/768/1280 in light and dark: axe
+# (colour-contrast and structural rules) must report zero violations, no
+# horizontal scroll, every control named and visibly focusable, tap targets at
+# least 44px; forced-colors, reduced-transparency and more-contrast render with
+# solid surfaces. Needs no PHP, no database and no server of the CMS.
+name: Admin components QA (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/cms/current/public/assets/css/ald1n-admin.css'
+      - 'apps/cms/current/public/assets/css/ald1n-tokens.css'
+      - 'apps/cms/current/tests/Browser/admin-components-browser.cjs'
+      - 'apps/cms/current/tests/Browser/fixtures/admin-components.html'
+      - '.github/workflows/admin-components-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: admin-components-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_NODE_ROOT: /tmp/admin-components-playwright
+      ADMIN_COMPONENTS_ARTIFACT_DIR: /tmp/admin-components-screenshots
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22'}
+      - name: Syntax check
+        working-directory: apps/cms/current
+        run: node --check tests/Browser/admin-components-browser.cjs
+      - name: Install disposable Chromium and WebKit outside repository
+        run: |
+          set -euo pipefail
+          mkdir -p "$PLAYWRIGHT_NODE_ROOT"
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$PLAYWRIGHT_NODE_ROOT" playwright@1.56.1 axe-core@4.10.3
+          "$PLAYWRIGHT_NODE_ROOT/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Gallery checks (strict, zero axe violations)
+        working-directory: apps/cms/current
+        run: node tests/Browser/admin-components-browser.cjs
+      - name: Keep synthetic screenshots only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: admin-components-screenshots
+          path: /tmp/admin-components-screenshots/*.png
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Production boundary
+        if: always()
+        run: echo 'CI_DISPOSABLE_ONLY NO_PRODUCTION_DB_CUSTOMER_MAIL_CHECKOUT_DEPLOY'
