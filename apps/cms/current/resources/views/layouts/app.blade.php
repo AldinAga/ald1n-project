@@ -80,8 +80,6 @@
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
-        // Without this class (JavaScript off) the menu sheet is shown in normal flow, so navigation and logout stay reachable.
-        document.documentElement.classList.add('a1-js');
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';
             const resolved = mode === 'auto'
@@ -101,6 +99,8 @@
         .dashboard-rate-widget[data-exchange-rate-sync]:focus-visible,.exchange-rate-settings-sync:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transparent)}
         .exchange-rate-settings-sync{border:1px solid var(--line);color:inherit}
     </style>
+    {{-- JavaScript off: no toggle (it would do nothing); the sheet content stays in normal flow so navigation and logout remain reachable on phones. --}}
+    <noscript><style>@media (max-width:1199px){.a1-menu-btn{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
     @stack('head')
 </head>
 <body class="a1-body">

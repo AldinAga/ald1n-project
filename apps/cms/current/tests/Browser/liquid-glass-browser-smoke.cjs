@@ -346,6 +346,11 @@ async function searchAndMenu(page, label, width) {
     check(await menu.getAttribute('aria-expanded') === 'false', 'HAMBURGER_CLOSES', label);
   } else {
     const first = page.locator('.a1-header__nav details.a1-nav-dd > summary').first();
+    // Pointer: hover opens the group; a click on the hover-opened summary closes it again (no pinning).
+    await first.hover();
+    check(await page.locator('.a1-header__nav details.a1-nav-dd[open]').count() === 1, 'DROPDOWN_OPENS_ON_HOVER', label);
+    await first.click();
+    check(await page.locator('.a1-header__nav details.a1-nav-dd[open]').count() === 0, 'DROPDOWN_CLICK_CLOSES_HOVER_OPENED', label);
     await first.click();
     check(await page.locator('.a1-header__nav details.a1-nav-dd[open]').count() === 1, 'DROPDOWN_OPENS', label);
     await page.keyboard.press('Escape');

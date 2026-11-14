@@ -378,7 +378,8 @@ async function runCell(ctx, pg, width, theme) {
       await page.route(baseUrl + target, async (route) => {
         if (route.request().resourceType() !== 'document') return route.continue();
         const upstream = await route.fetch();
-        const body = (await upstream.text()).replace(/<script\b[\s\S]*?<\/script>/gi, '');
+        // Scripts removed; <noscript> unwrapped, because the browser still has scripting enabled and would otherwise ignore it.
+        const body = (await upstream.text()).replace(/<script\b[\s\S]*?<\/script>/gi, '').replace(/<\/?noscript>/gi, '');
         const headers = { ...upstream.headers() };
         delete headers['content-length'];
         await route.fulfill({ status: upstream.status(), headers, body });

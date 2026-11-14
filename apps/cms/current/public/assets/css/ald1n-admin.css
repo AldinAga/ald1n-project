@@ -526,10 +526,6 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-header.is-open .a1-header__panel{display:grid;max-height:calc(100vh - 140px);max-height:calc(100dvh - 140px)}
   .a1-header__panel>.a1-rate,.a1-header__panel>.a1-theme{justify-self:start}
   .a1-header__user .a1-nav-dd__panel{padding-left:var(--a1-space-8)}
-  /* JavaScript off (the layout adds .a1-js to <html> first thing): no toggle, the sheet content stays in normal flow, so navigation and logout remain reachable. */
-  html:not(.a1-js) .a1-menu-btn{display:none}
-  html:not(.a1-js) .a1-header__panel{display:grid}
-  html:not(.a1-js) .a1-header{position:static}
 }
 @media (max-width:560px){
   .a1-menu-btn{padding-inline:0}

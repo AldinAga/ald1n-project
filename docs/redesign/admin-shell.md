@@ -20,7 +20,7 @@ Iste stavke, redosled, nazivi, rute, provere dozvola i brojači kao ranije. Modu
 - Aktivna stranica nosi `aria-current="page"` (tačno poklapanje adrese). Grupa ili odeljak u kome se stranica nalazi dobija `a1-nav__link--active`.
 - Tema: tri ikonice (sistem, svetla, tamna), `data-theme-mode-option`, primena bez ponovnog učitavanja, isti ključ `ald1n-theme-mode` u `localStorage`.
 - Valuta prikaza i odjava su u korisničkom meniju.
-- Bez JavaScripta (klasa `a1-js` na `<html>` izostaje) sadržaj ploče stoji u normalnom toku ispod trake, pa su navigacija i odjava dostupni na telefonu.
+- Bez JavaScripta (`<noscript><style>` u zaglavlju) sakriva se dugme „Meni“ i sadržaj ploče stoji u normalnom toku ispod trake, pa su navigacija i odjava dostupni na telefonu.
 - Po odluci vlasnika od 2026-11-10 admin nema dugme „Nazad na vrh“ (na javnoj prodavnici i HTML pregledima ostaje obavezno). Zato `DashboardLegacyDesignTest` proverava da ga nema.
 
 ## Provera
