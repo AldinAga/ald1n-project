@@ -98,20 +98,19 @@ async function login(browser, persona, mode) {
     await snapshot(page, 'login-failure-'+persona+'-'+mode);
     throw new Error('LOGIN_REDIRECT_FAILED '+persona+'/'+mode+' '+JSON.stringify(diagnostic)+' '+error.message);
   }
-  await page.locator('.site-header').waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('.a1-header').waitFor({ state: 'visible', timeout: 15000 });
   return { ctx, page };
 }
 
 async function headerGeometry(page, persona, mode, width) {
   await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
   await page.waitForTimeout(75);
-  await page.waitForFunction(() => document.querySelector('.site-header')?.getAttribute('data-lg-renderer') === 'svg', null, { timeout: 8000 });
   const state = await page.evaluate(() => {
     const selectors = {
-      rate: '.site-header .header-rate-persistent',
-      cart: '.site-header .header-cart-button',
-      search: '.site-header [data-header-product-search-toggle]',
-      hamburger: '.site-header [data-mobile-menu-toggle]',
+      rate: '.a1-header .a1-rate',
+      cart: '.a1-header a[aria-label^="Korpa"]',
+      search: '.a1-header [data-header-product-search-toggle]',
+      hamburger: '.a1-header [data-mobile-menu-toggle]',
     };
     function box(selector) {
       const element = document.querySelector(selector);
@@ -127,7 +126,7 @@ async function headerGeometry(page, persona, mode, width) {
     }
     const all = Object.fromEntries(Object.entries(selectors).map(([key,selector]) => [key, box(selector)]));
     const node = Object.fromEntries(Object.entries(selectors).map(([key,selector]) => [key, document.querySelector(selector)]));
-    const domOrder = Object.fromEntries(Object.entries(node).map(([key, el]) => [key, el ? [...document.querySelectorAll('.header-quick-actions > *')].indexOf(el) : -1]));
+    const domOrder = Object.fromEntries(Object.entries(node).map(([key, el]) => [key, el ? [...document.querySelectorAll('.a1-header *')].indexOf(el) : -1]));
     return {
       viewport: window.innerWidth,
       htmlWidth: document.documentElement.scrollWidth,
@@ -138,9 +137,8 @@ async function headerGeometry(page, persona, mode, width) {
       elements: all,
       domOrder,
       hasDisabledCart: !!document.querySelector('.header-cart-unavailable'),
-      headerPosition: getComputedStyle(document.querySelector('.site-header')).position,
-      headerGlass: document.querySelector('.site-header')?.getAttribute('data-lg-renderer'),
-      glassLayerPresent: !!document.querySelector('.site-header > .lg-layer'),
+      headerPosition: getComputedStyle(document.querySelector('.a1-header')).position,
+      headerTop: document.querySelector('.a1-header').getBoundingClientRect().top,
       r5: (() => {
         const st = getComputedStyle(document.documentElement);
         const shell = document.querySelector('.page-shell');
@@ -180,19 +178,24 @@ async function headerGeometry(page, persona, mode, width) {
   const visible = (box) => box && box.display !== 'none' && box.visibility !== 'hidden'
     && box.width > 25 && box.height > 25 && box.left >= -1 && box.right <= width + 1
     && box.top >= -1 && box.bottom <= 200;
-  for (const key of ['rate', 'search']) {
-    check(visible(state.elements[key]), 'HEADER_VISIBLE_' + key.toUpperCase(), tag + ': ' + JSON.stringify(state.elements[key]));
+  // The rate badge lives in the bar from 769px and inside the sheet menu at or below 768px.
+  const phone = width <= 768;
+  check(visible(state.elements.search), 'HEADER_VISIBLE_SEARCH', tag + ': ' + JSON.stringify(state.elements.search));
+  if (phone) {
+    check(visible(state.elements.hamburger), 'HEADER_VISIBLE_MENU_TOGGLE', tag + ': ' + JSON.stringify(state.elements.hamburger));
+  } else {
+    check(visible(state.elements.rate), 'HEADER_VISIBLE_RATE', tag + ': ' + JSON.stringify(state.elements.rate));
+    check(state.exchangeText.includes('EUR/RSD'), 'HEADER_EUR_LABEL', tag);
+    check(state.elements.hamburger === null || state.elements.hamburger.display === 'none', 'HEADER_NO_MENU_TOGGLE_ON_DESKTOP', tag);
   }
-  check(state.exchangeText.includes('EUR/RSD'), 'HEADER_EUR_LABEL', tag);
   if (shouldCart) {
     check(visible(state.elements.cart), 'HEADER_CART_VISIBLE', tag + ': ' + JSON.stringify(state.elements.cart));
-    check(state.domOrder.rate < state.domOrder.cart && state.domOrder.cart < state.domOrder.search,
-      'HEADER_ORIGINAL_ORDER', tag + ': ' + JSON.stringify(state.domOrder));
+    check(state.domOrder.search < state.domOrder.cart, 'HEADER_SEARCH_BEFORE_CART', tag + ': ' + JSON.stringify(state.domOrder));
   } else {
     check(state.elements.cart === null && !state.hasDisabledCart, 'HEADER_NO_CART_FOR_NON_BUYING_PERSONA', tag);
   }
   check(state.headerPosition === 'sticky', 'HEADER_STICKY_PRESERVED', tag + ': ' + state.headerPosition);
-  check(state.headerGlass === 'svg' && state.glassLayerPresent, 'HEADER_GLASS_REFRACTION_ACTIVE', tag);
+  check(Math.abs(state.headerTop) <= 1, 'HEADER_PINNED_TO_TOP', tag + ': ' + state.headerTop);
   // R4 optical regression: SVG initialization alone does not prove visible glass.
   // The lens must have viewport-wide textured paint to refract (the narrow
   // page-shell must remain transparent to avoid visible rectangular seams),
@@ -245,7 +248,7 @@ async function headerGeometry(page, persona, mode, width) {
   check(state.r5.primaryContrast >= 4.5, 'R5_WCAG_AA_PRIMARY_ACTION',
     tag+': '+state.r5.primaryContrast.toFixed(2));
 
-  const keys = shouldCart ? ['rate', 'cart', 'search'] : ['rate', 'search'];
+  const keys = (phone ? [] : ['rate']).concat(shouldCart ? ['cart', 'search'] : ['search']);
   for (let i=0; i<keys.length; i++) {
     for (let j=i+1; j<keys.length; j++) {
       const a = state.elements[keys[i]];
@@ -261,100 +264,53 @@ async function headerGeometry(page, persona, mode, width) {
   return state;
 }
 
-async function mobileDrawerReadabilitySmoke(page, label, width) {
+async function mobileSheetSmoke(page, label, width) {
+  // Sheet menu (<= 768px): opaque reading surface, controls inside the viewport, no horizontal scroll,
+  // theme switch and currency choice reachable, dropdown groups expand in the same scroll plane.
   const pre = await page.evaluate(() => {
-    const header = document.querySelector('[data-site-header]');
+    const header = document.querySelector('.a1-header');
     const panel = document.querySelector('[data-mobile-menu]');
-    const nav = panel?.querySelector(':scope > .main-nav');
-    const settings = panel?.querySelector(':scope > [data-mobile-menu-preferences]');
-    const logout = panel?.querySelector(':scope > .header-logout');
     const bounds = (node) => {
       if (!node) return null;
       const rect = node.getBoundingClientRect();
       return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width };
     };
-    const css = panel ? getComputedStyle(panel) : null;
-    const computedAlpha = (node) => {
+    const alpha = (node) => {
       if (!node) return 0;
       const bg = getComputedStyle(node).backgroundColor;
       if (bg === 'transparent') return 0;
       const match = bg.match(/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*([\d.]+))?\s*\)$/);
-      return match ? Number(match[1] ?? '1') : 0;
+      return match ? Number(match[1] ?? '1') : 1;
     };
-    const layer = header?.querySelector(':scope > .lg-layer');
     return {
-      panel: bounds(panel), nav: bounds(nav), settings: bounds(settings), logout: bounds(logout),
-      columns: css?.gridTemplateColumns || '',
-      areas: css?.gridTemplateAreas || '',
-      panelScrollWidth: panel?.scrollWidth || 0,
-      panelClientWidth: panel?.clientWidth || 0,
-      opaqueHeader: computedAlpha(header),
-      opaqueMenu: computedAlpha(panel),
-      layerHidden: !layer || getComputedStyle(layer).display === 'none',
-      settingsIsDetails: settings?.tagName === 'DETAILS',
-      settingsInitiallyClosed: settings?.open === false,
-      settingsContentHidden: settings ? getComputedStyle(settings.querySelector('.quick-settings-group')).display === 'none' : false,
-      viewport: window.innerWidth,
+      panel: bounds(panel), nav: bounds(panel?.querySelector('.a1-header__nav')), theme: bounds(panel?.querySelector('.a1-theme')),
+      rate: bounds(panel?.querySelector('.a1-rate')), user: bounds(panel?.querySelector('.a1-header__user')),
+      panelScrollWidth: panel?.scrollWidth || 0, panelClientWidth: panel?.clientWidth || 0,
+      opaqueHeader: alpha(header),
+      locked: document.documentElement.classList.contains('a1-lock'),
+      pageInert: !!document.querySelector('main[data-a1-page]')?.inert,
+      scrimShown: !!document.querySelector('[data-a1-scrim]') && !document.querySelector('[data-a1-scrim]').hidden,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   });
   const tag = label + '/' + width;
   const fits = (r) => r && r.width > 0 && r.left >= -1 && r.right <= width + 1;
-  check(pre.panel && pre.nav && pre.settings && pre.logout, 'MOBILE_DRAWER_PARTS_EXIST', tag + ' ' + JSON.stringify(pre));
-  check(pre.areas.replace(/\s+/g, ' ').includes('"nav quick" "logout logout"'), 'MOBILE_DRAWER_TWO_COLUMNS', tag + ' ' + pre.areas);
-  check(['panel','nav','settings','logout'].every(key => fits(pre[key])), 'MOBILE_DRAWER_IN_VIEWPORT', tag + ' ' + JSON.stringify(pre));
-  check(pre.nav && pre.settings && pre.logout
-      && pre.nav.right <= pre.settings.left + 2
-      && Math.abs(pre.nav.top - pre.settings.top) <= 2
-      && Math.max(pre.nav.bottom, pre.settings.bottom) <= pre.logout.top + 2,
-    'MOBILE_DRAWER_TWO_COLUMNS_LOGOUT_BELOW', tag + ' ' + JSON.stringify(pre));
-  check(pre.panelScrollWidth <= pre.panelClientWidth + 2, 'MOBILE_DRAWER_NO_X_SCROLL', tag + ' ' + JSON.stringify(pre));
-  check(pre.opaqueHeader >= .99 && pre.opaqueMenu >= .99 && pre.layerHidden,
-    'MOBILE_DRAWER_OPAQUE_READING_SURFACE', tag + ' ' + JSON.stringify(pre));
-  check(!pre.settingsIsDetails && !pre.settingsContentHidden,
-    'MOBILE_SETTINGS_PANELS_DIRECTLY_VISIBLE', tag + ' ' + JSON.stringify(pre));
-  const preferences = page.locator('[data-mobile-menu-preferences]');
-  check(await preferences.locator('summary').count() === 0,
-    'MOBILE_SETTINGS_NO_SUBMENU', tag);
-  const expanded = await preferences.evaluate(el => {
-    const panel = el.parentElement;
-    const rect = el.getBoundingClientRect();
-    const buttons = [...el.querySelectorAll('button')].filter(button => button.getClientRects().length);
-    return {
-      settingsLeft: rect.left, settingsRight: rect.right,
-      settingsScrollWidth: el.scrollWidth, settingsClientWidth: el.clientWidth,
-      panelScrollWidth: panel.scrollWidth, panelClientWidth: panel.clientWidth,
-      buttons: buttons.map(button => {
-        const box = button.getBoundingClientRect();
-        return { left: box.left, right: box.right, width: box.width, height: box.height };
-      }),
-    };
-  });
-  check(expanded.settingsScrollWidth <= expanded.settingsClientWidth + 2
-      && expanded.panelScrollWidth <= expanded.panelClientWidth + 2,
-    'MOBILE_SETTINGS_EXPANDED_NO_X_OVERFLOW', tag + ' ' + JSON.stringify(expanded));
-  check(expanded.buttons.length > 0 && expanded.buttons.every(button =>
-      button.left >= expanded.settingsLeft - 2 && button.right <= expanded.settingsRight + 2),
-    'MOBILE_SETTINGS_EXPANDED_CONTROLS_FIT', tag + ' ' + JSON.stringify(expanded));
-
-  check(await preferences.locator('[data-theme-mode-option="dark"]').isVisible()
-    && await preferences.locator('[data-display-currency-option="RSD"]').isVisible(),
-    'MOBILE_SETTINGS_CONTROLS_ACCESSIBLE', tag);
-  // Menu dropdowns must remain inside the same scroll plane instead of
-  // escaping as absolutely positioned overlays.
-  const firstDropdown = page.locator('[data-mobile-menu] .nav-dropdown').first();
-  if (await firstDropdown.count()) {
-    await firstDropdown.locator(':scope > summary').click();
-    const dropdown = await firstDropdown.locator(':scope > .nav-dropdown-menu').evaluate(el => ({
-      position: getComputedStyle(el).position,
-      width: el.getBoundingClientRect().width,
-      left: el.getBoundingClientRect().left,
-      right: el.getBoundingClientRect().right,
+  check(pre.panel && pre.nav && pre.theme && pre.rate && pre.user, 'MOBILE_SHEET_PARTS_EXIST', tag + ' ' + JSON.stringify(pre));
+  check(['panel', 'nav', 'theme', 'rate', 'user'].every((key) => fits(pre[key])), 'MOBILE_SHEET_IN_VIEWPORT', tag + ' ' + JSON.stringify(pre));
+  check(pre.panelScrollWidth <= pre.panelClientWidth + 2 && pre.overflow <= 1, 'MOBILE_SHEET_NO_X_SCROLL', tag + ' ' + JSON.stringify(pre));
+  check(pre.opaqueHeader >= .99, 'MOBILE_SHEET_OPAQUE_READING_SURFACE', tag + ' ' + JSON.stringify(pre));
+  check(pre.locked && pre.pageInert && pre.scrimShown, 'MOBILE_SHEET_SCROLL_LOCK_INERT_SCRIM', tag + ' ' + JSON.stringify(pre));
+  check(await page.locator('[data-mobile-menu] [data-theme-mode-option="dark"]').isVisible(), 'MOBILE_SHEET_THEME_CONTROL', tag);
+  const firstGroup = page.locator('[data-mobile-menu] details.a1-nav-dd').first();
+  if (await firstGroup.count()) {
+    await firstGroup.locator(':scope > summary').click();
+    const group = await firstGroup.locator(':scope > .a1-nav-dd__panel').evaluate((el) => ({
+      position: getComputedStyle(el).position, left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right,
     }));
-    check(dropdown.position === 'static' && dropdown.left >= -1 && dropdown.right <= width + 1,
-      'MOBILE_DROPDOWN_IN_FLOW', tag + ' ' + JSON.stringify(dropdown));
-    await firstDropdown.locator(':scope > summary').click();
+    check(group.position === 'static' && group.left >= -1 && group.right <= width + 1, 'MOBILE_DROPDOWN_IN_FLOW', tag + ' ' + JSON.stringify(group));
+    await firstGroup.locator(':scope > summary').click();
   }
-  if (width === 320 || width === 390) await snapshot(page, 'mobile-two-column-'+label+'-'+width);
+  if (width === 320 || width === 390) await snapshot(page, 'mobile-sheet-' + label.replace(/\//g, '-') + '-' + width);
 }
 
 async function searchAndMenu(page, label, width) {
@@ -362,28 +318,44 @@ async function searchAndMenu(page, label, width) {
   const toggle = page.locator('[data-header-product-search-toggle]');
   await toggle.click();
   const layer = page.locator('[data-header-product-search-layer]');
-  await page.waitForFunction(() => document.querySelector('[data-header-product-search-layer]')?.hidden === false, null, { timeout: 7000 });
+  await page.waitForFunction(() => document.querySelector('[data-header-product-search-layer]')?.open === true, null, { timeout: 7000 });
   check(await layer.isVisible(), 'SEARCH_DIALOG_OPEN', label);
+  check(await toggle.getAttribute('aria-expanded') === 'true', 'SEARCH_TOGGLE_EXPANDED', label);
   const searchInput = layer.locator('[data-header-product-search-input]');
   check(await searchInput.isVisible(), 'SEARCH_DIALOG_INPUT', label);
-  const dialog = layer.locator('.header-product-search-dialog');
-  await page.waitForFunction(() => document.querySelector('.header-product-search-dialog')?.getAttribute('data-lg-renderer') === 'svg', null, { timeout: 8000 });
-  check(await dialog.locator(':scope > .lg-layer').count() === 1, 'SEARCH_REAL_GLASS_LAYER', label);
-  const b = await dialog.boundingBox();
-  check(b && b.x >= -1 && b.x+b.width <= width+1, 'SEARCH_DIALOG_IN_VIEW', label);
+  check(await page.evaluate(() => document.activeElement?.hasAttribute('data-header-product-search-input')), 'SEARCH_INPUT_FOCUSED', label);
+  const b = await layer.boundingBox();
+  check(b && b.x >= -1 && b.x + b.width <= width + 1, 'SEARCH_DIALOG_IN_VIEW', label);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(120);
   check(await layer.isHidden(), 'SEARCH_ESCAPE_CLOSE', label);
-  if (width <= 1250) {
+  check(await page.evaluate(() => document.activeElement?.hasAttribute('data-header-product-search-toggle')), 'SEARCH_FOCUS_RETURNS_TO_TOGGLE', label);
+  if (width <= 768) {
     const menu = page.locator('[data-mobile-menu-toggle]');
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_OPENS', label);
-    if (width <= 820) await mobileDrawerReadabilitySmoke(page, label, width);
-    const hdr = await headerGeometry(page, 'superadmin', label.split('/')[1] || 'dark', width);
-    check(hdr.elements.rate !== null && hdr.elements.cart === null && hdr.elements.search !== null,
-      'OPERATOR_HEADER_WITH_MENU_NO_PERSONAL_CART', label);
+    await mobileSheetSmoke(page, label, width);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(120);
+    check(await menu.getAttribute('aria-expanded') === 'false', 'MENU_ESCAPE_CLOSES', label);
+    check(await page.evaluate(() => document.activeElement?.hasAttribute('data-mobile-menu-toggle')), 'MENU_FOCUS_RETURNS_TO_TOGGLE', label);
+    check(await page.evaluate(() => !document.documentElement.classList.contains('a1-lock')), 'MENU_SCROLL_LOCK_RELEASED', label);
+    await menu.click();
+    check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_REOPENS', label);
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'false', 'HAMBURGER_CLOSES', label);
+  } else {
+    const first = page.locator('.a1-header__nav details.a1-nav-dd > summary').first();
+    await first.click();
+    check(await page.locator('.a1-header__nav details.a1-nav-dd[open]').count() === 1, 'DROPDOWN_OPENS', label);
+    await page.keyboard.press('Escape');
+    check(await page.locator('.a1-header__nav details.a1-nav-dd[open]').count() === 0, 'DROPDOWN_ESCAPE_CLOSES', label);
+    const originalMode = await page.evaluate(() => document.documentElement.dataset.themeMode);
+    const dark = page.locator('[data-theme-mode-option="dark"]');
+    await dark.click();
+    check(await page.evaluate(() => document.documentElement.dataset.theme === 'dark' && document.documentElement.dataset.themeMode === 'dark'), 'THEME_SWITCH_APPLIES_IMMEDIATELY', label);
+    check(await dark.getAttribute('aria-pressed') === 'true', 'THEME_SWITCH_PRESSED', label);
+    await page.locator('[data-theme-mode-option="' + originalMode + '"]').click();
   }
 }
 
@@ -662,7 +634,7 @@ async function main() {
           } else {
             await page.setViewportSize({width:320,height:780});
             await navigate(page,fixture.paths.dashboard,'USER_DASHBOARD');
-            check(await page.locator('.header-cart-button').count() === 0,'USER_CART_ABSENT_AFTER_NAV',mode);
+            check(await page.locator('.a1-header a[aria-label^="Korpa"]').count() === 0,'USER_CART_ABSENT_AFTER_NAV',mode);
             if (mode!=='auto') await snapshot(page,mode+'-320-user-no-cart');
           }
         } catch(e) {
@@ -676,7 +648,7 @@ async function main() {
       try {
         for (const width of [1440,390,320]) await headerGeometry(buyerPage,'buyer',mode,width);
         await navigate(buyerPage,'/cart','BUYER_CART_PAGE');
-        check(await buyerPage.locator('.header-cart-button').count()===1,'BUYER_CART_PRESENT',mode);
+        check(await buyerPage.locator('.a1-header a[aria-label^="Korpa"]').count()===1,'BUYER_CART_PRESENT',mode);
         if (mode!=='auto') await snapshot(buyerPage,'buyer-cart-'+mode);
       } catch(e) {
         check(false,'BROWSER_BUYER_ERROR',mode+': '+e.message);

@@ -89,9 +89,10 @@ final class LogoSizeEverywhereTest extends TestCase
         $html = $this->adminPage();
 
         self::assertMatchesRegularExpression('~<img id="siteHeaderLogo"[^>]*style="height:'.$height.'px"[^>]*alt="Ald1n logo"~', $html);
-        self::assertStringNotContainsString('header-brand-name', $html);
+        self::assertStringNotContainsString('a1-brand__text', $html);
+        self::assertStringNotContainsString('a1-brand__mark', $html);
         // The link keeps an accessible name without the text.
-        self::assertMatchesRegularExpression('~<a class="brand"[^>]*aria-label="Zz Firma Zz"~', $html);
+        self::assertMatchesRegularExpression('~<a class="a1-brand"[^>]*aria-label="Zz Firma Zz"~', $html);
     }
 
     public function test_admin_header_shows_the_name_text_when_there_is_no_logo(): void
@@ -100,8 +101,8 @@ final class LogoSizeEverywhereTest extends TestCase
         $html = $this->adminPage();
 
         self::assertStringNotContainsString('siteHeaderLogo', $html);
-        self::assertStringContainsString('<span class="header-brand-name">Zz Firma Zz</span>', $html);
-        self::assertStringContainsString('<span class="brand-mark">A</span>', $html);
+        self::assertStringContainsString('<span class="a1-brand__text">Zz Firma Zz</span>', $html);
+        self::assertStringContainsString('<span class="a1-brand__mark" aria-hidden="true">A</span>', $html);
     }
 
     #[DataProvider('footerHeights')]
@@ -109,7 +110,7 @@ final class LogoSizeEverywhereTest extends TestCase
     {
         $this->withLogo(['site_footer_show_logo' => '1'] + ($stored === null ? [] : ['site_footer_logo_height' => $stored]));
 
-        self::assertMatchesRegularExpression('~<img class="site-footer-logo"[^>]*height="'.$height.'">~', $this->adminPage());
+        self::assertMatchesRegularExpression('~<img class="a1-footer__logo"[^>]*height="'.$height.'">~', $this->adminPage());
     }
 
     public static function footerHeights(): array

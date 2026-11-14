@@ -53,7 +53,7 @@ fs.mkdirSync(shotDir, { recursive: true });
 // Masked in screenshots (not in axe): values that change every run or depend on "today".
 const MASK_SELECTORS = [
   '[data-exchange-rate-value]',      // EUR/RSD rate in header and dashboard, changes with the rate source
-  '.rate-badge',                    // header rate badge incl. stale marker
+  '.a1-rate',                       // header rate badge incl. stale marker
   'canvas',                         // any canvas chart
   '[class*="chart-"]',              // dashboard chart blocks computed from "today"
   '[data-exchange-rate-sync-status]',
@@ -74,13 +74,13 @@ async function openMobileMenuIfNeeded(page) {
 const prepare = {
   async navDropdown(page) {
     await openMobileMenuIfNeeded(page);
-    const summary = page.locator('details.nav-dropdown > summary').first();
+    const summary = page.locator('.a1-header__nav details.a1-nav-dd > summary').first();
     await summary.click();
-    await page.waitForFunction(() => !!document.querySelector('details.nav-dropdown[open]'), null, { timeout: 5000 });
+    await page.waitForFunction(() => !!document.querySelector('.a1-header__nav details.a1-nav-dd[open]'), null, { timeout: 5000 });
   },
   async searchDialog(page) {
     await page.locator('[data-header-product-search-toggle]').click();
-    await page.waitForFunction(() => { const l = document.querySelector('#headerProductSearch'); return l && !l.hidden; }, null, { timeout: 5000 });
+    await page.waitForFunction(() => { const l = document.querySelector('#headerProductSearch'); return l && l.open; }, null, { timeout: 5000 });
     await page.locator('[data-header-product-search-input]').fill('Admin');
     await page.waitForTimeout(1500);
   },
@@ -188,12 +188,19 @@ async function measureOverflow(page) {
     };
   });
 }
-async function runAxe(page) {
+// Shell pages (module "shell") measure the shell only: header, search dialog, skip link, flash region and footer
+// carry .a1-shell. The page content of /account is old-styled and belongs to a later module; document-level rules
+// (title, lang) still run on the whole document.
+const SHELL_SCOPE = '.a1-shell';
+const DOCUMENT_RULES = ['document-title', 'html-has-lang'];
+async function runAxe(page, scoped) {
   if (!(await page.evaluate(() => typeof window.axe === 'object'))) await page.addScriptTag({ content: axeSource });
-  return page.evaluate(async (rules) => {
-    const r = await window.axe.run(document, { runOnly: { type: 'rule', values: rules }, resultTypes: ['violations'] });
+  const run = (rules, context) => page.evaluate(async ({ rules, context }) => {
+    const r = await window.axe.run(context ? { include: [[context]] } : document, { runOnly: { type: 'rule', values: rules }, resultTypes: ['violations'] });
     return r.violations.map((v) => ({ rule: v.id, count: v.nodes.length, selectors: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) }));
-  }, AXE_RULES);
+  }, { rules, context });
+  if (!scoped) return run(AXE_RULES, null);
+  return [...await run(AXE_RULES.filter((r) => !DOCUMENT_RULES.includes(r)), SHELL_SCOPE), ...await run(DOCUMENT_RULES, null)];
 }
 // Freeze text that changes between runs (dates, times, relative times, rate) - after axe, text only.
 async function freezeDynamic(page) {
@@ -292,7 +299,7 @@ async function runCell(ctx, pg, width, theme) {
         detail: `scrollWidth ${overflow.scrollWidth} vs viewport ${overflow.vw}; body overflow-x ${overflow.bodyOverflowX}, html ${overflow.htmlOverflowX}`,
         selectors: overflow.offenders });
     }
-    for (const v of await runAxe(page)) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
+    for (const v of await runAxe(page, pg.module === 'shell')) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
     if (local.console.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'console-error', count: local.console.length, selectors: local.console.slice(0, 3) });
     if (local.failed.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'failed-request', count: local.failed.length, selectors: local.failed.slice(0, 3) });
     await freezeDynamic(page);

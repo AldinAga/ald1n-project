@@ -264,10 +264,10 @@ async function main() {
     await attack(admin, '/admin/catalog/create?b1115=admin', 'admin');
     await check('admin-menu-theme-and-local-module-chain', async () => {
       await open(adminPage, '/account');
-      await adminPage.waitForSelector('.site-header.lg-host svg');
+      await adminPage.waitForSelector('.a1-header .a1-icon');
       assert(await adminPage.locator('form').first().getAttribute('data-ux-submit-ready') === '1');
       const mode = await adminPage.locator('html').getAttribute('data-theme-mode');
-      await adminPage.locator('[data-theme-toggle]').first().click();
+      await adminPage.locator(`[data-theme-mode-option="${mode === 'dark' ? 'light' : 'dark'}"]`).click();
       assert.notEqual(await adminPage.locator('html').getAttribute('data-theme-mode'), mode);
       await adminPage.setViewportSize({width: 390, height: 900});
       const toggle = adminPage.locator('[data-mobile-menu-toggle]');
