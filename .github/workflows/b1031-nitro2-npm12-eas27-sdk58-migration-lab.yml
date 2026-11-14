@@ -43,7 +43,7 @@ jobs:
           const files={
            'package.json':'c5e04adc050995d44222ffe8c773d0573a5dda21',
            'eas.json':'5b526f229465e2b5e10ed00dd46b663d7eff05a7',
-           'app.config.js':'391972757f31c1e0dcad9318d115472e850cd763',
+           'app.config.js':'af34aaf3561706d56827c8849512fe87911d6674',
            'package-lock.json':'498a25ed768ecdc4b08ce5bab52abdad6592eceb'
           };
           for(const [path,sha] of Object.entries(files)){
