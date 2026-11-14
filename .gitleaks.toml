@@ -14,8 +14,11 @@ paths = ['''^(?:.*/b1099-tracked-tree/)?docs/operations/.+\.md$''']
 # Firebase Android client key is public by design (shipped in every APK); the owner restricts it in Google Cloud console. Other rules stay active on this file.
 [[allowlists]]
 description = "Firebase client API key in google-services.json"
-targetRules = ["gcp-api-key"]
+targetRules = ["gcp-api-key", "generic-api-key"]
+condition = "AND"
+regexTarget = "line"
 paths = ['''^(?:.*/b1099-tracked-tree/)?apps/mobile/current/google-services\.json$''']
+regexes = ['''"current_key"\s*:''']
 
 # Fixture passwords and keys of the CMS test suite (fake data in test arrays); only these files and only these array-key lines.
 [[allowlists]]

@@ -6,12 +6,12 @@ Workflow: `.github/workflows/b1099-source-security-qa.yml`. Config: `.gitleaks.t
 
 The scan runs on the tracked tree and on the full HEAD history with `--ignore-gitleaks-allow` (inline `gitleaks:allow` comments are ignored) and `--redact=100`. Both scans must report 0 findings. No baseline file is used: allowlists apply to history scans too, and a baseline would need commit metadata that we do not want to publish.
 
-Every entry is rule-scoped (`targetRules`). The remaining entries also require the path and a matching source line (`condition = "AND"`, `regexTarget = "line"`), so a new secret in the same file still fails unless it sits on an allowed line.
+Every entry is rule-scoped (`targetRules`). All entries except the handover reports also require the path and a matching source line (`condition = "AND"`, `regexTarget = "line"`), so a new secret in the same file still fails unless it sits on an allowed line.
 
 | Class | Scope | Why it is safe |
 | --- | --- | --- |
 | Handover reports | `docs/operations/*.md`, rule `generic-api-key` | Batch reports quote commit hashes, state ids and digests. Other rules (cloud keys, tokens, private keys) still fire in these files. |
-| Firebase client key | `apps/mobile/current/google-services.json`, rule `gcp-api-key` | The Android client key is public by design and ships in every APK. It must be restricted (package name, SHA-1, API list) in Google Cloud console. |
+| Firebase client key | `apps/mobile/current/google-services.json`, `"current_key"` lines, rules `gcp-api-key` and `generic-api-key` | The Android client key is public by design and ships in every APK. It must be restricted (package name, SHA-1, API list) in Google Cloud console. |
 | CMS test fixtures | 5 files in `apps/cms/current/tests/Feature/`, lines with `'password'`, `'password_confirmation'`, `'password_hash'`, `'checkout_key'` array keys or `activate($plainToken,` | Fake values in test arrays. |
 | Example Idempotency-Key | two CMS docs and `apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt`, `Idempotency-Key:` lines | Random example request ids. |
 | File hash | `apps/cms/current/config/release.php`, the `public/.htaccess` line | Integrity pin, not a credential. |
