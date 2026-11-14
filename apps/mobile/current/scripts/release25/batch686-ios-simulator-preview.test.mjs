@@ -17,19 +17,27 @@ const plist = read('GoogleService-Info.plist');
 const googleAuthSource = read('src/features/auth/google-auth.ts');
 const appConfigSrc = read('app.config.js');
 
-function previewConfig() {
+// app.config.js has no default runtime: evaluate it under an explicit approved SDK58 identity.
+function configWith(patch) {
   const file = require.resolve(path.join(mobile, 'app.config.js'));
-  const before = process.env.EXPO_PUBLIC_APP_ENV;
+  const before = Object.fromEntries(Object.keys(patch).map((k) => [k, process.env[k]]));
   try {
-    process.env.EXPO_PUBLIC_APP_ENV = 'preview';
+    Object.assign(process.env, patch);
     delete require.cache[file];
     return require(file)({ config: {} });
   } finally {
     delete require.cache[file];
-    if (before === undefined) delete process.env.EXPO_PUBLIC_APP_ENV;
-    else process.env.EXPO_PUBLIC_APP_ENV = before;
+    for (const [k, v] of Object.entries(before)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 }
+const previewConfig = () => configWith({
+  EXPO_PUBLIC_APP_ENV: 'preview',
+  ALD1N_M17_SDK58_UAT: 'isolated',
+  ALD1N_M17_SDK58_PROFILE: 'm17-sdk58-uat',
+});
 
 const simulatedArgs = () => ({
   profile: 'ios-simulator', appConfig: previewConfig(),
@@ -53,7 +61,7 @@ test('separate iOS Simulator profile uses preview identity, never production cha
 });
 
 test('real tracked preview Firebase passes simulator CONFIG ONLY, not native signing or device UAT', () => {
-  const r = inspectIosReadiness('ios-simulator');
+  const r = assessIosReadiness(simulatedArgs());
   assert.equal(r.ok, true, JSON.stringify(r.blockers));
   assert.equal(r.status, 'PASS_CONFIG_ONLY');
   assert.equal(r.effectiveAppEnv, 'preview');
@@ -71,7 +79,7 @@ test('environment file override cannot hijack preview Google identity for simula
   const had = Object.hasOwn(process.env, 'ALD1N_IOS_GOOGLE_SERVICES_FILE');
   try {
     process.env.ALD1N_IOS_GOOGLE_SERVICES_FILE = '/not-a-real-file/production-firebase.plist';
-    const r = inspectIosReadiness('ios-simulator');
+    const r = assessIosReadiness(simulatedArgs());
     assert.equal(r.ok, true, JSON.stringify(r.blockers));
     assert.equal(r.googlePlistBundleId, 'com.ald1n.mobile.preview');
   } finally {
@@ -109,17 +117,34 @@ test('new simulator command is pinned and always runs local profile gate first; 
   assert.ok(build.endsWith('node scripts/release27/hold-unaudited-native-build.mjs --platform ios --profile ios-simulator'));
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
   assert.ok(pkg.scripts['build:ios:production'].includes('--profile production'));
-  assert.ok(appConfigSrc.includes("'1.0.0-build17'"));
-  assert.equal(previewConfig().runtimeVersion, '1.0.0-build17');
+  assert.ok(!appConfigSrc.includes('1.0.0-build17'));
+  assert.equal(previewConfig().runtimeVersion, '1.0.0-m17-sdk58-uat2');
 });
 
 test('real iOS production still HOLD without postponed Firebase file, not bypassed by simulator profile', () => {
-  const hold = inspectIosReadiness('production');
+  const hold = assessIosReadiness({
+    profile: 'production', eas, pkg, plist: '', previewPlist: plist, googleAuthSource,
+    filesPresent: false, root: mobile,
+    appConfig: configWith({
+      EXPO_PUBLIC_APP_ENV: 'production',
+      ALD1N_M17_SDK58_PLAY_RC: 'source-only',
+      ALD1N_M17_SDK58_PLAY_PROFILE: 'm17-sdk58-play-rc',
+    }),
+  });
   assert.equal(hold.status, 'HOLD');
   assert.equal(hold.ok, false);
   assert.equal(hold.expectedBundleId, 'com.ald1n.mobile');
   assert.ok(hold.blockers.includes('IOS_GOOGLE_FILE_VARIABLE_REQUIRED'));
-  const sim = inspectIosReadiness('ios-simulator');
+  const sim = assessIosReadiness(simulatedArgs());
   assert.equal(sim.ok, true);
   assert.notEqual(sim.expectedBundleId, hold.expectedBundleId);
+});
+
+test('real iOS inspection of preview, simulator and production holds: no approved iOS runtime identity', () => {
+  for (const profile of ['preview', 'ios-simulator', 'production']) {
+    const r = inspectIosReadiness(profile);
+    assert.equal(r.ok, false, profile);
+    assert.equal(r.status, 'HOLD');
+    assert.deepEqual(r.blockers, ['IOS_RUNTIME_IDENTITY_NOT_APPROVED']);
+  }
 });

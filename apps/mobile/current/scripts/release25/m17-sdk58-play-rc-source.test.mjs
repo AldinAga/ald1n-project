@@ -78,7 +78,10 @@ test('local and remote profile use new SDK58 runtime and exact production packag
 });
 
 test('bare production Build25, v1.5 and preview SDK58 UAT retain their original identities',()=>{
- accepted({...eas.build.production.env,EAS_BUILD_PROFILE:'production'},'1.0.0-build17','com.ald1n.mobile');
+ // The SDK57 default runtime is gone: bare production fails closed.
+ const held=resolveConfig({...eas.build.production.env,EAS_BUILD_PROFILE:'production'});
+ assert.equal(held.ok,false);
+ assert.match(held.stderr,/HOLD_RUNTIME_IDENTITY_NOT_APPROVED/);
  accepted({...eas.build['production-v15-16kb'].env,EAS_BUILD_PROFILE:'production-v15-16kb'},'1.5.0-native2','com.ald1n.mobile');
  const preview=eas.build['m17-sdk58-uat'];
  accepted({...preview.env,EAS_BUILD_PROFILE:'m17-sdk58-uat'},'1.0.0-m17-sdk58-uat2','com.ald1n.mobile.preview');

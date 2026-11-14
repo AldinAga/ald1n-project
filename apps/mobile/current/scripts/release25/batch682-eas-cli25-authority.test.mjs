@@ -47,7 +47,7 @@ test('Build25 identity and EAS remote app version are untouched', () => {
   assert.equal(eas.build.production.channel, 'production');
   assert.equal(eas.build.production.autoIncrement, true);
   assert.equal(eas.submit.production.android.track, 'production');
-  assert.ok(app.includes("'1.0.0-build17'"));
+  assert.ok(app.includes("'1.0.0-m17-sdk58-play2'") && !app.includes('1.0.0-build17'));
   assert.ok(app.includes("ALD1N_V15_RELEASE_GATE === 'approved'"));
   assert.ok(app.includes('com.ald1n.mobile'));
   assert.ok(!JSON.stringify(pkg.scripts).includes('--auto-submit'));

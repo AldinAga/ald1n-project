@@ -38,6 +38,8 @@ const M17_UAT_PROFILE = 'm17-sdk58-uat';
 const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat2';
 const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
 const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play2';
+// Explicit local/dev-client runtime; never shared with a store or OTA identity.
+const DEV_RUNTIME = '1.0.0-dev-client';
 const m17Deps = require('./package.json').dependencies || {};
 const isM17Sdk58Source =
   m17Deps.expo === '~58.0.25'
@@ -82,6 +84,18 @@ module.exports = ({ config }) => {
   if (playMarkerPresent && !isM17PlayRc) {
     throw new Error('HOLD_M17_SDK58_PLAY_PROFILE_OR_SOURCE');
   }
+  // Dev path: EXPO_PUBLIC_APP_ENV=development must be set explicitly (.env or EAS development profile).
+  const isDevClient = process.env.EXPO_PUBLIC_APP_ENV === 'development'
+    && (!process.env.EAS_BUILD_PROFILE || process.env.EAS_BUILD_PROFILE === 'development')
+    && process.env.ALD1N_V15_RELEASE_GATE !== 'approved'
+    && !m17MarkerPresent && !playMarkerPresent;
+  // Fail closed: no SDK57 default runtime. Only an approved identity gets a runtime.
+  if (!(isApprovedV15Build || isM17Uat || isM17PlayRc || isDevClient)) {
+    throw new Error(
+      'HOLD_RUNTIME_IDENTITY_NOT_APPROVED: no approved SDK58 EAS profile or explicit dev '
+      + `(EXPO_PUBLIC_APP_ENV=development) identity; EAS_BUILD_PROFILE=${process.env.EAS_BUILD_PROFILE || '(unset)'}`
+    );
+  }
   const existingExtra = config.extra || {};
   const existingEas =
     existingExtra.eas &&
@@ -108,7 +122,7 @@ module.exports = ({ config }) => {
     },
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
-    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : (isM17Uat ? M17_UAT_RUNTIME : (isM17PlayRc ? M17_PLAY_RUNTIME : '1.0.0-build17')),
+    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : (isM17Uat ? M17_UAT_RUNTIME : (isM17PlayRc ? M17_PLAY_RUNTIME : DEV_RUNTIME)),
 
     ios: {
       ...(config.ios || {}),

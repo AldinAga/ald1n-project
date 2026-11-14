@@ -47,7 +47,7 @@ test('Native source upgrade cannot authorize EAS build, OTA or Play', () => {
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(eas.build.production.channel, 'production');
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
-  assert.ok(appConfig.includes("'1.0.0-build17'"));
+  assert.ok(appConfig.includes("'1.0.0-m17-sdk58-play2'") && !appConfig.includes('1.0.0-build17'));
   assert.ok(appConfig.includes("'1.5.0-native2'"));
   assert.ok(appConfig.includes("ALD1N_V15_RELEASE_GATE === 'approved'"));
 });

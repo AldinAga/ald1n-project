@@ -63,11 +63,13 @@ jobs:
              e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote'||
              e.build.production.android.buildType!=='app-bundle')
             throw Error('HOLD_M17_SOURCE_OR_RELEASE_IDENTITY');
+          if (process.env.EAS_BUILD_PROFILE || process.env.ALD1N_V15_RELEASE_GATE) throw Error('HOLD_M17_DEBUG_GOOGLE_SERVICES_IDENTITY_OR_RELEASE_ENV');
+          // Config has no default runtime: resolve the source-only SDK58 Play identity (no EAS profile var, no build).
+          process.env.ALD1N_M17_SDK58_PLAY_RC='source-only';process.env.ALD1N_M17_SDK58_PLAY_PROFILE='m17-sdk58-play-rc';
           const app=require('./app.config.js')({config:{}});
-          if (process.env.EAS_BUILD_PROFILE || process.env.ALD1N_V15_RELEASE_GATE
-              ||app.android?.package!=='com.ald1n.mobile'
+          if (app.android?.package!=='com.ald1n.mobile'
               ||app.version!=='1.0.0'
-              ||app.runtimeVersion!=='1.0.0-build17') {
+              ||app.runtimeVersion!=='1.0.0-m17-sdk58-play2') {
             throw Error('HOLD_M17_DEBUG_GOOGLE_SERVICES_IDENTITY_OR_RELEASE_ENV');
           }
           console.log('M17_CI_DEBUG_GOOGLE_SERVICES_PACKAGE_IDENTITY=PASS_NO_RELEASE_PROFILE');

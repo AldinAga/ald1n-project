@@ -109,7 +109,7 @@ jobs:
           if(pkg.dependencies.expo!=='~58.0.25' || pkg.dependencies['react-native']!=='0.88.1'
              || pkg.dependencies['react-native-nitro-google-signin']!=='1.3.0'
              || pkg.version!=='1.0.0' || pkg.packageManager!=='npm@10.9.2'
-             || eas.cli.version!=='25.0.0' || eas.cli.appVersionSource!=='remote'
+             || eas.cli.version!=='27.2.0' || eas.cli.appVersionSource!=='remote'
              || p.channel!=='m17-sdk58-uat' || p.environment!=='preview'
              || p.distribution!=='internal' || p.autoIncrement!==false
              || p.android?.buildType!=='apk' || p.autoSubmit!==undefined
@@ -153,23 +153,23 @@ jobs:
             echo 'HOLD_EXPO_TOKEN_GITHUB_SECRET_MISSING_NO_BUILD'
             exit 2
           fi
-          npm exec --yes --package=eas-cli@25.0.0 -- eas --version > "$RUNNER_TEMP/b1025-cli-version.txt"
-          test "$(cat "$RUNNER_TEMP/b1025-cli-version.txt")" = 'eas-cli/25.0.0 linux-x64 node-v22.23.4' || \
-            grep -Eq '^eas-cli/25\.0\.0 ' "$RUNNER_TEMP/b1025-cli-version.txt" || \
-            grep -Eq '^25\.0\.0$' "$RUNNER_TEMP/b1025-cli-version.txt"
-          npm exec --yes --package=eas-cli@25.0.0 -- eas project:info > "$RUNNER_TEMP/b1025-project-info.txt"
+          npm exec --yes --package=eas-cli@27.2.0 -- eas --version > "$RUNNER_TEMP/b1025-cli-version.txt"
+          test "$(cat "$RUNNER_TEMP/b1025-cli-version.txt")" = 'eas-cli/27.2.0 linux-x64 node-v22.23.4' || \
+            grep -Eq '^eas-cli/27\.2\.0 ' "$RUNNER_TEMP/b1025-cli-version.txt" || \
+            grep -Eq '^27\.2\.0$' "$RUNNER_TEMP/b1025-cli-version.txt"
+          npm exec --yes --package=eas-cli@27.2.0 -- eas project:info > "$RUNNER_TEMP/b1025-project-info.txt"
           grep -Fq "$M17_PROJECT_ID" "$RUNNER_TEMP/b1025-project-info.txt" || \
             { echo 'HOLD_AUTHENTICATED_PROJECT_ID_MISMATCH'; exit 2; }
           grep -Fq 'ald1n-mobile' "$RUNNER_TEMP/b1025-project-info.txt" || \
             { echo 'HOLD_AUTHENTICATED_PROJECT_SLUG_MISMATCH'; exit 2; }
-          npm exec --yes --package=eas-cli@25.0.0 -- eas config -p android -e "$M17_PROFILE" --json \
+          npm exec --yes --package=eas-cli@27.2.0 -- eas config -p android -e "$M17_PROFILE" --json \
             > "$RUNNER_TEMP/b1025-eas-effective-config.json"
           test -s "$RUNNER_TEMP/b1025-eas-effective-config.json"
-          npm exec --yes --package=eas-cli@25.0.0 -- eas build:version:get \
+          npm exec --yes --package=eas-cli@27.2.0 -- eas build:version:get \
             -p android -e "$M17_PROFILE" --json \
             > "$RUNNER_TEMP/b1025-eas-remote-version.json" || \
             { echo 'HOLD_EAS_REMOTE_VERSION_NOT_ATTESTED_NO_BUILD'; exit 2; }
-          npm exec --yes --package=eas-cli@25.0.0 -- eas build:list \
+          npm exec --yes --package=eas-cli@27.2.0 -- eas build:list \
             -p android -e "$M17_PROFILE" --limit 50 --json \
             > "$RUNNER_TEMP/b1025-previous-builds.json"
           node - "$RUNNER_TEMP/b1025-eas-remote-version.json" "$RUNNER_TEMP/b1025-previous-builds.json" <<'NODE'
@@ -202,7 +202,7 @@ jobs:
           umask 077
           printf 'SOURCE_SHA=%s\nPROFILE=%s\nPLATFORM=android\nCOUNT_LIMIT=1\n' \
             "$M17_SOURCE_SHA" "$M17_PROFILE" > "$RUNNER_TEMP/b1025-dispatch-intent.txt"
-          if ! npm exec --yes --package=eas-cli@25.0.0 -- eas build \
+          if ! npm exec --yes --package=eas-cli@27.2.0 -- eas build \
             --platform android --profile "$M17_PROFILE" --non-interactive --no-wait --json \
             > "$RUNNER_TEMP/b1025-eas-build-dispatch.json"; then
             echo 'HOLD_EAS_DISPATCH_OUTCOME_UNKNOWN_CHECK_EAS_BUILD_LIST_BEFORE_RETRY'
@@ -234,7 +234,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           umask 077
-          npm exec --yes --package=eas-cli@25.0.0 -- eas build:view "$BUILD_ID" --json \
+          npm exec --yes --package=eas-cli@27.2.0 -- eas build:view "$BUILD_ID" --json \
             > "$RUNNER_TEMP/b1025-eas-readback.json"
           node - "$RUNNER_TEMP/b1025-eas-readback.json" <<'NODE'
           const fs=require('node:fs');

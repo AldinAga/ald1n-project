@@ -1135,7 +1135,8 @@ assert(
 );
 assert(
   build17AppConfigBatch137.includes('MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137')
-    && build17AppConfigBatch137.includes("'1.0.0-build17'")
+    && build17AppConfigBatch137.includes("'1.0.0-m17-sdk58-play2'")
+    && !build17AppConfigBatch137.includes('1.0.0-build17')
     && build17AppConfigBatch137.includes("ALD1N_V15_RELEASE_GATE === 'approved'")
     && !build17AppConfigBatch137.includes("runtimeVersion: {\n      policy: 'appVersion'"),
   'Build17 ima izolovan runtime 1.0.0-build17 pa OTA ne može slučajno targetirati Build15/Build16 runtime 1.0.0.'

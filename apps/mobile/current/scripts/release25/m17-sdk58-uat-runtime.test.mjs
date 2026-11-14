@@ -80,10 +80,12 @@ test('SDK58 M17 profile resolves identical isolated runtime locally and on remot
 });
 
 test('existing production, v1.5 release and ordinary preview identities are unaffected', () => {
-  assertConfig({...eas.build.production.env,EAS_BUILD_PROFILE:'production'},
-    '1.0.0','1.0.0-build17','com.ald1n.mobile');
-  assertConfig({...eas.build.preview.env,EAS_BUILD_PROFILE:'preview'},
-    '1.0.0','1.0.0-build17','com.ald1n.mobile.preview');
+  // The SDK57 default runtime is gone: plain production and preview fail closed.
+  for (const name of ['production', 'preview']) {
+    const held = evaluate({...eas.build[name].env,EAS_BUILD_PROFILE:name});
+    assert.equal(held.ok, false);
+    assert.match(held.reason, /HOLD_RUNTIME_IDENTITY_NOT_APPROVED/);
+  }
   assertConfig({...eas.build['production-v15-16kb'].env,EAS_BUILD_PROFILE:'production-v15-16kb'},
     '1.5.0','1.5.0-native2','com.ald1n.mobile');
 });

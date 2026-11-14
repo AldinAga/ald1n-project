@@ -51,7 +51,7 @@ jobs:
               p.dependencies.react!=='19.3.0' || p.devDependencies['@types/react']!=='~19.3.0' ||
               p.packageManager!=='npm@12.2.1' ||
               e.cli.version!=='27.2.0' || e.cli.appVersionSource!=='remote' ||
-              !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-build17'")) {
+              !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-m17-sdk58-play2'") || c.includes('1.0.0-build17')) {
             throw Error('HOLD_M17_UNEXPECTED_REPO_BASELINE');
           }
           console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo58/RN0.88/React19.3/npm12/EAS27 SDK58 migration isolated');

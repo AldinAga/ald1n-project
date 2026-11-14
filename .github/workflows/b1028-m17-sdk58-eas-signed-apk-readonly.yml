@@ -121,7 +121,7 @@ jobs:
           if test -z "$EXPO_TOKEN"; then
             echo 'HOLD_B1028_EXPO_TOKEN_MISSING'; exit 2
           fi
-          npm exec --yes --package=eas-cli@25.0.0 -- eas build:view "$M17_BUILD_ID" --json \
+          npm exec --yes --package=eas-cli@27.2.0 -- eas build:view "$M17_BUILD_ID" --json \
             > "$RUNNER_TEMP/b1028-eas-view.json"
           node "$GITHUB_WORKSPACE/.github/scripts/b1028-eas-apk-attest.mjs" metadata \
             "$RUNNER_TEMP/b1028-eas-view.json" \

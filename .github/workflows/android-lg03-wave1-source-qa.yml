@@ -65,8 +65,9 @@ jobs:
           if(p.dependencies['expo-blur']||p.dependencies['react-native-android-liquid-glass']!=='0.2.1')process.exit(32);
           if(!c.includes("ALD1N_V15_RELEASE_GATE === 'approved'"))process.exit(33);
           const config=require('./app.config.js');
-          const normal=config({config:{}});
-          if(normal.version!=='1.0.0'||normal.runtimeVersion!=='1.0.0-build17')process.exit(35);
+          let normal=null;try{normal=config({config:{}})}catch(e){}
+          // SDK57 keeps the Build25 default; SDK58 has no default runtime and must throw.
+          if(baseline.label==='SDK57'?(!normal||normal.version!=='1.0.0'||normal.runtimeVersion!=='1.0.0-build17'):normal!==null)process.exit(35);
           if(e.cli.version!==baseline.eas||e.cli.appVersionSource!=='remote'||e.build?.production?.channel!=='production'||e.build?.production?.android?.buildType!=='app-bundle')process.exit(34);
           console.log('LG03_NATIVE_DEPENDENCY_16KB_PIN_AND_DEFAULT_RUNTIME_ISOLATION=PASS');
           NODE
