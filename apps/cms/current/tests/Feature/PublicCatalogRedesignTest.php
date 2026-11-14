@@ -223,7 +223,7 @@ final class PublicCatalogRedesignTest extends TestCase
 
     public function test_page_past_the_last_returns_404(): void
     {
-        for ($i = 1; $i <= 21; $i++) {
+        for ($i = 1; $i <= 41; $i++) {
             $this->product('Range Item '.$i, 10000 + $i);
         }
         $this->get('/katalog?page=2')->assertOk();
@@ -354,7 +354,7 @@ final class PublicCatalogRedesignTest extends TestCase
 
     public function test_pagination_renders_accessible_nav_and_rel_links(): void
     {
-        for ($i = 1; $i <= 25; $i++) {
+        for ($i = 1; $i <= 45; $i++) {
             $this->product('Paged Item '.$i, 10000 + $i);
         }
         $first = (string) $this->get('/katalog')->assertOk()->getContent();
@@ -370,11 +370,134 @@ final class PublicCatalogRedesignTest extends TestCase
         self::assertStringNotContainsString('<link rel="next"', $second);
         self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog?page=2">', $second);
         self::assertStringContainsString('<title>Katalog artikala · strana 2 · ', $second);
-        self::assertStringContainsString('Prikazano 21–25 od 25 artikala', $second);
+        self::assertStringContainsString('Prikazano 41–45 od 45 artikala', $second);
         $schema = $this->schemaFrom($second);
         self::assertSame('https://cms.ald1n.com/katalog?page=2#stranica', $schema['@id']);
-        self::assertSame(21, $schema['mainEntity']['itemListElement'][0]['position']);
-        self::assertSame(25, $schema['mainEntity']['numberOfItems']);
+        self::assertSame(41, $schema['mainEntity']['itemListElement'][0]['position']);
+        self::assertSame(45, $schema['mainEntity']['numberOfItems']);
+    }
+
+    private function cells(string $html): int
+    {
+        return substr_count($html, 'class="shop-product-cell"');
+    }
+
+    private function seedItems(int $count): void
+    {
+        for ($i = 1; $i <= $count; $i++) {
+            $this->product('Layout Item '.$i, 10000 + $i);
+        }
+    }
+
+    /** @return array<string,mixed> query of the first href matching $pattern (entities decoded) */
+    private function queryOf(string $html, string $pattern): array
+    {
+        self::assertSame(1, preg_match($pattern, $html, $m), 'no match for '.$pattern);
+        $url = html_entity_decode($m[1]);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        return $query;
+    }
+
+    public function test_default_page_size_is_forty_and_the_count_line_stays_correct(): void
+    {
+        $this->seedItems(45);
+        $first = (string) $this->get('/katalog')->assertOk()->getContent();
+        self::assertSame(40, $this->cells($first));
+        self::assertStringContainsString('Prikazano 1–40 od 45 artikala', $first);
+        $last = (string) $this->get('/katalog?page=2')->assertOk()->getContent();
+        self::assertSame(5, $this->cells($last));
+        self::assertStringContainsString('Prikazano 41–45 od 45 artikala', $last);
+    }
+
+    public function test_each_whitelisted_page_size_is_applied(): void
+    {
+        $this->seedItems(85);
+        foreach ([20 => 20, 40 => 40, 80 => 80] as $size => $shown) {
+            $html = (string) $this->get('/katalog?per_page='.$size)->assertOk()->getContent();
+            self::assertSame($shown, $this->cells($html), 'per_page='.$size);
+            self::assertStringContainsString('Prikazano 1–'.$shown.' od 85 artikala', $html, 'per_page='.$size);
+            self::assertStringContainsString('<option value="'.$size.'" selected>', $html, 'per_page='.$size);
+        }
+        $lastOf80 = (string) $this->get('/katalog?per_page=80&page=2')->assertOk()->getContent();
+        self::assertSame(5, $this->cells($lastOf80));
+        self::assertStringContainsString('Prikazano 81–85 od 85 artikala', $lastOf80);
+    }
+
+    public function test_invalid_page_size_values_fall_back_to_forty_without_error(): void
+    {
+        $this->seedItems(45);
+        foreach (['per_page=0', 'per_page=-1', 'per_page=1000', 'per_page=abc', 'per_page=040', 'per_page=', 'per_page[]=20', 'per_page[a]=80'] as $query) {
+            $html = (string) $this->get('/katalog?'.$query)->assertOk()->getContent();
+            self::assertSame(40, $this->cells($html), $query);
+            self::assertStringContainsString('Prikazano 1–40 od 45 artikala', $html, $query);
+            // Junk is not copied into the links.
+            self::assertSame(['page' => '2'], $this->queryOf($html, '~<link rel="next" href="([^"]+)">~'), $query);
+        }
+    }
+
+    public function test_list_view_renders_rows_and_an_invalid_view_falls_back_to_grid(): void
+    {
+        $this->seedItems(3);
+        $list = (string) $this->get('/katalog?view=list')->assertOk()->getContent();
+        self::assertStringContainsString('<ul class="shop-products shop-products-list">', $list);
+        self::assertSame(3, $this->cells($list));
+        self::assertStringContainsString('Detalji<span class="sr-only"> o artiklu Layout Item', $list);
+        self::assertStringContainsString('aria-label="Prikaz u listi" title="Prikaz u listi" aria-current="true"', $list);
+        self::assertStringNotContainsString('aria-label="Prikaz u mreži" title="Prikaz u mreži" aria-current', $list);
+        foreach (['', '?view=grid', '?view=table', '?view=', '?view[]=list', '?view=LIST'] as $query) {
+            $grid = (string) $this->get('/katalog'.$query)->assertOk()->getContent();
+            self::assertStringContainsString('<ul class="shop-products">', $grid, $query);
+            self::assertStringNotContainsString('shop-products-list', $grid, $query);
+            self::assertStringContainsString('aria-label="Prikaz u mreži" title="Prikaz u mreži" aria-current="true"', $grid, $query);
+        }
+    }
+
+    public function test_pagination_filter_form_and_switches_carry_both_params(): void
+    {
+        $this->seedItems(45);
+        $html = (string) $this->get('/katalog?per_page=20&view=list&q=Layout&sort=name')->assertOk()->getContent();
+        self::assertSame(20, $this->cells($html));
+        $next = ['per_page' => '20', 'view' => 'list', 'q' => 'Layout', 'sort' => 'name', 'page' => '2'];
+        $actual = $this->queryOf($html, '~<link rel="next" href="([^"]+)">~');
+        self::assertEqualsCanonicalizing($next, $actual);
+        self::assertEqualsCanonicalizing($next, $this->queryOf($html, '~href="([^"]+)" rel="next"~'));
+        // Filter form: layout travels as hidden inputs, the page does not.
+        $filterForm = substr($html, (int) strpos($html, 'class="shop-filters"'), 700);
+        self::assertStringContainsString('<input type="hidden" name="per_page" value="20">', $filterForm);
+        self::assertStringContainsString('<input type="hidden" name="view" value="list">', $filterForm);
+        // Page-size form: filters and view travel, the page does not (so a change lands on page 1).
+        $perPageForm = substr($html, (int) strpos($html, 'class="shop-perpage"'), 900);
+        self::assertStringContainsString('<input type="hidden" name="q" value="Layout">', $perPageForm);
+        self::assertStringContainsString('<input type="hidden" name="sort" value="name">', $perPageForm);
+        self::assertStringContainsString('<input type="hidden" name="view" value="list">', $perPageForm);
+        self::assertStringNotContainsString('name="page"', $perPageForm);
+        self::assertStringNotContainsString('type="hidden" name="per_page"', $perPageForm);
+        // Submitting that form from page 2 gives page 1 of the new size.
+        $changed = (string) $this->get('/katalog?q=Layout&sort=name&view=list&per_page=80')->assertOk()->getContent();
+        self::assertStringContainsString('Prikazano 1–45 od 45 artikala', $changed);
+        self::assertSame(45, $this->cells($changed));
+        // Layout switch keeps filters, page size and page; chips and reset keep the layout.
+        $page2 = (string) $this->get('/katalog?per_page=20&view=list&q=Layout&page=2')->assertOk()->getContent();
+        self::assertEqualsCanonicalizing(['per_page' => '20', 'q' => 'Layout', 'page' => '2'],
+            $this->queryOf($page2, '~href="([^"]+)" aria-label="Prikaz u mreži"~'));
+        self::assertEqualsCanonicalizing(['per_page' => '20', 'view' => 'list', 'q' => 'Layout', 'page' => '2'],
+            $this->queryOf($page2, '~href="([^"]+)" aria-label="Prikaz u listi"~'));
+        self::assertEqualsCanonicalizing(['per_page' => '20', 'view' => 'list'],
+            $this->queryOf($page2, '~class="shop-chip" href="([^"]+)"~'));
+        self::assertEqualsCanonicalizing(['per_page' => '20', 'view' => 'list'],
+            $this->queryOf($page2, '~class="shop-reset" href="([^"]+)"~'));
+    }
+
+    public function test_layout_params_do_not_change_canonical_or_robots(): void
+    {
+        $this->seedItems(3);
+        $html = (string) $this->get('/katalog?per_page=80&view=list')->assertOk()->getContent();
+        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $html);
+        self::assertStringNotContainsString('name="robots"', $html);
+        $search = (string) $this->get('/katalog?q=Layout&per_page=20&view=list')->assertOk()->getContent();
+        self::assertStringContainsString('<meta name="robots" content="noindex,follow">', $search);
+        self::assertStringNotContainsString('rel="canonical"', $search);
     }
 
     public function test_price_sort_compares_rsd_equivalent_across_currencies(): void

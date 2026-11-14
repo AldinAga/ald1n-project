@@ -36,6 +36,8 @@
 <section class="shop-filter-panel" aria-labelledby="filteri-naslov">
 <h2 id="filteri-naslov" class="sr-only">Pretraga i filteri</h2>
 <form class="shop-filters" method="get" action="{{ $seo['catalog_path'] }}" role="search" aria-label="Pretraga kataloga">
+@foreach($seo['layout'] as $layoutKey => $layoutValue)<input type="hidden" name="{{ $layoutKey }}" value="{{ $layoutValue }}">
+@endforeach
 <div class="shop-field shop-field-search">
 <label for="f-q">Pretraga</label>
 <span class="shop-input-icon"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -62,7 +64,7 @@
 <label class="shop-toggle" for="f-stock"><input id="f-stock" type="checkbox" name="stock" value="available" @checked(request('stock')==='available')><span class="shop-toggle-track" aria-hidden="true"></span><span>Samo na lageru</span></label>
 <div class="shop-filter-actions">
 <button type="submit" class="shop-button">Prikaži rezultate</button>
-@if($seo['has_filters'])<a class="shop-reset" href="{{ $seo['catalog_path'] }}">Poništi filtere</a>@endif
+@if($seo['has_filters'])<a class="shop-reset" href="{{ $seo['reset_url'] }}">Poništi filtere</a>@endif
 </div>
 </form>
 </section>
@@ -76,6 +78,24 @@ Prikazano {{ $page->firstItem() }}–{{ $page->lastItem() }} od {{ \App\Support\
 Nema rezultata
 @endif
 </h2>
+@if($page->count() > 0)
+<div class="shop-view-tools">
+<form class="shop-perpage" method="get" action="{{ $seo['catalog_path'] }}" aria-label="Broj artikala po strani">
+@foreach($seo['active'] as $activeKey => $activeValue)<input type="hidden" name="{{ $activeKey }}" value="{{ $activeValue }}">
+@endforeach
+@if($seo['view'] !== 'grid')<input type="hidden" name="view" value="{{ $seo['view'] }}">@endif
+<label for="f-per-page">Po strani</label>
+<select id="f-per-page" name="per_page">@foreach($seo['per_page_options'] as $perPageOption)
+<option value="{{ $perPageOption }}" @selected($perPageOption === $seo['per_page'])>{{ $perPageOption }}</option>
+@endforeach</select>
+<button type="submit" class="shop-button shop-perpage-submit">Primeni</button>
+</form>
+<div class="shop-view-group" role="group" aria-label="Prikaz artikala">
+<a class="shop-view-option" href="{{ $seo['view_urls']['grid'] }}" aria-label="Prikaz u mreži" title="Prikaz u mreži"@if($seo['view'] === 'grid') aria-current="true"@endif><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></a>
+<a class="shop-view-option" href="{{ $seo['view_urls']['list'] }}" aria-label="Prikaz u listi" title="Prikaz u listi"@if($seo['view'] === 'list') aria-current="true"@endif><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M8.5 6.5H20.5M8.5 12H20.5M8.5 17.5H20.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4.2" cy="6.5" r="1.2" fill="currentColor"/><circle cx="4.2" cy="12" r="1.2" fill="currentColor"/><circle cx="4.2" cy="17.5" r="1.2" fill="currentColor"/></svg></a>
+</div>
+</div>
+@endif
 @if($seo['chips'])
 <ul class="shop-chips" aria-label="Aktivni filteri">
 @foreach($seo['chips'] as $chip)
@@ -86,7 +106,7 @@ Nema rezultata
 </div>
 
 @if($page->count() > 0)
-<ul class="shop-products">
+<ul class="shop-products{{ $seo['view'] === 'list' ? ' shop-products-list' : '' }}">
 @foreach($page as $p)
 @php($detailUrl = route('public-shop.show', $p['slug'], false))
 @php($alt = \App\Support\PublicCatalogPresentation::imageAlt($p['name'], $p['brand']))
@@ -130,7 +150,7 @@ Nema rezultata
 @if($seo['has_filters'])
 <h3>Nema artikala koji odgovaraju filterima.</h3>
 <p>Probaj drugi pojam ili ukloni neki od aktivnih filtera.</p>
-<a class="shop-button" href="{{ $seo['catalog_path'] }}">Prikaži sve artikle</a>
+<a class="shop-button" href="{{ $seo['reset_url'] }}">Prikaži sve artikle</a>
 @else
 <h3>U katalogu trenutno nema artikala.</h3>
 @endif
