@@ -2,6 +2,8 @@
 
 Status: DRAFT / not a production deployment approval.
 
+**Update 2026-11-14 (facts only):** the workflow `batch705-release-preview.yml` described below was removed from `main` because it ran only on the deleted branch `audit/batch705-release-readiness-20261017`. The scripts under `scripts/batch705` remain as history.
+
 ## Fixed source authority at implementation start
 
 - Main: `bc7fdd3580c02ac3d45fd1b76b3b09aaf24bd60d`
