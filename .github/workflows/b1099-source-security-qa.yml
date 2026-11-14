@@ -141,10 +141,10 @@ jobs:
           repo_config="$PWD/.gitleaks.toml"
           negatives="no-path:apps/cms/current/app/Fixture.php no-path-lookalike-line:apps/cms/current/app/Fixture.php other-rule-in-rule-allowlisted-file:apps/mobile/current/google-services.json other-rule-in-allowlisted-docs:docs/operations/report.md other-rule-in-allowlisted-test:apps/cms/current/tests/Feature/PasswordResetTest.php"
           for entry in $negatives; do
-            name="${entry%%:*}"; rel="${entry#*:}"
-            node -e "const fs=require('fs'),path=require('path'),c=require('node:crypto');const p=process.argv[1],n=process.argv[2];fs.mkdirSync(path.dirname(p),{recursive:true});const h=c.createHash('sha256').update('B1099-negative-'+n).digest('base64url').replace(/[^A-Za-z0-9]/g,'X');fs.writeFileSync(p,n==='no-path-lookalike-line'?\"<?php return ['password' => '\"+h.slice(0,24)+\"'];\n\":'token = '+JSON.stringify('ghp_'+h.slice(0,36))+'\n')" "$RUNNER_TEMP/b1099-negative/$name/b1099-tracked-tree/$rel" "$name"
-            SCAN_CONFIG="$repo_config" scan dir "$RUNNER_TEMP/b1099-negative/$name" "negative-$name"
-            test "$(cat "$evidence/negative-$name.exit")" = 10
+            ctl="${entry%%:*}"; rel="${entry#*:}"
+            node -e "const fs=require('fs'),path=require('path'),c=require('node:crypto');const p=process.argv[1],n=process.argv[2];fs.mkdirSync(path.dirname(p),{recursive:true});const h=c.createHash('sha256').update('B1099-negative-'+n).digest('base64url').replace(/[^A-Za-z0-9]/g,'X');fs.writeFileSync(p,n==='no-path-lookalike-line'?\"<?php return ['password' => '\"+h.slice(0,24)+\"'];\n\":'token = '+JSON.stringify('ghp_'+h.slice(0,36))+'\n')" "$RUNNER_TEMP/b1099-negative/$ctl/b1099-tracked-tree/$rel" "$ctl"
+            SCAN_CONFIG="$repo_config" scan dir "$RUNNER_TEMP/b1099-negative/$ctl" "negative-$ctl"
+            test "$(cat "$evidence/negative-$ctl.exit")" = 10
           done
           node - "$evidence" "$RUNNER_TEMP/b1099-negative" <<'NODE'
           const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),c=require('node:crypto'),[dir,neg]=process.argv.slice(2);
