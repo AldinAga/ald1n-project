@@ -27,6 +27,34 @@ final class PublicCatalogPresentation
         'price_desc' => 'Cena: od najviše',
     ];
 
+    /** Items per page the visitor may choose (query "per_page"); anything else means the default. */
+    public const PER_PAGE_OPTIONS = [20, 40, 80];
+
+    public const DEFAULT_PER_PAGE = 40;
+
+    /** Result layouts (query "view"); anything else means the default. */
+    public const VIEW_MODES = ['grid', 'list'];
+
+    public const DEFAULT_VIEW = 'grid';
+
+    /**
+     * Whitelist check on the raw query value (string) or an already checked
+     * value (int); arrays, "040", "1000" and junk fall back.
+     */
+    public static function perPage(mixed $raw): int
+    {
+        if (is_string($raw)) {
+            $raw = in_array($raw, array_map('strval', self::PER_PAGE_OPTIONS), true) ? (int) $raw : null;
+        }
+
+        return is_int($raw) && in_array($raw, self::PER_PAGE_OPTIONS, true) ? $raw : self::DEFAULT_PER_PAGE;
+    }
+
+    public static function viewMode(mixed $raw): string
+    {
+        return is_string($raw) && in_array($raw, self::VIEW_MODES, true) ? $raw : self::DEFAULT_VIEW;
+    }
+
     /**
      * @param array<string,mixed> $filters validated request filters
      * @param array{brands:iterable<object>,categories:iterable<object>} $lists
@@ -37,17 +65,43 @@ final class PublicCatalogPresentation
         $catalogPath = route('public-shop.catalog', [], false);
         $base = self::baseUrl();
         $active = self::activeFilters($filters);
+        $perPage = self::perPage($filters['per_page'] ?? null);
+        $view = self::viewMode($filters['view'] ?? null);
+        // Only non-default layout choices are written to URLs.
+        $layout = [];
+        if ($perPage !== self::DEFAULT_PER_PAGE) {
+            $layout['per_page'] = $perPage;
+        }
+        if ($view !== self::DEFAULT_VIEW) {
+            $layout['view'] = $view;
+        }
+        $withQuery = static fn (array $query): string => $query === [] ? $catalogPath : $catalogPath.'?'.http_build_query($query);
         $brandName = self::nameFor($lists['brands'], $active['brand_id'] ?? null);
         $categoryName = self::nameFor($lists['categories'], $active['category_id'] ?? null);
         $current = $page->currentPage();
 
         $chips = [];
-        $remove = static function (string $key) use ($active, $catalogPath): string {
+        $remove = static function (string $key) use ($active, $layout, $withQuery): string {
             $rest = $active;
             unset($rest[$key]);
 
-            return $rest === [] ? $catalogPath : $catalogPath.'?'.http_build_query($rest);
+            return $withQuery($rest + $layout);
         };
+        // Switching the layout keeps filters, page size and the current page.
+        $viewUrls = [];
+        foreach (self::VIEW_MODES as $mode) {
+            $query = $active;
+            if ($perPage !== self::DEFAULT_PER_PAGE) {
+                $query['per_page'] = $perPage;
+            }
+            if ($mode !== self::DEFAULT_VIEW) {
+                $query['view'] = $mode;
+            }
+            if ($current > 1) {
+                $query['page'] = $current;
+            }
+            $viewUrls[$mode] = $withQuery($query);
+        }
         if (isset($active['q'])) {
             $chips[] = ['label' => 'Pretraga: „'.$active['q'].'“', 'url' => $remove('q')];
         }
@@ -98,7 +152,10 @@ final class PublicCatalogPresentation
         if ($base !== null && !isset($active['q'])) {
             // Filtered and sorted views consolidate on the unfiltered catalog;
             // plain pagination keeps its own page URL.
-            $canonical = $base.$catalogPath.($active === [] && $current > 1 ? '?page='.$current : '');
+            // The page size changes which products a page holds, so it stays in the
+            // canonical of page 2+; "view" only changes presentation and never does.
+            $canonical = $base.$catalogPath.($active === [] && $current > 1
+                ? '?'.http_build_query(array_intersect_key($layout, ['per_page' => 1]) + ['page' => $current]) : '');
         }
 
         $schema = $base === null ? null
@@ -118,6 +175,13 @@ final class PublicCatalogPresentation
             'chips' => $chips,
             'has_filters' => $active !== [],
             'catalog_path' => $catalogPath,
+            'active' => $active,
+            'layout' => $layout,
+            'reset_url' => $withQuery($layout),
+            'per_page' => $perPage,
+            'per_page_options' => self::PER_PAGE_OPTIONS,
+            'view' => $view,
+            'view_urls' => $viewUrls,
             'catalog_total' => $catalogTotal,
             'brand_count' => self::countOf($lists['brands']),
             'category_count' => self::countOf($lists['categories']),

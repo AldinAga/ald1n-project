@@ -29,6 +29,10 @@ final class PublicShopController extends Controller
             'brand_id'=>['nullable','integer','min:1'], 'category_id'=>['nullable','integer','min:1'],
             'stock'=>['nullable','in:available'], 'sort'=>['nullable','in:name,newest,price_asc,price_desc'],
         ]);
+        // Not validated with rules (a bad value falls back instead of failing):
+        // both are reduced to whitelist members before anything uses them.
+        $filters['per_page'] = \App\Support\PublicCatalogPresentation::perPage($request->query('per_page'));
+        $filters['view'] = \App\Support\PublicCatalogPresentation::viewMode($request->query('view'));
         $page = $catalog->search($filters);
         // A page past the last one is not an empty listing: answer 404 so it
         // is never indexed as a soft-404 copy of the catalog.
