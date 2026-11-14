@@ -71,9 +71,9 @@ jobs:
       PHP_CLI_SERVER_WORKERS: '4'
       ADMIN_VISUAL_CI: '1'
       ADMIN_VISUAL_BASE_URL: http://127.0.0.1:8125
-      # Strict switches (baseline run leaves both empty):
+      # Strict switches. Redesigned modules are listed here (module 1: admin shell).
       # ADMIN_VISUAL_STRICT: '1'
-      # ADMIN_VISUAL_STRICT_MODULES: 'orders,reports'
+      ADMIN_VISUAL_STRICT_MODULES: 'shell'
     steps:
       - name: Checkout exact source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
