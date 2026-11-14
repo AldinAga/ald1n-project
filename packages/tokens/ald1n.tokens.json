@@ -1,0 +1,419 @@
+{
+  "$description": "Kobalt: one palette for the storefront, the admin CMS and the Android app. Source of truth for the values is apps/cms/current/public/assets/css/ald1n-public-storefront.css and ald1n-public-gallery.css (tokens only, no component rules). Format: DTCG ($value/$type), keys sorted. Colours are CSS strings exactly as the storefront writes them. Dimensions are plain numbers; the unit comes from $type (dimension = px, duration = ms) or from the com.ald1n.unit extension. Shadow layers use numbers in px plus an inset flag. Status mapping from storefront names: ok=ok, off=off, info=alert, danger=error, warning=draft; dot=the storefront dot colour (ok, off) or the border colour (alert, error, draft); warning.strong=draft-strong.",
+  "blur": {
+    "$description": "Backdrop filter. standard = --glass-fx (blur(24px) saturate(185%)), strong = --glass-fx-strong (blur(30px) saturate(210%)).",
+    "standard": {
+      "radius": { "$type": "dimension", "$value": 24 },
+      "saturate": { "$extensions": { "com.ald1n.unit": "%" }, "$type": "number", "$value": 185 }
+    },
+    "strong": {
+      "radius": { "$type": "dimension", "$value": 30 },
+      "saturate": { "$extensions": { "com.ald1n.unit": "%" }, "$type": "number", "$value": 210 }
+    }
+  },
+  "color": {
+    "$type": "color",
+    "dark": {
+      "accent": {
+        "link": { "$value": "#a9c3ff" },
+        "soft": { "$value": "rgba(128,160,238,.17)" }
+      },
+      "backToTop": {
+        "bg": { "$value": "#3557c7" },
+        "border": { "$value": "#b5c8ff" },
+        "hover": { "$value": "#4466d6" },
+        "ring": { "$value": "#ffffff" }
+      },
+      "border": {
+        "normal": { "$value": "rgba(206,222,234,.13)" },
+        "strong": { "$value": "rgba(206,222,234,.26)" }
+      },
+      "button": {
+        "ghost": {
+          "bg": { "$value": "rgba(206,222,234,.07)" },
+          "hover": { "$value": "rgba(206,222,234,.13)" }
+        },
+        "primary": {
+          "bg": { "$value": "#3557c7" },
+          "hover": { "$value": "#3e62d6" },
+          "on": { "$value": "#ffffff" }
+        }
+      },
+      "edge": {
+        "light": { "$value": "rgba(255,255,255,.13)" },
+        "rim": { "$value": "rgba(255,255,255,.10)" },
+        "sheen": { "$value": "rgba(255,255,255,.06)" }
+      },
+      "focus": {
+        "ring": { "$value": "#9fd0ff" }
+      },
+      "glass": {
+        "dense": { "$value": "rgba(24,32,38,.84)" },
+        "hover": { "$value": "rgba(34,45,53,.90)" },
+        "soft": { "$value": "rgba(30,40,47,.72)" },
+        "standard": { "$value": "rgba(24,32,38,.76)" },
+        "strong": { "$value": "rgba(15,21,26,.96)" }
+      },
+      "glow": {
+        "1": { "$value": "rgba(88,122,196,.36)" },
+        "2": { "$value": "rgba(126,104,216,.32)" },
+        "3": { "$value": "rgba(64,156,184,.28)" },
+        "4": { "$value": "rgba(196,140,108,.20)" }
+      },
+      "heading": {
+        "from": { "$value": "#ffffff" },
+        "to": { "$value": "#c6d6ff" }
+      },
+      "image": {
+        "lightboxBg": { "$value": "#07090c" },
+        "photoBed": { "$value": "rgba(255,255,255,.035)" },
+        "photoRing": { "$value": "rgba(255,255,255,.10)" },
+        "stage": { "$value": "#e8ecf1" },
+        "stageEnd": { "$value": "#dbe1e8" },
+        "stageText": { "$value": "#44505c" },
+        "thumbRing": { "$value": "{color.dark.accent.link}" }
+      },
+      "status": {
+        "danger": {
+          "bg": { "$value": "#3b1d28" },
+          "dot": { "$value": "#d7788f" },
+          "text": { "$value": "#ffe2e9" }
+        },
+        "info": {
+          "bg": { "$value": "#12332f" },
+          "dot": { "$value": "#4fb7a3" },
+          "text": { "$value": "#d9fbf3" }
+        },
+        "off": {
+          "bg": { "$value": "rgba(142,154,166,.16)" },
+          "dot": { "$value": "#8e9aa6" },
+          "text": { "$value": "#c0c9d2" }
+        },
+        "ok": {
+          "bg": { "$value": "rgba(95,226,154,.13)" },
+          "dot": { "$value": "#5fe29a" },
+          "text": { "$value": "#9bf0c0" }
+        },
+        "warning": {
+          "bg": { "$value": "#3a2d12" },
+          "dot": { "$value": "#e0b45c" },
+          "strong": { "$value": "#fff4d8" },
+          "text": { "$value": "#ffe8bb" }
+        }
+      },
+      "surface": {
+        "field": { "$value": "#111820" },
+        "page": { "$value": "#0d1216" },
+        "solid": { "$value": "#182026" }
+      },
+      "text": {
+        "primary": { "$value": "#eef2f5" },
+        "secondary": { "$value": "#c8d2d9" },
+        "tertiary": { "$value": "#a7b4bd" }
+      }
+    },
+    "light": {
+      "accent": {
+        "link": { "$value": "#2546ad" },
+        "soft": { "$value": "rgba(42,77,187,.09)" }
+      },
+      "backToTop": {
+        "bg": { "$value": "#1f3f99" },
+        "border": { "$value": "#ffffff" },
+        "hover": { "$value": "#2a4fb8" },
+        "ring": { "$value": "#121b24" }
+      },
+      "border": {
+        "normal": { "$value": "rgba(24,40,58,.11)" },
+        "strong": { "$value": "rgba(24,40,58,.22)" }
+      },
+      "button": {
+        "ghost": {
+          "bg": { "$value": "rgba(24,40,58,.05)" },
+          "hover": { "$value": "rgba(24,40,58,.09)" }
+        },
+        "primary": {
+          "bg": { "$value": "#2d50bf" },
+          "hover": { "$value": "#2746aa" },
+          "on": { "$value": "#ffffff" }
+        }
+      },
+      "edge": {
+        "light": { "$value": "rgba(255,255,255,.95)" },
+        "rim": { "$value": "rgba(255,255,255,.85)" },
+        "sheen": { "$value": "rgba(255,255,255,.70)" }
+      },
+      "focus": {
+        "ring": { "$value": "#1d4fd6" }
+      },
+      "glass": {
+        "dense": { "$value": "rgba(255,255,255,.86)" },
+        "hover": { "$value": "rgba(255,255,255,.94)" },
+        "soft": { "$value": "rgba(255,255,255,.70)" },
+        "standard": { "$value": "rgba(255,255,255,.74)" },
+        "strong": { "$value": "rgba(250,251,253,.96)" }
+      },
+      "glow": {
+        "1": { "$value": "rgba(104,140,214,.40)" },
+        "2": { "$value": "rgba(150,124,232,.36)" },
+        "3": { "$value": "rgba(84,178,204,.26)" },
+        "4": { "$value": "rgba(232,168,124,.32)" }
+      },
+      "heading": {
+        "from": { "$value": "#121b24" },
+        "to": { "$value": "#2b4fbd" }
+      },
+      "image": {
+        "lightboxBg": { "$value": "#07090c" },
+        "photoBed": { "$value": "#fbf9f6" },
+        "photoRing": { "$value": "rgba(24,40,58,.10)" },
+        "stage": { "$value": "#f4f6f9" },
+        "stageEnd": { "$value": "#e8ecf1" },
+        "stageText": { "$value": "#4c5864" },
+        "thumbRing": { "$value": "{color.light.accent.link}" }
+      },
+      "status": {
+        "danger": {
+          "bg": { "$value": "#fdecef" },
+          "dot": { "$value": "#c4415f" },
+          "text": { "$value": "#5c1426" }
+        },
+        "info": {
+          "bg": { "$value": "#e5f6f2" },
+          "dot": { "$value": "#2f9e88" },
+          "text": { "$value": "#0d3b33" }
+        },
+        "off": {
+          "bg": { "$value": "#eceff4" },
+          "dot": { "$value": "#7c879a" },
+          "text": { "$value": "#475263" }
+        },
+        "ok": {
+          "bg": { "$value": "#e4f5ea" },
+          "dot": { "$value": "#16a34a" },
+          "text": { "$value": "#11653a" }
+        },
+        "warning": {
+          "bg": { "$value": "#fff4dc" },
+          "dot": { "$value": "#c58a1a" },
+          "strong": { "$value": "#3d2800" },
+          "text": { "$value": "#5c3d00" }
+        }
+      },
+      "surface": {
+        "field": { "$value": "#ffffff" },
+        "page": { "$value": "#edf0f4" },
+        "solid": { "$value": "#ffffff" }
+      },
+      "text": {
+        "primary": { "$value": "#121b24" },
+        "secondary": { "$value": "#33404c" },
+        "tertiary": { "$value": "#3f4a56" }
+      }
+    }
+  },
+  "fallback": {
+    "$description": "Value the storefront sets under prefers-contrast: more. Other fallback behaviour (opaque fills, no blur, no glow) is structural and lives in the generator.",
+    "contrast": {
+      "imageStageText": { "$type": "color", "$value": "#1e2731" }
+    }
+  },
+  "focus": {
+    "$description": "Focus ring: 3px solid, offset 3px; inputs and the theme switch use the inset offset.",
+    "$type": "dimension",
+    "offset": { "$value": 3 },
+    "offsetInset": { "$value": 1 },
+    "width": { "$value": 3 }
+  },
+  "gradient": {
+    "$type": "gradient",
+    "buttonGloss": {
+      "$value": {
+        "angle": 180,
+        "stops": [
+          { "color": "rgba(255,255,255,.16)", "position": 0 },
+          { "color": "rgba(255,255,255,0)", "position": 0.52 }
+        ]
+      }
+    }
+  },
+  "motion": {
+    "$description": "Durations in ms, easing as cubic-bezier x1,y1,x2,y2. standard = --ease; basic = the CSS keyword ease that the storefront uses for the 180ms colour transitions. rise = card fade-in, lift = hero lift and image zoom, stagger = delay step.",
+    "duration": {
+      "$type": "duration",
+      "base": { "$value": 220 },
+      "fast": { "$value": 180 },
+      "lift": { "$value": 600 },
+      "rise": { "$value": 550 },
+      "slow": { "$value": 320 },
+      "stagger": { "$value": 40 }
+    },
+    "easing": {
+      "$type": "cubicBezier",
+      "basic": { "$value": [0.25, 0.1, 0.25, 1] },
+      "standard": { "$value": [0.2, 0.8, 0.2, 1] }
+    }
+  },
+  "radius": {
+    "$description": "sm/md/lg = --radius-sm/--radius/--radius-lg; photo = --photo-radius from the gallery CSS.",
+    "$type": "dimension",
+    "lg": { "$value": 22 },
+    "md": { "$value": 16 },
+    "photo": { "$value": 14 },
+    "pill": { "$value": 999 },
+    "sm": { "$value": 12 }
+  },
+  "shadow": {
+    "$description": "Per mode, same names as the storefront: button=--btn-shadow, card=--shadow-card, cardHover=--shadow-hover, header=--shadow-header, photo=--photo-shadow. Layers are in storefront order.",
+    "$type": "shadow",
+    "dark": {
+      "button": {
+        "$value": [
+          { "color": "rgba(255,255,255,.18)", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(40,72,190,.85)", "offsetX": 0, "offsetY": 10, "blur": 24, "spread": -12, "inset": false }
+        ]
+      },
+      "card": {
+        "$value": [
+          { "color": "{color.dark.edge.light}", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(0,0,0,.75)", "offsetX": 0, "offsetY": 18, "blur": 40, "spread": -26, "inset": false }
+        ]
+      },
+      "cardHover": {
+        "$value": [
+          { "color": "{color.dark.edge.light}", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(0,0,0,.85)", "offsetX": 0, "offsetY": 28, "blur": 54, "spread": -26, "inset": false }
+        ]
+      },
+      "header": {
+        "$value": [
+          { "color": "{color.dark.edge.light}", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(0,0,0,.7)", "offsetX": 0, "offsetY": 10, "blur": 30, "spread": -18, "inset": false }
+        ]
+      },
+      "photo": {
+        "$value": [
+          { "color": "rgba(0,0,0,.35)", "offsetX": 0, "offsetY": 1, "blur": 2, "spread": 0, "inset": false },
+          { "color": "rgba(0,0,0,.85)", "offsetX": 0, "offsetY": 14, "blur": 30, "spread": -18, "inset": false }
+        ]
+      }
+    },
+    "light": {
+      "button": {
+        "$value": [
+          { "color": "rgba(255,255,255,.22)", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(36,64,170,.7)", "offsetX": 0, "offsetY": 10, "blur": 22, "spread": -12, "inset": false }
+        ]
+      },
+      "card": {
+        "$value": [
+          { "color": "{color.light.edge.light}", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(18,27,36,.05)", "offsetX": 0, "offsetY": 1, "blur": 2, "spread": 0, "inset": false },
+          { "color": "rgba(18,27,36,.32)", "offsetX": 0, "offsetY": 16, "blur": 34, "spread": -24, "inset": false }
+        ]
+      },
+      "cardHover": {
+        "$value": [
+          { "color": "{color.light.edge.light}", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(18,27,36,.06)", "offsetX": 0, "offsetY": 2, "blur": 4, "spread": 0, "inset": false },
+          { "color": "rgba(18,27,36,.4)", "offsetX": 0, "offsetY": 26, "blur": 46, "spread": -24, "inset": false }
+        ]
+      },
+      "header": {
+        "$value": [
+          { "color": "{color.light.edge.light}", "offsetX": 0, "offsetY": 1, "blur": 0, "spread": 0, "inset": true },
+          { "color": "rgba(18,27,36,.35)", "offsetX": 0, "offsetY": 8, "blur": 26, "spread": -18, "inset": false }
+        ]
+      },
+      "photo": {
+        "$value": [
+          { "color": "rgba(18,27,36,.08)", "offsetX": 0, "offsetY": 1, "blur": 2, "spread": 0, "inset": false },
+          { "color": "rgba(18,27,36,.45)", "offsetX": 0, "offsetY": 14, "blur": 28, "spread": -20, "inset": false }
+        ]
+      }
+    }
+  },
+  "size": {
+    "$type": "dimension",
+    "control": { "$value": 48 },
+    "touchTarget": { "$value": 44 }
+  },
+  "space": {
+    "$description": "4-based scale; the key is the value in px. Mapped storefront values: 4, 8, 12, 16, 20, 24, 28, 40, 48, 72 (nav min-height), 80 (footer margin). Not mapped, off the 4-grid, kept as they are in the storefront CSS: 6, 10, 14, 18, 22, 26, 30, 34. Fluid clamp() values are not tokens.",
+    "$type": "dimension",
+    "4": { "$value": 4 },
+    "8": { "$value": 8 },
+    "12": { "$value": 12 },
+    "16": { "$value": 16 },
+    "20": { "$value": 20 },
+    "24": { "$value": 24 },
+    "28": { "$value": 28 },
+    "40": { "$value": 40 },
+    "48": { "$value": 48 },
+    "72": { "$value": 72 },
+    "80": { "$value": 80 }
+  },
+  "typography": {
+    "$description": "Sizes in px, weights as the storefront writes them (variable font steps), line heights unitless, letter spacing in em. Fluid clamp() sizes (hero h1 34-64px, page h1 28-48px, lead 16-19px, legal h1 28-42px) are excluded: they are not one value.",
+    "fontFamily": {
+      "$type": "fontFamily",
+      "display": { "$value": "\"Segoe UI Variable Display\",\"SF Pro Display\",\"Segoe UI\",system-ui,-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif" },
+      "sans": { "$value": "\"Segoe UI Variable Text\",\"Segoe UI\",system-ui,-apple-system,BlinkMacSystemFont,Roboto,\"Helvetica Neue\",Arial,sans-serif" }
+    },
+    "fontSize": {
+      "$type": "dimension",
+      "base": { "$value": 16 },
+      "lg": { "$value": 19 },
+      "md": { "$value": 15 },
+      "mdPlus": { "$value": 17 },
+      "sm": { "$value": 13 },
+      "smPlus": { "$value": 14 },
+      "xl": { "$value": 20 },
+      "xl2": { "$value": 21 },
+      "xl3": { "$value": 23 },
+      "xl4": { "$value": 24 },
+      "xs": { "$value": 12 },
+      "xsPlus": { "$value": 12.5 }
+    },
+    "fontWeight": {
+      "$type": "fontWeight",
+      "black": { "$value": 800 },
+      "bold": { "$value": 700 },
+      "button": { "$value": 650 },
+      "display": { "$value": 780 },
+      "label": { "$value": 620 },
+      "medium": { "$value": 500 },
+      "nav": { "$value": 560 },
+      "numeric": { "$value": 750 },
+      "regular": { "$value": 400 },
+      "semibold": { "$value": 600 },
+      "stock": { "$value": 640 }
+    },
+    "letterSpacing": {
+      "$extensions": { "com.ald1n.unit": "em" },
+      "$type": "number",
+      "button": { "$value": 0.005 },
+      "display": { "$value": -0.03 },
+      "eyebrow": { "$value": 0.12 },
+      "heading": { "$value": -0.015 },
+      "label": { "$value": 0.02 },
+      "normal": { "$value": 0 },
+      "price": { "$value": -0.02 },
+      "sub": { "$value": 0.04 },
+      "title": { "$value": -0.01 }
+    },
+    "lineHeight": {
+      "$type": "number",
+      "body": { "$value": 1.6 },
+      "button": { "$value": 1.2 },
+      "caption": { "$value": 1.3 },
+      "detail": { "$value": 1.25 },
+      "display": { "$value": 1.04 },
+      "heading": { "$value": 1.12 },
+      "lead": { "$value": 1.55 },
+      "results": { "$value": 1.4 },
+      "snug": { "$value": 1.15 },
+      "title": { "$value": 1.35 }
+    }
+  }
+}
