@@ -28,7 +28,8 @@ const siteRoot = path.resolve(__dirname, '..', '..');
 const MIME = {'.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8'};
 let origin = '';
 const server = http.createServer((req, res) => {
-  const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  let rel;
+  try { rel = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); res.end('bad request'); return; }
   const file = path.resolve(siteRoot, '.' + rel);
   const allowed = file === path.join(siteRoot, 'tests', 'Browser', 'fixtures', 'admin-components.html')
     || (file.startsWith(path.join(siteRoot, 'public', 'assets', 'css') + path.sep) && file.endsWith('.css'));
@@ -38,7 +39,7 @@ const server = http.createServer((req, res) => {
 });
 const url = hash => origin + '/tests/Browser/fixtures/admin-components.html#' + hash;
 
-const WIDTHS = (process.env.ADMIN_COMPONENTS_WIDTHS || '375,430,768,1280').split(',').map(Number);
+const WIDTHS = (process.env.ADMIN_COMPONENTS_WIDTHS || '360,375,430,768,1280').split(',').map(Number);
 const ENGINES = (process.env.ADMIN_COMPONENTS_ENGINES || 'chromium,webkit').split(',');
 const THEMES = ['light', 'dark'];
 const VIEWS = [
@@ -123,9 +124,158 @@ function inPageFocus() {
   const rect = el.getBoundingClientRect();
   return {
     type, ok: targets.some(ringOf),
+    key: Array.prototype.indexOf.call(document.getElementsByTagName('*'), el),
     label: el.tagName + '.' + String(el.className).split(' ').join('.') + (el.id ? '#' + el.id : ''),
     visibleBox: rect.width > 0 && rect.height > 0,
   };
+}
+
+// WCAG 2.2 SC 2.4.11: after keyboard focus (and the scroll it causes ends) the
+// focused control must not sit under a sticky header, action bar or table head.
+// Tab alone usually lands mid-screen, so focusPass also runs a keyboard probe
+// (Shift+Tab, scroll the control under a bar, Tab back onto it) that fails
+// without scroll-padding.
+async function inPageObscured() {
+  const el = document.activeElement;
+  if (!el || el === document.body) return null;
+  const settleScroll = async () => {
+    let last = NaN, still = 0;
+    await new Promise(r => setTimeout(r, 120)); // smooth scrolling can start a few frames late
+    while (still < 4) {
+      await new Promise(r => requestAnimationFrame(r));
+      still = window.scrollY === last ? still + 1 : 0;
+      last = window.scrollY;
+    }
+  };
+  const name = e => e.tagName + '.' + String(e.className).split(' ').join('.');
+  const target = parseFloat(getComputedStyle(el).opacity) === 0 ? (el.closest('label') || el) : el;
+  const wrap = el.closest('.a1-tablewrap--sticky');
+  const bars = () => [...document.querySelectorAll('.a1-header, .a1-actionbar')].filter(e => ['sticky', 'fixed'].includes(getComputedStyle(e).position) && !e.contains(el));
+  const covers = () => {
+    const c = bars();
+    if (wrap && !el.closest('thead') && wrap.querySelector('thead').getBoundingClientRect().width > 2) c.push(...wrap.querySelectorAll('thead th'));
+    return c;
+  };
+  const hit = (cs) => {
+    const b = target.getBoundingClientRect();
+    const free = innerHeight - cs.reduce((s, c) => s + c.getBoundingClientRect().height, 0);
+    if (b.height > free) return null; // taller than the free viewport (scrollable table wrapper): cannot be fully clear
+    for (const c of cs) {
+      const r = c.getBoundingClientRect();
+      if (Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top) > 1 && Math.min(b.right, r.right) - Math.max(b.left, r.left) > 1) {
+        return {el: name(el), by: name(c), box: [b.top, b.bottom].map(Math.round), cover: [r.top, r.bottom].map(Math.round)};
+      }
+    }
+    return null;
+  };
+  await settleScroll();
+  return hit(covers());
+}
+
+// Probe set-up: the control saved in window.__a1E is scrolled (instantly) so it
+// sits under the header (edge "top") or under the action bar ("bottom").
+// Returns false when the page is too short or the control is in the bar itself.
+function inPagePlace(edge) {
+  const el = window.__a1E;
+  const bar = [...document.querySelectorAll(edge === 'top' ? '.a1-header' : '.a1-actionbar')].find(e => e.getClientRects().length && getComputedStyle(e).position === 'sticky');
+  if (!el || !bar || bar.contains(el) || el.closest('.a1-tablewrap--sticky')) return false;
+  const r = bar.getBoundingClientRect(), b = (parseFloat(getComputedStyle(el).opacity) === 0 ? (el.closest('label') || el) : el).getBoundingClientRect();
+  window.scrollBy({top: edge === 'top' ? b.top - (r.bottom - 8) : b.bottom - (r.top + 8), behavior: 'instant'});
+  const a = (parseFloat(getComputedStyle(el).opacity) === 0 ? (el.closest('label') || el) : el).getBoundingClientRect();
+  const nb = bar.getBoundingClientRect();
+  return Math.min(a.bottom, nb.bottom) - Math.max(a.top, nb.top) > 1;
+}
+
+// Real contrast gate. axe reports colour-contrast as "incomplete", not as a
+// violation, wherever the background is a gradient or a backdrop (most text on
+// glass), so axe alone cannot fail those. This flattens every visible text
+// element's background chain (background-color alpha composited outward to the
+// first opaque layer or white), and for gradient layers takes the WORST case
+// over each colour stop of that gradient (at the stop's own alpha).
+function inPageContrast() {
+  const ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+  const rgba = css => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = css; ctx.fillRect(0, 0, 1, 1); const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
+  const over = (f, b) => { const a = f[3]; return [f[0] * a + b[0] * (1 - a), f[1] * a + b[1] * (1 - a), f[2] * a + b[2] * (1 - a), 1]; };
+  const lum = c => { const l = [c[0], c[1], c[2]].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const COLOUR = /(?:rgba?|color|oklab|oklch|hsla?)\([^)]*\)|#[0-9a-f]{3,8}\b/gi;
+  const topLevel = s => { const parts = []; let d = 0, at = 0; for (let i = 0; i < s.length; i++) { if (s[i] === '(') d++; else if (s[i] === ')') d--; else if (s[i] === ',' && d === 0) { parts.push(s.slice(at, i).trim()); at = i + 1; } } parts.push(s.slice(at).trim()); return parts.filter(p => p && p !== 'none'); };
+  // Colour a gradient lays over the surface behind the text. A vertical linear
+  // gradient (button gloss, header sheen) is sampled at the TOP edge of the
+  // text box (the strongest point, since these fade downward); every other
+  // gradient (the app's radial glows) contributes each colour stop at its own alpha.
+  const gradientColours = (g, layerBox, textBox) => {
+    const stopsOf = s => (s.match(COLOUR) || []).map(rgba);
+    // Chrome serialises the default direction (180deg) by omitting it.
+    const dir = /^linear-gradient\(\s*(180deg|to bottom|[\d.]+(?:deg|turn|rad|grad)|to [a-z ]+)\s*,/.exec(g);
+    const vertical = /^linear-gradient\(/.test(g) && (!dir || /^(180deg|to bottom)$/.test(dir[1]));
+    if (!vertical) return stopsOf(g).filter(c => c[3] > 0);
+    const list = topLevel(g.slice(g.indexOf('(') + 1, g.lastIndexOf(')'))).slice(dir ? 1 : 0);
+    const st = list.map(p => ({c: rgba((p.match(COLOUR) || [p])[0]), p: (/([\d.]+)%\s*$/.exec(p) || [])[1]}));
+    st.forEach((s, i) => { s.p = s.p === undefined ? (i === 0 ? 0 : i === st.length - 1 ? 100 : NaN) : parseFloat(s.p); });
+    const t = Math.min(100, Math.max(0, (textBox.top - layerBox.top) / (layerBox.height || 1) * 100));
+    let a = st[0], b = st[st.length - 1];
+    for (let i = 0; i < st.length - 1; i++) if (t >= st[i].p && t <= st[i + 1].p) { a = st[i]; b = st[i + 1]; break; }
+    if (st.some(s => isNaN(s.p))) return stopsOf(g).filter(c => c[3] > 0);
+    const k = b.p === a.p ? 0 : Math.min(1, Math.max(0, (t - a.p) / (b.p - a.p)));
+    // Fading to transparent keeps the visible end's hue; two visible ends are lerped.
+    const hue = a.c[3] === 0 ? b.c : a.c, mix = a.c[3] && b.c[3] ? k : 0;
+    const col = [0, 1, 2].map(i => hue[i] + (b.c[i] - hue[i]) * mix);
+    return [[col[0], col[1], col[2], a.c[3] + (b.c[3] - a.c[3]) * k]].filter(c => c[3] > 0);
+  };
+  const out = [];
+  let checked = 0;
+  const els = [...document.body.querySelectorAll('*')].filter(e => !/^(SCRIPT|STYLE|SVG|PATH|TEMPLATE|NOSCRIPT|OPTION|OPTGROUP|PROGRESS|METER)$/i.test(e.tagName) && !e.closest('svg'));
+  for (const el of els) {
+    const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    const field = /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(checkbox|radio|file|hidden|range|color)$/.test(el.type || '') && (el.value || '').length;
+    if (!own && !field) continue;
+    const cs = getComputedStyle(el);
+    const box = el.getBoundingClientRect();
+    if (!el.getClientRects().length || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0 || box.width <= 1 || box.height <= 1) continue;
+    const closed = el.closest('details:not([open])');
+    if (closed && !(el.tagName === 'SUMMARY' && el.parentElement === closed) && !el.closest('summary')) continue;
+    if (el.matches(':disabled') || el.closest('[aria-disabled="true"]')) continue;
+    // Layers from root to element.
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const textBox = field ? box : range.getBoundingClientRect();
+    const nodes = [];
+    for (let n = el; n; n = n.parentElement) nodes.unshift(n);
+    const layers = nodes.map(n => getComputedStyle(n));
+    let from = 0;
+    for (let i = layers.length - 1; i >= 0; i--) if (rgba(layers[i].backgroundColor)[3] >= 1) { from = i; break; }
+    let cands = [[255, 255, 255, 1]];
+    for (let i = from; i < layers.length; i++) {
+      const s = layers[i];
+      const next = [];
+      // shortcut: a form control's own background-image is its chevron glyph, not a surface behind the text; ignored.
+      const imgs = nodes[i] === el && field ? [] : topLevel(s.backgroundImage.replace(/url\([^)]*\)/g, ''));
+      const colours = imgs.flatMap(g => gradientColours(g, nodes[i].getBoundingClientRect(), textBox));
+      for (const c of cands) {
+        const base = over(rgba(s.backgroundColor), c);
+        next.push(base);
+        for (const st of colours) next.push(over(st, base));
+      }
+      const seen = new Set();
+      cands = next.filter(c => { const k = c.slice(0, 3).map(Math.round).join(); if (seen.has(k)) return false; seen.add(k); return true; });
+    }
+    const fg = rgba(cs.color);
+    if (fg[3] === 0) continue; // intentionally invisible text (busy button label, spinner shown instead)
+    const size = parseFloat(cs.fontSize), bold = parseInt(cs.fontWeight, 10) >= 700;
+    const min = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5;
+    let worst = Infinity;
+    for (const c of cands) worst = Math.min(worst, ratio(over(fg, c), c));
+    checked++;
+    if (worst < min) out.push(el.tagName + '.' + String(el.className).split(' ').join('.') + ' ' + worst.toFixed(2) + '<' + min + ' "' + (el.textContent || el.value || '').trim().slice(0, 24) + '"');
+  }
+  return {checked, out};
+}
+
+async function contrastGate(page, label) {
+  const r = await page.evaluate(inPageContrast);
+  check(r.checked > 20, label + ' contrast gate looked at too few text nodes: ' + r.checked);
+  check(r.out.length === 0, label + ' contrast under threshold (' + r.out.length + ') ' + JSON.stringify(r.out.slice(0, 6)));
 }
 
 async function focusPass(page, label, seenTypes) {
@@ -136,9 +286,23 @@ async function focusPass(page, label, seenTypes) {
     await page.keyboard.press('Tab');
     const f = await page.evaluate(inPageFocus);
     if (!f) break;
-    if (first === f.label + i && i > 0) break;
+    if (first === null) first = f.key; else if (f.key === first) break;
     seenTypes.add(f.type);
     check(f.ok, label + ' no visible focus indicator on ' + f.label + ' (' + f.type + ')');
+    // An open mobile menu sheet covers the page and has no focus trap (known, tracked separately); skip it there.
+    const menuOpen = label.endsWith('menu-open');
+    const hidden = menuOpen ? null : await page.evaluate(inPageObscured);
+    check(!hidden, label + ' focused control hidden under sticky bar ' + JSON.stringify(hidden));
+    if (menuOpen || i % 3 !== 0) continue;
+    for (const edge of ['top', 'bottom']) {
+      await page.evaluate(() => { window.__a1E = document.activeElement; });
+      await page.keyboard.press('Shift+Tab');
+      const placed = await page.evaluate(inPagePlace, edge);
+      await page.keyboard.press('Tab');
+      if (!placed) continue;
+      const again = await page.evaluate(inPageObscured);
+      check(!again, label + ' keyboard probe (' + edge + ') control hidden under sticky bar ' + JSON.stringify(again));
+    }
   }
   return total;
 }
@@ -163,6 +327,7 @@ async function basics(page, label, seenTypes) {
   check(a.nameless.length === 0, label + ' interactive without accessible name ' + JSON.stringify(a.nameless.slice(0, 6)));
   check(a.small.length === 0, label + ' tap target under 44px ' + JSON.stringify(a.small.slice(0, 8)));
   await axe(page, label);
+  await contrastGate(page, label);
   await focusPass(page, label, seenTypes);
 }
 
