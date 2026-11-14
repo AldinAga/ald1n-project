@@ -20,7 +20,7 @@
             if (isError) alert.setAttribute('tabindex', '-1');
         });
 
-        const errorAlert = document.querySelector('.alert.error');
+        const errorAlert = document.querySelector('.alert.error, [data-a1-flash-error]');
         if (errorAlert) {
             window.requestAnimationFrame(() => {
                 errorAlert.focus({ preventScroll: true });
