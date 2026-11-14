@@ -121,8 +121,14 @@ ReceivableCase::query()->create([
 
 // Fixed timestamps so two runs render the same dates.
 foreach (['users', 'products', 'orders', 'order_items', 'product_warranties', 'receivable_cases'] as $table) {
-    if (\Illuminate\Support\Facades\Schema::hasColumn($table, 'created_at')) {
-        DB::table($table)->update(['created_at' => '2026-01-15 10:00:00', 'updated_at' => '2026-01-15 10:00:00']);
+    $set = [];
+    foreach (['created_at', 'updated_at'] as $column) {
+        if (\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
+            $set[$column] = '2026-01-15 10:00:00';
+        }
+    }
+    if ($set !== []) {
+        DB::table($table)->update($set);
     }
 }
 

@@ -130,6 +130,7 @@ jobs:
           php artisan migrate:fresh --force --no-ansi
           php artisan db:seed --class=CoreAccessSeeder --force --no-ansi
           php tests/Browser/seed-admin-visual-qa.php
+          test -s "$ADMIN_VISUAL_FIXTURES_PATH" || { echo "FAIL: synthetic fixture file missing"; exit 1; }
           php artisan serve --host=127.0.0.1 --port=8125 > "$RUNNER_TEMP/ald1n-admin-visual-php-server.log" 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
