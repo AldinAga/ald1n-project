@@ -135,6 +135,7 @@ foreach (['users', 'products', 'orders', 'order_items', 'product_warranties', 'r
 $payload = [
     'sentinel' => 'ALD1N_ADMIN_VISUAL_CI_SYNTHETIC_ONLY',
     'admin' => ['login' => $admin->username, 'password' => $password],
+    'customer' => ['login' => $customer->username, 'password' => $password],
     'ids' => ['product' => $product->id, 'order' => $order->id, 'warranty' => $warranty->id, 'customer' => $customer->id],
 ];
 $dest = (string) getenv('ADMIN_VISUAL_FIXTURES_PATH');

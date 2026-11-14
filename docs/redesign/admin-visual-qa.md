@@ -10,14 +10,14 @@ Workflow `admin-visual-qa.yml` podiže jednokratni Laravel sa praznom MariaDB ba
 
 - zajednički raspored i navigacija: obična stranica, otvoren padajući meni, otvorena globalna pretraga, mobilni meni;
 - kontrolna tabla;
-- porudžbine: lista, jedna porudžbina, nova porudžbina;
-- artikli: lista, forma artikla, napredni lager, šifarnik;
+- porudžbine: lista, jedna porudžbina, nova porudžbina (nju otvara seedovani kupac, jer superadmin nema pravo `orders.create`);
+- artikli: lista (`/catalog`, jer `/admin/catalog` preusmerava tamo), forma artikla, napredni lager, šifarnik;
 - garancije: lista i jedna garancija;
 - korisnici: lista, grupe pristupa, portal kupaca;
 - izveštaji: upravljački izveštaj, potraživanja, provizije;
 - podešavanja: pregled, izgled, javna prodavnica, SMTP, dokumenta;
 - prijava i zaboravljena lozinka (kao gost);
-- jedna 404 stranica.
+- jedna 404 stranica. Ona je trenutno uvek tamna (`errors/minimal.blade.php` ima fiksan `data-theme="dark"`), pa se to beleži kao nalaz `theme-not-applied`, a ne kao greška infrastrukture.
 
 Svaka stranica se prikazuje u Chromium-u i WebKit-u, na 375, 430, 768 i 1280 piksela, u svetloj i tamnoj temi. Tema se postavlja istim putem kao kod korisnika: ključ `ald1n-theme-mode` u `localStorage`, koji `layouts/app.blade.php` čita u zaglavlju. Ako tema ne dobije traženu vrednost, ćelija se računa kao greška infrastrukture.
 

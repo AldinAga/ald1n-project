@@ -99,8 +99,10 @@ const PAGES = [
   { module: 'dashboard', key: 'dashboard', path: '/', determinism: true },
   { module: 'orders', key: 'orders-index', path: '/admin/orders' },
   { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}` },
-  { module: 'orders', key: 'orders-create', path: '/order/new' },
-  { module: 'products', key: 'products-index', path: '/admin/catalog' },
+  // New orders are created by the customer role (orders.create); superadmin gets 403 by design.
+  { module: 'orders', key: 'orders-create', path: '/order/new', persona: 'customer' },
+  // /admin/catalog redirects to the shared product list at /catalog.
+  { module: 'products', key: 'products-index', path: '/catalog' },
   { module: 'products', key: 'products-form', path: (i) => `/admin/catalog/${i.product}/edit` },
   { module: 'products', key: 'inventory', path: '/admin/inventory' },
   { module: 'products', key: 'dictionary', path: '/admin/catalog-settings/categories' },
@@ -119,7 +121,8 @@ const PAGES = [
   { module: 'settings', key: 'settings-documents', path: '/admin/settings/documents' },
   { module: 'auth', key: 'auth-login', path: '/login', guest: true },
   { module: 'auth', key: 'auth-forgot-password', path: '/forgot-password', guest: true },
-  { module: 'error', key: 'error-404', path: '/admin/ne-postoji-vizuelni-qa', status: 404 },
+  // errors/minimal.blade.php hard-codes data-theme="dark": recorded as a finding, not an infra failure.
+  { module: 'error', key: 'error-404', path: '/admin/ne-postoji-vizuelni-qa', status: 404, themeFixed: true },
 ].filter((p) => ONLY.length === 0 || ONLY.includes(p.key));
 
 const infra = [];     // infrastructure failures: these fail the job
@@ -140,13 +143,13 @@ async function newThemedContext(browser, theme, storageState) {
   await ctx.addInitScript((mode) => { try { localStorage.setItem('ald1n-theme-mode', mode); } catch (e) { /* storage may be blocked */ } }, theme);
   return ctx;
 }
-async function login(browser) {
+async function login(browser, persona) {
   const ctx = await newThemedContext(browser, 'light');
   const page = await ctx.newPage();
   const resp = await page.goto(baseUrl + '/login', { waitUntil: 'load', timeout: 30000 });
   if (!resp || resp.status() !== 200) throw new Error('LOGIN_PAGE HTTP ' + (resp && resp.status()));
-  await page.locator('input[name="login"]').fill(fixture.admin.login);
-  await page.locator('input[name="password"]').fill(fixture.admin.password);
+  await page.locator('input[name="login"]').fill(fixture[persona].login);
+  await page.locator('input[name="password"]').fill(fixture[persona].password);
   await page.locator('.auth-login-submit').click();
   await page.waitForURL((url) => url.origin === baseUrl && url.pathname === '/', { timeout: 15000 });
   const state = await ctx.storageState();
@@ -243,7 +246,10 @@ async function runCell(ctx, pg, width, theme) {
     if (!pg.status && new URL(page.url()).pathname !== target) throw new Error('redirected to ' + new URL(page.url()).pathname);
     await settle(page);
     const resolved = await page.evaluate(() => document.documentElement.dataset.theme);
-    if (resolved !== theme) throw new Error(`theme mechanism did not apply ${theme}, got ${resolved}`);
+    if (resolved !== theme) {
+      if (!pg.themeFixed) throw new Error(`theme mechanism did not apply ${theme}, got ${resolved}`);
+      findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'theme-not-applied', count: 1, selectors: [`html[data-theme=${resolved}]`] });
+    }
     if (pg.prepare) {
       const skipped = await pg.prepare(page);
       if (typeof skipped === 'string') { cell.status = skipped; return; }
@@ -281,27 +287,32 @@ async function runCell(ctx, pg, width, theme) {
 (async () => {
   const started = Date.now();
   const browser = await playwright[browserName].launch();
-  let state;
-  try {
-    state = await login(browser);
-  } catch (e) {
-    fail('LOGIN', e.message.split('\n')[0]);
+  const states = {};
+  for (const persona of ['admin', 'customer']) {
+    try {
+      states[persona] = await login(browser, persona);
+    } catch (e) {
+      fail('LOGIN', persona + ': ' + e.message.split('\n')[0]);
+    }
   }
-  if (state) {
-    const authCtx = {}; const guestCtx = {};
+  if (states.admin) {
+    const authCtx = { admin: {}, customer: {} }; const guestCtx = {};
     for (const theme of THEMES) {
-      authCtx[theme] = await newThemedContext(browser, theme, state);
+      authCtx.admin[theme] = await newThemedContext(browser, theme, states.admin);
+      if (states.customer) authCtx.customer[theme] = await newThemedContext(browser, theme, states.customer);
       guestCtx[theme] = await newThemedContext(browser, theme);
     }
     for (const pg of PAGES) {
       for (const theme of THEMES) {
         for (const width of WIDTHS) {
-          await runCell((pg.guest ? guestCtx : authCtx)[theme], pg, width, theme);
+          const ctx = pg.guest ? guestCtx[theme] : authCtx[pg.persona || 'admin'][theme];
+          if (!ctx) { fail('CELL', `${pg.key} ${browserName} ${width} ${theme}: persona login failed`); continue; }
+          await runCell(ctx, pg, width, theme);
         }
       }
       console.log(`done ${pg.module}/${pg.key} (${((Date.now() - started) / 60000).toFixed(1)} min)`);
     }
-    for (const c of [...Object.values(authCtx), ...Object.values(guestCtx)]) await c.close();
+    for (const c of [...Object.values(authCtx.admin), ...Object.values(authCtx.customer), ...Object.values(guestCtx)]) await c.close();
   }
   await browser.close();
   const out = {
