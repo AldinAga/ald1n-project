@@ -112,6 +112,10 @@ final class SiteAppearanceController extends Controller
             'site_name' => ['required', 'string', 'max:120'],
             'site_logo_alt' => ['nullable', 'string', 'max:160'],
             'site_header_logo_height' => ['required', 'integer', 'min:24', 'max:80'],
+            'site_footer_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:96'],
+            'site_admin_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:56'],
+            'site_auth_logo_height' => ['sometimes', 'required', 'integer', 'min:32', 'max:80'],
+            'email_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:64'],
             'site_footer_layout' => ['required', Rule::in(['split', 'centered'])],
             'site_footer_copyright_text' => ['nullable', 'string', 'max:300'],
             'site_footer_secondary_text' => ['nullable', 'string', 'max:300'],
@@ -137,7 +141,7 @@ final class SiteAppearanceController extends Controller
             'login_background_slide_active.*' => ['integer', 'min:1', 'max:8'],
             'login_background_slide_order' => ['nullable', 'array'],
             'login_background_slide_order.*' => ['nullable', 'integer', 'min:1', 'max:99'],
-        ], $this->uploadMessages());
+        ], $this->uploadMessages() + $this->logoHeightMessages());
 
         $before = $settings->all();
         $values = [
@@ -156,6 +160,12 @@ final class SiteAppearanceController extends Controller
             'site_footer_link_3_label' => trim((string) ($data['site_footer_link_3_label'] ?? '')),
             'site_footer_link_3_url' => trim((string) ($data['site_footer_link_3_url'] ?? '')),
         ];
+
+        foreach (['site_footer_logo_height', 'site_admin_logo_height', 'site_auth_logo_height', 'email_logo_height'] as $heightKey) {
+            if (isset($data[$heightKey])) {
+                $values[$heightKey] = (string) (int) $data[$heightKey];
+            }
+        }
 
         $newSlides = [];
         $youtubeId = '';
@@ -406,6 +416,26 @@ final class SiteAppearanceController extends Controller
             $rules = ($field['svg'] ?? false) ? ['file', 'max', 'uploaded'] : ['file', 'mimes', 'max', 'uploaded'];
             foreach ($rules as $rule) {
                 $messages[$attribute.'.'.$rule] = $text;
+            }
+        }
+
+        return $messages;
+    }
+
+    /** @return array<string,string> */
+    private function logoHeightMessages(): array
+    {
+        $messages = [];
+        foreach ([
+            'site_header_logo_height' => 'Visina logotipa u zaglavlju',
+            'site_footer_logo_height' => 'Visina logotipa u podnožju',
+            'site_admin_logo_height' => 'Visina logotipa u zaglavlju admin panela',
+            'site_auth_logo_height' => 'Visina logotipa na stranicama za prijavu',
+            'email_logo_height' => 'Visina logotipa u e-mailovima',
+        ] as $attribute => $label) {
+            [$min, $max] = SettingsService::LOGO_HEIGHTS[$attribute];
+            foreach (['required', 'integer', 'min', 'max'] as $rule) {
+                $messages[$attribute.'.'.$rule] = $label.' mora biti ceo broj od '.$min.' do '.$max.' px.';
             }
         }
 

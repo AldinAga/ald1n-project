@@ -12,7 +12,7 @@
 <body style="margin:0;background:#f3f5f8;font-family:Arial,sans-serif;color:#202735">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f8;padding:24px"><tr><td align="center">
 <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #dce2ea">
-<tr><td style="background:#172033;color:#fff;padding:24px 30px"><strong style="font-size:20px">{{ config('app.name','Ald1n CMS') }}</strong><div style="color:#cbd5e1;margin-top:6px">{{ $headerLabel }}</div></td></tr>
+@include('emails.partials.header', ['label' => $headerLabel])
 <tr><td style="padding:28px 30px">
 <p style="margin-top:0">Poštovani{{ $recipientName ? ' '.$recipientName : '' }},</p>
 @foreach($events as $event)

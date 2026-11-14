@@ -9,7 +9,8 @@
     }
     $siteName = trim((string) ($siteSettings['site_name'] ?? config('app.name', 'Ald1n CMS'))) ?: 'Ald1n CMS';
     $siteLogoAlt = trim((string) ($siteSettings['site_logo_alt'] ?? $siteName)) ?: $siteName;
-    $siteHeaderLogoHeight = max(24, min(80, (int) ($siteSettings['site_header_logo_height'] ?? 38)));
+    $siteHeaderLogoHeight = \App\Services\SettingsService::logoHeight('site_admin_logo_height', $siteSettings['site_admin_logo_height'] ?? null);
+    $siteFooterLogoHeight = \App\Services\SettingsService::logoHeight('site_footer_logo_height', $siteSettings['site_footer_logo_height'] ?? null);
     $exchangeRateIsStale = (bool) ($siteExchangeRate['is_stale'] ?? true);
     $exchangeRateSource = (string) ($siteExchangeRate['source'] ?? 'Nije podešeno');
     $exchangeRateValue = $siteExchangeRate['rate'] ?? null;
@@ -113,8 +114,8 @@
                 <img id="siteHeaderLogo" class="site-header-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" style="height:{{ $siteHeaderLogoHeight }}px" alt="{{ $siteLogoAlt }}">
             @else
                 <span class="brand-mark">A</span>
+                <span class="header-brand-name">{{ $siteName }}</span>
             @endif
-            <span class="header-brand-name">{{ $siteName }}</span>
         </a>
 
         @auth
@@ -390,7 +391,7 @@
 @endphp
 <footer class="site-footer site-footer-{{ $footerLayout }}">
     <div class="footer-branding">
-        @if($footerShowLogo && ($siteLogoLightUrl || $siteLogoDarkUrl))<img class="site-footer-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteLogoAlt }}">@endif
+        @if($footerShowLogo && ($siteLogoLightUrl || $siteLogoDarkUrl))<img class="site-footer-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteLogoAlt }}" height="{{ $siteFooterLogoHeight }}">@endif
         <div><strong>{{ $footerCopyright }}</strong>@if($footerSecondary !== '')<small>{{ $footerSecondary }}</small>@endif</div>
     </div>
     @if($footerLinks->isNotEmpty())<nav class="footer-links">@foreach($footerLinks as $link)<a href="{{ $link['url'] }}" @if($footerLinksNewTab) target="_blank" rel="noopener noreferrer" @endif>{{ $link['label'] }}</a>@endforeach</nav>@endif

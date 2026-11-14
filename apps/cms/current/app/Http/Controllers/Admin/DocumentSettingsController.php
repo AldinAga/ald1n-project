@@ -47,7 +47,11 @@ final class DocumentSettingsController extends Controller
             'documents_default_note' => ['nullable', 'string', 'max:2000'],
             'documents_footer_note' => ['nullable', 'string', 'max:500'],
             'documents_logo' => ['nullable', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096', 'dimensions:max_width=5000,max_height=5000'],
-        ]);
+            'documents_logo_height' => ['sometimes', 'required', 'integer', 'min:16', 'max:36'],
+        ], array_fill_keys(
+            ['documents_logo_height.required', 'documents_logo_height.integer', 'documents_logo_height.min', 'documents_logo_height.max'],
+            'Visina logotipa na PDF dokumentima mora biti ceo broj od 16 do 36 pt.',
+        ));
 
         $before = $settings->all();
         $values = [];
