@@ -4,7 +4,8 @@
 <tr>
 <td class="header">
 <a href="{{ $url }}" style="display: inline-block;">
-@if ($mailLogo)
+{{-- This header is light: a dark-theme-only logo would be invisible, so the name is printed instead. --}}
+@if ($mailLogo && !$mailLogo['on_dark'])
 <img src="{{ $mailLogo['src'] }}" alt="{{ $mailLogo['alt'] }}" height="{{ $mailLogo['height'] }}"@if($mailLogo['width']) width="{{ $mailLogo['width'] }}"@endif style="display:block;border:0;height:{{ $mailLogo['height'] }}px;width:{{ $mailLogo['width'] ? $mailLogo['width'].'px' : 'auto' }}">
 @else
 {!! $slot !!}

@@ -22,12 +22,17 @@ final class MailBranding
 {
     private const EMAIL_EXTENSIONS = ['png', 'jpg', 'jpeg'];
 
-    /** @return array{src:string,height:int,width:?int,alt:string}|null */
+    /**
+     * "on_dark": only a dark-theme logo exists, so it must sit on a dark header.
+     *
+     * @return array{src:string,height:int,width:?int,alt:string,on_dark:bool}|null
+     */
     public static function logo(): ?array
     {
         try {
             $origin = AppUrlOrigin::configured();
-            $brand = PublicStorefrontAppearance::branding();
+            // Not branding(): its per-request memo would outlive a logo change inside a queue worker.
+            $brand = PublicStorefrontAppearance::freshBranding();
             $light = $brand['logo_light'];
             if ($origin === null || $light === null) {
                 return null;
@@ -40,7 +45,7 @@ final class MailBranding
             // The width reserved for the storefront header is rescaled to the e-mail height.
             $width = $light['width'] === null ? null : max(1, (int) round($light['width'] * $height / $brand['logo_height']));
 
-            return ['src' => $origin.$light['src'], 'height' => $height, 'width' => $width, 'alt' => $brand['logo_alt']];
+            return ['src' => $origin.$light['src'], 'height' => $height, 'width' => $width, 'alt' => $brand['logo_alt'], 'on_dark' => $brand['dark_only']];
         } catch (Throwable) {
             return null;
         }

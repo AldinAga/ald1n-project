@@ -188,7 +188,7 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
-    public function test_logo_height_default_is_shown_and_saved_values_are_stored(string $key, int $min, int $max, int $default): void
+    public function test_logo_height_default_is_shown_and_saved_values_are_stored(string $key, int $min, int $max, int $default, string $message): void
     {
         $this->actingAs($this->admin)->get('/admin/settings/appearance')->assertOk()
             ->assertSee('name="'.$key.'" min="'.$min.'" max="'.$max.'" step="1" value="'.$default.'"', false)
@@ -202,7 +202,7 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
-    public function test_logo_height_absent_from_a_partial_save_keeps_the_stored_value(string $key, int $min, int $max): void
+    public function test_logo_height_absent_from_a_partial_save_keeps_the_stored_value(string $key, int $min, int $max, int $default, string $message): void
     {
         app(SettingsService::class)->putMany([$key => (string) $max], $this->admin->id);
         $form = $this->form();
@@ -236,7 +236,7 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
-    public function test_a_corrupted_stored_logo_height_reads_as_the_default(string $key, int $min, int $max, int $default): void
+    public function test_a_corrupted_stored_logo_height_reads_as_the_default(string $key, int $min, int $max, int $default, string $message): void
     {
         foreach (['abc', '', (string) ($min - 1), (string) ($max + 1), '30.5'] as $stored) {
             app(SettingsService::class)->putMany([$key => $stored], $this->admin->id);

@@ -220,8 +220,6 @@ final class LogoSizeEverywhereTest extends TestCase
     /** @return array{string,string} order e-mail HTML, management report e-mail HTML, notification e-mail HTML */
     private function mails(): array
     {
-        // The storefront branding is memoised per request; every call here starts fresh.
-        request()->attributes->remove('public_storefront.branding');
         $events = collect([(object) ['event_type' => 'order_created', 'subject' => 'Predmet', 'message' => 'Poruka', 'action_url' => null, 'metadata_json' => []]]);
 
         return [
@@ -245,9 +243,14 @@ final class LogoSizeEverywhereTest extends TestCase
 
         $img = '<img src="https://cms.ald1n.com/storage/site-assets/mail-logo.png" alt="Zz Firma Zz" height="'.$height.'" width="'.$width.'" style="display:block;border:0;height:'.$height.'px;width:'.$width.'px">';
         [$order, $report, $notification] = $this->mails();
-        foreach (['order' => $order, 'report' => $report, 'notification' => $notification] as $name => $html) {
+        foreach (['order' => $order, 'report' => $report] as $name => $html) {
             self::assertStringContainsString($img, $html, $name);
         }
+        // The notification layout runs through a CSS inliner that may reorder attributes and styles.
+        self::assertStringContainsString('src="https://cms.ald1n.com/storage/site-assets/mail-logo.png"', $notification);
+        self::assertStringContainsString('alt="Zz Firma Zz"', $notification);
+        self::assertStringContainsString('height="'.$height.'"', $notification);
+        self::assertStringContainsString('width="'.$width.'"', $notification);
         // The name is no longer header text next to the logo (it stays in the body/footer).
         self::assertStringNotContainsString('<strong style="font-size:20px">', $order);
         self::assertStringNotContainsString('<strong style="font-size:20px">', $report);
@@ -281,6 +284,98 @@ final class LogoSizeEverywhereTest extends TestCase
         self::assertStringNotContainsString('<img', $report);
         self::assertStringContainsString('<strong style="font-size:20px">', $order);
         self::assertStringContainsString(e(config('app.name')), $notification);
+    }
+
+    public function test_a_long_running_process_sees_logo_changes_without_a_restart(): void
+    {
+        $this->prepareMail();
+        Storage::disk('public')->put('site-assets/mail-logo.png', (string) base64_decode(self::PNG));
+        $this->settings(['site_logo_light_path' => 'site-assets/mail-logo.png', 'site_logo_alt' => 'Prvi alt']);
+        // Same process and same request object throughout, like a queue worker; nothing is cleared by hand.
+        [$first] = $this->mails();
+        self::assertStringContainsString('alt="Prvi alt"', $first);
+
+        $this->settings(['site_logo_alt' => 'Drugi alt']);
+        [$second] = $this->mails();
+        self::assertStringContainsString('alt="Drugi alt"', $second);
+
+        $this->settings(['site_logo_light_path' => '']);
+        [$third] = $this->mails();
+        self::assertStringNotContainsString('<img', $third);
+        self::assertStringContainsString('<strong style="font-size:20px">', $third);
+    }
+
+    public function test_dark_only_logo_stays_on_the_dark_header_in_custom_mails_and_is_left_out_of_notifications(): void
+    {
+        $this->prepareMail();
+        Storage::disk('public')->put('site-assets/dark-logo.png', (string) base64_decode(self::PNG));
+        $this->settings(['site_logo_dark_path' => 'site-assets/dark-logo.png']);
+
+        [$order, $report, $notification] = $this->mails();
+        foreach (['order' => $order, 'report' => $report] as $name => $html) {
+            self::assertStringContainsString('src="https://cms.ald1n.com/storage/site-assets/dark-logo.png"', $html, $name);
+            self::assertStringContainsString('background:#172033;color:#fff;', $html, $name);
+            self::assertStringNotContainsString('background:#ffffff;color:#172033', $html, $name);
+        }
+        self::assertStringNotContainsString('dark-logo.png', $notification);
+        self::assertStringContainsString(e(config('app.name')), $notification);
+    }
+
+    public function test_dark_only_svg_logo_gives_the_name_text(): void
+    {
+        $this->prepareMail();
+        $svg = 'site-assets/'.\Illuminate\Support\Str::random(40).'.svg';
+        Storage::disk('public')->put($svg, (new \App\Services\SvgSanitizer())->sanitize('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10"><rect width="10" height="10"/></svg>')->svg);
+        $this->settings(['site_logo_dark_path' => $svg]);
+
+        [$order] = $this->mails();
+        self::assertStringNotContainsString('<img', $order);
+        self::assertStringContainsString('<strong style="font-size:20px">', $order);
+    }
+
+    public static function brokenAppUrls(): array
+    {
+        return ['empty' => [''], 'not a url' => ['not a url'], 'no scheme' => ['cms.ald1n.com'], 'with path' => ['https://cms.ald1n.com/sub']];
+    }
+
+    #[DataProvider('brokenAppUrls')]
+    public function test_missing_or_malformed_app_url_gives_the_name_text_and_no_image(string $appUrl): void
+    {
+        $this->prepareMail();
+        Storage::disk('public')->put('site-assets/mail-logo.png', (string) base64_decode(self::PNG));
+        $this->settings(['site_logo_light_path' => 'site-assets/mail-logo.png']);
+        config()->set('app.url', $appUrl);
+
+        [$order, $report, $notification] = $this->mails();
+        self::assertStringNotContainsString('<img', $order);
+        self::assertStringNotContainsString('<img', $report);
+        self::assertStringNotContainsString('mail-logo.png', $notification);
+        self::assertStringContainsString('<strong style="font-size:20px">', $order);
+    }
+
+    public function test_deleted_logo_file_gives_the_name_text_and_no_image(): void
+    {
+        $this->prepareMail();
+        Storage::disk('public')->put('site-assets/mail-logo.png', (string) base64_decode(self::PNG));
+        $this->settings(['site_logo_light_path' => 'site-assets/mail-logo.png']);
+        Storage::disk('public')->delete('site-assets/mail-logo.png');
+
+        [$order, , $notification] = $this->mails();
+        self::assertStringNotContainsString('<img', $order);
+        self::assertStringNotContainsString('mail-logo.png', $notification);
+        self::assertStringContainsString('<strong style="font-size:20px">', $order);
+    }
+
+    public function test_jpg_logo_is_used_in_mails(): void
+    {
+        $this->prepareMail();
+        $jpeg = file_get_contents(dirname(__DIR__).'/Fixtures/pdf-logo.jpg');
+        self::assertIsString($jpeg);
+        Storage::disk('public')->put('site-assets/mail-logo.jpg', $jpeg);
+        $this->settings(['site_logo_light_path' => 'site-assets/mail-logo.jpg']);
+
+        [$order] = $this->mails();
+        self::assertStringContainsString('src="https://cms.ald1n.com/storage/site-assets/mail-logo.jpg"', $order);
     }
 
     public function test_mail_logo_url_never_comes_from_the_request_host(): void
