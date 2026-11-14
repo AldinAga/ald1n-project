@@ -7,7 +7,9 @@
  *
  *   node admin-visual-qa-report.cjs <dir-with-shards>
  *
- * Exit 1 when a shard reported infrastructure failures, a shard is missing, or strict mode applies:
+ * Exit 2 when ADMIN_VISUAL_STRICT_MODULES names an unknown module.
+ * Exit 1 when a shard reported infrastructure failures, a shard is missing, the cell count differs from
+ * pages x widths x themes (or the selection is empty), the overflow self-test is missing, or strict mode applies:
  *   ADMIN_VISUAL_STRICT=1                      every module must have zero recorded violations
  *   ADMIN_VISUAL_STRICT_MODULES=orders,reports only these modules must have zero (a redesigned module is added here)
  */
@@ -25,7 +27,14 @@ const present = shards.filter(Boolean);
 const MODULES = ['shell', 'dashboard', 'orders', 'products', 'warranties', 'customers', 'reports', 'settings', 'auth', 'error'];
 const strictAll = process.env.ADMIN_VISUAL_STRICT === '1';
 const strictList = (process.env.ADMIN_VISUAL_STRICT_MODULES || '').split(',').map((s) => s.trim()).filter(Boolean);
+const unknownStrict = strictList.filter((m) => !MODULES.includes(m));
+if (unknownStrict.length) {
+  console.error(`HOLD: ADMIN_VISUAL_STRICT_MODULES has unknown module(s): ${unknownStrict.join(', ')}. Known: ${MODULES.join(', ')}.`);
+  process.exit(2);
+}
 const isStrict = (m) => strictAll || strictList.includes(m);
+// Only the 1280px cell of shell-mobile-menu skips by design: the menu toggle is hidden on desktop navigation.
+const isExpectedSkip = (c) => c.page === 'shell-mobile-menu' && c.width === 1280;
 
 const merged = {
   merged_from: present.map((s) => s.browser), missing_shards: missing,
@@ -33,7 +42,23 @@ const merged = {
   infra_failures: present.flatMap((s) => s.infra_failures),
   determinism: present.flatMap((s) => s.determinism),
   cells: present.flatMap((s) => s.cells), findings: present.flatMap((s) => s.findings),
+  selfTests: present.flatMap((s) => (s.selfTests || []).map((t) => ({ browser: s.browser, ...t }))),
 };
+
+// Gate problems that are not infrastructure failures: coverage, self-test, unexpected skips.
+// Expected cells = pages x widths x themes of the selected set, taken from the harness tables the shard echoes (not from the cells).
+const problems = [];
+for (const s of present) {
+  const expected = (s.pages || []).length * (s.widths || []).length * (s.themes || []).length;
+  const got = s.cells.length;
+  if (expected === 0) problems.push(`${s.browser}: empty selection (0 pages, ${(s.widths || []).length} widths, ${(s.themes || []).length} themes), nothing was checked`);
+  else if (got !== expected) problems.push(`${s.browser}: ${got} cells recorded, expected ${expected} (pages x widths x themes)`);
+  if (!merged.selfTests.some((t) => t.browser === s.browser && t.overflowDetector === true)) problems.push(`${s.browser}: overflow detector self-test missing or failed`);
+  if (strictAll || strictList.length) {
+    const unexpected = s.cells.filter((c) => c.status.startsWith('skip') && !isExpectedSkip(c));
+    if (unexpected.length) problems.push(`${s.browser}: ${unexpected.length} unexpected skipped cell(s), e.g. ${unexpected[0].page} at ${unexpected[0].width}px`);
+  }
+}
 fs.writeFileSync(path.join(dir, 'admin-visual-baseline.json'), JSON.stringify(merged, null, 1));
 
 const sum = (arr, f = (x) => x.count) => arr.reduce((a, x) => a + f(x), 0);
@@ -79,6 +104,7 @@ if (merged.determinism.length) {
 const skipped = merged.cells.filter((c) => c.status.startsWith('skip'));
 if (skipped.length) L.push('', `Skipped cells (not applicable): ${skipped.length}, e.g. ${skipped[0].page} at ${skipped[0].width}px.`);
 if (merged.infra_failures.length) L.push('', '### Infrastructure failures', '', ...merged.infra_failures.slice(0, 40).map((x) => '- ' + x));
+if (problems.length) L.push('', '### Gate problems', '', ...problems.map((x) => '- ' + x));
 L.push('', strictAll || strictList.length
   ? `Strict mode: ${strictAll ? 'ALL modules' : strictList.join(', ')}; violations in strict modules: ${strictViolations}.`
   : 'Strict mode: off (baseline run, violations are recorded, not failed).');
@@ -87,5 +113,5 @@ fs.writeFileSync(path.join(dir, 'admin-visual-summary.md'), md);
 console.log(md);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
 
-const bad = missing.length > 0 || merged.infra_failures.length > 0 || strictViolations > 0;
+const bad = missing.length > 0 || merged.infra_failures.length > 0 || problems.length > 0 || strictViolations > 0;
 process.exit(bad ? 1 : 0);

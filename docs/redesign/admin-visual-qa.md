@@ -71,3 +71,5 @@ Više modula razdvajamo zarezom (`orders,reports`). Svaki nalaz u tim modulima t
 ## Šta ne pokrivamo
 
 Samo čitamo stranice, ništa ne šaljemo. Ne proveravamo stanja sa greškama u formama, modalne prozore unutar modula ni PDF izlaze. Mobilne aplikacije nisu deo ove provere.
+
+Alat koristi `bypassCSP: true`, jer je to potrebno da se ubaci axe-core. Zato konzolne greške izazvane CSP-om ovaj prolaz ne hvata. Strogi režim za modul `error` ne može da prođe dok taj prikaz ne primeni temu: njegova svetla ćelija uvek beleži `theme-not-applied`.
