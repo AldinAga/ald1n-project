@@ -33,6 +33,7 @@ const preferenceRows: Array<{ key: keyof NotificationPreferences; title: string;
   { key: 'document_updates', title: 'Dokumenti', copy: 'Predračuni, računi i druga poslovna dokumenta.' },
   { key: 'after_sales_updates', title: 'Postprodaja', copy: 'Reklamacije, povrati i postprodajni slučajevi.' },
   { key: 'warranty_updates', title: 'Garancije', copy: 'Garancije i preventivno održavanje.' },
+  { key: 'warranty_expiry_alerts', title: 'Istek garancije', copy: 'Obaveštenje kada garancija uskoro ističe. Podrazumevano isključeno.' },
   { key: 'service_updates', title: 'Servis', copy: 'Terenski rad i servisne aktivnosti.' },
   { key: 'receivable_updates', title: 'Potraživanja', copy: 'Rate, naplata i dospela potraživanja.' },
   { key: 'commission_updates', title: 'Provizije', copy: 'Promene statusa i isplate provizija.' },
