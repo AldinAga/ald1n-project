@@ -14,6 +14,7 @@ import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { apiAdminCatalog } from '@/features/admin/catalog-admin-api';
+import { lineSelectorLabels } from '@/features/admin/catalog-line-labels';
 import {
   DraftProductImageManager,
   type DraftProductImage,
@@ -273,6 +274,7 @@ export default function AdminCatalogCreateScreen() {
 
   const options = optionsQuery.data;
   const selectedType = options.types.find((type) => String(type.id) === productTypeId);
+  const lineLabels = lineSelectorLabels(selectedType?.name);
   const specificationFields = selectedType?.fields ?? [];
   const storageFields = specificationFields.filter((field) => field.storage_repeater?.enabled);
   const storageDerivedFieldIds = new Set(
@@ -609,11 +611,11 @@ export default function AdminCatalogCreateScreen() {
           }}
         />
         <SelectSheet
-          label="Linija"
+          label={lineLabels.label}
           value={lineId}
-          placeholder={!productTypeId ? 'Prvo izaberi tip artikla' : brandId ? 'Bez linije' : 'Prvo izaberi brend'}
+          placeholder={!productTypeId ? 'Prvo izaberi tip artikla' : brandId ? lineLabels.none : 'Prvo izaberi brend'}
           disabled={!productTypeId || !brandId}
-          options={[{ value: '', label: 'Bez linije' }, ...lineOptions]}
+          options={[{ value: '', label: lineLabels.none }, ...lineOptions]}
           onChange={setLineId}
         />
         <TextField
