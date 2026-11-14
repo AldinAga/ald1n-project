@@ -175,6 +175,63 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
             ->assertDontSee('data-upload-too-large', false);
     }
 
+    public function test_footer_logo_height_is_saved_shown_and_kept_when_the_field_is_absent(): void
+    {
+        $this->actingAs($this->admin)->get('/admin/settings/appearance')->assertOk()
+            ->assertSee('name="site_footer_logo_height" min="20" max="96" step="1" value="32"', false)
+            ->assertSee('Od 20 do 96 px, podrazumevano 32 px.');
+
+        foreach ([20, 48, 96] as $height) {
+            $this->actingAs($this->admin)->put('/admin/settings/appearance', $this->form(['site_footer_logo_height' => (string) $height]))
+                ->assertSessionHasNoErrors();
+            self::assertSame((string) $height, app(SettingsService::class)->get('site_footer_logo_height'));
+        }
+
+        $this->actingAs($this->admin)->put('/admin/settings/appearance', $this->form())->assertSessionHasNoErrors();
+        self::assertSame('96', app(SettingsService::class)->get('site_footer_logo_height'));
+    }
+
+    /** @return array<string,array{mixed}> */
+    public static function invalidFooterLogoHeights(): array
+    {
+        return [
+            'below range' => ['19'], 'zero' => ['0'], 'negative' => ['-5'], 'above range' => ['97'],
+            'float' => ['32.5'], 'text' => ['abc'], 'empty' => [''], 'array' => [['40']],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidFooterLogoHeights')]
+    public function test_invalid_footer_logo_height_is_rejected_and_nothing_is_stored(mixed $height): void
+    {
+        $this->actingAs($this->admin)->from('/admin/settings/appearance')
+            ->put('/admin/settings/appearance', $this->form(['site_footer_logo_height' => $height]))
+            ->assertRedirect('/admin/settings/appearance')
+            ->assertSessionHasErrors(['site_footer_logo_height' => 'Visina logotipa u podnožju mora biti ceo broj od 20 do 96 px.']);
+
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('site_footer_logo_height'));
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('site_name'));
+    }
+
+    public function test_invalid_header_logo_height_gets_a_serbian_message(): void
+    {
+        $this->actingAs($this->admin)->from('/admin/settings/appearance')
+            ->put('/admin/settings/appearance', $this->form(['site_header_logo_height' => '81']))
+            ->assertSessionHasErrors(['site_header_logo_height' => 'Visina logotipa u zaglavlju mora biti ceo broj od 24 do 80 px.']);
+    }
+
+    public function test_non_admin_cannot_save_the_footer_logo_height(): void
+    {
+        $user = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
+            'username' => 'appearance-user',
+            'email' => 'appearance-user@example.test',
+            'password_hash' => Hash::make('OnlySynthetic123!'),
+            'status' => 'active',
+        ]);
+        $this->actingAs($user)->put('/admin/settings/appearance', $this->form(['site_footer_logo_height' => '50']))->assertForbidden();
+        self::assertFalse(app(SettingsService::class)->hasStoredValue('site_footer_logo_height'));
+    }
+
     /** @param array<string,mixed> $extra @return array<string,mixed> */
     private function form(array $extra = []): array
     {

@@ -76,7 +76,7 @@
 @if($shopBrand['footer_logo'])
 <div class="shop-footer-brand">
 @foreach(($shopBrand['logo_light']['src'] === $shopBrand['logo_dark']['src'] ? ['' => $shopBrand['logo_light']] : ['shop-logo-light' => $shopBrand['logo_light'], 'shop-logo-dark' => $shopBrand['logo_dark']]) as $logoVariant => $logo)
-<img class="shop-footer-logo{{ $logoVariant !== '' ? ' '.$logoVariant : '' }}" src="{{ $logo['src'] }}" alt="{{ $shopBrand['logo_alt'] }}" height="32"@if($logo['width']) width="{{ max(1, (int) round($logo['width'] * 32 / $shopBrand['logo_height'])) }}"@endif loading="lazy" decoding="async">
+<img class="shop-footer-logo{{ $logoVariant !== '' ? ' '.$logoVariant : '' }}" src="{{ $logo['src'] }}" alt="{{ $shopBrand['logo_alt'] }}" height="{{ $shopBrand['footer_logo_height'] }}"@if($logo['width']) width="{{ max(1, (int) round($logo['width'] * $shopBrand['footer_logo_height'] / $shopBrand['logo_height'])) }}"@endif loading="lazy" decoding="async">
 @endforeach
 </div>
 @endif

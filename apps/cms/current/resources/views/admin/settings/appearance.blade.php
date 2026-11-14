@@ -31,7 +31,7 @@
             <div class="field-grid">
                 <label class="field-span-2"><span>Naziv sajta</span><input name="site_name" value="{{ old('site_name', $settings['site_name']) }}" required maxlength="120"></label>
                 <label><span>Alternativni tekst logotipa</span><input name="site_logo_alt" value="{{ old('site_logo_alt', $settings['site_logo_alt']) }}" maxlength="160"></label>
-                <label><span>Visina logotipa u zaglavlju (px)</span><input type="number" name="site_header_logo_height" min="24" max="80" value="{{ old('site_header_logo_height', $settings['site_header_logo_height']) }}" required></label>
+                <label><span>Visina logotipa u zaglavlju (px)</span><input type="number" name="site_header_logo_height" min="24" max="80" step="1" value="{{ old('site_header_logo_height', $settings['site_header_logo_height']) }}" required aria-describedby="hint-site_header_logo_height"><small class="muted" id="hint-site_header_logo_height">Od 24 do 80 px, podrazumevano 38 px. Na ekranima do 720 px širine logo se ograničava na 44 px, a do 420 px na 40 px.</small>@error('site_header_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
             </div>
         </section>
 
@@ -198,6 +198,7 @@
             <label class="check-card"><input type="checkbox" name="site_footer_show_logo" value="1" @checked(old('site_footer_show_logo', $settings['site_footer_show_logo']) === '1')><span>Prikaži logo u footeru</span></label>
             <label class="check-card"><input type="checkbox" name="site_footer_links_new_tab" value="1" @checked(old('site_footer_links_new_tab', $settings['site_footer_links_new_tab']) === '1')><span>Otvori footer linkove u novom tabu</span></label>
             <div class="field-grid">
+                <label><span>Visina logotipa u podnožju (px)</span><input type="number" name="site_footer_logo_height" min="20" max="96" step="1" value="{{ old('site_footer_logo_height', $settings['site_footer_logo_height']) }}" required aria-describedby="hint-site_footer_logo_height"><small class="muted" id="hint-site_footer_logo_height">Od 20 do 96 px, podrazumevano 32 px. Važi za javni sajt (prodavnicu).</small>@error('site_footer_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
                 <label><span>Raspored</span><select name="site_footer_layout"><option value="split" @selected(old('site_footer_layout', $settings['site_footer_layout']) === 'split')>Levo i desno</option><option value="centered" @selected(old('site_footer_layout', $settings['site_footer_layout']) === 'centered')>Sve centrirano</option></select></label>
                 <label><span>Copyright tekst</span><input name="site_footer_copyright_text" value="{{ old('site_footer_copyright_text', $settings['site_footer_copyright_text']) }}" maxlength="300"></label>
                 <label class="field-span-2"><span>Dodatni tekst</span><input name="site_footer_secondary_text" value="{{ old('site_footer_secondary_text', $settings['site_footer_secondary_text']) }}" maxlength="300"></label>

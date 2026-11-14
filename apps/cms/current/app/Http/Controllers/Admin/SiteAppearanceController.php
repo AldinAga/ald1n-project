@@ -112,6 +112,7 @@ final class SiteAppearanceController extends Controller
             'site_name' => ['required', 'string', 'max:120'],
             'site_logo_alt' => ['nullable', 'string', 'max:160'],
             'site_header_logo_height' => ['required', 'integer', 'min:24', 'max:80'],
+            'site_footer_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:96'],
             'site_footer_layout' => ['required', Rule::in(['split', 'centered'])],
             'site_footer_copyright_text' => ['nullable', 'string', 'max:300'],
             'site_footer_secondary_text' => ['nullable', 'string', 'max:300'],
@@ -137,7 +138,7 @@ final class SiteAppearanceController extends Controller
             'login_background_slide_active.*' => ['integer', 'min:1', 'max:8'],
             'login_background_slide_order' => ['nullable', 'array'],
             'login_background_slide_order.*' => ['nullable', 'integer', 'min:1', 'max:99'],
-        ], $this->uploadMessages());
+        ], $this->uploadMessages() + $this->logoHeightMessages());
 
         $before = $settings->all();
         $values = [
@@ -156,6 +157,10 @@ final class SiteAppearanceController extends Controller
             'site_footer_link_3_label' => trim((string) ($data['site_footer_link_3_label'] ?? '')),
             'site_footer_link_3_url' => trim((string) ($data['site_footer_link_3_url'] ?? '')),
         ];
+
+        if (isset($data['site_footer_logo_height'])) {
+            $values['site_footer_logo_height'] = (string) (int) $data['site_footer_logo_height'];
+        }
 
         $newSlides = [];
         $youtubeId = '';
@@ -405,6 +410,22 @@ final class SiteAppearanceController extends Controller
             // which brings its own message; there is no mimes rule for them.
             $rules = ($field['svg'] ?? false) ? ['file', 'max', 'uploaded'] : ['file', 'mimes', 'max', 'uploaded'];
             foreach ($rules as $rule) {
+                $messages[$attribute.'.'.$rule] = $text;
+            }
+        }
+
+        return $messages;
+    }
+
+    /** @return array<string,string> */
+    private function logoHeightMessages(): array
+    {
+        $messages = [];
+        foreach ([
+            'site_header_logo_height' => 'Visina logotipa u zaglavlju mora biti ceo broj od 24 do 80 px.',
+            'site_footer_logo_height' => 'Visina logotipa u podnožju mora biti ceo broj od 20 do 96 px.',
+        ] as $attribute => $text) {
+            foreach (['required', 'integer', 'min', 'max'] as $rule) {
                 $messages[$attribute.'.'.$rule] = $text;
             }
         }

@@ -128,7 +128,7 @@ final class PublicStorefrontAppearance
     /**
      * Branding for the storefront header, footer and favicon.
      *
-     * @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,favicon:?array{href:string,type:string}}
+     * @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,favicon:?array{href:string,type:string}}
      */
     public static function branding(): array
     {
@@ -166,7 +166,7 @@ final class PublicStorefrontAppearance
         return self::branding()['brand'];
     }
 
-    /** @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,favicon:?array{href:string,type:string}} */
+    /** @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,favicon:?array{href:string,type:string}} */
     private static function resolveBranding(): array
     {
         $settings = [];
@@ -200,6 +200,7 @@ final class PublicStorefrontAppearance
             'logo_alt' => mb_substr($alt, 0, 160),
             'logo_height' => $height,
             'footer_logo' => ($settings['site_footer_show_logo'] ?? '0') === '1' && $light !== null,
+            'footer_logo_height' => SettingsService::footerLogoHeight($settings['site_footer_logo_height'] ?? null),
             'favicon' => self::favicon($settings['site_favicon_path'] ?? null),
         ];
     }

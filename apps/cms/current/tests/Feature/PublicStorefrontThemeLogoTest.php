@@ -575,6 +575,37 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         self::assertStringContainsString('<img class="shop-footer-logo shop-logo-dark" src="/storage/site-assets/f-dark.png"', $html);
     }
 
+    public static function footerLogoHeights(): array
+    {
+        return [
+            'saved' => ['48', '48', '192'],
+            'lower bound' => ['20', '20', '80'],
+            'upper bound' => ['96', '96', '384'],
+            'corrupted text' => ['abc', '32', '128'],
+            'below range' => ['5', '32', '128'],
+            'above range' => ['500', '32', '128'],
+            'float' => ['40.5', '32', '128'],
+            'empty' => ['', '32', '128'],
+        ];
+    }
+
+    #[DataProvider('footerLogoHeights')]
+    public function test_footer_logo_height_comes_from_the_setting_or_falls_back_to_32(string $stored, string $height, string $width): void
+    {
+        $this->settings([
+            'site_logo_light_path' => $this->asset('fh-light.png'),
+            'site_logo_dark_path' => $this->asset('fh-dark.png'),
+            'site_header_logo_height' => '40',
+            'site_footer_show_logo' => '1',
+            'site_footer_logo_height' => $stored,
+        ]);
+        $html = (string) $this->get('/korpa')->assertOk()->getContent();
+        self::assertStringContainsString('<img class="shop-footer-logo shop-logo-light" src="/storage/site-assets/fh-light.png" alt="AP.Computers" height="'.$height.'" width="'.$width.'" loading="lazy"', $html);
+        self::assertStringContainsString('<img class="shop-footer-logo shop-logo-dark" src="/storage/site-assets/fh-dark.png" alt="AP.Computers" height="'.$height.'" width="'.$width.'" loading="lazy"', $html);
+        // The header logo keeps its own setting.
+        self::assertStringContainsString('height="40" width="160"', $this->brandLink($html));
+    }
+
     public function test_favicon_comes_from_the_site_settings(): void
     {
         $this->settings(['site_favicon_path' => $this->asset('favicon.png')]);

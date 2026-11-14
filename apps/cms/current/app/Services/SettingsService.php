@@ -72,6 +72,7 @@ final class SettingsService
         'login_background_slide_8_active' => '0',
         'login_background_slide_8_order' => '80',
         'site_footer_show_logo' => '0',
+        'site_footer_logo_height' => '32',
         'site_footer_copyright_text' => '© {year} {site_name}',
         'site_footer_secondary_text' => '',
         'site_footer_layout' => 'split',
@@ -173,6 +174,14 @@ final class SettingsService
         'smtp_last_test_fingerprint' => '',
     ];
 
+    /** Storefront footer logo height in px: 20-96, anything else (missing, corrupted) is the 32 px used before the setting existed. */
+    public static function footerLogoHeight(mixed $value): int
+    {
+        $height = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 20, 'max_range' => 96]]);
+
+        return $height === false ? 32 : $height;
+    }
+
     /** @return array<string,string> */
     public function all(): array
     {
@@ -186,6 +195,7 @@ final class SettingsService
         if ($merged['site_logo_light_path'] === '') $merged['site_logo_light_path'] = $legacy;
         if ($merged['site_logo_dark_path'] === '') $merged['site_logo_dark_path'] = $legacy;
         $merged['site_header_logo_height'] = (string) max(24, min(80, (int) $merged['site_header_logo_height']));
+        $merged['site_footer_logo_height'] = (string) self::footerLogoHeight($merged['site_footer_logo_height']);
         $merged['site_footer_show_logo'] = $merged['site_footer_show_logo'] === '1' ? '1' : '0';
         $merged['site_footer_links_new_tab'] = $merged['site_footer_links_new_tab'] === '1' ? '1' : '0';
         $merged['site_footer_layout'] = in_array($merged['site_footer_layout'], ['split', 'centered'], true) ? $merged['site_footer_layout'] : 'split';
