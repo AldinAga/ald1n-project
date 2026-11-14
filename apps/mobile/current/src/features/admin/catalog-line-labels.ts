@@ -3,7 +3,7 @@
 const LAPTOP_CHARGER_TYPE_NAME = 'punjaci za laptopove';
 
 function fold(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'dj').trim().toLowerCase();
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'dj').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 export function lineSelectorLabels(productTypeName: string | null | undefined): { label: string; none: string } {

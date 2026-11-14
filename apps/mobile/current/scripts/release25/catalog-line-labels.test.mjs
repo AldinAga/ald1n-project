@@ -14,7 +14,7 @@ function loadHelper() {
 
 test('laptop charger type labels the line selector as connector type', () => {
   const { lineSelectorLabels } = loadHelper();
-  for (const name of ['Punjači za laptopove', 'Punjaci za laptopove', ' punjači za laptopove ']) {
+  for (const name of ['Punjači za laptopove', 'Punjaci za laptopove', ' punjači za laptopove ', 'Punjači za  laptopove']) {
     assert.deepEqual(lineSelectorLabels(name), { label: 'Tip priključka', none: 'Bez tipa priključka' });
   }
 });

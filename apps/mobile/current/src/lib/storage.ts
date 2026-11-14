@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 const TOKEN_KEY = 'ald1n.auth.token';
 const INSTALLATION_KEY = 'ald1n.installation.id';
 const DEVICE_ID_KEY = 'ald1n.device.server-id';
-const PUSH_CHOICE_KEY = 'ald1n.device.push-choice';
+const PUSH_CHOICE_PREFIX = 'ald1n.push-choice.user.';
 const USER_PREFERENCES_PREFIX = 'ald1n.preferences.user.';
 
 export type StoredPriceDisplayMode = 'source' | 'RSD' | 'EUR';
@@ -45,20 +45,24 @@ export async function getServerDeviceId(): Promise<number | null> {
 }
 
 export async function clearServerDeviceId(): Promise<void> {
-  await Promise.all([
-    SecureStore.deleteItemAsync(DEVICE_ID_KEY, secureOptions),
-    SecureStore.deleteItemAsync(PUSH_CHOICE_KEY, secureOptions)
-  ]);
+  await SecureStore.deleteItemAsync(DEVICE_ID_KEY, secureOptions);
 }
 
-// Last explicit push choice made by the user on this device; null = never chosen.
-export async function getPushConsentChoice(): Promise<boolean | null> {
-  const value = await SecureStore.getItemAsync(PUSH_CHOICE_KEY, secureOptions);
+// Last explicit push choice of one user on this device; null = never chosen. Kept per user and
+// across logout (a boolean keyed by the numeric user id only); other users' choices are never touched.
+function pushChoiceKey(userId: number): string {
+  if (!Number.isInteger(userId) || userId <= 0) throw new Error('Neispravan korisnički identifikator za push izbor.');
+  return PUSH_CHOICE_PREFIX + String(userId);
+}
+
+export async function getPushConsentChoice(userId: number): Promise<boolean | null> {
+  const value = await SecureStore.getItemAsync(pushChoiceKey(userId), secureOptions);
   return value === 'on' ? true : value === 'off' ? false : null;
 }
 
-export async function setPushConsentChoice(enabled: boolean): Promise<void> {
-  await SecureStore.setItemAsync(PUSH_CHOICE_KEY, enabled ? 'on' : 'off', secureOptions);
+export async function setPushConsentChoice(userId: number, enabled: boolean | null): Promise<void> {
+  if (enabled === null) await SecureStore.deleteItemAsync(pushChoiceKey(userId), secureOptions);
+  else await SecureStore.setItemAsync(pushChoiceKey(userId), enabled ? 'on' : 'off', secureOptions);
 }
 
 function userPreferencesKey(userId: number): string {

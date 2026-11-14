@@ -58,7 +58,34 @@ async function deviceMetadata(): Promise<MobileDeviceUpdateInput> {
   };
 }
 
-export async function syncCurrentDeviceAtStartup(options: { includePush: boolean }): Promise<MobileDevice> {
+// Startup and explicit push actions run one at a time, so a startup request that read "no choice"
+// can never land after the user's explicit disable.
+let queue: Promise<unknown> = Promise.resolve();
+function serialized<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+// Explicit user action: remember the choice locally first (a failed write fails the action, so
+// "server off, local unknown" cannot happen), then call the backend; roll the local value back if
+// the backend call fails.
+async function withStoredChoice<T>(userId: number, next: boolean, action: () => Promise<T>): Promise<T> {
+  const previous = await getPushConsentChoice(userId);
+  await setPushConsentChoice(userId, next);
+  try {
+    return await action();
+  } catch (error) {
+    await setPushConsentChoice(userId, previous).catch(() => undefined);
+    throw error;
+  }
+}
+
+export function syncCurrentDeviceAtStartup(options: { includePush: boolean; userId: number }): Promise<MobileDevice> {
+  return serialized(() => syncStartup(options));
+}
+
+async function syncStartup(options: { includePush: boolean; userId: number }): Promise<MobileDevice> {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
     throw new Error('Startup device sync je dostupan samo na Android/iOS uredjajima.');
   }
@@ -69,8 +96,9 @@ export async function syncCurrentDeviceAtStartup(options: { includePush: boolean
 
   // Startup is passive: it never asserts consent. The backend keeps the stored value on an existing
   // device; a user who switched push off is re-asserted as false because the backend defaults a
-  // missing value to true when it creates or re-activates a device row.
-  const choice = await getPushConsentChoice().catch(() => null);
+  // missing value to true when it creates or re-activates a device row. If the stored choice cannot
+  // be read, fail closed: send nothing (a request could create or re-activate a row as enabled).
+  const choice = await getPushConsentChoice(options.userId);
   if (choice === false) {
     pushFields = { notifications_enabled: false };
   } else if (options.includePush && Device.isDevice) {
@@ -121,7 +149,8 @@ async function updateOrRegister(input: MobileDeviceUpdateInput): Promise<MobileD
   return device;
 }
 
-export async function registerCurrentDeviceForPush(options: { prompt: boolean }): Promise<MobileDevice> {
+export function registerCurrentDeviceForPush(options: { prompt: boolean; userId: number }): Promise<MobileDevice> {
+  return serialized(async () => {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
     throw new Error('Push registracija je dostupna samo na Android/iOS uređajima.');
   }
@@ -147,29 +176,27 @@ export async function registerCurrentDeviceForPush(options: { prompt: boolean })
   if (!token) throw new Error('Expo push token nije dobijen.');
 
   const metadata = await deviceMetadata();
-  const device = await updateOrRegister({
+  const device = await withStoredChoice(options.userId, true, () => updateOrRegister({
     ...metadata,
     push_provider: 'expo',
     push_token: token,
     notifications_enabled: true
-  });
+  }));
   await setServerDeviceId(device.id);
-  await setPushConsentChoice(true).catch(() => undefined);
   return device;
+  });
 }
 
-export async function disableCurrentDevicePush(): Promise<MobileDevice | null> {
-  const serverDeviceId = await getServerDeviceId();
-  if (!serverDeviceId) {
-    await setPushConsentChoice(false).catch(() => undefined);
-    return null;
-  }
-
-  const device = await api.devices.update(serverDeviceId, {
-    push_provider: null,
-    push_token: null,
-    notifications_enabled: false
+export function disableCurrentDevicePush(options: { userId: number }): Promise<MobileDevice | null> {
+  return serialized(async () => {
+    const serverDeviceId = await getServerDeviceId();
+    return withStoredChoice(options.userId, false, async () => {
+      if (!serverDeviceId) return null;
+      return api.devices.update(serverDeviceId, {
+        push_provider: null,
+        push_token: null,
+        notifications_enabled: false
+      });
+    });
   });
-  await setPushConsentChoice(false).catch(() => undefined);
-  return device;
 }

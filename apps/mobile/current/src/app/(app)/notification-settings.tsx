@@ -81,7 +81,7 @@ export default function NotificationSettingsScreen() {
   const enableDevicePush = async (): Promise<boolean> => {
     setPushAction(true);
     try {
-      await registerCurrentDeviceForPush({ prompt: true });
+      await registerCurrentDeviceForPush({ prompt: true, userId: bootstrap.user.id });
       await api.account.notificationPreferences({ push_enabled: true });
       await Promise.all([
         refreshBootstrap(),
@@ -116,7 +116,7 @@ export default function NotificationSettingsScreen() {
       setPushAction(true);
 
       try {
-        await disableCurrentDevicePush();
+        await disableCurrentDevicePush({ userId: bootstrap.user.id });
         await queryClient.invalidateQueries({ queryKey: ['devices'] });
         await refreshPermission();
       } catch (error) {
