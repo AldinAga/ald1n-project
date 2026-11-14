@@ -27,6 +27,9 @@
   --a1x-container:1320px;
   --a1x-icon:20px;
   --a1x-z-header:30;
+  --a1x-sticky-top:12rem;
+  --a1x-sticky-bottom:11rem;
+  --a1x-sticky-th:3.5rem;
   --a1x-z-menu:40;
   --a1x-z-toast:50;
 }
@@ -407,8 +410,11 @@ a.a1-page:hover{border-color:var(--a1-accent-link);background-color:var(--a1-gla
   .a1-skeleton{animation:a1-pulse 1.4s var(--a1-motion-easing-basic) infinite}
   .a1-dialog[open]:modal{animation:a1-rise var(--a1-motion-duration-slow) var(--a1-motion-easing-standard)}
   .a1-toasts>*{animation:a1-rise var(--a1-motion-duration-slow) var(--a1-motion-easing-standard)}
-  html{scroll-behavior:smooth}
+  html:has(.a1-app){scroll-behavior:smooth}
 }
+/* Focus and anchor jumps keep the target clear of the sticky header and action bar (WCAG 2.2 SC 2.4.11). */
+html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bottom)}
+.a1-tablewrap--sticky{scroll-padding-top:var(--a1x-sticky-th)}
 @keyframes a1-spin{to{transform:rotate(360deg)}}
 @keyframes a1-pulse{50%{opacity:.55}}
 @keyframes a1-rise{from{transform:translateY(8px)}to{transform:none}}

@@ -216,4 +216,25 @@ Pragovi (560, 768, 1100, 1440) ne mogu u CSS promenljive jer se `@media` ne čit
 
 ## Provera
 
-`node tests/Browser/admin-components-browser.cjs` otvara galeriju u Chromiumu i WebKitu, na 375, 430, 768 i 1280 px, u svetloj i tamnoj temi, u četiri prikaza. Pada na: svako kršenje axe pravila (kontrast i strukturna pravila), vodoravni skrol, kontrolu bez imena, kontrolu bez vidljivog fokusa, metu manju od 44 px i grešku u konzoli. Posebno se proveravaju otvoren mobilni meni, otvoren padajući meni i modalni prozor, kao i forsirane boje, smanjena providnost i veći kontrast (Chromium) sa punim površinama.
+`node tests/Browser/admin-components-browser.cjs` otvara galeriju u Chromiumu i WebKitu, na 360, 375, 430, 768 i 1280 px, u svetloj i tamnoj temi, u četiri prikaza. Pada na: svako kršenje axe pravila (kontrast i strukturna pravila), vodoravni skrol, kontrolu bez imena, kontrolu bez vidljivog fokusa, metu manju od 44 px i grešku u konzoli. Posebno se proveravaju otvoren mobilni meni, otvoren padajući meni i modalni prozor, kao i forsirane boje, smanjena providnost i veći kontrast (Chromium) sa punim površinama.
+
+### Provera kontrasta (stvarna)
+
+axe tekst na staklu i prelivima prijavljuje kao `incomplete`, ne kao kršenje, pa ga sam ne obara. Zato skripta ima sopstvenu proveru koja radi u svakom prikazu, temi i širini, i pada ispod 4,5:1 za običan tekst, odnosno 3:1 za veliki (od 24 px, ili od 18,66 px podebljano).
+
+Implementirana je puna verzija, ne ona manja: za svaki vidljiv element sa tekstom skripta uzima izračunatu boju teksta i slaže pozadinu od korena naviše. Providne `background-color` slojeve slaže jedan preko drugog do prvog neprozirnog sloja (ili bele). Za slojeve sa `background-image` bira najgori slučaj:
+- svaki stop radijalnog preliva (sjajevi na `.a1-app`) uzima se punom bojom i sopstvenim alfa kanalom;
+- uspravni linearni preliv (sjaj dugmeta, sjaj zaglavlja) uzorkuje se na gornjoj ivici okvira teksta.
+
+Poznata ograničenja, bez izuzetaka u kodu:
+- nema uzorkovanja po pikselu: najgori stop radijalnog preliva važi za ceo element, što je strože od stvarnosti;
+- `opacity` roditelja, `mix-blend-mode`, tekst preko slike i pozadina iza zamućenja (`backdrop-filter`) se ne računaju, jer su prelivi ispod stakla blagi;
+- pozadinska slika samog polja (strelica `select`) se preskače, a tekst providne boje (zauzeto dugme) i onemogućene kontrole su izuzeti kao u WCAG-u;
+- nagnuti linearni prelivi uzimaju se kao najgori stop, ne kao uzorak;
+- forsirane boje i veći kontrast i dalje se proveravaju samo kao pune površine, kontrast tamo ne merimo.
+
+### Fokus ispod lepljivih traka (WCAG 2.2, 2.4.11)
+
+Vrednosti su visina trake plus jedna kontrola (zaglavlje do 130 px, traka radnji do 108 px, kontrola oko 50 px): Chromium kontrolu koja samo delimično zalazi u prostor padding-a smatra vidljivom i ne skroluje, što je izmereno (padding jednak visini zaglavlja, 136 px, ostavlja polje 7 px ispod trake). `html:has(.a1-app)` ima `scroll-padding-block` iz `--a1x-sticky-top` (zaglavlje, do tri reda na 360 px) i `--a1x-sticky-bottom` (traka radnji), a `.a1-tablewrap--sticky` ima `scroll-padding-top` iz `--a1x-sticky-th`. Skripta nakon svakog Tab koraka čeka kraj skrola i proverava da okvir fokusirane kontrole ne preseca zaglavlje, traku radnji ni lepljivo zaglavlje tabele. Na svaki treći korak dodatno radi probu tastaturom: Shift+Tab, pomeranje stranice tako da kontrola bude ispod zaglavlja (pa ispod trake radnji), zatim Tab nazad na kontrolu. Tab sam obično dovodi kontrolu na sredinu ekrana, pa bez ove probe provera ne bi mogla da padne (programski `focus()` nije dobra zamena, Chromium tada često ne skroluje). Izuzeci: kontrola viša od slobodnog dela ekrana (skrolabilni omotač tabele) i otvoren mobilni meni, koji nema zamku fokusa, praćeno posebno.
+
+Proveru treba da obori ovo: nuliranje `--a1x-sticky-top` i `--a1x-sticky-bottom`; proveravano lokalno u Chromiumu na 360 px, 76 padova provere fokusa. Provera kontrasta pada kad se boja teksta `.a1-actionbar__status` privremeno zameni sa #9aa0a6 (2,51:1 naspram 4,5:1, axe to ne hvata); obe izmene su vraćene. `scroll-behavior:smooth` važi samo na stranicama sa `.a1-app`.
