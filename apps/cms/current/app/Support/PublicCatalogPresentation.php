@@ -152,7 +152,10 @@ final class PublicCatalogPresentation
         if ($base !== null && !isset($active['q'])) {
             // Filtered and sorted views consolidate on the unfiltered catalog;
             // plain pagination keeps its own page URL.
-            $canonical = $base.$catalogPath.($active === [] && $current > 1 ? '?page='.$current : '');
+            // The page size changes which products a page holds, so it stays in the
+            // canonical of page 2+; "view" only changes presentation and never does.
+            $canonical = $base.$catalogPath.($active === [] && $current > 1
+                ? '?'.http_build_query(array_intersect_key($layout, ['per_page' => 1]) + ['page' => $current]) : '');
         }
 
         $schema = $base === null ? null

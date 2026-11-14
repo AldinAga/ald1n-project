@@ -500,6 +500,27 @@ final class PublicCatalogRedesignTest extends TestCase
         self::assertStringNotContainsString('rel="canonical"', $search);
     }
 
+    public function test_page_two_canonical_keeps_page_size_but_never_view(): void
+    {
+        $this->seedItems(45);
+        $size20 = (string) $this->get('/katalog?per_page=20&view=list&page=2')->assertOk()->getContent();
+        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog?per_page=20&amp;page=2">', $size20);
+        $default = (string) $this->get('/katalog?view=list&page=2')->assertOk()->getContent();
+        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog?page=2">', $default);
+        $page1 = (string) $this->get('/katalog?per_page=20&page=1')->assertOk()->getContent();
+        self::assertStringContainsString('<link rel="canonical" href="https://cms.ald1n.com/katalog">', $page1);
+    }
+
+    public function test_junk_view_value_is_not_copied_into_pagination_links(): void
+    {
+        $this->seedItems(45);
+        foreach (['view=table', 'view[]=list', 'view=LIST'] as $query) {
+            $html = (string) $this->get('/katalog?'.$query)->assertOk()->getContent();
+            self::assertSame(['page' => '2'], $this->queryOf($html, '~<link rel="next" href="([^"]+)">~'), $query);
+            self::assertSame(['page' => '2'], $this->queryOf($html, '~href="([^"]+)" rel="next"~'), $query);
+        }
+    }
+
     public function test_price_sort_compares_rsd_equivalent_across_currencies(): void
     {
         $this->product('Item A RSD 10000', 10000, 'RSD');
