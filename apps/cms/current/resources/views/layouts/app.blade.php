@@ -933,7 +933,9 @@ const loadProductSearch = async (term) => {
     const mobileMenuScrim = document.querySelector('[data-a1-scrim]');
     const mobileMenuQuery = window.matchMedia('(max-width: 768px)');
     const menuFocusable = () => Array.from(siteHeader.querySelectorAll('a[href], button:not([disabled]), summary, input:not([disabled])'))
-        .filter((node) => node.getClientRects().length > 0);
+        .filter((node) => node.getClientRects().length > 0)
+        // Content of a closed <details> is not focusable, whatever the browser reports for its boxes.
+        .filter((node) => !(node.tagName === 'SUMMARY' ? node.parentElement.parentElement : node.parentElement)?.closest('details:not([open])'));
     // Sheet menu (<= 768px): body scroll lock, the page behind it is inert, Tab stays inside the header,
     // Escape or the scrim closes it and focus goes back to the toggle.
     const setMobileMenu = (open, returnFocus = false) => {
