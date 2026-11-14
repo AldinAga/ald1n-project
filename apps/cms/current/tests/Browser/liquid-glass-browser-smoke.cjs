@@ -179,7 +179,7 @@ async function headerGeometry(page, persona, mode, width) {
     && box.width > 25 && box.height > 25 && box.left >= -1 && box.right <= width + 1
     && box.top >= -1 && box.bottom <= 200;
   // The rate badge lives in the bar from 769px and inside the sheet menu at or below 768px.
-  const phone = width <= 768;
+  const phone = width <= 1199;
   check(visible(state.elements.search), 'HEADER_VISIBLE_SEARCH', tag + ': ' + JSON.stringify(state.elements.search));
   if (phone) {
     check(visible(state.elements.hamburger), 'HEADER_VISIBLE_MENU_TOGGLE', tag + ': ' + JSON.stringify(state.elements.hamburger));
@@ -330,7 +330,7 @@ async function searchAndMenu(page, label, width) {
   await page.waitForTimeout(120);
   check(await layer.isHidden(), 'SEARCH_ESCAPE_CLOSE', label);
   check(await page.evaluate(() => document.activeElement?.hasAttribute('data-header-product-search-toggle')), 'SEARCH_FOCUS_RETURNS_TO_TOGGLE', label);
-  if (width <= 768) {
+  if (width <= 1199) {
     const menu = page.locator('[data-mobile-menu-toggle]');
     await menu.click();
     check(await menu.getAttribute('aria-expanded') === 'true', 'HAMBURGER_OPENS', label);

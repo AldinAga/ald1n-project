@@ -187,7 +187,7 @@ $check('beta1.2 repair migracija je nedestruktivna', str_contains($reportsRepair
 $layout = (string) file_get_contents($root.'/resources/views/layouts/app.blade.php');
 $css = (string) file_get_contents($root.'/public/assets/css/app.css');
 $check('hamburger dugme postoji', str_contains($layout, 'data-mobile-menu-toggle') && str_contains($layout, 'aria-controls="siteHeaderMenu"'));
-$check('mobilni meni ima kontrolni JavaScript', str_contains($layout, 'setMobileMenu') && str_contains($layout, "matchMedia('(max-width: 768px)')") && str_contains($layout, "'a1-lock'"));
+$check('mobilni meni ima kontrolni JavaScript', str_contains($layout, 'setMobileMenu') && str_contains($layout, "matchMedia('(max-width: 1199px)')") && str_contains($layout, "'a1-lock'"));
 $check('mobilni meni nema horizontalni scroll', str_contains($css, '.site-header.menu-open .header-secondary-row') && str_contains($css, 'overflow-y:auto') && str_contains($css, 'overflow-x:hidden'));
 $check('direktne mobilne stavke koriste zajednički levi wrapper', str_contains($layout, 'a1-nav__link') && substr_count($layout, '$navLink(') >= 3);
 $check('Početna Provizije i Izveštaji su poravnati ulevo', str_contains($css, '.header-secondary-row .main-nav>a{justify-content:flex-start!important;text-align:left!important}') && str_contains($css, '.header-secondary-row .main-nav>a>.nav-link-content{width:100%;justify-content:flex-start;text-align:left}'));
@@ -692,7 +692,7 @@ $receivablesMigration = (string) file_get_contents($root.'/database/migrations/2
 $check('beta7.17.1 permission seed je schema-aware', str_contains($receivablesMigration, 'schemaAwareUpdateOrInsert') && str_contains($receivablesMigration, "Schema::hasColumn(\$table, 'updated_at')"));
 $check('beta7.17.1 seeder ne zahteva permissions.updated_at', str_contains($seeder, "Schema::hasColumn('permissions', 'updated_at')") && !str_contains($seeder, "\$permission + ['created_at' => now()]"));
 $check('beta7.17.2 hover podmeni ima grace period i click pin', str_contains($layoutShell, 'hoverCloseTimers') && str_contains($layoutShell, 'clickPinnedDropdowns') && str_contains($layoutShell, 'scheduleHoverClose') && str_contains($layoutShell, '280'));
-$check('beta7.17.2 CSS premošćava razmak do podmenija', str_contains($css, '.nav-dropdown-menu:before') && str_contains($css, 'top:-12px') && str_contains($css, 'height:12px'));
+$check('beta7.17.2 CSS premošćava razmak do podmenija', str_contains((string) file_get_contents($root.'/public/assets/css/ald1n-admin.css'), '.a1-nav-dd[open]::after{content:"";position:absolute;left:0;right:0;top:100%;height:var(--a1-space-8)}'));
 
 
 $correlationMigration = (string) file_get_contents($root.'/database/migrations/2026_07_31_000027_create_correlated_specifications_beta7_18.php');

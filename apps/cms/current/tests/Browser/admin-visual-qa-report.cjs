@@ -33,8 +33,8 @@ if (unknownStrict.length) {
   process.exit(2);
 }
 const isStrict = (m) => strictAll || strictList.includes(m);
-// Only the 1280px cell of shell-mobile-menu skips by design: the menu toggle is hidden on desktop navigation.
-const isExpectedSkip = (c) => c.page === 'shell-mobile-menu' && c.width === 1280;
+// Only the desktop cells (1200px and up) of shell-mobile-menu skip by design: the menu toggle is hidden on desktop navigation.
+const isExpectedSkip = (c) => c.page === 'shell-mobile-menu' && c.width >= 1200;
 
 const merged = {
   merged_from: present.map((s) => s.browser), missing_shards: missing,
@@ -49,7 +49,8 @@ const merged = {
 // Expected cells = pages x widths x themes of the selected set, taken from the harness tables the shard echoes (not from the cells).
 const problems = [];
 for (const s of present) {
-  const expected = (s.pages || []).length * (s.widths || []).length * (s.themes || []).length;
+  // Pages may carry their own width list (the shell pages add 360 and 1200); older shards fall back to the global widths.
+  const expected = (s.pages || []).reduce((n, p) => n + (p.widths || s.widths || []).length, 0) * (s.themes || []).length;
   const got = s.cells.length;
   if (expected === 0) problems.push(`${s.browser}: empty selection (0 pages, ${(s.widths || []).length} widths, ${(s.themes || []).length} themes), nothing was checked`);
   else if (got !== expected) problems.push(`${s.browser}: ${got} cells recorded, expected ${expected} (pages x widths x themes)`);

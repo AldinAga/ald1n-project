@@ -73,6 +73,48 @@ final class AdminShellNavigationTest extends TestCase
         self::assertStringNotContainsString('aria-current="page">Početna', $nav);
     }
 
+    public function test_switched_off_module_is_absent_from_the_html_not_just_hidden(): void
+    {
+        $user = $this->userWithRole('superadmin', 'shell-nav-modules');
+        $before = $this->nav($this->page($user, '/'));
+        self::assertStringContainsString('href="'.route('admin.reports.index').'"', $before);
+        self::assertStringContainsString('href="'.route('admin.receivables.index').'"', $before);
+
+        app(\App\Services\SettingsService::class)->putMany([
+            'module_enabled_reports' => '0',
+            'module_enabled_receivables' => '0',
+        ], $user->id);
+
+        $after = $this->nav($this->page($user, '/'));
+        self::assertStringNotContainsString(route('admin.reports.index'), $after);
+        self::assertStringNotContainsString(route('admin.receivables.index'), $after);
+        self::assertStringNotContainsString('data-module-visibility', $after);
+        // Everything that stays enabled is still there.
+        self::assertStringContainsString('href="'.route('admin.orders.index').'"', $after);
+        self::assertStringContainsString('href="'.route('admin.users.index').'"', $after);
+    }
+
+    public function test_administrator_role_does_not_get_the_superadmin_only_settings_items(): void
+    {
+        $nav = $this->nav($this->page($this->userWithRole('admin', 'shell-nav-admin'), '/'));
+
+        self::assertStringContainsString('>Početna', $nav);
+        foreach (['admin.settings.smtp.index', 'admin.settings.public-storefront.index', 'admin.settings.couriers.index', 'admin.settings.modules.index'] as $route) {
+            self::assertStringNotContainsString('href="'.route($route).'"', $nav, $route);
+        }
+        self::assertStringNotContainsString('data-nav-smtp-settings', $nav);
+        self::assertStringNotContainsString('data-nav-public-storefront', $nav);
+    }
+
+    public function test_a_url_that_appears_twice_in_the_navigation_is_marked_current_once(): void
+    {
+        $nav = $this->nav($this->page($this->userWithRole('superadmin', 'shell-nav-dupes'), '/admin/user-groups'));
+
+        // "Grupe pristupa" is listed under Korisnici and again under Podešavanja / Pristup.
+        self::assertSame(2, substr_count($nav, 'href="'.route('admin.user-groups.index').'"'));
+        self::assertSame(1, substr_count($nav, 'aria-current="page"'));
+    }
+
     private function userWithRole(string $slug, string $username): User
     {
         return User::query()->create([

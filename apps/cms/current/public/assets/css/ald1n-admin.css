@@ -111,7 +111,8 @@
 .a1-user::-webkit-details-marker{display:none}
 .a1-user:hover{background:var(--a1-button-ghost-hover)}
 .a1-user__avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--a1-button-primary-bg);color:var(--a1-button-primary-on);font-size:var(--a1-typography-font-size-xs-plus);font-weight:var(--a1-typography-font-weight-bold)}
-@media (min-width:769px){
+/* Desktop header from 1200px: measured, the superadmin item set needs 1149px in a wide fallback font (Verdana) on one row. Below it the sheet menu is used. */
+@media (min-width:1200px){
   .a1-menu-btn,.a1-menu-cb{display:none}
   .a1-header__search{order:2;flex:1 1 260px;max-width:440px}
   .a1-header__quick{order:3}
@@ -122,15 +123,10 @@
   .a1-header__panel>.a1-theme{order:4}
   .a1-header__user{order:5}
   .a1-header__nav{order:9;flex:1 1 100%;padding-block:var(--a1-space-4);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
-  .a1-nav{display:flex;flex-wrap:wrap}
+  .a1-nav{display:flex;flex-wrap:nowrap}
   .a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-8));left:0;min-width:260px;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong);-webkit-backdrop-filter:var(--a1-fx-strong);backdrop-filter:var(--a1-fx-strong);box-shadow:var(--a1-shadow-card-hover)}
   .a1-nav-dd--end>.a1-nav-dd__panel{left:auto;right:0}
   .a1-nav-dd>summary::after{margin-left:var(--a1-space-4)}
-}
-@media (min-width:1440px){
-  .a1-header__nav{order:2;flex:0 1 auto;border-top:0;padding-block:0}
-  .a1-brand{margin-right:var(--a1-space-16)}
-  .a1-header__search{order:3;flex:1 1 200px;max-width:320px;margin-left:auto}
 }
 @media (max-width:560px){
   .a1-brand__text{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -520,30 +516,35 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-theme--wide>.a1-theme__opt{flex:1 1 0}
 .a1-scrim{position:fixed;inset:0;z-index:49;background:var(--a1x-scrim)}
 .a1-scrim[hidden]{display:none}
-@media (max-width:768px){
+/* The shell's inner width follows the old .page-shell gutters (48px, 30px up to 1250px, 22px up to 700px) so the edges line up. */
+.a1-shell .a1-wrap{width:min(var(--a1x-container),calc(100% - 48px))}
+@media (max-width:1250px){.a1-shell .a1-wrap{width:min(var(--a1x-container),calc(100% - 30px))}}
+@media (max-width:700px){.a1-shell .a1-wrap{width:calc(100% - 22px)}}
+@media (max-width:1199px){
   .a1-header__panel{gap:var(--a1-space-16)}
   .a1-header.is-open{background-color:var(--a1-surface-solid);background-image:none}
   .a1-header.is-open .a1-header__panel{display:grid;max-height:calc(100vh - 140px);max-height:calc(100dvh - 140px)}
   .a1-header__panel>.a1-rate,.a1-header__panel>.a1-theme{justify-self:start}
   .a1-header__user .a1-nav-dd__panel{padding-left:var(--a1-space-8)}
+  /* JavaScript off (the layout adds .a1-js to <html> first thing): no toggle, the sheet content stays in normal flow, so navigation and logout remain reachable. */
+  html:not(.a1-js) .a1-menu-btn{display:none}
+  html:not(.a1-js) .a1-header__panel{display:grid}
+  html:not(.a1-js) .a1-header{position:static}
 }
 @media (max-width:560px){
   .a1-menu-btn{padding-inline:0}
   .a1-menu-btn__text{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}
 }
-@media (min-width:769px){
+@media (min-width:1200px){
   .a1-scrim{display:none}
-  .a1-shell .a1-wrap{width:min(var(--a1x-container),calc(100% - var(--a1-space-48)))}
   .a1-searchbtn{justify-content:flex-start;padding:0 var(--a1-space-16)}
   .a1-header__search.a1-searchbtn{order:2;flex:1 1 260px;width:auto;max-width:440px}
   .a1-searchbtn__label{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto}
-  .a1-header .a1-nav__link{padding:var(--a1-space-8) var(--a1-space-12)}
+  .a1-header .a1-nav__link{padding:var(--a1-space-8);font-size:var(--a1-typography-font-size-sm-plus);white-space:nowrap}
   .a1-nav-dd__panel{max-height:min(70vh,560px);overflow-y:auto;overscroll-behavior:contain}
   .a1-nav-dd--flip>.a1-nav-dd__panel{left:auto;right:0}
+  .a1-nav-dd[open]::after{content:"";position:absolute;left:0;right:0;top:100%;height:var(--a1-space-8)}
   .a1-header__user .a1-nav-dd__panel{min-width:280px}
-}
-@media (min-width:1440px){
-  .a1-header__search.a1-searchbtn{order:3;flex:1 1 200px;max-width:320px;margin-left:auto}
 }
 .a1-footer{margin-top:var(--a1-space-40);border-top:var(--a1x-border-width) solid var(--a1-border-normal);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-footer__inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-12) var(--a1-space-24);padding-block:var(--a1-space-20)}

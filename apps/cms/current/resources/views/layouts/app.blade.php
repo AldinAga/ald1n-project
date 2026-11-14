@@ -40,14 +40,25 @@
     $navPath = static fn (string $url): string => '/'.trim((string) parse_url($url, PHP_URL_PATH), '/');
     $navHere = '/'.trim(request()->path(), '/');
     $navCount = static fn (?int $count): string => $count !== null && $count > 0 ? ' <span class="a1-count">'.min(99, $count).'</span>' : '';
-    // Top-level link: aria-current="page" on an exact URL match, highlighted when the section is active.
+    // aria-current="page" goes to exactly one link per page: the first one in document order with an exact URL match
+    // (several URLs appear twice, for example "Grupe pristupa" under Korisnici and under Podešavanja).
+    $navTaken = false;
+    $navCurrent = static function (string $url) use ($navPath, $navHere, &$navTaken): string {
+        if ($navTaken || $navPath($url) !== $navHere) {
+            return '';
+        }
+        $navTaken = true;
+
+        return ' aria-current="page"';
+    };
+    // Top-level link: highlighted when the section is active.
     $navLink = static fn (string $url, string $label, bool $section = false, ?int $count = null): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString(
         '<a class="a1-nav__link'.($section ? ' a1-nav__link--active' : '').'" href="'.e($url).'"'
-        .($navPath($url) === $navHere ? ' aria-current="page"' : '').'>'.e($label).$navCount($count).'</a>'
+        .$navCurrent($url).'>'.e($label).$navCount($count).'</a>'
     );
     // Item inside a dropdown panel.
     $navItem = static fn (string $url, string $label, string $attrs = '', ?int $count = null): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString(
-        '<a class="a1-nav-dd__item" href="'.e($url).'"'.($navPath($url) === $navHere ? ' aria-current="page"' : '')
+        '<a class="a1-nav-dd__item" href="'.e($url).'"'.$navCurrent($url)
         .($attrs !== '' ? ' '.$attrs : '').'>'.e($label).$navCount($count).'</a>'
     );
 @endphp
@@ -69,6 +80,8 @@
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
+        // Without this class (JavaScript off) the menu sheet is shown in normal flow, so navigation and logout stay reachable.
+        document.documentElement.classList.add('a1-js');
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';
             const resolved = mode === 'auto'
@@ -365,7 +378,9 @@
         @if(session('status') || (isset($errors) && $errors->any()))
         <div class="a1-flash a1-shell" data-a1-flash>
             @if(session('status'))
-            <div class="a1-alert a1-alert--ok" role="status"><x-icon name="check-circle" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ session('status') }}</p></div></div>
+            {{-- Announced through the live region below (filled after load); a status present at load is not read reliably. --}}
+            <div class="a1-alert a1-alert--ok" data-a1-flash-status><x-icon name="check-circle" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ session('status') }}</p></div></div>
+            <div class="a1-sr" role="status" aria-live="polite" data-a1-flash-live></div>
             @endif
             @if(isset($errors) && $errors->any())
             <div class="a1-alert a1-alert--danger" role="alert" tabindex="-1" data-a1-flash-error><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><strong class="a1-alert__title">Proveri podatke:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
@@ -504,6 +519,12 @@
     });
     applyDisplayCurrency(displayCurrencyMode, false);
 
+    // Flash status: populate the live region after load so assistive technology announces it (errors take focus via ux-runtime.js).
+    document.querySelectorAll('[data-a1-flash-live]').forEach((live) => {
+        const text = document.querySelector('[data-a1-flash-status]')?.textContent?.trim() || '';
+        window.setTimeout(() => { live.textContent = text; }, 300);
+    });
+
     // ALD1N VNEXT B4: global product quick search runtime.
     const headerProductSearchToggle = document.querySelector('[data-header-product-search-toggle]');
     const headerProductSearchLayer = document.querySelector('[data-header-product-search-layer]');
@@ -520,6 +541,7 @@
         const searchResultLinks = () => Array.from(headerProductSearchResults.querySelectorAll('[data-header-product-search-result]'));
 
         const setSearchStatus = (message) => {
+            headerProductSearchInput.removeAttribute('aria-activedescendant');
             headerProductSearchStatus.textContent = message;
             headerProductSearchStatus.hidden = false;
             headerProductSearchResults.hidden = true;
@@ -558,13 +580,24 @@
             headerProductSearchToggle.setAttribute('aria-expanded', 'false');
         };
         const closeProductSearch = () => {
-            if (headerProductSearchLayer.open) headerProductSearchLayer.close();
+            if (!headerProductSearchLayer.open) return;
+            if (typeof headerProductSearchLayer.close === 'function') {
+                headerProductSearchLayer.close();
+            } else {
+                headerProductSearchLayer.removeAttribute('open');
+                resetProductSearch();
+            }
         };
 
         const openProductSearch = () => {
             if (headerProductSearchLayer.open) return;
             setMobileMenu(false);
-            headerProductSearchLayer.showModal();
+            // A browser without <dialog>.showModal() gets the same dialog opened non-modally (Escape then closes it via the keydown below).
+            if (typeof headerProductSearchLayer.showModal === 'function') {
+                headerProductSearchLayer.showModal();
+            } else {
+                headerProductSearchLayer.setAttribute('open', '');
+            }
             document.documentElement.classList.add('a1-lock');
             headerProductSearchToggle.setAttribute('aria-expanded', 'true');
             window.requestAnimationFrame(() => {
@@ -576,6 +609,7 @@
                 const renderProductSearchResults = (items) => {
             headerProductSearchResults.replaceChildren();
             activeSearchIndex = -1;
+            headerProductSearchInput.removeAttribute('aria-activedescendant');
 
             if (!Array.isArray(items) || items.length === 0) {
                 setSearchStatus('Nema rezultata koji odgovaraju unetoj pretrazi.');
@@ -730,9 +764,17 @@ const loadProductSearch = async (term) => {
         });
 
         headerProductSearchLayer.addEventListener('close', resetProductSearch);
-        // A click on the backdrop lands on the dialog element itself.
+        // A click on the backdrop lands on the dialog element itself. Close only when the press AND the release were on the
+        // backdrop, so a text selection dragged out of the input does not dismiss the dialog.
+        let backdropPressed = false;
+        headerProductSearchLayer.addEventListener('pointerdown', (event) => { backdropPressed = event.target === headerProductSearchLayer; });
         headerProductSearchLayer.addEventListener('click', (event) => {
-            if (event.target === headerProductSearchLayer) closeProductSearch();
+            if (event.target === headerProductSearchLayer && backdropPressed) closeProductSearch();
+            backdropPressed = false;
+        });
+        // Non-modal fallback has no native Escape handling.
+        headerProductSearchLayer.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && typeof headerProductSearchLayer.showModal !== 'function') closeProductSearch();
         });
     }
 
@@ -931,12 +973,12 @@ const loadProductSearch = async (term) => {
     const mobileMenuToggle = document.querySelector('[data-mobile-menu-toggle]');
     const mobileMenu = document.querySelector('[data-mobile-menu]');
     const mobileMenuScrim = document.querySelector('[data-a1-scrim]');
-    const mobileMenuQuery = window.matchMedia('(max-width: 768px)');
+    const mobileMenuQuery = window.matchMedia('(max-width: 1199px)');
     const menuFocusable = () => Array.from(siteHeader.querySelectorAll('a[href], button:not([disabled]), summary, input:not([disabled])'))
         .filter((node) => node.getClientRects().length > 0)
         // Content of a closed <details> is not focusable, whatever the browser reports for its boxes.
         .filter((node) => !(node.tagName === 'SUMMARY' ? node.parentElement.parentElement : node.parentElement)?.closest('details:not([open])'));
-    // Sheet menu (<= 768px): body scroll lock, the page behind it is inert, Tab stays inside the header,
+    // Sheet menu (<= 1199px): body scroll lock, the page behind it is inert, Tab stays inside the header,
     // Escape or the scrim closes it and focus goes back to the toggle.
     const setMobileMenu = (open, returnFocus = false) => {
         if (!siteHeader || !mobileMenuToggle || !mobileMenu) return;
@@ -952,7 +994,7 @@ const loadProductSearch = async (term) => {
         if (!shouldOpen && wasOpen && returnFocus) mobileMenuToggle.focus();
     };
     const navDropdowns = Array.from(document.querySelectorAll('.a1-nav-dd'));
-    const desktopHoverQuery = window.matchMedia('(min-width: 769px) and (hover: hover) and (pointer: fine)');
+    const desktopHoverQuery = window.matchMedia('(min-width: 1200px) and (hover: hover) and (pointer: fine)');
     const hoverCloseTimers = new WeakMap();
     const clickPinnedDropdowns = new WeakSet();
     const clearDropdownClose = (dropdown) => {
@@ -991,10 +1033,11 @@ const loadProductSearch = async (term) => {
         summary?.setAttribute('aria-expanded', dropdown.open ? 'true' : 'false');
         summary?.addEventListener('click', (event) => {
             event.preventDefault();
-            const wasPinned = clickPinnedDropdowns.has(dropdown);
+            // Open (pinned or just opened by hover): the click closes it.
+            const wasOpen = dropdown.open;
             closeDropdowns(dropdown);
             clearDropdownClose(dropdown);
-            if (wasPinned) {
+            if (wasOpen) {
                 clickPinnedDropdowns.delete(dropdown);
                 setDropdown(dropdown, false);
                 return;

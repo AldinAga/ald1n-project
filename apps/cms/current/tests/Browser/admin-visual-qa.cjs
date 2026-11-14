@@ -42,8 +42,13 @@ if (fixture.sentinel !== 'ALD1N_ADMIN_VISUAL_CI_SYNTHETIC_ONLY') {
 const playwright = require(path.resolve(nodeRoot, 'node_modules/playwright'));
 const axeSource = fs.readFileSync(path.resolve(nodeRoot, 'node_modules/axe-core/axe.min.js'), 'utf8');
 
+const inPageContrast = require('./lib-inpage-contrast.cjs');
 const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '375,430,768,1280').split(',').map(Number);
-const HEIGHTS = { 375: 812, 430: 932, 768: 1024, 1280: 800 };
+// Shell pages: 360 (smallest phone), 768 (sheet menu), 1200 (first desktop width) and 1280 are added to the matrix.
+const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280]);
+const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
+const DESKTOP_FROM = 1200; // keep in sync with ald1n-admin.css and layouts/app.blade.php
+const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800 };
 const THEMES = ['light', 'dark'];
 const AXE_RULES = ['color-contrast', 'document-title', 'html-has-lang', 'label', 'button-name', 'link-name', 'image-alt'];
 const ONLY = (process.env.ADMIN_VISUAL_ONLY || '').split(',').filter(Boolean);
@@ -82,7 +87,52 @@ const prepare = {
     await page.locator('[data-header-product-search-toggle]').click();
     await page.waitForFunction(() => { const l = document.querySelector('#headerProductSearch'); return l && l.open; }, null, { timeout: 5000 });
     await page.locator('[data-header-product-search-input]').fill('Admin');
-    await page.waitForTimeout(1500);
+    // Wait for results (or the empty state) so the result rows are part of the measured state.
+    await page.waitForFunction(() => !document.querySelector('[data-header-product-search-results]').hidden
+      || /Nema rezultata|nije dostupna/.test(document.querySelector('[data-header-product-search-status]').textContent), null, { timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(300);
+  },
+  async userMenu(page) {
+    await openMobileMenuIfNeeded(page);
+    await page.locator('.a1-header__user > summary').click();
+    await page.waitForFunction(() => !!document.querySelector('.a1-header__user[open]'), null, { timeout: 5000 });
+  },
+  async lastDropdown(page) {
+    await openMobileMenuIfNeeded(page);
+    await page.locator('.a1-header__nav details.a1-nav-dd > summary').last().click();
+    await page.waitForFunction(() => { const all = document.querySelectorAll('.a1-header__nav details.a1-nav-dd'); return all[all.length - 1].open; }, null, { timeout: 5000 });
+  },
+  // States the seed data does not produce on its own: an active nav item (the dashboard), count badges, the stale rate.
+  // The classes are the real ones; the server-rendered markup is covered by AdminShellNavigationTest.
+  async states(page) {
+    await openMobileMenuIfNeeded(page);
+    await page.evaluate(() => {
+      document.querySelectorAll('.a1-header__nav .a1-nav__link').forEach((a, i) => { if (a.tagName === 'A' && i < 3) a.insertAdjacentHTML('beforeend', ' <span class="a1-count">12</span>'); });
+      document.querySelectorAll('.a1-header__quick').forEach((a) => a.insertAdjacentHTML('beforeend', '<span class="a1-count a1-count--float" aria-hidden="true">3</span>'));
+      const rate = document.querySelector('.a1-rate');
+      if (rate) { rate.classList.add('is-stale'); const l = rate.querySelector('span'); if (l) l.textContent = 'EUR/RSD · PROVERI'; }
+    });
+    if (!(await page.locator('.a1-nav__link--active[aria-current="page"]').count())) throw new Error('no active nav item on the dashboard');
+  },
+  async flashOk(page) {
+    await page.locator('form[action$="/account/notifications"]').evaluate((f) => { f.noValidate = true; f.requestSubmit(); });
+    await page.waitForSelector('[data-a1-flash] .a1-alert--ok', { timeout: 15000 });
+    await page.waitForTimeout(500);
+    const live = await page.locator('[data-a1-flash-live]').innerText();
+    if (!live.trim()) throw new Error('flash status was not announced through the live region');
+  },
+  async flashError(page) {
+    await page.locator('form[action$="/account/password"]').evaluate((f) => { f.noValidate = true; f.requestSubmit(); });
+    await page.waitForSelector('[data-a1-flash] .a1-alert--danger', { timeout: 15000 });
+    await page.waitForTimeout(300);
+  },
+  // Page rendered without any <script>: the sheet menu must be in normal flow and logout reachable.
+  async noJsLogout(page) {
+    if (await page.locator('[data-mobile-menu-toggle]').isVisible()) throw new Error('menu toggle is visible without JavaScript');
+    await page.locator('.a1-header__user > summary').click();
+    const logout = page.locator('form[action$="/logout"] button[type="submit"]');
+    await logout.waitFor({ state: 'visible', timeout: 5000 });
+    if (!(await logout.isEnabled())) throw new Error('logout button is not enabled without JavaScript');
   },
   async mobileMenu(page) {
     if (!(await openMobileMenuIfNeeded(page))) return 'skip: menu toggle hidden at this width (desktop navigation)';
@@ -100,10 +150,17 @@ const prepare = {
 
 // Planned rollout order. module = unit that later flips to strict.
 const PAGES = [
-  { module: 'shell', key: 'shell-plain', path: '/account' },
-  { module: 'shell', key: 'shell-nav-dropdown', path: '/account', prepare: prepare.navDropdown },
-  { module: 'shell', key: 'shell-search-dialog', path: '/account', prepare: prepare.searchDialog },
-  { module: 'shell', key: 'shell-mobile-menu', path: '/account', prepare: prepare.mobileMenu },
+  { module: 'shell', key: 'shell-plain', path: '/account', widths: SHELL_WIDTHS },
+  { module: 'shell', key: 'shell-nav-dropdown', path: '/account', prepare: prepare.navDropdown, widths: SHELL_WIDTHS },
+  { module: 'shell', key: 'shell-search-dialog', path: '/account', prepare: prepare.searchDialog, widths: SHELL_WIDTHS },
+  { module: 'shell', key: 'shell-mobile-menu', path: '/account', prepare: prepare.mobileMenu, widths: SHELL_WIDTHS },
+  { module: 'shell', key: 'shell-user-menu', path: '/account', prepare: prepare.userMenu, widths: SHELL_EXTRA_WIDTHS },
+  { module: 'shell', key: 'shell-last-dropdown', path: '/account', prepare: prepare.lastDropdown, widths: SHELL_EXTRA_WIDTHS },
+  { module: 'shell', key: 'shell-states', path: '/', prepare: prepare.states, widths: SHELL_EXTRA_WIDTHS },
+  { module: 'shell', key: 'shell-flash-ok', path: '/account', prepare: prepare.flashOk, widths: SHELL_EXTRA_WIDTHS },
+  { module: 'shell', key: 'shell-flash-error', path: '/account', prepare: prepare.flashError, widths: SHELL_EXTRA_WIDTHS },
+  // Scripts are stripped from the document, so the page is what a visitor gets with JavaScript off. Theme stays at the HTML default.
+  { module: 'shell', key: 'shell-no-js', path: '/account', prepare: prepare.noJsLogout, stripScripts: true, widths: [375, 1280] },
   { module: 'dashboard', key: 'dashboard', path: '/', determinism: true },
   { module: 'orders', key: 'orders-index', path: '/admin/orders' },
   { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}` },
@@ -210,6 +267,37 @@ async function runAxe(page, scoped) {
   if (!scoped) return run(AXE_RULES, null);
   return [...await run(AXE_RULES.filter((r) => !DOCUMENT_RULES.includes(r)), SHELL_SCOPE), ...await run(DOCUMENT_RULES, null)];
 }
+// Shell-only gates, recorded as findings (strict mode for "shell" fails on any):
+//  - computed-contrast: flattened background chain, worst case over gradients; axe leaves text on glass as "incomplete".
+//  - nav-wraps / nav-overflows: from DESKTOP_FROM the primary navigation is one row (all top-level items share one offsetTop).
+//  - shell-edge-misaligned: the header's inner container lines up with the content container (.page-shell).
+async function shellChecks(page, pg, width, theme) {
+  const out = [];
+  const base = { module: pg.module, page: pg.key, browser: browserName, width, theme };
+  await page.evaluate(async () => {
+    const t = Date.now();
+    while (document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().endTime !== Infinity) && Date.now() - t < 3000) await new Promise((r) => setTimeout(r, 50));
+  });
+  const c = await page.evaluate(inPageContrast, SHELL_SCOPE);
+  if (c.out.length) out.push({ ...base, rule: 'computed-contrast', count: c.out.length, selectors: c.out.slice(0, 3) });
+  if (c.checked < 5 && !pg.stripScripts) out.push({ ...base, rule: 'computed-contrast-too-few-nodes', count: 1, selectors: ['checked ' + c.checked] });
+  const geo = await page.evaluate((from) => {
+    const nav = document.querySelector('.a1-header__nav .a1-nav');
+    const desktop = window.innerWidth >= from;
+    const tops = nav ? [...nav.children].filter((li) => li.getClientRects().length).map((li) => Math.round(li.getBoundingClientRect().top)) : [];
+    const wrap = document.querySelector('.a1-header .a1-wrap')?.getBoundingClientRect();
+    const shell = document.querySelector('.page-shell')?.getBoundingClientRect();
+    return {
+      desktop, rows: new Set(tops).size, items: tops.length,
+      navOverflow: nav ? nav.scrollWidth - nav.clientWidth : 0,
+      edge: wrap && shell ? [Math.round(wrap.left - shell.left), Math.round(wrap.right - shell.right)] : null,
+    };
+  }, DESKTOP_FROM);
+  if (geo.desktop && geo.items > 0 && geo.rows !== 1) out.push({ ...base, rule: 'nav-wraps', count: 1, selectors: [`${geo.items} items on ${geo.rows} rows`] });
+  if (geo.desktop && geo.navOverflow > 1) out.push({ ...base, rule: 'nav-overflows', count: 1, selectors: ['+' + geo.navOverflow + 'px'] });
+  if (geo.edge && (Math.abs(geo.edge[0]) > 2 || Math.abs(geo.edge[1]) > 2)) out.push({ ...base, rule: 'shell-edge-misaligned', count: 1, selectors: ['left ' + geo.edge[0] + 'px, right ' + geo.edge[1] + 'px vs .page-shell'] });
+  return out;
+}
 // Freeze text that changes between runs (dates, times, relative times, rate) - after axe, text only.
 async function freezeDynamic(page) {
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}' });
@@ -285,13 +373,24 @@ async function runCell(ctx, pg, width, theme) {
   });
   try {
     await page.setViewportSize({ width, height: HEIGHTS[width] || 900 });
+    if (pg.stripScripts) {
+      // The document arrives without any <script> element: the JavaScript-off experience, on every engine.
+      await page.route(baseUrl + target, async (route) => {
+        if (route.request().resourceType() !== 'document') return route.continue();
+        const upstream = await route.fetch();
+        const body = (await upstream.text()).replace(/<script\b[\s\S]*?<\/script>/gi, '');
+        const headers = { ...upstream.headers() };
+        delete headers['content-length'];
+        await route.fulfill({ status: upstream.status(), headers, body });
+      });
+    }
     const resp = await page.goto(baseUrl + target, { waitUntil: 'load', timeout: 30000 });
     const want = pg.status || 200;
     if (!resp || resp.status() !== want) throw new Error(`HTTP ${resp && resp.status()} expected ${want}`);
     if (!pg.status && new URL(page.url()).pathname !== target) throw new Error('redirected to ' + new URL(page.url()).pathname);
     await settle(page);
     const resolved = await page.evaluate(() => document.documentElement.dataset.theme);
-    if (resolved !== theme) {
+    if (resolved !== theme && !pg.stripScripts) {
       if (!pg.themeFixed) throw new Error(`theme mechanism did not apply ${theme}, got ${resolved}`);
       findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'theme-not-applied', count: 1, selectors: [`html[data-theme=${resolved}]`] });
     }
@@ -308,6 +407,7 @@ async function runCell(ctx, pg, width, theme) {
         selectors: overflow.offenders });
     }
     for (const v of await runAxe(page, pg.module === 'shell')) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
+    if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
     if (local.console.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'console-error', count: local.console.length, selectors: local.console.slice(0, 3) });
     if (local.failed.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'failed-request', count: local.failed.length, selectors: local.failed.slice(0, 3) });
     await freezeDynamic(page);
@@ -366,7 +466,7 @@ async function runCell(ctx, pg, width, theme) {
     }
     for (const pg of PAGES) {
       for (const theme of THEMES) {
-        for (const width of WIDTHS) {
+        for (const width of pg.widths || WIDTHS) {
           const ctx = pg.guest ? guestCtx[theme] : authCtx[pg.persona || 'admin'][theme];
           if (!ctx) { fail('CELL', `${pg.key} ${browserName} ${width} ${theme}: persona login failed`); continue; }
           await runCell(ctx, pg, width, theme);
@@ -379,7 +479,7 @@ async function runCell(ctx, pg, width, theme) {
   await browser.close();
   const out = {
     browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...AXE_RULES, 'horizontal-overflow', 'console-error', 'failed-request'],
-    widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key })),
+    widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
     infra_failures: infra, selfTests, cells, determinism, findings,
   };
   fs.writeFileSync(path.join(artifactDir, `admin-visual-baseline-${browserName}.json`), JSON.stringify(out, null, 1));
