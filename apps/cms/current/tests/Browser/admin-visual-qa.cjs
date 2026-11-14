@@ -76,11 +76,15 @@ async function openMobileMenuIfNeeded(page) {
   }
   return false;
 }
+// Pointer devices open a group on hover and a click on an open group closes it, so desktop cells hover; the sheet menu clicks.
+async function openGroup(page, summary) {
+  if (await page.locator(toggle).isVisible()) await summary.click(); else await summary.hover();
+}
 const prepare = {
   async navDropdown(page) {
     await openMobileMenuIfNeeded(page);
     const summary = page.locator('.a1-header__nav details.a1-nav-dd > summary').first();
-    await summary.click();
+    await openGroup(page, summary);
     await page.waitForFunction(() => !!document.querySelector('.a1-header__nav details.a1-nav-dd[open]'), null, { timeout: 5000 });
   },
   async searchDialog(page) {
@@ -94,12 +98,12 @@ const prepare = {
   },
   async userMenu(page) {
     await openMobileMenuIfNeeded(page);
-    await page.locator('.a1-header__user > summary').click();
+    await openGroup(page, page.locator('.a1-header__user > summary'));
     await page.waitForFunction(() => !!document.querySelector('.a1-header__user[open]'), null, { timeout: 5000 });
   },
   async lastDropdown(page) {
     await openMobileMenuIfNeeded(page);
-    await page.locator('.a1-header__nav details.a1-nav-dd > summary').last().click();
+    await openGroup(page, page.locator('.a1-header__nav details.a1-nav-dd > summary').last());
     await page.waitForFunction(() => { const all = document.querySelectorAll('.a1-header__nav details.a1-nav-dd'); return all[all.length - 1].open; }, null, { timeout: 5000 });
   },
   // States the seed data does not produce on its own: an active nav item (the dashboard), count badges, the stale rate.
@@ -280,7 +284,8 @@ async function shellChecks(page, pg, width, theme) {
   });
   const c = await page.evaluate(inPageContrast, SHELL_SCOPE);
   if (c.out.length) out.push({ ...base, rule: 'computed-contrast', count: c.out.length, selectors: c.out.slice(0, 3) });
-  if (c.checked < 5 && !pg.stripScripts) out.push({ ...base, rule: 'computed-contrast-too-few-nodes', count: 1, selectors: ['checked ' + c.checked] });
+  // Sanity: the gate must have looked at something (at phone widths the closed header only has icons; the footer text is always there).
+  if (c.checked < 1 && !pg.stripScripts) out.push({ ...base, rule: 'computed-contrast-too-few-nodes', count: 1, selectors: ['checked ' + c.checked] });
   const geo = await page.evaluate((from) => {
     const nav = document.querySelector('.a1-header__nav .a1-nav');
     const desktop = window.innerWidth >= from;
