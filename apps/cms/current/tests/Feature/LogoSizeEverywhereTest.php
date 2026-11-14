@@ -245,9 +245,14 @@ final class LogoSizeEverywhereTest extends TestCase
 
         $img = '<img src="https://cms.ald1n.com/storage/site-assets/mail-logo.png" alt="Zz Firma Zz" height="'.$height.'" width="'.$width.'" style="display:block;border:0;height:'.$height.'px;width:'.$width.'px">';
         [$order, $report, $notification] = $this->mails();
-        foreach (['order' => $order, 'report' => $report, 'notification' => $notification] as $name => $html) {
+        foreach (['order' => $order, 'report' => $report] as $name => $html) {
             self::assertStringContainsString($img, $html, $name);
         }
+        // The notification layout runs through a CSS inliner that may reorder attributes and styles.
+        self::assertStringContainsString('src="https://cms.ald1n.com/storage/site-assets/mail-logo.png"', $notification);
+        self::assertStringContainsString('alt="Zz Firma Zz"', $notification);
+        self::assertStringContainsString('height="'.$height.'"', $notification);
+        self::assertStringContainsString('width="'.$width.'"', $notification);
         // The name is no longer header text next to the logo (it stays in the body/footer).
         self::assertStringNotContainsString('<strong style="font-size:20px">', $order);
         self::assertStringNotContainsString('<strong style="font-size:20px">', $report);

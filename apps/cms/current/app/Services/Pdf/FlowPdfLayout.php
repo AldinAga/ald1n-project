@@ -75,6 +75,8 @@ final class FlowPdfLayout
     /** documents_logo_height in PDF points; the default when settings are unavailable (unit tests, broken cache). */
     private static function logoHeight(): int
     {
+        // Some smoke scripts load this file without the application; they get the default.
+        if (!class_exists(\App\Services\SettingsService::class) || !function_exists('app')) return 26;
         $stored = null;
         try {
             $stored = app(\App\Services\SettingsService::class)->get('documents_logo_height');
