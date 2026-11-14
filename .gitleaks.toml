@@ -1,0 +1,72 @@
+# B1099 gitleaks config. Extends the default rules; every entry below is rule-scoped (targetRules).
+# Path regexes tolerate the optional dir-scan prefix of the CI tracked-tree copy. Rules: docs/security/b1099-gates.md
+title = "Ald1n B1099 gitleaks config"
+
+[extend]
+useDefault = true
+
+# Batch handover reports hold commit hashes, state ids and digests, never credentials; only the entropy-based generic rule is skipped here.
+[[allowlists]]
+description = "docs/operations reports: hashes and ids flagged by generic-api-key"
+targetRules = ["generic-api-key"]
+paths = ['''^(?:.*/b1099-tracked-tree/)?docs/operations/.+\.md$''']
+
+# Firebase Android client key is public by design (shipped in every APK); the owner restricts it in Google Cloud console. Other rules stay active on this file.
+[[allowlists]]
+description = "Firebase client API key in google-services.json"
+targetRules = ["gcp-api-key"]
+paths = ['''^(?:.*/b1099-tracked-tree/)?apps/mobile/current/google-services\.json$''']
+
+# Fixture passwords and keys of the CMS test suite (fake data in test arrays); only these files and only these array-key lines.
+[[allowlists]]
+description = "CMS test fixtures: fake password and key values"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^(?:.*/b1099-tracked-tree/)?apps/cms/current/tests/Feature/(?:PasswordResetTest|AuthenticationTest|CoreAccessRoleIdStabilityB876Test|CustomerPortal2Test|StorefrontLocalValidationB889Test)\.php$''',
+]
+regexes = [
+  ''''password(?:_confirmation|_hash)?'\s*=>''',
+  ''''checkout_key'\s*=>''',
+  '''activate\(\$plainToken,''',
+]
+
+# Example Idempotency-Key header values (random UUIDs) in API docs and the grep excerpt of them.
+[[allowlists]]
+description = "Documented example Idempotency-Key headers"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^(?:.*/b1099-tracked-tree/)?apps/cms/current/docs/(?:API|MOBILE-CLIENT-FOUNDATION)\.md$''',
+  '''^(?:.*/b1099-tracked-tree/)?apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807\.txt$''',
+]
+regexes = ['''Idempotency-Key:''']
+
+# release.php lists a file hash for public/.htaccess (integrity pin, not a credential).
+[[allowlists]]
+description = "File hash for public/.htaccess in release.php"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?apps/cms/current/config/release\.php$''']
+regexes = ['''public/\.htaccess''']
+
+# Throwaway MariaDB root password of the disposable CI database container, never reachable outside the job.
+[[allowlists]]
+description = "Disposable CI database password in b1049 workflow"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?\.github/workflows/b1049-m13-independent-catalog-isolation\.yml$''']
+regexes = ['''MARIADB_ROOT_PASSWORD:''']
+
+# The native-contract check script lists Android API identifier names (CreateRestoreCredentialRequest), not a secret.
+[[allowlists]]
+description = "Identifier names in batch528-native-contract.mjs"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?apps/mobile/current/scripts/batch528-native-contract\.mjs$''']
+regexes = ['''CreateRestoreCredentialRequest''']

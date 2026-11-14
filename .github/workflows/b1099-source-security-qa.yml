@@ -7,6 +7,7 @@ on:
       - 'apps/mobile/current/package.json'
       - 'apps/mobile/current/package-lock.json'
       - '.github/workflows/b1099-source-security-qa.yml'
+      - '.gitleaks.toml'
 permissions:
   contents: read
 concurrency:
@@ -45,7 +46,7 @@ jobs:
           (cd apps/cms/current && php "$RUNNER_TEMP/composer-2.11.1.phar" --no-plugins --no-scripts audit --locked --format=json --abandoned=fail) > "$evidence/composer-audit.json" 2> "$evidence/composer-audit.stderr" || rc=$?
           printf '%s\n' "$rc" > "$evidence/composer-audit.exit"
           rc=0
-          (cd apps/mobile/current && npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json) > "$evidence/npm-audit.json" 2> "$evidence/npm-audit.stderr" || rc=$?
+          (cd apps/mobile/current && npm exec --yes --package=npm@10.9.2 -- npm audit --audit-level=high --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json) > "$evidence/npm-audit.json" 2> "$evidence/npm-audit.stderr" || rc=$?
           printf '%s\n' "$rc" > "$evidence/npm-audit.exit"
           node - "$evidence" <<'NODE'
           const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2];
@@ -54,6 +55,24 @@ jobs:
             assert(report&&typeof report==='object'&&!Array.isArray(report),'missing audit report');
             console.log('B1099_'+name.toUpperCase()+'_AUDIT_RC='+fs.readFileSync(path.join(dir,name+'-audit.exit'),'utf8').trim());
           }
+          // npm policy: the full audit is always printed; only high and critical fail. A report without counts (network error, missing lockfile) fails closed.
+          const npm=JSON.parse(fs.readFileSync(path.join(dir,'npm-audit.json'),'utf8'));
+          const npmRc=Number(fs.readFileSync(path.join(dir,'npm-audit.exit'),'utf8').trim());
+          const sev=['critical','high','moderate','low','info'];
+          const counts=npm.metadata&&npm.metadata.vulnerabilities;
+          assert(counts&&sev.every(s=>Number.isInteger(counts[s])&&counts[s]>=0),'npm audit report has no severity counts (audit did not run)');
+          assert(npm.vulnerabilities&&typeof npm.vulnerabilities==='object','npm audit report has no vulnerabilities map');
+          const names={};
+          for(const [pkg,row] of Object.entries(npm.vulnerabilities))(names[row.severity]=names[row.severity]||[]).push(pkg);
+          for(const s of sev)assert((names[s]||[]).length===counts[s],'npm audit severity count mismatch for '+s);
+          const lines=['npm audit (all severities, fails on high/critical only): '+sev.map(s=>s+'='+counts[s]).join(' ')];
+          for(const s of sev)if(counts[s])lines.push('  '+s+': '+names[s].sort().join(', '));
+          console.log(lines.join('\n'));
+          if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'### npm audit\n```\n'+lines.join('\n')+'\n```\n');
+          const blocking=counts.high+counts.critical;
+          assert.equal(npmRc,blocking>0?1:0,'npm audit exit code does not match high/critical counts');
+          assert.equal(blocking,0,'npm audit reports high or critical vulnerabilities');
+          console.log('B1099_NPM_AUDIT_HIGH_CRITICAL=0');
           NODE
           sha256sum --check "$evidence/locks-before.sha256"
           git diff --exit-code -- apps/cms/current/composer.json apps/cms/current/composer.lock apps/mobile/current/package.json apps/mobile/current/package-lock.json
@@ -98,7 +117,7 @@ jobs:
           scan() {
             mode="$1"; target="$2"; name="$3"; shift 3
             result=0
-            "$scanner" "$mode" "$target" "$@" --config "$evidence/default-only.toml" --gitleaks-ignore-path "$RUNNER_TEMP/b1099-empty-ignore" --ignore-gitleaks-allow --redact=100 --no-banner --no-color --timeout=300 --exit-code=10 --report-format=json --report-path "$evidence/$name-redacted.json" > "$evidence/$name.log" 2>&1 || result=$?
+            "$scanner" "$mode" "$target" "$@" --config "${SCAN_CONFIG:-$evidence/default-only.toml}" --gitleaks-ignore-path "$RUNNER_TEMP/b1099-empty-ignore" --ignore-gitleaks-allow --redact=100 --no-banner --no-color --timeout=300 --exit-code=10 --report-format=json --report-path "$evidence/$name-redacted.json" > "$evidence/$name.log" 2>&1 || result=$?
             printf '%s\n' "$result" > "$evidence/$name.exit"
           }
           printf 'Synthetic clean control.\n' > "$RUNNER_TEMP/b1099-clean/clean.txt"
@@ -117,9 +136,34 @@ jobs:
           assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir,'clean-control-redacted.json'),'utf8')),[]);
           console.log('B1099_SCANNER_SYNTHETIC_DETECTION_AND_REDACTION=PASS');
           NODE
+          # Allowlist is not a blanket bypass: each synthetic secret below sits where an allowlist entry exists nearby, yet must still be reported.
+          test -f .gitleaks.toml
+          repo_config="$PWD/.gitleaks.toml"
+          negatives="no-path:apps/cms/current/app/Fixture.php no-path-lookalike-line:apps/cms/current/app/Fixture.php other-rule-in-rule-allowlisted-file:apps/mobile/current/google-services.json other-rule-in-allowlisted-docs:docs/operations/report.md other-rule-in-allowlisted-test:apps/cms/current/tests/Feature/PasswordResetTest.php"
+          for entry in $negatives; do
+            name="${entry%%:*}"; rel="${entry#*:}"
+            node -e "const fs=require('fs'),path=require('path'),c=require('node:crypto');const p=process.argv[1],n=process.argv[2];fs.mkdirSync(path.dirname(p),{recursive:true});const h=c.createHash('sha256').update('B1099-negative-'+n).digest('base64url').replace(/[^A-Za-z0-9]/g,'X');fs.writeFileSync(p,n==='no-path-lookalike-line'?\"<?php return ['password' => '\"+h.slice(0,24)+\"'];\n\":'token = '+JSON.stringify('ghp_'+h.slice(0,36))+'\n')" "$RUNNER_TEMP/b1099-negative/$name/b1099-tracked-tree/$rel" "$name"
+            SCAN_CONFIG="$repo_config" scan dir "$RUNNER_TEMP/b1099-negative/$name" "negative-$name"
+            test "$(cat "$evidence/negative-$name.exit")" = 10
+          done
+          node - "$evidence" "$RUNNER_TEMP/b1099-negative" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),c=require('node:crypto'),[dir,neg]=process.argv.slice(2);
+          const out={};
+          for(const name of fs.readdirSync(neg)){
+            const h=c.createHash('sha256').update('B1099-negative-'+name).digest('base64url').replace(/[^A-Za-z0-9]/g,'X');
+            const raw=fs.readFileSync(path.join(dir,'negative-'+name+'-redacted.json'),'utf8');
+            const rows=JSON.parse(raw);
+            assert(rows.length>0,'allowlist hid synthetic secret: '+name);
+            assert(!raw.includes(h.slice(0,24))&&!fs.readFileSync(path.join(dir,'negative-'+name+'.log'),'utf8').includes(h.slice(0,24)),'redacted output exposed fixture: '+name);
+            if(name!=='no-path-lookalike-line')assert(rows.some(r=>r.RuleID!=='generic-api-key'),'expected a non-allowlisted rule for '+name);
+            out[name]={findings:rows.length,rules:[...new Set(rows.map(r=>r.RuleID))].sort()};
+            console.log('B1099_NEGATIVE_CONTROL_'+name+'=PASS exit=10 findings='+rows.length+' rules='+out[name].rules.join(','));
+          }
+          fs.writeFileSync(path.join(dir,'negative-controls.json'),JSON.stringify(out,null,2)+'\n');
+          NODE
           git archive HEAD | tar -x -C "$RUNNER_TEMP/b1099-tracked-tree"
-          scan dir "$RUNNER_TEMP/b1099-tracked-tree" current-tree
-          scan git . head-history --log-opts=HEAD
+          SCAN_CONFIG="$repo_config" scan dir "$RUNNER_TEMP/b1099-tracked-tree" current-tree
+          SCAN_CONFIG="$repo_config" scan git . head-history --log-opts=HEAD
           node - "$evidence" <<'NODE'
           const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),dir=process.argv[2],summary={};
           for(const name of ['current-tree','head-history']){
@@ -151,6 +195,7 @@ jobs:
             ${{ runner.temp }}/b1099-secrets/default-only.toml
             ${{ runner.temp }}/b1099-secrets/clean-control.exit
             ${{ runner.temp }}/b1099-secrets/synthetic-control.exit
+            ${{ runner.temp }}/b1099-secrets/negative-controls.json
             ${{ runner.temp }}/b1099-secrets/summary.json
             ${{ runner.temp }}/b1099-secrets/current-tree-metadata.json
             ${{ runner.temp }}/b1099-secrets/head-history-metadata.json
