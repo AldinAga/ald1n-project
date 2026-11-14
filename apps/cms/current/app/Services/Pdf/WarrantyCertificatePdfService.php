@@ -21,6 +21,7 @@ final class WarrantyCertificatePdfService
             ],
             (string) ($data['logo_path'] ?? ''),
             (string) ($data['footer'] ?? ''),
+            nameBesideLogo: false,
         );
         $serials = array_map(static fn ($serial): string => (string) $serial, (array) ($data['serial_numbers'] ?? []));
         $layout->cards([

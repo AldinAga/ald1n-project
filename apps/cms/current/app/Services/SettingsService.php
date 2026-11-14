@@ -38,7 +38,11 @@ final class SettingsService
         'site_logo_dark_path' => '',
         'site_logo_alt' => 'Ald1n CMS',
         'site_favicon_path' => '',
-        'site_header_logo_height' => '38',
+        'site_header_logo_height' => '32',
+        'site_admin_logo_height' => '32',
+        'site_auth_logo_height' => '48',
+        'documents_logo_height' => '26',
+        'email_logo_height' => '36',
         'login_background_mode' => 'default',
         'login_background_image_path' => '',
         'login_background_fallback_path' => '',
@@ -72,6 +76,7 @@ final class SettingsService
         'login_background_slide_8_active' => '0',
         'login_background_slide_8_order' => '80',
         'site_footer_show_logo' => '0',
+        'site_footer_logo_height' => '28',
         'site_footer_copyright_text' => '© {year} {site_name}',
         'site_footer_secondary_text' => '',
         'site_footer_layout' => 'split',
@@ -173,6 +178,32 @@ final class SettingsService
         'smtp_last_test_fingerprint' => '',
     ];
 
+    /**
+     * Logo sizes per place: [min, max, default]. Pixels everywhere except the
+     * PDF documents, where the unit is the PDF point (1/72 inch).
+     * Before the defaults were lowered: header 38, footer 32, admin header 38
+     * (it shared the header value), login pages natural size up to 82 px, PDF 32 pt.
+     *
+     * @var array<string,array{int,int,int}>
+     */
+    public const LOGO_HEIGHTS = [
+        'site_header_logo_height' => [24, 80, 32],
+        'site_footer_logo_height' => [20, 96, 28],
+        'site_admin_logo_height' => [20, 56, 32],
+        'site_auth_logo_height' => [32, 80, 48],
+        'documents_logo_height' => [16, 36, 26],
+        'email_logo_height' => [20, 64, 36],
+    ];
+
+    /** A logo height setting: an integer inside its range, anything else (missing, corrupted) is the default. */
+    public static function logoHeight(string $key, mixed $value): int
+    {
+        [$min, $max, $default] = self::LOGO_HEIGHTS[$key];
+        $height = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => $min, 'max_range' => $max]]);
+
+        return $height === false ? $default : $height;
+    }
+
     /** @return array<string,string> */
     public function all(): array
     {
@@ -185,7 +216,9 @@ final class SettingsService
         $legacy = $merged['site_logo_path'];
         if ($merged['site_logo_light_path'] === '') $merged['site_logo_light_path'] = $legacy;
         if ($merged['site_logo_dark_path'] === '') $merged['site_logo_dark_path'] = $legacy;
-        $merged['site_header_logo_height'] = (string) max(24, min(80, (int) $merged['site_header_logo_height']));
+        foreach (array_keys(self::LOGO_HEIGHTS) as $heightKey) {
+            $merged[$heightKey] = (string) self::logoHeight($heightKey, $merged[$heightKey]);
+        }
         $merged['site_footer_show_logo'] = $merged['site_footer_show_logo'] === '1' ? '1' : '0';
         $merged['site_footer_links_new_tab'] = $merged['site_footer_links_new_tab'] === '1' ? '1' : '0';
         $merged['site_footer_layout'] = in_array($merged['site_footer_layout'], ['split', 'centered'], true) ? $merged['site_footer_layout'] : 'split';

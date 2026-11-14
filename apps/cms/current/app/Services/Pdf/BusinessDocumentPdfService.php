@@ -26,6 +26,7 @@ final class BusinessDocumentPdfService
             [$number, 'Porudžbina: '.(string) ($order['order_number'] ?? '')],
             (string) ($document['company_logo_path'] ?? ''),
             (string) ($document['footer_note'] ?? 'Dokument je generisan elektronski.'),
+            nameBesideLogo: false,
         );
         $layout->cards([
             $this->card('DATUM IZDAVANJA', [(string) ($document['issued_at'] ?? '')]),
