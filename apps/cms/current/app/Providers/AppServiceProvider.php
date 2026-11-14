@@ -43,7 +43,12 @@ final class AppServiceProvider extends ServiceProvider
             // Konekcija se proverava eksplicitno kroz legacy:check i deployment check.
         }
 
-        View::composer(['layouts.app', 'layouts.guest', 'auth.*'], static function ($view): void {
+        // Lets resources/views/vendor/mail override the notification mail layout parts (the header carries the site logo).
+        $this->callAfterResolving(\Illuminate\Mail\Markdown::class, static function (\Illuminate\Mail\Markdown $markdown): void {
+            $markdown->loadComponentsFrom([resource_path('views/vendor/mail')]);
+        });
+
+        View::composer(['layouts.app','layouts.guest', 'auth.*'], static function ($view): void {
             $siteSettings = [
                 'site_name' => 'Ald1n CMS',
                 'site_logo_alt' => 'Ald1n CMS',

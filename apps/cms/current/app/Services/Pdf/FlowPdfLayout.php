@@ -24,6 +24,8 @@ final class FlowPdfLayout
         private readonly array $references = [],
         private readonly string $logo = '',
         private readonly string $footer = 'Dokument je generisan elektronski.',
+        /** Reports keep the company name beside the logo; documents print it in the body and drop it from the header when a logo is drawn. */
+        private readonly bool $nameBesideLogo = true,
     ) {
         $this->pdf = new SimplePdfWriter();
         $this->newPage();
@@ -41,8 +43,8 @@ final class FlowPdfLayout
         $height = max(94.0, 50.0 + max(count($brand) * 17.0, count($references) * 12.0));
         if ($height > 300) throw new \LengthException('PDF header exceeds supported data length.');
         $this->pdf->rect(0, 0, SimplePdfWriter::PAGE_WIDTH, $height, '#172033');
-        // An uploaded logo stands for the brand; the company name is printed beside it only when there is none.
-        if (!$this->logo()) {
+        $logoDrawn = $this->logo();
+        if (!$logoDrawn || $this->nameBesideLogo) {
             foreach ($brand as $i => $line) $this->pdf->text(110, 22 + $i * 17, $line, 13, true, '#ffffff');
         }
         foreach ($references as $i => $line) $this->pdf->text(559, 23 + $i * 12, $line, 8.2, false, '#dbe5f4', 'right');

@@ -183,6 +183,7 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
             'footer' => ['site_footer_logo_height', 20, 96, 28, 'Visina logotipa u podnožju mora biti ceo broj od 20 do 96 px.'],
             'admin' => ['site_admin_logo_height', 20, 56, 32, 'Visina logotipa u zaglavlju admin panela mora biti ceo broj od 20 do 56 px.'],
             'auth' => ['site_auth_logo_height', 32, 80, 48, 'Visina logotipa na stranicama za prijavu mora biti ceo broj od 32 do 80 px.'],
+            'email' => ['email_logo_height', 20, 64, 36, 'Visina logotipa u e-mailovima mora biti ceo broj od 20 do 64 px.'],
         ];
     }
 

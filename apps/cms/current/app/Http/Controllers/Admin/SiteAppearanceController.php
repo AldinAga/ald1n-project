@@ -115,6 +115,7 @@ final class SiteAppearanceController extends Controller
             'site_footer_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:96'],
             'site_admin_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:56'],
             'site_auth_logo_height' => ['sometimes', 'required', 'integer', 'min:32', 'max:80'],
+            'email_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:64'],
             'site_footer_layout' => ['required', Rule::in(['split', 'centered'])],
             'site_footer_copyright_text' => ['nullable', 'string', 'max:300'],
             'site_footer_secondary_text' => ['nullable', 'string', 'max:300'],
@@ -160,7 +161,7 @@ final class SiteAppearanceController extends Controller
             'site_footer_link_3_url' => trim((string) ($data['site_footer_link_3_url'] ?? '')),
         ];
 
-        foreach (['site_footer_logo_height', 'site_admin_logo_height', 'site_auth_logo_height'] as $heightKey) {
+        foreach (['site_footer_logo_height', 'site_admin_logo_height', 'site_auth_logo_height', 'email_logo_height'] as $heightKey) {
             if (isset($data[$heightKey])) {
                 $values[$heightKey] = (string) (int) $data[$heightKey];
             }
@@ -430,6 +431,7 @@ final class SiteAppearanceController extends Controller
             'site_footer_logo_height' => 'Visina logotipa u podnožju',
             'site_admin_logo_height' => 'Visina logotipa u zaglavlju admin panela',
             'site_auth_logo_height' => 'Visina logotipa na stranicama za prijavu',
+            'email_logo_height' => 'Visina logotipa u e-mailovima',
         ] as $attribute => $label) {
             [$min, $max] = SettingsService::LOGO_HEIGHTS[$attribute];
             foreach (['required', 'integer', 'min', 'max'] as $rule) {

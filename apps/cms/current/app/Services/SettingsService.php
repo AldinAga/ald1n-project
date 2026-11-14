@@ -42,6 +42,7 @@ final class SettingsService
         'site_admin_logo_height' => '32',
         'site_auth_logo_height' => '48',
         'documents_logo_height' => '26',
+        'email_logo_height' => '36',
         'login_background_mode' => 'default',
         'login_background_image_path' => '',
         'login_background_fallback_path' => '',
@@ -191,6 +192,7 @@ final class SettingsService
         'site_admin_logo_height' => [20, 56, 32],
         'site_auth_logo_height' => [32, 80, 48],
         'documents_logo_height' => [16, 36, 26],
+        'email_logo_height' => [20, 64, 36],
     ];
 
     /** A logo height setting: an integer inside its range, anything else (missing, corrupted) is the default. */

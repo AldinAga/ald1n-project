@@ -190,10 +190,109 @@ final class LogoSizeEverywhereTest extends TestCase
         self::assertStringContainsString('q '.$drawn.' 0 0 '.$drawn.' ', $pdf);
     }
 
-    public function test_pdf_header_prints_the_company_name_only_without_a_logo(): void
+    public function test_pdf_reports_keep_the_company_name_beside_the_logo(): void
     {
-        self::assertStringNotContainsString('(ZzCompanyZz) Tj', $this->ordersReportPdf($this->squareLogo()));
+        self::assertStringContainsString('(ZzCompanyZz) Tj', $this->ordersReportPdf($this->squareLogo()));
         self::assertStringContainsString('(ZzCompanyZz) Tj', $this->ordersReportPdf(''));
+    }
+
+    public function test_pdf_document_header_drops_the_company_name_only_when_a_logo_is_drawn(): void
+    {
+        $render = fn (string $logo): string => (new BusinessDocumentPdfService())->renderOrderDocument([
+            'document_type' => 'invoice', 'document_number' => 'RAC-1', 'status' => 'issued',
+            'company_name' => 'ZzCompanyZz', 'company_logo_path' => $logo, 'customer_name' => 'Kupac',
+        ], ['order_number' => 'ALD-1'], []);
+
+        // The issuer card keeps printing the name; only the header occurrence goes.
+        $without = substr_count($render(''), '(ZzCompanyZz) Tj');
+        self::assertGreaterThanOrEqual(2, $without);
+        self::assertSame($without - 1, substr_count($render($this->squareLogo()), '(ZzCompanyZz) Tj'));
+    }
+
+    // ---- E-mails ----
+
+    private function prepareMail(): void
+    {
+        config()->set('app.url', 'https://cms.ald1n.com');
+        $this->settings(['site_name' => 'Zz Firma Zz', 'site_logo_alt' => 'Zz Firma Zz']);
+    }
+
+    /** @return array{string,string} order e-mail HTML, management report e-mail HTML, notification e-mail HTML */
+    private function mails(): array
+    {
+        // The storefront branding is memoised per request; every call here starts fresh.
+        request()->attributes->remove('public_storefront.branding');
+        $events = collect([(object) ['event_type' => 'order_created', 'subject' => 'Predmet', 'message' => 'Poruka', 'action_url' => null, 'metadata_json' => []]]);
+
+        return [
+            view('emails.order-events', ['events' => $events, 'recipientName' => 'Pera'])->render(),
+            view('emails.management-report', ['delivery' => (object) ['period_from' => null, 'period_to' => null], 'summary' => []])->render(),
+            (string) (new \Illuminate\Notifications\Messages\MailMessage())->greeting('Zdravo')->line('Tekst')->render(),
+        ];
+    }
+
+    public static function emailHeights(): array
+    {
+        return ['default' => [null, '36', '144'], 'saved' => ['48', '48', '192'], 'corrupted' => ['abc', '36', '144'], 'above range' => ['65', '36', '144']];
+    }
+
+    #[DataProvider('emailHeights')]
+    public function test_raster_logo_replaces_the_name_in_every_html_mail_header(?string $stored, string $height, string $width): void
+    {
+        $this->prepareMail();
+        Storage::disk('public')->put('site-assets/mail-logo.png', (string) base64_decode(self::PNG));
+        $this->settings(['site_logo_light_path' => 'site-assets/mail-logo.png'] + ($stored === null ? [] : ['email_logo_height' => $stored]));
+
+        $img = '<img src="https://cms.ald1n.com/storage/site-assets/mail-logo.png" alt="Zz Firma Zz" height="'.$height.'" width="'.$width.'" style="display:block;border:0;height:'.$height.'px;width:'.$width.'px">';
+        [$order, $report, $notification] = $this->mails();
+        foreach (['order' => $order, 'report' => $report, 'notification' => $notification] as $name => $html) {
+            self::assertStringContainsString($img, $html, $name);
+        }
+        // The name is no longer header text next to the logo (it stays in the body/footer).
+        self::assertStringNotContainsString('<strong style="font-size:20px">', $order);
+        self::assertStringNotContainsString('<strong style="font-size:20px">', $report);
+        self::assertStringContainsString('Obaveštenje o porudžbini', $order);
+    }
+
+    public function test_svg_only_logo_gives_the_name_text_and_no_image_in_every_html_mail(): void
+    {
+        $this->prepareMail();
+        $svg = 'site-assets/'.\Illuminate\Support\Str::random(40).'.svg';
+        Storage::disk('public')->put($svg, (new \App\Services\SvgSanitizer())->sanitize('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10"><rect width="10" height="10"/></svg>')->svg);
+        $this->settings(['site_logo_light_path' => $svg]);
+
+        // The storefront serves it, so the mail check is what leaves it out.
+        self::assertStringContainsString('.svg', (string) \App\Support\PublicStorefrontAppearance::branding()['logo_light']['src']);
+        [$order, $report, $notification] = $this->mails();
+        foreach (['order' => $order, 'report' => $report] as $name => $html) {
+            self::assertStringNotContainsString('<img', $html, $name);
+            self::assertStringContainsString('<strong style="font-size:20px">'.e(config('app.name', 'Ald1n CMS')).'</strong>', $html, $name);
+        }
+        self::assertStringNotContainsString('site-assets/', $notification);
+        self::assertStringContainsString(e(config('app.name')), $notification);
+    }
+
+    public function test_no_logo_gives_the_name_text_and_no_image_in_every_html_mail(): void
+    {
+        $this->prepareMail();
+        [$order, $report, $notification] = $this->mails();
+
+        self::assertStringNotContainsString('<img', $order);
+        self::assertStringNotContainsString('<img', $report);
+        self::assertStringContainsString('<strong style="font-size:20px">', $order);
+        self::assertStringContainsString(e(config('app.name')), $notification);
+    }
+
+    public function test_mail_logo_url_never_comes_from_the_request_host(): void
+    {
+        $this->prepareMail();
+        Storage::disk('public')->put('site-assets/mail-logo.png', (string) base64_decode(self::PNG));
+        $this->settings(['site_logo_light_path' => 'site-assets/mail-logo.png']);
+        $this->app['request']->headers->set('Host', 'evil.example');
+
+        [$order] = $this->mails();
+        self::assertStringContainsString('src="https://cms.ald1n.com/', $order);
+        self::assertStringNotContainsString('evil.example', $order);
     }
 
     // ---- PDF setting form ----
