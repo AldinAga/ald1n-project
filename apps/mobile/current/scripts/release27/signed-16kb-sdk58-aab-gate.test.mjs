@@ -36,7 +36,7 @@ function fixture(callback) {
 function parse(a){return parseReleaseArgs(Object.entries(a).flatMap(([k,v])=>['--'+k,v]))}
 
 test('SDK58 Play binary gate is distinct from old v1.5 source-only gate',()=>{
- assert.equal(pkg.dependencies.expo,'~58.0.22');
+ assert.equal(pkg.dependencies.expo,'~58.0.25');
  assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'2.3.1');
  assert.equal(pkg.dependencies['react-native-nitro-modules'],'0.37.1');
  assert.equal(pkg.packageManager,'npm@12.2.1');

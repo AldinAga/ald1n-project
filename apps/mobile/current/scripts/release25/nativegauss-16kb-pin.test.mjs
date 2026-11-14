@@ -16,7 +16,7 @@ test('M17 SDK58 candidate retains 16KB upstream and native bridge; physical buil
   assert.match(configText, /optimizedResourceShrinking:\s*true/);
   assert.equal(pkg.dependencies['react-native-android-liquid-glass'], '0.2.1');
   assert.equal(pkg.dependencies['react-native'], '0.88.1');
-  assert.equal(pkg.dependencies.expo, '~58.0.22');
+  assert.equal(pkg.dependencies.expo, '~58.0.25');
   assert.match(configText, /runtimeVersion:.*'1\.5\.0-native2'/);
   assert.doesNotMatch(configText, /runtimeVersion:.*'1\.5\.0-native1'/);
 });

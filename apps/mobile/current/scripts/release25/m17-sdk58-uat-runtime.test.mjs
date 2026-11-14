@@ -43,7 +43,7 @@ function assertConfig(env, expectedVersion, expectedRuntime, expectedPackage) {
 }
 
 test('SDK58 Android UAT profile is internal, isolated and not a release profile', () => {
-  assert.equal(pkg.dependencies.expo, '~58.0.22');
+  assert.equal(pkg.dependencies.expo, '~58.0.25');
   assert.equal(pkg.dependencies['react-native'], '0.88.1');
   assert.equal(pkg.dependencies['react-native-nitro-google-signin'], '2.3.1');
   assert.equal(eas.cli.version, '27.2.0');

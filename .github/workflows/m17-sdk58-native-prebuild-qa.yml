@@ -51,7 +51,7 @@ jobs:
           const fs=require('node:fs');
           const p=JSON.parse(fs.readFileSync('package.json'));
           const e=JSON.parse(fs.readFileSync('eas.json'));
-          if (p.dependencies.expo!=='~58.0.22'||p.dependencies['react-native']!=='0.88.1'
+          if (p.dependencies.expo!=='~58.0.25'||p.dependencies['react-native']!=='0.88.1'
               ||p.version!=='1.0.0'||p.packageManager!=='npm@12.2.1'
               ||e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote')
             throw Error('HOLD_M17_NATIVE_PREBUILD_SOURCE_RELEASE_PIN_DRIFT');

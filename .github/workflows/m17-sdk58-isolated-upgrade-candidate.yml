@@ -47,7 +47,7 @@ jobs:
           const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json'));
           const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json'));
           const c=fs.readFileSync('apps/mobile/current/app.config.js','utf8');
-          if (p.dependencies.expo!=='~58.0.22' || p.dependencies['react-native']!=='0.88.1' ||
+          if (p.dependencies.expo!=='~58.0.25' || p.dependencies['react-native']!=='0.88.1' ||
               p.dependencies.react!=='19.3.0' || p.devDependencies['@types/react']!=='~19.3.0' ||
               p.packageManager!=='npm@12.2.1' ||
               e.cli.version!=='27.2.0' || e.cli.appVersionSource!=='remote' ||
@@ -85,9 +85,9 @@ jobs:
           const p=JSON.parse(fs.readFileSync('package.json','utf8'));
           const lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
           const bundles=require('./node_modules/expo/bundledNativeModules.json');
-          if(lock.lockfileVersion!==3 || p.dependencies.expo!=='~58.0.22' ||
+          if(lock.lockfileVersion!==3 || p.dependencies.expo!=='~58.0.25' ||
              lock.packages[''].dependencies.expo!==p.dependencies.expo ||
-             lock.packages['node_modules/expo'].version!=='58.0.22' ||
+             lock.packages['node_modules/expo'].version!=='58.0.25' ||
              lock.packages['node_modules/react-native'].version!=='0.88.1' ||
              lock.packages['node_modules/react'].version!=='19.3.0' ||
              p.devDependencies['@types/react']!=='~19.3.0')throw Error('HOLD_M17_SOURCE_LOCK_DRIFT');

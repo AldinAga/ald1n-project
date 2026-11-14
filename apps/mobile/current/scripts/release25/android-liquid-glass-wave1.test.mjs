@@ -95,7 +95,7 @@ test('five destinations, keyboard dismissal, role access and home emphasis remai
 
 test('M17 source candidate preserves existing app runtime identity and native bridge; release is separately gated', () => {
   assert.equal(pkg.version, '1.0.0');
-  assert.equal(pkg.dependencies.expo, '~58.0.22');
+  assert.equal(pkg.dependencies.expo, '~58.0.25');
   assert.equal(pkg.dependencies['react-native'], '0.88.1');
   assert.equal(pkg.dependencies['expo-blur'], undefined);
   assert.equal(pkg.dependencies['react-native-android-liquid-glass'], '0.2.1');

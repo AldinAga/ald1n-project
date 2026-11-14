@@ -15,7 +15,7 @@ const appConfig = read('app.config.js');
 const eas = JSON.parse(read('eas.json'));
 
 test('M17 Kotlin-blocking Google native bridge is exact v2.3.1 with locked npm tarball', () => {
-  assert.equal(pkg.dependencies.expo, '~58.0.22');
+  assert.equal(pkg.dependencies.expo, '~58.0.25');
   assert.equal(pkg.dependencies['react-native'], '0.88.1');
   assert.equal(pkg.dependencies['react-native-nitro-google-signin'], '2.3.1');
   assert.equal(pkg.dependencies['react-native-nitro-modules'], '0.37.1');

@@ -54,7 +54,7 @@ jobs:
           // and the isolated SDK58 PR candidate. Reject unsupported/mixed versions.
           const exactBaselines = {
             '~57.0.27': { rn:'0.86.3', google:'1.0.2', nitro:'0.36.1', npm:'npm@10.9.2', eas:'25.0.0', label:'SDK57' },
-            '~58.0.22': { rn:'0.88.1', google:'2.3.1', nitro:'0.37.1', npm:'npm@12.2.1', eas:'27.2.0', label:'SDK58' },
+            '~58.0.25': { rn:'0.88.1', google:'2.3.1', nitro:'0.37.1', npm:'npm@12.2.1', eas:'27.2.0', label:'SDK58' },
           };
           const baseline = exactBaselines[p.dependencies.expo];
           if(p.version!=='1.0.0'||p.packageManager!==baseline.npm||!baseline

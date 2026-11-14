@@ -33,7 +33,7 @@ jobs:
           // 2026-11-14: re-based onto the live SDK58 release line (versionCode 29).
           const base='6adb3b440b8cfdc068b142a98c418d9d91487f64',p='apps/mobile/current/package-lock.json';
           const old=JSON.parse(cp.execFileSync('git',['show',base+':'+p],{encoding:'utf8'})),bytes=fs.readFileSync(p),now=JSON.parse(bytes);
-          assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'788ec5f44eea969297ff366d4655e99ae8794fea39c6772575033a0f9111972f');
+          assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'e2716c6d3af90e1e1a31031d69df8cd80554ec92800154dfa5c3a34c1ef73098');
           assert.deepEqual(now.packages[''],old.packages['']);
           // xmldom 0.8.15 and 0.9.12 were already in the SDK58 lock; four of the six advisories remain to patch.
           const expected={'node_modules/brace-expansion':'5.0.12','node_modules/node-forge':'1.4.3','node_modules/shell-quote':'1.12.0','node_modules/zod':'4.6.7'};
@@ -55,7 +55,7 @@ jobs:
           npm run validate > "$evidence/validator.log" 2>&1
           npm run test:release25 > "$evidence/release25.log" 2>&1
           tail -n 12 "$evidence/release25.log"
-          echo '788ec5f44eea969297ff366d4655e99ae8794fea39c6772575033a0f9111972f  package-lock.json' | sha256sum --check
+          echo 'e2716c6d3af90e1e1a31031d69df8cd80554ec92800154dfa5c3a34c1ef73098  package-lock.json' | sha256sum --check
           rc=0
           npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/audit.json" 2> "$evidence/audit.stderr" || rc=$?
           printf '%s\n' "$rc" > "$evidence/audit.exit"
