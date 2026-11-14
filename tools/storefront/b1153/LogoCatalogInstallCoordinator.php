@@ -132,6 +132,7 @@ final class LogoCatalogInstallCoordinator
     // ===== B1153_PAYLOAD (end) =====
     /** The last group: the full measured hold and the web-SAPI class proof come before its first file. */
     public const GUARD_GROUP='E';
+    public const VIEW_CHECKS=['resources/views/layouts/app.blade.php','resources/views/admin/settings/appearance.blade.php','resources/views/admin/settings/documents.blade.php','resources/views/auth/forgot-password.blade.php','resources/views/auth/reset-password.blade.php','resources/views/auth/activate-account.blade.php','resources/views/emails/management-report.blade.php','resources/views/emails/order-events.blade.php','resources/views/emails/partials/header.blade.php','resources/views/vendor/mail/html/header.blade.php'];
     /**
      * Source-level facts of the payload edits that the CLI helper reads from the live files (key => [path, needle]): present in every payload file, absent from its
      * pre-state bytes (package.php asserts both). Installed: all true; old: all false.
@@ -280,6 +281,8 @@ final class LogoCatalogInstallCoordinator
     private array $b1151;
     private array $b1152;
     private array $markers;
+    /** The views the read-only acceptance step compiles and lints (the 9 modified or new Blade views that carry logic of this rollout plus the vendor mail header); the fixture adds a deliberately broken one. */
+    private array $viewChecks=self::VIEW_CHECKS;
     private string $cssVersion;
     private string $oldCssVersion;
     private string $galleryVersion;
@@ -734,13 +737,13 @@ final class LogoCatalogInstallCoordinator
     }
 
     /**
-     * The proof that comes right before bootstrap/app.php: a token-gated temporary probe served by the WEB SAPI loads every new class through the
+     * The proof that comes right before the first file of group E: a token-gated temporary probe served by the WEB SAPI loads every new class through the
      * application's own autoloader (vendor/autoload.php, PSR-4) and reports the file and its digest. Read-only, nothing is called, nothing is booted.
      * The class files themselves are the ones the full hold already covered (the hold runs from the last tree change, which is after group A).
      */
     /**
      * The same token-gated web probe with NO class list: only the app.url the web worker sees (read the way Laravel reads it, nothing booted, see LoadProbe) must be
-     * exactly the pinned origin. Used by the PREFLIGHT (a mismatch is a HOLD before any write); the five-request class proof before bootstrap/app.php checks it again.
+     * exactly the pinned origin. Used by the PREFLIGHT (a mismatch is a HOLD before any write); the five-request class proof before group E checks it again.
      */
     private function webAppUrlCheck(string $label):array
     {
@@ -1229,8 +1232,8 @@ final class LogoCatalogInstallCoordinator
         $v['tree']=$manifest!==null&&$chain!==null?$try('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152',fn()=>$installed?LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$chain['htaccessSHA256'],self::installedTreeFiles()):LeanGates::verifyTree($this->active(),$manifest,self::CONFIG_SHA,$chain['htaccessSHA256'],self::B1152_TREE_FILES)):null;
         if(!array_key_exists('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152',$g))$g['activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
         if(!$installed)$v['replaceable']=$try('targetsReplaceable',function():array{$n=0;foreach($this->plan as $s){if($s['kind']==='modified'){LogoCatalogFiles::replaceable($this->target($s));$n++;}else{$d=dirname($this->target($s));while(!is_dir($d))$d=dirname($d);if(is_link($d)||!is_writable($d))throw new RuntimeException('TARGET_DIRECTORY_NOT_WRITABLE');}}return ['modifiedOneLinkNoAcl'=>$n];});
-        // The two new classes of the payload are found through the PSR-4 fallback; an authoritative classmap would make them invisible, and bootstrap/app.php
-        // names one of them. (After group A the web-SAPI class proof and the CLI feature check show that they really load.)
+        // The new class of the payload (MailBranding) is found through the PSR-4 fallback; an authoritative classmap would make it invisible, and the e-mail views
+        // call it. (After group A the web-SAPI class proof and the CLI feature check show that it really loads.)
         $g['composerClassmapNotAuthoritative']=$this->classmapBlocker();
         $g['configNotCached']=file_exists($this->active().'/bootstrap/cache/config.php')?'CONFIG_CACHE_PRESENT':null;
         $g['noRouteCache']=$this->routeCacheFiles()===[]?null:'ROUTE_CACHE_PRESENT_NOTHING_CHANGED';
@@ -1383,9 +1386,22 @@ final class LogoCatalogInstallCoordinator
         $this->fault('GROUP_DONE_'.$group);$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>'ACCEPTANCE','seconds'=>$pause]);sleep($pause);$this->liveness($group);$this->refreshViews(true);$this->save('FILES_INSTALLED');
     }
 
+    /**
+     * Read-only acceptance step after group E: the CLI helper compiles each changed view in memory (Blade::compileString, nothing is written to the compiled-view directory) and parses the compiled PHP,
+     * and runs MailBranding::logo() and PublicStorefrontAppearance::freshBranding() once without a request. A view that does not compile, or a branding call that throws, fails the acceptance and the
+     * normal automatic rollback follows. No database write, no mail, no value printed.
+     */
+    private function viewsCheck():array
+    {
+        $h=$this->helper($this->featureScript,['views',json_encode($this->viewChecks,JSON_THROW_ON_ERROR)]);$bad=[];
+        foreach($this->viewChecks as $v)if(($h['views'][$v]['compiled']??false)!==true||($h['views'][$v]['lint']??false)!==true)$bad[]=$v;
+        $this->emit('VIEW_COMPILE_CHECK',['views'=>count($this->viewChecks),'failed'=>$bad,'freshBrandingRan'=>$h['freshBrandingRan']??false,'mailBrandingRan'=>$h['mailBrandingRan']??false,'compiledViewDirectory'=>'NOT_WRITTEN']);
+        if($bad!==[]||($h['freshBrandingRan']??false)!==true||($h['mailBrandingRan']??false)!==true)throw new RuntimeException('BLADE_VIEW_COMPILE_OR_LINT_FAILED');return $h;
+    }
+
     private function accept():void
     {
-        $this->save('ACCEPTANCE_INTENT');$first=$this->probeRun('installed-invalidate',true,true,false);$this->fault('AFTER_INVALIDATE');$this->hold('installed',(int)$first['holdSeconds']);
+        $this->save('ACCEPTANCE_INTENT');$this->viewsCheck();$first=$this->probeRun('installed-invalidate',true,true,false);$this->fault('AFTER_INVALIDATE');$this->hold('installed',(int)$first['holdSeconds']);
         $this->requireRecordedShop('BEFORE_INSTALLED_SMOKES');$this->smokes(true);$this->fault('AFTER_SMOKES_INSTALLED');$this->requireRecordedShop('AFTER_INSTALLED_SMOKES');
         $this->unthrottledChecks('ACTIVE_TREE_AFTER_INSTALL');
         $this->approvalReport('after-install');$this->requireRecordedShop('BEFORE_INSTALLED_PASS');
@@ -1395,7 +1411,7 @@ final class LogoCatalogInstallCoordinator
     /**
      * Puts every backed-up byte back in exact reverse install order (a modified file only when it holds the payload, a new
      * file removed only when it holds the payload; anything foreign is reported and never overwritten; the first failure
-     * stops the loop), with the full measured hold right after bootstrap/app.php is back to its old bytes and again before the
+     * stops the loop), with the full measured hold right after group E is back to its old bytes and again before the
      * new classes go, re-invalidates, waits and smoke-tests the old state with the shop in whatever state it is now.
      */
     private function restore(string $reason):bool

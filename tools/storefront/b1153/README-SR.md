@@ -68,7 +68,8 @@ Build proverava svaku takvu vezu u isporučenim bajtovima, a koordinator odbija 
    Laravel. Koordinator odbija grupu E ako klasa nije tačno na svom mestu ili ako dokaz nije prošao u
    ovom pokretanju. `AppServiceProvider.php` uključuje `resources/views/vendor/mail`, pa on čini novo zaglavlje
    e-maila živim. `public-shop/layout` ide poslednji.
-6. Posle svake grupe ide pauza da veb radnici osveže fajlove, pa kratka provera života (`/up`,
+6. Između četvrte i pete grupe (nekoliko minuta zbog punog čekanja) katalog već prikazuje 40 artikala po strani, a kontrole za broj artikala i prikaz još nisu vidljive. To je očekivano, nije greška.
+7. Posle svake grupe ide pauza da veb radnici osveže fajlove, pa kratka provera života (`/up`,
    `/login`, pravna stranica, `/katalog`, prvi proizvod, `GET /tema` 405). Posle grupe E se dodaju
    `/katalog?per_page=20&view=list` i provera da gost na `/admin/settings/smtp` i dalje dobija
    `Location` na `https://cms.ald1n.com/login`. Ako provera padne, prvo se vraća grupa E.
@@ -188,6 +189,10 @@ uključeni). Sve što su B1149 do B1152 postavili mora da postoji u oba stanja: 
 galerija, potpisana ruta `/media/p/...`, ograničenje promene lozinke i pin `APP_URL`. Broj ruta mora biti 568
 pre i posle, a živi `php artisan app:product-media-doctor` i dalje mora da prođe.
 
+## Provera pogleda posle instalacije
+
+Pre prvog smoke-a, odmah posle grupe E, koordinator samo čita: svaki od deset izmenjenih ili novih Blade pogleda (`layouts/app`, podešavanja izgleda i dokumenata, tri stranice za lozinku i aktivaciju, dva e-maila, oba zaglavlja e-maila) kompajlira se u memoriji i proverava se da je kompajliran PHP ispravan. Ništa se ne upisuje u direktorijum kompajliranih pogleda. Jednom se pozivaju `MailBranding::logo()` i `PublicStorefrontAppearance::freshBranding()` bez zahteva. Ako bilo šta padne, ide uobičajeno automatsko vraćanje. CI to dokazuje namerno pokvarenim pogledom.
+
 ## Smoke
 
 Pun smoke ne zahteva prijavu, koristi samo GET i jedan HEAD. Nikad ne šaljemo formu i ne zovemo
@@ -245,7 +250,9 @@ Vrednosti `B1153_FINAL`:
    važi samo tamo gde ništa nije sačuvano.
 3. Katalog u listi na telefonu. Otvorite katalog, prebacite na listu i proverite izbor 20, 40 i 80.
 4. PDF. Otvorite jedan PDF dokument i jedan PDF izveštaj i proverite logotip. Alat PDF ne generiše.
-5. Ne pokrećite ponovo B1144 do B1152 ni njihov `--rollback` posle B1153.
+5. Admin. Otvorite bilo koju admin stranicu i jednom stranicu Izgled sajta. Instalacija proverava da se svi izmenjeni pogledi kompajliraju, ali je ne prijavljuje.
+6. Queue radnici preuzimaju novo zaglavlje e-maila posle `queue:restart`, koji instalacija sama pokreće.
+7. Ne pokrećite ponovo B1144 do B1152 ni njihov `--rollback` posle B1153.
 
 ## Vraćanje na staro
 

@@ -42,7 +42,9 @@ declare(strict_types=1);
 $fail=static function(string $code):never{echo json_encode(['ok'=>false,'error'=>$code]).PHP_EOL;exit(2);};
 [$self,$base,$mode,$arg1,$arg2,$arg3,$arg4]=$argv+[null,null,null,null,null,null,null];
 $originOk=static fn(mixed $o):bool=>is_string($o)&&preg_match('~^https://[a-z0-9.-]{1,120}$~D',$o)===1;
-if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample'],true)||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
+if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample','views'],true)||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
+$viewList=[];
+if($mode==='views'){$viewList=is_string($arg1)?json_decode($arg1,true,4):null;if(!is_array($viewList)||$viewList===[]||count($viewList)>32)$fail('APP_CHECK_ARGUMENTS');foreach($viewList as $v)if(!is_string($v)||preg_match('~^resources/views/[A-Za-z0-9_/.-]{1,160}\.blade\.php$~D',$v)!==1||str_contains($v,'..'))$fail('APP_CHECK_ARGUMENTS');}
 $newClasses=[];$routeName='';$expectedOrigin='';$markers=[];
 if($mode==='env')$expectedOrigin=$arg2;
 if($mode==='features'){
@@ -107,6 +109,16 @@ try{
             }
         }
         echo json_encode(['ok'=>true,'sample'=>$sample,'thumbnail'=>$thumbnail,'imageCount'=>$sample===null?0:$checked,'urlNull'=>$nulls,'hook'=>'PRODUCT_IMAGE_ACCESSOR'],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='views'){
+        // Read-only: every view is compiled IN MEMORY (Blade::compileString never touches the compiled-view directory) and the compiled PHP is parsed (token_get_all with TOKEN_PARSE, ParseError caught);
+        // then PublicStorefrontAppearance::freshBranding() and MailBranding::logo() run once in the CLI (no request, no write, no mail; only booleans are printed).
+        $rows=[];foreach($viewList as $v){$file=$base.'/'.$v;$compiled=false;$lint=false;
+            if(is_file($file)&&!is_link($file)){try{$php=Illuminate\Support\Facades\Blade::compileString((string)file_get_contents($file));$compiled=true;token_get_all($php,TOKEN_PARSE);$lint=true;}catch(Throwable){}}
+            $rows[$v]=['compiled'=>$compiled,'lint'=>$lint];}
+        $branding=false;try{$b=App\Support\PublicStorefrontAppearance::freshBranding();$branding=is_array($b)&&array_key_exists('logo_height',$b);}catch(Throwable){$branding=false;}
+        $mailRan=false;try{$l=App\Support\MailBranding::logo();$mailRan=$l===null||is_array($l);}catch(Throwable){$mailRan=false;}
+        echo json_encode(['ok'=>true,'views'=>$rows,'freshBrandingRan'=>$branding,'mailBrandingRan'=>$mailRan],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
     $loaded=0;foreach($newClasses as $c)if(class_exists($c,true))$loaded++;
     $b1149Loaded=0;foreach(B1149_CLASSES as $c)if(class_exists($c,true))$b1149Loaded++;
