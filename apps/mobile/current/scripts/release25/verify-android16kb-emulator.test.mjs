@@ -5,7 +5,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { auditEmulator, parseArgs, parseDevices, adbStage, classifiedAdbFailure, adbCommand, auditEmulatorPreflight } from './verify-android16kb-emulator.mjs';
+import { auditEmulator, parseArgs, parseDevices, adbStage, classifiedAdbFailure, adbCommand, auditEmulatorPreflight, mainActivityResumed, amStartWaitStatus } from './verify-android16kb-emulator.mjs';
 
 const script = fileURLToPath(new URL('./verify-android16kb-emulator.mjs', import.meta.url));
 function fixture(task) {
@@ -25,6 +25,7 @@ function mock(changes = {}) {
     'shell settings get global airplane_mode_on': '1',
     'install': 'Success',
     'shell am start -W -n com.ald1n.mobile/.MainActivity': 'Status: ok\nActivity: com.ald1n.mobile/.MainActivity',
+    'shell dumpsys activity activities': 'mResumedActivity: ActivityRecord{aa u0 com.android.launcher/.Launcher t1}',
     'shell pidof com.ald1n.mobile': '3456',
     'logcat -d -s AndroidRuntime:E': '',
     ...changes
@@ -42,6 +43,54 @@ function mock(changes = {}) {
   };
   return { invoke, all };
 }
+
+test('activity manager fallback parses only exact resumed Ald1n MainActivity, never history or another app', () => {
+  assert.equal(mainActivityResumed('mResumedActivity: ActivityRecord{ab u0 com.ald1n.mobile/.MainActivity t1}'), true);
+  assert.equal(mainActivityResumed('topResumedActivity=ActivityRecord{cd u0 com.ald1n.mobile/com.ald1n.mobile.MainActivity t1}'), true);
+  assert.equal(mainActivityResumed('ResumedActivity: ActivityRecord{ab u0 com.ald1n.mobile/.MainActivity t1}'), true);
+  assert.equal(mainActivityResumed('Hist #0: ActivityRecord{ab u0 com.ald1n.mobile/.MainActivity t1}'), false);
+  assert.equal(mainActivityResumed('mResumedActivity: ActivityRecord{ab u0 com.android.launcher/.Launcher t1}\nHist #0: ActivityRecord{ab u0 com.ald1n.mobile/.MainActivity t1}'), false);
+  assert.equal(mainActivityResumed('mResumedActivity: ActivityRecord{ab u0 com.ald1n.mobile/.MainActivityEvil t1}'), false);
+  assert.equal(mainActivityResumed('mResumedActivity: ActivityRecord{ab u0 com.ald1n.mobile.evil/.MainActivity t1}'), false);
+});
+
+test('am start wait categorization never emits raw intent/error text', () => {
+  assert.equal(amStartWaitStatus('Starting: Intent {...}\nStatus: ok\nActivity: ...'), 'OK');
+  assert.equal(amStartWaitStatus('Starting: Intent {...}\nStatus: timeout\nActivity: ...'), 'TIMEOUT');
+  assert.equal(amStartWaitStatus('Starting: Intent {...}\nStatus: unusual\nActivity: ...'), 'OTHER_STATUS');
+  assert.equal(amStartWaitStatus('Error type 3; sensitive://example'), 'NO_STATUS');
+});
+
+test('non-OK am start wait may recover only with exact resumed activity and seven-second process stability', async () =>
+  fixture(async apk => {
+    const { invoke, all } = mock({
+      'shell am start -W -n com.ald1n.mobile/.MainActivity': 'Status: timeout',
+      'shell dumpsys activity activities': 'topResumedActivity=ActivityRecord{cd u0 com.ald1n.mobile/.MainActivity t1}',
+    });
+    const stages=[];
+    const result=await auditEmulator(apk, invoke, async()=>{}, stage=>stages.push(stage));
+    assert.equal(result.status,'PASS_CI_EMULATOR_16KB_OFFLINE_LAUNCH_ONLY');
+    assert.deepEqual(stages.slice(-5),['LAUNCH_DEBUG_APP','AM_START_WAIT_TIMEOUT','VERIFY_MAIN_ACTIVITY_RESUMED','MAIN_ACTIVITY_RESUMED_AFTER_NON_OK_WAIT','CHECK_PROCESS_AND_RUNTIME']);
+    const index=s=>all.findIndex(a=>a.join(' ').includes(s));
+    assert.ok(index('airplane-mode enable') < index('install -r'));
+    assert.ok(index('am start -W') < index('dumpsys activity activities'));
+    assert.ok(index('dumpsys activity activities') < index('pidof com.ald1n.mobile'));
+  })
+);
+
+test('non-OK launch with live PID but only background activity remains HOLD, not false PASS', async () =>
+  fixture(async apk => {
+    const { invoke, all } = mock({
+      'shell am start -W -n com.ald1n.mobile/.MainActivity': 'Status: timeout',
+      'shell dumpsys activity activities': 'mResumedActivity: ActivityRecord{ab u0 com.android.launcher/.Launcher t1}\nHist #0: ActivityRecord{ab u0 com.ald1n.mobile/.MainActivity t2}',
+    });
+    const stages=[];
+    await assert.rejects(auditEmulator(apk,invoke,async()=>{},stage=>stages.push(stage)),
+      /HOLD_ANDROID_MAIN_ACTIVITY_NOT_RESUMED_AFTER_WAIT/);
+    assert.equal(all.filter(a=>a.slice(2).join(' ')==='shell dumpsys activity activities').length,6);
+    assert.equal(stages.includes('CHECK_PROCESS_AND_RUNTIME'),false);
+  })
+);
 
 test('valid disposable Android35 x86_64 emulator 16KB offline app launch', async () => {
   await fixture(async apk => {
@@ -108,7 +157,7 @@ test('a missing app PID with its AndroidRuntime fatal is a precise crash HOLD', 
 
 test('launcher failure is HOLD', async () => fixture(async apk => {
   const { invoke } = mock({ 'shell am start -W -n com.ald1n.mobile/.MainActivity': 'Error type 3' });
-  await assert.rejects(auditEmulator(apk, invoke, async()=>{}), /HOLD_ANDROID_MAIN_ACTIVITY_NOT_STARTED/);
+  await assert.rejects(auditEmulator(apk, invoke, async()=>{}), /HOLD_ANDROID_MAIN_ACTIVITY_NOT_RESUMED_AFTER_WAIT/);
 }));
 
 test('native AndroidRuntime fatal exception for app is HOLD', async () => fixture(async apk => {
@@ -151,6 +200,7 @@ test('ADB stages resolve to fixed, privacy-safe identifiers', () => {
     [['-s','emulator-5554','install','-r','/tmp/sensitive-debug.apk'], 'APK_INSTALL'],
     [['-s','emulator-5554','logcat','-c'], 'LOGCAT_CLEAR'],
     [['-s','emulator-5554','shell','am','start','-W','-n','com.ald1n.mobile/.MainActivity'], 'APP_START'],
+    [['-s','emulator-5554','shell','dumpsys','activity','activities'], 'ACTIVITY_STACK'],
     [['-s','emulator-5554','shell','pidof','com.ald1n.mobile'], 'APP_PROCESS'],
     [['-s','emulator-5554','logcat','-d','-s','AndroidRuntime:E'], 'RUNTIME_FATAL_SCAN']
   ];

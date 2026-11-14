@@ -140,7 +140,7 @@ export default function AccountSecurityScreen() {
         />
 
         {passwordApiError ? <Text style={styles.formError}>{passwordApiError}</Text> : null}
-        <Button variant="danger" onPress={changePassword} loading={isSubmitting}>
+        <Button variant="danger" onPress={() => void changePassword()} loading={isSubmitting}>
           Promeni lozinku
         </Button>
       </Card>

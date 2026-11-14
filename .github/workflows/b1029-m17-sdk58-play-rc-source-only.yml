@@ -1,0 +1,54 @@
+name: B1029 SDK58 Play AAB source identity (NO BUILD / NO SUBMIT)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/eas.json'
+      - 'apps/mobile/current/scripts/release25/m17-sdk58-play-rc-source.test.mjs'
+      - '.github/workflows/b1029-m17-sdk58-play-rc-source-only.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-identity-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout exact source, never retain credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Use pinned Node 22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Run SDK58 Play-only profile and protected legacy runtime regression tests
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check app.config.js
+          node --check scripts/release25/m17-sdk58-play-rc-source.test.mjs
+          node --test \
+            scripts/release25/m17-sdk58-play-rc-source.test.mjs \
+            scripts/release25/m17-sdk58-uat-runtime.test.mjs \
+            scripts/release25/b989-production-v15-eas-profile.test.mjs
+          echo 'B1029_SDK58_RELEASE_IDENTITY_SOURCE_ONLY=PASS'
+          echo 'B1029_PLAY_BUILD_SUBMISSION_AND_OTA=NONE'
+      - name: Enforce no repository mutation or release side effects
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git diff --exit-code -- \
+            apps/mobile/current/app.config.js \
+            apps/mobile/current/eas.json \
+            apps/mobile/current/package.json \
+            apps/mobile/current/package-lock.json
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = 0
+          echo 'B1029_REPO_UNMODIFIED=PASS'

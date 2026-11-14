@@ -8,9 +8,11 @@ import { spawnSync } from 'node:child_process';
 const root = path.resolve(import.meta.dirname, '..');
 const EXPECTED_PACKAGE = 'com.ald1n.mobile';
 const EXPECTED_APP_VERSION = '1.0.0';
-const EXPECTED_RUNTIME = '1.0.0-build17';
+// Approved SDK58 release identity (EAS profile m17-sdk58-play-rc); app.config.js has no default runtime.
+const EXPECTED_PROFILE = 'm17-sdk58-play-rc';
+const EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play2';
 const EXPECTED_API = 'https://cms.ald1n.com/api/v1';
-const EAS_CLI_VERSION = '25.0.0';
+const EAS_CLI_VERSION = '27.2.0';
 const NODE_BIN = '/opt/alt/alt-nodejs22/root/bin/node';
 const NPM_CLI = '/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -31,7 +33,7 @@ if (args.length !== 2 || !['--check', '--execute'].includes(args[0])) {
 }
 const mode = args[0];
 // DIRECT_SUBMIT_DISABLED -- requires verified AAB, cannot use raw --id path.
-if (mode === '--execute') die('DIRECT_SUBMIT_DISABLED: use verified Build25 controller', 78);
+if (mode === '--execute') die('DIRECT_SUBMIT_DISABLED: use the verified release controller', 78);
 const buildId = args[1];
 if (!UUID_RE.test(buildId)) die('EAS_BUILD_ID must be an explicit UUID');
 
@@ -43,6 +45,7 @@ if (easJson.cli?.version !== EAS_CLI_VERSION) die(`eas cli pin mismatch: ${easJs
 if (easJson.build?.production?.channel !== 'production') die('production build channel mismatch', 65);
 if (easJson.build?.production?.env?.EXPO_PUBLIC_APP_ENV !== 'production') die('production app env mismatch', 65);
 if (easJson.build?.production?.env?.EXPO_PUBLIC_API_URL !== EXPECTED_API) die('production API URL mismatch', 65);
+if (easJson.build?.[EXPECTED_PROFILE]?.env?.ALD1N_M17_SDK58_PLAY_PROFILE !== EXPECTED_PROFILE) die('SDK58 play release profile mismatch', 65);
 if (easJson.submit?.production?.android?.track !== 'production') die('Google Play track mismatch', 65);
 if (easJson.submit?.production?.android?.releaseStatus !== 'completed') die('Google Play release status mismatch', 65);
 
@@ -52,6 +55,8 @@ const productionEnv = {
   PATH: `${path.dirname(NODE_BIN)}${path.delimiter}${process.env.PATH || ''}`,
   EXPO_PUBLIC_APP_ENV: 'production',
   EXPO_PUBLIC_API_URL: EXPECTED_API,
+  ALD1N_M17_SDK58_PLAY_RC: 'source-only',
+  ALD1N_M17_SDK58_PLAY_PROFILE: EXPECTED_PROFILE,
 };
 const expoCli = requireFile(path.join(root, 'node_modules', 'expo', 'bin', 'cli'));
 const configResult = spawnSync(process.execPath, [expoCli, 'config', '--type', 'public', '--json'], {

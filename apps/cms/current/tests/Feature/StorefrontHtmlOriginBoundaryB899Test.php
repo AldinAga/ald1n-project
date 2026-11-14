@@ -164,7 +164,7 @@ final class StorefrontHtmlOriginBoundaryB899Test extends TestCase
                 'created_by'=>$this->owner->id,
             ]);
         }
-        $html=$this->hostile()->get('/katalog?q=B899')->assertOk()->getContent();
+        $html=$this->hostile()->get('/katalog?q=B899&per_page=20')->assertOk()->getContent();
         self::assertIsString($html);
         $this->assertOriginFree($html);
         // An absolute app.url paginator leaves a first-party host embedded in

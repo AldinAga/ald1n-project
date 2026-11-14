@@ -55,8 +55,8 @@ export function DataList<T> ({
           <Text style={styles.emptyMessage}>{emptyMessage}</Text>
         </View>
       )}
-      ListFooterComponent={footer ? <View style={styles.footer}>{footer}</View> : null}
-      ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : null}
+      ListFooterComponent={footer ? <View style={styles.footer}>{footer}</View> : undefined}
+      ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : undefined}
       refreshControl={onRefresh ? (
         <RefreshControl
           refreshing={refreshing}

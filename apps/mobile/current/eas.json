@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": "25.0.0",
+    "version": "27.2.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -35,6 +35,41 @@
       "env": {
         "EXPO_PUBLIC_APP_ENV": "preview",
         "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1"
+      }
+    },
+    "m17-sdk58-uat": {
+      "extends": "preview",
+      "environment": "preview",
+      "distribution": "internal",
+      "channel": "m17-sdk58-uat",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_M17_SDK58_UAT": "isolated",
+        "ALD1N_M17_SDK58_PROFILE": "m17-sdk58-uat"
+      }
+    },
+    "m17-sdk58-play-rc": {
+      "extends": "production",
+      "environment": "production",
+      "distribution": "store",
+      "channel": "production",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://cms.ald1n.com/api/v1",
+        "ALD1N_M17_SDK58_PLAY_RC": "source-only",
+        "ALD1N_M17_SDK58_PLAY_PROFILE": "m17-sdk58-play-rc"
       }
     },
     "production": {

@@ -2,6 +2,8 @@
 
 **Status: iOS preview CONFIG-ONLY PASS; production HOLD until a genuine production Firebase iOS app and EAS file asset exist. No iOS build, Apple signing or TestFlight submission has been attempted.**
 
+**Update 2026-11-14:** the runtime and EAS CLI values below are the historical 2026-10-16 Build25 state. Current facts: Android versionCode 29 is live (app 1.0.0, Expo SDK 58, EAS profile `m17-sdk58-play-rc`, runtime `1.0.0-m17-sdk58-play2`), EAS CLI is `27.2.0`, and `app.config.js` has no default runtime and fails closed. The iOS readiness gate inspects the config under the approved SDK 58 identity.
+
 ## Existing delivery authority
 
 - Latest verified Android production OTA group: `37ae8af0-b950-4549-8476-c960e1350866`, source `904c1db0f4213ff2e3eea3757869f86556d55378` (Report682); Build25 appVersion `1.0.0`, Android versionCode `25`, runtime `1.0.0-build17`, profile/channel `production`.

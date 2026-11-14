@@ -196,7 +196,7 @@ export default function AccountProfileScreen() {
         />
 
         {profileApiError ? <Text style={styles.formError}>{profileApiError}</Text> : null}
-        <Button onPress={saveProfile} loading={isSubmitting}>Sačuvaj profil</Button>
+        <Button onPress={() => void saveProfile()} loading={isSubmitting}>Sačuvaj profil</Button>
       </Card>
     </Screen>
   );

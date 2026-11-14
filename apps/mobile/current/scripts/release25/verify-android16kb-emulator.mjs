@@ -40,6 +40,7 @@ export function adbStage(args) {
   if (tokens[0] === 'install' && tokens[1] === '-r') return 'APK_INSTALL';
   if (command === 'logcat -c') return 'LOGCAT_CLEAR';
   if (tokens.slice(0,4).join(' ') === 'shell am start -W') return 'APP_START';
+  if (command === 'shell dumpsys activity activities') return 'ACTIVITY_STACK';
   if (tokens[0] === 'shell' && tokens[1] === 'pidof') return 'APP_PROCESS';
   if (command === 'logcat -d -s AndroidRuntime:E') return 'RUNTIME_FATAL_SCAN';
   return 'UNKNOWN';
@@ -115,6 +116,23 @@ export function auditEmulatorPreflight(invoke = adbCommand, report = () => {}) {
   });
 }
 
+// Android 15's "am start -W" can complete without "Status: ok" even while
+// MainActivity is transitioning. Never treat a living PID alone as proof.
+// Only an exact foreground RESUMED MainActivity record can recover that wait.
+export function mainActivityResumed(dump) {
+  return String(dump).split(/\r?\n/).some(line =>
+    /^\s*(?:mResumedActivity|topResumedActivity|ResumedActivity)\s*[:=]\s*ActivityRecord\{/i.test(line)
+    && /(?:^|\s)com\.ald1n\.mobile\/(?:\.MainActivity|com\.ald1n\.mobile\.MainActivity)(?=[\s}])/.test(line)
+  );
+}
+
+export function amStartWaitStatus(output) {
+  const match = String(output).match(/(?:^|\n)\s*Status:\s*([a-z_]+)\s*(?:\r?\n|$)/i);
+  if (!match) return 'NO_STATUS';
+  const value = match[1].toLowerCase();
+  return value === 'ok' ? 'OK' : value === 'timeout' ? 'TIMEOUT' : 'OTHER_STATUS';
+}
+
 export async function auditEmulator(apk, invoke = adbCommand, pause = ms => new Promise(resolve => setTimeout(resolve, ms)), report = () => {}) {
   if (!apk || !existsSync(apk)) hold('APK_NOT_FOUND');
   const {serial, call, pageSizeBytes, androidSdk, abi} = verifyOffline16kbEmulator(invoke, report);
@@ -125,7 +143,21 @@ export async function auditEmulator(apk, invoke = adbCommand, pause = ms => new 
   call(['logcat', '-c']);
   report('LAUNCH_DEBUG_APP');
   const launched = call(['shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity']);
-  if (!/\bStatus:\s*ok\b/i.test(launched)) hold('ANDROID_MAIN_ACTIVITY_NOT_STARTED');
+  const waitStatus = amStartWaitStatus(launched);
+  if (waitStatus !== 'OK') {
+    // Never expose raw am/dumpsys output: it may carry external intent data.
+    // An "am start -W" timeout alone cannot prove either success or failure.
+    report('AM_START_WAIT_' + waitStatus);
+    report('VERIFY_MAIN_ACTIVITY_RESUMED');
+    let resumed = false;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const activities = call(['shell', 'dumpsys', 'activity', 'activities']);
+      if (mainActivityResumed(activities)) { resumed = true; break; }
+      if (attempt < 5) await pause(4000);
+    }
+    if (!resumed) hold('ANDROID_MAIN_ACTIVITY_NOT_RESUMED_AFTER_WAIT');
+    report('MAIN_ACTIVITY_RESUMED_AFTER_NON_OK_WAIT');
+  }
   await pause(7000);
   report('CHECK_PROCESS_AND_RUNTIME');
   let pids='';

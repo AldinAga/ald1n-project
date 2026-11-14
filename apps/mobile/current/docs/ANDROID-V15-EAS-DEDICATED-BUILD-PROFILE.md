@@ -4,7 +4,7 @@ This is a **source-only build configuration**, not approval to run a production 
 
 ## Why the raw production build is unsafe
 
-`apps/mobile/current/app.config.js` has a native release gate. The ordinary `eas.json` `build.production.env` intentionally does **not** supply `ALD1N_V15_RELEASE_GATE=approved`; the default version remains `1.0.0` with runtime `1.0.0-build17`. A shell-exported variable is **not** by itself guaranteed to reach the EAS remote builder. See [Expo eas.json env documentation](https://docs.expo.dev/build/eas-json/) and [Expo remote environment FAQ](https://docs.expo.dev/eas/environment-variables/faq/).
+`apps/mobile/current/app.config.js` has a native release gate. The ordinary `eas.json` `build.production.env` intentionally does **not** supply `ALD1N_V15_RELEASE_GATE=approved`; without an approved identity `app.config.js` now throws `HOLD_RUNTIME_IDENTITY_NOT_APPROVED` (the former default runtime `1.0.0-build17` no longer exists). A shell-exported variable is **not** by itself guaranteed to reach the EAS remote builder. See [Expo eas.json env documentation](https://docs.expo.dev/build/eas-json/) and [Expo remote environment FAQ](https://docs.expo.dev/eas/environment-variables/faq/).
 
 ## New source-only release profile (B989)
 

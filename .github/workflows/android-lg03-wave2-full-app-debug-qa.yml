@@ -18,6 +18,9 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_APP_ENV: production
       EXPO_PUBLIC_API_URL: https://cms.ald1n.com/api/v1
+      # Source-only SDK58 Play identity: app.config.js has no default runtime. Not a build.
+      ALD1N_M17_SDK58_PLAY_RC: source-only
+      ALD1N_M17_SDK58_PLAY_PROFILE: m17-sdk58-play-rc
     steps:
       - name: Checkout immutable candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -54,13 +57,13 @@ jobs:
           const clients=(services.client||[]).map(c=>c.client_info?.android_client_info?.package_name);
           if(process.env.EXPO_PUBLIC_APP_ENV!=='production')process.exit(31);
           if(config.android?.package!=='com.ald1n.mobile')process.exit(32);
-          if(config.runtimeVersion!=='1.0.0-build17')process.exit(33);
+          if(config.runtimeVersion!=='1.0.0-m17-sdk58-play2')process.exit(33);
           if(!clients.includes('com.ald1n.mobile'))process.exit(34);
           const deps=require('./package.json').dependencies||{};
           if(deps['react-native-android-liquid-glass']||deps['expo-blur'])process.exit(35);
           console.log('REAL_TRACKED_FIREBASE_PACKAGE_MATCH=PASS');
           console.log('CI_PACKAGE_DEBUG_ID=com.ald1n.mobile');
-          console.log('TRACKED_BUILD25_APP_RUNTIME_UNCHANGED=PASS');
+          console.log('TRACKED_SDK58_PLAY_APP_RUNTIME=PASS');
           NODE
       - name: Install locked Expo source and ephemeral verified native glass candidate
         working-directory: apps/mobile/current

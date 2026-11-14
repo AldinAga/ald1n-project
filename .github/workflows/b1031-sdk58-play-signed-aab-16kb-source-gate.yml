@@ -1,0 +1,71 @@
+name: B1031 SDK58 Nitro2 signed Play AAB 16KB verifier source QA (NO BUILD)
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/current/scripts/release27/**'
+      - 'apps/mobile/current/scripts/release25/verify-android16kb-aab.mjs'
+      - 'apps/mobile/current/scripts/release25/verify-android16kb-apk.mjs'
+      - 'apps/mobile/current/scripts/release25/signed-16kb-aab-release-gate.mjs'
+      - '.github/workflows/b1031-sdk58-play-signed-aab-16kb-source-gate.yml'
+permissions:
+  contents: read
+jobs:
+  sdk58-16kb-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout without a credential
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Pinned Node22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Verify actual SDK58 Nitro2 source-only gate and original v1.5 16KB protections
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check scripts/release27/signed-16kb-sdk58-aab-gate.mjs
+          node --check scripts/release27/signed-16kb-sdk58-aab-gate.test.mjs
+          node --test \
+            scripts/release27/signed-16kb-sdk58-aab-gate.test.mjs \
+            scripts/release25/signed-16kb-aab-release-gate.test.mjs \
+            scripts/release25/verify-android16kb-aab.test.mjs \
+            scripts/release25/verify-android16kb-apk.test.mjs
+          node - <<'NODE'
+          const fs=require('node:fs'),p=require('./package.json'),e=require('./eas.json');
+          const sdk58=fs.readFileSync('scripts/release27/signed-16kb-sdk58-aab-gate.mjs','utf8');
+          const old=fs.readFileSync('scripts/release25/signed-16kb-aab-release-gate.mjs','utf8');
+          if(p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0'||
+             p.dependencies['react-native-nitro-google-signin']!=='2.3.1'||
+             !sdk58.includes("EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play2'")||
+             !sdk58.includes('PAGE_ALIGNMENT_16K')||
+             !sdk58.includes("'zipalign'")||
+             !sdk58.includes("Number(out['expected-version-code']) <= 28")||
+             !old.includes("EXPECTED_RUNTIME = '1.5.0-native2'"))
+            throw Error('HOLD_B1031_SDK58_16KB_RELEASE_IDENTITY');
+          console.log('B1031_SDK58_16KB_AAB_AND_SPLIT_APK_BINARY_AUDIT_SOURCE=PASS');
+          NODE
+      - name: Archive audited SDK58 16KB gate sources for owner Google Drive
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b1031-sdk58-eas27-nitro2-signed-aab-16kb-gate-source
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            apps/mobile/current/scripts/release27/signed-16kb-sdk58-aab-gate.mjs
+            apps/mobile/current/scripts/release27/signed-16kb-sdk58-aab-gate.test.mjs
+            .github/workflows/b1031-sdk58-play-signed-aab-16kb-source-gate.yml
+
+      - name: Signed binary Play and physical device not present, keep release blocked
+        if: always()
+        run: |
+          echo 'B1031_NEW_SIGNED_SDK58_AAB_BINARY=NOT_YET_BUILT'
+          echo 'B1031_SIGNER_REMOTE_VERSIONCODE_16KB_DEVICE_OAUTH=NOT_YET_ATTESTED'
+          echo 'B1031_NO_PAID_EAS_BUILD_NO_SUBMIT_NO_OTA=PASS'

@@ -102,8 +102,10 @@ final class PublicRetailCheckoutB799Test extends TestCase
             app(PublicMerchantPolicyService::class)->fingerprint(),
             $acceptance->merchant_policy_digest,
             'Accepted terms must be bound to the exact signed merchant snapshot.');
-        $this->get($location)->assertOk()->assertSee('Laptop retail')
-            ->assertDontSee('5000')->assertDontSee('250');
+        // Purchase price (5000) and commission (250) must not be shown. Amounts print as
+        // number_format(x,2,',','.'); bare digits would also match random tokens and nonces.
+        $this->get($location)->assertOk()->assertSee('Laptop retail')->assertSee('24.000,00')
+            ->assertDontSee('5.000,00')->assertDontSee('250,00');
     }
 
     public function test_duplicate_submission_returns_same_capability_without_rebooking_stock(): void

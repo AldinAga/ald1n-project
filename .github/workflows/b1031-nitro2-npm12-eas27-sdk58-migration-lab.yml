@@ -1,0 +1,109 @@
+name: B1031 committed Nitro2 npm12 EAS27 SDK58 readiness (NO BUILD)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/b1031-nitro2-npm12-eas27-sdk58-migration-lab.yml'
+      - 'apps/mobile/current/package.json'
+      - 'apps/mobile/current/package-lock.json'
+      - 'apps/mobile/current/eas.json'
+      - 'apps/mobile/current/app.config.js'
+      - 'apps/mobile/current/scripts/validate-project.mjs'
+      - 'apps/mobile/current/scripts/release25/m17-nitro-google-signin-sdk58.test.mjs'
+permissions:
+  contents: read
+jobs:
+  sdk58-committed-upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_APP_ENV: development # explicit dev runtime path; app.config.js has no default runtime
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_FETCH_RETRIES: '1'
+      NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
+      GIT_TERMINAL_PROMPT: '0'
+      EAS_NO_VCS: '1'
+    steps:
+      - name: Checkout exact draft without tokens
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Node22.23.4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Verify exact upgraded source pins and archive identities
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node - <<'NODE'
+          const cp=require('node:child_process'),p=require('./package.json'),e=require('./eas.json'),lock=require('./package-lock.json');
+          const files={
+           'package.json':'c5e04adc050995d44222ffe8c773d0573a5dda21',
+           'eas.json':'5b526f229465e2b5e10ed00dd46b663d7eff05a7',
+           'app.config.js':'c2fc2b00774c6284e3a940b575358be0ca51dc3d',
+           'package-lock.json':'498a25ed768ecdc4b08ce5bab52abdad6592eceb'
+          };
+          for(const [path,sha] of Object.entries(files)){
+            const r=cp.spawnSync('git',['hash-object',path],{encoding:'utf8'});
+            if(r.status!==0||r.stdout.trim()!==sha)throw Error('HOLD_B1031_COMMITTED_BLOB_'+path);
+          }
+          if(p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote'||
+             p.dependencies.expo!=='~58.0.25'||p.dependencies['react-native']!=='0.88.1'||
+             p.dependencies['react-native-nitro-google-signin']!=='2.3.1'||
+             p.dependencies['react-native-nitro-modules']!=='0.37.1'||
+             lock.packages['node_modules/react-native-nitro-google-signin'].version!=='2.3.1'||
+             lock.packages['node_modules/react-native-nitro-modules'].version!=='0.37.1')
+            throw Error('HOLD_B1031_UPGRADED_PINS');
+          if(e.build['m17-sdk58-play-rc'].android.buildType!=='app-bundle'||e.build['m17-sdk58-play-rc'].autoSubmit!==undefined)
+            throw Error('HOLD_B1031_PLAY_RELEASE_PROFILE_CHANGED');
+          console.log('B1031_EXACT_COMMITTED_MIGRATION_SOURCE=PASS');
+          NODE
+      - name: Install npm12.2.1 and EAS CLI27.2.0 in nonproduction scratch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/ald1n-npm12" "$RUNNER_TEMP/ald1n-eas27"
+          npm install --prefix "$RUNNER_TEMP/ald1n-npm12" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict npm@12.2.1
+          NPM12="$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js"
+          test "$(node "$NPM12" --version)" = '12.2.1'
+          node "$NPM12" install --prefix "$RUNNER_TEMP/ald1n-eas27" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict eas-cli@27.2.0
+          EAS_REL="$(node - "$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/package.json" <<'NODE'
+          const p=require(process.argv[2]);
+          if(p.version!=='27.2.0')throw Error('HOLD_EAS_CLI_NOT_27_2_0');
+          const bin=typeof p.bin==='string'?p.bin:p.bin?.eas;
+          if(!bin)throw Error('HOLD_EAS_CLI_BIN_UNDECLARED');
+          process.stdout.write(bin);
+          NODE
+          )"
+          EAS="$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/$EAS_REL"
+          test -f "$EAS"
+          node "$EAS" --version
+          node "$EAS" build --help > "$RUNNER_TEMP/b1031-eas-help.txt"
+          grep -q -- '--profile' "$RUNNER_TEMP/b1031-eas-help.txt"
+          echo 'B1031_NPM12_EAS27_INSTALLED_IN_SCRATCH=PASS'
+      - name: Actual locked npm12 install, Expo SDK58, TypeScript, validator and targeted regression
+        working-directory: apps/mobile/current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          NPM12="$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js"
+          node "$NPM12" ci --ignore-scripts --no-audit --no-fund --engine-strict
+          node node_modules/expo/bin/cli install --check
+          node "$NPM12" run typecheck
+          node "$NPM12" run doctor
+          node "$NPM12" run validate
+          node --test \
+            scripts/release25/m17-nitro-google-signin-sdk58.test.mjs \
+            scripts/release25/m17-sdk58-uat-runtime.test.mjs \
+            scripts/release25/m17-sdk58-play-rc-source.test.mjs
+          echo 'B1031_REAL_SDK58_NITRO2_NPM12_EAS27_SOURCE_TESTS=PASS'
+      - name: Native signing 16KiB and Google OAuth remain release HOLD until real artifact
+        if: always()
+        run: |
+          echo 'B1031_ANDROID_SIGNED_AAB_16KB=NOT_YET_BUILT'
+          echo 'B1031_PHYSICAL_GOOGLE_OAUTH=NOT_YET_ATTESTED'
+          echo 'B1031_NO_EAS_BUILD_NO_OTA_NO_PLAY_SUBMIT=PASS'

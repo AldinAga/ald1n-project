@@ -17,7 +17,7 @@
 <meta name="theme-color" content="{{ $shopTheme === 'dark' ? '#0e1317' : '#eef1f5' }}" media="(prefers-color-scheme: light)">
 <title>@yield('title', 'Katalog') · {{ $shopBrand['brand'] }}</title>
 @if($shopBrand['favicon'])<link rel="icon" href="{{ $shopBrand['favicon']['href'] }}" type="{{ $shopBrand['favicon']['type'] }}">@endif
-<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611101' }}">
+<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611141' }}">
 @stack('head')
 </head>
 <body class="public-retail">

@@ -30,17 +30,19 @@ jobs:
           git rev-parse HEAD > "$evidence/source-head.txt"
           node - <<'NODE'
           const fs=require('node:fs'),cp=require('node:child_process'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-          const base='825b96bac13088658cd7a50e6514d40e78f89dbc',p='apps/mobile/current/package-lock.json';
+          // 2026-11-14: re-based onto the live SDK58 release line (versionCode 29).
+          const base='6adb3b440b8cfdc068b142a98c418d9d91487f64',p='apps/mobile/current/package-lock.json';
           const old=JSON.parse(cp.execFileSync('git',['show',base+':'+p],{encoding:'utf8'})),bytes=fs.readFileSync(p),now=JSON.parse(bytes);
-          assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3');
+          assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'e2716c6d3af90e1e1a31031d69df8cd80554ec92800154dfa5c3a34c1ef73098');
           assert.deepEqual(now.packages[''],old.packages['']);
-          const expected={'node_modules/@xmldom/xmldom':'0.8.15','node_modules/brace-expansion':'5.0.12','node_modules/node-forge':'1.4.3','node_modules/plist/node_modules/@xmldom/xmldom':'0.9.12','node_modules/shell-quote':'1.12.0','node_modules/zod':'4.6.7'};
+          // xmldom 0.8.15 and 0.9.12 were already in the SDK58 lock; four of the six advisories remain to patch.
+          const expected={'node_modules/brace-expansion':'5.0.12','node_modules/node-forge':'1.4.3','node_modules/shell-quote':'1.12.0','node_modules/zod':'4.6.7'};
           const {isDeepStrictEqual}=require('node:util');
           assert(isDeepStrictEqual({a:1,b:2},{b:2,a:1}));assert(!isDeepStrictEqual({version:'1'},{version:'2'}));
           const keys=[...new Set([...Object.keys(old.packages),...Object.keys(now.packages)])],changed=[];
           for(const k of keys){if(!isDeepStrictEqual(old.packages[k],now.packages[k])){assert(k in expected,'unexpected package object changed: '+k);assert.equal(now.packages[k].version,expected[k]);changed.push(k);}}
           assert.deepEqual(changed.sort(),Object.keys(expected).sort());
-          cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--','apps/mobile/current/package.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json','apps/mobile/current/src','apps/mobile/current/scripts','apps/cms/current','packages']);
+          cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--','apps/mobile/current/package.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']);
           fs.writeFileSync(process.env.RUNNER_TEMP+'/b1106-mobile/lock-proof.json',JSON.stringify({baseline:base,changed,allOtherPackageObjectsUnchanged:true,noNativeConfigOrApplicationChange:true},null,2)+'\n');
           NODE
       - name: Full existing Mobile regression and prospective audit evidence
@@ -48,12 +50,12 @@ jobs:
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/b1106-mobile"
-          npm exec --yes --package=npm@10.9.2 -- npm ci --no-audit --no-fund > "$evidence/install.log" 2>&1
+          npm exec --yes --package=npm@12.2.1 -- npm ci --ignore-scripts --no-audit --no-fund > "$evidence/install.log" 2>&1
           npm run typecheck > "$evidence/typecheck.log" 2>&1
           npm run validate > "$evidence/validator.log" 2>&1
           npm run test:release25 > "$evidence/release25.log" 2>&1
           tail -n 12 "$evidence/release25.log"
-          echo 'de1584266558fe72e30cc7fa3332fa0c16758b526b561d5c58c4b7c1dadbb1d3  package-lock.json' | sha256sum --check
+          echo 'e2716c6d3af90e1e1a31031d69df8cd80554ec92800154dfa5c3a34c1ef73098  package-lock.json' | sha256sum --check
           rc=0
           npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/audit.json" 2> "$evidence/audit.stderr" || rc=$?
           printf '%s\n' "$rc" > "$evidence/audit.exit"

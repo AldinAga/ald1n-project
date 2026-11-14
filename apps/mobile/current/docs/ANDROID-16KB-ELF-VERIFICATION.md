@@ -81,7 +81,7 @@ The focused workflow `android-16kb-elf-verifier-qa.yml` tests these two files an
 the exact pinned vendor AAR. It does not repeat the full application suite,
 prebuild, Gradle compilation or an EAS build.
 
-The one-off `android-aab27-relro-readonly.yml` workflow reads the existing EAS
+The one-off `android-aab27-relro-readonly.yml` workflow (since removed from the repository, its run history remains) read the existing EAS
 build through the already configured repository credential. It binds the
 archive to its recorded SHA-256 and byte count, then checks GNU_RELRO in all
 55 packaged 64-bit libraries. The known old nativegauss defect remains a

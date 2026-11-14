@@ -42,7 +42,7 @@ export default function ForgotPasswordScreen() {
         <Controller control={control} name="email" render={({ field }) => <TextField label="E-mail" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={field.value} onBlur={field.onBlur} onChangeText={field.onChange} error={errors.email?.message} returnKeyType="done" onSubmitEditing={() => void submit()} />} />
         {errors.root?.message ? <Text style={styles.error}>{errors.root.message}</Text> : null}
         {status ? <Text style={styles.success}>{status}</Text> : null}
-        <Button onPress={submit} loading={isSubmitting}>Pošalji link za reset</Button>
+        <Button onPress={() => void submit()} loading={isSubmitting}>Pošalji link za reset</Button>
         <Button variant="ghost" onPress={() => router.replace('/login' as Href)}>Nazad na prijavu</Button>
       </View>
     </ScrollView>

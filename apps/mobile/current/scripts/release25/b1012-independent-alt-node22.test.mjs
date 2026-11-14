@@ -15,20 +15,18 @@ const pathPrefix = 'PATH=/opt/alt/alt-nodejs22/root/bin:$PATH ';
 const oldNodevenv = '/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node';
 const npmCli = '/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js';
 
-test('every optional native build command uses independent ALT Node22 and pinned EAS 25', () => {
-  const commands = [
-    'build:android:preview', 'build:android:development',
-    'build:ios:preview', 'build:ios:development',
-    'build:ios:simulator', 'build:ios:production'
-  ];
-  for (const cmd of commands) {
-    const script = pkg.scripts[cmd];
-    assert.ok(script.includes(pathPrefix + node + ' ' + npmCli + ' exec --yes --package=eas-cli@25.0.0 -- eas build --platform '), cmd);
-    assert.ok(!script.includes(oldNodevenv), cmd);
-    assert.ok(!script.includes('--auto-submit'), cmd);
+test('six legacy npm native entrypoints cannot bypass signed 16KiB release controls', () => {
+  for(const name of [
+    'build:android:preview','build:android:development',
+    'build:ios:preview','build:ios:development','build:ios:simulator','build:ios:production'
+  ]) {
+    const value=pkg.scripts[name];
+    assert.ok(value.includes('node scripts/release27/hold-unaudited-native-build.mjs --platform '),name);
+    assert.ok(!value.includes('-- eas build ') && !value.includes('eas-cli@25.0.0'),name);
+    assert.ok(!value.includes(oldNodevenv) && !value.includes('--auto-submit'),name);
   }
-  assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');
-  assert.equal(pkg.scripts['submit:android:production'], 'node scripts/submit-android-production.mjs');
+  assert.equal(pkg.scripts['build:android:production'],'node scripts/build25-release-controller.mjs');
+  assert.equal(pkg.scripts['submit:android:production'],'node scripts/submit-android-production.mjs');
 });
 
 test('release shell preserves owner authorization, lock, exact controller and PATH', () => {
@@ -41,7 +39,7 @@ test('release shell preserves owner authorization, lock, exact controller and PA
 
 test('disabled Android production submit helper resolves child node independently', () => {
   assert.ok(submit.includes("const NODE_BIN = '" + node + "'"));
-  assert.ok(submit.includes("const EAS_CLI_VERSION = '25.0.0'"));
+  assert.ok(submit.includes("const EAS_CLI_VERSION = '27.2.0'"));
   assert.ok(submit.includes("PATH: `${path.dirname(NODE_BIN)}${path.delimiter}${process.env.PATH || ''}`"));
   assert.ok(submit.includes("if (mode === '--execute') die('DIRECT_SUBMIT_DISABLED:"));
   assert.ok(!submit.includes(oldNodevenv));
