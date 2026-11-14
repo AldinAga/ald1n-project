@@ -171,6 +171,7 @@ jobs:
             ${{ runner.temp }}/ald1n-admin-visual-artifacts/*.json
             ${{ runner.temp }}/ald1n-admin-visual-artifacts/*.md
             ${{ runner.temp }}/ald1n-admin-visual-artifacts/*.log
+            ${{ runner.temp }}/ald1n-admin-visual-artifacts/text/
           if-no-files-found: warn
           retention-days: 30
       - name: Confirm no production access required

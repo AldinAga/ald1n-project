@@ -28,7 +28,9 @@ Po ćeliji (stranica, pregledač, širina, tema) beležimo:
 - konzolne greške i neuspele zahteve ka istom izvoru;
 - axe-core: `color-contrast`, `document-title`, `html-has-lang`, `label`, `button-name`, `link-name`, `image-alt`.
 
-Mobilni meni na 1280 px ne postoji (tada je navigacija raširena), pa se ta ćelija preskače i tako je označena.
+Dugme mobilnog menija danas postoji na svim širinama, pa se meni otvara i na 1280 px. Ako se to promeni, ćelija bez dugmeta se preskače i tako je označena u JSON-u.
+
+Alat sam sebe proverava jednom po pokretanju: u stranicu ubacuje element širok 3000 px i traži da detektor preliva to uhvati, inače je to greška infrastrukture. Uz svaki snimak čuvamo i vidljivi tekst (`text/`), da se razlika između dva pokretanja lako nađe.
 
 ## Stabilnost snimaka
 

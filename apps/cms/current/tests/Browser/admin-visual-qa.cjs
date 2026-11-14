@@ -129,6 +129,7 @@ const infra = [];     // infrastructure failures: these fail the job
 const findings = [];  // recorded design violations: these never fail the baseline job
 const cells = [];
 const determinism = [];
+const selfTests = [];
 const fail = (code, detail) => { infra.push(code + ' :: ' + detail); console.error('INFRA ' + code + ' :: ' + detail); };
 
 function contextOptions(theme, extra = {}) {
@@ -194,7 +195,12 @@ async function freezeDynamic(page) {
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}' });
   await page.evaluate(async () => {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const months = '(?:januar|februar|mart|april|maj|jun|jul|avgust|septembar|oktobar|novembar|decembar|jan|feb|mar|apr|avg|sep|sept|okt|nov|dec)[a-zčćšđž]*\\.?';
     const rules = [
+      [new RegExp('(?:ponedeljak|utorak|sreda|četvrtak|petak|subota|nedelja),?\\s*', 'gi'), ''],
+      [new RegExp('\\b\\d{1,2}\\.\\s*' + months + '\\s*\\d{4}\\.?', 'gi'), '01.01.2026.'],
+      [new RegExp('\\b' + months + '\\s+\\d{4}\\.?', 'gi'), 'januar 2026'],
+      [/\b\d{4}-\d{2}-\d{2}T[\d:.]+Z?\b/g, '2026-01-01'],
       [/\b\d{1,2}\.\s?\d{1,2}\.\s?\d{4}\.?/g, '01.01.2026.'],
       [/\b\d{4}-\d{2}-\d{2}\b/g, '2026-01-01'],
       [/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '00:00'],
@@ -208,6 +214,24 @@ async function freezeDynamic(page) {
       if (t !== n.nodeValue) n.nodeValue = t;
     }
   });
+}
+// Names the elements whose pixels differ between two consecutive captures (up to 6).
+async function diffElements(page, mask) {
+  const count = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('.page-shell *')].filter((e) => e.getBoundingClientRect().height > 8).slice(0, 150);
+    els.forEach((e, i) => e.setAttribute('data-vqa-i', String(i)));
+    return els.length;
+  });
+  const out = [];
+  for (let i = 0; i < count && out.length < 6; i++) {
+    const loc = page.locator(`[data-vqa-i="${i}"]`);
+    try {
+      const a = await loc.screenshot({ animations: 'disabled', caret: 'hide', mask, maskColor: '#7f7f7f', timeout: 3000 });
+      const b = await loc.screenshot({ animations: 'disabled', caret: 'hide', mask, maskColor: '#7f7f7f', timeout: 3000 });
+      if (Buffer.compare(a, b) !== 0) out.push(await loc.evaluate((e) => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + [...e.classList].slice(0, 3).map((c) => '.' + c).join('')));
+    } catch (e) { /* element not capturable */ }
+  }
+  return out;
 }
 async function settle(page) {
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
@@ -271,9 +295,24 @@ async function runCell(ctx, pg, width, theme) {
     if (!fs.existsSync(shotOpts.path) || fs.statSync(shotOpts.path).size < 500) throw new Error('screenshot missing');
     cell.screenshot = file;
     cell.sha256 = crypto.createHash('sha256').update(buf).digest('hex');
+    // Visible text after freezing, so a pixel difference between two runs can be traced to a string.
+    const textDir = path.join(artifactDir, 'text', browserName);
+    fs.mkdirSync(textDir, { recursive: true });
+    fs.writeFileSync(path.join(textDir, file.replace(/\.png$/, '.txt')), await page.evaluate(() => document.body.innerText));
     if (pg.determinism && width === 1280 && theme === 'light') {
       const again = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide', mask: shotOpts.mask, maskColor: '#7f7f7f' });
-      determinism.push({ page: pg.key, browser: browserName, identicalInRun: Buffer.compare(buf, again) === 0 });
+      const identical = Buffer.compare(buf, again) === 0;
+      const entry = { page: pg.key, browser: browserName, identicalInRun: identical };
+      if (!identical) entry.differing = await diffElements(page, shotOpts.mask);
+      determinism.push(entry);
+    }
+    // Harness self-test, once per run: the overflow detector must see a deliberately too-wide element.
+    if (pg.key === 'shell-plain' && width === 375 && theme === 'light') {
+      await page.evaluate(() => { const d = document.createElement('div'); d.id = 'vqa-selftest'; d.style.cssText = 'width:3000px;height:4px'; document.body.appendChild(d); });
+      const probe = await measureOverflow(page);
+      await page.evaluate(() => document.getElementById('vqa-selftest').remove());
+      selfTests.push({ overflowDetector: probe.scrollWidth > probe.vw + 1 && probe.offenders.length > 0 });
+      if (!selfTests[selfTests.length - 1].overflowDetector) fail('SELFTEST', 'overflow detector did not see a 3000px element');
     }
   } catch (e) {
     cell.status = 'infra-failure';
@@ -318,7 +357,7 @@ async function runCell(ctx, pg, width, theme) {
   const out = {
     browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...AXE_RULES, 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key })),
-    infra_failures: infra, cells, determinism, findings,
+    infra_failures: infra, selfTests, cells, determinism, findings,
   };
   fs.writeFileSync(path.join(artifactDir, `admin-visual-baseline-${browserName}.json`), JSON.stringify(out, null, 1));
   console.log(`ADMIN_VISUAL ${browserName}: cells=${cells.length} findings=${findings.length} infra=${infra.length} minutes=${((Date.now() - started) / 60000).toFixed(1)}`);
