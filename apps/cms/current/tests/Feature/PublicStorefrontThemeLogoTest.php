@@ -489,7 +489,10 @@ final class PublicStorefrontThemeLogoTest extends TestCase
 
         self::assertStringContainsString('<img class="shop-logo shop-logo-light" src="/storage/site-assets/logo-light.png" alt="AP &lt;Computers&gt; &quot;logo&quot;" height="40" width="160" loading="eager" decoding="async">', $brand);
         self::assertStringContainsString('<img class="shop-logo shop-logo-dark" src="/storage/site-assets/logo-dark.png" alt="AP &lt;Computers&gt; &quot;logo&quot;" height="40" width="160" loading="eager" decoding="async">', $brand);
-        self::assertStringContainsString('<span class="shop-brand-sub">Javni katalog</span>', $brand);
+        // An uploaded logo stands alone: no subtitle, no name text beside it; the image alt names the link.
+        self::assertStringNotContainsString('shop-brand-sub', $brand);
+        self::assertStringNotContainsString('Javni katalog', $brand);
+        self::assertStringNotContainsString('shop-brand-text', $brand);
         self::assertStringNotContainsString('shop-brand-mark', $brand);
         self::assertStringNotContainsString('poison.glass', $html);
         self::assertStringNotContainsString('forwarded.glass', $html);
@@ -504,22 +507,25 @@ final class PublicStorefrontThemeLogoTest extends TestCase
         $this->settings(['site_logo_dark_path' => $this->asset('only-dark.png'), 'site_logo_alt' => 'AP.Computers']);
         $brand = $this->brandLink((string) $this->get('/katalog')->assertOk()->getContent());
         self::assertSame(1, substr_count($brand, '<img'));
-        self::assertStringContainsString('<img class="shop-logo" src="/storage/site-assets/only-dark.png" alt="AP.Computers" height="38" width="152"', $brand);
+        self::assertStringContainsString('<img class="shop-logo" src="/storage/site-assets/only-dark.png" alt="AP.Computers" height="32" width="128"', $brand);
         self::assertStringNotContainsString('shop-logo-light', $brand);
     }
 
     public static function logoHeights(): array
     {
         return [
-            'too small' => ['10', '24', '96'],
-            'too large' => ['200', '80', '320'],
-            'not a number' => ['abc', '24', '96'],
+            'too small' => ['10', '32', '128'],
+            'too large' => ['200', '32', '128'],
+            'not a number' => ['abc', '32', '128'],
+            'float' => ['40.5', '32', '128'],
+            'lower bound' => ['24', '24', '96'],
+            'upper bound' => ['80', '80', '320'],
             'regular' => ['50', '50', '200'],
         ];
     }
 
     #[DataProvider('logoHeights')]
-    public function test_logo_height_is_clamped_to_the_admin_range(string $stored, string $height, string $width): void
+    public function test_header_logo_height_outside_the_admin_range_falls_back_to_the_default(string $stored, string $height, string $width): void
     {
         $this->settings(['site_logo_light_path' => $this->asset('h.png'), 'site_header_logo_height' => $stored]);
         $brand = $this->brandLink((string) $this->get('/katalog')->assertOk()->getContent());
@@ -571,8 +577,39 @@ final class PublicStorefrontThemeLogoTest extends TestCase
 
         $this->settings(['site_footer_show_logo' => '1']);
         $html = (string) $this->get('/korpa')->assertOk()->getContent();
-        self::assertStringContainsString('<img class="shop-footer-logo shop-logo-light" src="/storage/site-assets/f-light.png" alt="AP.Computers" height="32" width="128" loading="lazy" decoding="async">', $html);
+        self::assertStringContainsString('<img class="shop-footer-logo shop-logo-light" src="/storage/site-assets/f-light.png" alt="AP.Computers" height="28" width="112" loading="lazy" decoding="async">', $html);
         self::assertStringContainsString('<img class="shop-footer-logo shop-logo-dark" src="/storage/site-assets/f-dark.png"', $html);
+    }
+
+    public static function footerLogoHeights(): array
+    {
+        return [
+            'saved' => ['48', '48', '192'],
+            'lower bound' => ['20', '20', '80'],
+            'upper bound' => ['96', '96', '384'],
+            'corrupted text' => ['abc', '28', '112'],
+            'below range' => ['5', '28', '112'],
+            'above range' => ['500', '28', '112'],
+            'float' => ['40.5', '28', '112'],
+            'empty' => ['', '28', '112'],
+        ];
+    }
+
+    #[DataProvider('footerLogoHeights')]
+    public function test_footer_logo_height_comes_from_the_setting_or_falls_back_to_28(string $stored, string $height, string $width): void
+    {
+        $this->settings([
+            'site_logo_light_path' => $this->asset('fh-light.png'),
+            'site_logo_dark_path' => $this->asset('fh-dark.png'),
+            'site_header_logo_height' => '40',
+            'site_footer_show_logo' => '1',
+            'site_footer_logo_height' => $stored,
+        ]);
+        $html = (string) $this->get('/korpa')->assertOk()->getContent();
+        self::assertStringContainsString('<img class="shop-footer-logo shop-logo-light" src="/storage/site-assets/fh-light.png" alt="AP.Computers" height="'.$height.'" width="'.$width.'" loading="lazy"', $html);
+        self::assertStringContainsString('<img class="shop-footer-logo shop-logo-dark" src="/storage/site-assets/fh-dark.png" alt="AP.Computers" height="'.$height.'" width="'.$width.'" loading="lazy"', $html);
+        // The header logo keeps its own setting.
+        self::assertStringContainsString('height="40" width="160"', $this->brandLink($html));
     }
 
     public function test_favicon_comes_from_the_site_settings(): void

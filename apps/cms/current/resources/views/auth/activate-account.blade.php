@@ -14,6 +14,7 @@
             @if($siteLogoLightUrl || $siteLogoDarkUrl)
                 <img
                     class="auth-logo"
+                    height="{{ \App\Services\SettingsService::logoHeight('site_auth_logo_height', $siteSettings['site_auth_logo_height'] ?? null) }}"
                     src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}"
                     data-logo-light="{{ $siteLogoLightUrl }}"
                     data-logo-dark="{{ $siteLogoDarkUrl }}"

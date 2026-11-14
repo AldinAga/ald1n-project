@@ -89,7 +89,7 @@
 
 <div class="auth-layout auth-glass-shell {{ $hasLoginBackground ? 'auth-layout-over-background' : '' }}" data-login-glassmorphism>
     <section class="auth-intro auth-glass-intro">
-        <div class="brand brand-large">@if($siteLogoLightUrl || $siteLogoDarkUrl)<img class="auth-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteSettings['site_logo_alt'] }}">@else<span class="brand-mark">A</span><span><strong>{{ mb_strtoupper($siteSettings['site_name']) }}</strong><small>Poslovni sistem</small></span>@endif</div>
+        <div class="brand brand-large">@if($siteLogoLightUrl || $siteLogoDarkUrl)<img class="auth-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteSettings['site_logo_alt'] }}" height="{{ \App\Services\SettingsService::logoHeight('site_auth_logo_height', $siteSettings['site_auth_logo_height'] ?? null) }}">@else<span class="brand-mark">A</span><span><strong>{{ mb_strtoupper($siteSettings['site_name']) }}</strong><small>Poslovni sistem</small></span>@endif</div>
         <span class="eyebrow">Siguran pristup</span>
         <h1>Upravljajte katalogom i poslovnim procesima na jednom mestu.</h1>
         <p>Prijavite se svojim korisničkim nalogom kako biste nastavili.</p>

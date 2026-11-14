@@ -43,6 +43,7 @@
                         <span>Učitaj logo</span>
                         <input type="file" name="documents_logo" accept=".png,.jpg,.jpeg,.webp">
                     </label>
+                    <label><span>Visina logotipa na PDF-u (pt)</span><input type="number" name="documents_logo_height" min="16" max="36" step="1" value="{{ old('documents_logo_height', $settings['documents_logo_height']) }}" required aria-describedby="hint-documents_logo_height"><small class="muted" id="hint-documents_logo_height">Od 16 do 36 pt (1 pt = 1/72 inča), podrazumevano 26 pt. Širina je najviše 48 pt. Kada je logo prikazan, ime firme se u zaglavlju PDF-a ne ispisuje pored njega.</small>@error('documents_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
                     <p class="muted">Podržani su PNG, JPG/JPEG i WebP do 4 MB. Logo se automatski priprema za pouzdano ugrađivanje u PDF. Ako poseban logo nije postavljen, koristi se logo svetle teme sajta.</p>
                     @if(!empty($settings['documents_logo_path']))
                         <button class="button button-danger button-small" type="submit" form="remove-document-logo" data-confirm="Ukloniti poseban PDF logo?">Ukloni PDF logo</button>
