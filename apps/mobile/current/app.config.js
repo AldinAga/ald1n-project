@@ -40,7 +40,7 @@ const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
 const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play2';
 const m17Deps = require('./package.json').dependencies || {};
 const isM17Sdk58Source =
-  m17Deps.expo === '~58.0.22'
+  m17Deps.expo === '~58.0.25'
   && m17Deps['react-native'] === '0.88.1'
   && m17Deps['react-native-nitro-google-signin'] === '2.3.1'
   && m17Deps['react-native-nitro-modules'] === '0.37.1';
