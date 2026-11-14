@@ -37,11 +37,17 @@ final class PublicCatalogPresentation
 
     public const DEFAULT_VIEW = 'grid';
 
-    /** Whitelist check on the raw query value; arrays, "040", "1000" and junk fall back. */
+    /**
+     * Whitelist check on the raw query value (string) or an already checked
+     * value (int); arrays, "040", "1000" and junk fall back.
+     */
     public static function perPage(mixed $raw): int
     {
-        return is_string($raw) && in_array($raw, array_map('strval', self::PER_PAGE_OPTIONS), true)
-            ? (int) $raw : self::DEFAULT_PER_PAGE;
+        if (is_string($raw)) {
+            $raw = in_array($raw, array_map('strval', self::PER_PAGE_OPTIONS), true) ? (int) $raw : null;
+        }
+
+        return is_int($raw) && in_array($raw, self::PER_PAGE_OPTIONS, true) ? $raw : self::DEFAULT_PER_PAGE;
     }
 
     public static function viewMode(mixed $raw): string
