@@ -41,27 +41,45 @@ final class FlowPdfLayout
         $height = max(94.0, 50.0 + max(count($brand) * 17.0, count($references) * 12.0));
         if ($height > 300) throw new \LengthException('PDF header exceeds supported data length.');
         $this->pdf->rect(0, 0, SimplePdfWriter::PAGE_WIDTH, $height, '#172033');
-        $this->logo();
-        foreach ($brand as $i => $line) $this->pdf->text(110, 22 + $i * 17, $line, 13, true, '#ffffff');
+        // An uploaded logo stands for the brand; the company name is printed beside it only when there is none.
+        if (!$this->logo()) {
+            foreach ($brand as $i => $line) $this->pdf->text(110, 22 + $i * 17, $line, 13, true, '#ffffff');
+        }
         foreach ($references as $i => $line) $this->pdf->text(559, 23 + $i * 12, $line, 8.2, false, '#dbe5f4', 'right');
         $this->pdf->text(self::LEFT, $height - 24, $this->title, 11, true, '#ffffff');
         $this->top = $height + 22;
     }
 
-    private function logo(): void
+    /** True when the uploaded logo was drawn; false when the built-in mark replaced it. */
+    private function logo(): bool
     {
         $info = self::isRasterLogo($this->logo) ? @getimagesize($this->logo) : false;
         if (is_array($info) && ($info[0] ?? 0) > 0 && ($info[1] ?? 0) > 0) {
             // Deliberate neutral tile. Preserve artwork/color/aspect; no recoloring.
             $this->pdf->roundedRect(36, 22, 60, 44, 7, '#ffffff');
-            $scale = min(48 / $info[0], 32 / $info[1]);
+            $boxHeight = (float) self::logoHeight();
+            $scale = min(48 / $info[0], $boxHeight / $info[1]);
             $width = $info[0] * $scale; $height = $info[1] * $scale;
-            $x = 42 + (48 - $width) / 2; $y = 28 + (32 - $height) / 2;
+            $x = 42 + (48 - $width) / 2; $y = 22 + (44 - $height) / 2;
             if ($this->pdf->imageJpeg($x, $y, $width, $height, $this->logo)
-                || $this->pdf->imagePng($x, $y, $width, $height, $this->logo)) return;
+                || $this->pdf->imagePng($x, $y, $width, $height, $this->logo)) return true;
         }
         $this->pdf->roundedRect(36, 22, 60, 44, 7, '#f59e0b');
         $this->pdf->text(66, 26, 'A', 26, true, '#172033', 'center');
+
+        return false;
+    }
+
+    /** documents_logo_height in PDF points; the default when settings are unavailable (unit tests, broken cache). */
+    private static function logoHeight(): int
+    {
+        $stored = null;
+        try {
+            $stored = app(\App\Services\SettingsService::class)->get('documents_logo_height');
+        } catch (\Throwable) {
+        }
+
+        return \App\Services\SettingsService::logoHeight('documents_logo_height', $stored);
     }
 
     /**

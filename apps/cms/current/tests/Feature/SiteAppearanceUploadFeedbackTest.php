@@ -175,48 +175,72 @@ final class SiteAppearanceUploadFeedbackTest extends TestCase
             ->assertDontSee('data-upload-too-large', false);
     }
 
-    public function test_footer_logo_height_is_saved_shown_and_kept_when_the_field_is_absent(): void
-    {
-        $this->actingAs($this->admin)->get('/admin/settings/appearance')->assertOk()
-            ->assertSee('name="site_footer_logo_height" min="20" max="96" step="1" value="32"', false)
-            ->assertSee('Od 20 do 96 px, podrazumevano 32 px.');
-
-        foreach ([20, 48, 96] as $height) {
-            $this->actingAs($this->admin)->put('/admin/settings/appearance', $this->form(['site_footer_logo_height' => (string) $height]))
-                ->assertSessionHasNoErrors();
-            self::assertSame((string) $height, app(SettingsService::class)->get('site_footer_logo_height'));
-        }
-
-        $this->actingAs($this->admin)->put('/admin/settings/appearance', $this->form())->assertSessionHasNoErrors();
-        self::assertSame('96', app(SettingsService::class)->get('site_footer_logo_height'));
-    }
-
-    /** @return array<string,array{mixed}> */
-    public static function invalidFooterLogoHeights(): array
+    /** @return array<string,array{string,int,int,int,string}> key, min, max, default, message */
+    public static function logoHeightFields(): array
     {
         return [
-            'below range' => ['19'], 'zero' => ['0'], 'negative' => ['-5'], 'above range' => ['97'],
+            'header' => ['site_header_logo_height', 24, 80, 32, 'Visina logotipa u zaglavlju mora biti ceo broj od 24 do 80 px.'],
+            'footer' => ['site_footer_logo_height', 20, 96, 28, 'Visina logotipa u podnožju mora biti ceo broj od 20 do 96 px.'],
+            'admin' => ['site_admin_logo_height', 20, 56, 32, 'Visina logotipa u zaglavlju admin panela mora biti ceo broj od 20 do 56 px.'],
+            'auth' => ['site_auth_logo_height', 32, 80, 48, 'Visina logotipa na stranicama za prijavu mora biti ceo broj od 32 do 80 px.'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
+    public function test_logo_height_default_is_shown_and_saved_values_are_stored(string $key, int $min, int $max, int $default): void
+    {
+        $this->actingAs($this->admin)->get('/admin/settings/appearance')->assertOk()
+            ->assertSee('name="'.$key.'" min="'.$min.'" max="'.$max.'" step="1" value="'.$default.'"', false)
+            ->assertSee('podrazumevano '.$default.' px');
+
+        foreach ([$min, intdiv($min + $max, 2), $max] as $height) {
+            $this->actingAs($this->admin)->put('/admin/settings/appearance', $this->form([$key => (string) $height]))
+                ->assertSessionHasNoErrors();
+            self::assertSame((string) $height, app(SettingsService::class)->get($key));
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
+    public function test_logo_height_absent_from_a_partial_save_keeps_the_stored_value(string $key, int $min, int $max): void
+    {
+        app(SettingsService::class)->putMany([$key => (string) $max], $this->admin->id);
+        $form = $this->form();
+        unset($form[$key]);
+        $this->actingAs($this->admin)->put('/admin/settings/appearance', $form);
+        self::assertSame((string) $max, app(SettingsService::class)->get($key));
+    }
+
+    /** @return array<string,array{mixed}> Rejected for every field, whatever its range. */
+    public static function invalidLogoHeights(): array
+    {
+        return [
+            'zero' => ['0'], 'negative' => ['-5'], 'far above range' => ['500'],
             'float' => ['32.5'], 'text' => ['abc'], 'empty' => [''], 'array' => [['40']],
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidFooterLogoHeights')]
-    public function test_invalid_footer_logo_height_is_rejected_and_nothing_is_stored(mixed $height): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
+    public function test_invalid_logo_heights_are_rejected_with_a_serbian_message_and_nothing_is_stored(string $key, int $min, int $max, int $default, string $message): void
     {
-        $this->actingAs($this->admin)->from('/admin/settings/appearance')
-            ->put('/admin/settings/appearance', $this->form(['site_footer_logo_height' => $height]))
-            ->assertRedirect('/admin/settings/appearance')
-            ->assertSessionHasErrors(['site_footer_logo_height' => 'Visina logotipa u podnožju mora biti ceo broj od 20 do 96 px.']);
+        $invalid = [(string) ($min - 1), (string) ($max + 1)];
+        foreach (array_merge($invalid, array_map(static fn (array $row): mixed => $row[0], self::invalidLogoHeights())) as $value) {
+            $this->actingAs($this->admin)->from('/admin/settings/appearance')
+                ->put('/admin/settings/appearance', $this->form([$key => $value]))
+                ->assertRedirect('/admin/settings/appearance')
+                ->assertSessionHasErrors([$key => $message]);
 
-        self::assertFalse(app(SettingsService::class)->hasStoredValue('site_footer_logo_height'));
-        self::assertFalse(app(SettingsService::class)->hasStoredValue('site_name'));
+            self::assertFalse(app(SettingsService::class)->hasStoredValue($key));
+            self::assertFalse(app(SettingsService::class)->hasStoredValue('site_name'));
+        }
     }
 
-    public function test_invalid_header_logo_height_gets_a_serbian_message(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('logoHeightFields')]
+    public function test_a_corrupted_stored_logo_height_reads_as_the_default(string $key, int $min, int $max, int $default): void
     {
-        $this->actingAs($this->admin)->from('/admin/settings/appearance')
-            ->put('/admin/settings/appearance', $this->form(['site_header_logo_height' => '81']))
-            ->assertSessionHasErrors(['site_header_logo_height' => 'Visina logotipa u zaglavlju mora biti ceo broj od 24 do 80 px.']);
+        foreach (['abc', '', (string) ($min - 1), (string) ($max + 1), '30.5'] as $stored) {
+            app(SettingsService::class)->putMany([$key => $stored], $this->admin->id);
+            self::assertSame((string) $default, app(SettingsService::class)->get($key), 'stored: '.$stored);
+        }
     }
 
     public function test_non_admin_cannot_save_the_footer_logo_height(): void

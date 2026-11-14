@@ -469,7 +469,7 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 /* ---------- Footer ---------- */
 .shop-footer{margin-top:80px;border-top:1px solid var(--border);padding:34px 0 40px;color:var(--text-3);font-size:13px;background-color:var(--glass-fill-strong);-webkit-backdrop-filter:var(--glass-fx);backdrop-filter:var(--glass-fx);box-shadow:0 1px 0 var(--edge-light) inset}
 .shop-footer-brand{margin:0 0 18px}
-.shop-footer-logo{display:block;width:auto;max-width:min(100%,480px);object-fit:contain}
+.shop-footer-logo{display:block;width:auto;max-width:200px;object-fit:contain}
 .shop-footer-logo.shop-logo-light{display:none}
 :root[data-theme=light] .shop-footer-logo.shop-logo-dark{display:none}
 @media (prefers-color-scheme:light){

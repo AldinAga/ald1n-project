@@ -31,7 +31,6 @@
 @foreach(($shopBrand['logo_light']['src'] === $shopBrand['logo_dark']['src'] ? ['' => $shopBrand['logo_light']] : ['shop-logo-light' => $shopBrand['logo_light'], 'shop-logo-dark' => $shopBrand['logo_dark']]) as $logoVariant => $logo)
 <img class="shop-logo{{ $logoVariant !== '' ? ' '.$logoVariant : '' }}" src="{{ $logo['src'] }}" alt="{{ $shopBrand['logo_alt'] }}" height="{{ $shopBrand['logo_height'] }}"@if($logo['width']) width="{{ $logo['width'] }}"@endif loading="eager" decoding="async">
 @endforeach
-<span class="shop-brand-sub">{{ $shopSubtitle }}</span>
 @else
 <span class="shop-brand-mark" aria-hidden="true">{{ $shopBrand['initials'] }}</span><span class="shop-brand-text">{{ $shopBrand['brand'] }} <span>{{ $shopSubtitle }}</span></span>
 @endif

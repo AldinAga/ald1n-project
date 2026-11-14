@@ -6,7 +6,7 @@
 @section('content')
 <div class="auth-layout">
     <section class="auth-intro">
-        <div class="brand brand-large">@if($siteLogoLightUrl || $siteLogoDarkUrl)<img class="auth-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteSettings['site_logo_alt'] }}">@else<span class="brand-mark">A</span><span><strong>{{ mb_strtoupper($siteSettings['site_name']) }}</strong><small>Poslovni sistem</small></span>@endif</div>
+        <div class="brand brand-large">@if($siteLogoLightUrl || $siteLogoDarkUrl)<img class="auth-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteSettings['site_logo_alt'] }}" height="{{ \App\Services\SettingsService::logoHeight('site_auth_logo_height', $siteSettings['site_auth_logo_height'] ?? null) }}">@else<span class="brand-mark">A</span><span><strong>{{ mb_strtoupper($siteSettings['site_name']) }}</strong><small>Poslovni sistem</small></span>@endif</div>
         <span class="eyebrow">Bezbedan oporavak naloga</span>
         <h1>Vratite pristup svom nalogu.</h1>
         <p>Unesite e-mail adresu povezanu sa nalogom. Poslaćemo jednokratni link koji važi 60 minuta.</p>

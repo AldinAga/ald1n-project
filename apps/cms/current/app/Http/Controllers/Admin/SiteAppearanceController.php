@@ -113,6 +113,8 @@ final class SiteAppearanceController extends Controller
             'site_logo_alt' => ['nullable', 'string', 'max:160'],
             'site_header_logo_height' => ['required', 'integer', 'min:24', 'max:80'],
             'site_footer_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:96'],
+            'site_admin_logo_height' => ['sometimes', 'required', 'integer', 'min:20', 'max:56'],
+            'site_auth_logo_height' => ['sometimes', 'required', 'integer', 'min:32', 'max:80'],
             'site_footer_layout' => ['required', Rule::in(['split', 'centered'])],
             'site_footer_copyright_text' => ['nullable', 'string', 'max:300'],
             'site_footer_secondary_text' => ['nullable', 'string', 'max:300'],
@@ -158,8 +160,10 @@ final class SiteAppearanceController extends Controller
             'site_footer_link_3_url' => trim((string) ($data['site_footer_link_3_url'] ?? '')),
         ];
 
-        if (isset($data['site_footer_logo_height'])) {
-            $values['site_footer_logo_height'] = (string) (int) $data['site_footer_logo_height'];
+        foreach (['site_footer_logo_height', 'site_admin_logo_height', 'site_auth_logo_height'] as $heightKey) {
+            if (isset($data[$heightKey])) {
+                $values[$heightKey] = (string) (int) $data[$heightKey];
+            }
         }
 
         $newSlides = [];
@@ -422,11 +426,14 @@ final class SiteAppearanceController extends Controller
     {
         $messages = [];
         foreach ([
-            'site_header_logo_height' => 'Visina logotipa u zaglavlju mora biti ceo broj od 24 do 80 px.',
-            'site_footer_logo_height' => 'Visina logotipa u podnožju mora biti ceo broj od 20 do 96 px.',
-        ] as $attribute => $text) {
+            'site_header_logo_height' => 'Visina logotipa u zaglavlju',
+            'site_footer_logo_height' => 'Visina logotipa u podnožju',
+            'site_admin_logo_height' => 'Visina logotipa u zaglavlju admin panela',
+            'site_auth_logo_height' => 'Visina logotipa na stranicama za prijavu',
+        ] as $attribute => $label) {
+            [$min, $max] = SettingsService::LOGO_HEIGHTS[$attribute];
             foreach (['required', 'integer', 'min', 'max'] as $rule) {
-                $messages[$attribute.'.'.$rule] = $text;
+                $messages[$attribute.'.'.$rule] = $label.' mora biti ceo broj od '.$min.' do '.$max.' px.';
             }
         }
 
