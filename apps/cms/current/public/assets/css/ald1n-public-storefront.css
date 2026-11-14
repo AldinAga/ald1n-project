@@ -364,6 +364,24 @@ button:active{transform:translateY(1px)}
 .shop-chip svg{flex:0 0 auto;color:var(--text-3)}
 .shop-chip:hover{border-color:var(--accent)}
 .shop-chip:hover svg{color:var(--text)}
+/* Page size and layout controls sit on the "Prikazano" row; chips take their own row below. Scriptless: a GET form and two links. */
+.shop-results-bar .shop-chips{order:3;flex:1 1 100%}
+.shop-view-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px 16px;margin-left:auto}
+.shop-perpage{display:flex;align-items:center;gap:8px;margin:0}
+.shop-perpage label{font-size:13px;font-weight:620;letter-spacing:.02em;color:var(--text-2)}
+.shop-perpage select{-webkit-appearance:none;appearance:none;min-width:84px;min-height:44px;padding:8px 38px 8px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background-color:var(--field);background-image:var(--chevron);background-repeat:no-repeat;background-position:right 12px center;background-size:16px 16px;color:var(--text)}
+.shop-perpage select:hover{border-color:var(--accent)}
+.shop-perpage select:focus-visible,.shop-view-option:focus-visible{outline:3px solid var(--focus);outline-offset:1px;border-color:var(--accent)}
+.shop-perpage button.shop-button.shop-perpage-submit{min-height:44px;padding:8px 14px;font-size:14px;background:var(--ghost-bg);background-image:none;color:var(--text);border-color:var(--border-strong);box-shadow:none}
+.shop-perpage button.shop-button.shop-perpage-submit:hover{background-color:var(--ghost-bg-hover);color:var(--text)}
+/* Icon-only segmented control, same pill as the theme switch. */
+.shop-view-group{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:999px;background:var(--ghost-bg);box-shadow:0 1px 0 var(--edge-light) inset}
+.shop-view-option{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;border:1px solid transparent;border-radius:999px;background:transparent;color:var(--text-2);text-decoration:none}
+.shop-view-option:hover{background:var(--ghost-bg-hover);color:var(--text)}
+.shop-view-option[aria-current=true]{background:var(--surface-solid);color:var(--text);border-color:var(--border-strong);box-shadow:0 1px 0 var(--edge-light) inset,0 4px 12px -6px rgba(0,0,0,.45)}
+.shop-view-option[aria-current=true] svg{color:var(--accent)}
+.shop-view-option svg{flex:0 0 auto}
+@media (prefers-contrast:more){.shop-view-option[aria-current=true]{border:2px solid var(--text)}}
 
 /* ---------- Product grid ---------- */
 .shop-products{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(14px,1.8vw,22px);margin:0;padding:0;list-style:none}
@@ -397,6 +415,21 @@ button:active{transform:translateY(1px)}
 .shop-details-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 12px;border-radius:var(--radius-sm);color:var(--text-2);font-weight:600;font-size:15px;text-decoration:none}
 .shop-details-link:hover{color:var(--text);background:var(--ghost-bg-hover)}
 .shop-details-link:only-child{min-height:46px;border:1px solid var(--border-strong);background:var(--ghost-bg);color:var(--text)}
+/* List view: one compact row per product, same markup as the card. Selectors are
+   doubled so they win over the card rules and the gallery subgrid rules. */
+.shop-products.shop-products-list{grid-template-columns:minmax(0,1fr);gap:12px;row-gap:12px}
+.shop-products-list .shop-product-cell{grid-row:auto;display:flex;margin-bottom:0}
+.shop-products-list .shop-product{grid-row:auto;grid-template-rows:none;display:grid;grid-template-columns:128px minmax(0,1fr);align-items:center}
+.shop-products-list .shop-product>.shop-image{aspect-ratio:1/1;padding:10px;align-self:center}
+.shop-products-list .shop-product-body{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"brand meta" "title meta" "sku actions";column-gap:24px;row-gap:2px;align-items:start;padding:14px 18px}
+.shop-products-list .shop-product-brand{grid-area:brand}
+.shop-products-list .shop-product-title{grid-area:title;min-height:0;font-size:16px}
+.shop-products-list .sku{grid-area:sku}
+.shop-products-list .shop-product-meta{grid-area:meta;margin:0;justify-items:end;text-align:right}
+.shop-products-list .shop-stock{justify-self:end}
+.shop-products-list .shop-price-amount{font-size:21px}
+.shop-products-list .shop-product-actions{grid-area:actions;grid-auto-flow:column;align-items:center;justify-content:end;gap:8px;margin-top:8px}
+.shop-products-list .shop-button-block{width:auto}
 .shop-details-link:only-child:hover{background:var(--ghost-bg-hover);border-color:var(--accent)}
 .shop-details-link svg{flex:0 0 auto}
 
@@ -552,10 +585,21 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
   .shop-logo{max-height:44px}
 }
 @media (max-width:640px){.shop-input-row{grid-template-columns:1fr}}
+/* List rows on phones: thumbnail left, text and actions stacked beside it. */
+@media (max-width:720px){
+  .shop-products-list .shop-product{grid-template-columns:92px minmax(0,1fr);align-items:start}
+  .shop-products-list .shop-product>.shop-image{padding:8px}
+  .shop-products-list .shop-product-body{grid-template-columns:minmax(0,1fr);grid-template-areas:"brand" "title" "sku" "meta" "actions";padding:12px 14px 14px 4px}
+  .shop-products-list .shop-product-meta{justify-items:start;text-align:left;margin:8px 0 0}
+  .shop-products-list .shop-stock{justify-self:start}
+  .shop-products-list .shop-product-actions{grid-auto-flow:row;justify-content:stretch}
+  .shop-products-list .shop-button-block{width:100%}
+}
 @media (max-width:560px){
   .wrap{width:calc(100% - 32px)}
   .shop-products{grid-template-columns:minmax(0,1fr)}
   .shop-results-bar{align-items:flex-start;flex-direction:column}
+  .shop-view-tools{width:100%;justify-content:flex-start;margin-left:0}
   /* Phones: the logo carries the brand; the subtitle would wrap beside it. */
   .shop-brand-text span,.shop-brand-sub{display:none}
 }
@@ -635,6 +679,8 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
   .shop-stock-dot{forced-color-adjust:none}
   .shop-theme-option{border:1px solid ButtonText;color:ButtonText;background:ButtonFace}
   .shop-theme-option[aria-pressed=true]{border:3px solid Highlight;color:Highlight}
+  .shop-view-option{border:1px solid ButtonText;color:ButtonText;background:ButtonFace}
+  .shop-view-option[aria-current=true]{border:3px solid Highlight;color:Highlight}
 }
 @media print{
   .shop-header,.shop-footer,.shop-top-rail,.legal-nav,.shop-filter-panel,.shop-pages{display:none}

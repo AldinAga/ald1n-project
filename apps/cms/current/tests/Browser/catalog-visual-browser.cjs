@@ -67,7 +67,7 @@ async function budget(html, img) {
     await pause(1000);
   }
 }
-const imagesFor = url => (url.startsWith('/katalog') && !url.startsWith('/katalog/visual') ? 22 : 2);
+const imagesFor = url => (url.startsWith('/katalog') && !url.startsWith('/katalog/visual') ? (url.includes('per_page=20') ? 22 : 42) : 2);
 
 function watch(page, problems) {
   // Without a configured favicon the browser's automatic /favicon.ico 404 is not a page defect.
@@ -663,8 +663,22 @@ async function matrix(browserType, engine, {widths, pages, logo, extras}) {
           await measureContrast(page, 'filled cart ' + tag);
         }
         if (extras && mode.cookie === null && width !== 768) {
-          for (const [key, url] of [['page3', '/katalog?page=3'], ['filtered', '/katalog?q=Synthetic&brand_id=1&stock=available&sort=price_asc'], ['empty', '/katalog?q=nepostojeci-artikal']]) {
+          // The default page size is 40; 20 keeps the three-page case and the list view gets its own pass.
+          for (const [key, url] of [['page3', '/katalog?per_page=20&page=3'], ['list', '/katalog?view=list&per_page=20'], ['filtered', '/katalog?q=Synthetic&brand_id=1&stock=available&sort=price_asc'], ['empty', '/katalog?q=nepostojeci-artikal']]) {
             const end = await open(page, url, key + ' ' + tag, problems);
+            if (key === 'list') {
+              const listState = await page.evaluate(() => ({
+                list: document.querySelectorAll('ul.shop-products.shop-products-list').length,
+                current: [...document.querySelectorAll('.shop-view-option[aria-current="true"]')].map(a => a.getAttribute('aria-label')),
+                sizes: [...document.querySelectorAll('.shop-view-option')].map(a => Math.min(Math.round(a.getBoundingClientRect().width), Math.round(a.getBoundingClientRect().height))),
+                perPage: document.querySelector('#f-per-page') && document.querySelector('#f-per-page').value,
+                select: document.querySelector('#f-per-page') ? Math.round(document.querySelector('#f-per-page').getBoundingClientRect().height) : 0,
+                thumb: (() => { const i = document.querySelector('.shop-products-list .shop-image'); return i ? Math.round(i.getBoundingClientRect().width) : 0; })(),
+              }));
+              check(listState.list === 1 && listState.current.join() === 'Prikaz u listi' && listState.perPage === '20'
+                && listState.sizes.length === 2 && listState.sizes.every(s => s >= 44) && listState.select >= 44 && listState.thumb >= 60,
+              'list view controls ' + tag + ' ' + JSON.stringify(listState));
+            }
             if (key === 'empty') {
               // footerEnd is rounded up from a fractional box edge: allow 1px.
               check(Math.abs(end.sh - Math.max(end.ih, end.footerEnd)) <= 1, 'empty ' + tag + ' page ends at the footer ' + JSON.stringify(end));

@@ -6,6 +6,7 @@ namespace App\Services;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Support\PublicCatalogPresentation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
@@ -81,9 +82,18 @@ final class PublicRetailCatalogService
         // B901: the paginator otherwise derives an absolute site origin.
         // Internal page links and filter state must stay on the current origin,
         // independent of Host/proxy headers and deploy-time APP_URL.
-        return $query->paginate(20)
+        // per_page and view are whitelisted here, never taken from the request as-is.
+        // appends() overrides the raw query values; null (the default) drops the key.
+        $perPage = PublicCatalogPresentation::perPage($filters['per_page'] ?? null);
+        $view = PublicCatalogPresentation::viewMode($filters['view'] ?? null);
+
+        return $query->paginate($perPage)
             ->withPath(route('public-shop.catalog', [], false))
-            ->withQueryString();
+            ->withQueryString()
+            ->appends([
+                'per_page' => $perPage === PublicCatalogPresentation::DEFAULT_PER_PAGE ? null : $perPage,
+                'view' => $view === PublicCatalogPresentation::DEFAULT_VIEW ? null : $view,
+            ]);
     }
 
     public function bySlug(string $slug): Product
