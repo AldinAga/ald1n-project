@@ -139,3 +139,22 @@ test('real iOS production still HOLD without postponed Firebase file, not bypass
   assert.equal(sim.ok, true);
   assert.notEqual(sim.expectedBundleId, hold.expectedBundleId);
 });
+
+test('iOS runtime is exact per profile: production with dev-client or UAT runtime fails', () => {
+  const prod = configWith({
+    EXPO_PUBLIC_APP_ENV: 'production',
+    ALD1N_M17_SDK58_PLAY_RC: 'source-only',
+    ALD1N_M17_SDK58_PLAY_PROFILE: 'm17-sdk58-play-rc',
+  });
+  const args = (appConfig, profile) => ({
+    profile, eas, pkg, plist: '', previewPlist: plist, googleAuthSource,
+    filesPresent: false, root: mobile, appConfig,
+  });
+  assert.ok(!assessIosReadiness(args(prod, 'production')).blockers.includes('IOS_APP_RUNTIME_MISMATCH'));
+  for (const runtimeVersion of ['1.0.0-dev-client', '1.0.0-m17-sdk58-uat2']) {
+    const r = assessIosReadiness(args({ ...prod, runtimeVersion }, 'production'));
+    assert.ok(r.blockers.includes('IOS_APP_RUNTIME_MISMATCH'), runtimeVersion);
+  }
+  const preview = assessIosReadiness({ ...simulatedArgs(), profile: 'preview', appConfig: { ...previewConfig(), runtimeVersion: '1.0.0-dev-client' } });
+  assert.ok(preview.blockers.includes('IOS_APP_RUNTIME_MISMATCH'));
+});

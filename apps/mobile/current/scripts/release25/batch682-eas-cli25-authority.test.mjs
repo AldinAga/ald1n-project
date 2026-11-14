@@ -19,13 +19,13 @@ const app = read(path.join(mobile, 'app.config.js'));
 test('EAS27 project authority preserves historical EAS25 source and safe guards without global EAS installs', () => {
   assert.equal(eas.cli.version, '27.2.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
-  assert.ok(agents.includes('eas-cli@25.0.0'));
+  assert.ok(agents.includes('eas-cli@27.2.0'));
   assert.ok(agents.includes('CI 38862601089'));
   assert.ok(agents.includes('Authenticated production exact-group read on hosting'));
   assert.ok(!agents.includes('EAS_SPEC="eas-cli@24.8.0"'));
   assert.ok(/^# CURRENT(?: B\d+| \d{4}-\d{2}-\d{2} — B\d+)/.test(index));
   assert.ok(index.includes('Android M16') || index.includes('Android 16KB'));
-  assert.ok(eas.cli.version === '27.2.0' && agents.includes('eas-cli@25.0.0'));
+  assert.ok(eas.cli.version === '27.2.0' && agents.includes('eas-cli@27.2.0'));
 });
 
 test('SDK58 build wrappers are fail-closed while legacy Build25 submit remains disabled', () => {

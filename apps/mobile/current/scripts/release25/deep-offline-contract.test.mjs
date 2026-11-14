@@ -67,7 +67,7 @@ test('native npm builds require signed 16KiB release gates; historic Build25 con
 
 test('production build and legacy submit remain explicitly fail closed',()=>{
  marker(controller,'BUILD25_BLOCKED: Direct production CLI not enabled');
- marker(helper,'DIRECT_SUBMIT_DISABLED: use verified Build25 controller');
+ marker(helper,'DIRECT_SUBMIT_DISABLED: use the verified release controller');
  assert.ok(!wf.includes('workflow_dispatch:'));
  assert.ok(!wf.includes('audit/build25-deep-offline-convergence-20261009'));
  marker(wf,'      - audit/build25-native-ci-explicit-trigger-20261009');

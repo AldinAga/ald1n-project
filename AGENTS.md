@@ -398,7 +398,7 @@ This is an entrypoint rule for EVERY NEW Ald1n chat and operator batch, not an o
 - **2026-10-21 MySQL 8.4 SQL 1221 cross-family rule (PR78 recovery):** Laravel's PDO driver name is `mysql` for **both** MySQL and MariaDB, but their INSTANT DDL lock syntax differs. **MariaDB 10.11** accepts `ALGORITHM=INSTANT, LOCK=NONE`; **MySQL 8.4** rejects this combination with SQL 1221 and requires `ALGORITHM=INSTANT` with its default lock strategy (do not set `LOCK=NONE`). Use the real `SELECT VERSION()` to choose the *exact* separately tested SQL, and fail closed on unknown versions; retain InnoDB preflight and bounded/restored metadata-lock timeout. This is not permission for a slower `COPY`/`INPLACE` fallback. Real MySQL8.4 negative evidence [CI 39639308774](https://github.com/AldinAga/ald1n-project/actions/runs/39639308774), corrected MySQL8.4 **and** MariaDB10.11.19 success [CI 39640326290](https://github.com/AldinAga/ald1n-project/actions/runs/39640326290). No production DDL was run.
 
 - Node: CloudLinux **Node.js 22** environment `/home/icaffeco/nodevenv/mobile-build.ald1n.com/22/bin/node`; npm CLI `/opt/alt/alt-nodejs22/root/usr/lib/node_modules/npm/bin/npm-cli.js`. Always check these exact executables before use. Do not assume shell `node`/`npm` are resolved. No global npm upgrade (`npm install -g`) and no generic `expo install --fix`; never upgrade npm solely because it prints a notice.
-- EAS CLI: pinned `eas-cli@25.0.0` invoked through the canonical Node22/npm exec, subject to the separately approved authenticated production release gates. A CI PASS is not permission to publish OTA, build, or Play submission.
+- EAS CLI: pinned `eas-cli@27.2.0` (matches eas.json) invoked through the canonical Node22/npm exec, subject to the separately approved authenticated production release gates. A CI PASS is not permission to publish OTA, build, or Play submission.
 - JDK: JDK **17** is mandatory for native/signature regression tests; on this host `java`, `jar`, `jarsigner`, and `keytool` may be absent from PATH entirely. Check executable availability and real smoke functionality. If unavailable, a verified portable Temurin JDK17 may be installed in private `$HOME/.ald1n-toolchains` with SHA-256 verification, non-root, no global environment edits. Never bypass failed signature tests.
 - **Owner UX rule (2026-10-21): do not require or suggest a separate manual `sha256sum` command for ordinary operator batch execution.** File integrity checks, when needed, must be done automatically inside the script and reported without a second operator command. This changes the user-facing workflow, NOT the requirement to protect executable source integrity or release provenance. Give the owner one straightforward invocation from the canonical `incoming/` path.
 - **Mandatory CloudLinux delivery review (2026-10-21):** before giving any operator script, statically reject the patterns `<(`, `>(`, `/dev/fd`, `exec > >(`, `done < <(` and any shell process substitution, and run `bash -n` or `sh -n` matching its interpreter. Prior Batch687 and the 2026-10-21 v1.5 batch both failed with `/dev/fd/63`; never repeat this failure. Use `tee` by ordinary pipe with explicit `PIPESTATUS` or a regular report file, not process substitution.
@@ -479,10 +479,10 @@ Approved pattern:
 
 Do **not** require or probe for a physical/global `eas` binary as a hard prerequisite.
 
-Canonical pinned EAS CLI version for new repository operations (read-only GitHub Actions validated 2026-10-16):
+Canonical pinned EAS CLI version for new repository operations (matches eas.json; the SDK 58 line uses 27.2.0):
 
 ```text
-eas-cli@25.0.0
+eas-cli@27.2.0
 ```
 
 Upgrade from 24.8.0 to **25.0.0**: exact-source Node 22.16 read-only compatibility [CI 38862601089](https://github.com/AldinAga/ald1n-project/actions/runs/38862601089) PASS (CLI version and Update, republish, channel, project, build and submit help/flag contracts). Upstream [v25.0.0 release notes](https://github.com/expo/eas-cli/releases/tag/v25.0.0) list simulator-preview link sharing as the published breaking change. **Authenticated production exact-group read on hosting with CLI 25: PASS** (owner-executed Report683, 2026-10-16; source `6a02eec0d2a800de7db1996adfdc2fd0e69d0cac`, exact production group `37ae8af0-b950-4549-8476-c960e1350866`, no mutation). The production channel/latest GraphQL mapping was **not** rechecked by Report683 and remains a separate gate for every future EAS publish. Do not install globally, run builds/OTA or modify production as part of this upgrade. Future versions require their own isolated compatibility and fail-closed tests.
@@ -490,7 +490,7 @@ Upgrade from 24.8.0 to **25.0.0**: exact-source Node 22.16 read-only compatibili
 Approved invocation:
 
 ```bash
-EAS_SPEC="eas-cli@25.0.0"
+EAS_SPEC="eas-cli@27.2.0"
 "$NODE_BIN" "$NPM_CLI" exec --yes --package "$EAS_SPEC" -- eas --version
 ```
 
@@ -517,7 +517,7 @@ Do not execute project-scoped EAS commands from the monorepo root.
 
 Known historical failure prevented by this rule: `eas update:list` failed when launched from the monorepo root even though authentication worked.
 
-### Command-specific flag policy for eas-cli@25.0.0
+### Command-specific flag policy for eas-cli@27.2.0
 
 The flags are not uniform across EAS subcommands. Use the behavior proven on this hosting, not a blanket flag template.
 
@@ -1015,7 +1015,7 @@ A new batch should answer these **before touching source**:
 [ ] Is the known .htaccess drift still exactly the known hash/diff?
 [ ] Is my temp directory outside the Git worktree?
 [ ] Am I using canonical Node/npm paths?
-[ ] If EAS is needed, am I using npm exec eas-cli@25.0.0?
+[ ] If EAS is needed, am I using npm exec eas-cli@27.2.0?
 [ ] Will every project-scoped EAS command run from apps/mobile/current?
 [ ] Does the script avoid python3, /dev/fd, and process substitution?
 [ ] Can any expected RC=1 be accidentally trapped by set -e/ERR?
@@ -1142,7 +1142,7 @@ Use quarantine/backup before deleting uncertain runtime artifacts.
 These failures have already happened and are now encoded as permanent guards:
 
 1. **Project EAS command from monorepo root** -> collection query failed. Run from Mobile root.
-2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@25.0.0`.
+2. **Physical/global `eas` binary assumption** -> `EAS_CLI_MISSING`. Use pinned npm-exec `eas-cli@27.2.0`.
 3. **Local repo one documentation commit behind GitHub** -> preflight mismatch. Verify ancestry/delta and `git merge --ff-only` when safe.
 4. **Temp directory created inside repo** -> checkpoint detected its own temp files as contamination. Temp/lock outside worktree.
 5. **Broad grep for `FAIL`** -> false failure on `Ukupno FAIL: 0`. Parse exact failure semantics.

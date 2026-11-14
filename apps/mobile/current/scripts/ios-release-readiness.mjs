@@ -11,6 +11,13 @@ const GOOGLE_SUFFIX = '.apps.googleusercontent.com';
 const EXPECTED_API = 'https://cms.ald1n.com/api/v1';
 const PREVIEW_FILE = './GoogleService-Info.plist';
 const EXTERNAL_FILE_ENV = 'ALD1N_IOS_GOOGLE_SERVICES_FILE';
+// Exact runtime per iOS profile (app.config.js has no default runtime).
+const IOS_RUNTIME_BY_PROFILE = {
+  production: '1.0.0-m17-sdk58-play2',
+  development: '1.0.0-dev-client',
+  preview: '1.0.0-m17-sdk58-uat2',
+  'ios-simulator': '1.0.0-m17-sdk58-uat2',
+};
 
 function plistString(plist, key) {
   if (typeof plist !== 'string' || !/^[A-Z_]+$/.test(key)) return null;
@@ -69,7 +76,7 @@ export function assessIosReadiness({
   requireGate(declaredProfile?.env?.EXPO_PUBLIC_API_URL === EXPECTED_API, 'IOS_EAS_API_MISMATCH');
   requireGate(eas?.cli?.version === '27.2.0' && eas?.cli?.appVersionSource === 'remote', 'IOS_EAS_CLI_VERSION_AUTHORITY');
   requireGate(pkg?.version === '1.0.0' && pkg?.dependencies?.['react-native-nitro-google-signin'] === '2.3.1', 'IOS_APP_OR_NATIVE_AUTH_VERSION_DRIFT');
-  requireGate(appConfig?.version === '1.0.0' && ['1.0.0-m17-sdk58-uat2', '1.0.0-m17-sdk58-play2', '1.0.0-dev-client'].includes(appConfig?.runtimeVersion), 'IOS_APP_RUNTIME_MISMATCH');
+  requireGate(appConfig?.version === '1.0.0' && appConfig?.runtimeVersion === IOS_RUNTIME_BY_PROFILE[profile], 'IOS_APP_RUNTIME_MISMATCH');
   requireGate(appConfig?.extra?.apiUrl === EXPECTED_API && appConfig?.extra?.googleAuthConfigured === true, 'IOS_GOOGLE_API_CONFIG_MISMATCH');
   requireGate(appBundleId === expectedBundleId, 'IOS_APP_BUNDLE_ID_MISMATCH');
 
