@@ -128,7 +128,7 @@ final class PublicStorefrontAppearance
     /**
      * Branding for the storefront header, footer and favicon.
      *
-     * @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,favicon:?array{href:string,type:string}}
+     * @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,dark_only:bool,favicon:?array{href:string,type:string}}
      */
     public static function branding(): array
     {
@@ -166,7 +166,18 @@ final class PublicStorefrontAppearance
         return self::branding()['brand'];
     }
 
-    /** @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,favicon:?array{href:string,type:string}} */
+    /**
+     * Branding read now, bypassing the per-request memo. Long-lived processes
+     * (queue workers keep one console request) must use this, not branding().
+     *
+     * @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,dark_only:bool,favicon:?array{href:string,type:string}}
+     */
+    public static function freshBranding(): array
+    {
+        return self::resolveBranding();
+    }
+
+    /** @return array{brand:string,initials:string,logo_light:?array{src:string,width:?int},logo_dark:?array{src:string,width:?int},has_logo:bool,logo_alt:string,logo_height:int,footer_logo:bool,footer_logo_height:int,dark_only:bool,favicon:?array{href:string,type:string}} */
     private static function resolveBranding(): array
     {
         $settings = [];
@@ -188,6 +199,7 @@ final class PublicStorefrontAppearance
         $light = self::logo($settings['site_logo_light_path'] ?? null, $height);
         $dark = self::logo($settings['site_logo_dark_path'] ?? null, $height);
         // One configured variant serves both themes.
+        $darkOnly = $light === null && $dark !== null;
         $light ??= $dark;
         $dark ??= $light;
 
@@ -197,6 +209,8 @@ final class PublicStorefrontAppearance
             'logo_light' => $light,
             'logo_dark' => $dark,
             'has_logo' => $light !== null,
+            // Only a dark-theme logo is configured (the light slot above is that same file).
+            'dark_only' => $darkOnly,
             'logo_alt' => mb_substr($alt, 0, 160),
             'logo_height' => $height,
             'footer_logo' => ($settings['site_footer_show_logo'] ?? '0') === '1' && $light !== null,
