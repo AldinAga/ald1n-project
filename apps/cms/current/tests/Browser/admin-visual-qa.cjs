@@ -149,8 +149,9 @@ async function login(browser, persona) {
   const page = await ctx.newPage();
   const resp = await page.goto(baseUrl + '/login', { waitUntil: 'load', timeout: 30000 });
   if (!resp || resp.status() !== 200) throw new Error('LOGIN_PAGE HTTP ' + (resp && resp.status()));
-  await page.locator('input[name="login"]').fill(fixture[persona].login);
-  await page.locator('input[name="password"]').fill(fixture[persona].password);
+  const cred = fixture[persona === 'admin' && browserName === 'webkit' ? 'admin_webkit' : persona];
+  await page.locator('input[name="login"]').fill(cred.login);
+  await page.locator('input[name="password"]').fill(cred.password);
   await page.locator('.auth-login-submit').click();
   await page.waitForURL((url) => url.origin === baseUrl && url.pathname === '/', { timeout: 15000 });
   const state = await ctx.storageState();
@@ -162,25 +163,29 @@ async function measureOverflow(page) {
   return page.evaluate(() => {
     const vw = window.innerWidth;
     const scrollWidth = document.documentElement.scrollWidth;
+    // An inner scroll container (table wrapper) legitimately clips; body/html do not count as such,
+    // because body{overflow-x:hidden} hides a broken layout instead of fixing it.
     const clipped = (el) => {
-      for (let n = el.parentElement; n && n !== document.documentElement; n = n.parentElement) {
-        const o = getComputedStyle(n).overflowX;
-        if (o !== 'visible') return true;
+      for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+        if (getComputedStyle(n).overflowX !== 'visible') return true;
       }
       return false;
     };
     const sel = (el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')
       + [...el.classList].slice(0, 3).map((c) => '.' + c).join('');
     const offenders = [];
-    if (scrollWidth > vw + 1) {
-      for (const el of document.body.querySelectorAll('*')) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.right <= vw + 1 || getComputedStyle(el).position === 'fixed' || clipped(el)) continue;
-        offenders.push({ s: sel(el), over: Math.round(r.right - vw) });
-      }
+    for (const el of document.body.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.right <= vw + 1) continue;
+      const cs = getComputedStyle(el);
+      if (cs.position === 'fixed' || cs.position === 'sticky' || cs.visibility === 'hidden' || cs.opacity === '0' || cs.display === 'none' || clipped(el)) continue;
+      offenders.push({ s: sel(el), over: Math.round(r.right - vw) });
     }
     offenders.sort((a, b) => b.over - a.over);
-    return { vw, scrollWidth, offenders: offenders.slice(0, 4).map((o) => o.s + ' (+' + o.over + 'px)'), count: offenders.length };
+    return {
+      vw, scrollWidth, offenders: offenders.slice(0, 4).map((o) => o.s + ' (+' + o.over + 'px)'), count: offenders.length,
+      bodyOverflowX: getComputedStyle(document.body).overflowX, htmlOverflowX: getComputedStyle(document.documentElement).overflowX,
+    };
   });
 }
 async function runAxe(page) {
@@ -197,6 +202,7 @@ async function freezeDynamic(page) {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     const months = '(?:januar|februar|mart|april|maj|jun|jul|avgust|septembar|oktobar|novembar|decembar|jan|feb|mar|apr|avg|sep|sept|okt|nov|dec)[a-zčćšđž]*\\.?';
     const rules = [
+      [/\b\d+\.\d{5,}\b/g, '0.0'],   // computed day counts such as 302.98242551367 dana
       [new RegExp('(?:ponedeljak|utorak|sreda|četvrtak|petak|subota|nedelja),?\\s*', 'gi'), ''],
       [new RegExp('\\b\\d{1,2}\\.\\s*' + months + '\\s*\\d{4}\\.?', 'gi'), '01.01.2026.'],
       [new RegExp('\\b' + months + '\\s+\\d{4}\\.?', 'gi'), 'januar 2026'],
@@ -280,9 +286,11 @@ async function runCell(ctx, pg, width, theme) {
       await settle(page);
     }
     const overflow = await measureOverflow(page);
-    if (overflow.scrollWidth > overflow.vw + 1) {
+    if (overflow.scrollWidth > overflow.vw + 1 || overflow.count > 0) {
       findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'horizontal-overflow',
-        count: Math.max(1, overflow.count), detail: `scrollWidth ${overflow.scrollWidth} > viewport ${overflow.vw}`, selectors: overflow.offenders });
+        count: Math.max(1, overflow.count),
+        detail: `scrollWidth ${overflow.scrollWidth} vs viewport ${overflow.vw}; body overflow-x ${overflow.bodyOverflowX}, html ${overflow.htmlOverflowX}`,
+        selectors: overflow.offenders });
     }
     for (const v of await runAxe(page)) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
     if (local.console.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'console-error', count: local.console.length, selectors: local.console.slice(0, 3) });
@@ -311,8 +319,8 @@ async function runCell(ctx, pg, width, theme) {
       await page.evaluate(() => { const d = document.createElement('div'); d.id = 'vqa-selftest'; d.style.cssText = 'width:3000px;height:4px'; document.body.appendChild(d); });
       const probe = await measureOverflow(page);
       await page.evaluate(() => document.getElementById('vqa-selftest').remove());
-      selfTests.push({ overflowDetector: probe.scrollWidth > probe.vw + 1 && probe.offenders.length > 0 });
-      if (!selfTests[selfTests.length - 1].overflowDetector) fail('SELFTEST', 'overflow detector did not see a 3000px element');
+      selfTests.push({ overflowDetector: probe.offenders.length > 0, probe });
+      if (!probe.offenders.length) fail('SELFTEST', 'overflow detector did not see a 3000px element: ' + JSON.stringify(probe));
     }
   } catch (e) {
     cell.status = 'infra-failure';

@@ -57,6 +57,15 @@ $admin = User::query()->create([
     'first_name' => 'Test SuperAdmin',
     'status' => 'active',
 ]);
+// Second admin so Chromium and WebKit (run in parallel) never share a session list on /account.
+$adminWebkit = User::query()->create([
+    'role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id'),
+    'username' => 'admin-visual-superadmin-wk',
+    'email' => 'admin-visual-superadmin-wk@example.test',
+    'password_hash' => Hash::make($password),
+    'first_name' => 'Test SuperAdmin',
+    'status' => 'active',
+]);
 $customer = User::query()->create([
     'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
     'user_group_id' => 1,
@@ -135,6 +144,7 @@ foreach (['users', 'products', 'orders', 'order_items', 'product_warranties', 'r
 $payload = [
     'sentinel' => 'ALD1N_ADMIN_VISUAL_CI_SYNTHETIC_ONLY',
     'admin' => ['login' => $admin->username, 'password' => $password],
+    'admin_webkit' => ['login' => $adminWebkit->username, 'password' => $password],
     'customer' => ['login' => $customer->username, 'password' => $password],
     'ids' => ['product' => $product->id, 'order' => $order->id, 'warranty' => $warranty->id, 'customer' => $customer->id],
 ];
