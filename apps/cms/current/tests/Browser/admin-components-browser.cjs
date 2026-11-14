@@ -163,6 +163,10 @@ async function inPageObscured() {
     for (const c of cs) {
       const r = c.getBoundingClientRect();
       if (Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top) > 1 && Math.min(b.right, r.right) - Math.max(b.left, r.left) > 1) {
+        // Geometric overlap only counts when the bar really paints over the control (a skip link stacked above the header is fully visible).
+        const x = (Math.max(b.left, r.left) + Math.min(b.right, r.right)) / 2, y = (Math.max(b.top, r.top) + Math.min(b.bottom, r.bottom)) / 2;
+        const top = document.elementFromPoint(x, y);
+        if (top && target.contains(top)) continue;
         return {el: name(el), by: name(c), box: [b.top, b.bottom].map(Math.round), cover: [r.top, r.bottom].map(Math.round)};
       }
     }
@@ -273,6 +277,11 @@ function inPageContrast() {
 }
 
 async function contrastGate(page, label) {
+  // Wait out colour transitions (theme switch): slower engines were measured mid-fade, text and background both half-way.
+  await page.evaluate(async () => {
+    const t = Date.now();
+    while (document.getAnimations().some(a => a.playState === 'running' && a.effect && a.effect.getComputedTiming().endTime !== Infinity) && Date.now() - t < 3000) await new Promise(r => setTimeout(r, 50));
+  });
   const r = await page.evaluate(inPageContrast);
   check(r.checked > 20, label + ' contrast gate looked at too few text nodes: ' + r.checked);
   check(r.out.length === 0, label + ' contrast under threshold (' + r.out.length + ') ' + JSON.stringify(r.out.slice(0, 6)));
