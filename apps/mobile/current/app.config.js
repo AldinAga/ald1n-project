@@ -33,6 +33,19 @@ const isProduction = APP_ENV === 'production';
 // resolution, where EAS_BUILD_PROFILE is not guaranteed to exist.
 // The ordinary production profile remains Build25 by default.
 const v15ReleaseProfile = 'production-v15-16kb';
+// M17: isolate the next SDK58 internal-UAT binary from Build25 and v1.5 OTA.
+const M17_UAT_PROFILE = 'm17-sdk58-uat';
+const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat2';
+const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
+const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play2';
+// Explicit local/dev-client runtime; never shared with a store or OTA identity.
+const DEV_RUNTIME = '1.0.0-dev-client';
+const m17Deps = require('./package.json').dependencies || {};
+const isM17Sdk58Source =
+  m17Deps.expo === '~58.0.25'
+  && m17Deps['react-native'] === '0.88.1'
+  && m17Deps['react-native-nitro-google-signin'] === '2.3.1'
+  && m17Deps['react-native-nitro-modules'] === '0.37.1';
 const suffix = isProduction ? '' : `.${APP_ENV}`;
 
 module.exports = ({ config }) => {
@@ -44,6 +57,45 @@ module.exports = ({ config }) => {
       || process.env.EAS_BUILD_PROFILE === v15ReleaseProfile
       || process.env.ALD1N_V15_RELEASE_PROFILE === v15ReleaseProfile
     );
+  // Exact isolated UAT markers are required locally and on EAS builders.
+  // EAS_BUILD_PROFILE may be absent during local config resolution.
+  const m17MarkerPresent = Boolean(
+    process.env.ALD1N_M17_SDK58_UAT || process.env.ALD1N_M17_SDK58_PROFILE
+  );
+  const isM17Uat = isM17Sdk58Source
+    && APP_ENV === 'preview'
+    && process.env.ALD1N_M17_SDK58_UAT === 'isolated'
+    && process.env.ALD1N_M17_SDK58_PROFILE === M17_UAT_PROFILE
+    && (!process.env.EAS_BUILD_PROFILE || process.env.EAS_BUILD_PROFILE === M17_UAT_PROFILE);
+  if (m17MarkerPresent && !isM17Uat) {
+    throw new Error('HOLD_M17_SDK58_UAT_PROFILE_OR_SOURCE');
+  }
+  // B1029: source-only SDK58 Play identity; NEVER a build/OTA/submit approval.
+  const playMarkerPresent = Boolean(
+    process.env.ALD1N_M17_SDK58_PLAY_RC || process.env.ALD1N_M17_SDK58_PLAY_PROFILE
+  );
+  const isM17PlayRc = isM17Sdk58Source
+    && isProduction
+    && process.env.ALD1N_M17_SDK58_PLAY_RC === 'source-only'
+    && process.env.ALD1N_M17_SDK58_PLAY_PROFILE === M17_PLAY_PROFILE
+    && (!process.env.EAS_BUILD_PROFILE || process.env.EAS_BUILD_PROFILE === M17_PLAY_PROFILE)
+    && process.env.ALD1N_V15_RELEASE_GATE !== 'approved'
+    && !m17MarkerPresent;
+  if (playMarkerPresent && !isM17PlayRc) {
+    throw new Error('HOLD_M17_SDK58_PLAY_PROFILE_OR_SOURCE');
+  }
+  // Dev path: EXPO_PUBLIC_APP_ENV=development must be set explicitly (.env or EAS development profile).
+  const isDevClient = process.env.EXPO_PUBLIC_APP_ENV === 'development'
+    && (!process.env.EAS_BUILD_PROFILE || process.env.EAS_BUILD_PROFILE === 'development')
+    && process.env.ALD1N_V15_RELEASE_GATE !== 'approved'
+    && !m17MarkerPresent && !playMarkerPresent;
+  // Fail closed: no SDK57 default runtime. Only an approved identity gets a runtime.
+  if (!(isApprovedV15Build || isM17Uat || isM17PlayRc || isDevClient)) {
+    throw new Error(
+      'HOLD_RUNTIME_IDENTITY_NOT_APPROVED: no approved SDK58 EAS profile or explicit dev '
+      + `(EXPO_PUBLIC_APP_ENV=development) identity; EAS_BUILD_PROFILE=${process.env.EAS_BUILD_PROFILE || '(unset)'}`
+    );
+  }
   const existingExtra = config.extra || {};
   const existingEas =
     existingExtra.eas &&
@@ -70,7 +122,7 @@ module.exports = ({ config }) => {
     },
 
     // MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137
-    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : '1.0.0-build17',
+    runtimeVersion: isApprovedV15Build ? '1.5.0-native2' : (isM17Uat ? M17_UAT_RUNTIME : (isM17PlayRc ? M17_PLAY_RUNTIME : DEV_RUNTIME)),
 
     ios: {
       ...(config.ios || {}),

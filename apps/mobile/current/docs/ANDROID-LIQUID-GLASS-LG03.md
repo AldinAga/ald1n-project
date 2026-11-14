@@ -2,6 +2,8 @@
 
 Status: **Wave 1 isolated source candidate, not an OTA or production APK release**.
 
+**Update 2026-11-14:** the identity below is the historical 2026-10-19 Build25 baseline. Current facts: versionCode 29 is live on Expo SDK 58 (EAS profile `m17-sdk58-play-rc`, runtime `1.0.0-m17-sdk58-play2`); `app.config.js` has no default runtime and fails closed.
+
 ## Exact source authority (2026-10-19)
 
 - Baseline GitHub main before this wave: 1a7f9c052df414510849f96a360cadec1fa0604e.
