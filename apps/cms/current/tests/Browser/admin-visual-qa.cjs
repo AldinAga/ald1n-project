@@ -86,6 +86,14 @@ const prepare = {
   },
   async mobileMenu(page) {
     if (!(await openMobileMenuIfNeeded(page))) return 'skip: menu toggle hidden at this width (desktop navigation)';
+    // Focus trap: with the sheet open, Tab and Shift+Tab never leave the header.
+    for (const key of ['Tab', 'Shift+Tab']) {
+      for (let i = 0; i < 70; i++) {
+        await page.keyboard.press(key);
+        const inside = await page.evaluate(() => !!document.activeElement?.closest('.a1-header'));
+        if (!inside) { fail('FOCUS_TRAP', `${browserName} ${key} step ${i + 1}: focus left the open mobile menu`); return null; }
+      }
+    }
     return null;
   },
 };
