@@ -1,5 +1,5 @@
 @inject('moduleVisibility', 'App\Services\ModuleVisibilityService')
-{{-- MODULE_VISIBILITY_CONTROL_V6_SAFE_LAYOUT_SPANS --}}
+{{-- Admin shell: Kobalt tokens + ald1n-admin.css (a1- components). Page content below still uses the old CSS. --}}
 @php
     $headerUser = null;
     try {
@@ -35,11 +35,36 @@
     } catch (\Throwable) {
         $headerCartCount = 0;
     }
+
+    // Navigation presentation helpers. Item URLs, labels and permission checks stay in the markup below.
+    $navPath = static fn (string $url): string => '/'.trim((string) parse_url($url, PHP_URL_PATH), '/');
+    $navHere = '/'.trim(request()->path(), '/');
+    $navCount = static fn (?int $count): string => $count !== null && $count > 0 ? ' <span class="a1-count">'.min(99, $count).'</span>' : '';
+    // aria-current="page" goes to exactly one link per page: the first one in document order with an exact URL match
+    // (several URLs appear twice, for example "Grupe pristupa" under Korisnici and under Podešavanja).
+    $navTaken = false;
+    $navCurrent = static function (string $url) use ($navPath, $navHere, &$navTaken): string {
+        if ($navTaken || $navPath($url) !== $navHere) {
+            return '';
+        }
+        $navTaken = true;
+
+        return ' aria-current="page"';
+    };
+    // Top-level link: highlighted when the section is active.
+    $navLink = static fn (string $url, string $label, bool $section = false, ?int $count = null): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString(
+        '<a class="a1-nav__link'.($section ? ' a1-nav__link--active' : '').'" href="'.e($url).'"'
+        .$navCurrent($url).'>'.e($label).$navCount($count).'</a>'
+    );
+    // Item inside a dropdown panel.
+    $navItem = static fn (string $url, string $label, string $attrs = '', ?int $count = null): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString(
+        '<a class="a1-nav-dd__item" href="'.e($url).'"'.$navCurrent($url)
+        .($attrs !== '' ? ' '.$attrs : '').'>'.e($label).$navCount($count).'</a>'
+    );
 @endphp
 <!doctype html>
 <html lang="sr-Latn" data-theme="dark" data-theme-mode="auto" data-eur-rsd-rate="{{ is_numeric($exchangeRateValue) ? number_format((float) $exchangeRateValue, 2, '.', '') : '' }}">
 <head>
-    <style>[data-module-visibility="0"]{display:none!important}[data-module-visibility="1"]{display:contents}</style>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow,noarchive">
@@ -52,6 +77,8 @@
     <link rel="stylesheet" href="{{ asset('assets/css/vendor/liquid-glass-web.css') }}?v={{ @filemtime(public_path('assets/css/vendor/liquid-glass-web.css')) ?: config('app.version') }}">
     @stack('styles')
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-refinement.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-refinement.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';
@@ -63,312 +90,305 @@
         })();
     </script>
     <style>
-        /* ALD1N VNEXT B4: global product quick search */
-        .header-product-search-toggle{display:inline-grid;place-items:center;flex:0 0 auto}
-        .header-product-search-toggle[aria-expanded="true"]{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb,var(--panel-2) 82%,var(--primary) 10%)}
-        .header-product-search-layer[hidden]{display:none!important}
-        .header-product-search-layer{position:fixed;inset:0;z-index:1400;padding:0 12px}
-        .header-product-search-backdrop{position:absolute;inset:0;width:100%;height:100%;border:0;background:rgba(8,15,28,.48);backdrop-filter:blur(4px);cursor:default}
-        .header-product-search-dialog{position:relative;width:min(680px,calc(100vw - 24px));max-height:min(680px,calc(100dvh - 100px));margin:clamp(72px,9vh,108px) auto 0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:var(--panel);box-shadow:0 28px 90px rgba(0,0,0,.28)}
-        .header-product-search-head{display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--line)}
-        .header-product-search-input-wrap{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid var(--line);border-radius:15px;background:var(--panel-2)}
-        .header-product-search-input-wrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
-        .header-product-search-input-wrap svg{flex:0 0 auto;color:var(--muted)}
-        .header-product-search-input{width:100%;min-width:0;height:48px;border:0;outline:0;background:transparent;color:var(--text);font-size:16px}
-        .header-product-search-close{width:44px;height:44px;display:grid;place-items:center;flex:0 0 auto;border:1px solid var(--line);border-radius:14px;background:var(--panel-2);color:var(--text);cursor:pointer;font-size:24px;line-height:1}
-        .header-product-search-body{min-height:118px;overflow:auto;padding:10px}
-        .header-product-search-status{padding:18px 14px;color:var(--muted);font-size:14px;line-height:1.55}
-        .header-product-search-results{display:grid;gap:4px}
-        .header-product-search-group{display:flex;align-items:center;gap:8px;margin:9px 4px 4px;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
-        .header-product-search-group::after{content:"";height:1px;flex:1;background:var(--line)}
-        .header-product-search-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 13px;border:1px solid transparent;border-radius:14px;text-decoration:none}
-        .header-product-search-result:hover,.header-product-search-result.is-active{border-color:color-mix(in srgb,var(--primary) 34%,var(--line));background:color-mix(in srgb,var(--panel-2) 88%,var(--primary) 8%)}
-        .header-product-search-copy{min-width:0}
-        .header-product-search-copy strong,.header-product-search-copy small{display:block}
-        .header-product-search-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
-        .header-product-search-copy small{margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}
-        .header-product-search-result-status{padding:5px 8px;border-radius:999px;background:var(--panel-2);color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap}
-        body.header-product-search-open{overflow:hidden}
-        @media(max-width:1250px){.header-product-search-toggle{width:44px;height:44px}.header-product-search-dialog{width:calc(100vw - 20px);max-height:calc(100dvh - 76px);margin:66px auto 0;border-radius:18px}.header-product-search-head{padding:10px}.header-product-search-body{padding:7px}}
-        @media(max-width:360px){.header-product-search-toggle{width:39px;height:39px}.header-product-search-close{width:39px;height:39px}.header-product-search-input{height:44px}}
-    </style>
-    <style>
-        /* ALD1N VNEXT B5: central EUR/RSD manual sync */
-        .rate-badge-sync,.exchange-rate-settings-sync{appearance:none;-webkit-appearance:none;font:inherit;cursor:pointer}
-        .rate-badge-sync{text-align:center}
-        .rate-badge-sync:disabled,.exchange-rate-settings-sync:disabled{cursor:wait;opacity:.72}
-        .rate-badge-sync.is-syncing,.dashboard-rate-widget.is-syncing,.exchange-rate-settings-sync.is-syncing{border-color:color-mix(in srgb,var(--primary) 55%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 12%,transparent)}
+        /* EUR/RSD manual sync: content widgets (dashboard, exchange settings) share the sync runtime. */
+        .exchange-rate-settings-sync{appearance:none;-webkit-appearance:none;font:inherit;cursor:pointer}
+        .exchange-rate-settings-sync:disabled{cursor:wait;opacity:.72}
+        .dashboard-rate-widget.is-syncing,.exchange-rate-settings-sync.is-syncing{border-color:color-mix(in srgb,var(--primary) 55%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 12%,transparent)}
         .dashboard-rate-widget[data-exchange-rate-sync]{cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
         .dashboard-rate-widget[data-exchange-rate-sync]:hover{border-color:color-mix(in srgb,var(--primary) 42%,var(--line));transform:translateY(-1px)}
-        .dashboard-rate-widget[data-exchange-rate-sync]:focus-visible,.rate-badge-sync:focus-visible,.exchange-rate-settings-sync:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transparent)}
+        .dashboard-rate-widget[data-exchange-rate-sync]:focus-visible,.exchange-rate-settings-sync:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transparent)}
         .exchange-rate-settings-sync{border:1px solid var(--line);color:inherit}
-        .exchange-rate-sync-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
     </style>
+    {{-- JavaScript off: no toggle (it would do nothing); the sheet content stays in normal flow so navigation and logout remain reachable on phones. --}}
+    <noscript><style>@media (max-width:1199px){.a1-menu-btn{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
     @stack('head')
 </head>
-<body>
-<header class="site-header" data-site-header data-build16-shell="1">
-    <div class="header-primary-row">
-        <a class="brand" href="{{ route('dashboard') }}" aria-label="{{ $siteName }}">
+<body class="a1-body">
+<a class="a1-skip a1-shell" href="#main-content" data-a1-page>Preskoči na sadržaj</a>
+<header class="a1-header a1-shell" data-a1-header>
+    <div class="a1-wrap a1-header__bar">
+        <a class="a1-brand" href="{{ route('dashboard') }}" aria-label="{{ $siteName }}">
             @if($siteLogoLightUrl || $siteLogoDarkUrl)
-                <img id="siteHeaderLogo" class="site-header-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" style="height:{{ $siteHeaderLogoHeight }}px" alt="{{ $siteLogoAlt }}">
+                <img id="siteHeaderLogo" class="a1-brand__logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" style="height:{{ $siteHeaderLogoHeight }}px" alt="{{ $siteLogoAlt }}">
             @else
-                <span class="brand-mark">A</span>
-                <span class="header-brand-name">{{ $siteName }}</span>
+                <span class="a1-brand__mark" aria-hidden="true">A</span>
+                <span class="a1-brand__text">{{ $siteName }}</span>
             @endif
         </a>
 
         @auth
-        <div class="header-quick-actions">
+        <button class="a1-header__search a1-searchbtn" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-haspopup="dialog">
+            <x-icon name="search" :size="20" :shell="true" />
+            <span class="a1-searchbtn__label">Globalna pretraga</span>
+        </button>
+        @can('orders.create')
+        <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="{{ route('cart.index') }}" aria-label="Korpa · {{ $headerCartCount }} komada" title="Korpa">
+            <x-icon name="cart" :size="20" :shell="true" />
+            @if($headerCartCount > 0)<span class="a1-count a1-count--float" aria-hidden="true">{{ min(99, $headerCartCount) }}</span>@endif
+        </a>
+        @endcan
+        @if($moduleVisibility->enabled('notifications'))
+        @can('notifications.view')
+        <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja">
+            <x-icon name="bell" :size="20" :shell="true" />
+            @if(($siteHeaderUnreadNotifications ?? 0) > 0)<span class="a1-count a1-count--float" aria-hidden="true">{{ min(99, (int) $siteHeaderUnreadNotifications) }}</span>@endif
+        </a>
+        @endcan
+        @endif
+        <span class="a1-sr" data-exchange-rate-sync-status aria-live="polite"></span>
+        <button class="a1-menu-btn" type="button" data-mobile-menu-toggle aria-controls="siteHeaderMenu" aria-expanded="false" aria-label="Otvori glavni meni">
+            <svg class="a1-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="a1-menu-btn__bars" d="M4 7h16M4 12h16M4 17h16"/><path class="a1-menu-btn__x" d="M6 6l12 12M18 6L6 18"/></svg>
+            <span class="a1-menu-btn__text">Meni</span>
+        </button>
+
+        <div class="a1-header__panel" id="siteHeaderMenu" data-mobile-menu>
+            <nav class="a1-header__nav" aria-label="Glavna navigacija">
+                <ul class="a1-nav">
+                    <li>{{ $navLink(route('dashboard'), 'Početna', request()->routeIs('dashboard', 'portal.messages.*')) }}</li>
+
+                    @canany(['catalog.view','catalog.manage_products','catalog.manage_taxonomy'])
+                    <li>
+                        <details class="a1-nav-dd">
+                            <summary class="a1-nav__link{{ request()->routeIs('catalog.*','admin.products.*','admin.dictionary.*') ? ' a1-nav__link--active' : '' }}">Artikli</summary>
+                            <div class="a1-nav-dd__panel">
+                                @can('catalog.view'){{ $navItem(route('catalog.index'), 'Katalog artikala') }}@endcan
+                                @can('catalog.manage_products'){{ $navItem(route('admin.products.create'), 'Dodaj artikal') }}{{ $navItem(route('admin.products.bulk'), 'Bulk izmena mojih artikala') }}@endcan
+                                @can('catalog.manage_taxonomy')
+                                    <span class="a1-nav-dd__label">Šifarnici</span>
+                                    {{ $navItem(route('admin.dictionary.index','categories'), 'Kategorije') }}
+                                    {{ $navItem(route('admin.dictionary.index','brands'), 'Brendovi') }}
+                                    {{ $navItem(route('admin.dictionary.index','product-lines'), 'Linije proizvoda') }}
+                                    {{ $navItem(route('admin.dictionary.index','product-types'), 'Tipovi artikala') }}
+                                    {{ $navItem(route('admin.dictionary.index','specification-fields'), 'Polja specifikacija') }}
+                                @endcan
+                            </div>
+                        </details>
+                    </li>
+                    @endcanany
+
+                    @canany(['orders.view_own','orders.manage','after_sales.view_own','after_sales.manage','field_operations.view','service_parts.view','service_parts.procurement','warranties.view_own','warranties.manage'])
+                    <li>
+                        <details class="a1-nav-dd">
+                            <summary class="a1-nav__link{{ request()->routeIs('orders.*','cart.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? ' a1-nav__link--active' : '' }}">Porudžbine</summary>
+                            <div class="a1-nav-dd__panel">
+                                @can('orders.create'){{ $navItem(route('cart.index'), 'Korpa', '', $headerCartCount) }}@endcan
+                                @can('orders.view_own'){{ $navItem(route('orders.index'), 'Moje porudžbine') }}@endcan
+                                @can('orders.manage'){{ $navItem(route('admin.orders.index'), 'Sve porudžbine') }}@endcan
+                                @if($moduleVisibility->enabled('after_sales'))
+                                    @can('after_sales.view_own'){{ $navItem(route('after-sales.index'), 'Moje reklamacije i servisi') }}@endcan
+                                    @can('after_sales.manage'){{ $navItem(route('admin.after-sales.index'), 'Reklamacije i servisi') }}@endcan
+                                @endif
+                                @if($moduleVisibility->enabled('field_operations'))
+                                    @can('field_operations.view'){{ $navItem(route('admin.field-operations.index'), 'Terenske operacije') }}@endcan
+                                    @can('field_operations.manage'){{ $navItem(route('admin.field-service-teams.index'), 'Terenske ekipe') }}@endcan
+                                @endif
+                                @if($moduleVisibility->enabled('service_parts'))
+                                    @can('service_parts.view'){{ $navItem(route('admin.service-parts.index'), 'Servisni lager') }}@endcan
+                                    @can('service_parts.procurement'){{ $navItem(route('admin.service-part-purchases.index'), 'Nabavka delova') }}@endcan
+                                @endif
+                                @if($moduleVisibility->enabled('warranties'))
+                                    @can('warranties.view_own'){{ $navItem(route('warranties.index'), 'Moje garancije') }}@endcan
+                                    @can('warranties.manage'){{ $navItem(route('admin.warranties.index'), 'Garancije i održavanje') }}@endcan
+                                @endif
+                            </div>
+                        </details>
+                    </li>
+                    @endcanany
+
+                    @if($moduleVisibility->enabled('receivables'))
+                    @can('receivables.manage')<li>{{ $navLink(route('admin.receivables.index'), 'Potraživanja', request()->routeIs('admin.receivables.*')) }}</li>@endcan
+                    @endif
+
+                    @if($headerUser?->hasRole('admin','superadmin'))
+                        @if($moduleVisibility->enabled('commissions'))
+                        @can('commissions.manage')<li>{{ $navLink(route('admin.commissions.index'), 'Provizije', request()->routeIs('admin.commissions.*')) }}</li>@endcan
+                        @endif
+                    @else
+                        @if($moduleVisibility->enabled('commissions'))
+                        @can('commissions.view_own')<li>{{ $navLink(route('commissions.index'), 'Moje provizije', request()->routeIs('commissions.*')) }}</li>@endcan
+                        @endif
+                    @endif
+
+                    @if($moduleVisibility->enabled('notifications'))
+                    @can('notifications.view')<li>{{ $navLink(route('notifications.index'), 'Obaveštenja', request()->routeIs('notifications.*'), (int) ($siteHeaderUnreadNotifications ?? 0)) }}</li>@endcan
+                    @endif
+
+                    @if($moduleVisibility->enabled('reports'))
+                    @can('reports.view')<li>{{ $navLink(route('admin.reports.index'), 'Izveštaji', request()->routeIs('admin.reports.*')) }}</li>@endcan
+                    @endif
+
+                    @canany(['stock.view','stock.adjust','inventory.receive','inventory.count','inventory.export','catalog.audit','security.view'])
+                    <li>
+                        <details class="a1-nav-dd">
+                            <summary class="a1-nav__link{{ request()->routeIs('admin.stock.*','admin.inventory.*','admin.audit.*','admin.data-quality.*') ? ' a1-nav__link--active' : '' }}">Administracija</summary>
+                            <div class="a1-nav-dd__panel">
+                                @can('stock.view')
+                                    @if($moduleVisibility->enabled('inventory')){{ $navItem(route('admin.inventory.index'), 'Napredni lager') }}@endif
+                                    {{ $navItem(route('admin.stock.index'), 'Sva kretanja lagera') }}
+                                @endcan
+                                @can('catalog.audit')
+                                    {{ $navItem(route('admin.data-quality.index'), 'Data Quality Center') }}
+                                    @if($moduleVisibility->enabled('audit')){{ $navItem(route('admin.audit.index'), 'Audit log') }}@endif
+                                @endcan
+                            </div>
+                        </details>
+                    </li>
+                    @endcanany
+
+                    @can('system.manage_users')
+                    <li>
+                        <details class="a1-nav-dd">
+                            <summary class="a1-nav__link{{ request()->routeIs('admin.users.*','admin.user-groups.*','admin.customer-portal.*') ? ' a1-nav__link--active' : '' }}">Korisnici</summary>
+                            <div class="a1-nav-dd__panel">
+                                {{ $navItem(route('admin.users.index'), 'Svi korisnici') }}
+                                @if($moduleVisibility->enabled('customer_portal')){{ $navItem(route('admin.customer-portal.index'), 'Customer Portal') }}@endif
+                                {{ $navItem(route('admin.user-groups.index'), 'Grupe pristupa') }}
+                            </div>
+                        </details>
+                    </li>
+                    @endcan
+
+                    @canany(['system.manage_settings','catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement','system.manage_users'])
+                    <li>
+                        <details class="a1-nav-dd">
+                            <summary class="a1-nav__link{{ request()->routeIs('admin.settings.*','admin.dictionary.*','admin.warranties.index','admin.field-service-teams.*','admin.service-part-suppliers.*','admin.user-groups.*') ? ' a1-nav__link--active' : '' }}">Podešavanja</summary>
+                            <div class="a1-nav-dd__panel">
+                                <span class="a1-nav-dd__label">Centar</span>
+                                {{ $navItem(route('admin.settings.index'), 'Sva podešavanja') }}
+
+                                @can('system.manage_settings')
+                                <span class="a1-nav-dd__label">Poslovanje</span>
+                                {{ $navItem(route('admin.settings.exchange.index'), 'EUR/RSD kurs') }}
+                                {{ $navItem(route('admin.settings.bank-accounts.index'), 'Žiro računi') }}
+                                @if($headerUser?->hasRole('superadmin')){{ $navItem(route('admin.settings.couriers.index'), 'Kurirske službe') }}@endif
+                                @if($headerUser?->hasRole('superadmin')){{ $navItem(route('admin.settings.public-storefront.index'), 'Javna prodavnica', 'data-nav-public-storefront') }}@endif
+                                @endcan
+
+                                @canany(['catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement'])
+                                <span class="a1-nav-dd__label">Pravila i šifarnici</span>
+                                @can('catalog.manage_taxonomy'){{ $navItem(route('admin.dictionary.index','categories'), 'Šifarnici kataloga') }}@endcan
+                                @if($moduleVisibility->enabled('warranties'))
+                                    @can('warranties.manage'){{ $navItem(route('admin.warranties.index'), 'Garancijska pravila') }}@endcan
+                                @endif
+                                @if($moduleVisibility->enabled('field_operations'))
+                                    @can('field_operations.manage'){{ $navItem(route('admin.field-service-teams.index'), 'Terenske ekipe') }}@endcan
+                                @endif
+                                @if($moduleVisibility->enabled('service_parts'))
+                                    @can('service_parts.procurement'){{ $navItem(route('admin.service-part-suppliers.index'), 'Dobavljači delova') }}@endcan
+                                @endif
+                                @endcanany
+
+                                @can('system.manage_settings')
+                                <span class="a1-nav-dd__label">Komunikacija i izgled</span>
+                                {{ $navItem(route('admin.settings.documents.index'), 'PDF i fakturisanje') }}
+                                @if(request()->user()?->hasRole('superadmin')){{ $navItem(route('admin.settings.modules.index'), 'Moduli') }}@endif
+                                {{ $navItem(route('admin.settings.order-emails.index'), 'E-mail obaveštenja') }}
+                                @if($headerUser?->hasRole('superadmin')){{ $navItem(route('admin.settings.smtp.index'), 'E-mail (SMTP)', 'data-nav-smtp-settings') }}@endif
+                                @if($moduleVisibility->enabled('automation'))
+                                    @can('automation.manage'){{ $navItem(route('admin.settings.automation.index'), 'Automatizacija') }}@endcan
+                                @endif
+                                {{ $navItem(route('admin.settings.appearance'), 'Izgled sajta i prijave') }}
+                                {{ $navItem(route('admin.settings.turnstile.index'), 'Cloudflare Turnstile') }}
+                                @if($moduleVisibility->enabled('system_health'))
+                                    @can('system.health'){{ $navItem(route('admin.settings.system-health.index'), 'System Health') }}@endcan
+                                @endif
+                                @endcan
+
+                                @can('system.manage_users')
+                                <span class="a1-nav-dd__label">Pristup</span>
+                                {{ $navItem(route('admin.user-groups.index'), 'Grupe pristupa') }}
+                                @endcan
+                            </div>
+                        </details>
+                    </li>
+                    @endcanany
+                </ul>
+            </nav>
+
             @can('system.manage_settings')
-            <button
-                class="rate-badge header-rate-persistent rate-badge-sync {{ $exchangeRateIsStale ? 'is-stale' : '' }}"
-                type="button"
-                data-exchange-rate-sync
-                data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}"
-                data-exchange-rate-source-title
-                title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje"
-            >
-                <small data-exchange-rate-header-label>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</small>
-                <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
+            <button class="a1-rate a1-rate--action{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
+                <span data-exchange-rate-header-label>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+                <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
             </button>
             @else
-            <span class="rate-badge header-rate-persistent {{ $exchangeRateIsStale ? 'is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
-                <small>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</small>
-                <strong data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</strong>
+            <span class="a1-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
+                <span>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+                <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
             </span>
             @endcan
-            <span class="exchange-rate-sync-status" data-exchange-rate-sync-status aria-live="polite"></span>
-            @can('orders.create')
-            <a class="header-cart-button icon-button" href="{{ route('cart.index') }}" aria-label="Korpa · {{ $headerCartCount }} komada" title="Korpa">
-                <x-icon name="cart" size="21" />
-                @if($headerCartCount > 0)<span class="header-cart-count">{{ min(99, $headerCartCount) }}</span>@endif
-            </a>
-            @endcan
-            <span data-module-visibility="{{ $moduleVisibility->enabled('notifications') ? '1' : '0' }}">
-@can('notifications.view')
-<a class="notification-header-button" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja">
-                <x-icon name="bell" size="17" />
-                @if(($siteHeaderUnreadNotifications ?? 0)>0)<span>{{ min(99,(int)$siteHeaderUnreadNotifications) }}</span>@endif
-            </a>
-@endcan
-</span>
-            <button class="theme-mode-button header-theme-control" type="button" data-theme-toggle aria-label="Promeni režim teme" title="Promeni režim teme">
-                <span class="theme-mode-icon" data-theme-icon><x-icon name="monitor" size="17" /></span>
-                <span class="theme-mode-label" data-theme-label>Auto</span>
-            </button>
-            <a class="user-chip" href="{{ route('account.show') }}">
-                <span>{{ $headerInitial }}</span>
-                <div><strong>{{ $headerDisplayName }}</strong><small>{{ $headerRoleName }}</small></div>
-            </a>
-            <button class="header-product-search-toggle icon-button" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-label="Globalna pretraga" title="Globalna pretraga">
-                <x-icon name="search" size="19" />
-            </button>
-            <button class="mobile-menu-toggle icon-button" type="button" data-mobile-menu-toggle aria-controls="siteHeaderMenu" aria-expanded="false" aria-label="Otvori glavni meni">
-                <span></span><span></span><span></span>
-            </button>
+
+            <div class="a1-theme" role="group" aria-label="Tema">
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="auto" aria-pressed="false" aria-label="Tema prema sistemu" title="Tema prema sistemu"><x-icon name="monitor" :size="20" :shell="true" /></button>
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="light" aria-pressed="false" aria-label="Svetla tema" title="Svetla tema"><x-icon name="sun" :size="20" :shell="true" /></button>
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="dark" aria-pressed="false" aria-label="Tamna tema" title="Tamna tema"><x-icon name="moon" :size="20" :shell="true" /></button>
+            </div>
+
+            <details class="a1-nav-dd a1-nav-dd--end a1-header__user">
+                <summary class="a1-user">
+                    <span class="a1-user__avatar" aria-hidden="true">{{ $headerInitial }}</span>
+                    <span class="a1-user__label">{{ $headerDisplayName }}</span>
+                </summary>
+                <div class="a1-nav-dd__panel">
+                    <span class="a1-nav-dd__label">{{ $headerRoleName }}</span>
+                    {{ $navItem(route('account.show'), 'Moj nalog') }}
+                    <span class="a1-nav-dd__sep" role="separator"></span>
+                    <span class="a1-nav-dd__label" id="a1CurrencyLabel">Valuta prikaza</span>
+                    <div class="a1-nav-dd__row">
+                        <div class="a1-theme a1-theme--wide" role="group" aria-labelledby="a1CurrencyLabel">
+                            <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="native" aria-pressed="false">Izvorno</button>
+                            <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="EUR" aria-pressed="false">EUR</button>
+                            <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="RSD" aria-pressed="false">RSD</button>
+                        </div>
+                    </div>
+                    <small class="a1-nav-dd__note" data-display-currency-status aria-live="polite"></small>
+                    <span class="a1-nav-dd__sep" role="separator"></span>
+                    <form class="a1-nav-dd__form" method="post" action="{{ route('logout') }}">@csrf<button class="a1-nav-dd__item a1-nav-dd__item--button" type="submit"><x-icon name="logout" :size="20" :shell="true" />Odjava</button></form>
+                </div>
+            </details>
         </div>
         @endauth
     </div>
-
-    @auth
-    <div class="header-secondary-row" id="siteHeaderMenu" data-mobile-menu>
-        <nav class="main-nav" aria-label="Glavna navigacija">
-            <a class="{{ request()->routeIs('dashboard', 'portal.messages.*') ? 'active' : '' }}" href="{{ route('dashboard') }}"><span class="nav-link-content"><x-icon name="home" /><span>Početna</span></span></a>
-
-            @canany(['catalog.view','catalog.manage_products','catalog.manage_taxonomy'])
-            <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('catalog.*','admin.products.*','admin.dictionary.*') ? 'active' : '' }}"><span><x-icon name="boxes" />Artikli</span></summary>
-                <div class="nav-dropdown-menu">
-                    @can('catalog.view')<a href="{{ route('catalog.index') }}"><x-icon name="grid" />Katalog artikala</a>@endcan
-                    @can('catalog.manage_products')<a href="{{ route('admin.products.create') }}"><x-icon name="plus-circle" />Dodaj artikal</a><a href="{{ route('admin.products.bulk') }}"><x-icon name="sliders" />Bulk izmena mojih artikala</a>@endcan
-                    @can('catalog.manage_taxonomy')
-                        <span class="dropdown-label">Šifarnici</span>
-                        <a href="{{ route('admin.dictionary.index','categories') }}">Kategorije</a>
-                        <a href="{{ route('admin.dictionary.index','brands') }}">Brendovi</a>
-                        <a href="{{ route('admin.dictionary.index','product-lines') }}">Linije proizvoda</a>
-                        <a href="{{ route('admin.dictionary.index','product-types') }}">Tipovi artikala</a>
-                        <a href="{{ route('admin.dictionary.index','specification-fields') }}">Polja specifikacija</a>
-                    @endcan
-                </div>
-            </details>
-            @endcanany
-
-            @canany(['orders.view_own','orders.manage','after_sales.view_own','after_sales.manage','field_operations.view','service_parts.view','service_parts.procurement','warranties.view_own','warranties.manage'])
-            <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('orders.*','cart.*','admin.orders.*','after-sales.*','admin.after-sales.*','admin.field-operations.*','admin.field-service-teams.*','admin.service-parts.*','admin.service-part-*','warranties.*','admin.warranties.*') ? 'active' : '' }}"><span><x-icon name="orders" />Porudžbine</span></summary>
-                <div class="nav-dropdown-menu">
-                    @can('orders.create')<a href="{{ route('cart.index') }}"><x-icon name="cart" />Korpa @if($headerCartCount > 0)<b class="nav-count">{{ min(99, $headerCartCount) }}</b>@endif</a>@endcan
-                    @can('orders.view_own')<a href="{{ route('orders.index') }}"><x-icon name="orders" />Moje porudžbine</a>@endcan
-                    @can('orders.manage')<a href="{{ route('admin.orders.index') }}"><x-icon name="receipt" />Sve porudžbine</a>@endcan
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('after_sales') ? '1' : '0' }}">@can('after_sales.view_own')<a href="{{ route('after-sales.index') }}"><x-icon name="alert" />Moje reklamacije i servisi</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('after_sales') ? '1' : '0' }}">@can('after_sales.manage')<a href="{{ route('admin.after-sales.index') }}"><x-icon name="shield" />Reklamacije i servisi</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('field_operations') ? '1' : '0' }}">@can('field_operations.view')<a href="{{ route('admin.field-operations.index') }}"><x-icon name="truck" />Terenske operacije</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('field_operations') ? '1' : '0' }}">@can('field_operations.manage')<a href="{{ route('admin.field-service-teams.index') }}"><x-icon name="users" />Terenske ekipe</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('service_parts') ? '1' : '0' }}">@can('service_parts.view')<a href="{{ route('admin.service-parts.index') }}"><x-icon name="boxes" />Servisni lager</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('service_parts') ? '1' : '0' }}">@can('service_parts.procurement')<a href="{{ route('admin.service-part-purchases.index') }}"><x-icon name="receipt" />Nabavka delova</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('warranties') ? '1' : '0' }}">@can('warranties.view_own')<a href="{{ route('warranties.index') }}"><x-icon name="shield" />Moje garancije</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('warranties') ? '1' : '0' }}">@can('warranties.manage')<a href="{{ route('admin.warranties.index') }}"><x-icon name="shield" />Garancije i održavanje</a>@endcan</span>
-                </div>
-            </details>
-            @endcanany
-
-            <span data-module-visibility="{{ $moduleVisibility->enabled('receivables') ? '1' : '0' }}">@can('receivables.manage')<a class="{{ request()->routeIs('admin.receivables.*') ? 'active' : '' }}" href="{{ route('admin.receivables.index') }}"><span class="nav-link-content"><x-icon name="wallet" /><span>Potraživanja</span></span></a>@endcan</span>
-
-            @if($headerUser?->hasRole('admin','superadmin'))
-                <span data-module-visibility="{{ $moduleVisibility->enabled('commissions') ? '1' : '0' }}">@can('commissions.manage')<a class="{{ request()->routeIs('admin.commissions.*') ? 'active' : '' }}" href="{{ route('admin.commissions.index') }}"><span class="nav-link-content"><x-icon name="wallet" /><span>Provizije</span></span></a>@endcan</span>
-            @else
-                <span data-module-visibility="{{ $moduleVisibility->enabled('commissions') ? '1' : '0' }}">@can('commissions.view_own')<a class="{{ request()->routeIs('commissions.*') ? 'active' : '' }}" href="{{ route('commissions.index') }}"><span class="nav-link-content"><x-icon name="wallet" /><span>Moje provizije</span></span></a>@endcan</span>
-            @endif
-
-            <span data-module-visibility="{{ $moduleVisibility->enabled('notifications') ? '1' : '0' }}">@can('notifications.view')<a class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}"><span class="nav-link-content"><x-icon name="bell" /><span>Obaveštenja @if(($siteHeaderUnreadNotifications ?? 0)>0)<b class="nav-count">{{ min(99,(int)$siteHeaderUnreadNotifications) }}</b>@endif</span></span></a>@endcan</span>
-
-            <span data-module-visibility="{{ $moduleVisibility->enabled('reports') ? '1' : '0' }}">@can('reports.view')<a class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.index') }}"><span class="nav-link-content"><x-icon name="chart" /><span>Izveštaji</span></span></a>@endcan</span>
-
-            @canany(['stock.view','stock.adjust','inventory.receive','inventory.count','inventory.export','catalog.audit','security.view'])
-            <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('admin.stock.*','admin.inventory.*','admin.audit.*','admin.data-quality.*') ? 'active' : '' }}"><span><x-icon name="sliders" />Administracija</span></summary>
-                <div class="nav-dropdown-menu">
-                    @can('stock.view')<span data-module-visibility="{{ $moduleVisibility->enabled('inventory') ? '1' : '0' }}"><a href="{{ route('admin.inventory.index') }}"><x-icon name="boxes" />Napredni lager</a></span><a href="{{ route('admin.stock.index') }}"><x-icon name="cube" />Sva kretanja lagera</a>@endcan
-                    @can('catalog.audit')<a href="{{ route('admin.data-quality.index') }}"><x-icon name="health" />Data Quality Center</a><span data-module-visibility="{{ $moduleVisibility->enabled('audit') ? '1' : '0' }}"><a href="{{ route('admin.audit.index') }}"><x-icon name="receipt" />Audit log</a></span>@endcan
-                </div>
-            </details>
-            @endcanany
-
-            @can('system.manage_users')
-            <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('admin.users.*','admin.user-groups.*','admin.customer-portal.*') ? 'active' : '' }}"><span><x-icon name="users" />Korisnici</span></summary>
-                <div class="nav-dropdown-menu"><a href="{{ route('admin.users.index') }}"><x-icon name="users" />Svi korisnici</a><span data-module-visibility="{{ $moduleVisibility->enabled('customer_portal') ? '1' : '0' }}"><a href="{{ route('admin.customer-portal.index') }}"><x-icon name="mail" />Customer Portal</a></span><a href="{{ route('admin.user-groups.index') }}"><x-icon name="user-check" />Grupe pristupa</a></div>
-            </details>
-            @endcan
-
-            @canany(['system.manage_settings','catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement','system.manage_users'])
-            <details class="nav-dropdown">
-                <summary class="{{ request()->routeIs('admin.settings.*','admin.dictionary.*','admin.warranties.index','admin.field-service-teams.*','admin.service-part-suppliers.*','admin.user-groups.*') ? 'active' : '' }}"><span><x-icon name="settings" />Podešavanja</span></summary>
-                <div class="nav-dropdown-menu">
-                    <span class="dropdown-label">Centar</span>
-                    <a href="{{ route('admin.settings.index') }}"><x-icon name="settings" />Sva podešavanja</a>
-
-                    @can('system.manage_settings')
-                    <span class="dropdown-label">Poslovanje</span>
-                    <a href="{{ route('admin.settings.exchange.index') }}"><x-icon name="coins" />EUR/RSD kurs</a>
-                    <a href="{{ route('admin.settings.bank-accounts.index') }}"><x-icon name="wallet" />Žiro računi</a>
-                    @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.couriers.index') }}"><x-icon name="truck" />Kurirske službe</a>@endif
-                    @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.public-storefront.index') }}" data-nav-public-storefront><x-icon name="cart" />Javna prodavnica</a>@endif
-                    @endcan
-
-                    @canany(['catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement'])
-                    <span class="dropdown-label">Pravila i šifarnici</span>
-                    @can('catalog.manage_taxonomy')<a href="{{ route('admin.dictionary.index','categories') }}"><x-icon name="boxes" />Šifarnici kataloga</a>@endcan
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('warranties') ? '1' : '0' }}">@can('warranties.manage')<a href="{{ route('admin.warranties.index') }}"><x-icon name="shield" />Garancijska pravila</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('field_operations') ? '1' : '0' }}">@can('field_operations.manage')<a href="{{ route('admin.field-service-teams.index') }}"><x-icon name="users" />Terenske ekipe</a>@endcan</span>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('service_parts') ? '1' : '0' }}">@can('service_parts.procurement')<a href="{{ route('admin.service-part-suppliers.index') }}"><x-icon name="receipt" />Dobavljači delova</a>@endcan</span>
-                    @endcanany
-
-                    @can('system.manage_settings')
-                    <span class="dropdown-label">Komunikacija i izgled</span>
-                    <a href="{{ route('admin.settings.documents.index') }}"><x-icon name="file-text" />PDF i fakturisanje</a>
-                    @if(request()->user()?->hasRole('superadmin'))<a href="{{ route('admin.settings.modules.index') }}"><x-icon name="sliders" />Moduli</a>@endif
-                    <a href="{{ route('admin.settings.order-emails.index') }}"><x-icon name="mail" />E-mail obaveštenja</a>
-                    @if($headerUser?->hasRole('superadmin'))<a href="{{ route('admin.settings.smtp.index') }}" data-nav-smtp-settings><x-icon name="mail" />E-mail (SMTP)</a>@endif
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('automation') ? '1' : '0' }}">@can('automation.manage')<a href="{{ route('admin.settings.automation.index') }}"><x-icon name="cog" />Automatizacija</a>@endcan</span>
-                    <a href="{{ route('admin.settings.appearance') }}"><x-icon name="monitor" />Izgled sajta i prijave</a>
-                    <a href="{{ route('admin.settings.turnstile.index') }}"><x-icon name="shield" />Cloudflare Turnstile</a>
-                    <span data-module-visibility="{{ $moduleVisibility->enabled('system_health') ? '1' : '0' }}">@can('system.health')<a href="{{ route('admin.settings.system-health.index') }}"><x-icon name="health" />System Health</a>@endcan</span>
-                    @endcan
-
-                    @can('system.manage_users')
-                    <span class="dropdown-label">Pristup</span>
-                    <a href="{{ route('admin.user-groups.index') }}"><x-icon name="user-check" />Grupe pristupa</a>
-                    @endcan
-                </div>
-            </details>
-            @endcanany
-        </nav>
-        {{-- BATCH149G_V5_QUICK_SETTINGS_CARD --}}
-        <div class="mobile-menu-preferences quick-settings-card" data-mobile-menu-preferences role="group" aria-label="Podešavanja prikaza">
-            <div class="quick-settings-group">
-                <div class="quick-settings-label-row">
-                    <span class="quick-settings-label">Tema</span>
-                    <button class="quick-settings-secondary-action" type="button" data-theme-mode-option="auto" aria-pressed="false">
-                        <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>
-                        Sistem
-                    </button>
-                </div>
-                <div class="quick-settings-options" role="group" aria-label="Tema prikaza">
-                    <button class="quick-settings-tile quick-settings-theme-light" type="button" data-theme-mode-option="light" aria-pressed="false">
-                        <span class="quick-settings-tile-icon" aria-hidden="true">
-                            <svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
-                        </span>
-                        <span>Svetla</span>
-                    </button>
-                    <button class="quick-settings-tile quick-settings-theme-dark" type="button" data-theme-mode-option="dark" aria-pressed="false">
-                        <span class="quick-settings-tile-icon" aria-hidden="true">
-                            <svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z"></path></svg>
-                        </span>
-                        <span>Tamna</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="quick-settings-divider" aria-hidden="true"></div>
-
-            <div class="quick-settings-group">
-                <div class="quick-settings-label-row">
-                    <span class="quick-settings-label">Valuta prikaza</span>
-                    <button class="quick-settings-secondary-action" type="button" data-display-currency-option="native" aria-pressed="false">
-                        Izvorno
-                    </button>
-                </div>
-                <div class="quick-settings-options" role="group" aria-label="Valuta za prikaz cena">
-                    <button class="quick-settings-tile quick-settings-currency-tile" type="button" data-display-currency-option="EUR" aria-pressed="false">
-                        <span class="quick-settings-tile-icon quick-settings-currency-glyph" aria-hidden="true">€</span>
-                        <span>EUR</span>
-                    </button>
-                    <button class="quick-settings-tile quick-settings-currency-tile" type="button" data-display-currency-option="RSD" aria-pressed="false">
-                        <span class="quick-settings-tile-icon" aria-hidden="true">
-                            <svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3M18 7l-3 3M6 17l3-3"></path></svg>
-                        </span>
-                        <span>RSD</span>
-                    </button>
-                </div>
-                <small class="mobile-menu-currency-note" data-display-currency-status aria-live="polite"></small>
-            </div>
-        </div>
-        <form class="header-logout" method="post" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit"><x-icon name="logout" />Odjava</button></form>
-    </div>
-    @endauth
 </header>
+@auth
+<div class="a1-scrim" data-a1-scrim hidden></div>
+@endauth
 
 @auth
 @canany(['catalog.view','orders.manage','orders.view_own','system.manage_users','warranties.manage','warranties.view_own','after_sales.manage','after_sales.view_own','stock.view','reports.view','commissions.manage','commissions.view_own','notifications.view'])
-<div class="header-product-search-layer" id="headerProductSearch" data-header-product-search-layer data-endpoint="{{ route('global-search.quick') }}" data-global-command-search="1" hidden>
+<dialog class="a1-dialog a1-shell a1-cmd" id="headerProductSearch" data-header-product-search-layer data-endpoint="{{ route('global-search.quick') }}" data-global-command-search="1" aria-labelledby="headerProductSearchTitle">
 {{-- legacy-static-contract: data-endpoint="{{ route('catalog.quick-search') }}" --}}
-    <button class="header-product-search-backdrop" type="button" data-header-product-search-close tabindex="-1" aria-label="Zatvori pretragu"></button>
-    <section class="header-product-search-dialog" role="dialog" aria-modal="true" aria-labelledby="headerProductSearchTitle">
-        <div class="header-product-search-head">
-            <label class="header-product-search-input-wrap">
-                <x-icon name="search" size="19" />
-                <span class="sr-only" id="headerProductSearchTitle">Globalna pretraga</span>
-                <input class="header-product-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Artikal, porudžbina, korisnik, garancija..." data-header-product-search-input aria-autocomplete="list" aria-controls="headerProductSearchResults">
-            </label>
-            <button class="header-product-search-close" type="button" data-header-product-search-close aria-label="Zatvori pretragu">×</button>
-        </div>
-        <div class="header-product-search-body">
-            <div class="header-product-search-status" data-header-product-search-status>Unesi najmanje 2 karaktera za globalnu pretragu.</div>
-            <div class="header-product-search-results" id="headerProductSearchResults" data-header-product-search-results role="listbox" hidden></div>
-        </div>
-    </section>
-</div>
-@endcan
+    <div class="a1-cmd__head">
+        <label class="a1-search a1-cmd__field">
+            <x-icon name="search" :size="20" :shell="true" />
+            <span class="a1-sr" id="headerProductSearchTitle">Globalna pretraga</span>
+            <input class="a1-input" type="search" autocomplete="off" spellcheck="false" placeholder="Artikal, porudžbina, korisnik, garancija..." data-header-product-search-input aria-autocomplete="list" aria-controls="headerProductSearchResults" autofocus>
+        </label>
+        <button class="a1-btn a1-btn--icon a1-btn--sm a1-btn--quiet" type="button" data-header-product-search-close aria-label="Zatvori pretragu"><x-icon name="x" :size="20" :shell="true" /></button>
+    </div>
+    <div class="a1-cmd__body">
+        <div class="a1-cmd__status" data-header-product-search-status role="status">Unesi najmanje 2 karaktera za globalnu pretragu.</div>
+        <div class="a1-cmd__results" id="headerProductSearchResults" data-header-product-search-results role="listbox" aria-label="Rezultati pretrage" hidden></div>
+    </div>
+</dialog>
+@endcanany
 @endauth
 
-<main class="page-shell">
-    @if(session('status'))<div class="alert success">{{ session('status') }}</div>@endif
-    @if(isset($errors) && $errors->any())
-        <div class="alert error"><strong>Proveri podatke:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-    @endif
-    @yield('content')
+<main class="a1-frame" id="main-content" tabindex="-1" data-a1-page>
+    <div class="page-shell">
+        @if(session('status') || (isset($errors) && $errors->any()))
+        <div class="a1-flash a1-shell" data-a1-flash>
+            @if(session('status'))
+            {{-- Announced through the live region below (filled after load); a status present at load is not read reliably. --}}
+            <div class="a1-alert a1-alert--ok" data-a1-flash-status><x-icon name="check-circle" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ session('status') }}</p></div></div>
+            <div class="a1-sr" role="status" aria-live="polite" data-a1-flash-live></div>
+            @endif
+            @if(isset($errors) && $errors->any())
+            <div class="a1-alert a1-alert--danger" role="alert" tabindex="-1" data-a1-flash-error><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><strong class="a1-alert__title">Proveri podatke:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
+            @endif
+        </div>
+        @endif
+        @yield('content')
+    </div>
 </main>
 
 @php
@@ -389,22 +409,18 @@
         'url' => trim((string) ($siteSettings['site_footer_link_'.$i.'_url'] ?? '')),
     ])->filter(static fn (array $link): bool => $link['label'] !== '' && $link['url'] !== '');
 @endphp
-<footer class="site-footer site-footer-{{ $footerLayout }}">
-    <div class="footer-branding">
-        @if($footerShowLogo && ($siteLogoLightUrl || $siteLogoDarkUrl))<img class="site-footer-logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteLogoAlt }}" height="{{ $siteFooterLogoHeight }}">@endif
-        <div><strong>{{ $footerCopyright }}</strong>@if($footerSecondary !== '')<small>{{ $footerSecondary }}</small>@endif</div>
+<footer class="a1-footer a1-shell" data-a1-page>
+    <div class="a1-wrap a1-footer__inner{{ $footerLayout === 'centered' ? ' a1-footer__inner--centered' : '' }}">
+        <div class="a1-footer__brand">
+            @if($footerShowLogo && ($siteLogoLightUrl || $siteLogoDarkUrl))<img class="a1-footer__logo" src="{{ $siteLogoDarkUrl ?: $siteLogoLightUrl }}" data-logo-light="{{ $siteLogoLightUrl }}" data-logo-dark="{{ $siteLogoDarkUrl }}" alt="{{ $siteLogoAlt }}" height="{{ $siteFooterLogoHeight }}">@endif
+            <div><strong>{{ $footerCopyright }}</strong>@if($footerSecondary !== '')<small>{{ $footerSecondary }}</small>@endif</div>
+        </div>
+        @if($footerLinks->isNotEmpty())<nav class="a1-footer__links" aria-label="Poveznice u podnožju">@foreach($footerLinks as $link)<a href="{{ $link['url'] }}" @if($footerLinksNewTab) target="_blank" rel="noopener noreferrer" @endif>{{ $link['label'] }}</a>@endforeach</nav>@endif
     </div>
-    @if($footerLinks->isNotEmpty())<nav class="footer-links">@foreach($footerLinks as $link)<a href="{{ $link['url'] }}" @if($footerLinksNewTab) target="_blank" rel="noopener noreferrer" @endif>{{ $link['label'] }}</a>@endforeach</nav>@endif
 </footer>
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     const themeQuery = window.matchMedia('(prefers-color-scheme: light)');
     const themeModes = ['auto', 'dark', 'light'];
-    const themeLabels = { auto: 'Auto', dark: 'Tamna', light: 'Svetla' };
-    const themeIcons = {
-        auto: '<svg class="ui-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>',
-        dark: '<svg class="ui-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z"></path></svg>',
-        light: '<svg class="ui-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>'
-    };
     const resolveTheme = (mode) => mode === 'auto' ? (themeQuery.matches ? 'light' : 'dark') : mode;
     const applyThemeLogos = () => {
         const theme = document.documentElement.dataset.theme || 'dark';
@@ -421,26 +437,12 @@
             localStorage.setItem('ald1n-theme-mode', normalized);
             localStorage.removeItem('ald1n-theme');
         }
-        document.querySelectorAll('[data-theme-label]').forEach((label) => {
-            label.replaceChildren(document.createTextNode(themeLabels[normalized]));
-        });
-        document.querySelectorAll('[data-theme-icon]').forEach((icon) => {
-            icon.innerHTML = themeIcons[normalized];
-        });
         document.querySelectorAll('[data-theme-mode-option]').forEach((button) => {
-            const active = button.dataset.themeModeOption === normalized;
-            button.setAttribute('aria-pressed', active ? 'true' : 'false');
-            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', button.dataset.themeModeOption === normalized ? 'true' : 'false');
         });
         applyThemeLogos();
     };
     applyThemeMode(document.documentElement.dataset.themeMode || 'auto', false);
-    document.querySelectorAll('[data-theme-toggle]').forEach((toggle) => {
-        toggle.addEventListener('click', () => {
-            const current = document.documentElement.dataset.themeMode || 'auto';
-            applyThemeMode(themeModes[(themeModes.indexOf(current) + 1) % themeModes.length]);
-        });
-    });
     document.querySelectorAll('[data-theme-mode-option]').forEach((button) => {
         button.addEventListener('click', () => {
             applyThemeMode(button.dataset.themeModeOption || 'auto');
@@ -517,6 +519,12 @@
     });
     applyDisplayCurrency(displayCurrencyMode, false);
 
+    // Flash status: populate the live region after load so assistive technology announces it (errors take focus via ux-runtime.js).
+    document.querySelectorAll('[data-a1-flash-live]').forEach((live) => {
+        const text = document.querySelector('[data-a1-flash-status]')?.textContent?.trim() || '';
+        window.setTimeout(() => { live.textContent = text; }, 300);
+    });
+
     // ALD1N VNEXT B4: global product quick search runtime.
     const headerProductSearchToggle = document.querySelector('[data-header-product-search-toggle]');
     const headerProductSearchLayer = document.querySelector('[data-header-product-search-layer]');
@@ -533,6 +541,7 @@
         const searchResultLinks = () => Array.from(headerProductSearchResults.querySelectorAll('[data-header-product-search-result]'));
 
         const setSearchStatus = (message) => {
+            headerProductSearchInput.removeAttribute('aria-activedescendant');
             headerProductSearchStatus.textContent = message;
             headerProductSearchStatus.hidden = false;
             headerProductSearchResults.hidden = true;
@@ -551,10 +560,12 @@
                 link.classList.toggle('is-active', active);
                 link.setAttribute('aria-selected', active ? 'true' : 'false');
             });
+            headerProductSearchInput.setAttribute('aria-activedescendant', links[activeSearchIndex].id);
             links[activeSearchIndex]?.scrollIntoView({ block: 'nearest' });
         };
 
-        const closeProductSearch = () => {
+        // The native <dialog> traps focus, closes on Escape and hands focus back to the opener; this runs on every close.
+        const resetProductSearch = () => {
             if (searchTimer !== null) {
                 window.clearTimeout(searchTimer);
                 searchTimer = null;
@@ -564,18 +575,31 @@
                 searchAbort = null;
             }
             activeSearchIndex = -1;
-            headerProductSearchLayer.hidden = true;
-            document.body.classList.remove('header-product-search-open');
+            headerProductSearchInput.removeAttribute('aria-activedescendant');
+            document.documentElement.classList.remove('a1-lock');
             headerProductSearchToggle.setAttribute('aria-expanded', 'false');
+        };
+        const closeProductSearch = () => {
+            if (!headerProductSearchLayer.open) return;
+            if (typeof headerProductSearchLayer.close === 'function') {
+                headerProductSearchLayer.close();
+            } else {
+                headerProductSearchLayer.removeAttribute('open');
+                resetProductSearch();
+            }
         };
 
         const openProductSearch = () => {
-            headerProductSearchLayer.hidden = false;
-            document.body.classList.add('header-product-search-open');
+            if (headerProductSearchLayer.open) return;
+            setMobileMenu(false);
+            // A browser without <dialog>.showModal() gets the same dialog opened non-modally (Escape then closes it via the keydown below).
+            if (typeof headerProductSearchLayer.showModal === 'function') {
+                headerProductSearchLayer.showModal();
+            } else {
+                headerProductSearchLayer.setAttribute('open', '');
+            }
+            document.documentElement.classList.add('a1-lock');
             headerProductSearchToggle.setAttribute('aria-expanded', 'true');
-            document.querySelector('[data-site-header]')?.classList.remove('menu-open');
-            document.body.classList.remove('mobile-menu-open');
-            document.querySelector('[data-mobile-menu-toggle]')?.setAttribute('aria-expanded', 'false');
             window.requestAnimationFrame(() => {
                 headerProductSearchInput.focus();
                 headerProductSearchInput.select();
@@ -585,6 +609,7 @@
                 const renderProductSearchResults = (items) => {
             headerProductSearchResults.replaceChildren();
             activeSearchIndex = -1;
+            headerProductSearchInput.removeAttribute('aria-activedescendant');
 
             if (!Array.isArray(items) || items.length === 0) {
                 setSearchStatus('Nema rezultata koji odgovaraju unetoj pretrazi.');
@@ -597,7 +622,7 @@
                 const groupLabel = String(item.group || '');
                 if (groupLabel !== '' && groupLabel !== lastGroup) {
                     const groupHeading = document.createElement('div');
-                    groupHeading.className = 'header-product-search-group';
+                    groupHeading.className = 'a1-cmd__group';
                     groupHeading.textContent = groupLabel;
                     groupHeading.setAttribute('role', 'presentation');
                     headerProductSearchResults.appendChild(groupHeading);
@@ -605,7 +630,8 @@
                 }
 
                 const link = document.createElement('a');
-                link.className = 'header-product-search-result';
+                link.className = 'a1-cmd__result';
+                link.id = `headerProductSearchResult${headerProductSearchResults.querySelectorAll('[data-header-product-search-result]').length}`;
                 link.href = String(item.url || '#');
                 link.setAttribute('role', 'option');
                 link.setAttribute('aria-selected', 'false');
@@ -613,7 +639,7 @@
                 link.dataset.searchEntity = String(item.type || 'result');
 
                 const copy = document.createElement('span');
-                copy.className = 'header-product-search-copy';
+                copy.className = 'a1-cmd__copy';
 
                 const name = document.createElement('strong');
                 name.textContent = String(item.title || item.name || 'Rezultat');
@@ -644,12 +670,16 @@
 
                 meta.textContent = [...new Set(bits.filter(Boolean))].join(' · ');
 
-                const status = document.createElement('span');
-                status.className = 'header-product-search-result-status';
-                status.textContent = String(item.badge || item.status_label || item.status || '');
+                const badgeText = String(item.badge || item.status_label || item.status || '');
 
                 copy.append(name, meta);
-                link.append(copy, status);
+                link.append(copy);
+                if (badgeText !== '') {
+                    const badge = document.createElement('span');
+                    badge.className = 'a1-cmd__badge';
+                    badge.textContent = badgeText;
+                    link.append(badge);
+                }
                 headerProductSearchResults.append(link);
             });
 
@@ -730,19 +760,21 @@ const loadProductSearch = async (term) => {
             } else if (event.key === 'Enter' && activeSearchIndex >= 0 && links[activeSearchIndex]) {
                 event.preventDefault();
                 links[activeSearchIndex].click();
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                closeProductSearch();
-                headerProductSearchToggle.focus();
             }
         });
 
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && !headerProductSearchLayer.hidden) {
-                event.preventDefault();
-                closeProductSearch();
-                headerProductSearchToggle.focus();
-            }
+        headerProductSearchLayer.addEventListener('close', resetProductSearch);
+        // A click on the backdrop lands on the dialog element itself. Close only when the press AND the release were on the
+        // backdrop, so a text selection dragged out of the input does not dismiss the dialog.
+        let backdropPressed = false;
+        headerProductSearchLayer.addEventListener('pointerdown', (event) => { backdropPressed = event.target === headerProductSearchLayer; });
+        headerProductSearchLayer.addEventListener('click', (event) => {
+            if (event.target === headerProductSearchLayer && backdropPressed) closeProductSearch();
+            backdropPressed = false;
+        });
+        // Non-modal fallback has no native Escape handling.
+        headerProductSearchLayer.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && typeof headerProductSearchLayer.showModal !== 'function') closeProductSearch();
         });
     }
 
@@ -801,7 +833,7 @@ const loadProductSearch = async (term) => {
             return;
         }
 
-        if (headerLabel) headerLabel.textContent = document.querySelector('.rate-badge.is-stale') ? 'EUR/RSD · PROVERI' : 'EUR/RSD';
+        if (headerLabel) headerLabel.textContent = document.querySelector('.a1-rate.is-stale') ? 'EUR/RSD · PROVERI' : 'EUR/RSD';
         if (dashboardLabel) dashboardLabel.textContent = 'Aktuelni EUR/RSD kurs';
     };
 
@@ -841,7 +873,7 @@ const loadProductSearch = async (term) => {
             });
         }
 
-        document.querySelectorAll('.rate-badge.is-stale').forEach((node) => node.classList.remove('is-stale'));
+        document.querySelectorAll('.a1-rate.is-stale').forEach((node) => node.classList.remove('is-stale'));
     };
 
     const runExchangeRateSync = async (endpoint) => {
@@ -937,20 +969,32 @@ const loadProductSearch = async (term) => {
         });
     });
 
-    const siteHeader = document.querySelector('[data-site-header]');
+    const siteHeader = document.querySelector('[data-a1-header]');
     const mobileMenuToggle = document.querySelector('[data-mobile-menu-toggle]');
     const mobileMenu = document.querySelector('[data-mobile-menu]');
-    const mobileMenuQuery = window.matchMedia('(max-width: 1440px)');
-    const setMobileMenu = (open) => {
+    const mobileMenuScrim = document.querySelector('[data-a1-scrim]');
+    const mobileMenuQuery = window.matchMedia('(max-width: 1199px)');
+    const menuFocusable = () => Array.from(siteHeader.querySelectorAll('a[href], button:not([disabled]), summary, input:not([disabled])'))
+        .filter((node) => node.getClientRects().length > 0)
+        // Content of a closed <details> is not focusable, whatever the browser reports for its boxes.
+        .filter((node) => !(node.tagName === 'SUMMARY' ? node.parentElement.parentElement : node.parentElement)?.closest('details:not([open])'));
+    // Sheet menu (<= 1199px): body scroll lock, the page behind it is inert, Tab stays inside the header,
+    // Escape or the scrim closes it and focus goes back to the toggle.
+    const setMobileMenu = (open, returnFocus = false) => {
         if (!siteHeader || !mobileMenuToggle || !mobileMenu) return;
         const shouldOpen = Boolean(open && mobileMenuQuery.matches);
-        siteHeader.classList.toggle('menu-open', shouldOpen);
-        document.body.classList.toggle('mobile-menu-open', shouldOpen);
+        const wasOpen = siteHeader.classList.contains('is-open');
+        siteHeader.classList.toggle('is-open', shouldOpen);
+        document.documentElement.classList.toggle('a1-lock', shouldOpen || Boolean(headerProductSearchLayer?.open));
         mobileMenuToggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
         mobileMenuToggle.setAttribute('aria-label', shouldOpen ? 'Zatvori glavni meni' : 'Otvori glavni meni');
+        if (mobileMenuScrim) mobileMenuScrim.hidden = !shouldOpen;
+        document.querySelectorAll('[data-a1-page]').forEach((node) => { node.inert = shouldOpen; });
+        if (shouldOpen && !wasOpen) menuFocusable().find((node) => mobileMenu.contains(node))?.focus();
+        if (!shouldOpen && wasOpen && returnFocus) mobileMenuToggle.focus();
     };
-    const navDropdowns = Array.from(document.querySelectorAll('.nav-dropdown'));
-    const desktopHoverQuery = window.matchMedia('(min-width: 1441px) and (hover: hover) and (pointer: fine)');
+    const navDropdowns = Array.from(document.querySelectorAll('.a1-nav-dd'));
+    const desktopHoverQuery = window.matchMedia('(min-width: 1200px) and (hover: hover) and (pointer: fine)');
     const hoverCloseTimers = new WeakMap();
     const clickPinnedDropdowns = new WeakSet();
     const clearDropdownClose = (dropdown) => {
@@ -961,6 +1005,11 @@ const loadProductSearch = async (term) => {
     const setDropdown = (dropdown, open) => {
         dropdown.open = Boolean(open);
         dropdown.querySelector(':scope > summary')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (!open) return;
+        // A panel that would leave the viewport on the right opens towards the left instead.
+        dropdown.classList.remove('a1-nav-dd--flip');
+        const panel = dropdown.querySelector(':scope > .a1-nav-dd__panel');
+        if (panel && !mobileMenuQuery.matches && panel.getBoundingClientRect().right > window.innerWidth - 8) dropdown.classList.add('a1-nav-dd--flip');
     };
     const closeDropdown = (dropdown) => {
         clearDropdownClose(dropdown);
@@ -980,14 +1029,15 @@ const loadProductSearch = async (term) => {
     };
     navDropdowns.forEach((dropdown) => {
         const summary = dropdown.querySelector(':scope > summary');
-        const menu = dropdown.querySelector(':scope > .nav-dropdown-menu');
+        const menu = dropdown.querySelector(':scope > .a1-nav-dd__panel');
         summary?.setAttribute('aria-expanded', dropdown.open ? 'true' : 'false');
         summary?.addEventListener('click', (event) => {
             event.preventDefault();
-            const wasPinned = clickPinnedDropdowns.has(dropdown);
+            // Open (pinned or just opened by hover): the click closes it.
+            const wasOpen = dropdown.open;
             closeDropdowns(dropdown);
             clearDropdownClose(dropdown);
-            if (wasPinned) {
+            if (wasOpen) {
                 clickPinnedDropdowns.delete(dropdown);
                 setDropdown(dropdown, false);
                 return;
@@ -1004,23 +1054,44 @@ const loadProductSearch = async (term) => {
         dropdown.addEventListener('mouseleave', () => scheduleHoverClose(dropdown));
         menu?.addEventListener('mouseenter', () => clearDropdownClose(dropdown));
         menu?.addEventListener('mouseleave', () => scheduleHoverClose(dropdown));
-        dropdown.querySelectorAll('.nav-dropdown-menu a').forEach((link) => link.addEventListener('click', () => {
+        // Keyboard users who Tab out of an open group close it.
+        dropdown.addEventListener('focusout', (event) => {
+            if (event.relatedTarget instanceof Node && !dropdown.contains(event.relatedTarget)) closeDropdown(dropdown);
+        });
+        dropdown.querySelectorAll('.a1-nav-dd__panel a').forEach((link) => link.addEventListener('click', () => {
             closeDropdowns();
             setMobileMenu(false);
         }));
     });
 
-    mobileMenuToggle?.addEventListener('click', () => setMobileMenu(!siteHeader?.classList.contains('menu-open')));
-    mobileMenu?.querySelectorAll('a:not(.nav-dropdown-menu a)').forEach((link) => link.addEventListener('click', () => setMobileMenu(false)));
+    mobileMenuToggle?.addEventListener('click', () => setMobileMenu(!siteHeader?.classList.contains('is-open'), true));
+    mobileMenu?.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setMobileMenu(false)));
+    siteHeader?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Tab' || !siteHeader.classList.contains('is-open')) return;
+        const nodes = menuFocusable();
+        if (nodes.length === 0) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
+        const openDropdown = navDropdowns.find((dropdown) => dropdown.open);
+        const returnToSummary = openDropdown && openDropdown.contains(document.activeElement) && !siteHeader?.classList.contains('is-open');
         closeDropdowns();
-        setMobileMenu(false);
+        setMobileMenu(false, true);
+        if (returnToSummary) openDropdown.querySelector(':scope > summary')?.focus();
     });
     document.addEventListener('click', (event) => {
         const target = event.target instanceof Node ? event.target : null;
-        if (target && !target.closest?.('.nav-dropdown')) closeDropdowns();
-        if (siteHeader?.classList.contains('menu-open') && target && !siteHeader.contains(target)) setMobileMenu(false);
+        if (target && !target.closest?.('.a1-nav-dd')) closeDropdowns();
+        if (siteHeader?.classList.contains('is-open') && target && !siteHeader.contains(target)) setMobileMenu(false, true);
     });
     mobileMenuQuery.addEventListener?.('change', () => { closeDropdowns(); setMobileMenu(false); });
     desktopHoverQuery.addEventListener?.('change', () => closeDropdowns());

@@ -79,9 +79,9 @@ final class LiquidGlassFoundationContractTest extends TestCase
         $layout = file_get_contents($path);
         self::assertIsString($layout);
         foreach ([
-            'data-mobile-menu-toggle', 'data-theme-toggle',
+            'data-mobile-menu-toggle', 'data-theme-mode-option',
             'data-header-product-search-toggle', 'data-exchange-rate-sync',
-            'role="dialog"',
+            '<dialog', 'aria-expanded="false"', 'aria-label="Glavna navigacija"',
         ] as $marker) {
             self::assertStringContainsString($marker, $layout);
         }

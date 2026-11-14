@@ -1,4 +1,4 @@
-@props(['name', 'size' => 18])
+@props(['name', 'size' => 18, 'shell' => false])
 @php
     // MOBILE_BUILD16_LARAVEL_PHOSPHOR_RUNTIME_BATCH126
     $phosphorMap = [
@@ -57,7 +57,7 @@
     $phosphorSprite = asset('assets/icons/phosphor-regular.svg').'?v='.$phosphorSpriteVersion;
 @endphp
 <svg
-    {{ $attributes->merge(['class' => 'ui-icon']) }}
+    {{ $attributes->merge(['class' => $shell ? 'a1-icon a1-icon--ph' : 'ui-icon']) }}
     width="{{ $size }}"
     height="{{ $size }}"
     viewBox="0 0 256 256"
