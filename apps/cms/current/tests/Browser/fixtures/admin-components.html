@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="sr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ald1n admin komponente (primer)</title>
+<!-- Static gallery for ald1n-admin.css. Fixture only: not under public/, no route. Author: Ald1n <https://ald1n.com> -->
+<link rel="stylesheet" href="../../../public/assets/css/ald1n-tokens.css">
+<link rel="stylesheet" href="../../../public/assets/css/ald1n-admin.css">
+<style>
+/* Gallery only: one view at a time, chosen by the URL hash. */
+.view{display:none}
+.view:target,body:not(:has(.view:target)) #v-sheet{display:block}
+</style>
+</head>
+<body class="a1-app">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol><symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h10L20 7H6.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol><symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17v-6a6 6 0 0112 0v6l2 2H4z"/><path d="M10 21h4"/></symbol><symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></symbol><symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></symbol><symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.5v.01"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></symbol><symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V4h10v5M7 17H5v-6h14v6h-2M7 14h10v6H7z"/></symbol><symbol id="i-box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4zM3 7v10l9 4 9-4V7M12 11v10"/></symbol><symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></symbol></defs></svg>
+<a class="a1-skip" href="#main-s">Preskoči na sadržaj</a>
+
+<div class="view" id="v-sheet">
+
+<header class="a1-header">
+  <div class="a1-wrap a1-header__bar">
+    <a class="a1-brand" href="#v-dashboard" aria-label="Ald1n administracija, kontrolna tabla">
+      <span class="a1-brand__mark" aria-hidden="true">A1</span>
+      <span class="a1-brand__text">Ald1n<small>Administracija</small></span>
+    </a>
+    <form class="a1-header__search" role="search" action="#" onsubmit="return false">
+      <label class="a1-sr" for="q-s">Pretraga artikala i porudžbina</label>
+      <span class="a1-search"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-search"/></svg><input class="a1-input" id="q-s" type="search" name="q" placeholder="Pretraga artikala i porudžbina" autocomplete="off"></span>
+    </form>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Korpa, 2 artikla"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-cart"/></svg><span class="a1-count a1-count--float" aria-hidden="true">2</span></a>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Obaveštenja, 3 nova"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="a1-count a1-count--float" aria-hidden="true">3</span></a>
+    <input class="a1-menu-cb" type="checkbox" id="menu-s" aria-label="Meni"><label class="a1-menu-btn" for="menu-s" aria-hidden="true"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-menu"/></svg><span>Meni</span></label>
+    <div class="a1-header__panel">
+      <nav class="a1-header__nav" aria-label="Glavna navigacija">
+        <ul class="a1-nav">
+          <li><a class="a1-nav__link" href="#v-dashboard">Pregled</a></li>
+          <li><details class="a1-nav-dd" name="nav-s"><summary class="a1-nav__link">Prodaja</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-orders">Porudžbine</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Ponude</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Računi</a>
+              <span class="a1-nav-dd__sep" role="separator"></span>
+              <a class="a1-nav-dd__item" href="#v-sheet">Garancije i reklamacije</a>
+            </div></details></li>
+          <li><details class="a1-nav-dd" name="nav-s"><summary class="a1-nav__link">Katalog</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-sheet">Artikli</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Kategorije</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Zalihe</a>
+            </div></details></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Kupci</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Izveštaji</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet" aria-current="page">Komponente</a></li>
+        </ul>
+      </nav>
+      <span class="a1-rate"><span>Kurs EUR</span> <b>117,18 RSD</b></span>
+      <div class="a1-theme" role="group" aria-label="Tema">
+        <button class="a1-theme__opt" type="button" data-theme="system" aria-pressed="false" aria-label="Tema sistema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="light" aria-pressed="false" aria-label="Svetla tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="dark" aria-pressed="true" aria-label="Tamna tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-moon"/></svg></button>
+      </div>
+      <details class="a1-nav-dd a1-nav-dd--end a1-header__user" name="nav-s">
+        <summary class="a1-user"><span class="a1-user__avatar" aria-hidden="true">AN</span><span>Admin primer</span></summary>
+        <div class="a1-nav-dd__panel">
+          <a class="a1-nav-dd__item" href="#v-sheet">Moj nalog</a>
+          <a class="a1-nav-dd__item" href="#v-sheet">Bezbednost i prijava</a>
+          <span class="a1-nav-dd__sep" role="separator"></span>
+          <a class="a1-nav-dd__item" href="#v-sheet">Odjava</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<main class="a1-wrap a1-main" id="main-s" tabindex="-1">
+  <div class="a1-pagehead">
+    <div class="a1-pagehead__text">
+      <nav aria-label="Putanja"><ol class="a1-crumbs"><li><a href="#v-dashboard">Početna</a></li><li><span aria-current="page">Biblioteka komponenti</span></li></ol></nav>
+      <h1 class="a1-title">Biblioteka admin komponenti</h1>
+      <p class="a1-lead">Svi nazivi, iznosi i kupci na ovoj stranici su izmišljeni primeri. Stranica služi samo za proveru izgleda.</p>
+    </div>
+    <div class="a1-pagehead__actions"><button class="a1-btn" type="button">Sekundarna radnja</button><button class="a1-btn a1-btn--primary" type="button">Jedna glavna radnja</button></div>
+  </div>
+  <nav aria-label="Odeljci biblioteke"><ul class="a1-tabs"><li><a class="a1-tabs__link" href="#v-sheet" aria-current="page">Komponente</a></li><li><a class="a1-tabs__link" href="#v-dashboard">Kontrolna tabla</a></li><li><a class="a1-tabs__link" href="#v-orders">Porudžbine</a></li><li><a class="a1-tabs__link" href="#v-order">Porudžbina</a></li></ul></nav>
+  <div class="a1-stack a1-gap-40">
+<section class="a1-stack" aria-labelledby="s-shell"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-shell">Okvir aplikacije</h2></div><p class="a1-text">Zaglavlje iznad je pravi primer: marka, glavna navigacija sa padajućim menijima, pretraga, kurs, korpa, obaveštenja, izbor teme i korisnik. Ispod 769 px navigacija se otvara iz dugmeta Meni.</p></section>
+<section class="a1-stack" aria-labelledby="s-buttons"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-buttons">Dugmad i veze</h2></div><div class="a1-card"><h3 class="a1-h3">Varijante, veličine i stanja</h3>
+    <div class="a1-cluster">
+      <button class="a1-btn a1-btn--primary" type="button">Primarno</button>
+      <button class="a1-btn" type="button">Sekundarno</button>
+      <button class="a1-btn a1-btn--quiet" type="button">Tiho</button>
+      <button class="a1-btn a1-btn--danger" type="button">Obriši</button>
+      <button class="a1-btn a1-btn--primary a1-btn--sm" type="button">Malo</button>
+      <button class="a1-btn a1-btn--icon" type="button" aria-label="Dodaj stavku"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
+      <button class="a1-btn a1-btn--icon a1-btn--sm" type="button" aria-label="Izmeni stavku"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-edit"/></svg></button>
+    </div>
+    <div class="a1-cluster">
+      <button class="a1-btn a1-btn--primary" type="button" disabled>Onemogućeno</button>
+      <button class="a1-btn" type="button" aria-disabled="true">Onemogućeno</button>
+      <button class="a1-btn a1-btn--primary" type="button" aria-busy="true"><span>Čuvanje</span></button>
+      <button class="a1-btn" type="button" aria-busy="true"><span>Učitavanje</span></button>
+    </div>
+    <div class="a1-cluster"><a class="a1-link" href="#v-sheet">Veza uz tekst</a><a class="a1-link a1-link--quiet" href="#v-sheet">Tiha veza</a><span class="a1-text">Veza u rečenici: <a class="a1-link a1-link--inline" href="#v-sheet">pogledaj izveštaj</a>.</span></div></div></section>
+<section class="a1-stack" aria-labelledby="s-forms"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-forms">Obrasci</h2></div>
+    <div class="a1-grid a1-grid--2">
+    <form class="a1-card a1-form" action="#" onsubmit="return false" aria-labelledby="fm1">
+      <h3 class="a1-h3" id="fm1">Podaci o artiklu</h3>
+      <p class="a1-help">Polja označena zvezdicom su obavezna.</p>
+      
+<div class="a1-field">
+  <label class="a1-label" for="g-name">Naziv artikla<span class="a1-req" aria-hidden="true">*</span></label>
+  <input class="a1-input" id="g-name" name="g-name" type="text" value="Laptop 15,6″ (primer)" required aria-describedby="g-name-help">
+  <p class="a1-help" id="g-name-help">Naziv se prikazuje u prodavnici.</p>
+  
+</div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="g-sku">Šifra<span class="a1-req" aria-hidden="true">*</span></label>
+  <input class="a1-input" id="g-sku" name="g-sku" type="text" value="LP 1042" required aria-invalid="true" aria-describedby="g-sku-err">
+  
+  <p class="a1-error" id="g-sku-err"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>Šifra ne sme da sadrži razmak.</span></p>
+</div>
+      <div class="a1-row">
+        
+<div class="a1-field">
+  <label class="a1-label" for="g-price">Cena</label>
+  <div class="a1-group"><input class="a1-input" id="g-price" name="price" inputmode="decimal" value="89.990,00"><span class="a1-group__unit">RSD</span></div>
+  
+  
+</div>
+        
+<div class="a1-field">
+  <label class="a1-label" for="g-weight">Težina</label>
+  <div class="a1-group"><input class="a1-input" id="g-weight" name="weight" inputmode="decimal" value="1,8"><span class="a1-group__unit">kg</span></div>
+  
+  
+</div>
+      </div>
+      <div class="a1-row">
+        
+<div class="a1-field">
+  <label class="a1-label" for="g-cat">Kategorija</label>
+  <select class="a1-select" id="g-cat" name="cat"><option>Laptopovi</option><option>Monitori</option><option>Oprema</option></select>
+  
+  
+</div>
+        
+<div class="a1-field">
+  <label class="a1-label" for="g-date">Datum nabavke</label>
+  <input class="a1-input" id="g-date" name="g-date" type="date" value="2026-11-10">
+  
+  
+</div>
+      </div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="g-desc">Opis</label>
+  <textarea class="a1-textarea" id="g-desc" name="desc" placeholder="Kratak opis artikla"></textarea>
+  
+  
+</div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="g-dis">Interna šifra (zaključano)</label>
+  <input class="a1-input" id="g-dis" name="g-dis" type="text" value="AUTO-0042" disabled>
+  
+  
+</div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="g-ro">Poslednja izmena (samo za čitanje)</label>
+  <input class="a1-input" id="g-ro" name="g-ro" type="text" value="14.11.2026. u 09:41" readonly>
+  
+  
+</div>
+      <div class="a1-field"><label class="a1-label" for="g-file">Slike artikla</label>
+        <label class="a1-drop"><input class="a1-drop__input" id="g-file" type="file" name="images" multiple aria-describedby="g-file-help"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-upload"/></svg><span class="a1-drop__title">Prevuci slike ovde ili izaberi</span><span class="a1-help" id="g-file-help">JPG ili PNG, do 5 MB po slici.</span></label></div>
+    </form>
+    <div class="a1-stack">
+      <form class="a1-card a1-form" action="#" onsubmit="return false" aria-labelledby="fm2">
+        <h3 class="a1-h3" id="fm2">Opcije i izbori</h3>
+        <fieldset class="a1-fieldset"><legend class="a1-legend">Obaveštenja</legend><div class="a1-stack a1-gap-4">
+          <label class="a1-check"><input class="a1-check__input" type="checkbox" name="n1" checked><span class="a1-check__box" aria-hidden="true"></span><span>Nova porudžbina</span></label>
+          <label class="a1-check"><input class="a1-check__input" type="checkbox" name="n2"><span class="a1-check__box" aria-hidden="true"></span><span>Artikal pri kraju zalihe</span></label>
+          <label class="a1-check"><input class="a1-check__input" type="checkbox" name="n3" disabled><span class="a1-check__box" aria-hidden="true"></span><span>Nedeljni izveštaj (nije dostupno)</span></label>
+        </div></fieldset>
+        <fieldset class="a1-fieldset"><legend class="a1-legend">Isporuka</legend><div class="a1-stack a1-gap-4">
+          <label class="a1-check"><input class="a1-check__input" type="radio" name="ship" checked><span class="a1-check__box a1-check__box--radio" aria-hidden="true"></span><span>Kurirska služba</span></label>
+          <label class="a1-check"><input class="a1-check__input" type="radio" name="ship"><span class="a1-check__box a1-check__box--radio" aria-hidden="true"></span><span>Lično preuzimanje</span></label>
+        </div></fieldset>
+        <label class="a1-check"><input class="a1-check__input" type="checkbox" role="switch" name="pub" checked><span class="a1-switch__track" aria-hidden="true"></span><span>Prikaži artikal u prodavnici</span></label>
+        <label class="a1-check"><input class="a1-check__input" type="checkbox" role="switch" name="feat"><span class="a1-switch__track" aria-hidden="true"></span><span>Istakni na početnoj</span></label>
+      </form>
+      <form class="a1-card a1-form" action="#" onsubmit="return false" aria-labelledby="fm3">
+        <h3 class="a1-h3" id="fm3">Raspored u istom redu</h3>
+        
+<div class="a1-field a1-field--inline">
+  <label class="a1-label" for="i-mail">E-pošta za račune</label>
+  <input class="a1-input" id="i-mail" name="i-mail" type="email" value="racuni@primer.test">
+  <p class="a1-help" id="i-mail-help">Na ovu adresu šaljemo račune.</p>
+  
+</div>
+        
+<div class="a1-field a1-field--inline">
+  <label class="a1-label" for="i-tax">PIB</label>
+  <input class="a1-input" id="i-tax" name="i-tax" type="text" value="12345" aria-invalid="true" aria-describedby="i-tax-err">
+  
+  <p class="a1-error" id="i-tax-err"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>PIB ima devet cifara.</span></p>
+</div>
+      </form>
+    </div></div>
+    <form class="a1-form" action="#" onsubmit="return false" aria-label="Dugi obrazac sa trakom za radnje">
+      <div class="a1-card"><h3 class="a1-h3">Traka za radnje (lepljiva)</h3><p class="a1-text">Kod dugih obrazaca traka ostaje na dnu ekrana, pa je čuvanje uvek na dohvat ruke.</p></div>
+      <div class="a1-actionbar"><p class="a1-actionbar__status" role="status">Imate nesačuvane izmene.</p><div class="a1-actionbar__buttons"><button class="a1-btn a1-btn--quiet" type="reset">Odbaci</button><button class="a1-btn a1-btn--primary" type="submit">Sačuvaj izmene</button></div></div>
+    </form></section>
+<section class="a1-stack" aria-labelledby="s-status"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-status">Statusi i brojači</h2></div><div class="a1-card"><h3 class="a1-h3">Tačka i tekst, nikad samo boja</h3><div class="a1-cluster"><span class="a1-pill a1-pill--ok">Plaćeno</span><span class="a1-pill a1-pill--info">Poslato</span><span class="a1-pill a1-pill--warning">U obradi</span><span class="a1-pill a1-pill--danger">Otkazano</span><span class="a1-pill a1-pill--off">Čeka uplatu</span><span class="a1-pill">Bez statusa</span><span class="a1-count">12</span><span class="a1-count">128</span></div></div></section>
+<section class="a1-stack" aria-labelledby="s-surfaces"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-surfaces">Površine</h2></div>
+    <div class="a1-grid a1-grid--2">
+      <section class="a1-card" aria-labelledby="sc1"><h3 class="a1-h3" id="sc1">Kartica</h3><p class="a1-text">Staklena površina za grupu povezanih podataka. Tekst uvek stoji na gustoj podlozi.</p></section>
+      <section class="a1-kpi" aria-labelledby="sk1"><h3 class="a1-kpi__label" id="sk1">KPI kartica</h3><p class="a1-kpi__value a1-num">412.300 RSD</p><p class="a1-kpi__delta a1-kpi__delta--up"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-up"/></svg><b>+8 %</b> od juče</p></section>
+      <section class="a1-card" aria-labelledby="sd1"><h3 class="a1-h3" id="sd1">Lista pojmova</h3><dl class="a1-dl"><div class="a1-dl__row"><dt>Kupac</dt><dd>Primer kupac d.o.o.</dd></div><div class="a1-dl__row"><dt>Iznos</dt><dd class="a1-num">129.980,00 RSD</dd></div></dl></section>
+      <section class="a1-card" aria-labelledby="sa1"><h3 class="a1-h3" id="sa1">Harmonika</h3>
+        <details class="a1-acc" name="acc" open><summary>Uslovi garancije</summary><div class="a1-acc__body">Garancija počinje od datuma potvrde isporuke.</div></details>
+        <details class="a1-acc" name="acc"><summary>Reklamacije</summary><div class="a1-acc__body">Reklamaciju možemo da primimo u roku od dva meseca.</div></details></section>
+    </div>
+    <div class="a1-empty"><span class="a1-empty__icon"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-box"/></svg></span><h3 class="a1-h3">Nema porudžbina za ovaj filter</h3><p>Promeni period ili status, pa pokušaj ponovo.</p><a class="a1-btn a1-btn--primary" href="#v-sheet">Očisti filtere</a></div>
+    <div class="a1-card" aria-busy="true" aria-label="Učitavanje"><h3 class="a1-h3">Učitavanje (skeleton)</h3><div class="a1-skeleton-list"><span class="a1-skeleton a1-skeleton--title"></span><span class="a1-skeleton"></span><span class="a1-skeleton"></span><span class="a1-skeleton a1-skeleton--block"></span></div><span class="a1-sr" role="status">Podaci se učitavaju</span></div></section>
+<section class="a1-stack" aria-labelledby="s-feedback"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-feedback">Poruke i prozori</h2></div>
+    <div class="a1-stack">
+      <div class="a1-alert" role="status"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-info"/></svg><div class="a1-alert__body"><span class="a1-alert__title">Obaveštenje</span><p>Kurs je ažuriran danas u 08:00.</p></div></div>
+      <div class="a1-alert a1-alert--ok" role="status"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-check"/></svg><div class="a1-alert__body"><span class="a1-alert__title">Sačuvano</span><p>Artikal je uspešno sačuvan.</p></div></div>
+      <div class="a1-alert a1-alert--warning" role="status"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><div class="a1-alert__body"><span class="a1-alert__title">Pažnja</span><p>Sedam artikala je ispod minimalne zalihe.</p></div></div>
+      <div class="a1-alert a1-alert--danger" role="alert"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><div class="a1-alert__body"><span class="a1-alert__title">Greška</span><p>Porudžbinu nismo mogli da sačuvamo. Pokušaj ponovo.</p></div></div>
+    </div>
+    <div class="a1-card"><h3 class="a1-h3">Toast (region za obaveštenja)</h3>
+      <div class="a1-toasts a1-toasts--static" role="status" aria-live="polite"><div class="a1-alert a1-alert--ok"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-check"/></svg><div class="a1-alert__body"><span class="a1-alert__title">Porudžbina je poslata</span><p>Kupac je dobio obaveštenje.</p></div><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Zatvori poruku"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button></div></div></div>
+    <div class="a1-card"><h3 class="a1-h3">Prozor za potvrdu</h3>
+      <div class="a1-cluster"><button class="a1-btn a1-btn--danger" type="button" command="show-modal" commandfor="dlg-sheet">Otvori prozor</button></div>
+      <dialog class="a1-dialog" open aria-labelledby="dlg-static-t">
+        <form method="dialog"><div class="a1-dialog__head"><h4 class="a1-h2" id="dlg-static-t">Obrisati artikal?</h4></div>
+        <div class="a1-dialog__body"><p>Artikal „Laptop 15,6″ (primer)“ nestaje iz kataloga. Ovo ne možemo da poništimo.</p></div>
+        <div class="a1-dialog__foot"><button class="a1-btn" value="cancel">Odustani</button><button class="a1-btn a1-btn--danger" value="confirm">Obriši artikal</button></div></form>
+      </dialog>
+      <dialog class="a1-dialog" id="dlg-sheet" aria-labelledby="dlg-sheet-t">
+        <form method="dialog"><div class="a1-dialog__head"><h4 class="a1-h2" id="dlg-sheet-t">Obrisati artikal?</h4></div>
+        <div class="a1-dialog__body"><p>Artikal nestaje iz kataloga. Ovo ne možemo da poništimo.</p></div>
+        <div class="a1-dialog__foot"><button class="a1-btn" value="cancel">Odustani</button><button class="a1-btn a1-btn--danger" value="confirm">Obriši artikal</button></div></form>
+      </dialog></div></section>
+<section class="a1-stack" aria-labelledby="s-data"><div class="a1-stack a1-gap-4"><h2 class="a1-h2" id="s-data">Podaci</h2></div>
+    <section class="a1-stack" aria-labelledby="dt1"><h3 class="a1-h3" id="dt1">Tabela sa horizontalnim skrolom u svom okviru</h3>
+      <div class="a1-tablewrap" role="region" aria-label="Zalihe po magacinima" tabindex="0"><table class="a1-table">
+        <caption class="a1-sr">Zalihe po magacinima</caption>
+        <thead><tr><th scope="col">Artikal</th><th scope="col">Magacin</th><th scope="col" class="a1-table__num">Na stanju</th><th scope="col" class="a1-table__num">Rezervisano</th><th scope="col" class="a1-table__num">Minimum</th><th scope="col">Stanje</th></tr></thead>
+        <tbody>
+          <tr><td>Laptop 15,6″ (primer)</td><td>Beograd</td><td class="a1-table__num">12</td><td class="a1-table__num">2</td><td class="a1-table__num">5</td><td><span class="a1-pill a1-pill--ok">Dovoljno</span></td></tr>
+          <tr><td>Monitor 27″ QHD (primer)</td><td>Novi Sad</td><td class="a1-table__num">3</td><td class="a1-table__num">1</td><td class="a1-table__num">4</td><td><span class="a1-pill a1-pill--warning">Pri kraju</span></td></tr>
+          <tr><td>Mehanička tastatura (primer)</td><td>Beograd</td><td class="a1-table__num">0</td><td class="a1-table__num">0</td><td class="a1-table__num">3</td><td><span class="a1-pill a1-pill--off">Nema na stanju</span></td></tr>
+        </tbody></table></div>
+      <p class="a1-help">Tabela sa mnogo kolona ostaje čitljiva i na telefonu: skroluje se samo njen okvir, ne cela stranica. Tabela porudžbina u prikazu „Porudžbine“ umesto skrola slaže redove jedan ispod drugog.</p></section>
+    <div class="a1-grid a1-grid--2">
+      <section class="a1-card" aria-labelledby="ch1"><h3 class="a1-h3" id="ch1">Stubići</h3>
+        <ol class="a1-bars" aria-label="Primer stubića"><li><span class="a1-bars__area"><span class="a1-bars__value">30</span><span class="a1-bars__bar" style="--a1c-value:30"></span></span><span>A</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">62</span><span class="a1-bars__bar" style="--a1c-value:62"></span></span><span>B</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">45</span><span class="a1-bars__bar" style="--a1c-value:45"></span></span><span>C</span></li><li aria-current="true"><span class="a1-bars__area"><span class="a1-bars__value">88</span><span class="a1-bars__bar" style="--a1c-value:88"></span></span><span>D</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">54</span><span class="a1-bars__bar" style="--a1c-value:54"></span></span><span>E</span></li></ol></section>
+      <section class="a1-card" aria-labelledby="ch2"><h3 class="a1-h3" id="ch2">Krug i traka napretka</h3>
+        <div class="a1-cluster a1-gap-24"><div class="a1-donut-wrap"><svg class="a1-donut" viewBox="0 0 36 36" role="img" aria-label="45 odsto"><circle class="a1-donut__track" cx="18" cy="18" r="15.9155"/><circle class="a1-donut__value" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dasharray="45 55"/></svg><span aria-hidden="true">45 %</span></div>
+        <div class="a1-stack a1-gap-12" style="flex:1 1 200px"><label class="a1-label" for="pg1">Popunjenost magacina</label><progress class="a1-progress" id="pg1" max="100" value="68">68 %</progress></div></div></section>
+    </div>
+    <nav class="a1-pager" aria-label="Primer straničenja"><p class="a1-pager__status">Stranica 4 od 19</p><ul class="a1-pager__list">
+      <li><a class="a1-page" href="#v-sheet">Prethodna</a></li><li><a class="a1-page" href="#v-sheet" aria-label="Stranica 3">3</a></li><li><a class="a1-page" href="#v-sheet" aria-current="page" aria-label="Stranica 4, trenutna">4</a></li><li><a class="a1-page" href="#v-sheet" aria-label="Stranica 5">5</a></li><li><span class="a1-page" aria-disabled="true">Sledeća</span></li></ul></nav>
+    <ul class="a1-chips" aria-label="Primer aktivnih filtera"><li><a class="a1-chip" href="#v-sheet" aria-label="Ukloni filter: status plaćeno">Status: plaćeno<svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-x"/></svg></a></li><li><a class="a1-chip" href="#v-sheet" aria-label="Ukloni filter: Beograd">Magacin: Beograd<svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-x"/></svg></a></li></ul></section>
+  </div>
+</main>
+</div>
+
+<div class="view" id="v-dashboard">
+
+<header class="a1-header">
+  <div class="a1-wrap a1-header__bar">
+    <a class="a1-brand" href="#v-dashboard" aria-label="Ald1n administracija, kontrolna tabla">
+      <span class="a1-brand__mark" aria-hidden="true">A1</span>
+      <span class="a1-brand__text">Ald1n<small>Administracija</small></span>
+    </a>
+    <form class="a1-header__search" role="search" action="#" onsubmit="return false">
+      <label class="a1-sr" for="q-d">Pretraga artikala i porudžbina</label>
+      <span class="a1-search"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-search"/></svg><input class="a1-input" id="q-d" type="search" name="q" placeholder="Pretraga artikala i porudžbina" autocomplete="off"></span>
+    </form>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Korpa, 2 artikla"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-cart"/></svg><span class="a1-count a1-count--float" aria-hidden="true">2</span></a>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Obaveštenja, 3 nova"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="a1-count a1-count--float" aria-hidden="true">3</span></a>
+    <input class="a1-menu-cb" type="checkbox" id="menu-d" aria-label="Meni"><label class="a1-menu-btn" for="menu-d" aria-hidden="true"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-menu"/></svg><span>Meni</span></label>
+    <div class="a1-header__panel">
+      <nav class="a1-header__nav" aria-label="Glavna navigacija">
+        <ul class="a1-nav">
+          <li><a class="a1-nav__link" href="#v-dashboard" aria-current="page">Pregled</a></li>
+          <li><details class="a1-nav-dd" name="nav-d"><summary class="a1-nav__link">Prodaja</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-orders">Porudžbine</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Ponude</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Računi</a>
+              <span class="a1-nav-dd__sep" role="separator"></span>
+              <a class="a1-nav-dd__item" href="#v-sheet">Garancije i reklamacije</a>
+            </div></details></li>
+          <li><details class="a1-nav-dd" name="nav-d"><summary class="a1-nav__link">Katalog</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-sheet">Artikli</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Kategorije</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Zalihe</a>
+            </div></details></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Kupci</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Izveštaji</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Komponente</a></li>
+        </ul>
+      </nav>
+      <span class="a1-rate"><span>Kurs EUR</span> <b>117,18 RSD</b></span>
+      <div class="a1-theme" role="group" aria-label="Tema">
+        <button class="a1-theme__opt" type="button" data-theme="system" aria-pressed="false" aria-label="Tema sistema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="light" aria-pressed="false" aria-label="Svetla tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="dark" aria-pressed="true" aria-label="Tamna tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-moon"/></svg></button>
+      </div>
+      <details class="a1-nav-dd a1-nav-dd--end a1-header__user" name="nav-d">
+        <summary class="a1-user"><span class="a1-user__avatar" aria-hidden="true">AN</span><span>Admin primer</span></summary>
+        <div class="a1-nav-dd__panel">
+          <a class="a1-nav-dd__item" href="#v-sheet">Moj nalog</a>
+          <a class="a1-nav-dd__item" href="#v-sheet">Bezbednost i prijava</a>
+          <span class="a1-nav-dd__sep" role="separator"></span>
+          <a class="a1-nav-dd__item" href="#v-sheet">Odjava</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<main class="a1-wrap a1-main" id="main-d" tabindex="-1">
+  <div class="a1-pagehead">
+    <div class="a1-pagehead__text">
+      <p class="a1-eyebrow">Subota, 14. novembar</p>
+      <h1 class="a1-title">Dobro jutro. Šest porudžbina čeka obradu.</h1>
+      <p class="a1-lead">Podaci na ovoj stranici su izmišljeni primeri za prikaz komponenti.</p>
+    </div>
+    <div class="a1-pagehead__actions">
+      <a class="a1-btn" href="#v-orders">Sve porudžbine</a>
+      <a class="a1-btn a1-btn--primary" href="#v-order"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>Nova porudžbina</a>
+    </div>
+  </div>
+  <div class="a1-stack a1-gap-24">
+    <div class="a1-grid a1-grid--kpi">
+      <section class="a1-kpi" aria-labelledby="k1"><h2 class="a1-kpi__label" id="k1">Porudžbine danas</h2><p class="a1-kpi__value a1-num">14</p><p class="a1-kpi__delta a1-kpi__delta--up"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-up"/></svg><b>+3</b> u odnosu na juče</p></section>
+      <section class="a1-kpi" aria-labelledby="k2"><h2 class="a1-kpi__label" id="k2">Promet danas</h2><p class="a1-kpi__value a1-num">412.300 RSD</p><p class="a1-kpi__delta a1-kpi__delta--up"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-up"/></svg><b>+8 %</b> u odnosu na juče</p></section>
+      <section class="a1-kpi" aria-labelledby="k3"><h2 class="a1-kpi__label" id="k3">Otvorene reklamacije</h2><p class="a1-kpi__value a1-num">2</p><p class="a1-kpi__delta">najstarija je stara 3 dana</p></section>
+      <section class="a1-kpi" aria-labelledby="k4"><h2 class="a1-kpi__label" id="k4">Artikli pri kraju</h2><p class="a1-kpi__value a1-num">7</p><p class="a1-kpi__delta a1-kpi__delta--down"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-down"/></svg>ispod minimalne zalihe</p></section>
+    </div>
+    <div class="a1-grid a1-grid--2">
+      <section class="a1-card" aria-labelledby="c-bars">
+        <div class="a1-card__head"><h2 class="a1-h3" id="c-bars">Promet po danima</h2><span class="a1-muted">u hiljadama RSD</span></div>
+        <ol class="a1-bars" aria-label="Promet po danima u hiljadama dinara">
+          <li><span class="a1-bars__area"><span class="a1-bars__value">176</span><span class="a1-bars__bar" style="--a1c-value:42"></span></span><span>Pon</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">243</span><span class="a1-bars__bar" style="--a1c-value:58"></span></span><span>Uto</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">205</span><span class="a1-bars__bar" style="--a1c-value:49"></span></span><span>Sre</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">297</span><span class="a1-bars__bar" style="--a1c-value:71"></span></span><span>Čet</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">268</span><span class="a1-bars__bar" style="--a1c-value:64"></span></span><span>Pet</span></li><li aria-current="true"><span class="a1-bars__area"><span class="a1-bars__value">412</span><span class="a1-bars__bar" style="--a1c-value:100"></span></span><span>Sub</span></li><li><span class="a1-bars__area"><span class="a1-bars__value">50</span><span class="a1-bars__bar" style="--a1c-value:12"></span></span><span>Ned</span></li>
+        </ol>
+        <p class="a1-muted">Najbolji dan ove nedelje je subota, istaknut je punom bojom.</p>
+      </section>
+      <section class="a1-card" aria-labelledby="c-status">
+        <div class="a1-card__head"><h2 class="a1-h3" id="c-status">Porudžbine po statusu</h2><span class="a1-muted">ukupno 60</span></div>
+        <ul class="a1-breakdown">
+          <li><span class="a1-pill a1-pill--ok">Plaćeno</span><progress class="a1-progress" max="60" value="31" aria-label="Plaćeno, udeo u 60 porudžbina">31</progress><b>31</b></li>
+          <li><span class="a1-pill a1-pill--info">Poslato</span><progress class="a1-progress" max="60" value="19" aria-label="Poslato, udeo u 60 porudžbina">19</progress><b>19</b></li>
+          <li><span class="a1-pill a1-pill--warning">U obradi</span><progress class="a1-progress" max="60" value="6" aria-label="U obradi, udeo u 60 porudžbina">6</progress><b>6</b></li>
+          <li><span class="a1-pill a1-pill--off">Čeka uplatu</span><progress class="a1-progress" max="60" value="4" aria-label="Čeka uplatu, udeo u 60 porudžbina">4</progress><b>4</b></li>
+        </ul>
+      </section>
+      <section class="a1-card" aria-labelledby="c-goal">
+        <div class="a1-card__head"><h2 class="a1-h3" id="c-goal">Mesečni cilj prometa</h2></div>
+        <div class="a1-cluster a1-gap-24">
+          <div class="a1-donut-wrap"><svg class="a1-donut" viewBox="0 0 36 36" role="img" aria-label="72 odsto cilja ostvareno"><circle class="a1-donut__track" cx="18" cy="18" r="15.9155"/><circle class="a1-donut__value" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dasharray="72 28"/></svg><span aria-hidden="true">72 %</span></div>
+          <ul class="a1-keylist"><li><b class="a1-num">5.760.000 RSD</b> ostvareno</li><li class="a1-num">8.000.000 RSD cilj</li><li>Do kraja meseca ostalo je 16 dana.</li></ul>
+        </div>
+      </section>
+    </div>
+    <section class="a1-card a1-card--flush" aria-labelledby="c-last">
+      <div class="a1-card__head a1-card__head--pad"><h2 class="a1-h3" id="c-last">Poslednje porudžbine</h2><a class="a1-link" href="#v-orders">Sve porudžbine</a></div>
+      <div style="padding:var(--a1-space-12) 0 0">
+<div class="a1-tablewrap" role="region" aria-label="Tabela poslednjih porudžbina" tabindex="0">
+<table class="a1-table a1-table--stack" role="table">
+  <caption class="a1-sr">Tabela poslednjih porudžbina</caption>
+  <thead role="rowgroup"><tr role="row">
+    
+    <th role="columnheader" scope="col">Broj</th><th role="columnheader" scope="col">Kupac</th><th role="columnheader" scope="col">Status</th><th role="columnheader" scope="col" class="a1-table__num">Iznos (RSD)</th>
+  </tr></thead>
+  <tbody role="rowgroup">
+    <tr role="row">
+      
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1042</a></td>
+      <td role="cell" data-label="Kupac">Primer kupac d.o.o.</td>
+      
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--ok">Plaćeno</span></td>
+      
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">129.980,00</td>
+      
+    </tr><tr role="row">
+      
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1041</a></td>
+      <td role="cell" data-label="Kupac">Marko P. (primer)</td>
+      
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--info">Poslato</span></td>
+      
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">89.990,00</td>
+      
+    </tr><tr role="row">
+      
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1040</a></td>
+      <td role="cell" data-label="Kupac">Ana J. (primer)</td>
+      
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--off">Čeka uplatu</span></td>
+      
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">24.490,00</td>
+      
+    </tr><tr role="row">
+      
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1039</a></td>
+      <td role="cell" data-label="Kupac">Servis primer s.z.r.</td>
+      
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--warning">U obradi</span></td>
+      
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">61.200,00</td>
+      
+    </tr>
+  </tbody>
+</table></div></div>
+    </section>
+  </div>
+</main>
+</div>
+
+<div class="view" id="v-orders">
+
+<header class="a1-header">
+  <div class="a1-wrap a1-header__bar">
+    <a class="a1-brand" href="#v-dashboard" aria-label="Ald1n administracija, kontrolna tabla">
+      <span class="a1-brand__mark" aria-hidden="true">A1</span>
+      <span class="a1-brand__text">Ald1n<small>Administracija</small></span>
+    </a>
+    <form class="a1-header__search" role="search" action="#" onsubmit="return false">
+      <label class="a1-sr" for="q-o">Pretraga artikala i porudžbina</label>
+      <span class="a1-search"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-search"/></svg><input class="a1-input" id="q-o" type="search" name="q" placeholder="Pretraga artikala i porudžbina" autocomplete="off"></span>
+    </form>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Korpa, 2 artikla"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-cart"/></svg><span class="a1-count a1-count--float" aria-hidden="true">2</span></a>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Obaveštenja, 3 nova"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="a1-count a1-count--float" aria-hidden="true">3</span></a>
+    <input class="a1-menu-cb" type="checkbox" id="menu-o" aria-label="Meni"><label class="a1-menu-btn" for="menu-o" aria-hidden="true"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-menu"/></svg><span>Meni</span></label>
+    <div class="a1-header__panel">
+      <nav class="a1-header__nav" aria-label="Glavna navigacija">
+        <ul class="a1-nav">
+          <li><a class="a1-nav__link" href="#v-dashboard">Pregled</a></li>
+          <li><details class="a1-nav-dd" name="nav-o"><summary class="a1-nav__link" aria-current="page">Prodaja</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-orders" aria-current="page">Porudžbine</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Ponude</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Računi</a>
+              <span class="a1-nav-dd__sep" role="separator"></span>
+              <a class="a1-nav-dd__item" href="#v-sheet">Garancije i reklamacije</a>
+            </div></details></li>
+          <li><details class="a1-nav-dd" name="nav-o"><summary class="a1-nav__link">Katalog</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-sheet">Artikli</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Kategorije</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Zalihe</a>
+            </div></details></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Kupci</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Izveštaji</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Komponente</a></li>
+        </ul>
+      </nav>
+      <span class="a1-rate"><span>Kurs EUR</span> <b>117,18 RSD</b></span>
+      <div class="a1-theme" role="group" aria-label="Tema">
+        <button class="a1-theme__opt" type="button" data-theme="system" aria-pressed="false" aria-label="Tema sistema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="light" aria-pressed="false" aria-label="Svetla tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="dark" aria-pressed="true" aria-label="Tamna tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-moon"/></svg></button>
+      </div>
+      <details class="a1-nav-dd a1-nav-dd--end a1-header__user" name="nav-o">
+        <summary class="a1-user"><span class="a1-user__avatar" aria-hidden="true">AN</span><span>Admin primer</span></summary>
+        <div class="a1-nav-dd__panel">
+          <a class="a1-nav-dd__item" href="#v-sheet">Moj nalog</a>
+          <a class="a1-nav-dd__item" href="#v-sheet">Bezbednost i prijava</a>
+          <span class="a1-nav-dd__sep" role="separator"></span>
+          <a class="a1-nav-dd__item" href="#v-sheet">Odjava</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<main class="a1-wrap a1-main" id="main-o" tabindex="-1">
+  <div class="a1-pagehead">
+    <div class="a1-pagehead__text">
+      <nav aria-label="Putanja"><ol class="a1-crumbs"><li><a href="#v-dashboard">Početna</a></li><li><a href="#v-orders">Prodaja</a></li><li><span aria-current="page">Porudžbine</span></li></ol></nav>
+      <h1 class="a1-title">Porudžbine</h1>
+      <p class="a1-lead">Pregled svih porudžbina. Brojevi i kupci su izmišljeni primeri.</p>
+    </div>
+    <div class="a1-pagehead__actions">
+      <button class="a1-btn" type="button"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-upload"/></svg>Izvezi CSV</button>
+      <a class="a1-btn a1-btn--primary" href="#v-order"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>Nova porudžbina</a>
+    </div>
+  </div>
+  <nav aria-label="Prikaz porudžbina"><ul class="a1-tabs">
+    <li><a class="a1-tabs__link" href="#v-orders" aria-current="page">Sve <span class="a1-count">128</span></a></li>
+    <li><a class="a1-tabs__link" href="#v-orders">Za obradu <span class="a1-count">6</span></a></li>
+    <li><a class="a1-tabs__link" href="#v-orders">Za isporuku <span class="a1-count">3</span></a></li>
+    <li><a class="a1-tabs__link" href="#v-orders">Završene</a></li>
+    <li><a class="a1-tabs__link" href="#v-orders">Otkazane</a></li>
+  </ul></nav>
+  <form class="a1-filters" role="search" aria-label="Filteri porudžbina" action="#" onsubmit="return false">
+    <div class="a1-filters__fields">
+      
+<div class="a1-field">
+  <label class="a1-label" for="f-q">Pretraga</label>
+  <span class="a1-search"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-search"/></svg><input class="a1-input" id="f-q" name="q" type="search" placeholder="Broj, kupac ili e-pošta"></span>
+  
+  
+</div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="f-status">Status</label>
+  <select class="a1-select" id="f-status" name="status"><option>Svi statusi</option><option>Plaćeno</option><option>Poslato</option><option>U obradi</option><option>Čeka uplatu</option><option>Otkazano</option></select>
+  
+  
+</div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="f-from">Od datuma</label>
+  <input class="a1-input" id="f-from" name="f-from" type="date" value="2026-11-01">
+  
+  
+</div>
+      
+<div class="a1-field">
+  <label class="a1-label" for="f-to">Do datuma</label>
+  <input class="a1-input" id="f-to" name="f-to" type="date" value="2026-11-14">
+  
+  
+</div>
+      <div class="a1-filters__actions"><button class="a1-btn a1-btn--primary" type="submit">Primeni filtere</button><a class="a1-link" href="#v-orders">Očisti</a></div>
+    </div>
+  </form>
+  <div class="a1-results">
+    <p class="a1-results__count" role="status">Prikazano 7 od 128 porudžbina</p>
+    <ul class="a1-chips" aria-label="Aktivni filteri">
+      <li><a class="a1-chip" href="#v-orders" aria-label="Ukloni filter: od 1. novembra">Od 1.11.2026.<svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-x"/></svg></a></li>
+      <li><a class="a1-chip" href="#v-orders" aria-label="Ukloni filter: do 14. novembra">Do 14.11.2026.<svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-x"/></svg></a></li>
+    </ul>
+  </div>
+  
+<div class="a1-tablewrap a1-tablewrap--sticky" role="region" aria-label="Spisak porudžbina" tabindex="0">
+<table class="a1-table a1-table--stack" role="table">
+  <caption class="a1-sr">Spisak porudžbina</caption>
+  <thead role="rowgroup"><tr role="row">
+    <th role="columnheader" class="a1-table__select" scope="col"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi sve porudžbine"><span class="a1-check__box" aria-hidden="true"></span></label></th>
+    <th role="columnheader" scope="col">Broj</th><th role="columnheader" scope="col">Kupac</th><th role="columnheader" scope="col">Datum</th><th role="columnheader" scope="col">Status</th><th role="columnheader" scope="col">Plaćanje</th><th role="columnheader" scope="col" class="a1-table__num">Iznos (RSD)</th><th role="columnheader" scope="col" class="a1-table__actions"><span class="a1-sr">Radnje</span></th>
+  </tr></thead>
+  <tbody role="rowgroup">
+    <tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1042"><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1042</a></td>
+      <td role="cell" data-label="Kupac">Primer kupac d.o.o.</td>
+      <td role="cell" data-label="Datum" class="a1-num">14.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--ok">Plaćeno</span></td>
+      <td role="cell" data-label="Plaćanje">Kartica</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">129.980,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1042"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1042"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr><tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1041" checked><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1041</a></td>
+      <td role="cell" data-label="Kupac">Marko P. (primer)</td>
+      <td role="cell" data-label="Datum" class="a1-num">14.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--info">Poslato</span></td>
+      <td role="cell" data-label="Plaćanje">Pouzeće</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">89.990,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1041"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1041"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr><tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1040"><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1040</a></td>
+      <td role="cell" data-label="Kupac">Ana J. (primer)</td>
+      <td role="cell" data-label="Datum" class="a1-num">13.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--off">Čeka uplatu</span></td>
+      <td role="cell" data-label="Plaćanje">Uplatnica</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">24.490,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1040"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1040"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr><tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1039"><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1039</a></td>
+      <td role="cell" data-label="Kupac">Servis primer s.z.r.</td>
+      <td role="cell" data-label="Datum" class="a1-num">13.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--warning">U obradi</span></td>
+      <td role="cell" data-label="Plaćanje">Račun</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">61.200,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1039"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1039"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr><tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1038"><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1038</a></td>
+      <td role="cell" data-label="Kupac">Dragana S. (primer)</td>
+      <td role="cell" data-label="Datum" class="a1-num">12.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--danger">Otkazano</span></td>
+      <td role="cell" data-label="Plaćanje">Kartica</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">9.490,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1038"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1038"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr><tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1037"><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1037</a></td>
+      <td role="cell" data-label="Kupac">Studio primer d.o.o.</td>
+      <td role="cell" data-label="Datum" class="a1-num">12.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--ok">Plaćeno</span></td>
+      <td role="cell" data-label="Plaćanje">Račun</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">212.400,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1037"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1037"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr><tr role="row">
+      <td role="cell" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" aria-label="Izaberi porudžbinu #1036"><span class="a1-check__box" aria-hidden="true"></span></label></td>
+      <td role="cell" data-label="Broj"><a class="a1-table__id a1-link" href="#v-order">#1036</a></td>
+      <td role="cell" data-label="Kupac">Nenad K. (primer)</td>
+      <td role="cell" data-label="Datum" class="a1-num">11.11.2026.</td>
+      <td role="cell" data-label="Status"><span class="a1-pill a1-pill--info">Poslato</span></td>
+      <td role="cell" data-label="Plaćanje">Kartica</td>
+      <td role="cell" data-label="Iznos (RSD)" class="a1-table__num">34.990,00</td>
+      <td role="cell" class="a1-table__actions"><a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="#v-order" aria-label="Otvori porudžbinu #1036"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-eye"/></svg></a><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" aria-label="Štampaj porudžbinu #1036"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg></button></td>
+    </tr>
+  </tbody>
+</table></div>
+  <nav class="a1-pager" aria-label="Stranice porudžbina">
+    <p class="a1-pager__status">Stranica 1 od 19</p>
+    <ul class="a1-pager__list">
+      <li><span class="a1-page" aria-disabled="true">Prethodna</span></li>
+      <li><a class="a1-page" href="#v-orders" aria-current="page" aria-label="Stranica 1, trenutna">1</a></li>
+      <li><a class="a1-page" href="#v-orders" aria-label="Stranica 2">2</a></li>
+      <li><a class="a1-page" href="#v-orders" aria-label="Stranica 3">3</a></li>
+      <li><a class="a1-page" href="#v-orders">Sledeća</a></li>
+    </ul>
+  </nav>
+</main>
+</div>
+
+<div class="view" id="v-order">
+
+<header class="a1-header">
+  <div class="a1-wrap a1-header__bar">
+    <a class="a1-brand" href="#v-dashboard" aria-label="Ald1n administracija, kontrolna tabla">
+      <span class="a1-brand__mark" aria-hidden="true">A1</span>
+      <span class="a1-brand__text">Ald1n<small>Administracija</small></span>
+    </a>
+    <form class="a1-header__search" role="search" action="#" onsubmit="return false">
+      <label class="a1-sr" for="q-r">Pretraga artikala i porudžbina</label>
+      <span class="a1-search"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-search"/></svg><input class="a1-input" id="q-r" type="search" name="q" placeholder="Pretraga artikala i porudžbina" autocomplete="off"></span>
+    </form>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Korpa, 2 artikla"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-cart"/></svg><span class="a1-count a1-count--float" aria-hidden="true">2</span></a>
+    <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="#v-sheet" aria-label="Obaveštenja, 3 nova"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="a1-count a1-count--float" aria-hidden="true">3</span></a>
+    <input class="a1-menu-cb" type="checkbox" id="menu-r" aria-label="Meni"><label class="a1-menu-btn" for="menu-r" aria-hidden="true"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-menu"/></svg><span>Meni</span></label>
+    <div class="a1-header__panel">
+      <nav class="a1-header__nav" aria-label="Glavna navigacija">
+        <ul class="a1-nav">
+          <li><a class="a1-nav__link" href="#v-dashboard">Pregled</a></li>
+          <li><details class="a1-nav-dd" name="nav-r"><summary class="a1-nav__link" aria-current="page">Prodaja</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-orders" aria-current="page">Porudžbine</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Ponude</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Računi</a>
+              <span class="a1-nav-dd__sep" role="separator"></span>
+              <a class="a1-nav-dd__item" href="#v-sheet">Garancije i reklamacije</a>
+            </div></details></li>
+          <li><details class="a1-nav-dd" name="nav-r"><summary class="a1-nav__link">Katalog</summary>
+            <div class="a1-nav-dd__panel">
+              <a class="a1-nav-dd__item" href="#v-sheet">Artikli</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Kategorije</a>
+              <a class="a1-nav-dd__item" href="#v-sheet">Zalihe</a>
+            </div></details></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Kupci</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Izveštaji</a></li>
+          <li><a class="a1-nav__link" href="#v-sheet">Komponente</a></li>
+        </ul>
+      </nav>
+      <span class="a1-rate"><span>Kurs EUR</span> <b>117,18 RSD</b></span>
+      <div class="a1-theme" role="group" aria-label="Tema">
+        <button class="a1-theme__opt" type="button" data-theme="system" aria-pressed="false" aria-label="Tema sistema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="light" aria-pressed="false" aria-label="Svetla tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></button>
+        <button class="a1-theme__opt" type="button" data-theme="dark" aria-pressed="true" aria-label="Tamna tema"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-moon"/></svg></button>
+      </div>
+      <details class="a1-nav-dd a1-nav-dd--end a1-header__user" name="nav-r">
+        <summary class="a1-user"><span class="a1-user__avatar" aria-hidden="true">AN</span><span>Admin primer</span></summary>
+        <div class="a1-nav-dd__panel">
+          <a class="a1-nav-dd__item" href="#v-sheet">Moj nalog</a>
+          <a class="a1-nav-dd__item" href="#v-sheet">Bezbednost i prijava</a>
+          <span class="a1-nav-dd__sep" role="separator"></span>
+          <a class="a1-nav-dd__item" href="#v-sheet">Odjava</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<main class="a1-wrap a1-main" id="main-r" tabindex="-1">
+  <div class="a1-pagehead">
+    <div class="a1-pagehead__text">
+      <nav aria-label="Putanja"><ol class="a1-crumbs"><li><a href="#v-dashboard">Početna</a></li><li><a href="#v-orders">Porudžbine</a></li><li><span aria-current="page">#1042</span></li></ol></nav>
+      <h1 class="a1-title">Porudžbina #1042</h1>
+      <div class="a1-cluster"><span class="a1-pill a1-pill--ok">Plaćeno</span><span class="a1-muted">Kreirana 14.11.2026. u 09:41</span></div>
+    </div>
+    <div class="a1-pagehead__actions">
+      <button class="a1-btn a1-btn--quiet a1-btn--danger" type="button" command="show-modal" commandfor="dlg-cancel">Otkaži porudžbinu</button>
+      <button class="a1-btn" type="button"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-print"/></svg>Štampaj račun</button>
+      <button class="a1-btn a1-btn--primary" type="button">Označi kao poslato</button>
+    </div>
+  </div>
+  <nav aria-label="Odeljci porudžbine"><ul class="a1-tabs">
+    <li><a class="a1-tabs__link" href="#v-order" aria-current="page">Pregled</a></li>
+    <li><a class="a1-tabs__link" href="#v-order">Stavke <span class="a1-count">3</span></a></li>
+    <li><a class="a1-tabs__link" href="#v-order">Isporuka</a></li>
+    <li><a class="a1-tabs__link" href="#v-order">Istorija</a></li>
+  </ul></nav>
+  <div class="a1-stack a1-gap-24">
+    <div class="a1-alert a1-alert--warning" role="status"><svg class="a1-icon " aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><div class="a1-alert__body"><span class="a1-alert__title">Garancija nije aktivirana</span><p>Kupac još nije potvrdio prijem. Garancija se aktivira posle potvrde isporuke.</p></div></div>
+    <div class="a1-split">
+      <div class="a1-stack a1-gap-24">
+        <section class="a1-card a1-card--flush" aria-labelledby="o-items">
+          <div class="a1-card__head a1-card__head--pad"><h2 class="a1-h3" id="o-items">Stavke porudžbine</h2></div>
+          <div style="padding-top:var(--a1-space-12)"><div class="a1-tablewrap" role="region" aria-label="Stavke porudžbine #1042" tabindex="0" style="border-width:0;border-radius:0;box-shadow:none">
+            <table class="a1-table a1-table--stack" role="table">
+              <caption class="a1-sr">Stavke porudžbine #1042</caption>
+              <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Artikal</th><th role="columnheader" scope="col" class="a1-table__num">Količina</th><th role="columnheader" scope="col" class="a1-table__num">Cena (RSD)</th><th role="columnheader" scope="col" class="a1-table__num">Ukupno (RSD)</th></tr></thead>
+              <tbody role="rowgroup">
+                <tr role="row"><td role="cell" data-label="Artikal">Laptop 15,6″ (primer)<span class="a1-table__sub">Šifra LP-1042-A</span></td><td role="cell" data-label="Količina" class="a1-table__num">1</td><td role="cell" data-label="Cena (RSD)" class="a1-table__num">89.990,00</td><td role="cell" data-label="Ukupno (RSD)" class="a1-table__num">89.990,00</td></tr>
+                <tr role="row"><td role="cell" data-label="Artikal">Monitor 27″ QHD (primer)<span class="a1-table__sub">Šifra MN-2701-B</span></td><td role="cell" data-label="Količina" class="a1-table__num">1</td><td role="cell" data-label="Cena (RSD)" class="a1-table__num">34.990,00</td><td role="cell" data-label="Ukupno (RSD)" class="a1-table__num">34.990,00</td></tr>
+                <tr role="row"><td role="cell" data-label="Artikal">Mehanička tastatura (primer)<span class="a1-table__sub">Šifra KB-0903-C</span></td><td role="cell" data-label="Količina" class="a1-table__num">1</td><td role="cell" data-label="Cena (RSD)" class="a1-table__num">5.000,00</td><td role="cell" data-label="Ukupno (RSD)" class="a1-table__num">5.000,00</td></tr>
+              </tbody>
+            </table></div></div>
+          <dl class="a1-dl" style="padding:0 var(--a1-space-24) var(--a1-space-12)">
+            <div class="a1-dl__row"><dt>Međuzbir</dt><dd class="a1-num">129.980,00 RSD</dd></div>
+            <div class="a1-dl__row"><dt>Isporuka</dt><dd class="a1-num">0,00 RSD</dd></div>
+            <div class="a1-dl__row"><dt>Ukupno za uplatu</dt><dd class="a1-num"><b>129.980,00 RSD</b></dd></div>
+          </dl>
+        </section>
+        <section class="a1-card" aria-labelledby="o-note">
+          <h2 class="a1-h3" id="o-note">Interna napomena</h2>
+          <form class="a1-form" action="#" onsubmit="return false">
+            
+<div class="a1-field">
+  <label class="a1-label" for="o-note-t">Napomena za tim</label>
+  <textarea class="a1-textarea" id="o-note-t" name="note" aria-describedby="o-note-t-help">Kupac traži isporuku posle 17 časova.</textarea>
+  <p class="a1-help" id="o-note-t-help">Napomenu vidi samo osoblje, kupac je ne vidi.</p>
+  
+</div>
+            <div class="a1-cluster"><button class="a1-btn a1-btn--primary a1-btn--sm" type="submit">Sačuvaj napomenu</button><button class="a1-btn a1-btn--quiet a1-btn--sm" type="reset">Poništi</button></div>
+          </form>
+        </section>
+      </div>
+      <div class="a1-stack a1-gap-24">
+        <section class="a1-card" aria-labelledby="o-cust">
+          <h2 class="a1-h3" id="o-cust">Kupac</h2>
+          <dl class="a1-dl">
+            <div class="a1-dl__row"><dt>Naziv</dt><dd>Primer kupac d.o.o.</dd></div>
+            <div class="a1-dl__row"><dt>PIB</dt><dd class="a1-num">000000000 (primer)</dd></div>
+            <div class="a1-dl__row"><dt>E-pošta</dt><dd>kupac@primer.test</dd></div>
+            <div class="a1-dl__row"><dt>Telefon</dt><dd class="a1-num">+381 11 000 0000</dd></div>
+          </dl>
+        </section>
+        <section class="a1-card" aria-labelledby="o-ship">
+          <h2 class="a1-h3" id="o-ship">Isporuka i plaćanje</h2>
+          <dl class="a1-dl">
+            <div class="a1-dl__row"><dt>Adresa</dt><dd>Ulica primera 1, 11000 Beograd</dd></div>
+            <div class="a1-dl__row"><dt>Način plaćanja</dt><dd>Kartica</dd></div>
+            <div class="a1-dl__row"><dt>Plaćanje</dt><dd><span class="a1-pill a1-pill--ok">Plaćeno</span></dd></div>
+            <div class="a1-dl__row"><dt>Isporuka</dt><dd><span class="a1-pill a1-pill--warning">U pripremi</span></dd></div>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+<dialog class="a1-dialog" id="dlg-cancel" aria-labelledby="dlg-cancel-t">
+  <form method="dialog">
+    <div class="a1-dialog__head"><h2 class="a1-h2" id="dlg-cancel-t">Otkazati porudžbinu #1042?</h2></div>
+    <div class="a1-dialog__body"><p>Kupac će dobiti obaveštenje, a stavke se vraćaju na zalihu. Ovo ne možemo da poništimo.</p></div>
+    <div class="a1-dialog__foot"><button class="a1-btn" value="cancel">Ne, zadrži</button><button class="a1-btn a1-btn--danger" value="confirm">Da, otkaži porudžbinu</button></div>
+  </form>
+</dialog>
+</div>
+<footer class="a1-wrap a1-muted" style="padding-block:var(--a1-space-24)">
+  <nav aria-label="Pregledi galerije"><ul class="a1-cluster" style="list-style:none;margin:0;padding:0">
+    <li><a class="a1-link" href="#v-sheet">Komponente</a></li><li><a class="a1-link" href="#v-dashboard">Kontrolna tabla</a></li><li><a class="a1-link" href="#v-orders">Spisak porudžbina</a></li><li><a class="a1-link" href="#v-order">Detalj porudžbine</a></li>
+  </ul></nav>
+  <p>Izmišljeni primeri podataka. Autor: Ald1n (https://ald1n.com).</p>
+</footer>
+<script>
+(function(){
+  var root=document.documentElement;
+  function set(t){root.setAttribute('data-theme',t);document.querySelectorAll('.a1-theme__opt').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-theme')===t));});}
+  document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.a1-theme__opt');if(b)set(b.getAttribute('data-theme'));});
+  set(root.getAttribute('data-theme'));
+})();
+</script>
+</body>
+</html>
