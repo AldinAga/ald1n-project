@@ -44,7 +44,7 @@ jobs:
            'package.json':'2518cad679399b35e9fe03ee4c97c810d7fff5bc',
            'eas.json':'5b526f229465e2b5e10ed00dd46b663d7eff05a7',
            'app.config.js':'391972757f31c1e0dcad9318d115472e850cd763',
-           'package-lock.json':'3631e0cf38a8c878a730de85f8c418a744e53586'
+           'package-lock.json':'a0aba8f1bbb878f9215d9210e42fd30d77ae02c8'
           };
           for(const [path,sha] of Object.entries(files)){
             const r=cp.spawnSync('git',['hash-object',path],{encoding:'utf8'});
