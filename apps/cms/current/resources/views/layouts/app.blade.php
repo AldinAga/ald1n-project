@@ -353,7 +353,7 @@
         <button class="a1-btn a1-btn--icon a1-btn--sm a1-btn--quiet" type="button" data-header-product-search-close aria-label="Zatvori pretragu"><x-icon name="x" :size="20" :shell="true" /></button>
     </div>
     <div class="a1-cmd__body">
-        <p class="a1-cmd__status" data-header-product-search-status role="status">Unesi najmanje 2 karaktera za globalnu pretragu.</p>
+        <div class="a1-cmd__status" data-header-product-search-status role="status">Unesi najmanje 2 karaktera za globalnu pretragu.</div>
         <div class="a1-cmd__results" id="headerProductSearchResults" data-header-product-search-results role="listbox" aria-label="Rezultati pretrage" hidden></div>
     </div>
 </dialog>
