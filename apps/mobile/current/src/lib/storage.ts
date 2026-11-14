@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 const TOKEN_KEY = 'ald1n.auth.token';
 const INSTALLATION_KEY = 'ald1n.installation.id';
 const DEVICE_ID_KEY = 'ald1n.device.server-id';
+const PUSH_CHOICE_KEY = 'ald1n.device.push-choice';
 const USER_PREFERENCES_PREFIX = 'ald1n.preferences.user.';
 
 export type StoredPriceDisplayMode = 'source' | 'RSD' | 'EUR';
@@ -44,7 +45,20 @@ export async function getServerDeviceId(): Promise<number | null> {
 }
 
 export async function clearServerDeviceId(): Promise<void> {
-  await SecureStore.deleteItemAsync(DEVICE_ID_KEY, secureOptions);
+  await Promise.all([
+    SecureStore.deleteItemAsync(DEVICE_ID_KEY, secureOptions),
+    SecureStore.deleteItemAsync(PUSH_CHOICE_KEY, secureOptions)
+  ]);
+}
+
+// Last explicit push choice made by the user on this device; null = never chosen.
+export async function getPushConsentChoice(): Promise<boolean | null> {
+  const value = await SecureStore.getItemAsync(PUSH_CHOICE_KEY, secureOptions);
+  return value === 'on' ? true : value === 'off' ? false : null;
+}
+
+export async function setPushConsentChoice(enabled: boolean): Promise<void> {
+  await SecureStore.setItemAsync(PUSH_CHOICE_KEY, enabled ? 'on' : 'off', secureOptions);
 }
 
 function userPreferencesKey(userId: number): string {

@@ -6,7 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
-import { getInstallationId, getServerDeviceId, setServerDeviceId } from '@/lib/storage';
+import { getInstallationId, getPushConsentChoice, getServerDeviceId, setPushConsentChoice, setServerDeviceId } from '@/lib/storage';
 import type { MobileDevice, MobileDeviceInput, MobileDeviceUpdateInput } from '@/types/api';
 
 export const BUSINESS_NOTIFICATION_CHANNEL = 'business-updates';
@@ -67,18 +67,20 @@ export async function syncCurrentDeviceAtStartup(options: { includePush: boolean
   const metadata = await deviceMetadata();
   let pushFields: Partial<MobileDeviceInput> = {};
 
-  if (options.includePush && Device.isDevice) {
+  // Startup is passive: it never asserts consent. The backend keeps the stored value on an existing
+  // device; a user who switched push off is re-asserted as false because the backend defaults a
+  // missing value to true when it creates or re-activates a device row.
+  const choice = await getPushConsentChoice().catch(() => null);
+  if (choice === false) {
+    pushFields = { notifications_enabled: false };
+  } else if (options.includePush && Device.isDevice) {
     try {
       const permission = await Notifications.getPermissionsAsync();
       if (permission.status === 'granted') {
         await ensureBusinessNotificationChannel();
         const token = (await Notifications.getExpoPushTokenAsync({ projectId: projectId() })).data;
         if (token) {
-          pushFields = {
-            push_provider: 'expo',
-            push_token: token,
-            notifications_enabled: true
-          };
+          pushFields = { push_provider: 'expo', push_token: token };
         }
       }
     } catch {
@@ -152,16 +154,22 @@ export async function registerCurrentDeviceForPush(options: { prompt: boolean })
     notifications_enabled: true
   });
   await setServerDeviceId(device.id);
+  await setPushConsentChoice(true).catch(() => undefined);
   return device;
 }
 
 export async function disableCurrentDevicePush(): Promise<MobileDevice | null> {
   const serverDeviceId = await getServerDeviceId();
-  if (!serverDeviceId) return null;
+  if (!serverDeviceId) {
+    await setPushConsentChoice(false).catch(() => undefined);
+    return null;
+  }
 
-  return api.devices.update(serverDeviceId, {
+  const device = await api.devices.update(serverDeviceId, {
     push_provider: null,
     push_token: null,
     notifications_enabled: false
   });
+  await setPushConsentChoice(false).catch(() => undefined);
+  return device;
 }
