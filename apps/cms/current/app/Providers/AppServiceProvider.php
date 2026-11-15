@@ -214,6 +214,8 @@ final class AppServiceProvider extends ServiceProvider
         Gate::define('reports.view', static fn (User $user): bool => $user->hasPermission('reports.view'));
         Gate::define('reports.export', static fn (User $user): bool => $user->hasPermission('reports.export'));
         Gate::define('reports.manage', static fn (User $user): bool => $user->hasPermission('reports.manage'));
+        // Sales by subagent: reports.view (admin scope) or commissions.view_own (a subagent's own row, no cost data).
+        Gate::define('reports.subagent_sales', static fn (User $user): bool => $user->hasPermission('reports.view') || $user->hasPermission('commissions.view_own'));
         Gate::define('invoices.manage', static fn (User $user): bool => $user->hasPermission('invoices.manage'));
         Gate::define('invoices.view_own', static fn (User $user): bool => $user->hasPermission('invoices.view_own'));
         Gate::define('payments.manage', static fn (User $user): bool => $user->hasPermission('payments.manage'));

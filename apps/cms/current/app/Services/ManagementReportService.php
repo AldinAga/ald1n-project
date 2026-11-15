@@ -757,6 +757,18 @@ final class ManagementReportService
         return $this->orderQuery($user, $filters)->reorder()->select('orders.id')->toBase();
     }
 
+    /**
+     * Same sale definition and actor scope as summary(): other reports (sales by
+     * subagent) reuse it instead of a second formula. Expects date_from, date_to
+     * and scope; everything else is neutralised by normalizeFilters().
+     *
+     * @param array<string,mixed> $filters
+     */
+    public function reportOrderIds(User $user, array $filters): \Illuminate\Database\Query\Builder
+    {
+        return $this->orderIds($user, $this->normalizeFilters($filters));
+    }
+
 
     /** @param array<string,mixed> $filters */
     private function applyItemFilters($query, array $filters, string $alias = 'ri'): void
