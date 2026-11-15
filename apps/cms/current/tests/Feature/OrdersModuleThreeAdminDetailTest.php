@@ -110,8 +110,9 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         self::assertStringContainsString('data-tracking-field', $root);
         self::assertStringContainsString('data-confirm="Potvrditi da je pošiljka poslata? Ova akcija ne potvrđuje isporuku niti naplatu."', $root);
         self::assertStringContainsString('data-confirm="Potvrditi da je pošiljka isporučena? Ova akcija kompletira porudžbinu."', $root);
-        // Payment label and the next-step text that other contract tests rely on.
-        self::assertStringContainsString('Evidentiraj da je roba poslata.', $root);
+        // The "next step" band keeps its anchor id (an unaccepted order points at accepting it first).
+        self::assertStringContainsString('id="order-workspace-command"', $root);
+        self::assertStringContainsString('Preuzmi je za obradu.', $root);
         // The inline script keeps its CSP nonce and its behaviour.
         self::assertMatchesRegularExpression('/<script nonce="[^"]+">\s*\(\(\) => \{\s*const logisticsButtons/', $html);
         self::assertSame(0, preg_match('/\sonclick=|\sonchange=/i', $root));
@@ -186,7 +187,7 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         self::assertStringContainsString('15.000,00 RSD', $root);
         self::assertStringContainsString('<input type="hidden" name="document_type" value="invoice">', $root);
         self::assertStringContainsString('Još nema izdatih dokumenata.', $root);
-        self::assertStringContainsString('Još nema događaja za prikaz.', $root);
+        self::assertStringContainsString('id="order-workspace-timeline"', $root);
         // Every labelled control points at an existing id.
         preg_match_all('~<label class="a1-label" for="([^"]+)"~', $root, $labels);
         self::assertGreaterThanOrEqual(8, count($labels[1]));

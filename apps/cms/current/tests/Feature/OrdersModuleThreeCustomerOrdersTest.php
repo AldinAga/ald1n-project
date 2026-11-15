@@ -216,7 +216,9 @@ final class OrdersModuleThreeCustomerOrdersTest extends TestCase
         self::assertMatchesRegularExpression('/<form method="post" action="'.preg_quote(route('orders.update', $order), '/').'" class="a1-form" data-order-amendment-form>\s*<input type="hidden" name="_token"[^>]*>\s*<input type="hidden" name="_method" value="PATCH"/', $html);
         self::assertMatchesRegularExpression('/name="expected_edit_token" value="[^"]+"/', $html);
         self::assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $html);
-        self::assertSame(1, substr_count($html, 'data-order-item data-product-id='));
+        // One rendered line plus the <template> the script clones for new lines.
+        self::assertSame(2, substr_count($html, 'data-order-item data-product-id='));
+        self::assertSame(1, substr_count((string) preg_replace('~<template\b.*?</template>~s', '', $html), 'data-order-item data-product-id='));
         self::assertStringContainsString('LEDGER-ITEM proizvod', $html);
         foreach (['data-qty-minus', 'data-qty-plus', 'data-remove-item', 'data-qty-input', 'data-product-input', 'data-product-search', 'data-product-results', 'data-order-item-template'] as $hook) {
             self::assertStringContainsString($hook, $html);
