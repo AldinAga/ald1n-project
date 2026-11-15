@@ -371,6 +371,8 @@ final class DashboardReportsInstallCoordinator
     private array $markers;
     /** The views the read-only acceptance step compiles and lints (every new and modified view of this rollout); the fixture adds a deliberately broken one. */
     private array $viewChecks=self::VIEW_CHECKS;
+    /** CI fixture only: other bytes for the CLI boot proof of bootstrap/app.php (production leaves it null: the payload bytes are proven). */
+    private ?string $bootProofBytes=null;
     private string $cssVersion;
     private string $oldCssVersion;
     private string $galleryVersion;
@@ -1252,9 +1254,11 @@ final class DashboardReportsInstallCoordinator
                 $yt=self::cspHas($r['csp'],'frame-src',self::YOUTUBE_FRAME_ORIGIN);$this->cspSeen['register']=self::cspNormalized($r['csp']);$this->cspSeen['registerTurnstile']=$ts;$this->cspSeen['registerYoutube']=$yt;
                 $baseTs=$this->state['cspBaseline']['registerTurnstile']??null;
                 if($installed){
-                    $valid=$this->loginBackgroundFacts()['youtubeModeValidId'];
+                    // The expectation comes from the SAME response: the page embeds the background iframe exactly when frame-src must carry the nocookie host. The CLI value is informational only
+                    // (the CLI and the web workers may read different setting caches; that must never roll a good install back).
+                    $valid=str_contains($r['body'],'youtube-nocookie.com');$cli=null;try{$cli=$this->loginBackgroundFacts()['youtubeModeValidId'];}catch(Throwable){$cli=null;}
                     $tsOk=true;foreach($ts as $k=>$has)if(!$has&&($baseTs===null||($baseTs[$k]??true)===true))$tsOk=false;
-                    $rows[]=['check'=>'REGISTER_CSP','expected'=>'TURNSTILE_SOURCES_AS_BEFORE_YOUTUBE_NOCOOKIE_FRAME_ONLY_WITH_A_VALID_YOUTUBE_BACKGROUND','result'=>$tsOk&&$yt===$valid?'PASS':'FAIL','turnstile'=>$ts,'turnstileBaseline'=>$baseTs,'youtubeNocookieInFrameSrc'=>$yt,'youtubeModeValidId'=>$valid];
+                    $rows[]=['check'=>'REGISTER_CSP','expected'=>'TURNSTILE_SOURCES_AS_BEFORE_YOUTUBE_NOCOOKIE_FRAME_ONLY_WHEN_THE_SAME_PAGE_EMBEDS_THE_BACKGROUND_IFRAME','result'=>$tsOk&&$yt===$valid?'PASS':'FAIL','turnstile'=>$ts,'turnstileBaseline'=>$baseTs,'youtubeNocookieInFrameSrc'=>$yt,'pageEmbedsYoutubeIframe'=>$valid,'cliYoutubeModeValidIdInfo'=>$cli];
                     if(!$tsOk||$yt!==$valid)$failed[]='REGISTER_CSP';
                 }else $rows[]=['check'=>'REGISTER_CSP_BASELINE','result'=>'INFO_OLD_STATE_RECORDED_NOT_JUDGED','turnstile'=>$ts,'youtubeNocookieInFrameSrc'=>$yt];
             }
@@ -1622,17 +1626,52 @@ final class DashboardReportsInstallCoordinator
      * The last gate before the first file of a guard group (D, E or F): every file of an earlier group must hold exactly the payload in the tree and the web-SAPI proof of this run for that
      * group must have passed (D and F: the proof classes load from the payload files; E: both changed stylesheets are served with the payload bytes). Without both, no file of that group is ever written.
      */
+    /**
+     * Before group D (bootstrap/app.php takes the whole site down when it is broken): every PHP payload file passes `php -l` (private 0600 copies, removed again), and the payload bootstrap/app.php
+     * is really loaded in a CLI process with the live base path (the helper boot-proof mode evaluates the private copy, builds the application, resolves the exception handler and the HTTP kernel; no
+     * live file is touched, nothing is written, nothing but booleans is printed). A failure stops the install before any group-D byte is written and the normal rollback of A to C follows.
+     */
+    private function bootProof():void
+    {
+        $dir=$this->state['private'].'/proof';if(!is_dir($dir)&&!mkdir($dir,0700))throw new RuntimeException('BOOT_PROOF_DIRECTORY');
+        $files=[];$linted=0;
+        try{
+            foreach($this->plan as $s){
+                if(!str_ends_with($s['path'],'.php'))continue;
+                $f=$dir.'/'.sprintf('%02d',$s['n']).'.php';AtomicFile::privateCopy($f,$this->payload($s));$files[]=$f;
+                $r=$this->command([$this->php,'-l',$f],$dir,60);if($r['rc']!==0)throw new RuntimeException('BOOT_PROOF_PHP_LINT_FAILED_'.$s['n']);$linted++;
+            }
+            $f=$dir.'/bootstrap-app.php';AtomicFile::privateCopy($f,$this->bootProofBytes??$this->payload($this->step('bootstrap/app.php')));$files[]=$f;
+            $h=$this->helper($this->featureScript,['boot-proof',$f]);
+            if(($h['applicationBuilt']??false)!==true||($h['handlerResolved']??false)!==true||($h['httpKernelResolved']??false)!==true)throw new RuntimeException('BOOT_PROOF_FAILED');
+        }finally{foreach($files as $f)if(is_file($f)&&!is_link($f))@unlink($f);@rmdir($dir);}
+        $this->state['bootProof']=['at'=>time(),'phpFilesLinted'=>$linted];$this->persist();
+        $this->emit('BOOT_PROOF',['phpFilesLinted'=>$linted,'bootstrapLoadedInCli'=>true,'liveTreeTouched'=>false,'writes'=>'NONE']);
+    }
+
+    /**
+     * Right after the last file of group D (before the group pause and the long hold): /up and /katalog with a short timeout (8 s, release marker so the edge cannot answer from its cache). Anything but
+     * 200 (a 429 is inconclusive) throws, so the normal rollback restores bootstrap/app.php at once. The measured outage is printed.
+     */
+    private function fastCheck():void
+    {
+        $t0=hrtime(true);$marker=bin2hex(random_bytes(8));$rows=[];$bad=[];$paths=['/up'];if($this->shop()['open'])$paths[]=self::CATALOG_PATH;
+        foreach($paths as $p){$r=$this->web->fastGet($p,$marker,8);$ok=!$r['transport']&&($r['status']===200||$r['status']===429);$rows[]=['check'=>$p,'observed'=>$r['transport']?'TRANSPORT':$r['status'],'result'=>$ok?'PASS':'FAIL'];if(!$ok)$bad[]=$p;}
+        $this->emit('FAST_CHECK_AFTER_BOOTSTRAP',['rows'=>$rows,'seconds'=>round((hrtime(true)-$t0)/1e9,1),'timeoutSeconds'=>8]);
+        if($bad!==[])throw new RuntimeException('FAST_CHECK_FAILED_AFTER_BOOTSTRAP');
+    }
+
     private function guardGroupCheck(string $group):void
     {
         $kind=self::GUARDS[$group]??null;if($kind===null)return;
         foreach($this->plan as $x)if($x['group']<$group&&$this->classify($x)['state']!=='payload')throw new RuntimeException('GUARD_REFUSED_AN_EARLIER_FILE_IS_NOT_IN_PLACE');
-        if($kind==='classes'){$proof=$this->state['webClassProof'][$group]??null;if(!is_array($proof)||($proof['classes']??null)!==array_keys($this->proofClassFiles()))throw new RuntimeException('GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF');}
+        if($kind==='classes'){$proof=$this->state['webClassProof'][$group]??null;if(!is_array($proof)||($proof['classes']??null)!==array_keys($this->proofClassFiles()))throw new RuntimeException('GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF');if($group==='D'&&!is_array($this->state['bootProof']??null))throw new RuntimeException('GUARD_REFUSED_NO_BOOT_PROOF');}
         else{$proof=$this->state['webAssetProof']??null;if(!is_array($proof)||($proof['assets']??null)!==array_keys($this->assetFiles()))throw new RuntimeException('GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF');}
     }
 
     private function install():void
     {
-        $this->state['logBaseline']=LeanGates::logBaseline($this->active().'/storage/logs');$this->state['applied']=[];unset($this->state['webAssetProof'],$this->state['webClassProof']);$this->save('INSTALL_INTENT');$group=null;
+        $this->state['logBaseline']=LeanGates::logBaseline($this->active().'/storage/logs');$this->state['applied']=[];unset($this->state['webAssetProof'],$this->state['webClassProof'],$this->state['bootProof']);$this->save('INSTALL_INTENT');$group=null;
         // Between groups every web worker revalidates the files of the previous group first (revalidate_freq + 1 s), so a
         // request never combines new bytecode of a later group with still-cached old bytecode of an earlier one.
         $pause=$this->groupPause();
@@ -1640,10 +1679,11 @@ final class DashboardReportsInstallCoordinator
             // At a group boundary: the revalidation pause, the immediate liveness smoke of the group just done (after D this is the check that bootstrap/app.php serves; after F route:clear and the CLI route
             // check run first), and if the next group is a guard group (D, E, F) the full measured hold (it always spans the files before it: the hold runs from the last tree change) and the web-SAPI proof of its premise.
             if($group!==null&&$group!==$s['group']){
+                if($group==='D')$this->fastCheck();
                 $this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);
                 $this->fault('GROUP_DONE_'.$group);if($group==='F'){$this->routeClear();$this->routesCheck(true);$this->fault('ROUTES_PROVEN');}$this->liveness($group);
                 $guard=self::GUARDS[$s['group']]??null;
-                if($guard==='classes'){$this->hold('before-guard-group-'.$s['group'],$this->fullHold());$this->webClassProof('before-guard-group-'.$s['group'],$s['group']);$this->fault('CLASSES_PROVEN');}
+                if($guard==='classes'){$this->hold('before-guard-group-'.$s['group'],$this->fullHold());$this->webClassProof('before-guard-group-'.$s['group'],$s['group']);$this->fault('CLASSES_PROVEN');if($s['group']==='D'){$this->bootProof();$this->fault('BOOT_PROVEN');}}
                 elseif($guard==='assets'){$this->hold('before-guard-group-'.$s['group'],$this->fullHold());$this->webAssetProof('before-guard-group-'.$s['group']);$this->fault('ASSETS_PROVEN');}
             }
             $group=$s['group'];
@@ -2023,4 +2063,14 @@ final class DashboardReportsWeb
     }
 
     public function probe(string $name,string $token,bool $invalidate,?string $route=null):array {return $this->inner->probe($name,$token,$invalidate,$route);}
+
+    /** The fast liveness request after group D: GET https://cms.ald1n.com<path> plus the release marker, total timeout $timeout seconds, no redirect followed, the body is discarded. */
+    public function fastGet(string $path,string $marker,int $timeout):array
+    {
+        if(preg_match('~^/[A-Za-z0-9/_-]{1,40}$~D',$path)!==1||preg_match('/^[a-f0-9]{1,32}$/D',$marker)!==1||$timeout<1||$timeout>10)throw new RuntimeException('SMOKE_PATH');
+        $curl=curl_init('https://cms.ald1n.com'.$path.'?'.http_build_query(['ald1n_release_check'=>$marker],'','&',PHP_QUERY_RFC3986));
+        curl_setopt_array($curl,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_CONNECTTIMEOUT=>min(4,$timeout),CURLOPT_TIMEOUT=>$timeout,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_NOPROXY=>'*',CURLOPT_USERAGENT=>'Ald1n-B1155-owned-release',CURLOPT_HTTPHEADER=>['Host: cms.ald1n.com','Cache-Control: no-cache']]);
+        curl_exec($curl);$status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE);$error=curl_errno($curl);curl_close($curl);
+        return ['status'=>$status,'transport'=>$error!==0||$status===0];
+    }
 }

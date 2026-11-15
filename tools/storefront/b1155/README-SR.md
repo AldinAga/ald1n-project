@@ -2,7 +2,7 @@
 
 Autor paketa: Ald1n <https://ald1n.com>
 
-Ovaj paket je napravljen u CI-ju. Broj CI pokretanja je u izveštaju o isporuci, ne ovde.
+Ishod CI provere i broj pokretanja su u izveštaju o isporuci, ne ovde.
 Na produkciji još nije pokrenut.
 
 ## Šta se instalira
@@ -98,8 +98,16 @@ Od grupe D u kratku proveru života ulazi i GET `/katalog?stock=x` sa stranim `R
 ne postoji i da `php artisan route:list` izlazi sa 0. Zatim gost na `/admin/reports/subagents` i na
 `/admin/reports/subagents.csv` mora dobiti 302 na prijavu, bez greške 5xx.
 
-Svaki fajl ide kroz privremeni fajl u istom direktorijumu, `fsync` i `rename` (`link` za nov fajl). OPcache
-osvežavamo ciljano, po fajlu. Ne pravimo `route:cache` ni `view:cache`.
+Svaki fajl ide kroz privremeni fajl u istom direktorijumu, `fsync` i `rename` (`link` za nov fajl). Tokom
+instalacije radnici preuzimaju nove fajlove sami, kroz pauzu i merenu pauzu pred zaštićenim grupama (D, E, F).
+OPcache osvežavamo ciljano, po fajlu, tek u koraku prihvatanja posle instalacije. Ne pravimo `route:cache`
+ni `view:cache`.
+
+Pre grupe D, koja menja `bootstrap/app.php`, radimo još dve provere. Svaki PHP fajl iz paketa prolazi
+`php -l`. Novi `bootstrap/app.php` se učitava u posebnom CLI procesu sa pravom putanjom aplikacije
+(privatna kopija, ništa se ne piše u živi direktorijum): aplikacija se gradi, a rukovalac izuzecima i HTTP
+jezgro se razrešavaju. Odmah posle grupe D, pre pauze, proveravamo `/up` i `/katalog` sa rokom od 8 sekundi.
+Ako bilo koji odgovor nije 200, grupa D se vraća odmah.
 
 ## Privremena stanja po grupama
 
@@ -252,7 +260,7 @@ za lozinku. Posle instalacije proveravamo:
 | `/up`, `/login`, `/katalog`, `/registracija` | 200, javne stranice sa `noindex` |
 | `ald1n-admin.css` i `ald1n-public-register.css` | 200, `text/css`, SHA-256 jednak paketu |
 | `ald1n-tokens.css` | 200, `text/css`, SHA-256 iz B1154 (`9fc9e850…`) |
-| `/registracija` CSP | sadrži Turnstile izvore kao pre (`https://challenges.cloudflare.com`); `https://www.youtube-nocookie.com` u `frame-src` samo ako je pozadina prijave ispravan YouTube video |
+| `/registracija` CSP | sadrži Turnstile izvore kao pre (`https://challenges.cloudflare.com`); `https://www.youtube-nocookie.com` u `frame-src` tačno kada ta ista stranica ugrađuje YouTube okvir pozadine (vrednost iz CLI-ja je samo informacija u izveštaju) |
 | `GET /katalog?stock=x` sa `Referer: https://evil.example/x` | 302 na tačno `https://cms.ald1n.com/katalog` |
 | gost na `/admin/reports/subagents` i `.csv` | 302 na prijavu na pravom originu, bez 5xx |
 | CSP kataloga (nonce normalizovan) | isti kao pre instalacije |
@@ -295,7 +303,8 @@ Alat ne vidi prijavljene stranice i forme, pa ovo proveravate vi.
 3. Izveštaj „Prodaja po subagentima“: otvorite upravljački izveštaj, kliknite dugme, isprobajte filtere i CSV izvoz.
 4. Stranica registracije: pozadina je kao na prijavi, video se pušta na računaru, obrazac je čitljiv. Probna
    registracija sa pogrešnim podacima mora vratiti na obrazac sa greškama.
-5. Prijava sa pogrešnom lozinkom mora vratiti na prijavu.
+5. Prijava sa pogrešnom lozinkom mora vratiti na prijavu i prikazati obrazac sa porukom o grešci.
+6. Upravljački izveštaj mora prikazati novo dugme „Prodaja po subagentima“.
 6. Prvo otvaranje svake admin stranice posle PASS-a je sporije jer se pogledi ponovo kompajliraju.
 7. Ako bilo šta nije u redu, odmah pokrenite komandu za vraćanje.
 8. Ne pokrećite ponovo B1144 do B1154 ni njihov `--rollback` posle B1155.

@@ -106,6 +106,15 @@ final class DashboardReportsFixtureWeb
         return ['status'=>$status,'location'=>$location,'body'=>is_string($body)?$body:''];
     }
 
+    /** The fast liveness request of the coordinator after group D (same contract as DashboardReportsWeb::fastGet): status and transport flag only. */
+    public function fastGet(string $path,string $marker,int $timeout):array
+    {
+        if(preg_match('~^/[A-Za-z0-9/_-]{1,40}$~D',$path)!==1||preg_match('/^[a-f0-9]{1,32}$/D',$marker)!==1)throw new RuntimeException('SMOKE_PATH');
+        if($this->on('upFails'))return ['status'=>500,'transport'=>false];
+        $r=self::get($this->port,$path.'?ald1n_release_check='.$marker,[],null,'GET');
+        return ['status'=>(int)$r['status'],'transport'=>(int)$r['status']===0];
+    }
+
     public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false,array $headers=[]):array
     {
         $throttled=in_array($path,DashboardReportsInstallCoordinator::LEGAL,true)||in_array($path,DashboardReportsInstallCoordinator::SHOP,true)||str_starts_with($path,'/katalog/');

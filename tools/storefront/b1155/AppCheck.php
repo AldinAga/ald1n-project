@@ -49,7 +49,7 @@ $fail=static function(string $code):never{echo json_encode(['ok'=>false,'error'=
 [$self,$base,$mode,$arg1,$arg2,$arg3,$arg4,$arg5,$arg6]=$argv+[null,null,null,null,null,null,null,null,null];
 $originOk=static fn(mixed $o):bool=>is_string($o)&&preg_match('~^https://[a-z0-9.-]{1,120}$~D',$o)===1;
 $checkMarkers=static function(mixed $m):array{if(!is_array($m)||$m===[]||count($m)>40)return [];foreach($m as $k=>$x)if(!is_string($k)||preg_match('/^[A-Za-z0-9]{1,60}$/D',$k)!==1||!is_array($x)||count($x)!==2||!is_string($x[0])||preg_match('~^[A-Za-z0-9_/.-]{1,160}\.(php|js|css)$~D',$x[0])!==1||str_contains($x[0],'..')||!is_string($x[1])||$x[1]===''||strlen($x[1])>200)return [];return $m;};
-if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample','views','login-bg'],true)||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
+if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample','views','login-bg','boot-proof'],true)||($mode==='boot-proof'&&(!is_string($arg1)||!str_starts_with($arg1,'/')||str_contains($arg1,'..')||!is_file($arg1)||is_link($arg1)))||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
 $viewList=[];
 if($mode==='views'){$viewList=is_string($arg1)?json_decode($arg1,true,4):null;if(!is_array($viewList)||$viewList===[]||count($viewList)>32)$fail('APP_CHECK_ARGUMENTS');foreach($viewList as $v)if(!is_string($v)||preg_match('~^resources/views/[A-Za-z0-9_/.-]{1,160}\.blade\.php$~D',$v)!==1||str_contains($v,'..'))$fail('APP_CHECK_ARGUMENTS');}
 $newClasses=[];$routeName='';$expectedOrigin='';$markers=[];$reportRoutes=[];
@@ -76,7 +76,17 @@ $takesThrottle=static function(string $class):bool{
     return false;
 };
 try{
-    chdir($base);require $base.'/vendor/autoload.php';$app=require $base.'/bootstrap/app.php';
+    chdir($base);require $base.'/vendor/autoload.php';
+    if($mode==='boot-proof'){
+        // B1155: the payload bootstrap/app.php (a private temp copy, NOT in the live tree) is evaluated with the live base path, then the application is built and the exception handler and the HTTP kernel
+        // are resolved (the withExceptions callback runs there). Nothing is written (no cache, no database); only booleans are printed. A syntax or boot error exits non-zero.
+        $code=(string)file_get_contents($arg1);if(!str_starts_with($code,'<?php')||$code===''||str_contains($code,'__halt_compiler'))$fail('APP_CHECK_BOOT_PROOF_SOURCE');
+        $code=substr($code,5);$code=str_replace(['dirname(__DIR__)','__DIR__'],[var_export($base,true),var_export($base.'/bootstrap',true)],$code);
+        $built=eval($code);if(!$built instanceof Illuminate\Foundation\Application)$fail('APP_CHECK_BOOT_PROOF_NOT_AN_APPLICATION');
+        $handler=$built->make(Illuminate\Contracts\Debug\ExceptionHandler::class);$http=$built->make(Illuminate\Contracts\Http\Kernel::class);
+        echo json_encode(['ok'=>true,'applicationBuilt'=>true,'handlerResolved'=>is_object($handler),'httpKernelResolved'=>is_object($http)],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    $app=require $base.'/bootstrap/app.php';
     if(method_exists($app,'configurationIsCached')&&$app->configurationIsCached())$fail('APP_CHECK_CONFIG_CACHED');
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
     if($mode==='env'){
