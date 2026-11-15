@@ -65,6 +65,7 @@ export function PushNotificationBridge() {
   const { status, bootstrap, refreshBootstrap } = useAuth();
   const supportedPlatform = Platform.OS === 'android' || Platform.OS === 'ios';
   const bootstrapReady = bootstrap !== null;
+  const userId = bootstrap?.user.id;
   const pushRegistrationEnabled = Boolean(bootstrap?.features.push_registration);
 
   useEffect(() => {
@@ -89,17 +90,17 @@ export function PushNotificationBridge() {
   }, [queryClient, refreshBootstrap, status, supportedPlatform]);
 
   useEffect(() => {
-    if (status !== 'authenticated' || !bootstrapReady || !supportedPlatform) return;
+    if (status !== 'authenticated' || !bootstrapReady || !supportedPlatform || !userId) return;
 
     void (async () => {
       try {
-        await syncCurrentDeviceAtStartup({ includePush: pushRegistrationEnabled });
+        await syncCurrentDeviceAtStartup({ includePush: pushRegistrationEnabled, userId });
         await queryClient.invalidateQueries({ queryKey: ['devices'] });
       } catch {
         // Startup device sync is best-effort; manual device/push screens surface actionable errors.
       }
     })();
-  }, [bootstrapReady, pushRegistrationEnabled, queryClient, status, supportedPlatform]);
+  }, [bootstrapReady, pushRegistrationEnabled, queryClient, status, supportedPlatform, userId]);
 
   return null;
 }

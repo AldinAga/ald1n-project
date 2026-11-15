@@ -6,7 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
-import { getInstallationId, getServerDeviceId, setServerDeviceId } from '@/lib/storage';
+import { getInstallationId, getPushConsentChoice, getServerDeviceId, setPushConsentChoice, setServerDeviceId } from '@/lib/storage';
 import type { MobileDevice, MobileDeviceInput, MobileDeviceUpdateInput } from '@/types/api';
 
 export const BUSINESS_NOTIFICATION_CHANNEL = 'business-updates';
@@ -58,7 +58,34 @@ async function deviceMetadata(): Promise<MobileDeviceUpdateInput> {
   };
 }
 
-export async function syncCurrentDeviceAtStartup(options: { includePush: boolean }): Promise<MobileDevice> {
+// Startup and explicit push actions run one at a time, so a startup request that read "no choice"
+// can never land after the user's explicit disable.
+let queue: Promise<unknown> = Promise.resolve();
+function serialized<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+// Explicit user action: remember the choice locally first (a failed write fails the action, so
+// "server off, local unknown" cannot happen), then call the backend; roll the local value back if
+// the backend call fails.
+async function withStoredChoice<T>(userId: number, next: boolean, action: () => Promise<T>): Promise<T> {
+  const previous = await getPushConsentChoice(userId);
+  await setPushConsentChoice(userId, next);
+  try {
+    return await action();
+  } catch (error) {
+    await setPushConsentChoice(userId, previous).catch(() => undefined);
+    throw error;
+  }
+}
+
+export function syncCurrentDeviceAtStartup(options: { includePush: boolean; userId: number }): Promise<MobileDevice> {
+  return serialized(() => syncStartup(options));
+}
+
+async function syncStartup(options: { includePush: boolean; userId: number }): Promise<MobileDevice> {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
     throw new Error('Startup device sync je dostupan samo na Android/iOS uredjajima.');
   }
@@ -67,18 +94,21 @@ export async function syncCurrentDeviceAtStartup(options: { includePush: boolean
   const metadata = await deviceMetadata();
   let pushFields: Partial<MobileDeviceInput> = {};
 
-  if (options.includePush && Device.isDevice) {
+  // Startup is passive: it never asserts consent. The backend keeps the stored value on an existing
+  // device; a user who switched push off is re-asserted as false because the backend defaults a
+  // missing value to true when it creates or re-activates a device row. If the stored choice cannot
+  // be read, fail closed: send nothing (a request could create or re-activate a row as enabled).
+  const choice = await getPushConsentChoice(options.userId);
+  if (choice === false) {
+    pushFields = { notifications_enabled: false };
+  } else if (options.includePush && Device.isDevice) {
     try {
       const permission = await Notifications.getPermissionsAsync();
       if (permission.status === 'granted') {
         await ensureBusinessNotificationChannel();
         const token = (await Notifications.getExpoPushTokenAsync({ projectId: projectId() })).data;
         if (token) {
-          pushFields = {
-            push_provider: 'expo',
-            push_token: token,
-            notifications_enabled: true
-          };
+          pushFields = { push_provider: 'expo', push_token: token };
         }
       }
     } catch {
@@ -119,7 +149,8 @@ async function updateOrRegister(input: MobileDeviceUpdateInput): Promise<MobileD
   return device;
 }
 
-export async function registerCurrentDeviceForPush(options: { prompt: boolean }): Promise<MobileDevice> {
+export function registerCurrentDeviceForPush(options: { prompt: boolean; userId: number }): Promise<MobileDevice> {
+  return serialized(async () => {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
     throw new Error('Push registracija je dostupna samo na Android/iOS uređajima.');
   }
@@ -145,23 +176,27 @@ export async function registerCurrentDeviceForPush(options: { prompt: boolean })
   if (!token) throw new Error('Expo push token nije dobijen.');
 
   const metadata = await deviceMetadata();
-  const device = await updateOrRegister({
+  const device = await withStoredChoice(options.userId, true, () => updateOrRegister({
     ...metadata,
     push_provider: 'expo',
     push_token: token,
     notifications_enabled: true
-  });
+  }));
   await setServerDeviceId(device.id);
   return device;
+  });
 }
 
-export async function disableCurrentDevicePush(): Promise<MobileDevice | null> {
-  const serverDeviceId = await getServerDeviceId();
-  if (!serverDeviceId) return null;
-
-  return api.devices.update(serverDeviceId, {
-    push_provider: null,
-    push_token: null,
-    notifications_enabled: false
+export function disableCurrentDevicePush(options: { userId: number }): Promise<MobileDevice | null> {
+  return serialized(async () => {
+    const serverDeviceId = await getServerDeviceId();
+    return withStoredChoice(options.userId, false, async () => {
+      if (!serverDeviceId) return null;
+      return api.devices.update(serverDeviceId, {
+        push_provider: null,
+        push_token: null,
+        notifications_enabled: false
+      });
+    });
   });
 }

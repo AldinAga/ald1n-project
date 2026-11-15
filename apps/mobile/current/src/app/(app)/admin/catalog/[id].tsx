@@ -19,6 +19,7 @@ import {
 } from '@/features/admin/catalog-admin-api';
 import { CatalogAdvancedProductActions } from '@/features/admin/catalog-advanced-product-actions';
 import { ProductDeletionAdmin } from '@/features/admin/product-deletion-admin';
+import { lineSelectorLabels } from '@/features/admin/catalog-line-labels';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RemoteProductImageManager } from '@/features/catalog/product-image-manager';
 import { ApiError } from '@/lib/api/client';
@@ -199,6 +200,7 @@ export default function AdminCatalogEditScreen() {
   const product = detailQuery.data?.data;
   const options = optionsQuery.data;
   const selectedType = options?.types.find((type) => String(type.id) === productTypeId);
+  const lineLabels = lineSelectorLabels(selectedType?.name);
   const specificationFields = selectedType?.fields ?? [];
   const storageFields = specificationFields.filter((field) => field.storage_repeater?.enabled);
   const storageDerivedFieldIds = new Set(
@@ -510,10 +512,10 @@ export default function AdminCatalogEditScreen() {
           onChange={(value) => { setBrandId(value); setLineId(''); }}
         />
         <SelectSheet
-          label="Linija"
+          label={lineLabels.label}
           value={lineId}
           disabled={product.is_archived || !productTypeId || !brandId}
-          options={[{ value: '', label: 'Bez linije' }, ...lineOptions]}
+          options={[{ value: '', label: lineLabels.none }, ...lineOptions]}
           onChange={setLineId}
         />
         <TextField label="SKU" value={sku} onChangeText={setSku} error={errors.sku} disabled={product.is_archived} autoCapitalize="characters" />
