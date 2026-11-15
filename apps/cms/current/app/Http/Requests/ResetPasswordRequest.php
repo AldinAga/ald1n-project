@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
-final class ResetPasswordRequest extends FormRequest
+final class ResetPasswordRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    /** B883: back to the token page, or to the link request page when the token is malformed. */
+    protected function formRoute(): array
+    {
+        return $this->tokenFormRoute('password.reset', 'password.request');
     }
 
     public function rules(): array

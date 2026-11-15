@@ -2510,7 +2510,28 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200': { description: Admin order list and server-driven filters. }
+        '200':
+          description: Admin order list and server-driven filters. Each row carries an item_summary built from the order-item snapshots.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        item_summary:
+                          type: object
+                          description: First order item (lowest id) and how many more the order has. Read from snapshots, not from the live catalog.
+                          required: [name, additional_count, count]
+                          properties:
+                            name:
+                              type: [string, 'null']
+                              description: product_name of the first item that has a name or an SKU, or its SKU when the name is empty. Null when the order has no such item.
+                            additional_count: { type: integer, minimum: 0, description: 'Items besides the one named: count minus 1, never negative.' }
+                            count: { type: integer, minimum: 0, description: Number of items on the order. }
         '401': { description: Authentication required. }
         '403': { description: orders.manage permission required. }
   /api/v1/admin/orders/{order}:
