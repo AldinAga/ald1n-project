@@ -168,7 +168,7 @@ async function registrationQa(browser){
           const before=await snap();
           await page.waitForTimeout(600);
           const settled=await snap();
-          await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+          await page.evaluate(()=>window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'}));
           await page.waitForTimeout(300);
           const after=await snap();
           const cls=await page.evaluate(()=>({cls:window.__cls,shifts:window.__shifts}));
