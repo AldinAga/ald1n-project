@@ -4,6 +4,8 @@
 
 <div class="page-heading"><div><span class="eyebrow">Management Analytics</span><h1>Izveštaji i profitabilnost</h1><p>Promet, bruto marža, provizije, refundacije, servisni troškovi, lager i potraživanja na jednom mestu.</p></div>@can('reports.export')<div class="report-export-actions"><a class="button button-ghost" href="{{ route('admin.reports.management.csv',request()->query()) }}"><x-icon name="download" /> CSV</a><a class="button button-primary" target="_blank" rel="noopener" href="{{ route('admin.reports.management.pdf',request()->query()) }}"><x-icon name="file-text" /> PDF</a></div>@endcan</div>
 
+@can('reports.subagent_sales')<p class="report-subagent-link"><a class="button button-primary" href="{{ route('admin.reports.subagents') }}"><x-icon name="chart" /> Prodaja po subagentima</a> <span class="muted">Promet, zarada i provizija po subagentu, brendu i periodu.</span></p>@endcan
+
 @if($issues!==[])<div class="alert alert-warning"><strong>Upravljački izveštaji nisu spremni.</strong><span>{{ implode(' ',$issues) }}</span><code>php artisan app:management-reports-doctor --repair</code></div>@endif
 
 <form class="filter-panel" method="get" action="{{ route('admin.reports.index') }}">

@@ -589,3 +589,16 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-scrim{forced-color-adjust:none;background:var(--a1x-scrim)}
 }
 @media print{.a1-footer__links,.a1-scrim,.a1-cmd{display:none}}
+
+/* ---------- Report: sales by subagent (a1-sbs-*, used only by admin/reports/subagent-sales) ---------- */
+.a1-sbs-chart{display:grid;gap:var(--a1-space-16);margin:0;padding:0;list-style:none}
+.a1-sbs-chart__item{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-sbs-chart__row{display:grid;grid-template-columns:5.5rem minmax(0,1fr) minmax(8.5rem,auto);align-items:center;gap:var(--a1-space-12);font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+.a1-sbs-chart__row b{text-align:right;font-variant-numeric:tabular-nums;color:var(--a1-text-primary)}
+@media (max-width:560px){.a1-sbs-chart__row{grid-template-columns:4.5rem minmax(0,1fr)}.a1-sbs-chart__row b{grid-column:1 / -1;text-align:left}}
+.a1-sbs-sort{display:inline-flex;align-items:center;min-height:var(--a1-size-touch-target);color:inherit;text-decoration:none}
+.a1-sbs-sort:hover{color:var(--a1-accent-link);text-decoration:underline;text-underline-offset:.18em}
+.a1-table th[aria-sort] .a1-sbs-sort{color:var(--a1-text-primary)}
+.a1-table th[aria-sort=ascending] .a1-sbs-sort::after{content:" \25B2" / ""}
+.a1-table th[aria-sort=descending] .a1-sbs-sort::after{content:" \25BC" / ""}
+.a1-sbs-total td{font-weight:var(--a1-typography-font-weight-bold);background-color:var(--a1-glass-fill-strong)}
