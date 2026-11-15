@@ -2,7 +2,8 @@
 
 Autor paketa: Ald1n <https://ald1n.com>
 
-Ovaj paket je napravljen i proveren samo u CI-ju. Na produkciji još nije pokrenut.
+Ovaj paket je napravljen u CI-ju. Rezultat CI provere (broj pokretanja) je u izveštaju o isporuci, ne ovde.
+Na produkciji još nije pokrenut.
 
 ## Šta se instalira
 
@@ -83,8 +84,10 @@ Build izvršava ove provere nad isporučenim bajtovima i staje ako bilo koja pad
 - `ux-runtime.js`: razlika je jedan red. Selektor `.alert.error` postao je `.alert.error, [data-a1-flash-error]`.
   To je unija čiji je prvi član stari selektor. Stari layout nema element `data-a1-flash-error`, pa se
   fokusira isti element kao pre.
-- U CI-ju (fixture) se posle grupe B u pravoj Laravel aplikaciji prikazuje stara kontrolna tabla sa novom
-  ikonom i novim JS-om i vidi se da je izgled isti i da ikone zadržavaju `ui-icon`.
+- U CI-ju (fixture) se posle grupe B prijavljeni administrator u pravoj Laravel aplikaciji (sintetička
+  baza) otvara kontrolnu tablu: odgovor je 200, HTML nosi oznake starog okvira (`data-site-header`), nema
+  `a1-header__bar` i ikone imaju klasu `ui-icon`. Dokazano je dakle da stari layout radi sa novom
+  komponentom i novim JS-om bez greške i sa istim oznakama okvira. Piksel po piksel izgled nismo poredili.
 
 ## Najgori prelazni prozor
 
@@ -222,8 +225,10 @@ klijenta: zakačeni klijent iz B1150 već dozvoljava običnu putanju sa nasumič
   dobija 302 na prijavu na pravom originu. Nijedna 5xx.
 
 **Prijavljeni admin okvir ovaj alat NE proverava.** Alat se nikad ne prijavljuje. Zato ne vidimo kako
-izgleda kontrolna tabla, meni, pretraga ni prekidač teme. U CI-ju fixture se prijavljuje na sintetičku
-bazu i proverava prozore (posle A, posle B, posle C), ali to nije produkcija.
+izgleda kontrolna tabla, meni, pretraga ni prekidač teme. U CI-ju fixture se stvarno prijavljuje na
+sintetičku bazu (ako prijava ne radi, fixture pada) i proverava prozore (posle A, posle B, posle C), po
+tri dodatne admin stranice (lista, dva podešavanja) sa novim layoutom, jednu ulogu bez punih prava i stare
+oznake okvira posle vraćanja. To nije produkcija.
 
 Sve ostalo iz B1153 ostaje: pravne stranice, galerija, `private, no-store`, logotip, potpisana ruta sa
 ETag i 304. Posle instalacije: `app:product-media-doctor` vraća kod 0, nema novih grešaka u `laravel.log`,
@@ -257,8 +262,10 @@ Alat ne vidi prijavljeni okvir, pa ovo proveravate vi:
 4. Prebacite temu: svetla, tamna, sistemska.
 5. Odjavite se i prijavite ponovo.
 6. Otvorite po jednu stranicu svakog modula. Ispod zaglavlja mora izgledati kao pre.
-7. Ako bilo šta nije u redu, odmah pokrenite komandu za vraćanje (niže).
-8. Ne pokrećite ponovo B1144 do B1153 ni njihov `--rollback` posle B1154.
+7. Odmah posle PASS-a prvo otvaranje svake admin stranice je sporije (pogledi se ponovo kompajliraju).
+   Prijavljeni administrator može jednom videti staro zaglavlje pre novog. To je očekivano.
+8. Ako bilo šta nije u redu, odmah pokrenite komandu za vraćanje (niže).
+9. Ne pokrećite ponovo B1144 do B1153 ni njihov `--rollback` posle B1154.
 
 ## Vraćanje na staro
 

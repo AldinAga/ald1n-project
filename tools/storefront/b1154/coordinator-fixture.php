@@ -368,6 +368,8 @@ if($lg['ok']&&is_array($dash)){
     }
 }
 $jarMain=[];$results['adminShellWindows']=['mode'=>$winMode,'feasibility'=>$winWhy];
+// Hard gate: the authenticated evidence is a promise of the README and the workflow; the CLI render alone never substitutes for it.
+check($winMode==='AUTHENTICATED_HTTP','AUTHENTICATED_LOGIN_AND_OLD_SHELL_DASHBOARD_WORK_IN_THE_FIXTURE_'.$winWhy);
 $reset();
 
 // 6. A route cache present: B1146 to B1153 ran without one, so the preflight HOLDs; the cache is never touched.
@@ -652,12 +654,34 @@ check(str_contains($o,'ACTIVE_TREE_AFTER_INSTALL=')&&str_contains($o,'"manifestP
 // 13. Idempotent re-run.
 [$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1154_FINAL')==='PASS_ALREADY_INSTALLED'&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='INSTALLED','IDEMPOTENT_RERUN');$results['rerun']='PASS_ALREADY_INSTALLED';
 
+// 13b. More authenticated evidence with the NEW layout installed (CI only, the shipped tool never logs in): a dashboard, a list page, two settings pages as the throwaway superadmin; each carries the new shell, links both
+// stylesheets and every inline executable script carries the nonce of the response CSP; one page set as a restricted non-superadmin role answers without a 5xx; the Laravel log gets no new ERROR line.
+$restrictedRole=(int)$pdo()->query("SELECT id FROM roles WHERE slug<>'superadmin' ORDER BY id LIMIT 1")->fetchColumn();check($restrictedRole>0,'RESTRICTED_ROLE_EXISTS');
+$restrictedLogin='b1154-restricted-ci';$restrictedPassword=bin2hex(random_bytes(12)).'Bb2!';
+$pdo()->prepare("INSERT INTO users (role_id,username,email,first_name,password_hash,status,created_at,updated_at) VALUES (?,?,?,?,?,'active',NOW(),NOW())")->execute([$restrictedRole,$restrictedLogin,$restrictedLogin.'@example.test','Fixture',password_hash($restrictedPassword,PASSWORD_BCRYPT)]);
+$nonceOk=static function(array $r):bool{$csp=implode(' ',$r['csp']);if(preg_match("/script-src 'nonce-([^']+)'/",$csp,$nm)!==1)return false;preg_match_all('~<script\b([^>]*)>~i',$r['body'],$sm);foreach($sm[1] as $attrs){if(preg_match('~\bsrc\s*=~i',$attrs)===1)continue;if(preg_match('~\btype\s*=\s*"([^"]*)"~i',$attrs,$tm)===1&&!in_array(strtolower($tm[1]),['module','text/javascript'],true))continue;if(!str_contains($attrs,'nonce="'.$nm[1].'"'))return false;}return true;};
+$logFileX=$logDir.'/laravel-'.date('Y-m-d').'.log';clearstatcache(true,$logFileX);$logSizeBefore=is_file($logFileX)?filesize($logFileX):0;
+$jarX=[];$lgX=AdminShellFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$jarX);check($lgX['ok']===true,'ADMIN_LOGIN_WORKS_AFTER_THE_INSTALL');$newPages=[];
+foreach(['/','/orders','/settings','/admin/settings/documents'] as $pp){$r=AdminShellFixtureWeb::jarGet(PORT,$pp,$jarX);$newPages[$pp]=['status'=>$r['status'],'newShell'=>str_contains($r['body'],'a1-header__bar'),'tokensLinked'=>preg_match('~href="[^"]*/assets/css/ald1n-tokens\.css\?v=\d+"~',$r['body'])===1,'adminLinked'=>preg_match('~href="[^"]*/assets/css/ald1n-admin\.css\?v=\d+"~',$r['body'])===1,'inlineScriptsHaveTheCspNonce'=>$nonceOk($r)];}
+check(array_filter($newPages,static fn($x)=>$x['status']!==200||!$x['newShell']||!$x['tokensLinked']||!$x['adminLinked']||!$x['inlineScriptsHaveTheCspNonce'])===[],'NEW_SHELL_ON_A_DASHBOARD_A_LIST_AND_TWO_SETTINGS_PAGES_200_BOTH_STYLESHEETS_AND_EVERY_INLINE_SCRIPT_WITH_THE_CSP_NONCE:'.json_encode($newPages));
+$jarR=[];$lgR=AdminShellFixtureWeb::adminLogin(PORT,$restrictedLogin,$restrictedPassword,$jarR);check($lgR['ok']===true,'RESTRICTED_ROLE_LOGIN_WORKS');$restrictedPages=[];
+foreach(['/','/orders','/settings','/admin/settings/documents'] as $pp){$r=AdminShellFixtureWeb::jarGet(PORT,$pp,$jarR);$restrictedPages[$pp]=['status'=>$r['status'],'newShell'=>str_contains($r['body'],'a1-header__bar')];}
+check($restrictedPages['/']['status']===200&&$restrictedPages['/']['newShell']===true&&array_filter($restrictedPages,static fn($x)=>$x['status']>=500)===[],'RESTRICTED_ROLE_DASHBOARD_200_NEW_SHELL_AND_NO_5XX_ELSEWHERE:'.json_encode($restrictedPages));
+clearstatcache(true,$logFileX);$logNew=is_file($logFileX)&&filesize($logFileX)>$logSizeBefore?(string)file_get_contents($logFileX,false,null,$logSizeBefore):'';
+check(!str_contains($logNew,'.ERROR:')&&!str_contains($logNew,'.CRITICAL:'),'NO_LARAVEL_ERROR_LINE_FROM_THE_AUTHENTICATED_PAGES_OF_THE_NEW_SHELL');
+$results['adminShellWindows']['afterInstallPages']=$newPages;$results['adminShellWindows']['restrictedRolePages']=$restrictedPages;
+
 // 14. 20 minutes before the 02:30 backup --rollback holds before any restore and prints the manual-only recovery block;
 // with --ignore-schedule it restores (shop ON): exact old bytes, the B1149 storefront and the B1152 pin intact, the media route intact, the two new stylesheets gone.
 [$rc,$o]=$run([],'rollback',['fixedNow'=>$conflictNow]);$note=lastLine($o,'RECOVERY_NOTE');
 check($rc===2&&preg_match('/"blockers":\["SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z_]+_WAIT_OR_RUN_WITH_--rollback_--ignore-schedule"\]/',$o)===1&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$note['kind']==='ROLLBACK_NOT_STARTED_MANUAL_ONLY'&&$block($o)!==[]&&$tree()==='INSTALLED','SCHEDULE_HOLD_WITH_MANUAL_BLOCK');
 [$rc,$o]=$run([],'rollback',['fixedNow'=>$conflictNow,'ignoreSchedule'=>true]);
 check(str_contains($o,'SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE')&&$rc===0&&lastRaw($o,'B1154_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']))===[]&&$shopFlag()==='1'&&str_contains($o,'ACTIVE_TREE_AFTER_ROLLBACK=')&&str_contains($o,'"equalsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153":true'),'OWNER_ROLLBACK_IGNORE_SCHEDULE_STYLESHEETS_GONE_TREE_IS_THE_8572_FILE_B1153_TREE');
+// After the forced rollback the SAME authenticated requests show the OLD shell again: no stale compiled layout, no new shell icons, no stylesheet link.
+$jarY=[];$lgY=AdminShellFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$jarY);check($lgY['ok']===true,'ADMIN_LOGIN_WORKS_AFTER_THE_ROLLBACK');$oldAgain=[];
+foreach(['/','/orders','/settings'] as $pp){$r=AdminShellFixtureWeb::jarGet(PORT,$pp,$jarY);$oldAgain[$pp]=['status'=>$r['status'],'oldShell'=>str_contains($r['body'],'data-site-header'),'newShell'=>str_contains($r['body'],'a1-header__bar'),'shellIcons'=>str_contains($r['body'],'a1-icon a1-icon--ph'),'stylesheetLink'=>str_contains($r['body'],'ald1n-admin.css')||str_contains($r['body'],'ald1n-tokens.css')];}
+check(array_filter($oldAgain,static fn($x)=>$x['status']!==200||!$x['oldShell']||$x['newShell']||$x['shellIcons']||$x['stylesheetLink'])===[],'AFTER_THE_ROLLBACK_THE_AUTHENTICATED_PAGES_SHOW_THE_OLD_SHELL_AGAIN:'.json_encode($oldAgain));
+$results['adminShellWindows']['afterRollbackPages']=$oldAgain;
 // Rollback order (reverse of the install): group C FIRST (the layout first), then the full measured hold, then group B together, the full hold again, and the two new stylesheets (group A) last. There is no short pause in this rollout's rollback: both boundaries are holds.
 $pAfterGuard=strpos($o,'ROLLBACK_AFTER_GUARD_GROUP={"guardGroupIsOld":true}');$pHoldGuard=strpos($o,'"label":"rollback-after-guard-group"');$pHoldA=strpos($o,'"label":"rollback-before-new-classes"');
 check($pAfterGuard!==false&&$pHoldGuard!==false&&$pHoldA!==false&&$pAfterGuard<$pHoldGuard&&$pHoldGuard<$pHoldA&&(lastLine($o,'MERCHANT_APPROVAL')['ok']??null)==='UNCHANGED','ROLLBACK_ORDER_GROUP_C_FIRST_THEN_HOLD_THEN_B_THEN_HOLD_THEN_THE_NEW_STYLESHEETS:'.json_encode([$pAfterGuard,$pHoldGuard,$pHoldA]));
