@@ -508,7 +508,7 @@ $seen=static function(string $login,string $password)use($reportQuery):array{
         'management'=>['status'=>$m['status'],'link'=>str_contains($m['body'],'Prodaja po subagentima'),'route'=>str_contains($m['body'],DashboardReportsInstallCoordinator::SUBAGENTS_PATH)],
         'report'=>['status'=>$rp['status'],'title'=>str_contains($rp['body'],'Prodaja po subagentima')],
         'csv'=>['status'=>$c['status'],'csvContentType'=>str_starts_with(strtolower((string)$c['contentType']),'text/csv'),'bom'=>str_starts_with($c['body'],"\xEF\xBB\xBF"),'header'=>str_contains($c['body'],'Subagent;')],
-        'registration'=>['status'=>$g['status'],'newMarkup'=>str_contains($g['body'],'reg-form'),'stylesheetLinked'=>str_contains($g['body'],'ald1n-public-register.css')]];
+        'registration'=>['status'=>$g['status'],'newMarkup'=>str_contains($g['body'],'reg-shell'),'stylesheetLinked'=>str_contains($g['body'],'ald1n-public-register.css')]];
 };
 // The OLD markup (B1154 live): the shell, but not the new dashboard, no dropdown, no report routes (404), no link on the management report, the old registration page. The NEW markup (B1155 live): all of it, the report served as text/csv with the BOM.
 $checkOldView=static function(array $v,string $where):void{

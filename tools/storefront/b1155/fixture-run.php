@@ -76,7 +76,7 @@ $adminWindow=static function(string $letter)use($cfg,$authGet,&$jar,$reportQuery
     $c=$authGet(DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH.$reportQuery);$out['csv']=['status'=>$c['status'],'csvContentType'=>str_starts_with(strtolower((string)$c['contentType']),'text/csv')];
     [$r,$polls,$sec]=$poll(static fn()=>$authGet('/admin/reports'),static fn(array $x):bool=>$letter!=='G'||str_contains($x['body'],'Prodaja po subagentima'));
     $out['management']=['status'=>$r['status'],'polls'=>$polls,'secondsUntilLink'=>$letter==='G'?$sec:null,'link'=>str_contains($r['body'],'Prodaja po subagentima'),'linksTheRoute'=>str_contains($r['body'],DashboardReportsInstallCoordinator::SUBAGENTS_PATH)];
-    $g=DashboardReportsFixtureWeb::get($cfg['port'],DashboardReportsInstallCoordinator::REGISTER_PATH);$out['registration']=['status'=>$g['status'],'newMarkup'=>str_contains($g['body'],'reg-form'),'stylesheetLinked'=>str_contains($g['body'],'ald1n-public-register.css')];
+    $g=DashboardReportsFixtureWeb::get($cfg['port'],DashboardReportsInstallCoordinator::REGISTER_PATH);$out['registration']=['status'=>$g['status'],'newMarkup'=>str_contains($g['body'],'reg-shell'),'stylesheetLinked'=>str_contains($g['body'],'ald1n-public-register.css')];
     if($letter==='G'){
         $tok=DashboardReportsFixtureWeb::csrfToken($authGet('/')['body']);$lo=$tok===null?null:DashboardReportsFixtureWeb::jarGet($cfg['port'],'/logout',$jar,http_build_query(['_token'=>$tok],'','&',PHP_QUERY_RFC3986));$after=DashboardReportsFixtureWeb::jarGet($cfg['port'],'/',$jar);
         $out['logout']=['tokenFound'=>$tok!==null,'status'=>$lo['status']??null,'guestAfter'=>$after['status']];
