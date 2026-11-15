@@ -41,12 +41,17 @@ final class DashboardD1Test extends TestCase
         $user = $this->person('superadmin');
         $default = $this->actingAs($user)->get('/')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="default"', (string) $default);
-        self::assertStringContainsString('?period=default', (string) $default);
-        self::assertMatchesRegularExpression('/period=default[^>]*aria-current="page"[^>]*>Default</s', (string) $default);
+        // The presets are GET submit buttons of one form (same /?period=... URLs), pressed state in aria-pressed.
+        self::assertMatchesRegularExpression('/<form[^>]*method="get"[^>]*action="[^"]*"[^>]*>\s*<div class="a1-seg" role="group"/s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="default" aria-pressed="true"[^>]*>Default</s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="7d" aria-pressed="false"[^>]*>7 dana</s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="30d" aria-pressed="false"[^>]*>30 dana</s', (string) $default);
         $explicitDefault = $this->actingAs($user)->get('/?period=default')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="default"', (string) $explicitDefault);
         $thirty = $this->actingAs($user)->get('/?period=30d')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="30d"', (string) $thirty);
+        self::assertMatchesRegularExpression('/name="period" value="30d" aria-pressed="true"/', (string) $thirty);
+        self::assertMatchesRegularExpression('/name="period" value="default" aria-pressed="false"/', (string) $thirty);
         $seven = $this->actingAs($user)->get('/?period=7d')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="7d"', (string) $seven);
         $custom = $this->actingAs($user)->get('/?period=custom&date_from=2026-09-01&date_to=2026-09-30')->assertOk()->getContent();
@@ -95,7 +100,7 @@ final class DashboardD1Test extends TestCase
         foreach (['/', '/?period=default', '/?period=7d', '/?period=30d'] as $url) {
             $html = (string) $this->actingAs($admin)->get($url)->assertOk()->getContent();
             self::assertMatchesRegularExpression(
-                '/data-dashboard-d1-kpi="receivables".{0,1600}800,00 RSD/s',
+                '/data-dashboard-d1-kpi="receivables".{0,1600}800,00\s*(?:<[^>]+>\s*)*RSD/s',
                 $html,
             );
         }
