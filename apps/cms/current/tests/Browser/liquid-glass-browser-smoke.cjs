@@ -202,30 +202,26 @@ async function headerGeometry(page, persona, mode, width) {
   // translucent tint, and
   // an actual CSS backdrop filter referencing the registered SVG displacement.
   if (persona === 'superadmin') {
+    // Module 2: the dashboard no longer uses the SVG lens (liquid-glass-r3.js); its cards are token glass with a near-opaque fill under text.
     const optics = await page.evaluate(() => {
       const shell = document.querySelector('.page-shell');
-      const glass = document.querySelector('.dashboard-kpi-card.lg-host');
-      const layer = glass?.querySelector(':scope > .lg-layer');
-      const paint = layer ? getComputedStyle(layer) : null;
-      const rgba = paint?.backgroundColor || '';
+      const card = document.querySelector('.a1-dash .a1-card');
+      const rgba = card ? getComputedStyle(card).backgroundColor : '';
       const match = rgba.match(/^rgba?\([^)]*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\)$/i);
       return {
         bodyBackdrop: getComputedStyle(document.body).backgroundImage,
         shellBackdrop: shell ? getComputedStyle(shell).backgroundImage : 'none',
-        glassSurface: glass ? getComputedStyle(glass).backgroundColor : 'missing',
-        tintAlpha: match ? Number(match[1]) : null,
-        filter: paint?.backdropFilter || 'none',
-        renderer: glass?.getAttribute('data-lg-renderer') || 'none',
-        layerPosition: layer ? getComputedStyle(layer).position : 'missing',
-        sheenPosition: glass?.querySelector(':scope > .lg-sheen') ? getComputedStyle(glass.querySelector(':scope > .lg-sheen')).position : 'missing',
+        cardFill: card ? rgba : 'missing',
+        fillAlpha: card ? (match ? Number(match[1]) : 1) : null,
+        lensHosts: document.querySelectorAll('.a1-dash .lg-host').length,
       };
     });
     check(optics.bodyBackdrop.includes('radial-gradient') && optics.shellBackdrop === 'none',
-      'R4_VIEWPORT_BACKGROUND_TO_REFRACT_NO_RECTANGLE',
+      'R4_VIEWPORT_BACKGROUND_NO_RECTANGLE',
       tag+': body='+optics.bodyBackdrop.slice(0,110)+' shell='+optics.shellBackdrop.slice(0,60));
-    check(optics.layerPosition === 'absolute' && optics.sheenPosition === 'absolute', 'GLASS_DECORATIVE_LAYERS_OUT_OF_FLOW', tag+': '+JSON.stringify(optics));
-    check(optics.renderer === 'svg' && optics.filter.includes('url('), 'R4_REAL_FILTER_ACTIVE', tag+': '+optics.filter);
-    check(optics.tintAlpha !== null && optics.tintAlpha <= 0.65, 'R4_TRANSLUCENT_GLASS_TINT', tag+': '+JSON.stringify(optics));
+    // Card text contrast is asserted by the strict admin visual QA (computed contrast on .a1-dash, light and dark, both engines); a bare alpha check here could only fail on an explicit lower alpha, so it was dropped.
+    check(optics.fillAlpha !== null, 'M2_DASHBOARD_CARD_PRESENT', tag+': '+JSON.stringify(optics));
+    check(optics.lensHosts === 0, 'M2_DASHBOARD_HAS_NO_SVG_LENS', tag+': '+JSON.stringify(optics));
   }
   check(state.htmlWidth <= width + 2, 'HEADER_NO_PAGE_X_OVERFLOW',
     tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
@@ -237,12 +233,9 @@ async function headerGeometry(page, persona, mode, width) {
   for (const [name,expected] of Object.entries({
     blue:'#287CFF',violet:'#885BFF',cyan:'#20CAFF',teal:'#16CAA7',amber:'#FFBB62',rose:'#FF658E'
   })) check(state.r5.palette[name] === expected, 'R5_FUNCTIONAL_COLOR_'+name.toUpperCase(), tag+': '+state.r5.palette[name]);
-  if (persona === 'superadmin') {
-    check(state.r5.bloomOpacity === '0.6' && state.r5.bloomImage.includes('radial-gradient'),
-      'R5_AMBIENT_BLOBS_40_PERCENT_REDUCTION', tag+': '+JSON.stringify(state.r5).slice(0,340));
-    check(state.r5.selectedAccent === '#885BFF', 'R5_KPI_VIOLET_SEMANTIC_ROLE',
-      tag+': '+state.r5.selectedAccent);
-  }
+  // Module 2 retired R5_AMBIENT_BLOBS_40_PERCENT_REDUCTION (the old dashboard aurora on .page-shell::before) and
+  // R5_KPI_VIOLET_SEMANTIC_ROLE (old KPI tiles): the dashboard paints the Kobalt page glows on the body
+  // (checked as R4_VIEWPORT_BACKGROUND_NO_RECTANGLE below) and its KPI tiles read Kobalt tokens.
   check(state.r5.textContrast >= 4.5, 'R5_WCAG_AA_SURFACE_TEXT',
     tag+': '+state.r5.textContrast.toFixed(2));
   check(state.r5.primaryContrast >= 4.5, 'R5_WCAG_AA_PRIMARY_ACTION',
@@ -433,18 +426,29 @@ async function editorSmoke(page, mode, width, screen) {
 async function dashboardD1Smoke(page, persona, mode) {
   const label = persona + '/' + mode;
   if (persona === 'superadmin') {
-    await page.setViewportSize({width:1440,height:900});
-    await navigate(page,fixture.paths.dashboard,'D1_DESKTOP_FOLD');
-    const last = await page.locator('[data-dashboard-d1-kpi="sale"]').boundingBox();
-    check(!!last && last.y + last.height <= 900,
-      'D1_ALL_SIX_ABOVE_DESKTOP_FOLD',label+': '+JSON.stringify(last));
+    // Module 2: the first look shows numbers. At 1440x900 and 1280x800 the whole priorities strip and the entire first
+    // KPI row (Prihod, Bruto dobit, Neto doprinos) are above the fold; at 1440x900 all six are checked too.
+    for (const [w, h] of [[1440, 900], [1280, 800]]) {
+      await page.setViewportSize({width:w,height:h});
+      await navigate(page,fixture.paths.dashboard,'D1_DESKTOP_FOLD_'+w);
+      for (const key of ['revenue','gross','net']) {
+        const box = await page.locator('[data-dashboard-d1-kpi="'+key+'"]').boundingBox();
+        check(!!box && box.y + box.height <= h, 'D1_FIRST_KPI_ROW_ABOVE_FOLD_'+w, label+' '+key+': '+JSON.stringify(box));
+      }
+      const prio = await page.locator('[aria-labelledby="d1-priority-heading"]').boundingBox();
+      check(!!prio && prio.y + prio.height <= h, 'D1_PRIORITIES_ABOVE_FOLD_'+w, label+': '+JSON.stringify(prio));
+      if (w === 1440) {
+        const sale = await page.locator('[data-dashboard-d1-kpi="sale"]').boundingBox();
+        check(!!sale && sale.y + sale.height <= h, 'D1_ALL_SIX_ABOVE_DESKTOP_FOLD', label+': '+JSON.stringify(sale));
+      }
+    }
   }
   await page.setViewportSize({width:390,height:844});
   await navigate(page,fixture.paths.dashboard,'D1_DASHBOARD');
   if (persona === 'superadmin') {
     const positions = await page.evaluate(() => ({
-      hero: document.querySelector('.dashboard-d1-shell .modern-dashboard-hero')?.getBoundingClientRect().top,
-      focus: document.querySelector('.dashboard-d1-priorities')?.getBoundingClientRect().top,
+      hero: document.querySelector('.a1-dash .a1-hero')?.getBoundingClientRect().top,
+      focus: document.querySelector('.a1-dash [aria-labelledby="d1-priority-heading"]')?.getBoundingClientRect().top,
     }));
     check(Number.isFinite(positions.hero) && Number.isFinite(positions.focus) && positions.hero < positions.focus,
       'D1_MOBILE_HERO_BEFORE_FOCUS', label+': '+JSON.stringify(positions));
@@ -462,19 +466,19 @@ async function dashboardD1Smoke(page, persona, mode) {
     'D1_DEFAULT_MTD', label);
   check((await page.locator('[data-dashboard-d1-kpi="revenue"]').count()) === 1,
     'D1_DEFAULT_REVENUE_KPI', label);
-  const defaultChip = page.locator('.dashboard-d1-period-chip[aria-current="page"]');
+  const defaultChip = page.locator('[data-dashboard-period] .a1-seg__opt[aria-current="true"]');
   check(await defaultChip.count() === 1 && (await defaultChip.innerText()).trim() === 'Default',
     'D1_DEFAULT_CHIP_ACTIVE', label);
-  check(await page.locator('.dashboard-d1-date-form input[type="date"]').count() === 2,
+  check(await page.locator('[data-dashboard-period] input[type="date"]').count() === 2,
     'D1_CUSTOM_DATE_INPUTS', label);
-  const defaultFrom = await page.locator('.dashboard-d1-date-form input[name="date_from"]').inputValue();
-  const defaultTo = await page.locator('.dashboard-d1-date-form input[name="date_to"]').inputValue();
+  const defaultFrom = await page.locator('[data-dashboard-period] input[name="date_from"]').inputValue();
+  const defaultTo = await page.locator('[data-dashboard-period] input[name="date_to"]').inputValue();
   check(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(defaultTo) && defaultFrom === defaultTo.slice(0, 7) + '-01',
     'D1_DEFAULT_MONTH_START_TO_TODAY', label+': '+defaultFrom+' to '+defaultTo);
 
   await navigate(page,'/?period=30d','D1_30D_GET');
   check(await page.locator('[data-dashboard-period="30d"]').count() === 1
-    && (await page.locator('.dashboard-d1-period-chip[aria-current="page"]').innerText()).trim() === '30 dana',
+    && (await page.locator('[data-dashboard-period] .a1-seg__opt[aria-current="true"]').innerText()).trim() === '30 dana',
     'D1_ROLLING_30D_SELECTED', label);
   await navigate(page,'/?period=default','D1_EXPLICIT_DEFAULT_GET');
   check(await page.locator('[data-dashboard-period="default"]').count() === 1,
@@ -482,7 +486,7 @@ async function dashboardD1Smoke(page, persona, mode) {
   await navigate(page,'/?period=7d','D1_7D_GET');
   check(await page.locator('[data-dashboard-period="7d"]').count() === 1,
     'D1_7D_SELECTED', label);
-  check(await page.locator('.dashboard-d1-period-label').count() === 1,
+  check(await page.locator('[data-dashboard-period-label]').count() === 1,
     'D1_7D_PERIOD_LABEL', label);
   await navigate(page,'/?period=custom&date_from=2026-09-01&date_to=2026-09-30','D1_CUSTOM_GET');
   check(await page.locator('[data-dashboard-period="custom"] input[name="date_from"]').inputValue() === '2026-09-01',
@@ -492,7 +496,7 @@ async function dashboardD1Smoke(page, persona, mode) {
   await navigate(page,'/?period=custom&date_from=2026-02-30&date_to=2026-03-01','D1_INVALID_GET');
   check(await page.locator('[data-dashboard-period-error][role="alert"]').count() === 1,
     'D1_INVALID_VISIBLE_ERROR', label);
-  check((await page.locator('[data-dashboard-d1-kpi="revenue"] strong').innerText()).includes('Nije dostupno'),
+  check((await page.locator('[data-dashboard-d1-kpi="revenue"] .a1-kpi__value').innerText()).includes('Nije dostupno'),
     'D1_INVALID_NOT_A_FINANCIAL_ZERO',label);
   const width=await page.evaluate(()=>document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(width <= 1, 'D1_390_NO_OVERFLOW',label+': '+width);

@@ -35,7 +35,7 @@ final class UiRefinement794Test extends TestCase
         $row = $response->viewData('recentOrders')[0];
         self::assertSame('Snapshot laptop at purchase', $row['product_name']);
         self::assertSame(0, $row['other_products']);
-        $response->assertSee('dashboard-order-product', false)->assertSee('UI794-ONE');
+        $response->assertSee('data-order-product', false)->assertSee('UI794-ONE');
         self::assertSame(route('admin.orders.show', $order), $row['url']);
     }
 
