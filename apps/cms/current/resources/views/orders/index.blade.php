@@ -1,69 +1,100 @@
 @extends('layouts.app')
 @section('title', 'Moje porudžbine')
 @section('content')
-<div class="build16-orders-list-shell" data-build16-orders-list="1">
-    <div class="page-heading build16-orders-heading">
-        <div>
-            <span class="eyebrow">Poručivanje robe</span>
-            <h1>Moje porudžbine</h1>
-            <p>Status, plaćanje, dokumenti i isporuka na jednom mestu.</p>
+@php
+    // Same Serbian labels the admin list and the order forms use; unknown values fall back to the raw value.
+    $statusLabels = [
+        'new' => 'Nova',
+        'processing' => 'Obrada',
+        'confirmed' => 'Potvrđena',
+        'shipped' => 'Poslata',
+        'completed' => 'Kompletirana',
+        'cancelled' => 'Otkazana',
+    ];
+    $paymentLabels = [
+        'pending' => 'Na čekanju',
+        'paid' => 'Plaćeno',
+        'cancelled' => 'Stornirano',
+    ];
+    $methodLabels = [
+        'cash_on_delivery' => 'Pouzećem',
+        'bank_transfer' => 'Uplata na račun',
+        'deferred_payment' => 'Odloženo plaćanje',
+        'cash' => 'Gotovina',
+        'card' => 'Kartica',
+        'other' => 'Drugo',
+    ];
+@endphp
+<div class="a1-ops" data-build16-orders-list="1">
+    <header class="a1-pagehead">
+        <div class="a1-pagehead__text">
+            <span class="a1-eyebrow">Poručivanje robe</span>
+            <h1 class="a1-title">Moje porudžbine</h1>
+            <p class="a1-lead">Status, plaćanje, dokumenti i isporuka na jednom mestu.</p>
         </div>
-        @can('orders.create')
-            <a class="button button-primary" href="{{ route('orders.create') }}">
-                <x-icon name="plus-circle" size="18" /> Nova porudžbina
-            </a>
-        @endcan
-    </div>
-
-    <div class="build16-orders-summary">
-        <div class="build16-orders-summary-icon"><x-icon name="orders" size="22" /></div>
-        <div>
-            <small>Moje porudžbine</small>
-            <strong>{{ $orders->total() }} ukupno</strong>
+        <div class="a1-pagehead__actions">
+            <span class="a1-ol-count">{{ $orders->total() }} ukupno</span>
+            @can('orders.create')
+                <a class="a1-btn a1-btn--primary" href="{{ route('orders.create') }}">
+                    <x-icon name="plus-circle" :size="18" :shell="true" /> Nova porudžbina
+                </a>
+            @endcan
         </div>
-    </div>
+    </header>
 
-    <div class="admin-table-wrap build16-orders-table-wrap">
-        <table class="admin-table build16-orders-table">
-            <thead>
-                <tr>
-                    <th>Broj</th>
-                    <th>Dobavljač</th>
-                    <th>Status</th>
-                    <th>Plaćanje</th>
-                    <th>Iznos</th>
-                    <th>Provizija</th>
-                    <th>Datum</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($orders as $order)
-                    <tr>
-                        <td data-label="Broj"><strong>{{ $order->order_number }}</strong></td>
-                        <td data-label="Dobavljač">{{ $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName() ?: '—') }}</td>
-                        <td data-label="Status">
-                            <span class="status-badge status-{{ $order->completed_at ? 'completed' : ($order->status === 'cancelled' ? 'archived' : ($order->status === 'shipped' ? 'active' : 'draft')) }}">
-                                {{ $order->completed_at ? 'Kompletirana' : $order->status }}
-                            </span>
-                        </td>
-                        <td data-label="Plaćanje">{{ $order->payment_method }} / {{ $order->payment_status }}</td>
-                        <td data-label="Iznos"><strong>{{ number_format((float)$order->subtotal_rsd,2,',','.') }} RSD</strong></td>
-                        <td data-label="Provizija">{{ $order->commission ? number_format((float)$order->commission->total_eur,2,',','.').' EUR' : '—' }}</td>
-                        <td data-label="Datum">{{ $order->created_at?->format('d.m.Y H:i') }}</td>
-                        <td>
-                            <a class="button button-ghost button-small" href="{{ route('orders.show',$order) }}">
-                                Detalji <x-icon name="arrow-right" size="16" />
-                            </a>
-                        </td>
+    @if($orders->isEmpty())
+        <div class="a1-empty">
+            <span class="a1-empty__icon"><x-icon name="orders" :size="28" :shell="true" /></span>
+            <p>Još nema porudžbina.</p>
+        </div>
+    @else
+        <div class="a1-tablewrap a1-tablewrap--sticky" role="region" aria-label="Moje porudžbine" tabindex="0">
+            <table class="a1-table a1-table--cards a1-ol-table" role="table">
+                <caption class="a1-sr">Moje porudžbine sa statusom, plaćanjem, iznosom i datumom.</caption>
+                <thead role="rowgroup">
+                    <tr role="row">
+                        <th scope="col" role="columnheader">Broj</th>
+                        <th scope="col" role="columnheader">Dobavljač</th>
+                        <th scope="col" role="columnheader">Status</th>
+                        <th scope="col" role="columnheader">Plaćanje</th>
+                        <th scope="col" role="columnheader" class="a1-table__num">Iznos</th>
+                        <th scope="col" role="columnheader" class="a1-table__num">Provizija</th>
+                        <th scope="col" role="columnheader">Datum</th>
+                        <th scope="col" role="columnheader"><span class="a1-sr">Detalji</span></th>
                     </tr>
-                @empty
-                    <tr><td colspan="8">Još nema porudžbina.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody role="rowgroup">
+                    @foreach($orders as $order)
+                        @php
+                            $statusTone = $order->completed_at ? 'ok' : match ($order->status) {
+                                'cancelled' => 'danger',
+                                'shipped' => 'info',
+                                'new', 'processing', 'confirmed' => 'warning',
+                                default => '',
+                            };
+                        @endphp
+                        <tr role="row">
+                            <td role="cell" class="a1-table__primary a1-ol-primary" data-label="Broj">{{ $order->order_number }}</td>
+                            <td role="cell" class="a1-ol-late" data-label="Dobavljač">{{ $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName() ?: '—') }}</td>
+                            <td role="cell" data-label="Status">
+                                <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Kompletirana' : ($statusLabels[$order->status] ?? $order->status) }}</span>
+                            </td>
+                            <td role="cell" class="a1-ol-late" data-label="Plaćanje">{{ $methodLabels[$order->payment_method] ?? $order->payment_method }} / {{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
+                            <td role="cell" class="a1-table__num" data-label="Iznos"><strong>{{ number_format((float)$order->subtotal_rsd,2,',','.') }} RSD</strong></td>
+                            <td role="cell" class="a1-table__num a1-ol-late" data-label="Provizija">{{ $order->commission ? number_format((float)$order->commission->total_eur,2,',','.').' EUR' : '—' }}</td>
+                            <td role="cell" data-label="Datum">{{ $order->created_at?->format('d.m.Y H:i') }}</td>
+                            <td role="cell" class="a1-table__actions">
+                                <a class="a1-btn a1-btn--sm" href="{{ route('orders.show',$order) }}" aria-label="Detalji: {{ $order->order_number }}">
+                                    Detalji <x-icon name="arrow-right" :size="16" :shell="true" />
+                                </a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 
-    <div class="pagination-wrap">{{ $orders->links() }}</div>
+    {{ $orders->links('partials.ol-pager') }}
 </div>
 @endsection
