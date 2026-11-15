@@ -46,7 +46,7 @@ final class DashboardModuleTwoTest extends TestCase
         // Trend: one bar pair, a text alternative and the exact-values table.
         self::assertSame(1, substr_count($dash, 'a1-trend__pair'));
         self::assertStringContainsString('Tačne vrednosti po periodima', $dash);
-        self::assertMatchesRegularExpression('/<th scope="row">2026-01-15<\/th><td class="a1-table__num">2\.000,00<\/td><td class="a1-table__num">800,00<\/td>/', $dash);
+        self::assertMatchesRegularExpression('/<th scope="row">15\.01\.2026\.<\/th><td class="a1-table__num">2\.000,00<\/td><td class="a1-table__num">800,00<\/td>/', $dash);
 
         // Brand mix: both metrics rendered, the slice carries its label, value and share as text.
         self::assertStringContainsString('data-dashboard-d3="1"', $dash);
@@ -55,6 +55,28 @@ final class DashboardModuleTwoTest extends TestCase
         self::assertMatchesRegularExpression('/data-d3-mode="revenue" aria-pressed="true"/', $dash);
         self::assertMatchesRegularExpression('/data-d3-mode="units" aria-pressed="false"/', $dash);
         self::assertStringNotContainsString('conic-gradient', $dash);
+    }
+
+    public function test_trend_table_period_cells_are_the_chart_bucket_labels_in_dd_mm_yyyy(): void
+    {
+        $admin = $this->person('superadmin');
+        $this->completedOrder($admin, 'M2-B-001', '2026-01-12 10:00:00', 'Lenovo', 1000.0, 600.0);
+        $this->completedOrder($admin, 'M2-B-002', '2026-01-15 10:00:00', 'ASUS', 2000.0, 1200.0);
+        $this->completedOrder($admin, 'M2-B-003', '2026-01-20 10:00:00', 'HP', 3000.0, 1800.0);
+
+        $dash = $this->dashboard((string) $this->actingAs($admin)
+            ->get('/?period=custom&date_from=2026-01-01&date_to=2026-01-31')->assertOk()->getContent());
+
+        // Axis labels (MM-DD) of the three buckets, in order.
+        preg_match_all('/class="a1-trend__label">([^<]*)</', $dash, $axis);
+        self::assertSame(['01-12', '01-15', '01-20'], $axis[1]);
+        // Table rows: each bucket's own date, formatted like the rest of the UI.
+        preg_match_all('/<th scope="row">([^<]*)<\/th><td class="a1-table__num">/', $dash, $rows);
+        self::assertSame(['12.01.2026.', '15.01.2026.', '20.01.2026.'], $rows[1]);
+        // The same buckets: the table day matches the axis day.
+        foreach ($rows[1] as $i => $label) {
+            self::assertSame($axis[1][$i], substr($label, 3, 2).'-'.substr($label, 0, 2));
+        }
     }
 
     public function test_superadmin_period_without_sales_shows_empty_states_not_zero_charts(): void

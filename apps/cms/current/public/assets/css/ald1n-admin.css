@@ -643,6 +643,20 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-ratecard--chip .a1-ratecard__body{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--a1-space-8)}
 .a1-ratecard--chip .a1-ratecard__value{font-size:var(--a1-typography-font-size-lg)}
 .a1-ratecard--chip .a1-ratecard__label,.a1-ratecard--chip .a1-ratecard__source{font-size:var(--a1-typography-font-size-sm)}
+/* Custom range: a row under the actions (full width on phones, left column on desktop so the band keeps its closed height); dates and the button share one line. */
+.a1-hero__range{grid-column:1/-1}
+/* Desktop band (superadmin): title | rate chip, actions | period, range | period, on one grid so the closed band stays as low as its left column. */
+@media (min-width:1100px){
+  .a1-dash .a1-hero--split .a1-hero__text,.a1-dash .a1-hero--split .a1-hero__head{display:contents}
+  .a1-dash .a1-hero--split .a1-hero__title{grid-column:1;grid-row:1}
+  .a1-dash .a1-hero--split .a1-ratecard{grid-column:2;grid-row:1;justify-self:start}
+  .a1-dash .a1-hero--split .a1-hero__actions{grid-column:1;grid-row:2}
+  .a1-dash .a1-hero--split>.a1-hero__side{grid-column:2;grid-row:2/span 2}
+  .a1-dash .a1-hero--split>.a1-hero__range{grid-column:1;grid-row:3}
+}
+.a1-hero__range .a1-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--a1-space-12) var(--a1-space-16)}
+.a1-hero__range .a1-row{display:flex;flex-wrap:wrap;gap:var(--a1-space-12) var(--a1-space-16);flex:1 1 360px}
+.a1-hero__range .a1-field{flex:1 1 180px}
 .a1-hero__side{display:grid;gap:var(--a1-space-8);min-width:0}
 .a1-hero__period{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--a1-space-8)}
 .a1-hero__side .a1-text{font-size:var(--a1-typography-font-size-sm-plus)}
@@ -743,7 +757,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-meta{display:flex;flex-wrap:wrap;gap:var(--a1-space-4) var(--a1-space-16);margin:0;padding:0;list-style:none;font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
 .a1-meta>*{display:inline-flex;align-items:center;gap:var(--a1-space-4)}
 .a1-meta .a1-icon{width:16px;height:16px}
-.a1-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:var(--a1-space-12);min-width:0}
+.a1-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:var(--a1-space-12);min-width:0}
 .a1-tile{display:grid;align-content:start;justify-items:start;gap:var(--a1-space-8);padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-button-ghost-bg);color:var(--a1-text-primary);text-decoration:none}
 .a1-tile:hover{border-color:var(--a1-accent-link);background-color:var(--a1-button-ghost-hover)}
 

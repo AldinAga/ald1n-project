@@ -136,29 +136,31 @@
         @if($dashboardPeriod['error'] === null)
             <p class="a1-text" data-dashboard-period-label><b>Prikaz za period {{ $reportStats['period_label'] }} · Završene porudžbine</b></p>
         @endif
-        <details class="a1-acc" @if($dashboardPeriod['period'] === 'custom') open @endif>
-            <summary>Prilagođeno · Odabir iz kalendara</summary>
-            <div class="a1-acc__body">
-                <form method="get" action="{{ url('/') }}" class="a1-form">
-                    <input type="hidden" name="period" value="custom">
-                    <div class="a1-row">
-                        <div class="a1-field">
-                            <label class="a1-label" for="dash-date-from">Datum od</label>
-                            <input class="a1-input" type="date" id="dash-date-from" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}">
-                        </div>
-                        <div class="a1-field">
-                            <label class="a1-label" for="dash-date-to">Datum do</label>
-                            <input class="a1-input" type="date" id="dash-date-to" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}">
-                        </div>
-                    </div>
-                    <div><button type="submit" class="a1-btn a1-btn--primary">Primeni period</button></div>
-                </form>
-            </div>
-        </details>
         @if($dashboardPeriod['error'] !== null)
             <div class="a1-alert a1-alert--danger" data-dashboard-period-error role="alert"><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $dashboardPeriod['error'] }}</p></div></div>
         @endif
     </div>
+    @endif
+    @if($isSuper)
+    <details class="a1-acc a1-hero__range" @if($dashboardPeriod['period'] === 'custom') open @endif>
+        <summary>Prilagođeno · Odabir iz kalendara</summary>
+        <div class="a1-acc__body">
+            <form method="get" action="{{ url('/') }}" class="a1-form">
+                <input type="hidden" name="period" value="custom">
+                <div class="a1-row">
+                    <div class="a1-field">
+                        <label class="a1-label" for="dash-date-from">Datum od</label>
+                        <input class="a1-input" type="date" id="dash-date-from" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}">
+                    </div>
+                    <div class="a1-field">
+                        <label class="a1-label" for="dash-date-to">Datum do</label>
+                        <input class="a1-input" type="date" id="dash-date-to" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}">
+                    </div>
+                </div>
+                <div><button type="submit" class="a1-btn a1-btn--primary">Primeni period</button></div>
+            </form>
+        </div>
+    </details>
     @endif
 </section>
 
@@ -239,6 +241,8 @@
                 @php
                     $trendScale = max(1, ...$trend->flatMap(static fn ($point) => [abs((float) ($point['revenue_rsd'] ?? 0)), abs((float) ($point['gross_profit_rsd'] ?? 0))])->all());
                     $labelStep = max(1, (int) ceil($trend->count() / 6));
+                    // Bucket label as the rest of the UI prints dates: dd.mm.yyyy. (daily) or mm.yyyy. (monthly).
+                    $periodText = static fn (string $p): string => preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $p, $m) === 1 ? $m[3].'.'.$m[2].'.'.$m[1].'.' : (preg_match('/^(\d{4})-(\d{2})$/', $p, $m) === 1 ? $m[2].'.'.$m[1].'.' : $p);
                 @endphp
                 <p class="a1-sr">Trend prihoda i bruto dobiti po periodima. Najviša vrednost na skali: {{ number_format($trendScale, 2, ',', '.') }} RSD. Tačne vrednosti su u tabeli ispod grafikona.</p>
                 <ol class="a1-trend" aria-hidden="true" data-dashboard-trend>
@@ -248,7 +252,7 @@
                             $grossHeight = max(0, min(100, round(abs((float) $point['gross_profit_rsd']) / $trendScale * 100)));
                         @endphp
                         <li>
-                            <span class="a1-trend__pair" title="{{ $point['period'] }}: prihod {{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }} RSD; bruto dobit {{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }} RSD">
+                            <span class="a1-trend__pair" title="{{ $periodText((string) $point['period']) }}: prihod {{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }} RSD; bruto dobit {{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }} RSD">
                                 <span class="a1-trend__bar a1-trend__bar--rev" style="--a1c-value:{{ $revenueHeight }}"></span>
                                 <span class="a1-trend__bar a1-trend__bar--gross" style="--a1c-value:{{ $grossHeight }}"></span>
                             </span>
@@ -271,7 +275,7 @@
                                 <thead><tr><th scope="col">Period</th><th scope="col" class="a1-table__num">Prihod (RSD)</th><th scope="col" class="a1-table__num">Bruto dobit (RSD)</th></tr></thead>
                                 <tbody>
                                     @foreach($trend as $point)
-                                        <tr><th scope="row">{{ $point['period'] }}</th><td class="a1-table__num">{{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }}</td><td class="a1-table__num">{{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }}</td></tr>
+                                        <tr><th scope="row">{{ $periodText((string) $point['period']) }}</th><td class="a1-table__num">{{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }}</td><td class="a1-table__num">{{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }}</td></tr>
                                     @endforeach
                                 </tbody>
                             </table>
