@@ -117,7 +117,7 @@ async function registrationQa(browser){
               const cs=getComputedStyle(el);
               if(cs.visibility==='hidden'||cs.display==='none'||el.closest('[aria-hidden="true"]')||el.closest('.shop-hidden-hp')||el.closest('noscript')||!el.getClientRects().length)continue;
               const layers=[];
-              for(let e=el;e;e=e.parentElement){const bg=parse(getComputedStyle(e).backgroundColor);if(bg[3]>0)layers.push(bg);if(bg[3]===1)break;}
+              for(let e=el;e&&e.tagName!=='BODY'&&e.tagName!=='HTML';e=e.parentElement){const bg=parse(getComputedStyle(e).backgroundColor);if(bg[3]>0)layers.push(bg);if(bg[3]===1)break;}
               let bg=base;for(const l of layers.reverse())bg=over(l,bg);
               let fg=parse(cs.color);fg=over(fg,bg);
               out.push([ratio(fg,bg),n.nodeValue.trim().slice(0,30)]);
