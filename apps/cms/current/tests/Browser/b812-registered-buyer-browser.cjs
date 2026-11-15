@@ -156,6 +156,8 @@ async function registrationQa(browser){
           await openOk(page,'/registracija',label);
           await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
           await page.waitForTimeout(300);
+          await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+          await page.waitForTimeout(300);
           const m=await page.evaluate(()=>{
             const r=document.querySelector('.reg-bg').getBoundingClientRect();
             const cs=getComputedStyle(document.querySelector('.reg-bg'));
