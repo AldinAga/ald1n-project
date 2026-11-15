@@ -5,6 +5,8 @@
 @php($shopClosed = $hideShopNav ?? !app(\App\Services\PublicStorefrontStateService::class)->isOpen())
 @php($shopHomeUrl = ($hideShopNav ?? false) ? route('legal.index', [], false) : route('public-shop.catalog', [], false))
 @php($shopSubtitle = ($hideShopNav ?? false) ? 'Pravne informacije' : 'Javni katalog')
+{{-- $authShell: registration page in the login visual shell. No shop header, main wrapper or footer; the view renders its own main, the theme switch floats in the corner. --}}
+@php($shopAuth = (bool) ($authShell ?? false))
 <html lang="sr" data-theme="{{ $shopTheme }}">
 <head>
 <meta charset="utf-8">
@@ -20,12 +22,12 @@
 <link rel="stylesheet" href="{{ '/assets/css/ald1n-public-storefront.css?v=202611141' }}">
 @stack('head')
 </head>
-<body class="public-retail">
+<body class="public-retail{{ $shopAuth ? ' public-auth' : '' }}">
 {{-- Cloudflare Email Address Obfuscation rewrites addresses into data-cfemail and injects a decoder script that this page's CSP (one nonce'd script) blocks, so visitors would read "[email protected]" instead of the trader's address. The email_off pair, closed before the nonce'd script, switches it off for the whole page body. Never nest a second pair inside. --}}
 <!--email_off-->
 <span id="vrh" class="shop-top-anchor"></span>
 <a class="skip" href="#content">Preskoči navigaciju</a>
-<header class="shop-header"><div class="wrap shop-nav">
+@unless($shopAuth)<header class="shop-header"><div class="wrap shop-nav">
 <a class="shop-brand{{ $shopBrand['has_logo'] ? ' has-logo' : '' }}" href="{{ $shopHomeUrl }}">
 @if($shopBrand['has_logo'])
 @foreach(($shopBrand['logo_light']['src'] === $shopBrand['logo_dark']['src'] ? ['' => $shopBrand['logo_light']] : ['shop-logo-light' => $shopBrand['logo_light'], 'shop-logo-dark' => $shopBrand['logo_dark']]) as $logoVariant => $logo)
@@ -52,26 +54,15 @@
 <a class="shop-nav-cart" href="{{ route('public-shop.cart', [], false) }}"@if(request()->routeIs('public-shop.cart')) aria-current="page"@endif><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 1.9-1.5L21 8H6.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg><span>Korpa</span></a>
 </nav>
 @endif
-<form class="shop-theme" method="post" action="{{ route('public-shop.theme', [], false) }}">
-<input type="hidden" name="back" value="{{ request()->getRequestUri() }}">
-<div class="shop-theme-group" role="group" aria-label="Tema">
-@foreach(\App\Support\PublicStorefrontAppearance::THEME_NAMES as $themeKey => $themeLabel)
-<button type="submit" name="theme" value="{{ $themeKey }}" class="shop-theme-option" aria-pressed="{{ $shopTheme === $themeKey ? 'true' : 'false' }}" aria-label="{{ $themeLabel }}" title="{{ $themeLabel }}">
-@if($themeKey === 'system')<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 20.5h7M12 16.5v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-@elseif($themeKey === 'light')<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-@else<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M20.5 13.4A8.6 8.6 0 1 1 10.6 3.5a6.7 6.7 0 0 0 9.9 9.9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-@endif<span class="shop-theme-label">{{ $themeLabel }}</span></button>
-@endforeach
-</div>
-</form>
-</div></header>
-<main id="content" class="wrap">
+@include('public-shop.partials.theme-form')
+</div></header>@else<div class="reg-theme">@include('public-shop.partials.theme-form')</div>@endunless
+@if($shopAuth)@yield('content')@else<main id="content" class="wrap">
 @if(session('status'))<div role="status" class="shop-alert">{{ session('status') }}</div>@endif
 @if($errors->any())<div role="alert" class="shop-alert error"><strong>Proveri unos.</strong>
 <ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 @yield('content')
-</main>
-<footer class="shop-footer"><div class="wrap shop-footer-inner">
+</main>@endif
+@unless($shopAuth)<footer class="shop-footer"><div class="wrap shop-footer-inner">
 @if($shopBrand['footer_logo'])
 <div class="shop-footer-brand">
 @foreach(($shopBrand['logo_light']['src'] === $shopBrand['logo_dark']['src'] ? ['' => $shopBrand['logo_light']] : ['shop-logo-light' => $shopBrand['logo_light'], 'shop-logo-dark' => $shopBrand['logo_dark']]) as $logoVariant => $logo)
@@ -85,7 +76,7 @@
 @endforeach
 </nav>
 <p>{{ $shopBrand['brand'] }} · Javni katalog · Prodajna cena bez korisničke provizije</p>
-</div></footer>
+</div></footer>@endunless
 <div class="shop-top-rail"><a class="shop-back-to-top" href="#vrh" aria-label="Nazad na vrh stranice" title="Nazad na vrh stranice"><span aria-hidden="true">↑</span></a></div>
 <!--/email_off-->
 {{-- B1149: the only script on shop pages. Switches the theme (colours, buttons, browser bar) in place and stores the choice; re-applies the stored choice when the back/forward cache restores a page; without JavaScript the form posts to /tema. --}}

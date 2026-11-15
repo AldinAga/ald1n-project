@@ -72,6 +72,187 @@ function avoidInternalNumbers(text,label){
   assert(!text.includes('777777'),label+' leaked internal commission');
 }
 
+/**
+ * Registration page QA (login visual shell): 360/768/1280 in light and dark,
+ * no horizontal overflow, text contrast >= 4.5 on the glass even over a
+ * worst-case (white or black) background, focus order, error state.
+ */
+async function registrationQa(browser){
+  const fields=['first_name','last_name','address','city','phone','email'];
+  for(const mode of ['default','image','slideshow','youtube']){
+  execFileSync('php',['tests/Browser/set-login-background.php',mode],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+  for(const theme of ['dark','light']){
+    for(const width of [360,768,1280]){
+      const ctx=await browser.newContext({viewport:{width,height:900}});
+      try{
+        await ctx.addCookies([{name:'shop_theme',value:theme,url:base}]);
+        const page=await ctx.newPage();
+        const label='reg-'+mode+'-'+theme+'-'+width;
+        const nav=await openOk(page,'/registracija',label);
+        const csp=nav.headers()['content-security-policy']||'';
+        const frames=await page.locator('iframe').count();
+        const video='frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com';
+        if(mode==='youtube'){assert.equal(frames,1,label+' iframe');assert(csp.includes(video),label+' csp video host');const f=page.locator('iframe');assert.equal(await f.getAttribute('tabindex'),'-1');assert.equal(await f.getAttribute('title'),'');assert.match(await f.getAttribute('src'),/^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}\?autoplay=1&mute=1&controls=0&loop=1/);}else{assert.equal(frames,0,label+' no iframe');assert(!csp.includes('youtube'),label+' csp has no video host');}
+        if(mode==='image')assert.equal(await page.locator('img.reg-bg-img').count(),1);
+        if(mode==='slideshow')assert.equal(await page.locator('.reg-slides img').count(),2);
+        assert.equal(await page.locator('html').getAttribute('data-theme'),theme,label+' theme');
+        // Every field visible with a label; touch targets >= 44px.
+        for(const name of fields){
+          const input=page.locator('input[name="'+name+'"]');
+          assert(await input.isVisible(),label+' '+name+' visible');
+          assert(await page.locator('label[for="'+await input.getAttribute('id')+'"]').isVisible(),label+' '+name+' label');
+          assert((await input.boundingBox()).height>=44,label+' '+name+' height');
+        }
+        const submit=page.locator('button.reg-submit');
+        assert((await submit.boundingBox()).height>=44,label+' submit height');
+        assert.equal((await submit.innerText()).trim().replace(/\s*→$/,''),'Registruj se');
+        const columns=await page.locator('.reg-grid').first().evaluate(g=>getComputedStyle(g).gridTemplateColumns.split(' ').length);
+        assert.equal(columns,width>=768?2:1,label+' columns');
+        // Contrast: every text element against its composited background,
+        // checked over a white and a black page behind the translucent panel.
+        const worst=await page.evaluate(()=>{
+          const parse=c=>{const m=c.match(/rgba?\(([^)]+)\)/);if(!m)return [0,0,0,0];const p=m[1].split(/[ ,\/]+/).map(Number);return [p[0],p[1],p[2],p.length>3?p[3]:1];};
+          const lum=([r,g,b])=>{const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(r)+.7152*f(g)+.0722*f(b)};
+          const over=(f,b)=>[0,1,2].map(i=>f[i]*f[3]+b[i]*(1-f[3])).concat(1);
+          const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+          const out=[];
+          for(const base of [[255,255,255,1],[0,0,0,1]]){
+            const walker=document.createTreeWalker(document.querySelector('main'),NodeFilter.SHOW_TEXT);
+            let n;
+            while((n=walker.nextNode())){
+              if(!n.nodeValue.trim())continue;
+              const el=n.parentElement;
+              const cs=getComputedStyle(el);
+              if(cs.visibility==='hidden'||cs.display==='none'||el.closest('[aria-hidden="true"]')||el.closest('.shop-hidden-hp')||el.closest('noscript')||!el.getClientRects().length)continue;
+              const layers=[];
+              for(let e=el;e&&e.tagName!=='BODY'&&e.tagName!=='HTML';e=e.parentElement){const bg=parse(getComputedStyle(e).backgroundColor);if(bg[3]>0)layers.push(bg);if(bg[3]===1)break;}
+              let bg=base;for(const l of layers.reverse())bg=over(l,bg);
+              let fg=parse(cs.color);fg=over(fg,bg);
+              out.push([ratio(fg,bg),n.nodeValue.trim().slice(0,30)]);
+            }
+          }
+          out.sort((a,b)=>a[0]-b[0]);return out[0];
+        });
+        assert(worst[0]>=4.5,label+' contrast '+worst[0].toFixed(2)+' for "'+worst[1]+'"');
+        const rail=await page.locator('a.shop-back-to-top').getAttribute('aria-label');
+        assert.equal(rail,'Nazad na vrh stranice');
+        await page.screenshot({path:path.join(dir,'b812-registration-qa-'+mode+'-'+theme+'-'+width+'.png'),fullPage:true,animations:'disabled'});
+      }finally{await ctx.close();}
+    }
+  }
+  }
+  // Stability and coverage. The page height and the main boxes must not move
+  // after first paint (cumulative layout shift <= 0.02, scrollHeight within
+  // 2px), the fixed background layer covers the viewport at the bottom of the
+  // page, never takes pointer events, and no opaque body fill covers it.
+  const BOXES=['.reg-card','.reg-intro','.reg-form','.reg-group:nth-of-type(1)','.reg-turnstile','.reg-submit','.reg-legal','.shop-top-rail','.shop-back-to-top'];
+  for(const mode of ['default','image','slideshow','youtube']){
+    execFileSync('php',['tests/Browser/set-login-background.php',mode],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+    for(const theme of ['dark','light']){
+      for(const [w,h] of [[1280,800],[360,740]]){
+        const c=await browser.newContext({viewport:{width:w,height:h}});
+        try{
+          await c.addCookies([{name:'shop_theme',value:theme,url:base}]);
+          const page=await c.newPage();
+          await page.addInitScript(()=>{
+            window.__cls=0;window.__shifts=[];
+            try{new PerformanceObserver(list=>{for(const e of list.getEntries()){if(e.hadRecentInput)continue;window.__cls+=e.value;window.__shifts.push({v:e.value,src:(e.sources||[]).map(s=>(s.node&&(s.node.tagName+'.'+(s.node.className||'')))+' '+JSON.stringify(s.previousRect)+'->'+JSON.stringify(s.currentRect))});}}).observe({type:'layout-shift',buffered:true});}catch(e){}
+          });
+          const label='reg-bottom-'+mode+'-'+theme+'-'+w;
+          await openOk(page,'/registracija',label);
+          const snap=()=>page.evaluate(sel=>{
+            const o={h:document.documentElement.scrollHeight,boxes:{}};
+            for(const s of sel){const el=document.querySelector(s);if(el){const r=el.getBoundingClientRect();o.boxes[s]=[Math.round(r.top+scrollY),Math.round(r.height)];}}
+            return o;
+          },BOXES);
+          const before=await snap();
+          await page.waitForTimeout(600);
+          const settled=await snap();
+          await page.evaluate(()=>window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'}));
+          await page.waitForTimeout(300);
+          const after=await snap();
+          const cls=await page.evaluate(()=>({cls:window.__cls,shifts:window.__shifts}));
+          const dump=JSON.stringify({before,settled,after,cls});
+          assert(Math.abs(settled.h-before.h)<=2&&Math.abs(after.h-before.h)<=2,label+' page height moved '+dump);
+          if(engine==='chromium')assert(cls.cls<=0.02,label+' CLS '+cls.cls+' '+dump);
+          const m=await page.evaluate(()=>{
+            const r=document.querySelector('.reg-bg').getBoundingClientRect();
+            const cs=getComputedStyle(document.querySelector('.reg-bg'));
+            const f=document.querySelector('.reg-bg iframe');
+            return {top:r.top,left:r.left,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,y:scrollY,max:document.documentElement.scrollHeight-innerHeight,pos:cs.position,pe:cs.pointerEvents,body:getComputedStyle(document.body).backgroundColor,fpe:f?getComputedStyle(f).pointerEvents:'none'};
+          });
+          assert.equal(m.pos,'fixed',label);
+          assert(m.top<=0&&m.left<=0&&m.w>=m.vw&&m.h>=m.vh,label+' bg box '+JSON.stringify(m));
+          assert(m.max<=0||Math.abs(m.y-m.max)<=2,label+' scrolled to bottom '+JSON.stringify(m)+' '+dump);
+          assert.equal(m.pe,'none',label);
+          assert.equal(m.fpe,'none',label+' iframe pointer-events');
+          assert(/rgba\(0, 0, 0, 0\)|transparent/.test(m.body),label+' body fill '+m.body);
+          console.log('B812_REG_STABLE '+label+' CLS='+cls.cls.toFixed(4)+' H='+before.h);
+          await page.screenshot({path:path.join(dir,'b812-registration-qa-bottom-'+mode+'-'+theme+'-'+w+'.png'),animations:'disabled'});
+        }finally{await c.close();}
+      }
+    }
+  }  // Privacy: the hidden background video must not even be requested for
+  // phones (mobile-static), reduced motion, while a visible one is requested.
+  execFileSync('php',['tests/Browser/set-login-background.php','youtube'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+  const videoRequests=[];
+  for(const [name,options,expected] of [
+    ['phone',{viewport:{width:360,height:740}},0],
+    ['reduced-motion',{viewport:{width:1280,height:800},reducedMotion:'reduce'},0],
+    ['desktop',{viewport:{width:1280,height:800}},1],
+  ]){
+    const c=await browser.newContext(options);
+    try{
+      const page=await c.newPage();
+      const seen=new Set();
+      const note=r=>{if(/(^|\.)youtube-nocookie\.com$/.test(new URL(r.url()).hostname))seen.add(r.url());};
+      page.on('request',note);page.on('requestfailed',note);
+      await page.route(/youtube-nocookie\.com/,route=>route.abort());
+      await openOk(page,'/registracija','reg-video-'+name);
+      await page.waitForTimeout(1500);
+      const count=seen.size;
+      videoRequests.push(engine+' '+name+'='+count);
+      if(expected===0)assert.equal(count,0,'video requested for '+name+': '+[...seen].join(' '));
+      else assert(count>=1,'video not requested for '+name);
+    }finally{await c.close();}
+  }
+  console.log('B812_REG_VIDEO_REQUESTS '+videoRequests.join(' '));  execFileSync('php',['tests/Browser/set-login-background.php','default'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+  // Focus order and the error state (server validation, native checks off).
+  const ctx=await browser.newContext({viewport:{width:1280,height:900}});
+  try{
+    const page=await ctx.newPage();
+    await openOk(page,'/registracija','reg-focus');
+    await page.locator('input[name="first_name"]').focus();
+    const order=[];
+    for(let i=0;i<8;i++){
+      order.push(await page.evaluate(()=>document.activeElement.name||document.activeElement.className));
+      await page.keyboard.press('Tab');
+    }
+    assert.deepEqual(order.slice(0,7),[...fields,'accepted_privacy'],'focus order');
+    await page.locator('input[name="first_name"]').fill('B812');
+    await page.locator('input[name="last_name"]').fill('Browser Err');
+    await page.locator('input[name="address"]').fill('Synthetic 12');
+    await page.locator('input[name="city"]').fill('Beograd');
+    await page.locator('input[name="phone"]').fill('0601234567');
+    await page.locator('input[name="email"]').fill('nije-email');
+    await page.locator('form.reg-form').evaluate(f=>{f.noValidate=true;});
+    await Promise.all([
+      page.waitForResponse(r=>r.url().endsWith('/registracija')&&r.request().method()==='POST',{timeout:15000}),
+      page.locator('button.reg-submit').click(),
+    ]);
+    await page.waitForURL('**/registracija',{timeout:15000});
+    await page.waitForLoadState('networkidle');
+    assert.equal(await page.locator('#reg-errors').count(),1,'error summary');
+    assert.equal(await page.locator('input[name="email"]').getAttribute('aria-invalid'),'true');
+    assert.equal(await page.locator('input[name="last_name"]').inputValue(),'Browser Err','old input kept');
+    if(engine==='chromium'){
+      assert.equal(await page.evaluate(()=>document.activeElement&&document.activeElement.id),'reg-errors','summary focused');
+    }
+    await page.screenshot({path:path.join(dir,'b812-registration-qa-error.png'),fullPage:true,animations:'disabled'});
+  }finally{await ctx.close();}
+  console.log('B812_REGISTRATION_QA_'+engine.toUpperCase()+'=PASS 360_768_1280_LIGHT_DARK_CONTRAST_OVERFLOW_FOCUS_ERROR');
+}
+
 (async()=>{
   const browser=await browserType.launch({headless:true});
   try{
@@ -86,13 +267,15 @@ function avoidInternalNumbers(text,label){
         });
         await openOk(page,'/registracija','registration-'+width);
         assert(await page.locator('button[type="submit"]').filter({
-          hasText:'Pošalji registraciju',
+          hasText:'Registruj se',
         }).isVisible(),'approved synthetic sender enables signup UI');
         await page.screenshot({
           path:path.join(dir,'b812-registration-'+width+'.png'),animations:'disabled',
         });
       }finally{await ctx.close();}
     }
+
+    await registrationQa(browser);
 
     const ctx=await browser.newContext({viewport:{width:1440,height:900}});
     try{
@@ -119,7 +302,7 @@ function avoidInternalNumbers(text,label){
       await Promise.all([
         page.waitForResponse(r=>r.url().endsWith('/registracija')
           && r.request().method()==='POST',{timeout:15000}),
-        page.getByRole('button',{name:'Pošalji registraciju'}).click(),
+        page.getByRole('button',{name:'Registruj se'}).click(),
       ]);
       await page.waitForURL('**/registracija',{timeout:15000});
       await page.waitForLoadState('networkidle');

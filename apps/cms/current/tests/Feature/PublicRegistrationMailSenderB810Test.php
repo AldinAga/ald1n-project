@@ -56,7 +56,7 @@ final class PublicRegistrationMailSenderB810Test extends TestCase
     {
         $this->get('/registracija')->assertOk()
             ->assertSee('Registracija trenutno nije dostupna')
-            ->assertDontSee('Pošalji registraciju');
+            ->assertDontSee('Registruj se');
         $this->postJson('/registracija',$this->signup())
             ->assertUnprocessable()->assertJsonValidationErrors('registration');
         self::assertDatabaseCount('users',1);
@@ -77,7 +77,7 @@ final class PublicRegistrationMailSenderB810Test extends TestCase
             'Never mutate application/global SMTP identity or transport.');
         self::assertSame('array',config('mail.default'));
         Auth::logout();
-        $this->get('/registracija')->assertOk()->assertSee('Pošalji registraciju');
+        $this->get('/registracija')->assertOk()->assertSee('Registruj se');
         $response=$this->withHeaders(['Host'=>'injected.example.test'])->post(
             '/registracija',$this->signup()+[
                 'registration_from_email'=>'attacker@example.test',
