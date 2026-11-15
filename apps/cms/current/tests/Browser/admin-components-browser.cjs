@@ -101,7 +101,10 @@ function inPageAudit(selector) {
     // A hidden-overlay input is as large as its label; the 1px menu checkbox is measured through its label.
     let box = el.getBoundingClientRect();
     if (box.width < 44 && el.labels && el.labels[0]) box = el.labels[0].getBoundingClientRect();
-    if (box.width < 43.5 || box.height < 43.5) out.small.push(label + ' ' + Math.round(box.width) + 'x' + Math.round(box.height));
+    // Desktop dropdown rows with a precise pointer are 38px by design (WCAG 2.5.8 needs 24px); touch and the sheet keep 44px.
+    const compactRow = el.classList.contains('a1-nav-dd__item') && window.innerWidth >= 1200 && !matchMedia('(pointer: coarse)').matches;
+    const minH = compactRow ? 36 : 43.5;
+    if (box.width < 43.5 || box.height < minH) out.small.push(label + ' ' + Math.round(box.width) + 'x' + Math.round(box.height));
   }
   return out;
 }

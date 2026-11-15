@@ -124,7 +124,7 @@
   .a1-header__user{order:5}
   .a1-header__nav{order:9;flex:1 1 100%;padding-block:var(--a1-space-4);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
   .a1-nav{display:flex;flex-wrap:nowrap}
-  .a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-8));left:0;min-width:260px;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong);-webkit-backdrop-filter:var(--a1-fx-strong);backdrop-filter:var(--a1-fx-strong);box-shadow:var(--a1-shadow-card-hover)}
+  .a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-8));left:0;min-width:260px;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid);-webkit-backdrop-filter:var(--a1-fx-strong);backdrop-filter:var(--a1-fx-strong);box-shadow:var(--a1-shadow-card-hover)}
   .a1-nav-dd--end>.a1-nav-dd__panel{left:auto;right:0}
   .a1-nav-dd>summary::after{margin-left:var(--a1-space-4)}
 }
@@ -507,6 +507,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-nav__link .a1-count{margin-left:var(--a1-space-4)}
 .a1-nav-dd__item .a1-count{margin-left:auto}
 .a1-nav-dd__label{display:block;padding:var(--a1-space-8) var(--a1-space-12) var(--a1-space-4);color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-xs-plus);font-weight:var(--a1-typography-font-weight-bold);letter-spacing:var(--a1-typography-letter-spacing-eyebrow);text-transform:uppercase}
+.a1-nav-dd__group{display:grid;gap:var(--a1-space-4)}
 .a1-nav-dd__note{display:block;padding:0 var(--a1-space-12) var(--a1-space-8);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm)}
 .a1-nav-dd__row{padding:var(--a1-space-4) var(--a1-space-12)}
 .a1-nav-dd__form{margin:0}
@@ -537,10 +538,23 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-header__search.a1-searchbtn{order:2;flex:1 1 260px;width:auto;max-width:440px}
   .a1-searchbtn__label{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto}
   .a1-header .a1-nav__link{padding:var(--a1-space-8);font-size:var(--a1-typography-font-size-sm-plus);white-space:nowrap}
-  .a1-nav-dd__panel{max-height:min(70vh,560px);overflow-y:auto;overscroll-behavior:contain}
+  /* Dropdowns show every item without scrolling; the cap and the scroll are only a last resort for very short viewports. */
+  .a1-nav-dd__panel{max-width:calc(100vw - 32px);max-height:calc(100vh - 9rem);max-height:calc(100dvh - 9rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--a1-border-strong) transparent}
+  /* Multi-section menu (Podešavanja): sections flow into columns, column by column in DOM order. */
+  .a1-nav-dd__panel--cols{display:block;width:min(calc(2 * 244px + 16px),calc(100vw - 32px));columns:2 220px;column-gap:var(--a1-space-8)}
+  .a1-nav-dd__group{break-inside:avoid;padding-bottom:var(--a1-space-4)}
+  .a1-nav-dd__group:last-child{padding-bottom:0}
   .a1-nav-dd--flip>.a1-nav-dd__panel{left:auto;right:0}
   .a1-nav-dd[open]::after{content:"";position:absolute;left:0;right:0;top:100%;height:var(--a1-space-8)}
   .a1-header__user .a1-nav-dd__panel{min-width:280px}
+}
+/* Desktop pointer: compact rows. Touch keeps the 44px target. */
+@media (min-width:1200px) and (pointer:fine),(min-width:1200px) and (pointer:none){
+  .a1-nav-dd__item{min-height:38px;padding-block:var(--a1-space-4)}
+}
+/* Very short desktop viewport: one scrolling column instead of columns that would overflow sideways. */
+@media (min-width:1200px) and (max-height:679px){
+  .a1-nav-dd__panel--cols{display:grid;width:auto;min-width:260px;columns:auto}
 }
 .a1-footer{margin-top:var(--a1-space-40);border-top:var(--a1x-border-width) solid var(--a1-border-normal);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-footer__inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-12) var(--a1-space-24);padding-block:var(--a1-space-20)}
@@ -1313,3 +1327,16 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ow-step--on{border-top-color:Highlight;border-top-width:6px}
   .a1-ow-event__id{color:LinkText}
 }
+
+/* ---------- Report: sales by subagent (a1-sbs-*, used only by admin/reports/subagent-sales) ---------- */
+.a1-sbs-chart{display:grid;gap:var(--a1-space-16);margin:0;padding:0;list-style:none}
+.a1-sbs-chart__item{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-sbs-chart__row{display:grid;grid-template-columns:5.5rem minmax(0,1fr) minmax(8.5rem,auto);align-items:center;gap:var(--a1-space-12);font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+.a1-sbs-chart__row b{text-align:right;font-variant-numeric:tabular-nums;color:var(--a1-text-primary)}
+@media (max-width:560px){.a1-sbs-chart__row{grid-template-columns:4.5rem minmax(0,1fr)}.a1-sbs-chart__row b{grid-column:1 / -1;text-align:left}}
+.a1-sbs-sort{display:inline-flex;align-items:center;min-height:var(--a1-size-touch-target);color:inherit;text-decoration:none}
+.a1-sbs-sort:hover{color:var(--a1-accent-link);text-decoration:underline;text-underline-offset:.18em}
+.a1-table th[aria-sort] .a1-sbs-sort{color:var(--a1-text-primary)}
+.a1-table th[aria-sort=ascending] .a1-sbs-sort::after{content:" \25B2" / ""}
+.a1-table th[aria-sort=descending] .a1-sbs-sort::after{content:" \25BC" / ""}
+.a1-sbs-total td{font-weight:var(--a1-typography-font-weight-bold);background-color:var(--a1-glass-fill-strong)}

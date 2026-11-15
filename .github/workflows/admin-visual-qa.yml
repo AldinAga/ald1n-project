@@ -17,6 +17,7 @@ on:
       - 'apps/cms/current/tests/Browser/admin-visual-qa.cjs'
       - 'apps/cms/current/tests/Browser/admin-visual-qa-report.cjs'
       - 'apps/cms/current/tests/Browser/lib-inpage-contrast.cjs'
+      - 'apps/cms/current/tests/Browser/lib-inpage-menu.cjs'
       - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
   push:
     paths:
@@ -26,6 +27,7 @@ on:
       - 'apps/cms/current/tests/Browser/admin-visual-qa.cjs'
       - 'apps/cms/current/tests/Browser/admin-visual-qa-report.cjs'
       - 'apps/cms/current/tests/Browser/lib-inpage-contrast.cjs'
+      - 'apps/cms/current/tests/Browser/lib-inpage-menu.cjs'
       - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
   workflow_dispatch:
 permissions:
@@ -77,7 +79,7 @@ jobs:
       # Strict switches. Redesigned modules are listed here (module 1: admin shell, module 2: dashboard,
       # module 3: orders incl. the customer order pages, after-sales, field operations and service parts).
       # ADMIN_VISUAL_STRICT: '1'
-      ADMIN_VISUAL_STRICT_MODULES: 'shell,dashboard,orders'
+      ADMIN_VISUAL_STRICT_MODULES: 'shell,dashboard,subagent-sales,orders'
     steps:
       - name: Checkout exact source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -109,6 +111,7 @@ jobs:
           node --check tests/Browser/admin-visual-qa.cjs
           node --check tests/Browser/admin-visual-qa-report.cjs
           node --check tests/Browser/lib-inpage-contrast.cjs
+          node --check tests/Browser/lib-inpage-menu.cjs
       - name: Install disposable Chromium and WebKit outside repository
         shell: bash
         env:

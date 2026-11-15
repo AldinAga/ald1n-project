@@ -275,6 +275,10 @@ const PAGES = [
   { module: 'reports', key: 'reports-management', path: '/admin/reports' },
   { module: 'reports', key: 'receivables-index', path: '/admin/receivables' },
   { module: 'reports', key: 'commissions', path: '/admin/commissions' },
+  // Sales by subagent (own strict module): January 2026 holds the seeded completed orders (data); the default
+  // current-month period is the empty state. Superadmin only; 360 phone and 1280 desktop, light and dark.
+  { module: 'subagent-sales', key: 'subagent-sales-data', path: '/admin/reports/subagents?period=custom&date_from=2026-01-01&date_to=2026-01-31&compare=1', widths: [360, 1280] },
+  { module: 'subagent-sales', key: 'subagent-sales-empty', path: '/admin/reports/subagents?period=today', widths: [360, 1280] },
   { module: 'settings', key: 'settings-index', path: '/admin/settings' },
   { module: 'settings', key: 'settings-appearance', path: '/admin/settings/appearance' },
   { module: 'settings', key: 'settings-public-storefront', path: '/admin/settings/public-storefront' },
@@ -299,8 +303,8 @@ function contextOptions(theme, extra = {}) {
     reducedMotion: 'reduce', locale: 'sr-RS', timezoneId: 'Europe/Belgrade', bypassCSP: true, ...extra,
   };
 }
-async function newThemedContext(browser, theme, storageState) {
-  const ctx = await browser.newContext(contextOptions(theme, storageState ? { storageState } : {}));
+async function newThemedContext(browser, theme, storageState, extra = {}) {
+  const ctx = await browser.newContext(contextOptions(theme, storageState ? { storageState, ...extra } : extra));
   // The admin's own mechanism: layouts/app.blade.php reads localStorage ald1n-theme-mode in <head>.
   await ctx.addInitScript((mode) => { try { localStorage.setItem('ald1n-theme-mode', mode); } catch (e) { /* storage may be blocked */ } }, theme);
   return ctx;
@@ -652,10 +656,77 @@ async function runCell(ctx, pg, width, theme) {
   }
 }
 
+// Every top-level header dropdown (nav groups and the user menu) of the longest persona (superadmin), opened one by one at the
+// common desktop viewports. A dropdown must show all its items without internal scrolling, inside the viewport, with comfortable rows.
+// Regression guard for the "Podešavanja" menu that was one 260px column with its own scrollbar and a cut-off last item.
+const MENU_VIEWPORTS = [[1200, 800], [1280, 720], [1280, 800], [1440, 900], [1920, 1080]];
+const MENU_SHOTS = { 'Podešavanja': 'settings', 'Administracija': 'administration' };
+async function runMenuMatrix(browser, state) {
+  const inPageMenu = require('./lib-inpage-menu.cjs');
+  const seen = { dropdowns: 0, measured: 0, settingsItems: 0, coarseConfirmed: false };
+  // Coarse pointer (touch) is emulated on Chromium only; WebKit has no equivalent switch.
+  const pointers = browserName === 'chromium' ? ['fine', 'coarse'] : ['fine'];
+  for (const pointer of pointers) {
+    for (const theme of THEMES) {
+      const ctx = await newThemedContext(browser, theme, state, pointer === 'coarse' ? { hasTouch: true } : {});
+      const page = await ctx.newPage();
+      try {
+        for (const [width, height] of MENU_VIEWPORTS) {
+          await page.setViewportSize({ width, height });
+          await page.goto(baseUrl + '/account', { waitUntil: 'load', timeout: 30000 });
+          await settle(page);
+          const count = await page.evaluate(() => { document.querySelectorAll('.a1-header details.a1-nav-dd').forEach((d, i) => d.setAttribute('data-vqa-dd', String(i))); return document.querySelectorAll('[data-vqa-dd]').length; });
+          seen.dropdowns = Math.max(seen.dropdowns, count);
+          for (let i = 0; i < count; i++) {
+            const sel = `[data-vqa-dd="${i}"]`;
+            const summary = page.locator(`${sel} > summary`);
+            if (pointer === 'coarse') await summary.click(); else await summary.hover();
+            await page.waitForFunction((s) => document.querySelector(s)?.open === true, sel, { timeout: 5000 });
+            await page.waitForTimeout(350); // hover-intent timers of the previously open menu
+            const m = await page.evaluate(inPageMenu, sel);
+            const base = { module: 'shell', page: 'shell-menus-open', browser: browserName, width, theme };
+            const where = `${pointer} pointer ${width}x${height}`;
+            if (m.error) { fail('MENU', `${browserName} ${theme} ${where}: ${m.error}`); continue; }
+            seen.measured++;
+            if (pointer === 'coarse' && m.coarse) seen.coarseConfirmed = true;
+            if (pointer === 'coarse' && !m.coarse) fail('MENU', `${browserName} ${theme} ${where}: pointer:coarse emulation did not apply`);
+            if (m.label.startsWith('Podešavanja')) seen.settingsItems = Math.max(seen.settingsItems, m.items);
+            const add = (rule, detail) => findings.push({ ...base, rule, count: 1, detail: `${m.label} (${where}): ${detail}`, selectors: [m.label] });
+            if (m.items < 1) add('menu-no-items', 'no item rendered');
+            if (m.scrollOver > 1) add('menu-internal-scroll', `scrollHeight exceeds clientHeight by ${m.scrollOver}px`);
+            if (Object.values(m.edges).some((v) => v > 0)) add('menu-outside-viewport', `panel leaves the viewport (left ${m.edges.left}, top ${m.edges.top}, right ${m.edges.right}, bottom ${m.edges.bottom}px)`);
+            if (m.lastHidden > 1) add('menu-last-item-hidden', `last item is cut off by ${m.lastHidden}px`);
+            if (m.docOverflow > 1) add('menu-page-overflow', `page scrollWidth exceeds the viewport by ${m.docOverflow}px`);
+            if (m.alpha < 0.99) add('menu-panel-see-through', `panel fill alpha ${m.alpha}, page content behind it can show through (need an opaque surface, >= 0.99)`);
+            const want = m.coarse ? 44 : 36;
+            if (m.minItem < want) add('menu-item-too-small', `smallest item row ${m.minItem}px, need ${want}px`);
+            const c = await page.evaluate(inPageContrast, SHELL_SCOPE);
+            if (c.out.length) findings.push({ ...base, rule: 'computed-contrast', count: c.out.length, detail: `${m.label} open (${where})`, selectors: c.out.slice(0, 3) });
+            if (pointer === 'fine' && width === 1280 && height === 800 && MENU_SHOTS[m.label]) {
+              const file = `shell__menu-open-${MENU_SHOTS[m.label]}__${browserName}__${width}__${theme}.png`;
+              await page.screenshot({ path: path.join(shotDir, file), animations: 'disabled', caret: 'hide', mask: [page.locator(MASK_SELECTORS.join(','))], maskColor: '#7f7f7f' });
+            }
+          }
+        }
+      } catch (e) {
+        fail('MENU', `${browserName} ${theme} ${pointer}: ${e.message.split('\n')[0]}`);
+      } finally {
+        await ctx.close();
+      }
+    }
+  }
+  // Floors: the detector must have looked at the real superadmin menus (an empty header would make every assertion pass).
+  if (seen.dropdowns < 5) fail('MENU_FLOOR', `only ${seen.dropdowns} header dropdowns found, expected at least 5`);
+  if (seen.settingsItems < 12) fail('MENU_FLOOR', `Podešavanja menu had ${seen.settingsItems} items, expected at least 12 for superadmin`);
+  if (pointers.includes('coarse') && !seen.coarseConfirmed) fail('MENU_FLOOR', 'no coarse-pointer measurement happened');
+  return seen;
+}
+
 (async () => {
   const started = Date.now();
   const browser = await playwright[browserName].launch();
   const states = {};
+  let menuMatrix = null;
   for (const persona of ['admin', 'customer', 'administrator']) {
     try {
       states[persona] = await login(browser, persona);
@@ -681,13 +752,14 @@ async function runCell(ctx, pg, width, theme) {
       }
       console.log(`done ${pg.module}/${pg.key} (${((Date.now() - started) / 60000).toFixed(1)} min)`);
     }
+    try { menuMatrix = await runMenuMatrix(browser, states.admin); } catch (e) { fail('MENU', e.message.split('\n')[0]); }
     for (const c of [...Object.values(authCtx.admin), ...Object.values(authCtx.customer), ...Object.values(authCtx.administrator), ...Object.values(guestCtx)]) await c.close();
   }
   await browser.close();
   const out = {
     browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
-    infra_failures: infra, selfTests, foldMetrics, cells, determinism, findings,
+    infra_failures: infra, selfTests, menuMatrix, foldMetrics, cells, determinism, findings,
   };
   fs.writeFileSync(path.join(artifactDir, `admin-visual-baseline-${browserName}.json`), JSON.stringify(out, null, 1));
   console.log(`ADMIN_VISUAL ${browserName}: cells=${cells.length} findings=${findings.length} infra=${infra.length} minutes=${((Date.now() - started) / 60000).toFixed(1)}`);
