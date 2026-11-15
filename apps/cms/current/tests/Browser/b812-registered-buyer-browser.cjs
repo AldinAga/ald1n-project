@@ -192,7 +192,31 @@ async function registrationQa(browser){
         }finally{await c.close();}
       }
     }
-  }  execFileSync('php',['tests/Browser/set-login-background.php','default'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+  }  // Privacy: the hidden background video must not even be requested for
+  // phones (mobile-static), reduced motion, while a visible one is requested.
+  execFileSync('php',['tests/Browser/set-login-background.php','youtube'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+  const videoRequests=[];
+  for(const [name,options,expected] of [
+    ['phone',{viewport:{width:360,height:740}},0],
+    ['reduced-motion',{viewport:{width:1280,height:800},reducedMotion:'reduce'},0],
+    ['desktop',{viewport:{width:1280,height:800}},1],
+  ]){
+    const c=await browser.newContext(options);
+    try{
+      const page=await c.newPage();
+      const seen=new Set();
+      const note=r=>{if(/(^|\.)youtube-nocookie\.com$/.test(new URL(r.url()).hostname))seen.add(r.url());};
+      page.on('request',note);page.on('requestfailed',note);
+      await page.route(/youtube-nocookie\.com/,route=>route.abort());
+      await openOk(page,'/registracija','reg-video-'+name);
+      await page.waitForTimeout(1500);
+      const count=seen.size;
+      videoRequests.push(engine+' '+name+'='+count);
+      if(expected===0)assert.equal(count,0,'video requested for '+name+': '+[...seen].join(' '));
+      else assert(count>=1,'video not requested for '+name);
+    }finally{await c.close();}
+  }
+  console.log('B812_REG_VIDEO_REQUESTS '+videoRequests.join(' '));  execFileSync('php',['tests/Browser/set-login-background.php','default'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
   // Focus order and the error state (server validation, native checks off).
   const ctx=await browser.newContext({viewport:{width:1280,height:900}});
   try{

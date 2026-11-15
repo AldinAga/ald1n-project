@@ -102,7 +102,7 @@ final class PublicNoScriptCsp
         try {
             return PublicStorefrontAppearance::loginBackground()['video'] !== null
                 ? ' https://www.youtube-nocookie.com' : '';
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return '';
         }
     }

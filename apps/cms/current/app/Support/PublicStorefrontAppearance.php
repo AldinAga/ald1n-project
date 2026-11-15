@@ -232,6 +232,30 @@ final class PublicStorefrontAppearance
      */
     public static function loginBackground(): array
     {
+        // Resolved once per request so the CSP middleware and the view agree.
+        $request = null;
+        try {
+            $request = app('request');
+        } catch (Throwable) {
+            $request = null;
+        }
+        if ($request instanceof Request) {
+            $cached = $request->attributes->get('public_storefront.login_background');
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+        $background = self::resolveLoginBackground();
+        if ($request instanceof Request) {
+            $request->attributes->set('public_storefront.login_background', $background);
+        }
+
+        return $background;
+    }
+
+    /** @return array{url:?string,slides:list<string>,interval:int,video:?string,fallback:?string,mobileStatic:bool,overlay:int,blur:int} */
+    private static function resolveLoginBackground(): array
+    {
         $settings = [];
         try {
             $settings = app(SettingsService::class)->all();

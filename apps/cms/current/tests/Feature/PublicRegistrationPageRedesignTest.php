@@ -281,6 +281,68 @@ final class PublicRegistrationPageRedesignTest extends TestCase
         }
     }
 
+    public function test_video_iframe_is_lazy_and_sandboxed_with_strict_referrer(): void
+    {
+        app(SettingsService::class)->putMany(['login_background_mode'=>'youtube','login_background_youtube_id'=>'dQw4w9WgXcQ'],null);
+        $iframe=$this->xpath($this->get('/registracija')->assertOk()->getContent())->query('//iframe')->item(0);
+        self::assertSame('lazy',$iframe->getAttribute('loading'));
+        self::assertSame('allow-scripts allow-same-origin allow-presentation',$iframe->getAttribute('sandbox'));
+        self::assertSame('strict-origin-when-cross-origin',$iframe->getAttribute('referrerpolicy'));
+    }
+
+    public function test_brand_and_back_links_follow_the_storefront_home_target(): void
+    {
+        $render=static fn (bool $hide): string => view('public-shop.register',[
+            'turnstileEnabled'=>false,'turnstileSiteKey'=>'','registrationSenderReady'=>true,
+            'errors'=>new \Illuminate\Support\ViewErrorBag(),'hideShopNav'=>$hide,
+        ])->render();
+        $open=$this->xpath($render(false));
+        self::assertSame(2,$open->query('//a[@href="/katalog" and (contains(@class,"reg-brand") or contains(@class,"reg-back"))]')->length);
+        $closed=$this->xpath($render(true));
+        self::assertSame(2,$closed->query('//a[@href="/pravne-informacije" and (contains(@class,"reg-brand") or contains(@class,"reg-back"))]')->length);
+        self::assertSame(0,$closed->query('//a[@href="/katalog"]')->length);
+    }
+
+    public function test_only_the_registration_view_enables_the_auth_shell(): void
+    {
+        $users=[];
+        $it=new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(resource_path('views'),\FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $file) {
+            if ($file->isFile() && str_contains((string)file_get_contents($file->getPathname()),'authShell')) {
+                $users[]=str_replace('\\','/',substr($file->getPathname(),strlen(resource_path('views'))+1));
+            }
+        }
+        sort($users);
+        self::assertSame(['public-shop/layout.blade.php','public-shop/register.blade.php'],$users);
+        self::assertSame(1,preg_match("~@extends\\('public-shop\\.layout', \\['authShell' => true\\]\\)~",(string)file_get_contents(resource_path('views/public-shop/register.blade.php'))));
+    }
+
+    public function test_csp_middleware_leaves_non_200_registration_responses_untouched(): void
+    {
+        $middleware=app(\App\Http\Middleware\PublicNoScriptCsp::class);
+        foreach ([302,404,419,429] as $status) {
+            $request=\Illuminate\Http\Request::create('/registracija','GET');
+            $request->setRouteResolver(static fn () => (new \Illuminate\Routing\Route(['GET'],'/registracija',[]))->name('public-shop.register'));
+            $response=$middleware->handle($request,static fn () => new \Illuminate\Http\Response('x',$status,['Content-Type'=>'text/html']));
+            self::assertFalse($response->headers->has('Content-Security-Policy'),(string)$status);
+        }
+    }
+
+    public function test_post_validation_error_and_closed_shop_keep_the_global_policy(): void
+    {
+        $baseline=static function (string $policy): void {
+            self::assertSame(1,preg_match("~^base-uri 'none'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; script-src 'nonce-[A-Za-z0-9+/]{22}=='; script-src-attr 'none'~",$policy),$policy);
+            self::assertStringNotContainsString('script-src-elem',$policy);
+        };
+        app(SettingsService::class)->putMany(['login_background_mode'=>'youtube','login_background_youtube_id'=>'dQw4w9WgXcQ'],null);
+        $post=$this->from('/registracija')->post('/registracija',['first_name'=>'A'])->assertRedirect('/registracija');
+        $baseline((string)$post->headers->get('Content-Security-Policy'));
+        config()->set('public_storefront.enabled',false);
+        app(SettingsService::class)->putMany(['public_storefront_open'=>'0'],null);
+        $closed=$this->get('/registracija')->assertNotFound();
+        $baseline((string)$closed->headers->get('Content-Security-Policy'));
+    }
+
     public function test_default_login_background_has_no_image(): void
     {
         $x=$this->xpath($this->get('/registracija')->assertOk()->getContent());
