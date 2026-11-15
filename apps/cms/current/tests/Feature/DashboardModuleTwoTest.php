@@ -236,8 +236,9 @@ final class DashboardModuleTwoTest extends TestCase
     {
         $order = $this->order($actor, $number);
         $this->item($order, 'Completed laptop', 2, $revenue / 2);
+        // The orders.status enum has no "completed"; reports treat completed_at (and not cancelled) as completed.
         DB::table('orders')->where('id', $order->id)->update([
-            'status' => 'completed', 'completed_at' => $completedAt, 'subtotal_rsd' => $revenue, 'paid_total_rsd' => $revenue,
+            'status' => 'shipped', 'completed_at' => $completedAt, 'subtotal_rsd' => $revenue, 'paid_total_rsd' => $revenue,
         ]);
         DB::table('order_items')->where('order_id', $order->id)->update([
             'brand_name_snapshot' => $brand, 'purchase_total_rsd_snapshot' => $purchase,

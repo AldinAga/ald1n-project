@@ -143,33 +143,35 @@
                 <p class="a1-text" data-dashboard-period-label><b>Prikaz za period {{ $reportStats['period_label'] }} · Završene porudžbine</b></p>
             @endif
         </div>
-        <form class="a1-seg-form" method="get" action="{{ url('/') }}">
-            <div class="a1-seg" role="group" aria-label="Brzi izbor perioda">
-                @foreach($periodChoices as $periodKey => $periodLabel)
-                    <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}" aria-pressed="{{ $dashboardPeriod['period'] === $periodKey ? 'true' : 'false' }}"@if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
-                @endforeach
-            </div>
-        </form>
-    </div>
-    <details class="a1-acc" @if($dashboardPeriod['period'] === 'custom') open @endif>
-        <summary>Prilagođeno · Odabir iz kalendara</summary>
-        <div class="a1-acc__body">
-            <form method="get" action="{{ url('/') }}" class="a1-form">
-                <input type="hidden" name="period" value="custom">
-                <div class="a1-row">
-                    <div class="a1-field">
-                        <label class="a1-label" for="dash-date-from">Datum od</label>
-                        <input class="a1-input" type="date" id="dash-date-from" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}">
-                    </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="dash-date-to">Datum do</label>
-                        <input class="a1-input" type="date" id="dash-date-to" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}">
-                    </div>
+        <div class="a1-period__side">
+            <form class="a1-seg-form" method="get" action="{{ url('/') }}">
+                <div class="a1-seg" role="group" aria-label="Brzi izbor perioda">
+                    @foreach($periodChoices as $periodKey => $periodLabel)
+                        <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}" aria-pressed="{{ $dashboardPeriod['period'] === $periodKey ? 'true' : 'false' }}"@if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
+                    @endforeach
                 </div>
-                <div><button type="submit" class="a1-btn a1-btn--primary">Primeni period</button></div>
             </form>
+            <details class="a1-acc" @if($dashboardPeriod['period'] === 'custom') open @endif>
+                <summary>Prilagođeno · Odabir iz kalendara</summary>
+                <div class="a1-acc__body">
+                    <form method="get" action="{{ url('/') }}" class="a1-form">
+                        <input type="hidden" name="period" value="custom">
+                        <div class="a1-row">
+                            <div class="a1-field">
+                                <label class="a1-label" for="dash-date-from">Datum od</label>
+                                <input class="a1-input" type="date" id="dash-date-from" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}">
+                            </div>
+                            <div class="a1-field">
+                                <label class="a1-label" for="dash-date-to">Datum do</label>
+                                <input class="a1-input" type="date" id="dash-date-to" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}">
+                            </div>
+                        </div>
+                        <div><button type="submit" class="a1-btn a1-btn--primary">Primeni period</button></div>
+                    </form>
+                </div>
+            </details>
         </div>
-    </details>
+    </div>
     @if($dashboardPeriod['error'] !== null)
         <div class="a1-alert a1-alert--danger" data-dashboard-period-error role="alert"><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $dashboardPeriod['error'] }}</p></div></div>
     @endif

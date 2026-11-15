@@ -232,11 +232,9 @@ async function headerGeometry(page, persona, mode, width) {
   for (const [name,expected] of Object.entries({
     blue:'#287CFF',violet:'#885BFF',cyan:'#20CAFF',teal:'#16CAA7',amber:'#FFBB62',rose:'#FF658E'
   })) check(state.r5.palette[name] === expected, 'R5_FUNCTIONAL_COLOR_'+name.toUpperCase(), tag+': '+state.r5.palette[name]);
-  if (persona === 'superadmin') {
-    check(state.r5.bloomOpacity === '0.6' && state.r5.bloomImage.includes('radial-gradient'),
-      'R5_AMBIENT_BLOBS_40_PERCENT_REDUCTION', tag+': '+JSON.stringify(state.r5).slice(0,340));
-    // R5_KPI_VIOLET_SEMANTIC_ROLE retired with the old KPI tiles (module 2): KPI tiles now read Kobalt tokens.
-  }
+  // Module 2 retired R5_AMBIENT_BLOBS_40_PERCENT_REDUCTION (the old dashboard aurora on .page-shell::before) and
+  // R5_KPI_VIOLET_SEMANTIC_ROLE (old KPI tiles): the dashboard paints the Kobalt page glows on the body
+  // (checked as R4_VIEWPORT_BACKGROUND_NO_RECTANGLE below) and its KPI tiles read Kobalt tokens.
   check(state.r5.textContrast >= 4.5, 'R5_WCAG_AA_SURFACE_TEXT',
     tag+': '+state.r5.textContrast.toFixed(2));
   check(state.r5.primaryContrast >= 4.5, 'R5_WCAG_AA_PRIMARY_ACTION',

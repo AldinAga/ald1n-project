@@ -651,7 +651,10 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-seg__opt:hover{background:var(--a1-button-ghost-hover);color:var(--a1-text-primary)}
 .a1-seg__opt[aria-pressed=true]{border-color:var(--a1-border-strong);background:var(--a1-surface-solid);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold);box-shadow:0 1px 0 var(--a1-edge-light) inset}
 .a1-seg__opt:focus-visible{outline-offset:1px}
-.a1-period{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-16)}
+.a1-period{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-16) var(--a1-space-24)}
+.a1-period>.a1-card__title{flex:1 1 320px}
+.a1-period__side{display:grid;gap:var(--a1-space-8);flex:1 1 100%;min-width:0}
+@media (min-width:768px){.a1-period__side{flex:0 1 380px}}
 .a1-dash .a1-acc__title{display:grid;gap:2px}
 .a1-acc__name{font-weight:var(--a1-typography-font-weight-bold);font-size:var(--a1-typography-font-size-md-plus);color:var(--a1-text-primary)}
 

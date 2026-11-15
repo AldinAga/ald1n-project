@@ -165,7 +165,8 @@ foreach ([
         'unit_price_rsd' => $unit, 'line_total_rsd' => $unit * $quantity,
     ]);
     DB::table('order_items')->where('id', $doneItem->id)->update(['brand_name_snapshot' => $brand, 'purchase_total_rsd_snapshot' => $purchase]);
-    DB::table('orders')->where('id', $done->id)->update(['status' => 'completed', 'completed_at' => $completedAt, 'archived_at' => '2026-01-25 09:00:00']);
+    // The orders.status enum has no "completed"; the management report counts an order as completed when completed_at is set and it is not cancelled.
+    DB::table('orders')->where('id', $done->id)->update(['status' => 'shipped', 'completed_at' => $completedAt, 'archived_at' => '2026-01-25 09:00:00']);
 }
 
 // Fixed timestamps so two runs render the same dates.
