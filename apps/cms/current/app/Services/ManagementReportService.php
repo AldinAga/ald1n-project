@@ -747,7 +747,9 @@ final class ManagementReportService
         $dateColumn = $filters['scope'] === 'completed' ? 'completed_at' : 'created_at';
         if ($filters['scope'] === 'completed') $query->whereNotNull('completed_at')->where('status', '!=', 'cancelled');
         elseif ($filters['scope'] === 'active') $query->where('status', '!=', 'cancelled');
-        $query->whereDate($dateColumn, '>=', $filters['date_from'])->whereDate($dateColumn, '<=', $filters['date_to']);
+        // Sargable day range (same rows as whereDate on both bounds, but it can use the date index).
+        $query->where($dateColumn, '>=', $filters['date_from'].' 00:00:00')
+            ->where($dateColumn, '<', CarbonImmutable::parse($filters['date_to'])->addDay()->format('Y-m-d').' 00:00:00');
         return $query;
     }
 

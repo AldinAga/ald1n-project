@@ -109,41 +109,99 @@ final class SubagentSalesReportService
     }
 
     /**
-     * Filter lists limited to what the actor may see (same order scope as the report).
+     * Best-effort period of a raw request (invalid custom dates fall back to the current month).
+     * Only used to bound the filter lists before the request is validated.
      *
+     * @param array<string,mixed> $input
+     * @return array{date_from:string,date_to:string,scope:string}
+     */
+    public function rawPeriod(array $input): array
+    {
+        $text = static fn (string $key): string => is_string($input[$key] ?? null) ? $input[$key] : '';
+        $period = $text('period');
+        if (!isset(self::PERIODS[$period])) {
+            $period = ($text('date_from') !== '' || $text('date_to') !== '') ? 'custom' : 'month';
+        }
+        [$from, $to] = $this->resolvePeriod($period, $text('date_from'), $text('date_to'));
+        $scope = $text('scope');
+
+        return [
+            'date_from' => $from->format('Y-m-d'),
+            'date_to' => $to->format('Y-m-d'),
+            'scope' => isset(self::SCOPES[$scope]) ? $scope : 'completed',
+        ];
+    }
+
+    /**
+     * Which filter lists a request needs for validation (only those it actually sends).
+     *
+     * @param array<string,mixed> $input
+     * @return list<string>
+     */
+    public function neededLists(User $user, array $input): array
+    {
+        $needed = [];
+        if ($this->canSeeCost($user) && (!empty($input['subagents']) || !empty($input['drill']))) {
+            $needed[] = 'subagents';
+        }
+        foreach (['brands', 'types'] as $key) {
+            if (!empty($input[$key])) {
+                $needed[] = $key;
+            }
+        }
+
+        return $needed;
+    }
+
+    /** All lists the page form shows for this actor. @return list<string> */
+    public function formLists(User $user): array
+    {
+        return $this->canSeeCost($user) ? ['subagents', 'brands', 'types'] : ['brands', 'types'];
+    }
+
+    /**
+     * Filter lists limited to what the actor may see (same order scope as the report) and to the
+     * selected period, so they use the same date range as the report itself. Lists that are not
+     * requested stay empty and cost nothing.
+     *
+     * @param array{date_from:string,date_to:string,scope:string} $period
+     * @param list<string> $lists subagents|brands|types
      * @return array{subagents:array<int,string>,brands:list<string>,types:list<string>}
      */
-    public function options(User $user): array
+    public function options(User $user, array $period, array $lists): array
     {
-        $ids = $this->management->reportOrderIds($user, [
-            'date_from' => self::MIN_DATE,
-            'date_to' => CarbonImmutable::today(config('app.timezone', 'Europe/Belgrade'))->addYear()->format('Y-m-d'),
-            'scope' => 'all',
-        ]);
-
-        $subagents = [];
-        $users = DB::table('orders as o')
-            ->joinSub(clone $ids, 'scoped_orders', static fn ($join) => $join->on('scoped_orders.id', '=', 'o.id'))
-            ->join('users as u', 'u.id', '=', 'o.user_id')
-            ->where('o.sales_channel', 'order')
-            ->distinct()
-            ->select(['u.id', 'u.first_name', 'u.last_name', 'u.username'])
-            ->get();
-        foreach ($users as $row) {
-            $subagents[(int) $row->id] = $this->userLabel($row);
+        $out = ['subagents' => [], 'brands' => [], 'types' => []];
+        if ($lists === []) {
+            return $out;
         }
-        asort($subagents, SORT_NATURAL | SORT_FLAG_CASE);
+        $ids = $this->management->reportOrderIds($user, ['date_from' => $period['date_from'], 'date_to' => $period['date_to'], 'scope' => $period['scope']]);
+
+        if (in_array('subagents', $lists, true)) {
+            $users = DB::table('orders as o')
+                ->joinSub(clone $ids, 'scoped_orders', static fn ($join) => $join->on('scoped_orders.id', '=', 'o.id'))
+                ->join('users as u', 'u.id', '=', 'o.user_id')
+                ->where('o.sales_channel', 'order')
+                ->distinct()
+                ->select(['u.id', 'u.first_name', 'u.last_name', 'u.username'])
+                ->get();
+            foreach ($users as $row) {
+                $out['subagents'][(int) $row->id] = $this->userLabel($row);
+            }
+            asort($out['subagents'], SORT_NATURAL | SORT_FLAG_CASE);
+        }
 
         $items = static fn (string $column): array => array_values(array_map('strval', DB::table('order_items as ri')
             ->joinSub(clone $ids, 'scoped_orders', static fn ($join) => $join->on('scoped_orders.id', '=', 'ri.order_id'))
             ->whereNotNull('ri.'.$column)->where('ri.'.$column, '!=', '')
             ->distinct()->orderBy('ri.'.$column)->pluck('ri.'.$column)->all()));
+        if (in_array('brands', $lists, true)) {
+            $out['brands'] = $items('brand_name_snapshot');
+        }
+        if (in_array('types', $lists, true)) {
+            $out['types'] = $items('product_type_name_snapshot');
+        }
 
-        return [
-            'subagents' => $subagents,
-            'brands' => $items('brand_name_snapshot'),
-            'types' => $items('product_type_name_snapshot'),
-        ];
+        return $out;
     }
 
     /**
@@ -190,13 +248,13 @@ final class SubagentSalesReportService
             'sort.in' => 'Sortiranje po izabranoj koloni nije dozvoljeno.',
             'dir.in' => 'Smer sortiranja mora biti rastući ili opadajući.',
             'scope.in' => 'Izabrani obuhvat nije podržan.',
-            'subagents.*.in' => 'Izabrani subagent nije dostupan.',
-            'brands.*.in' => 'Izabrani brend nije dostupan.',
-            'types.*.in' => 'Izabrani tip artikla nije dostupan.',
+            'subagents.*.in' => 'Izabrani subagent nije dostupan u izabranom periodu.',
+            'brands.*.in' => 'Izabrani brend nije dostupan u izabranom periodu.',
+            'types.*.in' => 'Izabrani tip artikla nije dostupan u izabranom periodu.',
             'payment.*.in' => 'Izabrani status naplate nije podržan.',
             'channel.in' => 'Izabrani način prodaje nije podržan.',
             'customer.max' => 'Pretraga kupca može imati najviše 100 znakova.',
-            'drill.in' => 'Izabrani subagent nije dostupan.',
+            'drill.in' => 'Izabrani subagent nije dostupan u izabranom periodu.',
         ];
 
         $validator = Validator::make($input, $rules, $messages);
@@ -331,7 +389,7 @@ final class SubagentSalesReportService
      * @param array<string,mixed> $f normalized filters
      * @return array<string,mixed>
      */
-    public function build(User $user, array $f): array
+    public function build(User $user, array $f, bool $export = false): array
     {
         $cost = $this->canSeeCost($user);
         $group = (string) $f['group'];
@@ -339,13 +397,17 @@ final class SubagentSalesReportService
         $totalsRaw = $this->aggregate($this->inner($user, $f, $f['date_from'], $f['date_to']), [])->first();
         $totals = $this->present($totalsRaw, (float) $totalsRaw->revenue, $cost);
 
-        $groupRaw = $this->groupRows($user, $f, $group);
+        // The page shows the ROW_LIMIT largest groups; the CSV export has no cap so its rows add up to "Ukupno".
+        $groupRaw = $this->groupRows($user, $f, $group, $export ? null : self::ROW_LIMIT + 1);
+        $truncated = !$export && count($groupRaw) > self::ROW_LIMIT;
+        if ($truncated) {
+            $groupRaw = array_slice($groupRaw, 0, self::ROW_LIMIT);
+        }
         $labels = $this->subagentLabels($groupRaw);
         $rows = [];
         foreach ($groupRaw as $raw) {
             $rows[] = $this->groupRow($raw, $group, $labels, (float) $totalsRaw->revenue, $cost);
         }
-        $truncated = count($rows) >= self::ROW_LIMIT;
         $rows = $this->sortRows($rows, (string) $f['sort'], (string) $f['dir']);
 
         $previous = null;
@@ -377,7 +439,7 @@ final class SubagentSalesReportService
         $orders = null;
         $drillLabel = null;
         if ((int) $f['drill'] > 0) {
-            $orders = $this->drillOrders($user, $f, $cost);
+            $orders = $export ? null : $this->drillOrders($user, $f, $cost);
             $drillLabel = $this->subagentLabels([(object) ['grp_sub' => (int) $f['drill']]])[(int) $f['drill']] ?? ('Subagent #'.(int) $f['drill']);
         }
 
@@ -526,7 +588,7 @@ final class SubagentSalesReportService
      * @param array<string,mixed> $f
      * @return list<object>
      */
-    private function groupRows(User $user, array $f, string $group): array
+    private function groupRows(User $user, array $f, string $group, ?int $limit): array
     {
         $dateColumn = $f['scope'] === 'completed' ? 'o.completed_at' : 'o.created_at';
         $expressions = [
@@ -545,8 +607,13 @@ final class SubagentSalesReportService
             $selects[$alias] = $expressions[$alias];
         }
 
-        return $this->aggregate($this->inner($user, $f, $f['date_from'], $f['date_to'], null, $selects), $aliases)
-            ->orderByDesc('revenue')->limit(self::ROW_LIMIT)->get()->all();
+        $query = $this->aggregate($this->inner($user, $f, $f['date_from'], $f['date_to'], null, $selects), $aliases)
+            ->orderByDesc('revenue');
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        return $query->get()->all();
     }
 
     /**
@@ -667,8 +734,10 @@ final class SubagentSalesReportService
     private function chart(array $rows, string $group, bool $cost): array
     {
         if ($group === 'month') {
-            $selected = array_slice($rows, -24);
+            // Chronological order first, whatever the table sort is; then the latest 24 months.
+            $selected = $rows;
             usort($selected, static fn (array $a, array $b): int => strcmp((string) $a['sort_key'], (string) $b['sort_key']));
+            $selected = array_slice($selected, -24);
         } else {
             $selected = $rows;
             usort($selected, static fn (array $a, array $b): int => ((float) $b['revenue'] <=> (float) $a['revenue']) ?: strcmp((string) $a['sort_key'], (string) $b['sort_key']));

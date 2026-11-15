@@ -285,6 +285,7 @@ final class SubagentSalesReportTest extends TestCase
             ->assertSee('74.000,00 RSD')
             ->assertSee('Deo prometa nema nabavnu cenu')
             ->assertSee('Ukupno za izabrani period')
+            // The admin has no "Nazad na vrh" button: owner decision of 2026-11-10 (docs/redesign/admin-shell.md).
             ->assertDontSee('Nazad na vrh');
 
         $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['customer' => 'ne postoji nijedan takav']))
@@ -424,11 +425,11 @@ final class SubagentSalesReportTest extends TestCase
         $this->actingAs($this->adminA)->get($query)
             ->assertOk()->assertSee('Ana Anić')->assertSee('43.000,00')->assertDontSee('Borić');
         $this->actingAs($this->adminA)->get($query.'&'.http_build_query(['subagents' => [$this->bora->id]]))
-            ->assertStatus(422)->assertSee('Izabrani subagent nije dostupan.')->assertDontSee('30.000,00');
+            ->assertStatus(422)->assertSee('Izabrani subagent nije dostupan u izabranom periodu.')->assertDontSee('30.000,00');
         $this->actingAs($this->adminA)->get($query.'&drill='.$this->bora->id)
-            ->assertStatus(422)->assertSee('Izabrani subagent nije dostupan.')->assertDontSee('SBS-O3');
+            ->assertStatus(422)->assertSee('Izabrani subagent nije dostupan u izabranom periodu.')->assertDontSee('SBS-O3');
         $this->actingAs($this->adminA)->get($query.'&'.http_build_query(['brands' => ['Gama']]))
-            ->assertStatus(422)->assertSee('Izabrani brend nije dostupan.');
+            ->assertStatus(422)->assertSee('Izabrani brend nije dostupan u izabranom periodu.');
 
         $csv = $this->actingAs($this->adminA)->get('/admin/reports/subagents.csv?'.http_build_query(self::RANGE))->assertOk()->streamedContent();
         self::assertStringContainsString('Ana Anić', $csv);
@@ -442,16 +443,129 @@ final class SubagentSalesReportTest extends TestCase
         $this->actingAs($this->ana)->get('/commissions')->assertOk()->assertSee('/admin/reports/subagents');
     }
 
+    public function test_month_chart_shows_the_latest_24_months_whatever_the_table_sort(): void
+    {
+        $this->monthlyOrders();
+        $query = ['period' => 'custom', 'date_from' => '2024-09-01', 'date_to' => '2026-11-15', 'customer' => 'Mesecni', 'group' => 'month', 'sort' => 'revenue', 'dir' => 'desc'];
+        $report = $this->build($this->super, $query);
+
+        self::assertCount(26, $report['rows']);
+        self::assertSame('oktobar 2026', $report['rows'][0]['label'], 'the table is sorted by revenue, newest month is the largest');
+        $labels = array_column($report['chart'], 'label');
+        self::assertCount(24, $labels);
+        self::assertSame('novembar 2024', $labels[0], 'the two oldest months drop out, not the two smallest');
+        self::assertSame('oktobar 2026', $labels[23]);
+
+        $asc = $this->build($this->super, ['sort' => 'revenue', 'dir' => 'asc'] + $query);
+        self::assertSame($labels, array_column($asc['chart'], 'label'), 'chart does not depend on the table sort');
+    }
+
+    public function test_csv_has_no_row_cap_and_rows_add_up_to_the_total(): void
+    {
+        $this->order('BULK', $this->ana, $this->adminA, '2026-11-10 09:00:00', 117.0, 'paid', 'Masovni kupac', [], 'paid');
+        $orderId = $this->orders['BULK']->id;
+        $rows = [];
+        for ($n = 1; $n <= 1010; $n++) {
+            $rows[] = [
+                'order_id' => $orderId, 'product_id' => $this->product->id, 'product_sku' => 'SBS-1', 'product_name' => 'SBS proizvod',
+                'quantity' => 1, 'unit_price_original' => 100, 'original_currency' => 'RSD', 'unit_price_rsd' => 100, 'line_total_rsd' => 100,
+                'purchase_total_rsd_snapshot' => 50, 'brand_name_snapshot' => sprintf('Brend%04d', $n), 'product_type_name_snapshot' => 'Laptop',
+                'commission_source_snapshot' => 'automatic', 'commission_rate_percent_snapshot' => null, 'commission_unit_eur_snapshot' => 0, 'commission_total_eur_snapshot' => 0,
+            ];
+        }
+        foreach (array_chunk($rows, 250) as $chunk) {
+            DB::table('order_items')->insert($chunk);
+        }
+        $query = self::RANGE + ['group' => 'brand', 'customer' => 'Masovni'];
+
+        // The page shows the largest 1000 groups and says so.
+        $report = $this->build($this->super, $query);
+        self::assertCount(1000, $report['rows']);
+        self::assertTrue($report['truncated']);
+        $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query($query))
+            ->assertOk()->assertSee('Prikazano je prvih 1000 redova');
+
+        // The CSV has every group, and the group rows add up to "Ukupno".
+        $csv = $this->actingAs($this->super)->get('/admin/reports/subagents.csv?'.http_build_query($query))->assertOk()->streamedContent();
+        $table = array_map(static fn (string $l): array => str_getcsv($l, ';', '"', ''), array_values(array_filter(explode("\n", substr($csv, 3)))));
+        self::assertCount(1012, $table, 'header + 1010 groups + total');
+        $total = array_pop($table);
+        array_shift($table);
+        self::assertSame('Ukupno', $total[0]);
+        self::assertSame('101000.00', $total[3]);
+        self::assertEqualsWithDelta(101000.0, array_sum(array_map(static fn (array $r): float => (float) $r[3], $table)), 0.001);
+        self::assertSame('1', $total[1], 'one order, counted once in the total although it touches 1010 brands');
+    }
+
+    public function test_inactive_accounts_are_blocked_on_page_and_csv(): void
+    {
+        $page = '/admin/reports/subagents?'.http_build_query(self::RANGE);
+        $csv = '/admin/reports/subagents.csv?'.http_build_query(self::RANGE);
+        // Active control first, so a redirect below is caused by the status and nothing else.
+        $this->actingAs($this->adminA)->get($page)->assertOk();
+
+        foreach (['suspended', 'pending'] as $status) {
+            foreach ([$this->super, $this->adminB, $this->ana] as $account) {
+                User::query()->whereKey($account->id)->update(['status' => $status]);
+                $this->actingAs($account->fresh())->get($page)->assertRedirect('/login');
+                $this->actingAs($account->fresh())->get($csv)->assertRedirect('/login');
+                User::query()->whereKey($account->id)->update(['status' => 'active']);
+            }
+        }
+    }
+
+    public function test_a_subagents_html_has_no_other_people_and_no_cost_values_in_any_grouping(): void
+    {
+        $variants = [[], ['group' => 'subagent_brand'], ['group' => 'month'], ['group' => 'brand'], ['channel' => 'order'], ['scope' => 'all'], ['compare' => 1]];
+        foreach ($variants as $variant) {
+            $this->actingAs($this->ana)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + $variant))
+                ->assertOk()
+                ->assertSee('Ana Anić')
+                ->assertDontSee('=Evil')->assertDontSee('Borić')->assertDontSee('Cene Cenić')
+                ->assertDontSee('3.525,00')->assertDontSee('952,00')
+                ->assertDontSee('Zarada')->assertDontSee('Marža')->assertDontSee('Neto posle provizije')
+                ->assertDontSee('Deo prometa nema nabavnu cenu')->assertDontSee('Isključeno zbog');
+
+            $report = $this->build($this->ana, self::RANGE + $variant);
+            foreach ($report['rows'] as $row) {
+                foreach (['cogs', 'gross', 'margin', 'net'] as $secret) {
+                    self::assertNull($row[$secret], $secret.' '.json_encode($variant));
+                }
+            }
+            self::assertNull($report['excluded'], 'no excluded-lines counter for a subagent');
+        }
+    }
+
+    public function test_overlap_note_appears_only_where_an_order_can_land_in_several_groups(): void
+    {
+        $get = fn (string $group) => $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['group' => $group]));
+        $get('brand')->assertOk()->assertSee('Porudžbina sa više brendova računa se u svakom brendu')->assertSee('zbog zaokruživanja');
+        $get('subagent_brand')->assertOk()->assertSee('Porudžbina sa više brendova računa se u svakom brendu');
+        $get('subagent')->assertOk()->assertDontSee('Porudžbina sa više brendova računa se')->assertSee('zbog zaokruživanja');
+    }
+
     // ---------------------------------------------------------------- helpers
 
     /** @param array<string,mixed> $query @return array<string,mixed> */
     private function build(User $user, array $query): array
     {
         $service = app(SubagentSalesReportService::class);
-        $validator = $service->validator($user, $query, $service->options($user));
+        $options = $service->options($user, $service->rawPeriod($query), $service->neededLists($user, $query));
+        $validator = $service->validator($user, $query, $options);
         self::assertFalse($validator->fails(), implode(' ', $validator->errors()->all()));
 
         return $service->build($user, $service->filters($user, $validator->validated()));
+    }
+
+    /** One loss-free Ana order per month, Sep 2024 .. Oct 2026 (26 months), revenue grows with the month. */
+    private function monthlyOrders(): void
+    {
+        for ($i = 0; $i < 26; $i++) {
+            $month = Carbon::parse('2024-09-01 09:00:00')->addMonthsNoOverflow($i);
+            $this->order('M'.$i, $this->ana, $this->adminA, $month->format('Y-m-d H:i:s'), 117.0, 'paid', 'Mesecni kupac', [
+                ['Alfa', 'Laptop', 1, ($i + 1) * 1000, ($i + 1) * 500, 1, 'automatic'],
+            ], 'paid');
+        }
     }
 
     /** @param array<string,mixed> $row */

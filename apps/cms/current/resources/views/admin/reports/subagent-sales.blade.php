@@ -326,6 +326,10 @@
                     </tbody>
                 </table>
             </div>
+            <p class="a1-muted" id="sbs-table-note">
+                @if(in_array($filters['group'], ['brand', 'subagent_brand'], true))Porudžbina sa više brendova računa se u svakom brendu koji sadrži, pa zbir porudžbina po redovima može biti veći od ukupnog broja. Prosečna porudžbina u redu je promet te grupe podeljen brojem porudžbina koje je sadrže.@endif
+                Zbir redova se može razlikovati od reda „Ukupno“ za nekoliko para zbog zaokruživanja. Ukupno se računa posebno, iz neokrugljenih iznosa.
+            </p>
             @if($report['truncated'])
                 <p class="a1-muted">Prikazano je prvih {{ \App\Services\SubagentSalesReportService::ROW_LIMIT }} redova po prometu. Suzi filtere za potpun spisak.</p>
             @endif
