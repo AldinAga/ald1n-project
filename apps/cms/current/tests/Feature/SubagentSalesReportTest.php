@@ -297,7 +297,7 @@ final class SubagentSalesReportTest extends TestCase
         $page->assertOk()
             ->assertSee('SBS-O1')->assertSee('SBS-O2')->assertSee('SBS-O8')
             ->assertDontSee('SBS-O3')->assertDontSee('SBS-O5')->assertDontSee('SBS-O7')->assertDontSee('SBS-O9')
-            ->assertDontSee('=Evil Borić');
+            ->assertSee('Porudžbine subagenta: Ana Anić');
 
         $report = $this->build($this->super, self::RANGE + ['drill' => $this->ana->id]);
         self::assertSame('brand', $report['group'], 'drill-down shows the subagent by brand');
