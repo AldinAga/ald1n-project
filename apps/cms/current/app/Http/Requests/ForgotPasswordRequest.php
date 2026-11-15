@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-final class ForgotPasswordRequest extends FormRequest
+final class ForgotPasswordRequest extends LocalAuthFormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    /** B883: the form posts to itself; never follow the Referer. */
+    protected function formRoute(): array
+    {
+        return ['password.request', []];
     }
 
     public function rules(): array

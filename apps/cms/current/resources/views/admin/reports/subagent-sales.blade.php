@@ -16,9 +16,9 @@
     };
     $cols = array_merge(
         [['orders', 'Porudžbine', false], ['units', 'Komada', false], ['revenue', 'Promet (RSD)', false]],
-        $cost ? [['gross', 'Zarada (RSD)', true], ['margin', 'Marža', true]] : [],
+        [['gross', 'Zarada (RSD)', true], ['margin', 'Marža', true]],
         [['commission', 'Provizija (RSD)', false], ['paid', 'Isplaćena (RSD)', false], ['unpaid', 'Neisplaćena (RSD)', false]],
-        $cost ? [['net', 'Neto posle provizije (RSD)', true]] : [],
+        [['net', 'Neto posle provizije (RSD)', true]],
         [['avg', 'Prosečna porudžbina (RSD)', false], ['share', 'Udeo u prometu', false]]
     );
     $cell = static function (array $row, string $key) use ($fmt): string {
@@ -59,7 +59,7 @@
     <div class="a1-pagehead__text">
         <nav aria-label="Putanja"><ol class="a1-crumbs"><li><a href="{{ route('admin.reports.index') }}">Izveštaji</a></li><li aria-current="page">Prodaja po subagentima</li></ol></nav>
         <h1 class="a1-title">Prodaja po subagentima</h1>
-        <p class="a1-lead">@if($cost)Promet, zarada i provizija po subagentu, brendu i periodu. Brojevi se slažu sa upravljačkim izveštajem za isti period.@else Tvoj promet i provizija po periodu i brendu. Nabavne cene i zarada nisu deo ovog prikaza.@endif</p>
+        <p class="a1-lead">Promet, zarada i provizija po subagentu, brendu i periodu. Brojevi se slažu sa upravljačkim izveštajem za isti period.</p>
     </div>
     <div class="a1-pagehead__actions">
         @if($canExport && $report)
@@ -122,7 +122,6 @@
                     @foreach($scopes as $key => $label)<option value="{{ $key }}" @selected($filters['scope'] === $key)>{{ $label }}</option>@endforeach
                 </select>
             </div>
-            @if($cost)
                 <div class="a1-field">
                     <label class="a1-label" for="sbs-channel">Način prodaje</label>
                     <select class="a1-select" id="sbs-channel" name="channel">
@@ -130,7 +129,6 @@
                         @foreach($channels as $key => $label)<option value="{{ $key }}" @selected($filters['channel'] === $key)>{{ $label }}</option>@endforeach
                     </select>
                 </div>
-            @endif
             <div class="a1-field">
                 <label class="a1-label" for="sbs-customer">Kupac</label>
                 <input class="a1-input" type="search" id="sbs-customer" name="customer" maxlength="100" value="{{ $filters['customer'] }}" placeholder="Ime kupca na porudžbini">
@@ -138,7 +136,6 @@
         </div>
 
         <div class="a1-grid a1-grid--2">
-            @if($cost)
                 <details class="a1-acc" @if($filters['subagents'] !== []) open @endif>
                     <summary>Subagenti @if($filters['subagents'] !== [])({{ count($filters['subagents']) }} izabrano)@endif</summary>
                     <div class="a1-acc__body a1-grid a1-grid--2">
@@ -149,7 +146,6 @@
                         @endforelse
                     </div>
                 </details>
-            @endif
             <details class="a1-acc" @if($filters['brands'] !== []) open @endif>
                 <summary>Brendovi @if($filters['brands'] !== [])({{ count($filters['brands']) }} izabrano)@endif</summary>
                 <div class="a1-acc__body a1-grid a1-grid--2">
@@ -182,21 +178,13 @@
 
         <div class="a1-filters__actions">
             <label class="a1-check"><input class="a1-check__input" type="checkbox" name="compare" value="1" @checked($filters['compare'])><span class="a1-check__box" aria-hidden="true"></span><span>Uporedi sa prethodnim periodom iste dužine</span></label>
-            @if($cost)
                 <label class="a1-check"><input class="a1-check__input" type="checkbox" name="cost_only" value="1" @checked($filters['cost_only'])><span class="a1-check__box" aria-hidden="true"></span><span>Samo artikli sa nabavnom cenom</span></label>
-            @endif
             <button class="a1-btn a1-btn--primary a1-end" type="submit">Primeni filtere</button>
             <a class="a1-btn" href="{{ route('admin.reports.subagents') }}">Poništi</a>
         </div>
     </form>
 
     @if($report)
-        @if(!$cost)
-            <div class="a1-alert" role="status">
-                <svg class="a1-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
-                <div class="a1-alert__body"><span class="a1-alert__title">Prikazani su samo tvoji podaci</span><p>Vidiš svoje porudžbine i svoju proviziju. Ostali subagenti i nabavne cene nisu dostupni.</p></div>
-            </div>
-        @endif
 
         <div class="a1-results">
             <p class="a1-results__count">{{ $report['period_label'] }} · {{ $scopes[$filters['scope']] }}</p>
@@ -231,9 +219,9 @@
             @php
                 $tiles = array_merge(
                     [['revenue', 'Promet', $fmt($totals['revenue']).' RSD', true]],
-                    $cost ? [['gross', 'Zarada (bruto dobit)', $fmt($totals['gross']).' RSD', true]] : [],
+                    [['gross', 'Zarada (bruto dobit)', $fmt($totals['gross']).' RSD', true]],
                     [['commission', 'Provizija (obračunata)', $fmt($totals['commission']).' RSD', true]],
-                    $cost ? [['net', 'Neto posle provizije', $fmt($totals['net']).' RSD', true]] : [],
+                    [['net', 'Neto posle provizije', $fmt($totals['net']).' RSD', true]],
                     [['orders', 'Porudžbine', $fmt($totals['orders'], 0), false], ['avg', 'Prosečna porudžbina', $fmt($totals['avg']).' RSD', true]]
                 );
             @endphp
@@ -277,9 +265,7 @@
                             <li class="a1-sbs-chart__item">
                                 <strong>{{ $point['label'] }}</strong>
                                 <div class="a1-sbs-chart__row"><span>Promet</span><progress class="a1-progress" max="100" value="{{ $point['revenue_pct'] }}" aria-label="Promet: {{ $point['label'] }}"></progress><b>{{ $fmt($point['revenue']) }} RSD</b></div>
-                                @if($cost)
                                     <div class="a1-sbs-chart__row"><span>Zarada</span><progress class="a1-progress" max="100" value="{{ $point['gross_pct'] }}" aria-label="Zarada: {{ $point['label'] }}"></progress><b>{{ $fmt($point['gross']) }} RSD</b></div>
-                                @endif
                                 <div class="a1-sbs-chart__row"><span>Provizija</span><progress class="a1-progress" max="100" value="{{ $point['commission_pct'] }}" aria-label="Provizija: {{ $point['label'] }}"></progress><b>{{ $fmt($point['commission']) }} RSD</b></div>
                             </li>
                         @endforeach
@@ -307,7 +293,7 @@
                             <tr role="row">
                                 @foreach($labelHeader as $i => $title)
                                     <td role="cell" data-label="{{ $title }}">
-                                        @if($i === 0 && $cost && $row['drill_id'])<a class="a1-table__id" href="{{ $url(['drill' => $row['drill_id'], 'page' => null]) }}">{{ $row['labels'][$i] ?? '' }}</a>@else{{ $row['labels'][$i] ?? '' }}@endif
+                                        @if($i === 0 && $row['drill_id'])<a class="a1-table__id" href="{{ $url(['drill' => $row['drill_id'], 'page' => null]) }}">{{ $row['labels'][$i] ?? '' }}</a>@else{{ $row['labels'][$i] ?? '' }}@endif
                                     </td>
                                 @endforeach
                                 @foreach($cols as [$key, $title])
@@ -342,7 +328,7 @@
                             <thead role="rowgroup">
                                 <tr role="row">
                                     <th role="columnheader" scope="col">Porudžbina</th><th role="columnheader" scope="col">Datum</th><th role="columnheader" scope="col">Kupac</th><th role="columnheader" scope="col">Status</th><th role="columnheader" scope="col">Naplata</th>
-                                    <th role="columnheader" scope="col" class="a1-table__num">Promet (RSD)</th>@if($cost)<th role="columnheader" scope="col" class="a1-table__num">Zarada (RSD)</th>@endif<th role="columnheader" scope="col" class="a1-table__num">Provizija (RSD)</th>
+                                    <th role="columnheader" scope="col" class="a1-table__num">Promet (RSD)</th><th role="columnheader" scope="col" class="a1-table__num">Zarada (RSD)</th><th role="columnheader" scope="col" class="a1-table__num">Provizija (RSD)</th>
                                 </tr>
                             </thead>
                             <tbody role="rowgroup">
@@ -354,7 +340,7 @@
                                         <td role="cell" data-label="Status">{{ $order['status'] }}</td>
                                         <td role="cell" data-label="Naplata">{{ $order['payment_state'] }}</td>
                                         <td role="cell" class="a1-table__num" data-label="Promet (RSD)">{{ $fmt($order['revenue']) }}</td>
-                                        @if($cost)<td role="cell" class="a1-table__num" data-label="Zarada (RSD)">{{ $fmt($order['gross']) }}</td>@endif
+                                        <td role="cell" class="a1-table__num" data-label="Zarada (RSD)">{{ $fmt($order['gross']) }}</td>
                                         <td role="cell" class="a1-table__num" data-label="Provizija (RSD)">{{ $fmt($order['commission']) }}</td>
                                     </tr>
                                 @endforeach
@@ -380,17 +366,11 @@
                 <dl class="a1-dl">
                     <div class="a1-dl__row"><dt>Šta je prodaja</dt><dd>Porudžbina iz Laravel sistema. Podrazumevano završena (ima datum završetka) i nije otkazana, po datumu završetka. Arhivirane porudžbine se računaju kao i u upravljačkom izveštaju.</dd></div>
                     <div class="a1-dl__row"><dt>Promet</dt><dd>Zbir iznosa stavki porudžbine u RSD kako su zapisani u trenutku prodaje. Baza nema posebnu evidenciju PDV-a, pa se iznosi ne razdvajaju na osnovicu i PDV. Povraćaji ne umanjuju promet.</dd></div>
-                    @if($cost)
                         <div class="a1-dl__row"><dt>Zarada</dt><dd>Promet stavki sa nabavnom cenom umanjen za njihovu nabavnu vrednost (isti snimak cene kao u upravljačkom izveštaju). Stavke bez nabavne cene ulaze u promet, ali ne u zaradu i maržu.</dd></div>
                         <div class="a1-dl__row"><dt>Marža</dt><dd>Zarada podeljena prometom stavki sa poznatom nabavnom cenom.</dd></div>
-                    @endif
                     <div class="a1-dl__row"><dt>Provizija</dt><dd>Zbir provizija stavki u EUR (automatska 10 % ili ručno zadata po artiklu) pomnožen kursom koji je važio na porudžbini. Isplaćena je provizija porudžbina u statusu „isplaćeno“, neisplaćena je ona na čekanju ili odobrena. Stornirane provizije nisu ni u jednoj od te dve kolone.</dd></div>
-                    @if($cost)
                         <div class="a1-dl__row"><dt>Neto posle provizije</dt><dd>Zarada umanjena za proviziju. Ovo nije „neto doprinos“ iz upravljačkog izveštaja: tamo se još oduzimaju povraćaji i servisni troškovi, koji se ovde ne raspoređuju po subagentima.</dd></div>
-                    @endif
-                    @if($cost)
                         <div class="a1-dl__row"><dt>Direktna prodaja i prodavnica</dt><dd>Nemaju subagenta. Prikazane su kao posebni redovi da bi zbir bio isti kao u upravljačkom izveštaju.</dd></div>
-                    @endif
                 </dl>
             </div>
         </details>

@@ -15,6 +15,7 @@ use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -378,37 +379,25 @@ final class SubagentSalesReportTest extends TestCase
             $this->actingAs($allowed)->get($csv)->assertOk();
         }
 
-        // A subagent (standard group: commissions.view_own) may open the page for their own data, never the CSV.
-        $this->actingAs($this->ana)->get($page)->assertOk();
-        $this->actingAs($this->ana)->get($csv)->assertForbidden();
-        $this->actingAs($this->ana)->get($page.'&drill='.$this->ana->id)->assertOk();
-    }
-
-    public function test_a_subagent_sees_only_their_own_data_and_no_purchase_cost(): void
-    {
-        $page = $this->actingAs($this->ana)->get('/admin/reports/subagents?'.http_build_query(self::RANGE));
-        $page->assertOk()
-            ->assertSee('Ana Anić')->assertSee('35.000,00')->assertSee('4.166,00')
-            ->assertSee('Prikazani su samo tvoji podaci')
-            ->assertDontSee('=Evil Borić')->assertDontSee('Cene Cenić')->assertDontSee('Direktna prodaja')
-            ->assertDontSee('Zarada (RSD)')->assertDontSee('Neto posle provizije')->assertDontSee('Marža')
-            ->assertDontSee('Samo artikli sa nabavnom cenom');
-
-        $report = $this->build($this->ana, self::RANGE);
-        self::assertSame(['Ana Anić'], array_column($report['rows'], 'label'));
-        foreach (['gross', 'margin', 'net', 'cogs'] as $secret) {
-            self::assertNull($report['totals'][$secret], $secret.' must not leave the service for a subagent');
-            self::assertNull($report['rows'][0][$secret], $secret.' must not leave the service for a subagent');
+        // Owner decision: subagents never open this report (page, drill-down, CSV), also not with reports.view in a custom group.
+        foreach ([false, true] as $withReportPermissions) {
+            if ($withReportPermissions) {
+                foreach (['reports.view', 'reports.export'] as $slug) {
+                    DB::table('user_group_permissions')->insert(array_filter([
+                        'group_id' => 1,
+                        'permission_id' => DB::table('permissions')->where('slug', $slug)->value('id'),
+                        'created_at' => Schema::hasColumn('user_group_permissions', 'created_at') ? now() : null,
+                    ], static fn ($v): bool => $v !== null));
+                }
+                $this->ana->clearResolvedAccessCache();
+                self::assertTrue($this->ana->fresh()->hasPermission('reports.view'), 'the control: the group really grants reports.view');
+            }
+            $ana = $this->ana->fresh();
+            $this->actingAs($ana)->get($page)->assertForbidden();
+            $this->actingAs($ana)->get($csv)->assertForbidden();
+            $this->actingAs($ana)->get($page.'&drill='.$this->ana->id)->assertForbidden();
+            $this->actingAs($ana)->get($page.'&group=brand')->assertForbidden();
         }
-
-        // Passing other people's ids changes nothing: the ids are ignored, the scope stays "own orders".
-        $other = $this->actingAs($this->ana)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['subagents' => [$this->bora->id], 'drill' => $this->bora->id]));
-        $other->assertOk()->assertSee('Ana Anić')->assertSee('35.000,00')->assertDontSee('=Evil Borić')->assertDontSee('SBS-O3');
-        // Cost columns are not even sortable.
-        $this->actingAs($this->ana)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['sort' => 'gross']))
-            ->assertStatus(422)->assertSee('Sortiranje po izabranoj koloni nije dozvoljeno.');
-        $this->actingAs($this->ana)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['cost_only' => 1]))
-            ->assertOk()->assertSee('35.000,00');
     }
 
     public function test_an_admin_sees_only_orders_they_supply_and_cannot_widen_the_scope_with_ids(): void
@@ -437,10 +426,10 @@ final class SubagentSalesReportTest extends TestCase
         self::assertStringContainsString('43000.00', $csv);
     }
 
-    public function test_entry_points_exist_for_operators_and_subagents(): void
+    public function test_entry_point_exists_on_the_management_report_and_not_for_subagents(): void
     {
         $this->actingAs($this->super)->get('/admin/reports')->assertOk()->assertSee('/admin/reports/subagents');
-        $this->actingAs($this->ana)->get('/commissions')->assertOk()->assertSee('/admin/reports/subagents');
+        $this->actingAs($this->ana)->get('/commissions')->assertOk()->assertDontSee('/admin/reports/subagents');
     }
 
     public function test_month_chart_shows_the_latest_24_months_whatever_the_table_sort(): void
@@ -514,28 +503,6 @@ final class SubagentSalesReportTest extends TestCase
         }
     }
 
-    public function test_a_subagents_html_has_no_other_people_and_no_cost_values_in_any_grouping(): void
-    {
-        $variants = [[], ['group' => 'subagent_brand'], ['group' => 'month'], ['group' => 'brand'], ['channel' => 'order'], ['scope' => 'all'], ['compare' => 1]];
-        foreach ($variants as $variant) {
-            $this->actingAs($this->ana)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + $variant))
-                ->assertOk()
-                ->assertSee('Ana Anić')
-                ->assertDontSee('=Evil')->assertDontSee('Borić')->assertDontSee('Cene Cenić')
-                ->assertDontSee('3.525,00')->assertDontSee('952,00')
-                ->assertDontSee('Zarada')->assertDontSee('Marža')->assertDontSee('Neto posle provizije')
-                ->assertDontSee('Deo prometa nema nabavnu cenu')->assertDontSee('Isključeno zbog');
-
-            $report = $this->build($this->ana, self::RANGE + $variant);
-            foreach ($report['rows'] as $row) {
-                foreach (['cogs', 'gross', 'margin', 'net'] as $secret) {
-                    self::assertNull($row[$secret], $secret.' '.json_encode($variant));
-                }
-            }
-            self::assertNull($report['excluded'], 'no excluded-lines counter for a subagent');
-        }
-    }
-
     public function test_overlap_note_appears_only_where_an_order_can_land_in_several_groups(): void
     {
         $get = fn (string $group) => $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['group' => $group]));
@@ -550,11 +517,11 @@ final class SubagentSalesReportTest extends TestCase
     private function build(User $user, array $query): array
     {
         $service = app(SubagentSalesReportService::class);
-        $options = $service->options($user, $service->rawPeriod($query), $service->neededLists($user, $query));
-        $validator = $service->validator($user, $query, $options);
+        $options = $service->options($user, $service->rawPeriod($query), $service->neededLists($query));
+        $validator = $service->validator($query, $options);
         self::assertFalse($validator->fails(), implode(' ', $validator->errors()->all()));
 
-        return $service->build($user, $service->filters($user, $validator->validated()));
+        return $service->build($user, $service->filters($validator->validated()));
     }
 
     /** One loss-free Ana order per month, Sep 2024 .. Oct 2026 (26 months), revenue grows with the month. */

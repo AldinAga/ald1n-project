@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+
 /**
  * The one trusted public origin of this application, taken from
  * config('app.url') and never from the request.
@@ -59,5 +62,21 @@ final class AppUrlOrigin
         }
 
         return $origin;
+    }
+
+    /**
+     * A redirect to a named route of this application. The Location is the
+     * APP_URL origin plus the route path, so it never depends on the Referer
+     * or Host header (Laravel's back() and the FormRequest default do). When
+     * APP_URL is unusable the Location is the bare path: relative, still not
+     * derived from the request.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    public static function redirect(Request $request, string $routeName, array $parameters = []): RedirectResponse
+    {
+        return (new RedirectResponse((self::configured() ?? '').route($routeName, $parameters, false)))
+            ->setRequest($request)
+            ->setSession($request->session());
     }
 }

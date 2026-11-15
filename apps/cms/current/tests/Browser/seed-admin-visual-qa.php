@@ -66,6 +66,15 @@ $adminWebkit = User::query()->create([
     'first_name' => 'Test SuperAdmin',
     'status' => 'active',
 ]);
+// Administrator role (not superadmin): dashboard without the period selector, valuation and brand mix.
+$administrator = User::query()->create([
+    'role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id'),
+    'username' => 'admin-visual-administrator',
+    'email' => 'admin-visual-administrator@example.test',
+    'password_hash' => Hash::make($password),
+    'first_name' => 'Test Administrator',
+    'status' => 'active',
+]);
 $customer = User::query()->create([
     'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
     'user_group_id' => 1,
@@ -128,6 +137,49 @@ ReceivableCase::query()->create([
     'order_id' => $order->id, 'case_number' => 'ADMIN-VISUAL-CASE', 'status' => 'monitoring', 'created_by' => $admin->id,
 ]);
 
+// Module 2 (dashboard): completed orders with fixed January 2026 dates, brand and purchase snapshots, so the trend,
+// the brand mix and the KPIs have data at /?period=custom&date_from=2026-01-01&date_to=2026-01-31. They are ARCHIVED:
+// the management report reads them (it does not filter archived orders) while every operational list (orders,
+// recent orders, receivables, open-balance KPI) skips them, so the other modules' baselines stay as they were.
+foreach ([
+    ['001', '2026-01-12 11:00:00', 'Lenovo', 3, 41500.0, 90000.0],
+    ['002', '2026-01-15 12:00:00', 'ASUS', 2, 62500.0, 98000.0],
+    ['003', '2026-01-20 15:30:00', 'HP', 1, 54900.0, 41000.0],
+    ['004', '2026-01-20 16:00:00', 'Lenovo', 1, 38000.0, 29000.0],
+    // The month before: the comparison line then shows revenue up and gross profit and net down (arrow icon plus percent).
+    ['005', '2025-12-15 12:00:00', 'Lenovo', 1, 300000.0, 100000.0],
+] as [$suffix, $completedAt, $brand, $quantity, $unit, $purchase]) {
+    $done = Order::query()->create([
+        'source_system' => 'laravel',
+        'order_number' => 'ADMIN-VISUAL-DONE-'.$suffix,
+        'user_id' => $admin->id,
+        'supplier_user_id' => $admin->id,
+        'supplier_name_snapshot' => 'Test SuperAdmin',
+        'supplier_role_snapshot' => 'SuperAdministrator',
+        'status' => 'new',
+        'inventory_state' => 'reserved',
+        'shipping_full_name' => 'Samo Test Kupac',
+        'shipping_address' => 'Testna adresa 1',
+        'shipping_city' => 'Test Grad',
+        'shipping_postal_code' => '11000',
+        'shipping_phone' => '0600000000',
+        'subtotal_rsd' => $unit * $quantity,
+        'eur_rsd_rate' => 117.78,
+        'payment_method' => 'deferred_payment',
+        'payment_status' => 'pending',
+        'payment_state' => 'unpaid',
+        'paid_total_rsd' => 0,
+    ]);
+    $doneItem = $done->items()->create([
+        'product_id' => $product->id, 'product_sku' => $product->sku, 'product_name' => $product->name,
+        'quantity' => $quantity, 'unit_price_original' => $unit, 'original_currency' => 'RSD',
+        'unit_price_rsd' => $unit, 'line_total_rsd' => $unit * $quantity,
+    ]);
+    DB::table('order_items')->where('id', $doneItem->id)->update(['brand_name_snapshot' => $brand, 'purchase_total_rsd_snapshot' => $purchase]);
+    // The orders.status enum has no "completed"; the management report counts an order as completed when completed_at is set and it is not cancelled.
+    DB::table('orders')->where('id', $done->id)->update(['status' => 'shipped', 'completed_at' => $completedAt, 'archived_at' => '2026-01-25 09:00:00']);
+}
+
 // Fixed timestamps so two runs render the same dates.
 foreach (['users', 'products', 'orders', 'order_items', 'product_warranties', 'receivable_cases'] as $table) {
     $set = [];
@@ -145,6 +197,7 @@ $payload = [
     'sentinel' => 'ALD1N_ADMIN_VISUAL_CI_SYNTHETIC_ONLY',
     'admin' => ['login' => $admin->username, 'password' => $password],
     'admin_webkit' => ['login' => $adminWebkit->username, 'password' => $password],
+    'administrator' => ['login' => $administrator->username, 'password' => $password],
     'customer' => ['login' => $customer->username, 'password' => $password],
     'ids' => ['product' => $product->id, 'order' => $order->id, 'warranty' => $warranty->id, 'customer' => $customer->id],
 ];
@@ -154,4 +207,4 @@ if (file_put_contents($dest, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PR
     exit(4);
 }
 chmod($dest, 0600);
-echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=2 products=1 orders=1 warranties=1\n";
+echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=4products=1 orders=1 archived_completed_orders=5 warranties=1\n";

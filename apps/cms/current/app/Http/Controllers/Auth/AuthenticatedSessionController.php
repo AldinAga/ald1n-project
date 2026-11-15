@@ -45,7 +45,7 @@ final class AuthenticatedSessionController extends Controller
 
         if (!$verified['success']) {
             $securityEvents->log('login.turnstile_failed', 'warning', $request, ['message' => $verified['message']]);
-            return back()->withErrors(['turnstile' => $verified['message']])->onlyInput('login');
+            return $request->localRedirect()->withErrors(['turnstile' => $verified['message']])->onlyInput('login');
         }
 
         $login = trim((string) $request->string('login'));
@@ -66,7 +66,7 @@ final class AuthenticatedSessionController extends Controller
 
         if ($user === null || $user->status !== 'active' || $user->retired_at !== null || !$validPassword) {
             $securityEvents->log('login.failed', 'warning', $request, ['login_hash' => hash('sha256', mb_strtolower($login)), 'user_found' => $user !== null]);
-            return back()
+            return $request->localRedirect()
                 ->withErrors(['login' => 'Pogrešni podaci ili nalog nije aktivan.'])
                 ->onlyInput('login');
         }
