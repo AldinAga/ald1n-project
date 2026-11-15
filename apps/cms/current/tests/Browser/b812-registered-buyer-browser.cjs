@@ -155,6 +155,7 @@ async function registrationQa(browser){
           const label='reg-bottom-'+mode+'-'+theme+'-'+w;
           await openOk(page,'/registracija',label);
           await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+          await page.waitForTimeout(300);
           const m=await page.evaluate(()=>{
             const r=document.querySelector('.reg-bg').getBoundingClientRect();
             const cs=getComputedStyle(document.querySelector('.reg-bg'));
@@ -164,7 +165,7 @@ async function registrationQa(browser){
           });
           assert.equal(m.pos,'fixed',label);
           assert(m.top<=0&&m.left<=0&&m.w>=m.vw&&m.h>=m.vh,label+' bg box '+JSON.stringify(m));
-          assert(m.max<=0||Math.abs(m.y-m.max)<=2,label+' scrolled to bottom');
+          assert(m.max<=0||Math.abs(m.y-m.max)<=2,label+' scrolled to bottom '+JSON.stringify(m));
           assert.equal(m.pe,'none',label);
           assert.equal(m.fpe,'none',label+' iframe pointer-events');
           assert(/rgba\(0, 0, 0, 0\)|transparent/.test(m.body),label+' body fill '+m.body);
