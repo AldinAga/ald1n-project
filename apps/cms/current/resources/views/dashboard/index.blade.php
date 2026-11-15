@@ -143,7 +143,7 @@
             <form class="a1-seg-form" method="get" action="{{ url('/') }}">
                 <div class="a1-seg" role="group" aria-label="Brzi izbor perioda">
                     @foreach($periodChoices as $periodKey => $periodLabel)
-                        <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}" @if($dashboardPeriod['period'] === $periodKey) aria-current="true"@endif @if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
+                        <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}"@if($dashboardPeriod['period'] === $periodKey) aria-current="true"@endif @if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
                     @endforeach
                 </div>
             </form>
