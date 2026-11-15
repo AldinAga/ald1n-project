@@ -83,6 +83,7 @@ try{
         $code=(string)file_get_contents($arg1);if(!str_starts_with($code,'<?php')||$code===''||str_contains($code,'__halt_compiler'))$fail('APP_CHECK_BOOT_PROOF_SOURCE');
         $code=substr($code,5);$code=str_replace(['dirname(__DIR__)','__DIR__'],[var_export($base,true),var_export($base.'/bootstrap',true)],$code);
         $built=eval($code);if(!$built instanceof Illuminate\Foundation\Application)$fail('APP_CHECK_BOOT_PROOF_NOT_AN_APPLICATION');
+        $built->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
         $handler=$built->make(Illuminate\Contracts\Debug\ExceptionHandler::class);$http=$built->make(Illuminate\Contracts\Http\Kernel::class);
         echo json_encode(['ok'=>true,'applicationBuilt'=>true,'handlerResolved'=>is_object($handler),'httpKernelResolved'=>is_object($http)],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
