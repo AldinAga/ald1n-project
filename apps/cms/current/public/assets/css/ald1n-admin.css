@@ -833,3 +833,53 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-swatch--6,.a1-donut__slice--6{--a1x-slice:ButtonText}
   .a1-kpi__delta .a1-icon{color:CanvasText}
 }
+
+/* ==========================================================================
+   Module 3: admin orders ("Porudzbine" menu: cart, own and all orders, after-sales,
+   field operations, service parts). Contiguous block, after the dashboard block.
+   The root is .a1-ops. Everything stays on tokens. Page-specific rules live in
+   the sub-blocks below (prefixes .a1-ol list, .a1-od detail, .a1-of forms, .a1-os service).
+   ========================================================================== */
+.a1-ops{display:grid;gap:var(--a1-space-16);min-width:0;color:var(--a1-text-primary);font:var(--a1-typography-font-weight-regular) var(--a1-typography-font-size-base)/var(--a1-typography-line-height-body) var(--a1-typography-font-family-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.a1-ops,.a1-ops *,.a1-ops *::before,.a1-ops *::after{box-sizing:border-box}
+.a1-ops :focus-visible{outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset);box-shadow:none}
+.a1-ops>*{min-width:0}
+.a1-body:has(.a1-ops){background:radial-gradient(1100px 620px at 4% -6%,var(--a1-glow-1),transparent 64%),radial-gradient(900px 620px at 100% 4%,var(--a1-glow-2),transparent 64%),radial-gradient(1000px 760px at 12% 980px,var(--a1-glow-3),transparent 66%),radial-gradient(900px 700px at 88% 1700px,var(--a1-glow-4),transparent 66%),var(--a1-surface-page);background-repeat:no-repeat}
+/* Dense fill under text, solid wherever the tokens switch the material off. */
+.a1-ops .a1-card,.a1-ops .a1-kpi,.a1-ops .a1-empty,.a1-ops .a1-acc,.a1-ops .a1-filters,.a1-ops .a1-tablewrap{background-color:var(--a1-glass-fill-strong)}
+.a1-ops .a1-card,.a1-ops .a1-stack{grid-template-columns:minmax(0,1fr)}
+.a1-ops .a1-card{gap:var(--a1-space-12)}
+@media (min-width:768px){.a1-ops .a1-card{padding:var(--a1-space-20)}}
+.a1-ops .a1-card--flush{padding:0;gap:0}
+.a1-ops .a1-title{margin:0}
+.a1-ops .a1-text,.a1-ops .a1-lead{margin:0}
+.a1-ops .a1-pagehead{margin-bottom:0}
+.a1-ops .a1-table{min-width:0}
+/* The old .page-shell form-control rules (specificity 0,4,1) beat .a1-input, .a1-select and .a1-textarea; this restores
+   control size, radius and focus inside the orders pages without !important. */
+.a1-ops .a1-field .a1-input.a1-input,.a1-ops .a1-field .a1-select.a1-select,.a1-ops .a1-field .a1-textarea.a1-textarea,.a1-ops .a1-group>.a1-input.a1-input{min-height:var(--a1-size-control);border-radius:var(--a1-radius-sm)}
+.a1-ops .a1-field .a1-textarea.a1-textarea{min-height:120px}
+.a1-ops .a1-group>.a1-input.a1-input{border-top-right-radius:0;border-bottom-right-radius:0}
+.a1-ops .a1-search>.a1-input.a1-input{min-height:var(--a1-size-control);border-radius:var(--a1-radius-pill)}
+.a1-ops .a1-input.a1-input:focus,.a1-ops .a1-select.a1-select:focus,.a1-ops .a1-textarea.a1-textarea:focus{box-shadow:none;border-color:var(--a1-accent-link)}
+/* Tables with many columns: cards on phones. Every cell carries data-label; the cell marked .a1-table__primary leads the card. */
+@media (max-width:560px){
+  .a1-table--cards{min-width:0}
+  .a1-table--cards thead{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .a1-table--cards,.a1-table--cards tbody{display:block;width:100%}
+  .a1-table--cards tr{display:flex;flex-direction:column;width:100%;padding:var(--a1-space-12) var(--a1-space-16);border-bottom:var(--a1x-border-width) solid var(--a1-border-strong)}
+  .a1-table--cards tbody tr:last-child{border-bottom:0}
+  .a1-table--cards td,.a1-table--cards tbody tr:last-child td{display:flex;align-items:baseline;justify-content:space-between;gap:var(--a1-space-16);width:100%;padding:var(--a1-space-4) 0;border-bottom:0;text-align:right;overflow-wrap:anywhere}
+  .a1-table--cards td::before{content:attr(data-label);flex:0 0 38%;text-align:left;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
+  .a1-table--cards td:not([data-label])::before{content:none}
+  .a1-table--cards td.a1-table__primary{order:-1;display:block;padding-bottom:var(--a1-space-8);text-align:left;font-size:var(--a1-typography-font-size-md-plus)}
+  .a1-table--cards td.a1-table__primary::before{content:none}
+  .a1-table--cards td.a1-table__actions{order:1;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:var(--a1-space-8);padding-top:var(--a1-space-12);width:100%;text-align:left}
+  .a1-table--cards td.a1-table__actions::before{content:none}
+  .a1-table--cards .a1-table__actions .a1-btn{margin-left:0}
+  .a1-table--cards tbody tr:hover td{background:transparent}
+}
+@media (forced-colors:active){
+  .a1-body:has(.a1-ops){background:Canvas}
+  .a1-ops{color:CanvasText}
+}
