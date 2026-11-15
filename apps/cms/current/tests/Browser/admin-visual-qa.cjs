@@ -48,7 +48,8 @@ const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '375,430,768,1280').split(','
 const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280]);
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
 const DESKTOP_FROM = 1200; // keep in sync with ald1n-admin.css and layouts/app.blade.php
-const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800 };
+const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800, 1440: 900 };
+const foldMetrics = []; // measured bottoms (px from the top of the page) of the dashboard's first-look blocks
 const THEMES = ['light', 'dark'];
 const AXE_RULES = ['color-contrast', 'document-title', 'html-has-lang', 'label', 'button-name', 'link-name', 'image-alt'];
 const ONLY = (process.env.ADMIN_VISUAL_ONLY || '').split(',').filter(Boolean);
@@ -150,8 +151,41 @@ const prepare = {
     }
     return null;
   },
+  // Dashboard: open every <details> (custom period, exact trend values, module list) so their text is part of the measured state.
+  async dashboardOpenAll(page) {
+    await page.evaluate(() => document.querySelectorAll('.a1-dash details').forEach((d) => { d.open = true; }));
+  },
+  // First look: the custom-range disclosure is open when a custom period is selected; the fold is measured with it closed (the state of a first visit).
+  async dashboardFold(page) {
+    await page.evaluate(() => document.querySelectorAll('.a1-dash details').forEach((d) => { d.open = false; }));
+  },
+  // Dashboard with long amounts: the same real elements, their text replaced by a 12.345.678,90 value.
+  async dashboardLongNumbers(page) {
+    await prepare.dashboardOpenAll(page);
+    await page.evaluate(() => {
+      const long = '12.345.678,90';
+      document.querySelectorAll('.a1-dash .a1-kpi__value').forEach((el) => {
+        const unit = el.querySelector('.a1-kpi__unit');
+        el.textContent = long + ' ';
+        el.classList.remove('a1-kpi__value--na');
+        if (unit) el.appendChild(unit); else { const u = document.createElement('span'); u.className = 'a1-kpi__unit'; u.textContent = 'RSD'; el.appendChild(u); }
+      });
+      document.querySelectorAll('.a1-dash .a1-item__money').forEach((el) => { el.textContent = long + ' RSD'; });
+      document.querySelectorAll('.a1-dash .a1-mix__value').forEach((el) => { el.textContent = long + ' RSD'; });
+      document.querySelectorAll('.a1-dash .a1-item--order .a1-item__end .a1-item__sub').forEach((el) => { el.textContent = 'Preostalo ' + long; });
+    });
+  },
+  // Dashboard brand mix on the second metric (Komadi), like a user pressing the toggle.
+  async dashboardUnits(page) {
+    await page.locator('.a1-dash [data-d3-mode="units"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-d3-view="units"]')?.hidden === false
+      && document.querySelector('[data-d3-view="revenue"]')?.hidden === true
+      && document.querySelector('[data-d3-mode="units"]')?.getAttribute('aria-pressed') === 'true', null, { timeout: 5000 });
+    await prepare.dashboardOpenAll(page);
+  },
 };
 
+const DASH_DATA = '/?period=custom&date_from=2026-01-01&date_to=2026-01-31';
 // Planned rollout order. module = unit that later flips to strict.
 const PAGES = [
   { module: 'shell', key: 'shell-plain', path: '/account', widths: SHELL_WIDTHS },
@@ -165,7 +199,21 @@ const PAGES = [
   { module: 'shell', key: 'shell-flash-error', path: '/account', prepare: prepare.flashError, widths: SHELL_EXTRA_WIDTHS },
   // Scripts are stripped from the document, so the page is what a visitor gets with JavaScript off. Theme stays at the HTML default.
   { module: 'shell', key: 'shell-no-js', path: '/account', prepare: prepare.noJsLogout, stripScripts: true, widths: [375, 1280] },
-  { module: 'dashboard', key: 'dashboard', path: '/', determinism: true },
+  // Module 2 (strict): the seed has one open order and, archived (so they never reach the lists), three completed
+  // orders in January 2026. Default period = empty states, custom January = data, plus the Komadi metric, the
+  // invalid-period alert, every <details> open, and the customer role's dashboard.
+  { module: 'dashboard', key: 'dashboard', path: '/', determinism: true, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-open', path: '/', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-data', path: DASH_DATA, prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  // First look: at 1280x800 and 1440x900 the whole priorities strip and the entire first KPI row are above the fold (measured, not estimated).
+  { module: 'dashboard', key: 'dashboard-fold', path: DASH_DATA, fold: true, prepare: prepare.dashboardFold, widths: [1280, 1440] },
+  { module: 'dashboard', key: 'dashboard-units', path: DASH_DATA, prepare: prepare.dashboardUnits, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-error', path: '/?period=custom&date_from=2026-02-30&date_to=2026-03-01', widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-customer', path: '/', persona: 'customer', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  // Administrator role (business dashboard without superadmin blocks), desktop and phone. The superadmin is the operator role.
+  { module: 'dashboard', key: 'dashboard-administrator', path: '/', persona: 'administrator', prepare: prepare.dashboardOpenAll, widths: [360, 1440] },
+  // Long amounts (12.345.678,90 RSD) in KPI tiles, the brand mix and order rows: wraps, never overflows or clips.
+  { module: 'dashboard', key: 'dashboard-long-numbers', path: DASH_DATA, prepare: prepare.dashboardLongNumbers, widths: [360, 1280] },
   { module: 'orders', key: 'orders-index', path: '/admin/orders' },
   { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}` },
   // New orders are created by the customer role (orders.create); superadmin gets 403 by design.
@@ -303,6 +351,74 @@ async function shellChecks(page, pg, width, theme) {
   if (geo.edge && (Math.abs(geo.edge[0]) > 2 || Math.abs(geo.edge[1]) > 2)) out.push({ ...base, rule: 'shell-edge-misaligned', count: 1, selectors: ['left ' + geo.edge[0] + 'px, right ' + geo.edge[1] + 'px vs .page-shell'] });
   return out;
 }
+// Dashboard-only gates (module 2), recorded as findings (strict mode for "dashboard" fails on any):
+//  - computed-contrast: same method as the shell cells, scoped to the dashboard root .a1-dash.
+//  - small-target: a visible link, button, summary, select or checkbox label under 44x44 px (inline links in a sentence excepted).
+//  - unlabeled-control: a visible control without an accessible name (axe covers label/button-name/link-name; summary and wrapped checkboxes are added here).
+//  - dashboard-structure: the root exists, exactly one <h1>, every pressed-state button carries aria-pressed.
+const DASH_SCOPE = '.a1-dash';
+async function dashboardChecks(page, pg, width, theme) {
+  const out = [];
+  const base = { module: pg.module, page: pg.key, browser: browserName, width, theme };
+  await page.evaluate(async () => {
+    const t = Date.now();
+    while (document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().endTime !== Infinity) && Date.now() - t < 3000) await new Promise((r) => setTimeout(r, 50));
+  });
+  const c = await page.evaluate(inPageContrast, DASH_SCOPE);
+  if (c.out.length) out.push({ ...base, rule: 'computed-contrast', count: c.out.length, selectors: c.out.slice(0, 3) });
+  if (c.checked < 30) out.push({ ...base, rule: 'computed-contrast-too-few-nodes', count: 1, selectors: ['checked ' + c.checked] });
+  const dom = await page.evaluate((scope) => {
+    const root = document.querySelector(scope);
+    if (!root) return { missing: true };
+    const label = (e) => [...e.classList].slice(0, 3).map((x) => '.' + x).join('') || e.tagName.toLowerCase();
+    const shown = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+    const controls = [...root.querySelectorAll('a[href], button, summary, select, input:not([type=hidden]), .a1-check')].filter(shown);
+    const small = controls
+      .filter((e) => !e.matches('.a1-link--inline, .a1-check__input'))
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.width < 43.5 || r.height < 43.5; })
+      .map((e) => e.tagName.toLowerCase() + label(e) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height));
+    const nameOf = (e) => (e.getAttribute('aria-label') || '').trim()
+      || (e.getAttribute('aria-labelledby') ? [...e.getAttribute('aria-labelledby').split(/\s+/)].map((id) => document.getElementById(id)?.textContent || '').join(' ').trim() : '')
+      || (e.labels && e.labels.length ? [...e.labels].map((l) => l.textContent).join(' ').trim() : '')
+      || (e.textContent || '').trim() || (e.getAttribute('title') || '').trim();
+    const unlabeled = controls.filter((e) => !e.matches('.a1-check') && !nameOf(e)).map((e) => e.tagName.toLowerCase() + label(e));
+    // Toggle buttons (brand metric) carry aria-pressed; the period buttons navigate and carry aria-current on the current one.
+    const pressed = [...root.querySelectorAll('[data-d3-mode]')].filter((b) => !b.hasAttribute('aria-pressed')).map(label);
+    const dates = [...root.querySelectorAll('input[type=date]')].filter(shown)
+      .filter((e) => Math.abs(e.getBoundingClientRect().height - 48) > 1)
+      .map((e) => 'date ' + Math.round(e.getBoundingClientRect().height) + 'px (control is 48px)');
+    const clipped = [...root.querySelectorAll('*')]
+      .filter((e) => shown(e) && !e.closest('.a1-sr, .a1-tablewrap') && !e.matches('input, select, textarea, svg, svg *'))
+      .filter((e) => { const o = getComputedStyle(e).overflowX; return o !== 'visible' && e.scrollWidth > e.clientWidth + 1; })
+      .map((e) => label(e) + ' ' + e.scrollWidth + '>' + e.clientWidth);
+    return { missing: false, small, unlabeled, pressed, dates, clipped, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
+  }, DASH_SCOPE);
+  if (dom.missing) { out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['.a1-dash missing'] }); return out; }
+  if (pg.fold) {
+    const f = await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      const bottom = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().bottom) : null; };
+      const top = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; };
+      return { vh: window.innerHeight, scrollY: window.scrollY, headerBottom: bottom('.a1-header'),
+        strip: bottom('.a1-strip'), revenue: bottom('[data-dashboard-d1-kpi="revenue"]'), gross: bottom('[data-dashboard-d1-kpi="gross"]'),
+        net: bottom('[data-dashboard-d1-kpi="net"]'), netTop: top('[data-dashboard-d1-kpi="net"]'), sale: bottom('[data-dashboard-d1-kpi="sale"]') };
+    });
+    foldMetrics.push({ browser: browserName, width, theme, ...f });
+    console.log('FOLD ' + browserName + ' ' + width + 'x' + f.vh + ' ' + theme + ' ' + JSON.stringify(f));
+    const rowBottom = Math.max(f.revenue || 0, f.gross || 0, f.net || 0);
+    const missed = [];
+    if (f.strip === null || f.strip > f.vh) missed.push('priorities strip bottom ' + f.strip + ' > ' + f.vh);
+    if (!rowBottom || rowBottom > f.vh) missed.push('first KPI row bottom ' + rowBottom + ' > ' + f.vh);
+    if (missed.length) out.push({ ...base, rule: 'above-the-fold', count: missed.length, selectors: missed });
+  }
+  if (dom.small.length) out.push({ ...base, rule: 'small-target', count: dom.small.length, selectors: dom.small.slice(0, 3) });
+  if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
+  if (dom.dates.length) out.push({ ...base, rule: 'control-height', count: dom.dates.length, selectors: dom.dates.slice(0, 3) });
+  if (dom.clipped.length) out.push({ ...base, rule: 'clipped-text', count: dom.clipped.length, selectors: dom.clipped.slice(0, 3) });
+  if (dom.pressed.length || dom.h1 !== 1) out.push({ ...base, rule: 'dashboard-structure', count: dom.pressed.length + (dom.h1 === 1 ? 0 : 1), selectors: [...dom.pressed, 'h1 x' + dom.h1].slice(0, 3) });
+  if (dom.checkedControls < 5) out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['only ' + dom.checkedControls + ' controls found'] });
+  return out;
+}
 // Freeze text that changes between runs (dates, times, relative times, rate) - after axe, text only.
 async function freezeDynamic(page) {
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}' });
@@ -358,6 +474,7 @@ async function runCell(ctx, pg, width, theme) {
   const page = await ctx.newPage();
   const local = { console: [], failed: [] };
   const target = P(pg.path);
+  const targetPath = target.split('?')[0]; // cells may carry a query string (dashboard period); the redirect check compares the path only
   page.on('console', (m) => {
     // "Failed to load resource" duplicates the response/requestfailed records captured below.
     if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) local.console.push(m.text().slice(0, 200));
@@ -366,7 +483,7 @@ async function runCell(ctx, pg, width, theme) {
   page.on('response', (r) => {
     const u = new URL(r.url());
     if (u.origin !== baseUrl || r.status() < 400) return;
-    const isMain = u.pathname === target && r.request().resourceType() === 'document';
+    const isMain = u.pathname === targetPath && r.request().resourceType() === 'document';
     if (isMain && r.status() === (pg.status || 200)) return;
     local.failed.push(r.status() + ' ' + u.pathname);
     if (r.status() >= 500) fail('HTTP_5XX', tag + ': ' + r.status() + ' ' + u.pathname);
@@ -380,7 +497,7 @@ async function runCell(ctx, pg, width, theme) {
     await page.setViewportSize({ width, height: HEIGHTS[width] || 900 });
     if (pg.stripScripts) {
       // The document arrives without any <script> element: the JavaScript-off experience, on every engine.
-      await page.route(baseUrl + target, async (route) => {
+      await page.route(baseUrl + target, async (route) => {  // shortcut: exact URL incl. query, fine for the no-JS cells (no query)
         if (route.request().resourceType() !== 'document') return route.continue();
         const upstream = await route.fetch();
         // Scripts removed; <noscript> unwrapped, because the browser still has scripting enabled and would otherwise ignore it.
@@ -393,7 +510,7 @@ async function runCell(ctx, pg, width, theme) {
     const resp = await page.goto(baseUrl + target, { waitUntil: 'load', timeout: 30000 });
     const want = pg.status || 200;
     if (!resp || resp.status() !== want) throw new Error(`HTTP ${resp && resp.status()} expected ${want}`);
-    if (!pg.status && new URL(page.url()).pathname !== target) throw new Error('redirected to ' + new URL(page.url()).pathname);
+    if (!pg.status && new URL(page.url()).pathname !== targetPath) throw new Error('redirected to ' + new URL(page.url()).pathname);
     await settle(page);
     const resolved = await page.evaluate(() => document.documentElement.dataset.theme);
     if (resolved !== theme && !pg.stripScripts) {
@@ -414,6 +531,7 @@ async function runCell(ctx, pg, width, theme) {
     }
     for (const v of await runAxe(page, pg.module === 'shell')) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
     if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
+    if (pg.module === 'dashboard') findings.push(...await dashboardChecks(page, pg, width, theme));
     if (local.console.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'console-error', count: local.console.length, selectors: local.console.slice(0, 3) });
     if (local.failed.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'failed-request', count: local.failed.length, selectors: local.failed.slice(0, 3) });
     await freezeDynamic(page);
@@ -456,7 +574,7 @@ async function runCell(ctx, pg, width, theme) {
   const started = Date.now();
   const browser = await playwright[browserName].launch();
   const states = {};
-  for (const persona of ['admin', 'customer']) {
+  for (const persona of ['admin', 'customer', 'administrator']) {
     try {
       states[persona] = await login(browser, persona);
     } catch (e) {
@@ -464,10 +582,11 @@ async function runCell(ctx, pg, width, theme) {
     }
   }
   if (states.admin) {
-    const authCtx = { admin: {}, customer: {} }; const guestCtx = {};
+    const authCtx = { admin: {}, customer: {}, administrator: {} }; const guestCtx = {};
     for (const theme of THEMES) {
       authCtx.admin[theme] = await newThemedContext(browser, theme, states.admin);
       if (states.customer) authCtx.customer[theme] = await newThemedContext(browser, theme, states.customer);
+      if (states.administrator) authCtx.administrator[theme] = await newThemedContext(browser, theme, states.administrator);
       guestCtx[theme] = await newThemedContext(browser, theme);
     }
     for (const pg of PAGES) {
@@ -480,13 +599,13 @@ async function runCell(ctx, pg, width, theme) {
       }
       console.log(`done ${pg.module}/${pg.key} (${((Date.now() - started) / 60000).toFixed(1)} min)`);
     }
-    for (const c of [...Object.values(authCtx.admin), ...Object.values(authCtx.customer), ...Object.values(guestCtx)]) await c.close();
+    for (const c of [...Object.values(authCtx.admin), ...Object.values(authCtx.customer), ...Object.values(authCtx.administrator), ...Object.values(guestCtx)]) await c.close();
   }
   await browser.close();
   const out = {
     browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...AXE_RULES, 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
-    infra_failures: infra, selfTests, cells, determinism, findings,
+    infra_failures: infra, selfTests, foldMetrics, cells, determinism, findings,
   };
   fs.writeFileSync(path.join(artifactDir, `admin-visual-baseline-${browserName}.json`), JSON.stringify(out, null, 1));
   console.log(`ADMIN_VISUAL ${browserName}: cells=${cells.length} findings=${findings.length} infra=${infra.length} minutes=${((Date.now() - started) / 60000).toFixed(1)}`);

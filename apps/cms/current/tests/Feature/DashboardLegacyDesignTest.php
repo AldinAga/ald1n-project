@@ -26,10 +26,15 @@ final class DashboardLegacyDesignTest extends TestCase
         $response = $this->actingAs($this->superAdmin())->get('/')->assertOk();
 
         $response->assertSee('data-universal-dashboard-ready="1"', false);
-        $response->assertSee('modern-dashboard-hero', false);
-        $response->assertSee('dashboard-kpi-grid', false);
+        $response->assertSee('class="a1-card a1-hero a1-hero--split"', false);
+        $response->assertSee('class="a1-card a1-strip"', false);
+        $response->assertSee('class="a1-kpis"', false);
         $response->assertSee('data-build16-home-redesign="1"', false);
-        $response->assertSee('build16-home-shell', false);
+        $response->assertSee('class="a1-dash"', false);
+        // Module 2: the old dashboard classes and stylesheet are gone from the markup.
+        foreach (['modern-dashboard-hero', 'dashboard-kpi-grid', 'dashboard-kpi-card', 'build16-home-shell', 'dashboard-panel', 'dashboard-d1-shell', 'class="panel ', 'ald1n-dashboard-d1.css'] as $legacy) {
+            $response->assertDontSee($legacy, false);
+        }
         $response->assertSee('Ald1n CMS');
         $response->assertSee('Fokus danas');
         $response->assertSee('Brze akcije');
