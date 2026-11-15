@@ -33,7 +33,7 @@ final class PasswordResetController extends Controller
         );
 
         if (!$verified['success']) {
-            return back()
+            return $request->localRedirect()
                 ->withErrors(['turnstile' => $verified['message']])
                 ->onlyInput('email');
         }
@@ -47,7 +47,7 @@ final class PasswordResetController extends Controller
             ]);
         }
 
-        return back()->with('status', 'Ako nalog sa tom e-mail adresom postoji, poslat je link za resetovanje lozinke.');
+        return $request->localRedirect()->with('status', 'Ako nalog sa tom e-mail adresom postoji, poslat je link za resetovanje lozinke.');
     }
 
     public function create(string $token, PasswordResetService $passwords): View
@@ -66,7 +66,7 @@ final class PasswordResetController extends Controller
         );
 
         if (!$reset) {
-            return back()->withErrors([
+            return $request->localRedirect()->withErrors([
                 'token' => 'Link za resetovanje nije važeći, već je iskorišćen ili je istekao.',
             ]);
         }
