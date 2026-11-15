@@ -87,10 +87,12 @@ for (const m of MODULES) {
   if (isStrict(m)) strictViolations += total;
   L.push(`| ${m} | ${new Set(cells.map((c) => c.page)).size} | ${cells.length} | ${sum(f.filter(isContrast))} | ${f.filter(isOverflow).length} | ${sum(f.filter(isStructural))} | ${sum(f.filter(isRuntime))} | ${isStrict(m) ? 'yes' : 'no'} |`);
 }
+// Columns = every width any page uses (shell 360/1200, orders 1440 ...), not only the global four, so no finding falls outside the grid.
+const gridWidths = [...new Set([...(merged.widths || []), ...present.flatMap((s) => (s.pages || []).flatMap((p) => p.widths || []))])].sort((a, b) => a - b);
 const grid = (title, pred, count) => {
-  L.push('', `### ${title}`, '', `| Theme | ${merged.widths?.join(' | ')} |`, `|---|${(merged.widths || []).map(() => '---:').join('|')}|`);
+  L.push('', `### ${title}`, '', `| Theme | ${gridWidths.join(' | ')} |`, `|---|${gridWidths.map(() => '---:').join('|')}|`);
   for (const t of merged.themes || []) {
-    L.push(`| ${t} | ${(merged.widths || []).map((w) => count(merged.findings.filter((x) => pred(x) && x.theme === t && x.width === w))).join(' | ')} |`);
+    L.push(`| ${t} | ${gridWidths.map((w) => count(merged.findings.filter((x) => pred(x) && x.theme === t && x.width === w))).join(' | ')} |`);
   }
 };
 grid('Contrast nodes by theme and width (all pages, both browsers)', isContrast, (a) => sum(a));

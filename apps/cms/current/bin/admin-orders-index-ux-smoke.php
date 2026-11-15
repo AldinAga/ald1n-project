@@ -2,20 +2,22 @@
 <?php
 declare(strict_types=1);
 
-// BATCH566_ADMIN_ORDERS_INDEX_UX_CONTRACT
+// BATCH566_ADMIN_ORDERS_INDEX_UX_CONTRACT (updated for Redesign Module 3: the page now uses a1- components).
 // Read-only source contract; no bootstrap, .env, database or route execution.
 $cmsRoot = dirname(__DIR__);
 $bladePath = $argv[1] ?? ($cmsRoot.'/resources/views/admin/orders/index.blade.php');
 $cssPath = $argv[2] ?? ($cmsRoot.'/public/assets/css/ald1n-ui-v2.css');
+$adminCssPath = $argv[3] ?? ($cmsRoot.'/public/assets/css/ald1n-admin.css');
 $blade = @file_get_contents($bladePath);
 $css = @file_get_contents($cssPath);
-if ($blade === false || $css === false) {
+$adminCss = @file_get_contents($adminCssPath);
+if ($blade === false || $css === false || $adminCss === false) {
     fwrite(STDERR, "FAIL: expected admin orders Blade/CSS source is unreadable.\n");
     exit(2);
 }
 
-preg_match_all('/<td\s+data-ops-cell="([a-z]+)"\s+data-label="([^"]+)"/', $blade, $cells);
-$expected = ['number','creator','assignee','status','payment','amount','deadline','date','actions'];
+preg_match_all('/<td\s+role="cell"[^>]*data-label="([^"]+)"/', $blade, $cells);
+$expected = ['Broj','Korisnik','Odgovorno lice','Status obrade','Plaćanje','Iznos','Rok','Datum','Brze akcije'];
 $actual = $cells[1] ?? [];
 $filters = ['q','source_system','status','payment_status','supplier_user_id','date_from','date_to'];
 $checkFilters = true;
@@ -34,41 +36,40 @@ foreach ($actions as $value) {
 }
 $checks = [
     'Existing operational page remains a single scoped workspace'
-        => str_contains($blade, 'class="orders-page-ready ald-ops-index"')
-           && str_contains($blade, 'data-orders-page-ready="1"'),
+        => str_contains($blade, 'class="a1-ops" data-orders-page-ready="1"'),
     'Desktop heading and archive/report navigation remain'
         => str_contains($blade, "route('admin.orders.archived')")
            && str_contains($blade, "route('admin.reports.index')")
            && str_contains($blade, "@can('reports.view')"),
     'Recovery panel stays available without runtime fetch'
-        => str_contains($blade, 'orders-recovery-panel')
+        => str_contains($blade, 'a1-ol-recovery')
            && str_contains($blade, 'app:orders-doctor --repair --render'),
     'Operational attention filters remain distinct'
         => str_contains($blade, "['attention' => 'unaccepted']")
            && str_contains($blade, "['attention' => 'overdue']")
-           && str_contains($blade, 'ald-ops-index-attention'),
+           && str_contains($blade, 'a1-ol-tiles'),
     'All original filter names and GET semantics remain'
-        => $checkFilters && str_contains($blade, 'class="filter-panel admin-filter order-filter ald-ops-index-filter" method="get"'),
+        => $checkFilters && str_contains($blade, '<form class="a1-filters" method="get"'),
     'Filters have a search landmark without extra form'
         => str_contains($blade, 'role="search" aria-label="Filtriranje porudžbina"')
            && substr_count($blade, '<form') === 4,
     'Data table and headers remain semantically available'
-        => str_contains($blade, '<table class="admin-table operational-orders-table ald-ops-index-table">')
+        => str_contains($blade, '<table class="a1-table a1-table--cards a1-ol-table" role="table">')
            && str_contains($blade, 'aria-label="Lista porudžbina"')
-           && substr_count($blade, '<th scope="col">') === 9,
+           && substr_count($blade, '<th scope="col"') === 9,
     'Every data cell has a unique responsive name and label'
         => count($actual) === 9 && $actual === $expected
-           && count(array_unique($cells[2])) === 9,
+           && count(array_unique($cells[1])) === 9,
     'Order number and status precede actions in accessible DOM order'
-        => strpos($blade, 'data-ops-cell="number"') < strpos($blade, 'data-ops-cell="status"')
-           && strpos($blade, 'data-ops-cell="status"') < strpos($blade, 'data-ops-cell="actions"'),
+        => strpos($blade, 'data-label="Broj"') < strpos($blade, 'data-label="Status obrade"')
+           && strpos($blade, 'data-label="Status obrade"') < strpos($blade, 'data-label="Brze akcije"'),
     'Read-only financial and deadline values stay unchanged'
         => str_contains($blade, '$order->subtotal_rsd')
            && str_contains($blade, '$order->expected_shipping_at')
            && str_contains($blade, '$order->payment_status'),
     'Original guarded quick actions and all named routes remain'
         => $checkActions
-           && str_contains($blade, 'quick-order-actions')
+           && str_contains($blade, 'a1-ol-actions')
            && str_contains($blade, "\$order->source_system === 'laravel'"),
     'Original POST/PATCH CSRF protection remains'
         => substr_count($blade, '@csrf') >= 2
@@ -76,21 +77,20 @@ $checks = [
     'No form wraps an order list row'
         => strpos($blade, '<form') < strpos($blade, '<table')
            && strpos($blade, '</form>') < strpos($blade, '<table'),
-    'Desktop table is scannable with scoped status and row rules'
-        => str_contains($css, 'ALD1N_ADMIN_ORDERS_INDEX_WORKSPACE_BATCH566')
-           && str_contains($css, '.ald-ops-index .operational-orders-table tbody tr'),
-    'Responsive card layout includes explicit two-column ordering'
-        => str_contains($css, '@media (max-width: 980px)')
-           && str_contains($css, '.ald-ops-index .operational-orders-table td[data-ops-cell="number"]')
-           && str_contains($css, '.ald-ops-index .operational-orders-table td[data-ops-cell="status"]'),
+    'Desktop table is scannable with sticky header and tabular amounts'
+        => str_contains($adminCss, '.a1-tablewrap--sticky')
+           && str_contains($adminCss, '.a1-table .a1-table__num'),
+    'Responsive card layout turns rows into cards on phones'
+        => str_contains($adminCss, '.a1-table--cards tr{display:flex')
+           && str_contains($adminCss, '.a1-table--cards td.a1-table__primary'),
     'Mobile cards have safe one-column fallback and data labels'
-        => str_contains($css, '@media (max-width: 560px)')
-           && str_contains($css, 'content: attr(data-label);'),
+        => str_contains($adminCss, '@media (max-width:560px)')
+           && str_contains($adminCss, 'content:attr(data-label)'),
     'POST quick-action forms stay independent interactive boxes'
-        => preg_match('/\.ald-ops-index \.quick-order-actions form\s*\{\s*display:\s*inline-flex\s*;/', $css) === 1,
+        => str_contains($blade, 'class="a1-ol-inline" method="post"'),
     'Quick actions keep keyboard focus treatment'
-        => str_contains($css, '.ald-ops-index .quick-order-actions .button:focus-visible')
-           && str_contains($css, 'outline-offset: 2px;'),
+        => str_contains($adminCss, '.a1-ops :focus-visible')
+           && str_contains($adminCss, 'outline-offset:var(--a1-focus-offset)'),
     'Existing catalog and buyer-first deployment layers remain'
         => str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010')
            && str_contains($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565')

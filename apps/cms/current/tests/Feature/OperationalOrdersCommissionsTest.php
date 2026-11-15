@@ -188,7 +188,7 @@ final class OperationalOrdersCommissionsTest extends TestCase
         self::assertSame(1, substr_count($html, 'id="order-workspace-customer"'));
         self::assertStringContainsString('data-buyer-first-layout="1"', $html);
         $buyerPos = strpos($html, 'id="order-workspace-customer"');
-        $commandPos = strpos($html, 'class="panel order-workspace-command');
+        $commandPos = strpos($html, 'id="order-workspace-command"');
         $itemsPos = strpos($html, 'id="order-workspace-items"');
         self::assertNotFalse($buyerPos);
         self::assertNotFalse($commandPos);

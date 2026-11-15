@@ -456,7 +456,7 @@ async function main() {
             await submission.locator('[name="items[0][quantity]"]').fill('1');
             const payloads = [];
             await submission.route(base+'/orders', async route => { payloads.push(new URLSearchParams(route.request().postData())); await route.fulfill({status: 204, body: ''}); });
-            await submission.locator('.build16-order-create-form').evaluate(node => node.requestSubmit());
+            await submission.locator('form[data-order-create-form]').evaluate(node => node.requestSubmit());
             await submission.waitForTimeout(200);
             assert.equal(payloads.length, 1);
             assert.equal(payloads[0].get('payment_method'), mode);
