@@ -99,6 +99,8 @@ L.push('', '### Worst rules', '', '| Rule | Nodes / cells |', '|---|---:|');
 const byRule = {};
 for (const f of merged.findings) byRule[f.rule] = (byRule[f.rule] || 0) + f.count;
 for (const [r, n] of Object.entries(byRule).sort((a, b) => b[1] - a[1])) L.push(`| ${r} | ${n} |`);
+const menuFindings = merged.findings.filter((f) => f.page === 'shell-menus-open');
+if (menuFindings.length) L.push('', '### Open dropdown menus (shell-menus-open)', '', ...menuFindings.slice(0, 12).map((f) => `- ${f.browser} ${f.theme} ${f.rule}: ${f.detail || f.selectors?.[0] || ''}`), ...(menuFindings.length > 12 ? [`- ... and ${menuFindings.length - 12} more in admin-visual-baseline.json`] : []));
 if (merged.determinism.length) {
   L.push('', `Determinism self-check (same page rendered twice in one run): ${merged.determinism.map((d) => `${d.page}/${d.browser}=${d.identicalInRun ? 'identical' : 'DIFFERENT'}`).join(', ')}.`);
 }
