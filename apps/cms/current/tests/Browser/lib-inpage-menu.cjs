@@ -25,7 +25,14 @@ module.exports = function inPageMenu(detailsSelector) {
   const hs = items.map((n) => n.getBoundingClientRect().height);
   // Column by column order check: DOM order must equal visual order (a column is a group of x within 4px).
   const cols = [...new Set(items.map((n) => Math.round(n.getBoundingClientRect().left / 4)))].length;
+  // Panel fill alpha: the computed colour is normalised through a canvas (handles rgb/oklab/color-mix serialisations).
+  const cx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  cx.clearRect(0, 0, 1, 1);
+  cx.fillStyle = getComputedStyle(panel).backgroundColor;
+  cx.fillRect(0, 0, 1, 1);
+  const alpha = Math.round((cx.getImageData(0, 0, 1, 1).data[3] / 255) * 100) / 100;
   return {
+    alpha,
     label: dd.querySelector(':scope > summary').textContent.trim().slice(0, 40),
     items: items.length,
     columns: cols,

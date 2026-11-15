@@ -493,6 +493,7 @@ async function runMenuMatrix(browser, state) {
             if (Object.values(m.edges).some((v) => v > 0)) add('menu-outside-viewport', `panel leaves the viewport (left ${m.edges.left}, top ${m.edges.top}, right ${m.edges.right}, bottom ${m.edges.bottom}px)`);
             if (m.lastHidden > 1) add('menu-last-item-hidden', `last item is cut off by ${m.lastHidden}px`);
             if (m.docOverflow > 1) add('menu-page-overflow', `page scrollWidth exceeds the viewport by ${m.docOverflow}px`);
+            if (m.alpha < 0.99) add('menu-panel-see-through', `panel fill alpha ${m.alpha}, page content behind it can show through (need an opaque surface, >= 0.99)`);
             const want = m.coarse ? 44 : 36;
             if (m.minItem < want) add('menu-item-too-small', `smallest item row ${m.minItem}px, need ${want}px`);
             const c = await page.evaluate(inPageContrast, SHELL_SCOPE);

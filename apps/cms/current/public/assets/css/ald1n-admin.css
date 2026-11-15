@@ -124,7 +124,7 @@
   .a1-header__user{order:5}
   .a1-header__nav{order:9;flex:1 1 100%;padding-block:var(--a1-space-4);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
   .a1-nav{display:flex;flex-wrap:nowrap}
-  .a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-8));left:0;min-width:260px;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong);-webkit-backdrop-filter:var(--a1-fx-strong);backdrop-filter:var(--a1-fx-strong);box-shadow:var(--a1-shadow-card-hover)}
+  .a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-8));left:0;min-width:260px;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid);-webkit-backdrop-filter:var(--a1-fx-strong);backdrop-filter:var(--a1-fx-strong);box-shadow:var(--a1-shadow-card-hover)}
   .a1-nav-dd--end>.a1-nav-dd__panel{left:auto;right:0}
   .a1-nav-dd>summary::after{margin-left:var(--a1-space-4)}
 }
@@ -539,9 +539,9 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-searchbtn__label{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto}
   .a1-header .a1-nav__link{padding:var(--a1-space-8);font-size:var(--a1-typography-font-size-sm-plus);white-space:nowrap}
   /* Dropdowns show every item without scrolling; the cap and the scroll are only a last resort for very short viewports. */
-  .a1-nav-dd__panel{max-width:calc(100vw - 32px);max-height:calc(100vh - 11rem);max-height:calc(100dvh - 11rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--a1-border-strong) transparent}
+  .a1-nav-dd__panel{max-width:calc(100vw - 32px);max-height:calc(100vh - 9rem);max-height:calc(100dvh - 9rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--a1-border-strong) transparent}
   /* Multi-section menu (Podešavanja): sections flow into columns, column by column in DOM order. */
-  .a1-nav-dd__panel--cols{display:block;width:min(calc(3 * 244px + 16px),calc(100vw - 32px));columns:3 220px;column-gap:var(--a1-space-8)}
+  .a1-nav-dd__panel--cols{display:block;width:min(calc(2 * 244px + 16px),calc(100vw - 32px));columns:2 220px;column-gap:var(--a1-space-8)}
   .a1-nav-dd__group{break-inside:avoid;padding-bottom:var(--a1-space-4)}
   .a1-nav-dd__group:last-child{padding-bottom:0}
   .a1-nav-dd--flip>.a1-nav-dd__panel{left:auto;right:0}
