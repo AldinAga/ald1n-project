@@ -11,6 +11,7 @@ use App\Notifications\ResetPasswordNotification;
 use App\Services\CustomerActivationService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -45,6 +46,8 @@ final class AuthLocalRedirectB883Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
         config()->set('app.url', self::ORIGIN);
         config()->set('services.turnstile.enabled', false);
+        // The limiter counters outlive a test; only the 429 test wants them.
+        $this->withoutMiddleware(ThrottleRequests::class);
         Notification::fake();
     }
 
@@ -200,9 +203,11 @@ final class AuthLocalRedirectB883Test extends TestCase
      */
     public function test_login_throttle_answers_429_without_a_redirect(): void
     {
+        $this->withMiddleware(ThrottleRequests::class);
+        $login = 'throttle-'.bin2hex(random_bytes(4)).'@example.test';
         $last = null;
         for ($attempt = 0; $attempt < 6; $attempt++) {
-            $last = $this->post('/login', ['login' => 'ghost@example.test', 'password' => 'Wrong-Pass-123!'], [
+            $last = $this->post('/login', ['login' => $login, 'password' => 'Wrong-Pass-123!'], [
                 'Referer' => self::EVIL_REFERER,
             ]);
         }

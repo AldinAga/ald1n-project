@@ -105,7 +105,7 @@ final class PublicReceiptTokenPrivacyB821Test extends TestCase
         ])->assertRedirect();
         $this->assertAuthenticatedAs($this->buyer);
         $this->get($this->receipt())->assertOk()
-            ->assertHeader('Cache-Control','private, no-store, max-age=0')
+            ->assertHeader('Cache-Control','max-age=0, no-store, private')
             ->assertHeader('Pragma','no-cache')
             ->assertHeader('X-Robots-Tag','noindex, nofollow, noarchive')
             ->assertHeader('Referrer-Policy','no-referrer')
