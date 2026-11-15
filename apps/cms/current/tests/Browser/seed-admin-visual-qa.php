@@ -137,6 +137,8 @@ foreach ([
     ['002', '2026-01-15 12:00:00', 'ASUS', 2, 62500.0, 98000.0],
     ['003', '2026-01-20 15:30:00', 'HP', 1, 54900.0, 41000.0],
     ['004', '2026-01-20 16:00:00', 'Lenovo', 1, 38000.0, 29000.0],
+    // The month before: the comparison line then shows revenue up and gross profit and net down (arrow icon plus percent).
+    ['005', '2025-12-15 12:00:00', 'Lenovo', 1, 300000.0, 100000.0],
 ] as [$suffix, $completedAt, $brand, $quantity, $unit, $purchase]) {
     $done = Order::query()->create([
         'source_system' => 'laravel',
@@ -195,4 +197,4 @@ if (file_put_contents($dest, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PR
     exit(4);
 }
 chmod($dest, 0600);
-echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=2 products=1 orders=1 archived_completed_orders=4 warranties=1\n";
+echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=2 products=1 orders=1 archived_completed_orders=5 warranties=1\n";
