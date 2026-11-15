@@ -141,10 +141,12 @@ async function registrationQa(browser){
     }
   }
   }
-  // The fixed background layer covers the viewport at any scroll position
-  // (no seam below the fold), never takes pointer events, and no opaque body
-  // fill is painted over it.
-  for(const mode of ['image','youtube']){
+  // Stability and coverage. The page height and the main boxes must not move
+  // after first paint (cumulative layout shift <= 0.02, scrollHeight within
+  // 2px), the fixed background layer covers the viewport at the bottom of the
+  // page, never takes pointer events, and no opaque body fill covers it.
+  const BOXES=['.reg-card','.reg-intro','.reg-form','.reg-group:nth-of-type(1)','.reg-turnstile','.reg-submit','.reg-legal','.shop-top-rail','.shop-back-to-top'];
+  for(const mode of ['default','image','slideshow','youtube']){
     execFileSync('php',['tests/Browser/set-login-background.php',mode],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
     for(const theme of ['dark','light']){
       for(const [w,h] of [[1280,800],[360,740]]){
@@ -152,25 +154,40 @@ async function registrationQa(browser){
         try{
           await c.addCookies([{name:'shop_theme',value:theme,url:base}]);
           const page=await c.newPage();
+          await page.addInitScript(()=>{
+            window.__cls=0;window.__shifts=[];
+            try{new PerformanceObserver(list=>{for(const e of list.getEntries()){if(e.hadRecentInput)continue;window.__cls+=e.value;window.__shifts.push({v:e.value,src:(e.sources||[]).map(s=>(s.node&&(s.node.tagName+'.'+(s.node.className||'')))+' '+JSON.stringify(s.previousRect)+'->'+JSON.stringify(s.currentRect))});}}).observe({type:'layout-shift',buffered:true});}catch(e){}
+          });
           const label='reg-bottom-'+mode+'-'+theme+'-'+w;
           await openOk(page,'/registracija',label);
+          const snap=()=>page.evaluate(sel=>{
+            const o={h:document.documentElement.scrollHeight,boxes:{}};
+            for(const s of sel){const el=document.querySelector(s);if(el){const r=el.getBoundingClientRect();o.boxes[s]=[Math.round(r.top+scrollY),Math.round(r.height)];}}
+            return o;
+          },BOXES);
+          const before=await snap();
+          await page.waitForTimeout(600);
+          const settled=await snap();
           await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
           await page.waitForTimeout(300);
-          await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
-          await page.waitForTimeout(300);
+          const after=await snap();
+          const cls=await page.evaluate(()=>({cls:window.__cls,shifts:window.__shifts}));
+          const dump=JSON.stringify({before,settled,after,cls});
+          assert(Math.abs(settled.h-before.h)<=2&&Math.abs(after.h-before.h)<=2,label+' page height moved '+dump);
+          if(engine==='chromium')assert(cls.cls<=0.02,label+' CLS '+cls.cls+' '+dump);
           const m=await page.evaluate(()=>{
             const r=document.querySelector('.reg-bg').getBoundingClientRect();
             const cs=getComputedStyle(document.querySelector('.reg-bg'));
-            const body=getComputedStyle(document.body).backgroundColor;
             const f=document.querySelector('.reg-bg iframe');
-            return {top:r.top,left:r.left,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,y:scrollY,max:document.documentElement.scrollHeight-innerHeight,pos:cs.position,pe:cs.pointerEvents,body,fpe:f?getComputedStyle(f).pointerEvents:'none'};
+            return {top:r.top,left:r.left,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,y:scrollY,max:document.documentElement.scrollHeight-innerHeight,pos:cs.position,pe:cs.pointerEvents,body:getComputedStyle(document.body).backgroundColor,fpe:f?getComputedStyle(f).pointerEvents:'none'};
           });
           assert.equal(m.pos,'fixed',label);
           assert(m.top<=0&&m.left<=0&&m.w>=m.vw&&m.h>=m.vh,label+' bg box '+JSON.stringify(m));
-          assert(m.max<=0||Math.abs(m.y-m.max)<=2,label+' scrolled to bottom '+JSON.stringify(m));
+          assert(m.max<=0||Math.abs(m.y-m.max)<=2,label+' scrolled to bottom '+JSON.stringify(m)+' '+dump);
           assert.equal(m.pe,'none',label);
           assert.equal(m.fpe,'none',label+' iframe pointer-events');
           assert(/rgba\(0, 0, 0, 0\)|transparent/.test(m.body),label+' body fill '+m.body);
+          console.log('B812_REG_STABLE '+label+' CLS='+cls.cls.toFixed(4)+' H='+before.h);
           await page.screenshot({path:path.join(dir,'b812-registration-qa-bottom-'+mode+'-'+theme+'-'+w+'.png'),animations:'disabled'});
         }finally{await c.close();}
       }
