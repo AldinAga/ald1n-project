@@ -597,7 +597,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
    tokens; the only hand-set measures are small pixel sizes (chart height,
    bar corner, KPI numeral clamp), see docs/redesign/admin-components.md.
    ========================================================================== */
-.a1-dash{--a1x-kpi-size:clamp(24px,2.6vw,32px);display:grid;gap:var(--a1-space-24);min-width:0;color:var(--a1-text-primary);font:var(--a1-typography-font-weight-regular) var(--a1-typography-font-size-base)/var(--a1-typography-line-height-body) var(--a1-typography-font-family-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.a1-dash{--a1x-kpi-size:clamp(24px,2.6vw,32px);display:grid;gap:var(--a1-space-16);min-width:0;color:var(--a1-text-primary);font:var(--a1-typography-font-weight-regular) var(--a1-typography-font-size-base)/var(--a1-typography-line-height-body) var(--a1-typography-font-family-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .a1-dash,.a1-dash *,.a1-dash *::before,.a1-dash *::after{box-sizing:border-box}
 .a1-dash :focus-visible{outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset);box-shadow:none}
 .a1-dash>*{min-width:0}
@@ -608,8 +608,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-dash .a1-table{min-width:0}
 /* One shrinkable column: a scroll box (table) inside a card must not widen the card past the viewport. */
 .a1-dash .a1-card,.a1-dash .a1-stack{grid-template-columns:minmax(0,1fr)}
-.a1-dash .a1-g12{align-items:start}
-.a1-dash .a1-card{gap:var(--a1-space-12)}
+.a1-dash .a1-g12{align-items:start}.a1-dash .a1-card{gap:var(--a1-space-12)}
 @media (min-width:768px){.a1-dash .a1-card{padding:var(--a1-space-20)}}
 .a1-dash .a1-hero__text{gap:var(--a1-space-8)}
 /* The old .page-shell input rules (0,4,1) beat .a1-input; this restores the control size and radius inside the dashboard without !important. */
@@ -633,8 +632,33 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 
 /* Welcome block and the EUR/RSD card. */
-.a1-dash .a1-hero{gap:var(--a1-space-24)}
-@media (min-width:1100px){.a1-dash .a1-hero{grid-template-columns:minmax(0,1fr) minmax(280px,360px);align-items:center}}
+/* Header band: greeting, rate chip and actions on the left, period control on the right (superadmin). */
+.a1-dash .a1-hero{gap:var(--a1-space-12) var(--a1-space-24);padding-block:var(--a1-space-16)}
+@media (min-width:1100px){.a1-dash .a1-hero--split{grid-template-columns:minmax(0,1fr) minmax(360px,480px);align-items:start}}
+.a1-hero__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16)}
+.a1-hero__title{display:grid;gap:2px;min-width:0}
+.a1-dash .a1-hero__title .a1-title{font-size:var(--a1-typography-font-size-xl-4);line-height:var(--a1-typography-line-height-snug)}
+.a1-ratecard--chip{width:auto;max-width:100%;padding:var(--a1-space-4) var(--a1-space-12) var(--a1-space-4) var(--a1-space-8);gap:var(--a1-space-8);min-height:var(--a1-size-touch-target);border-radius:var(--a1-radius-pill)}
+.a1-ratecard--chip .a1-ratecard__icon{width:32px;height:32px}
+.a1-ratecard--chip .a1-ratecard__body{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--a1-space-8)}
+.a1-ratecard--chip .a1-ratecard__value{font-size:var(--a1-typography-font-size-lg)}
+.a1-ratecard--chip .a1-ratecard__label,.a1-ratecard--chip .a1-ratecard__source{font-size:var(--a1-typography-font-size-sm)}
+.a1-hero__side{display:grid;gap:var(--a1-space-8);min-width:0}
+.a1-hero__period{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--a1-space-8)}
+.a1-hero__side .a1-text{font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-dash .a1-hero__side .a1-text{margin:0}
+/* Priorities strip: a full-width row of compact link tiles. */
+.a1-dash .a1-strip{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16);padding-block:var(--a1-space-12)}
+.a1-strip .a1-card__head{flex:0 0 auto;flex-wrap:nowrap;gap:var(--a1-space-12)}
+.a1-strip .a1-list{flex:1 1 520px}
+.a1-strip .a1-item__go{display:none}
+.a1-strip .a1-item--compact{min-height:44px;padding:var(--a1-space-4) var(--a1-space-12);gap:var(--a1-space-8)}
+.a1-strip .a1-item__title{line-height:var(--a1-typography-line-height-caption)}
+.a1-strip .a1-item__sub{line-height:var(--a1-typography-line-height-caption)}
+.a1-dash .a1-hero__side{gap:var(--a1-space-4)}
+.a1-list--strip{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+.a1-strip__empty{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8);margin:0;color:var(--a1-text-secondary)}
+.a1-strip__empty strong{color:var(--a1-text-primary)}
 .a1-hero__text{display:grid;gap:var(--a1-space-12);min-width:0}
 .a1-hero__actions{display:flex;flex-wrap:wrap;gap:var(--a1-space-8)}
 .a1-ratecard{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--a1-space-16);width:100%;margin:0;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-button-ghost-bg);color:var(--a1-text-primary);font:inherit;text-align:left;text-decoration:none;-webkit-appearance:none;appearance:none}
@@ -657,10 +681,6 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-seg__opt:hover{background:var(--a1-button-ghost-hover);color:var(--a1-text-primary)}
 .a1-seg__opt[aria-pressed=true],.a1-seg__opt[aria-current=true]{border-color:var(--a1-border-strong);background:var(--a1-surface-solid);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold);box-shadow:0 1px 0 var(--a1-edge-light) inset}
 .a1-seg__opt:focus-visible{outline-offset:1px}
-.a1-period{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-16) var(--a1-space-24)}
-.a1-period>.a1-card__title{flex:1 1 320px}
-.a1-period__side{display:grid;gap:var(--a1-space-8);flex:1 1 100%;min-width:0}
-@media (min-width:768px){.a1-period__side{flex:0 1 380px}}
 .a1-dash .a1-acc__title{display:grid;gap:2px}
 .a1-acc__name{font-weight:var(--a1-typography-font-weight-bold);font-size:var(--a1-typography-font-size-md-plus);color:var(--a1-text-primary)}
 

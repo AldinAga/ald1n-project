@@ -101,7 +101,10 @@ final class DashboardModuleTwoTest extends TestCase
         foreach (['Fokus danas', 'Prioritetne aktivnosti', 'Trend prodaje', 'Najprodavaniji brendovi', 'Poslednje porudžbine', 'Brze akcije', 'Porudžbine korisnika', 'Svi dostupni moduli na jednom mestu'] as $heading) {
             self::assertStringContainsString($heading, $dash);
         }
-        self::assertMatchesRegularExpression('/<button type="button" class="a1-ratecard a1-ratecard--action" data-exchange-rate-sync data-exchange-rate-sync-url="[^"]+"/', $dash);
+        // Header band and "Brze akcije" never show the same action twice.
+        self::assertSame(1, substr_count($dash, 'href="'.route('admin.products.create').'"'));
+        self::assertSame(1, substr_count($dash, 'Direktna prodaja'));
+        self::assertMatchesRegularExpression('/<button type="button" class="a1-ratecard a1-ratecard--chip a1-ratecard--action" data-exchange-rate-sync data-exchange-rate-sync-url="[^"]+"/', $dash);
         self::assertStringContainsString('data-exchange-rate-value data-exchange-rate-decimals="2"', $dash);
         self::assertStringContainsString('<details class="a1-acc a1-modules">', $dash);
         self::assertStringNotContainsString('<details class="a1-acc a1-modules" open', $dash);

@@ -48,7 +48,8 @@ const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '375,430,768,1280').split(','
 const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280]);
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
 const DESKTOP_FROM = 1200; // keep in sync with ald1n-admin.css and layouts/app.blade.php
-const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800 };
+const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800, 1440: 900 };
+const foldMetrics = []; // measured bottoms (px from the top of the page) of the dashboard's first-look blocks
 const THEMES = ['light', 'dark'];
 const AXE_RULES = ['color-contrast', 'document-title', 'html-has-lang', 'label', 'button-name', 'link-name', 'image-alt'];
 const ONLY = (process.env.ADMIN_VISUAL_ONLY || '').split(',').filter(Boolean);
@@ -200,6 +201,8 @@ const PAGES = [
   { module: 'dashboard', key: 'dashboard', path: '/', determinism: true, widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-open', path: '/', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-data', path: DASH_DATA, prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  // First look: at 1280x800 and 1440x900 the whole priorities strip and the entire first KPI row are above the fold (measured, not estimated).
+  { module: 'dashboard', key: 'dashboard-fold', path: DASH_DATA, fold: true, widths: [1280, 1440] },
   { module: 'dashboard', key: 'dashboard-units', path: DASH_DATA, prepare: prepare.dashboardUnits, widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-error', path: '/?period=custom&date_from=2026-02-30&date_to=2026-03-01', widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-customer', path: '/', persona: 'customer', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
@@ -387,6 +390,23 @@ async function dashboardChecks(page, pg, width, theme) {
     return { missing: false, small, unlabeled, pressed, dates, clipped, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
   }, DASH_SCOPE);
   if (dom.missing) { out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['.a1-dash missing'] }); return out; }
+  if (pg.fold) {
+    const f = await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      const bottom = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().bottom) : null; };
+      const top = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; };
+      return { vh: window.innerHeight, scrollY: window.scrollY, headerBottom: bottom('.a1-header'),
+        strip: bottom('.a1-strip'), revenue: bottom('[data-dashboard-d1-kpi="revenue"]'), gross: bottom('[data-dashboard-d1-kpi="gross"]'),
+        net: bottom('[data-dashboard-d1-kpi="net"]'), netTop: top('[data-dashboard-d1-kpi="net"]'), sale: bottom('[data-dashboard-d1-kpi="sale"]') };
+    });
+    foldMetrics.push({ browser: browserName, width, theme, ...f });
+    console.log('FOLD ' + browserName + ' ' + width + 'x' + f.vh + ' ' + theme + ' ' + JSON.stringify(f));
+    const rowBottom = Math.max(f.revenue || 0, f.gross || 0, f.net || 0);
+    const missed = [];
+    if (f.strip === null || f.strip > f.vh) missed.push('priorities strip bottom ' + f.strip + ' > ' + f.vh);
+    if (!rowBottom || rowBottom > f.vh) missed.push('first KPI row bottom ' + rowBottom + ' > ' + f.vh);
+    if (missed.length) out.push({ ...base, rule: 'above-the-fold', count: missed.length, selectors: missed });
+  }
   if (dom.small.length) out.push({ ...base, rule: 'small-target', count: dom.small.length, selectors: dom.small.slice(0, 3) });
   if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
   if (dom.dates.length) out.push({ ...base, rule: 'control-height', count: dom.dates.length, selectors: dom.dates.slice(0, 3) });
@@ -581,7 +601,7 @@ async function runCell(ctx, pg, width, theme) {
   const out = {
     browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...AXE_RULES, 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
-    infra_failures: infra, selfTests, cells, determinism, findings,
+    infra_failures: infra, selfTests, foldMetrics, cells, determinism, findings,
   };
   fs.writeFileSync(path.join(artifactDir, `admin-visual-baseline-${browserName}.json`), JSON.stringify(out, null, 1));
   console.log(`ADMIN_VISUAL ${browserName}: cells=${cells.length} findings=${findings.length} infra=${infra.length} minutes=${((Date.now() - started) / 60000).toFixed(1)}`);

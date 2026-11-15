@@ -61,16 +61,49 @@
 
 {{-- BUILD16_HOME_REDESIGN_BATCH125 (module 2: Kobalt components) --}}
 <div class="a1-dash" data-build16-home-redesign="1">
-<section class="a1-card a1-hero" data-universal-dashboard-ready="1" aria-labelledby="dash-title">
+<section class="a1-card a1-hero{{ $isSuper ? ' a1-hero--split' : '' }}" data-universal-dashboard-ready="1" @if($isSuper) data-dashboard-command-row data-dashboard-period="{{ $dashboardPeriod['period'] }}" @endif aria-labelledby="dash-title">
     <div class="a1-hero__text">
-        <span class="a1-eyebrow">Ald1n CMS · {{ now()->translatedFormat('l, d. F Y.') }}</span>
-        <h1 class="a1-title" id="dash-title">Dobro došli, {{ $user->displayName() }}</h1>
+        <div class="a1-hero__head">
+            <div class="a1-hero__title">
+                <span class="a1-eyebrow">Ald1n CMS · {{ now()->translatedFormat('l, d. F Y.') }}</span>
+                <h1 class="a1-title" id="dash-title">Dobro došli, {{ $user->displayName() }}</h1>
+            </div>
+            @if($customerFocused)
+                <div class="a1-profile">
+                    <span class="a1-user__avatar" aria-hidden="true">{{ $user->displayInitial() }}</span>
+                    <div class="a1-profile__text">
+                        <strong>{{ $user->displayName() }}</strong>
+                        <span>{{ $user->email }}</span>
+                        <span>{{ $user->roleName() }}</span>
+                    </div>
+                </div>
+            @elseif($access['manage_settings'])
+                <button type="button" class="a1-ratecard a1-ratecard--chip a1-ratecard--action" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" title="Klikni za sinhronizaciju EUR/RSD kursa">
+                    <span class="a1-ratecard__icon"><x-icon name="coins" :size="20" :shell="true" /></span>
+                    <span class="a1-ratecard__body">
+                        <span class="a1-ratecard__label" data-exchange-rate-dashboard-label>Aktuelni EUR/RSD kurs</span>
+                        <span class="a1-ratecard__value" data-exchange-rate-value data-exchange-rate-decimals="2">{{ $eurRsdRate ? number_format((float) $eurRsdRate, 2, ',', '.') : 'Nije podešen' }}</span>
+                        <span class="a1-ratecard__source" data-exchange-rate-source>{{ $eurRsdSource }}</span>
+                    </span>
+                </button>
+            @else
+                <div class="a1-ratecard a1-ratecard--chip">
+                    <span class="a1-ratecard__icon"><x-icon name="coins" :size="20" :shell="true" /></span>
+                    <span class="a1-ratecard__body">
+                        <span class="a1-ratecard__label" data-exchange-rate-dashboard-label>Aktuelni EUR/RSD kurs</span>
+                        <span class="a1-ratecard__value" data-exchange-rate-value data-exchange-rate-decimals="2">{{ $eurRsdRate ? number_format((float) $eurRsdRate, 2, ',', '.') : 'Nije podešen' }}</span>
+                        <span class="a1-ratecard__source" data-exchange-rate-source>{{ $eurRsdSource }}</span>
+                    </span>
+                </div>
+            @endif
+        </div>
+        {{-- "Dodaj artikal", "Izveštaji" and the main sale action live once in "Brze akcije" or here, never in both. --}}
         <div class="a1-hero__actions">
             @if($isSuper)
-                <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('catalog.index') }}"><x-icon name="plus-circle" :size="20" :shell="true" /> Direktna prodaja</a>
+                <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('catalog.index') }}" title="Izaberi artikal i evidentiraj prodaju"><x-icon name="plus-circle" :size="20" :shell="true" /> Direktna prodaja</a>
             @else
                 @can('orders.create')
-                    <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('orders.create') }}"><x-icon name="plus-circle" :size="20" :shell="true" /> Nova porudžbina</a>
+                    <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('orders.create') }}" title="Kreiraj i rezerviši lager"><x-icon name="plus-circle" :size="20" :shell="true" /> Nova porudžbina</a>
                 @endcan
             @endif
             @can('catalog.view')
@@ -84,99 +117,56 @@
                     @endif
                 </a>
             @endif
-            @can('catalog.manage_products')
-                <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.create') }}"><x-icon name="cube" :size="20" :shell="true" /> Dodaj artikal</a>
-            @endcan
             @if($isSuper && (int) ($inventoryValuation['missing_cost_total_items'] ?? 0) > 0)
                 <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.purchase-costs') }}"><x-icon name="money" :size="20" :shell="true" /> Nabavne cene ({{ (int) $inventoryValuation['missing_cost_total_items'] }})</a>
             @endif
-            @can('reports.view')
-                <a class="a1-btn a1-btn--sm" href="{{ route('admin.reports.index') }}"><x-icon name="chart" :size="20" :shell="true" /> Izveštaji</a>
-            @endcan
             <a class="a1-btn a1-btn--sm" href="{{ route('account.show') }}"><x-icon name="settings" :size="20" :shell="true" /> Moj nalog</a>
         </div>
     </div>
-
-    @if($customerFocused)
-        <div class="a1-profile">
-            <span class="a1-user__avatar" aria-hidden="true">{{ $user->displayInitial() }}</span>
-            <div class="a1-profile__text">
-                <strong>{{ $user->displayName() }}</strong>
-                <span>{{ $user->email }}</span>
-                <span>{{ $user->roleName() }}</span>
+    @if($isSuper)
+    <div class="a1-hero__side" role="group" aria-labelledby="dash-period-title">
+        <div class="a1-hero__period"><span class="a1-eyebrow">Poslovni pregled</span><h2 class="a1-h3" id="dash-period-title">Izaberite vremenski period</h2></div>
+        <form class="a1-seg-form" method="get" action="{{ url('/') }}">
+            <div class="a1-seg" role="group" aria-label="Brzi izbor perioda">
+                @foreach($periodChoices as $periodKey => $periodLabel)
+                    <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}"@if($dashboardPeriod['period'] === $periodKey) aria-current="true"@endif @if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
+                @endforeach
             </div>
-        </div>
-    @elseif($access['manage_settings'])
-        <button type="button" class="a1-ratecard a1-ratecard--action" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" title="Klikni za sinhronizaciju EUR/RSD kursa">
-            <span class="a1-ratecard__icon"><x-icon name="coins" :size="24" :shell="true" /></span>
-            <span class="a1-ratecard__body">
-                <span class="a1-ratecard__label" data-exchange-rate-dashboard-label>Aktuelni EUR/RSD kurs</span>
-                <span class="a1-ratecard__value" data-exchange-rate-value data-exchange-rate-decimals="2">{{ $eurRsdRate ? number_format((float) $eurRsdRate, 2, ',', '.') : 'Nije podešen' }}</span>
-                <span class="a1-ratecard__source" data-exchange-rate-source>{{ $eurRsdSource }}</span>
-            </span>
-        </button>
-    @else
-        <div class="a1-ratecard">
-            <span class="a1-ratecard__icon"><x-icon name="coins" :size="24" :shell="true" /></span>
-            <span class="a1-ratecard__body">
-                <span class="a1-ratecard__label" data-exchange-rate-dashboard-label>Aktuelni EUR/RSD kurs</span>
-                <span class="a1-ratecard__value" data-exchange-rate-value data-exchange-rate-decimals="2">{{ $eurRsdRate ? number_format((float) $eurRsdRate, 2, ',', '.') : 'Nije podešen' }}</span>
-                <span class="a1-ratecard__source" data-exchange-rate-source>{{ $eurRsdSource }}</span>
-            </span>
-        </div>
+        </form>
+        @if($dashboardPeriod['error'] === null)
+            <p class="a1-text" data-dashboard-period-label><b>Prikaz za period {{ $reportStats['period_label'] }} · Završene porudžbine</b></p>
+        @endif
+        <details class="a1-acc" @if($dashboardPeriod['period'] === 'custom') open @endif>
+            <summary>Prilagođeno · Odabir iz kalendara</summary>
+            <div class="a1-acc__body">
+                <form method="get" action="{{ url('/') }}" class="a1-form">
+                    <input type="hidden" name="period" value="custom">
+                    <div class="a1-row">
+                        <div class="a1-field">
+                            <label class="a1-label" for="dash-date-from">Datum od</label>
+                            <input class="a1-input" type="date" id="dash-date-from" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}">
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="dash-date-to">Datum do</label>
+                            <input class="a1-input" type="date" id="dash-date-to" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}">
+                        </div>
+                    </div>
+                    <div><button type="submit" class="a1-btn a1-btn--primary">Primeni period</button></div>
+                </form>
+            </div>
+        </details>
+        @if($dashboardPeriod['error'] !== null)
+            <div class="a1-alert a1-alert--danger" data-dashboard-period-error role="alert"><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $dashboardPeriod['error'] }}</p></div></div>
+        @endif
+    </div>
     @endif
 </section>
+
+@if($isSuper && $hasBusinessDashboard)
+@include('dashboard.partials.priorities', ['strip' => true])
+@endif
 
 @if($isSuper)
-<div class="a1-g12">
-<section class="a1-card a1-lg-5" data-dashboard-command-row data-dashboard-period="{{ $dashboardPeriod['period'] }}" aria-labelledby="dash-period-title">
-    <div class="a1-period">
-        <div class="a1-card__title">
-            <span class="a1-eyebrow">Poslovni pregled</span>
-            <h2 class="a1-h2" id="dash-period-title">Izaberite vremenski period</h2>
-            <p class="a1-text">Finansijski pokazatelji i grafikon prate izabrane datume. Lager i potraživanja prikazuju trenutno stanje.</p>
-            @if($dashboardPeriod['error'] === null)
-                <p class="a1-text" data-dashboard-period-label><b>Prikaz za period {{ $reportStats['period_label'] }} · Završene porudžbine</b></p>
-            @endif
-        </div>
-        <div class="a1-period__side">
-            <form class="a1-seg-form" method="get" action="{{ url('/') }}">
-                <div class="a1-seg" role="group" aria-label="Brzi izbor perioda">
-                    @foreach($periodChoices as $periodKey => $periodLabel)
-                        <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}"@if($dashboardPeriod['period'] === $periodKey) aria-current="true"@endif @if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
-                    @endforeach
-                </div>
-            </form>
-            <details class="a1-acc" @if($dashboardPeriod['period'] === 'custom') open @endif>
-                <summary>Prilagođeno · Odabir iz kalendara</summary>
-                <div class="a1-acc__body">
-                    <form method="get" action="{{ url('/') }}" class="a1-form">
-                        <input type="hidden" name="period" value="custom">
-                        <div class="a1-row">
-                            <div class="a1-field">
-                                <label class="a1-label" for="dash-date-from">Datum od</label>
-                                <input class="a1-input" type="date" id="dash-date-from" name="date_from" required value="{{ $dashboardPeriod['date_from'] }}">
-                            </div>
-                            <div class="a1-field">
-                                <label class="a1-label" for="dash-date-to">Datum do</label>
-                                <input class="a1-input" type="date" id="dash-date-to" name="date_to" required value="{{ $dashboardPeriod['date_to'] }}">
-                            </div>
-                        </div>
-                        <div><button type="submit" class="a1-btn a1-btn--primary">Primeni period</button></div>
-                    </form>
-                </div>
-            </details>
-        </div>
-    </div>
-    @if($dashboardPeriod['error'] !== null)
-        <div class="a1-alert a1-alert--danger" data-dashboard-period-error role="alert"><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $dashboardPeriod['error'] }}</p></div></div>
-    @endif
-</section>
-@if($hasBusinessDashboard)
-@include('dashboard.partials.priorities', ['span' => 'a1-lg-7', 'duo' => true])
-@endif
-</div>
-
 <section class="a1-kpis" data-dashboard-d1-grid aria-label="Šest glavnih poslovnih pokazatelja">
     <a data-dashboard-d1-kpi="revenue" class="a1-kpi a1-kpi--link" href="{{ route('admin.reports.index') }}">
         <span class="a1-kpi__label">Prihod</span>
@@ -212,6 +202,7 @@
         <span class="a1-kpi__note">Stanje sada @if(is_array($inventoryValuation) && (int) ($inventoryValuation['missing_sale_value_items'] ?? 0) > 0) · {{ (int) $inventoryValuation['missing_sale_value_items'] }} bez prodajne cene ili kursa @endif</span>
     </a>
 </section>
+<p class="a1-text">Finansijski pokazatelji i grafikon prate izabrane datume. Lager i potraživanja prikazuju trenutno stanje.</p>
 @else
 <section class="a1-kpis a1-kpis--4" aria-label="Glavni pokazatelji">
     @if($customerFocused)
@@ -372,11 +363,6 @@
     <section class="a1-card" aria-labelledby="dash-actions-title">
         <div class="a1-card__head"><div class="a1-card__title"><span class="a1-eyebrow">Radni tokovi</span><h2 class="a1-h2" id="dash-actions-title">Brze akcije</h2></div></div>
         <div class="a1-tiles">
-            @if($isSuper)
-                <a class="a1-tile" href="{{ route('catalog.index') }}"><span class="a1-item__icon"><x-icon name="plus-circle" :size="20" :shell="true" /></span><span class="a1-item__title">Direktna prodaja</span><span class="a1-item__sub">Izaberi artikal i evidentiraj prodaju</span></a>
-            @else
-                @can('orders.create')<a class="a1-tile" href="{{ route('orders.create') }}"><span class="a1-item__icon"><x-icon name="plus-circle" :size="20" :shell="true" /></span><span class="a1-item__title">Nova porudžbina</span><span class="a1-item__sub">Kreiraj i rezerviši lager</span></a>@endcan
-            @endif
             @can('catalog.manage_products')<a class="a1-tile" href="{{ route('admin.products.create') }}"><span class="a1-item__icon"><x-icon name="cube" :size="20" :shell="true" /></span><span class="a1-item__title">Dodaj artikal</span><span class="a1-item__sub">Novi proizvod ili konfiguracija</span></a>@endcan
             @can('catalog.manage_products')<a class="a1-tile" href="{{ route('admin.products.bulk') }}"><span class="a1-item__icon a1-item__icon--warning"><x-icon name="sliders" :size="20" :shell="true" /></span><span class="a1-item__title">Bulk izmena</span><span class="a1-item__sub">Masovna promena kataloga</span></a>@endcan
             @can('receivables.manage')<a class="a1-tile" href="{{ route('admin.receivables.index') }}"><span class="a1-item__icon a1-item__icon--danger"><x-icon name="wallet" :size="20" :shell="true" /></span><span class="a1-item__title">Potraživanja</span><span class="a1-item__sub">Aging i planovi otplate</span></a>@endcan
