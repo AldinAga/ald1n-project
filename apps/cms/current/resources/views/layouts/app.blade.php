@@ -252,20 +252,25 @@
                     <li>
                         <details class="a1-nav-dd">
                             <summary class="a1-nav__link{{ request()->routeIs('admin.settings.*','admin.dictionary.*','admin.warranties.index','admin.field-service-teams.*','admin.service-part-suppliers.*','admin.user-groups.*') ? ' a1-nav__link--active' : '' }}">Podešavanja</summary>
-                            <div class="a1-nav-dd__panel">
-                                <span class="a1-nav-dd__label">Centar</span>
+                            <div class="a1-nav-dd__panel a1-nav-dd__panel--cols">
+                                <div class="a1-nav-dd__group" role="group" aria-labelledby="a1ddSetCenter">
+                                <span class="a1-nav-dd__label" id="a1ddSetCenter">Centar</span>
                                 {{ $navItem(route('admin.settings.index'), 'Sva podešavanja') }}
+                                </div>
 
                                 @can('system.manage_settings')
-                                <span class="a1-nav-dd__label">Poslovanje</span>
+                                <div class="a1-nav-dd__group" role="group" aria-labelledby="a1ddSetBiz">
+                                <span class="a1-nav-dd__label" id="a1ddSetBiz">Poslovanje</span>
                                 {{ $navItem(route('admin.settings.exchange.index'), 'EUR/RSD kurs') }}
                                 {{ $navItem(route('admin.settings.bank-accounts.index'), 'Žiro računi') }}
                                 @if($headerUser?->hasRole('superadmin')){{ $navItem(route('admin.settings.couriers.index'), 'Kurirske službe') }}@endif
                                 @if($headerUser?->hasRole('superadmin')){{ $navItem(route('admin.settings.public-storefront.index'), 'Javna prodavnica', 'data-nav-public-storefront') }}@endif
+                                </div>
                                 @endcan
 
                                 @canany(['catalog.manage_taxonomy','warranties.manage','field_operations.manage','service_parts.procurement'])
-                                <span class="a1-nav-dd__label">Pravila i šifarnici</span>
+                                <div class="a1-nav-dd__group" role="group" aria-labelledby="a1ddSetRules">
+                                <span class="a1-nav-dd__label" id="a1ddSetRules">Pravila i šifarnici</span>
                                 @can('catalog.manage_taxonomy'){{ $navItem(route('admin.dictionary.index','categories'), 'Šifarnici kataloga') }}@endcan
                                 @if($moduleVisibility->enabled('warranties'))
                                     @can('warranties.manage'){{ $navItem(route('admin.warranties.index'), 'Garancijska pravila') }}@endcan
@@ -276,10 +281,12 @@
                                 @if($moduleVisibility->enabled('service_parts'))
                                     @can('service_parts.procurement'){{ $navItem(route('admin.service-part-suppliers.index'), 'Dobavljači delova') }}@endcan
                                 @endif
+                                </div>
                                 @endcanany
 
                                 @can('system.manage_settings')
-                                <span class="a1-nav-dd__label">Komunikacija i izgled</span>
+                                <div class="a1-nav-dd__group" role="group" aria-labelledby="a1ddSetComm">
+                                <span class="a1-nav-dd__label" id="a1ddSetComm">Komunikacija i izgled</span>
                                 {{ $navItem(route('admin.settings.documents.index'), 'PDF i fakturisanje') }}
                                 @if(request()->user()?->hasRole('superadmin')){{ $navItem(route('admin.settings.modules.index'), 'Moduli') }}@endif
                                 {{ $navItem(route('admin.settings.order-emails.index'), 'E-mail obaveštenja') }}
@@ -292,11 +299,14 @@
                                 @if($moduleVisibility->enabled('system_health'))
                                     @can('system.health'){{ $navItem(route('admin.settings.system-health.index'), 'System Health') }}@endcan
                                 @endif
+                                </div>
                                 @endcan
 
                                 @can('system.manage_users')
-                                <span class="a1-nav-dd__label">Pristup</span>
+                                <div class="a1-nav-dd__group" role="group" aria-labelledby="a1ddSetAccess">
+                                <span class="a1-nav-dd__label" id="a1ddSetAccess">Pristup</span>
                                 {{ $navItem(route('admin.user-groups.index'), 'Grupe pristupa') }}
+                                </div>
                                 @endcan
                             </div>
                         </details>
