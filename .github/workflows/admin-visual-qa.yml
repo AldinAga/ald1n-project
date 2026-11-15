@@ -1,9 +1,10 @@
 # Admin visual QA harness and baseline (NO DEPLOY). Author: Ald1n <https://ald1n.com>
 # Renders the real admin pages of every module in disposable Chromium and WebKit at
-# 375/430/768/1280, light and dark, against synthetic data on disposable MariaDB.
+# 375/430/768/1280 (shell/dashboard also 360 and 1200, orders 360 to 1440), light and dark,
+# against synthetic data on disposable MariaDB.
 # Records contrast / overflow / structural violations as admin-visual-baseline.json
 # (never fails on them) and fails only on infrastructure problems. Strict mode:
-# set ADMIN_VISUAL_STRICT=1 or ADMIN_VISUAL_STRICT_MODULES=orders,reports in this job's env.
+# set ADMIN_VISUAL_STRICT=1 or ADMIN_VISUAL_STRICT_MODULES=shell,dashboard,orders in this job's env (now: shell, dashboard, orders).
 name: Admin visual QA (NO DEPLOY)
 on:
   pull_request:
@@ -73,9 +74,10 @@ jobs:
       PHP_CLI_SERVER_WORKERS: '4'
       ADMIN_VISUAL_CI: '1'
       ADMIN_VISUAL_BASE_URL: http://127.0.0.1:8125
-      # Strict switches. Redesigned modules are listed here (module 1: admin shell, module 2: dashboard).
+      # Strict switches. Redesigned modules are listed here (module 1: admin shell, module 2: dashboard,
+      # module 3: orders incl. the customer order pages, after-sales, field operations and service parts).
       # ADMIN_VISUAL_STRICT: '1'
-      ADMIN_VISUAL_STRICT_MODULES: 'shell,dashboard'
+      ADMIN_VISUAL_STRICT_MODULES: 'shell,dashboard,orders'
     steps:
       - name: Checkout exact source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
