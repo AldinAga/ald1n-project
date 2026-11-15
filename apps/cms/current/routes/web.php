@@ -493,7 +493,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/reports/payments.csv', [ReportController::class, 'paymentsCsv'])->middleware(['permission:reports.export','throttle:exports'])->name('reports.payments.csv');
             Route::get('/reports/inventory.csv', [ReportController::class, 'inventoryCsv'])->middleware(['permission:inventory.export','throttle:exports'])->name('reports.inventory.csv');
         });
-        Route::middleware('permission:reports.subagent_sales')->group(function (): void {
+        Route::middleware('permission:reports.view')->group(function (): void {
             Route::get('/reports/subagents', [SubagentSalesReportController::class, 'index'])->name('reports.subagents');
             Route::get('/reports/subagents.csv', [SubagentSalesReportController::class, 'csv'])->middleware(['permission:reports.export', 'throttle:exports'])->name('reports.subagents.csv');
         });

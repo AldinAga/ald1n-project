@@ -64,8 +64,7 @@ final class SubagentSalesReportService
         'unpaid' => ['label' => 'Neplaćeno', 'states' => ['unpaid']],
     ];
 
-    public const SORTS = ['label', 'orders', 'units', 'revenue', 'commission', 'paid', 'unpaid', 'avg', 'share'];
-    public const COST_SORTS = ['gross', 'margin', 'net'];
+    public const SORTS = ['label', 'orders', 'units', 'revenue', 'gross', 'margin', 'commission', 'paid', 'unpaid', 'net', 'avg', 'share'];
 
     public const MIN_DATE = '2000-01-01';
     public const MAX_SPAN_DAYS = 1100;
@@ -85,12 +84,6 @@ final class SubagentSalesReportService
         .', COALESCE(SUM(comm_unpaid),0) AS commission_unpaid';
 
     public function __construct(private readonly ManagementReportService $management) {}
-
-    /** Purchase-cost derived columns (zarada, marža, neto) are for the operators only. */
-    public function canSeeCost(User $user): bool
-    {
-        return $user->hasRole('admin', 'superadmin');
-    }
 
     /** @return list<string> */
     public function readinessIssues(): array
@@ -138,10 +131,10 @@ final class SubagentSalesReportService
      * @param array<string,mixed> $input
      * @return list<string>
      */
-    public function neededLists(User $user, array $input): array
+    public function neededLists(array $input): array
     {
         $needed = [];
-        if ($this->canSeeCost($user) && (!empty($input['subagents']) || !empty($input['drill']))) {
+        if (!empty($input['subagents']) || !empty($input['drill'])) {
             $needed[] = 'subagents';
         }
         foreach (['brands', 'types'] as $key) {
@@ -151,12 +144,6 @@ final class SubagentSalesReportService
         }
 
         return $needed;
-    }
-
-    /** All lists the page form shows for this actor. @return list<string> */
-    public function formLists(User $user): array
-    {
-        return $this->canSeeCost($user) ? ['subagents', 'brands', 'types'] : ['brands', 'types'];
     }
 
     /**
@@ -208,20 +195,14 @@ final class SubagentSalesReportService
      * @param array<string,mixed> $input
      * @param array{subagents:array<int,string>,brands:list<string>,types:list<string>} $options
      */
-    public function validator(User $user, array $input, array $options): ValidatorContract
+    public function validator(array $input, array $options): ValidatorContract
     {
-        $cost = $this->canSeeCost($user);
-        if (!$cost) {
-            // A subagent only ever sees their own row: no id-based narrowing, no cost-only toggle.
-            unset($input['subagents'], $input['drill'], $input['cost_only']);
-        }
-
         $rules = [
             'period' => ['nullable', Rule::in(array_keys(self::PERIODS))],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d'],
             'group' => ['nullable', Rule::in(array_keys(self::GROUPS))],
-            'sort' => ['nullable', Rule::in($cost ? array_merge(self::SORTS, self::COST_SORTS) : self::SORTS)],
+            'sort' => ['nullable', Rule::in(self::SORTS)],
             'dir' => ['nullable', Rule::in(['asc', 'desc'])],
             'scope' => ['nullable', Rule::in(array_keys(self::SCOPES))],
             'subagents' => ['nullable', 'array', 'max:500'],
@@ -294,9 +275,8 @@ final class SubagentSalesReportService
      * @param array<string,mixed> $validated output of validator()->validated()
      * @return array<string,mixed>
      */
-    public function filters(User $user, array $validated): array
+    public function filters(array $validated): array
     {
-        $cost = $this->canSeeCost($user);
         $period = (string) ($validated['period'] ?? '');
         if ($period === '') {
             $period = (($validated['date_from'] ?? '') !== '' || ($validated['date_to'] ?? '') !== '') ? 'custom' : 'month';
@@ -315,7 +295,7 @@ final class SubagentSalesReportService
         if ($dir === '') {
             $dir = $sort === 'label' ? 'asc' : 'desc';
         }
-        $drill = $cost ? (int) ($validated['drill'] ?? 0) : 0;
+        $drill = (int) ($validated['drill'] ?? 0);
 
         return [
             'period' => $period,
@@ -325,13 +305,13 @@ final class SubagentSalesReportService
             'sort' => $sort,
             'dir' => $dir,
             'scope' => (string) ($validated['scope'] ?? 'completed'),
-            'subagents' => $cost ? array_values(array_unique(array_map('intval', (array) ($validated['subagents'] ?? [])))) : [],
+            'subagents' => array_values(array_unique(array_map('intval', (array) ($validated['subagents'] ?? [])))),
             'brands' => array_values(array_unique(array_map('strval', (array) ($validated['brands'] ?? [])))),
             'types' => array_values(array_unique(array_map('strval', (array) ($validated['types'] ?? [])))),
             'payment' => array_values(array_unique(array_map('strval', (array) ($validated['payment'] ?? [])))),
             'channel' => (string) ($validated['channel'] ?? ''),
             'customer' => trim((string) ($validated['customer'] ?? '')),
-            'cost_only' => $cost && !empty($validated['cost_only']),
+            'cost_only' => !empty($validated['cost_only']),
             'compare' => !empty($validated['compare']),
             'drill' => $drill,
             'page' => max(1, (int) ($validated['page'] ?? 1)),
@@ -343,9 +323,9 @@ final class SubagentSalesReportService
      *
      * @return array<string,mixed>
      */
-    public function defaults(User $user): array
+    public function defaults(): array
     {
-        return $this->filters($user, []);
+        return $this->filters([]);
     }
 
     /**
@@ -391,11 +371,10 @@ final class SubagentSalesReportService
      */
     public function build(User $user, array $f, bool $export = false): array
     {
-        $cost = $this->canSeeCost($user);
         $group = (string) $f['group'];
 
         $totalsRaw = $this->aggregate($this->inner($user, $f, $f['date_from'], $f['date_to']), [])->first();
-        $totals = $this->present($totalsRaw, (float) $totalsRaw->revenue, $cost);
+        $totals = $this->present($totalsRaw, (float) $totalsRaw->revenue);
 
         // The page shows the ROW_LIMIT largest groups; the CSV export has no cap so its rows add up to "Ukupno".
         $groupRaw = $this->groupRows($user, $f, $group, $export ? null : self::ROW_LIMIT + 1);
@@ -406,7 +385,7 @@ final class SubagentSalesReportService
         $labels = $this->subagentLabels($groupRaw);
         $rows = [];
         foreach ($groupRaw as $raw) {
-            $rows[] = $this->groupRow($raw, $group, $labels, (float) $totalsRaw->revenue, $cost);
+            $rows[] = $this->groupRow($raw, $labels, (float) $totalsRaw->revenue);
         }
         $rows = $this->sortRows($rows, (string) $f['sort'], (string) $f['dir']);
 
@@ -419,27 +398,24 @@ final class SubagentSalesReportService
             $prevFrom = $prevTo->subDays($days - 1);
             $previousPeriod = [$prevFrom->format('Y-m-d'), $prevTo->format('Y-m-d')];
             $prevRaw = $this->aggregate($this->inner($user, $f, $previousPeriod[0], $previousPeriod[1]), [])->first();
-            $previous = $this->present($prevRaw, (float) $prevRaw->revenue, $cost);
+            $previous = $this->present($prevRaw, (float) $prevRaw->revenue);
             $deltas = [];
-            foreach (array_merge(['orders', 'revenue', 'commission', 'avg'], $cost ? ['gross', 'net'] : []) as $key) {
+            foreach (['orders', 'revenue', 'commission', 'avg', 'gross', 'net'] as $key) {
                 $deltas[$key] = $this->delta((float) $totals[$key], (float) $previous[$key]);
             }
         }
 
-        $excluded = null;
-        if ($cost) {
-            if ($f['cost_only']) {
-                $missing = $this->aggregate($this->inner($user, $f, $f['date_from'], $f['date_to'], 'missing'), [])->first();
-                $excluded = ['lines' => (int) $missing->missing_lines, 'revenue' => round((float) $missing->missing_revenue, 2), 'removed' => true];
-            } else {
-                $excluded = ['lines' => (int) $totals['missing_lines'], 'revenue' => (float) $totals['missing_revenue'], 'removed' => false];
-            }
+        if ($f['cost_only']) {
+            $missing = $this->aggregate($this->inner($user, $f, $f['date_from'], $f['date_to'], 'missing'), [])->first();
+            $excluded = ['lines' => (int) $missing->missing_lines, 'revenue' => round((float) $missing->missing_revenue, 2), 'removed' => true];
+        } else {
+            $excluded = ['lines' => (int) $totals['missing_lines'], 'revenue' => (float) $totals['missing_revenue'], 'removed' => false];
         }
 
         $orders = null;
         $drillLabel = null;
         if ((int) $f['drill'] > 0) {
-            $orders = $export ? null : $this->drillOrders($user, $f, $cost);
+            $orders = $export ? null : $this->drillOrders($user, $f);
             $drillLabel = $this->subagentLabels([(object) ['grp_sub' => (int) $f['drill']]])[(int) $f['drill']] ?? ('Subagent #'.(int) $f['drill']);
         }
 
@@ -452,12 +428,11 @@ final class SubagentSalesReportService
             'previous_period' => $previousPeriod,
             'deltas' => $deltas,
             'excluded' => $excluded,
-            'chart' => $this->chart($rows, $group, $cost),
+            'chart' => $this->chart($rows, $group),
             'truncated' => $truncated,
             'orders' => $orders,
             'drill_label' => $drillLabel,
             'period_label' => CarbonImmutable::parse($f['date_from'])->format('d.m.Y').' – '.CarbonImmutable::parse($f['date_to'])->format('d.m.Y'),
-            'cost' => $cost,
         ];
     }
 
@@ -470,7 +445,6 @@ final class SubagentSalesReportService
      */
     public function csvTable(array $report): array
     {
-        $cost = (bool) $report['cost'];
         $group = (string) $report['group'];
         $labelHeader = match ($group) {
             'brand' => ['Brend'],
@@ -478,22 +452,15 @@ final class SubagentSalesReportService
             'month' => ['Mesec'],
             default => ['Subagent'],
         };
-        $header = array_merge($labelHeader, ['Porudžbina', 'Komada', 'Promet RSD'], $cost ? ['Zarada RSD', 'Marža %'] : [],
-            ['Provizija RSD', 'Provizija isplaćena RSD', 'Provizija neisplaćena RSD'], $cost ? ['Neto posle provizije RSD'] : [],
-            ['Prosečna porudžbina RSD', 'Udeo u prometu %']);
+        $header = array_merge($labelHeader, ['Porudžbina', 'Komada', 'Promet RSD', 'Zarada RSD', 'Marža %',
+            'Provizija RSD', 'Provizija isplaćena RSD', 'Provizija neisplaćena RSD', 'Neto posle provizije RSD',
+            'Prosečna porudžbina RSD', 'Udeo u prometu %']);
 
-        $line = function (array $labels, array $r) use ($cost): array {
+        $line = function (array $labels, array $r): array {
             $n = static fn (mixed $v): string => number_format((float) $v, 2, '.', '');
             $out = array_map(fn (string $text): string => $this->csvText($text), $labels);
-            array_push($out, (int) $r['orders'], (int) $r['units'], $n($r['revenue']));
-            if ($cost) {
-                array_push($out, $n($r['gross']), $n($r['margin']));
-            }
-            array_push($out, $n($r['commission']), $n($r['paid']), $n($r['unpaid']));
-            if ($cost) {
-                $out[] = $n($r['net']);
-            }
-            array_push($out, $n($r['avg']), $n($r['share']));
+            array_push($out, (int) $r['orders'], (int) $r['units'], $n($r['revenue']), $n($r['gross']), $n($r['margin']),
+                $n($r['commission']), $n($r['paid']), $n($r['unpaid']), $n($r['net']), $n($r['avg']), $n($r['share']));
 
             return $out;
         };
@@ -645,9 +612,9 @@ final class SubagentSalesReportService
      * @param array<int,string> $labels
      * @return array<string,mixed>
      */
-    private function groupRow(object $raw, string $group, array $labels, float $totalRevenue, bool $cost): array
+    private function groupRow(object $raw, array $labels, float $totalRevenue): array
     {
-        $row = $this->present($raw, $totalRevenue, $cost);
+        $row = $this->present($raw, $totalRevenue);
         $sub = isset($raw->grp_sub) ? (int) $raw->grp_sub : null;
         $brand = isset($raw->grp_brand) ? (string) $raw->grp_brand : null;
         $month = isset($raw->grp_month) ? (string) $raw->grp_month : null;
@@ -671,40 +638,31 @@ final class SubagentSalesReportService
     }
 
     /** @return array<string,mixed> */
-    private function present(object $raw, float $totalRevenue, bool $cost): array
+    private function present(object $raw, float $totalRevenue): array
     {
         $revenue = (float) $raw->revenue;
         $orders = (int) $raw->orders_count;
         $commission = (float) $raw->commission;
-        $out = [
+        $missing = (float) $raw->missing_revenue;
+        $known = max(0.0, $revenue - $missing);
+        $gross = $known - (float) $raw->cogs;
+
+        return [
             'orders' => $orders,
             'units' => (int) $raw->units_count,
             'revenue' => round($revenue, 2),
+            'cogs' => round((float) $raw->cogs, 2),
+            'gross' => round($gross, 2),
+            'margin' => $known > 0 ? round($gross / $known * 100, 2) : 0.0,
             'commission' => round($commission, 2),
             'paid' => round((float) $raw->commission_paid, 2),
             'unpaid' => round((float) $raw->commission_unpaid, 2),
+            'net' => round($gross - $commission, 2),
             'avg' => $orders > 0 ? round($revenue / $orders, 2) : 0.0,
             'share' => $totalRevenue > 0 ? round($revenue / $totalRevenue * 100, 2) : 0.0,
-            'cogs' => null,
-            'gross' => null,
-            'margin' => null,
-            'net' => null,
-            'missing_lines' => 0,
-            'missing_revenue' => 0.0,
+            'missing_lines' => (int) $raw->missing_lines,
+            'missing_revenue' => round($missing, 2),
         ];
-        if ($cost) {
-            $missing = (float) $raw->missing_revenue;
-            $known = max(0.0, $revenue - $missing);
-            $gross = $known - (float) $raw->cogs;
-            $out['cogs'] = round((float) $raw->cogs, 2);
-            $out['gross'] = round($gross, 2);
-            $out['margin'] = $known > 0 ? round($gross / $known * 100, 2) : 0.0;
-            $out['net'] = round($gross - $commission, 2);
-            $out['missing_lines'] = (int) $raw->missing_lines;
-            $out['missing_revenue'] = round($missing, 2);
-        }
-
-        return $out;
     }
 
     /**
@@ -731,7 +689,7 @@ final class SubagentSalesReportService
      * @param list<array<string,mixed>> $rows
      * @return list<array<string,mixed>>
      */
-    private function chart(array $rows, string $group, bool $cost): array
+    private function chart(array $rows, string $group): array
     {
         if ($group === 'month') {
             // Chronological order first, whatever the table sort is; then the latest 24 months.
@@ -750,8 +708,8 @@ final class SubagentSalesReportService
             'label' => (string) $r['label'],
             'revenue' => $r['revenue'],
             'revenue_pct' => $pct($r['revenue']),
-            'gross' => $cost ? $r['gross'] : null,
-            'gross_pct' => $cost ? $pct($r['gross']) : 0,
+            'gross' => $r['gross'],
+            'gross_pct' => $pct($r['gross']),
             'commission' => $r['commission'],
             'commission_pct' => $pct($r['commission']),
         ], $selected);
@@ -772,7 +730,7 @@ final class SubagentSalesReportService
     }
 
     /** @param array<string,mixed> $f */
-    private function drillOrders(User $user, array $f, bool $cost): LengthAwarePaginator
+    private function drillOrders(User $user, array $f): LengthAwarePaginator
     {
         $perOrder = DB::query()->fromSub($this->inner($user, $f, $f['date_from'], $f['date_to']), 'sales_rows')
             ->select(['order_id'])
@@ -789,7 +747,7 @@ final class SubagentSalesReportService
             ->orderByDesc('ord.completed_at')->orderByDesc('ord.id')
             ->paginate(self::PER_PAGE, ['*'], 'page', (int) $f['page']);
 
-        $page->through(static function (object $o) use ($cost): array {
+        $page->through(static function (object $o): array {
             $revenue = (float) $o->revenue;
             $known = max(0.0, $revenue - (float) $o->missing_revenue);
             $date = $o->completed_at ?: $o->created_at;
@@ -803,7 +761,7 @@ final class SubagentSalesReportService
                 'payment_state' => (string) $o->payment_state,
                 'revenue' => round($revenue, 2),
                 'commission' => round((float) $o->commission, 2),
-                'gross' => $cost ? round($known - (float) $o->cogs, 2) : null,
+                'gross' => round($known - (float) $o->cogs, 2),
             ];
         });
 
