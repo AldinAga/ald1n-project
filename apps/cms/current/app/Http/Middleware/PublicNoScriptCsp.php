@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Support\PublicStorefrontAppearance;
+use Throwable;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,7 +58,7 @@ final class PublicNoScriptCsp
                 "script-src-attr 'none'; ".
                 "style-src 'self'; img-src 'self' data: https://challenges.cloudflare.com; ".
                 "font-src 'self' data:; connect-src 'self' https://challenges.cloudflare.com; ".
-                "frame-src https://challenges.cloudflare.com; worker-src 'none'; media-src 'none'");
+                "frame-src https://challenges.cloudflare.com".self::registrationVideoFrame()."; worker-src 'none'; media-src 'none'");
             // The storefront theme comes from the shop_theme cookie.
             $response->setVary('Cookie', false);
             self::clearStaleTheme($request, $response);
@@ -89,6 +90,21 @@ final class PublicNoScriptCsp
         self::clearStaleTheme($request, $response);
 
         return $response;
+    }
+
+    /**
+     * Registration only: the login background video (same youtube-nocookie
+     * embed login uses) needs exactly this one frame host, and only while the
+     * login background mode is a valid YouTube video. Nothing else gets it.
+     */
+    private static function registrationVideoFrame(): string
+    {
+        try {
+            return PublicStorefrontAppearance::loginBackground()['video'] !== null
+                ? ' https://www.youtube-nocookie.com' : '';
+        } catch (\Throwable) {
+            return '';
+        }
     }
 
     /** B1149: remove an unusable (e.g. old encrypted HttpOnly) theme cookie. */

@@ -31,8 +31,15 @@ foreach ($errors->messages() as $key => $messages) {
     }
 }
 @endphp
-<div class="reg-bg{{ $bg['url'] ? ' has-image' : '' }}" data-o="{{ $bg['overlay'] }}" data-b="{{ $bg['blur'] }}" aria-hidden="true">
-@if($bg['url'])<img class="reg-bg-img" src="{{ $bg['url'] }}" alt="" decoding="async">@endif
+<div class="reg-bg{{ ($bg['url'] || $bg['video']) ? ' has-image' : '' }}" data-o="{{ $bg['overlay'] }}" data-b="{{ $bg['blur'] }}" data-mobile-static="{{ $bg['mobileStatic'] ? '1' : '0' }}" aria-hidden="true">
+@if($bg['video'])
+@if($bg['fallback'])<img class="reg-bg-img reg-bg-poster" src="{{ $bg['fallback'] }}" alt="" decoding="async">@endif
+<div class="reg-bg-video"><iframe src="https://www.youtube-nocookie.com/embed/{{ $bg['video'] }}?autoplay=1&amp;mute=1&amp;controls=0&amp;loop=1&amp;playlist={{ $bg['video'] }}&amp;playsinline=1&amp;rel=0&amp;modestbranding=1" title="" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" tabindex="-1"></iframe></div>
+@elseif($bg['slides'])
+<div class="reg-slides" data-n="{{ count($bg['slides']) }}" data-t="{{ $bg['interval'] }}">
+@foreach($bg['slides'] as $slideIndex => $slideUrl)<img class="reg-bg-img reg-slide" data-i="{{ $slideIndex }}" src="{{ $slideUrl }}" alt="" decoding="async">@endforeach
+</div>
+@elseif($bg['url'])<img class="reg-bg-img" src="{{ $bg['url'] }}" alt="" decoding="async">@endif
 <div class="reg-bg-veil"></div>
 </div>
 <main id="content" class="reg-page">

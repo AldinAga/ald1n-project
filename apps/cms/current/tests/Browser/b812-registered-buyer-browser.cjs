@@ -79,14 +79,22 @@ function avoidInternalNumbers(text,label){
  */
 async function registrationQa(browser){
   const fields=['first_name','last_name','address','city','phone','email'];
+  for(const mode of ['default','image','slideshow','youtube']){
+  execFileSync('php',['tests/Browser/set-login-background.php',mode],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
   for(const theme of ['dark','light']){
     for(const width of [360,768,1280]){
       const ctx=await browser.newContext({viewport:{width,height:900}});
       try{
         await ctx.addCookies([{name:'shop_theme',value:theme,url:base}]);
         const page=await ctx.newPage();
-        const label='reg-'+theme+'-'+width;
-        await openOk(page,'/registracija',label);
+        const label='reg-'+mode+'-'+theme+'-'+width;
+        const nav=await openOk(page,'/registracija',label);
+        const csp=nav.headers()['content-security-policy']||'';
+        const frames=await page.locator('iframe').count();
+        const video='frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com';
+        if(mode==='youtube'){assert.equal(frames,1,label+' iframe');assert(csp.includes(video),label+' csp video host');const f=page.locator('iframe');assert.equal(await f.getAttribute('tabindex'),'-1');assert.equal(await f.getAttribute('title'),'');assert.match(await f.getAttribute('src'),/^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}\?autoplay=1&mute=1&controls=0&loop=1/);}else{assert.equal(frames,0,label+' no iframe');assert(!csp.includes('youtube'),label+' csp has no video host');}
+        if(mode==='image')assert.equal(await page.locator('img.reg-bg-img').count(),1);
+        if(mode==='slideshow')assert.equal(await page.locator('.reg-slides img').count(),2);
         assert.equal(await page.locator('html').getAttribute('data-theme'),theme,label+' theme');
         // Every field visible with a label; touch targets >= 44px.
         for(const name of fields){
@@ -128,10 +136,12 @@ async function registrationQa(browser){
         assert(worst[0]>=4.5,label+' contrast '+worst[0].toFixed(2)+' for "'+worst[1]+'"');
         const rail=await page.locator('a.shop-back-to-top').getAttribute('aria-label');
         assert.equal(rail,'Nazad na vrh stranice');
-        await page.screenshot({path:path.join(dir,'b812-registration-qa-'+theme+'-'+width+'.png'),fullPage:true,animations:'disabled'});
+        await page.screenshot({path:path.join(dir,'b812-registration-qa-'+mode+'-'+theme+'-'+width+'.png'),fullPage:true,animations:'disabled'});
       }finally{await ctx.close();}
     }
   }
+  }
+  execFileSync('php',['tests/Browser/set-login-background.php','default'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
   // Focus order and the error state (server validation, native checks off).
   const ctx=await browser.newContext({viewport:{width:1280,height:900}});
   try{

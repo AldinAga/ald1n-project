@@ -199,6 +199,88 @@ final class PublicRegistrationPageRedesignTest extends TestCase
         self::assertSame(0,preg_match('~\sstyle\s*=~i',$html));
     }
 
+    private function fakeJpeg(string $file): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('site-assets/'.$file,base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='));
+    }
+
+    private function frameSrc(string $uri): string
+    {
+        $policy=(string)$this->get($uri)->assertOk()->headers->get('Content-Security-Policy');
+        self::assertSame(1,preg_match('~frame-src ([^;]*);~',$policy,$m),$policy);
+        return $m[1];
+    }
+
+    public function test_youtube_mode_renders_the_login_embed_and_adds_only_its_host_to_the_registration_csp(): void
+    {
+        $this->fakeJpeg('login/'.str_repeat('p',24).'.jpg');
+        app(SettingsService::class)->putMany([
+            'login_background_mode'=>'youtube',
+            'login_background_youtube_id'=>'dQw4w9WgXcQ',
+            'login_background_fallback_path'=>'site-assets/login/'.str_repeat('p',24).'.jpg',
+        ],null);
+        $response=$this->get('/registracija')->assertOk();
+        $html=(string)$response->getContent();
+        $x=$this->xpath($html);
+        $frame=$x->query('//iframe');
+        self::assertSame(1,$frame->length);
+        $iframe=$frame->item(0);
+        self::assertSame('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&controls=0&loop=1&playlist=dQw4w9WgXcQ&playsinline=1&rel=0&modestbranding=1',$iframe->getAttribute('src'));
+        self::assertSame('',$iframe->getAttribute('title'));
+        self::assertSame('-1',$iframe->getAttribute('tabindex'));
+        self::assertSame('autoplay; encrypted-media; picture-in-picture',$iframe->getAttribute('allow'));
+        self::assertSame(1,$x->query('//div[@aria-hidden="true"]//iframe')->length);
+        self::assertSame(1,$x->query('//img[contains(@class,"reg-bg-poster")]')->length);
+        self::assertSame(0,preg_match('~\sstyle\s*=~i',$html));
+        $policy=(string)$response->headers->get('Content-Security-Policy');
+        self::assertStringContainsString('frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com; worker-src',$policy);
+        self::assertStringNotContainsString('*',$policy);
+        self::assertStringNotContainsString("'unsafe-inline'",$policy);
+        self::assertStringNotContainsString('www.youtube.com',$policy);
+    }
+
+    public function test_other_modes_and_invalid_video_id_do_not_widen_the_registration_csp(): void
+    {
+        self::assertSame('https://challenges.cloudflare.com',$this->frameSrc('/registracija'));
+        $this->fakeJpeg('login/'.str_repeat('a',24).'.jpg');
+        app(SettingsService::class)->putMany(['login_background_mode'=>'image','login_background_image_path'=>'site-assets/login/'.str_repeat('a',24).'.jpg'],null);
+        self::assertSame('https://challenges.cloudflare.com',$this->frameSrc('/registracija'));
+        app(SettingsService::class)->putMany(['login_background_mode'=>'youtube','login_background_youtube_id'=>'bad id!'],null);
+        self::assertSame('https://challenges.cloudflare.com',$this->frameSrc('/registracija'));
+        self::assertSame(0,$this->xpath($this->get('/registracija')->assertOk()->getContent())->query('//iframe')->length);
+    }
+
+    public function test_slideshow_mode_renders_every_slide_with_css_timing_and_no_script(): void
+    {
+        $this->fakeJpeg('login/slides/'.str_repeat('s',24).'.jpg');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('site-assets/login/slides/'.str_repeat('t',24).'.jpg',\Illuminate\Support\Facades\Storage::disk('public')->get('site-assets/login/slides/'.str_repeat('s',24).'.jpg'));
+        app(SettingsService::class)->putMany([
+            'login_background_mode'=>'slideshow','login_background_slide_interval'=>'7',
+            'login_background_slide_1_path'=>'site-assets/login/slides/'.str_repeat('s',24).'.jpg','login_background_slide_1_active'=>'1','login_background_slide_1_order'=>'20',
+            'login_background_slide_2_path'=>'site-assets/login/slides/'.str_repeat('t',24).'.jpg','login_background_slide_2_active'=>'1','login_background_slide_2_order'=>'10',
+        ],null);
+        $response=$this->get('/registracija')->assertOk();
+        $x=$this->xpath((string)$response->getContent());
+        $slides=$x->query('//div[contains(@class,"reg-slides")]//img');
+        self::assertSame(2,$slides->length);
+        self::assertStringContainsString(str_repeat('t',24),$slides->item(0)->getAttribute('src'),'order setting respected');
+        $box=$x->query('//div[contains(@class,"reg-slides")]')->item(0);
+        self::assertSame('2',$box->getAttribute('data-n'));
+        self::assertSame('7',$box->getAttribute('data-t'));
+        self::assertSame('https://challenges.cloudflare.com',$this->frameSrc('/registracija'));
+        $nonce=ShopThemeScript::nonceFromPolicy(str_replace('https://challenges.cloudflare.com ','',(string)$response->headers->get('Content-Security-Policy')));
+        ShopThemeScript::strip((string)$response->getContent(),$nonce,'/registracija');
+    }
+
+    public function test_other_storefront_pages_keep_the_exact_strict_policy_in_youtube_mode(): void
+    {
+        app(SettingsService::class)->putMany(['login_background_mode'=>'youtube','login_background_youtube_id'=>'dQw4w9WgXcQ'],null);
+        foreach (['/katalog','/korpa','/uslovi-prodaje'] as $uri) {
+            ShopThemeScript::assertStrictPolicy($this->get($uri)->assertOk()->headers->get('Content-Security-Policy'));
+        }
+    }
+
     public function test_default_login_background_has_no_image(): void
     {
         $x=$this->xpath($this->get('/registracija')->assertOk()->getContent());

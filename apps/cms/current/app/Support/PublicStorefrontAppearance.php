@@ -222,13 +222,13 @@ final class PublicStorefrontAppearance
     /**
      * Background of the registration page: the same site-assets image the
      * login page shows (Podešavanja > Izgled sajta), as a plain same-origin
-     * URL. The storefront CSP forbids inline styles and extra scripts, so only
-     * a still image is possible: the first active slide for a slideshow, the
-     * fallback image for a video, nothing (built-in gradient) for the default.
-     * Overlay is rounded to steps of 5 and blur to whole pixels so that CSS
-     * classes can carry them.
+     * URL, slides and YouTube id. The storefront CSP forbids inline styles and
+     * extra scripts, so overlay (steps of 5), blur, slide timing and slide
+     * count are carried by data attributes and CSS classes, and the slideshow
+     * cross-fades with CSS only. The video is the same youtube-nocookie embed
+     * the login page uses.
      *
-     * @return array{url:?string,overlay:int,blur:int}
+     * @return array{url:?string,slides:list<string>,interval:int,video:?string,fallback:?string,mobileStatic:bool,overlay:int,blur:int}
      */
     public static function loginBackground(): array
     {
@@ -239,9 +239,13 @@ final class PublicStorefrontAppearance
             // Public pages must render while settings or cache are unavailable.
         }
         $mode = (string) ($settings['login_background_mode'] ?? 'default');
-        $path = '';
+        $raster = ['png', 'jpg', 'jpeg', 'webp'];
+        $url = null;
+        $slideUrls = [];
+        $video = null;
+        $fallback = self::assetPath((string) ($settings['login_background_fallback_path'] ?? ''), $raster);
         if ($mode === 'image') {
-            $path = (string) ($settings['login_background_image_path'] ?? '');
+            $url = self::assetPath((string) ($settings['login_background_image_path'] ?? ''), $raster);
         } elseif ($mode === 'slideshow') {
             $slides = [];
             for ($slot = 1; $slot <= 8; $slot++) {
@@ -251,14 +255,26 @@ final class PublicStorefrontAppearance
                 }
             }
             usort($slides, static fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
-            $path = $slides[0][2] ?? '';
+            foreach ($slides as $slide) {
+                $slideUrl = self::assetPath($slide[2], $raster);
+                if ($slideUrl !== null) {
+                    $slideUrls[] = $slideUrl;
+                }
+            }
+            $url = $slideUrls[0] ?? null;
         } elseif ($mode === 'youtube') {
-            $path = (string) ($settings['login_background_fallback_path'] ?? '');
+            $id = trim((string) ($settings['login_background_youtube_id'] ?? ''));
+            $video = preg_match('/^[A-Za-z0-9_-]{11}$/', $id) === 1 ? $id : null;
+            $url = $fallback;
         }
-        $url = $path === '' ? null : self::assetPath($path, ['png', 'jpg', 'jpeg', 'webp']);
 
         return [
             'url' => $url,
+            'slides' => count($slideUrls) > 1 ? $slideUrls : [],
+            'interval' => max(3, min(30, (int) ($settings['login_background_slide_interval'] ?? 6))),
+            'video' => $video,
+            'fallback' => $fallback ?? $url,
+            'mobileStatic' => ($settings['login_background_mobile_static'] ?? '1') === '1',
             'overlay' => (int) (round(max(0, min(90, (int) ($settings['login_background_overlay_opacity'] ?? 45))) / 5) * 5),
             'blur' => max(0, min(10, (int) ($settings['login_background_blur_px'] ?? 0))),
         ];
