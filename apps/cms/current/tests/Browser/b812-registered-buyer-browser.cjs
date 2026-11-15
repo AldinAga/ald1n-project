@@ -141,7 +141,38 @@ async function registrationQa(browser){
     }
   }
   }
-  execFileSync('php',['tests/Browser/set-login-background.php','default'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+  // The fixed background layer covers the viewport at any scroll position
+  // (no seam below the fold), never takes pointer events, and no opaque body
+  // fill is painted over it.
+  for(const mode of ['image','youtube']){
+    execFileSync('php',['tests/Browser/set-login-background.php',mode],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
+    for(const theme of ['dark','light']){
+      for(const [w,h] of [[1280,800],[360,740]]){
+        const c=await browser.newContext({viewport:{width:w,height:h}});
+        try{
+          await c.addCookies([{name:'shop_theme',value:theme,url:base}]);
+          const page=await c.newPage();
+          const label='reg-bottom-'+mode+'-'+theme+'-'+w;
+          await openOk(page,'/registracija',label);
+          await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+          const m=await page.evaluate(()=>{
+            const r=document.querySelector('.reg-bg').getBoundingClientRect();
+            const cs=getComputedStyle(document.querySelector('.reg-bg'));
+            const body=getComputedStyle(document.body).backgroundColor;
+            const f=document.querySelector('.reg-bg iframe');
+            return {top:r.top,left:r.left,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,y:scrollY,max:document.documentElement.scrollHeight-innerHeight,pos:cs.position,pe:cs.pointerEvents,body,fpe:f?getComputedStyle(f).pointerEvents:'none'};
+          });
+          assert.equal(m.pos,'fixed',label);
+          assert(m.top<=0&&m.left<=0&&m.w>=m.vw&&m.h>=m.vh,label+' bg box '+JSON.stringify(m));
+          assert(m.max<=0||Math.abs(m.y-m.max)<=2,label+' scrolled to bottom');
+          assert.equal(m.pe,'none',label);
+          assert.equal(m.fpe,'none',label+' iframe pointer-events');
+          assert(/rgba\(0, 0, 0, 0\)|transparent/.test(m.body),label+' body fill '+m.body);
+          await page.screenshot({path:path.join(dir,'b812-registration-qa-bottom-'+mode+'-'+theme+'-'+w+'.png'),animations:'disabled'});
+        }finally{await c.close();}
+      }
+    }
+  }  execFileSync('php',['tests/Browser/set-login-background.php','default'],{cwd:process.cwd(),env:process.env,encoding:'utf8',timeout:15000});
   // Focus order and the error state (server validation, native checks off).
   const ctx=await browser.newContext({viewport:{width:1280,height:900}});
   try{

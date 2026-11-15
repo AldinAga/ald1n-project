@@ -76,8 +76,7 @@
 }
 
 /* ---------- Background (same image as login) ---------- */
-body.public-auth{background:var(--r-base);isolation:isolate;overflow-x:clip;min-height:100vh}
-.reg-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;
+body.public-auth{background:transparent;isolation:isolate;overflow-x:clip;min-height:100vh}.reg-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;
   background:
     radial-gradient(circle at 12% 16%,color-mix(in srgb,var(--r-accent) 30%,transparent) 0,transparent 34%),
     radial-gradient(circle at 88% 82%,rgba(124,92,231,.22) 0,transparent 36%),
