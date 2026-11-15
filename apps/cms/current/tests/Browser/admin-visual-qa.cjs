@@ -155,6 +155,10 @@ const prepare = {
   async dashboardOpenAll(page) {
     await page.evaluate(() => document.querySelectorAll('.a1-dash details').forEach((d) => { d.open = true; }));
   },
+  // First look: the custom-range disclosure is open when a custom period is selected; the fold is measured with it closed (the state of a first visit).
+  async dashboardFold(page) {
+    await page.evaluate(() => document.querySelectorAll('.a1-dash details').forEach((d) => { d.open = false; }));
+  },
   // Dashboard with long amounts: the same real elements, their text replaced by a 12.345.678,90 value.
   async dashboardLongNumbers(page) {
     await prepare.dashboardOpenAll(page);
@@ -202,7 +206,7 @@ const PAGES = [
   { module: 'dashboard', key: 'dashboard-open', path: '/', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-data', path: DASH_DATA, prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
   // First look: at 1280x800 and 1440x900 the whole priorities strip and the entire first KPI row are above the fold (measured, not estimated).
-  { module: 'dashboard', key: 'dashboard-fold', path: DASH_DATA, fold: true, widths: [1280, 1440] },
+  { module: 'dashboard', key: 'dashboard-fold', path: DASH_DATA, fold: true, prepare: prepare.dashboardFold, widths: [1280, 1440] },
   { module: 'dashboard', key: 'dashboard-units', path: DASH_DATA, prepare: prepare.dashboardUnits, widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-error', path: '/?period=custom&date_from=2026-02-30&date_to=2026-03-01', widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-customer', path: '/', persona: 'customer', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
