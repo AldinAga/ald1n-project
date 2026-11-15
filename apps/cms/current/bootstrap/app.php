@@ -11,6 +11,7 @@ use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\PublicNoScriptCsp;
 use App\Http\Middleware\SecurityHeaders;
 use App\Support\ApiErrorResponse;
+use App\Support\AppUrlOrigin;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -112,6 +113,19 @@ return Application::configure(basePath: dirname(__DIR__))
                         ->withErrors($exception->errors())
                         ->withInput($request->only($safeInput));
                 }
+            }
+            // B883: any other failed validation on a guest public-shop route
+            // (catalog filters, cart add and update) would use the Referer.
+            // Send it to a fixed local page on the APP_URL origin instead:
+            // the cart for cart actions, the catalog without its query string
+            // for everything else.
+            $routeName = $request->route()?->getName();
+            if (!$request->expectsJson() && !$request->is('api/*') && $request->hasSession()
+                && is_string($routeName) && str_starts_with($routeName, 'public-shop.')) {
+                return AppUrlOrigin::redirect(
+                    $request,
+                    str_starts_with($routeName, 'public-shop.cart.') ? 'public-shop.cart' : 'public-shop.catalog',
+                )->withErrors($exception->errors());
             }
             if (!$request->is('api/*')) {
                 return null;
