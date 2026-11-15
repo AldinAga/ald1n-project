@@ -150,8 +150,21 @@ const prepare = {
     }
     return null;
   },
+  // Dashboard: open every <details> (custom period, exact trend values, module list) so their text is part of the measured state.
+  async dashboardOpenAll(page) {
+    await page.evaluate(() => document.querySelectorAll('.a1-dash details').forEach((d) => { d.open = true; }));
+  },
+  // Dashboard brand mix on the second metric (Komadi), like a user pressing the toggle.
+  async dashboardUnits(page) {
+    await page.locator('.a1-dash [data-d3-mode="units"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-d3-view="units"]')?.hidden === false
+      && document.querySelector('[data-d3-view="revenue"]')?.hidden === true
+      && document.querySelector('[data-d3-mode="units"]')?.getAttribute('aria-pressed') === 'true', null, { timeout: 5000 });
+    await prepare.dashboardOpenAll(page);
+  },
 };
 
+const DASH_DATA = '/?period=custom&date_from=2026-01-01&date_to=2026-01-31';
 // Planned rollout order. module = unit that later flips to strict.
 const PAGES = [
   { module: 'shell', key: 'shell-plain', path: '/account', widths: SHELL_WIDTHS },
@@ -165,7 +178,15 @@ const PAGES = [
   { module: 'shell', key: 'shell-flash-error', path: '/account', prepare: prepare.flashError, widths: SHELL_EXTRA_WIDTHS },
   // Scripts are stripped from the document, so the page is what a visitor gets with JavaScript off. Theme stays at the HTML default.
   { module: 'shell', key: 'shell-no-js', path: '/account', prepare: prepare.noJsLogout, stripScripts: true, widths: [375, 1280] },
-  { module: 'dashboard', key: 'dashboard', path: '/', determinism: true },
+  // Module 2 (strict): the seed has one open order and, archived (so they never reach the lists), three completed
+  // orders in January 2026. Default period = empty states, custom January = data, plus the Komadi metric, the
+  // invalid-period alert, every <details> open, and the customer role's dashboard.
+  { module: 'dashboard', key: 'dashboard', path: '/', determinism: true, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-open', path: '/', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-data', path: DASH_DATA, prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-units', path: DASH_DATA, prepare: prepare.dashboardUnits, widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-error', path: '/?period=custom&date_from=2026-02-30&date_to=2026-03-01', widths: SHELL_WIDTHS },
+  { module: 'dashboard', key: 'dashboard-customer', path: '/', persona: 'customer', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
   { module: 'orders', key: 'orders-index', path: '/admin/orders' },
   { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}` },
   // New orders are created by the customer role (orders.create); superadmin gets 403 by design.
@@ -303,6 +324,47 @@ async function shellChecks(page, pg, width, theme) {
   if (geo.edge && (Math.abs(geo.edge[0]) > 2 || Math.abs(geo.edge[1]) > 2)) out.push({ ...base, rule: 'shell-edge-misaligned', count: 1, selectors: ['left ' + geo.edge[0] + 'px, right ' + geo.edge[1] + 'px vs .page-shell'] });
   return out;
 }
+// Dashboard-only gates (module 2), recorded as findings (strict mode for "dashboard" fails on any):
+//  - computed-contrast: same method as the shell cells, scoped to the dashboard root .a1-dash.
+//  - small-target: a visible link, button, summary, select or checkbox label under 44x44 px (inline links in a sentence excepted).
+//  - unlabeled-control: a visible control without an accessible name (axe covers label/button-name/link-name; summary and wrapped checkboxes are added here).
+//  - dashboard-structure: the root exists, exactly one <h1>, every pressed-state button carries aria-pressed.
+const DASH_SCOPE = '.a1-dash';
+async function dashboardChecks(page, pg, width, theme) {
+  const out = [];
+  const base = { module: pg.module, page: pg.key, browser: browserName, width, theme };
+  await page.evaluate(async () => {
+    const t = Date.now();
+    while (document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().endTime !== Infinity) && Date.now() - t < 3000) await new Promise((r) => setTimeout(r, 50));
+  });
+  const c = await page.evaluate(inPageContrast, DASH_SCOPE);
+  if (c.out.length) out.push({ ...base, rule: 'computed-contrast', count: c.out.length, selectors: c.out.slice(0, 3) });
+  if (c.checked < 30) out.push({ ...base, rule: 'computed-contrast-too-few-nodes', count: 1, selectors: ['checked ' + c.checked] });
+  const dom = await page.evaluate((scope) => {
+    const root = document.querySelector(scope);
+    if (!root) return { missing: true };
+    const label = (e) => [...e.classList].slice(0, 3).map((x) => '.' + x).join('') || e.tagName.toLowerCase();
+    const shown = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+    const controls = [...root.querySelectorAll('a[href], button, summary, select, input:not([type=hidden]), .a1-check')].filter(shown);
+    const small = controls
+      .filter((e) => !e.matches('.a1-link--inline, .a1-check__input'))
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.width < 43.5 || r.height < 43.5; })
+      .map((e) => e.tagName.toLowerCase() + label(e) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height));
+    const nameOf = (e) => (e.getAttribute('aria-label') || '').trim()
+      || (e.getAttribute('aria-labelledby') ? [...e.getAttribute('aria-labelledby').split(/\s+/)].map((id) => document.getElementById(id)?.textContent || '').join(' ').trim() : '')
+      || (e.labels && e.labels.length ? [...e.labels].map((l) => l.textContent).join(' ').trim() : '')
+      || (e.textContent || '').trim() || (e.getAttribute('title') || '').trim();
+    const unlabeled = controls.filter((e) => !e.matches('.a1-check') && !nameOf(e)).map((e) => e.tagName.toLowerCase() + label(e));
+    const pressed = [...root.querySelectorAll('.a1-seg__opt')].filter((b) => !b.hasAttribute('aria-pressed')).map(label);
+    return { missing: false, small, unlabeled, pressed, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
+  }, DASH_SCOPE);
+  if (dom.missing) { out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['.a1-dash missing'] }); return out; }
+  if (dom.small.length) out.push({ ...base, rule: 'small-target', count: dom.small.length, selectors: dom.small.slice(0, 3) });
+  if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
+  if (dom.pressed.length || dom.h1 !== 1) out.push({ ...base, rule: 'dashboard-structure', count: dom.pressed.length + (dom.h1 === 1 ? 0 : 1), selectors: [...dom.pressed, 'h1 x' + dom.h1].slice(0, 3) });
+  if (dom.checkedControls < 5) out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['only ' + dom.checkedControls + ' controls found'] });
+  return out;
+}
 // Freeze text that changes between runs (dates, times, relative times, rate) - after axe, text only.
 async function freezeDynamic(page) {
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}' });
@@ -358,6 +420,7 @@ async function runCell(ctx, pg, width, theme) {
   const page = await ctx.newPage();
   const local = { console: [], failed: [] };
   const target = P(pg.path);
+  const targetPath = target.split('?')[0]; // cells may carry a query string (dashboard period); the redirect check compares the path only
   page.on('console', (m) => {
     // "Failed to load resource" duplicates the response/requestfailed records captured below.
     if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) local.console.push(m.text().slice(0, 200));
@@ -366,7 +429,7 @@ async function runCell(ctx, pg, width, theme) {
   page.on('response', (r) => {
     const u = new URL(r.url());
     if (u.origin !== baseUrl || r.status() < 400) return;
-    const isMain = u.pathname === target && r.request().resourceType() === 'document';
+    const isMain = u.pathname === targetPath && r.request().resourceType() === 'document';
     if (isMain && r.status() === (pg.status || 200)) return;
     local.failed.push(r.status() + ' ' + u.pathname);
     if (r.status() >= 500) fail('HTTP_5XX', tag + ': ' + r.status() + ' ' + u.pathname);
@@ -380,7 +443,7 @@ async function runCell(ctx, pg, width, theme) {
     await page.setViewportSize({ width, height: HEIGHTS[width] || 900 });
     if (pg.stripScripts) {
       // The document arrives without any <script> element: the JavaScript-off experience, on every engine.
-      await page.route(baseUrl + target, async (route) => {
+      await page.route(baseUrl + target, async (route) => {  // shortcut: exact URL incl. query, fine for the no-JS cells (no query)
         if (route.request().resourceType() !== 'document') return route.continue();
         const upstream = await route.fetch();
         // Scripts removed; <noscript> unwrapped, because the browser still has scripting enabled and would otherwise ignore it.
@@ -393,7 +456,7 @@ async function runCell(ctx, pg, width, theme) {
     const resp = await page.goto(baseUrl + target, { waitUntil: 'load', timeout: 30000 });
     const want = pg.status || 200;
     if (!resp || resp.status() !== want) throw new Error(`HTTP ${resp && resp.status()} expected ${want}`);
-    if (!pg.status && new URL(page.url()).pathname !== target) throw new Error('redirected to ' + new URL(page.url()).pathname);
+    if (!pg.status && new URL(page.url()).pathname !== targetPath) throw new Error('redirected to ' + new URL(page.url()).pathname);
     await settle(page);
     const resolved = await page.evaluate(() => document.documentElement.dataset.theme);
     if (resolved !== theme && !pg.stripScripts) {
@@ -414,6 +477,7 @@ async function runCell(ctx, pg, width, theme) {
     }
     for (const v of await runAxe(page, pg.module === 'shell')) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
     if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
+    if (pg.module === 'dashboard') findings.push(...await dashboardChecks(page, pg, width, theme));
     if (local.console.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'console-error', count: local.console.length, selectors: local.console.slice(0, 3) });
     if (local.failed.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'failed-request', count: local.failed.length, selectors: local.failed.slice(0, 3) });
     await freezeDynamic(page);
