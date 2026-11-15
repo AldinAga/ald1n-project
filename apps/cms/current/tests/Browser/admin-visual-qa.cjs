@@ -231,6 +231,10 @@ const PAGES = [
   { module: 'reports', key: 'reports-management', path: '/admin/reports' },
   { module: 'reports', key: 'receivables-index', path: '/admin/receivables' },
   { module: 'reports', key: 'commissions', path: '/admin/commissions' },
+  // Sales by subagent (own strict module): January 2026 holds the seeded completed orders (data); the default
+  // current-month period is the empty state. Superadmin only; 360 phone and 1280 desktop, light and dark.
+  { module: 'subagent-sales', key: 'subagent-sales-data', path: '/admin/reports/subagents?period=custom&date_from=2026-01-01&date_to=2026-01-31&compare=1', widths: [360, 1280] },
+  { module: 'subagent-sales', key: 'subagent-sales-empty', path: '/admin/reports/subagents?period=today', widths: [360, 1280] },
   { module: 'settings', key: 'settings-index', path: '/admin/settings' },
   { module: 'settings', key: 'settings-appearance', path: '/admin/settings/appearance' },
   { module: 'settings', key: 'settings-public-storefront', path: '/admin/settings/public-storefront' },

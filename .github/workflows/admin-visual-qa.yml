@@ -77,7 +77,7 @@ jobs:
       ADMIN_VISUAL_BASE_URL: http://127.0.0.1:8125
       # Strict switches. Redesigned modules are listed here (module 1: admin shell, module 2: dashboard).
       # ADMIN_VISUAL_STRICT: '1'
-      ADMIN_VISUAL_STRICT_MODULES: 'shell,dashboard'
+      ADMIN_VISUAL_STRICT_MODULES: 'shell,dashboard,subagent-sales'
     steps:
       - name: Checkout exact source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262

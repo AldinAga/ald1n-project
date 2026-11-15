@@ -747,7 +747,9 @@ final class ManagementReportService
         $dateColumn = $filters['scope'] === 'completed' ? 'completed_at' : 'created_at';
         if ($filters['scope'] === 'completed') $query->whereNotNull('completed_at')->where('status', '!=', 'cancelled');
         elseif ($filters['scope'] === 'active') $query->where('status', '!=', 'cancelled');
-        $query->whereDate($dateColumn, '>=', $filters['date_from'])->whereDate($dateColumn, '<=', $filters['date_to']);
+        // Sargable day range (same rows as whereDate on both bounds, but it can use the date index).
+        $query->where($dateColumn, '>=', $filters['date_from'].' 00:00:00')
+            ->where($dateColumn, '<', CarbonImmutable::parse($filters['date_to'])->addDay()->format('Y-m-d').' 00:00:00');
         return $query;
     }
 
@@ -755,6 +757,18 @@ final class ManagementReportService
     private function orderIds(User $user, array $filters)
     {
         return $this->orderQuery($user, $filters)->reorder()->select('orders.id')->toBase();
+    }
+
+    /**
+     * Same sale definition and actor scope as summary(): other reports (sales by
+     * subagent) reuse it instead of a second formula. Expects date_from, date_to
+     * and scope; everything else is neutralised by normalizeFilters().
+     *
+     * @param array<string,mixed> $filters
+     */
+    public function reportOrderIds(User $user, array $filters): \Illuminate\Database\Query\Builder
+    {
+        return $this->orderIds($user, $this->normalizeFilters($filters));
     }
 
 

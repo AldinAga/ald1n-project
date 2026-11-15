@@ -24,7 +24,7 @@ const shards = ['chromium', 'webkit'].map((b) => {
 });
 const missing = ['chromium', 'webkit'].filter((_, i) => !shards[i]);
 const present = shards.filter(Boolean);
-const MODULES = ['shell', 'dashboard', 'orders', 'products', 'warranties', 'customers', 'reports', 'settings', 'auth', 'error'];
+const MODULES = ['shell', 'dashboard', 'orders', 'products', 'warranties', 'customers', 'reports', 'subagent-sales', 'settings', 'auth', 'error'];
 const strictAll = process.env.ADMIN_VISUAL_STRICT === '1';
 const strictList = (process.env.ADMIN_VISUAL_STRICT_MODULES || '').split(',').map((s) => s.trim()).filter(Boolean);
 const unknownStrict = strictList.filter((m) => !MODULES.includes(m));
