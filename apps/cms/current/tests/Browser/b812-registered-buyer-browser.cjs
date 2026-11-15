@@ -72,6 +72,102 @@ function avoidInternalNumbers(text,label){
   assert(!text.includes('777777'),label+' leaked internal commission');
 }
 
+/**
+ * Registration page QA (login visual shell): 360/768/1280 in light and dark,
+ * no horizontal overflow, text contrast >= 4.5 on the glass even over a
+ * worst-case (white or black) background, focus order, error state.
+ */
+async function registrationQa(browser){
+  const fields=['first_name','last_name','address','city','phone','email'];
+  for(const theme of ['dark','light']){
+    for(const width of [360,768,1280]){
+      const ctx=await browser.newContext({viewport:{width,height:900}});
+      try{
+        await ctx.addCookies([{name:'shop_theme',value:theme,url:base}]);
+        const page=await ctx.newPage();
+        const label='reg-'+theme+'-'+width;
+        await openOk(page,'/registracija',label);
+        assert.equal(await page.locator('html').getAttribute('data-theme'),theme,label+' theme');
+        // Every field visible with a label; touch targets >= 44px.
+        for(const name of fields){
+          const input=page.locator('input[name="'+name+'"]');
+          assert(await input.isVisible(),label+' '+name+' visible');
+          assert(await page.locator('label[for="'+await input.getAttribute('id')+'"]').isVisible(),label+' '+name+' label');
+          assert((await input.boundingBox()).height>=44,label+' '+name+' height');
+        }
+        const submit=page.locator('button.reg-submit');
+        assert((await submit.boundingBox()).height>=44,label+' submit height');
+        assert.equal((await submit.innerText()).trim().replace(/\s*→$/,''),'Registruj se');
+        const columns=await page.locator('.reg-grid').first().evaluate(g=>getComputedStyle(g).gridTemplateColumns.split(' ').length);
+        assert.equal(columns,width>=768?2:1,label+' columns');
+        // Contrast: every text element against its composited background,
+        // checked over a white and a black page behind the translucent panel.
+        const worst=await page.evaluate(()=>{
+          const parse=c=>{const m=c.match(/rgba?\(([^)]+)\)/);if(!m)return [0,0,0,0];const p=m[1].split(/[ ,\/]+/).map(Number);return [p[0],p[1],p[2],p.length>3?p[3]:1];};
+          const lum=([r,g,b])=>{const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(r)+.7152*f(g)+.0722*f(b)};
+          const over=(f,b)=>[0,1,2].map(i=>f[i]*f[3]+b[i]*(1-f[3])).concat(1);
+          const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+          const out=[];
+          for(const base of [[255,255,255,1],[0,0,0,1]]){
+            const walker=document.createTreeWalker(document.querySelector('main'),NodeFilter.SHOW_TEXT);
+            let n;
+            while((n=walker.nextNode())){
+              if(!n.nodeValue.trim())continue;
+              const el=n.parentElement;
+              const cs=getComputedStyle(el);
+              if(cs.visibility==='hidden'||cs.display==='none'||el.closest('[aria-hidden="true"]')||el.closest('.shop-hidden-hp')||el.closest('noscript')||!el.getClientRects().length)continue;
+              const layers=[];
+              for(let e=el;e;e=e.parentElement){const bg=parse(getComputedStyle(e).backgroundColor);if(bg[3]>0)layers.push(bg);if(bg[3]===1)break;}
+              let bg=base;for(const l of layers.reverse())bg=over(l,bg);
+              let fg=parse(cs.color);fg=over(fg,bg);
+              out.push([ratio(fg,bg),n.nodeValue.trim().slice(0,30)]);
+            }
+          }
+          out.sort((a,b)=>a[0]-b[0]);return out[0];
+        });
+        assert(worst[0]>=4.5,label+' contrast '+worst[0].toFixed(2)+' for "'+worst[1]+'"');
+        const rail=await page.locator('a.shop-back-to-top').getAttribute('aria-label');
+        assert.equal(rail,'Nazad na vrh stranice');
+        await page.screenshot({path:path.join(dir,'b812-registration-qa-'+theme+'-'+width+'.png'),fullPage:true,animations:'disabled'});
+      }finally{await ctx.close();}
+    }
+  }
+  // Focus order and the error state (server validation, native checks off).
+  const ctx=await browser.newContext({viewport:{width:1280,height:900}});
+  try{
+    const page=await ctx.newPage();
+    await openOk(page,'/registracija','reg-focus');
+    await page.locator('input[name="first_name"]').focus();
+    const order=[];
+    for(let i=0;i<8;i++){
+      order.push(await page.evaluate(()=>document.activeElement.name||document.activeElement.className));
+      await page.keyboard.press('Tab');
+    }
+    assert.deepEqual(order.slice(0,7),[...fields,'accepted_privacy'],'focus order');
+    await page.locator('input[name="first_name"]').fill('B812');
+    await page.locator('input[name="last_name"]').fill('Browser Err');
+    await page.locator('input[name="address"]').fill('Synthetic 12');
+    await page.locator('input[name="city"]').fill('Beograd');
+    await page.locator('input[name="phone"]').fill('0601234567');
+    await page.locator('input[name="email"]').fill('nije-email');
+    await page.locator('form.reg-form').evaluate(f=>{f.noValidate=true;});
+    await Promise.all([
+      page.waitForResponse(r=>r.url().endsWith('/registracija')&&r.request().method()==='POST',{timeout:15000}),
+      page.locator('button.reg-submit').click(),
+    ]);
+    await page.waitForURL('**/registracija',{timeout:15000});
+    await page.waitForLoadState('networkidle');
+    assert.equal(await page.locator('#reg-errors').count(),1,'error summary');
+    assert.equal(await page.locator('input[name="email"]').getAttribute('aria-invalid'),'true');
+    assert.equal(await page.locator('input[name="last_name"]').inputValue(),'Browser Err','old input kept');
+    if(engine==='chromium'){
+      assert.equal(await page.evaluate(()=>document.activeElement&&document.activeElement.id),'reg-errors','summary focused');
+    }
+    await page.screenshot({path:path.join(dir,'b812-registration-qa-error.png'),fullPage:true,animations:'disabled'});
+  }finally{await ctx.close();}
+  console.log('B812_REGISTRATION_QA_'+engine.toUpperCase()+'=PASS 360_768_1280_LIGHT_DARK_CONTRAST_OVERFLOW_FOCUS_ERROR');
+}
+
 (async()=>{
   const browser=await browserType.launch({headless:true});
   try{
@@ -86,13 +182,15 @@ function avoidInternalNumbers(text,label){
         });
         await openOk(page,'/registracija','registration-'+width);
         assert(await page.locator('button[type="submit"]').filter({
-          hasText:'Pošalji registraciju',
+          hasText:'Registruj se',
         }).isVisible(),'approved synthetic sender enables signup UI');
         await page.screenshot({
           path:path.join(dir,'b812-registration-'+width+'.png'),animations:'disabled',
         });
       }finally{await ctx.close();}
     }
+
+    await registrationQa(browser);
 
     const ctx=await browser.newContext({viewport:{width:1440,height:900}});
     try{
@@ -119,7 +217,7 @@ function avoidInternalNumbers(text,label){
       await Promise.all([
         page.waitForResponse(r=>r.url().endsWith('/registracija')
           && r.request().method()==='POST',{timeout:15000}),
-        page.getByRole('button',{name:'Pošalji registraciju'}).click(),
+        page.getByRole('button',{name:'Registruj se'}).click(),
       ]);
       await page.waitForURL('**/registracija',{timeout:15000});
       await page.waitForLoadState('networkidle');

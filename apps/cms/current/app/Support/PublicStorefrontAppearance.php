@@ -219,6 +219,51 @@ final class PublicStorefrontAppearance
         ];
     }
 
+    /**
+     * Background of the registration page: the same site-assets image the
+     * login page shows (Podešavanja > Izgled sajta), as a plain same-origin
+     * URL. The storefront CSP forbids inline styles and extra scripts, so only
+     * a still image is possible: the first active slide for a slideshow, the
+     * fallback image for a video, nothing (built-in gradient) for the default.
+     * Overlay is rounded to steps of 5 and blur to whole pixels so that CSS
+     * classes can carry them.
+     *
+     * @return array{url:?string,overlay:int,blur:int}
+     */
+    public static function loginBackground(): array
+    {
+        $settings = [];
+        try {
+            $settings = app(SettingsService::class)->all();
+        } catch (Throwable) {
+            // Public pages must render while settings or cache are unavailable.
+        }
+        $mode = (string) ($settings['login_background_mode'] ?? 'default');
+        $path = '';
+        if ($mode === 'image') {
+            $path = (string) ($settings['login_background_image_path'] ?? '');
+        } elseif ($mode === 'slideshow') {
+            $slides = [];
+            for ($slot = 1; $slot <= 8; $slot++) {
+                $slidePath = trim((string) ($settings['login_background_slide_'.$slot.'_path'] ?? ''));
+                if ($slidePath !== '' && ($settings['login_background_slide_'.$slot.'_active'] ?? '0') === '1') {
+                    $slides[] = [(int) ($settings['login_background_slide_'.$slot.'_order'] ?? $slot * 10), $slot, $slidePath];
+                }
+            }
+            usort($slides, static fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+            $path = $slides[0][2] ?? '';
+        } elseif ($mode === 'youtube') {
+            $path = (string) ($settings['login_background_fallback_path'] ?? '');
+        }
+        $url = $path === '' ? null : self::assetPath($path, ['png', 'jpg', 'jpeg', 'webp']);
+
+        return [
+            'url' => $url,
+            'overlay' => (int) (round(max(0, min(90, (int) ($settings['login_background_overlay_opacity'] ?? 45))) / 5) * 5),
+            'blur' => max(0, min(10, (int) ($settings['login_background_blur_px'] ?? 0))),
+        ];
+    }
+
     /** @return array{src:string,width:?int}|null */
     private static function logo(mixed $path, int $height): ?array
     {
