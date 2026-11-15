@@ -504,12 +504,12 @@ final class SubagentSalesReportTest extends TestCase
         // Active control first, so a redirect below is caused by the status and nothing else.
         $this->actingAs($this->adminA)->get($page)->assertOk();
 
-        foreach (['suspended', 'pending'] as $status) {
+        foreach ([['status' => 'blocked'], ['status' => 'pending'], ['retired_at' => now()]] as $change) {
             foreach ([$this->super, $this->adminB, $this->ana] as $account) {
-                User::query()->whereKey($account->id)->update(['status' => $status]);
+                User::query()->whereKey($account->id)->update($change);
                 $this->actingAs($account->fresh())->get($page)->assertRedirect('/login');
                 $this->actingAs($account->fresh())->get($csv)->assertRedirect('/login');
-                User::query()->whereKey($account->id)->update(['status' => 'active']);
+                User::query()->whereKey($account->id)->update(['status' => 'active', 'retired_at' => null]);
             }
         }
     }
