@@ -99,6 +99,11 @@ final class PublicReceiptTokenPrivacyB821Test extends TestCase
 
     public function test_live_receipt_response_rejects_shared_caches_and_referrers(): void
     {
+        // B836: a receipt link opens only for the buyer who owns the order.
+        $this->post('/login',[
+            'login'=>$this->buyer->email,'password'=>'B821-Synthetic-Only123!',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($this->buyer);
         $this->get($this->receipt())->assertOk()
             ->assertHeader('Cache-Control','private, no-store, max-age=0')
             ->assertHeader('Pragma','no-cache')

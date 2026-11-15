@@ -71,8 +71,19 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
         self::assertStringContainsString(
             'src="https://challenges.cloudflare.com/turnstile/v0/api.js"', $html
         );
-        self::assertSame(1,preg_match_all('~<script\b[^>]*>~i',$html,$scripts));
-        self::assertStringContainsString('src=',(string)$scripts[0][0]);
+        // B1149: besides the Turnstile file the shop layout carries exactly
+        // one inline theme script, and it must hold this request's nonce.
+        self::assertSame(2,preg_match_all('~<script\b[^>]*>~i',$html,$scripts));
+        $external=array_values(array_filter($scripts[0],static fn(string $tag):bool=>str_contains($tag,'src=')));
+        $inline=array_values(array_filter($scripts[0],static fn(string $tag):bool=>!str_contains($tag,'src=')));
+        self::assertCount(1,$external);
+        self::assertStringContainsString('https://challenges.cloudflare.com/turnstile/v0/api.js',$external[0]);
+        self::assertCount(1,$inline);
+        self::assertMatchesRegularExpression('~\bnonce="[A-Za-z0-9+/]{22}=="~',$inline[0]);
+        self::assertStringContainsString(
+            "script-src https://challenges.cloudflare.com 'nonce-".substr($inline[0],strpos($inline[0],'nonce="')+7,24)."'",
+            $policy
+        );
         self::assertStringContainsString('B896-SYNTHETIC-NONLIVE-SITE-KEY',$html);
         self::assertSame(0,User::query()->whereHas('role',static fn($q)=>$q->where('slug','customer'))->count());
     }
@@ -84,7 +95,12 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
         $policy=$this->assertRegisterPolicy($response);
         self::assertStringContainsString("script-src https://challenges.cloudflare.com",$policy);
         self::assertStringContainsString("script-src-attr 'none'",$policy);
-        self::assertStringNotContainsString('<script',strtolower($response->getContent()));
+        // B1149: only the nonce'd inline theme script remains; no Turnstile file.
+        $html=strtolower((string)$response->getContent());
+        self::assertSame(1,preg_match_all('~<script\b[^>]*>~',$html,$scripts));
+        self::assertStringNotContainsString('src=',$scripts[0][0]);
+        self::assertMatchesRegularExpression('~\bnonce="[a-z0-9+/]{22}=="~',$scripts[0][0]);
+        self::assertStringNotContainsString('challenges.cloudflare.com',$html);
         self::assertSame(0,User::query()->whereHas('role',static fn($q)=>$q->where('slug','customer'))->count());
     }
 
@@ -137,8 +153,11 @@ final class PublicRegistrationScriptCspB896Test extends TestCase
     {
         $response=$this->get('/katalog')->assertOk();
         $policy=(string)$response->headers->get('Content-Security-Policy');
-        self::assertStringContainsString("script-src 'none'",$policy);
+        // B1149: the nonce'd theme script replaced "script-src 'none'".
+        self::assertMatchesRegularExpression("~script-src 'nonce-[A-Za-z0-9+/]{22}=='; script-src-attr 'none'~",$policy);
         self::assertStringContainsString("default-src 'none'",$policy);
+        self::assertStringNotContainsString("'unsafe-inline'",$policy);
+        self::assertStringNotContainsString("'unsafe-eval'",$policy);
         self::assertStringNotContainsString('challenges.cloudflare.com',$policy);
         self::assertDatabaseCount('orders',0);
     }
