@@ -41,17 +41,17 @@ final class DashboardD1Test extends TestCase
         $user = $this->person('superadmin');
         $default = $this->actingAs($user)->get('/')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="default"', (string) $default);
-        // The presets are GET submit buttons of one form (same /?period=... URLs), pressed state in aria-pressed.
+        // The presets are GET submit buttons of one form (same /?period=... URLs), the current one carries aria-current (they navigate).
         self::assertMatchesRegularExpression('/<form[^>]*method="get"[^>]*action="[^"]*"[^>]*>\s*<div class="a1-seg" role="group"/s', (string) $default);
-        self::assertMatchesRegularExpression('/name="period" value="default" aria-pressed="true"[^>]*>Default</s', (string) $default);
-        self::assertMatchesRegularExpression('/name="period" value="7d" aria-pressed="false"[^>]*>7 dana</s', (string) $default);
-        self::assertMatchesRegularExpression('/name="period" value="30d" aria-pressed="false"[^>]*>30 dana</s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="default" aria-current="true"[^>]*>Default</s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="7d"(?![^>]*aria-current)[^>]*>7 dana</s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="30d"(?![^>]*aria-current)[^>]*>30 dana</s', (string) $default);
         $explicitDefault = $this->actingAs($user)->get('/?period=default')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="default"', (string) $explicitDefault);
         $thirty = $this->actingAs($user)->get('/?period=30d')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="30d"', (string) $thirty);
-        self::assertMatchesRegularExpression('/name="period" value="30d" aria-pressed="true"/', (string) $thirty);
-        self::assertMatchesRegularExpression('/name="period" value="default" aria-pressed="false"/', (string) $thirty);
+        self::assertMatchesRegularExpression('/name="period" value="30d" aria-current="true"/', (string) $thirty);
+        self::assertMatchesRegularExpression('/name="period" value="default"(?![^>]*aria-current)/', (string) $thirty);
         $seven = $this->actingAs($user)->get('/?period=7d')->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period="7d"', (string) $seven);
         $custom = $this->actingAs($user)->get('/?period=custom&date_from=2026-09-01&date_to=2026-09-30')->assertOk()->getContent();

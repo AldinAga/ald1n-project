@@ -65,11 +65,6 @@
     <div class="a1-hero__text">
         <span class="a1-eyebrow">Ald1n CMS · {{ now()->translatedFormat('l, d. F Y.') }}</span>
         <h1 class="a1-title" id="dash-title">Dobro došli, {{ $user->displayName() }}</h1>
-        <p class="a1-lead">
-            {{ $customerFocused
-                ? 'Porudžbine, dokumenti, uplate, garancije, podrška i podešavanja naloga objedinjeni su na početnoj strani.'
-                : 'Poslovni pokazatelji, operativni prioriteti i lični korisnički centar objedinjeni su na jednoj početnoj strani.' }}
-        </p>
         <div class="a1-hero__actions">
             @if($isSuper)
                 <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('catalog.index') }}"><x-icon name="plus-circle" :size="20" :shell="true" /> Direktna prodaja</a>
@@ -133,7 +128,8 @@
 </section>
 
 @if($isSuper)
-<section class="a1-card" data-dashboard-command-row data-dashboard-period="{{ $dashboardPeriod['period'] }}" aria-labelledby="dash-period-title">
+<div class="a1-g12">
+<section class="a1-card a1-lg-5" data-dashboard-command-row data-dashboard-period="{{ $dashboardPeriod['period'] }}" aria-labelledby="dash-period-title">
     <div class="a1-period">
         <div class="a1-card__title">
             <span class="a1-eyebrow">Poslovni pregled</span>
@@ -147,7 +143,7 @@
             <form class="a1-seg-form" method="get" action="{{ url('/') }}">
                 <div class="a1-seg" role="group" aria-label="Brzi izbor perioda">
                     @foreach($periodChoices as $periodKey => $periodLabel)
-                        <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}" aria-pressed="{{ $dashboardPeriod['period'] === $periodKey ? 'true' : 'false' }}"@if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
+                        <button type="submit" class="a1-seg__opt" name="period" value="{{ $periodKey }}" @if($dashboardPeriod['period'] === $periodKey) aria-current="true"@endif @if($periodKey === 'default') title="Od 1. u tekućem mesecu do danas"@endif>{{ $periodLabel }}</button>
                     @endforeach
                 </div>
             </form>
@@ -176,6 +172,10 @@
         <div class="a1-alert a1-alert--danger" data-dashboard-period-error role="alert"><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $dashboardPeriod['error'] }}</p></div></div>
     @endif
 </section>
+@if($hasBusinessDashboard)
+@include('dashboard.partials.priorities', ['span' => 'a1-lg-7', 'duo' => true])
+@endif
+</div>
 
 <section class="a1-kpis" data-dashboard-d1-grid aria-label="Šest glavnih poslovnih pokazatelja">
     <a data-dashboard-d1-kpi="revenue" class="a1-kpi a1-kpi--link" href="{{ route('admin.reports.index') }}">
@@ -234,8 +234,12 @@
 @endif
 
 @if($hasBusinessDashboard)
+    @php
+        $showBrandMix = $isSuper && is_array($dashboardBrandMix);
+        $trendSpan = $isSuper ? ($showBrandMix ? 'a1-lg-7' : '') : 'a1-lg-8';
+    @endphp
     <div class="a1-g12">
-        <section class="a1-card a1-lg-8" aria-labelledby="dash-trend-title">
+        <section class="a1-card {{ $trendSpan }}" aria-labelledby="dash-trend-title">
             <div class="a1-card__head">
                 <div class="a1-card__title"><span class="a1-eyebrow">Finansijski puls</span><h2 class="a1-h2" id="dash-trend-title">Trend prodaje</h2><p class="a1-text">{{ $reportStats['period_label'] ?? 'Tekući mesec' }}</p></div>
                 @can('reports.view')<a class="a1-link" href="{{ route('admin.reports.index') }}">Detaljan izveštaj <x-icon name="arrow-right" :size="16" :shell="true" /></a>@endcan
@@ -257,14 +261,14 @@
                                 <span class="a1-trend__bar a1-trend__bar--rev" style="--a1c-value:{{ $revenueHeight }}"></span>
                                 <span class="a1-trend__bar a1-trend__bar--gross" style="--a1c-value:{{ $grossHeight }}"></span>
                             </span>
-                            <span class="a1-trend__label">{{ ($loop->first || $loop->last || $loop->index % $labelStep === 0) ? substr((string) $point['period'], -5) : '' }}</span>
+                            <span class="a1-trend__label">{{ ($loop->last || ($loop->index % $labelStep === 0 && $loop->remaining >= $labelStep)) ? substr((string) $point['period'], -5) : '' }}</span>
                         </li>
                     @endforeach
                 </ol>
-                <ul class="a1-legend" aria-label="Legenda trenda prodaje">
+                <ul class="a1-chart-legend" aria-label="Legenda trenda prodaje">
                     <li title="Ukupan prihod od završenih porudžbina u izabranom periodu"><span class="a1-swatch a1-swatch--rev" aria-hidden="true"></span>Prihod</li>
                     <li title="Bruto dobit samo za stavke sa poznatom nabavnom cenom, pre ostalih troškova"><span class="a1-swatch a1-swatch--gross" aria-hidden="true"></span>Bruto dobit</li>
-                    <li class="a1-legend__scale" title="Najviša vrednost na skali grafikona">Skala: {{ number_format($trendScale, 2, ',', '.') }} RSD</li>
+                    <li class="a1-chart-legend__scale" title="Najviša vrednost na skali grafikona">Skala: {{ number_format($trendScale, 2, ',', '.') }} RSD</li>
                 </ul>
                 <p class="a1-text">Puna traka: prihod završenih porudžbina. Šrafirana traka: bruto dobit samo za stavke sa evidentiranom nabavnom cenom, pre provizija, povraćaja i troškova servisa.</p>
                 <details class="a1-acc">
@@ -272,6 +276,7 @@
                     <div class="a1-acc__body">
                         <div class="a1-tablewrap" role="region" aria-label="Tačne vrednosti po periodima" tabindex="0">
                             <table class="a1-table">
+                                <caption class="a1-sr">Tačne vrednosti po periodima</caption>
                                 <thead><tr><th scope="col">Period</th><th scope="col" class="a1-table__num">Prihod (RSD)</th><th scope="col" class="a1-table__num">Bruto dobit (RSD)</th></tr></thead>
                                 <tbody>
                                     @foreach($trend as $point)
@@ -292,29 +297,10 @@
             @endif
         </section>
 
-        <section class="a1-card a1-lg-4" aria-labelledby="d1-priority-heading">
-            <div class="a1-card__head">
-                <div class="a1-card__title"><span class="a1-eyebrow">Fokus danas</span><h2 class="a1-h2" id="d1-priority-heading">Prioritetne aktivnosti</h2><p class="a1-text">{{ $isSuper ? 'Operativne stavke koje zahtevaju reakciju.' : 'Operativne stavke koje trenutno zahtevaju reakciju.' }}</p></div>
-                <span class="a1-count">{{ count($priorityActions) }}</span>
-            </div>
-            @if(count($priorityActions) > 0)
-                <ul class="a1-list">
-                    @foreach($priorityActions as $item)
-                        <li><a href="{{ $item['url'] }}" class="a1-item a1-item--count"><span class="a1-item__icon a1-item__icon--{{ $item['tone'] }}"><x-icon :name="$item['icon']" :size="20" :shell="true" /></span><span class="a1-item__main"><span class="a1-item__title">{{ $item['title'] }}</span><span class="a1-item__sub">{{ $item['description'] }}</span></span><span class="a1-item__count">{{ is_float($item['count']) ? number_format($item['count'], 0, ',', '.') : $item['count'] }}</span><x-icon class="a1-item__go" name="arrow-right" :size="16" :shell="true" /></a></li>
-                    @endforeach
-                </ul>
-            @else
-                <div class="a1-empty">
-                    <span class="a1-empty__icon"><x-icon name="check-circle" :size="28" :shell="true" /></span>
-                    <h3 class="a1-h3">Nema kritičnih aktivnosti</h3>
-                    <p>Operativne obaveze su trenutno pod kontrolom.</p>
-                </div>
-            @endif
-        </section>
-    </div>
+        @unless($isSuper)
+        @include('dashboard.partials.priorities', ['span' => 'a1-lg-4'])
+        @endunless
 
-    @php $showBrandMix = $isSuper && is_array($dashboardBrandMix); @endphp
-    <div class="a1-g12">
         @if($showBrandMix)
         <section class="a1-card a1-lg-5" data-dashboard-d3="1" aria-labelledby="dash-brand-title">
             <div class="a1-card__head">
@@ -336,7 +322,8 @@
                                 <circle class="a1-donut__track" cx="18" cy="18" r="15.9155"/>
                                 @foreach($mix['slices'] as $idx => $slice)
                                     @php
-                                        $share = max(0.0, min(100.0, (float) $slice['percent']));
+                                        // Geometry from the values, not from the rounded display percent; the last slice closes the ring.
+                                        $share = $loop->last ? max(0.0, 100.0 - $cursor) : max(0.0, min(100.0 - $cursor, ((float) $slice['value']) / max(0.01, (float) $mix['total']) * 100));
                                         $offset = $cursor;
                                         $cursor += $share;
                                     @endphp
@@ -359,8 +346,10 @@
             @endforeach
         </section>
         @endif
+    </div>
 
-        <section class="a1-card @if($showBrandMix) a1-lg-7 @endif" aria-labelledby="dash-recent-title">
+    <div>
+        <section class="a1-card" aria-labelledby="dash-recent-title">
             <div class="a1-card__head">
                 <div class="a1-card__title"><span class="a1-eyebrow">Najnovije promene</span><h2 class="a1-h2" id="dash-recent-title">Poslednje porudžbine</h2></div>
                 <a class="a1-link" href="{{ $orderIndex }}">Prikaži sve <x-icon name="arrow-right" :size="16" :shell="true" /></a>

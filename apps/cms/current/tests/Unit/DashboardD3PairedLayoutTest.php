@@ -31,7 +31,7 @@ final class DashboardD3PairedLayoutTest extends TestCase
         self::assertStringContainsString('$showBrandMix = $isSuper && is_array($dashboardBrandMix);', $view);
         self::assertStringContainsString('data-dashboard-d3="1"', $view);
         self::assertSame(1, substr_count($view, 'a1-card a1-lg-5" data-dashboard-d3="1"'));
-        self::assertStringContainsString('a1-card @if($showBrandMix) a1-lg-7 @endif', $view);
+        self::assertStringContainsString("\$trendSpan = \$isSuper ? (\$showBrandMix ? 'a1-lg-7' : '') : 'a1-lg-8';", $view);
         self::assertStringContainsString("\$isSuper = \$user->hasRole('superadmin');", $view);
 
         self::assertMatchesRegularExpression('/\.a1-g12\{display:grid;grid-template-columns:repeat\(12,minmax\(0,1fr\)\)/', $css);

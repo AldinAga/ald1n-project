@@ -66,6 +66,15 @@ $adminWebkit = User::query()->create([
     'first_name' => 'Test SuperAdmin',
     'status' => 'active',
 ]);
+// Administrator role (not superadmin): dashboard without the period selector, valuation and brand mix.
+$administrator = User::query()->create([
+    'role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id'),
+    'username' => 'admin-visual-administrator',
+    'email' => 'admin-visual-administrator@example.test',
+    'password_hash' => Hash::make($password),
+    'first_name' => 'Test Administrator',
+    'status' => 'active',
+]);
 $customer = User::query()->create([
     'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
     'user_group_id' => 1,
@@ -188,6 +197,7 @@ $payload = [
     'sentinel' => 'ALD1N_ADMIN_VISUAL_CI_SYNTHETIC_ONLY',
     'admin' => ['login' => $admin->username, 'password' => $password],
     'admin_webkit' => ['login' => $adminWebkit->username, 'password' => $password],
+    'administrator' => ['login' => $administrator->username, 'password' => $password],
     'customer' => ['login' => $customer->username, 'password' => $password],
     'ids' => ['product' => $product->id, 'order' => $order->id, 'warranty' => $warranty->id, 'customer' => $customer->id],
 ];
@@ -197,4 +207,4 @@ if (file_put_contents($dest, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PR
     exit(4);
 }
 chmod($dest, 0600);
-echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=2 products=1 orders=1 archived_completed_orders=5 warranties=1\n";
+echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=4products=1 orders=1 archived_completed_orders=5 warranties=1\n";

@@ -22,7 +22,7 @@
     ];
 @endphp
 
-<section class="a1-dash" data-customer-center-ready="1" aria-labelledby="customer-center-title">
+<section class="a1-stack" data-customer-center-ready="1" aria-labelledby="customer-center-title">
     <div class="a1-card__head">
         <div class="a1-card__title">
             <span class="a1-eyebrow">Jedinstveni korisnički centar</span>

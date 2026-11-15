@@ -82,7 +82,7 @@ final class DashboardModuleTwoTest extends TestCase
 
         // Period selector: real buttons of a GET form, exactly one pressed.
         self::assertSame(3, substr_count($dash, 'class="a1-seg__opt" name="period"'));
-        self::assertSame(1, substr_count($dash, 'name="period" value="default" aria-pressed="true"'));
+        self::assertSame(1, substr_count($dash, 'name="period" value="default" aria-current="true"'));
 
         // Every KPI tile is an outermost link to the same targets as before.
         foreach ([

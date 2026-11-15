@@ -608,6 +608,12 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-dash .a1-table{min-width:0}
 /* One shrinkable column: a scroll box (table) inside a card must not widen the card past the viewport. */
 .a1-dash .a1-card,.a1-dash .a1-stack{grid-template-columns:minmax(0,1fr)}
+.a1-dash .a1-g12{align-items:start}
+.a1-dash .a1-card{gap:var(--a1-space-12)}
+@media (min-width:768px){.a1-dash .a1-card{padding:var(--a1-space-20)}}
+.a1-dash .a1-hero__text{gap:var(--a1-space-8)}
+/* The old .page-shell input rules (0,4,1) beat .a1-input; this restores the control size and radius inside the dashboard without !important. */
+.a1-dash .a1-field .a1-input.a1-input[type=date]{min-height:var(--a1-size-control);border-radius:var(--a1-radius-sm)}
 .a1-dash .a1-title{margin:0}
 .a1-dash .a1-text,.a1-dash .a1-lead{margin:0}
 .a1-card__title{display:grid;gap:var(--a1-space-4);min-width:0}
@@ -649,7 +655,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-seg{display:flex;gap:2px;max-width:100%;padding:3px;border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-pill);background-color:var(--a1-button-ghost-bg);box-shadow:0 1px 0 var(--a1-edge-light) inset}
 .a1-seg__opt{flex:1 1 auto;display:inline-flex;align-items:center;justify-content:center;min-height:var(--a1-size-touch-target);padding:0 var(--a1-space-16);border:var(--a1x-border-width) solid transparent;border-radius:var(--a1-radius-pill);background:transparent;color:var(--a1-text-secondary);font:var(--a1-typography-font-weight-nav) var(--a1-typography-font-size-sm-plus)/1 var(--a1-typography-font-family-sans);white-space:nowrap;cursor:pointer}
 .a1-seg__opt:hover{background:var(--a1-button-ghost-hover);color:var(--a1-text-primary)}
-.a1-seg__opt[aria-pressed=true]{border-color:var(--a1-border-strong);background:var(--a1-surface-solid);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold);box-shadow:0 1px 0 var(--a1-edge-light) inset}
+.a1-seg__opt[aria-pressed=true],.a1-seg__opt[aria-current=true]{border-color:var(--a1-border-strong);background:var(--a1-surface-solid);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold);box-shadow:0 1px 0 var(--a1-edge-light) inset}
 .a1-seg__opt:focus-visible{outline-offset:1px}
 .a1-period{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-16) var(--a1-space-24)}
 .a1-period>.a1-card__title{flex:1 1 320px}
@@ -663,6 +669,13 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 @media (min-width:560px){.a1-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1100px){.a1-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.a1-kpis--4{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .a1-kpi--link{gap:var(--a1-space-8);color:var(--a1-text-primary);text-decoration:none}
+.a1-dash .a1-kpi{padding:var(--a1-space-12) var(--a1-space-16)}
+.a1-dash .a1-kpi--link{gap:var(--a1-space-4)}
+/* Compact link rows for the priorities strip beside the period block. */
+@media (min-width:768px){.a1-list--duo{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.a1-item--compact{min-height:48px;padding:var(--a1-space-8) var(--a1-space-12)}
+.a1-item--compact .a1-item__icon{width:32px;height:32px;border-radius:10px}
+.a1-item--compact .a1-item__sub{font-size:var(--a1-typography-font-size-sm)}
 .a1-kpi--link:hover{border-color:var(--a1-accent-link)}
 .a1-dash .a1-kpi__label{color:var(--a1-text-secondary);font-weight:var(--a1-typography-font-weight-semibold)}
 .a1-dash .a1-kpi__value{font-size:var(--a1x-kpi-size);color:var(--a1-text-primary)}
@@ -722,17 +735,18 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-trend__bar--rev{background-color:var(--a1-button-primary-bg);background-image:var(--a1-gradient-button-gloss)}
 .a1-trend__bar--gross{border:var(--a1x-border-width-strong) solid var(--a1-status-ok-dot);border-bottom:0;background-color:transparent;background-image:repeating-linear-gradient(135deg,var(--a1-status-ok-dot) 0 2px,transparent 2px 6px)}
 .a1-trend__label{display:block;min-height:1.1em;font-size:var(--a1-typography-font-size-xs-plus);line-height:1.1;color:var(--a1-text-secondary);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
-.a1-legend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16);margin:0;padding:0;list-style:none;font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
-.a1-legend li{display:inline-flex;align-items:center;gap:var(--a1-space-8)}
-.a1-legend__scale{margin-left:auto;font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary);font-variant-numeric:tabular-nums}
+.a1-chart-legend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16);margin:0;padding:0;list-style:none;font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+.a1-chart-legend li{display:inline-flex;align-items:center;gap:var(--a1-space-8)}
+.a1-chart-legend__scale{margin-left:auto;font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary);font-variant-numeric:tabular-nums}
 .a1-swatch{display:inline-block;flex:0 0 auto;width:14px;height:14px;border-radius:4px;background-color:var(--a1-accent-link)}
 .a1-swatch--rev{background-color:var(--a1-button-primary-bg)}
 .a1-swatch--gross{border:var(--a1x-border-width-strong) solid var(--a1-status-ok-dot);background-color:transparent;background-image:repeating-linear-gradient(135deg,var(--a1-status-ok-dot) 0 2px,transparent 2px 6px)}
-.a1-swatch--2,.a1-donut__slice--2{--a1x-slice:var(--a1-status-ok-dot)}
-.a1-swatch--3,.a1-donut__slice--3{--a1x-slice:var(--a1-status-warning-dot)}
-.a1-swatch--4,.a1-donut__slice--4{--a1x-slice:var(--a1-status-info-dot)}
-.a1-swatch--5,.a1-donut__slice--5{--a1x-slice:var(--a1-status-danger-dot)}
-.a1-swatch--6,.a1-donut__slice--6{--a1x-slice:var(--a1-status-off-dot)}
+/* Categorical ramp: accent and neutral steps only, so red, amber and green keep their status meaning. */
+.a1-swatch--2,.a1-donut__slice--2{--a1x-slice:var(--a1-text-secondary)}
+.a1-swatch--3,.a1-donut__slice--3{--a1x-slice:color-mix(in srgb,var(--a1-accent-link) 60%,var(--a1-surface-solid))}
+.a1-swatch--4,.a1-donut__slice--4{--a1x-slice:color-mix(in srgb,var(--a1-text-secondary) 55%,var(--a1-surface-solid))}
+.a1-swatch--5,.a1-donut__slice--5{--a1x-slice:color-mix(in srgb,var(--a1-accent-link) 40%,var(--a1-surface-solid))}
+.a1-swatch--6,.a1-donut__slice--6{--a1x-slice:color-mix(in srgb,var(--a1-text-secondary) 35%,var(--a1-surface-solid))}
 .a1-swatch--1,.a1-donut__slice--1{--a1x-slice:var(--a1-accent-link)}
 .a1-swatch--1,.a1-swatch--2,.a1-swatch--3,.a1-swatch--4,.a1-swatch--5,.a1-swatch--6{background-color:var(--a1x-slice)}
 .a1-donut__slice{fill:none;stroke:var(--a1x-slice,var(--a1-accent-link));stroke-width:4}
@@ -771,7 +785,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-dash{color:CanvasText}
   .a1-item,.a1-tile,.a1-ratecard,.a1-profile,.a1-seg{background:Canvas;color:CanvasText;border-color:CanvasText}
   .a1-seg__opt{border-color:ButtonText;color:ButtonText;background:ButtonFace}
-  .a1-seg__opt[aria-pressed=true]{border:3px solid Highlight;color:Highlight}
+  .a1-seg__opt[aria-pressed=true],.a1-seg__opt[aria-current=true]{border:3px solid Highlight;color:Highlight}
   .a1-item__icon,.a1-ratecard__icon{background:Canvas;color:CanvasText;border:var(--a1x-border-width) solid CanvasText}
   .a1-trend__bar,.a1-swatch,.a1-donut__slice{forced-color-adjust:none}
   .a1-trend__bar--rev,.a1-swatch--rev{background:Highlight;border:0}

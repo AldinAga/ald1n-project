@@ -154,6 +154,22 @@ const prepare = {
   async dashboardOpenAll(page) {
     await page.evaluate(() => document.querySelectorAll('.a1-dash details').forEach((d) => { d.open = true; }));
   },
+  // Dashboard with long amounts: the same real elements, their text replaced by a 12.345.678,90 value.
+  async dashboardLongNumbers(page) {
+    await prepare.dashboardOpenAll(page);
+    await page.evaluate(() => {
+      const long = '12.345.678,90';
+      document.querySelectorAll('.a1-dash .a1-kpi__value').forEach((el) => {
+        const unit = el.querySelector('.a1-kpi__unit');
+        el.textContent = long + ' ';
+        el.classList.remove('a1-kpi__value--na');
+        if (unit) el.appendChild(unit); else { const u = document.createElement('span'); u.className = 'a1-kpi__unit'; u.textContent = 'RSD'; el.appendChild(u); }
+      });
+      document.querySelectorAll('.a1-dash .a1-item__money').forEach((el) => { el.textContent = long + ' RSD'; });
+      document.querySelectorAll('.a1-dash .a1-mix__value').forEach((el) => { el.textContent = long + ' RSD'; });
+      document.querySelectorAll('.a1-dash .a1-item--order .a1-item__end .a1-item__sub').forEach((el) => { el.textContent = 'Preostalo ' + long; });
+    });
+  },
   // Dashboard brand mix on the second metric (Komadi), like a user pressing the toggle.
   async dashboardUnits(page) {
     await page.locator('.a1-dash [data-d3-mode="units"]').click();
@@ -187,6 +203,10 @@ const PAGES = [
   { module: 'dashboard', key: 'dashboard-units', path: DASH_DATA, prepare: prepare.dashboardUnits, widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-error', path: '/?period=custom&date_from=2026-02-30&date_to=2026-03-01', widths: SHELL_WIDTHS },
   { module: 'dashboard', key: 'dashboard-customer', path: '/', persona: 'customer', prepare: prepare.dashboardOpenAll, widths: SHELL_WIDTHS },
+  // Administrator role (business dashboard without superadmin blocks), desktop and phone. The superadmin is the operator role.
+  { module: 'dashboard', key: 'dashboard-administrator', path: '/', persona: 'administrator', prepare: prepare.dashboardOpenAll, widths: [360, 1440] },
+  // Long amounts (12.345.678,90 RSD) in KPI tiles, the brand mix and order rows: wraps, never overflows or clips.
+  { module: 'dashboard', key: 'dashboard-long-numbers', path: DASH_DATA, prepare: prepare.dashboardLongNumbers, widths: [360, 1280] },
   { module: 'orders', key: 'orders-index', path: '/admin/orders' },
   { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}` },
   // New orders are created by the customer role (orders.create); superadmin gets 403 by design.
@@ -355,12 +375,22 @@ async function dashboardChecks(page, pg, width, theme) {
       || (e.labels && e.labels.length ? [...e.labels].map((l) => l.textContent).join(' ').trim() : '')
       || (e.textContent || '').trim() || (e.getAttribute('title') || '').trim();
     const unlabeled = controls.filter((e) => !e.matches('.a1-check') && !nameOf(e)).map((e) => e.tagName.toLowerCase() + label(e));
-    const pressed = [...root.querySelectorAll('.a1-seg__opt')].filter((b) => !b.hasAttribute('aria-pressed')).map(label);
-    return { missing: false, small, unlabeled, pressed, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
+    // Toggle buttons (brand metric) carry aria-pressed; the period buttons navigate and carry aria-current on the current one.
+    const pressed = [...root.querySelectorAll('[data-d3-mode]')].filter((b) => !b.hasAttribute('aria-pressed')).map(label);
+    const dates = [...root.querySelectorAll('input[type=date]')].filter(shown)
+      .filter((e) => Math.abs(e.getBoundingClientRect().height - 48) > 1)
+      .map((e) => 'date ' + Math.round(e.getBoundingClientRect().height) + 'px (control is 48px)');
+    const clipped = [...root.querySelectorAll('*')]
+      .filter((e) => shown(e) && !e.closest('.a1-sr, .a1-tablewrap') && !e.matches('input, select, textarea, svg, svg *'))
+      .filter((e) => { const o = getComputedStyle(e).overflowX; return o !== 'visible' && e.scrollWidth > e.clientWidth + 1; })
+      .map((e) => label(e) + ' ' + e.scrollWidth + '>' + e.clientWidth);
+    return { missing: false, small, unlabeled, pressed, dates, clipped, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
   }, DASH_SCOPE);
   if (dom.missing) { out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['.a1-dash missing'] }); return out; }
   if (dom.small.length) out.push({ ...base, rule: 'small-target', count: dom.small.length, selectors: dom.small.slice(0, 3) });
   if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
+  if (dom.dates.length) out.push({ ...base, rule: 'control-height', count: dom.dates.length, selectors: dom.dates.slice(0, 3) });
+  if (dom.clipped.length) out.push({ ...base, rule: 'clipped-text', count: dom.clipped.length, selectors: dom.clipped.slice(0, 3) });
   if (dom.pressed.length || dom.h1 !== 1) out.push({ ...base, rule: 'dashboard-structure', count: dom.pressed.length + (dom.h1 === 1 ? 0 : 1), selectors: [...dom.pressed, 'h1 x' + dom.h1].slice(0, 3) });
   if (dom.checkedControls < 5) out.push({ ...base, rule: 'dashboard-structure', count: 1, selectors: ['only ' + dom.checkedControls + ' controls found'] });
   return out;
@@ -520,7 +550,7 @@ async function runCell(ctx, pg, width, theme) {
   const started = Date.now();
   const browser = await playwright[browserName].launch();
   const states = {};
-  for (const persona of ['admin', 'customer']) {
+  for (const persona of ['admin', 'customer', 'administrator']) {
     try {
       states[persona] = await login(browser, persona);
     } catch (e) {
@@ -528,10 +558,11 @@ async function runCell(ctx, pg, width, theme) {
     }
   }
   if (states.admin) {
-    const authCtx = { admin: {}, customer: {} }; const guestCtx = {};
+    const authCtx = { admin: {}, customer: {}, administrator: {} }; const guestCtx = {};
     for (const theme of THEMES) {
       authCtx.admin[theme] = await newThemedContext(browser, theme, states.admin);
       if (states.customer) authCtx.customer[theme] = await newThemedContext(browser, theme, states.customer);
+      if (states.administrator) authCtx.administrator[theme] = await newThemedContext(browser, theme, states.administrator);
       guestCtx[theme] = await newThemedContext(browser, theme);
     }
     for (const pg of PAGES) {
@@ -544,7 +575,7 @@ async function runCell(ctx, pg, width, theme) {
       }
       console.log(`done ${pg.module}/${pg.key} (${((Date.now() - started) / 60000).toFixed(1)} min)`);
     }
-    for (const c of [...Object.values(authCtx.admin), ...Object.values(authCtx.customer), ...Object.values(guestCtx)]) await c.close();
+    for (const c of [...Object.values(authCtx.admin), ...Object.values(authCtx.customer), ...Object.values(authCtx.administrator), ...Object.values(guestCtx)]) await c.close();
   }
   await browser.close();
   const out = {
