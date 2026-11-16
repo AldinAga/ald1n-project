@@ -429,6 +429,27 @@ final class OrdersModuleThreeListsTest extends TestCase
     }
 
     /** The page root only, without the application shell. */
+    public function test_an_order_with_completed_at_shows_a_green_isporucena_chip_never_poslata(): void
+    {
+        $buyer = $this->person('user');
+        $super = $this->person('superadmin');
+        $this->order($buyer, $super, 'M3L-DELIVERED-1', ['status' => 'shipped', 'completed_at' => '2026-01-10 12:00:00']);
+        $this->order($buyer, $super, 'M3L-SHIPPED-2', ['status' => 'shipped']);
+
+        foreach ([[$super, '/admin/orders'], [$buyer, '/orders']] as [$who, $url]) {
+            $page = $this->page((string) $this->actingAs($who)->get($url)->assertOk()->getContent());
+            $row = (string) preg_replace('~^.*?(M3L-DELIVERED-1.*?</tr>).*$~s', '$1', $page);
+            // Positive control: the delivered row was found and is the shorter slice, then the chip is green and says Isporučena.
+            self::assertStringContainsString('M3L-DELIVERED-1', $row);
+            self::assertStringNotContainsString('M3L-SHIPPED-2', $row);
+            self::assertMatchesRegularExpression('~a1-pill a1-pill--ok">Isporučena</span>~', $row, $url);
+            self::assertStringNotContainsString('Poslata', $row);
+            self::assertStringNotContainsString('Kompletirana', $row);
+            // The merely shipped order keeps its own label and chip.
+            self::assertMatchesRegularExpression('~M3L-SHIPPED-2.*?a1-pill a1-pill--info">Poslata</span>~s', $page, $url);
+        }
+    }
+
     private function page(string $html): string
     {
         $start = strpos($html, 'class="a1-ops"');

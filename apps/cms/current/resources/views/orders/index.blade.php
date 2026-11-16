@@ -8,7 +8,7 @@
         'processing' => 'Obrada',
         'confirmed' => 'Potvrđena',
         'shipped' => 'Poslata',
-        'completed' => 'Kompletirana',
+        'completed' => 'Isporučena',
         'cancelled' => 'Otkazana',
     ];
     $paymentLabels = [
@@ -77,7 +77,7 @@
                             <td role="cell" class="a1-table__primary a1-ol-primary" data-label="Broj">{{ $order->order_number }}</td>
                             <td role="cell" class="a1-ol-late" data-label="Dobavljač">{{ $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName() ?: '—') }}</td>
                             <td role="cell" data-label="Status">
-                                <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Kompletirana' : ($statusLabels[$order->status] ?? $order->status) }}</span>
+                                <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Isporučena' : ($statusLabels[$order->status] ?? $order->status) }}</span>
                             </td>
                             <td role="cell" class="a1-ol-late" data-label="Plaćanje">{{ $methodLabels[$order->payment_method] ?? $order->payment_method }} / {{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
                             <td role="cell" class="a1-table__num" data-label="Iznos"><strong>{{ number_format((float)$order->subtotal_rsd,2,',','.') }} RSD</strong></td>

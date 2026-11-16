@@ -301,7 +301,7 @@ final class OrderDetailPresenter
                 'sales_channel' => $salesChannel,
                 'is_direct_sale' => $isDirectSale,
                 'status' => $status,
-                'status_label' => $isCompleted ? 'Kompletirana' : $this->statusLabel($status),
+                'status_label' => $isCompleted ? 'Isporučena' : $this->statusLabel($status),
                 'status_class' => $isCompleted ? 'completed' : $this->statusClass($status),
                 'is_completed' => $isCompleted,
                 'completed_at' => $completedAt,

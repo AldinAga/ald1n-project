@@ -7,7 +7,7 @@
         'processing' => 'Obrada',
         'confirmed' => 'Potvrđena',
         'shipped' => 'Poslata',
-        'completed' => 'Kompletirana',
+        'completed' => 'Isporučena',
         'cancelled' => 'Otkazana',
     ];
     $paymentLabels = [
@@ -263,7 +263,7 @@
                                 </td>
                                 <td role="cell" data-label="Status obrade">
                                     <span class="a1-ol-cell">
-                                        <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Kompletirana' : ($statusLabels[$order->status] ?? $order->status) }}</span>
+                                        <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Isporučena' : ($statusLabels[$order->status] ?? $order->status) }}</span>
                                         <span class="a1-ol-sub">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</span>
                                         @if($order->completed_at)
                                             <span class="a1-ol-sub">{{ $order->completed_at->format('d.m.Y H:i') }}</span>
