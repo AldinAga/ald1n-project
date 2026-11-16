@@ -10,13 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 final class CommissionAdjustment extends Model
 {
     protected $fillable = [
-        'commission_id', 'order_id', 'order_item_id', 'kind', 'amount_eur', 'quantity', 'reason', 'source',
-        'after_sales_action_item_id', 'created_by',
+        'commission_id', 'order_id', 'order_item_id', 'kind', 'status', 'amount_eur', 'quantity', 'reason', 'source',
+        'after_sales_action_item_id', 'created_by', 'decided_by', 'decided_at', 'decision_note',
     ];
 
     protected function casts(): array
     {
-        return ['amount_eur' => 'decimal:2'];
+        return ['amount_eur' => 'decimal:2', 'decided_at' => 'datetime'];
     }
 
     public function commission(): BelongsTo

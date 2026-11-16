@@ -17,6 +17,14 @@ final class CommissionMoney
         return ((int) $m[1]) * 100 + (int) str_pad($m[2] ?? '0', 2, '0');
     }
 
+    /** Postoji li tabela storno/zaduženja (migracija izvršena); keširano po procesu da ne pravi upit po redu. */
+    public static function hasAdjustments(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasTable('commission_adjustments');
+    }
+
     public static function format(int $cents): string
     {
         return sprintf('%d.%02d', intdiv($cents, 100), $cents % 100);

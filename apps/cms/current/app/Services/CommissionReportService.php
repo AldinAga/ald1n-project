@@ -25,7 +25,7 @@ final class CommissionReportService
     /** Eager load (lazy loading je zabranjen); adjustments samo kad migracija postoji. @param list<string> $relations @return list<string> */
     private function relations(array $relations): array
     {
-        return Schema::hasTable('commission_adjustments') ? [...$relations, 'adjustments'] : $relations;
+        return \App\Support\CommissionMoney::hasAdjustments() ? [...$relations, 'adjustments'] : $relations;
     }
 
     /** @param array<string,mixed> $filters */
@@ -168,7 +168,7 @@ final class CommissionReportService
             return ['count' => (int) ($row->c ?? 0), 'eur' => (float) ($row->s ?? 0)];
         };
         $ids = (clone $query)->reorder()->select('order_commissions.id');
-        $hasAdjustments = Schema::hasTable('commission_adjustments'); // stranica radi i pre migracije
+        $hasAdjustments = \App\Support\CommissionMoney::hasAdjustments(); // stranica radi i pre migracije
         $adjusted = static fn (string $kind, string $status = 'confirmed'): float => !$hasAdjustments ? 0.0 : (float) CommissionAdjustment::query()->where('kind', $kind)->where('status', $status)->whereIn('commission_id', $ids)->sum('amount_eur');
         // otvoreno dugovanje = potvrđena zaduženja minus već prebijeno pri isplatama
         $settled = $hasAdjustments && Schema::hasTable('commission_debit_settlements')

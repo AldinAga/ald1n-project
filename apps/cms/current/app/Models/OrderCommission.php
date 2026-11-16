@@ -51,7 +51,7 @@ final class OrderCommission extends Model
     /** Zbir storno/zaduženja u EUR (centi, string "0.00"); koristi eager-loaded adjustments bez dodatnog upita. */
     public function adjustmentSumEur(string $kind, array $statuses = ['confirmed']): string
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('commission_adjustments')) {
+        if (!\App\Support\CommissionMoney::hasAdjustments()) {
             return '0.00';
         }
         $rows = $this->relationLoaded('adjustments') ? $this->adjustments : $this->adjustments()->get();
