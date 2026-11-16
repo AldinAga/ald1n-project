@@ -1051,4 +1051,5 @@ button.a1-drawer-rate{cursor:pointer}
 .a1-ordercard__bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--a1-space-12)}
 .a1-ordercard__note{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-ordercard__amount{display:grid;justify-items:end;text-align:right;font-variant-numeric:tabular-nums}
-@media (min-width:1100px){.a1-g12--stack{align-items:start}}
+/* Rows: brands take their own height, the leftover of the tall trend card goes below the orders card (no gap between the two). */
+@media (min-width:1100px){.a1-g12--stack{align-items:start;grid-template-rows:auto 1fr}}
