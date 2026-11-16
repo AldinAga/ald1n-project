@@ -1375,3 +1375,5 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{display:block;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .a1-ops .a1-ol-table th,.a1-ops .a1-ol-table td{padding-inline:var(--a1-space-8)}
 }
+
+.a1-ops .a1-dialog p[data-order-purge-retention]{margin-right:var(--a1-space-12)}
