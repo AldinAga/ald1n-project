@@ -184,7 +184,7 @@ foreach ([
 // Completed in November 2025: outside the default month, January 2026 and the December 2025 comparison window of the cells.
 $delivered = Order::query()->create([
     'source_system' => 'laravel',
-    'order_number' => 'ADMIN-VISUAL-DELIVERED-001',
+    'order_number' => 'APC-20261115-00000162',
     'user_id' => $admin->id,
     'supplier_user_id' => $admin->id,
     'supplier_name_snapshot' => 'Test SuperAdmin',

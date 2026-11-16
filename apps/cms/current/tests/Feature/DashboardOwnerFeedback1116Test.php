@@ -50,7 +50,7 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         self::assertSame('shipped', DB::table('orders')->where('id', $shipped->id)->value('status'));
         self::assertSame('cancelled', DB::table('orders')->where('id', $cancelled->id)->value('status'));
         // The compact list modifier replaces the full-width stretch.
-        self::assertStringContainsString('class="a1-list a1-list--recent"', $dash);
+        self::assertStringContainsString('class="a1-list a1-list--recent', $dash);
     }
 
     public function test_superadmin_earnings_cards_show_the_period_numbers(): void

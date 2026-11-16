@@ -554,6 +554,9 @@ async function ownerDashboardChecks(page, pg, width, theme) {
       pageHeight: Math.round(document.documentElement.scrollHeight),
       cardWidth: Math.round(document.querySelector('[data-dashboard-earnings-kpi]')?.getBoundingClientRect().width || 0),
       valueWraps: [...document.querySelectorAll('[data-dashboard-earnings-kpi] .a1-kpi__value')].filter((v) => v.getClientRects().length > 1 || v.getBoundingClientRect().height > 40).length,
+      // Recent orders under the brands (right column) from 1100px; the 21-character production-format number is never clipped.
+      layout: (() => { const c = (id) => document.getElementById(id)?.closest('.a1-card')?.getBoundingClientRect(); const t = c('dash-trend-title'); const b = c('dash-brand-title'); const o = c('dash-recent-title'); if (!t || !b || !o) return null; return { tr: t.right, tb: t.bottom, ol: o.left, ot: o.top, bb: b.bottom, ob: o.bottom }; })(),
+      orderNumber: (() => { const s = [...document.querySelectorAll('.a1-list--recent .a1-item__main .a1-item__sub')].find((e) => e.textContent.includes('APC-20261115-00000162')); if (!s) return null; return { clipped: s.scrollWidth > s.clientWidth + 1, overflowX: getComputedStyle(s).overflowX }; })(),
       vw: window.innerWidth,
       searchMid: (() => { const s = document.querySelector('[data-header-product-search-toggle]'); if (!s || s.getClientRects().length === 0) return null; const b = s.getBoundingClientRect(); return (b.left + b.right) / 2; })(),
     };
@@ -576,6 +579,15 @@ async function ownerDashboardChecks(page, pg, width, theme) {
     pageHeights.push({ browser: browserName, width, theme, height: d.pageHeight });
     if (width <= 480 && d.pageHeight > 4000) { softWarnings.push(`dashboard-data ${browserName} ${width} ${theme}: page is ${d.pageHeight}px tall (target 4000)`); console.warn('SOFT ' + softWarnings[softWarnings.length - 1]); }
   }
+  if (pg.persona !== 'customer' && pg.persona !== 'administrator') {
+    if (d.layout && d.vw >= 1200) {
+      if (!(d.layout.ol > d.layout.tr)) bad('owner-orders-not-right-of-trend', `orders left ${Math.round(d.layout.ol)} <= trend right ${Math.round(d.layout.tr)}`);
+      if (!(d.layout.ot >= d.layout.bb - 1)) bad('owner-orders-not-under-brands', `orders top ${Math.round(d.layout.ot)} < brands bottom ${Math.round(d.layout.bb)}`);
+      if (pg.path === DASH_DATA && Math.abs(d.layout.tb - d.layout.ob) > 160) bad('owner-columns-uneven', `trend bottom ${Math.round(d.layout.tb)} vs orders bottom ${Math.round(d.layout.ob)}`);
+    }
+    if (pg.key === 'dashboard' && !d.orderNumber) bad('owner-order-number-missing', 'APC-20261115-00000162 not listed');
+    if (d.orderNumber && (d.orderNumber.clipped || d.orderNumber.overflowX !== 'visible')) bad('owner-order-number-clipped', JSON.stringify(d.orderNumber));
+  }
   if (pg.fold && d.searchMid !== null && Math.abs(d.vw / 2 - d.searchMid) > 24) bad('owner-search-not-centered', `search centre ${Math.round(d.searchMid)}px vs header centre ${Math.round(d.vw / 2)}px at ${width}px`);
   const isSuper = pg.persona !== 'administrator' && pg.persona !== 'customer';
   if (pg.persona === 'customer') return out;
@@ -594,7 +606,8 @@ async function ownerDashboardChecks(page, pg, width, theme) {
     }
     if (!d.pills.some((p) => p.text === 'Isporučena' && p.ok)) bad('owner-delivered-chip', JSON.stringify(d.pills));
     if (width >= 1280 && d.listWidth !== null && d.listWidth > 1000) bad('owner-recent-orders-stretched', `list ${d.listWidth}px wide`);
-    if (new Set(d.pills.map((p) => p.left)).size > 1 && width >= 768) bad('owner-recent-orders-misaligned', JSON.stringify(d.pills.map((p) => p.left)));
+    // Right-aligned chips of the stacked list (desktop, under the brands) differ in width by design; only the full-width list aligns on the left edge.
+    if (new Set(d.pills.map((p) => p.left)).size > 1 && width >= 768 && !(d.layout && d.vw >= 1100)) bad('owner-recent-orders-misaligned', JSON.stringify(d.pills.map((p) => p.left)));
     if (pg.path === DASH_DATA) {
       if (d.series.length !== 4) bad('owner-trend-toggles', JSON.stringify(d.series));
       for (const col of ['Prihod', 'Bruto', 'Provizija', 'Porudžbine']) if (!d.table.includes(col)) bad('owner-trend-table-column', col + ' missing in ' + JSON.stringify(d.table));

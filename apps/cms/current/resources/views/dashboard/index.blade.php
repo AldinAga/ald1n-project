@@ -196,7 +196,7 @@
         $showBrandMix = $isSuper && is_array($dashboardBrandMix);
         $trendSpan = $isSuper ? ($showBrandMix ? 'a1-lg-7' : '') : 'a1-lg-8';
     @endphp
-    <div class="a1-g12">
+    <div class="a1-g12{{ $showBrandMix ? ' a1-g12--stack' : '' }}">
         <section class="a1-card {{ $trendSpan }}" aria-labelledby="dash-trend-title">
             <div class="a1-card__head">
                 <div class="a1-card__title"><span class="a1-eyebrow">Finansijski puls</span><h2 class="a1-h2" id="dash-trend-title">Trend prodaje</h2><p class="a1-text">{{ $reportStats['period_label'] ?? 'Tekući mesec' }}</p></div>
@@ -337,27 +337,14 @@
             @endforeach
         </section>
         @endif
+        @if($showBrandMix)
+        @include('dashboard.partials.recent-orders', ['stacked' => true])
+        @endif
     </div>
 
-    {{-- The one orders list of the dashboard: product, number and date, user and buyer, status, amount. --}}
-        <section class="a1-card" aria-labelledby="dash-recent-title">
-            <div class="a1-card__head">
-                <div class="a1-card__title"><span class="a1-eyebrow">Najnovije promene</span><h2 class="a1-h2" id="dash-recent-title">Poslednje porudžbine</h2></div>
-                <a class="a1-link" href="{{ $orderIndex }}">Prikaži sve <x-icon name="arrow-right" :size="16" :shell="true" /></a>
-            </div>
-            @if(count($recentOrders) > 0)
-                <ul class="a1-list a1-list--recent">
-                    @foreach($recentOrders as $order)
-                        <li><a href="{{ $order['url'] }}" class="a1-item a1-item--order" data-order-product><span class="a1-item__main"><span class="a1-item__title">{{ $order['product_name'] }}@if($order['other_products'] > 0)<span data-order-extra-products="{{ $order['other_products'] }}"><span aria-hidden="true"> + {{ $order['other_products'] }}</span><span class="a1-sr"> Još stavki: {{ $order['other_products'] }}</span></span>@endif</span><span class="a1-item__sub">{{ $order['number'] }} · {{ $order['updated_at']?->format('d.m.Y H:i') }}@if($access['orders_manage']) · {{ $order['is_direct_sale'] ? 'Direktna prodaja' : 'Korisnik: '.$order['seller_name'] }} · Kupac: {{ $order['buyer_name'] }}@endif</span></span><span class="a1-item__status"><span class="a1-pill a1-pill--{{ $statusTone($order['status']) }}">{{ $order['status_label'] }}</span></span><span class="a1-item__end"><span class="a1-item__money">{{ number_format((float) $order['total_rsd'], 2, ',', '.') }} RSD</span>@if($order['total_eur'] !== null)<span class="a1-item__eur">{{ number_format((float) $order['total_eur'], 2, ',', '.') }} EUR</span>@endif @if($order['remaining_rsd'] > 0)<span class="a1-item__sub">Preostalo {{ number_format((float) $order['remaining_rsd'], 2, ',', '.') }}</span>@else<span class="a1-item__sub">Plaćeno / zatvoreno</span>@endif</span><x-icon class="a1-item__go" name="arrow-right" :size="16" :shell="true" /></a></li>
-                    @endforeach
-                </ul>
-            @else
-                <div class="a1-empty">
-                    <span class="a1-empty__icon"><x-icon name="orders" :size="28" :shell="true" /></span>
-                    <p>Još nema porudžbina za prikaz.</p>
-                </div>
-            @endif
-        </section>
+    @unless($showBrandMix)
+    @include('dashboard.partials.recent-orders')
+    @endunless
 @endif
 
 @if($portalEnabled && !$isSuper)

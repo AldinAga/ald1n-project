@@ -986,7 +986,7 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-header .a1-header__bar:has(>.a1-header__end){display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:var(--a1-space-12);position:relative}
   .a1-header .a1-brand{grid-column:1;grid-row:1;justify-self:start}
   /* The field is centred on the header itself (not between logo and controls): the right-hand box is at most ~440px wide, so 880px stay free around the centre. */
-  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(180px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between}
+  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(180px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between;padding-inline:var(--a1-space-16)}
   .a1-header .a1-header__end{grid-column:3;grid-row:1;justify-self:end;display:flex;flex-wrap:nowrap;align-items:center;gap:var(--a1-space-8)}
   .a1-header .a1-header__end>.a1-header__quick{order:1}
   .a1-header .a1-header__end>.a1-rate{order:2;max-width:9.5rem;overflow:hidden}
@@ -1032,3 +1032,15 @@ button.a1-drawer-rate{cursor:pointer}
 /* Round 2b: phone greeting stays on two lines at most; the orders list keeps a tidy width inside the wide card. */
 .a1-card .a1-list--recent{max-width:62rem}
 @media (max-width:559px){.a1-dash .a1-hero__title .a1-title{font-size:clamp(14px,4.2vw,18px)}}
+
+/* Desktop: recent orders sit in the right column under the brands; the trend card spans both rows and stretches to the same height. */
+@media (min-width:1100px){
+  .a1-g12--stack>.a1-lg-7{grid-row:1/span 2;align-self:stretch}
+  .a1-g12--stack>[data-dashboard-d3]{grid-column:8/span 5;grid-row:1}
+  .a1-g12--stack>.a1-orders-under{grid-column:8/span 5;grid-row:2}
+}
+.a1-list--stacked.a1-list--recent{max-width:none}
+.a1-list--stacked .a1-item--order{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main end" "main status";align-items:start;row-gap:var(--a1-space-4)}
+.a1-list--stacked .a1-item--order .a1-item__go{display:none}
+.a1-list--stacked .a1-item__status{justify-self:end}
+.a1-list--stacked .a1-item__main .a1-item__sub{overflow-wrap:break-word}
