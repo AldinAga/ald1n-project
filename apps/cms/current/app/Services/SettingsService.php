@@ -23,6 +23,7 @@ final class SettingsService
 
     /** @var array<string,string> */
     private const DEFAULTS = [
+        'commission_default_percent' => '10',
         'eur_rsd_rate' => '',
         'eur_rsd_mode' => 'manual',
         'eur_rsd_provider' => 'nbs_html',

@@ -42,12 +42,15 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->assertSee('Podrazumevana provizija je 10% vrednosti artikla po komadu.')
             ->assertDontSee('maksimum');
 
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
-            'status' => 'approved',
-            'note' => 'Provizija proverena.',
-        ])->assertRedirect();
+        // isporuka potvrđena -> provizija sama postaje "Za isplatu" (nema ručnog odobravanja)
+        $order->forceFill(['completed_at' => now()])->save();
+        app(\App\Services\OrderFinancialStateService::class)->project($order);
+        self::assertSame('approved', $commission->fresh()->status);
 
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
+        // isplatu radi samo SuperAdministrator (odluka vlasnika 16.11.2026)
+        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'paid', 'payment_method' => 'cash'])->assertForbidden();
+        $super = $this->user('commission-super', 'superadmin');
+        $this->actingAs($super)->patch('/admin/commissions/'.$commission->id.'/status', [
             'status' => 'paid',
             'payment_method' => 'bank_transfer',
             'payment_reference' => 'NALOG-2026-001',
@@ -128,14 +131,13 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $firstOrder = $this->createOrder($first, $admin, $product, 'batch-flow-a');
         $secondOrder = $this->createOrder($second, $admin, $product, 'batch-flow-b');
         $commissions = OrderCommission::query()->whereIn('order_id', [$firstOrder->id, $secondOrder->id])->orderBy('id')->get();
-
-        foreach ($commissions as $commission) {
-            $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
-                'status' => 'approved',
-            ])->assertRedirect();
+        foreach ([$firstOrder, $secondOrder] as $delivered) {
+            $delivered->forceFill(['completed_at' => now()])->save();
+            app(\App\Services\OrderFinancialStateService::class)->project($delivered);
         }
 
-        $this->actingAs($admin)->post('/admin/commissions/bulk-pay', [
+        $super = $this->user('batch-super', 'superadmin');
+        $this->actingAs($super)->post('/admin/commissions/bulk-pay', [
             'commission_ids' => $commissions->pluck('id')->all(),
             'payment_method' => 'cash',
             'payment_reference' => 'BLAGAJNA-44',

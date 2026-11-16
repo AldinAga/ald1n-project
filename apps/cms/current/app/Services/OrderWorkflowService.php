@@ -93,7 +93,11 @@ final class OrderWorkflowService
                 'created_at' => now(),
             ]);
 
-            if ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status !== 'cancelled') {
+            if ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status === 'paid') {
+                // Isplata ostaje evidentirana; automatski potvrđeno zaduženje za ceo preostali iznos (odluka vlasnika 16.11.2026).
+                $paidCommission = OrderCommission::query()->lockForUpdate()->findOrFail($locked->commission->id);
+                app(CommissionReversalService::class)->debitForCancellation($paidCommission, $actor, (string) $note);
+            } elseif ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status !== 'cancelled') {
                 $commission = OrderCommission::query()->lockForUpdate()->findOrFail($locked->commission->id);
                 $oldCommissionStatus = (string) $commission->status;
                 $commission->update([
@@ -142,7 +146,7 @@ final class OrderWorkflowService
                 ['severity' => $updated->status === 'cancelled' ? 'danger' : ($updated->status === 'shipped' ? 'success' : 'info')],
             );
         }
-        if ($updated->status === 'cancelled' && $updated->commission?->user instanceof User) {
+        if ($updated->status === 'cancelled' && $updated->commission?->status === 'cancelled' && $updated->commission?->user instanceof User) {
             $this->notifications->commission($updated->commission->user, 'commission.cancelled', 'Provizija je stornirana', 'Provizija je stornirana jer je porudžbina '.$updated->order_number.' otkazana.', $updated->commission, ['severity' => 'danger']);
         }
         if ($updated->status === 'cancelled') {
@@ -476,6 +480,7 @@ final class OrderWorkflowService
                 'reopen_reason' => $reason,
                 'updated_by' => $actor->id,
             ]);
+            app(CommissionAutoApprovalService::class)->syncForOrder($locked, 'order_reopened');
 
             $this->audit->log(
                 'order.reopened',

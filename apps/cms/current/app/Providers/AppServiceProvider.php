@@ -25,6 +25,17 @@ final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Podrazumevana stopa provizije iz glavnih podešavanja (commission_default_percent, 0-100); bez podešavanja važi 10 %.
+        $this->app->bind(\App\Services\CommissionCalculator::class, static function ($app): \App\Services\CommissionCalculator {
+            try {
+                $value = $app->make(SettingsService::class)->get('commission_default_percent');
+                $rate = is_string($value) && is_numeric($value) ? (float) $value : null;
+            } catch (Throwable) {
+                $rate = null;
+            }
+
+            return new \App\Services\CommissionCalculator($rate);
+        });
         Passkeys::ignoreRoutes();
         Passkeys::useUserModel(User::class);
         Passkeys::usePasskeyModel(RestoreCredential::class);

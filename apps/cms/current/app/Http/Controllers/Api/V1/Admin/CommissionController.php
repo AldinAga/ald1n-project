@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommissionAdjustment;
 use App\Models\OrderCommission;
+use App\Services\IdempotencyService;
 use App\Models\User;
+use App\Services\CommissionEligibilityService;
 use App\Services\CommissionReportService;
+use App\Services\CommissionReversalService;
 use App\Services\CommissionWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 final class CommissionController extends Controller
@@ -20,7 +25,59 @@ final class CommissionController extends Controller
     public function __construct(
         private readonly CommissionReportService $reports,
         private readonly CommissionWorkflowService $workflow,
+        private readonly CommissionEligibilityService $eligibility,
+        private readonly CommissionReversalService $reversal,
+        private readonly IdempotencyService $idempotency,
     ) {}
+
+    public function reverse(Request $request, OrderCommission $commission): JsonResponse
+    {
+        $data = $request->validate([
+            'idempotency_key' => ['required', 'string', 'max:200'],
+            'reason' => ['required', 'string', 'max:1000'],
+            'amount_eur' => ['nullable', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'],
+            'order_item_id' => ['nullable', 'integer'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+        ]);
+        $actor = $request->user();
+        $scoped = $this->reports->managedQuery($actor, [])->whereKey($commission->id)->firstOrFail();
+        $adjustment = $this->idempotency->run(
+            $actor,
+            'api.admin.commissions.reverse',
+            (string) $data['idempotency_key'],
+            ['commission_id' => (int) $scoped->id] + collect($data)->except('idempotency_key')->all(),
+            CommissionAdjustment::class,
+            fn (): CommissionAdjustment => $this->reversal->reverse(
+                $scoped,
+                $actor,
+                (string) $data['reason'],
+                $data['amount_eur'] ?? null,
+                isset($data['order_item_id']) ? (int) $data['order_item_id'] : null,
+                isset($data['quantity']) ? (int) $data['quantity'] : null,
+            ),
+            static fn (int $id): CommissionAdjustment => CommissionAdjustment::query()->findOrFail($id),
+        );
+
+        return response()->json([
+            'message' => ($adjustment->kind === 'debit' ? 'Zaduženje ' : 'Storno ').'je evidentirano.',
+            'data' => $this->payload($this->reports->managedQuery($actor, [])->whereKey($commission->id)->firstOrFail(), $actor, true),
+        ]);
+    }
+
+    public function confirmDebit(Request $request, CommissionAdjustment $adjustment): JsonResponse
+    {
+        $this->reversal->confirmDebit($adjustment, $request->user());
+
+        return response()->json(['message' => 'Zaduženje je potvrđeno.']);
+    }
+
+    public function rejectDebit(Request $request, CommissionAdjustment $adjustment): JsonResponse
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'max:500']]);
+        $this->reversal->rejectDebit($adjustment, $request->user(), (string) $data['note']);
+
+        return response()->json(['message' => 'Predlog zaduženja je odbijen.']);
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -45,7 +102,8 @@ final class CommissionController extends Controller
             ],
             'filters' => $this->filterOptions($actor),
             'capabilities' => [
-                'bulk_pay' => true,
+                'bulk_pay' => $actor->hasRole('superadmin'),
+                'reverse' => true,
                 'exports' => true,
                 'can_filter_people' => $actor->hasRole('superadmin'),
                 'can_cancel_paid' => $actor->hasRole('superadmin'),
@@ -97,10 +155,12 @@ final class CommissionController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        $skipped = [];
         $batch = $this->workflow->markPaidBulk(
             array_map('intval', $data['commission_ids']),
             $request->user(),
             $data,
+            $skipped,
         );
 
         return response()->json([
@@ -114,9 +174,13 @@ final class CommissionController extends Controller
                 'batch_number' => (string) $batch->batch_number,
                 'commission_count' => (int) $batch->commission_count,
                 'total_eur' => (float) $batch->total_eur,
+                'gross_eur' => (float) $batch->total_eur,
+                'debit_eur' => (float) ($batch->debit_eur ?? 0),
+                'net_eur' => (float) ($batch->net_eur ?? $batch->total_eur),
                 'payment_method' => (string) $batch->payment_method,
                 'payment_reference' => $batch->payment_reference ?: null,
                 'paid_at' => optional($batch->paid_at)->toIso8601String(),
+                'skipped' => $skipped,
             ],
         ]);
     }
@@ -159,6 +223,7 @@ final class CommissionController extends Controller
         $rules = [
             'q' => ['nullable', 'string', 'max:190'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'paid', 'cancelled'])],
+            'state' => ['nullable', Rule::in(CommissionEligibilityService::STATES)],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
             'supplier_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
@@ -178,10 +243,11 @@ final class CommissionController extends Controller
         return [
             'statuses' => [
                 ['value' => 'pending', 'label' => 'Na čekanju'],
-                ['value' => 'approved', 'label' => 'Odobrena'],
+                ['value' => 'approved', 'label' => 'Za isplatu'],
                 ['value' => 'paid', 'label' => 'Isplaćena'],
                 ['value' => 'cancelled', 'label' => 'Stornirana'],
             ],
+            'states' => collect(CommissionEligibilityService::STATE_LABELS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),
             'payment_methods' => [
                 ['value' => 'bank_transfer', 'label' => 'Prenos na račun'],
                 ['value' => 'cash', 'label' => 'Gotovina'],
@@ -239,6 +305,7 @@ final class CommissionController extends Controller
         }
 
         $status = (string) $commission->status;
+        $eligibility = $this->eligibility->evaluate($commission);
         $paymentMethod = $commission->payment_method ?: null;
         $payload = [
             'id' => (int) $commission->id,
@@ -269,7 +336,15 @@ final class CommissionController extends Controller
                 'paid_at' => optional($commission->paid_at)->toIso8601String(),
             ] : null,
             'allowed_transitions' => $this->allowedTransitions($status, $actor),
-            'bulk_pay_eligible' => $status === 'approved',
+            'bulk_pay_eligible' => $status === 'approved' && $actor->hasRole('superadmin'), // isplatu radi samo SuperAdmin
+            // dodato 16.11.2026 (aditivno): stanje dospelosti, razlog i storno/zaduženje
+            'state' => $eligibility['state'],
+            'state_label' => $eligibility['state_label'],
+            'payable_code' => $eligibility['code'],
+            'payable_reason' => $eligibility['reason'],
+            'reversed_eur' => (float) $commission->adjustmentSumEur('reversal'),
+            'owed_eur' => (float) $commission->openDebitEur(),
+            'proposed_debit_eur' => (float) $commission->adjustmentSumEur('debit', ['proposed']),
             'status_updated_at' => optional($commission->status_updated_at)->toIso8601String(),
             'created_at' => optional($commission->created_at)->toIso8601String(),
             'updated_at' => optional($commission->updated_at)->toIso8601String(),
@@ -332,9 +407,9 @@ final class CommissionController extends Controller
     private function allowedTransitions(string $status, User $actor): array
     {
         return match ($status) {
-            'pending' => ['approved', 'cancelled'],
-            'approved' => ['paid', 'cancelled'],
-            'paid' => $actor->hasRole('superadmin') ? ['cancelled'] : [],
+            'pending' => ['cancelled'], // odobravanje je automatsko (16.11.2026)
+            'approved' => $actor->hasRole('superadmin') ? ['paid', 'cancelled'] : ['cancelled'],
+            'paid' => [], // isplaćena se ne otkazuje ručno: "Storniraj proviziju" beleži zaduženje
             'cancelled' => $actor->hasRole('superadmin') ? ['pending'] : [],
             default => [],
         };
@@ -344,7 +419,7 @@ final class CommissionController extends Controller
     {
         return match ($status) {
             'pending' => 'Na čekanju',
-            'approved' => 'Odobrena',
+            'approved' => 'Za isplatu',
             'paid' => 'Isplaćena',
             'cancelled' => 'Stornirana',
             default => $status,

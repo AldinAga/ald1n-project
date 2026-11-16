@@ -278,7 +278,7 @@ final class OrderService
             'product_line_name_snapshot' => $product->line?->name,
             'product_type_name_snapshot' => $product->type?->name,
             'commission_source_snapshot' => $usesManualCommission ? 'manual' : 'automatic',
-            'commission_rate_percent_snapshot' => $usesManualCommission ? null : CommissionCalculator::DEFAULT_RATE_PERCENT,
+            'commission_rate_percent_snapshot' => $usesManualCommission ? null : $this->commissionCalculator->ratePercent(),
             'commission_unit_eur_snapshot' => $commissionUnit,
             'commission_total_eur_snapshot' => round($commissionUnit * $quantity, 2),
         ];

@@ -481,6 +481,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/commissions', [CommissionController::class, 'index'])->name('commissions.index');
             Route::patch('/commissions/{commission}/status', [CommissionController::class, 'transition'])->name('commissions.transition');
             Route::post('/commissions/bulk-pay', [CommissionController::class, 'bulkPay'])->name('commissions.bulk-pay');
+            Route::post('/commissions/{commission}/reverse', [CommissionController::class, 'reverse'])->whereNumber('commission')->middleware('throttle:admin-write')->name('commissions.reverse');
+            Route::post('/commissions/default-percent', [CommissionController::class, 'updateDefaultPercent'])->middleware('throttle:admin-write')->name('commissions.default-percent');
+            Route::post('/commissions/adjustments/{adjustment}/confirm', [CommissionController::class, 'confirmDebit'])->whereNumber('adjustment')->middleware('throttle:admin-write')->name('commissions.debits.confirm');
+            Route::post('/commissions/adjustments/{adjustment}/reject', [CommissionController::class, 'rejectDebit'])->whereNumber('adjustment')->middleware('throttle:admin-write')->name('commissions.debits.reject');
             Route::get('/commissions.csv', [CommissionController::class, 'csv'])->middleware('throttle:exports')->name('commissions.csv');
             Route::get('/commissions.pdf', [CommissionController::class, 'pdf'])->middleware('throttle:exports')->name('commissions.pdf');
         });
