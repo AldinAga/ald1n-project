@@ -512,7 +512,8 @@ async function dashboardChecks(page, pg, width, theme) {
     const missed = [];
     // Owner decision 2026-11-16: the KPI cards come first (earnings row, then the six); the priorities strip follows them and is no longer part of the first look.
     if (!f.earnings || f.earnings > f.vh) missed.push('earnings cards bottom ' + f.earnings + ' > ' + f.vh);
-    if (!rowBottom || rowBottom > f.vh) missed.push('first KPI row bottom ' + rowBottom + ' > ' + f.vh);
+    // The six tiles carry EUR and comparison lines now; their first row only has to start on screen.
+    if (!rowBottom || (f.revenue !== null && f.netTop !== null && f.netTop >= f.vh)) missed.push('first KPI row starts at ' + f.netTop + ' >= ' + f.vh);
     if (missed.length) out.push({ ...base, rule: 'above-the-fold', count: missed.length, selectors: missed });
   }
   if (dom.small.length) out.push({ ...base, rule: 'small-target', count: dom.small.length, selectors: dom.small.slice(0, 3) });

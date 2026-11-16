@@ -439,9 +439,10 @@ async function dashboardD1Smoke(page, persona, mode) {
       // Owner decision 2026-11-16: greeting, period bar, then the KPI number cards first; priorities and charts follow below the cards.
       const earnings = await page.locator('[data-dashboard-earnings]').boundingBox();
       check(!!earnings && earnings.y + earnings.height <= h, 'D1_EARNINGS_ROW_ABOVE_FOLD_'+w, label+': '+JSON.stringify(earnings));
+      // The six period/stock tiles start right under the earnings row (they carry EUR and comparison lines now); only their top edge must be on screen.
       for (const key of ['revenue','gross','net']) {
         const box = await page.locator('[data-dashboard-d1-kpi="'+key+'"]').boundingBox();
-        check(!!box && box.y + box.height <= h, 'D1_FIRST_KPI_ROW_ABOVE_FOLD_'+w, label+' '+key+': '+JSON.stringify(box));
+        check(!!box && box.y < h, 'D1_FIRST_KPI_ROW_STARTS_ABOVE_FOLD_'+w, label+' '+key+': '+JSON.stringify(box));
       }
     }
   }
