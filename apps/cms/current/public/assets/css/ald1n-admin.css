@@ -1039,8 +1039,10 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-g12--stack>[data-dashboard-d3]{grid-column:8/span 5;grid-row:1}
   .a1-g12--stack>.a1-orders-under{grid-column:8/span 5;grid-row:2}
 }
-.a1-list--stacked.a1-list--recent{max-width:none}
-.a1-list--stacked .a1-item--order{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main end" "main status";align-items:start;row-gap:var(--a1-space-4)}
-.a1-list--stacked .a1-item--order .a1-item__go{display:none}
-.a1-list--stacked .a1-item__status{justify-self:end}
-.a1-list--stacked .a1-item__main .a1-item__sub{overflow-wrap:break-word}
+@media (min-width:1100px){
+  .a1-list--stacked.a1-list--recent{max-width:none}
+  .a1-list--stacked .a1-item--order{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main end" "main status";align-items:start;row-gap:var(--a1-space-4)}
+  .a1-list--stacked .a1-item--order .a1-item__go{display:none}
+  .a1-list--stacked .a1-item__status{justify-self:end}
+  .a1-list--stacked .a1-item__main .a1-item__sub{overflow-wrap:break-word}
+}
