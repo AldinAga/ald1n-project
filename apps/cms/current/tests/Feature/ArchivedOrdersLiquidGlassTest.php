@@ -32,7 +32,7 @@ final class ArchivedOrdersLiquidGlassTest extends TestCase
         self::assertIsString($html);
 
         $tableEnd = strpos($html, '</table>');
-        $dialogStart = preg_match('/<dialog\\b[^>]*order-archive-purge-dialog/', $html, $dialogMatch, PREG_OFFSET_CAPTURE) === 1
+        $dialogStart = preg_match('/<dialog\\b[^>]*data-order-permanent-delete/', $html, $dialogMatch, PREG_OFFSET_CAPTURE) === 1
             ? $dialogMatch[0][1]
             : false;
         self::assertNotFalse($tableEnd);

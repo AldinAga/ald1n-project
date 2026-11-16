@@ -370,7 +370,7 @@ async function archiveSmoke(page, mode, width) {
   if (await open.count() === 0) return;
   await open.scrollIntoViewIfNeeded();
   await open.click();
-  const dialog = page.locator('dialog.order-archive-purge-dialog[open]');
+  const dialog = page.locator('dialog[data-order-permanent-delete][open]');
   check(await dialog.count() === 1, 'ARCHIVE_DIALOG_OPEN', mode + '/' + width);
   if (await dialog.count() === 0) return;
   check(await dialog.locator('textarea[name="purge_reason"]').count() === 1, 'ARCHIVE_REASON_FIELD', mode);
@@ -378,7 +378,7 @@ async function archiveSmoke(page, mode, width) {
   const b = await dialog.boundingBox();
   check(b && b.x >= -1 && b.x+b.width <= width+1 && b.y >= -1,
     'ARCHIVE_DIALOG_IN_VIEW', mode + '/' + width + ': ' + JSON.stringify(b));
-  const retention = await dialog.locator('.order-archive-purge-retention').evaluate((el) => {
+  const retention = await dialog.locator('[data-order-purge-retention]').evaluate((el) => {
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     return { left: rect.left, right: rect.right, marginLeft: style.marginLeft, marginRight: style.marginRight };
@@ -395,7 +395,7 @@ async function archiveSmoke(page, mode, width) {
   check(new URL(page.url()).pathname === fixture.paths.archived_orders, 'ARCHIVE_NO_NAVIGATION', mode);
   await open.click();
   await page.locator('dialog[open] [data-order-purge-close]').last().click();
-  check(await page.locator('dialog.order-archive-purge-dialog[open]').count() === 0,
+  check(await page.locator('dialog[data-order-permanent-delete][open]').count() === 0,
     'ARCHIVE_CANCEL_NO_SUBMIT', mode + '/' + width);
 }
 

@@ -4,7 +4,7 @@
  * Admin visual QA harness (Phase 0 of the redesign). Author: Ald1n <https://ald1n.com>
  *
  * Renders representative real admin pages of every module in Chromium or WebKit at
- * 375/430/768/1280, light and dark, against disposable synthetic Laravel data
+ * 375/430/768/1280 (shell, dashboard and orders cells add 360/1200 and orders also 1440, see the width tiers), light and dark, against disposable synthetic Laravel data
  * (seed-admin-visual-qa.php). Per cell: full-page PNG, horizontal overflow check,
  * console error / failed same-origin request check, axe-core (colour-contrast plus cheap
  * structural rules). Findings go to admin-visual-baseline-<browser>.json and DO NOT fail
@@ -47,6 +47,14 @@ const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '375,430,768,1280').split(','
 // Shell pages: 360 (smallest phone), 768 (sheet menu), 1200 (first desktop width) and 1280 are added to the matrix.
 const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280]);
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
+// Orders module (strict): the main screens get all seven widths; stress and detail pages four or three; status and secondary pages two.
+const ORDERS_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280, 1440]);
+// Orders list pages also run the desktop layout gates at 1200/1280/1440 and 1920 (orders-index; page 2 gets the same desktop set).
+const ORDERS_WIDTHS_WIDE = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280, 1440, 1920]);
+const ORDERS_WIDTHS_PAGE2 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 430, 768, 1200, 1280, 1440, 1920]);
+const ORDERS_WIDTHS_4 =(process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 430, 768, 1280]);
+const ORDERS_WIDTHS_3 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
+const ORDERS_WIDTHS_2 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 1280]);
 const DESKTOP_FROM = 1200; // keep in sync with ald1n-admin.css and layouts/app.blade.php
 const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800, 1440: 900 };
 const softWarnings = []; // soft QA checks: reported, never failing
@@ -54,6 +62,8 @@ const pageHeights = []; // measured dashboard-data page heights
 const foldMetrics = []; // measured bottoms (px from the top of the page) of the dashboard's first-look blocks
 const THEMES = ['light', 'dark'];
 const AXE_RULES = ['color-contrast', 'document-title', 'html-has-lang', 'label', 'button-name', 'link-name', 'image-alt'];
+// Orders cells (strict module) run these on top of AXE_RULES; other modules keep exactly AXE_RULES.
+const ORDERS_AXE_RULES = [...AXE_RULES, 'select-name', 'aria-valid-attr-value', 'aria-required-attr', 'tabindex', 'scrollable-region-focusable', 'nested-interactive'];
 const ONLY = (process.env.ADMIN_VISUAL_ONLY || '').split(',').filter(Boolean);
 const shotDir = path.join(artifactDir, 'screenshots', browserName);
 fs.mkdirSync(shotDir, { recursive: true });
@@ -253,10 +263,47 @@ const PAGES = [
   { module: 'dashboard', key: 'dashboard-administrator', path: '/', persona: 'administrator', prepare: prepare.dashboardOpenAll, widths: [360, 1440] },
   // Long amounts (12.345.678,90 RSD) in KPI tiles, the brand mix and order rows: wraps, never overflows or clips.
   { module: 'dashboard', key: 'dashboard-long-numbers', path: DASH_DATA, prepare: prepare.dashboardLongNumbers, widths: [360, 1280] },
-  { module: 'orders', key: 'orders-index', path: '/admin/orders' },
-  { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}` },
+  // Module 3 (strict): orders, the customer's order pages, after-sales, field operations and service parts. The seed
+  // (seed-admin-visual-qa.php) holds 45 operational orders (so the list paginates at 40), one order per status, paid,
+  // partly paid, shipped, 15 items, a 60-character name, a 12.345.678,90 RSD total and 6 archived orders.
+  // Width tiers keep the matrix inside the 45 minute job: main screens x7, stress/detail pages x4 or x3, status and
+  // secondary pages x2. Orders cells also run ordersChecks (computed contrast, unlabeled controls, one h1) and the extra axe rules.
+  { module: 'orders', key: 'orders-index', path: '/admin/orders', widths: ORDERS_WIDTHS_WIDE },
+  { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}`, widths: ORDERS_WIDTHS },
   // New orders are created by the customer role (orders.create); superadmin gets 403 by design.
-  { module: 'orders', key: 'orders-create', path: '/order/new', persona: 'customer' },
+  { module: 'orders', key: 'orders-create', path: '/order/new', persona: 'customer', widths: ORDERS_WIDTHS },
+  { module: 'orders', key: 'orders-customer-index', path: '/orders', persona: 'customer', widths: ORDERS_WIDTHS },
+  { module: 'orders', key: 'orders-customer-show', path: (i) => `/orders/${i.order}`, persona: 'customer', widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-index-filtered', path: '/admin/orders?status=new&payment_status=pending&source_system=laravel&q=APC-20260114&date_from=2025-01-01&date_to=2026-12-31', widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-index-empty', path: '/admin/orders?q=nema-takvog-broja-vizuelni-qa', widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-index-page2', path: '/admin/orders?page=2', widths: ORDERS_WIDTHS_PAGE2 },
+  { module: 'orders', key: 'orders-archived', path: '/admin/orders/archived', widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-show-items15', path: (i) => `/admin/orders/${i.order_items15}`, widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-show-long-name', path: (i) => `/admin/orders/${i.order_long_name}`, widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-show-long-amount', path: (i) => `/admin/orders/${i.order_long_amount}`, widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-show-paid', path: (i) => `/admin/orders/${i.order_paid}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-partly-paid', path: (i) => `/admin/orders/${i.order_partly_paid}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-cancelled', path: (i) => `/admin/orders/${i.order_cancelled}`, widths: ORDERS_WIDTHS_3 },
+  // One list cell per status the list can show (new is covered by orders-index-filtered). Archived orders have no detail page (404 by design).
+  { module: 'orders', key: 'orders-status-processing', path: '/admin/orders?status=processing', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'orders-status-confirmed', path: '/admin/orders?status=confirmed', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'orders-status-shipped', path: '/admin/orders?status=shipped', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'orders-status-completed', path: '/admin/orders?status=completed', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'orders-status-cancelled', path: '/admin/orders?status=cancelled', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'orders-attention-unaccepted', path: '/admin/orders?attention=unaccepted', widths: ORDERS_WIDTHS_2 },
+  // The cart is checked empty: the QA cannot seed a session cart.
+  { module: 'orders', key: 'orders-customer-cart', path: '/cart', persona: 'customer', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'after-sales-customer-index', path: '/after-sales', persona: 'customer', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'after-sales-customer-show', path: (i) => `/after-sales/${i.case}`, persona: 'customer', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'after-sales-admin-index', path: '/admin/after-sales', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'after-sales-admin-show', path: (i) => `/admin/after-sales/${i.case}`, widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'field-operations-index', path: '/admin/field-operations', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'field-operations-show', path: (i) => `/admin/field-operations/${i.work_order}`, widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'field-service-teams', path: '/admin/field-service-teams', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'service-parts-index', path: '/admin/service-parts', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'service-part-purchases-index', path: '/admin/service-part-purchases', widths: ORDERS_WIDTHS_2 },
+  { module: 'orders', key: 'service-part-purchases-show', path: (i) => `/admin/service-part-purchases/${i.purchase_request}`, widths: ORDERS_WIDTHS_2 },
   // /admin/catalog redirects to the shared product list at /catalog.
   { module: 'products', key: 'products-index', path: '/catalog' },
   { module: 'products', key: 'products-form', path: (i) => `/admin/catalog/${i.product}/edit` },
@@ -352,15 +399,16 @@ async function measureOverflow(page) {
 // carry .a1-shell. The page content of /account is old-styled and belongs to a later module; document-level rules
 // (title, lang) still run on the whole document.
 const SHELL_SCOPE = '.a1-shell';
+const ORDERS_SCOPE = '.page-shell';
 const DOCUMENT_RULES = ['document-title', 'html-has-lang'];
-async function runAxe(page, scoped) {
+async function runAxe(page, scoped, rulesToRun = AXE_RULES) {
   if (!(await page.evaluate(() => typeof window.axe === 'object'))) await page.addScriptTag({ content: axeSource });
   const run = (rules, context) => page.evaluate(async ({ rules, context }) => {
     const r = await window.axe.run(context ? { include: [[context]] } : document, { runOnly: { type: 'rule', values: rules }, resultTypes: ['violations'] });
     return r.violations.map((v) => ({ rule: v.id, count: v.nodes.length, selectors: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) }));
   }, { rules, context });
-  if (!scoped) return run(AXE_RULES, null);
-  return [...await run(AXE_RULES.filter((r) => !DOCUMENT_RULES.includes(r)), SHELL_SCOPE), ...await run(DOCUMENT_RULES, null)];
+  if (!scoped) return run(rulesToRun, null);
+  return [...await run(rulesToRun.filter((r) => !DOCUMENT_RULES.includes(r)), SHELL_SCOPE), ...await run(DOCUMENT_RULES, null)];
 }
 // Shell-only gates, recorded as findings (strict mode for "shell" fails on any):
 //  - computed-contrast: flattened background chain, worst case over gradients; axe leaves text on glass as "incomplete".
@@ -605,6 +653,126 @@ async function ownerDashboardChecks(page, pg, width, theme) {
   }
   return out;
 }
+// Orders-module gates (module 3), recorded as findings (strict mode for "orders" fails on any):
+//  - computed-contrast: same method as shell and dashboard, scoped to the page content container .page-shell
+//    (the shell is measured by the shell cells). Empty states have little text, hence the low floor.
+//  - unlabeled-control: a visible link, button, summary, select, textarea or input without an accessible name
+//    (axe label/button-name/link-name/select-name cover most; summary, wrapped controls and submit values are added here).
+//  - orders-structure: exactly one <h1> in the page content.
+async function ordersChecks(page, pg, width, theme) {
+  const out = [];
+  const base = { module: pg.module, page: pg.key, browser: browserName, width, theme };
+  await page.evaluate(async () => {
+    const t = Date.now();
+    while (document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().endTime !== Infinity) && Date.now() - t < 3000) await new Promise((r) => setTimeout(r, 50));
+  });
+  const c = await page.evaluate(inPageContrast, ORDERS_SCOPE);
+  if (c.out.length) out.push({ ...base, rule: 'computed-contrast', count: c.out.length, selectors: c.out.slice(0, 3) });
+  if (c.checked < 3) out.push({ ...base, rule: 'computed-contrast-too-few-nodes', count: 1, selectors: ['checked ' + c.checked] });
+  const dom = await page.evaluate((scope) => {
+    const root = document.querySelector(scope);
+    if (!root) return { missing: true };
+    const label = (e) => [...e.classList].slice(0, 3).map((x) => '.' + x).join('') || e.tagName.toLowerCase();
+    const shown = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+    const controls = [...root.querySelectorAll('a[href], button, summary, select, textarea, input:not([type=hidden])')].filter(shown);
+    const nameOf = (e) => (e.getAttribute('aria-label') || '').trim()
+      || (e.getAttribute('aria-labelledby') ? e.getAttribute('aria-labelledby').split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ').trim() : '')
+      || (e.labels && e.labels.length ? [...e.labels].map((l) => l.textContent).join(' ').trim() : '')
+      || (/^(submit|button|reset)$/.test(e.type || '') ? String(e.value || '').trim() : '')
+      || (e.textContent || '').trim() || (e.getAttribute('title') || '').trim()
+      || [...e.querySelectorAll('[aria-label], img[alt]')].map((n) => n.getAttribute('aria-label') || n.getAttribute('alt') || '').join(' ').trim();
+    const unlabeled = controls.filter((e) => !nameOf(e)).map((e) => e.tagName.toLowerCase() + label(e));
+    return { missing: false, unlabeled, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
+  }, ORDERS_SCOPE);
+  if (dom.missing) { out.push({ ...base, rule: 'orders-structure', count: 1, selectors: [ORDERS_SCOPE + ' missing'] }); return out; }
+  if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
+  if (dom.h1 !== 1) out.push({ ...base, rule: 'orders-structure', count: 1, selectors: ['h1 x' + dom.h1] });
+  if (width >= DESKTOP_FROM) out.push(...await ordersLayoutChecks(page, pg, width, base));
+  return out;
+}
+// Desktop layout gates for the orders module (generic over .a1-tablewrap, no page names except the median row height).
+// Pure helpers: tested once per run by selfTestLayoutHelpers() below, so the gate cannot silently measure nothing.
+const LINE_TOL = 4;
+// rects = [top, bottom] pairs of the text boxes inside one cell; boxes whose tops lie within LINE_TOL px share a line.
+function countLines(rects) {
+  const tops = rects.filter((r) => r[1] - r[0] > 1).map((r) => r[0]).sort((a, b) => a - b);
+  let lines = 0, last = -Infinity;
+  for (const t of tops) { if (t - last > LINE_TOL) { lines += 1; last = t; } }
+  return lines;
+}
+const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : 0; };
+function selfTestLayoutHelpers() {
+  const ok = countLines([[0, 20], [0, 20]]) === 1 && countLines([[0, 20], [22, 42]]) === 2 && countLines([[0, 20], [1, 21], [40, 60]]) === 2 && countLines([]) === 0 && countLines([[5, 5]]) === 0
+    && median([3, 1, 2]) === 2 && median([1, 2, 3, 10]) === 2.5 && median([]) === 0;
+  selfTests.push({ layoutHelpers: ok });
+  if (!ok) fail('SELFTEST', 'countLines/median helpers returned a wrong value');
+}
+selfTestLayoutHelpers();
+async function ordersLayoutChecks(page, pg, width, base) {
+  const out = [];
+  const m = await page.evaluate(() => {
+    const label = (e) => e.tagName.toLowerCase() + ([...e.classList].slice(0, 2).map((x) => '.' + x).join('') || '');
+    // (i) vertical scrollers inside main (header dropdowns, dialogs, textareas and data-a1-scroll-x are exempt).
+    const main = document.querySelector('main') || document.querySelector('.page-shell') || document.body;
+    const scrollers = [main, ...main.querySelectorAll('*')].filter((e) => {
+      if (e.closest('[data-a1-scroll-x], header, nav, dialog, [role=menu], [role=dialog]') || e.matches('textarea, svg, svg *')) return false;
+      if (e.getClientRects().length === 0) return false;
+      return /^(auto|scroll|overlay)$/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1;
+    }).map((e) => label(e) + ' ' + e.scrollHeight + '>' + e.clientHeight);
+    // (ii) text boxes per cell: one [top, bottom] pair per text-node line fragment, so inline icons and badges cannot add lines.
+    const cells = [];
+    for (const td of document.querySelectorAll('.a1-tablewrap td, .a1-tablewrap th')) {
+      if (td.getClientRects().length === 0) continue;
+      const dl = td.getAttribute('data-label') || '';
+      let max = null;
+      if (td.classList.contains('a1-table__num') || td.getAttribute('data-a1-lines') === '1' || dl === 'Broj') max = 1;
+      else if (dl === 'Datum' || dl === 'Rok') max = 2;
+      if (max === null) continue;
+      const rects = [];
+      const walker = document.createTreeWalker(td, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.nodeValue.trim()) continue;
+        const r = document.createRange(); r.selectNodeContents(n);
+        for (const q of r.getClientRects()) rects.push([q.top, q.bottom]);
+      }
+      cells.push({ id: label(td) + '[' + (dl || td.cellIndex) + '] "' + (td.textContent || '').trim().slice(0, 20) + '"', max, rects });
+    }
+    const rows = [...document.querySelectorAll('.a1-tablewrap tbody tr')].filter((r) => r.getClientRects().length > 0).map((r) => r.getBoundingClientRect().height);
+    // (iv) every row's action cell lies fully inside the viewport and inside its table card (no clipped buttons).
+    const clipped = [];
+    for (const td of document.querySelectorAll('.a1-tablewrap td.a1-table__actions')) {
+      if (td.getClientRects().length === 0) continue;
+      const r = td.getBoundingClientRect();
+      const w = td.closest('.a1-tablewrap').getBoundingClientRect();
+      const content = [...td.querySelectorAll('a, button, summary')].filter((e) => { const d = e.tagName === 'SUMMARY' ? null : e.closest('details'); return e.getClientRects().length > 0 && !(d && !d.open); }).map((e) => e.getBoundingClientRect());
+      const right = Math.max(r.right, ...content.map((c) => c.right));
+      const left = Math.min(r.left, ...content.map((c) => c.left));
+      if (right > window.innerWidth + 0.5 || right > w.right + 0.5 || left < w.left - 0.5) clipped.push(label(td) + ' right ' + Math.round(right) + ' > card ' + Math.round(w.right) + ' / viewport ' + window.innerWidth);
+    }
+    // (v) the order number is the key identifier: its text is never cut by the cell (no hidden overflow) and lies inside the cell.
+    const cut = [];
+    for (const td of document.querySelectorAll('.a1-tablewrap td[data-label="Broj"]')) {
+      if (td.getClientRects().length === 0) continue;
+      const cr = td.getBoundingClientRect();
+      const rg = document.createRange(); rg.selectNodeContents(td);
+      let right = 0;
+      for (const q of rg.getClientRects()) right = Math.max(right, q.right);
+      if (td.scrollWidth > td.clientWidth + 1 || right > cr.right + 0.5) cut.push('"' + (td.textContent || '').trim().slice(0, 28) + '" text right ' + Math.round(right) + ' > cell ' + Math.round(cr.right) + ', scrollWidth ' + td.scrollWidth + ' > ' + td.clientWidth);
+    }
+    return { scrollers, cells, rows, clipped, cut };
+  });
+  if ((width === 1280 || width === 1440) && m.cut.length) out.push({ ...base, rule: 'order-number-clipped', count: m.cut.length, selectors: m.cut.slice(0, 3) });
+  if ((width === 1280 || width === 1440) && m.clipped.length) out.push({ ...base, rule: 'action-cell-clipped', count: m.clipped.length, selectors: m.clipped.slice(0, 3) });
+  if (m.scrollers.length) out.push({ ...base, rule: 'inner-vertical-scroll', count: m.scrollers.length, selectors: m.scrollers.slice(0, 3) });
+  const bad = m.cells.map((c) => ({ ...c, lines: countLines(c.rects) })).filter((c) => c.lines > c.max).map((c) => c.id + ' ' + c.lines + ' lines (max ' + c.max + ')');
+  if (bad.length) out.push({ ...base, rule: 'cell-line-count', count: bad.length, selectors: bad.slice(0, 3) });
+  if (width === 1280 && pg.key === 'orders-index') {
+    const med = median(m.rows);
+    if (m.rows.length < 5) out.push({ ...base, rule: 'row-height', count: 1, selectors: ['only ' + m.rows.length + ' tbody rows measured'] });
+    else if (med > 64) out.push({ ...base, rule: 'row-height', count: 1, detail: `median tbody tr ${med}px over ${m.rows.length} rows (max 64)`, selectors: ['median ' + med + 'px > 64px'] });
+  }
+  return out;
+}
 // Freeze text that changes between runs (dates, times, relative times, rate) - after axe, text only.
 async function freezeDynamic(page) {
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}' });
@@ -715,9 +883,10 @@ async function runCell(ctx, pg, width, theme) {
         detail: `scrollWidth ${overflow.scrollWidth} vs viewport ${overflow.vw}; body overflow-x ${overflow.bodyOverflowX}, html ${overflow.htmlOverflowX}`,
         selectors: overflow.offenders });
     }
-    for (const v of await runAxe(page, pg.module === 'shell')) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
+    for (const v of await runAxe(page, pg.module === 'shell', pg.module === 'orders' ? ORDERS_AXE_RULES : AXE_RULES)) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
     if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
     if (pg.module === 'dashboard') findings.push(...await dashboardChecks(page, pg, width, theme));
+    if (pg.module === 'orders') findings.push(...await ordersChecks(page, pg, width, theme));
     if (local.console.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'console-error', count: local.console.length, selectors: local.console.slice(0, 3) });
     if (local.failed.length) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'failed-request', count: local.failed.length, selectors: local.failed.slice(0, 3) });
     await freezeDynamic(page);
@@ -857,7 +1026,7 @@ async function runMenuMatrix(browser, state) {
   }
   await browser.close();
   const out = {
-    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...AXE_RULES, 'horizontal-overflow', 'console-error', 'failed-request'],
+    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'inner-vertical-scroll', 'cell-line-count', 'row-height', 'action-cell-clipped', 'order-number-clipped', 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
     infra_failures: infra, selfTests, menuMatrix, foldMetrics, softWarnings, pageHeights, cells, determinism, findings,
   };

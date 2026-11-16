@@ -847,6 +847,515 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-swatch--6,.a1-donut__slice--6{--a1x-slice:ButtonText}
   .a1-kpi__delta .a1-icon{color:CanvasText}
 }
+
+/* ==========================================================================
+   Module 3: admin orders ("Porudzbine" menu: cart, own and all orders, after-sales,
+   field operations, service parts). Contiguous block, after the dashboard block.
+   The root is .a1-ops. Everything stays on tokens. Page-specific rules live in
+   the sub-blocks below (prefixes .a1-ol list, .a1-od detail, .a1-of forms, .a1-os service).
+   ========================================================================== */
+.a1-ops{display:grid;gap:var(--a1-space-16);min-width:0;color:var(--a1-text-primary);font:var(--a1-typography-font-weight-regular) var(--a1-typography-font-size-base)/var(--a1-typography-line-height-body) var(--a1-typography-font-family-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.a1-ops,.a1-ops *,.a1-ops *::before,.a1-ops *::after{box-sizing:border-box}
+.a1-ops :focus-visible{outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset);box-shadow:none}
+.a1-ops>*{min-width:0}
+.a1-body:has(.a1-ops){background:radial-gradient(1100px 620px at 4% -6%,var(--a1-glow-1),transparent 64%),radial-gradient(900px 620px at 100% 4%,var(--a1-glow-2),transparent 64%),radial-gradient(1000px 760px at 12% 980px,var(--a1-glow-3),transparent 66%),radial-gradient(900px 700px at 88% 1700px,var(--a1-glow-4),transparent 66%),var(--a1-surface-page);background-repeat:no-repeat}
+/* Dense fill under text, solid wherever the tokens switch the material off. */
+.a1-ops .a1-card,.a1-ops .a1-kpi,.a1-ops .a1-empty,.a1-ops .a1-acc,.a1-ops .a1-filters,.a1-ops .a1-tablewrap{background-color:var(--a1-glass-fill-strong)}
+.a1-ops .a1-card,.a1-ops .a1-stack{grid-template-columns:minmax(0,1fr)}
+.a1-ops .a1-card{gap:var(--a1-space-12)}
+@media (min-width:768px){.a1-ops .a1-card{padding:var(--a1-space-20)}}
+.a1-ops .a1-card--flush{padding:0;gap:0}
+.a1-ops .a1-title{margin:0}
+.a1-ops .a1-text,.a1-ops .a1-lead{margin:0}
+.a1-ops .a1-pagehead{margin-bottom:0}
+.a1-ops .a1-table{min-width:0}
+/* The old .page-shell form-control rules (specificity 0,4,1) beat .a1-input, .a1-select and .a1-textarea; this restores
+   control size, radius and focus inside the orders pages without !important. */
+.a1-ops .a1-field .a1-input.a1-input,.a1-ops .a1-field .a1-select.a1-select,.a1-ops .a1-field .a1-textarea.a1-textarea,.a1-ops .a1-group>.a1-input.a1-input{min-height:var(--a1-size-control);border-radius:var(--a1-radius-sm)}
+.a1-ops .a1-field .a1-textarea.a1-textarea{min-height:120px}
+.a1-ops .a1-group>.a1-input.a1-input{border-top-right-radius:0;border-bottom-right-radius:0}
+.a1-ops .a1-search>.a1-input.a1-input{min-height:var(--a1-size-control);border-radius:var(--a1-radius-pill)}
+.a1-ops .a1-input.a1-input:focus,.a1-ops .a1-select.a1-select:focus,.a1-ops .a1-textarea.a1-textarea:focus{box-shadow:none;border-color:var(--a1-accent-link)}
+/* Tables with many columns: cards on phones. Every cell carries data-label; the cell marked .a1-table__primary leads the card. */
+@media (max-width:560px){
+  .a1-table--cards{min-width:0}
+  .a1-table--cards thead{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .a1-table--cards,.a1-table--cards tbody{display:block;width:100%}
+  .a1-table--cards tr{display:flex;flex-direction:column;width:100%;padding:var(--a1-space-12) var(--a1-space-16);border-bottom:var(--a1x-border-width) solid var(--a1-border-strong)}
+  .a1-table--cards tbody tr:last-child{border-bottom:0}
+  .a1-table--cards td,.a1-table--cards tbody tr:last-child td{display:flex;align-items:baseline;justify-content:space-between;gap:var(--a1-space-16);width:100%;padding:var(--a1-space-4) 0;border-bottom:0;text-align:right;overflow-wrap:anywhere}
+  .a1-table--cards td::before{content:attr(data-label);flex:0 0 38%;text-align:left;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
+  .a1-table--cards td:not([data-label])::before{content:none}
+  .a1-table--cards td.a1-table__primary{order:-1;display:block;padding-bottom:var(--a1-space-8);text-align:left;font-size:var(--a1-typography-font-size-md-plus)}
+  .a1-table--cards td.a1-table__primary::before{content:none}
+  .a1-table--cards td.a1-table__actions{order:1;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:var(--a1-space-8);padding-top:var(--a1-space-12);width:100%;text-align:left}
+  .a1-table--cards td.a1-table__actions::before{content:none}
+  .a1-table--cards .a1-table__actions .a1-btn{margin-left:0}
+  .a1-table--cards tbody tr:hover td{background:transparent}
+}
+@media (forced-colors:active){
+  .a1-body:has(.a1-ops){background:Canvas}
+  .a1-ops{color:CanvasText}
+}
+
+/* M3 sub-block: Lists: admin and own orders, archived orders, cart (prefix a1-ol-) */
+/* ==========================================================================
+   Module 3, orders lists (prefix a1-ol-): admin list, archive, "Moje porudzbine", cart.
+   Appended by the coordinator after the shared .a1-ops block. Tokens only.
+   Author: Ald1n <https://ald1n.com>
+   ========================================================================== */
+
+/* Count chip in the page header (not a status, so not a pill). */
+.a1-ol-count{display:inline-flex;align-items:center;min-height:var(--a1-size-touch-target);padding:0 var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-pill);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-primary);font-size:var(--a1-typography-font-size-sm-plus);font-weight:var(--a1-typography-font-weight-semibold);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Attention tiles: two links that set ?attention=. The active one says so in words and in a thicker ring. */
+.a1-ol-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-12);align-items:center;min-width:0}
+@media (min-width:560px){.a1-ol-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1100px){.a1-ol-tiles{grid-template-columns:repeat(2,minmax(0,300px)) auto;justify-content:start}}
+.a1-ol-tile{--a1x-ol-icon:40px;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--a1-space-12);min-height:56px;padding:var(--a1-space-8) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-primary);text-decoration:none}
+.a1-ol-tile:hover{border-color:var(--a1-accent-link)}
+.a1-ol-tile[aria-current=true]{border-color:var(--a1-accent-link);background-color:var(--a1-accent-soft);box-shadow:inset 0 0 0 var(--a1x-border-width) var(--a1-accent-link)}
+.a1-ol-tile__icon{display:grid;place-items:center;width:var(--a1x-ol-icon,40px);height:var(--a1x-ol-icon,40px);border-radius:var(--a1-radius-sm)}
+.a1-ol-tile__icon--warning{background:var(--a1-status-warning-bg);color:var(--a1-status-warning-text)}
+.a1-ol-tile__icon--danger{background:var(--a1-status-danger-bg);color:var(--a1-status-danger-text)}
+.a1-ol-tile__body{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px var(--a1-space-8);min-width:0}
+.a1-ol-tile__count{font:var(--a1-typography-font-weight-numeric) var(--a1-typography-font-size-xl)/var(--a1-typography-line-height-snug) var(--a1-typography-font-family-display);font-variant-numeric:tabular-nums}
+.a1-ol-tile__label{color:var(--a1-text-secondary);font-weight:var(--a1-typography-font-weight-semibold)}
+.a1-ol-tile__state{flex:1 0 100%;color:var(--a1-text-primary);font-size:var(--a1-typography-font-size-sm);font-weight:var(--a1-typography-font-weight-bold)}
+
+/* Filter grid: the search field leads, the rest flows into 2 or 4 columns. */
+.a1-ops .a1-filters__fields.a1-ol-fields{grid-template-columns:minmax(0,1fr)}
+@media (min-width:560px){
+  .a1-ops .a1-filters__fields.a1-ol-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .a1-ops .a1-ol-field-wide{grid-column:1/-1}
+}
+@media (min-width:1100px){
+  .a1-ops .a1-filters__fields.a1-ol-fields{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .a1-ops .a1-ol-field-wide{grid-column:span 2}
+}
+
+/* Order tables: wide table scrolls inside its wrapper, phones get cards (shared .a1-table--cards, <= 560 px). */
+.a1-ops .a1-ol-table{--a1x-ol-min:960px;--a1x-ol-mark:4px;min-width:var(--a1x-ol-min)}
+.a1-ops .a1-ol-table td{vertical-align:top}
+.a1-ops .a1-ol-table .a1-ol-primary{font-weight:var(--a1-typography-font-weight-semibold)}
+.a1-ops .a1-ol-table .a1-table__actions{width:auto;white-space:normal}
+.a1-ol-cell{display:grid;gap:2px;justify-items:start;min-width:0}
+.a1-ol-sub{display:block;font-size:var(--a1-typography-font-size-sm);line-height:var(--a1-typography-line-height-caption);color:var(--a1-text-secondary)}
+.a1-ol-flag{display:inline-flex;align-items:center;gap:var(--a1-space-4);width:fit-content;max-width:100%;margin-top:var(--a1-space-4);padding:2px var(--a1-space-12) 2px var(--a1-space-8);border-radius:var(--a1-radius-pill);background:var(--a1-status-danger-bg);color:var(--a1-status-danger-text);font-size:var(--a1-typography-font-size-sm);font-weight:var(--a1-typography-font-weight-bold)}
+.a1-ol-due{font-weight:var(--a1-typography-font-weight-bold)}
+.a1-ops .a1-ol-table tr.a1-ol-row--over td:first-child{box-shadow:inset var(--a1x-ol-mark,4px) 0 0 var(--a1-status-danger-dot)}
+.a1-ol-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--a1-space-8);min-width:0}
+.a1-ops .a1-ol-actions .a1-btn{margin-left:0}
+.a1-ol-inline{display:inline-flex;margin:0}
+@media (max-width:560px){
+  .a1-ops .a1-ol-table{min-width:0}
+  /* Card order: number, customer, status, amount, date first; the secondary cells follow, actions close the card. */
+  .a1-ops .a1-ol-table td.a1-ol-late{order:1}
+  .a1-ops .a1-ol-table td.a1-table__actions{order:2}
+  .a1-ops .a1-ol-table td::before{color:var(--a1-text-secondary)}
+  .a1-ops .a1-ol-table .a1-ol-cell{justify-items:end;text-align:right}
+  .a1-ops .a1-ol-table tr.a1-ol-row--over{box-shadow:inset var(--a1x-ol-mark,4px) 0 0 var(--a1-status-danger-dot)}
+  .a1-ops .a1-ol-table tr.a1-ol-row--over td:first-child{box-shadow:none}
+  .a1-ops .a1-ol-actions{justify-content:flex-start;width:100%}
+}
+
+/* Desktop compaction (M3 layout gates): no inner vertical scroll, one-line number/amount cells, compact row actions. */
+.a1-ops .a1-tablewrap--sticky{max-height:none;overflow-y:visible}
+.a1-ops .a1-tablewrap--sticky th{position:static}
+.a1-ops .a1-table__num{white-space:nowrap;font-variant-numeric:tabular-nums}
+.a1-ops .a1-ol-table .a1-ol-nowrap,.a1-ops .a1-ol-table .a1-pill{white-space:nowrap}
+.a1-ops .a1-ol-more .a1-ol-inline,.a1-ops .a1-ol-more .a1-ol-inline .a1-nav-dd__item--button{display:flex;width:100%}
+.a1-ops .a1-ol-table .a1-ol-date{display:block}
+.a1-ops .a1-ol-more{position:relative}
+.a1-ops .a1-ol-more>summary{list-style:none}
+.a1-ops .a1-ol-more>summary::-webkit-details-marker{display:none}
+.a1-ops .a1-ol-more .a1-ol-morepanel{min-width:200px;max-height:none;overflow:visible}
+/* Number, date and amount cells stay on one line on tables; phone cards (<= 560px) may wrap. */
+@media (min-width:561px){
+  .a1-ops .a1-table td[data-label="Broj"],.a1-ops .a1-table td[data-label="Datum"],.a1-ops .a1-table td[data-label="Rok"],.a1-ops .a1-table td[data-label="Iznos"]{white-space:nowrap}
+  .a1-ops .a1-table .a1-ol-time{white-space:nowrap}
+}
+@media (min-width:1200px){
+  .a1-ops .a1-ol-table td,.a1-ops .a1-ol-table th{padding-block:var(--a1-space-8);padding-inline:var(--a1-space-12)}
+  .a1-ops .a1-ol-table .a1-ol-actions{flex-wrap:nowrap;align-items:center;white-space:nowrap}
+  .a1-ops .a1-ol-table td:nth-child(2){min-width:12rem}
+  .a1-ops .a1-ol-table td:nth-child(2) .a1-ol-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:20rem}
+  .a1-ops .a1-ol-table tbody tr:nth-last-child(-n+2) .a1-ol-more .a1-ol-morepanel{top:auto;bottom:calc(100% + var(--a1-space-8))}
+  /* Filter buttons share the grid row of the last filter row. */
+  .a1-ops .a1-ol-filters{display:flex;align-items:flex-end;gap:var(--a1-space-16)}
+  .a1-ops .a1-ol-filters .a1-ol-fields{flex:1 1 auto;min-width:0}
+  .a1-ops .a1-ol-filters .a1-filters__actions{flex:0 0 auto;align-self:flex-end;flex-wrap:nowrap}
+}
+
+/* Recovery panel. */
+.a1-ol-recovery{border-color:var(--a1-status-warning-dot)}
+.a1-ol-issues{margin:0;padding-left:var(--a1-space-20);color:var(--a1-text-primary);overflow-wrap:anywhere}
+.a1-ol-code{margin:0;padding:var(--a1-space-12) var(--a1-space-16);overflow-x:auto;border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--a1-typography-font-size-md)}
+
+/* Archive: the permanent-delete dialog. */
+.a1-ol-purge{border-color:var(--a1-status-danger-dot)}
+.a1-ol-purge__title{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-ol-purge__title .a1-text{overflow-wrap:anywhere}
+.a1-ol-danger-tag{display:inline-flex;align-items:center;gap:var(--a1-space-4);width:fit-content;padding:2px var(--a1-space-12) 2px var(--a1-space-8);border-radius:var(--a1-radius-pill);background:var(--a1-status-danger-bg);color:var(--a1-status-danger-text);font-size:var(--a1-typography-font-size-xs-plus);font-weight:var(--a1-typography-font-weight-bold);letter-spacing:var(--a1-typography-letter-spacing-eyebrow);text-transform:uppercase}
+.a1-ol-purge .a1-form{margin:0}
+
+/* Cart: item rows, quantity stepper, summary. */
+.a1-ol-lines{display:grid;margin:0;padding:0;list-style:none;min-width:0}
+.a1-ol-line{--a1x-ol-mark:4px;display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-12);padding:var(--a1-space-16) 0;border-bottom:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-ol-line:first-child{padding-top:0}
+.a1-ol-line:last-child{padding-bottom:0;border-bottom:0}
+.a1-ops .a1-ol-line--issue{padding-left:var(--a1-space-12);box-shadow:inset var(--a1x-ol-mark,4px) 0 0 var(--a1-status-danger-dot)}
+.a1-ol-line__copy{display:grid;gap:2px;min-width:0;overflow-wrap:anywhere}
+.a1-ol-line__price{display:grid;gap:2px;justify-items:start}
+.a1-ol-money{font-variant-numeric:tabular-nums;white-space:nowrap}
+.a1-ol-line__qty{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-12);margin:0}
+.a1-ol-line__qty .a1-label{flex:1 0 100%}
+.a1-ol-stepper{display:inline-flex;align-items:center;gap:var(--a1-space-4)}
+.a1-ops .a1-ol-stepper input.a1-input.a1-input[type=number]{width:5rem;min-height:var(--a1-size-control);border-radius:var(--a1-radius-sm);text-align:center;font-variant-numeric:tabular-nums}
+.a1-ol-line__remove{margin:0}
+@media (min-width:768px){
+  .a1-ol-line{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"copy price" "qty remove";align-items:start}
+  .a1-ol-line__copy{grid-area:copy}
+  .a1-ol-line__price{grid-area:price;justify-items:end;text-align:right}
+  .a1-ol-line__qty{grid-area:qty}
+  .a1-ol-line__remove{grid-area:remove;justify-self:end;align-self:end}
+}
+.a1-ol-summary{align-content:start}
+.a1-ol-total{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-12);padding:var(--a1-space-12) 0;border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-ol-total span{color:var(--a1-text-secondary)}
+.a1-ol-total strong{font:var(--a1-typography-font-weight-numeric) var(--a1-typography-font-size-xl)/var(--a1-typography-line-height-snug) var(--a1-typography-font-family-display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+
+@media (prefers-reduced-motion:no-preference){
+  .a1-ol-tile{transition:background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic),border-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}
+}
+@media (prefers-contrast:more){
+  .a1-ol-tile,.a1-ol-count,.a1-ol-code{border-width:var(--a1x-border-width-strong)}
+}
+@media (forced-colors:active){
+  .a1-ol-tile,.a1-ol-count,.a1-ol-code{background:Canvas;color:CanvasText;border-color:CanvasText}
+  .a1-ol-tile[aria-current=true]{border:3px solid Highlight;box-shadow:none}
+  .a1-ol-tile__icon,.a1-ol-flag,.a1-ol-danger-tag{background:Canvas;color:CanvasText;border:var(--a1x-border-width) solid CanvasText}
+  .a1-ops .a1-ol-table tr.a1-ol-row--over td:first-child,.a1-ops .a1-ol-line--issue{box-shadow:none;border-left:var(--a1x-ol-mark,4px) solid CanvasText}
+  .a1-ops .a1-ol-table tr.a1-ol-row--over{box-shadow:none}
+  .a1-ol-purge{border-color:CanvasText}
+}
+
+/* M3 sub-block: Admin order detail (prefix a1-od-) */
+/* ==========================================================================
+   Module 3, admin order detail (prefix .a1-od-). Appended to ald1n-admin.css by the coordinator.
+   Author: Ald1n <https://ald1n.com>. Tokens only; every base selector is declared once.
+   ========================================================================== */
+
+/* Header band: order number, status pills, money, one primary action. */
+.a1-od-head{display:grid;gap:var(--a1-space-16)}
+.a1-od-head__row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-16) var(--a1-space-24)}
+.a1-od-head__text{display:grid;gap:var(--a1-space-4);flex:1 1 320px;min-width:0}
+.a1-od-head__actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8);min-width:0}
+.a1-od-head__actions form,.a1-od-actions form{margin:0}
+.a1-od-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--a1-space-12) var(--a1-space-16);margin:0;padding-top:var(--a1-space-16);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-od-fact{display:grid;gap:var(--a1-space-4);align-content:start;min-width:0}
+.a1-od-fact dt{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-od-fact dd{margin:0;color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-semibold);overflow-wrap:anywhere}
+.a1-od-fact--money dd{font:var(--a1-typography-font-weight-numeric) var(--a1-typography-font-size-xl-2)/var(--a1-typography-line-height-snug) var(--a1-typography-font-family-display);letter-spacing:var(--a1-typography-letter-spacing-price);font-variant-numeric:tabular-nums}
+@media (min-width:768px){.a1-od-facts{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* Buyer card and next step. The buyer card comes first in the markup on every width. */
+.a1-od-top{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-16);align-items:start}
+@media (min-width:1100px){.a1-od-top{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}}
+.a1-od-titleblock{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-od-next{align-content:start}
+.a1-od-jump .a1-tabs{margin:0}
+.a1-od-anchor{scroll-margin-top:var(--a1x-sticky-top,var(--a1-space-80))}
+.a1-od-tracking{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-12)}
+.a1-ops .a1-od-dl dt{color:var(--a1-text-secondary)}
+
+/* Two columns from 1100 px: items, payments, documents, history on the left; people and secondary forms on the right. */
+.a1-od-main{display:grid;gap:var(--a1-space-16);align-content:start;min-width:0}
+.a1-od-side{display:grid;gap:var(--a1-space-16);align-content:start;min-width:0}
+
+/* Panels that the logistics buttons show and hide: author display rules must not defeat [hidden]. */
+.a1-ops .a1-od-toggle[hidden]{display:none}
+
+/* Forms. */
+.a1-od-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8)}
+.a1-od-head__actions .a1-btn,.a1-od-actions .a1-btn,.a1-od-doc__actions .a1-btn,.a1-od-rowactions .a1-btn,.a1-od-sum .a1-btn{white-space:normal}
+.a1-ops .a1-row>.a1-od-wide{grid-column:1/-1}
+.a1-od-acc-title{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-od-acc-title small{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm);font-weight:var(--a1-typography-font-weight-regular)}
+.a1-ops .a1-acc .a1-acc__body{color:var(--a1-text-primary)}
+.a1-ops .a1-acc>summary{align-items:flex-start}
+
+/* Items: totals, price correction, commission. */
+.a1-od-totals{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-end;gap:var(--a1-space-4) var(--a1-space-16);margin:0;padding-top:var(--a1-space-12)}
+.a1-od-totals dt{color:var(--a1-text-secondary)}
+.a1-od-totals dd{margin:0;font:var(--a1-typography-font-weight-numeric) var(--a1-typography-font-size-xl-2)/var(--a1-typography-line-height-snug) var(--a1-typography-font-family-display);letter-spacing:var(--a1-typography-letter-spacing-price);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+.a1-od-sub{display:grid;gap:var(--a1-space-12);min-width:0;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-od-commission{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16);padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-od-commission__sum{display:inline-flex;align-items:center;gap:var(--a1-space-8);min-width:0;overflow-wrap:anywhere}
+
+/* Payments. */
+.a1-od-reason{display:block;margin-top:var(--a1-space-4);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);white-space:normal;overflow-wrap:anywhere}
+.a1-ops .a1-table .a1-table__actions .a1-od-rowactions{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:var(--a1-space-8);white-space:normal}
+.a1-od-rowactions form{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8);margin:0}
+.a1-ops .a1-od-rowactions .a1-field{flex:1 1 160px}
+.a1-od-code{display:block;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--a1-typography-font-size-sm-plus);overflow-wrap:anywhere;word-break:break-all}
+
+/* Documents. */
+.a1-od-doclist{display:grid;gap:var(--a1-space-12);margin:0;padding:0;list-style:none}
+.a1-od-doc{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:var(--a1-space-8) var(--a1-space-16);min-width:0;padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-od-doc__main{display:grid;gap:var(--a1-space-4);min-width:0;overflow-wrap:anywhere}
+.a1-od-doc__meta{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-od-doc__actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8)}
+.a1-od-doc>.a1-acc{grid-column:1/-1;margin-top:0}
+@media (min-width:768px){.a1-od-doc{grid-template-columns:minmax(0,1fr) auto}}
+
+/* Delivery summary and completed state. */
+.a1-ops .a1-card.a1-od-done{grid-template-columns:auto minmax(0,1fr);align-items:start;gap:var(--a1-space-16)}
+.a1-od-done__icon{--a1x-od-icon:48px;display:grid;place-items:center;width:var(--a1x-od-icon);height:var(--a1x-od-icon);border-radius:50%;background:var(--a1-status-ok-bg);color:var(--a1-status-ok-text)}
+.a1-od-done__body{display:grid;gap:var(--a1-space-8);min-width:0}
+.a1-od-sum{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-12);overflow-wrap:anywhere}
+
+/* History. */
+.a1-od-timeline{display:grid;margin:0;padding:0;list-style:none}
+.a1-od-event{--a1x-od-dot:10px;display:grid;grid-template-columns:var(--a1x-od-dot) minmax(0,1fr);gap:var(--a1-space-12);padding:var(--a1-space-12) 0;border-bottom:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-od-event:last-child{border-bottom:0}
+.a1-od-event__dot{width:var(--a1x-od-dot);height:var(--a1x-od-dot);margin-top:var(--a1-space-8);border-radius:50%;background:var(--a1-accent-link)}
+.a1-od-event__body{display:grid;gap:var(--a1-space-4);min-width:0;overflow-wrap:anywhere}
+.a1-od-event__head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-16)}
+.a1-od-event__head time{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+.a1-od-event__meta{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+
+/* Danger zone. */
+.a1-ops .a1-card.a1-od-danger{border-color:var(--a1-status-danger-dot)}
+.a1-od-danger .a1-alert__title{margin:0;font:var(--a1-typography-font-weight-bold) var(--a1-typography-font-size-md-plus)/var(--a1-typography-line-height-title) var(--a1-typography-font-family-display)}
+
+/* Phones: buttons take the row, nothing may push the page wider than the viewport. */
+@media (max-width:560px){
+  .a1-od-head__actions,.a1-od-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+  .a1-od-head__actions .a1-btn,.a1-od-actions .a1-btn{width:100%}
+  .a1-od-head__actions form,.a1-od-actions form{display:grid}
+  .a1-ops .a1-card.a1-od-done{grid-template-columns:minmax(0,1fr)}
+  .a1-od-totals{justify-content:space-between}
+}
+
+@media (prefers-contrast:more){
+  .a1-od-sub,.a1-od-doc,.a1-od-commission,.a1-od-code{border-width:var(--a1x-border-width-strong)}
+  .a1-od-facts{border-top-width:var(--a1x-border-width-strong)}
+}
+
+@media (forced-colors:active){
+  .a1-od-event__dot{background:CanvasText;forced-color-adjust:none}
+  .a1-od-done__icon{background:Canvas;color:CanvasText;border:var(--a1x-border-width-strong) solid CanvasText}
+  .a1-ops .a1-card.a1-od-danger{border-color:CanvasText}
+  .a1-od-sub,.a1-od-doc,.a1-od-commission,.a1-od-code{background-color:Canvas}
+}
+
+/* M3 sub-block: Customer order detail, create, edit (prefix a1-oc-) */
+/* ==========================================================================
+   Module 3, customer orders (prefix a1-oc-): own order detail, payments partial,
+   new order form, order amendment form. Scope: .a1-ops. Tokens only.
+   Author: Ald1n <https://ald1n.com>
+   ========================================================================== */
+.a1-oc-meta{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16)}
+.a1-oc-total{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-end;gap:var(--a1-space-4) var(--a1-space-16);margin:0;padding-top:var(--a1-space-8);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-oc-total dt{margin:0;color:var(--a1-text-secondary)}
+.a1-oc-total dd{margin:0;font:var(--a1-typography-font-weight-numeric) var(--a1-typography-font-size-xl)/var(--a1-typography-line-height-snug) var(--a1-typography-font-family-display);letter-spacing:var(--a1-typography-letter-spacing-price);font-variant-numeric:tabular-nums}
+.a1-oc-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--a1-space-12);margin:0}
+.a1-oc-stats>div{display:grid;gap:var(--a1-space-4);min-width:0;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong)}
+.a1-oc-stats dt{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-oc-stats dd{margin:0;font-weight:var(--a1-typography-font-weight-numeric);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+@media (min-width:768px){.a1-oc-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.a1-ops .a1-oc-qty{text-align:right;font-variant-numeric:tabular-nums}
+.a1-oc-cell{display:grid;gap:var(--a1-space-4);min-width:0;flex:1 1 auto}
+.a1-oc-cell--num{justify-items:end}
+.a1-oc-cell--num .a1-input{max-width:9rem}
+.a1-oc-toggle[hidden]{display:none}
+.a1-oc-code{display:block;padding:var(--a1-space-12);border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);overflow-wrap:anywhere;white-space:pre-wrap}
+.a1-oc-suppliers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:var(--a1-space-12);margin:0;padding:0;border:0;min-width:0}
+.a1-oc-supplier{padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong)}
+.a1-oc-supplier:has(.a1-check__input:checked){border-color:var(--a1-accent-link);background-color:var(--a1-accent-soft)}
+.a1-oc-supplier:has(.a1-check__input:focus-visible){outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset)}
+.a1-oc-supplier__avatar{display:grid;place-items:center;flex:0 0 auto;width:36px;height:36px;border-radius:50%;background:var(--a1-button-primary-bg);color:var(--a1-button-primary-on);font-size:var(--a1-typography-font-size-sm-plus);font-weight:var(--a1-typography-font-weight-bold)}
+.a1-oc-supplier__text{display:grid;gap:2px;min-width:0;overflow-wrap:anywhere}
+.a1-oc-supplier__text small{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-oc-lines{display:grid;margin:0}
+.a1-oc-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-12) var(--a1-space-16);padding:var(--a1-space-12) 0;border-bottom:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-oc-line__name{display:grid;gap:2px;flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.a1-oc-line__name small{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-oc-line__controls{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8)}
+.a1-ops .a1-oc-line .a1-oc-qty{width:6.5rem}
+.a1-oc-results{display:grid;gap:var(--a1-space-8);margin-top:var(--a1-space-8)}
+.a1-oc-results .a1-btn{justify-content:flex-start;white-space:normal;text-align:left}
+.a1-oc-search{display:grid;gap:var(--a1-space-8);margin-top:var(--a1-space-16);padding-top:var(--a1-space-16);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-oc-dot{width:10px;height:10px;margin-top:.5em;border-radius:50%;background:var(--a1-accent-link)}
+.a1-oc-event{margin:0;color:var(--a1-text-secondary)}
+.a1-card.a1-oc-danger{border-color:var(--a1-status-danger-dot)}
+.a1-oc-danger__title{display:flex;align-items:center;gap:var(--a1-space-8);color:var(--a1-status-danger-text)}
+.a1-oc-note{margin:0;padding:var(--a1-space-12) var(--a1-space-16);border-left:6px solid var(--a1-accent-link);border-radius:var(--a1-radius-sm);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-primary)}
+@media (max-width:560px){
+  .a1-ops .a1-table--cards .a1-oc-cell--num .a1-input{max-width:none;width:100%}
+  .a1-oc-line{align-items:stretch}
+  .a1-oc-line__controls{width:100%}
+  .a1-oc-total{justify-content:space-between}
+}
+@media (prefers-reduced-motion:no-preference){
+  .a1-oc-supplier{transition:background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic),border-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}
+}
+@media (prefers-contrast:more){
+  .a1-oc-supplier,.a1-oc-stats>div,.a1-card.a1-oc-danger,.a1-oc-note{border-width:var(--a1x-border-width-strong)}
+}
+@media (forced-colors:active){
+  .a1-oc-supplier,.a1-oc-stats>div,.a1-oc-note{background:Canvas;color:CanvasText;border-color:CanvasText}
+  .a1-oc-supplier:has(.a1-check__input:checked){border:3px solid Highlight}
+  .a1-oc-supplier__avatar{forced-color-adjust:none;background:ButtonFace;color:ButtonText;border:var(--a1x-border-width) solid ButtonText}
+  .a1-oc-dot{forced-color-adjust:none;background:CanvasText}
+  .a1-card.a1-oc-danger{border-color:CanvasText}
+}
+
+/* M3 sub-block: After-sales (prefix a1-os-) */
+/* Module 3, after-sales pages (reklamacije i servisi). Prefix .a1-os-. Appended to ald1n-admin.css by the coordinator.
+   Author: Ald1n <https://ald1n.com> */
+.a1-os-sub{display:block;margin-top:var(--a1-space-4);font-size:var(--a1-typography-font-size-sm);color:var(--a1-text-secondary)}
+.a1-os-pills{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8)}
+.a1-os-checks{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-4) var(--a1-space-16)}
+.a1-os-text{margin:0;white-space:pre-line;overflow-wrap:anywhere;color:var(--a1-text-primary)}
+.a1-os-muted{margin:0;color:var(--a1-text-secondary)}
+.a1-os-lead{margin:0;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-os-block{display:grid;gap:var(--a1-space-12);min-width:0}
+.a1-os-heading{margin:0;font:var(--a1-typography-font-weight-bold) var(--a1-typography-font-size-md-plus)/var(--a1-typography-line-height-title) var(--a1-typography-font-family-display);color:var(--a1-text-primary)}
+.a1-os-subheading{margin:0;font-size:var(--a1-typography-font-size-md);font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary)}
+
+/* Case items (customer-reported products) */
+.a1-os-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:var(--a1-space-12);min-width:0}
+.a1-os-item{display:grid;gap:var(--a1-space-8);align-content:start;min-width:0;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-os-item__name{font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary);overflow-wrap:anywhere}
+.a1-os-item__meta{margin:0;font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+
+/* Message thread */
+.a1-os-thread{display:grid;gap:var(--a1-space-12);margin:0;padding:0;list-style:none}
+.a1-os-msg{display:grid;gap:var(--a1-space-8);min-width:0;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-left-width:6px;border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-os-msg--staff{border-left-color:var(--a1-accent-link)}
+.a1-os-msg--customer{border-left-color:var(--a1-border-strong)}
+.a1-os-msg--internal{border-left-color:var(--a1-status-warning-dot)}
+.a1-os-msg__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-12)}
+.a1-os-msg__who{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8);font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary)}
+.a1-os-msg__time{font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+
+/* Attachment links */
+.a1-os-files{display:flex;flex-wrap:wrap;gap:var(--a1-space-8);margin:0;padding:0;list-style:none}
+.a1-os-file{display:inline-flex;align-items:center;gap:var(--a1-space-8);max-width:100%;min-height:var(--a1-size-touch-target);padding:var(--a1-space-4) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-pill);background-color:var(--a1-surface-solid);color:var(--a1-accent-link);font-size:var(--a1-typography-font-size-sm-plus);font-weight:var(--a1-typography-font-weight-nav);text-decoration:none;overflow-wrap:anywhere}
+.a1-os-file:hover{border-color:var(--a1-accent-link)}
+
+/* Actions (service, replacement, return, refund) */
+.a1-os-actions{display:grid;gap:var(--a1-space-12);margin:0;padding:0;list-style:none}
+.a1-os-action{display:grid;gap:var(--a1-space-12);min-width:0;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-os-action__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16)}
+.a1-os-action__title{margin:0;font:var(--a1-typography-font-weight-bold) var(--a1-typography-font-size-md-plus)/var(--a1-typography-line-height-title) var(--a1-typography-font-family-display);color:var(--a1-text-primary)}
+.a1-os-action__lines{display:grid;gap:var(--a1-space-4);margin:0;padding:0;list-style:none;color:var(--a1-text-primary)}
+.a1-os-note{margin:0;padding:var(--a1-space-8) var(--a1-space-12);border-left:4px solid var(--a1-accent-link);border-radius:var(--a1-radius-sm);background-color:var(--a1-accent-soft);color:var(--a1-text-primary);overflow-wrap:anywhere}
+.a1-os-note--internal{border-left-color:var(--a1-status-warning-dot)}
+.a1-os-note--danger{border-left-color:var(--a1-status-danger-dot)}
+.a1-os-wo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16);padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm)}
+.a1-os-wo__text{display:grid;gap:var(--a1-space-4);min-width:0;color:var(--a1-text-primary)}
+.a1-os-controls{display:grid;gap:var(--a1-space-8)}
+.a1-os-controls .a1-acc+.a1-acc{margin-top:0}
+.a1-os-controls>.a1-btn{justify-self:start}
+.a1-os-danger{display:grid;gap:var(--a1-space-12);padding-top:var(--a1-space-12);border-top:var(--a1x-border-width-strong) dashed var(--a1-status-danger-dot)}
+.a1-os-danger .a1-acc{background-color:var(--a1-surface-solid)}
+.a1-os-planner{display:grid;gap:var(--a1-space-12)}
+.a1-os-planner .a1-acc__body{color:var(--a1-text-primary)}
+
+/* Forms */
+.a1-os-formgrid{display:grid;gap:var(--a1-space-16);min-width:0}
+.a1-os-wide{min-width:0}
+@media (min-width:768px){
+  .a1-os-formgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .a1-os-wide{grid-column:1/-1}
+}
+.a1-os-pick{display:grid;gap:var(--a1-space-12)}
+
+/* Status history */
+.a1-os-timeline{display:grid;margin:0;padding:0 0 0 var(--a1-space-8);list-style:none}
+.a1-os-timeline__item{position:relative;display:grid;gap:var(--a1-space-4);margin:0;padding:0 0 var(--a1-space-16) var(--a1-space-20);border-left:var(--a1x-border-width-strong) solid var(--a1-border-strong)}
+.a1-os-timeline__item:last-child{padding-bottom:0}
+.a1-os-timeline__item::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--a1-accent-link)}
+.a1-os-timeline__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-12);color:var(--a1-text-primary)}
+.a1-os-timeline__time{font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+
+@media (prefers-contrast:more){
+  .a1-os-item,.a1-os-action,.a1-os-wo,.a1-os-file{border-width:var(--a1x-border-width-strong)}
+  .a1-os-msg{border-width:var(--a1x-border-width-strong);border-left-width:8px}
+}
+@media (forced-colors:active){
+  .a1-os-item,.a1-os-msg,.a1-os-action,.a1-os-wo,.a1-os-file,.a1-os-note{border-color:CanvasText;background-color:Canvas;color:CanvasText}
+  .a1-os-file{color:LinkText}
+  .a1-os-danger{border-top-color:CanvasText}
+  .a1-os-timeline__item{border-left-color:CanvasText}
+  .a1-os-timeline__item::before{background:Highlight;forced-color-adjust:none}
+}
+
+/* M3 sub-block: Field operations and service parts (prefix a1-ow-) */
+/* Module 3, field service and service parts (prefix a1-ow-). Author: Ald1n <https://ald1n.com> */
+/* Filter bars with 2 to 6 fields: fit as many columns as the width allows. */
+.a1-ops .a1-ow-filters .a1-filters__fields{grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))}
+.a1-ops .a1-ow-filters>.a1-help{margin:0}
+.a1-ow-inline{display:inline-flex;margin:0}
+
+/* Operational calendar: one column on phones, auto-fill up to 1100 px, then one column per day (7 at most). */
+.a1-ow-cal{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-12);margin:0;padding:0;list-style:none;min-width:0}
+@media (min-width:560px){.a1-ow-cal{grid-template-columns:repeat(auto-fill,minmax(min(100%,10rem),1fr))}}
+@media (min-width:1100px){.a1-ow-cal{grid-template-columns:repeat(var(--a1x-ow-cols,7),minmax(0,1fr))}}
+.a1-ow-day{display:grid;align-content:start;gap:var(--a1-space-8);min-width:0;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-ow-day[aria-current=date]{border-color:var(--a1-accent-link);border-width:var(--a1x-border-width-strong)}
+.a1-ow-day__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-8);margin:0;color:var(--a1-text-primary);font:var(--a1-typography-font-weight-regular) var(--a1-typography-font-size-md)/var(--a1-typography-line-height-title) var(--a1-typography-font-family-sans)}
+.a1-ow-day__events{display:grid;gap:var(--a1-space-8);min-width:0}
+.a1-ow-day__empty{margin:0;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-ow-event{display:grid;justify-items:start;gap:2px;min-width:0;min-height:var(--a1-size-touch-target);padding:var(--a1-space-8) var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-primary);text-decoration:none;overflow-wrap:anywhere}
+.a1-ow-event:hover{border-color:var(--a1-accent-link)}
+.a1-ow-event__time{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+.a1-ow-event__id{color:var(--a1-accent-link);font-weight:var(--a1-typography-font-weight-semibold)}
+.a1-ow-event__meta{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+
+/* Work-order progress: four steps, the reached ones carry aria-current and a thick accent rule. */
+.a1-ow-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--a1-space-8);margin:0;padding:0;list-style:none}
+@media (min-width:560px){.a1-ow-steps{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.a1-ow-step{display:block;padding-top:var(--a1-space-8);border-top:var(--a1x-border-width-strong) solid var(--a1-border-strong);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-ow-step--on{border-top-color:var(--a1-accent-link);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold)}
+
+/* Team accordion: name and meta on the left, status pill before the caret. */
+.a1-ow-team>summary{flex-wrap:wrap}
+.a1-ow-team__title{display:grid;gap:2px;flex:1 1 12rem;min-width:0;overflow-wrap:anywhere}
+.a1-ow-team__sub{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-weight:var(--a1-typography-font-weight-regular)}
+
+/* Inline edit of a stock part: the panel opens inside the action cell. */
+.a1-ow-edit{min-width:0;text-align:left;white-space:normal}
+.a1-ow-edit>summary{display:inline-flex;list-style:none;cursor:pointer}
+.a1-ow-edit>summary::-webkit-details-marker{display:none}
+.a1-ow-edit__panel{display:grid;gap:var(--a1-space-16);min-width:min(22rem,100%);margin-top:var(--a1-space-8);padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-regular)}
+.a1-ow-edit__adjust{padding-top:var(--a1-space-16);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+
+/* Purchase request lines (rows are cloned from a template by the page script). */
+.a1-ow-items{display:grid;gap:var(--a1-space-12)}
+.a1-ow-item{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-12);align-items:end;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill-strong)}
+@media (min-width:768px){.a1-ow-item{grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto}}
+
+/* Danger zone on detail pages: a danger rim around the card. */
+.a1-ops .a1-ow-danger{border-color:var(--a1-status-danger-dot)}
+
+@media (prefers-reduced-motion:no-preference){
+  .a1-ow-event{transition:border-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic),background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}
+}
+@media (prefers-contrast:more){
+  .a1-ow-day,.a1-ow-event,.a1-ow-edit__panel,.a1-ow-item{border-width:var(--a1x-border-width-strong)}
+}
+@media (forced-colors:active){
+  .a1-ow-day,.a1-ow-event,.a1-ow-edit__panel,.a1-ow-item{background:Canvas;color:CanvasText;border-color:CanvasText}
+  .a1-ow-day[aria-current=date]{border-color:Highlight}
+  .a1-ow-step{border-top-color:CanvasText}
+  .a1-ow-step--on{border-top-color:Highlight;border-top-width:6px}
+  .a1-ow-event__id{color:LinkText}
+}
+
 /* ---------- Report: sales by subagent (a1-sbs-*, used only by admin/reports/subagent-sales) ---------- */
 .a1-sbs-chart{display:grid;gap:var(--a1-space-16);margin:0;padding:0;list-style:none}
 .a1-sbs-chart__item{display:grid;gap:var(--a1-space-4);min-width:0}
@@ -859,6 +1368,59 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-table th[aria-sort=ascending] .a1-sbs-sort::after{content:" \25B2" / ""}
 .a1-table th[aria-sort=descending] .a1-sbs-sort::after{content:" \25BC" / ""}
 .a1-sbs-total td{font-weight:var(--a1-typography-font-weight-bold);background-color:var(--a1-glass-fill-strong)}
+
+/* M3 sub-block: admin orders list, one-line sub text and tighter cells so rows stay compact at 1200 to 1440 */
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table{font-size:var(--a1-typography-font-size-sm-plus)}
+  .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{display:block;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .a1-ops .a1-ol-table th,.a1-ops .a1-ol-table td{padding-inline:var(--a1-space-8)}
+}
+
+.a1-ops .a1-dialog p[data-order-purge-retention]{margin-right:var(--a1-space-12)}
+
+/* M3 sub-block: admin orders list fits at 1280, the actions column is always visible, the Jos menu opens inline (no clipping) */
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{max-width:9.5rem}
+  .a1-ops .a1-ol-table .a1-ol-actions{flex-wrap:nowrap;white-space:nowrap}
+  .a1-ops .a1-ol-actions .a1-btn:not(.a1-btn--icon){padding-inline:var(--a1-space-8)}
+  .a1-ops .a1-ol-table td.a1-table__actions,.a1-ops .a1-ol-table th:last-child{position:sticky;right:0;z-index:2;background-color:var(--a1-glass-fill-strong)}
+  .a1-ops .a1-ol-more .a1-ol-morepanel{position:static;min-width:0;max-height:none;overflow:visible;margin-top:var(--a1-space-4);padding:var(--a1-space-4);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);box-shadow:none}
+}
+
+/* M3 sub-block: fixed column widths for the admin orders list (everything fits at 1100+), action cells of every module-3 table stay inside the card */
+@media (min-width:561px){
+  .a1-ops .a1-tablewrap .a1-table td.a1-table__actions{position:sticky;right:0;z-index:2;background-color:var(--a1-glass-fill-strong)}
+}
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table{table-layout:fixed;width:100%;min-width:0}
+  .a1-ops .a1-ol-table th:nth-child(1){width:13%}
+  .a1-ops .a1-ol-table th:nth-child(2){width:13.5%}
+  .a1-ops .a1-ol-table th:nth-child(3){width:13%}
+  .a1-ops .a1-ol-table th:nth-child(4){width:10%}
+  .a1-ops .a1-ol-table th:nth-child(5){width:11.5%}
+  .a1-ops .a1-ol-table th:nth-child(6){width:13.5%}
+  .a1-ops .a1-ol-table th:nth-child(7){width:8.5%}
+  .a1-ops .a1-ol-table th:nth-child(8){width:17%}
+  .a1-ops .a1-ol-table td:nth-child(2){min-width:0}
+  .a1-ops .a1-ol-table td{overflow:hidden;text-overflow:ellipsis}
+  .a1-ops .a1-ol-table td.a1-table__actions{overflow:visible}
+  .a1-ops .a1-ol-table .a1-ol-actions{flex-wrap:wrap;justify-content:flex-end;white-space:normal}
+}
+@media (min-width:1100px){.a1-ops .a1-ol-table td.a1-table__num{overflow:visible}}
+
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table th:nth-child(1){width:13%}.a1-ops .a1-ol-table th:nth-child(2){width:12.5%}.a1-ops .a1-ol-table th:nth-child(3){width:12%}.a1-ops .a1-ol-table th:nth-child(8){width:19%}
+  .a1-ops .a1-ol-actions{gap:var(--a1-space-4)}.a1-ops .a1-ol-table .a1-table__actions .a1-btn{margin-left:0}
+}
+
+/* M3 sub-block: the order number (up to 21 characters, APC-YYYYMMDD-NNNNNNNN) is never cut; second lines end in an ellipsis with the full text in title */
+@media (min-width:561px){.a1-ops .a1-table td[data-label="Broj"]{overflow:visible}}
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table th:nth-child(1){width:16.5%}.a1-ops .a1-ol-table th:nth-child(2){width:11.5%}.a1-ops .a1-ol-table th:nth-child(3){width:11%}.a1-ops .a1-ol-table th:nth-child(4){width:10%}.a1-ops .a1-ol-table th:nth-child(5){width:11%}.a1-ops .a1-ol-table th:nth-child(6){width:13.5%}.a1-ops .a1-ol-table th:nth-child(7){width:8%}.a1-ops .a1-ol-table th:nth-child(8){width:18.5%}
+  .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{max-width:100%}
+  .a1-ops .a1-ol-table td.a1-ol-primary{overflow:visible;font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+  .a1-ops .a1-ol-table td.a1-ol-primary .a1-link{white-space:nowrap;letter-spacing:0}
+}
 
 /* ==========================================================================
    Dashboard + shell owner feedback (2026-11-16). One block, appended; tokens only.
@@ -1032,3 +1594,7 @@ button.a1-drawer-rate{cursor:pointer}
 /* Round 2b: phone greeting stays on two lines at most; the orders list keeps a tidy width inside the wide card. */
 .a1-card .a1-list--recent{max-width:62rem}
 @media (max-width:559px){.a1-dash .a1-hero__title .a1-title{font-size:clamp(14px,4.2vw,18px)}}
+
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table th:nth-child(1){width:18%}.a1-ops .a1-ol-table th:nth-child(2){width:10.5%}.a1-ops .a1-ol-table th:nth-child(8){width:18%}
+}
