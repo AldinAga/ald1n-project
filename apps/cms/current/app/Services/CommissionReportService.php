@@ -11,6 +11,7 @@ use App\Services\Pdf\CommissionReportPdfService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 final class CommissionReportService
@@ -168,7 +169,14 @@ final class CommissionReportService
         };
         $ids = (clone $query)->reorder()->select('order_commissions.id');
         $hasAdjustments = Schema::hasTable('commission_adjustments'); // stranica radi i pre migracije
-        $adjusted = static fn (string $kind): float => !$hasAdjustments ? 0.0 : (float) CommissionAdjustment::query()->where('kind', $kind)->whereIn('commission_id', $ids)->sum('amount_eur');
+        $adjusted = static fn (string $kind, string $status = 'confirmed'): float => !$hasAdjustments ? 0.0 : (float) CommissionAdjustment::query()->where('kind', $kind)->where('status', $status)->whereIn('commission_id', $ids)->sum('amount_eur');
+        // otvoreno dugovanje = potvrđena zaduženja minus već prebijeno pri isplatama
+        $settled = $hasAdjustments && Schema::hasTable('commission_debit_settlements')
+            ? (float) DB::table('commission_debit_settlements')->whereIn('adjustment_id', CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'confirmed')->whereIn('commission_id', $ids)->select('id'))->sum('amount_eur')
+            : 0.0;
+        $proposed = $hasAdjustments
+            ? CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'proposed')->whereIn('commission_id', $ids)->selectRaw('COUNT(*) AS c, COALESCE(SUM(amount_eur),0) AS s')->first()
+            : null;
         $due = $group('due');
         $notDue = $group('not_due');
 
@@ -178,7 +186,9 @@ final class CommissionReportService
             'not_due_count' => $notDue['count'],
             'not_due_eur' => $notDue['eur'],
             'reversed_eur' => $adjusted('reversal'),
-            'owed_eur' => $adjusted('debit'),
+            'owed_eur' => max(0.0, round($adjusted('debit') - $settled, 2)),
+            'proposed_debit_count' => (int) ($proposed->c ?? 0),
+            'proposed_debit_eur' => (float) ($proposed->s ?? 0),
             'count' => (int) $rows->sum('total_count'),
             'pending_count' => (int) ($rows['pending']->total_count ?? 0),
             'pending_eur' => (float) ($rows['pending']->total_eur ?? 0),

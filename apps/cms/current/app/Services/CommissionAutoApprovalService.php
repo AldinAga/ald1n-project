@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderCommission;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 /**
@@ -28,6 +29,10 @@ final class CommissionAutoApprovalService
     /** @return string|null 'approved' | 'pending' ako se stanje promenilo, inače null */
     public function syncForOrder(Order $order, string $source = 'order_event', bool $notify = true): ?string
     {
+        if (!$this->ready()) {
+            return null; // migracija još nije izvršena: bez automatike, plaćanja i isporuke rade kao pre
+        }
+
         return DB::transaction(function () use ($order, $source, $notify): ?string {
             /** @var OrderCommission|null $commission */
             $commission = OrderCommission::query()->where('order_id', $order->id)->lockForUpdate()->first();
@@ -41,7 +46,7 @@ final class CommissionAutoApprovalService
                     ? 'Automatski za isplatu: isporuka je potvrđena.'
                     : 'Automatski za isplatu: porudžbina je u potpunosti naplaćena.';
                 $this->move($commission, 'pending', 'approved', $reason, $source, [
-                    'approved_by' => null, 'approved_at' => now(),
+                    'approved_by' => null, 'approved_at' => now(), 'auto_approved_at' => now(),
                 ]);
                 if ($notify) {
                     $this->notifyOwner($commission, $order);
@@ -50,9 +55,9 @@ final class CommissionAutoApprovalService
                 return 'approved';
             }
 
-            if ($commission->status === 'approved' && $commission->approved_by === null && !$meets) {
+            if ($commission->status === 'approved' && $commission->auto_approved_at !== null && !$meets) {
                 $this->move($commission, 'approved', 'pending', 'Automatski vraćena na čekanje: porudžbina više nije isporučena ni u potpunosti naplaćena.', $source, [
-                    'approved_at' => null,
+                    'approved_at' => null, 'auto_approved_at' => null,
                 ]);
 
                 return 'pending';
@@ -60,6 +65,13 @@ final class CommissionAutoApprovalService
 
             return null;
         }, 5);
+    }
+
+    private function ready(): bool
+    {
+        static $ready = null;
+
+        return $ready ??= Schema::hasColumn('order_commissions', 'auto_approved_at');
     }
 
     /** Jednokratni prenos postojećih pending provizija čija porudžbina već ispunjava uslov. Idempotentno; bez obaveštenja. */

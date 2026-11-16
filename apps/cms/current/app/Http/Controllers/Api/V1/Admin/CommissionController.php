@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommissionAdjustment;
 use App\Models\OrderCommission;
+use App\Services\IdempotencyService;
 use App\Models\User;
 use App\Services\CommissionEligibilityService;
 use App\Services\CommissionReportService;
@@ -25,11 +27,13 @@ final class CommissionController extends Controller
         private readonly CommissionWorkflowService $workflow,
         private readonly CommissionEligibilityService $eligibility,
         private readonly CommissionReversalService $reversal,
+        private readonly IdempotencyService $idempotency,
     ) {}
 
     public function reverse(Request $request, OrderCommission $commission): JsonResponse
     {
         $data = $request->validate([
+            'idempotency_key' => ['required', 'string', 'max:200'],
             'reason' => ['required', 'string', 'max:1000'],
             'amount_eur' => ['nullable', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'],
             'order_item_id' => ['nullable', 'integer'],
@@ -37,19 +41,42 @@ final class CommissionController extends Controller
         ]);
         $actor = $request->user();
         $scoped = $this->reports->managedQuery($actor, [])->whereKey($commission->id)->firstOrFail();
-        $adjustment = $this->reversal->reverse(
-            $scoped,
+        $adjustment = $this->idempotency->run(
             $actor,
-            (string) $data['reason'],
-            $data['amount_eur'] ?? null,
-            isset($data['order_item_id']) ? (int) $data['order_item_id'] : null,
-            isset($data['quantity']) ? (int) $data['quantity'] : null,
+            'api.admin.commissions.reverse',
+            (string) $data['idempotency_key'],
+            ['commission_id' => (int) $scoped->id] + collect($data)->except('idempotency_key')->all(),
+            CommissionAdjustment::class,
+            fn (): CommissionAdjustment => $this->reversal->reverse(
+                $scoped,
+                $actor,
+                (string) $data['reason'],
+                $data['amount_eur'] ?? null,
+                isset($data['order_item_id']) ? (int) $data['order_item_id'] : null,
+                isset($data['quantity']) ? (int) $data['quantity'] : null,
+            ),
+            static fn (int $id): CommissionAdjustment => CommissionAdjustment::query()->findOrFail($id),
         );
 
         return response()->json([
             'message' => ($adjustment->kind === 'debit' ? 'Zaduženje ' : 'Storno ').'je evidentirano.',
-            'data' => $this->payload($scoped->fresh(), $actor, true),
+            'data' => $this->payload($this->reports->managedQuery($actor, [])->whereKey($commission->id)->firstOrFail(), $actor, true),
         ]);
+    }
+
+    public function confirmDebit(Request $request, CommissionAdjustment $adjustment): JsonResponse
+    {
+        $this->reversal->confirmDebit($adjustment, $request->user());
+
+        return response()->json(['message' => 'Zaduženje je potvrđeno.']);
+    }
+
+    public function rejectDebit(Request $request, CommissionAdjustment $adjustment): JsonResponse
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'max:500']]);
+        $this->reversal->rejectDebit($adjustment, $request->user(), (string) $data['note']);
+
+        return response()->json(['message' => 'Predlog zaduženja je odbijen.']);
     }
 
     public function index(Request $request): JsonResponse
@@ -147,6 +174,9 @@ final class CommissionController extends Controller
                 'batch_number' => (string) $batch->batch_number,
                 'commission_count' => (int) $batch->commission_count,
                 'total_eur' => (float) $batch->total_eur,
+                'gross_eur' => (float) $batch->total_eur,
+                'debit_eur' => (float) ($batch->debit_eur ?? 0),
+                'net_eur' => (float) ($batch->net_eur ?? $batch->total_eur),
                 'payment_method' => (string) $batch->payment_method,
                 'payment_reference' => $batch->payment_reference ?: null,
                 'paid_at' => optional($batch->paid_at)->toIso8601String(),
@@ -312,8 +342,9 @@ final class CommissionController extends Controller
             'state_label' => $eligibility['state_label'],
             'payable_code' => $eligibility['code'],
             'payable_reason' => $eligibility['reason'],
-            'reversed_eur' => $this->adjustmentSum($commission, 'reversal'),
-            'owed_eur' => $this->adjustmentSum($commission, 'debit'),
+            'reversed_eur' => (float) $commission->adjustmentSumEur('reversal'),
+            'owed_eur' => (float) $commission->adjustmentSumEur('debit'),
+            'proposed_debit_eur' => (float) $commission->adjustmentSumEur('debit', ['proposed']),
             'status_updated_at' => optional($commission->status_updated_at)->toIso8601String(),
             'created_at' => optional($commission->created_at)->toIso8601String(),
             'updated_at' => optional($commission->updated_at)->toIso8601String(),
@@ -382,15 +413,6 @@ final class CommissionController extends Controller
             'cancelled' => $actor->hasRole('superadmin') ? ['pending'] : [],
             default => [],
         };
-    }
-
-    private function adjustmentSum(OrderCommission $commission, string $kind): float
-    {
-        if (!Schema::hasTable('commission_adjustments')) {
-            return 0.0;
-        }
-
-        return (float) $commission->adjustments()->where('kind', $kind)->sum('amount_eur');
     }
 
     private function statusLabel(string $status): string

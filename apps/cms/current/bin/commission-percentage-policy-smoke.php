@@ -31,7 +31,7 @@ $viewSource = (string) file_get_contents($root.'/resources/views/commissions/ind
 $directSource = (string) file_get_contents($root.'/app/Services/DirectSaleService.php');
 $check('Calculator nema legacy max 20 floor', !str_contains($calculatorSource, 'max(20.0'));
 $check('Calculator nema legacy manual 20 floor', !str_contains($calculatorSource, '$manualEur >= 20.0'));
-$check('Order snapshots koriste centralni usesManual autoritet i centralnu stopu', str_contains($orderSource, '$usesManualCommission') && str_contains($orderSource, 'CommissionCalculator::DEFAULT_RATE_PERCENT') && !str_contains($orderSource, '$manualCommission >= 20.0'));
+$check('Order snapshots koriste centralni usesManual autoritet i centralnu stopu', str_contains($orderSource, '$usesManualCommission') && str_contains($orderSource, '$this->commissionCalculator->ratePercent()') && !str_contains($orderSource, '$manualCommission >= 20.0'));
 $check('ProductRequest validira dinamički automatski minimum', str_contains($requestSource, 'COMMISSION_PERCENTAGE_POLICY_V0_7') && str_contains($requestSource, 'manualMinimumEur'));
 $check('Customer copy više ne tvrdi minimum 20 EUR', str_contains($viewSource, 'Podrazumevana provizija je 10% vrednosti artikla po komadu.') && !str_contains($viewSource, '20 EUR'));
 $check('Direct Sale ostaje nulta provizija', str_contains($directSource, "'commission_source_snapshot' => 'direct_sale'") && str_contains($directSource, "'commission_total_eur_snapshot' => 0"));

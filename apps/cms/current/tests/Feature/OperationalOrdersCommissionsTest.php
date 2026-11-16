@@ -47,7 +47,10 @@ final class OperationalOrdersCommissionsTest extends TestCase
         app(\App\Services\OrderFinancialStateService::class)->project($order);
         self::assertSame('approved', $commission->fresh()->status);
 
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
+        // isplatu radi samo SuperAdministrator (odluka vlasnika 16.11.2026)
+        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'paid', 'payment_method' => 'cash'])->assertForbidden();
+        $super = $this->user('commission-super', 'superadmin');
+        $this->actingAs($super)->patch('/admin/commissions/'.$commission->id.'/status', [
             'status' => 'paid',
             'payment_method' => 'bank_transfer',
             'payment_reference' => 'NALOG-2026-001',
@@ -133,7 +136,8 @@ final class OperationalOrdersCommissionsTest extends TestCase
             app(\App\Services\OrderFinancialStateService::class)->project($delivered);
         }
 
-        $this->actingAs($admin)->post('/admin/commissions/bulk-pay', [
+        $super = $this->user('batch-super', 'superadmin');
+        $this->actingAs($super)->post('/admin/commissions/bulk-pay', [
             'commission_ids' => $commissions->pluck('id')->all(),
             'payment_method' => 'cash',
             'payment_reference' => 'BLAGAJNA-44',

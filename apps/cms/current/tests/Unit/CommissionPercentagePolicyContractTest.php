@@ -37,7 +37,7 @@ final class CommissionPercentagePolicyContractTest extends TestCase
         self::assertStringContainsString('$this->commissionCalculator->unitEur(', $orders);
         self::assertStringContainsString('$usesManualCommission', $orders);
         self::assertStringContainsString("'commission_source_snapshot' => \$usesManualCommission ? 'manual' : 'automatic'", $orders);
-        self::assertStringContainsString("'commission_rate_percent_snapshot' => \$usesManualCommission ? null : CommissionCalculator::DEFAULT_RATE_PERCENT", $orders);
+        self::assertStringContainsString("'commission_rate_percent_snapshot' => \$usesManualCommission ? null : \$this->commissionCalculator->ratePercent()", $orders);
         self::assertStringNotContainsString('$manualCommission >= 20.0', $orders);
 
         self::assertStringContainsString("hasRole('superadmin')", $request);

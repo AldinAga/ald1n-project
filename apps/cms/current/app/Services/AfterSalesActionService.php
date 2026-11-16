@@ -233,6 +233,22 @@ final class AfterSalesActionService
         }, 5);
 
         $this->notify($completed, $actor, 'Postprodajna radnja je izvršena', 'Radnja '.$completed->action_number.' je završena.', 'success');
+        if ($completed->action_type === 'refund' && $actor->hasPermission('commissions.manage')) {
+            // Refundacija novca sama ne menja proviziju: odluka je ručna. Obaveštenje vodi na proviziju te porudžbine.
+            try {
+                $this->notifications->send($actor, [
+                    'event' => 'after_sales_refund_commission_check',
+                    'title' => 'Proveri proviziju posle refundacije',
+                    'message' => 'Refundacija je evidentirana. Provizija porudžbine '.($completed->case?->order?->order_number ?? '').' nije promenjena; ako treba, koristi "Storniraj proviziju".',
+                    'url' => route('admin.commissions.index', ['q' => $completed->case?->order?->order_number]),
+                    'action_label' => 'Otvori provizije',
+                    'icon' => 'wallet',
+                    'severity' => 'warning',
+                ]);
+            } catch (\Throwable) {
+                // obaveštenje ne sme da poništi refundaciju
+            }
+        }
         return $completed;
     }
 

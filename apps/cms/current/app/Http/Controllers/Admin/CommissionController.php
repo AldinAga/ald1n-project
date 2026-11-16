@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommissionAdjustment;
 use App\Models\OrderCommission;
+use App\Services\IdempotencyService;
 use App\Models\User;
 use App\Services\CommissionEligibilityService;
 use App\Services\CommissionReportService;
@@ -15,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -34,6 +37,9 @@ final class CommissionController extends Controller
             $html = view('admin.commissions.index', [
                 'commissions' => $reports->paginateManaged($actor, $filters),
                 'summary' => $reports->summaryManaged($actor, $filters),
+                'proposedDebits' => $actor->hasRole('superadmin') && Schema::hasTable('commission_adjustments')
+                    ? CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'proposed')->with(['commission.order', 'commission.user'])->latest('id')->get()
+                    : collect(),
                 'filters' => $filters,
                 'users' => $actor->hasRole('superadmin') ? $this->users() : collect(),
                 'suppliers' => $actor->hasRole('superadmin') ? $this->suppliers() : collect(),
@@ -69,28 +75,63 @@ final class CommissionController extends Controller
         ]);
         $skipped = [];
         $batch = $workflow->markPaidBulk(array_map('intval', $data['commission_ids']), $request->user(), $data, $skipped);
-        return back()->with('status', sprintf('Isplaćeno %d provizija u batch-u %s, ukupno %s EUR.', $batch->commission_count, $batch->batch_number, number_format((float) $batch->total_eur, 2, ',', '.')))
+        return back()->with('status', sprintf('Isplaćeno %d provizija u batch-u %s: bruto %s EUR, zaduženja %s EUR, neto za isplatu %s EUR.', $batch->commission_count, $batch->batch_number, number_format((float) $batch->total_eur, 2, ',', '.'), number_format((float) ($batch->debit_eur ?? 0), 2, ',', '.'), number_format((float) ($batch->net_eur ?? $batch->total_eur), 2, ',', '.')))
             ->with('commission_bulk_results', $skipped);
     }
 
-    public function reverse(Request $request, OrderCommission $commission, CommissionReportService $reports, CommissionReversalService $reversal): RedirectResponse
+    public function reverse(Request $request, OrderCommission $commission, CommissionReportService $reports, CommissionReversalService $reversal, IdempotencyService $idempotency): RedirectResponse
     {
         $data = $request->validate([
+            'idempotency_key' => ['required', 'string', 'max:200'],
             'reason' => ['required', 'string', 'max:1000'],
             'amount_eur' => ['nullable', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'],
             'order_item_id' => ['nullable', 'integer'],
             'quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
         ]);
-        $scoped = $reports->managedQuery($request->user(), [])->whereKey($commission->id)->firstOrFail();
-        $adjustment = $reversal->reverse(
-            $scoped,
-            $request->user(),
-            (string) $data['reason'],
-            $data['amount_eur'] ?? null,
-            isset($data['order_item_id']) ? (int) $data['order_item_id'] : null,
-            isset($data['quantity']) ? (int) $data['quantity'] : null,
+        $actor = $request->user();
+        $scoped = $reports->managedQuery($actor, [])->whereKey($commission->id)->firstOrFail();
+        $adjustment = $idempotency->run(
+            $actor,
+            'admin.commissions.reverse',
+            (string) $data['idempotency_key'],
+            ['commission_id' => (int) $scoped->id] + collect($data)->except('idempotency_key')->all(),
+            CommissionAdjustment::class,
+            fn (): CommissionAdjustment => $reversal->reverse(
+                $scoped,
+                $actor,
+                (string) $data['reason'],
+                $data['amount_eur'] ?? null,
+                isset($data['order_item_id']) ? (int) $data['order_item_id'] : null,
+                isset($data['quantity']) ? (int) $data['quantity'] : null,
+            ),
+            static fn (int $id): CommissionAdjustment => CommissionAdjustment::query()->findOrFail($id),
         );
         return back()->with('status', ($adjustment->kind === 'debit' ? 'Zaduženje ' : 'Storno ').number_format((float) $adjustment->amount_eur, 2, ',', '.').' EUR je evidentirano.');
+    }
+
+    /** Podrazumevana stopa za NOVE porudžbine; postojeće provizije se ne preračunavaju. Samo SuperAdmin. */
+    public function updateDefaultPercent(Request $request, \App\Services\SettingsService $settings, \App\Services\AuditLogger $audit): RedirectResponse
+    {
+        abort_unless($request->user()->hasRole('superadmin'), 403);
+        $data = $request->validate(['percent' => ['required', 'numeric', 'min:0', 'max:100']]);
+        $old = $settings->get('commission_default_percent', '10');
+        $new = rtrim(rtrim(number_format((float) $data['percent'], 2, '.', ''), '0'), '.');
+        $settings->putMany(['commission_default_percent' => $new === '' ? '0' : $new], (int) $request->user()->id);
+        $audit->log('commission.default_percent_changed', 'Promenjena podrazumevana stopa provizije', null, ['percent' => $old], ['percent' => $new], user: $request->user());
+        return back()->with('status', 'Podrazumevana stopa provizije je '.$new.' %. Važi za nove porudžbine; postojeće provizije se ne preračunavaju.');
+    }
+
+    public function confirmDebit(Request $request, CommissionAdjustment $adjustment, CommissionReversalService $reversal): RedirectResponse
+    {
+        $reversal->confirmDebit($adjustment, $request->user());
+        return back()->with('status', 'Zaduženje je potvrđeno.');
+    }
+
+    public function rejectDebit(Request $request, CommissionAdjustment $adjustment, CommissionReversalService $reversal): RedirectResponse
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'max:500']]);
+        $reversal->rejectDebit($adjustment, $request->user(), (string) $data['note']);
+        return back()->with('status', 'Predlog zaduženja je odbijen.');
     }
 
     public function csv(Request $request, CommissionReportService $reports): Response

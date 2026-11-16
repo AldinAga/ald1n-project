@@ -62,23 +62,23 @@ final class OrderFinancialStateService
         ];
     }
 
-    public function projectLocked(Order $order): Order
+    public function projectLocked(Order $order, bool $notifyCommission = true): Order
     {
         $order->forceFill($this->derive($order));
         if ($order->isDirty(['paid_total_rsd', 'payment_state', 'payment_status', 'payment_verified_at'])) {
             $order->save();
         }
         // Provizija sama prelazi u "Za isplatu" (ili se vraća) u istoj transakciji kao finansijski/isporuka događaj.
-        app(CommissionAutoApprovalService::class)->syncForOrder($order, 'financial_projection');
+        app(CommissionAutoApprovalService::class)->syncForOrder($order, 'financial_projection', $notifyCommission);
         return $order;
     }
 
-    public function project(Order $order): Order
+    public function project(Order $order, bool $notifyCommission = true): Order
     {
-        return DB::transaction(function () use ($order): Order {
+        return DB::transaction(function () use ($order, $notifyCommission): Order {
             /** @var Order $locked */
             $locked = Order::query()->lockForUpdate()->findOrFail((int) $order->getKey());
-            $this->projectLocked($locked);
+            $this->projectLocked($locked, $notifyCommission);
             return $locked->refresh();
         }, 5);
     }

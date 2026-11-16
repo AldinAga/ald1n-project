@@ -104,8 +104,8 @@ final class CommissionController extends Controller
             'state_label' => $eligibility['state_label'],
             'payable_code' => $eligibility['code'],
             'payable_reason' => $eligibility['reason'],
-            'reversed_eur' => $this->adjustmentSum($commission, 'reversal'),
-            'owed_eur' => $this->adjustmentSum($commission, 'debit'),
+            'reversed_eur' => (float) $commission->adjustmentSumEur('reversal'),
+            'owed_eur' => (float) $commission->adjustmentSumEur('debit'),
             'responsible_name' => (string) $responsibleName,
             'payment' => $status === 'paid' ? [
                 'method' => $commission->payment_method ?: null,
@@ -119,15 +119,6 @@ final class CommissionController extends Controller
             'created_at' => optional($commission->created_at)->toIso8601String(),
             'updated_at' => optional($commission->updated_at)->toIso8601String(),
         ];
-    }
-
-    private function adjustmentSum(OrderCommission $commission, string $kind): float
-    {
-        if (!Schema::hasTable('commission_adjustments')) {
-            return 0.0;
-        }
-
-        return (float) $commission->adjustments()->where('kind', $kind)->sum('amount_eur');
     }
 
     private function unavailable(): JsonResponse
