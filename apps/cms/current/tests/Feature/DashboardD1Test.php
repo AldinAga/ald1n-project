@@ -44,7 +44,7 @@ final class DashboardD1Test extends TestCase
         self::assertStringContainsString('data-dashboard-period="default"', (string) $default);
         // The presets are GET submit buttons of one form (same /?period=... URLs), the current one carries aria-current (they navigate).
         self::assertMatchesRegularExpression('/<form[^>]*method="get"[^>]*action="[^"]*"[^>]*>\s*<div class="a1-seg" role="group"/s', (string) $default);
-        self::assertMatchesRegularExpression('/name="period" value="default" aria-current="true"[^>]*>Default</s', (string) $default);
+        self::assertMatchesRegularExpression('/name="period" value="default" aria-current="true"[^>]*>Ovaj mesec</s', (string) $default);
         self::assertMatchesRegularExpression('/name="period" value="7d"(?![^>]*aria-current)[^>]*>7 dana</s', (string) $default);
         self::assertMatchesRegularExpression('/name="period" value="30d"(?![^>]*aria-current)[^>]*>30 dana</s', (string) $default);
         $explicitDefault = $this->actingAs($user)->get('/?period=default')->assertOk()->getContent();
@@ -67,7 +67,9 @@ final class DashboardD1Test extends TestCase
             ->get('/?period=custom&date_from=2026-02-30&date_to=2026-03-01')
             ->assertOk()->getContent();
         self::assertStringContainsString('data-dashboard-period-error', (string) $html);
-        self::assertStringContainsString('Nije dostupno', (string) $html);
+        // No financial snapshot at all for an invalid period: neither the earnings cards nor the trend.
+        self::assertStringNotContainsString('data-dashboard-earnings', (string) $html);
+        self::assertStringNotContainsString('a1-trend__pair', (string) $html);
     }
 
     public function test_customer_cannot_obtain_superadmin_valuation_or_period_kpi_markup(): void
